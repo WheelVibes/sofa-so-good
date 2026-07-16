@@ -70,15 +70,21 @@ export function PartInspector() {
   // so self-gate AFTER the hooks above keep a stable call order).
   if (!part) return null
   const finish = part.finish ?? ''
-  // Bevel applies to box + wedge (default sharp) and extrude (default on).
-  const bevelable =
-    BEVELABLE_KINDS.includes(part.kind as (typeof BEVELABLE_KINDS)[number]) ||
-    part.kind === 'extrude'
-  // Cap the corner radius at half the smallest dimension so it can't invert.
-  const maxBevel = Math.max(0.02, Math.min(...part.size) / 2)
   // Shell/hollow (Stage 6b) — an open-top carcass on box/extrude.
   const hollowable = part.kind === 'box' || part.kind === 'extrude'
   const shellVal = part.shell ?? 0
+  // A hollow extrude carves its cross-section to a ring and disables the bevel
+  // (bevel + shell is out of scope in `shellExtrudeGeometry`), so its corner
+  // slider is dead — hide it with a hint (same idiom as the plump/wrinkles gates).
+  const extrudeHollow = part.kind === 'extrude' && shellVal > 0
+  // Bevel applies to box + wedge (default sharp) and extrude (default on), but
+  // NOT a hollow extrude (the shell overrides it).
+  const bevelable =
+    (BEVELABLE_KINDS.includes(part.kind as (typeof BEVELABLE_KINDS)[number]) ||
+      part.kind === 'extrude') &&
+    !extrudeHollow
+  // Cap the corner radius at half the smallest dimension so it can't invert.
+  const maxBevel = Math.max(0.02, Math.min(...part.size) / 2)
   // Wall thickness caps below half the smallest in-plane dimension (box: W/D,
   // extrude: W/H) so the walls never meet.
   const maxShell =
@@ -254,6 +260,13 @@ export function PartInspector() {
           format={(v) => `${v.toFixed(3)} m`}
           onChange={(v) => onPatch({ bevel: v })}
         />
+      ) : null}
+      {/* A hollow extrude disables the corner bevel — surface a hint where the
+          dead slider used to be (same idiom as the plump/wrinkles gates). */}
+      {extrudeHollow ? (
+        <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 'var(--s-2)' }}>
+          Hollow disables the corner bevel — set the hollow wall to 0 to round the corners.
+        </div>
       ) : null}
 
       {/* Cushion plump (Stage 5) — a soft sine-falloff bulge so upholstery reads

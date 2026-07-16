@@ -14,7 +14,7 @@
  * -testable (three's math classes need no GPU).
  */
 
-import { Euler, Matrix4, Quaternion, Vector3 } from 'three'
+import { Euler, type Matrix4, Quaternion, Vector3 } from 'three'
 import {
   type AssetEditSpec,
   type PartGroup,
@@ -23,28 +23,11 @@ import {
   type ShapePart,
   updatePart,
 } from './editSpec'
-
-const DEG = Math.PI / 180
-
-/** Compose a translation + Euler-XYZ (degrees) rotation into a Matrix4. */
-function trsMatrix(position: readonly number[], rotationDeg?: readonly number[]): Matrix4 {
-  const r = rotationDeg ?? [0, 0, 0]
-  return new Matrix4().compose(
-    new Vector3(position[0], position[1], position[2]),
-    new Quaternion().setFromEuler(new Euler(r[0] * DEG, r[1] * DEG, r[2] * DEG, 'XYZ')),
-    new Vector3(1, 1, 1),
-  )
-}
+import { clean, DEG, trsMatrix } from './transformMath'
 
 /** The group's parent-frame matrix (translation ∘ rotation), metres / degrees. */
 function groupMatrix(group: PartGroup): Matrix4 {
   return trsMatrix(group.position ?? [0, 0, 0], group.rotation)
-}
-
-/** Kill float dust + normalise -0. */
-function clean(v: number): number {
-  const r = Number(v.toFixed(6))
-  return r === 0 ? 0 : r
 }
 
 /**

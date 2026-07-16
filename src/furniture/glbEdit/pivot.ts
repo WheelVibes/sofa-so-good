@@ -22,9 +22,8 @@
  * position equals the input.
  */
 
-import { Euler, Matrix4, Vector3 } from 'three'
-
-const DEG = Math.PI / 180
+import { Vector3 } from 'three'
+import { cleanVec, rotationMatrix } from './transformMath'
 
 /** The reference point a rotate/scale pivots around. */
 export type PivotMode = 'center' | 'base' | 'corner'
@@ -41,14 +40,6 @@ export const PIVOT_MODES: { mode: PivotMode; label: string; title: string }[] = 
 ]
 
 type Vec3 = [number, number, number]
-
-/** Kill float dust + normalise -0. */
-function clean(v: number): number {
-  const r = Number(v.toFixed(6))
-  return r === 0 ? 0 : r
-}
-
-const cleanVec = (v: Vector3): Vec3 => [clean(v.x), clean(v.y), clean(v.z)]
 
 /**
  * The pivot point's offset from the part CENTRE in the part's LOCAL frame, given
@@ -67,12 +58,6 @@ export function pivotOffset(mode: PivotMode, size: readonly [number, number, num
   }
 }
 
-/** Rotation matrix for an Euler-XYZ degree triple (absent → identity). */
-function rotMatrix(rotationDeg?: readonly number[]): Matrix4 {
-  const r = rotationDeg ?? [0, 0, 0]
-  return new Matrix4().makeRotationFromEuler(new Euler(r[0] * DEG, r[1] * DEG, r[2] * DEG, 'XYZ'))
-}
-
 /**
  * Compensated centre position after a ROTATION change so the `mode` pivot point
  * stays fixed in world space. `center` mode returns `position` unchanged
@@ -87,8 +72,8 @@ export function rotatePivotPosition(
 ): Vec3 {
   if (mode === 'center') return [position[0], position[1], position[2]]
   const o = new Vector3(...pivotOffset(mode, size))
-  const oldTerm = o.clone().applyMatrix4(rotMatrix(oldRotationDeg))
-  const newTerm = o.clone().applyMatrix4(rotMatrix(newRotationDeg))
+  const oldTerm = o.clone().applyMatrix4(rotationMatrix(oldRotationDeg))
+  const newTerm = o.clone().applyMatrix4(rotationMatrix(newRotationDeg))
   // C' = C + R_old·o − R_new·o
   const c = new Vector3(position[0], position[1], position[2]).add(oldTerm).sub(newTerm)
   return cleanVec(c)
@@ -110,7 +95,7 @@ export function scalePivotPosition(
   if (mode === 'center') return [position[0], position[1], position[2]]
   const oOld = new Vector3(...pivotOffset(mode, oldSize))
   const oNew = new Vector3(...pivotOffset(mode, newSize))
-  const diff = oOld.sub(oNew).applyMatrix4(rotMatrix(rotationDeg))
+  const diff = oOld.sub(oNew).applyMatrix4(rotationMatrix(rotationDeg))
   const c = new Vector3(position[0], position[1], position[2]).add(diff)
   return cleanVec(c)
 }
@@ -137,8 +122,8 @@ export function groupRotatePivotPosition(
     mode === 'base'
       ? new Vector3(unionCenter[0], unionMin[1], unionCenter[2])
       : new Vector3(unionMin[0], unionMin[1], unionMin[2])
-  const oldTerm = o.clone().applyMatrix4(rotMatrix(oldRotationDeg))
-  const newTerm = o.clone().applyMatrix4(rotMatrix(newRotationDeg))
+  const oldTerm = o.clone().applyMatrix4(rotationMatrix(oldRotationDeg))
+  const newTerm = o.clone().applyMatrix4(rotationMatrix(newRotationDeg))
   const c = new Vector3(gp[0], gp[1], gp[2]).add(oldTerm).sub(newTerm)
   return cleanVec(c)
 }

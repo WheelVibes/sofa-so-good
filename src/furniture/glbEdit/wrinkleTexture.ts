@@ -25,21 +25,25 @@
  * handful of textures instead of minting a GPU texture per frame.
  */
 
-import {
-  DataTexture,
-  LinearFilter,
-  LinearMipmapLinearFilter,
-  RepeatWrapping,
-  RGBAFormat,
-} from 'three'
+import { DataTexture, LinearFilter, RepeatWrapping, RGBAFormat } from 'three'
 import { applyAnisotropy } from '../../materials/anisotropy'
 import { LruCache } from '../../materials/materialLru'
 import { clamp01, hashSeed, heightToNormalRGBA, makeFbm } from '../../materials/procedural/noise'
 
-/** Texture resolution — a small tile per the plan (256px), one tile per cushion
- *  face (box/capsule UVs are 0..1 per face), so the low-frequency wrinkles span
- *  the face and the nap resolves to ~a couple mm on a ~0.5 m cushion. */
-const SIZE = 256
+/** Texture resolution — a small tile, one per cushion face (box/capsule UVs are
+ *  0..1 per face), so the low-frequency wrinkles span the face and the fine nap
+ *  still resolves to ~a couple mm on a ~0.5 m cushion.
+ *
+ *  **Byte budget (Stage-6 review):** 128px was chosen over the original 256px —
+ *  128×128×RGBA = **64 KB per baked tile** (256px was 256 KB, a 4× cut), so the
+ *  bounded LRU (`max: 48`) caps the wrinkle-map GPU footprint at ~3 MB instead of
+ *  ~12 MB. Verified against the stage6e scenario: at typical cushion sizes the
+ *  gathered folds + nap still read clearly as sewn fabric (the creases are broad,
+ *  low-frequency detail — well within 128px). Mipmaps are DISABLED (`LinearFilter`
+ *  min+mag, no chain): the normal detail is subtle and near-1:1 mapped per face,
+ *  so a mip chain added ~33% memory + a build cost for no visible gain at the
+ *  distances a cushion is viewed. */
+const SIZE = 128
 
 /** Baked bump strength handed to `heightToNormalRGBA`. Kept fixed here; the
  *  per-part visible intensity is the material's `normalScale`
@@ -126,8 +130,10 @@ export function wrinkleNormalTexture(seedStr: string, intensity: number): DataTe
   // Normal maps are LINEAR data (DataTexture defaults to NoColorSpace — correct).
   tex.wrapS = tex.wrapT = RepeatWrapping
   tex.magFilter = LinearFilter
-  tex.minFilter = LinearMipmapLinearFilter
-  tex.generateMipmaps = true
+  // Mipmaps disabled — the detail is subtle + near-1:1 mapped, so a mip chain buys
+  // no visible quality for +33% memory (see the SIZE budget note).
+  tex.minFilter = LinearFilter
+  tex.generateMipmaps = false
   applyAnisotropy(tex)
   tex.needsUpdate = true
   wrinkleCache.set(key, tex)

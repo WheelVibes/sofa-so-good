@@ -160,6 +160,66 @@ const DOOR_T = 0.018
 const REVEAL = 0.004
 const FOOT_H = 0.05
 
+// --- Shared carcass scaffolding (cabinet / wardrobe / TV console) --------------
+
+/** The two side panels + top + bottom + back of a box carcass, seated with its
+ *  underside at `bottom` and rising to `h`. Sides are full-depth; the top/bottom/
+ *  back fit between them (inner width). The single source of the carcass geometry
+ *  the cabinet, wardrobe and TV-console templates all share (was triplicated).
+ *  Pure. */
+function buildCarcass(w: number, h: number, d: number, bottom: number): ShapePart[] {
+  const carcassH = h - bottom
+  const innerW = w - PANEL_T * 2
+  const parts: ShapePart[] = []
+  for (const sx of [-1, 1]) {
+    parts.push(
+      box([PANEL_T, carcassH, d], [sx * (w / 2 - PANEL_T / 2), bottom + carcassH / 2, 0], WOOD),
+    )
+  }
+  parts.push(box([innerW, PANEL_T, d], [0, h - PANEL_T / 2, 0], WOOD))
+  parts.push(box([innerW, PANEL_T, d], [0, bottom + PANEL_T / 2, 0], WOOD))
+  parts.push(box([innerW, carcassH, BACK_T], [0, bottom + carcassH / 2, -d / 2 + BACK_T / 2], WOOD))
+  return parts
+}
+
+/** A row of `n` door leaves across the carcass front (+Z) with a bar pull near
+ *  each leaf's inner edge (hinge on the outer edge). `pullLength` derives the
+ *  handle length from the leaf width, `pullInset` sets how far in from the leaf's
+ *  inner edge the pull sits — the only bits that differ between the cabinet and
+ *  wardrobe. Pure. */
+function buildDoorRow(
+  n: number,
+  innerW: number,
+  doorH: number,
+  doorY: number,
+  frontZ: number,
+  pullLength: (leafW: number) => number,
+  pullInset: number,
+): ShapePart[] {
+  const parts: ShapePart[] = []
+  const leafW = (innerW - REVEAL * (n - 1)) / n
+  for (let i = 0; i < n; i++) {
+    const lx = -innerW / 2 + leafW / 2 + i * (leafW + REVEAL)
+    parts.push(box([leafW - REVEAL, doorH, DOOR_T], [lx, doorY, frontZ + DOOR_T / 2], PANEL))
+    const hinge = i < n / 2 ? 1 : -1
+    parts.push(
+      ...fitting('handle-bar-pull', { length: pullLength(leafW), standoff: 0.03 }, [
+        lx + hinge * (leafW / 2 - pullInset),
+        doorY,
+        frontZ + DOOR_T,
+      ]),
+    )
+  }
+  return parts
+}
+
+/** A recessed plinth base slab (inset `inset` on all four sides), height
+ *  `plinthH`, seated on the floor. Used by the wardrobe (the cabinet raises on
+ *  puck feet + the TV console on tapered legs instead). Pure. */
+function buildPlinth(w: number, d: number, plinthH: number, inset: number): ShapePart {
+  return box([w - 2 * inset, plinthH, d - 2 * inset], [0, plinthH / 2, 0], DARK_WOOD)
+}
+
 function buildCabinet(w: number, h: number, d: number, doors: number): TemplateResult {
   const parts: ShapePart[] = []
   const n = clamp(Math.round(doors), 2, 4)
@@ -179,33 +239,13 @@ function buildCabinet(w: number, h: number, d: number, doors: number): TemplateR
   const bottom = FOOT_H
   const carcassH = h - bottom
   const innerW = w - PANEL_T * 2
-  // Sides (floor-side carcass), top, bottom, back.
-  for (const sx of [-1, 1]) {
-    parts.push(
-      box([PANEL_T, carcassH, d], [sx * (w / 2 - PANEL_T / 2), bottom + carcassH / 2, 0], WOOD),
-    )
-  }
-  parts.push(box([innerW, PANEL_T, d], [0, h - PANEL_T / 2, 0], WOOD))
-  parts.push(box([innerW, PANEL_T, d], [0, bottom + PANEL_T / 2, 0], WOOD))
-  parts.push(box([innerW, carcassH, BACK_T], [0, bottom + carcassH / 2, -d / 2 + BACK_T / 2], WOOD))
+  parts.push(...buildCarcass(w, h, d, bottom))
   // Doors across the front + a bar pull on each.
   const doorH = carcassH - 2 * REVEAL
   const doorY = bottom + REVEAL + doorH / 2
-  const leafW = (innerW - REVEAL * (n - 1)) / n
-  const frontZ = d / 2
-  for (let i = 0; i < n; i++) {
-    const lx = -innerW / 2 + leafW / 2 + i * (leafW + REVEAL)
-    parts.push(box([leafW - REVEAL, doorH, DOOR_T], [lx, doorY, frontZ + DOOR_T / 2], PANEL))
-    // Bar pull near the door's inner edge (hinge on the outer edge).
-    const hinge = i < n / 2 ? 1 : -1
-    parts.push(
-      ...fitting('handle-bar-pull', { length: Math.min(0.12, leafW * 0.5), standoff: 0.03 }, [
-        lx + hinge * (leafW / 2 - 0.06),
-        doorY,
-        frontZ + DOOR_T,
-      ]),
-    )
-  }
+  parts.push(
+    ...buildDoorRow(n, innerW, doorH, doorY, d / 2, (leafW) => Math.min(0.12, leafW * 0.5), 0.06),
+  )
   return wrap(parts, 'Cabinet')
 }
 
@@ -405,21 +445,11 @@ function buildWardrobe(w: number, h: number, d: number, doors: number): Template
   const parts: ShapePart[] = []
   const n = clamp(Math.round(doors), 2, 3)
   const plinthH = 0.08
-  const plinthInset = 0.03
-  parts.push(
-    box([w - 2 * plinthInset, plinthH, d - 2 * plinthInset], [0, plinthH / 2, 0], DARK_WOOD),
-  )
+  parts.push(buildPlinth(w, d, plinthH, 0.03))
   const bottom = plinthH
   const carcassH = h - bottom
   const innerW = w - PANEL_T * 2
-  for (const sx of [-1, 1]) {
-    parts.push(
-      box([PANEL_T, carcassH, d], [sx * (w / 2 - PANEL_T / 2), bottom + carcassH / 2, 0], WOOD),
-    )
-  }
-  parts.push(box([innerW, PANEL_T, d], [0, h - PANEL_T / 2, 0], WOOD))
-  parts.push(box([innerW, PANEL_T, d], [0, bottom + PANEL_T / 2, 0], WOOD))
-  parts.push(box([innerW, carcassH, BACK_T], [0, bottom + carcassH / 2, -d / 2 + BACK_T / 2], WOOD))
+  parts.push(...buildCarcass(w, h, d, bottom))
   // Interior hanging rail (a steel cylinder spanning the inner width near the top).
   parts.push({
     id: newPartId(),
@@ -434,20 +464,7 @@ function buildWardrobe(w: number, h: number, d: number, doors: number): Template
   // Doors + a bar pull each (hinge on the outer edge, pull on the inner).
   const doorH = carcassH - 2 * REVEAL
   const doorY = bottom + REVEAL + doorH / 2
-  const leafW = (innerW - REVEAL * (n - 1)) / n
-  const frontZ = d / 2
-  for (let i = 0; i < n; i++) {
-    const lx = -innerW / 2 + leafW / 2 + i * (leafW + REVEAL)
-    parts.push(box([leafW - REVEAL, doorH, DOOR_T], [lx, doorY, frontZ + DOOR_T / 2], PANEL))
-    const hinge = i < n / 2 ? 1 : -1
-    parts.push(
-      ...fitting('handle-bar-pull', { length: 0.12, standoff: 0.03 }, [
-        lx + hinge * (leafW / 2 - 0.05),
-        doorY,
-        frontZ + DOOR_T,
-      ]),
-    )
-  }
+  parts.push(...buildDoorRow(n, innerW, doorH, doorY, d / 2, () => 0.12, 0.05))
   return wrap(parts, 'Wardrobe')
 }
 
@@ -518,14 +535,7 @@ function buildTvConsole(w: number, d: number, h: number): TemplateResult {
   const bottom = legH
   const carcassH = h - bottom
   const innerW = w - PANEL_T * 2
-  for (const sx of [-1, 1]) {
-    parts.push(
-      box([PANEL_T, carcassH, d], [sx * (w / 2 - PANEL_T / 2), bottom + carcassH / 2, 0], WOOD),
-    )
-  }
-  parts.push(box([innerW, PANEL_T, d], [0, h - PANEL_T / 2, 0], WOOD))
-  parts.push(box([innerW, PANEL_T, d], [0, bottom + PANEL_T / 2, 0], WOOD))
-  parts.push(box([innerW, carcassH, BACK_T], [0, bottom + carcassH / 2, -d / 2 + BACK_T / 2], WOOD))
+  parts.push(...buildCarcass(w, h, d, bottom))
   // One open middle shelf → two open display bays (a media unit, not a cabinet).
   parts.push(box([innerW, PANEL_T, d - BACK_T], [0, bottom + carcassH / 2, BACK_T / 2], WOOD))
   return wrap(parts, 'TV console')

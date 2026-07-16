@@ -44,16 +44,8 @@ import {
 } from './editSpec'
 import { applyGradientColors } from './gradient'
 import { applyPlump, plumpBoxGeometry } from './plump'
-import {
-  bevelledBoxGeometry,
-  extrudeGeometry,
-  latheGeometry,
-  loftGeometry,
-  shellBoxGeometry,
-  shellExtrudeGeometry,
-  sweepGeometry,
-  wedgeGeometry,
-} from './shapeProfiles'
+import { bevelledBoxGeometry, extrudeGeometry, latheGeometry, wedgeGeometry } from './shapeProfiles'
+import { loftGeometry, shellBoxGeometry, shellExtrudeGeometry, sweepGeometry } from './shellLoft'
 import { effectiveWrinkles, wrinkleNormalScale, wrinkleNormalTexture } from './wrinkleTexture'
 
 /** The shared cache-built material for a part's `mat:<id>` finish, or null

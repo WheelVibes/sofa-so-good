@@ -143,11 +143,13 @@ describe('wrinkle texture cache', () => {
     expect(__wrinkleCacheSizeForTest()).toBeLessThanOrEqual(48)
   }, 20000)
 
-  it('bakes a linear, repeat-wrapping DataTexture', () => {
+  it('bakes a linear, repeat-wrapping, mipmap-free 128px DataTexture', () => {
     const t = wrinkleNormalTexture('part-a', 0.6)
-    expect(t.image.width).toBe(256)
-    expect((t.image.data as Uint8Array).length).toBe(256 * 256 * 4)
+    // 128px per the review byte budget (64 KB/tile) — mipmaps disabled.
+    expect(t.image.width).toBe(128)
+    expect((t.image.data as Uint8Array).length).toBe(128 * 128 * 4)
     expect(t.wrapS).toBeDefined()
+    expect(t.generateMipmaps).toBe(false)
   })
 })
 

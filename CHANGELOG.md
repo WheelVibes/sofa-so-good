@@ -5,6 +5,48 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.48 — Asset Studio Iteration 2 · Stage-6 review-fix cluster
+
+Adversarial review of the Stage-6 iteration-2 work (geometry/materials/components/templates,
+modular customization, precision, realism, performance). All eight findings fixed in one cluster;
+pure refactors are behaviour-preserving (existing tests unchanged), each new behaviour has a unit
+test. Plan: `docs/asset-studio-plan.md` "Iteration 2 — review-fix cluster". Behind the existing
+`glbDesigner` pro flag. No persistence/envelope change.
+
+- **Loft winding twist fixed** (`glbEdit/shellLoft.ts` `loftGeometry`) — after re-orienting both
+  cross-sections CCW, the top profile's start index is now aligned to the bottom via a best-offset
+  search (`alignTopToBottom` — minimises total vertex-pair XZ distance over the N cyclic rotations),
+  so a CW-authored top lofts to the SAME untwisted body as a CCW top instead of spiralling the side
+  walls. Test: identical top/bottom rings loft to vertical side-wall edges (zero horizontal pairing
+  offset, uniform edge length) for both windings.
+- **Dead bevel slider hidden on hollow extrudes** (`ui/glbEditor/PartInspector.tsx`) — the
+  Corner-radius slider is hidden when an extrude has `shell > 0` (the shell op disables the bevel),
+  replaced by a "Hollow disables the corner bevel" hint (same idiom as the plump/wrinkles gates).
+- **insetPolygon duplication resolved** — the designer's inset is renamed `insetOutline` and split
+  into a new `glbEdit/polygonOffset.ts`, with cross-reference comments in it and
+  `floorplan/insetRoom.ts`. Deliberately NOT merged: their required behaviours differ (the designer
+  clamps a runaway reflex miter to a bevel + is inset-only; the floorplan one is signed inset/outset
+  + returns null on any over-run).
+- **insetPolygon bowtie gap closed** (`polygonOffset.ts`) — `insetOutline` now runs an O(n²)
+  segment-segment self-intersection check (`polygonSelfIntersects`) on the result and returns null
+  (→ solid fallback) when a concave neck folds the inner ring into a same-orientation bowtie the
+  existing area/edge-reversal guards missed. Unit-tested with a hand-built bowtie + a staple outline.
+- **Carcass triplication removed** (`glbEdit/templates.ts`) — `buildCarcass` / `buildDoorRow` /
+  `buildPlinth` extracted and shared by the cabinet/wardrobe/TV-console builders (behaviour-
+  preserving; the 34 template tests pass unchanged). The desk drawer pedestal stays bespoke (a
+  vertical stack, not a horizontal door row).
+- **shapeProfiles.ts split** (911 → ~465 lines) into `shapeProfiles.ts` (profile utils + presets +
+  the box/wedge/lathe/extrude builders), `polygonOffset.ts` (the extrude-shell inset) and
+  `shellLoft.ts` (the shell/loft/sweep builders); pure code motion, imports updated, test files
+  split to match (`shapeProfiles`/`polygonOffset`/`shellLoft` `.test.ts`).
+- **pivot/groupTransform helper duplication removed** — the shared `clean` / `cleanVec` / `DEG` /
+  `rotationMatrix` / `trsMatrix` helpers moved into `glbEdit/transformMath.ts`, imported by both.
+- **Wrinkle cache byte budget halved** (`glbEdit/wrinkleTexture.ts`) — the procedural fabric-wrinkle
+  normal map drops from 256px to **128px** (64 KB/tile — a 4× memory cut, LRU ≤ 48 → ~3 MB ceiling
+  vs ~12 MB) with **mipmaps disabled** (the detail is subtle + near-1:1 mapped, so a mip chain buys
+  no visible quality for +33% memory). Verified against the stage6e scenario that it still reads as
+  sewn fabric at typical cushion sizes; byte budget documented in the header.
+
 ## v0.21.2.47 — Asset Studio Iteration 2 · Stage 6f — performance (save-time GLB optimize + instanced array preview)
 
 Three performance moves in the GLB Asset Designer, all behind the existing `glbDesigner` pro flag.

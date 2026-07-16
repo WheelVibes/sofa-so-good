@@ -544,3 +544,33 @@ subscriptions) so a change touches only the panels that read it. No action neede
 
 Each stage: same program rules (flags, pure+tested logic, worker rule, visual verification,
 docs, per-commit versioning) + stage-end adversarial review.
+
+### Iteration 2 — review-fix cluster — ✅ COMPLETE-WITH-REVIEW (v0.21.2.48)
+Adversarial review of the Stage-6 iteration-2 work, findings fixed in one cluster:
+- ✅ **Loft winding twist** — `loftGeometry` now aligns the top profile's start index to the bottom
+  via a best-offset search (`alignTopToBottom`, minimises total vertex-pair XZ distance over the N
+  cyclic rotations), so a CW-authored top lofts to the SAME untwisted body as a CCW top (test:
+  vertical side-wall edges, zero horizontal pairing offset).
+- ✅ **Dead bevel slider on hollow extrudes** — `PartInspector` hides the Corner-radius slider when
+  an extrude has `shell > 0` (the shell disables the bevel), with a "Hollow disables the corner
+  bevel" hint (plump/wrinkles-gate idiom).
+- ✅ **insetPolygon duplication** — the designer's inset is RENAMED `insetOutline` and moved to a new
+  `glbEdit/polygonOffset.ts`, with cross-reference comments in both it and `floorplan/insetRoom.ts`.
+  Kept separate (not merged): their required behaviours genuinely differ — the designer clamps a
+  runaway reflex miter to a bevel (so a mildly-concave outline still hollows) + is inset-only, while
+  the floorplan one is signed (inset/outset) + returns null on any over-run.
+- ✅ **Carcass triplication** — `templates.ts` extracts `buildCarcass` / `buildDoorRow` / `buildPlinth`
+  shared by the cabinet/wardrobe/TV-console builders (behaviour-preserving; template tests unchanged).
+  The desk drawer pedestal stays bespoke (a vertical stack, not a horizontal door row — `buildDoorRow`
+  doesn't fit).
+- ✅ **shapeProfiles.ts split** (911→~465 lines) into `shapeProfiles.ts` (profile utils + presets +
+  box/wedge/lathe/extrude builders), `polygonOffset.ts` (`insetOutline` + friends) and `shellLoft.ts`
+  (shell/loft/sweep builders); test files split to match.
+- ✅ **pivot/groupTransform helper duplication** — shared `clean` / `cleanVec` / `DEG` /
+  `rotationMatrix` / `trsMatrix` extracted into `glbEdit/transformMath.ts`.
+- ✅ **Wrinkle cache budget** — the wrinkle normal map is halved to **128px** (64 KB/tile, LRU ≤ 48 →
+  ~3 MB ceiling vs ~12 MB at 256px) with **mipmaps disabled** — verified against the stage6e scenario
+  that it still reads as sewn fabric; byte budget documented in the header.
+- ✅ **insetPolygon bowtie gap** — `insetOutline` now runs an O(n²) segment-segment self-intersection
+  check (`polygonSelfIntersects`) on the result and returns null (→ solid fallback) on a same-
+  orientation bowtie the area/edge-reversal guards miss.
