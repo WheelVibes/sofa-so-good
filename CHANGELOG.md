@@ -5,6 +5,71 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.62 — Asset Studio Stage 10b — mobile designer UX pass
+
+The full-screen GLB Asset Designer dialog owns its own layout (not a bottom-sheet) and had
+shipped with **zero** mobile CSS. Audited at 390×844 with `SHOT_TOUCH=1`
+(`scripts/scenarios/glb-designer-mobile-audit.json`, before/after screenshots) and fixed in the
+UI layer only — mobile-scoped rules in `src/styles/responsive.css` + class hooks on the viewport
+overlays in `DesignerViewport.tsx`; desktop rendering is untouched (`body.mobile`/`:has`-gated).
+
+- **Panel no longer clipped.** The centered-modal padding (`28px 8px` at ≤960px) fought the
+  designer's inline `width:100vw`/`height:100dvh`, overflowing the padded centred overlay grid so
+  content ran off the right edge (view presets, snap select, Combine seg) and the app peeked
+  through top-left. `.modal-overlay:has(> .glb-designer) { padding: 0 }` makes the full-bleed
+  editor fill the viewport.
+- **Viewport overlays reflowed for narrow widths.** The six floating clusters (gizmo mode · pivot ·
+  snap · view presets · dims · env) got `.dv-ov` class hooks; on mobile each is capped at
+  `calc(50vw - 10px)` with horizontal scroll (a left and a right cluster can never overlap/overflow)
+  and the second row drops below the now-taller first — no more mid-line collision at 390px.
+- **44px touch targets throughout.** Floating seg switches + the snap toggle/step select grow to
+  44px; block form controls (selects, inputs, add-shape tiles) get `min-height: 44px` (overriding
+  the smaller inline heights on the filter/rename/snap inputs); dense row-action icon buttons
+  (layers rename/dup/remove/ungroup, ProfileEditor add/remove, inspector) keep their compact size
+  but gain a 44px **hit area** via `::after { inset: -9px }` (the repo's `.m-sheet-head` pattern) so
+  a 5-button group row doesn't blow its width.
+- **Preview given more room.** The mobile split rose from `0 0 38vh` to `0 0 44vh`.
+- **Verified, no fix:** the iOS focus-zoom guard (boot-time global `maximum-scale=1`) already
+  covers the portaled designer's inputs; ProfileEditor points already have 44px hit circles +
+  `touch-action: none`; gizmo-vs-orbit on touch is handled by drei's `TransformControls`.
+- **Regression leg** `scripts/scenarios/glb-designer-mobile.json` (`SHOT_VIEWPORT=390,844
+  SHOT_TOUCH=1`): open → tap-add Box → tap-select layer row → numeric-edit size → open Templates
+  disclosure → arm + insert a Coffee table → save end-to-end, screenshot at each step. All real taps.
+
+## v0.21.2.61 — Asset Studio Stage 10a — decomposed-part texture fidelity (srcRef source materials)
+
+A part decomposed from a GLB source keeps a `srcRef` pointer instead of inlined triangles
+(Stage 9a), but until now its material was flattened to colour/roughness/metalness only — a
+textured sofa's leg decomposed to a **flat brown box**. Stage 10a keeps the SOURCE mesh's real
+PBR material, so a decomposed part renders + exports with the source's actual maps. Pure
+glbEdit material path — the spec stores **nothing new** (textures live in the runtime source,
+the whole point of refs).
+
+- **Texture capture through the srcRef cache** (`srcRefCache.ts`): each resolved cache entry now
+  also holds ONE cloned source `MeshStandardMaterial` carrying the source mesh's
+  map/normal/roughness/metalness/ao + their transforms/colorSpace. The clone SHARES the texture
+  instances (only the material object is cloned — never a texture image), so the cache mints one
+  material per entry and nothing per-frame; disposed on evict/reset. New
+  `getCachedSrcRefMaterial(ref)` (drift-`fp`-checked like the geometry accessor).
+- **Source-material render/export path** (`srcRefMaterial.ts` → `buildObject.ts:partMaterials`):
+  a resolved srcRef part builds its material from the cached source clone (textures shared),
+  applying the part's own fields as OVERRIDES — colour multiplies onto the map (the `tint:`
+  idiom, so the captured colour = verbatim, a recolour tints), roughness/metalness override the
+  source scalar. A `mat:<id>` **finish** REPLACES the source textures (returns null → the
+  standard finish path wins, unchanged). Baked-inline (procedural) decompose parts are untouched.
+- **Reset to source look** (`srcRefMaterial.ts`): pure `srcRefSourceLook` /
+  `srcRefPartHasOverride` / `resetSrcRefPartToSourceLook` back the inspector's "reset overrides"
+  affordance (clears finish/variant/gradient + restores colour/roughness/metalness to source).
+- **Export + optimize survival**: a srcRef-textured part bakes the source `baseColorTexture` into
+  the exported GLB (real GLTFExporter round-trip test) and survives the Stage-6f WebP/Draco
+  optimize pass (new case in `saveOptimize.test.ts`). **Component fragments** of a textured srcRef
+  part keep fidelity automatically (the ref resolves at placement).
+- Tests: `srcRefTexture.test.ts` (capture / one-material-per-entry / verbatim / tint-keeps-map /
+  finish-replaces / override-detect + reset / procedural-unaffected / export round-trip / fragment
+  fidelity) + the saveOptimize case. Visual: `scripts/scenarios/glb-designer-stage10a.json`
+  (SHOT_GPU) — a saved oak-finish box decomposes via srcRef with the **wood grain intact** beside
+  a flat-colour control, then tint + reset.
+
 ## v0.21.2.60 — Asset Studio iteration 6 plan
 
 Stage 10a (decomposed-part texture fidelity), 10b (mobile designer UX pass), 10c

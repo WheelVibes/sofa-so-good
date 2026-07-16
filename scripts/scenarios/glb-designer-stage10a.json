@@ -1,0 +1,112 @@
+{
+  "name": "glb-designer-stage10a",
+  "description": "Asset Studio Stage 10a — decomposed-part TEXTURE FIDELITY. Saves a two-box asset (LEFT box carries a mat:floor-wood-oak textured finish, RIGHT box is a flat-colour control) to the catalog, then re-opens the designer and 'Make parts editable' decomposes that saved GLB via the srcRef path. The decomposed LEFT part must still render the WOOD texture (proving the source map survives decomposition), visibly distinct from the flat-colour RIGHT control. Then tints the textured part (a colour multiply that KEEPS the map) and resets it back to the source look. Needs SHOT_GPU=1 (real WebGL to build/bake the procedural finish texture + decode the reimported GLB image).",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 120000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1'); } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    { "name": "set-pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "force-glb-designer-flag",
+      "eval": "window.__store.getState().setFeatureFlag?.('glbDesigner', true); window.__store.getState().reresolveFeatureFlags?.();"
+    },
+    { "name": "open-glb-designer", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    { "name": "wait-designer", "waitFor": { "css": ".glb-designer" }, "timeout": 20000 },
+    { "name": "wait-seam", "waitFor": { "store": "typeof window.__glbDesigner !== 'undefined'" }, "timeout": 20000 },
+    { "name": "settle-designer", "wait": 1200 },
+    {
+      "name": "record-defs-before",
+      "comment": "Snapshot the user-GLB def ids that exist BEFORE the save, so we can spot the newly-saved asset id afterwards.",
+      "eval": "(function(){ const uf = window.__store.getState().userFurniture || []; window.__ten = { before: uf.map(d => d.id) }; })()"
+    },
+    {
+      "name": "seed-two-boxes",
+      "comment": "LEFT: an oak-finish textured box (mat:floor-wood-oak → a real wood baseColor/normal map). RIGHT: a flat-colour control box. Naming them makes the layers/inspector readable.",
+      "eval": "(function(){ const s = JSON.parse(JSON.stringify(window.__glbDesigner.getSpec())); s.parts = [ { id:'oak', kind:'box', name:'Oak panel', position:[-0.35,0.2,0], size:[0.5,0.4,0.5], color:'#ffffff', finish:'mat:floor-wood-oak', roughness:0.55, metalness:0.05 }, { id:'plain', kind:'box', name:'Plain control', position:[0.35,0.2,0], size:[0.5,0.4,0.5], color:'#8a5a2b', roughness:0.6, metalness:0.05 } ]; s.partGroups = []; window.__glbDesigner.setSpec(s); })()"
+    },
+    {
+      "name": "wait-finish-build",
+      "comment": "Give the shared finish loader time to build the oak procedural texture (sync fallback + worker swap) and the preview to render it.",
+      "wait": 3500
+    },
+    {
+      "name": "render-pre-decompose",
+      "eval": "(function(){ const t = window.__glbDesignerThree; if (t) t.gl.render(t.scene, t.camera); })()"
+    },
+    { "name": "shot-pre-decompose", "screenshot": "00-textured-box-before-save" },
+    {
+      "name": "click-save-asset",
+      "comment": "Persist the two-box asset to the catalog (default name 'Custom asset'). The Save button sits below the scroll fold, so find it by text, scroll it into view + click. Log its disabled state. The designer closes on success; the saved def is a GLB with runtimeUrl (decomposable). The save routes through the 6f optimize pass (WebP/Draco), so the wait below is generous.",
+      "eval": "(function(){ const btns = Array.from(document.querySelectorAll('.glb-designer button')); const btn = btns.find(b => /Save asset|Saving/.test(b.textContent || '')); if (!btn) throw new Error('Save asset button not found'); console.log('10A_SAVE_BTN disabled='+btn.disabled+' text='+btn.textContent); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "wait-saved-closed",
+      "waitFor": { "store": "window.__store.getState().glbDesignerOpen === false" },
+      "timeout": 45000,
+      "failMessage": "designer did not close after Save asset — save may have failed"
+    },
+    {
+      "name": "capture-new-def-id",
+      "comment": "Find the newly-saved user GLB def id (present now, absent before). Stash it for the decompose.",
+      "eval": "(function(){ const uf = window.__store.getState().userFurniture || []; const before = new Set(window.__ten.before); const fresh = uf.filter(d => !before.has(d.id) && d.kind === 'gltf' && d.runtimeUrl); if (fresh.length === 0) throw new Error('no new user GLB def found after save'); window.__ten.defId = fresh[fresh.length - 1].id; console.log('10A_SAVED defId='+window.__ten.defId); })()"
+    },
+    { "name": "reopen-glb-designer", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    { "name": "wait-designer-2", "waitFor": { "css": ".glb-designer" }, "timeout": 20000 },
+    { "name": "wait-seam-2", "waitFor": { "store": "typeof window.__glbDesigner !== 'undefined'" }, "timeout": 20000 },
+    { "name": "settle-designer-2", "wait": 1200 },
+    {
+      "name": "decompose-saved-asset",
+      "comment": "Decompose the saved GLB via the srcRef path (see stage9a: stash the promise, don't return it).",
+      "eval": "(function(){ window.__tenPromise = window.__glbDesigner.makePartsEditable(window.__ten.defId); return undefined; })()"
+    },
+    {
+      "name": "wait-decomposed",
+      "waitFor": { "store": "(() => { const s = window.__glbDesigner && window.__glbDesigner.getSpec(); return !!s && Array.isArray(s.parts) && s.parts.length >= 2; })()" },
+      "timeout": 20000,
+      "failMessage": "makePartsEditable never populated >=2 srcRef parts from the saved GLB"
+    },
+    {
+      "name": "assert-srcref-parts",
+      "comment": "The decomposed parts must be REFERENCE parts (srcRef, no inlined geometry) — the Stage-9a/10a path. Record the textured part id (the one whose captured colour is near-white = the oak map carries the look) for the tint/reset.",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const refs = s.parts.filter(p => p.srcRef && !p.geometry); if (refs.length < 2) throw new Error('expected >=2 srcRef parts, got '+refs.length); console.log('10A_DECOMPOSE parts='+s.parts.length+' refs='+refs.length+' colors='+JSON.stringify(s.parts.map(p=>p.color))); window.__ten.texId = s.parts[0].id; window.__ten.texColor0 = s.parts[0].color; })()"
+    },
+    { "name": "settle-resolve", "wait": 2500 },
+    {
+      "name": "render-decomposed",
+      "eval": "(function(){ const t = window.__glbDesignerThree; if (t) t.gl.render(t.scene, t.camera); })()"
+    },
+    {
+      "name": "shot-decomposed-textured",
+      "comment": "KEY FRAME — the decomposed LEFT part must still show the WOOD grain (source map survived decomposition), distinct from the flat-colour RIGHT control.",
+      "screenshot": "01-decomposed-texture-survives"
+    },
+    {
+      "name": "tint-textured-part",
+      "comment": "Recolour the textured srcRef part — a colour multiply onto the map (textures KEPT, not replaced).",
+      "eval": "(function(){ const s = JSON.parse(JSON.stringify(window.__glbDesigner.getSpec())); const p = s.parts.find(x => x.id === window.__ten.texId); p.color = '#4466ff'; window.__glbDesigner.setSpec(s); })()"
+    },
+    { "name": "wait-tint", "wait": 1200 },
+    {
+      "name": "render-tint",
+      "eval": "(function(){ const t = window.__glbDesignerThree; if (t) t.gl.render(t.scene, t.camera); })()"
+    },
+    {
+      "name": "shot-tinted",
+      "comment": "The textured part now reads BLUE-tinted but keeps its wood grain (multiply, not a flat repaint).",
+      "screenshot": "02-tinted-keeps-texture"
+    },
+    {
+      "name": "reset-to-source",
+      "comment": "Reset the textured part back to its captured source colour — the wood renders verbatim again.",
+      "eval": "(function(){ const s = JSON.parse(JSON.stringify(window.__glbDesigner.getSpec())); const p = s.parts.find(x => x.id === window.__ten.texId); p.color = window.__ten.texColor0; window.__glbDesigner.setSpec(s); })()"
+    },
+    { "name": "wait-reset", "wait": 1200 },
+    {
+      "name": "render-reset",
+      "eval": "(function(){ const t = window.__glbDesignerThree; if (t) t.gl.render(t.scene, t.camera); })()"
+    },
+    { "name": "shot-reset", "screenshot": "03-reset-to-source-look" }
+  ]
+}

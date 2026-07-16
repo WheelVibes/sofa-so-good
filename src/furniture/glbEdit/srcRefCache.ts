@@ -17,17 +17,45 @@
  * of source defs, each loaded once; nothing per-frame or per-part is minted.
  */
 
-import { type BufferGeometry, Matrix4, type Object3D, Vector3 } from 'three'
+import {
+  type BufferGeometry,
+  Matrix4,
+  type Mesh,
+  MeshStandardMaterial,
+  type Object3D,
+  Vector3,
+} from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { getSecureGltfManager } from '../gltf/loaderSecurity'
 import { forEachDecomposableMesh, meshVertexCount, srcRefFingerprint } from './decompose'
 import type { SrcRef } from './editSpec'
 
-/** A resolved cache entry — the centred, root-local-baked geometry plus the drift
- *  fingerprint recomputed from the CURRENT source scene at resolution time. */
+/** A resolved cache entry — the centred, root-local-baked geometry, the drift
+ *  fingerprint recomputed from the CURRENT source scene at resolution time, plus
+ *  a single CLONED source material (Stage 10a) carrying the source mesh's real
+ *  PBR textures (map/normal/roughness/metalness/ao + their transforms/colorSpace).
+ *  The clone SHARES the texture instances with the source (only the material
+ *  object is cloned — never the texture images), so the cache holds exactly one
+ *  material per entry and no per-frame material is minted. `material` is null when
+ *  the source mesh had no `MeshStandardMaterial` (nothing textured to preserve). */
 interface SrcRefEntry {
   geo: BufferGeometry
   fp: string
+  material: MeshStandardMaterial | null
+}
+
+/** Clone a decomposable source mesh's primary material for the cache (Stage 10a):
+ *  return a CLONE that shares the texture instances (so every map + its
+ *  transform/colorSpace/anisotropy survives) but never duplicates a texture image.
+ *  A mesh with an array material contributes its first material (decompose treats a
+ *  mesh as single-material — matching `captureMaterial`). Returns null when the
+ *  primary material isn't a `MeshStandardMaterial` (nothing PBR-textured to keep;
+ *  the part falls back to its captured flat colour). */
+function cloneSrcRefMaterial(mesh: Mesh): MeshStandardMaterial | null {
+  const mat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material
+  if (!(mat instanceof MeshStandardMaterial)) return null
+  // `.clone()` copies texture REFERENCES (shared instances), not the images.
+  return mat.clone()
 }
 
 /** defId::meshIndex → resolved geometry + current fingerprint (the decompose output). */
@@ -55,6 +83,20 @@ export function getCachedSrcRefGeometry(ref: SrcRef): BufferGeometry | null {
   if (!entry) return null
   if (ref.fp !== undefined && ref.fp !== entry.fp) return null
   return entry.geo
+}
+
+/** The resolved SOURCE material for a ref (Stage 10a) — the single cloned
+ *  `MeshStandardMaterial` carrying the source mesh's real PBR textures (shared
+ *  instances), or null while unresolved / drifted / the source mesh had no
+ *  standard material. Returns the SAME instance across calls (the cache holds one
+ *  per entry) — callers that need to mutate (apply overrides) must clone it. The
+ *  drift `fp` check mirrors `getCachedSrcRefGeometry`, so a replaced source def
+ *  never hands back the wrong mesh's material. */
+export function getCachedSrcRefMaterial(ref: SrcRef): MeshStandardMaterial | null {
+  const entry = cache.get(keyOf(ref))
+  if (!entry) return null
+  if (ref.fp !== undefined && ref.fp !== entry.fp) return null
+  return entry.material
 }
 
 /** True when a ref's source def IS loaded but the ref no longer resolves to
@@ -111,6 +153,8 @@ export function populateSrcRefCacheFromScene(defId: string, root: Object3D): voi
     cache.set(`${defId}::${i}`, {
       geo,
       fp: srcRefFingerprint(mesh.name, meshVertexCount(mesh), meshCount),
+      // Stage 10a — keep the source mesh's textured material (shared textures).
+      material: cloneSrcRefMaterial(mesh),
     })
   })
   loadedDefs.add(defId)
@@ -130,6 +174,9 @@ export function evictDefSrcRefs(defId: string): void {
   for (const [key, entry] of cache) {
     if (key.startsWith(prefix)) {
       entry.geo.dispose()
+      // Dispose the cloned material (safe — it owns no textures; the shared
+      // texture instances belong to the source scene / drei cache).
+      entry.material?.dispose()
       cache.delete(key)
       removed = true
     }
@@ -185,7 +232,10 @@ export async function ensureSpecSrcRefs(
 
 /** Test-only: clear the module cache so cases don't leak resolved geometry. */
 export function __resetSrcRefCacheForTest(): void {
-  for (const { geo } of cache.values()) geo.dispose()
+  for (const { geo, material } of cache.values()) {
+    geo.dispose()
+    material?.dispose()
+  }
   cache.clear()
   loadedDefs.clear()
   inflight.clear()

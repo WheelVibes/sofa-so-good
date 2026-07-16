@@ -46,7 +46,7 @@ function GizmoModeOverlay({
   onPick: (m: GizmoMode) => void
 }) {
   return (
-    <div className="seg" style={{ position: 'absolute', top: 8, left: 8 }}>
+    <div className="seg dv-ov dv-ov-gizmo" style={{ position: 'absolute', top: 8, left: 8 }}>
       {modes.map(({ mode, label, hotkey }) => (
         <button
           key={mode}
@@ -457,7 +457,7 @@ export function DesignerViewport() {
           gizmo-mode switch (top-left). */}
       {sel || selGroupObj ? (
         <div
-          className="seg"
+          className="seg dv-ov dv-ov-pivot"
           style={{ position: 'absolute', top: 44, left: 8, display: 'flex' }}
           role="radiogroup"
           aria-label="Pivot"
@@ -480,6 +480,7 @@ export function DesignerViewport() {
 
       {/* Grid snap toggle + step (top-right). */}
       <div
+        className="dv-ov dv-ov-snap"
         style={{
           position: 'absolute',
           top: 8,
@@ -511,7 +512,10 @@ export function DesignerViewport() {
 
       {/* View presets + Home (below the snap controls). */}
       {/* Each button carries its own aria-label, so the container needs no role. */}
-      <div className="seg" style={{ position: 'absolute', top: 44, right: 8, display: 'flex' }}>
+      <div
+        className="seg dv-ov dv-ov-views"
+        style={{ position: 'absolute', top: 44, right: 8, display: 'flex' }}
+      >
         <button
           type="button"
           aria-label="Front view"
@@ -549,7 +553,7 @@ export function DesignerViewport() {
       {/* Live dimension readout (bottom-left) — the selection's W×D×H in cm. */}
       {dims ? (
         <div
-          className="badge neutral mono"
+          className="badge neutral mono dv-ov dv-ov-dims"
           style={{
             position: 'absolute',
             bottom: 8,
@@ -565,7 +569,7 @@ export function DesignerViewport() {
       ) : null}
 
       {/* Preview-environment toggle (bottom-right) — Studio rig vs Room IBL. */}
-      <div style={{ position: 'absolute', bottom: 8, right: 8 }}>
+      <div className="dv-ov dv-ov-env" style={{ position: 'absolute', bottom: 8, right: 8 }}>
         <Segmented
           ariaLabel="Preview environment"
           value={previewEnv}

@@ -34,16 +34,63 @@ import draco3d from 'draco3dgltf'
 import {
   BoxGeometry,
   CylinderGeometry,
+  DataTexture,
   Float32BufferAttribute,
   Group,
   Mesh,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
+  RepeatWrapping,
+  SRGBColorSpace,
 } from 'three'
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { exportGlb } from '../convert/toGlb'
 import { optimizeGlb } from '../optimize/optimizeGlb'
+import { buildEditedObject } from './buildObject'
+import { decomposeObject } from './decompose'
+import { createEmptySpec } from './editSpec'
 import { optimizeSavedGlb } from './saveOptimize'
+import { __resetSrcRefCacheForTest, populateSrcRefCacheFromScene } from './srcRefCache'
+
+// Minimal canvas/image shims so three's GLTFExporter can encode a texture image
+// in happy-dom (no real 2D canvas). Harmless for the texture-LESS material tests;
+// the WebP re-encode still no-ops (no OffscreenCanvas/createImageBitmap). Mirrors
+// the wrinkle export test's shim. Only the Stage 10a case exercises the image path.
+type CanvasProto = { getContext: unknown; toBlob: unknown }
+let origGetContext: unknown
+let origToBlob: unknown
+let hadImageData = false
+beforeAll(() => {
+  const proto = (globalThis as unknown as { HTMLCanvasElement: { prototype: CanvasProto } })
+    .HTMLCanvasElement.prototype
+  origGetContext = proto.getContext
+  origToBlob = proto.toBlob
+  proto.getContext = () => ({ translate() {}, scale() {}, putImageData() {}, drawImage() {} })
+  proto.toBlob = (cb: (b: Blob) => void) => {
+    cb(new Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' }))
+  }
+  if (typeof (globalThis as { ImageData?: unknown }).ImageData === 'undefined') {
+    ;(globalThis as { ImageData?: unknown }).ImageData = class {
+      data: Uint8ClampedArray
+      width: number
+      height: number
+      constructor(data: Uint8ClampedArray, w: number, h: number) {
+        this.data = data
+        this.width = w
+        this.height = h
+      }
+    }
+  } else {
+    hadImageData = true
+  }
+})
+afterAll(() => {
+  const proto = (globalThis as unknown as { HTMLCanvasElement: { prototype: CanvasProto } })
+    .HTMLCanvasElement.prototype
+  proto.getContext = origGetContext
+  proto.toBlob = origToBlob
+  if (!hadImageData) (globalThis as { ImageData?: unknown }).ImageData = undefined
+})
 
 /** Read a (possibly Draco-packed) GLB back into a gltf-transform Document with
  *  every extension + the Draco decoder registered, so feature-presence checks
@@ -131,6 +178,34 @@ describe('Stage 6f — optimize preserves every designer material feature', () =
     const prim = doc.getRoot().listMeshes()[0]?.listPrimitives()[0]
     expect(prim?.getAttribute('COLOR_0')).toBeTruthy()
     expect((prim?.getAttribute('COLOR_0')?.getCount() ?? 0) > 0).toBe(true)
+  })
+
+  it('srcRef-textured decompose parts survive (Stage 10a baseColor map)', async () => {
+    // A part decomposed from a textured GLB source keeps the source baseColor map
+    // (Stage 10a); the save-time optimize must preserve it through the 6f matrix.
+    const px = new Uint8Array([
+      210, 150, 90, 255, 180, 120, 70, 255, 200, 140, 85, 255, 170, 110, 60, 255,
+    ])
+    const tex = new DataTexture(px, 2, 2)
+    tex.colorSpace = SRGBColorSpace
+    tex.wrapS = RepeatWrapping
+    tex.wrapT = RepeatWrapping
+    tex.needsUpdate = true
+    const src = new Group()
+    const mesh = new Mesh(new BoxGeometry(0.5, 0.5, 0.5), new MeshStandardMaterial({ map: tex }))
+    mesh.name = 'oak-panel'
+    src.add(mesh)
+    const { parts } = decomposeObject(src, { ref: { defId: 'oak-opt' } })
+    populateSrcRefCacheFromScene('oak-opt', src)
+    try {
+      const object = buildEditedObject(null, { ...createEmptySpec(), parts })
+      const doc = await exportOptimizeRead(object)
+      const outMat = doc.getRoot().listMaterials()[0]
+      expect(outMat?.getBaseColorTexture()).toBeTruthy()
+      expect((outMat?.getBaseColorTexture()?.getImage()?.byteLength ?? 0) > 0).toBe(true)
+    } finally {
+      __resetSrcRefCacheForTest()
+    }
   })
 
   it('embedded normal maps survive (Stage 6e wrinkles / decal textures)', async () => {

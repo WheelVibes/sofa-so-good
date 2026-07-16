@@ -78,7 +78,7 @@ function DesignerDialogFrame() {
           {/* Live preview */}
           <div
             style={{
-              flex: isMobile ? '0 0 38vh' : '1 1 60%',
+              flex: isMobile ? '0 0 44vh' : '1 1 60%',
               minWidth: 0,
               minHeight: 0,
               borderRadius: 'var(--r-2)',

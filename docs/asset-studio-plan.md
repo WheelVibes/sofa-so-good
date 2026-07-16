@@ -841,15 +841,57 @@ vitest, tsc/biome/knip clean, scenarios 9a + 9b re-run green, full suite green):
 
 ## Iteration 6 (user: keep iterating, 2026-07-16)
 
-### Stage 10a — Decomposed-part texture fidelity
-Decomposed parts currently capture colour/roughness/metalness only — carry the SOURCE
-material's texture maps (albedo/normal/roughness/AO) through srcRef resolution, preview,
-and export, so reused shared-library/uploaded parts keep their real PBR look per part.
+### Stage 10a — Decomposed-part texture fidelity — ✅ SHIPPED (v0.21.2.61)
+Decomposed parts used to capture colour/roughness/metalness only — now they carry the SOURCE
+material's texture maps (albedo/normal/roughness/metalness/AO + transforms/colorSpace) through
+srcRef resolution, preview, and export, so reused shared-library/uploaded parts keep their real
+PBR look per part. The `srcRefCache` entry holds ONE cloned source `MeshStandardMaterial` (shared
+texture instances — never a cloned image); `buildObject.partMaterials` builds the render/export
+material from that clone (`srcRefMaterial.ts`), applying the part's fields as OVERRIDES: colour
+multiplies onto the map (verbatim when untouched), a `mat:<id>` finish REPLACES the source
+textures (standard path), and `resetSrcRefPartToSourceLook` clears overrides. The spec stores
+nothing new (textures live in the runtime source). Export bakes the source `baseColorTexture` into
+the GLB and it survives the Stage-6f optimize matrix; component fragments keep fidelity
+automatically. Tests: `srcRefTexture.test.ts` + a `saveOptimize.test.ts` case; visual
+`scripts/scenarios/glb-designer-stage10a.json` (SHOT_GPU — wood grain survives decomposition,
+tint keeps the map, reset restores the source look).
 
-### Stage 10b — Mobile designer UX pass
-The designer is desktop-first. Audit + fix at 390px/touch: panel column ergonomics,
-44px targets throughout, viewport gestures vs gizmo conflicts, profile-editor touch drags,
-a mobile scenario leg (SHOT_TOUCH=1) added to the regression set.
+### Stage 10b — Mobile designer UX pass — ✅ SHIPPED (v0.21.2.62)
+The full-screen designer dialog owns its own layout (not a bottom-sheet) and shipped with
+**zero** mobile CSS. Audited at 390×844 with `SHOT_TOUCH=1` (scenario
+`glb-designer-mobile-audit.json`, before/after screenshots) — defect list, all fixed in the
+UI layer (mobile-scoped rules in `responsive.css` + class hooks on the viewport overlays;
+desktop untouched):
+- ✅ **Panel clipped on every edge** — the centered-modal padding (`28px 8px` at ≤960px) fought
+  the designer's inline `width:100vw`/`height:100dvh`, so a full-viewport panel overflowed the
+  padded, centred overlay grid and lost ~8px each side + 28px top/bottom (content — view presets,
+  snap select, Combine seg — ran off the right; the app peeked through top-left). Fixed with
+  `.modal-overlay:has(> .glb-designer) { padding: 0 }` so the full-bleed editor truly fills the
+  viewport.
+- ✅ **Viewport overlay clusters collided/overflowed** — six absolutely-positioned floating
+  clusters (gizmo mode · pivot · snap toggle+step · view presets · dims · env). At 390px the
+  second row (pivot left / view presets right) nearly touched mid-line and would overlap once the
+  targets grew to 44px. Class hooks (`.dv-ov` + per-cluster) + mobile rules cap each cluster at
+  `calc(50vw - 10px)` with horizontal scroll (a left and a right cluster can never overlap or run
+  off-screen) and drop the second row below the now-taller first (`top: 60px`).
+- ✅ **Touch targets < 44px throughout** — `.seg` buttons (~28px) for gizmo/pivot/view/env, the
+  26px snap toggle + the 26px layer-row / ProfileEditor / inspector icon buttons, and the
+  28px selects/inputs. Fixed: floating seg switches + snap toggle/select grow to 44px (room to
+  spare); block form controls (selects, inputs, add-shape tiles) get `min-height: 44px` (overrides
+  the smaller inline heights on the filter/rename/snap inputs); dense row-action icon buttons keep
+  their compact visual size but gain a 44px **hit area** via `::after { inset: -9px }` (the repo's
+  `.m-sheet-head` pattern) so a 5-button group row doesn't blow its width.
+- ✅ **Preview crushed** — the mobile split was `0 0 38vh` (~320px, minus overlay clutter). Bumped
+  to `0 0 44vh`; combined with the overlay reflow the 3D view is comfortably usable.
+- ✅ **Verified, no fix needed:** the iOS focus-zoom guard (`installIosZoomGuard`, `main.tsx`)
+  is a boot-time global `maximum-scale=1`, so it already covers the portaled designer's numeric/
+  text inputs; the ProfileEditor points already carry 44px transparent hit circles + `touch-action:
+  none` and drag fine on touch; gizmo-vs-orbit on touch is handled by drei — `TransformControls`
+  claims the pointer via the `makeDefault` OrbitControls `dragging-changed` wiring.
+- ✅ **Regression leg** `scripts/scenarios/glb-designer-mobile.json` (run
+  `SHOT_VIEWPORT=390,844 SHOT_TOUCH=1`): open → tap-add Box → tap-select its layer row →
+  numeric-edit size → open Templates disclosure → arm + insert a Coffee table → save end-to-end;
+  a screenshot at every step. All real taps/types.
 
 ### Stage 10c — Chesterfield tufting
 Diamond-lattice tuft grid (offset rows) + optional stitch-line decals connecting buttons —

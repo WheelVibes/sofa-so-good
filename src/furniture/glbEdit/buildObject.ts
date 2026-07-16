@@ -47,6 +47,7 @@ import { applyPlump, plumpBoxGeometry } from './plump'
 import { bevelledBoxGeometry, extrudeGeometry, latheGeometry, wedgeGeometry } from './shapeProfiles'
 import { loftGeometry, shellBoxGeometry, shellExtrudeGeometry, sweepGeometry } from './shellLoft'
 import { getCachedSrcRefGeometry } from './srcRefCache'
+import { buildSrcRefPartMaterial } from './srcRefMaterial'
 import { applyTaper } from './taper'
 import { effectiveWrinkles, wrinkleNormalScale, wrinkleNormalTexture } from './wrinkleTexture'
 
@@ -286,6 +287,13 @@ export function partMaterial(part: ShapePart): MeshStandardMaterial {
  *
  * Every returned material is caller-owned (safe to dispose). */
 export function partMaterials(part: ShapePart): MeshStandardMaterial | MeshStandardMaterial[] {
+  // Stage 10a — a GLB-decompose REFERENCE part renders its SOURCE mesh's real
+  // textured material (map/normal/roughness/metalness/ao), tinted by the part's
+  // colour override. Returns null when a `mat:<id>` finish is set (which REPLACES
+  // the source textures — the standard finish path below handles that) or while
+  // the source hasn't resolved (→ placeholder solid colour).
+  const srcRefMat = buildSrcRefPartMaterial(part)
+  if (srcRefMat) return srcRefMat
   if (part.kind === 'mesh' && part.geometry?.materials && part.geometry.materials.length > 0) {
     return part.geometry.materials.map(groupMaterial)
   }
