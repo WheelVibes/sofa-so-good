@@ -5,6 +5,11 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.60 — Asset Studio iteration 6 plan
+
+Stage 10a (decomposed-part texture fidelity), 10b (mobile designer UX pass), 10c
+(chesterfield tufting) appended to `docs/asset-studio-plan.md`. Docs only.
+
 ## v0.21.2.59 — Asset Studio Iteration 5 review — srcRef drift safety + component decal capture
 
 Two verified iteration-5 review findings on the Stage 9a/9b decompose-and-reuse path.

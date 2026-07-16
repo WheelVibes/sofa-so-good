@@ -836,3 +836,21 @@ vitest, tsc/biome/knip clean, scenarios 9a + 9b re-run green, full suite green):
   the placed parts (`editSpec.appendRemappedDecals`), so a tufted group's button pairing survives a
   save + place. (No GroupInspector change needed — its "Save as component" action already passes the
   full spec to `captureGroupFragment`.)
+
+---
+
+## Iteration 6 (user: keep iterating, 2026-07-16)
+
+### Stage 10a — Decomposed-part texture fidelity
+Decomposed parts currently capture colour/roughness/metalness only — carry the SOURCE
+material's texture maps (albedo/normal/roughness/AO) through srcRef resolution, preview,
+and export, so reused shared-library/uploaded parts keep their real PBR look per part.
+
+### Stage 10b — Mobile designer UX pass
+The designer is desktop-first. Audit + fix at 390px/touch: panel column ergonomics,
+44px targets throughout, viewport gestures vs gizmo conflicts, profile-editor touch drags,
+a mobile scenario leg (SHOT_TOUCH=1) added to the regression set.
+
+### Stage 10c — Chesterfield tufting
+Diamond-lattice tuft grid (offset rows) + optional stitch-line decals connecting buttons —
+the classic chesterfield read; extends the 7c rectangular grid.
