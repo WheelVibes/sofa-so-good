@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { DoubleSide, RepeatWrapping, type Texture } from 'three'
 import type { ParamProps } from '../types'
 import { getMeshGridTexture } from './meshGridTexture'
@@ -23,6 +23,13 @@ export function PetGate({ props }: { props: ParamProps }) {
 
   const post = 0.03
   const depth = 0.035
+  // Off the wall centreline toward the room the gate was dropped from (doorSnap
+  // faces local +Z at the drop side). The closed door leaf is 5 cm thick centred
+  // at z=0 (spans ±0.025), so a ≥0.045 inset lifts the gate's back face clear of
+  // it — no z-fight — mirroring WindowMeshScreen's deliberate glass stand-off.
+  // (Accepted: opening the door swings the leaf through this plane; a swing-aware
+  // exclusion is out of scope.)
+  const zInset = 0.045
   const halfW = width / 2
   const midY = height / 2
   const mat = useMemo(
@@ -47,9 +54,12 @@ export function PetGate({ props }: { props: ParamProps }) {
     t.repeat.set(Math.max(2, Math.round(width / 0.03)), Math.max(2, Math.round(height / 0.03)))
     return t
   }, [style, color, width, height])
+  // Dispose the per-param clone on param change + unmount (its own GPU upload is
+  // distinct from the shared base texture) — mirrors Curtain's geo cleanup.
+  useEffect(() => () => meshTex?.dispose(), [meshTex])
 
   return (
-    <group>
+    <group position={[0, 0, zInset]}>
       {/* Posts (reach the floor). */}
       {[-halfW + post / 2, halfW - post / 2].map((x, i) => (
         <mesh key={`p${i}`} position={[x, midY, 0]} material={mat} castShadow>

@@ -1,5 +1,6 @@
 import { CanvasTexture, RepeatWrapping, SRGBColorSpace } from 'three'
 import { applyAnisotropy } from '../../materials/anisotropy'
+import { LruCache } from '../../materials/materialLru'
 
 /**
  * A seamless-tiling sisal-rope wrap texture for cat-tree posts and scratching
@@ -9,8 +10,18 @@ import { applyAnisotropy } from '../../materials/anisotropy'
  * (like the `meshGridTexture` / `ContactShadow` blob precedent), cached per tint
  * and shared across every wrapped post; tile it with `texture.repeat` for the
  * physical coil density (a coil ≈ 8 mm on a real post).
+ *
+ * The per-tint base cache is a bounded LRU (AUD-002 discipline, mirroring
+ * `meshGridTexture`): each distinct tint owns a GPU texture, so a bound stops a
+ * colour-picker session leaking one per tint. Consumers `.clone()` per-repeat,
+ * so an evicted base only affects future cache misses; disposal defers a frame.
  */
-const cache = new Map<string, CanvasTexture>()
+/** Cap on distinct-tint base textures held live (AUD-002). */
+export const SISAL_CACHE_MAX = 24
+const cache = new LruCache<CanvasTexture>({
+  max: SISAL_CACHE_MAX,
+  dispose: (t) => t.dispose(),
+})
 
 /** Shade a hex colour by a multiplicative factor (clamped to a byte). */
 function shade(hex: string, f: number): string {
@@ -59,4 +70,12 @@ export function getSisalTexture(color = '#c9a875'): CanvasTexture {
   tex.colorSpace = SRGBColorSpace
   cache.set(color, tex)
   return tex
+}
+
+/** Test-only: live entry count of the bounded base cache (cap invariant). */
+export function __sisalCacheSizeForTest(): number {
+  return cache.size
+}
+export function __clearSisalCacheForTest(): void {
+  cache.clearForTest()
 }

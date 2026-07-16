@@ -83,6 +83,13 @@ const ROLE: Record<string, ArrangeRole> = {
   'wall-cabinet': 'mounted',
   curtains: 'mounted',
   'roller-blind': 'mounted',
+  // Window/door-bound fixtures are static once placed (they snap to their
+  // opening) — the curtains precedent: 'mounted' so autoArrange never relocates
+  // them. The `windowBound`/`doorBound` fall-through in `roleOf` fixes the whole
+  // class; these explicit ids keep it fast + covered even for a def missing here.
+  'window-mesh-screen': 'mounted',
+  'pet-gate': 'mounted',
+  'pet-door-insert': 'mounted',
   'aircon-unit': 'mounted',
   'range-hood': 'mounted',
   soundbar: 'mounted',
@@ -137,6 +144,11 @@ export function roleOf(defId: string, catalog: Record<string, FurnitureDef>): Ar
   // fall to a floor role (storage/other) and `settle()` would drop it on the
   // floor. `mounted` defs are wall/ceiling fixtures (kept fixed, not relocated);
   // `noClip` defs are rugs (laid flat, slide under everything).
+  // Opening-bound fixtures (curtains/blinds/mesh screens/pet gates/pet-door
+  // inserts) are placement-locked to their window/door and must never be
+  // relocated to a floor slot — treat the whole class as 'mounted' regardless of
+  // id, so a future doorBound/windowBound def is covered without a ROLE edit.
+  if (def.windowBound || def.doorBound) return 'mounted'
   if (def.mounted) return 'mounted'
   if (def.noClip) return 'rug'
   return roleForCategory(def.category)

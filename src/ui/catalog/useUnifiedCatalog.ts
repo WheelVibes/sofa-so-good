@@ -204,11 +204,17 @@ export function useUnifiedCatalog(
       }
       const entry = remoteByBase.get(id)
       if (entry) {
+        // Mirror the local branch: a pets favourite must not surface when the
+        // pets tab is off (petFittings), on the remote branch too.
+        if (!includePets && entry.category === 'pets') continue
         favourites.push({ kind: 'remote', entry })
         continue
       }
       const item = sharedById.get(id)
-      if (item) favourites.push({ kind: 'shared', item })
+      if (item) {
+        if (!includePets && mapCategory(item.category).category === 'pets') continue
+        favourites.push({ kind: 'shared', item })
+      }
     }
 
     // Recents: resolve placed def ids to local cards, newest first. Ids that no

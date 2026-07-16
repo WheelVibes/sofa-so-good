@@ -1,5 +1,6 @@
 import { CanvasTexture, RepeatWrapping, SRGBColorSpace } from 'three'
 import { applyAnisotropy } from '../../materials/anisotropy'
+import { LruCache } from '../../materials/materialLru'
 
 /**
  * A seamless-tiling wire-grid alpha texture for safety-mesh fills (window mesh
@@ -9,8 +10,20 @@ import { applyAnisotropy } from '../../materials/anisotropy'
  * spacing. Canvas-drawn (like the `ContactShadow` blob / `decalTexture`
  * precedent), not bespoke texture art. Cached per wire colour and shared across
  * every placed fixture.
+ *
+ * The per-colour base cache is a bounded LRU (AUD-002 discipline, same as the
+ * furniture material caches): each distinct wire colour owns a GPU texture, so
+ * without a bound a session that cycles the colour picker leaks one per colour.
+ * Consumers `.clone()` the base per-repeat, so an evicted base only affects
+ * future cache misses (its clones already own their own GPU upload); disposal is
+ * deferred one frame by `LruCache`.
  */
-const cache = new Map<string, CanvasTexture>()
+/** Cap on distinct-colour base textures held live (AUD-002). */
+export const MESH_GRID_CACHE_MAX = 24
+const cache = new LruCache<CanvasTexture>({
+  max: MESH_GRID_CACHE_MAX,
+  dispose: (t) => t.dispose(),
+})
 
 export function getMeshGridTexture(color: string): CanvasTexture {
   const hit = cache.get(color)
@@ -39,4 +52,12 @@ export function getMeshGridTexture(color: string): CanvasTexture {
   tex.colorSpace = SRGBColorSpace
   cache.set(color, tex)
   return tex
+}
+
+/** Test-only: live entry count of the bounded base cache (cap invariant). */
+export function __meshGridCacheSizeForTest(): number {
+  return cache.size
+}
+export function __clearMeshGridCacheForTest(): void {
+  cache.clearForTest()
 }

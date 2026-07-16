@@ -32,9 +32,16 @@ export function PetDoorInsert({ props }: { props: ParamProps }) {
   const flapCy = 0.06 + flap.h / 2
   const inset = 0.02
   const fr = 0.02 // flap frame member thickness
+  // The insert is conceptually IN the door: offset the whole panel off the wall
+  // centreline toward the drop side (doorSnap faces local +Z there) so it reads
+  // as MOUNTED ON the closed leaf rather than z-fighting inside it. It does NOT
+  // cut a real hole in the door — the leaf mesh stays whole; this is an honest
+  // surface-mounted flap panel. (Accepted: opening the door swings the leaf
+  // through this plane; a swing-aware exclusion is out of scope.)
+  const zInset = 0.03
 
   return (
-    <group>
+    <group position={[0, 0, zInset]}>
       {/* Sill-height solid panel with a flap-sized aperture (approximated as a
           recessed dark flap over the panel, framed). */}
       <mesh position={[0, panelH / 2, 0]} material={panelMat} castShadow receiveShadow>

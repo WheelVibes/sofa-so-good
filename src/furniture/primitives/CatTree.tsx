@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { MeshStandardMaterial, RepeatWrapping } from 'three'
 import { getFabricMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
@@ -74,6 +74,15 @@ export function CatTree({ props }: { props: ParamProps }) {
     tex.needsUpdate = true
     return new MeshStandardMaterial({ map: tex, roughness: 0.9, metalness: 0 })
   }, [postStyle, postColor, height, tiers])
+  // Dispose the material + its per-param sisal clone on param change + unmount
+  // (the clone owns its own GPU upload, distinct from the shared base texture).
+  useEffect(
+    () => () => {
+      postMat.map?.dispose()
+      postMat.dispose()
+    },
+    [postMat],
+  )
 
   const posts = useMemo(() => {
     return levels.map((lvl, i) => {

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { DoubleSide, RepeatWrapping, type Texture } from 'three'
 import type { ParamProps } from '../types'
 import { getMeshGridTexture } from './meshGridTexture'
@@ -54,6 +54,9 @@ export function WindowMeshScreen({ props }: { props: ParamProps }) {
     t.repeat.set(Math.max(2, Math.round(width / cell)), Math.max(2, Math.round(height / cell)))
     return t
   }, [wireColor, width, height, cell])
+  // Dispose the per-param clone on param change + unmount (its own GPU upload is
+  // distinct from the shared base texture) — mirrors Curtain's geo cleanup.
+  useEffect(() => () => meshTex.dispose(), [meshTex])
 
   const halfW = width / 2
   return (

@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.74 — Pets P1 review fixes
+
+Four verified findings: doorBound fixtures offset off the wall centreline (gate z+0.045,
+insert z+0.03 — clear of the 5 cm closed door leaf, no z-fight, snap contract intact);
+auto-arrange now classifies any windowBound/doorBound def as 'mounted' (class-level fix +
+explicit ids) so snap fixtures are never relocated as rugs; mesh-grid/sisal texture caches
+bounded (LRU 24, dispose-on-evict) with per-param clone disposal in all four consumers;
+favourites' remote/shared branches honour includePets.
+
 ## v0.21.2.73 — Pets P2: the cat set
 
 Eight cat items (pets category, 'cat' keywords): parametric cat tree (2-5 staggered tiers,
