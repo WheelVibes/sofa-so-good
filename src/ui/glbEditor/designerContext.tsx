@@ -40,15 +40,32 @@ import {
   radialArray,
 } from '../../furniture/glbEdit/arrayBuild'
 import { buildEditedObject } from '../../furniture/glbEdit/buildObject'
+import {
+  captureGroupFragment,
+  componentFragmentFits,
+  dropUnresolvableComponentParts,
+  fragmentSrcRefDefIds,
+  parseComponentFragment,
+  placeComponentFragmentOnFace,
+  serializeComponentFragment,
+} from '../../furniture/glbEdit/componentFragment'
 import { type FaceHit, placeComponentOnFace } from '../../furniture/glbEdit/componentPlace'
 import { componentById } from '../../furniture/glbEdit/components'
 import type { CsgOp } from '../../furniture/glbEdit/csgCombine'
 import { combineGroupToMeshPart, evaluateAllGroups } from '../../furniture/glbEdit/csgEval'
+import type { DecomposeResult } from '../../furniture/glbEdit/decompose'
 import {
   decomposeGlbDef,
   dropUnresolvableSrcRefParts,
   specSrcRefDefIds,
 } from '../../furniture/glbEdit/decomposeLoader'
+import {
+  allDecomposePartIds,
+  type DecomposeEntry,
+  decomposeEntries,
+  insertDecomposedSubset,
+  subsetDecompose,
+} from '../../furniture/glbEdit/decomposeSelect'
 import {
   type DragSnapSession,
   startDragSnapSession,
@@ -223,6 +240,29 @@ function useDesignerController() {
     const d = catalog[defId] as (FurnitureDef & { runtimeUrl?: string }) | undefined
     return d && d.kind === 'gltf' && d.runtimeUrl ? d.runtimeUrl : null
   }
+  const isDefResolvable = (defId: string): boolean => resolveDefUrl(defId) !== null
+
+  // ---- Selective extraction — the "grab the legs" part picker (Stage 9b) ---
+  // A def's full decompose result, cached so its top-level entries can be checked
+  // and only the chosen subset inserted ALONGSIDE the current design (not
+  // replacing it, unlike 9a's "Make parts editable"). Cleared after an insert.
+  const [decomposePreview, setDecomposePreview] = useState<{
+    defId: string
+    defName: string
+    result: DecomposeResult
+    entries: DecomposeEntry[]
+  } | null>(null)
+  // Mirror of `decomposePreview` for synchronous reads (the insert path can run
+  // before React re-renders the handler closure — e.g. the scenario seam, which
+  // resolves `previewDecompose` then calls insert in the next round-trip).
+  const decomposePreviewRef = useRef<typeof decomposePreview>(null)
+  const [selectedDecomposeIds, setSelectedDecomposeIds] = useState<string[]>([])
+
+  // ---- User components — saved reusable PartGroups (Stage 9b) --------------
+  const userComponents = useStore((s) => s.userComponents)
+  const [armedUserComponentId, setArmedUserComponentId] = useState<string | null>(null)
+  const armedUserComponentRef = useRef<string | null>(null)
+  armedUserComponentRef.current = armedUserComponentId
 
   // ---- Spec + bounded undo/redo history (specHistory.ts) -----------------
   const [hist, setHist] = useState<SpecHistory>(() => createSpecHistory(createEmptySpec()))
@@ -507,12 +547,30 @@ function useDesignerController() {
     /** Stage 9a — decompose a catalog def into editable parts (drives the real
      *  "Make parts editable" handler). */
     makePartsEditable: (defId: string) => Promise<void>
+    // Stage 9b seam — selective extraction + user components.
+    previewDecompose: (defId: string) => Promise<{
+      entries: DecomposeEntry[]
+      parts: { id: string; name?: string; position: [number, number, number] }[]
+    } | null>
+    setDecomposeSelection: (ids: string[]) => void
+    insertSelectedParts: (ids?: string[]) => void
+    saveGroupAsComponent: (groupId: string) => boolean
+    listUserComponents: () => { id: string; name: string }[]
+    armUserComponent: (id: string) => void
+    deleteUserComponent: (id: string) => Promise<void>
   }>({
     setSpec: () => {},
     getSpec: createEmptySpec,
     makeConfigurable: async () => null,
     measureSave: async () => null,
     makePartsEditable: async () => {},
+    previewDecompose: async () => null,
+    setDecomposeSelection: () => {},
+    insertSelectedParts: () => {},
+    saveGroupAsComponent: () => false,
+    listUserComponents: () => [],
+    armUserComponent: () => {},
+    deleteUserComponent: async () => {},
   })
   useEffect(() => {
     // Dev-only automation seam (scenarios run against the dev server = DEV build);
@@ -529,6 +587,16 @@ function useDesignerController() {
           optimized: boolean
         } | null>
         makePartsEditable: (defId: string) => Promise<void>
+        previewDecompose: (defId: string) => Promise<{
+          entries: DecomposeEntry[]
+          parts: { id: string; name?: string; position: [number, number, number] }[]
+        } | null>
+        setDecomposeSelection: (ids: string[]) => void
+        insertSelectedParts: (ids?: string[]) => void
+        saveGroupAsComponent: (groupId: string) => boolean
+        listUserComponents: () => { id: string; name: string }[]
+        armUserComponent: (id: string) => void
+        deleteUserComponent: (id: string) => Promise<void>
       }
     }
     w.__glbDesigner = {
@@ -537,6 +605,13 @@ function useDesignerController() {
       makeConfigurable: (a) => seamRef.current.makeConfigurable(a),
       measureSave: () => seamRef.current.measureSave(),
       makePartsEditable: (defId) => seamRef.current.makePartsEditable(defId),
+      previewDecompose: (defId) => seamRef.current.previewDecompose(defId),
+      setDecomposeSelection: (ids) => seamRef.current.setDecomposeSelection(ids),
+      insertSelectedParts: (ids) => seamRef.current.insertSelectedParts(ids),
+      saveGroupAsComponent: (groupId) => seamRef.current.saveGroupAsComponent(groupId),
+      listUserComponents: () => seamRef.current.listUserComponents(),
+      armUserComponent: (id) => seamRef.current.armUserComponent(id),
+      deleteUserComponent: (id) => seamRef.current.deleteUserComponent(id),
     }
     return () => {
       w.__glbDesigner = undefined
@@ -641,12 +716,16 @@ function useDesignerController() {
       const key = e.key.toLowerCase()
       // Esc disarms a pending component or decal placement (before anything
       // else claims it).
-      if (key === 'escape' && (armedRef.current || armedDecalRef.current)) {
+      if (
+        key === 'escape' &&
+        (armedRef.current || armedDecalRef.current || armedUserComponentRef.current)
+      ) {
         e.preventDefault()
         e.stopPropagation()
         setArmedComponentId(null)
         setArmedParams({})
         setArmedDecalKind(null)
+        setArmedUserComponentId(null)
         return
       }
       // Undo / redo — handle locally (the modal guard suppresses global undo).
@@ -773,6 +852,10 @@ function useDesignerController() {
       setTemplateId(null)
       setTemplateParams({})
       setArmedDecalKind(null)
+      setArmedUserComponentId(null)
+      setDecomposePreview(null)
+      decomposePreviewRef.current = null
+      setSelectedDecomposeIds([])
       setSplitGroups(false)
       setAssignments({})
       setCfgBusy(false)
@@ -866,27 +949,41 @@ function useDesignerController() {
   // runtime blob url) decomposes into REFERENCE parts. Replaces the current spec
   // with the decomposed parts + groups as ONE undo step (opt-in, heavier than the
   // frozen-source path). Selects the first part + seeds name/category.
+  // Decompose ANY catalog def into `{ parts, groups }` (shared by full-replace
+  // "Make parts editable" + the Stage-9b selective part picker). A procedural def
+  // renders offscreen → baked mesh parts; a GLB def (runtime blob url) → REFERENCE
+  // parts. Toasts + returns null on an unreadable / unresolvable def.
+  const runDecompose = async (
+    defId: string,
+  ): Promise<{ def: FurnitureDef; result: DecomposeResult } | null> => {
+    const def = catalog[defId] as FurnitureDef | undefined
+    if (!def) return null
+    const notify = useStore.getState().notify
+    let result: DecomposeResult | null = null
+    const url = resolveDefUrl(defId)
+    if (def.kind === 'parametric') {
+      result = await requestPrimitiveDecompose(def)
+    } else if (url) {
+      result = await decomposeGlbDef(defId, url)
+    } else {
+      notify.start({ title: "This item can't be made editable", kind: 'error' })
+      return null
+    }
+    if (!result || result.parts.length === 0) {
+      notify.start({ title: "Couldn't read this item's parts", kind: 'error' })
+      return null
+    }
+    return { def, result }
+  }
+
   const makePartsEditable = async (defId: string) => {
     if (decomposing || !defId) return
-    const def = catalog[defId] as FurnitureDef | undefined
-    if (!def) return
     const notify = useStore.getState().notify
     setDecomposing(true)
     try {
-      let result: Awaited<ReturnType<typeof decomposeGlbDef>> | null = null
-      const url = resolveDefUrl(defId)
-      if (def.kind === 'parametric') {
-        result = await requestPrimitiveDecompose(def)
-      } else if (url) {
-        result = await decomposeGlbDef(defId, url)
-      } else {
-        notify.start({ title: "This item can't be made editable", kind: 'error' })
-        return
-      }
-      if (!result || result.parts.length === 0) {
-        notify.start({ title: "Couldn't read this item's parts", kind: 'error' })
-        return
-      }
+      const decomposed = await runDecompose(defId)
+      if (!decomposed) return
+      const { def, result } = decomposed
       const next: AssetEditSpec = {
         ...createEmptySpec(),
         parts: result.parts,
@@ -908,6 +1005,69 @@ function useDesignerController() {
     } finally {
       setDecomposing(false)
     }
+  }
+
+  // ---- Selective extraction (Stage 9b): part picker ----------------------
+  // Load a def's decompose result into the picker (default-all selection) so the
+  // user can insert only chosen meshes/groups alongside the current design.
+  const loadDecomposePreview = async (
+    defId: string,
+  ): Promise<{
+    defId: string
+    defName: string
+    result: DecomposeResult
+    entries: DecomposeEntry[]
+  } | null> => {
+    if (decomposing || !defId) return null
+    setDecomposing(true)
+    try {
+      const decomposed = await runDecompose(defId)
+      if (!decomposed) {
+        setDecomposePreview(null)
+        return null
+      }
+      const entries = decomposeEntries(decomposed.result)
+      const preview = { defId, defName: decomposed.def.name, result: decomposed.result, entries }
+      decomposePreviewRef.current = preview
+      setDecomposePreview(preview)
+      setSelectedDecomposeIds(allDecomposePartIds(decomposed.result))
+      return preview
+    } finally {
+      setDecomposing(false)
+    }
+  }
+  const clearDecomposePreview = () => {
+    decomposePreviewRef.current = null
+    setDecomposePreview(null)
+    setSelectedDecomposeIds([])
+  }
+  // Toggle a picker row: a group row governs all its member part ids, a part row
+  // just its own. All-present → clear them; otherwise add them.
+  const toggleDecomposeEntry = (partIds: string[]) =>
+    setSelectedDecomposeIds((ids) => {
+      const set = new Set(ids)
+      const allIn = partIds.every((pid) => set.has(pid))
+      for (const pid of partIds) {
+        if (allIn) set.delete(pid)
+        else set.add(pid)
+      }
+      return [...set]
+    })
+  // Insert ONLY the checked entries alongside the current design (offset on +X;
+  // does NOT replace), with fresh ids. One undo step; selects the first new group
+  // / part. srcRef parts re-resolve from the cache the decompose already seeded.
+  const insertSelectedParts = (ids?: string[]) => {
+    const preview = decomposePreview ?? decomposePreviewRef.current
+    if (!preview) return
+    const chosen = new Set(ids ?? selectedDecomposeIds)
+    const { parts, groups } = subsetDecompose(preview.result, chosen)
+    if (parts.length === 0) return
+    const { spec: next, partIds, groupIds } = insertDecomposedSubset(spec, parts, groups)
+    commit(next)
+    void ensureSpecSrcRefs(specSrcRefDefIds(next), resolveDefUrl)
+    if (groupIds.length > 0) selectGroup(groupIds[0])
+    else if (partIds.length > 0) setSelId(partIds[0])
+    clearDecomposePreview()
   }
 
   const addShape = (kind: Parameters<typeof addPart>[1]) => {
@@ -1047,10 +1207,12 @@ function useDesignerController() {
     setArmedParams(seed)
     setSelIds([])
     setSelGroupId(null)
-    // Arming a component leaves the template picker + armed decal (exclusive).
+    // Arming a component leaves the template picker + armed decal + armed user
+    // component (all mutually exclusive).
     setTemplateId(null)
     setTemplateParams({})
     setArmedDecalKind(null)
+    setArmedUserComponentId(null)
   }
   const disarmComponent = () => {
     setArmedComponentId(null)
@@ -1059,9 +1221,128 @@ function useDesignerController() {
   const setArmedParam = (key: string, value: number) =>
     setArmedParams((p) => ({ ...p, [key]: value }))
 
+  // ---- User components (Stage 9b): save / arm / place / delete ------------
+  // Save the selected transform group as a reusable component. Blocks a fragment
+  // over the 256 KB cap (a baked-mesh member) with an honest hint. Fail-loud on a
+  // failed localStorage write. Returns whether it saved.
+  const saveGroupAsComponent = (groupId: string): boolean => {
+    const group = transformGroups.find((g) => g.id === groupId)
+    if (!group) return false
+    const notify = useStore.getState().notify
+    const fragment = captureGroupFragment(spec, groupId)
+    if (!fragment) {
+      notify.start({ title: 'Nothing to save as a component', kind: 'error' })
+      return false
+    }
+    if (!componentFragmentFits(fragment)) {
+      notify.start({
+        title: 'Component too heavy to save',
+        message: 'This applies to baked meshes — keep it to shapes or referenced parts.',
+        kind: 'error',
+      })
+      return false
+    }
+    const component = {
+      id: `uc-${newPartId()}`,
+      name: group.name,
+      fragment: serializeComponentFragment(fragment),
+      createdAt: Date.now(),
+    }
+    const ok = useStore.getState().addUserComponent(component)
+    notify.start(
+      ok
+        ? { title: `Saved "${group.name}" as a component`, kind: 'success' }
+        : {
+            title: "Couldn't save this component",
+            message: 'Storage is full — remove some saved components and try again.',
+            kind: 'error',
+          },
+    )
+    return ok
+  }
+  // Arm a saved component for click-to-place; clears every other armed mode.
+  const armUserComponent = (id: string) => {
+    if (!useStore.getState().userComponents.some((c) => c.id === id)) return
+    // Set the ref synchronously too, so an arm-then-place in the same tick (the
+    // scenario seam) sees it before React re-renders.
+    armedUserComponentRef.current = id
+    setArmedUserComponentId(id)
+    setArmedComponentId(null)
+    setArmedParams({})
+    setTemplateId(null)
+    setTemplateParams({})
+    setArmedDecalKind(null)
+    setSelIds([])
+    setSelGroupId(null)
+  }
+  const disarmUserComponent = () => setArmedUserComponentId(null)
+  // Place the armed user component onto a clicked face: parse its fragment, drop
+  // any part whose source def is gone (honest degradation, reusing 9a's helper),
+  // land it as a fresh group via the shared componentPlace math (floor mount).
+  const placeUserComponentAt = (hit: FaceHit) => {
+    const id = armedUserComponentRef.current
+    if (!id) return
+    const notify = useStore.getState().notify
+    const rec = useStore.getState().userComponents.find((c) => c.id === id)
+    const fragment = rec ? parseComponentFragment(rec.fragment) : null
+    if (!rec || !fragment) {
+      notify.start({ title: "This component can't be placed", kind: 'error' })
+      setArmedUserComponentId(null)
+      return
+    }
+    const dropRes = dropUnresolvableComponentParts(fragment, isDefResolvable)
+    if (!dropRes) {
+      notify.start({
+        title: 'Component unavailable — its source item is gone',
+        kind: 'error',
+      })
+      setArmedUserComponentId(null)
+      return
+    }
+    void ensureSpecSrcRefs(fragmentSrcRefDefIds(dropRes.fragment), resolveDefUrl)
+    const { spec: next, groupId } = placeComponentFragmentOnFace(
+      spec,
+      dropRes.fragment,
+      rec.name,
+      hit,
+    )
+    if (!groupId) return
+    commit(next)
+    setArmedUserComponentId(null)
+    selectGroup(groupId)
+    if (dropRes.dropped > 0) {
+      notify.start({
+        title: `Placed with ${dropRes.dropped} part${dropRes.dropped === 1 ? '' : 's'} dropped`,
+        message: 'They referenced a catalog item that no longer exists.',
+        kind: 'info',
+      })
+    }
+  }
+  // Delete a saved component (a re-creatable reusable thing → confirm, no undo;
+  // src/ui/CLAUDE.md destructive-action policy for a saved reusable item).
+  const deleteUserComponent = async (id: string) => {
+    const rec = useStore.getState().userComponents.find((c) => c.id === id)
+    const ok = await useStore.getState().confirmAction({
+      title: 'Delete component?',
+      message: rec
+        ? `"${rec.name}" will be removed from your components.`
+        : 'This component will be removed.',
+      confirmLabel: 'Delete component',
+      danger: true,
+    })
+    if (!ok) return
+    useStore.getState().removeUserComponent(id)
+    if (armedUserComponentRef.current === id) setArmedUserComponentId(null)
+  }
+
   // Place the armed component onto a clicked face (SWOOD): orient to the normal,
-  // snap, land as a named PartGroup, select it, and disarm.
+  // snap, land as a named PartGroup, select it, and disarm. An armed USER
+  // component wins (Stage 9b) — it routes to the fragment-place path.
   const placeArmed = (hit: FaceHit) => {
+    if (armedUserComponentRef.current) {
+      placeUserComponentAt(hit)
+      return
+    }
     const def = armedComponentId ? componentById(armedComponentId) : null
     if (!def) return
     const { spec: next, groupId } = placeComponentOnFace(spec, def, armedParams, hit)
@@ -1098,6 +1379,7 @@ function useDesignerController() {
     setArmedComponentId(null)
     setArmedParams({})
     setArmedDecalKind(null)
+    setArmedUserComponentId(null)
   }
   const cancelTemplate = () => {
     setTemplateId(null)
@@ -1129,6 +1411,7 @@ function useDesignerController() {
     setArmedParams({})
     setTemplateId(null)
     setTemplateParams({})
+    setArmedUserComponentId(null)
     setSelIds([])
     setSelGroupId(null)
   }
@@ -2062,6 +2345,25 @@ function useDesignerController() {
     },
     measureSave,
     makePartsEditable: (defId) => makePartsEditable(defId),
+    previewDecompose: async (defId) => {
+      const preview = await loadDecomposePreview(defId)
+      if (!preview) return null
+      return {
+        entries: preview.entries,
+        parts: preview.result.parts.map((p) => ({
+          id: p.id,
+          name: p.name,
+          position: p.position,
+        })),
+      }
+    },
+    setDecomposeSelection: (ids) => setSelectedDecomposeIds(ids),
+    insertSelectedParts: (ids) => insertSelectedParts(ids),
+    saveGroupAsComponent: (groupId) => saveGroupAsComponent(groupId),
+    listUserComponents: () =>
+      useStore.getState().userComponents.map((c) => ({ id: c.id, name: c.name })),
+    armUserComponent: (id) => armUserComponent(id),
+    deleteUserComponent: (id) => deleteUserComponent(id),
   }
 
   // ---- View-model derived for the live preview ---------------------------
@@ -2071,7 +2373,9 @@ function useDesignerController() {
   const viewSel = previewSpec ? null : sel
   const viewSelMesh = previewSpec ? null : selMesh
   const viewSelGroupObj = previewSpec ? null : selGroupObj
-  const armed = !!armedComponentId
+  // The viewport treats a face click as a PLACEMENT (not a select) whenever a
+  // built-in OR a user component is armed (Stage 9b).
+  const armed = !!armedComponentId || !!armedUserComponentId
   const decalArmed = !!armedDecalKind
   const decalList = specDecals(spec)
 
@@ -2143,16 +2447,29 @@ function useDesignerController() {
     setMeshColor,
     toggleMeshHidden,
     resetMesh,
-    // decompose-to-parts (Stage 9a)
+    // decompose-to-parts (Stage 9a) + selective extraction (Stage 9b)
     decomposableDefs,
     decomposing,
     makePartsEditable,
+    decomposePreview,
+    selectedDecomposeIds,
+    loadDecomposePreview,
+    clearDecomposePreview,
+    toggleDecomposeEntry,
+    insertSelectedParts,
     // components (Stage 3b)
     armedComponentId,
     armedParams,
     armComponent,
     disarmComponent,
     setArmedParam,
+    // user components (Stage 9b)
+    userComponents,
+    armedUserComponentId,
+    saveGroupAsComponent,
+    armUserComponent,
+    disarmUserComponent,
+    deleteUserComponent,
     // templates (Stage 3c)
     templateId,
     templateParams,

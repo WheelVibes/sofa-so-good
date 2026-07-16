@@ -270,6 +270,24 @@ build one in the browser:
   from scratch. This **replaces your current design**, so use it to start a new one —
   it's a different path from **Start from** above, which keeps a picked model as a
   single frozen piece unless it's already one of your own designer-built assets.
+- **Choose parts to insert…** — right below **Make parts editable**, this lets you
+  **grab just some pieces** of an item instead of the whole thing. Pick an item, hit
+  **Choose parts to insert…**, then tick the parts you want in the list (each group,
+  or its individual meshes — e.g. just the four legs) and hit **Insert selected parts**.
+  The chosen pieces drop in **alongside** your current design (off to one side), so you
+  can kit-bash — say, borrow a chair's legs under a slab you drew — without replacing
+  what you already have.
+
+### Save and reuse your own components
+
+Made a cluster of shapes you'll want again — a leg, a handle assembly, a shelf? Select
+its **Group** and hit **Save as component** in the group panel. It's saved to
+**My components** in the **Components** panel (bottom of the shape list), per-device.
+From there a saved component works exactly like the built-in fittings: tap it to arm it,
+then **click a face** in the preview to drop a fresh copy oriented to that surface. A
+small **×** removes a component (it asks you to confirm first, since it's a saved item).
+Very heavy pieces made of baked/combined meshes can't be saved as components — you'll get
+a hint if so; keep a component to simple shapes or parts borrowed from other furniture.
 
 Give it a name and category and hit **Save asset** — it's exported to a GLB and
 added to your catalog like any upload, ready to place and reuse. When you started

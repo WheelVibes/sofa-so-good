@@ -6,6 +6,8 @@ import {
 } from '../../furniture/glbEdit/components'
 import { Disclosure } from '../controls/Disclosure'
 import { SliderField } from '../controls/SliderField'
+import { EmptyState } from '../EmptyState'
+import { Icon } from '../toolbar/icons'
 import { ArmedCard } from './ArmedCard'
 import { useDesigner } from './designerContext'
 
@@ -26,14 +28,22 @@ export function ComponentsPanel() {
     armComponent: onArm,
     disarmComponent: onDisarm,
     setArmedParam: onParam,
+    userComponents,
+    armedUserComponentId,
+    armUserComponent,
+    disarmUserComponent,
+    deleteUserComponent,
   } = useDesigner()
   const armed = armedId ? componentById(armedId) : null
+  const armedUser = armedUserComponentId
+    ? userComponents.find((c) => c.id === armedUserComponentId)
+    : null
   const byCategory = (cat: ComponentCategory) => COMPONENT_LIBRARY.filter((c) => c.category === cat)
 
   return (
     // Collapsed by default (progressive disclosure) — force open while a
-    // component is armed so its placement hint + sliders stay visible.
-    <Disclosure className="sec" summary="Components" defaultOpen={!!armed}>
+    // component (built-in OR user) is armed so its placement hint stays visible.
+    <Disclosure className="sec" summary="Components" defaultOpen={!!armed || !!armedUser}>
       {COMPONENT_CATEGORIES.map((cat) => (
         <div key={cat} style={{ marginBottom: 'var(--s-2)' }}>
           <div
@@ -63,6 +73,68 @@ export function ComponentsPanel() {
           </div>
         </div>
       ))}
+
+      {/* My components (Stage 9b): PartGroups saved via the group inspector.
+          Same arm → click-a-face-to-place flow; a small × deletes (confirmed). */}
+      <div style={{ marginBottom: 'var(--s-2)' }}>
+        <div
+          className="label"
+          style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', margin: '0 0 var(--s-1)' }}
+        >
+          My components
+        </div>
+        {userComponents.length === 0 ? (
+          <EmptyState
+            icon={Icon.Cube}
+            title="No saved components"
+            description="Select a group and choose “Save as component” to reuse it here."
+          />
+        ) : (
+          <div style={{ display: 'grid', gap: 'var(--s-1)' }}>
+            {userComponents.map((c) => (
+              <div key={c.id} className="lyr-row" style={{ gap: 'var(--s-2)' }}>
+                <button
+                  type="button"
+                  className={`act${armedUserComponentId === c.id ? ' on' : ''}`}
+                  style={{ flex: 1, justifyContent: 'flex-start' }}
+                  aria-pressed={armedUserComponentId === c.id}
+                  aria-label={`${armedUserComponentId === c.id ? 'Disarm' : 'Place'} ${c.name}`}
+                  title={
+                    armedUserComponentId === c.id
+                      ? `${c.name} armed — click a face to place, or tap again to cancel`
+                      : `Arm ${c.name}, then click a face to place it`
+                  }
+                  onClick={() =>
+                    armedUserComponentId === c.id ? disarmUserComponent() : armUserComponent(c.id)
+                  }
+                >
+                  {c.name}
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn danger"
+                  aria-label={`Delete ${c.name} component`}
+                  title="Delete this component"
+                  onClick={() => deleteUserComponent(c.id)}
+                >
+                  <Icon.Close width={13} height={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {armedUser ? (
+        <ArmedCard
+          title={`${armedUser.name} armed`}
+          closeLabel="Cancel placement"
+          closeTitle="Cancel (Esc)"
+          marginTop="var(--s-1)"
+          hint="Click a surface in the preview to place this component."
+          onClose={disarmUserComponent}
+        />
+      ) : null}
 
       {armed ? (
         <ArmedCard

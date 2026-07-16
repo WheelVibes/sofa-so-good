@@ -794,7 +794,26 @@ source hierarchy; materials captured.
   validation). Tests `decompose.test.ts` + `srcRef.test.ts`; scenario
   `scripts/scenarios/glb-designer-stage9a.json`. Rides the `glbDesigner` pro flag (no new flag).
 
-### Stage 9b — Component building blocks
+### Stage 9b — Component building blocks — ✅ SHIPPED (v0.21.2.58, closes Iteration 5)
 Selective extraction: pick individual meshes/sub-groups from any source def and insert just
 those (the "grab the legs" flow). Plus user components: save any PartGroup as a reusable
 component that appears in the Components panel (persisted like user furniture).
+- ✅ **Selective extraction** (`glbEdit/decomposeSelect.ts`, pure + unit-tested): SourcePanel's
+  "Make parts editable" section gains **"Choose parts to insert…"** — decompose the picked def, show a
+  part-granular picker (`decomposeEntries`: group "select-all" row + indented member rows + loose
+  parts; checkboxes, default-all), then **"Insert selected parts"** adds ONLY the chosen meshes
+  **alongside** the current design (`insertDecomposedSubset` — fresh part/group ids, srcRefs kept,
+  +X offset like the template insert). 9a's full-replace "Make parts editable" stays the default
+  action. A source group survives only when fully selected (partial → loose parts). One undo step.
+- ✅ **User components** (`glbEdit/componentFragment.ts` + `state/slices/userComponentsSlice.ts`):
+  GroupInspector **"Save as component"** captures a group's parts as a `ComponentFragment` (srcRefs
+  preserved, no geometry for GLB-decompose parts) persisted to `localStorage`
+  (`hdb_user_components`, the `userProductsSlice` metadata + fail-loud pattern). Components appear in
+  the Components panel under **"My components"** with the built-in arm → click-to-place flow
+  (`placeComponentFragmentOnFace`, `'floor'` mount); a **×** deletes behind `confirmAction` (confirm,
+  no undo). A serialized fragment over **256 KB** (a baked-mesh member) is refused with a hint.
+  Missing-def placement drops the gone parts with a toast (reuses 9a's `dropUnresolvableSrcRefParts`).
+- ✅ **Plumbing:** new spec-envelope kind **`'component'` v1** (`specEnvelope.ts`). Duplicate-id
+  safety on both insert paths (fresh ids, srcRefs verbatim). Tests `decomposeSelect.test.ts` +
+  `componentFragment.test.ts` + `userComponentsSlice.test.ts`; scenario
+  `scripts/scenarios/glb-designer-stage9b.json`. Rides the `glbDesigner` pro flag (no new flag).

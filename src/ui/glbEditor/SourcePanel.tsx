@@ -22,6 +22,12 @@ export function SourcePanel() {
     decomposableDefs,
     decomposing,
     makePartsEditable,
+    decomposePreview,
+    selectedDecomposeIds,
+    loadDecomposePreview,
+    clearDecomposePreview,
+    toggleDecomposeEntry,
+    insertSelectedParts,
     pickSource: onPickSource,
     setSourceScale: onScaleChange,
     restoreSpec: onRestoreSpec,
@@ -128,7 +134,88 @@ export function SourcePanel() {
             parts. Replaces the current design.
           </div>
         </div>
+        {/* Selective extraction (Stage 9b) — pick just some meshes/groups and add
+            them alongside the current design instead of replacing it. */}
+        <div style={{ marginTop: 'var(--s-2)' }}>
+          <button
+            type="button"
+            className="btn btn-soft btn-block"
+            disabled={!editableDefId || decomposing}
+            onClick={() => loadDecomposePreview(editableDefId)}
+            title="Choose which parts of this item to add to your current design"
+          >
+            <Icon.Layers width={14} height={14} />
+            {decomposing ? 'Reading parts…' : 'Choose parts to insert…'}
+          </button>
+          <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 4 }}>
+            Grab just the pieces you want (e.g. the legs) and add them alongside your current
+            design.
+          </div>
+        </div>
       </div>
+
+      {/* The part picker (Stage 9b): checkbox each top-level group / loose part;
+          "Insert selected" adds only those, offset on X (does not replace). */}
+      {decomposePreview ? (
+        <div className="sec">
+          <div className="sec-h">
+            <span>Insert parts from “{decomposePreview.defName}”</span>
+          </div>
+          <div style={{ display: 'grid', gap: 4, maxHeight: 220, overflowY: 'auto' }}>
+            {decomposePreview.entries.map((e) => {
+              const checked = e.partIds.every((id) => selectedDecomposeIds.includes(id))
+              return (
+                <label
+                  key={`${e.kind}:${e.id}`}
+                  className="lyr-row"
+                  style={{
+                    gap: 'var(--s-2)',
+                    cursor: 'pointer',
+                    alignItems: 'center',
+                    paddingLeft: e.member ? 'var(--s-3)' : undefined,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    aria-label={`Include ${e.name}`}
+                    onChange={() => toggleDecomposeEntry(e.partIds)}
+                  />
+                  <span
+                    className="lyr-nm"
+                    title={e.name}
+                    style={e.kind === 'group' ? { fontWeight: 600 } : undefined}
+                  >
+                    {e.name}
+                  </span>
+                  <span style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+                    {e.kind === 'group' ? `${e.partIds.length} parts` : 'part'}
+                  </span>
+                </label>
+              )
+            })}
+          </div>
+          <div className="action-grid" style={{ marginTop: 'var(--s-2)' }}>
+            <button
+              type="button"
+              className="act"
+              aria-label="Insert selected parts"
+              disabled={selectedDecomposeIds.length === 0}
+              onClick={() => insertSelectedParts()}
+            >
+              <Icon.Plus width={13} height={13} /> Insert selected parts
+            </button>
+            <button
+              type="button"
+              className="act"
+              aria-label="Cancel part picker"
+              onClick={clearDecomposePreview}
+            >
+              <Icon.Close width={13} height={13} /> Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {meshNames.length > 0 ? (
         <div className="sec">

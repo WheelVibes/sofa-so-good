@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.58 — Asset Studio Stage 9b — component building blocks (selective extraction + user components; closes Iteration 5)
+
+Two ways to reuse existing geometry in the GLB designer, building on Stage 9a's decompose.
+
+- **Selective extraction — "grab the legs"** (`furniture/glbEdit/decomposeSelect.ts`, pure +
+  unit-tested). The SourcePanel "Make parts editable" section gains a second action, **"Choose
+  parts to insert…"**, that decomposes the picked def and shows a part-granular picker: each
+  top-level group as a "select all" row followed by its indented member rows, then loose parts
+  (checkboxes, default-all). **"Insert selected parts"** adds ONLY the chosen meshes **alongside**
+  the current design (offset on +X like a template insert — it does **not** replace, unlike 9a's
+  full-replace "Make parts editable", which stays the default action). Fresh part/group ids
+  (duplicate-id safe), `srcRef`s kept verbatim; a source group survives only when every member is
+  chosen (a partial pick drops to loose parts). One undo step.
+- **User components** (`furniture/glbEdit/componentFragment.ts` + `state/slices/userComponentsSlice.ts`).
+  A **"Save as component"** action on a selected transform group (GroupInspector) captures its parts
+  as a small `ComponentFragment` (srcRefs preserved → GLB-decompose parts carry no geometry) and
+  persists it per-device to `localStorage` (`hdb_user_components`, the `userProductsSlice`
+  metadata pattern — fail-loud on a failed write). Saved components appear in the Components panel
+  under **"My components"** with the same arm → click-a-face-to-place flow as built-in fittings
+  (shared `componentPlace` math, `'floor'` mount default); a small **×** deletes one behind a
+  `confirmAction` (a re-creatable reusable thing — confirm, no undo). A group whose serialized
+  fragment exceeds **256 KB** is refused at save with an honest hint (only a baked-`mesh` member
+  inlines enough triangles to hit it). Placing a component whose `srcRef` def is gone drops those
+  parts with a toast (reuses 9a's `dropUnresolvableSrcRefParts`).
+- **Plumbing:** new spec-envelope kind **`'component'` v1** (`furniture/specEnvelope.ts`) via the
+  shared registry. Tests: `decomposeSelect.test.ts`, `componentFragment.test.ts`,
+  `userComponentsSlice.test.ts`. Scenario `scripts/scenarios/glb-designer-stage9b.json` (grab the
+  dining-chair legs onto a slab top → frankenstein table; save/place/delete a "My leg" component).
+  Rides the existing `glbDesigner` pro flag (no new flag).
+
 ## v0.21.2.57 — Asset Studio Stage 9a — any furniture as an editable template (envelope v13)
 
 "Make parts editable" on **any** catalog item — a built-in procedural primitive (the ~110-shape

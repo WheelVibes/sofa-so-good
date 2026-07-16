@@ -18,6 +18,7 @@ export function GroupInspector() {
     duplicateGroup,
     mirrorGroup,
     repeatGroup,
+    saveGroupAsComponent,
   } = useDesigner()
   // Shown only when a whole transform group is selected (mutually exclusive with
   // a part selection). No hooks above, so an early null return is safe.
@@ -108,6 +109,15 @@ export function GroupInspector() {
         </button>
         <button type="button" className="act" aria-label="Ungroup" onClick={onUngroup}>
           <Icon.Close width={13} height={13} /> Ungroup
+        </button>
+        <button
+          type="button"
+          className="act"
+          aria-label="Save group as component"
+          title="Save this group to reuse it from the Components panel"
+          onClick={() => saveGroupAsComponent(group.id)}
+        >
+          <Icon.Save width={13} height={13} /> Save as component
         </button>
       </div>
       <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 'var(--s-1)' }}>

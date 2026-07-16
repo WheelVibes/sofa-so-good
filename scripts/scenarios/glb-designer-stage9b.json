@@ -1,0 +1,122 @@
+{
+  "name": "glb-designer-stage9b",
+  "description": "Asset Studio Stage 9b — component building blocks. (1) Selective extraction: build a slab 'top' box, then decompose-pick JUST the 4 legs of the built-in 'dining-chair' and insert them alongside → assert 4 legs + 1 box (5 parts), screenshot the frankenstein table. (2) User components: group the legs + save as 'My leg', place it via arm→click-to-place (assert a fresh group landed), then delete the component through the confirm flow (assert it's gone).",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 120000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1'); } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setUserComponents?.([]); })()"
+    },
+    { "name": "set-pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "force-glb-designer-flag",
+      "eval": "window.__store.getState().setFeatureFlag?.('glbDesigner', true); window.__store.getState().reresolveFeatureFlags?.();"
+    },
+    { "name": "open-glb-designer", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    { "name": "wait-designer", "waitFor": { "css": ".glb-designer" }, "timeout": 20000 },
+    { "name": "wait-seam", "waitFor": { "store": "typeof window.__glbDesigner !== 'undefined'" }, "timeout": 20000 },
+    { "name": "settle-designer", "wait": 1000 },
+    {
+      "name": "set-slab-top",
+      "comment": "Seed the design with a single slab 'top' box (the table top) via the setSpec seam.",
+      "eval": "(function(){ window.__glbDesigner.setSpec({ sourceScale: 1, meshOverrides: {}, parts: [{ id: 'top', kind: 'box', position: [0, 0.42, 0], size: [1.0, 0.05, 0.6], color: '#8a6a42' }] }); return undefined; })()"
+    },
+    {
+      "name": "wait-top",
+      "waitFor": { "store": "(() => { const s = window.__glbDesigner.getSpec(); return s.parts.length === 1 && s.parts[0].id === 'top'; })()" },
+      "timeout": 10000
+    },
+    {
+      "name": "preview-decompose-chair",
+      "comment": "Kick off previewDecompose('dining-chair'); stash the resolved metadata on window (don't RETURN the promise — a multi-RAF offscreen decompose can outlive the CDP round-trip, like 9a).",
+      "eval": "(function(){ window.__nineB = {}; window.__glbDesigner.previewDecompose('dining-chair').then(r => { window.__nineB.preview = r; }); return undefined; })()"
+    },
+    {
+      "name": "wait-preview",
+      "waitFor": { "store": "(() => !!(window.__nineB && window.__nineB.preview && window.__nineB.preview.parts && window.__nineB.preview.parts.length > 0))()" },
+      "timeout": 20000,
+      "failMessage": "previewDecompose('dining-chair') never resolved — offscreen procedural decompose may not work headlessly"
+    },
+    {
+      "name": "pick-legs-and-insert",
+      "comment": "The legs are the 4 decomposed parts with the lowest bbox-centre Y (they sit under the seat/back). Select just those + insert them alongside the slab; the chair's single group is only partially chosen so it drops and the 4 legs land as loose parts. Uses the explicit-ids insert seam so the subset is deterministic.",
+      "eval": "(function(){ const pv = window.__nineB.preview; console.log('9B_PREVIEW entries=' + pv.entries.length + ' partCount=' + pv.parts.length); const byY = pv.parts.slice().sort((a, b) => a.position[1] - b.position[1]); const legs = byY.slice(0, 4).map(p => p.id); window.__nineB.pickedLegIds = legs; console.log('9B_PICK legs=' + JSON.stringify(legs)); window.__glbDesigner.insertSelectedParts(legs); console.log('9B_AFTER_INSERT parts=' + window.__glbDesigner.getSpec().parts.length); return undefined; })()"
+    },
+    {
+      "name": "wait-inserted",
+      "waitFor": { "store": "(() => window.__glbDesigner.getSpec().parts.length === 5)()" },
+      "timeout": 10000,
+      "failMessage": "insert of the 4 legs alongside the box did not reach 5 parts"
+    },
+    {
+      "name": "assert-legs-plus-box",
+      "comment": "Frankenstein table = 1 slab box + 4 inserted legs (loose, no group). The original chair leg ids must NOT leak into the live spec (fresh ids).",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const boxes = s.parts.filter(p => p.id === 'top'); const others = s.parts.filter(p => p.id !== 'top'); if (s.parts.length !== 5) throw new Error('expected 5 parts, got ' + s.parts.length); if (boxes.length !== 1) throw new Error('expected 1 box top, got ' + boxes.length); if (others.length !== 4) throw new Error('expected 4 legs, got ' + others.length); for (const id of window.__nineB.pickedLegIds) { if (s.parts.some(p => p.id === id)) throw new Error('decompose id leaked into live spec: ' + id); } console.log('9B_INSERT parts=' + s.parts.length + ' legs=' + others.length + ' box=' + boxes.length); })()"
+    },
+    { "name": "render-frankenstein", "eval": "(function(){ const t = window.__glbDesignerThree; if (t) t.gl.render(t.scene, t.camera); })()" },
+    { "name": "settle-frankenstein", "wait": 1200 },
+    { "name": "render-frankenstein-2", "eval": "(function(){ const t = window.__glbDesignerThree; if (t) t.gl.render(t.scene, t.camera); })()" },
+    { "name": "shot-frankenstein-table", "screenshot": "01-frankenstein-table" },
+    {
+      "name": "group-legs",
+      "comment": "Wrap the 4 loose legs in one transform group named 'My leg' so it can be saved as a component (Save-as-component operates on a group).",
+      "eval": "(function(){ const s = JSON.parse(JSON.stringify(window.__glbDesigner.getSpec())); const legIds = s.parts.filter(p => p.id !== 'top').map(p => p.id); s.partGroups = [{ id: 'pg-scenario-legs', name: 'My leg', partIds: legIds }]; window.__glbDesigner.setSpec(s); return undefined; })()"
+    },
+    {
+      "name": "wait-group",
+      "waitFor": { "store": "(() => (window.__glbDesigner.getSpec().partGroups || []).some(g => g.id === 'pg-scenario-legs'))()" },
+      "timeout": 10000
+    },
+    {
+      "name": "save-as-component",
+      "eval": "(function(){ const ok = window.__glbDesigner.saveGroupAsComponent('pg-scenario-legs'); if (!ok) throw new Error('saveGroupAsComponent returned false'); const list = window.__glbDesigner.listUserComponents(); if (list.length !== 1) throw new Error('expected 1 user component, got ' + list.length); if (list[0].name !== 'My leg') throw new Error('component name mismatch: ' + list[0].name); window.__nineB.componentId = list[0].id; console.log('9B_SAVE components=' + list.length + ' name=' + list[0].name); })()"
+    },
+    { "name": "shot-components-panel", "screenshot": "02-my-components-saved" },
+    {
+      "name": "arm-and-place-component",
+      "comment": "Arm the saved component (same handler the panel button calls) then place it via the face-click seam — a fresh group of 4 leg clones lands at the clicked point.",
+      "eval": "(function(){ window.__nineB.groupsBefore = (window.__glbDesigner.getSpec().partGroups || []).length; window.__glbDesigner.armUserComponent(window.__nineB.componentId); window.__glbDesignerPlaceOnFace([1.8, 0.75, 0], [0, -1, 0]); return undefined; })()"
+    },
+    {
+      "name": "wait-placed",
+      "waitFor": { "store": "(() => (window.__glbDesigner.getSpec().partGroups || []).length === window.__nineB.groupsBefore + 1)()" },
+      "timeout": 10000,
+      "failMessage": "placing the user component did not add a new group"
+    },
+    {
+      "name": "assert-placed-group",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const groups = s.partGroups || []; if (groups.length !== window.__nineB.groupsBefore + 1) throw new Error('expected ' + (window.__nineB.groupsBefore + 1) + ' groups, got ' + groups.length); const placed = groups.find(g => g.id !== 'pg-scenario-legs' && g.name === 'My leg'); if (!placed) throw new Error('placed group not found'); if (placed.partIds.length !== 4) throw new Error('expected 4 parts in placed group, got ' + placed.partIds.length); console.log('9B_PLACE groups=' + groups.length + ' placedParts=' + placed.partIds.length); })()"
+    },
+    { "name": "render-placed", "eval": "(function(){ const t = window.__glbDesignerThree; if (t) t.gl.render(t.scene, t.camera); })()" },
+    { "name": "settle-placed", "wait": 1000 },
+    { "name": "render-placed-2", "eval": "(function(){ const t = window.__glbDesignerThree; if (t) t.gl.render(t.scene, t.camera); })()" },
+    { "name": "shot-placed-component", "screenshot": "03-placed-component" },
+    {
+      "name": "delete-component-trigger",
+      "comment": "Delete the saved component — routes through confirmAction (a re-creatable reusable thing → confirm, no undo). Stash the promise; the confirm modal opens.",
+      "eval": "(function(){ window.__nineB.delP = window.__glbDesigner.deleteUserComponent(window.__nineB.componentId); return undefined; })()"
+    },
+    {
+      "name": "wait-confirm",
+      "waitFor": { "store": "(() => window.__store.getState().confirmRequest != null)()" },
+      "timeout": 10000,
+      "failMessage": "delete did not open the confirm modal"
+    },
+    { "name": "shot-confirm-delete", "screenshot": "04-confirm-delete-component" },
+    {
+      "name": "resolve-confirm",
+      "comment": "Confirm the delete (the same resolution the modal's 'Delete component' button triggers).",
+      "eval": "(function(){ window.__store.getState().resolveConfirm(true); return undefined; })()"
+    },
+    {
+      "name": "wait-deleted",
+      "waitFor": { "store": "(() => window.__glbDesigner.listUserComponents().length === 0)()" },
+      "timeout": 10000,
+      "failMessage": "component was not removed after confirming delete"
+    },
+    {
+      "name": "assert-deleted",
+      "eval": "(function(){ const list = window.__glbDesigner.listUserComponents(); if (list.length !== 0) throw new Error('expected 0 components after delete, got ' + list.length); console.log('9B_DELETE components=' + list.length); })()"
+    }
+  ]
+}

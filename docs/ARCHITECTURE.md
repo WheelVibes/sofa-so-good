@@ -763,6 +763,22 @@ same change that reshapes a system.
   `requestPrimitiveDecompose(def)` with `decomposeObject(group, { ref: null })` (bake mode) — a
   6s watchdog resolves `null` if a primitive never settles, so a decompose can never hang. The
   spec envelope bumps to **v13** for the new optional `parts[].srcRef` (additive, `specPersist.ts`).
+  **Component building blocks (Stage 9b):** two ways to reuse decomposed geometry. **Selective
+  extraction** (`glbEdit/decomposeSelect.ts`, pure): SourcePanel's "Choose parts to insert…" runs
+  the same decompose, then `decomposeEntries(result)` presents a part-granular picker (a group
+  "select-all" row + indented member rows, then loose parts; selection is by PART id) and
+  `insertDecomposedSubset(spec, parts, groups)` adds only the chosen meshes **alongside** the design
+  (fresh part/group ids, srcRefs verbatim, +X offset — never replacing; a source group survives only
+  when fully selected). **User components** (`glbEdit/componentFragment.ts`): `captureGroupFragment`
+  turns a `PartGroup` into a small `ComponentFragment` (parts-only, srcRefs kept) serialized to the
+  shared spec envelope kind **`'component'` v1**; `state/slices/userComponentsSlice.ts` persists them
+  to `localStorage` (`hdb_user_components`, the `userProductsSlice` metadata + fail-loud pattern).
+  They render in the Components panel under "My components" with the built-in arm→click-to-place flow
+  (`placeComponentFragmentOnFace` via the shared `componentPlace` math, `'floor'` mount);
+  `componentFragmentFits` refuses a >256 KB fragment (a baked-mesh member) at save;
+  `dropUnresolvableComponentParts` (reusing 9a's `dropUnresolvableSrcRefParts`) degrades a
+  place whose `srcRef` def is gone; delete gates on `confirmAction` (confirm, no undo). Scenario
+  `scripts/scenarios/glb-designer-stage9b.json`.
 - **Onboarding/tour/wizard**: **Onboarding** (`Onboarding.tsx`, `hdb_onboarded`) is the
   **first** first-run surface — fires on clean profile, bot decision extracted to
   `ui/bootDecision.ts` (pure, tested). Carousel step 3 offers "Take the guided tour" as the

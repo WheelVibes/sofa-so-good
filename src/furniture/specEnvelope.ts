@@ -27,7 +27,7 @@
  * Pure + dependency-free (no three / React) → unit-testable.
  */
 
-type EnvelopeKind = 'asset' | 'configured'
+type EnvelopeKind = 'asset' | 'configured' | 'component'
 
 export interface EnvelopeCodec<T> {
   kind: EnvelopeKind
