@@ -38,8 +38,12 @@ import type { AssetEditSpec } from './editSpec'
  *  - v8 (Geometry ops II, Stage 6b): adds the `'loft'` shape kind + optional
  *    `parts[].shell` (hollow wall thickness), `parts[].loftBottom`/`loftTop`
  *    (loft cross-sections) + `parts[].sweepPathPoints` (free sweep path).
- *    Additive superset → migration stays the identity. */
-export const ASSET_SPEC_VERSION = 8
+ *    Additive superset → migration stays the identity.
+ *  - v9 (Materials II, Stage 6c): adds optional `parts[].faceFinishes` (per-face
+ *    box finishes / edge banding) + `parts[].finishScale` (texture tile size) +
+ *    `parts[].finishRotation` (grain direction). Additive superset → migration
+ *    stays the identity. */
+export const ASSET_SPEC_VERSION = 9
 
 /** Migrate a parsed spec at envelope version `from` up to the current version.
  *  Every version bump so far has been an additive superset, so migration is the
@@ -54,7 +58,8 @@ export function migrateAssetSpec(spec: AssetEditSpec, from: number): AssetEditSp
     case 5: // no parts[].name — already a valid v6 spec.
     case 6: // no decals/plump/sweepPoints — already a valid v7 spec.
     case 7: // no shell/loft/sweepPathPoints — already a valid v8 spec.
-    case 8:
+    case 8: // no faceFinishes/finishScale/finishRotation — already a valid v9 spec.
+    case 9:
       return spec
     default:
       return null
@@ -166,6 +171,27 @@ function materialFieldsValid(p: Record<string, unknown>): boolean {
   return true
 }
 
+/** Guard one per-face finish zone (Stage 6c): absent is fine; otherwise an object
+ *  whose optional `color`/`finish` are strings when present. */
+function isFaceFinishZone(x: unknown): boolean {
+  if (x === undefined) return true
+  if (!x || typeof x !== 'object') return false
+  const z = x as Record<string, unknown>
+  if (z.color !== undefined && typeof z.color !== 'string') return false
+  if (z.finish !== undefined && typeof z.finish !== 'string') return false
+  return true
+}
+
+/** Guard the optional `faceFinishes` field (Stage 6c): absent is fine; otherwise
+ *  an object whose `top`/`bottom`/`sides` are each a valid zone. Strict — a
+ *  malformed value makes the whole spec un-restorable (matching the collections). */
+function isFaceFinishes(x: unknown): boolean {
+  if (x === undefined) return true
+  if (!x || typeof x !== 'object') return false
+  const f = x as Record<string, unknown>
+  return isFaceFinishZone(f.top) && isFaceFinishZone(f.bottom) && isFaceFinishZone(f.sides)
+}
+
 /** Valid decal kinds (mirrors `editSpec.DecalKind`). */
 const VALID_DECAL_KINDS = new Set<string>(['button', 'stitch', 'seam', 'patch', 'wear'])
 
@@ -221,6 +247,18 @@ function partsValid(parts: unknown[]): boolean {
     if (rec.loftBottom !== undefined && !isVec2List(rec.loftBottom)) return false
     if (rec.loftTop !== undefined && !isVec2List(rec.loftTop)) return false
     if (rec.sweepPathPoints !== undefined && !isVec2List(rec.sweepPathPoints)) return false
+    // v9: per-face finishes + texture scale/rotation.
+    if (
+      rec.finishScale !== undefined &&
+      (typeof rec.finishScale !== 'number' || !Number.isFinite(rec.finishScale))
+    )
+      return false
+    if (
+      rec.finishRotation !== undefined &&
+      (typeof rec.finishRotation !== 'number' || !Number.isFinite(rec.finishRotation))
+    )
+      return false
+    if (!isFaceFinishes(rec.faceFinishes)) return false
     return materialFieldsValid(rec)
   })
 }

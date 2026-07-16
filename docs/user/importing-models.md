@@ -117,6 +117,15 @@ build one in the browser:
   glass, with **Index of refraction** + **Thickness**) and **Anisotropy** (a brushed‑metal
   highlight, with a **Brush angle**). *Glass see‑through only shows in the preview on the
   High/Maximum graphics tiers, but it always exports correctly.*
+- **Texture scale & grain** — once a texture is set, a **Texture** section appears: **Scale**
+  (0.25×–4×) makes the pattern coarser or finer, and **Grain** (**Along X** / **Along Z**) turns the
+  grain a quarter‑turn so wood runs along the length you want. Both are baked into the saved asset.
+- **Per‑face finish (edge banding)** — a **sharp box** (corner radius, hollow and plump all at 0) has
+  a **Per‑face finish (edge banding)** section that gives its **Top (veneer)**, **Edge (band)** and
+  **Bottom** their own colour or texture — leave a zone blank to inherit the box's base look. Set an
+  oak veneer on top and a darker edge band around the sides for a realistic laminated board. (Round
+  the corners, hollow the box, or plump it and this section is replaced by a hint — per‑face finishes
+  need a flat, sharp box.)
 - **Two‑tone gradient** — open **Gradient** and tap **Add two‑tone gradient** to fade the shape
   between two colours: pick the **Axis** (X/Y/Z) and the **From** / **To** colours. The gradient is
   baked into the shape and survives export. It's for solid‑colour shapes — if a texture is set, clear

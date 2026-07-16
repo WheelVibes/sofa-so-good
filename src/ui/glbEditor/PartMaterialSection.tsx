@@ -191,6 +191,43 @@ export function PartMaterialSection({
         </div>
       ) : null}
 
+      {/* Texture scale + grain direction (Stage 6c). Shown only when a textured
+          finish is set — it tiles/rotates that finish's maps. */}
+      {hasFinish ? (
+        <div style={{ marginTop: 'var(--s-2)' }}>
+          <Disclosure
+            summary="Texture"
+            defaultOpen={part.finishScale !== undefined || part.finishRotation !== undefined}
+          >
+            <SliderField
+              label="Scale"
+              ariaLabel="Texture scale"
+              value={part.finishScale ?? 1}
+              min={0.25}
+              max={4}
+              step={0.05}
+              format={(v) => `${v.toFixed(2)}×`}
+              onChange={(v) => onPatch({ finishScale: Math.abs(v - 1) < 0.005 ? undefined : v })}
+            />
+            <div
+              className="label"
+              style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 'var(--s-2)' }}
+            >
+              Grain
+            </div>
+            <Segmented
+              ariaLabel="Grain direction"
+              value={(part.finishRotation ?? 0) === 0 ? 'x' : 'z'}
+              onChange={(v) => onPatch({ finishRotation: v === 'z' ? 90 : undefined })}
+              options={[
+                { value: 'x', label: 'Along X' },
+                { value: 'z', label: 'Along Z' },
+              ]}
+            />
+          </Disclosure>
+        </div>
+      ) : null}
+
       {/* Two-tone gradient (baked as vertex colours). Only for solid-colour parts
           — a texture map multiplied by the gradient reads muddy, so it's disabled
           while a finish is set. */}

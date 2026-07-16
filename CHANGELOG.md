@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.44 — Asset Studio Iteration 2 · Stage 6c — materials II (per-face finishes / edge banding + texture scale & grain)
+
+Two materials capabilities in the GLB Asset Designer, behind the existing `glbDesigner` pro flag.
+Spec envelope bumped **v8 → v9** (additive superset → identity migration + strict validation for the
+new fields). Plan: `docs/asset-studio-plan.md` Stage 6c.
+
+- **Per-face finishes on boxes (edge banding)** — an optional `faceFinishes` on box parts, THREE
+  zones not six faces (`{ top?, bottom?, sides? }`, each an optional `{ color?, finish? }` override
+  over the part's base look): exactly the veneer + edge-band split of a laminated board (the
+  Polyboard/SWOOD board-construction cue). `BoxGeometry`'s six face groups are remapped to three
+  materials (sides share one) via `remapBoxFaceGroups` + `boxFaceMaterials`. **Sharp boxes only** —
+  a bevelled box is a `RoundedBoxGeometry` with no face groups, and a hollow/plumped box is not a
+  flat board, so `boxFaceFinishesActive` gates on `bevel`/`shell`/`plump` all 0; the inspector hides
+  the section (with a one-line hint) otherwise. **Combine limit:** inside a CSG combine an operand
+  keeps its BASE look only (the fold assigns one material per operand — no `csgEval` fork).
+  Multi-material boxes export as distinct glTF primitives (verified — round-trip test asserts a
+  3-zone box reimports ≥2 distinct materials).
+- **Texture scale + grain direction per part** — optional `finishScale` (0.25–4×, default 1; larger =
+  coarser, mirroring `compose:@<scale>`) and `finishRotation` (0 / 90° — grain Along X / Along Z) on
+  any part carrying a `mat:<id>` finish. The finish-material clone swaps each texture channel for a
+  cloned + transformed variant from a bounded LRU (`materials/finishTextureVariant.ts`, keyed
+  `(source uuid, scale, rotation)`, max 96, dispose-on-evict) — the shared cache textures are never
+  mutated and a slider drag reuses a handful of variants (no per-frame VRAM leak). A grain rotation
+  also rotates `anisotropyRotation` where the finish set one (brushed metal). Inspector: a "Texture"
+  disclosure (Scale slider + Grain segmented) shown only when a texture finish is set.
+- **Plumbing** — `editSpec` types (`FaceFinish`/`FaceFinishes`/`FaceFinishZone` + pure
+  `setFaceFinish`/`boxFaceFinishesActive`/`faceFinishHasOverride`) + `clonePart` deep-copies
+  `faceFinishes` and carries `finishScale`/`finishRotation` (duplicate/mirror copy grain verbatim — a
+  reflection preserves the grain axis, so no X↔Z flip). `specPersist` v9 strict validation. Pure ops,
+  cache-bound, and export round-trip unit-tested; scenario `scripts/scenarios/glb-designer-stage6c.json`.
+
 ## v0.21.2.43 — Asset Studio Iteration 2 · Stage 6b — geometry ops II (shell/hollow, loft, free sweep path)
 
 Three new geometry capabilities in the GLB Asset Designer, all pure builders in

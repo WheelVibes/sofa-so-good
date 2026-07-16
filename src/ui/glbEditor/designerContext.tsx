@@ -481,14 +481,20 @@ function useDesignerController() {
   // same loader placed furniture uses so they build into the shared cache.
   const finishIds = useMemo(() => {
     const set = new Set<string>()
-    for (const p of spec.parts) {
-      const id = p.finish ? parseFurnitureMaterialFinish(p.finish) : null
+    const add = (finish?: string) => {
+      const id = finish ? parseFurnitureMaterialFinish(finish) : null
       if (id) set.add(id)
+    }
+    for (const p of spec.parts) {
+      add(p.finish)
+      // Stage 6c — per-face box finishes (edge banding) build their own textures.
+      if (p.faceFinishes) {
+        add(p.faceFinishes.top?.finish)
+        add(p.faceFinishes.bottom?.finish)
+        add(p.faceFinishes.sides?.finish)
+      }
       if (p.geometry?.materials) {
-        for (const gm of p.geometry.materials) {
-          const gmId = gm.finish ? parseFurnitureMaterialFinish(gm.finish) : null
-          if (gmId) set.add(gmId)
-        }
+        for (const gm of p.geometry.materials) add(gm.finish)
       }
     }
     return [...set]

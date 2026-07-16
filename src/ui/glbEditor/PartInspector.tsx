@@ -27,6 +27,7 @@ import { useSurfaceMaterialOptions } from '../inspector/ParametricBody'
 import { QuickFinishes } from '../inspector/QuickFinishes'
 import { Icon } from '../toolbar/icons'
 import { useDesigner } from './designerContext'
+import { PartFaceFinishSection } from './PartFaceFinishSection'
 import { PartMaterialSection } from './PartMaterialSection'
 import { ProfileEditor, type ProfileSpace } from './ProfileEditor'
 
@@ -85,6 +86,10 @@ export function PartInspector() {
   // Cushion "plump" (Stage 5) — a soft top-bulge on box/capsule kinds. Hidden
   // while a box is hollow (a plumped carcass is nonsensical; shell wins).
   const plumpable = (part.kind === 'box' && shellVal <= 0) || part.kind === 'capsule'
+  // Per-face finishes / edge banding (Stage 6c) — SHARP boxes only (a
+  // RoundedBox/hollow/plumped box has no clean 6-face groups to remap).
+  const sharpBox =
+    part.kind === 'box' && (part.bevel ?? 0) <= 0 && shellVal <= 0 && (part.plump ?? 0) <= 0
   // Combined (mesh) parts have per-source materials frozen in the geometry —
   // colour/finish/PBR sliders are hidden (no face-picker; re-combine to change).
   const isCombined = part.kind === 'mesh' && !!part.geometry?.materials?.length
@@ -483,6 +488,20 @@ export function PartInspector() {
           disclosures. Combined (mesh) parts read their frozen per-source
           materials, so they get no material section (same as colour/finish). */}
       {!isCombined ? <PartMaterialSection part={part} onPatch={onPatch} /> : null}
+      {/* Per-face finishes / edge banding (Stage 6c) — sharp boxes only. A
+          bevelled/hollow/plumped box shows a one-line hint instead. */}
+      {part.kind === 'box' && !isCombined ? (
+        sharpBox ? (
+          <PartFaceFinishSection part={part} onPatch={onPatch} />
+        ) : (
+          <div
+            style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 'var(--s-2)' }}
+          >
+            Per-face finishes (edge banding) need a sharp box — set corner radius, hollow and plump
+            to 0.
+          </div>
+        )
+      ) : null}
       {sliders.map(({ prop, value, min, max }) => (
         <div key={prop} style={{ marginTop: 'var(--s-2)' }}>
           <SliderField

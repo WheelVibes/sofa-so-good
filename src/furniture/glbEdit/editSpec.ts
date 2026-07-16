@@ -171,6 +171,36 @@ export interface PartGradient {
   to: string
 }
 
+/** A single per-face finish override (Asset Studio Stage 6c). Both fields
+ *  optional: sets the zone's flat `color` and/or textured `finish` (a
+ *  `mat:<id>`) OVER the part's base look; an absent field inherits the base.
+ *  An override with neither field is dropped (the zone falls back to base). */
+export interface FaceFinish {
+  color?: string
+  finish?: string
+}
+
+/** The three face zones of a `FaceFinishes` (Stage 6c). */
+export type FaceFinishZone = 'top' | 'bottom' | 'sides'
+
+/** Per-face finishes on a SHARP box (Asset Studio Stage 6c) — the
+ *  board-construction / **edge-banding** realism cue from the Polyboard/SWOOD
+ *  research. THREE zones, not six faces: `top`/`bottom` are the veneer faces
+ *  (+Y / −Y) and `sides` is the shared edge band (±X, ±Z) — exactly the
+ *  veneer + edge-band split of a laminated board. A `BoxGeometry`'s six face
+ *  groups are remapped to these three materials at build time (sides share one).
+ *  **Sharp boxes only:** a bevelled box uses `RoundedBoxGeometry`, which has no
+ *  face groups, and a hollow/plumped box is not a flat board — so `faceFinishes`
+ *  applies only when `bevel`/`shell`/`plump` are all 0 (`boxFaceFinishesActive`);
+ *  the inspector hides the section otherwise. **Combine limit:** inside a CSG
+ *  combine an operand keeps its BASE look only (the fold assigns one material per
+ *  operand), so per-face finishes do not survive a bake. */
+export interface FaceFinishes {
+  top?: FaceFinish
+  bottom?: FaceFinish
+  sides?: FaceFinish
+}
+
 /** A projected surface detail (Asset Studio Stage 5 — realism detail layer).
  *  Built with three's `DecalGeometry` against a target part's mesh and rendered
  *  as a thin offset overlay that follows its part (it's a child of the part mesh,
@@ -335,6 +365,58 @@ export interface ShapePart extends PhysicalSurfaceFields {
   /** Two-tone vertex-colour gradient baked into the geometry (Stage 2). Absent →
    *  no gradient (plain solid colour / finish). */
   gradient?: PartGradient
+  /** Per-face finishes on a SHARP box (Stage 6c) — the edge-banding cue. See
+   *  `FaceFinishes`. Applies only when `bevel`/`shell`/`plump` are all 0
+   *  (`boxFaceFinishesActive`); ignored otherwise. Absent → the single base
+   *  material on every face (byte-identical). */
+  faceFinishes?: FaceFinishes
+  /** Texture tile-size multiplier for a `mat:<id>` finish (Stage 6c), 0.25…4,
+   *  default 1. Larger = coarser (bigger tiles / fewer repeats), mirroring the
+   *  `compose:@<scale>` convention. Absent / 1 → the finish's natural tiling
+   *  (byte-identical). Ignored without a textured `finish`. */
+  finishScale?: number
+  /** Grain / texture rotation for a `mat:<id>` finish (Stage 6c), in DEGREES
+   *  (0 = grain along the default axis, 90 = a quarter turn — grain along the
+   *  other axis). Also rotates `anisotropyRotation` where set. Absent / 0 → no
+   *  rotation. Ignored without a textured `finish`. */
+  finishRotation?: number
+}
+
+/** True when a part is a SHARP box carrying at least one non-empty per-face
+ *  finish override — the gate for the 3-material board build (Stage 6c). A
+ *  bevelled/hollow/plumped box, or a box whose `faceFinishes` is all-empty,
+ *  returns false → the single base material is used on every face. Pure. */
+export function boxFaceFinishesActive(part: ShapePart): boolean {
+  if (part.kind !== 'box') return false
+  if ((part.bevel ?? 0) > 0 || (part.shell ?? 0) > 0 || (part.plump ?? 0) > 0) return false
+  const f = part.faceFinishes
+  return !!f && faceFinishHasOverride(f)
+}
+
+/** True when a `FaceFinishes` carries at least one zone with a colour or finish. */
+export function faceFinishHasOverride(f: FaceFinishes): boolean {
+  return (['top', 'bottom', 'sides'] as const).some(
+    (z) => f[z]?.color !== undefined || f[z]?.finish !== undefined,
+  )
+}
+
+/** Immutably set one zone's per-face override on a `FaceFinishes` (Stage 6c),
+ *  merging `patch` over the zone's current value. A zone that ends up empty (no
+ *  colour, no finish) is DROPPED; an all-empty result returns `undefined` so the
+ *  part's `faceFinishes` field is cleared (spec stays clean). Pure + tested. */
+export function setFaceFinish(
+  ff: FaceFinishes | undefined,
+  zone: FaceFinishZone,
+  patch: FaceFinish,
+): FaceFinishes | undefined {
+  const cur = ff ?? {}
+  const merged: FaceFinish = { ...cur[zone], ...patch }
+  if (merged.color === undefined && merged.finish === undefined) {
+    const { [zone]: _drop, ...rest } = cur
+    return faceFinishHasOverride(rest) ? rest : undefined
+  }
+  const next = { ...cur, [zone]: merged }
+  return next
 }
 
 /** Fallback PBR finish for a part that hasn't set its own (keeps old specs +
@@ -797,7 +879,23 @@ function clonePart(
       ? src.sweepPathPoints.map((p) => [...p] as [number, number])
       : undefined,
     gradient: src.gradient ? { ...src.gradient } : undefined,
+    // Stage 6c: per-face finishes deep-copied (nested zone objects); the scalar
+    // finishScale/finishRotation ride the `...src` spread. Duplicate/mirror copy
+    // grain direction VERBATIM — a reflection preserves the axis the grain runs
+    // along (it only reverses an imperceptible direction on a tiling texture), so
+    // there is no X↔Z flip to apply (the mirror keeps top/bottom/edge zones too).
+    faceFinishes: src.faceFinishes ? cloneFaceFinishes(src.faceFinishes) : undefined,
   }
+}
+
+/** Deep-copy a `FaceFinishes` (its nested zone objects) so a clone never shares a
+ *  mutable zone with its source. */
+function cloneFaceFinishes(f: FaceFinishes): FaceFinishes {
+  const out: FaceFinishes = {}
+  if (f.top) out.top = { ...f.top }
+  if (f.bottom) out.bottom = { ...f.bottom }
+  if (f.sides) out.sides = { ...f.sides }
+  return out
 }
 
 /**

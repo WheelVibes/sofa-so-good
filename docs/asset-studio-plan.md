@@ -411,11 +411,30 @@ subscriptions) so a change touches only the panels that read it. No action neede
   migration + strict validation for `shell`/`loftBottom`/`loftTop`/`sweepPathPoints`. Scenario
   `scripts/scenarios/glb-designer-stage6b.json`.
 
-### Stage 6c — Materials II
-- **Per-face finishes on boxes** (top/side/edge) — tabletop veneer vs **edge banding**,
-  the board-construction realism cue from the Polyboard/SWOOD research.
-- **Texture scale + grain direction** per part (mat:<id> finishes): rotate/scale the
-  applied texture; grain follows the part's long axis by default.
+### Stage 6c — Materials II — ✅ SHIPPED (v0.21.2.44)
+- ✅ **Per-face finishes on boxes** (`parts[].faceFinishes`, THREE zones not six faces:
+  `{ top?, bottom?, sides? }`, each an optional `{ color?, finish? }` over the part's base look) —
+  tabletop veneer vs **edge banding**, the board-construction cue from the Polyboard/SWOOD research.
+  Build: `BoxGeometry`'s six face groups are remapped to three materials (`remapBoxFaceGroups` +
+  `boxFaceMaterials` in `buildObject.ts`; sides share one). **Sharp boxes only** — a bevelled box is
+  a `RoundedBoxGeometry` with no face groups and a hollow/plumped box is not a flat board, so
+  `boxFaceFinishesActive` gates on `bevel`/`shell`/`plump` all 0; the inspector hides the section
+  (with a hint) otherwise. **Combine limit:** inside a CSG combine an operand keeps its BASE look
+  only (the fold assigns one material per operand — `csgEval` not forked). Multi-material boxes
+  export as distinct glTF primitives (round-trip test asserts ≥2 distinct materials).
+- ✅ **Texture scale + grain direction** per part (`parts[].finishScale` 0.25–4×, default 1 =
+  coarser-when-larger, mirroring `compose:@<scale>`; `parts[].finishRotation` 0/90° — grain Along X /
+  Along Z) on any part carrying a `mat:<id>` finish. The finish-material clone swaps each texture
+  channel for a cloned + transformed variant from a bounded LRU
+  (`materials/finishTextureVariant.ts`, keyed `(source uuid, scale, rotation)`, max 96,
+  dispose-on-evict — the shared cache textures are never mutated; a slider drag reuses a handful of
+  variants, no per-frame leak). A grain rotation also rotates `anisotropyRotation` where the finish
+  set one (brushed metal). Inspector: a "Texture" disclosure (Scale slider + Grain segmented) shown
+  only when a texture finish is set.
+- ✅ **Plumbing**: envelope **v8 → v9** additive identity migration + strict validation for
+  `faceFinishes`/`finishScale`/`finishRotation`; duplicate/mirror deep-copy the fields (grain copied
+  verbatim — a reflection preserves the grain axis, so no X↔Z flip needed). Pure ops + cache bound +
+  export round-trip unit-tested; scenario `scripts/scenarios/glb-designer-stage6c.json`.
 
 ### Stage 6d — Precision II
 - **Face-to-face snapping while dragging** (magnetic surfaces, CAD-style): a dragged part

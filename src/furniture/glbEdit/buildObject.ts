@@ -17,6 +17,7 @@ import {
   TorusGeometry,
 } from 'three'
 import { getBuiltMaterial } from '../../materials/cache'
+import { finishTextureVariant } from '../../materials/finishTextureVariant'
 import {
   furnitureMaterialCacheId,
   parseFurnitureMaterialFinish,
@@ -24,6 +25,7 @@ import {
 import { decalGeometry, decalMaterial } from './decals'
 import {
   type AssetEditSpec,
+  boxFaceFinishesActive,
   combinedPartIds,
   combineGroups,
   combineHomeGroup,
@@ -31,6 +33,7 @@ import {
   DEFAULT_PART_ROUGHNESS,
   type Decal,
   decalsForPart,
+  type FaceFinish,
   type GroupMaterialData,
   type MeshOverride,
   type PartGroup,
@@ -72,6 +75,10 @@ interface SurfaceLook extends PhysicalSurfaceFields {
   metalness?: number
   emissiveIntensity?: number
   opacity?: number
+  /** Stage 6c — texture tile-size multiplier + grain rotation (degrees) for a
+   *  `mat:<id>` finish. Absent / (1, 0) → the finish's natural tiling. */
+  finishScale?: number
+  finishRotation?: number
   /** True when the part's geometry carries a baked gradient (COLOR_0) — the
    *  material must render `vertexColors`. */
   vertexColors?: boolean
@@ -127,6 +134,9 @@ function buildSurfaceMaterial(look: SurfaceLook): MeshStandardMaterial {
     m.emissiveIntensity = glow
     m.transparent = opacity < 1
     m.opacity = opacity
+    // Stage 6c — texture scale + grain rotation. Swap each texture channel for a
+    // cloned + transformed variant (shared cache textures are never mutated).
+    applyFinishTextureTransform(m, look.finishScale, look.finishRotation)
     // A textured finish supersedes the physical part-fields (its own maps win) —
     // matching how roughness/metalness are ignored under a finish. Gradient is
     // likewise disabled by the inspector when a finish is set, but honour any
@@ -153,10 +163,75 @@ function buildSurfaceMaterial(look: SurfaceLook): MeshStandardMaterial {
   return new MeshStandardMaterial(shared)
 }
 
+/** The finish texture channels a scale/grain variant is applied to. */
+const FINISH_TEXTURE_CHANNELS = [
+  'map',
+  'normalMap',
+  'roughnessMap',
+  'aoMap',
+  'metalnessMap',
+] as const
+
+/** Apply the Stage-6c texture tile-size (`scale`) + grain rotation
+ *  (`rotationDeg`) to a finish-material clone IN PLACE: each texture channel is
+ *  replaced by a bounded-cache variant (the shared source textures are never
+ *  mutated). A grain rotation also rotates the anisotropic highlight where the
+ *  finish set one (brushed metal), so the sweep tracks the visible grain.
+ *  No-op at the identity (scale 1, rotation 0). */
+function applyFinishTextureTransform(
+  m: MeshStandardMaterial,
+  scale: number | undefined,
+  rotationDeg: number | undefined,
+): void {
+  const s = scale ?? 1
+  const r = rotationDeg ?? 0
+  if (Math.abs(s - 1) < 0.005 && r === 0) return
+  for (const ch of FINISH_TEXTURE_CHANNELS) {
+    const tex = m[ch]
+    if (tex) m[ch] = finishTextureVariant(tex, s, r)
+  }
+  // Grain rotation also rotates the brushed-metal anisotropy sweep (one line —
+  // only when the finish material carries the physical field).
+  if (r !== 0 && m instanceof MeshPhysicalMaterial) {
+    m.anisotropyRotation += (r * Math.PI) / 180
+  }
+}
+
 /** Per-group material (baked at CSG combine time, GE3c tail) — a thin wrapper
  *  over `buildSurfaceMaterial` for a `GroupMaterialData` record. */
 function groupMaterial(g: GroupMaterialData): MeshStandardMaterial {
   return buildSurfaceMaterial(g)
+}
+
+/** The 3-zone board materials for a SHARP box carrying per-face finishes
+ *  (Stage 6c) — index-matched to the geometry groups remapped by
+ *  `remapBoxFaceGroups`: 0 = sides (edge band), 1 = top veneer, 2 = bottom. Each
+ *  zone override sets its own colour/finish over the part's base look; an absent
+ *  override inherits the base. The base `finishScale`/`finishRotation` + gradient
+ *  flow to every zone. */
+function boxFaceMaterials(part: ShapePart): MeshStandardMaterial[] {
+  const ff = part.faceFinishes ?? {}
+  const zone = (f: FaceFinish | undefined): SurfaceLook => ({
+    ...part,
+    color: f?.color ?? part.color,
+    finish: f?.finish ?? part.finish,
+    vertexColors: !!part.gradient,
+  })
+  return [
+    buildSurfaceMaterial(zone(ff.sides)),
+    buildSurfaceMaterial(zone(ff.top)),
+    buildSurfaceMaterial(zone(ff.bottom)),
+  ]
+}
+
+/** Remap a `BoxGeometry`'s six face groups (three's build order px, nx, py, ny,
+ *  pz, nz — 6 indices each) to THREE board zones: sides = 0 (±X, ±Z), top = 1
+ *  (+Y), bottom = 2 (−Y). So a 3-material array paints the veneer + edge-band
+ *  split (Stage 6c). Multi-material meshes export as distinct glTF primitives. */
+function remapBoxFaceGroups(geo: BoxGeometry): void {
+  const zone = [0, 0, 1, 2, 0, 0] // px, nx → sides; py → top; ny → bottom; pz, nz → sides
+  geo.clearGroups()
+  for (let i = 0; i < 6; i++) geo.addGroup(i * 6, 6, zone[i])
 }
 
 /** The PBR material for a primitive part. Used by both the export
@@ -177,6 +252,9 @@ export function partMaterials(part: ShapePart): MeshStandardMaterial | MeshStand
   if (part.kind === 'mesh' && part.geometry?.materials && part.geometry.materials.length > 0) {
     return part.geometry.materials.map(groupMaterial)
   }
+  // Stage 6c — a sharp box with per-face finishes builds a 3-material board
+  // (sides / top / bottom), index-matched to the geometry groups.
+  if (boxFaceFinishesActive(part)) return boxFaceMaterials(part)
   return partMaterial(part)
 }
 
@@ -295,6 +373,9 @@ export function partGeometry(part: ShapePart): BufferGeometry {
   // not survive a bake — consistent with the inspector not offering gradient on
   // mesh parts.
   if (part.gradient) applyGradientColors(geo, part.gradient)
+  // Stage 6c — a sharp box with per-face finishes remaps its six face groups to
+  // three board zones so the 3-material array (`boxFaceMaterials`) paints them.
+  if (boxFaceFinishesActive(part) && geo instanceof BoxGeometry) remapBoxFaceGroups(geo)
   return geo
 }
 
