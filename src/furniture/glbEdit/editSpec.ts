@@ -12,6 +12,7 @@ import {
   EXTRUDE_PRESETS,
   LATHE_PRESETS,
   LOFT_PRESETS,
+  type ProfilePoint,
   type SweepPathKind,
   type SweepProfileKind,
 } from './shapeProfiles'
@@ -393,13 +394,16 @@ export interface ShapePart extends PhysicalSurfaceFields {
    *  by the geometry builder. */
   bevel?: number
   /** Lathe: revolve profile — normalized `[x, y]` points, x ∈ [0,1] fraction of
-   *  radius (`size[0]/2`), y ∈ [0,1] fraction of height (`size[1]`). */
-  profile?: [number, number][]
+   *  radius (`size[0]/2`), y ∈ [0,1] fraction of height (`size[1]`). Stage 11a: a
+   *  point may carry an optional third `smooth` element (`[x, y, 1]`) that
+   *  `smoothProfile` curves through; absent → a sharp corner. */
+  profile?: ProfilePoint[]
   /** Lathe: radial segments (revolution smoothness). Absent → 32. */
   segments?: number
   /** Extrude: outline — normalized `[x, y]` points, both ∈ [-0.5, 0.5] (centred),
-   *  scaled to `size[0]×size[1]` and extruded by `size[2]`. */
-  outline?: [number, number][]
+   *  scaled to `size[0]×size[1]` and extruded by `size[2]`. Stage 11a: points may
+   *  carry the optional third `smooth` element (see `profile`). */
+  outline?: ProfilePoint[]
   /** Sweep: cross-section profile preset (`circle`/`half-round`/`ogee`/`rectangle`). */
   sweepProfile?: SweepProfileKind
   /** Sweep: path preset (`straight`/`l-corner`/`u`/`ring`). */
@@ -411,19 +415,21 @@ export interface ShapePart extends PhysicalSurfaceFields {
   sweepPoints?: [number, number, number][]
   /** Sweep: a free OPEN path drawn in the 2D editor (Stage 6b) — normalized
    *  `[x, z]` fractions of the path extent (`size[0]`), centred [-0.5, 0.5].
-   *  Used only when `sweepPath === 'custom'`; absent → the preset/`sweepPoints`. */
-  sweepPathPoints?: [number, number][]
+   *  Used only when `sweepPath === 'custom'`; absent → the preset/`sweepPoints`.
+   *  Stage 11a: points may carry the optional third `smooth` element. */
+  sweepPathPoints?: ProfilePoint[]
   /** Shell/hollow wall thickness in metres (Stage 6b) — box + extrude only.
    *  > 0 carves an open-top (box: +Y) / open-end (extrude) hollow carcass of
    *  uniform wall thickness. 0 / absent → solid (byte-identical). Clamped to the
    *  footprint by the geometry builder. */
   shell?: number
   /** Loft: the BOTTOM horizontal cross-section — normalized centred `[x, z]`
-   *  outline (both ∈ [-0.5, 0.5]), scaled to `size[0] × size[2]` at y = −h/2. */
-  loftBottom?: [number, number][]
+   *  outline (both ∈ [-0.5, 0.5]), scaled to `size[0] × size[2]` at y = −h/2.
+   *  Stage 11a: points may carry the optional third `smooth` element. */
+  loftBottom?: ProfilePoint[]
   /** Loft: the TOP horizontal cross-section — same convention as `loftBottom`,
    *  at y = +h/2. Resampled to match the bottom's point count at build. */
-  loftTop?: [number, number][]
+  loftTop?: ProfilePoint[]
   /** Cushion "plump" 0…1 (Stage 5) — a sine-falloff vertex bulge on box/capsule
    *  kinds so upholstery reads soft/stuffed (normals recomputed). 0 / absent →
    *  today's flat geometry (byte-identical). */
@@ -616,16 +622,22 @@ const DEFAULT_SIZE: Record<PrimitiveShapeKind, [number, number, number]> = {
 function defaultShapeParams(kind: PrimitiveShapeKind): Partial<ShapePart> {
   switch (kind) {
     case 'lathe':
-      return { profile: LATHE_PRESETS['turned-leg'].map((p) => [...p]), segments: 32 }
+      return {
+        profile: LATHE_PRESETS['turned-leg'].map((p) => [...p] as ProfilePoint),
+        segments: 32,
+      }
     case 'extrude':
       // Bevel ON by default for extrudes (Stage 1a realism default).
-      return { outline: EXTRUDE_PRESETS['rounded-rect'].map((p) => [...p]), bevel: 0.02 }
+      return {
+        outline: EXTRUDE_PRESETS['rounded-rect'].map((p) => [...p] as ProfilePoint),
+        bevel: 0.02,
+      }
     case 'sweep':
       return { sweepProfile: 'circle', sweepPath: 'ring' }
     case 'loft':
       return {
-        loftBottom: LOFT_PRESETS['round-square'].bottom.map((p) => [...p] as [number, number]),
-        loftTop: LOFT_PRESETS['round-square'].top.map((p) => [...p] as [number, number]),
+        loftBottom: LOFT_PRESETS['round-square'].bottom.map((p) => [...p] as ProfilePoint),
+        loftTop: LOFT_PRESETS['round-square'].top.map((p) => [...p] as ProfilePoint),
       }
     default:
       return {}
@@ -1003,15 +1015,18 @@ function clonePart(
     position,
     size: [...src.size],
     rotation: rotation ? [...rotation] : undefined,
-    profile: src.profile ? src.profile.map((p) => [...p]) : undefined,
-    outline: src.outline ? src.outline.map((p) => [...p]) : undefined,
-    loftBottom: src.loftBottom ? src.loftBottom.map((p) => [...p] as [number, number]) : undefined,
-    loftTop: src.loftTop ? src.loftTop.map((p) => [...p] as [number, number]) : undefined,
+    // Stage 11a: the profile/outline/loft/path tuples may carry an optional third
+    // `smooth` element — copy the WHOLE tuple (`as ProfilePoint`) so the flag
+    // survives a duplicate/mirror instead of being truncated to `[x, y]`.
+    profile: src.profile ? src.profile.map((p) => [...p] as ProfilePoint) : undefined,
+    outline: src.outline ? src.outline.map((p) => [...p] as ProfilePoint) : undefined,
+    loftBottom: src.loftBottom ? src.loftBottom.map((p) => [...p] as ProfilePoint) : undefined,
+    loftTop: src.loftTop ? src.loftTop.map((p) => [...p] as ProfilePoint) : undefined,
     sweepPoints: src.sweepPoints
       ? src.sweepPoints.map((p) => [...p] as [number, number, number])
       : undefined,
     sweepPathPoints: src.sweepPathPoints
-      ? src.sweepPathPoints.map((p) => [...p] as [number, number])
+      ? src.sweepPathPoints.map((p) => [...p] as ProfilePoint)
       : undefined,
     gradient: src.gradient ? { ...src.gradient } : undefined,
     // Stage 6c: per-face finishes deep-copied (nested zone objects); the scalar

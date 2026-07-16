@@ -44,7 +44,13 @@ import {
 } from './editSpec'
 import { applyGradientColors } from './gradient'
 import { applyPlump, plumpBoxGeometry } from './plump'
-import { bevelledBoxGeometry, extrudeGeometry, latheGeometry, wedgeGeometry } from './shapeProfiles'
+import {
+  bevelledBoxGeometry,
+  extrudeGeometry,
+  latheGeometry,
+  smoothProfile,
+  wedgeGeometry,
+} from './shapeProfiles'
 import { loftGeometry, shellBoxGeometry, shellExtrudeGeometry, sweepGeometry } from './shellLoft'
 import { getCachedSrcRefGeometry } from './srcRefCache'
 import { buildSrcRefPartMaterial } from './srcRefMaterial'
@@ -449,19 +455,29 @@ function buildShapeGeometry(part: ShapePart): BufferGeometry {
       return box
     }
     case 'lathe':
-      return latheGeometry(part.profile ?? [], part.segments ?? 32, w, h)
+      // Stage 11a: expand per-point smoothing (Catmull-Rom through smooth points)
+      // BEFORE the geometry stage. An open profile → endpoints clamp as corners.
+      return latheGeometry(smoothProfile(part.profile ?? []), part.segments ?? 32, w, h)
     case 'extrude': {
+      // Stage 11a: smooth the outline first (a closed loop → wrap the tangents).
+      const outline = smoothProfile(part.outline ?? [], { closed: true })
       // Stage 6b: a hollow wall thickness → a ring cross-section + bottom cap.
-      if (part.shell && part.shell > 0)
-        return shellExtrudeGeometry(part.outline ?? [], w, h, d, part.shell)
-      const prism = extrudeGeometry(part.outline ?? [], w, h, d, part.bevel ?? 0.02)
+      if (part.shell && part.shell > 0) return shellExtrudeGeometry(outline, w, h, d, part.shell)
+      const prism = extrudeGeometry(outline, w, h, d, part.bevel ?? 0.02)
       // Stage 8b: taper shrinks the +Z (front) cross-section in XY toward the
       // outline centroid along the extrude/depth axis.
       if (part.taper && part.taper > 0) applyTaper(prism, part.taper, 'z')
       return prism
     }
     case 'loft':
-      return loftGeometry(part.loftBottom ?? [], part.loftTop ?? [], w, h, d)
+      // Stage 11a: smooth both cross-sections (closed loops) before the loft.
+      return loftGeometry(
+        smoothProfile(part.loftBottom ?? [], { closed: true }),
+        smoothProfile(part.loftTop ?? [], { closed: true }),
+        w,
+        h,
+        d,
+      )
     case 'sweep':
       return sweepGeometry(
         part.sweepProfile ?? 'circle',
@@ -469,7 +485,9 @@ function buildShapeGeometry(part: ShapePart): BufferGeometry {
         w,
         h,
         part.sweepPoints,
-        part.sweepPathPoints,
+        // Stage 11a: an all-sharp path is unchanged (identity); a smooth-flagged
+        // one is pre-expanded, then the existing Catmull-Rom sweep curves it.
+        part.sweepPathPoints ? smoothProfile(part.sweepPathPoints) : undefined,
       )
     case 'cylinder':
       return new CylinderGeometry(w / 2, w / 2, h, 32)

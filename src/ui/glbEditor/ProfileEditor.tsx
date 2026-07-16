@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ProfilePoint } from '../../furniture/glbEdit/shapeProfiles'
+import {
+  isSmoothPoint,
+  type ProfilePoint,
+  smoothProfile,
+} from '../../furniture/glbEdit/shapeProfiles'
 import { Select } from '../controls/Select'
 import { Icon } from '../toolbar/icons'
 
@@ -12,6 +16,12 @@ export interface ProfileSpace {
   maxY: number
   /** Draw the revolve axis (lathe) at x = 0. */
   showAxis?: boolean
+  /** The outline is a CLOSED loop (extrude / loft cross-section) — the drawn
+   *  curve preview wraps its tangents + closes the path. Absent → an OPEN profile
+   *  (lathe, sweep path) whose endpoints stay corners. Mirrors the `closed`
+   *  argument `buildObject` passes to `smoothProfile`, so the preview matches the
+   *  built geometry. */
+  closed?: boolean
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
@@ -77,11 +87,22 @@ export function ProfileEditor({
     return toData(px, py)
   }
 
+  // Re-place a point's X or Y while KEEPING its smooth flag (the optional third
+  // tuple element) — a numeric edit must not silently sharpen a smooth point.
+  const withXY = (p: ProfilePoint, axis: 0 | 1, value: number): ProfilePoint => {
+    const next: ProfilePoint = [axis === 0 ? value : p[0], axis === 1 ? value : p[1]]
+    if (isSmoothPoint(p)) next[2] = 1
+    return next
+  }
+
   const moveSelected = (axis: 0 | 1, value: number) => {
+    onChange(points.map((p, i) => (i === sel ? withXY(p, axis, value) : p)))
+  }
+
+  // Flip the selected point between smooth (Catmull-Rom) and sharp (corner).
+  const toggleSmooth = () => {
     onChange(
-      points.map((p, i) =>
-        i === sel ? ([axis === 0 ? value : p[0], axis === 1 ? value : p[1]] as ProfilePoint) : p,
-      ),
+      points.map((p, i) => (i === sel ? (isSmoothPoint(p) ? [p[0], p[1]] : [p[0], p[1], 1]) : p)),
     )
   }
 
@@ -102,8 +123,15 @@ export function ProfileEditor({
     setSel((s) => Math.max(0, s - 1))
   }
 
-  const poly = points.map((p) => toPx(p).join(',')).join(' ')
+  // The drawn preview path is the SMOOTHED polyline (Catmull-Rom through smooth
+  // points) so the editor shows the real curve the geometry will build, not the
+  // raw control polygon. An all-sharp profile smooths to itself → identical to
+  // the old straight polyline. A closed outline closes the loop.
+  const smoothed = smoothProfile(points, { closed: space.closed })
+  const previewPts = space.closed && smoothed.length > 0 ? [...smoothed, smoothed[0]] : smoothed
+  const poly = previewPts.map((p) => toPx(p).join(',')).join(' ')
   const selPt = points[clamp(sel, 0, points.length - 1)]
+  const selSmooth = selPt ? isSmoothPoint(selPt) : false
   const [axisX] = toPx([0, minY])
 
   return (
@@ -154,7 +182,9 @@ export function ProfileEditor({
             pendingRef.current = null
             if (pt === null || dragIdx.current === null) return
             const idx = dragIdx.current
-            onChange(points.map((p, i) => (i === idx ? pt : p)))
+            // Keep the dragged point's smooth flag (drag only moves X/Y).
+            const next: ProfilePoint = isSmoothPoint(points[idx]) ? [pt[0], pt[1], 1] : pt
+            onChange(points.map((p, i) => (i === idx ? next : p)))
           })
         }}
         onPointerUp={(e) => {
@@ -169,7 +199,8 @@ export function ProfileEditor({
             pendingRef.current = null
             if (pt !== null) {
               const idx = dragIdx.current
-              onChange(points.map((p, i) => (i === idx ? pt : p)))
+              const next: ProfilePoint = isSmoothPoint(points[idx]) ? [pt[0], pt[1], 1] : pt
+              onChange(points.map((p, i) => (i === idx ? next : p)))
             }
             ;(e.target as Element).releasePointerCapture?.(e.pointerId)
             dragIdx.current = null
@@ -190,6 +221,11 @@ export function ProfileEditor({
         <polyline points={poly} fill="none" stroke="var(--accent)" strokeWidth={1.5} />
         {points.map((p, i) => {
           const [cx, cy] = toPx(p)
+          const active = i === sel
+          const fill = active ? 'var(--accent)' : 'var(--surface-4, var(--surface-3))'
+          // Smooth points render as CIRCLES, sharp points as SQUARES — a glanceable
+          // read of which points the curve rounds through vs. which are corners.
+          const r = active ? 6 : 4.5
           return (
             <g key={i}>
               {/* 44px transparent touch target. */}
@@ -205,16 +241,39 @@ export function ProfileEditor({
                   dragIdx.current = i
                   setSel(i)
                 }}
+                onDoubleClick={(e) => {
+                  // Double-tap flips smooth/sharp (touch-friendly, no extra control).
+                  e.preventDefault()
+                  setSel(i)
+                  onChange(
+                    points.map((q, j) =>
+                      j === i ? (isSmoothPoint(q) ? [q[0], q[1]] : [q[0], q[1], 1]) : q,
+                    ),
+                  )
+                }}
               />
-              <circle
-                cx={cx}
-                cy={cy}
-                r={i === sel ? 6 : 4.5}
-                fill={i === sel ? 'var(--accent)' : 'var(--surface-4, var(--surface-3))'}
-                stroke="var(--accent)"
-                strokeWidth={1.5}
-                pointerEvents="none"
-              />
+              {isSmoothPoint(p) ? (
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r={r}
+                  fill={fill}
+                  stroke="var(--accent)"
+                  strokeWidth={1.5}
+                  pointerEvents="none"
+                />
+              ) : (
+                <rect
+                  x={cx - r}
+                  y={cy - r}
+                  width={r * 2}
+                  height={r * 2}
+                  fill={fill}
+                  stroke="var(--accent)"
+                  strokeWidth={1.5}
+                  pointerEvents="none"
+                />
+              )}
             </g>
           )
         })}
@@ -252,6 +311,25 @@ export function ProfileEditor({
             style={{ width: 64 }}
           />
         ))}
+        <button
+          type="button"
+          className={selSmooth ? 'icon-btn is-active' : 'icon-btn'}
+          aria-label={selSmooth ? 'Make point sharp' : 'Make point smooth'}
+          aria-pressed={selSmooth}
+          title={selSmooth ? 'Smooth point — tap for sharp corner' : 'Sharp corner — tap to smooth'}
+          onClick={toggleSmooth}
+        >
+          {/* Glyph reflects state: a curve when smooth, an angled corner when sharp. */}
+          <svg width={14} height={14} viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path
+              d={selSmooth ? 'M1 12 Q7 1 13 12' : 'M1 12 L7 3 L13 12'}
+              stroke="currentColor"
+              strokeWidth={1.6}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
         <button
           type="button"
           className="icon-btn"

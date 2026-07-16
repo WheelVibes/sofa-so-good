@@ -5,6 +5,88 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.67 — Asset Studio Stage 11b — showcase integration build (shipped-with-findings)
+
+Scripted end-to-end integration build of a complete catalog-quality **chesterfield sofa** in the
+GLB Asset Designer, exercising as many Asset Studio systems as compose naturally in ONE session, and
+proving the whole asset round-trips and lands in the real flat. Ships as a permanent integration
+regression scenario (`scripts/scenarios/glb-designer-showcase.json`, run with `SHOT_GPU=1`) plus a
+findings list. No product source touched — this is a verification deliverable.
+
+- **The build (9 phases, 109 steps, 11 frames).** (1) Insert the **Sofa frame template** with tuned
+  ergonomic sliders (1.70 × 0.92 m, seat 0.44 m). (2) **Materials** — the whole piece (cushions +
+  arms + backrest) upholstered in one consistent oxblood **velvet** (KHR_materials_sheen); the four
+  tapered legs given an **oiled-wood clearcoat** (KHR_materials_clearcoat); cushions plumped 0.7.
+  (3) **Precision** — the two seat cushions placed flush via the gizmo drag seam. (4) **Diamond
+  tufting + stitch lines** on both seat cushions via the real inspector UI (Stage 7c/10c). (5)
+  **Piping** welts traced round each seat-cushion perimeter (Stage 5). (6) **Studio vs Room IBL**
+  preview (Stage 8a), same pose. (7) **Save** through the optimize-on-save path — the persisted
+  assetSpec envelope embeds every system (14 parts, 1 group, 38 decals). (8) **Restore** the saved
+  def's editable parts from a clean reopened session — part/group/decal counts survive the
+  persistence round-trip EXACTLY (14/1/38). (9) Close the designer and **place** the sofa in the
+  flat's Living/Dining room at **High** quality — the money shot, the custom chesterfield living
+  alongside the flat's existing furniture.
+
+- **Integration findings (reported, not fixed — a concurrent agent owns the geometry/profile source):**
+  - **Face-to-face magnetic snapping (Stage 6d) does not engage on a grouped MEMBER** — and every
+    template cushion is a member of the wrapping `Sofa frame` group, exactly where a user building
+    from a template most wants it. The `__glbDesignerPrecision.drag` seam committed the raw position
+    verbatim (no auto-snap) on a cushion; the scenario works around it by computing the exact flush
+    target and placing numerically. (Documented behaviour per the 6d/7b notes, but a real usability
+    gap for the template-first flow — a member ought to snap to its siblings.)
+  - **The plump/tuft system is TOP-FACE only**, so a true chesterfield's *vertical* backrest
+    diamond-tufting isn't expressible — tufting a back cushion would dimple its thin top edge, not
+    the visible front face. The diamond lattice can only be applied to the horizontal seat cushions
+    (which is what the scenario does). A future "tuft on a chosen face" axis would unlock upright
+    tufted backs/arms.
+  - **Tuft stitch lines read as high-contrast light dashed lines** on dark velvet (the stitch
+    decal's default tint), closer to a dashed sketch than sewn thread up close. Cosmetic — a
+    darker/tonal stitch colour default would read more like real thread.
+  - **A material pass that keys only on the velvet sheen preset leaves the sofa half-finished** —
+    the template's arms/backrest are plain `FABRIC` boxes WITHOUT the cushions' velvet sheen, so an
+    early pass that filtered on `sheen>0` recoloured only the cushions and left the arms grey.
+    Tuned within the scenario (key on the template's `#8a8f98` FABRIC tag instead) so the whole
+    piece is one consistent velvet — noted as guidance for any future "recolour the upholstery"
+    automation.
+  - **`Save asset` auto-closes the designer** — so a same-session re-edit/restore must reopen it
+    (the scenario reopens for the restore round-trip, which incidentally makes it a stronger
+    from-storage proof). Not a bug, but a non-obvious flow the scenario documents.
+  - **Placing at exact room-centre overlaps the flat's existing default furniture** (coffee table /
+    default sofa cluster at the L/D centroid); `addItem` does no collision check so it lands anyway.
+    A scenario placement choice, not a product defect — the custom sofa still reads clearly.
+  - **Headless orbit-drag can swing the room-editor camera off the room into empty space if it's the
+    first camera move** — zoom (wheel) first, then orbit, keeps it inside the scene (playbook note
+    added).
+
+## v0.21.2.66 — Asset Studio Stage 11a — curved profiles (per-point smoothing)
+
+ProfileEditor points gain a per-point **smooth/sharp** flag: the polyline is expanded through
+smooth points with a uniform **Catmull-Rom** curve (~8 samples per curved segment) while sharp
+points stay exact corners, so a lathe vase / bowl / extrude outline / loft cross-section reads as
+one continuous curve instead of a faceted polygon. The whole geometry layer is untouched.
+
+- **Representation.** The smooth flag rides the point tuple as an optional THIRD element —
+  `[x, y, 1]` is a smooth point, `[x, y]` a sharp corner. One representation travels with the point
+  through every editor add/remove/drag and through clone/persist with no parallel array to keep in
+  sync. `ProfilePoint` widened to `[number, number, number?]`; the spec fields
+  `profile`/`outline`/`loftBottom`/`loftTop`/`sweepPathPoints` carry it.
+- **Pure helper.** `furniture/glbEdit/shapeProfiles.ts:smoothProfile(points, {closed, subdiv})`
+  (+ `isSmoothPoint`) expands smooth points via uniform Catmull-Rom; the tangent at a SHARP
+  endpoint is clamped to itself so the curve leaves/arrives straight (corner preserved) while still
+  passing through EVERY original point. `closed` wraps the tangents for extrude outlines + loft
+  cross-sections; open profiles (lathe, sweep path) clamp their endpoints. Applied in
+  `buildObject.ts` BEFORE the existing dedupe/resample/geometry stages, so lathe/extrude/loft/
+  sweep-path all benefit with **zero geometry-code changes**. An all-sharp profile is the identity
+  → every pre-11a spec builds byte-identically.
+- **UI.** `ProfileEditor` renders smooth points as **circles**, sharp as **squares**; the drawn
+  preview shows the real **curve** (not the control polygon); a point toggles smooth/sharp via
+  **double-tap** or the curve/corner button. The `closed` flag is threaded through `ProfileSpace`
+  so the preview matches the built geometry.
+- **Presets.** `vase` + `bowl` (lathe) belly points are now smooth (the ogee sweep section already
+  used bezier curves). `turned-leg`/`tapered-leg`/`column` stay all-sharp.
+- **Persistence.** Envelope bumped to **v14** (`isVec2` relaxed to accept the optional third
+  element; migration is the identity — a v13 blob has only `[x, y]` points and loads unchanged).
+
 ## v0.21.2.65 — Asset Studio iteration 7 plan
 
 Stage 11a (curved profiles) + 11b (showcase integration build) appended to the plan. Docs only.

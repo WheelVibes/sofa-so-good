@@ -97,6 +97,12 @@ build one in the browser:
   - **Loft** blends between two outlines — a **Bottom section** and a **Top section** — for
     tapered, organic bodies (a round base rising to a square top, a tapering plinth). Pick a
     **transition preset** (Round → square, Taper) to seed both, then drag either outline.
+- **Smooth vs. sharp points** — in any profile editor (lathe, extrude, loft, sweep path) each
+  point can be a **smooth curve** or a **sharp corner**. Smooth points show as **circles** and the
+  drawn path follows a flowing curve through them; sharp points show as **squares** and keep a crisp
+  corner. **Double-tap a point** (or select it and tap the curve/corner button) to switch. The
+  **Vase** and **Bowl** presets already use smooth points so their walls read as one continuous
+  curve instead of a faceted outline.
 - **Hollow it out** — **box** and **extrude** shapes have a **Hollow (wall)** slider: raise it to
   carve an open-top carcass with uniform walls (a cabinet, tray or drawer box) in one move; 0 keeps
   the shape solid.

@@ -1473,3 +1473,43 @@ real browser actually run the OBJLoader→GLTFExporter round-trip inside a real 
   Basis wasm fails to compile in this sandbox's headless Chromium — "Incorrect response MIME
   type" / bad magic word). Not a regression: `optimizeGlb` treats a failed Draco registration as
   best-effort, so the import still succeeds without geometry compression. Don't chase it here.
+
+### Worked example — GLB designer showcase integration build (Asset Studio Stage 11b)
+
+**`glb-designer-showcase.json`** (109 steps, 11 frames, run `SHOT_GPU=1`) builds a complete
+catalog-quality chesterfield sofa end-to-end in ONE session — Sofa frame template → oxblood velvet +
+oiled-wood clearcoat materials → seat-cushion abut (precision) → diamond tufting + stitch lines →
+piping welts → Studio-vs-Room IBL → save (optimize-on-save) → restore from a clean reopened session
+(asserts 14 parts / 1 group / 38 decals survive the round-trip) → place the saved sofa in the flat's
+Living/Dining room at High tier (the money shot). It's the Stage-11b integration regression.
+**Reusable landmines learned here (beyond the earlier designer rungs):**
+- **Face-to-face magnetic snapping does NOT engage on a grouped MEMBER.** `__glbDesignerPrecision.drag`
+  on a part that belongs to a `PartGroup` (every template cushion is a member of the wrapping group)
+  commits the raw position **verbatim** — no grid snap, no face snap — so a "drag 5 mm shy → asserts
+  flush" step (which works on a top-level part, per `glb-designer-stage6d.json`) fails with the gap
+  left exactly at the raw offset. To place a grouped member precisely, compute the exact target from
+  the live geometry and drag to it (the seam commits it verbatim, so it lands exact). This is
+  documented 6d/7b behaviour, but it means the whole template-first precision story is numeric, not
+  magnetic — flag it as a finding rather than "fixing" the scenario around it silently.
+- **The plump/tuft system is TOP-FACE only** — tufting reads on a horizontal seat cushion, never on a
+  vertical backrest/arm (its dimples would land on the thin top edge). So a "chesterfield" built this
+  way tufts the seat, not the back.
+- **`Save asset` auto-closes the designer** (`glbDesignerOpen → false`). A same-session restore/re-edit
+  must **reopen** it (`setGlbDesignerOpen(true)`), which resets the spec to blank — making the
+  subsequent "pick the saved source → Restore editable parts" a genuine from-storage round-trip (a
+  strictly stronger proof than restoring an in-memory spec). Probe this if a post-save DOM query
+  ("Source model trigger not found") fails: the panel is simply gone, not relocated.
+- **The designer's `SourcePanel` controls (Source-model Select, "Restore editable parts" button) are
+  NOT under the `.glb-designer` root selector** that the layers/inspector/details panels answer to —
+  query them with a **bare** `button[aria-label="Source model"]` / `document.querySelectorAll('button')`
+  (as `glb-update-original.json` does), not a `.glb-designer button…` prefix, or you get a false
+  "not found".
+- **A headless orbit-drag as the FIRST room-editor camera move can swing the camera off the room into
+  empty space** (blank money shot). Do a **wheel zoom first**, THEN orbit, THEN zoom again — wheel-only
+  moves stay inside the scene; the drag re-frames around a target that a fresh room-editor fit may not
+  have centred where you expect. Sequence that reliably framed the placed sofa: `wheel(-520)` →
+  `drag [690,470]→[700,560]` → `wheel(-420)`.
+- **A "recolour the upholstery" pass must not key only on the velvet sheen preset.** The Sofa frame
+  template tags cushions AND arms/backrest with the same grey `#8a8f98` FABRIC look, but only the
+  cushions carry the velvet `sheen` bundle; filtering on `sheen>0` recolours the cushions and leaves
+  the arms grey (a half-finished sofa). Key on the FABRIC colour tag to upholster the whole piece.

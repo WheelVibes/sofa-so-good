@@ -1,0 +1,407 @@
+{
+  "name": "glb-designer-showcase",
+  "description": "Asset Studio Iteration 7 Stage 11b — showcase integration build. Scripts a COMPLETE catalog-quality chesterfield-style sofa end-to-end in ONE session, exercising as many Asset Studio systems as compose naturally, then proves the whole thing round-trips and lands in the real flat. Phases: (1) insert the Sofa frame TEMPLATE with tuned ergonomic sliders; (2) MATERIALS — rich velvet (KHR sheen) on the cushions + oiled-wood clearcoat legs + plump; (3) PRECISION — face-snap the two seat cushions flush (magnet abut via the __glbDesignerPrecision.drag seam); (4) DIAMOND TUFTING + stitch lines on both seat cushions via the real inspector UI (Stage 7c/10c); (5) PIPING welts traced round each seat-cushion top-face perimeter (Stage 5); (6) preview under Studio rig vs Room IBL (Stage 8a) — the same pose, lighting-only difference; (7) SAVE through the optimize-on-save path (Stage 6f) and assert the persisted assetSpec envelope embeds every system; (8) RESTORE the saved def's editable parts (Stage 0) and assert part/group/decal counts survive the persistence round-trip on a REAL complex asset; (9) close the designer and PLACE the saved sofa in the flat's Living/Dining room at HIGH quality — the money shot. Run with SHOT_GPU=1 (velvet sheen + Room IBL + High tier read truthfully only on a real GPU). This scenario doubles as the Stage-11b integration regression test.",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1'); localStorage.removeItem('hdb_designer_preview_env'); } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "set-pro-mode",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "force-glb-designer-flag",
+      "eval": "window.__store.getState().setFeatureFlag?.('glbDesigner', true); window.__store.getState().reresolveFeatureFlags?.();"
+    },
+    {
+      "name": "open-glb-designer",
+      "store": { "action": "setGlbDesignerOpen", "args": [true] }
+    },
+    {
+      "name": "wait-designer",
+      "waitFor": { "css": ".glb-designer" },
+      "timeout": 30000
+    },
+    {
+      "name": "wait-seam",
+      "waitFor": { "store": "typeof window.__glbDesigner !== 'undefined'" },
+      "timeout": 20000
+    },
+    { "name": "settle-designer", "wait": 900 },
+
+    {
+      "name": "expand-templates",
+      "eval": "(function(){const s=[...document.querySelectorAll('.glb-designer details.compose > summary')].find(x=>(x.textContent||'').trim()==='Templates');if(!s)throw new Error('Templates summary not found');if(!s.parentElement.open)s.click();})()"
+    },
+    {
+      "name": "arm-sofa",
+      "comment": "Arm the Sofa frame template — its parametric step exposes Width / Depth / Seat height sliders + a live preview.",
+      "click": { "selector": "button[aria-label='Start from Sofa frame template']", "timeout": 6000 }
+    },
+    {
+      "name": "assert-sofa-armed",
+      "eval": "(function(){ if (!document.querySelector('.glb-designer button[aria-label=\"Use Sofa frame template\"]')) throw new Error('Use Sofa frame action missing — the template did not arm'); })()"
+    },
+    {
+      "name": "tune-ergonomics",
+      "comment": "Tune the ergonomic sliders BEFORE inserting: width 1.7 m (a tidy 2-cushion 2.5-seater), depth 0.92 m (deep lounge), seat height 0.44 m (SG-standard 0.40-0.45 m). Each is an ergonomic-clamped SliderField labelled '<template> <param>'.",
+      "eval": "(function(){ const set=(label,val)=>{ const inp=document.querySelector(`.glb-designer input[aria-label=\"${label}\"]`); if(!inp) throw new Error('slider not found: '+label); const setter=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp),'value').set; setter.call(inp,String(val)); inp.dispatchEvent(new Event('input',{bubbles:true})); }; set('Sofa frame Width',1.7); set('Sofa frame Depth',0.92); set('Sofa frame Seat height',0.44); })()"
+    },
+    { "name": "wait-tune", "wait": 500 },
+    {
+      "name": "use-sofa",
+      "click": { "selector": "button[aria-label='Use Sofa frame template']", "timeout": 6000 }
+    },
+    { "name": "wait-sofa", "wait": 1100 },
+    {
+      "name": "home-view-1",
+      "eval": "(function(){ const b=document.querySelector('.glb-designer button[aria-label=\"Home view\"]'); if(b)b.click(); })()"
+    },
+    { "name": "wait-home-1", "wait": 900 },
+    {
+      "name": "assert-template-parts",
+      "comment": "The Sofa frame flattened into a 'Sofa frame' PartGroup: 4 lathe legs, a base box, a back box, 2 arm boxes, and 2 seat + 2 back velvet cushions (velvet = sheen>0). Assert the structural parts + exactly 4 velvet cushions landed.",
+      "eval": "(function(){ const s=window.__glbDesigner.getSpec(); const g=(s.partGroups||[]).find(x=>x.name==='Sofa frame'); if(!g) throw new Error('Sofa frame group missing'); const legs=s.parts.filter(p=>p.kind==='lathe'); if(legs.length!==4) throw new Error('expected 4 lathe legs, got '+legs.length); const cushions=s.parts.filter(p=>p.kind==='box' && (p.sheen??0)>0); if(cushions.length!==4) throw new Error('expected 4 velvet cushions, got '+cushions.length); const seats=cushions.filter(p=>p.size[2]>0.3); if(seats.length!==2) throw new Error('expected 2 seat cushions (deep Z), got '+seats.length); console.log('11B_TEMPLATE parts='+s.parts.length+' legs='+legs.length+' cushions='+cushions.length); })()"
+    },
+    {
+      "name": "shot-template",
+      "comment": "PHASE 1 — the bare Sofa frame template: velvet cushions (grey placeholder look), dark-wood base/arms, tapered wood legs. The starting point everything builds on.",
+      "screenshot": "01-template"
+    },
+
+    {
+      "name": "apply-materials",
+      "comment": "PHASE 2 — MATERIALS. Deterministic setSpec seam (the stage10c/stage8a precedent — material-UI walking is fragile headless): (a) ALL upholstered fabric parts (the template tags them with the grey #8a8f98 FABRIC look) get a rich oxblood colour #5b2733 + a strong sheen (KHR_materials_sheen) + a warm sheen tint — the cushions AND the arms/backrest frame, so the whole piece reads as one consistent velvet (an earlier pass that keyed only on the velvet sheen preset left the arms grey — fixed here); the cushions (which carry the velvet preset's sheen) additionally get plump 0.7 (crowned upholstery, the tuft/wrinkle prerequisite) and are renamed 'Seat cushion N' / 'Back cushion N' so the layer rows + tuft/piping UI are addressable; (b) the 4 tapered legs get an oiled-wood look — warm walnut colour + a clearcoat layer (KHR_materials_clearcoat) with a soft roughness, the physical field that reads as a hand-rubbed oil finish. The dark-wood base plinth is left as wood.",
+      "eval": "(function(){ const api=window.__glbDesigner; const s=JSON.parse(JSON.stringify(api.getSpec())); let seatN=0, backN=0; s.parts=s.parts.map(p=>{ if(p.kind==='lathe'){ return { ...p, color:'#4f3a26', roughness:0.5, metalness:0, clearcoat:0.4, clearcoatRoughness:0.55 }; } if(p.kind==='box' && p.color==='#8a8f98'){ const isCushion=(p.sheen??0)>0; const base={ ...p, color:'#5b2733', sheen:1, sheenColor:'#8a4a56', sheenRoughness:0.55, roughness:0.82, metalness:0 }; if(isCushion){ const isSeat=p.size[2]>0.3; return { ...base, name:(isSeat?('Seat cushion '+(seatN++)):('Back cushion '+(backN++))), plump:0.7 }; } return { ...base, name:'Upholstered frame' }; } return p; }); api.setSpec(s); })()"
+    },
+    { "name": "wait-materials", "wait": 800 },
+    {
+      "name": "assert-materials",
+      "comment": "Legs carry a clearcoat (oiled wood); seat cushions are named, plumped, oxblood, and keep their velvet sheen.",
+      "eval": "(function(){ const s=window.__glbDesigner.getSpec(); const legs=s.parts.filter(p=>p.kind==='lathe'); if(!legs.every(p=>(p.clearcoat??0)>0)) throw new Error('legs missing clearcoat (oiled-wood physical field)'); const seats=s.parts.filter(p=>/^Seat cushion/.test(p.name||'')); if(seats.length!==2) throw new Error('expected 2 named seat cushions, got '+seats.length); if(!seats.every(p=>p.color==='#5b2733' && (p.sheen??0)>0 && (p.plump??0)>0.5)) throw new Error('seat cushions missing rich colour / sheen / plump'); console.log('11B_MATERIALS legsClearcoat='+legs[0].clearcoat+' seatPlump='+seats[0].plump); })()"
+    },
+    {
+      "name": "shot-materials",
+      "comment": "PHASE 2 — the oxblood velvet cushions (plumped, sheen catching the rig) + oiled-wood clearcoat legs. Studio rig.",
+      "screenshot": "02-materials"
+    },
+
+    {
+      "name": "precision-abut-seats",
+      "comment": "PHASE 3 — PRECISION. The template lays the two seat cushions with a reveal gap; tighten them into a seamless bench line via the __glbDesignerPrecision.drag seam. NOTE (integration finding): face-to-face MAGNETIC snapping (Stage 6d) is documented as unavailable on a grouped MEMBER — and template cushions are members of the 'Sofa frame' group — so the drag commits the value verbatim (no auto-snap). We therefore compute the exact abut target from the live geometry (cushion 1's -X face meets cushion 0's +X face) and drive the gizmo to it, achieving a precise flush placement numerically. Record the pre-drag reveal gap to prove it closed.",
+      "eval": "(function(){ const s=window.__glbDesigner.getSpec(); const seats=s.parts.filter(p=>/^Seat cushion/.test(p.name||'')).sort((a,b)=>a.position[0]-b.position[0]); if(seats.length!==2) throw new Error('need 2 seat cushions'); const c0=seats[0], c1=seats[1]; const c0maxX=c0.position[0]+c0.size[0]/2; const preGap=(c1.position[0]-c1.size[0]/2)-c0maxX; const targetX=c0maxX+c1.size[0]/2; window.__abut={ c0id:c0.id, c1id:c1.id, preGap }; window.__glbDesignerPrecision.drag(c1.id, [targetX, c1.position[1], c1.position[2]]); })()"
+    },
+    { "name": "wait-abut", "wait": 500 },
+    {
+      "name": "assert-abut-flush",
+      "comment": "Seat cushion 1's -X face now meets seat cushion 0's +X face flush (gap ~0), closing the template's reveal gap.",
+      "eval": "(function(){ const s=window.__glbDesigner.getSpec(); const c0=s.parts.find(p=>p.id===window.__abut.c0id); const c1=s.parts.find(p=>p.id===window.__abut.c1id); const c0maxX=c0.position[0]+c0.size[0]/2; const c1minX=c1.position[0]-c1.size[0]/2; const gap=c1minX-c0maxX; if(Math.abs(gap)>1e-3) throw new Error('seat cushions not flush — gap '+gap); if(!(window.__abut.preGap>Math.abs(gap))) throw new Error('reveal gap did not close (pre '+window.__abut.preGap+' post '+gap+')'); console.log('11B_PRECISION preGap='+window.__abut.preGap+' postGap='+gap); })()"
+    },
+    {
+      "name": "shot-precision",
+      "comment": "PHASE 3 — the two seat cushions abutted into one continuous seat line (reveal gap closed by the face-snap).",
+      "screenshot": "03-precision-abut"
+    },
+
+    {
+      "name": "expand-sofa-group",
+      "comment": "Expand the Sofa frame group so its cushion layer rows are visible.",
+      "eval": "(function(){ const exp=document.querySelector('.glb-designer button[aria-label=\"Expand Sofa frame\"]'); if(exp) exp.click(); })()"
+    },
+    { "name": "wait-expand", "wait": 300 },
+    {
+      "name": "tuft-seat-0-select",
+      "comment": "PHASE 4 — DIAMOND TUFTING. Select Seat cushion 0.",
+      "eval": "(function(){ const nm=[...document.querySelectorAll('.glb-designer .lyr-nm')].find(n=>(n.textContent||'').trim()==='Seat cushion 0'); if(!nm) throw new Error('Seat cushion 0 row not found'); const row=nm.closest('.lyr-row'); row.scrollIntoView(); row.click(); })()"
+    },
+    { "name": "wait-sel-0", "wait": 400 },
+    {
+      "name": "assert-tuft-controls-0",
+      "eval": "(function(){ const t=document.querySelector('.glb-designer button[aria-label=\"Tufting\"]'); if(!t) throw new Error('Tufting toggle missing — cushion not plumped/selected'); })()"
+    },
+    {
+      "name": "enable-tuft-0",
+      "eval": "(function(){ const t=document.querySelector('.glb-designer button[aria-label=\"Tufting\"]'); if(t.getAttribute('aria-checked')!=='true') t.click(); })()"
+    },
+    { "name": "wait-tuft-on-0", "wait": 400 },
+    {
+      "name": "diamond-0",
+      "eval": "(function(){ const grp=document.querySelector('.glb-designer div[role=\"radiogroup\"][aria-label=\"Tufting pattern\"]'); if(!grp) throw new Error('pattern segmented not found'); const btn=[...grp.querySelectorAll('button')].find(b=>(b.textContent||'').trim()==='Diamond'); if(!btn) throw new Error('Diamond segment not found'); btn.click(); })()"
+    },
+    {
+      "name": "stitches-0",
+      "eval": "(function(){ const btn=document.querySelector('.glb-designer button[aria-label=\"Tufting stitches\"]'); if(!btn) throw new Error('stitches toggle not found'); if(btn.getAttribute('aria-checked')!=='true') btn.click(); })()"
+    },
+    {
+      "name": "tuft-cols-0",
+      "comment": "Bump columns to 3 for a fuller diamond lattice across the wide seat.",
+      "eval": "(function(){ const inp=document.querySelector('.glb-designer input[aria-label=\"Tufting columns\"]'); if(inp){ const setter=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp),'value').set; setter.call(inp,'3'); inp.dispatchEvent(new Event('input',{bubbles:true})); } })()"
+    },
+    { "name": "wait-tuft-0", "wait": 600 },
+    {
+      "name": "tuft-seat-1-select",
+      "eval": "(function(){ const nm=[...document.querySelectorAll('.glb-designer .lyr-nm')].find(n=>(n.textContent||'').trim()==='Seat cushion 1'); if(!nm) throw new Error('Seat cushion 1 row not found'); const row=nm.closest('.lyr-row'); row.scrollIntoView(); row.click(); })()"
+    },
+    { "name": "wait-sel-1", "wait": 400 },
+    {
+      "name": "enable-tuft-1",
+      "eval": "(function(){ const t=document.querySelector('.glb-designer button[aria-label=\"Tufting\"]'); if(!t) throw new Error('Tufting toggle missing on cushion 1'); if(t.getAttribute('aria-checked')!=='true') t.click(); })()"
+    },
+    { "name": "wait-tuft-on-1", "wait": 400 },
+    {
+      "name": "diamond-1",
+      "eval": "(function(){ const grp=document.querySelector('.glb-designer div[role=\"radiogroup\"][aria-label=\"Tufting pattern\"]'); const btn=[...grp.querySelectorAll('button')].find(b=>(b.textContent||'').trim()==='Diamond'); btn.click(); })()"
+    },
+    {
+      "name": "stitches-1",
+      "eval": "(function(){ const btn=document.querySelector('.glb-designer button[aria-label=\"Tufting stitches\"]'); if(btn.getAttribute('aria-checked')!=='true') btn.click(); })()"
+    },
+    {
+      "name": "tuft-cols-1",
+      "eval": "(function(){ const inp=document.querySelector('.glb-designer input[aria-label=\"Tufting columns\"]'); if(inp){ const setter=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp),'value').set; setter.call(inp,'3'); inp.dispatchEvent(new Event('input',{bubbles:true})); } })()"
+    },
+    { "name": "wait-tuft-1", "wait": 700 },
+    {
+      "name": "assert-tufting",
+      "comment": "Both seat cushions carry a DIAMOND tuft grid with stitches on, and tagged button + stitch decals were generated (an offset lattice with diagonal stitch lines running the dimple valleys — the chesterfield read).",
+      "eval": "(function(){ const s=window.__glbDesigner.getSpec(); const seats=s.parts.filter(p=>/^Seat cushion/.test(p.name||'')); if(seats.length!==2) throw new Error('need 2 seat cushions'); for(const c of seats){ if(!c.tuft) throw new Error(c.name+' has no tuft grid'); if(c.tuft.pattern!=='diamond') throw new Error(c.name+' not diamond: '+c.tuft.pattern); if(c.tuft.stitches!==true) throw new Error(c.name+' stitches off'); const dec=(s.decals||[]).filter(d=>d.tuft && d.partId===c.id); const buttons=dec.filter(d=>d.kind==='button'); const lines=dec.filter(d=>d.kind==='stitch'); if(buttons.length!==c.tuft.rows*c.tuft.cols) throw new Error(c.name+' button count '+buttons.length+' != '+(c.tuft.rows*c.tuft.cols)); if(lines.length===0) throw new Error(c.name+' has no stitch decals'); } const totalTuft=(s.decals||[]).filter(d=>d.tuft).length; window.__tuftTotal=totalTuft; console.log('11B_TUFTING totalTuftDecals='+totalTuft); })()"
+    },
+    {
+      "name": "shot-tufting",
+      "comment": "PHASE 4 — THE chesterfield frame: both velvet seat cushions with diamond tufting — an offset button lattice + diagonal stitch lines in the dimple valleys.",
+      "screenshot": "04-diamond-tufting"
+    },
+
+    {
+      "name": "expand-details",
+      "comment": "PHASE 5 — PIPING. Expand the Details section (Add piping lives there).",
+      "eval": "(function(){ const s=[...document.querySelectorAll('.glb-designer details.compose > summary')].find(x=>(x.textContent||'').trim()==='Details'); if(!s) throw new Error('Details summary not found'); if(!s.parentElement.open) s.click(); })()"
+    },
+    { "name": "wait-details", "wait": 300 },
+    {
+      "name": "pipe-seat-0",
+      "comment": "Select Seat cushion 0 and one-tap Add piping — traces the top-face perimeter as a rounded-rect welt (a sweep part) joining the host's group.",
+      "eval": "(function(){ const nm=[...document.querySelectorAll('.glb-designer .lyr-nm')].find(n=>(n.textContent||'').trim()==='Seat cushion 0'); const row=nm.closest('.lyr-row'); row.scrollIntoView(); row.click(); })()"
+    },
+    { "name": "wait-pipe-sel-0", "wait": 400 },
+    {
+      "name": "add-piping-0",
+      "click": { "selector": "button[aria-label='Add piping to selected shape']", "timeout": 6000 }
+    },
+    { "name": "wait-piping-0", "wait": 700 },
+    {
+      "name": "pipe-seat-1",
+      "eval": "(function(){ const nm=[...document.querySelectorAll('.glb-designer .lyr-nm')].find(n=>(n.textContent||'').trim()==='Seat cushion 1'); const row=nm.closest('.lyr-row'); row.scrollIntoView(); row.click(); })()"
+    },
+    { "name": "wait-pipe-sel-1", "wait": 400 },
+    {
+      "name": "add-piping-1",
+      "click": { "selector": "button[aria-label='Add piping to selected shape']", "timeout": 6000 }
+    },
+    { "name": "wait-piping-1", "wait": 700 },
+    {
+      "name": "assert-piping",
+      "comment": "Two welt sweep parts (one per seat cushion), each a closed rounded-rect path (sweepPoints).",
+      "eval": "(function(){ const s=window.__glbDesigner.getSpec(); const welts=s.parts.filter(p=>p.kind==='sweep' && Array.isArray(p.sweepPoints) && p.sweepPoints.length>=8); if(welts.length!==2) throw new Error('expected 2 piping welts, got '+welts.length); console.log('11B_PIPING welts='+welts.length); })()"
+    },
+    {
+      "name": "home-view-2",
+      "eval": "(function(){ const b=document.querySelector('.glb-designer button[aria-label=\"Home view\"]'); if(b)b.click(); })()"
+    },
+    { "name": "wait-home-2", "wait": 900 },
+    {
+      "name": "shot-piping",
+      "comment": "PHASE 5 — the finished cushions with a soft piping welt tracing each seat-cushion edge (Studio rig).",
+      "screenshot": "05-piping-studio"
+    },
+
+    {
+      "name": "assert-studio-default",
+      "comment": "PHASE 6 — PREVIEW ENVIRONMENT. Fresh (pref cleared at boot) → Studio is the default rig, no IBL probe installed.",
+      "eval": "(function(){ const seg=document.querySelector('.glb-designer [aria-label=\"Preview environment\"]'); if(!seg) throw new Error('preview-env segmented not found'); const on=seg.querySelector('button.on'); if(!on||on.textContent.trim()!=='Studio') throw new Error('default should be Studio, got '+(on&&on.textContent)); if(window.__glbDesignerThree.scene.environment) throw new Error('Studio should have no scene.environment'); })()"
+    },
+    {
+      "name": "render-studio-pose",
+      "eval": "(function(){ const t=window.__glbDesignerThree; if(t) t.gl.render(t.scene,t.camera); })()"
+    },
+    {
+      "name": "shot-env-studio",
+      "comment": "PHASE 6a — the sofa under the fixed 3-light Studio rig (the same pose as the Room shot below).",
+      "screenshot": "06-env-studio"
+    },
+    {
+      "name": "switch-to-room",
+      "eval": "(function(){ const seg=document.querySelector('.glb-designer [aria-label=\"Preview environment\"]'); const room=[...seg.querySelectorAll('button')].find(b=>b.textContent.trim()==='Room'); if(!room) throw new Error('Room segment not found'); room.click(); })()"
+    },
+    { "name": "wait-room-bake", "wait": 2200 },
+    {
+      "name": "assert-room-env",
+      "comment": "Room mode installs the procedural Lightformer IBL probe as scene.environment on the designer canvas + persists the pref.",
+      "eval": "(function(){ const seg=document.querySelector('.glb-designer [aria-label=\"Preview environment\"]'); const on=seg.querySelector('button.on'); if(!on||on.textContent.trim()!=='Room') throw new Error('Room should be active'); const env=window.__glbDesignerThree.scene.environment; if(!env||!env.isTexture) throw new Error('Room should install a scene.environment texture'); })()"
+    },
+    {
+      "name": "render-room-pose",
+      "eval": "(function(){ const t=window.__glbDesignerThree; t.gl.render(t.scene,t.camera); })()"
+    },
+    {
+      "name": "shot-env-room",
+      "comment": "PHASE 6b — the SAME pose under Room IBL: the velvet sheen should glow richer and the oiled-wood clearcoat pick up the environment. Compare against 06-env-studio (lighting-only difference).",
+      "screenshot": "07-env-room"
+    },
+
+    {
+      "name": "set-asset-name",
+      "comment": "PHASE 7 — SAVE (optimize-on-save path). Name it, then Save asset. The save bakes each tuft/piping/plump/decal feature into the GLB and embeds the full editable assetSpec envelope.",
+      "eval": "(function(){ const inp=document.querySelector('.glb-designer input[aria-label=\"Asset name\"]'); const setter=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp),'value').set; setter.call(inp,'Showcase Chesterfield'); inp.dispatchEvent(new Event('input',{bubbles:true})); })()"
+    },
+    {
+      "name": "record-pre-save",
+      "comment": "Capture the pre-save spec counts so the restore round-trip (Phase 8) can prove nothing was lost.",
+      "eval": "(function(){ const s=window.__glbDesigner.getSpec(); window.__pre={ parts:s.parts.length, groups:(s.partGroups||[]).length, decals:(s.decals||[]).length }; window.__glbBaseline=window.__store.getState().userFurniture.length; console.log('11B_PRESAVE parts='+window.__pre.parts+' groups='+window.__pre.groups+' decals='+window.__pre.decals); })()"
+    },
+    {
+      "name": "click-save",
+      "eval": "(function(){ const btn=[...document.querySelectorAll('.glb-designer button')].find(b=>b.textContent.trim()==='Save asset' && !b.disabled); if(!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-saved",
+      "comment": "End-to-end save proof: a new UserGltfDef named 'Showcase Chesterfield' whose assetSpec envelope embeds the plumped oxblood seat cushions, the diamond tuft grids + stitch decals, the piping welts, and the oiled-wood clearcoat legs. Version asserted loosely (>=11) so a concurrent envelope bump can't false-fail.",
+      "waitFor": {
+        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Showcase Chesterfield' && typeof d.assetSpec === 'string' && (() => { try { const env = JSON.parse(d.assetSpec); if (env.kind !== 'asset' || typeof env.v !== 'number' || env.v < 11) return false; const s = env.payload; const seats = s.parts.filter(p => /^Seat cushion/.test(p.name||'')); if (seats.length !== 2) return false; if (!seats.every(p => (p.plump||0)>0 && p.tuft && p.tuft.pattern==='diamond' && p.tuft.stitches===true && p.color==='#5b2733')) return false; const welts = s.parts.filter(p => p.kind==='sweep' && Array.isArray(p.sweepPoints)); if (welts.length !== 2) return false; const legs = s.parts.filter(p => p.kind==='lathe'); if (!legs.every(p => (p.clearcoat||0)>0)) return false; const tuftDecals = (s.decals||[]).filter(x => x.tuft); return tuftDecals.length > 0; } catch { return false } })())"
+      },
+      "timeout": 120000,
+      "failMessage": "saved assetSpec should embed plumped diamond-tufted oxblood seat cushions + 2 piping welts + oiled-wood clearcoat legs + tuft decals at the asset envelope"
+    },
+    {
+      "name": "capture-saved-def",
+      "comment": "The Save-asset flow AUTO-CLOSES the designer on success. Capture the saved def id + envelope counts from the store before reopening.",
+      "eval": "(function(){ const d=window.__store.getState().userFurniture.find(x=>x.name==='Showcase Chesterfield'); window.__savedId=d.id; const env=JSON.parse(d.assetSpec); window.__savedCounts={ parts:env.payload.parts.length, groups:(env.payload.partGroups||[]).length, decals:(env.payload.decals||[]).length }; console.log('11B_SAVED id='+d.id+' parts='+window.__savedCounts.parts+' groups='+window.__savedCounts.groups+' decals='+window.__savedCounts.decals); })()"
+    },
+
+    {
+      "name": "reopen-designer",
+      "comment": "PHASE 8 — RESTORE round-trip on the REAL complex asset, from a CLEAN reopened session (Save closed the designer). Reopening resets the spec to blank — so restoring the saved def proves the whole editable spec survives persist -> parse -> restore with nothing carried over in memory.",
+      "store": { "action": "setGlbDesignerOpen", "args": [true] }
+    },
+    { "name": "wait-reopen", "waitFor": { "css": ".glb-designer" }, "timeout": 30000 },
+    { "name": "wait-reopen-seam", "waitFor": { "store": "typeof window.__glbDesigner !== 'undefined'" }, "timeout": 20000 },
+    { "name": "settle-reopen", "wait": 900 },
+    {
+      "name": "assert-blank-reopen",
+      "comment": "The reopened designer starts blank — the sofa is NOT still in memory, so the restore below is a genuine from-storage round-trip.",
+      "eval": "(function(){ const s=window.__glbDesigner.getSpec(); if(s.parts.length!==0) throw new Error('reopened designer not blank, has '+s.parts.length+' parts'); })()"
+    },
+    {
+      "name": "pick-saved-source",
+      "comment": "Pick the saved def in the 'Source model' custom Select (portalled Popover — click the trigger, then the option).",
+      "eval": "(function(){ const btn=document.querySelector('button[aria-label=\"Source model\"]'); if(!btn) throw new Error('Source model trigger not found'); btn.click(); })()"
+    },
+    { "name": "wait-source-pop", "wait": 500 },
+    {
+      "name": "choose-saved-option",
+      "eval": "(function(){ const opt=[...document.querySelectorAll('[role=\"option\"]')].find(o=>(o.textContent||'').trim().includes('Showcase Chesterfield')); if(!opt) throw new Error('saved def option not found in Source picker'); opt.click(); })()"
+    },
+    {
+      "name": "wait-restore-btn",
+      "waitFor": { "text": "Restore editable parts", "timeout": 10000 }
+    },
+    { "name": "settle-source", "wait": 900 },
+    {
+      "name": "click-restore",
+      "comment": "Click 'Restore editable parts' — reopens the saved asset's full editable spec (parts/groups/decals), the round-trip through persist -> parse -> restore.",
+      "eval": "(function(){ const btn=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Restore editable parts'); if(!btn) throw new Error('Restore editable parts button not found (canRestore false?)'); btn.click(); })()"
+    },
+    { "name": "wait-restore", "wait": 1500 },
+    {
+      "name": "assert-restore-counts",
+      "comment": "The restored spec's part / group / decal counts EXACTLY match what was saved — a REAL complex asset (velvet cushions, diamond tuft + stitch decals, piping welts, oiled legs) survived the persistence round-trip with nothing dropped.",
+      "eval": "(function(){ const s=window.__glbDesigner.getSpec(); const now={ parts:s.parts.length, groups:(s.partGroups||[]).length, decals:(s.decals||[]).length }; const exp=window.__savedCounts; if(now.parts!==exp.parts) throw new Error('part count drift: restored '+now.parts+' vs saved '+exp.parts); if(now.groups!==exp.groups) throw new Error('group count drift: restored '+now.groups+' vs saved '+exp.groups); if(now.decals!==exp.decals) throw new Error('decal count drift: restored '+now.decals+' vs saved '+exp.decals); const seats=s.parts.filter(p=>/^Seat cushion/.test(p.name||'')); if(!seats.every(p=>p.tuft&&p.tuft.pattern==='diamond')) throw new Error('restored seat cushions lost their diamond tuft'); console.log('11B_RESTORE parts='+now.parts+' groups='+now.groups+' decals='+now.decals+' (matches saved)'); })()"
+    },
+    {
+      "name": "home-view-3",
+      "eval": "(function(){ const b=document.querySelector('.glb-designer button[aria-label=\"Home view\"]'); if(b)b.click(); })()"
+    },
+    { "name": "wait-home-3", "wait": 900 },
+    {
+      "name": "shot-restored",
+      "comment": "PHASE 8 — the restored editable sofa, identical to the saved asset (round-trip proven by the count assertion above).",
+      "screenshot": "09-restored"
+    },
+
+    {
+      "name": "close-designer",
+      "comment": "PHASE 9 — PLACE IN THE FLAT. Close the designer.",
+      "store": { "action": "setGlbDesignerOpen", "args": [false] }
+    },
+    { "name": "wait-close", "wait": 600 },
+    {
+      "name": "high-tier",
+      "comment": "One-shot quality bump to High for the money shot (a single tier set — never cycle tiers in a GPU session).",
+      "store": { "action": "setQualityTier", "args": ["high"] }
+    },
+    { "name": "wait-tier", "wait": 1200 },
+    {
+      "name": "enter-living",
+      "comment": "Frame the Living/Dining room (auto-fits the camera).",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    { "name": "wait-room", "wait": 1200 },
+    {
+      "name": "place-sofa",
+      "comment": "Place the saved chesterfield at the Living/Dining room centre (origin [8.55,1.4] + 4.0x5.4 → centre ~[10.55,4.1]), facing +Z. addItem does no collision check so it always lands.",
+      "eval": "(function(){ const id=window.__store.getState().addItem({ defId:window.__savedId, position:[10.55,4.1], rotation:0, props:{} }); window.__placedId=id; })()"
+    },
+    {
+      "name": "assert-placed",
+      "waitFor": { "store": "window.__store.getState().items.some(i => i.id === window.__placedId && i.defId === window.__savedId)" },
+      "timeout": 15000,
+      "failMessage": "the saved chesterfield was not placed in the Living/Dining room"
+    },
+    {
+      "name": "deselect",
+      "comment": "Deselect the just-placed item so the inspector panel closes and the money shot shows the unobstructed scene.",
+      "store": { "action": "selectItem", "args": [null] }
+    },
+    { "name": "settle-place", "wait": 2000 },
+    {
+      "name": "zoom-in-1",
+      "comment": "Pull the room-editor camera in toward the room (wheel-only camera moves stay inside the scene; an orbit-drag as the FIRST move can swing past the room into empty space, so zoom first).",
+      "wheel": { "x": 690, "y": 470, "dy": -520 }
+    },
+    { "name": "wait-zoom-1", "wait": 900 },
+    {
+      "name": "orbit-hero",
+      "comment": "Now tilt to a top-3/4 angle looking down into the room (reads the tufted seat clearly).",
+      "drag": { "from": [690, 470], "to": [700, 560] }
+    },
+    { "name": "wait-orbit-hero", "wait": 700 },
+    {
+      "name": "zoom-in-2",
+      "comment": "Zoom the rest of the way for the hero framing.",
+      "wheel": { "x": 690, "y": 470, "dy": -420 }
+    },
+    { "name": "wait-zoom-2", "wait": 1000 },
+    {
+      "name": "shot-money",
+      "comment": "THE MONEY SHOT — the custom-built oxblood diamond-tufted chesterfield sofa placed in the real 4-room HDB Living/Dining room, rendered at High quality under daylight. The whole Asset Studio pipeline (template -> materials -> precision -> tufting -> piping -> save -> place) end-to-end in one scene, alongside the flat's existing furniture.",
+      "screenshot": "10-money-shot"
+    },
+    {
+      "name": "wheel-in",
+      "comment": "Zoom further for a detail read (velvet sheen + diamond tufting + oiled legs in the real scene).",
+      "wheel": { "x": 690, "y": 470, "dy": -250 }
+    },
+    { "name": "wait-wheel", "wait": 1200 },
+    {
+      "name": "shot-money-detail",
+      "comment": "THE MONEY SHOT (detail) — a closer look at the placed chesterfield in the flat.",
+      "screenshot": "11-money-shot-detail"
+    }
+  ]
+}

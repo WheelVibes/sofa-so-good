@@ -36,7 +36,15 @@ import {
 } from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 
-export type ProfilePoint = [number, number]
+/** An editable profile / outline point. `[x, y]` is a SHARP corner; the optional
+ *  third element is the Stage-11a **smooth flag** — `[x, y, 1]` marks a point the
+ *  Catmull-Rom `smoothProfile` curves through (absent / `0` → a sharp corner). The
+ *  flag rides the same tuple so it travels with the point through every editor
+ *  add/remove/drag and through clone/persist with no parallel array to keep in
+ *  sync. Geometry only ever reads `[0]`/`[1]`; `smoothProfile` consumes the flag
+ *  (expanding the polyline to plain 2-tuples) BEFORE any dedupe/resample/geometry
+ *  stage, so the whole geometry layer is unchanged. */
+export type ProfilePoint = [number, number, number?]
 
 /** Clamp `v` into `[lo, hi]`. Shared by the geometry builders in this module +
  *  the split-out `shellLoft.ts`. */
@@ -46,12 +54,90 @@ export const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.ma
 // Pure profile helpers (validation / closing / resampling) — unit-tested.
 // ---------------------------------------------------------------------------
 
-/** True when `pts` is a usable profile: an array of ≥2 finite `[x, y]` pairs. */
+/** True when `pts` is a usable profile: an array of ≥2 finite `[x, y]` pairs. A
+ *  point may carry an optional third element — the Stage-11a smooth flag — so a
+ *  length-2 OR length-3 finite tuple is accepted (an all-sharp legacy profile and
+ *  a smooth-flagged one both validate). */
 export function validateProfilePoints(pts: unknown): pts is ProfilePoint[] {
   if (!Array.isArray(pts) || pts.length < 2) return false
   return pts.every(
-    (p) => Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]),
+    (p) =>
+      Array.isArray(p) && (p.length === 2 || p.length === 3) && p.every((n) => Number.isFinite(n)),
   )
+}
+
+/** True when an editable point carries the Stage-11a smooth flag (its optional
+ *  third element is truthy). Sharp corner points have no third element (or a
+ *  falsy one). Pure. */
+export function isSmoothPoint(p: ProfilePoint): boolean {
+  return p.length > 2 && !!p[2]
+}
+
+/** Uniform Catmull-Rom position between `p1` and `p2` (`p0`/`p3` are the
+ *  neighbour tangent anchors) at `t ∈ [0,1]`, per component. Returns a plain
+ *  2-tuple (the curve carries no smooth flag). */
+function catmullRom(
+  p0: ProfilePoint,
+  p1: ProfilePoint,
+  p2: ProfilePoint,
+  p3: ProfilePoint,
+  t: number,
+): ProfilePoint {
+  const t2 = t * t
+  const t3 = t2 * t
+  const f = (a: number, b: number, c: number, d: number) =>
+    0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3)
+  return [f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])]
+}
+
+/**
+ * Stage-11a per-point smoothing. Expand an editable profile through its SMOOTH
+ * points with a Catmull-Rom spline (`subdiv` samples per curved segment), leaving
+ * SHARP points as exact corners. Returns plain `[x, y]` points (the smooth flag is
+ * consumed here), ready for the existing dedupe / resample / geometry stages — so
+ * lathe / extrude / loft / sweep-path all curve with **zero geometry-code
+ * changes**.
+ *
+ * A segment is subdivided only when at least one endpoint is smooth; a segment
+ * between two sharp points stays a single straight edge. The tangent at a SHARP
+ * endpoint is clamped to itself (`p0 ≡ p1` / `p3 ≡ p2`) so the spline leaves /
+ * arrives straight there — that's what keeps sharp points exact while the curve
+ * still passes through EVERY original point (each is a segment start emitted at
+ * `t = 0`).
+ *
+ * `closed` wraps the neighbour lookup (extrude outline / loft cross-section);
+ * open profiles (lathe, sweep path) clamp their endpoints as corners. An all-sharp
+ * profile (no smooth flags) and any input with < 3 points are returned unchanged
+ * (as plain 2-tuples) — so every pre-Stage-11a spec is byte-identical. Pure.
+ */
+export function smoothProfile(
+  points: ProfilePoint[],
+  opts: { closed?: boolean; subdiv?: number } = {},
+): ProfilePoint[] {
+  const closed = opts.closed ?? false
+  const subdiv = Math.max(2, Math.round(opts.subdiv ?? 8))
+  const n = points.length
+  const strip = (p: ProfilePoint): ProfilePoint => [p[0], p[1]]
+  if (n < 3 || !points.some(isSmoothPoint)) return points.map(strip)
+  const at = (i: number): ProfilePoint => points[((i % n) + n) % n]
+  const out: ProfilePoint[] = []
+  const segCount = closed ? n : n - 1
+  for (let i = 0; i < segCount; i++) {
+    const bi = i + 1 === n ? 0 : i + 1
+    const a = points[i]
+    const b = points[bi]
+    if (!isSmoothPoint(a) && !isSmoothPoint(b)) {
+      out.push(strip(a))
+      continue
+    }
+    // A smooth endpoint pulls its tangent from the neighbour; a sharp one clamps
+    // to itself (corner). Open ends with no neighbour clamp too.
+    const p0 = isSmoothPoint(a) ? (closed ? at(i - 1) : i > 0 ? points[i - 1] : a) : a
+    const p3 = isSmoothPoint(b) ? (closed ? at(bi + 1) : bi + 1 < n ? points[bi + 1] : b) : b
+    for (let s = 0; s < subdiv; s++) out.push(catmullRom(p0, a, b, p3, s / subdiv))
+  }
+  if (!closed) out.push(strip(points[n - 1]))
+  return out
 }
 
 /** Drop consecutive duplicate points (within `eps`) so a degenerate pair can't
@@ -172,22 +258,24 @@ export const LATHE_PRESETS: Record<string, ProfilePoint[]> = {
     [0.82, 0.5],
     [0.5, 1.0],
   ],
+  // Stage 11a: the belly points are SMOOTH (Catmull-Rom) so the wall reads as one
+  // continuous curve; the base centre + rim stay sharp corners.
   bowl: [
     [0.0, 0],
-    [0.5, 0.05],
-    [0.88, 0.28],
-    [1.0, 0.66],
-    [0.98, 0.96],
+    [0.5, 0.05, 1],
+    [0.88, 0.28, 1],
+    [1.0, 0.66, 1],
+    [0.98, 0.96, 1],
     [0.86, 1.0],
   ],
   vase: [
     [0.0, 0],
-    [0.42, 0.02],
-    [0.5, 0.1],
-    [0.86, 0.34],
-    [0.56, 0.6],
-    [0.36, 0.8],
-    [0.52, 0.94],
+    [0.42, 0.02, 1],
+    [0.5, 0.1, 1],
+    [0.86, 0.34, 1],
+    [0.56, 0.6, 1],
+    [0.36, 0.8, 1],
+    [0.52, 0.94, 1],
     [0.44, 1.0],
   ],
   column: [

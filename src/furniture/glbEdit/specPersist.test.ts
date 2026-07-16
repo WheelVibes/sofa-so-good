@@ -51,6 +51,39 @@ describe('specPersist', () => {
     expect(restored!.parts[2].sweepPath).toBe('ring')
   })
 
+  it('round-trips per-point smooth flags on profile/outline/loft/path (Stage 11a)', () => {
+    let s = createEmptySpec()
+    s = addPart(s, 'lathe')
+    s = updatePart(s, s.parts[0].id, {
+      profile: [
+        [0, 0],
+        [0.5, 0.3, 1],
+        [0.4, 1],
+      ],
+      outline: [
+        [-0.5, -0.5],
+        [0.5, -0.5, 1],
+        [0.5, 0.5],
+      ],
+    })
+    const restored = parseAssetSpec(serializeAssetSpec(s))
+    expect(restored).toEqual(s)
+    // The third smooth element survives the JSON round-trip verbatim.
+    expect(restored!.parts[0].profile).toEqual([
+      [0, 0],
+      [0.5, 0.3, 1],
+      [0.4, 1],
+    ])
+    expect(restored!.parts[0].outline![1]).toEqual([0.5, -0.5, 1])
+  })
+
+  it('migrates a v13 blob (no smooth flag) forward as the identity', () => {
+    // A pre-11a spec has only [x, y] points → loads unchanged, re-tagged v14.
+    const s = addPart(createEmptySpec(), 'lathe')
+    const v13 = JSON.stringify({ kind: 'asset', v: 13, payload: s })
+    expect(parseAssetSpec(v13)).toEqual(s)
+  })
+
   it('wraps the spec in a versioned envelope', () => {
     const json = serializeAssetSpec(createEmptySpec())
     expect(JSON.parse(json)).toMatchObject({ v: ASSET_SPEC_VERSION })
@@ -143,8 +176,8 @@ describe('specPersist', () => {
     expect(restored!.parts[1].role).toBe('hole')
   })
 
-  it('the current envelope is v13', () => {
-    expect(ASSET_SPEC_VERSION).toBe(13)
+  it('the current envelope is v14', () => {
+    expect(ASSET_SPEC_VERSION).toBe(14)
   })
 
   it('round-trips Stage-8b taper and migrates a v11 blob identically', () => {
@@ -364,10 +397,10 @@ describe('specPersist', () => {
     expect(restored!.combineGroups).toBeUndefined()
   })
 
-  it('migrateAssetSpec: every known version v1…v13 is the identity, unknown version → null', () => {
+  it('migrateAssetSpec: every known version v1…v14 is the identity, unknown version → null', () => {
     const spec = createEmptySpec()
     // Every bump so far is an additive superset, so migration is the identity for
-    // each recognised version through the current envelope (v13).
+    // each recognised version through the current envelope (v14).
     for (let v = 1; v <= ASSET_SPEC_VERSION; v++) {
       expect(migrateAssetSpec(spec, v)).toBe(spec)
     }
@@ -456,9 +489,10 @@ describe('specPersist', () => {
       spec: { ...spec, parts: [{ ...spec.parts[0], shell: 'thick' }] },
     })
     expect(parseAssetSpec(badShell)).toBeNull()
+    // A length-4 point is malformed (a length-3 is now the valid smooth flag).
     const badLoft = JSON.stringify({
       v: 8,
-      spec: { ...spec, parts: [{ ...spec.parts[0], loftBottom: [[0, 0, 0]] }] },
+      spec: { ...spec, parts: [{ ...spec.parts[0], loftBottom: [[0, 0, 0, 0]] }] },
     })
     expect(parseAssetSpec(badLoft)).toBeNull()
   })

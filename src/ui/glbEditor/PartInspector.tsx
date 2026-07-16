@@ -35,11 +35,14 @@ import { PartFaceFinishSection } from './PartFaceFinishSection'
 import { PartMaterialSection } from './PartMaterialSection'
 import { ProfileEditor, type ProfileSpace } from './ProfileEditor'
 
+// `closed` mirrors the argument `buildObject` passes to `smoothProfile`, so the
+// editor's curve preview matches the built geometry: lathe + sweep path are OPEN
+// (endpoints stay corners); extrude outlines + loft cross-sections are CLOSED.
 const LATHE_SPACE: ProfileSpace = { minX: 0, maxX: 1, minY: 0, maxY: 1, showAxis: true }
-const EXTRUDE_SPACE: ProfileSpace = { minX: -0.5, maxX: 0.5, minY: -0.5, maxY: 0.5 }
+const EXTRUDE_SPACE: ProfileSpace = { minX: -0.5, maxX: 0.5, minY: -0.5, maxY: 0.5, closed: true }
 // Loft cross-sections + the custom sweep path share the centred [-0.5, 0.5]
 // footprint window (both are XZ-plane outlines/paths).
-const LOFT_SPACE: ProfileSpace = { minX: -0.5, maxX: 0.5, minY: -0.5, maxY: 0.5 }
+const LOFT_SPACE: ProfileSpace = { minX: -0.5, maxX: 0.5, minY: -0.5, maxY: 0.5, closed: true }
 const SWEEP_PATH_SPACE: ProfileSpace = { minX: -0.5, maxX: 0.5, minY: -0.5, maxY: 0.5 }
 
 /**
@@ -499,8 +502,8 @@ export function PartInspector() {
               const p = LOFT_PRESETS[id]
               if (p)
                 onPatch({
-                  loftBottom: p.bottom.map((q) => [...q] as [number, number]),
-                  loftTop: p.top.map((q) => [...q] as [number, number]),
+                  loftBottom: p.bottom.map((q) => [...q] as ProfilePoint),
+                  loftTop: p.top.map((q) => [...q] as ProfilePoint),
                 })
             }}
             style={{ width: '100%' }}
@@ -523,7 +526,7 @@ export function PartInspector() {
             space={LOFT_SPACE}
             presets={EXTRUDE_PRESETS}
             presetLabels={EXTRUDE_PRESET_LABEL}
-            onChange={(pts) => onPatch({ loftBottom: pts.map((q) => [...q] as [number, number]) })}
+            onChange={(pts) => onPatch({ loftBottom: pts.map((q) => [...q] as ProfilePoint) })}
           />
           <div
             className="label"
@@ -536,7 +539,7 @@ export function PartInspector() {
             space={LOFT_SPACE}
             presets={EXTRUDE_PRESETS}
             presetLabels={EXTRUDE_PRESET_LABEL}
-            onChange={(pts) => onPatch({ loftTop: pts.map((q) => [...q] as [number, number]) })}
+            onChange={(pts) => onPatch({ loftTop: pts.map((q) => [...q] as ProfilePoint) })}
           />
         </div>
       ) : null}
@@ -604,7 +607,7 @@ export function PartInspector() {
                   onPatch({
                     sweepPath: path,
                     sweepPathPoints: SWEEP_PATH_POINT_PRESETS['s-curve'].map(
-                      (q) => [...q] as [number, number],
+                      (q) => [...q] as ProfilePoint,
                     ),
                   })
                 } else {
@@ -629,7 +632,7 @@ export function PartInspector() {
                 presets={SWEEP_PATH_POINT_PRESETS}
                 presetLabels={SWEEP_PATH_POINT_PRESET_LABEL}
                 onChange={(pts) =>
-                  onPatch({ sweepPathPoints: pts.map((q) => [...q] as [number, number]) })
+                  onPatch({ sweepPathPoints: pts.map((q) => [...q] as ProfilePoint) })
                 }
               />
             </div>

@@ -69,8 +69,15 @@ import type { AssetEditSpec } from './editSpec'
  *    validator already tolerated extra optional keys, so this follows the same
  *    within-version judgment as `srcRef.fp` (an older v13 tuft simply has no
  *    pattern/stitches → renders as the rectangular grid it always was).
- */
-export const ASSET_SPEC_VERSION = 13
+ *  - v14 (Curved profiles, Stage 11a): a profile/outline/loft/sweep-path point
+ *    may carry an optional THIRD element — the per-point `smooth` flag
+ *    (`[x, y, 1]`) that `smoothProfile` curves through. UNLIKE srcRef.fp/tuft, this
+ *    reshapes the point tuple, so `isVec2` had to be relaxed (length 2 OR 3) —
+ *    a genuine validator change → a clean version bump. Still additive: an older
+ *    (v13) spec has only `[x, y]` points, which validate + build byte-identically
+ *    (an all-sharp profile is `smoothProfile`'s identity). Migration is the
+ *    identity. */
+export const ASSET_SPEC_VERSION = 14
 
 /** Migrate a parsed spec at envelope version `from` up to the current version.
  *  Every version bump so far has been an additive superset, so migration is the
@@ -90,7 +97,8 @@ export function migrateAssetSpec(spec: AssetEditSpec, from: number): AssetEditSp
     case 10: // no tuft grid / tuft decal tag — already a valid v11 spec.
     case 11: // no taper — already a valid v12 spec.
     case 12: // no srcRef — already a valid v13 spec.
-    case 13:
+    case 13: // no per-point smooth flag — already a valid v14 spec.
+    case 14:
       return spec
     default:
       return null
@@ -113,11 +121,14 @@ function isVec3(x: unknown): boolean {
   )
 }
 
-/** A finite-number `[x, y]` tuple (profile / loft / path points). */
+/** A finite-number `[x, y]` tuple — or, since Stage 11a (v14), an `[x, y, smooth]`
+ *  triple whose optional third element is the per-point smooth flag. A length-2 or
+ *  length-3 all-finite tuple validates (an all-sharp legacy profile and a
+ *  smooth-flagged one both pass); any other shape is rejected. */
 function isVec2(x: unknown): boolean {
   return (
     Array.isArray(x) &&
-    x.length === 2 &&
+    (x.length === 2 || x.length === 3) &&
     x.every((n) => typeof n === 'number' && Number.isFinite(n))
   )
 }

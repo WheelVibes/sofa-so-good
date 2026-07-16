@@ -915,13 +915,41 @@ toggle back to grid, save/restore). **Closes Iteration 6 (pending review).**
 
 ## Iteration 7
 
-### Stage 11a — Curved profiles
-ProfileEditor points gain a per-point smooth toggle (Catmull-Rom/bezier through smooth
-points, sharp corners preserved); resampled before geometry so lathe/loft/extrude/sweep
-all benefit. Presets updated where curves read better (vase, bowl, ogee).
+### Stage 11a — Curved profiles ✅ (v0.21.2.66)
+ProfileEditor points gain a per-point smooth toggle (Catmull-Rom through smooth points, sharp
+corners preserved); expanded before geometry so lathe/loft/extrude/sweep all benefit. Presets
+updated where curves read better (vase, bowl).
 
-### Stage 11b — Showcase integration build
+**Shipped.** The smooth flag rides the point tuple as an optional third element (`[x, y, 1]` =
+smooth, `[x, y]` = sharp corner) — one representation that travels through every editor
+add/remove/drag and clone/persist with no parallel array to sync. The pure
+`shapeProfiles.ts:smoothProfile(points, {closed, subdiv})` expands smooth points with a uniform
+Catmull-Rom (~8 samples/segment), clamping the tangent at a sharp endpoint to itself so corners
+stay exact; it runs in `buildObject.ts` BEFORE the existing dedupe/resample/geometry stages, so
+the geometry builders are untouched. An all-sharp profile is its identity → every pre-11a spec is
+byte-identical. The `ProfileEditor` shows smooth points as circles / sharp as squares, previews
+the real curve, and toggles a point via double-tap or the curve/corner button. Presets: vase +
+bowl belly points are smooth (ogee already used bezier curves in its sweep section). Envelope
+bumped to **v14** (the tuple reshape relaxed `isVec2` to length 2-or-3; migration is the
+identity). Scenario: `scripts/scenarios/glb-designer-stage11a.json`.
+
+### Stage 11b — Showcase integration build — ✅ SHIPPED-WITH-FINDINGS (v0.21.2.67)
 Scripted end-to-end build of a complete chesterfield sofa using every system (template →
-shell/taper → physical materials → diamond tufting + stitches → piping → components →
-Room preview → save → place in the flat). Bugs found are REPORTED (not fixed in-flight);
-the result doubles as an integration regression scenario + demo frames.
+physical materials → precision (cushion abut) → diamond tufting + stitches → piping →
+Studio/Room preview → save → restore round-trip → place in the flat). Bugs found are REPORTED
+(not fixed in-flight); the result doubles as an integration regression scenario + demo frames.
+- ✅ **Scenario** `scripts/scenarios/glb-designer-showcase.json` (109 steps, 11 frames, `SHOT_GPU=1`):
+  Sofa frame template (tuned ergonomic sliders) → whole-piece oxblood velvet (KHR sheen) +
+  oiled-wood clearcoat legs + plump → two seat cushions placed flush → diamond tufting + stitch lines
+  on both seat cushions (real inspector UI) → piping welt per seat cushion → Studio-vs-Room IBL →
+  save (optimize-on-save; assetSpec embeds 14 parts / 1 group / 38 decals) → restore from a CLEAN
+  reopened session (part/group/decal counts survive EXACTLY) → place in Living/Dining at High tier.
+  Real store state asserted at every phase.
+- ✅ **Integration findings** (reported, per the verification-agent brief — no product source touched;
+  full list in `CHANGELOG.md` v0.21.2.67 + `docs/visual-verification-playbook.md`): face-snap is
+  inert on grouped template MEMBERS (the precision story is numeric, not magnetic, for template
+  cushions); plump/tuft is TOP-FACE only (no vertical backrest tufting → the diamond lattice lives on
+  the seat); tuft stitch decals read as high-contrast light dashes on dark velvet (tonal default would
+  read as thread); a velvet-sheen-keyed recolour leaves the arms/backrest grey (key on the FABRIC tag
+  instead — tuned in-scenario); `Save asset` auto-closes the designer (reopen for a same-session
+  restore).
