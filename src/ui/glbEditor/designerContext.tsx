@@ -148,7 +148,7 @@ import {
   type SpecHistory,
 } from '../../furniture/glbEdit/specHistory'
 import { parseAssetSpec } from '../../furniture/glbEdit/specPersist'
-import { ensureSpecSrcRefs } from '../../furniture/glbEdit/srcRefCache'
+import { ensureSpecSrcRefs, isSrcRefDrifted } from '../../furniture/glbEdit/srcRefCache'
 import { buildTemplate, insertTemplate, templateById } from '../../furniture/glbEdit/templates'
 import { setTuftGrid as setTuftGridOp } from '../../furniture/glbEdit/tufting'
 import type { FurnitureCategory, FurnitureDef, UserGltfDef } from '../../furniture/types'
@@ -907,38 +907,48 @@ function useDesignerController() {
   const resetMesh = (mn: string) =>
     commit((s) => setMeshOverride(s, mn, { color: undefined, hidden: false }))
 
-  const restoreSpec = () => {
+  const restoreSpec = async () => {
     if (!restorableSpec) return
     // Stage 9a — a restored design can carry GLB-decompose REFERENCE parts
-    // (`srcRef`). Drop any whose source def is gone (honest degradation, toast),
-    // and kick off resolution of the survivors so the preview fills in.
-    const { spec: cleaned, dropped } = dropUnresolvableSrcRefParts(
+    // (`srcRef`). First drop any whose source def is entirely GONE (no runtime
+    // url); then resolve the survivors' geometry so the preview fills in.
+    const { spec: cleaned, dropped: defGone } = dropUnresolvableSrcRefParts(
       restorableSpec,
-      (defId) => resolveDefUrl(defId) !== null,
+      (ref) => resolveDefUrl(ref.defId) !== null,
     )
-    void ensureSpecSrcRefs(specSrcRefDefIds(cleaned), resolveDefUrl)
+    await ensureSpecSrcRefs(specSrcRefDefIds(cleaned), resolveDefUrl)
+    // Stage 9a review — a source def that's still present but was REPLACED by a
+    // different GLB (same id) leaves refs whose drift fingerprint no longer
+    // matches. Now that the survivors have resolved, drop those too rather than
+    // silently rendering the wrong mesh (`isSrcRefDrifted` is only meaningful
+    // once the def has loaded, so this second pass runs post-resolution).
+    const { spec: verified, dropped: drifted } = dropUnresolvableSrcRefParts(
+      cleaned,
+      (ref) => !isSrcRefDrifted(ref),
+    )
+    const dropped = defGone + drifted
     if (dropped > 0) {
       useStore.getState().notify.start({
-        title: `Dropped ${dropped} part${dropped === 1 ? '' : 's'} — source item is gone`,
-        message: 'They referenced a catalog item that no longer exists.',
+        title: `Dropped ${dropped} part${dropped === 1 ? '' : 's'} — source item changed`,
+        message: 'They referenced a catalog item that is gone or was replaced.',
         kind: 'info',
       })
     }
     // Reopen the asset's original editable shapes (a distinct undo step); the
     // restored spec carries its OWN source (usually none), replacing the frozen
     // source-mesh path with the editable part list.
-    commit(cleaned)
-    setSelId(cleaned.parts[0]?.id ?? null)
+    commit(verified)
+    setSelId(verified.parts[0]?.id ?? null)
     // Stage 7d — if this design was previously exported as a configurable product,
     // re-seed the "Make configurable" panel (slot / label / price / rules) from it
     // so a re-edit restores the authored variant slots + constraints. The product
     // resolves by the design's stable `exportedProductId`; option ids ARE group
     // ids, so the reconstruction is exact for the groups the design still has.
-    const productId = cleaned.exportedProductId
+    const productId = verified.exportedProductId
     if (productId) {
       const product = useStore.getState().userConfigurableProducts.find((p) => p.id === productId)
       if (product) {
-        const knownGroupIds = new Set(partGroups(cleaned).map((g) => g.id))
+        const knownGroupIds = new Set(partGroups(verified).map((g) => g.id))
         setAssignments(reconstructAssignments(product, knownGroupIds))
       }
     }

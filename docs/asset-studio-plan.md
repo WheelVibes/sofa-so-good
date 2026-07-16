@@ -817,3 +817,22 @@ component that appears in the Components panel (persisted like user furniture).
   safety on both insert paths (fresh ids, srcRefs verbatim). Tests `decomposeSelect.test.ts` +
   `componentFragment.test.ts` + `userComponentsSlice.test.ts`; scenario
   `scripts/scenarios/glb-designer-stage9b.json`. Rides the `glbDesigner` pro flag (no new flag).
+
+### Iteration 5 review — ✅ COMPLETE-WITH-REVIEW (v0.21.2.59)
+Two verified review findings on the decompose-and-reuse path, both fixed + tested (targeted
+vitest, tsc/biome/knip clean, scenarios 9a + 9b re-run green, full suite green):
+- ✅ **srcRef cache staleness + mesh-drift safety.** (a) `srcRefCache.evictDefSrcRefs(defId)` is
+  wired into `removeUserFurniture` / `replaceUserFurniture` / `addManyUserFurniture` (alongside the
+  existing `evictGltfAsset`), so a replaced/removed def's cached geometry is invalidated instead of
+  serving stale meshes. (b) `decompose` captures a cheap drift fingerprint
+  (`${meshCount}:${meshName}:${vertexCount}`) on each `srcRef`; `srcRefCache` recomputes it from the
+  current source scene and resolves to a placeholder (never the wrong mesh) on mismatch
+  (`getCachedSrcRefGeometry` / `isSrcRefDrifted`); the designer restore flow drops drifted refs with
+  the existing toast (post-resolution pass). Additive optional `fp` field WITHIN envelope v13 (the
+  strict validator tolerates it; a legacy v13 spec resolves unchanged).
+- ✅ **componentFragment dropped decals.** `ComponentFragment` gains `decals[]` (component envelope
+  **v1 → v2**, legacy v1 still parses); `captureGroupFragment` captures the group parts' decals
+  (excluding decals whose partId isn't in the group) and `insertComponentFragment` re-ids them onto
+  the placed parts (`editSpec.appendRemappedDecals`), so a tufted group's button pairing survives a
+  save + place. (No GroupInspector change needed — its "Save as component" action already passes the
+  full spec to `captureGroupFragment`.)

@@ -20,11 +20,18 @@
 import { type BufferGeometry, Matrix4, type Object3D, Vector3 } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { getSecureGltfManager } from '../gltf/loaderSecurity'
-import { forEachDecomposableMesh } from './decompose'
+import { forEachDecomposableMesh, meshVertexCount, srcRefFingerprint } from './decompose'
 import type { SrcRef } from './editSpec'
 
-/** defId::meshIndex → centred, root-local-baked geometry (the decompose output). */
-const cache = new Map<string, BufferGeometry>()
+/** A resolved cache entry — the centred, root-local-baked geometry plus the drift
+ *  fingerprint recomputed from the CURRENT source scene at resolution time. */
+interface SrcRefEntry {
+  geo: BufferGeometry
+  fp: string
+}
+
+/** defId::meshIndex → resolved geometry + current fingerprint (the decompose output). */
+const cache = new Map<string, SrcRefEntry>()
 /** defIds whose whole GLB has been resolved into the cache. */
 const loadedDefs = new Set<string>()
 /** In-flight loads, so concurrent `ensureDefSrcRefs` for one def share the fetch. */
@@ -38,9 +45,26 @@ function keyOf(ref: SrcRef): string {
 }
 
 /** The resolved geometry for a ref, or null while it hasn't loaded yet. Synchronous
- *  — `buildObject`/`partGeometry` read this and fall back to a placeholder box. */
+ *  — `buildObject`/`partGeometry` read this and fall back to a placeholder box.
+ *  When the ref carries a drift `fp` (Stage 9a review) that DOESN'T match the
+ *  currently-resolved source mesh, returns null too — so a def replaced by a
+ *  different GLB renders a placeholder box, never the wrong mesh. A legacy ref
+ *  (no `fp`) skips the check and resolves as before. */
 export function getCachedSrcRefGeometry(ref: SrcRef): BufferGeometry | null {
-  return cache.get(keyOf(ref)) ?? null
+  const entry = cache.get(keyOf(ref))
+  if (!entry) return null
+  if (ref.fp !== undefined && ref.fp !== entry.fp) return null
+  return entry.geo
+}
+
+/** True when a ref's source def IS loaded but the ref no longer resolves to
+ *  matching geometry — the mesh at `meshPath` is gone or its fingerprint drifted
+ *  (the source GLB was replaced). False while the def hasn't loaded yet (unknown,
+ *  not drifted). Used to DROP drifted refs (with the existing toast) once the
+ *  source has resolved, rather than leaving them as permanent placeholders. */
+export function isSrcRefDrifted(ref: SrcRef): boolean {
+  if (!loadedDefs.has(ref.defId)) return false
+  return getCachedSrcRefGeometry(ref) === null
 }
 
 /** Subscribe to resolution events (a def finished loading) — the preview re-renders
@@ -72,6 +96,11 @@ export function populateSrcRefCacheFromScene(defId: string, root: Object3D): voi
   if (loadedDefs.has(defId)) return
   root.updateWorldMatrix(true, true)
   const invRoot = new Matrix4().copy(root.matrixWorld).invert()
+  // Count first so the fingerprint uses the total mesh count (matches decompose).
+  let meshCount = 0
+  forEachDecomposableMesh(root, () => {
+    meshCount += 1
+  })
   forEachDecomposableMesh(root, (mesh, i) => {
     const geo = mesh.geometry.clone()
     geo.applyMatrix4(new Matrix4().copy(invRoot).multiply(mesh.matrixWorld))
@@ -79,10 +108,35 @@ export function populateSrcRefCacheFromScene(defId: string, root: Object3D): voi
     const c = geo.boundingBox?.getCenter(new Vector3()) ?? new Vector3()
     geo.translate(-c.x, -c.y, -c.z)
     if (!geo.getAttribute('normal')) geo.computeVertexNormals()
-    cache.set(`${defId}::${i}`, geo)
+    cache.set(`${defId}::${i}`, {
+      geo,
+      fp: srcRefFingerprint(mesh.name, meshVertexCount(mesh), meshCount),
+    })
   })
   loadedDefs.add(defId)
   bump()
+}
+
+/**
+ * Evict every resolved entry for a def (Stage 9a review) — call when the def is
+ * REPLACED or REMOVED so a subsequent resolution re-loads the new GLB instead of
+ * serving stale geometry. Disposes the cached geometries, forgets the def's
+ * loaded/in-flight state, and bumps the epoch so the live preview re-renders
+ * (its ref parts fall back to a placeholder until the new geometry resolves).
+ * Idempotent. */
+export function evictDefSrcRefs(defId: string): void {
+  const prefix = `${defId}::`
+  let removed = false
+  for (const [key, entry] of cache) {
+    if (key.startsWith(prefix)) {
+      entry.geo.dispose()
+      cache.delete(key)
+      removed = true
+    }
+  }
+  const had = loadedDefs.delete(defId)
+  inflight.delete(defId)
+  if (removed || had) bump()
 }
 
 /** Load a def's GLB scene through the SEC-1 loader (a fresh loader per call, so the
@@ -131,7 +185,7 @@ export async function ensureSpecSrcRefs(
 
 /** Test-only: clear the module cache so cases don't leak resolved geometry. */
 export function __resetSrcRefCacheForTest(): void {
-  for (const g of cache.values()) g.dispose()
+  for (const { geo } of cache.values()) geo.dispose()
   cache.clear()
   loadedDefs.clear()
   inflight.clear()

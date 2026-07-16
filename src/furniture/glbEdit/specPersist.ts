@@ -57,10 +57,12 @@ import type { AssetEditSpec } from './editSpec'
  *    deformer on box/extrude). Additive superset → migration stays the identity.
  *    (A v11 spec has no taper field — it loads unchanged with straight sides.)
  *  - v13 (Any furniture as a template, Stage 9a): adds optional `parts[].srcRef`
- *    (`{ defId, meshPath }`) on a `mesh` part decomposed from a GLB def — a
- *    reference re-resolved lazily instead of inlined geometry. Additive superset →
- *    migration stays the identity. (A v12 spec has no srcRef — every mesh part
- *    keeps its baked `geometry`.)
+ *    (`{ defId, meshPath }`, + an optional `fp` drift fingerprint added additively
+ *    within v13 by the Stage-9a review) on a `mesh` part decomposed from a GLB def
+ *    — a reference re-resolved lazily instead of inlined geometry. Additive
+ *    superset → migration stays the identity. (A v12 spec has no srcRef — every
+ *    mesh part keeps its baked `geometry`; an older v13 spec has no `fp` — the ref
+ *    resolves without a drift check, exactly as before.)
  */
 export const ASSET_SPEC_VERSION = 13
 
@@ -286,11 +288,15 @@ function partsValid(parts: unknown[]): boolean {
     // v12: optional taper 0…1 (box/extrude deformer).
     if (rec.taper !== undefined && (typeof rec.taper !== 'number' || !Number.isFinite(rec.taper)))
       return false
-    // v13: optional GLB-decompose reference (`{ defId, meshPath }` strings).
+    // v13: optional GLB-decompose reference (`{ defId, meshPath }` strings +
+    // an optional `fp` drift fingerprint, added additively within v13 — the
+    // envelope stays v13 since this validator tolerates the extra optional field
+    // and an older v13 spec simply has no `fp`, resolving as before).
     if (rec.srcRef !== undefined) {
       if (!rec.srcRef || typeof rec.srcRef !== 'object') return false
       const sr = rec.srcRef as Record<string, unknown>
       if (typeof sr.defId !== 'string' || typeof sr.meshPath !== 'string') return false
+      if (sr.fp !== undefined && typeof sr.fp !== 'string') return false
     }
     if (rec.sweepPoints !== undefined) {
       if (!Array.isArray(rec.sweepPoints) || !rec.sweepPoints.every(isVec3)) return false

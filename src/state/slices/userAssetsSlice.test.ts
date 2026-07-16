@@ -7,9 +7,24 @@ vi.mock('../storage/IdbAssetStore', () => ({
 }))
 ;(URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = vi.fn()
 
+import { BoxGeometry, Group, Mesh, MeshStandardMaterial } from 'three'
 import { getCachedGltfFootprint, seedGltfFootprint } from '../../furniture/GltfModel'
+import {
+  __resetSrcRefCacheForTest,
+  getCachedSrcRefGeometry,
+  populateSrcRefCacheFromScene,
+} from '../../furniture/glbEdit/srcRefCache'
 import type { FurnitureItem, IkeaGltfDef } from '../../furniture/types'
 import { useStore } from '../store'
+
+/** A one-mesh scene to seed the srcRef cache for a def. */
+function oneMeshScene(): Group {
+  const root = new Group()
+  const m = new Mesh(new BoxGeometry(1, 1, 1), new MeshStandardMaterial())
+  m.name = 'body'
+  root.add(m)
+  return root
+}
 
 function ikeaDef(overrides: Partial<IkeaGltfDef> = {}): IkeaGltfDef {
   return {
@@ -45,6 +60,7 @@ function placed(id: string, defId: string): FurnitureItem {
 
 beforeEach(() => {
   useStore.getState().__resetForTest()
+  __resetSrcRefCacheForTest()
   idbDelete.mockClear()
   ;(URL.revokeObjectURL as ReturnType<typeof vi.fn>).mockClear()
 })
@@ -198,6 +214,19 @@ describe('replaceUserFurniture', () => {
   it('appends like add when no existing def shares the id', () => {
     useStore.getState().replaceUserFurniture(ikeaDef({ id: 'ikea-new' }))
     expect(useStore.getState().userFurniture.map((d) => d.id)).toContain('ikea-new')
+  })
+
+  it('evicts the def’s cached srcRef geometry (a replaced GLB is a different model)', () => {
+    useStore.getState().addUserFurniture(ikeaDef({ id: 'ikea-malm' }))
+    // Seed decompose-resolved geometry keyed by the def id (Stage 9a designer path).
+    populateSrcRefCacheFromScene('ikea-malm', oneMeshScene())
+    const ref = { defId: 'ikea-malm', meshPath: '0' }
+    expect(getCachedSrcRefGeometry(ref)).not.toBeNull()
+
+    useStore.getState().replaceUserFurniture(ikeaDef({ id: 'ikea-malm', name: 'v2' }))
+
+    // The stale geometry is gone — a re-resolution must re-load the new GLB.
+    expect(getCachedSrcRefGeometry(ref)).toBeNull()
   })
 })
 

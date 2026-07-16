@@ -5,6 +5,34 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.59 — Asset Studio Iteration 5 review — srcRef drift safety + component decal capture
+
+Two verified iteration-5 review findings on the Stage 9a/9b decompose-and-reuse path.
+
+- **srcRef cache staleness + mesh-drift safety** (`furniture/glbEdit/srcRefCache.ts`,
+  `decompose.ts`, `state/slices/userAssetsSlice.ts`). A GLB-decompose `srcRef` resolved its
+  geometry from a per-def module cache keyed by `defId::meshIndex` — but the cache was never
+  invalidated when a def was replaced/removed, and a ref carried no way to tell whether the mesh
+  it points at is still the SAME mesh. Two-part fix: (a) **eviction** — `evictDefSrcRefs(defId)` is
+  now called from `removeUserFurniture` / `replaceUserFurniture` / `addManyUserFurniture` (alongside
+  the existing `evictGltfAsset`), so a replaced GLB's stale geometry is dropped and re-resolved
+  cleanly. (b) **drift detection** — `decompose` now captures a cheap fingerprint
+  (`${meshCount}:${meshName}:${vertexCount}`) on each `srcRef`; `srcRefCache` recomputes it from the
+  CURRENT source scene at resolution and, on mismatch, resolves to `null` (a placeholder box, never
+  the wrong mesh). The designer's **restore** flow now runs a post-resolution drift pass
+  (`isSrcRefDrifted`) that drops mismatched refs with the existing honest-degradation toast. The
+  fingerprint is an additive optional field WITHIN envelope v13 (the strict validator tolerates it;
+  a legacy v13 spec has no `fp` and resolves exactly as before).
+- **componentFragment dropped decals** (`furniture/glbEdit/componentFragment.ts`). A saved
+  component captured only a group's parts, not the decals projected onto them — so a **tufted**
+  group lost its buttons (the part's tuft grid and its tagged button decals are a pairing). The
+  `ComponentFragment` now carries `decals[]` (component envelope kind bumped **v1 → v2**, legacy v1
+  fragments still parse — additive identity migration): `captureGroupFragment` captures the group
+  parts' decals (a decal whose partId isn't in the group is excluded), and `insertComponentFragment`
+  re-ids them onto the freshly-cloned parts (new `editSpec.appendRemappedDecals`), so the tuft
+  pairing survives a save + place. `dropUnresolvableComponentParts` keeps only the surviving parts'
+  decals.
+
 ## v0.21.2.58 — Asset Studio Stage 9b — component building blocks (selective extraction + user components; closes Iteration 5)
 
 Two ways to reuse existing geometry in the GLB designer, building on Stage 9a's decompose.

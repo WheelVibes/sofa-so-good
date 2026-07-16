@@ -107,6 +107,28 @@ export function forEachDecomposableMesh(
   })
 }
 
+/** A mesh's POSITION-attribute vertex count (0 when absent) — a cheap, stable
+ *  shape signal shared by decompose (capture) + `srcRefCache` (verify). */
+export function meshVertexCount(mesh: Mesh): number {
+  return mesh.geometry.getAttribute('position')?.count ?? 0
+}
+
+/**
+ * A cheap drift FINGERPRINT for a decomposable mesh (Stage 9a review) —
+ * `${meshCount}:${meshName}:${vertexCount}`. Captured on a `srcRef` at decompose
+ * time and recomputed by `srcRefCache` at resolution: if the source def is later
+ * replaced by a different GLB (same id), the fingerprint no longer matches, so the
+ * ref is treated as unresolvable instead of resolving to the wrong mesh. Computed
+ * IDENTICALLY on both sides from the same `forEachDecomposableMesh` walk, so a
+ * genuine round-trip always matches. Pure. */
+export function srcRefFingerprint(
+  meshName: string,
+  vertexCount: number,
+  meshCount: number,
+): string {
+  return `${meshCount}:${meshName ?? ''}:${vertexCount}`
+}
+
 /** Extract a geometry's position/normal/index as plain arrays (mesh-part storage).
  *  Normals are computed when absent so a baked part always shades correctly. */
 function geometryToArrays(geo: BufferGeometry): {
@@ -169,7 +191,7 @@ function meshPartFromLocalGeometry(
   localGeo: BufferGeometry,
   name: string,
   material: { color: string; roughness?: number; metalness?: number },
-  ref: { defId: string; meshPath: string } | null,
+  ref: { defId: string; meshPath: string; fp?: string } | null,
 ): { part: ShapePart; triangles: number } {
   localGeo.computeBoundingBox()
   const box = localGeo.boundingBox
@@ -187,7 +209,7 @@ function meshPartFromLocalGeometry(
     roughness: material.roughness,
     metalness: material.metalness,
   }
-  if (ref) part.srcRef = { defId: ref.defId, meshPath: ref.meshPath }
+  if (ref) part.srcRef = { defId: ref.defId, meshPath: ref.meshPath, fp: ref.fp }
   else part.geometry = geometryToArrays(localGeo)
   return { part, triangles }
 }
@@ -222,6 +244,9 @@ export function decomposeObject(root: Object3D, opts: DecomposeOptions = {}): De
   // walks, so a reference-mode part's `meshPath` re-resolves to the same mesh.
   const meshIndex = new Map<Mesh, number>()
   forEachDecomposableMesh(root, (m, i) => meshIndex.set(m, i))
+  // Total decomposable-mesh count — part of the drift fingerprint, so a source
+  // GLB that changes its mesh COUNT invalidates every ref (not just changed ones).
+  const meshCount = meshIndex.size
 
   // Emit parts for one subtree, returning the ids produced (so the caller can wrap
   // them in a group). Handles both regular + instanced meshes.
@@ -231,7 +256,13 @@ export function decomposeObject(root: Object3D, opts: DecomposeOptions = {}): De
       if (isRegularMesh(o)) {
         const localGeo = bakeToRootLocal(o, invRoot)
         const idx = meshIndex.get(o) ?? 0
-        const ref = refDefId ? { defId: refDefId, meshPath: String(idx) } : null
+        const ref = refDefId
+          ? {
+              defId: refDefId,
+              meshPath: String(idx),
+              fp: srcRefFingerprint(o.name, meshVertexCount(o), meshCount),
+            }
+          : null
         const { part, triangles: t } = meshPartFromLocalGeometry(
           localGeo,
           partName(o, idx),

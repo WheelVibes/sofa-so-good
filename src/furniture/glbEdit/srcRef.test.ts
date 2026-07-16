@@ -24,7 +24,9 @@ import {
 } from './specPersist'
 import {
   __resetSrcRefCacheForTest,
+  evictDefSrcRefs,
   getCachedSrcRefGeometry,
+  isSrcRefDrifted,
   populateSrcRefCacheFromScene,
 } from './srcRefCache'
 
@@ -109,6 +111,62 @@ describe('srcRef cache resolution', () => {
     // partGeometry now returns real geometry (not the 1-box placeholder).
     const geo = partGeometry(parts[0])
     expect(geo.getAttribute('position').count).toBe(resolved?.getAttribute('position').count)
+  })
+})
+
+describe('srcRef drift fingerprint (Stage 9a review)', () => {
+  it('decompose captures a drift fingerprint on each ref', () => {
+    const { parts } = decomposeObject(twoMeshScene(), { ref: { defId: 'box-asset' } })
+    // fp is `${meshCount}:${meshName}:${vertexCount}` — 2 meshes, named body/lid.
+    expect(parts[0].srcRef?.fp).toBe('2:body:24')
+    expect(parts[1].srcRef?.fp).toBe('2:lid:24')
+  })
+
+  it('happy path — a matching fingerprint resolves normally', () => {
+    const scene = twoMeshScene()
+    const { parts } = decomposeObject(scene, { ref: { defId: 'box-asset' } })
+    populateSrcRefCacheFromScene('box-asset', scene)
+    expect(getCachedSrcRefGeometry(parts[0].srcRef!)).not.toBeNull()
+    expect(isSrcRefDrifted(parts[0].srcRef!)).toBe(false)
+  })
+
+  it('a drifted fingerprint resolves to null and is reported drifted (→ dropped)', () => {
+    const scene = twoMeshScene()
+    const { parts } = decomposeObject(scene, { ref: { defId: 'box-asset' } })
+    populateSrcRefCacheFromScene('box-asset', scene)
+    // Simulate the source GLB having been replaced by a different model: the
+    // stored ref's fingerprint no longer matches the resolved mesh.
+    const stale = { ...parts[0].srcRef!, fp: '2:body:999' }
+    expect(getCachedSrcRefGeometry(stale)).toBeNull() // never the wrong mesh
+    expect(isSrcRefDrifted(stale)).toBe(true)
+    // The drift drop treats it as unresolvable.
+    const spec = { ...createEmptySpec(), parts: [{ ...parts[0], srcRef: stale }] }
+    const { spec: pruned, dropped } = dropUnresolvableSrcRefParts(spec, (r) => !isSrcRefDrifted(r))
+    expect(dropped).toBe(1)
+    expect(pruned.parts).toHaveLength(0)
+  })
+
+  it('a legacy ref with no fingerprint resolves without a drift check (back-compat)', () => {
+    const scene = twoMeshScene()
+    const { parts } = decomposeObject(scene, { ref: { defId: 'box-asset' } })
+    populateSrcRefCacheFromScene('box-asset', scene)
+    const legacy = { defId: 'box-asset', meshPath: parts[0].srcRef!.meshPath } // no fp
+    expect(getCachedSrcRefGeometry(legacy)).not.toBeNull()
+    expect(isSrcRefDrifted(legacy)).toBe(false)
+  })
+
+  it('evictDefSrcRefs clears a def’s cached geometry (replace/remove path)', () => {
+    const scene = twoMeshScene()
+    const { parts } = decomposeObject(scene, { ref: { defId: 'box-asset' } })
+    populateSrcRefCacheFromScene('box-asset', scene)
+    expect(getCachedSrcRefGeometry(parts[0].srcRef!)).not.toBeNull()
+    evictDefSrcRefs('box-asset')
+    // Gone from the cache — a re-resolution must re-load the (new) GLB.
+    expect(getCachedSrcRefGeometry(parts[0].srcRef!)).toBeNull()
+    expect(isSrcRefDrifted(parts[0].srcRef!)).toBe(false) // def no longer loaded
+    // Re-populating (from a fresh scene) restores resolution.
+    populateSrcRefCacheFromScene('box-asset', twoMeshScene())
+    expect(getCachedSrcRefGeometry(parts[0].srcRef!)).not.toBeNull()
   })
 })
 

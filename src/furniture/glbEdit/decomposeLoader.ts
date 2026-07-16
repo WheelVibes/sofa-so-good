@@ -8,7 +8,7 @@
  */
 
 import { type DecomposeResult, decomposeObject } from './decompose'
-import { type AssetEditSpec, removePart } from './editSpec'
+import { type AssetEditSpec, removePart, type SrcRef } from './editSpec'
 import { loadGlbScene, populateSrcRefCacheFromScene } from './srcRefCache'
 
 /**
@@ -32,17 +32,20 @@ export function specSrcRefDefIds(spec: AssetEditSpec): string[] {
 }
 
 /**
- * Drop every `srcRef` part whose source def is no longer resolvable (Stage 9a —
- * honest degradation when a saved design's source GLB was deleted). Returns the
+ * Drop every `srcRef` part the caller deems unresolvable (Stage 9a — honest
+ * degradation when a saved design's source GLB was deleted, OR the Stage-9a-review
+ * case where the source was REPLACED by a different GLB so the ref's drift
+ * fingerprint no longer matches). The `isResolvable` predicate receives the whole
+ * `SrcRef` so it can check both def existence AND fingerprint drift. Returns the
  * pruned spec (groups/combines/decals pruned via `removePart`) + how many parts
  * were dropped, so the caller can toast. A spec with no unresolvable refs returns
  * unchanged.
  */
 export function dropUnresolvableSrcRefParts(
   spec: AssetEditSpec,
-  isResolvable: (defId: string) => boolean,
+  isResolvable: (ref: SrcRef) => boolean,
 ): { spec: AssetEditSpec; dropped: number } {
-  const doomed = spec.parts.filter((p) => p.srcRef && !isResolvable(p.srcRef.defId))
+  const doomed = spec.parts.filter((p) => p.srcRef && !isResolvable(p.srcRef))
   if (doomed.length === 0) return { spec, dropped: 0 }
   let next = spec
   for (const p of doomed) next = removePart(next, p.id)

@@ -319,6 +319,14 @@ export interface SrcRef {
   /** The mesh's index among the def's decomposable meshes (traversal order),
    *  as a string so the field stays a stable opaque key. */
   meshPath: string
+  /** Cheap drift fingerprint captured at decompose time (Stage 9a review) —
+   *  `${meshCount}:${meshName}:${vertexCount}`. If the source def is later
+   *  replaced by a different GLB (same id, different meshes), `meshPath` would
+   *  otherwise resolve to WRONG geometry; the fingerprint lets `srcRefCache`
+   *  detect the mismatch and treat the ref as unresolvable instead of silently
+   *  rendering the wrong mesh. Absent on a legacy (pre-review) spec → no check
+   *  (back-compatible, resolves as before). */
+  fp?: string
 }
 
 export interface ShapePart extends PhysicalSurfaceFields {
@@ -1549,6 +1557,34 @@ export function appendClonedDecals(
   }
   if (add.length === 0) return spec
   return { ...spec, decals: [...src, ...add] }
+}
+
+/**
+ * Append EXTERNAL decals (from a saved component fragment) onto a spec, remapping
+ * each decal's `partId` through `idMap` (old part id → new part id) and minting a
+ * fresh decal id so the placed component's tuft buttons / stitches re-attach to
+ * the freshly-cloned parts. A decal whose `partId` isn't in the map is skipped
+ * (its target part wasn't placed). Keeps the `decals` field absent when nothing is
+ * added (byte-identical). Pure — used by `insertComponentFragment` (Stage 9b review). */
+export function appendRemappedDecals(
+  spec: AssetEditSpec,
+  sourceDecals: Decal[],
+  idMap: Map<string, string>,
+): AssetEditSpec {
+  const add: Decal[] = []
+  for (const d of sourceDecals) {
+    const newId = idMap.get(d.partId)
+    if (!newId) continue
+    add.push({
+      ...d,
+      position: [...d.position],
+      normal: [...d.normal],
+      id: newDecalId(),
+      partId: newId,
+    })
+  }
+  if (add.length === 0) return spec
+  return { ...spec, decals: [...decals(spec), ...add] }
 }
 
 /** True when the spec would produce a non-empty asset (a source or ≥1 part). */
