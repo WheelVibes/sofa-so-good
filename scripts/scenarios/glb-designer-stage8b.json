@@ -1,0 +1,51 @@
+{
+  "name": "glb-designer-stage8b",
+  "description": "Asset Studio Iteration 4 Stage 8b — taper deformer (Pro, glbDesigner on). Seeds a tapered box PEDESTAL (taper 0.4), a tapered + bevelled PLANTER (taper 0.3 + corner radius), and a tapered EXTRUDE (taper 0.5 along the depth/Z axis), then screenshots the assembly (clean sloped sides, no shading artifacts on the recomputed normals). Finally does a save/restore round-trip through the designer's spec seam and asserts the taper fields survive (envelope v12), re-rendering the identical pose.",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1'); } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    { "name": "set-pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "open-glb-designer", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    { "name": "wait-designer", "waitFor": { "css": ".glb-designer" }, "timeout": 20000 },
+    { "name": "settle-designer", "wait": 1200 },
+    {
+      "name": "seed-taper-showcase",
+      "comment": "Pedestal: plain box tapered 0.4 (top narrows). Planter: box tapered 0.3 + bevel 0.06 (rounded tapered box). Extrude: hexagon outline tapered 0.5 along its Z depth axis (front cross-section shrinks).",
+      "eval": "(function(){ const s = JSON.parse(JSON.stringify(window.__glbDesigner.getSpec())); s.partGroups = []; s.combineGroups = []; s.decals = []; s.parts = [ { id:'pedestal', kind:'box', name:'Tapered pedestal', position:[-0.55,0.3,0], size:[0.32,0.6,0.32], color:'#b08d57', taper:0.4 }, { id:'planter', kind:'box', name:'Tapered planter', position:[0,0.19,0], size:[0.4,0.38,0.4], color:'#7d8a74', taper:0.3, bevel:0.06 }, { id:'ext', kind:'extrude', name:'Tapered extrude', position:[0.6,0.18,0], size:[0.34,0.36,0.5], color:'#9c6b4f', taper:0.5, bevel:0.02, outline:[[-0.4,-0.5],[0.4,-0.5],[0.5,0.0],[0.2,0.5],[-0.2,0.5],[-0.5,0.0]] } ]; window.__glbDesigner.setSpec(s); })()"
+    },
+    { "name": "wait-seed", "wait": 1600 },
+    {
+      "name": "settle-fit",
+      "comment": "Let drei <Bounds> finish easing its auto-fit so the taper shot uses the settled pose.",
+      "wait": 2500
+    },
+    {
+      "name": "assert-taper-applied",
+      "comment": "The seeded spec carries the three taper factors, and the built three.js scene has real meshes (taper is intrinsic geometry, so it builds without a gizmo change).",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const t = s.parts.map(p => p.taper); if (JSON.stringify(t) !== JSON.stringify([0.4,0.3,0.5])) throw new Error('taper factors not seeded, got '+JSON.stringify(t)); let meshes=0; window.__glbDesignerThree.scene.traverse(o => { if (o.isMesh && o.geometry && o.geometry.getAttribute('position')) meshes++; }); if (meshes < 3) throw new Error('expected >=3 meshes, got '+meshes); console.log('8B_SEED taper='+JSON.stringify(t)+' meshes='+meshes); })()"
+    },
+    {
+      "name": "render-tapered",
+      "eval": "(function(){ const t = window.__glbDesignerThree; t.gl.render(t.scene, t.camera); })()"
+    },
+    { "name": "shot-tapered", "screenshot": "01-tapered-parts" },
+    {
+      "name": "save-restore-roundtrip",
+      "comment": "Round-trip the spec through the designer's setSpec/getSpec seam (the same AssetEditSpec the v12 envelope serialises); assert every taper survives.",
+      "eval": "(function(){ const before = window.__glbDesigner.getSpec(); const clone = JSON.parse(JSON.stringify(before)); window.__glbDesigner.setSpec(clone); const after = window.__glbDesigner.getSpec(); const t = after.parts.map(p => p.taper); if (JSON.stringify(t) !== JSON.stringify([0.4,0.3,0.5])) throw new Error('taper lost on round-trip, got '+JSON.stringify(t)); console.log('8B_ROUNDTRIP taper='+JSON.stringify(t)); })()"
+    },
+    { "name": "wait-restore", "wait": 1400 },
+    {
+      "name": "render-restored",
+      "eval": "(function(){ const t = window.__glbDesignerThree; t.gl.render(t.scene, t.camera); })()"
+    },
+    { "name": "shot-restored", "screenshot": "02-after-restore" }
+  ]
+}

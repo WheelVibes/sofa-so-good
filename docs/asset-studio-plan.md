@@ -710,3 +710,53 @@ correctness + honesty). Full detail in `CHANGELOG.md` v0.21.2.53.
   pool terminates a never-answering worker, fails its pending jobs soft, and respawns lazily.
 - ✅ **Finding 5 — NUL-byte map key** in `constraints.ts` → `::` (file diffs as text again).
 - ✅ **Finding 6 — dead biome suppression** removed from `MakeConfigurablePanel.tsx`.
+
+---
+
+## Iteration 4 (final planned iteration — highest remaining value per axis)
+
+### Stage 8a — Realism IV: designer preview environment — ✅ SHIPPED (v0.21.2.54)
+The viewport's fixed 3-light rig can't show sheen/clearcoat/transmission the way the app
+renders them. Add a preview-environment toggle (Studio rig / Room IBL) using the app's
+existing environment stack, so finish judgment happens under real lighting.
+- ✅ **Toggle** — a small **Studio / Room** `Segmented` (bottom-right of the designer preview).
+  `studio` (default) = the fixed 3-light rig, byte-identical to the pre-Stage-8a viewport; `room`
+  = the app's procedural Lightformer IBL probe scoped to the designer canvas
+  (`DesignerEnvironment.tsx`) with a single dimmed key for shadow grounding and the ambient/hemi
+  fill dropped, so physical finishes (sheen/clearcoat/transmission/anisotropy) respond against the
+  environment as they do when placed.
+- ✅ **No main-scene edits** — the Lightformer set is a documented LOCAL COPY of
+  `scene/lighting/SceneEnvironment.tsx` (the RD-409 bloom-lock-step main-scene component is never
+  touched or imported); `frames={1}` inside `frameloop="demand"` + a mount `invalidate()` so the
+  one-shot probe bake lands on toggle.
+- ✅ **Per-device preference** — `previewEnvPref.ts` (localStorage `hdb_designer_preview_env`, the
+  grid-snap-pref pattern; NOT part of the design save schema).
+- ✅ **Tests** — `previewEnvPref.test.ts` (defaults/round-trip/garbage fallback/type guard).
+  Visual verification: `scripts/scenarios/glb-designer-stage8a.json` (velvet cushion + chrome lathe
+  + glass extrude, Studio vs Room same pose).
+
+### Stage 8b — Geometry III: taper deformer — ✅ SHIPPED (v0.21.2.55)
+`taper` (0-1) on box/extrude — splayed legs, tapered carcasses, A-frame forms not expressible
+via lathe. Pure vertex transform, exports losslessly.
+- ✅ **`taper` field + `applyTaper` deformer** (`glbEdit/taper.ts`, pure/three-only) — a single
+  0…1 factor that scales the cross-section linearly along one axis so the face at the axis MAX is
+  `1 − taper` of the face at the MIN (the top/front shrinks toward the bottom/back). **Box → Y axis**
+  (top face shrinks in XZ); **extrude → Z / depth axis** (front cross-section shrinks in XY toward
+  the outline centroid — documented, since only the extrude/depth axis leaves a full face at one end).
+  Runs AFTER geometry construction, recomputes normals (sloped sides shade correctly), leaves UVs
+  untouched (linear scale keeps box-projected tiling sane). A wedge-like **directional** taper is out
+  of scope (one symmetric shrink-toward-centroid factor → one slider).
+- ✅ **Interplay gates** (`taperable`, mirrors `boxFaceFinishesActive`): taper **composes with**
+  `bevel` (rounded tapered box/planter — a common case) **and** box per-face `faceFinishes` (a plain
+  `BoxGeometry` stays a `BoxGeometry` after the in-place vertex transform, so the 6-face group remap
+  is unaffected — verified, allowed) **and** the `gradient`/finish paths. It is **hidden / not applied**
+  for a **hollow (`shell`)** box/extrude and a **plumped (`plump`, which carries `tuft`)** box — each
+  assumes a constant footprint the taper breaks; the inspector shows a one-line hint there.
+- ✅ **Inspector** — a **Taper** `SliderField` beside Corner radius for eligible box/extrude parts
+  (label "Taper (top)"/"Taper (front)"), 0 = None; the gizmo is unaffected (taper is intrinsic geometry).
+- ✅ **Plumbing** — duplicate/mirror carry the scalar via the existing `...src`/`...patch` spreads;
+  envelope **v11 → v12** additive migration (identity) + validation (`taper` finite) in `specPersist.ts`.
+- ✅ **Tests** — `taper.test.ts` (top extent = (1−taper)×bottom, finite normals, UVs intact,
+  bevel+taper composes, extrude Z-axis taper, `taperable` gate matrix, `partGeometry` integration
+  incl. faceFinishes-composes + shell-gated) + `specPersist.test.ts` v12 round-trip/migration/reject.
+  Visual verification: `scripts/scenarios/glb-designer-stage8b.json`.

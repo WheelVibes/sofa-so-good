@@ -411,6 +411,26 @@ export interface ShapePart extends PhysicalSurfaceFields {
    *  other axis). Also rotates `anisotropyRotation` where set. Absent / 0 → no
    *  rotation. Ignored without a textured `finish`. */
   finishRotation?: number
+  /** Taper 0…1 (Stage 8b) — a pure vertex transform on box/extrude that shrinks
+   *  the cross-section linearly along one axis: the face at the axis MAXIMUM
+   *  becomes `1 − taper` of the face at the minimum (box → the +Y top shrinks in
+   *  XZ; extrude → the +Z front shrinks in XY). Splayed carcass sides, tapered
+   *  pedestals, A-frames. Composes with `bevel` (+ box `faceFinishes`); gated OFF
+   *  for a hollow (`shell`) or plumped/tufted part (`taperable`). 0 / absent →
+   *  today's straight geometry (byte-identical). See `taper.ts`. */
+  taper?: number
+}
+
+/** True when a part accepts the Stage-8b `taper` deformer (box/extrude only).
+ *  Box: any solid box (composes with bevel + per-face finishes); a hollow
+ *  (`shell > 0`) or plumped (`plump > 0`, which also carries tuft) box is
+ *  excluded — a uniform-wall carcass / stuffed-cushion displacement both assume
+ *  a constant footprint the taper breaks. Extrude: any solid extrude; a hollow
+ *  (`shell > 0`) extrude is excluded (same uniform-wall reason). Pure. */
+export function taperable(part: ShapePart): boolean {
+  if (part.kind === 'box') return (part.shell ?? 0) <= 0 && (part.plump ?? 0) <= 0
+  if (part.kind === 'extrude') return (part.shell ?? 0) <= 0
+  return false
 }
 
 /** True when a part is a SHARP box carrying at least one non-empty per-face

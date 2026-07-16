@@ -100,6 +100,12 @@ build one in the browser:
 - **Hollow it out** — **box** and **extrude** shapes have a **Hollow (wall)** slider: raise it to
   carve an open-top carcass with uniform walls (a cabinet, tray or drawer box) in one move; 0 keeps
   the shape solid.
+- **Taper** — solid **box** and **extrude** shapes have a **Taper** slider: raise it to shrink the
+  **top** face (box) or **front** face (extrude) toward the opposite face, for splayed carcass
+  sides, tapered plinths and pedestals, or A-frame legs; 0 keeps the sides straight. It works
+  together with **Corner radius** (a rounded, tapered box), but is hidden once a box is hollowed or
+  plumped (set those to 0 to taper). The taper shrinks evenly on both sides — a lopsided/wedge taper
+  isn't offered.
 - **Texture a shape** — each shape also has a **Texture** picker: choose **None — solid
   colour** (the default), tap a curated **Quick finishes** swatch (Oak, Walnut, Teak, Ash,
   Ebony, Marble), or pick any catalog / downloaded CC0 material from the dropdown — the
@@ -240,6 +246,12 @@ build one in the browser:
   (**W × D × H** in centimetres) in the bottom-left corner, updating live as you drag.
 - **Views** — the **Front / Side / Top** buttons (top-right) snap the camera to a straight-on view
   of each side; **Home** (the house icon) resets to the default angle.
+- **Preview lighting** — the **Studio / Room** switch (bottom-right) chooses the light the preview
+  uses. **Studio** (the default) is an even studio rig, best for checking shape and colour. **Room**
+  lights the shape with the app's room environment, so shiny finishes look the way they will once the
+  asset is placed — velvet catches a soft sheen, chrome and polished metal pick up reflections, and
+  glass shows its see‑through look. Switch to **Room** when you're judging a finish. Your choice is
+  remembered on this device.
 - **Find & rename shapes** — use the **filter box** above the shape list to find a shape by name.
   Double-click a shape's name (or use its pencil button, or the **Name** field in its edit panel)
   to rename it; a blank name goes back to the default "box 1" style label.

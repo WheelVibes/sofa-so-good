@@ -12,11 +12,20 @@ import {
 } from '../../furniture/glbEdit/gizmoWriteBack'
 import { PIVOT_MODES } from '../../furniture/glbEdit/pivot'
 import { secureGltfLoader } from '../../furniture/gltf/loaderSecurity'
+import { Segmented } from '../controls/Segmented'
 import { Select } from '../controls/Select'
 import { Icon } from '../toolbar/icons'
+import { DesignerEnvironment } from './DesignerEnvironment'
 import { useDesigner, type ViewPreset } from './designerContext'
 import { SNAP_STEP_LABEL, SNAP_STEPS } from './gridSnapPref'
 import { PartsPreview } from './PartsPreview'
+import {
+  loadPreviewEnv,
+  PREVIEW_ENV_LABEL,
+  PREVIEW_ENVS,
+  type PreviewEnv,
+  savePreviewEnv,
+} from './previewEnvPref'
 
 /** The gizmo-mode segmented switch overlaying the preview's top-left corner —
  *  shared by the part-gizmo and group-gizmo (Stage 3a) overlays, parameterised
@@ -61,17 +70,21 @@ function GizmoModeOverlay({
  *  clobber each other. Tree-shaken from production by the DEV guard at the mount
  *  site. */
 function DevGlExpose() {
-  const { gl, scene, camera } = useThree()
+  const { gl, scene, camera, invalidate } = useThree()
   useEffect(() => {
     ;(window as unknown as { __glbDesignerThree?: unknown }).__glbDesignerThree = {
       gl,
       scene,
       camera,
+      // `invalidate` lets a headless scenario pump the demand render-loop so
+      // deferred work (e.g. drei <Bounds> auto-fit easing) can settle before a
+      // screenshot — a raw `gl.render()` doesn't advance R3F's own frame logic.
+      invalidate,
     }
     return () => {
       ;(window as unknown as { __glbDesignerThree?: unknown }).__glbDesignerThree = undefined
     }
-  }, [gl, scene, camera])
+  }, [gl, scene, camera, invalidate])
   return null
 }
 
@@ -284,6 +297,14 @@ export function DesignerViewport() {
   // shared mode to translate/rotate while a group is the gizmo target.
   const groupGizmo: GizmoMode = gizmoActive === 'scale' ? 'translate' : gizmoActive
   const [dims, setDims] = useState<[number, number, number] | null>(null)
+  // Stage 8a — preview-environment toggle (per-device pref). `studio` = the fixed
+  // 3-light rig (byte-identical default); `room` = the app's procedural
+  // Lightformer IBL probe so physical finishes respond as they do when placed.
+  const [previewEnv, setPreviewEnv] = useState<PreviewEnv>(() => loadPreviewEnv())
+  const pickPreviewEnv = (env: PreviewEnv) => {
+    setPreviewEnv(env)
+    savePreviewEnv(env)
+  }
   // Stage 7b — rAF gate for the live during-drag snap: TransformControls'
   // `objectChange` fires per pointer-move; coalesce to at most ONE snap
   // computation per frame (the ProfileEditor rAF-gate precedent).
@@ -317,9 +338,25 @@ export function DesignerViewport() {
           demand mode), so the preview stays live without a permanent 60fps loop. */}
       <Canvas frameloop="demand" shadows camera={{ position: [1.6, 1.3, 1.8], fov: 40 }}>
         {import.meta.env.DEV ? <DevGlExpose /> : null}
-        <ambientLight intensity={0.7} />
-        <hemisphereLight intensity={0.6} />
-        <directionalLight position={[3, 5, 2]} intensity={1.1} castShadow />
+        {previewEnv === 'studio' ? (
+          <>
+            {/* Studio rig — byte-identical to the pre-Stage-8a viewport. */}
+            <ambientLight intensity={0.7} />
+            <hemisphereLight intensity={0.6} />
+            <directionalLight position={[3, 5, 2]} intensity={1.1} castShadow />
+          </>
+        ) : (
+          <>
+            {/* Room — the app's procedural IBL probe drives reflections/bounce;
+                a single dimmed key stays for shadow grounding, and ambient/hemi
+                fill is dropped so physical finishes (sheen/clearcoat/transmission)
+                read against the environment rather than being washed flat. */}
+            <directionalLight position={[3, 5, 2]} intensity={0.55} castShadow />
+            <Suspense fallback={null}>
+              <DesignerEnvironment />
+            </Suspense>
+          </>
+        )}
         <gridHelper args={[6, 12, '#999', '#ccc']} />
         <Suspense fallback={null}>
           {/* Builds picked part textures (`mat:<id>`) into the material
@@ -526,6 +563,23 @@ export function DesignerViewport() {
           {dims[0]} × {dims[2]} × {dims[1]} cm
         </div>
       ) : null}
+
+      {/* Preview-environment toggle (bottom-right) — Studio rig vs Room IBL. */}
+      <div style={{ position: 'absolute', bottom: 8, right: 8 }}>
+        <Segmented
+          ariaLabel="Preview environment"
+          value={previewEnv}
+          onChange={(v) => pickPreviewEnv(v as PreviewEnv)}
+          options={PREVIEW_ENVS.map((env) => ({
+            value: env,
+            label: PREVIEW_ENV_LABEL[env],
+            title:
+              env === 'studio'
+                ? 'Fixed studio lighting rig'
+                : 'Room lighting — physical finishes respond as they do when placed',
+          }))}
+        />
+      </div>
     </>
   )
 }

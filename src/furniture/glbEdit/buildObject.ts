@@ -46,6 +46,7 @@ import { applyGradientColors } from './gradient'
 import { applyPlump, plumpBoxGeometry } from './plump'
 import { bevelledBoxGeometry, extrudeGeometry, latheGeometry, wedgeGeometry } from './shapeProfiles'
 import { loftGeometry, shellBoxGeometry, shellExtrudeGeometry, sweepGeometry } from './shellLoft'
+import { applyTaper } from './taper'
 import { effectiveWrinkles, wrinkleNormalScale, wrinkleNormalTexture } from './wrinkleTexture'
 
 /** The shared cache-built material for a part's `mat:<id>` finish, or null
@@ -419,7 +420,7 @@ export function partGeometry(part: ShapePart): BufferGeometry {
 function buildShapeGeometry(part: ShapePart): BufferGeometry {
   const [w, h, d] = part.size
   switch (part.kind) {
-    case 'box':
+    case 'box': {
       // Stage 6b: a hollow wall thickness carves an open-top carcass (wins over
       // plump — a hollow plumped cushion is nonsensical).
       if (part.shell && part.shell > 0) return shellBoxGeometry(w, h, d, part.shell)
@@ -428,16 +429,28 @@ function buildShapeGeometry(part: ShapePart): BufferGeometry {
       if (part.plump && part.plump > 0)
         return plumpBoxGeometry(w, h, d, part.bevel ?? 0, part.plump, part.tuft)
       // bevel 0 / absent → plain BoxGeometry (byte-identical to pre-Stage-1a).
-      return part.bevel && part.bevel > 0
-        ? bevelledBoxGeometry(w, h, d, part.bevel)
-        : new BoxGeometry(w, h, d)
+      const box =
+        part.bevel && part.bevel > 0
+          ? bevelledBoxGeometry(w, h, d, part.bevel)
+          : new BoxGeometry(w, h, d)
+      // Stage 8b: taper shrinks the +Y top face in XZ (splayed carcass sides).
+      // In-place vertex transform — keeps a plain BoxGeometry a BoxGeometry, so
+      // per-face finishes still remap its six groups (`partGeometry`).
+      if (part.taper && part.taper > 0) applyTaper(box, part.taper, 'y')
+      return box
+    }
     case 'lathe':
       return latheGeometry(part.profile ?? [], part.segments ?? 32, w, h)
-    case 'extrude':
+    case 'extrude': {
       // Stage 6b: a hollow wall thickness → a ring cross-section + bottom cap.
-      return part.shell && part.shell > 0
-        ? shellExtrudeGeometry(part.outline ?? [], w, h, d, part.shell)
-        : extrudeGeometry(part.outline ?? [], w, h, d, part.bevel ?? 0.02)
+      if (part.shell && part.shell > 0)
+        return shellExtrudeGeometry(part.outline ?? [], w, h, d, part.shell)
+      const prism = extrudeGeometry(part.outline ?? [], w, h, d, part.bevel ?? 0.02)
+      // Stage 8b: taper shrinks the +Z (front) cross-section in XY toward the
+      // outline centroid along the extrude/depth axis.
+      if (part.taper && part.taper > 0) applyTaper(prism, part.taper, 'z')
+      return prism
+    }
     case 'loft':
       return loftGeometry(part.loftBottom ?? [], part.loftTop ?? [], w, h, d)
     case 'sweep':

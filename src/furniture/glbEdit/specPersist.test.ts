@@ -143,8 +143,41 @@ describe('specPersist', () => {
     expect(restored!.parts[1].role).toBe('hole')
   })
 
-  it('the current envelope is v11', () => {
-    expect(ASSET_SPEC_VERSION).toBe(11)
+  it('the current envelope is v12', () => {
+    expect(ASSET_SPEC_VERSION).toBe(12)
+  })
+
+  it('round-trips Stage-8b taper and migrates a v11 blob identically', () => {
+    let s = addPart(createEmptySpec(), 'box')
+    s = { ...s, parts: s.parts.map((p) => ({ ...p, taper: 0.4 })) }
+    const restored = parseAssetSpec(serializeAssetSpec(s))
+    expect(restored?.parts[0].taper).toBe(0.4)
+    // A v11-tagged blob (no taper field) still parses (additive identity migration).
+    const legacyV11 = JSON.stringify({ kind: 'asset', v: 11, payload: createEmptySpec() })
+    expect(parseAssetSpec(legacyV11)).toEqual(createEmptySpec())
+    // A previous migration also lands on the current version (older still valid).
+    expect(migrateAssetSpec(createEmptySpec(), 10)).toEqual(createEmptySpec())
+  })
+
+  it('rejects a non-finite taper value', () => {
+    const bad = JSON.stringify({
+      kind: 'asset',
+      v: ASSET_SPEC_VERSION,
+      payload: {
+        ...createEmptySpec(),
+        parts: [
+          {
+            id: 'a',
+            kind: 'box',
+            position: [0, 0, 0],
+            size: [1, 1, 1],
+            color: '#fff',
+            taper: 'lots',
+          },
+        ],
+      },
+    })
+    expect(parseAssetSpec(bad)).toBeNull()
   })
 
   it('round-trips Stage-6e wrinkles and migrates a v9 blob identically', () => {
@@ -286,10 +319,10 @@ describe('specPersist', () => {
     expect(restored!.combineGroups).toBeUndefined()
   })
 
-  it('migrateAssetSpec: every known version v1…v11 is the identity, unknown version → null', () => {
+  it('migrateAssetSpec: every known version v1…v12 is the identity, unknown version → null', () => {
     const spec = createEmptySpec()
     // Every bump so far is an additive superset, so migration is the identity for
-    // each recognised version through the current envelope (v11).
+    // each recognised version through the current envelope (v12).
     for (let v = 1; v <= ASSET_SPEC_VERSION; v++) {
       expect(migrateAssetSpec(spec, v)).toBe(spec)
     }

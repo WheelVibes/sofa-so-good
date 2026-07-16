@@ -13,6 +13,10 @@ import { useSunPosition } from './useSunPosition'
  * wood, tile, marble, glass, metal — believable reflections and soft ambient
  * bounce. The IBL intensity is dialled down as the sun sets so interiors go
  * appropriately dark at night.
+ *
+ * NOTE: the GLB designer's "Room" preview mode carries a documented local copy
+ * of this Lightformer set (`ui/glbEditor/DesignerEnvironment.tsx`) — if you
+ * tune the formers here, mirror the change there (cross-referenced both ways).
  */
 export function SceneEnvironment() {
   const { scene } = useThree()

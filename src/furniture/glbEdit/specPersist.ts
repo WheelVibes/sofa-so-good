@@ -53,8 +53,11 @@ import type { AssetEditSpec } from './editSpec'
  *    depth}` tufting grid on a plumped box) + optional `decals[].tuft` (a boolean
  *    tag marking the tuft-generated buttons). Additive superset -> migration stays
  *    the identity. (A v10 spec has no tuft fields — it loads unchanged.)
+ *  - v12 (Geometry III, Stage 8b): adds optional `parts[].taper` (0…1 taper
+ *    deformer on box/extrude). Additive superset → migration stays the identity.
+ *    (A v11 spec has no taper field — it loads unchanged with straight sides.)
  */
-export const ASSET_SPEC_VERSION = 11
+export const ASSET_SPEC_VERSION = 12
 
 /** Migrate a parsed spec at envelope version `from` up to the current version.
  *  Every version bump so far has been an additive superset, so migration is the
@@ -72,7 +75,8 @@ export function migrateAssetSpec(spec: AssetEditSpec, from: number): AssetEditSp
     case 8: // no faceFinishes/finishScale/finishRotation — already a valid v9 spec.
     case 9: // no wrinkles — already a valid v10 spec.
     case 10: // no tuft grid / tuft decal tag — already a valid v11 spec.
-    case 11:
+    case 11: // no taper — already a valid v12 spec.
+    case 12:
       return spec
     default:
       return null
@@ -273,6 +277,9 @@ function partsValid(parts: unknown[]): boolean {
       return false
     // v11: optional tufting grid { rows, cols, depth } (all finite numbers).
     if (!isTuftGrid(rec.tuft)) return false
+    // v12: optional taper 0…1 (box/extrude deformer).
+    if (rec.taper !== undefined && (typeof rec.taper !== 'number' || !Number.isFinite(rec.taper)))
+      return false
     if (rec.sweepPoints !== undefined) {
       if (!Array.isArray(rec.sweepPoints) || !rec.sweepPoints.every(isVec3)) return false
     }

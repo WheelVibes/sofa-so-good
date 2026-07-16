@@ -5,6 +5,60 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.55 — Asset Studio Stage 8b — taper deformer (box/extrude splayed sides, envelope v12)
+
+The GLB Asset Designer gains a **Taper** slider on solid **box** and **extrude** shapes — the
+common furniture case of a shape whose top narrows relative to its base: splayed carcass sides,
+tapered plinths/pedestals, A-frame legs. Forms a lathe/loft can't express on a rectangular
+footprint. Plan: `docs/asset-studio-plan.md` Iteration 4 · Stage 8b.
+
+- **`taper` field + `applyTaper` deformer** (`glbEdit/taper.ts`, pure) — a single 0…1 factor
+  scaling the cross-section linearly along one axis so the face at the axis maximum is `1 − taper`
+  of the face at the minimum. **Box tapers along Y** (the +Y top face shrinks in X/Z);
+  **extrude tapers along Z** — the extrude/depth axis (the +Z front cross-section shrinks in X/Y
+  toward the outline centroid; only the depth axis leaves a full face at one end and a shrunk face
+  at the other). Runs after geometry construction, recomputes normals so the sloped sides shade
+  correctly, and leaves UVs untouched. A directional / wedge-like taper is deliberately out of
+  scope (one symmetric shrink factor).
+- **Interplay** (`taperable`): taper **composes with** the corner **bevel** (a rounded tapered
+  box/planter) **and** box per-face **finishes** / edge-banding (the in-place vertex transform
+  keeps a plain `BoxGeometry` a `BoxGeometry`, so the six-face group remap is unaffected — verified
+  and allowed). It is **hidden / not applied** for a **hollow (`shell`)** box/extrude or a
+  **plumped/tufted** box (each assumes a constant footprint the taper would break); the inspector
+  shows a one-line hint there.
+- **Inspector** — a **Taper** slider next to Corner radius for eligible parts ("Taper (top)" on a
+  box, "Taper (front)" on an extrude), 0 = None. The move/scale gizmo is unaffected (taper is
+  intrinsic geometry, not a transform).
+- **Plumbing** — duplicate/mirror carry the value; spec **envelope v11 → v12** additive migration
+  (identity) + a finite-`taper` validation guard, so old saves load unchanged with straight sides.
+- Tests: `taper.test.ts` (top-face extent = (1 − taper) × bottom, finite normals, UVs intact,
+  bevel+taper composes, extrude Z-axis taper, the `taperable` gate matrix, `partGeometry`
+  integration incl. faceFinishes-composes + shell-gated) + `specPersist.test.ts` v12
+  round-trip/migration/reject. Visual verification: `scripts/scenarios/glb-designer-stage8b.json`
+  (tapered box pedestal, tapered+bevelled planter, tapered extrude; save/restore v12).
+
+## v0.21.2.54 — Asset Studio Stage 8a — designer preview environment (Studio rig / Room IBL)
+
+The GLB Asset Designer viewport gains a **preview-environment toggle** (a small Studio / Room
+Segmented, bottom-right of the preview) so finishes can be judged under representative lighting.
+Plan: `docs/asset-studio-plan.md` Iteration 4 · Stage 8a.
+
+- **Studio (default)** — the fixed 3-light rig (ambient + hemisphere + key), byte-identical to the
+  pre-Stage-8a viewport. No look change out of the box.
+- **Room** — the app's procedural Lightformer image-based-lighting probe, scoped to the designer
+  canvas (`DesignerEnvironment.tsx`), with a single dimmed key kept for shadow grounding and the
+  ambient/hemisphere fill dropped so physical finishes (sheen / clearcoat / transmission /
+  anisotropy) respond against the environment the way they do when the asset is placed in a room —
+  velvet sheen glows, chrome reflects, glass transmits. The Lightformer set is a documented local
+  copy of `scene/lighting/SceneEnvironment.tsx` (that RD-409 bloom-lock-step main-scene component is
+  never touched or imported); it renders `frames={1}` inside the `frameloop="demand"` canvas and
+  invalidates a frame on toggle so the one-shot probe bake always lands.
+- **Per-device preference** (`previewEnvPref.ts`, localStorage `hdb_designer_preview_env`, the
+  grid-snap-pref pattern — NOT part of the design save schema): the choice survives reloads.
+- Tests: `previewEnvPref.test.ts` (defaults / round-trip / garbage fallback / type guard). Visual
+  verification: `scripts/scenarios/glb-designer-stage8a.json` (velvet cushion + chrome lathe + glass
+  extrude, Studio vs Room same pose).
+
 ## v0.21.2.53 — Asset Studio Iteration 3 · review fixes (snap authority, combine details, dropped rules, hung-worker reclaim)
 
 Six iteration-3 review findings closed; no user-facing feature added — correctness + honesty fixes

@@ -2,6 +2,7 @@ import {
   BEVELABLE_KINDS,
   DEFAULT_PART_METALNESS,
   DEFAULT_PART_ROUGHNESS,
+  taperable,
 } from '../../furniture/glbEdit/editSpec'
 import {
   EXTRUDE_PRESET_LABEL,
@@ -102,6 +103,12 @@ export function PartInspector() {
   // RoundedBox/hollow/plumped box has no clean 6-face groups to remap).
   const sharpBox =
     part.kind === 'box' && (part.bevel ?? 0) <= 0 && shellVal <= 0 && (part.plump ?? 0) <= 0
+  // Taper (Stage 8b) — box/extrude only; composes with bevel (+ box per-face
+  // finishes) but is gated OFF for a hollow/plumped/tufted part (`taperable`).
+  const canTaper = taperable(part)
+  // A box/extrude that COULD taper but for a hollow/plump — surface a hint where
+  // the slider would be (same idiom as the extrude-hollow/wrinkles gates).
+  const taperGateHint = (part.kind === 'box' || part.kind === 'extrude') && !canTaper
   // Combined (mesh) parts have per-source materials frozen in the geometry —
   // colour/finish/PBR sliders are hidden (no face-picker; re-combine to change).
   const isCombined = part.kind === 'mesh' && !!part.geometry?.materials?.length
@@ -270,6 +277,28 @@ export function PartInspector() {
       {extrudeHollow ? (
         <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 'var(--s-2)' }}>
           Hollow disables the corner bevel — set the hollow wall to 0 to round the corners.
+        </div>
+      ) : null}
+
+      {/* Taper (Stage 8b) — shrinks the top (box) / front (extrude) face toward
+          the opposite face: splayed carcass sides, tapered pedestals, A-frames.
+          Box + extrude only; composes with the corner bevel. A wedge-like
+          directional taper is out of scope (one symmetric shrink factor). Gated
+          off for a hollow/plumped part with a hint. */}
+      {canTaper ? (
+        <SliderField
+          label={part.kind === 'extrude' ? 'Taper (front)' : 'Taper (top)'}
+          ariaLabel={`${part.kind} taper`}
+          value={part.taper ?? 0}
+          min={0}
+          max={0.95}
+          step={0.05}
+          format={(v) => (v > 0 ? v.toFixed(2) : 'None')}
+          onChange={(v) => onPatch({ taper: v > 0 ? v : undefined })}
+        />
+      ) : taperGateHint ? (
+        <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 'var(--s-2)' }}>
+          Taper needs a solid shape — set hollow{part.kind === 'box' ? ' and plump' : ''} to 0.
         </div>
       ) : null}
 

@@ -1,0 +1,72 @@
+{
+  "name": "glb-designer-stage8a",
+  "description": "Asset Studio Iteration 4 Stage 8a — designer preview environment (Pro, glbDesigner on). Seeds a velvet cushion (sheen), a chrome lathe (metal), and a glass extrude (transmission) in one pose. Asserts Studio is the fresh default (no scene.environment) then that the Room toggle installs the procedural Lightformer IBL probe as scene.environment on the designer canvas + persists the pref. Screenshots the SAME pose under both modes — captured back-to-back WITHOUT moving the camera (settle in Room, shoot Room, toggle back to Studio which doesn't refit, shoot Studio) so the frames differ ONLY by lighting. The Room frame must show visibly richer material response: velvet sheen glow, chrome reflections, glass transmission.",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1'); localStorage.removeItem('hdb_designer_preview_env'); } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "set-pro-mode",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "open-glb-designer",
+      "store": { "action": "setGlbDesignerOpen", "args": [true] }
+    },
+    {
+      "name": "wait-designer",
+      "waitFor": { "css": ".glb-designer" },
+      "timeout": 20000
+    },
+    { "name": "settle-designer", "wait": 1200 },
+    {
+      "name": "seed-physical-showcase",
+      "comment": "A velvet cushion (sheen), a chrome lathe (vase profile, full metal), and a translucent glass extrude — one each of the three physical axes the Room probe should light differently.",
+      "eval": "(function(){ const s = JSON.parse(JSON.stringify(window.__glbDesigner.getSpec())); s.partGroups = []; s.combineGroups = []; s.parts = [ { id:'cushion', kind:'box', name:'Velvet cushion', position:[-0.42,0.14,0], size:[0.34,0.22,0.34], color:'#7a2d3a', plump:0.85, roughness:0.55, metalness:0, sheen:1, sheenRoughness:0.28, sheenColor:'#e2a9b4' }, { id:'chrome', kind:'lathe', name:'Chrome lathe', position:[0,0.02,0], size:[0.34,0.5,0.34], color:'#f2f4f6', metalness:1, roughness:0.06, profile:[[0.0,0],[0.42,0.02],[0.5,0.1],[0.86,0.34],[0.56,0.6],[0.36,0.8],[0.52,0.94],[0.44,1.0]], segments:48 }, { id:'glass', kind:'extrude', name:'Glass extrude', position:[0.46,0.18,0], size:[0.3,0.36,0.14], color:'#bfe4ec', roughness:0.02, metalness:0, transmission:1, ior:1.5, thickness:0.12, opacity:1, outline:[[-0.4,-0.5],[0.4,-0.5],[0.5,-0.1],[0.32,0.5],[-0.32,0.5],[-0.5,-0.1]] } ]; window.__glbDesigner.setSpec(s); })()"
+    },
+    { "name": "wait-seed", "wait": 1600 },
+    {
+      "name": "assert-studio-default",
+      "comment": "Fresh (localStorage cleared) → Studio is the default and no IBL probe is installed on the designer canvas.",
+      "eval": "(function(){ const seg = document.querySelector('.glb-designer [aria-label=\"Preview environment\"]'); if (!seg) throw new Error('preview-env segmented not found'); const on = seg.querySelector('button.on'); if (!on || on.textContent.trim() !== 'Studio') throw new Error('default segment should be Studio, got '+(on&&on.textContent)); const env = window.__glbDesignerThree.scene.environment; if (env) throw new Error('Studio mode should have no scene.environment, got one'); console.log('8A_STUDIO env='+!!env); })()"
+    },
+    {
+      "name": "switch-to-room",
+      "comment": "Click the Room segment (scoped to the preview-env group so it can't match another 'Room' label elsewhere).",
+      "eval": "(function(){ const seg = document.querySelector('.glb-designer [aria-label=\"Preview environment\"]'); const room = [...seg.querySelectorAll('button')].find(b => b.textContent.trim() === 'Room'); if (!room) throw new Error('Room segment not found'); room.click(); })()"
+    },
+    { "name": "wait-room-bake", "wait": 2000 },
+    {
+      "name": "assert-room-env",
+      "comment": "Room mode must install the procedural IBL probe as scene.environment on the DESIGNER canvas, and persist the pref.",
+      "eval": "(function(){ const seg = document.querySelector('.glb-designer [aria-label=\"Preview environment\"]'); const on = seg.querySelector('button.on'); if (!on || on.textContent.trim() !== 'Room') throw new Error('Room segment should be active, got '+(on&&on.textContent)); const env = window.__glbDesignerThree.scene.environment; if (!env || !env.isTexture) throw new Error('Room mode should install a scene.environment texture, got '+env); let pref=null; try { pref = localStorage.getItem('hdb_designer_preview_env'); } catch {}; if (pref !== 'room') throw new Error('preview-env pref should persist as room, got '+pref); console.log('8A_ROOM env='+(env&&env.isTexture)+' pref='+pref); })()"
+    },
+    {
+      "name": "render-room",
+      "eval": "(function(){ const t = window.__glbDesignerThree; t.gl.render(t.scene, t.camera); })()"
+    },
+    { "name": "shot-room", "screenshot": "01-room-ibl" },
+    {
+      "name": "switch-back-to-studio",
+      "comment": "Toggle back to Studio. Content is unchanged so the camera does NOT refit — the Studio shot lands at the EXACT same pose as the Room shot, isolating the lighting difference.",
+      "eval": "(function(){ const seg = document.querySelector('.glb-designer [aria-label=\"Preview environment\"]'); const studio = [...seg.querySelectorAll('button')].find(b => b.textContent.trim() === 'Studio'); if (!studio) throw new Error('Studio segment not found'); studio.click(); })()"
+    },
+    { "name": "wait-studio", "wait": 1200 },
+    {
+      "name": "assert-studio-env-cleared",
+      "comment": "Toggling back to Studio must tear the IBL probe back down (drei restores scene.environment on Environment unmount).",
+      "eval": "(function(){ const seg = document.querySelector('.glb-designer [aria-label=\"Preview environment\"]'); const on = seg.querySelector('button.on'); if (!on || on.textContent.trim() !== 'Studio') throw new Error('Studio segment should be active again, got '+(on&&on.textContent)); const env = window.__glbDesignerThree.scene.environment; if (env) throw new Error('Studio mode should have torn down scene.environment, still present'); console.log('8A_STUDIO_BACK env='+!!env); })()"
+    },
+    {
+      "name": "render-studio",
+      "eval": "(function(){ const t = window.__glbDesignerThree; t.gl.render(t.scene, t.camera); })()"
+    },
+    { "name": "shot-studio", "screenshot": "02-studio-rig" }
+  ]
+}
