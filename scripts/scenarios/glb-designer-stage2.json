@@ -1,7 +1,6 @@
 {
   "name": "glb-designer-stage2",
   "description": "Asset Studio Stage 2 — Materials. In Pro with glbDesigner on: build a Capsule and apply the Velvet finish preset (sheen), a Box and apply Lacquered wood (clearcoat highlight), an Extrude and apply Clear glass (transmission — run with SHOT_GPU=1 so the transmissive pass renders), a Lathe leg and apply Brushed steel (anisotropy), and a Box with a Y-axis two-tone gradient (vertex colours). Each apply is asserted via the highlighted (.fin-preset.on) swatch, then the whole asset is saved and the persisted UserGltfDef.assetSpec is asserted to embed sheen/clearcoat/transmission/anisotropy + the gradient (fields survive save → restore). Screenshots each material close-up.",
-  "url": "http://localhost:5173/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
     {

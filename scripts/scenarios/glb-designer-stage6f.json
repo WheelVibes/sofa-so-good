@@ -1,7 +1,6 @@
 {
   "name": "glb-designer-stage6f",
   "description": "Asset Studio Iteration 2 Stage 6f — performance in the GLB Asset Designer (Pro, glbDesigner on). Part 1: draw-call instancing — 20 identical legs UNGROUPED (control) then the SAME 20 legs in ONE transform group (array). A manual gl.render() on the designer canvas reads renderer.info.render.calls each time; the grouped case renders as ONE InstancedMesh so calls drop by ≥15 vs the ungrouped control. Part 2: save-time optimize — a plumped+wrinkled cushion (embeds a real normal-map PNG) is measured via __glbDesigner.measureSave() (raw export vs optimized), asserting the optimized blob is smaller, then saved end-to-end (WebP+Draco run in the real browser).",
-  "url": "http://localhost:5173/",
   "steps": [
     {
       "name": "store-ready",

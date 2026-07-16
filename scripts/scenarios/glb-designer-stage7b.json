@@ -1,0 +1,86 @@
+{
+  "name": "glb-designer-stage7b",
+  "description": "Asset Studio Iteration 3 Stage 7b — LIVE during-drag face snapping in the GLB Asset Designer (Pro, glbDesigner on). Seeds two 0.4 m boxes apart on X (a 'mover' at x=-0.5 and a 'wall' at x=0.5, overlapping on Y/Z; the wall's near face is at X 0.3). Opens a live drag on the mover via window.__glbDesignerPrecision.liveDrag and feeds raw objectChange frames: FAR (no snap → mesh follows the cursor freely), then a frame 6 mm from the wall face (inside the 8 mm engage band → the mover jumps FLUSH mid-drag, its +X face at exactly 0.3) — asserted flush BEFORE any commit while the spec still shows the un-moved -0.5, then a hysteresis frame pulled back to a 10 mm gap (inside the 12 mm release band → the snap HOLDS flush, no boundary flicker). The live SnapHintOverlay shows during the open drag (screenshotted from the Front view). Finally liveDrag.end commits — the committed position equals what the user saw (flush). Screenshots: the two boxes apart, the live-snapped flush pair with the hint edge showing DURING the drag, and the committed flush pair after release.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "set-pro-mode",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "open-glb-designer",
+      "store": { "action": "setGlbDesignerOpen", "args": [true] }
+    },
+    {
+      "name": "wait-designer",
+      "waitFor": { "text": "3D asset designer" },
+      "timeout": 45000
+    },
+    {
+      "name": "seed-two-boxes",
+      "comment": "Two 0.4 m boxes on the floor (minY 0), overlapping on Y and Z, separated on X: the wall spans X [0.3, 0.7], the mover spans X [-0.7, -0.3].",
+      "eval": "(function(){ window.__glbDesigner.setSpec({ sourceScale: 1, meshOverrides: {}, parts: [ { id: 'wall', kind: 'box', position: [0.5, 0.2, 0], size: [0.4, 0.4, 0.4], color: '#6b8fb5' }, { id: 'mover', kind: 'box', position: [-0.5, 0.2, 0], size: [0.4, 0.4, 0.4], color: '#c98b5b' } ] }); })()"
+    },
+    { "name": "wait-seed", "wait": 500 },
+    { "name": "shot-apart", "screenshot": "00-two-boxes-apart" },
+    {
+      "name": "begin-live-drag",
+      "comment": "Open a live translate drag on the mover — captures the static targets (the wall) once.",
+      "eval": "window.__glbDesignerPrecision.liveDrag.start('mover')"
+    },
+    { "name": "wait-drag-start", "wait": 400 },
+    {
+      "name": "live-frame-far",
+      "comment": "A raw objectChange frame far from the wall (center 0.0 → +X face 0.2, a 100 mm gap): outside the engage band, so the mover follows the cursor freely (live == raw, no snap).",
+      "eval": "(function(){ const live = window.__glbDesignerPrecision.liveDrag.move('mover', [0.0, 0.2, 0]); if (Math.abs(live[0] - 0.0) > 1e-6) throw new Error('far frame should not snap — live.x ' + live[0]); })()"
+    },
+    { "name": "wait-far", "wait": 200 },
+    {
+      "name": "live-frame-engage-flush",
+      "comment": "A raw frame 6 mm from the wall face (center 0.094 → +X face 0.294, gap 6 mm < 8 mm engage): the mover jumps FLUSH mid-drag (center 0.1, +X face exactly 0.3) — and the spec is STILL un-committed at the original -0.5.",
+      "eval": "(function(){ const live = window.__glbDesignerPrecision.liveDrag.move('mover', [0.094, 0.2, 0]); const moverMaxX = live[0] + 0.2; const gap = 0.3 - moverMaxX; if (Math.abs(gap) > 1e-6) throw new Error('live not flush — gap ' + gap + ' (live.x ' + live[0] + ')'); const spec = window.__glbDesigner.getSpec(); const mover = spec.parts.find(p => p.id === 'mover'); if (Math.abs(mover.position[0] - (-0.5)) > 1e-6) throw new Error('spec committed DURING drag — mover.x ' + mover.position[0] + ' (should still be -0.5 before end)'); })()"
+    },
+    { "name": "wait-engage", "wait": 200 },
+    {
+      "name": "live-frame-hysteresis-hold",
+      "comment": "Pull back to a 10 mm gap (center 0.09 → +X face 0.29): past the 8 mm engage band but inside the 12 mm release band, so the snap HOLDS flush (no boundary flicker). Still un-committed.",
+      "eval": "(function(){ const live = window.__glbDesignerPrecision.liveDrag.move('mover', [0.09, 0.2, 0]); const moverMaxX = live[0] + 0.2; const gap = 0.3 - moverMaxX; if (Math.abs(gap) > 1e-6) throw new Error('hysteresis failed — snap released at 10 mm (gap ' + gap + ', live.x ' + live[0] + ')'); const spec = window.__glbDesigner.getSpec(); const mover = spec.parts.find(p => p.id === 'mover'); if (Math.abs(mover.position[0] - (-0.5)) > 1e-6) throw new Error('spec committed during hysteresis frame'); })()"
+    },
+    { "name": "wait-hold", "wait": 300 },
+    {
+      "name": "front-view",
+      "eval": "(function(){ const b = [...document.querySelectorAll('.glb-designer button')].find(x => x.getAttribute('aria-label') === 'Front view'); if (b) b.click(); })()"
+    },
+    { "name": "wait-front", "wait": 700 },
+    {
+      "name": "shot-live-hint",
+      "comment": "Front view, drag STILL OPEN: the mover sits flush against the wall and the live SnapHintOverlay accent edge marks the snapped face plane (green abut). This is the DURING-drag preview, before any commit.",
+      "screenshot": "01-live-snapped-hint"
+    },
+    {
+      "name": "end-live-drag-commit",
+      "comment": "Release the drag → commit through the authority path. The committed position equals what the user saw (flush).",
+      "eval": "window.__glbDesignerPrecision.liveDrag.end('mover')"
+    },
+    { "name": "wait-commit", "wait": 400 },
+    {
+      "name": "assert-committed-flush",
+      "comment": "After release the spec is committed with the mover's +X face flush to the wall's -X face — gap exactly 0, matching the live preview.",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const mover = s.parts.find(p => p.id === 'mover'); const wall = s.parts.find(p => p.id === 'wall'); if (!mover || !wall) throw new Error('parts missing'); const moverMaxX = mover.position[0] + mover.size[0] / 2; const wallMinX = wall.position[0] - wall.size[0] / 2; const gap = wallMinX - moverMaxX; if (Math.abs(gap) > 1e-6) throw new Error('committed faces not flush — gap ' + gap + ' (mover.x ' + mover.position[0] + ')'); })()"
+    },
+    {
+      "name": "shot-committed",
+      "comment": "The committed flush pair — identical to the live preview (commit-time snap is the authority and agrees with what the user saw).",
+      "screenshot": "02-committed-flush"
+    }
+  ]
+}

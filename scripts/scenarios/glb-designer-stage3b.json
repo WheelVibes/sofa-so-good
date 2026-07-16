@@ -1,7 +1,6 @@
 {
   "name": "glb-designer-stage3b",
   "description": "Asset Studio Stage 3b \u2014 fittings/component library + snap-to-surface placement in the GLB Asset Designer (Pro, glbDesigner on). Build a wide flat tabletop box (underside raised off the floor), arm a Tapered leg in the Components panel, and PLACE it on the tabletop underside via the SWOOD face-click (driven through the window.__glbDesignerPlaceOnFace automation seam with an underside point + downward normal) \u2014 it lands as a named 'Tapered leg' Group, oriented plumb, its top flush on the underside plane. Repeat \u00d74 mirrors it to all four corners \u2192 4 'Tapered leg' group rows in the layers tree. Then add a second box, arm a Bar pull, and place it on that box's upright +Z face \u2014 the placed group carries an identity (no) rotation, proving the bar stays HORIZONTAL against the face. Finally Save and assert the persisted UserGltfDef's assetSpec envelope embeds all 5 component groups (4 legs + 1 pull) with the pull's identity orientation \u2014 so a placed fitting round-trips as an editable PartGroup. Screenshots the four-legged frame + the handle on the face.",
-  "url": "http://localhost:5312/",
   "steps": [
     {
       "name": "store-ready",

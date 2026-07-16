@@ -1,7 +1,6 @@
 {
   "name": "glb-designer-stage6c",
   "description": "Asset Studio Iteration 2 Stage 6c — materials II in the GLB Asset Designer (Pro, glbDesigner on). Build a tabletop box with an oak veneer TOP and a darker walnut EDGE band (per-face finishes / edge banding) — at a 3/4 angle the top/side split must read clearly. Add two wood-finished boards side by side with the grain running Along X vs Along Z (grain direction visibly differs). Coarsen one board's texture Scale so the tiling change is visible. Finally Save and assert the persisted UserGltfDef's assetSpec (v9 envelope) embeds the box faceFinishes, finishRotation, and finishScale — the whole materials layer round-trips as an editable spec.",
-  "url": "http://localhost:5173/",
   "steps": [
     {
       "name": "store-ready",

@@ -5,6 +5,68 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.50 — Asset Studio Iteration 3 · Stage 7b — live during-drag face snapping
+
+The Stage-6d deferral: the magnetic face snap now previews **live while you drag** in the GLB Asset
+Designer (the shape jumps flush + the hint edge shows during the drag), not only at commit. Behind
+the existing `glbDesigner` pro flag; no persistence/envelope change. Plan:
+`docs/asset-studio-plan.md` Iteration 3 Stage 7b.
+
+- **Pure `glbEdit/dragSnapSession.ts`** — a thin stateful wrapper over the existing `snapFaces`
+  engine that adds the two things a per-frame magnetic drag needs: **memoised targets** (the other
+  parts' world AABBs are captured ONCE at drag start — they can't move mid-drag — so the per-frame
+  pass stays a cheap `O(n)` AABB scan even at ~50 parts) and **per-axis hysteresis** (an axis
+  engages within the tight 8 mm threshold and holds flush until the drag pulls past a wider **1.5×
+  release band**, `DRAG_SNAP_RELEASE_FACTOR` ≈ 12 mm, so the snap doesn't flicker at the boundary).
+  `startDragSnapSession` → per-frame `updateDragSnap` → discard. Fully unit-tested
+  (`dragSnapSession.test.ts`): engage, hold-in-release-band, release-then-re-engage, axis
+  independence, targets-stay-fixed, custom threshold.
+- **Live wiring** (`ui/glbEditor/designerContext.tsx` + `DesignerViewport.tsx`) —
+  `TransformControls`' `onMouseDown` opens the session (translate mode, magnet on, Alt not held),
+  `onObjectChange` **rAF-gated** to one snap computation per frame (the 6e ProfileEditor precedent)
+  snaps the dragged mesh in place and shows the hint live, `onMouseUp` commits through the
+  **unchanged Stage-6d authority path** so the committed value equals what the user saw. Works for a
+  **single part and a whole transform group** (union-bounds proxy). The live-hint React state updates
+  only when the engaged-snap signature changes, so a per-frame drag never re-renders the flat context
+  each frame (the mesh position is mutated imperatively regardless).
+- **Alt escape hatch** (CAD convention) — holding **Alt** while dragging disables the magnet for that
+  drag (skips both the live and the commit-time snap). Documented in `docs/user/importing-models.md`.
+- **Scenario** `scripts/scenarios/glb-designer-stage7b.json` drives the live seam
+  (`window.__glbDesignerPrecision.liveDrag`) through a far → engage → hysteresis-hold sequence,
+  asserting the mid-drag position is flush **before any commit** (the spec still reads the un-moved
+  origin), screenshots the live hint during the open drag, then commits and asserts the committed
+  position matches. Visually verified (GPU): the mover jumps flush against the wall with a green
+  abut-edge hint mid-drag, and the committed frame is identical.
+
+## v0.21.2.49 — Asset Studio Iteration 3 · Stage 7a — optimize-on-save fail-soft guard (AS-OPT-GUARD)
+
+Robustness fix for the GLB Asset Designer's save. The save-time optimize pass
+(`glbEdit/saveOptimize.ts`) is now bounded by a **20 s timeout** (`OPTIMIZE_SAVE_TIMEOUT_MS`,
+`Promise.race`) and swallows any rejection: on timeout OR failure it logs a `console.warn` and
+persists the **raw** GLB unchanged, so a hung/failed Draco/Basis WASM stack can never wedge the
+save. Restores the shrink-or-no-op contract even in the degenerate case (in the dev harness a wrong
+`.wasm` MIME type was reported as hanging the save). Plan: `docs/asset-studio-plan.md` Iteration 3
+Stage 7a.
+
+- **Fail-soft `optimizeSavedGlb`** — wraps `runOptimize` in a bounded race against a documented
+  20 s ceiling; a unique symbol sentinel distinguishes the timeout arm from any real (even slow)
+  optimize result, and a `try/catch/finally` also catches rejections and always clears the timer.
+  On timeout/rejection the raw export is returned (`optimized: false`), never a throw.
+- **Worker-leak note (intentional).** `runOptimize` has no job-cancel API, so a timed-out in-flight
+  worker call is simply abandoned; the pool worker returns to idle and is reused (or torn down by
+  the existing 30 s idle-teardown). No cancellation infra is built — a leaked *idle* worker is
+  bounded by `POOL_MAX` and self-healing.
+- **Unit tests** (`saveOptimize.guard.test.ts`) — never-resolving optimize → raw bytes persisted
+  within the test timeout (fake timers); rejection → raw bytes; success (strictly smaller) adopted;
+  not-smaller → raw kept. The existing `saveOptimize.test.ts` feature-survival matrix is unchanged.
+- **Scenario hygiene** — stripped the hardcoded `url` (dead dev ports :5301/:5310/:5312) from every
+  `glb-designer-stage*.json` so they resolve the harness base (`SHOT_URL`/default 5173) like the
+  other scenarios; and fixed `glb-designer-stage6b`'s **stale version-pinned save assert** (it
+  required `env.v === 8`, but the spec envelope has since bumped to v10 — the "hang" at the save
+  step was this assert never becoming true, not the WASM warning) to a forward-compatible `env.v >=
+  8`. Re-ran `glb-designer-stage6b` green through the save step (GPU, isolated worktree at HEAD):
+  the asset saves in ~2 s with the "Saved …" toast.
+
 ## v0.21.2.48 — Asset Studio Iteration 2 · Stage-6 review-fix cluster
 
 Adversarial review of the Stage-6 iteration-2 work (geometry/materials/components/templates,

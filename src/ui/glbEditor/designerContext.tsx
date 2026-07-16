@@ -41,6 +41,11 @@ import { componentById } from '../../furniture/glbEdit/components'
 import type { CsgOp } from '../../furniture/glbEdit/csgCombine'
 import { combineGroupToMeshPart, evaluateAllGroups } from '../../furniture/glbEdit/csgEval'
 import {
+  type DragSnapSession,
+  startDragSnapSession,
+  updateDragSnap,
+} from '../../furniture/glbEdit/dragSnapSession'
+import {
   type AssetEditSpec,
   addCombineGroup,
   addDecal,
@@ -62,6 +67,7 @@ import {
   mirrorPartGroup,
   mirrorPartsAxis,
   newPartId,
+  type PartGroup,
   partGroupMemberIds,
   partGroups,
   removeCombineGroup,
@@ -297,6 +303,36 @@ function useDesignerController() {
     },
     [],
   )
+  // Live during-drag snap hint (Stage 7b): while a gizmo drag is in flight the
+  // hint shows CONTINUOUSLY (not just the post-commit 0.9 s flash). Set without a
+  // timer and cleared explicitly at drag end. `liveHintSigRef` gates the state
+  // update to the frames where the engaged snap actually changes, so a per-frame
+  // drag doesn't re-render the flat context on every rAF (the mesh position is
+  // mutated imperatively regardless — that's free).
+  const liveHintSigRef = useRef<string | null>(null)
+  const setLiveHint = (
+    hits: FaceSnapHit[],
+    bounds: { min: [number, number, number]; max: [number, number, number] },
+  ) => {
+    const sig = hits.map((h) => `${h.axis}:${h.kind}:${h.coord.toFixed(4)}`).join('|')
+    if (sig === liveHintSigRef.current) return
+    liveHintSigRef.current = sig
+    if (hits.length === 0) {
+      setSnapHint(null)
+      return
+    }
+    if (snapHintTimer.current) clearTimeout(snapHintTimer.current)
+    setSnapHint({ hits, min: bounds.min, max: bounds.max, n: Date.now() })
+  }
+
+  // ---- Live during-drag face-snap session (Stage 7b) ----------------------
+  // The static snap targets are captured ONCE at drag start (they can't move mid-
+  // drag) and reused every frame; per-axis hysteresis keeps the object flush
+  // without boundary flicker (dragSnapSession.ts). One session at a time (a part
+  // OR a group drag). `altHeldRef` is the CAD escape hatch — holding Alt disables
+  // live (and commit) snap for that drag.
+  const dragSessionRef = useRef<DragSnapSession | null>(null)
+  const altHeldRef = useRef(false)
 
   // ---- Camera view presets (Stage 4) — a monotonically-bumped request the
   // viewport's in-canvas responder reacts to (so re-picking the same preset
@@ -374,12 +410,24 @@ function useDesignerController() {
     (partId: string, point: [number, number, number], normal: [number, number, number]) => void
   >(() => {})
 
-  // Latest precision-tool closures for the Stage 6d scenario seam (assigned below).
+  // Latest precision-tool closures for the Stage 6d/7b scenario seam (assigned below).
   const precisionRef = useRef<{
     drag: (partId: string, rawPos: [number, number, number]) => void
     rotate: (partId: string, rotationDeg: [number, number, number], pivotMode: PivotMode) => void
     scale: (partId: string, newSize: [number, number, number], pivotMode: PivotMode) => void
-  }>({ drag: () => {}, rotate: () => {}, scale: () => {} })
+    // Stage 7b — live during-drag snap: start a session, feed raw objectChange
+    // frames (each returns the LIVE snapped position, uncommitted), then commit.
+    liveDrag: {
+      start: (partId: string) => void
+      move: (partId: string, rawPos: [number, number, number]) => [number, number, number] | null
+      end: (partId: string) => void
+    }
+  }>({
+    drag: () => {},
+    rotate: () => {},
+    scale: () => {},
+    liveDrag: { start: () => {}, move: () => null, end: () => {} },
+  })
 
   // Automation seam for the scenario harness (Stage 3d): drive the spec + the
   // "Make configurable" export deterministically. Mirrors `__glbDesignerPlaceOnFace`.
@@ -475,12 +523,25 @@ function useDesignerController() {
           pivotMode: PivotMode,
         ) => void
         scale: (partId: string, newSize: [number, number, number], pivotMode: PivotMode) => void
+        liveDrag: {
+          start: (partId: string) => void
+          move: (
+            partId: string,
+            rawPos: [number, number, number],
+          ) => [number, number, number] | null
+          end: (partId: string) => void
+        }
       }
     }
     w.__glbDesignerPrecision = {
       drag: (partId, rawPos) => precisionRef.current.drag(partId, rawPos),
       rotate: (partId, rot, mode) => precisionRef.current.rotate(partId, rot, mode),
       scale: (partId, size, mode) => precisionRef.current.scale(partId, size, mode),
+      liveDrag: {
+        start: (partId) => precisionRef.current.liveDrag.start(partId),
+        move: (partId, rawPos) => precisionRef.current.liveDrag.move(partId, rawPos),
+        end: (partId) => precisionRef.current.liveDrag.end(partId),
+      },
     }
     return () => {
       w.__glbDesignerPrecision = undefined
@@ -537,6 +598,27 @@ function useDesignerController() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
+  }, [open, enabled])
+  // Track Alt for the live-snap escape hatch (Stage 7b) — holding Alt while
+  // dragging disables the magnetic snap (CAD convention). A plain ref, not state:
+  // it's read at drag start + per frame, never rendered.
+  useEffect(() => {
+    if (!open || !enabled) return
+    const onAlt = (e: KeyboardEvent) => {
+      if (e.key === 'Alt') altHeldRef.current = e.type === 'keydown'
+    }
+    // A blur can eat the keyup — reset so a held-then-blurred Alt doesn't stick.
+    const onBlur = () => {
+      altHeldRef.current = false
+    }
+    window.addEventListener('keydown', onAlt)
+    window.addEventListener('keyup', onAlt)
+    window.addEventListener('blur', onBlur)
+    return () => {
+      window.removeEventListener('keydown', onAlt)
+      window.removeEventListener('keyup', onAlt)
+      window.removeEventListener('blur', onBlur)
+    }
   }, [open, enabled])
   // ------------------------------------------------------------------------
 
@@ -970,7 +1052,53 @@ function useDesignerController() {
     return snapped
   }
 
-  const commitGizmoDrag = () => {
+  // ---- Live part translate-drag snap (Stage 7b) --------------------------
+  // Open a session at drag start: capture the static targets (every OTHER part's
+  // world AABB) ONCE. Only for an ungrouped part, translate mode, magnet on, Alt
+  // not held (the escape hatch) — matching `faceSnapPartPosition`'s eligibility.
+  const beginPartDrag = () => {
+    dragSessionRef.current = null
+    liveHintSigRef.current = null
+    const part = sel
+    if (
+      !part ||
+      gizmoActive !== 'translate' ||
+      !gridSnap.enabled ||
+      altHeldRef.current ||
+      partGroupMemberIds(spec).has(part.id)
+    )
+      return
+    const targets = spec.parts
+      .filter((p) => p.id !== part.id)
+      .map((p) => partWorldBoundsIn(spec, p))
+    dragSessionRef.current = startDragSnapSession(targets)
+  }
+
+  // One frame of live snap: read the mesh's raw (TransformControls-set) position,
+  // snap it flush against the memoised targets with hysteresis, and mutate the
+  // mesh IN PLACE so the object jumps flush while dragging. Returns the live
+  // snapped position (the seam asserts on it); no spec commit happens here.
+  const applyLivePartDragSnap = (): [number, number, number] | null => {
+    const session = dragSessionRef.current
+    const m = selMesh
+    const part = sel
+    if (!m || !part) return null
+    const raw: [number, number, number] = [m.position.x, m.position.y, m.position.z]
+    // Alt pressed mid-drag → release the magnet live (leave the mesh at raw).
+    if (!session || altHeldRef.current) {
+      setLiveHint([], boundsFromCenterExtent(raw, partWorldExtent(part)))
+      return raw
+    }
+    const extent = partWorldExtent(part)
+    const moving = boundsFromCenterExtent(raw, extent)
+    const { delta, hits } = updateDragSnap(session, moving)
+    const live: [number, number, number] = [raw[0] + delta[0], raw[1] + delta[1], raw[2] + delta[2]]
+    m.position.set(live[0], live[1], live[2])
+    setLiveHint(hits, boundsFromCenterExtent(live, extent))
+    return live
+  }
+
+  const commitGizmoDrag = (skipFaceSnap = false) => {
     const m = selMesh
     const part = sel
     if (!m || !part) return
@@ -990,7 +1118,7 @@ function useDesignerController() {
       // Face-to-face magnetic snap (translate) — an ungrouped part, magnet on:
       // snap the grid-snapped position flush to a nearby part face; face snap
       // wins over the grid quantisation it just applied.
-      if (gizmoActive === 'translate' && patch.position && gridSnap.enabled) {
+      if (gizmoActive === 'translate' && patch.position && gridSnap.enabled && !skipFaceSnap) {
         const snapped = faceSnapPartPosition(spec, part, patch.position)
         if (snapped) patch = { ...patch, position: snapped }
       } else if (gizmoActive === 'rotate' && 'rotation' in patch && pivot !== 'center') {
@@ -1021,6 +1149,21 @@ function useDesignerController() {
       m.position.set(part.position[0], part.position[1], part.position[2])
       m.rotation.set(MathUtils.degToRad(r[0]), MathUtils.degToRad(r[1]), MathUtils.degToRad(r[2]))
     }
+  }
+
+  // Drag end (mouseUp): flush a final live snap frame so the mesh sits exactly
+  // where the commit will read it, clear the live session + hint, then commit
+  // through the SAME authority path as Stage 6d (commit-time snap re-derives the
+  // flush value; the committed position equals what the user saw). Alt held →
+  // skip both live and commit snap (the CAD escape hatch).
+  const endPartDrag = () => {
+    const skip = altHeldRef.current
+    if (dragSessionRef.current) applyLivePartDragSnap()
+    dragSessionRef.current = null
+    liveHintSigRef.current = null
+    if (snapHintTimer.current) clearTimeout(snapHintTimer.current)
+    setSnapHint(null)
+    commitGizmoDrag(skip)
   }
 
   // ---- Precision seam closures (Stage 6d scenario) — faithful replays of the
@@ -1082,6 +1225,54 @@ function useDesignerController() {
         }
         return updatePart(sp, partId, patch)
       })
+    },
+    // Stage 7b live-drag seam — mirrors the real UI mouseDown → objectChange* →
+    // mouseUp path. `start` selects the part + opens the session; `move` feeds one
+    // raw objectChange frame (drives the mesh + hint, returns the LIVE snapped
+    // position WITHOUT committing); `end` commits through the authority path.
+    liveDrag: {
+      start: (partId) => {
+        setSelId(partId)
+        setGizmoMode('translate')
+        dragSessionRef.current = null
+        liveHintSigRef.current = null
+        const part = spec.parts.find((p) => p.id === partId)
+        if (
+          !part ||
+          !gridSnap.enabled ||
+          altHeldRef.current ||
+          partGroupMemberIds(spec).has(partId)
+        )
+          return
+        const targets = spec.parts
+          .filter((p) => p.id !== partId)
+          .map((p) => partWorldBoundsIn(spec, p))
+        dragSessionRef.current = startDragSnapSession(targets)
+      },
+      move: (partId, rawPos) => {
+        const part = spec.parts.find((p) => p.id === partId)
+        if (!part) return null
+        const extent = partWorldExtent(part)
+        let live: [number, number, number] = [...rawPos]
+        const session = dragSessionRef.current
+        if (session && !altHeldRef.current) {
+          const { delta, hits } = updateDragSnap(session, boundsFromCenterExtent(rawPos, extent))
+          live = [rawPos[0] + delta[0], rawPos[1] + delta[1], rawPos[2] + delta[2]]
+          setLiveHint(hits, boundsFromCenterExtent(live, extent))
+        } else {
+          setLiveHint([], boundsFromCenterExtent(rawPos, extent))
+        }
+        // Drive the live preview mesh (visual for the drag screenshot) when it's
+        // the selected part's mounted mesh.
+        const m = selMesh
+        if (m && selIdRef.current === partId) m.position.set(live[0], live[1], live[2])
+        return live
+      },
+      end: (partId) => {
+        // Ensure the selected mesh is at its last live position, then commit via
+        // the shared end-of-drag path (commit-time snap = authority).
+        if (selIdRef.current === partId) endPartDrag()
+      },
     },
   }
 
@@ -1223,9 +1414,66 @@ function useDesignerController() {
     selectGroup(newId)
   }
 
+  // The members of a transform group as concrete parts (drag-snap helpers below).
+  const groupMemberParts = (group: PartGroup): ShapePart[] =>
+    group.partIds
+      .map((id) => spec.parts.find((p) => p.id === id))
+      .filter((p): p is ShapePart => !!p)
+
+  // ---- Live group translate-drag snap (Stage 7b) -------------------------
+  // Same shape as the part path: capture the parts OUTSIDE the group as static
+  // targets once at drag start; only for a translate drag with the magnet on and
+  // Alt not held.
+  const beginGroupDrag = () => {
+    dragSessionRef.current = null
+    liveHintSigRef.current = null
+    const group = transformGroups.find((g) => g.id === selGroupId)
+    const mode: GizmoMode = gizmoMode === 'scale' ? 'translate' : gizmoMode
+    if (!group || mode !== 'translate' || !gridSnap.enabled || altHeldRef.current) return
+    const memberSet = new Set(group.partIds)
+    const targets = spec.parts.filter((p) => !memberSet.has(p.id)).map(partWorldBoundsFor)
+    dragSessionRef.current = startDragSnapSession(targets)
+  }
+
+  // One live frame for a group drag: the moving box is the UNION of the members'
+  // world AABBs at the group's raw (TransformControls-set) origin; the snap delta
+  // moves the whole group flush. Mutates the group container in place.
+  const applyLiveGroupDragSnap = (): [number, number, number] | null => {
+    const session = dragSessionRef.current
+    const obj = selGroupObj
+    const group = transformGroups.find((g) => g.id === selGroupId)
+    if (!obj || !group) return null
+    const raw: [number, number, number] = [obj.position.x, obj.position.y, obj.position.z]
+    const boundsAt = (origin: [number, number, number]) =>
+      unionBounds(
+        groupMemberParts({ ...group, position: origin }).map((p) =>
+          boundsFromCenterExtent(
+            groupedPartWorldPosition({ ...group, position: origin }, p),
+            partWorldExtent(p),
+          ),
+        ),
+      )
+    if (!session || altHeldRef.current) {
+      const b = boundsAt(raw)
+      if (b) setLiveHint([], { min: b.min, max: b.max })
+      return raw
+    }
+    const moving = boundsAt(raw)
+    if (!moving) return raw
+    const { delta, hits } = updateDragSnap(session, moving)
+    const live: [number, number, number] = [raw[0] + delta[0], raw[1] + delta[1], raw[2] + delta[2]]
+    obj.position.set(live[0], live[1], live[2])
+    setLiveHint(hits, {
+      min: [moving.min[0] + delta[0], moving.min[1] + delta[1], moving.min[2] + delta[2]],
+      max: [moving.max[0] + delta[0], moving.max[1] + delta[1], moving.max[2] + delta[2]],
+    })
+    return live
+  }
+
   // Write a finished GROUP gizmo drag back onto the group transform (same 5mm/1°
-  // snap as a part; coalesced into one undo step).
-  const commitGroupGizmoDrag = () => {
+  // snap as a part; coalesced into one undo step). `skipFaceSnap` (Alt held) skips
+  // the commit-time face snap, matching the live escape hatch.
+  const commitGroupGizmoDrag = (skipFaceSnap = false) => {
     const obj = selGroupObj
     const group = transformGroups.find((g) => g.id === selGroupId)
     if (!obj || !group) return
@@ -1242,13 +1490,11 @@ function useDesignerController() {
     )
     if (patch) {
       // ---- Stage 6d precision II (group) --------------------------------
-      if (mode === 'translate' && patch.position && gridSnap.enabled) {
+      if (mode === 'translate' && patch.position && gridSnap.enabled && !skipFaceSnap) {
         // Face-snap the whole group: union its members' world bounds at the
         // proposed origin and snap flush to the parts outside the group.
         const proposedGroup = { ...group, position: patch.position }
-        const memberParts = group.partIds
-          .map((id) => spec.parts.find((p) => p.id === id))
-          .filter((p): p is ShapePart => !!p)
+        const memberParts = groupMemberParts(group)
         const moving = unionBounds(
           memberParts.map((p) =>
             boundsFromCenterExtent(groupedPartWorldPosition(proposedGroup, p), partWorldExtent(p)),
@@ -1301,6 +1547,17 @@ function useDesignerController() {
       obj.position.set(p[0], p[1], p[2])
       obj.rotation.set(MathUtils.degToRad(r[0]), MathUtils.degToRad(r[1]), MathUtils.degToRad(r[2]))
     }
+  }
+
+  // Group drag end (mouseUp) — mirror of `endPartDrag`.
+  const endGroupDrag = () => {
+    const skip = altHeldRef.current
+    if (dragSessionRef.current) applyLiveGroupDragSnap()
+    dragSessionRef.current = null
+    liveHintSigRef.current = null
+    if (snapHintTimer.current) clearTimeout(snapHintTimer.current)
+    setSnapHint(null)
+    commitGroupGizmoDrag(skip)
   }
 
   const save = async () => {
@@ -1671,6 +1928,13 @@ function useDesignerController() {
     onScene,
     commitGizmoDrag,
     commitGroupGizmoDrag,
+    // Live during-drag face snapping (Stage 7b)
+    beginPartDrag,
+    applyLivePartDragSnap,
+    endPartDrag,
+    beginGroupDrag,
+    applyLiveGroupDragSnap,
+    endGroupDrag,
     armed,
     placeOnFace,
     placeDecal,

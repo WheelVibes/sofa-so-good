@@ -1,7 +1,6 @@
 {
   "name": "glb-designer-stage6a",
   "description": "Asset Studio Iteration 2 Stage 6a — content expansion in the GLB Asset Designer (Pro, glbDesigner on). Arm the new 'Dining chair' template, tune it, and 'Use template' — it flattens into the empty spec as one named 'Dining chair' Group (seat + legs + apron + reclined back). Screenshots from the default 3/4 iso viewport to confirm the chair reads correctly (legs plumb at the corners, seat level, back reclined). Then insert 'Wardrobe' and 'Desk' alongside (offset on +X) — three archetype Group rows. Finally arm the new 'Slat set' structural component and place it on the floor in front of the chair via the window.__glbDesignerPlaceOnFace seam — it lands as a named 'Slat set' Group. Asserts every group + part count and screenshots the chair, the trio, and the slat set.",
-  "url": "http://localhost:5173/",
   "steps": [
     {
       "name": "store-ready",

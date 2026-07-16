@@ -1,7 +1,6 @@
 {
   "name": "glb-designer-stage3a",
   "description": "Asset Studio Stage 3a — named transform groups in the GLB Asset Designer (Pro, glbDesigner on). Build 3 boxes, multi-select 2 and Group them → a 'Group 1' row appears in the layers TREE with its members indented beneath (distinct from a CSG Combine). Select the group and numeric-move it (Group position X) → both members shift together (the group transform moves the whole unit; screenshot). Duplicate the group → member count doubles (2 groups, 5 parts). Ungroup the duplicate → back to 1 group, parts unchanged, and the freed members KEEP their world position (the flatten baked the group offset in — a freed member sits out at X≈1.3, not back at the origin). Finally Save and assert the persisted UserGltfDef's assetSpec is the shared `{kind:'asset',...}` envelope embedding partGroups with the moved position + both member ids — so re-opening restores the tree intact. Screenshots the decisive frames.",
-  "url": "http://localhost:5312/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 120000 },
     {

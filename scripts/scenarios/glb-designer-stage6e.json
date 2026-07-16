@@ -1,7 +1,6 @@
 {
   "name": "glb-designer-stage6e",
   "description": "Asset Studio Iteration 2 Stage 6e — realism II in the GLB Asset Designer (Pro, glbDesigner on). Two identical velvet (sheen) plumped cushions side by side: the LEFT one has fabric Wrinkles at 0.8, the RIGHT one has Wrinkles 0 (smooth). Close in front + 3/4 so the wrinkle relief breaks up the highlight/sheen on the left cushion while the right reads as a smooth bulged shell. Then Save and assert the persisted UserGltfDef's assetSpec (v10 envelope) embeds parts[].wrinkles — the realism layer round-trips as an editable spec. Run with SHOT_GPU=1 (sheen needs a real GPU).",
-  "url": "http://localhost:5173/",
   "steps": [
     {
       "name": "store-ready",

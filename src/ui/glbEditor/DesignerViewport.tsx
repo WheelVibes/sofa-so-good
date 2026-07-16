@@ -258,8 +258,12 @@ export function DesignerViewport() {
     meshRefFor,
     groupRefFor,
     onScene,
-    commitGizmoDrag: onCommitGizmoDrag,
-    commitGroupGizmoDrag: onCommitGroupGizmoDrag,
+    beginPartDrag,
+    applyLivePartDragSnap,
+    endPartDrag,
+    beginGroupDrag,
+    applyLiveGroupDragSnap,
+    endGroupDrag,
     armed,
     placeOnFace: onPlaceFace,
     decalArmed,
@@ -280,6 +284,31 @@ export function DesignerViewport() {
   // shared mode to translate/rotate while a group is the gizmo target.
   const groupGizmo: GizmoMode = gizmoActive === 'scale' ? 'translate' : gizmoActive
   const [dims, setDims] = useState<[number, number, number] | null>(null)
+  // Stage 7b — rAF gate for the live during-drag snap: TransformControls'
+  // `objectChange` fires per pointer-move; coalesce to at most ONE snap
+  // computation per frame (the ProfileEditor rAF-gate precedent).
+  const dragRafRef = useRef<number | null>(null)
+  const scheduleLiveSnap = (fn: () => void) => {
+    if (dragRafRef.current !== null) return
+    dragRafRef.current = requestAnimationFrame(() => {
+      dragRafRef.current = null
+      fn()
+    })
+  }
+  const cancelLiveSnap = () => {
+    if (dragRafRef.current !== null) {
+      cancelAnimationFrame(dragRafRef.current)
+      dragRafRef.current = null
+    }
+  }
+  // Cancel any pending drag-snap frame on unmount (reads the ref directly so the
+  // effect stays dependency-free).
+  useEffect(
+    () => () => {
+      if (dragRafRef.current !== null) cancelAnimationFrame(dragRafRef.current)
+    },
+    [],
+  )
   return (
     <>
       {/* frameloop="demand": only repaint on demand — drei's OrbitControls +
@@ -334,12 +363,34 @@ export function DesignerViewport() {
             (the standard `dragging-changed` wiring lives inside drei). */}
         <OrbitControls makeDefault />
         {sel && selMesh ? (
-          <TransformControls object={selMesh} mode={gizmoActive} onMouseUp={onCommitGizmoDrag} />
+          <TransformControls
+            object={selMesh}
+            mode={gizmoActive}
+            onMouseDown={beginPartDrag}
+            onObjectChange={
+              gizmoActive === 'translate'
+                ? () => scheduleLiveSnap(applyLivePartDragSnap)
+                : undefined
+            }
+            onMouseUp={() => {
+              cancelLiveSnap()
+              endPartDrag()
+            }}
+          />
         ) : selGroupObj ? (
           <TransformControls
             object={selGroupObj}
             mode={groupGizmo}
-            onMouseUp={onCommitGroupGizmoDrag}
+            onMouseDown={beginGroupDrag}
+            onObjectChange={
+              groupGizmo === 'translate'
+                ? () => scheduleLiveSnap(applyLiveGroupDragSnap)
+                : undefined
+            }
+            onMouseUp={() => {
+              cancelLiveSnap()
+              endGroupDrag()
+            }}
           />
         ) : null}
         <LiveDimensions getObjects={getSelectionObjects} onChange={setDims} />

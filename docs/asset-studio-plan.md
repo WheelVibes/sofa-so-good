@@ -574,3 +574,61 @@ Adversarial review of the Stage-6 iteration-2 work, findings fixed in one cluste
 - ✅ **insetPolygon bowtie gap** — `insetOutline` now runs an O(n²) segment-segment self-intersection
   check (`polygonSelfIntersects`) on the result and returns null (→ solid fallback) on a same-
   orientation bowtie the area/edge-reversal guards miss.
+
+---
+
+## Iteration 3 (continuing the standing enhancement goal, 2026-07-16)
+
+### Stage 7a — Robustness: optimize-on-save guard (AS-OPT-GUARD) — ✅ SHIPPED (v0.21.2.49)
+Bounded timeout + fail-soft around `saveOptimize` (a wasm/network failure must never hang a
+save — raw GLB fallback); fix the hardcoded scenario ports (stage5/stage6b).
+- ✅ **Fail-soft `optimizeSavedGlb`** wraps `runOptimize` in a `Promise.race` against a documented
+  20 s ceiling (`OPTIMIZE_SAVE_TIMEOUT_MS`); on timeout OR rejection it `console.warn`s and persists
+  the **raw** GLB (`optimized: false`), restoring the shrink-or-no-op contract even when the
+  Draco/Basis WASM stack hangs. A unique symbol sentinel separates the timeout arm from a slow-but-
+  real result; `try/finally` always clears the timer.
+- ✅ **Worker-leak documented, not fought**: `runOptimize` has no cancel API, so a timed-out job is
+  abandoned; its pool worker returns idle + reused (or torn down by the existing 30 s idle-teardown).
+  Bounded by `POOL_MAX`, self-healing — no cancellation infra built.
+- ✅ **Unit tests** `saveOptimize.guard.test.ts` (timeout → raw within test timeout via fake timers;
+  rejection → raw; success adopted; not-smaller → raw). Existing feature-survival matrix unchanged.
+- ✅ **Scenarios**: stripped dead hardcoded `url` ports (:5301/:5310/:5312) from every
+  `glb-designer-stage*.json` (resolve `SHOT_URL`/default 5173 instead); fixed `glb-designer-stage6b`'s
+  stale `env.v === 8` save assert → `env.v >= 8` (the envelope bumped to v10; the save-step "hang"
+  was the assert never passing, not the WASM warning — the asset saves in ~2 s). Re-ran stage6b green
+  through the save step (GPU, isolated worktree at HEAD).
+
+### Stage 7b — Precision III: live during-drag face snapping — ✅ SHIPPED (v0.21.2.50)
+The 6d deferral: intercept TransformControls' `objectChange` to preview the snap DURING the
+drag (the shape jumps flush + the hint shows live), not only at commit. Keep commit-time snap as
+the source of truth.
+- ✅ **Pure `dragSnapSession.ts`** (start → per-frame `updateDragSnap` → discard) over the existing
+  `snapFaces` engine, with **memoised targets** (captured once at drag start — they can't move
+  mid-drag, so the per-frame pass stays a cheap `O(n)` AABB scan) and **per-axis hysteresis**: an
+  axis engages within the tight 8 mm threshold and holds flush until pulled past a wider **1.5×
+  release band** (`DRAG_SNAP_RELEASE_FACTOR`, ≈12 mm), so it doesn't flicker at the boundary. Fully
+  unit-tested (`dragSnapSession.test.ts` — engage, hold, release-then-re-engage, axis independence,
+  targets-stay-fixed, custom threshold).
+- ✅ **Live wiring** in `designerContext.tsx` + `DesignerViewport.tsx`: `TransformControls`'
+  `onMouseDown` opens the session (translate mode, magnet on, Alt not held), `onObjectChange`
+  (rAF-gated — one snap computation per frame, the 6e ProfileEditor precedent) snaps the dragged
+  mesh IN PLACE and shows the hint live, `onMouseUp` commits through the **unchanged Stage-6d
+  authority path** (committed value equals what the user saw). Works for a **single part and a whole
+  group** (the group-proxy union bounds). The live hint state updates only when the engaged-snap
+  signature changes, so a per-frame drag doesn't re-render the flat context each frame.
+- ✅ **Alt escape hatch** (CAD convention) disables the magnet live for that drag (skips both the
+  live and the commit-time snap); documented in `docs/user/importing-models.md`.
+- ✅ **Scenario** `scripts/scenarios/glb-designer-stage7b.json` drives the live seam
+  (`window.__glbDesignerPrecision.liveDrag`) through a far → engage → hysteresis-hold sequence and
+  asserts the mid-drag position is **flush BEFORE any commit** (the spec still shows the un-moved
+  origin), screenshots the live hint during the open drag, then commits and asserts the committed
+  position matches. Behind the existing `glbDesigner` pro flag; no persistence/envelope change.
+
+### Stage 7c — Realism III: tufting generator + more archetypes
+One-tap tufting on plumped cushions (grid params rows×cols → button decals + local dimple
+in the plump displacement); bench / bar-stool / floating-shelf / bathroom-vanity templates.
+
+### Stage 7d — Modular II: slot constraints authoring
+Make-configurable gains per-option requires/excludes authoring (the configurator's clampConfig
+already enforces constraints — expose authoring), so exported product families encode real
+compatibility rules.

@@ -701,7 +701,13 @@ same change that reshapes a system.
   **face-snaps** — `faceSnap.ts` (pure, tested) snaps the committed position flush to a nearby part's
   AABB face within ~8 mm (abut = zero-gap outer faces; align = coplanar same-side faces; locality-gated
   on perpendicular overlap, per-axis, face snap wins over grid), with a brief accent-edge hint
-  (`SnapHintOverlay`); commit-time not live (the write-back is the clean seam). A viewport **Centre /
+  (`SnapHintOverlay`). **Precision III (Iteration 3, Stage 7b, v0.21.2.50):** the snap is now previewed
+  **live during the drag** — `TransformControls`' `objectChange` (rAF-gated) runs `dragSnapSession.ts`
+  (pure, tested: memoised targets captured once at drag start + per-axis **hysteresis**, a 1.5× release
+  band so it doesn't flicker at the threshold), snapping the dragged mesh flush in place with the hint
+  showing live; `onMouseUp` still commits through the same 6d write-back (commit-time snap stays the
+  authority, so the committed value equals what the user saw). Works for a part and a whole group;
+  holding **Alt** disables the magnet for that drag (CAD escape hatch, skips live + commit snap). A viewport **Centre /
   Base / Corner pivot** switch (`pivot.ts`, pure, tested) changes the reference point for numeric
   rotation + gizmo rotate/scale via position compensation on write-back (Centre = byte-identical to
   today); applies to a part and a whole transform group. Both are ephemeral UI state (no spec/envelope

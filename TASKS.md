@@ -61,9 +61,3 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.
 - Keep this file pending-only; keep `TODO.md` (legacy deferred-work log) current.
-- [ ] AS-OPT-GUARD: optimize-on-save (`glbEdit/saveOptimize.ts`) needs a timeout/fail-soft guard —
-  in the dev harness a Draco-encoder wasm MIME failure can HANG the save (seen in
-  glb-designer-stage6b's save step, 2026-07-16); prod serves wasm correctly, but a hung save on
-  any wasm/network failure contradicts the shrink-or-no-op contract. Wrap the optimize call in a
-  bounded timeout (e.g. 20s) → fall back to the raw GLB; also fix stage6b/stage5 scenarios'
-  hardcoded ports while there.

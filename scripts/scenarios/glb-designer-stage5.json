@@ -1,7 +1,6 @@
 {
   "name": "glb-designer-stage5",
   "description": "Asset Studio Stage 5 — the realism detail layer in the GLB Asset Designer (Pro, glbDesigner on). Build a cushion box, dial its Plump slider so the upholstery crowns; one-tap Add piping to trace the cushion's top-face perimeter as a soft welt (a sweep part in a 'Piping' group); arm the Button detail and place 3 tufted-button decals across the cushion top via the window.__glbDesignerPlaceDecal seam (real DecalGeometry, offset so it never z-fights). Save and assert the persisted UserGltfDef's assetSpec envelope embeds the cushion's plump, the 'Piping' group + its sweepPoints welt, AND all 3 button decals — proving the detail layer round-trips as an editable spec. Screenshots the plumped cushion, the piping welt, and the buttons.",
-  "url": "http://localhost:5312/",
   "steps": [
     {
       "name": "store-ready",

@@ -1,7 +1,6 @@
 {
   "name": "glb-designer-stage3c",
   "description": "Asset Studio Stage 3c \u2014 template-first flows in the GLB Asset Designer (Pro, glbDesigner on). Open the Templates section, tap 'Dining table' to arm it (a compact parametric step opens with the template's ergonomic sliders + a LIVE preview), widen it via the Width slider, then 'Use template' \u2014 it flattens into the (empty) spec as a single named 'Dining table' Group. Then tap 'Bookshelf', 'Use template' again \u2014 because the spec is now non-empty it inserts ALONGSIDE (offset on +X), so both pieces are present as two Group rows. Finally Save and assert the persisted assetSpec envelope embeds BOTH template groups: the dining table at identity (it replaced the empty spec) with its tabletop top at the height param, and the bookshelf carrying a positive X offset. Screenshots the template picker with sliders + live preview, the inserted dining table, and table + bookshelf together.",
-  "url": "http://localhost:5173/",
   "steps": [
     {
       "name": "store-ready",

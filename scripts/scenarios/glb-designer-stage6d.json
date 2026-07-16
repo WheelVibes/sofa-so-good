@@ -1,7 +1,6 @@
 {
   "name": "glb-designer-stage6d",
   "description": "Asset Studio Iteration 2 Stage 6d — precision II (face-to-face magnetic snapping + pivot control) in the GLB Asset Designer (Pro, glbDesigner on). Phase 1: seed two 0.4 m boxes apart on X (a 'mover' and a 'wall', overlapping on Y/Z), then drive a gizmo translate of the mover to within ~5 mm of the wall's near face through the window.__glbDesignerPrecision.drag seam — with the magnet ON the committed position snaps FLUSH (the mover's +X face meets the wall's −X face with a gap of exactly 0). Phase 2: seed one upright leg box on the floor, set the pivot to Base, rotate it 45° about Y (it spins in place, still sitting on the floor — minY unchanged) and then scale it taller from the Base (it grows UPWARD, the bottom face stays on the floor — minY still 0). Screenshots: the flush pair (Front view, zero gap), the base-rotated leg on the floor, the base-scaled leg still grounded.",
-  "url": "http://localhost:5173/",
   "steps": [
     {
       "name": "store-ready",

@@ -216,8 +216,10 @@ build one in the browser:
   size/position number fields step. Your choice is remembered on this device.
 - **Face snapping (magnetic surfaces)** — with the **magnet** on, dragging a shape (or a whole group)
   so a face comes within about 8 mm of another shape's face **snaps it flush** — the two surfaces meet
-  with no gap, or line up edge-to-edge. A brief coloured edge flashes on the face it snapped to. Turn
-  the magnet off to place freely.
+  with no gap, or line up edge-to-edge. The snap happens **live while you drag**: the shape jumps flush
+  the moment it gets close and a coloured edge marks the shared face, and it holds there until you pull
+  it clearly away again (so it doesn't flicker at the edge). Hold **Alt** while dragging to switch the
+  magnet off just for that drag, or turn the magnet button off to place freely.
 - **Pivot (rotation / scale point)** — the **Centre / Base / Corner** switch (top-left, under the
   Move / Rotate / Scale switch) sets the point a shape rotates and scales around. **Centre** is the
   default; **Base** keeps the bottom face put (rotate a leg without it sinking, or grow a shape upward

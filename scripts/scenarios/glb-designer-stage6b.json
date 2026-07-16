@@ -1,7 +1,6 @@
 {
   "name": "glb-designer-stage6b",
   "description": "Asset Studio Iteration 2 Stage 6b — geometry ops II in the GLB Asset Designer (Pro, glbDesigner on). Add a Box and dial its 'Hollow (wall)' slider so it becomes an open-top carcass, then look straight down (Top view) to confirm the open cavity + uniform wall thickness. Add a Loft (round → square by default) and shape it into a tapered vase, confirming no twisted/inverted faces. Add a Sweep, switch its path to Custom and feed an S-curve so the rail follows the drawn path smoothly. Finally Save and assert the persisted UserGltfDef's assetSpec (v8 envelope) embeds the box shell, the loft's bottom+top cross-sections, and the sweep's custom path points — the whole geometry layer round-trips as an editable spec.",
-  "url": "http://localhost:5173/",
   "steps": [
     {
       "name": "store-ready",
@@ -144,12 +143,12 @@
     },
     {
       "name": "assert-saved-geometry-ops",
-      "comment": "End-to-end proof: the saved assetSpec (v8 envelope) embeds the box shell, the loft's bottom+top cross-sections, and the sweep's custom path points — the Stage-6b geometry layer round-trips as an editable spec.",
+      "comment": "End-to-end proof: the saved assetSpec (v8+ envelope — the geometry layer landed at v8 and rides forward through later envelope bumps) embeds the box shell, the loft's bottom+top cross-sections, and the sweep's custom path points — the Stage-6b geometry layer round-trips as an editable spec.",
       "waitFor": {
-        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Stage6b Geometry' && typeof d.assetSpec === 'string' && d.assetSpec.includes('\"kind\":\"asset\"') && (() => { try { const env = JSON.parse(d.assetSpec); if (env.v !== 8) return false; const s = env.payload; const box = s.parts.find(p => p.kind === 'box'); const loft = s.parts.find(p => p.kind === 'loft'); const sweep = s.parts.find(p => p.kind === 'sweep'); return box && box.shell > 0 && loft && Array.isArray(loft.loftBottom) && Array.isArray(loft.loftTop) && sweep && sweep.sweepPath === 'custom' && Array.isArray(sweep.sweepPathPoints) && sweep.sweepPathPoints.length >= 4; } catch { return false } })())"
+        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Stage6b Geometry' && typeof d.assetSpec === 'string' && d.assetSpec.includes('\"kind\":\"asset\"') && (() => { try { const env = JSON.parse(d.assetSpec); if (!(env.v >= 8)) return false; const s = env.payload; const box = s.parts.find(p => p.kind === 'box'); const loft = s.parts.find(p => p.kind === 'loft'); const sweep = s.parts.find(p => p.kind === 'sweep'); return box && box.shell > 0 && loft && Array.isArray(loft.loftBottom) && Array.isArray(loft.loftTop) && sweep && sweep.sweepPath === 'custom' && Array.isArray(sweep.sweepPathPoints) && sweep.sweepPathPoints.length >= 4; } catch { return false } })())"
       },
       "timeout": 60000,
-      "failMessage": "saved assetSpec should embed the box shell, the loft cross-sections, and the custom sweep path (v8 envelope)"
+      "failMessage": "saved assetSpec should embed the box shell, the loft cross-sections, and the custom sweep path (v8+ envelope)"
     },
     {
       "name": "shot-saved",

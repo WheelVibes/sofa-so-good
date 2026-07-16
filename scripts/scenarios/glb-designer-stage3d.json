@@ -1,7 +1,6 @@
 {
   "name": "glb-designer-stage3d",
   "description": "Asset Studio Stage 3d — sets & modular customization. PART A (configurable product): in the GLB designer, drive a table spec whose 4 round (cylinder) legs and 4 square (box) legs are two separate groups; mark both as options of one 'Legs' variant slot and export as a user configurable product (base + Legs slot, each option a baked data-URL GLB). Open the exported product in the existing ConfiguratorDialog, swap the Legs option from Round → Square (asserting the option renders + is selected), then Save to catalog — asserting the baked user def's slotSpec envelope records the Square option. PART B (sets): drive a 2-group design, tick 'Save groups as separate assets', Save — asserting THREE new defs land (2 single-piece assets named after the groups + 1 combined). Cylinder legs prove the baked-GLB option route preserves shape fidelity the configurator's box-only ConfiguredPart cannot.",
-  "url": "http://localhost:5173/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 120000 },
     {

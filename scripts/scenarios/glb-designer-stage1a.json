@@ -1,7 +1,6 @@
 {
   "name": "glb-designer-stage1a",
   "description": "Asset Studio Stage 1a — the new profile-driven shape kinds (lathe/extrude/sweep) + ubiquitous bevels in the GLB designer. In Pro with glbDesigner on: add a Lathe (seeds the turned-leg preset), an Extrude (rounded-rect, bevel ON by default), a Sweep (piping ring) and a Box, then bevel the box via its 'Corner radius' slider. Asserts 4 parts via the designer's own layer-row Remove buttons (scoped to .glb-designer). Then selects the lathe, reads its first profile point's X input, sets it to a distinctive value (0.234) through the ProfileEditor numeric field, and asserts the input reflects it — a DOM readback of the part's live `profile` param (the input is bound to part.profile[sel][0], so the new value only appears if the edit round-tripped through updatePart → re-render). Finally saves and asserts the persisted UserGltfDef's `assetSpec` JSON contains that 0.234 coordinate AND all four Stage-1a kinds (lathe/extrude/sweep) — the end-to-end proof the geometry params reached the exported spec. Screenshots the decisive frames (all four shapes framed by the Bounds fit; the bevelled box; the restored/edited profile). Part rows counted with `.glb-designer button[aria-label^=\"Remove \"]`.",
-  "url": "http://localhost:5301/",
   "steps": [
     { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
     {

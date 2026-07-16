@@ -1,7 +1,6 @@
 {
   "name": "glb-designer-stage4",
   "description": "Asset Studio Stage 4b — precision & pro UX in the GLB Asset Designer (Pro, glbDesigner on). Builds 3 ragged boxes via the dev seam, multi-selects them, aligns their centres on X (all X equal) and distributes them on Z (equal gaps, endpoints fixed). Seeds a 1 cm grid-snap pref so the inspector's numeric size/position inputs step by 1 cm. Renames a shape via the inspector Name field. Linear-arrays one shape x4 into a named Array group with equal gaps. Snaps the camera to the Front preset and confirms the live W x H x D dimension readout is visible while a shape is selected. Screenshots each milestone.",
-  "url": "http://localhost:5173/",
   "steps": [
     {
       "name": "store-ready",
