@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.0.0 — PR bump: pets program + furniture realism/expansion programs to staging
+
+Minor bump closing the r10 backlog branch for its staging PR. Carries: the pet-fittings
+program (P1–P6, v0.21.2.70–.78 — SG-compliance fittings, per-pet-type catalog, profile +
+compliance checklist); the furniture realism program (v0.21.2.79–.90 — all 131 defs
+audited, 58 defects fixed incl. 13 latent z-fights, structural-soundness harness with
+attachment + coplanarity CI gates, wood/curtain/appliance coordinated fixes, foliage
+fidelity overhaul); and the catalog expansion E1–E4 (12 new primitives, 14 variant
+families, modular sectional builder, parametric wardrobe fit-out system).
+
 ## v0.21.2.90 — Coplanarity (z-fight) gate in the structural harness + 13 fixes
 
 From the aircon lesson (v0.21.2.88 — static frames under-report z-fighting): the harness
