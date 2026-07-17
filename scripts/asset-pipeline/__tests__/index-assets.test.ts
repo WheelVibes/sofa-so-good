@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -60,6 +60,58 @@ describe('indexAssets', () => {
     writeSidecar(a, sidecar)
     writeSidecar(b, sidecar)
     await expect(indexAssets({ projectRoot: root })).rejects.toThrow(/duplicate id/)
+  })
+
+  it('auto-detects a sidecar-less material folder from filenames', async () => {
+    // Mimic a bare ambientCG download dropped straight into the materials dir.
+    const dir = join(root, 'public/assets/materials/wall-bricks-075')
+    mkdirSync(dir, { recursive: true })
+    for (const f of [
+      'Bricks075A_1K-JPG_Color.jpg',
+      'Bricks075A_1K-JPG_NormalGL.jpg',
+      'Bricks075A_1K-JPG_Roughness.jpg',
+      'Bricks075A_1K-JPG_AmbientOcclusion.jpg',
+      'Bricks075A_1K-JPG_Displacement.jpg', // unsupported → ignored
+    ]) {
+      writeFileSync(join(dir, f), 'x')
+    }
+    await indexAssets({ projectRoot: root })
+    const out = readFileSync(join(root, 'src/materials/generatedCatalog.ts'), 'utf8')
+    expect(out).toContain('"wall-bricks-075"')
+    expect(out).toContain('Bricks075A_1K-JPG_Color.jpg')
+    expect(out).toContain('Bricks075A_1K-JPG_NormalGL.jpg')
+    expect(out).toContain('Bricks075A_1K-JPG_Roughness.jpg')
+    expect(out).toContain('Bricks075A_1K-JPG_AmbientOcclusion.jpg')
+    // displacement is not a runtime-bound channel — must not leak in
+    expect(out).not.toContain('Displacement')
+  })
+
+  it('skips a sidecar-less folder that has no albedo', async () => {
+    const dir = join(root, 'public/assets/materials/floor-broken')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'floor_nor_gl.jpg'), 'x')
+    await indexAssets({ projectRoot: root })
+    const out = readFileSync(join(root, 'src/materials/generatedCatalog.ts'), 'utf8')
+    expect(out).not.toContain('floor-broken')
+  })
+
+  it('lets a sidecar win over auto-detection', async () => {
+    const dir = join(root, 'public/assets/materials/floor-sidecar')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'some_diff.jpg'), 'x')
+    writeSidecar(join(dir, 'material'), {
+      id: 'hand-authored-floor',
+      name: 'Hand authored',
+      category: 'floor',
+      uvScale: [3, 3],
+      channels: { albedo: 'some_diff.jpg' },
+    })
+    await indexAssets({ projectRoot: root })
+    const out = readFileSync(join(root, 'src/materials/generatedCatalog.ts'), 'utf8')
+    // sidecar id + uvScale win; the auto-detect id (the folder name) is not used
+    expect(out).toContain('"hand-authored-floor"')
+    expect(out).toContain('[3, 3]')
+    expect(out).not.toContain('id: "floor-sidecar"')
   })
 
   it('emits an empty catalog when no assets exist', async () => {

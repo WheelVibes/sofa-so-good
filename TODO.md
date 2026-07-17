@@ -111,8 +111,6 @@ proxy/mirror/host is missing, and standing one up is a deployment task, not a co
 - **KTX2/DDS standalone-material decode** — needs a WebGL readback; the model importer handles
   embedded KTX2, but standalone KTX2/DDS material uploads aren't decoded yet
   (`src/materials/convert/decodeImage.ts`).
-- **Drop-folder material auto-detection** — infer channels from filenames (`*_diff.*`, `*_nor.*`,
-  …) for material folders lacking a sidecar (`scripts/asset-pipeline/index-assets.ts`).
 - **Build-time KTX2 in the offline asset pipeline** — `@gltf-transform/functions` lacks a bundled
   KTX2 encoder; integrate `@gltf-transform/cli` (`toktx`) or `basisu` for the offline pipeline
   (`scripts/asset-pipeline/process-texture.ts`). (The *in-browser* encoder already ships.)

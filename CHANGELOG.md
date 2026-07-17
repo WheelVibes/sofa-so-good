@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.0.7 — Drop-folder material auto-detection (offline pipeline)
+
+`index-assets.ts` no longer silently skips a material folder without a
+`material.json` sidecar: the new pure `materialChannels.ts` classifier infers
+the 4 runtime-bound channels (albedo/normal/rough/ao) from filename suffixes
+(diff/albedo/basecolor/col…, nor/nrm (GL preferred over DX), rough/rgh,
+ao/occlusion) — case-insensitive, resolution tokens stripped, metal/disp/ARM
+recognised-but-ignored with warnings, EXR/TIFF/HDR skipped. A sidecar always
+wins; no albedo → skip with warning. Verified end-to-end against fake
+ambientCG + Poly Haven folder layouts (correct GL-normal pick, ignored maps
+absent from output). 14 new tests (11 classifier + 3 indexer integration);
+`dropped/README.md` documents the zero-config path. Also records the AI-matting
+closure ruling in FEATURE_PARITY.md (no product-photo consumer exists — dead
+UI; revisit only after an image consumer is scoped).
+
 ## v0.22.0.6 — Poly Haven CC0 model fetcher → local-asset dev DB
 
 New dev pipeline `scripts/asset-pipeline/fetch-polyhaven-models.mjs`: queries
