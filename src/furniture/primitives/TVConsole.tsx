@@ -26,7 +26,11 @@ export function TVConsole({ props }: TVConsoleProps) {
   const legH = base === 'legs' ? 0.14 : base === 'plinth' ? 0.05 : 0
   const bodyY = legH // body bottom sits on the base
   const faceW = (width - 0.06) / 2
-  const faceInset = 0.015
+  // Fronts sit slightly PROUD of the body face (like the dresser/sideboard) so
+  // the two bays + their reveal gap actually read — a face recessed *into* the
+  // solid carcass is invisible (it just shows the body), leaving the handles
+  // floating on a featureless slab.
+  const faceZ = depth / 2 + 0.004
 
   const wood = getSurfaceMaterial(finish, color, 1.6, sheen)
   const metal = { color: '#8a8d92', roughness: 0.3, metalness: 0.7 }
@@ -67,29 +71,48 @@ export function TVConsole({ props }: TVConsoleProps) {
           )),
         )}
 
-      {/* Fronts: two drawers (bar handles) or two doors (edge pulls) */}
+      {/* Fronts: two drawers (bar handles) or two doors (edge pulls). Each front
+          is a proud panel inset from the bay edges so a shadow-gap reveal reads
+          around it; drawers additionally split into two stacked faces. */}
       {[-1, 1].map((s) => {
         const cx = s * (faceW / 2 + 0.015)
-        const faceY = bodyY + bodyH / 2
+        const faceCY = bodyY + bodyH / 2
         return (
           <group key={s}>
-            <BeveledBox
-              castShadow
-              position={[cx, faceY, depth / 2 - faceInset]}
-              material={wood}
-              args={[faceW, bodyH - 0.04, 0.012]}
-            />
             {front === 'drawers' ? (
-              <mesh castShadow position={[cx, faceY, depth / 2 + 0.01]}>
-                <boxGeometry args={[faceW * 0.45, 0.018, 0.018]} />
-                <meshStandardMaterial {...metal} />
-              </mesh>
+              // Two stacked drawer faces per bay with bar pulls.
+              [0, 1].map((r) => {
+                const dh = (bodyH - 0.05) / 2
+                const dy = bodyY + 0.02 + dh / 2 + r * (dh + 0.01)
+                return (
+                  <group key={r}>
+                    <BeveledBox
+                      castShadow
+                      position={[cx, dy, faceZ]}
+                      material={wood}
+                      args={[faceW - 0.012, dh, 0.016]}
+                    />
+                    <mesh castShadow position={[cx, dy, faceZ + 0.016]}>
+                      <boxGeometry args={[faceW * 0.42, 0.016, 0.018]} />
+                      <meshStandardMaterial {...metal} />
+                    </mesh>
+                  </group>
+                )
+              })
             ) : (
-              // Door: vertical bar pull near the centre gap.
-              <mesh castShadow position={[s * 0.03, faceY, depth / 2 + 0.01]}>
-                <boxGeometry args={[0.018, (bodyH - 0.04) * 0.5, 0.018]} />
-                <meshStandardMaterial {...metal} />
-              </mesh>
+              // A single door front per bay with a vertical bar pull near the gap.
+              <group>
+                <BeveledBox
+                  castShadow
+                  position={[cx, faceCY, faceZ]}
+                  material={wood}
+                  args={[faceW - 0.012, bodyH - 0.05, 0.016]}
+                />
+                <mesh castShadow position={[s * 0.03, faceCY, faceZ + 0.016]}>
+                  <boxGeometry args={[0.018, (bodyH - 0.05) * 0.5, 0.018]} />
+                  <meshStandardMaterial {...metal} />
+                </mesh>
+              </group>
             )}
           </group>
         )

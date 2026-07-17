@@ -17,7 +17,7 @@ export function CoatRack({ props }: { props: ParamProps }) {
     style === 'metal'
       ? getSolidMaterial(color, 0.35, 0.8)
       : getSurfaceMaterial('wood', color, 0.6, sheen)
-  const poleR = style === 'metal' ? 0.018 : 0.028
+  const poleR = style === 'metal' ? 0.02 : 0.032
   const hookMat = poleMat
 
   // Hooks at two heights for coats + hats.
@@ -36,18 +36,23 @@ export function CoatRack({ props }: { props: ParamProps }) {
       <mesh castShadow position={[0, height + 0.02, 0]} material={poleMat}>
         <sphereGeometry args={[poleR * 1.6, 12, 10]} />
       </mesh>
-      {/* Three splayed feet */}
+      {/* Three splayed tripod feet — each runs from the pole base (top, ~0.34 m
+          up) out and DOWN to rest on the floor at ~0.26 m radius, so the rack
+          reads as a stable, grounded coat tree. The earlier feet were tilted
+          only ~29° off vertical with too-low a centre, so their lower ends sank
+          through the floor and the base looked unsupported. */}
       {[0, 1, 2].map((i) => {
         const a = (i / 3) * Math.PI * 2
+        const tilt = 0.653 // ~37° from vertical
         return (
           <mesh
             key={i}
             castShadow
-            position={[Math.cos(a) * 0.14, 0.03, Math.sin(a) * 0.14]}
-            rotation={[Math.sin(a) * 0.5, -a, Math.cos(a) * 0.5]}
+            position={[Math.cos(a) * 0.13, 0.175, Math.sin(a) * 0.13]}
+            rotation={[Math.sin(a) * tilt, -a, Math.cos(a) * tilt]}
             material={poleMat}
           >
-            <cylinderGeometry args={[0.018, 0.014, 0.32, 8]} />
+            <cylinderGeometry args={[0.02, 0.014, 0.428, 8]} />
           </mesh>
         )
       })}

@@ -1,5 +1,6 @@
 import { ellipseFootprintParts } from '../footprintShapes'
 import type { FurnitureDef } from '../types'
+import { diningSeatDim } from './diningSeatDims'
 
 /** tables furniture definitions. Part of the built-in catalog (see ../builtinCatalog.ts). */
 export const TABLES_DEFS = {
@@ -11,16 +12,18 @@ export const TABLES_DEFS = {
     keywords: ['dinner table', 'kitchen table'],
     category: 'tables',
     primitive: 'DiningTable',
-    defaultFootprint: { w: 1.5, d: 0.9, h: 0.74 },
-    // Round/oval tops: approximate the disc/ellipse as a small union of
-    // inscribed OBBs (see footprintShapes.ts) so the bbox corners a round/oval
-    // top never reaches read as open floor. 'rect' keeps the single full box
-    // (empty array → itemFootprintParts falls back to the enclosing OBB).
+    // Default = the 4-seat rendered top (the primitive sizes off the `seats`
+    // enum, not width/depth), so the honest footprint matches the geometry.
+    defaultFootprint: { w: 1.4, d: 0.85, h: 0.74 },
+    // The rendered top size comes from the `seats` enum (DINING_SEAT_DIMENSIONS),
+    // NOT width/depth — so the footprint must track `seats` too, or a 6/8-seater
+    // keeps a 4-seater collision box. Rect → one OBB at the seat size; round/oval
+    // → the inscribed-OBB union approximating the disc/ellipse (footprintShapes.ts)
+    // so the bbox corners of a round top read as open floor.
     footprintParts: (props) => {
+      const { w, d } = diningSeatDim(props)
       const shape = props.shape
-      if (shape !== 'round' && shape !== 'oval') return []
-      const w = typeof props.width === 'number' ? props.width : 1.5
-      const d = typeof props.depth === 'number' ? props.depth : 0.9
+      if (shape !== 'round' && shape !== 'oval') return [{ dx: 0, dz: 0, w, d }]
       return ellipseFootprintParts(w, d)
     },
     paramSchema: [

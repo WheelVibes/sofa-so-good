@@ -95,9 +95,9 @@ export function SideTable({ props }: { props: ParamProps }) {
             castShadow
             position={[mx, legH / 2, mz]}
             rotation={[Math.cos(a) * lean, 0, -Math.sin(a) * lean]}
+            material={legMat}
           >
-            <cylinderGeometry args={[legR, legR * 0.7, legH, 8]} />
-            <meshStandardMaterial color={legColor} roughness={0.5} metalness={0.1} />
+            <cylinderGeometry args={[legR, legR * 0.7, legH, seg(10, detail, 8)]} />
           </mesh>
         )
       })}

@@ -1,4 +1,5 @@
 import { getSurfaceMaterial, getWoodMaterial } from '../../materials/furnitureMaterials'
+import { DINING_SEAT_DIMENSIONS } from '../defs/diningSeatDims'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
@@ -7,20 +8,15 @@ interface DiningTableProps {
   props: ParamProps
 }
 
-const SEAT_DIMENSIONS: Record<string, { w: number; d: number }> = {
-  '4': { w: 1.4, d: 0.85 },
-  '6': { w: 1.8, d: 0.95 },
-  '8': { w: 2.2, d: 1.0 },
-}
-
 /**
  * Dining table primitive: rectangular top + 4 legs.
  * Footprint width/depth are derived from the `seats` enum so the
- * inspector exposes a single dropdown rather than two sliders.
+ * inspector exposes a single dropdown rather than two sliders. The same
+ * `DINING_SEAT_DIMENSIONS` map drives the def's collision footprint.
  */
 export function DiningTable({ props }: DiningTableProps) {
   const seatsKey = readStr(props, 'seats', '4')
-  const dim = SEAT_DIMENSIONS[seatsKey] ?? SEAT_DIMENSIONS['4']
+  const dim = DINING_SEAT_DIMENSIONS[seatsKey] ?? DINING_SEAT_DIMENSIONS['4']
   const topColor = readStr(props, 'topColor', '#9e7b53')
   const legColor = readStr(props, 'legColor', '#5b4126')
   const finish = readStr(props, 'finish', 'wood')
@@ -111,9 +107,9 @@ export function DiningTable({ props }: DiningTableProps) {
         <mesh castShadow position={[0, (totalH - topThickness) / 2 + 0.04, 0]} material={legMat}>
           <cylinderGeometry args={[0.07, 0.09, totalH - topThickness - 0.04, 20]} />
         </mesh>
-        {/* Disc foot */}
-        <mesh castShadow receiveShadow position={[0, 0.025, 0]} material={legMat}>
-          <cylinderGeometry args={[radius * 0.42, radius * 0.46, 0.05, 28]} />
+        {/* Disc foot — top meets the column base (0.06) so they read as joined */}
+        <mesh castShadow receiveShadow position={[0, 0.03, 0]} material={legMat}>
+          <cylinderGeometry args={[radius * 0.42, radius * 0.46, 0.06, 28]} />
         </mesh>
       </group>
     )

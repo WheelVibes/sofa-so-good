@@ -1,0 +1,119 @@
+{
+  "name": "realism-beds-storage",
+  "description": "Wave 1B realism audit: beds (5) + storage (11) defs, each placed alone at the L/D centre and captured from a low 3/4 side angle (floor-contact + silhouette). Variant frames for distinct modes.",
+  "url": "http://localhost:5302/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "helpers", "eval": "window.__place=(defId,props)=>window.__store.getState().setItems([{id:'AUD',defId,position:[10.0,3.6],rotation:0,props:props||{}}]); window.__camLow=()=>{const t=window.__three,c=t.controls;t.camera.position.set(12.6,1.05,6.2);if(c){c.target.set(10.0,0.4,3.6);c.update();}t.camera.lookAt(10.0,0.4,3.6);}; window.__camTall=()=>{const t=window.__three,c=t.controls;t.camera.position.set(13.0,1.85,6.6);if(c){c.target.set(10.0,1.0,3.6);c.update();}t.camera.lookAt(10.0,1.0,3.6);}; true" },
+
+    { "name": "p-bed-single", "eval": "window.__place('bed-single',{}); window.__camLow()" },
+    { "name": "w-bed-single", "wait": 1500 },
+    { "name": "s-bed-single", "screenshot": "bed-single" },
+
+    { "name": "p-bed-double", "eval": "window.__place('bed-double',{headboardStyle:'paneled'}); window.__camLow()" },
+    { "name": "w-bed-double", "wait": 1400 },
+    { "name": "s-bed-double", "screenshot": "bed-double-paneled" },
+
+    { "name": "p-bed-queen", "eval": "window.__place('bed-queen',{baseStyle:'storage'}); window.__camLow()" },
+    { "name": "w-bed-queen", "wait": 1400 },
+    { "name": "s-bed-queen", "screenshot": "bed-queen-storage" },
+
+    { "name": "p-bed-king", "eval": "window.__place('bed-king',{headboardStyle:'upholstered',baseStyle:'platform'}); window.__camLow()" },
+    { "name": "w-bed-king", "wait": 1400 },
+    { "name": "s-bed-king", "screenshot": "bed-king-uphol-platform" },
+
+    { "name": "p-bunk", "eval": "window.__place('bunk-bed',{}); window.__camTall()" },
+    { "name": "w-bunk", "wait": 1400 },
+    { "name": "s-bunk", "screenshot": "bunk-bed" },
+
+    { "name": "p-garment", "eval": "window.__place('garment-rack',{}); window.__camTall()" },
+    { "name": "w-garment", "wait": 1400 },
+    { "name": "s-garment", "screenshot": "garment-rack" },
+
+    { "name": "p-wardrobe-hinged", "eval": "window.__place('wardrobe-3door',{}); window.__camTall()" },
+    { "name": "w-wardrobe-hinged", "wait": 1400 },
+    { "name": "s-wardrobe-hinged", "screenshot": "wardrobe-hinged" },
+
+    { "name": "p-wardrobe-open", "eval": "window.__place('wardrobe-3door',{doorStyle:'open',interior:'mixed'}); window.__camTall()" },
+    { "name": "w-wardrobe-open", "wait": 1400 },
+    { "name": "s-wardrobe-open", "screenshot": "wardrobe-open-mixed" },
+
+    { "name": "p-wardrobe-slide", "eval": "window.__place('wardrobe-3door',{doorStyle:'sliding'}); window.__camTall()" },
+    { "name": "w-wardrobe-slide", "wait": 1400 },
+    { "name": "s-wardrobe-slide", "screenshot": "wardrobe-sliding" },
+
+    { "name": "p-wardrobe-open-drawers", "eval": "window.__place('wardrobe-3door',{doorStyle:'open',interior:'drawers'}); window.__camTall()" },
+    { "name": "w-wardrobe-open-drawers", "wait": 1400 },
+    { "name": "s-wardrobe-open-drawers", "screenshot": "wardrobe-open-drawers" },
+
+    { "name": "p-dresser", "eval": "window.__place('dresser',{}); window.__camLow()" },
+    { "name": "w-dresser", "wait": 1400 },
+    { "name": "s-dresser", "screenshot": "dresser-knob-legs" },
+
+    { "name": "p-dresser-bar", "eval": "window.__place('dresser',{handle:'bar',base:'plinth',rows:4,cols:3}); window.__camLow()" },
+    { "name": "w-dresser-bar", "wait": 1400 },
+    { "name": "s-dresser-bar", "screenshot": "dresser-bar-plinth" },
+
+    { "name": "p-shoe-closed", "eval": "window.__place('shoe-cabinet',{}); window.__camLow()" },
+    { "name": "w-shoe-closed", "wait": 1400 },
+    { "name": "s-shoe-closed", "screenshot": "shoe-cabinet-closed" },
+
+    { "name": "p-shoe-open", "eval": "window.__place('shoe-cabinet',{style:'open'}); window.__camLow()" },
+    { "name": "w-shoe-open", "wait": 1400 },
+    { "name": "s-shoe-open", "screenshot": "shoe-cabinet-open" },
+
+    { "name": "p-cube", "eval": "window.__place('cube-shelf',{}); window.__camLow()" },
+    { "name": "w-cube", "wait": 1400 },
+    { "name": "s-cube", "screenshot": "cube-shelf" },
+
+    { "name": "p-book-open", "eval": "window.__place('bookshelf',{}); window.__camTall()" },
+    { "name": "w-book-open", "wait": 1400 },
+    { "name": "s-book-open", "screenshot": "bookshelf-open" },
+
+    { "name": "p-book-cab", "eval": "window.__place('bookshelf',{style:'cabinet'}); window.__camTall()" },
+    { "name": "w-book-cab", "wait": 1400 },
+    { "name": "s-book-cab", "screenshot": "bookshelf-cabinet" },
+
+    { "name": "p-tv-drawers", "eval": "window.__place('tv-console',{}); window.__camLow()" },
+    { "name": "w-tv-drawers", "wait": 1400 },
+    { "name": "s-tv-drawers", "screenshot": "tv-console-drawers-block" },
+
+    { "name": "p-tv-doors", "eval": "window.__place('tv-console',{front:'doors',base:'legs'}); window.__camLow()" },
+    { "name": "w-tv-doors", "wait": 1400 },
+    { "name": "s-tv-doors", "screenshot": "tv-console-doors-legs" },
+
+    { "name": "p-side-doors", "eval": "window.__place('sideboard',{}); window.__camLow()" },
+    { "name": "w-side-doors", "wait": 1400 },
+    { "name": "s-side-doors", "screenshot": "sideboard-doors-tapered" },
+
+    { "name": "p-side-mixed", "eval": "window.__place('sideboard',{front:'mixed',legs:'hairpin'}); window.__camLow()" },
+    { "name": "w-side-mixed", "wait": 1400 },
+    { "name": "s-side-mixed", "screenshot": "sideboard-mixed-hairpin" },
+
+    { "name": "p-night-drawers", "eval": "window.__place('nightstand',{}); window.__camLow()" },
+    { "name": "w-night-drawers", "wait": 1400 },
+    { "name": "s-night-drawers", "screenshot": "nightstand-drawers" },
+
+    { "name": "p-night-open", "eval": "window.__place('nightstand',{style:'open'}); window.__camLow()" },
+    { "name": "w-night-open", "wait": 1400 },
+    { "name": "s-night-open", "screenshot": "nightstand-open" },
+
+    { "name": "p-coat-wood", "eval": "window.__place('coat-rack',{}); window.__camTall()" },
+    { "name": "w-coat-wood", "wait": 1400 },
+    { "name": "s-coat-wood", "screenshot": "coat-rack-wood" },
+
+    { "name": "p-coat-metal", "eval": "window.__place('coat-rack',{style:'metal'}); window.__camTall()" },
+    { "name": "w-coat-metal", "wait": 1400 },
+    { "name": "s-coat-metal", "screenshot": "coat-rack-metal" },
+
+    { "name": "p-vanity-legs", "eval": "window.__place('vanity',{}); window.__camTall()" },
+    { "name": "w-vanity-legs", "wait": 1400 },
+    { "name": "s-vanity-legs", "screenshot": "vanity-legs-round" },
+
+    { "name": "p-vanity-double", "eval": "window.__place('vanity',{layout:'double-pedestal',mirror:'rect',lights:'yes'}); window.__camTall()" },
+    { "name": "w-vanity-double", "wait": 1400 },
+    { "name": "s-vanity-double", "screenshot": "vanity-double-rect-lights" }
+  ]
+}

@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.79 — Realism wave 1: seating/tables/beds/storage audit + fixes
+
+New program (docs/furniture-realism-plan.md): audit all 131 parametric defs against a
+4-point rubric (scale vs real dims, physics/structure, z-fighting, fidelity) in 4 waves,
+then expand variants/categories; ikea_optimized/ is the dimension reference (dev-gated,
+never bundled). Wave 1 (32 defs, all frames reviewed at profile angles): 27 passed as-is.
+Fixed: dining-table-4 collision footprint now derives from the `seats` enum via a shared
+`diningSeatDims.ts` (a 6/8-seater rendered up to 2.2 m wide over a ~1.5 m box) + the round
+pedestal's column↔foot gap closed; console-table drawer pulls floated ~5 cm off the
+recessed band (now proud of the real front); side-table 3-leg variant routed through the
+shared leg material; tv-console drawer/door fronts were buried inside the carcass
+(featureless slab + floating handles — now proud faces with shadow-gap reveals); coat-rack
+tripod feet sank through the floor (re-modelled splay, grounded). Cross-cutting note
+logged: the shared oak grain reads busy on large panels — global retune queued, not
+per-def. Scenarios `realism-seating-tables`/`realism-beds-storage` added.
+
 ## v0.21.2.78 — Pets P6: pet profile + compliance checklist
 
 "Do you have pets?" per-design setting (`petProfileSlice`, 7 pet types; rides the save
