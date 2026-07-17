@@ -266,6 +266,53 @@
   margin-right: 2px;
 }
 
+/* Walk-mode point-to-point measure control (WALK-MEASURE) — persistent
+   top-right pill (unlike `.walk-hud` above, this doesn't auto-fade: it's an
+   active tool, not a one-time hint). */
+.walk-measure {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+}
+.walk-measure .wm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: var(--t-xs);
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+}
+.walk-measure .wm-dist {
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.walk-measure .wm-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.walk-measure .wm-clear:hover {
+  color: var(--text);
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* Honour the OS "reduce motion" setting app-wide (UX-006): near-instant
      transitions + animations across every surface (bottom-sheets, fades,

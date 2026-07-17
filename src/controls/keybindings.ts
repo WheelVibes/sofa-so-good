@@ -7,6 +7,11 @@ export const KEYBINDINGS = {
   walkLeft: 'KeyA',
   walkRight: 'KeyD',
   interact: 'KeyE',
+  // G: place a walk-mode measure point at the current aim (WALK-MEASURE — set
+  // A, then B, then a third press clears). No mnemonic tie to an existing
+  // letter; picked from the small set of keys still free across the whole
+  // table below.
+  walkMeasurePoint: 'KeyG',
   // Editor (Phase 2 — only active in orbit mode):
   rotate: 'KeyR', // R: 90°  |  Shift+R: 15°
   flip: 'KeyF', // F: flip left↔right | Shift+F: flip front↔back

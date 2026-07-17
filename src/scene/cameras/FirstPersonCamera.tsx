@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
-import { Euler, PerspectiveCamera, Vector3 } from 'three'
+import { Euler, PerspectiveCamera, Raycaster, Vector3 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { DOORS, WALLS } from '../../apartment/constants'
 import type { RoomId } from '../../apartment/types'
@@ -11,6 +11,7 @@ import {
   buildPlanRoomCollisionWalls,
   buildRoomCollisionWalls,
 } from '../../collision/roomCollisionWalls'
+import { nearestMeasurableHit } from '../../collision/walkMeasureHit'
 import { type CollisionWall, isLineOfSightBlocked, resolveMovement } from '../../collision/walls'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
 import { KEYBINDINGS } from '../../controls/keybindings'
@@ -36,6 +37,7 @@ import { useStore } from '../../state/store'
 import { getRoomEditorShell } from '../roomEditorShell'
 import { resetWalkMove, walkInput } from '../walkInput'
 import { clampWalkEyeHeight, WALK_PLAYER_RADIUS } from './walkCameraSettings'
+import { _resetWalkMeasureRequest, consumeWalkMeasureRequest } from './walkMeasureRequest'
 import { _resetWalkTeleport, consumeWalkTeleport } from './walkTeleport'
 
 const DOOR_SEGMENTS: AimSegment[] = (() => {
@@ -95,7 +97,7 @@ const INTERACT_RADIUS = 2.0
 const AIM_CHECK_INTERVAL = 0.1
 
 export function FirstPersonCamera() {
-  const { camera, gl } = useThree()
+  const { camera, gl, scene } = useThree()
   const pressed = useRef<Record<string, boolean>>({})
   // Drag-to-look orientation (radians). Yaw about world-Y, pitch about local-X.
   const yaw = useRef(0)
@@ -357,8 +359,10 @@ export function FirstPersonCamera() {
     return () => {
       useStore.getState().setNearbyDoor(null)
       useStore.getState().setNearbyFixture(null)
+      useStore.getState().clearWalkMeasure()
       resetWalkMove()
       _resetWalkTeleport()
+      _resetWalkMeasureRequest()
     }
     // viewLevelId is a dep on purpose: picking a storey in View → Levels while
     // walking teleports the walker onto that storey (ML6c).
@@ -381,6 +385,18 @@ export function FirstPersonCamera() {
   const tmpForward = useRef(new Vector3())
   const tmpRight = useRef(new Vector3())
   const lookEuler = useRef(new Euler(0, 0, 0, 'YXZ'))
+  // Walk-mode point-to-point measure (WALK-MEASURE): a real scene raycast (not
+  // the analytic 2D-segment aim used for doors/fixtures/screens/lights above —
+  // "aim at a surface" needs an arbitrary wall/floor/furniture hit, not a
+  // pre-registered interactable list). Reused instance + scratch direction
+  // vector, matching `FinishDropSurface`'s identical `scene.children` raycast
+  // pattern. Kept off the hot path: the continuous live-preview raycast below
+  // only ever runs while a measurement is actively being placed (`walkMeasureA`
+  // set, `walkMeasureB` not yet), at the same throttled cadence as the door/
+  // fixture/screen/light aim checks; the "set point" raycast only runs once
+  // per key/button press.
+  const measureRaycaster = useRef(new Raycaster())
+  const aimDir3D = useRef(new Vector3())
   const aimAccum = useRef(0)
   const yPos = useRef(EYE_HEIGHT)
   const yVel = useRef(0)
@@ -411,6 +427,25 @@ export function FirstPersonCamera() {
     // Apply the drag-to-look orientation, then derive movement from where the
     // camera now points (so strafing/forward track the current heading).
     camera.quaternion.setFromEuler(lookEuler.current.set(pitch.current, yaw.current, 0, 'YXZ'))
+
+    // Walk-mode measure (WALK-MEASURE): a pending "set point" request (the
+    // WalkHud button / `walkMeasurePoint` keybinding) is handled immediately —
+    // not throttled by `AIM_CHECK_INTERVAL` like the door/fixture/screen/light
+    // checks below, so a key press feels instant. Uses the FULL 3D camera
+    // forward (unlike `dir` below, flattened to XZ for ground movement).
+    const measureRequested = consumeWalkMeasureRequest()
+    if (measureRequested && isFeatureEnabled('walkMeasure')) {
+      camera.getWorldDirection(aimDir3D.current)
+      measureRaycaster.current.set(camera.position, aimDir3D.current)
+      // LineSegments2 (the overlay's own drei <Line>) requires Raycaster.camera
+      // for its screen-space-width raycast — without it, intersectObjects THROWS
+      // once the overlay mounts (after point A), silently killing every later
+      // sample (found in real-GPU verification; the overlay itself is then
+      // filtered out by nearestMeasurableHit's noExport check).
+      measureRaycaster.current.camera = camera
+      const hits = measureRaycaster.current.intersectObjects(scene.children, true)
+      useStore.getState().cycleWalkMeasurePoint(nearestMeasurableHit(hits))
+    }
 
     const dir = tmpForward.current
     camera.getWorldDirection(dir)
@@ -566,6 +601,27 @@ export function FirstPersonCamera() {
     } else {
       useStore.getState().setNearbyScreen(null)
       useStore.getState().setNearbyLight(null)
+    }
+
+    // Walk-measure live preview (WALK-MEASURE): while the first point is
+    // placed and the second isn't, keep `walkMeasureLive` tracking the
+    // current aim so the WalkHud/overlay can show a running distance — same
+    // throttled cadence as the checks above, and only while it can actually
+    // matter (never once a measurement is complete or before it starts).
+    const measureState = useStore.getState()
+    if (
+      isFeatureEnabled('walkMeasure') &&
+      measureState.walkMeasureA &&
+      !measureState.walkMeasureB
+    ) {
+      camera.getWorldDirection(aimDir3D.current)
+      measureRaycaster.current.set(camera.position, aimDir3D.current)
+      // Same LineSegments2 requirement as the request branch above.
+      measureRaycaster.current.camera = camera
+      const hits = measureRaycaster.current.intersectObjects(scene.children, true)
+      measureState.setWalkMeasureLive(nearestMeasurableHit(hits))
+    } else if (measureState.walkMeasureLive !== null) {
+      measureState.setWalkMeasureLive(null)
     }
   })
 

@@ -642,6 +642,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Walk-mode point-to-point measure (WALK-MEASURE) — aim at a surface, set two
+  // points, read the live distance. This is the walk-mode counterpart to the
+  // existing orbit-mode `measure` (tape/area) tool, which is `simple` tier (a
+  // core "will this fit here?" HDB-sizing question, not an analytical extra) —
+  // mirrored here rather than defaulting to `pro`, so the "explore the space"
+  // measure affordance is available on the same footing in both view modes.
+  // Pure code, no external assets → prod-safe.
+  walkMeasure: {
+    label: 'Walk-mode measure',
+    description: 'Set two aimed points in walk mode and read the live distance between them',
+    default: true,
+    tier: 'simple',
+  },
   // Open/close a cabinet's doors + drawers (CABINET-OPEN): the inspector gains an
   // Open/Close toggle for cabinet-family primitives (kitchen cabinets, wardrobes,
   // sideboards, dressers) whose fronts then swing/slide with an eased ~0.4 s

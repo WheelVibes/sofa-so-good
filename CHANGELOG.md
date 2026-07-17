@@ -5,6 +5,27 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.6 — Walk-mode point-to-point measure (WALK-MEASURE)
+
+Measure real distances while walking (`walkMeasure` flag, simple tier —
+mirrors the editor `measure` tier): aim and press G (or the WalkHud "Measure"
+pill — mobile parity) to pin point A on the aimed surface, aim elsewhere and
+press again for B; the distance renders in-scene (amber markers + line +
+midpoint label, dashed live-preview while placing B) and reads out in the HUD
+pill; a third press starts fresh, × clears, leaving walk mode resets.
+Session-only `walkMeasureSlice` (never persisted/undoable); one shared
+raycast in `FirstPersonCamera` (immediate on request, 10 Hz live-preview while
+placing B only) filtered by the pure `collision/walkMeasureHit.ts` (skips
+invisible wall-reveal geometry + noExport overlays). **Real-GPU verification
+caught a production bug in the initial implementation**: three's
+`LineSegments2` raycast requires `Raycaster.camera` — without it, every
+sample after the overlay mounted threw ("Cannot read properties of null
+(reading 'near')"), so the SECOND point could never be placed; fixed by
+setting the camera on the shared raycaster (both branches). Full A→B→reset
+cycle + in-scene render + HUD readout GPU-verified; scenario
+`walk-measure.json`; unit tests across slice, hit filter, request signal,
+flag both modes.
+
 ## v0.22.2.5 — "Suggest views": auto-generated hero camera angles
 
 "Suggest views" in the View menu (desktop + mobile; `suggestedViews` flag, pro

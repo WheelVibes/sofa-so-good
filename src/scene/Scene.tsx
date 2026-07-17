@@ -57,6 +57,7 @@ import { TiltGizmo } from './selection/TiltGizmo'
 import { TapeMeasure } from './TapeMeasure'
 import { TONE_MAPPING_THREE } from './toneMappingThree'
 import { useQuality } from './useQuality'
+import { WalkMeasureOverlay } from './WalkMeasureOverlay'
 import { MaybeXr } from './xr/MaybeXr'
 
 /** Flips `sceneReady` once the scene has painted a few solid frames (so
@@ -147,6 +148,7 @@ export function Scene() {
         <CameraForwardTracker />
         <MeasurementOverlay />
         <TapeMeasure />
+        <WalkMeasureOverlay />
         <AnnotationsOverlay />
         <CommentPins />
         <Effects />

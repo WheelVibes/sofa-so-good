@@ -176,6 +176,11 @@ import {
   type UserStylesSlice,
 } from './slices/userStylesSlice'
 import {
+  createWalkMeasureSlice,
+  WALK_MEASURE_INITIAL,
+  type WalkMeasureSlice,
+} from './slices/walkMeasureSlice'
+import {
   createWindowFixtureSlice,
   WINDOW_FIXTURE_INITIAL,
   type WindowFixtureSlice,
@@ -233,7 +238,8 @@ export interface RootState
     AuthSlice,
     IsolateSlice,
     EyedropperSlice,
-    LayoutVariantSlice {
+    LayoutVariantSlice,
+    WalkMeasureSlice {
   __resetForTest: () => void
 }
 
@@ -288,6 +294,7 @@ const INITIAL = {
   ...LAYOUT_VARIANT_INITIAL,
   ...USER_PRODUCTS_INITIAL,
   ...USER_COMPONENTS_INITIAL,
+  ...WALK_MEASURE_INITIAL,
 }
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -343,6 +350,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createIsolateSlice(set, get, api),
   ...createEyedropperSlice(set, get, api),
   ...createLayoutVariantSlice(set, get, api),
+  ...createWalkMeasureSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }))
 

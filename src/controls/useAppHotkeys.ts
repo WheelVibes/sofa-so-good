@@ -22,6 +22,7 @@ import { useCatalog } from '../furniture/catalog'
 import { planDuplicates } from '../furniture/duplicatePlacement'
 import { tidyHome } from '../layout/tidyHome'
 import { resolveSelectionExtents, selectionBounds } from '../scene/cameras/frameSelection'
+import { requestWalkMeasurePoint } from '../scene/cameras/walkMeasureRequest'
 import { getRoomEditorShell } from '../scene/roomEditorShell'
 import { canEditScene, dispatchWalkInteract } from '../state/editing'
 import { editableRoomIds } from '../state/rooms'
@@ -364,6 +365,18 @@ export function useEditorHotkeys(): void {
         } else if (state.nearbyLightId && isFeatureEnabled('walkLights')) {
           dispatchWalkInteract(state, state.nearbyLightId, state.toggleLightPower)
         }
+      }
+      // Walk-mode point-to-point measure (WALK-MEASURE): only meaningful while
+      // actually walking — gated here (not left to fire and no-op later) since
+      // the request is a plain module-level flag (`walkMeasureRequest.ts`), not
+      // a value that's naturally null outside walk mode like `nearbyDoorId`.
+      if (
+        !mod &&
+        code === KEYBINDINGS.walkMeasurePoint &&
+        cameraMode === 'firstPerson' &&
+        isFeatureEnabled('walkMeasure')
+      ) {
+        requestWalkMeasurePoint()
       }
       if (!mod && code === KEYBINDINGS.toggleMeasurements) toggleMeasurements()
 

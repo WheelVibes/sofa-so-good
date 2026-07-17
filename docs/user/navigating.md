@@ -78,7 +78,12 @@ for crossing the whole flat without walking the distance, especially on a phone.
 2. **Click the scene once** to capture the mouse, then **move the mouse** to look
    around. Move with <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>.
 3. Walk up to a door and press <kbd>E</kbd> to open or close it.
-4. Press <kbd>Esc</kbd> to release the mouse, or <kbd>V</kbd> to return to orbit.
+4. **Measure while you walk** — aim at any wall, floor, or piece of furniture and
+   press <kbd>G</kbd> (or tap the **Measure** pill) to pin the first point, then aim
+   elsewhere and press it again: the distance draws in the room and reads out in
+   the pill ("will that sofa fit here?"). A third press starts a new measurement;
+   the **×** clears it.
+5. Press <kbd>Esc</kbd> to release the mouse, or <kbd>V</kbd> to return to orbit.
 
 > Your browser shows its own *"Press Esc to show your cursor"* notice while the
 > mouse is captured. That bar is part of the browser (a privacy safeguard for
