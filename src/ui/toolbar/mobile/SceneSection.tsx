@@ -9,6 +9,7 @@ import { useStore } from '../../../state/store'
 import { Segmented } from '../../controls/Segmented'
 import { Select } from '../../controls/Select'
 import { SliderField } from '../../controls/SliderField'
+import { PetProfileControl } from '../../PetProfileControl'
 import { BackdropUpload } from '../../scene/BackdropUpload'
 import { TimeOfDaySlider } from '../../scene/TimeOfDaySlider'
 import { Item, LIGHTS_LABEL, Section } from './parts'
@@ -40,6 +41,7 @@ export function SceneSection({
   const fBackdrops = useFeature('backdrops')
   const fProceduralSky = useFeature('proceduralSky')
   const fHdri = useFeature('hdriEnvironment')
+  const fPetProfile = useFeature('petProfile')
   const fMotion = useFeature('furnitureMotion')
   const motionEnabled = useStore((st) => st.motionEnabled)
 
@@ -173,6 +175,12 @@ export function SceneSection({
               ...HDRI_PRESETS.map((h) => ({ value: h.id, label: h.name })),
             ]}
           />
+        </label>
+      ) : null}
+      {fPetProfile ? (
+        <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+          <span>Do you have pets?</span>
+          <PetProfileControl />
         </label>
       ) : null}
     </Section>

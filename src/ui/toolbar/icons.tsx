@@ -557,6 +557,17 @@ export const Icon = {
       <path d="M18 7l3-3M18 12h4M18 17l3 3" />
     </Svg>
   ),
+  // Paw — pet program (a large main pad + four toe beans), mirroring the pets
+  // CategoryIcon glyph.
+  Pets: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <path d="M12 13c2.8 0 5 1.9 5 4.2 0 1.6-1.4 2.3-2.9 2.3-.9 0-1.5-.4-2.1-.4s-1.2.4-2.1.4C8.4 19.5 7 18.8 7 17.2 7 14.9 9.2 13 12 13z" />
+      <circle cx="7.5" cy="9.5" r="1.4" />
+      <circle cx="10.5" cy="6.8" r="1.4" />
+      <circle cx="13.5" cy="6.8" r="1.4" />
+      <circle cx="16.5" cy="9.5" r="1.4" />
+    </Svg>
+  ),
 } as const
 
 export type IconName = keyof typeof Icon

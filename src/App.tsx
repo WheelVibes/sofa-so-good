@@ -30,6 +30,7 @@ import {
   PanoramaModal,
   PanoTourModal,
   ParametricDialog,
+  PetCompliancePanel,
   ProductTour,
   RenderCompareModal,
   ShareModal,
@@ -127,6 +128,7 @@ export default function App() {
     commentsOpen: useStore((s) => s.commentsOpen),
     drawingCalloutsOpen: useStore((s) => s.drawingCalloutsOpen),
     accessibilityOpen: useStore((s) => s.accessibilityOpen),
+    petComplianceOpen: useStore((s) => s.petComplianceOpen),
     flagsOpen: useStore((s) => s.flagsPanelOpen),
   }
   usePlacementController()
@@ -406,6 +408,11 @@ export default function App() {
         {lazyPanels.accessibilityOpen ? (
           <Suspense fallback={null}>
             <AccessibilityPanel />
+          </Suspense>
+        ) : null}
+        {lazyPanels.petComplianceOpen ? (
+          <Suspense fallback={null}>
+            <PetCompliancePanel />
           </Suspense>
         ) : null}
         <PresentationMode />

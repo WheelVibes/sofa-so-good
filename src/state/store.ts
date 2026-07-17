@@ -89,6 +89,11 @@ import {
 } from './slices/orientationSlice'
 import { createPanoTourSlice, PANO_TOUR_INITIAL, type PanoTourSlice } from './slices/panoTourSlice'
 import {
+  createPetProfileSlice,
+  PET_PROFILE_INITIAL,
+  type PetProfileSlice,
+} from './slices/petProfileSlice'
+import {
   createPlacementSlice,
   PLACEMENT_INITIAL,
   type PlacementSlice,
@@ -209,6 +214,7 @@ export interface RootState
     ColorPaletteSlice,
     CameraViewsSlice,
     PanoTourSlice,
+    PetProfileSlice,
     PromptSlice,
     ProjectSlice,
     PriceRulesSlice,
@@ -258,6 +264,7 @@ const INITIAL = {
   ...COLOR_PALETTE_INITIAL,
   ...CAMERA_VIEWS_INITIAL,
   ...PANO_TOUR_INITIAL,
+  ...PET_PROFILE_INITIAL,
   ...PROMPT_INITIAL,
   ...PROJECT_INITIAL,
   ...QUOTE_TEMPLATE_INITIAL,
@@ -310,6 +317,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createColorPaletteSlice(set, get, api),
   ...createCameraViewsSlice(set, get, api),
   ...createPanoTourSlice(set, get, api),
+  ...createPetProfileSlice(set, get, api),
   ...createPromptSlice(set, get, api),
   ...createProjectSlice(set, get, api),
   ...createQuoteTemplateSlice(set, get, api),

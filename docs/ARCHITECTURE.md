@@ -1287,6 +1287,18 @@ same change that reshapes a system.
   door clear widths vs 0.85 m + 1.5 m wheelchair turning circle per habitable room; BCA-Code rule of
   thumb). `ui/AccessibilityPanel.tsx` (`.aux`, Tools + ⌘K) + the report's Accessibility section.
   Plan-only (reads for a bare shell).
+- **Pet compliance** (Pet program P6) (`analysis/petCompliance.ts` pure → `buildPetCompliance(petTypes,
+  items, plan)`: a data-driven `PET_RULES` table over the declared `PetType[]` producing
+  `required`/`recommended`/`info` checklist entries with `status` (`done`/`partial`/`missing`),
+  `have`/`need`, `cite` + satisfying `defIds`; the cat window-mesh rule counts `window-mesh-screen`
+  items vs the plan's window openings across every storey. Also `petComplianceSummary` (badge counts) +
+  `essentialDefIdsForPetTypes` (catalog surfacing). The per-design `petTypes` profile lives on
+  `state/slices/petProfileSlice.ts` (`setPetTypes`/`togglePetType`), persisted via the save schema
+  (`schema.ts` optional `petTypes` + autosave watch-list, like `location`). Surfaces: the "Do you have
+  pets?" setting (shared `ui/PetProfileControl.tsx`, in the Scene menu/sheet, `petProfile` simple flag),
+  the catalog "Essential" badge + first-ordering in the pets tab (`petProfile`), `ui/PetCompliancePanel.tsx`
+  (`.aux`, Tools + ⌘K, `petCompliance` pro flag; "Add" CTA jumps the catalog to the pets tab via the
+  session-only `pendingCatalogCategory`), and the report's Pet-compliance section.
 - **Daylight & ventilation check** (`analysis/daylight.ts` pure → `buildDaylightReport(plan)`:
   per-room window glazing % + openable % vs rule-of-thumb thresholds `DAYLIGHT_MIN_RATIO` (0.1) /
   `VENT_MIN_RATIO` (0.05); windows attributed to rooms by a wall-midpoint probe, `OPENABLE_FRACTION`

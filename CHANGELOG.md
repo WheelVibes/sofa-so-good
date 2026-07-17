@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.78 — Pets P6: pet profile + compliance checklist
+
+"Do you have pets?" per-design setting (`petProfileSlice`, 7 pet types; rides the save
+schema like `location` — optional/omit-empty field + autosave watch key, no version bump)
+with a chip selector in the Scene menu (desktop + mobile). New pure
+`analysis/petCompliance.ts` (data-driven PET_RULES mirroring hdbCompliance): per selected
+pet type, required/recommended/info entries with done/partial/missing statuses and AVS/CMF
+citations — the cat meshing rule counts mesh screens against the plan's actual windows
+("N of M windows meshed"). Two flags: `petProfile` (simple — setting + catalog essentials:
+required defs badged ESSENTIAL and sorted first in the pets tab) and `petCompliance` (pro —
+"Pet compliance" panel via Tools/⌘K with per-row Add CTA jumping the catalog to pets, plus
+a report section riding the `report` flag). New `Icon.Pets` paw glyph;
+`pendingCatalogCategory` session signal for the Add CTA. Both-modes flag tests, slice/
+persistence round-trip, exhaustive checker tests; scenario `pets-compliance.json` frames
+verified (partial → all-done statuses, essentials badging, mobile sheet).
+
 ## v0.21.2.77 — Pets P5: presets, room-aware surfacing, showcase + P2–P4 review fixes
 
 Program-closing stage. Keyword curation (compliance fittings match every pet type they

@@ -1,5 +1,6 @@
 import { Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { essentialDefIdsForPetTypes } from '../../analysis/petCompliance'
 import { roomKindFromName } from '../../analysis/suggestions'
 import { hasBackend } from '../../features/api/client'
 import { isAdminUser } from '../../features/auth/types'
@@ -179,6 +180,15 @@ export function CatalogDrawer() {
   // tier). State is component-local + ephemeral (never persisted).
   const fCatalogFilters = useFeature('catalogFilters')
   const fPetFittings = useFeature('petFittings')
+  // Pet essentials surfacing (P6): when the household has declared pets, the
+  // items the checker marks REQUIRED for those types get an "Essentials" badge
+  // and sort first within the pets tab. Gated by `petProfile`; empty when off.
+  const fPetProfile = useFeature('petProfile')
+  const petTypes = useStore(useShallow((s) => s.petTypes))
+  const essentialIds = useMemo(
+    () => (fPetProfile ? essentialDefIdsForPetTypes(petTypes) : new Set<string>()),
+    [fPetProfile, petTypes],
+  )
   const [filter, setFilter] = useState<CatalogFilter>(DEFAULT_CATALOG_FILTER)
   const favouriteDefIds = useStore(useShallow((s) => s.favouriteDefIds))
   const favIds = useMemo(() => new Set(favouriteDefIds), [favouriteDefIds])
@@ -210,22 +220,29 @@ export function CatalogDrawer() {
   // unrelated re-renders like hover).
   const deferredQuery = useDeferredValue(query)
   const dq = deferredQuery.trim()
-  const baseCards = useMemo(
-    () =>
-      dq
-        ? fuzzySearchSmart(dq, unified.all, gridItemText)
-        : active === 'favourites' && fFavourites
-          ? unified.favourites
-          : active === 'recent'
-            ? unified.recent
-            : active === 'favourites'
-              ? [] // favourites tab active but flag off: show nothing (edge-case guard)
-              : sortCards(
-                  unified.byCategory[active] ?? [],
-                  !priceOn && sortBy === 'price' ? 'default' : sortBy,
-                ),
-    [dq, unified, active, fFavourites, priceOn, sortBy],
-  )
+  const baseCards = useMemo(() => {
+    const cards = dq
+      ? fuzzySearchSmart(dq, unified.all, gridItemText)
+      : active === 'favourites' && fFavourites
+        ? unified.favourites
+        : active === 'recent'
+          ? unified.recent
+          : active === 'favourites'
+            ? [] // favourites tab active but flag off: show nothing (edge-case guard)
+            : sortCards(
+                unified.byCategory[active] ?? [],
+                !priceOn && sortBy === 'price' ? 'default' : sortBy,
+              )
+    // Essentials-first within the pets tab (P6): stable-partition the declared
+    // pets' required fittings to the front so they read first — subtle, keeps
+    // the rest of the P5 curation order intact. Only in the pets category browse
+    // (not search / favourites / recent).
+    if (!dq && active === 'pets' && essentialIds.size > 0) {
+      const isEssential = (it: GridItem) => it.kind === 'local' && essentialIds.has(it.def.id)
+      return [...cards.filter(isEssential), ...cards.filter((it) => !isEssential(it))]
+    }
+    return cards
+  }, [dq, unified, active, fFavourites, priceOn, sortBy, essentialIds])
 
   const sortOptions = useMemo(
     () =>
@@ -307,6 +324,19 @@ export function CatalogDrawer() {
     setActive(c)
     setPage(0)
   }
+
+  // Honour a one-shot "land on this category" request (e.g. the Pet compliance
+  // panel's "Add" CTA jumping to the pets tab). Consumed + cleared so it fires
+  // once, and only while the drawer is actually open.
+  const pendingCategory = useStore((s) => s.pendingCatalogCategory)
+  const clearPendingCategory = useStore((s) => s.setPendingCatalogCategory)
+  useEffect(() => {
+    if (!open || !pendingCategory) return
+    setActive(pendingCategory)
+    setPage(0)
+    setQuery('')
+    clearPendingCategory(null)
+  }, [open, pendingCategory, clearPendingCategory])
   const onSearch = (v: string) => {
     setQuery(v)
     setPage(0)
@@ -381,6 +411,7 @@ export function CatalogDrawer() {
           key={gridItemId(it)}
           def={it.def}
           staggerIndex={staggerIndex}
+          essential={essentialIds.has(it.def.id)}
           onDelete={() =>
             void confirmAndRemoveDef(it.def, {
               placedCount: useStore.getState().items.filter((i) => i.defId === it.def.id).length,

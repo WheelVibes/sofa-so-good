@@ -96,6 +96,9 @@ export const DrawingCalloutsPanel = lazyWithRetry(() =>
 export const AccessibilityPanel = lazyWithRetry(() =>
   import('../AccessibilityPanel').then((m) => ({ default: m.AccessibilityPanel })),
 )
+export const PetCompliancePanel = lazyWithRetry(() =>
+  import('../PetCompliancePanel').then((m) => ({ default: m.PetCompliancePanel })),
+)
 export const FlagsPanel = lazyWithRetry(() =>
   import('../FlagsPanel').then((m) => ({ default: m.FlagsPanel })),
 )

@@ -113,6 +113,7 @@ describe('startAutosave error handling', () => {
       (s: ReturnType<typeof useStore.getState>) =>
         s.setQuoteTemplate({ ...DEFAULT_QUOTE_TEMPLATE, companyName: 'Acme Interiors' }),
     ],
+    ['petTypes', (s: ReturnType<typeof useStore.getState>) => s.togglePetType('cat')],
   ])('autosaves when only %s changes', async (_label, mutate) => {
     const adapter = makeAdapter(async () => {})
     const stop = startAutosave({ adapter })
@@ -177,6 +178,7 @@ describe('autosave ⊇ serialize() invariant', () => {
       panoTourStops: [{ id: 'st1', label: 'Entry', position: [0, 0] }],
       floorPlan: { ...st.floorPlan, name: 'Custom plan' },
       designNote: 'a note',
+      petTypes: ['cat'],
     }))
 
     const persistedKeys = Object.keys(serialize(useStore.getState()))

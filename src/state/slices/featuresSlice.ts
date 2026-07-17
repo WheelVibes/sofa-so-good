@@ -1,3 +1,4 @@
+import type { FurnitureCategory } from '../../furniture/types'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
@@ -99,6 +100,12 @@ export interface FeaturesSlice {
   designScoreOpen: boolean
   /** Accessibility / universal-design check panel visibility. */
   accessibilityOpen: boolean
+  /** Pet compliance checklist (Pet program P6) panel visibility. */
+  petComplianceOpen: boolean
+  /** A one-shot request to land the catalog drawer on this category next time it
+   *  reads it (e.g. a panel "Add" CTA jumping to the pets tab). Session-only,
+   *  never persisted; the drawer consumes + clears it. */
+  pendingCatalogCategory: FurnitureCategory | null
   /** Versions (save / restore / compare) panel visibility. */
   versionsOpen: boolean
   /** Undo/redo history (timeline + jump-to-step) panel visibility. */
@@ -167,6 +174,9 @@ export interface FeaturesSlice {
   setDaylightOpen: (open: boolean) => void
   setDesignScoreOpen: (open: boolean) => void
   setAccessibilityOpen: (open: boolean) => void
+  setPetComplianceOpen: (open: boolean) => void
+  /** Request the catalog land on a category (one-shot); pass `null` to clear. */
+  setPendingCatalogCategory: (category: FurnitureCategory | null) => void
   setVersionsOpen: (open: boolean) => void
   setHistoryOpen: (open: boolean) => void
   setCommentsOpen: (open: boolean) => void
@@ -211,6 +221,8 @@ export const FEATURES_INITIAL = {
   daylightOpen: false,
   designScoreOpen: false,
   accessibilityOpen: false,
+  petComplianceOpen: false,
+  pendingCatalogCategory: null as FurnitureCategory | null,
   versionsOpen: false,
   historyOpen: false,
   commentsOpen: false,
@@ -278,6 +290,8 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setDaylightOpen: (daylightOpen) => set({ daylightOpen }),
   setDesignScoreOpen: (designScoreOpen) => set({ designScoreOpen }),
   setAccessibilityOpen: (accessibilityOpen) => set({ accessibilityOpen }),
+  setPetComplianceOpen: (petComplianceOpen) => set({ petComplianceOpen }),
+  setPendingCatalogCategory: (pendingCatalogCategory) => set({ pendingCatalogCategory }),
   setVersionsOpen: (versionsOpen) => set({ versionsOpen }),
   setHistoryOpen: (historyOpen) => set({ historyOpen }),
   setCommentsOpen: (commentsOpen) => set({ commentsOpen }),

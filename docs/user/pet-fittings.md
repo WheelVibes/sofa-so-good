@@ -91,3 +91,39 @@ true scale in the room and in walkthrough.
 When you open a **balcony** or **service yard** to edit it, the catalog surfaces
 the **Pets** tab near the front — that's the natural home for the litter cabinet,
 window mesh, and feeding/toy storage.
+
+## Tell us your pets (the pet profile)
+
+Open **Scene ▸ Do you have pets?** and tap the pet types your household keeps —
+**Dog, Cat, Bird, Rabbit, Guinea pig, Hamster, Fish** (pick as many as apply).
+The setting travels with your design (it's saved and synced like the rest of the
+home). Declaring your pets does two things:
+
+- **Essentials first in the catalog.** In the **Pets** tab, the safety/required
+  fittings for your pets (window mesh, litter, a dog bed, a cage, an enclosure, an
+  aquarium…) sort to the front and carry a green **Essential** badge, so the
+  must‑haves are easy to find.
+- **It powers the Pet‑compliance checklist** (below).
+
+## Pet‑compliance checklist (Pro)
+
+Switch to **Pro** mode and open **Tools ▸ Pet compliance** (or run **Pet
+compliance checklist** from the ⌘K command palette). The panel checks your placed
+furniture against what each declared pet needs and groups the results:
+
+- **Required** — the safety/welfare essentials. For cats this includes
+  **meshing every window** (Singapore's Cat Management Framework — the panel shows
+  *"N of M windows meshed"* and only turns green when every window has a mesh
+  screen) and a **litter tray**; for dogs a **rest area**; for birds a **cage**;
+  for rabbits/guinea pigs an **enclosure**; for hamsters a **tank**; for fish an
+  **aquarium**.
+- **Recommended** — comfort and enrichment (scratching surfaces, vertical
+  territory, containment gates, feeding stations, play gyms…).
+- **Good to know** — advisory notes, e.g. HDB allows **one approved small‑breed
+  dog**, and a filled **aquarium is heavy (~300 kg)** so it needs solid flooring.
+
+Each outstanding row has an **Add** button that jumps the catalog straight to the
+**Pets** tab so you can place the missing item. The checklist is guidance only —
+always confirm the current rules with **NParks / AVS** and **HDB**. It also
+appears as a **Pet compliance** section in the printable design **Report** when
+your design declares any pets.

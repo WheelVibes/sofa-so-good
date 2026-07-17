@@ -146,6 +146,23 @@ describe('CatalogCard', () => {
     })
   })
 
+  // Pet program P6 — a required pet fitting shows an "Essential" corner badge.
+  describe('pet essentials badge', () => {
+    const MESH_DEF: FurnitureDef = {
+      ...SOFA_DEF,
+      id: 'window-mesh-screen',
+      name: 'Window mesh screen',
+      category: 'pets',
+    }
+    it('shows the Essential badge only when the essential prop is set', () => {
+      const { unmount } = render(<CatalogCard def={MESH_DEF} />)
+      expect(screen.queryByText('Essential')).toBeNull()
+      unmount()
+      render(<CatalogCard def={MESH_DEF} essential />)
+      expect(screen.getByText('Essential')).toBeInTheDocument()
+    })
+  })
+
   describe('favourite heart', () => {
     it('toggles favourite state and marks the button pressed when saved', () => {
       render(<CatalogCard def={SOFA_DEF} />)

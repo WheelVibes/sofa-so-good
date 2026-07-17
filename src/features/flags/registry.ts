@@ -630,6 +630,29 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Pet profile (Pet program P6): the "Do you have pets?" per-design setting (a
+  // multi-select of the 7 pet types) + the catalog "Essentials" surfacing for the
+  // declared types. Declaring pets tailors the core furnish loop (essentials
+  // surfaced first) → simple tier, present in both modes. Pure procedural, no
+  // external assets → prod-safe. When off, the setting + essentials cue hide.
+  petProfile: {
+    label: 'Pet profile',
+    description: 'Declare your household pets to surface the essentials they need',
+    default: true,
+    tier: 'simple',
+  },
+  // Pet compliance checklist (Pet program P6): the "Pet compliance" panel + ⌘K
+  // command + design-report section — a data-driven checklist of the required /
+  // recommended fittings each declared pet needs (Cat Management Framework window
+  // meshing, litter, dog rest area, …) with have/need counts + citations. An
+  // analytical/advisory review tool → pro tier (hidden in Simple, like the other
+  // Analyse panels). Pure procedural, no external assets → prod-safe.
+  petCompliance: {
+    label: 'Pet compliance',
+    description: 'Checklist of required & recommended fittings for your declared pets',
+    default: true,
+    tier: 'pro',
+  },
   minimapTeleport: {
     label: 'Minimap tap-to-teleport',
     description: 'Click or tap a spot on the walk-mode minimap to move there instantly',

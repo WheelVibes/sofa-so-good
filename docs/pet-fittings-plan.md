@@ -151,6 +151,40 @@ hutch, C&C pen, hamster tank on a stand, aquarium against a wall; room-wide + aq
 closeups). New `description` field: `FurnitureDefBase.description?` (types.ts) + a muted inspector
 line (`ParametricBody.tsx`).
 
+## Stage P6 — Pet profile + compliance checklist
+User-facing: a per-design "do you have pets?" setting → a compliance checklist / essentials
+catalog for the fittings each declared pet needs.
+
+**P6 SHIPPED** 2026-07-17. **Pet profile (`petProfile`, simple tier):** a per-design
+`petTypes: PetType[]` (`'dog' | 'cat' | 'bird' | 'rabbit' | 'guinea-pig' | 'hamster' | 'fish'`)
+on a new `state/slices/petProfileSlice.ts` (`setPetTypes`/`togglePetType`, canonicalised order).
+**Persistence rides the save schema** exactly like `location`: `schema.ts` adds an optional +
+additive `petTypes` (omit-empty in `serialize`, `?? []` in `applySerialized`, enum-validated →
+unknown values dropped, no version bump) + the autosave watch-list entry, so it survives
+save/load + cloud sync. **Pure checker `analysis/petCompliance.ts`** (mirrors `hdbCompliance` —
+data-driven `PET_RULES` table, all thresholds in `PET_THRESHOLDS`, no React/three): builds a
+`(petTypes, items, floorPlan)` → checklist of `required`/`recommended`/`info` entries with
+`status` (`done`/`partial`/`missing`), `have`/`need`, `cite`, `defIds`; the cat window-mesh rule
+counts `window-mesh-screen` items vs the plan's window openings across every storey (partial
+"N of M"), skipping window-less homes; also exports `petComplianceSummary` (badge counts) +
+`essentialDefIdsForPetTypes` (catalog surfacing). **Setting UI:** the "Do you have pets?"
+multi-select (shared `ui/PetProfileControl.tsx` — 7 toggle `.chip`s) lives in the **Scene** menu
+(desktop `SceneMenu` + mobile `SceneSection`), gated by `petProfile`. **Catalog essentials
+(`petProfile`):** declared pets' required defs sort first within the pets tab + carry a green
+"Essential" badge (`CatalogCard.essential` prop, `CatalogDrawer` reorder). **Compliance panel
+(`petCompliance`, pro tier):** `ui/PetCompliancePanel.tsx` (an aux panel like Accessibility) —
+grouped required/recommended/notes with status badges, have/need, cite, a per-row "Add" CTA that
+jumps the catalog to the pets tab (new session-only `pendingCatalogCategory` consumed by
+`CatalogDrawer`); empty profile → shared EmptyState + inline selector. Reachable from Tools + ⌘K
+via a `pet-compliance` `TOOL_ACTIONS` entry (desktop/mobile/palette). A **Pet compliance** section
+joins the design **report** (`report.ts`, rides the `report` flag) when `petTypes` is non-empty.
+New `Icon.Pets` paw glyph. Tests: `analysis/petCompliance.test.ts` (per-pet-type, partial-mesh
+counting, empty profile, multi-level windows, essentials), `state/slices/petProfileSlice.test.ts`
+(toggle/normalise/serialize round-trip), `features/flags/petProfile.test.ts` (both modes ×2 flags),
+`ui/actions/petComplianceAction.test.ts` (tool-action hidden in Simple / present in Pro),
+`CatalogCard.test.tsx` (Essential badge), autosave-invariant guard extended. Visual:
+`scripts/scenarios/pets-compliance.json`.
+
 ## Stage P5 — Presets, integration & polish
 Pet-type keyword curation + catalog tab ordering; room-aware mapping (service yard/
 balcony → pets surfaced); user docs page; showcase scenario (a pet-ready 4-room flat:

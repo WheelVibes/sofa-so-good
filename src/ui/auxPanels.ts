@@ -16,6 +16,7 @@ export function closeAllAuxPanels(s: StoreState): void {
   s.setDaylightOpen(false)
   s.setDesignScoreOpen(false)
   s.setAccessibilityOpen(false)
+  s.setPetComplianceOpen(false)
   s.setVersionsOpen(false)
   s.setHistoryOpen(false)
   s.setCommentsOpen(false)

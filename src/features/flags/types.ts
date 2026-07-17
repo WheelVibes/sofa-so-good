@@ -163,6 +163,8 @@ export type FeatureFlag =
   | 'assetConfigurableExport'
   | 'assetSets'
   | 'petFittings'
+  | 'petProfile'
+  | 'petCompliance'
   | 'profiler'
 
 export interface FlagDef {
