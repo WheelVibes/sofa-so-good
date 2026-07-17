@@ -39,6 +39,8 @@ export const ITEM_PRICE: Record<string, number> = {
   'bar-stool': 110,
   bench: 220,
   'sofa-bed': 899,
+  'bay-daybed': 549,
+  recliner: 649,
   // Beds
   'bed-single': 450,
   'bed-double': 700,
@@ -47,6 +49,7 @@ export const ITEM_PRICE: Record<string, number> = {
   'bunk-bed': 850,
   'toddler-bed': 250,
   crib: 320,
+  'loft-bed': 799,
   // Tables
   'coffee-table': 240,
   'side-table': 120,
@@ -55,6 +58,8 @@ export const ITEM_PRICE: Record<string, number> = {
   'console-table': 280,
   'bar-cart': 220,
   desk: 350,
+  'wall-desk': 229,
+  'trestle-desk': 279,
   // Storage
   wardrobe: 900,
   'garment-rack': 120,
@@ -71,6 +76,7 @@ export const ITEM_PRICE: Record<string, number> = {
   'wall-hook-rail': 39,
   pegboard: 59,
   'utility-cabinet': 329,
+  'storage-bench': 229,
   'kitchen-counter': 1400,
   'room-divider': 300,
   // Appliances

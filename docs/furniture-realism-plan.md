@@ -1089,3 +1089,164 @@ verification leans on the clear-angle louvre/plinth frames + the harness (the E1
 than see-through alpha or per-hole geometry — reads convincingly as a peg-hole grid at every tier with
 zero geometry cost. Cross-cutting unchanged: the shared `mat:floor-wood-oak` grain shows on the wood
 finishes (coordinated global retune, not a per-def fix).
+
+### Wave E3A — Expansion Tier-2 rows 19–22 (four NEW primitives), 2026-07-17
+
+Four new catalog-content primitives (procedural originals inspired by product families; NO new
+feature flags — new defs in existing categories are content). All real-metre/SG-sized; registered in
+`PrimitiveKind` + `primitives/index.ts` + the matching `defs/*.ts` + `furniturePrices.ts`. Audit
+scenario `scripts/scenarios/expansion-e3a.json` (13 frames, staged on OPEN GROUND beside the flat so
+the mounted wall-desk reads as a clean product shot; whole-flat ORBIT dollhouse camera at High tier
+under `SHOT_GPU=1`; per-item profile closeups + a reclined-mode footrest-linkage closeup + loft-bed
+under-desk / under-wardrobe fit-out frames). **Attachment verified two-channel:** the
+structural-soundness harness (`structuralSoundness.test.tsx`) renders + passes every new def × every
+enum mode (comps=1; floor contact for the floor-anchored defs) and the closeups confirm each joint.
+Gates: `tsc --noEmit` clean; Biome clean on all touched files; targeted vitest green —
+structuralSoundness (287, incl. all E3A cases) + builtinCatalog + furniturePrices + builtinKeywords.
+
+- **19 · recliner (seating, NEW `Recliner.tsx`)** — a plush single-seat lounger. ~0.85 w; the deep
+  `reclined` state is the enclosing bbox depth (`RECLINER_BBOX_DEPTH` 1.45 m). `position`: **upright**
+  (back near-vertical, footrest folded down as a padded flap against the seat front) / **reclined**
+  (back leaned ~29°, footrest DEPLOYED forward as a padded leg ramp). The footrest stays CONNECTED in
+  both modes via a chromed hinge rod at the seat front + two visible steel scissor-linkage bars
+  (`metalLeg` satin) — verified in the footrest-linkage closeup (frame 03/04). **Footprint approach
+  (honest per-mode, sofa-bed precedent):** `position` is an enum (can't feed `footprintParams`), so a
+  props-driven `footprintParts` keyed on `position` serves each mode its true [rear, front] extent
+  (`RECLINER_EXTENT`, shared const the primitive builds back-pinned from); the wall (back) edge is
+  pinned at −bboxDepth/2 so the piece only grows FORWARD as it reclines, and upright reports a
+  shallower box than reclined. `defaultFootprint.d` = the deep reclined depth (bbox encloses all
+  modes). Leather default; `getUpholsteryMaterial` for the shell/cushions. Price 649. `position` is
+  not a first-structural-enum key, so `upright` is the base swept case and `reclined` is asserted via
+  the harness `EXTRA_STRUCTURAL_MODES` map. Verified: leather tub-chair silhouette with headrest;
+  upright folds the footrest flush, reclined deploys the ramp on visible steel links — connected.
+- **20 · wall-desk (tables, NEW `WallDesk.tsx`, `mounted`)** — a wall-hung HDB study-corner worktop.
+  ~1.0 w × 0.5 d at 0.75 m. `style`: **floating** (thick worktop + a slim back cleat + two angled
+  steel wall braces, cantilevered off the wall, no floor contact) / **fold-down** (shown DEPLOYED: the
+  worktop drops on a piano-hinge batten + chromed hinge rod along the wall and is propped level by two
+  drop legs + a front foot rail reaching the floor). **Harness/mount treatment (justified):** the def
+  is `mounted` (primary attachment is the wall — the braces / the piano-hinge batten), so the harness
+  treats it as connectivity-only (no floor assert). This is correct for the floating style (never
+  touches the floor) and harmless for the deployed fold-down legs (they reach the floor but the piece
+  is still wall-anchored) — cleaner than modelling it as floor-anchored, which the floating style
+  would fail. `style` is the first structural enum → both modes auto-swept. `verticalSpan { base: 0,
+  top: 0.78 }`; width tracked via `footprintParams`. Price 229. Verified: floating reads as a braced
+  cantilevered worktop; fold-down reads as a proper desk with a front leg-frame.
+- **21 · loft-bed (kids, NEW `LoftBed.tsx`, effort L)** — a raised single sleeping platform (~1.0 ×
+  2.0 m) at ~1.75 m with ~1.6 m under-clearance, on four sturdy posts (BunkBed idiom). Guardrails
+  (top rails + vertical balusters on the long sides + the head end, the +X foot-half left open for
+  ladder access) + an integral end ladder + a slat platform, mattress + head pillow. `under`:
+  **open** (clear void) / **desk** (a built-in worktop spanning the head-end posts + an under-shelf on
+  two floor-reaching end supports) / **wardrobe** (a boxed closet under the head end — sides/back/
+  top/bottom + a proud door with a bar handle, floor-grounded). All members connect (posts→floor; the
+  fit-outs overlap the posts / reach the floor). Fixed dims (BunkBed precedent) → no per-mode footprint
+  change; the fit-out sits inside the 1.0 × 2.0 footprint. `under` is not a first-structural-enum key
+  → `open` is the base swept case and desk/wardrobe are asserted via `EXTRA_STRUCTURAL_MODES`. Price
+  799. Verified: posts/guardrails/balusters/ladder/mattress read as a cabin bed; desk and wardrobe
+  fit-outs read distinctly under the head end, grounded.
+- **22 · trestle-desk (tables, NEW `TrestleDesk.tsx`)** — a worktop on two trestle supports. Width
+  1.2–1.6 m (default 1.4) × 0.7 d at 0.74 h, tracked via `footprintParams`. `legStyle`: **trestle-a**
+  (splayed wooden A-frame trestles + a low stretcher tie) / **trestle-h** (vertical wooden H-frame:
+  front+back legs + a mid crossbar) / **adjustable** (steel telescoping legs — outer+inner tube +
+  foot pad — with a row of visible dark height-adjust pin holes down each outer tube + a steel mid
+  crossbar). `legStyle` matches the Desk convention and IS a first-structural-enum key → the harness
+  auto-sweeps all three modes (default + 2 extras within MAX_EXTRA_MODES). Each trestle is internally
+  connected + grounded and meets the worktop underside (the whole desk connects through the worktop —
+  a trestle desk authentically has no inter-trestle stretcher, so none was added). `metalLeg` satin
+  for the adjustable legs; shared wood otherwise. Price 279. Verified: A-frame splay + tie, vertical
+  H-frame, and the industrial pin-hole telescoping legs all read distinctly, grounded, no z-fight.
+
+**Harness additions:** `EXTRA_STRUCTURAL_MODES` gained `recliner` (`position=reclined`) and `loft-bed`
+(`under=desk`, `under=wardrobe`) so each def's non-first shape-changing enum is asserted without
+displacing the base swept case (the E1/E2 mechanism). `wall-desk` (`style`) and `trestle-desk`
+(`legStyle`) use first-structural-enum keys and are auto-swept. No new escape-hatch exemptions — every
+new def + mode passes connectivity, and the three floor-anchored defs pass floor contact; the mounted
+wall-desk is connectivity-only by the harness's standard `mounted` handling.
+
+**Judgment calls:** (a) recliner footprint = props-driven per-mode `footprintParts` keyed on
+`position` (back-pinned, grows forward) over pinning every mode to the deep reclined box — honest in
+the common upright state, justified as the sofa-bed precedent. (b) wall-desk kept as ONE `mounted` def
+(both styles) with the harness's connectivity-only mounted treatment — the fold-down's floor legs are
+auxiliary to the wall mount, so a floor-anchored flag would wrongly fail the floating style. (c)
+trestle-desk enum named `legStyle` (matching Desk) rather than the task's `legs` label so it auto-
+sweeps as the first structural enum — the label reads "Legs" in the inspector; the key is an
+implementation detail chosen for harness coverage. (d) loft-bed kept fixed dims (BunkBed precedent) —
+the under-bed fit-out sits inside the footprint, so no per-mode footprint churn. Cross-cutting
+unchanged: the dollhouse orbit camera occluded the small recliner closeups behind the tall loft-bed
+frames (the clear footrest-linkage frame + the harness carry the verification, per the E1A/E2B
+occlusion note); the shared `mat:floor-wood-oak` cathedral-grain watermark shows on the wood worktops
+/ loft frame (coordinated global retune, not a per-def fix).
+
+### Wave E3B — Expansion Tier-2/tail rows 23–24 + 27 + 30, 2026-07-17
+
+Four catalog-content additions (procedural originals inspired by product families; NO new feature
+flags — enum variants + new defs in existing categories are content). All real-metre/SG-sized. Audit
+scenario `scripts/scenarios/expansion-e3b.json` (19 frames, whole-flat ORBIT dollhouse camera on open
+ground beside the flat, High tier under `SHOT_GPU=1`; wide + per-item joint closeups + a pendant-
+cluster NIGHT pass; `showCeilingFixtures` on so the ceiling lights render) + a focused lowboy recheck.
+**Attachment verified two-channel:** the structural-soundness harness renders + passes every new def ×
+mode (comps=1; floor contact for the three floor-anchored defs) and the closeups confirm each joint.
+Gates: `tsc --noEmit` **clean (0 errors)**; Biome clean on all touched files; targeted vitest **349
+green** (structuralSoundness + builtinCatalog + furniturePrices + builtinKeywords + defs).
+
+- **23 · media-lowboy → `tv-console` `front: 'lowboy'` enum (ENUM, no new def).** *Decision (enum over
+  new prim):* per the E1 re-scope note, tv-console's `width` is **numeric** (min 1.2 / max 2.4 /
+  default 1.8), so the lowboy's 1.6–2.0 m profile fits with **zero footprint distortion** — no new def
+  is warranted. Added `lowboy` to the existing `front` enum (drawers/doors/lowboy) + `lowboy`/`media
+  lowboy` keywords. Render: **two solid side cabinet blocks flank a GENUINELY OPEN centre bay** (the
+  first pass buried the niche behind the full-width solid body — the tv-console Wave-1B "fronts never
+  buried" lesson struck twice; rebuilt so the centre has NO front face, framed by top/bottom decks that
+  span+tie the two blocks + a dark back panel + a mid shelf = two open AV compartments) with a rear
+  cable-management notch on the top-back edge; each side block carries two stacked drawer faces + bar
+  pulls. `front` is not a structural-enum key (tv-console's first structural enum is `base`, swept
+  block/plinth/legs), so `front=lowboy` is asserted via `EXTRA_STRUCTURAL_MODES`. Verified (painted +
+  dark default): the open centre bay + mid shelf + cable notch read clearly, drawer banks grounded.
+- **24 · storage-bench (NEW, `StorageBench.tsx`, storage).** Ottoman/blanket box 1.0 w × 0.45 d × 0.45
+  h. Fully-upholstered box body on a base + a lift lid hinged along the back (a satin `metalLeg` piano-
+  hinge dowel bridges lid↔body). `style`: **plain** (a piped welt seam ringing the lid top edge) /
+  **tufted** (a grid of buttoned dimples). `base`: **legs** (short tapered feet) / **plinth** (recessed
+  dark toe-kick) — `base` is the first-structural enum (auto-swept legs+plinth, both grounding
+  variants); `style=tufted` covered via `EXTRA_STRUCTURAL_MODES`. Price 229. Verified: plain piped lid
+  on legs reads crisply; tufted buttons subtle-but-present on the dark fabric; plinth toe-kick grounded;
+  lid proud of the body, hinge line at the back.
+- **27 · bay-daybed (NEW, `BayDaybed.tsx`, seating).** Window-bench daybed, numeric width 1.4–2.0 (def
+  1.7) × 0.6 d × 0.45 h seat. **Freestanding (NOT windowBound)** — ordinary furniture placed near a
+  window, so it keeps full transform/collision (depth fixed 0.6, width tracked via `footprintParams`).
+  A boxed wooden storage base with **two front drawers** (proud faces + bar pulls) carries a full-length
+  seat cushion; **two cylindrical bolsters** cap the short ends and a row of **back cushions** leans
+  along the long (window) edge — all resting on / overlapping the seat (one grounded assembly). No
+  structural enum (only material/pattern/finish colour axes) → the harness asserts the single default
+  case. Price 549. Verified: base drawers + seat + 3 back cushions + tan end bolsters all read and
+  ground; wide (2.0) variant scales cleanly.
+- **30 · ceiling-light pendant-cluster → `arrangement: 'cluster'` enum (ENUM extend, lighting).** Added
+  `arrangement` (single/cluster) + a `count` integer (3–5, default 4) to the existing CeilingLight def/
+  primitive. Cluster renders ONE wide round canopy at the ceiling with `count` cords descending to
+  **staggered drops (0.42–1.15 m)** at scattered (x,z) offsets, each cord physically bridging canopy→
+  shade (the linear-mode precedent — a shade left hanging off nothing fails the harness). Reuses the
+  existing per-pendant emissive shade approach (dome/globe/cone/drum) — **fixtureGlow/bloom + emissive
+  intensities untouched** (a shared `fixtureEmissiveIntensity('shade')` drives all cluster shade
+  materials via a collected ref array). `verticalSpan.base` lowered 2.0→1.35 to cover the longest drop
+  (a realistic over-table pendant height); footprint widened 0.45→0.55 for the cluster spread. Not a
+  structural-enum key → `arrangement=cluster` covered via `EXTRA_STRUCTURAL_MODES` (ceiling-light is
+  `mounted` → connectivity-only). Verified: the canopy→cords→shades read as one hanging cluster across
+  dome/globe/cone × 3/4/5 counts; the **NIGHT frame confirms every shade self-illuminates + blooms**;
+  the single-pendant regression is intact.
+
+**Harness additions:** `EXTRA_STRUCTURAL_MODES` gained `tv-console` (`front=lowboy`), `ceiling-light`
+(`arrangement=cluster`), and `storage-bench` (`style=tufted`) — each a def's second (non-first) shape-
+changing enum asserted without displacing the first-enum sweep (the E1 mechanism). No new escape-hatch
+exemptions.
+
+**Judgment calls:** (a) media-lowboy as a tv-console `front` enum, NOT a new def — width is numeric and
+already spans the lowboy range, so the enum keeps the footprint honest (the sanctioned E1 re-scope). (b)
+The lowboy centre had to be built as two side blocks + an open frame (no full-width body) so the open
+bay isn't occluded by a solid carcass front — the same "fronts never buried" trap the tv-console
+Wave-1B fix flagged. (c) bay-daybed left freestanding (task directive) with per-width footprint
+tracking rather than windowBound — it's furniture, not a window fixture. (d) storage-bench `base`
+(legs/plinth) chosen as the auto-swept first-structural enum (both ground the piece) with `style`
+(plain/tufted, lid decoration only) covered via EXTRA. (e) pendant cluster reuses the shade emissive +
+a single `lightEmitters` point source (unchanged) rather than N per-pendant lights — keeps the glow
+budget + bloom constants untouched per the src/furniture/CLAUDE.md lighting rule. Cross-cutting
+unchanged: the shared `mat:floor-wood-oak` cathedral-grain watermark shows on the tv-console/daybed
+base wood (coordinated global retune, not a per-def fix); the dollhouse orbit camera's large mid-air
+cluster domes occluded a couple of neighbouring closeups (the clear cords-canopy + night frames carry
+the verification, per the E1A/E2B occlusion note).

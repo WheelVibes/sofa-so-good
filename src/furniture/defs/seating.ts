@@ -1,3 +1,4 @@
+import { RECLINER_BBOX_DEPTH, RECLINER_EXTENT } from '../primitives/Recliner'
 import { SOFA_BED_DEPTH } from '../primitives/SofaBed'
 import type { FurnitureDef } from '../types'
 
@@ -797,6 +798,145 @@ export const SEATING_DEFS = {
       },
       { kind: 'color', key: 'pillowColor', label: 'Throw pillows', default: '#b8836a' },
       { kind: 'color', key: 'legColor', label: 'Legs', default: '#2c2620' },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    ],
+  },
+  'bay-daybed': {
+    kind: 'parametric',
+    id: 'bay-daybed',
+    name: 'Bay-window daybed',
+    category: 'seating',
+    keywords: [
+      'daybed',
+      'window bench',
+      'window seat',
+      'bay window',
+      'reading bench',
+      'window daybed',
+    ],
+    primitive: 'BayDaybed',
+    // Freestanding (NOT windowBound) — ordinary furniture placed near a window.
+    // Depth fixed at 0.6 m; width is numeric so the footprint tracks it.
+    defaultFootprint: { w: 1.7, d: 0.6, h: 0.45 },
+    footprintParams: { w: 'width' },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 1.4,
+        max: 2.0,
+        step: 0.05,
+        default: 1.7,
+        unit: 'm',
+      },
+      { kind: 'color', key: 'color', label: 'Cushion', default: '#9aa7ad' },
+      {
+        kind: 'enum',
+        key: 'material',
+        label: 'Cushion fabric',
+        default: 'fabric',
+        options: [
+          { value: 'fabric', label: 'Fabric' },
+          { value: 'velvet', label: 'Velvet' },
+          { value: 'leather', label: 'Leather' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'pattern',
+        label: 'Weave',
+        default: 'plain',
+        options: [
+          { value: 'plain', label: 'Plain' },
+          { value: 'striped', label: 'Striped' },
+          { value: 'herringbone', label: 'Herringbone' },
+        ],
+      },
+      { kind: 'color', key: 'bolsterColor', label: 'Bolsters', default: '#c2a98a' },
+      { kind: 'color', key: 'baseColor', label: 'Base', default: '#7a6647' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Base finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    ],
+  },
+  recliner: {
+    kind: 'parametric',
+    id: 'recliner',
+    name: 'Recliner armchair',
+    category: 'seating',
+    keywords: ['reclining chair', 'lazy chair', 'lounge chair', 'armchair', 'footrest', 'la-z-boy'],
+    primitive: 'Recliner',
+    // Bbox depth = the deep `reclined` state (footrest fully out); the shallower
+    // upright depth is served per-mode below. The wall (back) edge is pinned so
+    // the piece only grows FORWARD into the room when it reclines.
+    defaultFootprint: { w: 0.85, d: RECLINER_BBOX_DEPTH, h: 1.05 },
+    // Honest per-mode footprint (sofa-bed precedent): `position` is an enum (can't
+    // feed footprintParams), so a props-driven footprintParts serves each mode its
+    // true [rear, front] extent. The primitive is built back-pinned at
+    // −RECLINER_BBOX_DEPTH/2, so upright reports a shallower box than reclined.
+    footprintParts: (props) => {
+      const width = typeof props.width === 'number' ? props.width : 0.85
+      const position = typeof props.position === 'string' ? props.position : 'upright'
+      const ext = RECLINER_EXTENT[position] ?? RECLINER_EXTENT.upright
+      return [{ dx: 0, dz: (ext.rear + ext.front) / 2, w: width, d: ext.front - ext.rear }]
+    },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 0.75,
+        max: 0.95,
+        step: 0.05,
+        default: 0.85,
+        unit: 'm',
+      },
+      {
+        kind: 'enum',
+        key: 'position',
+        label: 'Position',
+        default: 'upright',
+        options: [
+          { value: 'upright', label: 'Upright' },
+          { value: 'reclined', label: 'Reclined' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Upholstery', default: '#6b5747' },
+      {
+        kind: 'enum',
+        key: 'material',
+        label: 'Material',
+        default: 'leather',
+        options: [
+          { value: 'fabric', label: 'Fabric' },
+          { value: 'leather', label: 'Leather' },
+          { value: 'velvet', label: 'Velvet' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'pattern',
+        label: 'Weave',
+        default: 'plain',
+        options: [
+          { value: 'plain', label: 'Plain' },
+          { value: 'striped', label: 'Striped' },
+          { value: 'herringbone', label: 'Herringbone' },
+          { value: 'checkered', label: 'Checkered' },
+          { value: 'plaid', label: 'Plaid' },
+          { value: 'dots', label: 'Dots' },
+        ],
+      },
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },

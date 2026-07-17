@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.86 — Expansion E3: recliner, wall/trestle desks, loft bed, lowboy, storage bench, bay daybed, pendant cluster
+
+Six new primitives + two enum absorptions. New: **recliner** (upright/reclined — back
+leans back ~29°, footrest deploys on a visible scissor linkage; forward-growing
+footprintParts, sofa-bed precedent; a recline-direction bug caught in visual review and
+fixed), **wall-desk** (mounted floating / fold-down with drop legs), **loft-bed** (kids —
+raised platform, posts/guardrails/ladder, under-fits open/desk/wardrobe), **trestle-desk**
+(A-frame/H-frame/adjustable pin-hole legs), **storage-bench** (lift-lid blanket box,
+plain/tufted lid, piano hinge), **bay-daybed** (freestanding window bench: drawer base,
+cushion, bolsters). Absorbed as enums per the E1 re-scope: **media lowboy** →
+`tv-console front:'lowboy'` (open centre AV bay flanked by drawer blocks + cable notch —
+numeric width keeps the footprint honest) and **pendant cluster** → `ceiling-light
+arrangement:'cluster'` (3–5 staggered drops, every cord bridging canopy→shade,
+glow/bloom constants untouched, night frame verified). ceiling-light verticalSpan kept at
+the single-pendant default (static span can't track the enum — lowering it made the
+default bathroom pendant falsely collide with the shower; cluster drops noted as
+visual-only extent). All modes harness-covered + frame-reviewed (expansion-e3a/b).
+
 ## v0.21.2.85 — Expansion E2: sofa-bed + vitrine + HDB entry/service-yard cluster
 
 Six new primitives (procedural originals, catalog content). Seating: **sofa-bed**

@@ -195,6 +195,12 @@ export type PrimitiveKind =
   | 'Pegboard'
   | 'UtilityCabinet'
   | 'DisplayCabinet'
+  | 'Recliner'
+  | 'WallDesk'
+  | 'LoftBed'
+  | 'TrestleDesk'
+  | 'StorageBench'
+  | 'BayDaybed'
 
 export type ParamField =
   | {

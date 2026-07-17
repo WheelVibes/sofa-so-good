@@ -15,6 +15,7 @@ import { BarCart } from './BarCart'
 import { BarStool } from './BarStool'
 import { BathroomSink } from './BathroomSink'
 import { Bathtub } from './Bathtub'
+import { BayDaybed } from './BayDaybed'
 import { Bed } from './Bed'
 import { Bench } from './Bench'
 import { BirdCage } from './BirdCage'
@@ -71,6 +72,7 @@ import { KitchenIsland } from './KitchenIsland'
 import { LaundryHamper } from './LaundryHamper'
 import { LitterBox } from './LitterBox'
 import { LitterCabinet } from './LitterCabinet'
+import { LoftBed } from './LoftBed'
 import { MagazineStack } from './MagazineStack'
 import { Microwave } from './Microwave'
 import { Mirror } from './Mirror'
@@ -95,6 +97,7 @@ import { PlanterTrough } from './PlanterTrough'
 import { PottedPlant } from './PottedPlant'
 import { RabbitHutch } from './RabbitHutch'
 import { RangeHood } from './RangeHood'
+import { Recliner } from './Recliner'
 import { Refrigerator } from './Refrigerator'
 import { RollerBlind } from './RollerBlind'
 import { RoomDivider } from './RoomDivider'
@@ -113,6 +116,7 @@ import { SofaSectional } from './SofaSectional'
 import { Soundbar } from './Soundbar'
 import { Staircase } from './Staircase'
 import { StandingFan } from './StandingFan'
+import { StorageBench } from './StorageBench'
 import { Stove } from './Stove'
 import { TableLamp } from './TableLamp'
 import { TabletopDecor } from './TabletopDecor'
@@ -124,12 +128,14 @@ import { TowelLadder } from './TowelLadder'
 import { TowelRail } from './TowelRail'
 import { ToyStorage } from './ToyStorage'
 import { TrailingPlant } from './TrailingPlant'
+import { TrestleDesk } from './TrestleDesk'
 import { TVConsole } from './TVConsole'
 import { UtilityCabinet } from './UtilityCabinet'
 import { Vanity } from './Vanity'
 import { WallArt } from './WallArt'
 import { WallCabinet } from './WallCabinet'
 import { WallClock } from './WallClock'
+import { WallDesk } from './WallDesk'
 import { WallHookRail } from './WallHookRail'
 import { WallMirror } from './WallMirror'
 import { WallSconce } from './WallSconce'
@@ -279,4 +285,10 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   WallHookRail,
   Pegboard,
   UtilityCabinet,
+  StorageBench,
+  BayDaybed,
+  Recliner,
+  WallDesk,
+  LoftBed,
+  TrestleDesk,
 }

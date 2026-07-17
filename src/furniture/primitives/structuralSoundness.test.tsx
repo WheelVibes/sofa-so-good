@@ -141,6 +141,23 @@ const EXTRA_STRUCTURAL_MODES: Record<string, Record<string, ParamProps>> = {
   // Pegboard accessory kits each socket different parts into the board front
   // (`kit` is not a structural-enum key; the default shelf+hooks is swept above).
   pegboard: { 'kit=hooks': { kit: 'hooks' }, 'kit=cups': { kit: 'cups' } },
+  // Media lowboy front = flanking drawer bays + a central open shelf niche +
+  // rear cable notch (`front` is not a structural-enum key; `base` is swept).
+  'tv-console': { 'front=lowboy': { front: 'lowboy' } },
+  // Pendant cluster hangs 3–5 shades from one canopy, each cord canopy→shade
+  // (`arrangement` is not a structural-enum key; `style` is swept above).
+  'ceiling-light': { 'arrangement=cluster': { arrangement: 'cluster' } },
+  // Tufted lid adds a button grid (`style` appears after `base`, which is the
+  // swept first-structural enum covering legs/plinth grounding).
+  'storage-bench': { 'style=tufted': { style: 'tufted' } },
+  // Reclined position deploys the footrest forward + leans the back (`position`
+  // is not a structural-enum key, so the default `upright` is the base swept
+  // case; the deployed footrest linkage is asserted connected here).
+  recliner: { 'position=reclined': { position: 'reclined' } },
+  // Under-bed fit-outs add a desk (worktop + shelf + supports) or a boxed
+  // wardrobe under the head end (`under` is not a structural-enum key; the
+  // `open` default is the base swept case).
+  'loft-bed': { 'under=desk': { under: 'desk' }, 'under=wardrobe': { under: 'wardrobe' } },
 }
 
 function buildCases(): HarnessCase[] {

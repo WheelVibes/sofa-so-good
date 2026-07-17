@@ -1,0 +1,69 @@
+{
+  "name": "expansion-e3a",
+  "description": "Expansion wave E3A audit — Tier-2 rows 19-22: recliner (upright / reclined + footrest linkage), wall-desk (floating braced / fold-down drop legs), loft-bed (open / built-in desk / wardrobe under-bed fit-outs), trestle-desk (A-frame / H-frame / adjustable pin-hole legs). Staged on OPEN GROUND beside the flat (the mounted wall-desk reads as a clean product shot at its 0.75 m worktop height, no wall occlusion) in the whole-flat ORBIT dollhouse camera whose ~3/4 elevation reveals float/attachment. Closeups target joints: footrest linkage, wall-desk braces/hinge, loft-bed post/fit-out joins, trestle leg-to-worktop.",
+  "url": "http://localhost:5301/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s = window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setQualityTier?.('high'); s.exitRoomEditor?.(); s.setCameraMode?.('orbit'); })()"
+    },
+    { "name": "wait-orbit", "wait": 1600 },
+    {
+      "name": "place-grid",
+      "eval": "(() => { const s = window.__store.getState(); const items = [ ['recliner',{}], ['recliner',{position:'reclined'}], ['wall-desk',{}], ['wall-desk',{style:'fold-down'}], ['loft-bed',{}], ['loft-bed',{under:'desk'}], ['loft-bed',{under:'wardrobe'}], ['trestle-desk',{}], ['trestle-desk',{legStyle:'trestle-h'}], ['trestle-desk',{legStyle:'adjustable'}] ]; const cols = 4; const dx = 2.7, dz = 3.2, x0 = 1.0, z0 = -8.5; const pos = {}; const list = items.map(([defId, props], i) => { const c = i % cols, r = Math.floor(i / cols); const x = x0 + c * dx, z = z0 + r * dz; const key = defId + ':' + JSON.stringify(props); pos[key] = [x, z]; return { id: 'audit-' + i, defId, position: [x, z], rotation: 0, props }; }); window.__auditPos = pos; s.setItems(list); return list.length; })()"
+    },
+    { "name": "settle", "wait": 1600 },
+    { "name": "frame-overview", "eval": "(() => { window.__store.getState().requestFrameSelection({ center: [4.6, 1.0, -5.7], radius: 8.5 }); })()" },
+    { "name": "settle-ov", "wait": 1000 },
+    { "name": "shot-overview", "screenshot": "00-overview" },
+
+    { "name": "frame-recliner-up", "eval": "(() => { const p = window.__auditPos['recliner:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.55, p[1]], radius: 1.3 }); })()" },
+    { "name": "s1", "wait": 1000 },
+    { "name": "shot-recliner-up", "screenshot": "01-recliner-upright" },
+
+    { "name": "frame-recliner-rec", "eval": "(() => { const p = window.__auditPos['recliner:{\"position\":\"reclined\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.55, p[1]+0.2], radius: 1.35 }); })()" },
+    { "name": "s2", "wait": 1000 },
+    { "name": "shot-recliner-rec", "screenshot": "02-recliner-reclined" },
+
+    { "name": "frame-recliner-linkage", "eval": "(() => { const p = window.__auditPos['recliner:{\"position\":\"reclined\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.42, p[1]+0.4], radius: 0.55 }); })()" },
+    { "name": "s2b", "wait": 1000 },
+    { "name": "shot-recliner-linkage", "screenshot": "03-recliner-footrest-linkage" },
+
+    { "name": "frame-walldesk-float", "eval": "(() => { const p = window.__auditPos['wall-desk:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.55, p[1]], radius: 0.85 }); })()" },
+    { "name": "s3", "wait": 1000 },
+    { "name": "shot-walldesk-float", "screenshot": "04-wall-desk-floating" },
+
+    { "name": "frame-walldesk-fold", "eval": "(() => { const p = window.__auditPos['wall-desk:{\"style\":\"fold-down\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.4, p[1]], radius: 0.9 }); })()" },
+    { "name": "s4", "wait": 1000 },
+    { "name": "shot-walldesk-fold", "screenshot": "05-wall-desk-fold-down" },
+
+    { "name": "frame-loft-open", "eval": "(() => { const p = window.__auditPos['loft-bed:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 1.1, p[1]], radius: 1.9 }); })()" },
+    { "name": "s5", "wait": 1000 },
+    { "name": "shot-loft-open", "screenshot": "06-loft-bed-open" },
+
+    { "name": "frame-loft-desk", "eval": "(() => { const p = window.__auditPos['loft-bed:{\"under\":\"desk\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.8, p[1]-0.5], radius: 1.3 }); })()" },
+    { "name": "s6", "wait": 1000 },
+    { "name": "shot-loft-desk", "screenshot": "07-loft-bed-under-desk" },
+
+    { "name": "frame-loft-wardrobe", "eval": "(() => { const p = window.__auditPos['loft-bed:{\"under\":\"wardrobe\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.9, p[1]-0.5], radius: 1.35 }); })()" },
+    { "name": "s7", "wait": 1000 },
+    { "name": "shot-loft-wardrobe", "screenshot": "08-loft-bed-under-wardrobe" },
+
+    { "name": "frame-loft-ladder", "eval": "(() => { const p = window.__auditPos['loft-bed:{}']; window.__store.getState().requestFrameSelection({ center: [p[0]+0.4, 0.9, p[1]+0.9], radius: 1.1 }); })()" },
+    { "name": "s7b", "wait": 1000 },
+    { "name": "shot-loft-ladder", "screenshot": "09-loft-bed-ladder-guardrail" },
+
+    { "name": "frame-trestle-a", "eval": "(() => { const p = window.__auditPos['trestle-desk:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.45, p[1]], radius: 1.15 }); })()" },
+    { "name": "s8", "wait": 1000 },
+    { "name": "shot-trestle-a", "screenshot": "10-trestle-a-frame" },
+
+    { "name": "frame-trestle-h", "eval": "(() => { const p = window.__auditPos['trestle-desk:{\"legStyle\":\"trestle-h\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.45, p[1]], radius: 1.15 }); })()" },
+    { "name": "s9", "wait": 1000 },
+    { "name": "shot-trestle-h", "screenshot": "11-trestle-h-frame" },
+
+    { "name": "frame-trestle-adj", "eval": "(() => { const p = window.__auditPos['trestle-desk:{\"legStyle\":\"adjustable\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.4, p[1]], radius: 0.75 }); })()" },
+    { "name": "s10", "wait": 1000 },
+    { "name": "shot-trestle-adj", "screenshot": "12-trestle-adjustable-pinholes" }
+  ]
+}
