@@ -10,6 +10,7 @@ import type { MeshStandardMaterial } from 'three'
 import {
   applianceFinish,
   getMetalMaterial,
+  getSolidMaterial,
   type MetalFinish,
 } from '../../materials/furnitureMaterials'
 import type { ParamProps, ParamValue } from '../types'
@@ -32,67 +33,37 @@ export const STYLISED_ROUGHNESS = 0.7
 export const STYLISED_METALNESS = 0.05
 
 /**
- * Appliance body finish (MAT-004b). Steel-bodied appliances route their carcass
- * through the shared brushed-metal material (`getMetalMaterial`) so the body
- * reads as real brushed/satin stainless instead of flat grey plastic; every
- * other finish ('matte' painted, 'gloss' lacquer) stays a plain props spread via
- * `applianceFinish`.
+ * Appliance body material (MAT-004b) — a **single-representation** resolver that
+ * returns ONE shared `MeshStandardMaterial` instance for EVERY finish, always set
+ * on the body mesh's `material=` prop:
+ *  - `'steel'`  → the shared brushed-metal material (`getMetalMaterial`), so the
+ *    carcass reads as real brushed/satin stainless instead of flat grey plastic;
+ *  - `'matte'`/`'gloss'`/unknown → a shared painted material (`getSolidMaterial`)
+ *    carrying the EXACT `{ color, roughness, metalness }` the finish preset gives
+ *    (`applianceFinish`) — byte-identical params to the old
+ *    `<meshStandardMaterial {...props}>` child, so no visual change.
  *
- * Returns ONE of:
- *  - `{ material }` — a shared `MeshStandardMaterial`/`MeshPhysicalMaterial`
- *    instance to set on the body mesh's `material=` prop (the steel case), or
- *  - `{ props }` — `{ color, roughness, metalness }` to spread onto the body's
- *    `<meshStandardMaterial {...props} />` (the legacy non-steel case).
+ * Why one representation (the MAT-004b reconciliation): the old code routed steel
+ * through the mesh `material` PROP and non-steel through a `<meshStandardMaterial>`
+ * CHILD. When a user swapped steel↔matte in the inspector, R3F could not cleanly
+ * reconcile between the prop-material and child-material forms and left a stale
+ * (white) body. Routing BOTH finishes through the same `material=` prop makes the
+ * swap a plain material-instance change on one mesh, which R3F reconciles reliably.
  *
- * The material is cached per (finish, color) in `furnitureMaterials.ts`, so
- * every steel appliance + every body part on one appliance shares one GPU
- * material (no per-mesh rebuild). Non-steel finishes are unaffected.
+ * Both branches return cached instances (keyed in `furnitureMaterials.ts`), so
+ * every appliance + every body part on one appliance shares one GPU material — no
+ * per-instance material, no per-mesh rebuild. Glass fronts / control panels /
+ * handles keep their own inline materials (untouched).
+ *
+ * Usage — a body mesh is always uniform across finishes:
+ *
+ *   const body = applianceBodyMaterial(color, finish)
+ *   <BeveledBox material={body} … />            // or <mesh material={body}>…geometry…</mesh>
  */
-export interface ApplianceBodyFinish {
-  /** Shared brushed-metal material for the steel case (cached, reused per body part). */
-  material?: MeshStandardMaterial
-  /** Plain props for the non-steel case (spread onto a `<meshStandardMaterial>`). */
-  props?: { color: string; roughness: number; metalness: number }
-}
-
-export function applianceBody(color: string, finish: string): ApplianceBodyFinish {
-  if (finish === 'steel') return { material: getMetalMaterial(color, 'stainless') }
-  return { props: { color, ...applianceFinish(finish) } }
-}
-
-/**
- * Body material child for an appliance body/door mesh (MAT-004b). Renders the
- * non-steel finish declaratively (`<meshStandardMaterial {...props}>`); the steel
- * case renders NOTHING here because the shared brushed-metal material instance is
- * set on the `<mesh material={…}>` prop instead (via {@link applianceBodyMeshProps}).
- *
- * Why split: the steel material is a single cached instance shared across several
- * body parts (carcass + door panel). Setting it on the mesh's `material` prop is
- * the idiomatic R3F way to share one `Material` across meshes; mounting the same
- * object through multiple `<primitive>` elements would fight R3F's object
- * ownership. So a body mesh is always:
- *
- *   <mesh {...applianceBodyMeshProps(body)} position=…>
- *     <boxGeometry … />
- *     <ApplianceBodyMaterial finish={body} />
- *   </mesh>
- *
- * — uniform across finishes, with the steel material on the mesh and the non-steel
- * material as the child.
- */
-export function ApplianceBodyMaterial({ finish }: { finish: ApplianceBodyFinish }) {
-  if (finish.material) return null
-  return <meshStandardMaterial {...finish.props} />
-}
-
-/** Mesh-level props for an appliance body mesh: the shared brushed-metal
- *  `material` instance for the steel case, or nothing (the child
- *  `<ApplianceBodyMaterial>` supplies the non-steel material). Spread onto the
- *  body `<mesh {...applianceBodyMeshProps(body)} …>`. */
-export function applianceBodyMeshProps(finish: ApplianceBodyFinish): {
-  material?: MeshStandardMaterial
-} {
-  return finish.material ? { material: finish.material } : {}
+export function applianceBodyMaterial(color: string, finish: string): MeshStandardMaterial {
+  if (finish === 'steel') return getMetalMaterial(color, 'stainless')
+  const { roughness, metalness } = applianceFinish(finish)
+  return getSolidMaterial(color, roughness, metalness)
 }
 
 /**

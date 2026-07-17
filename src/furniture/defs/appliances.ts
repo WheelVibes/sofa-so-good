@@ -77,7 +77,13 @@ export const APPLIANCES_DEFS = {
     keywords: ['television', 'telly', 'flat screen'],
     category: 'appliances',
     primitive: 'FlatscreenTV',
-    defaultFootprint: { w: 1.25, d: 0.1, h: 0.75 },
+    // Same enum-driven-size class as `flatscreen-tv`: the `size` enum (43"–75")
+    // drives the live panel dims but can't feed `footprintParams`, so the footprint
+    // is pinned to the LARGEST size (75" → w ≈ 1.66 m, panel height ≈ 0.94 m) —
+    // conservative over-report, never an under-report. This is `mounted` (floats on
+    // the wall), so its floor footprint is less collision-critical than a
+    // free-standing item; depth (0.1) is the thin wall-panel/bezel, size-independent.
+    defaultFootprint: { w: 1.66, d: 0.1, h: 0.94 },
     mounted: true,
     verticalSpan: { base: 0.9, top: 1.85 },
     paramSchema: [

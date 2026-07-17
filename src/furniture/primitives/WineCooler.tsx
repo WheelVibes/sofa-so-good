@@ -1,12 +1,6 @@
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
-import {
-  ApplianceBodyMaterial,
-  applianceBody,
-  applianceBodyMeshProps,
-  readNum,
-  readStr,
-} from './shared'
+import { applianceBodyMaterial, readNum, readStr } from './shared'
 
 /**
  * Wine / beverage cooler: a slim under-counter (or freestanding) appliance with a
@@ -20,7 +14,7 @@ export function WineCooler({ props }: { props: ParamProps }) {
   const finish = readStr(props, 'finish', 'steel')
   const d = 0.58
   const h = 0.82
-  const body = applianceBody(color, finish)
+  const body = applianceBodyMaterial(color, finish)
   const steel = { color: '#9a9ea3', roughness: 0.3, metalness: 0.75 } as const
   // Chrome wire shelves read through the glass; dark grey shelves vanished
   // against the dark interior, so the cooler looked like a plain black box.
@@ -49,15 +43,13 @@ export function WineCooler({ props }: { props: ParamProps }) {
       {shell.map((p, i) => (
         <BeveledBox
           key={i}
-          {...applianceBodyMeshProps(body)}
+          material={body}
           castShadow
           receiveShadow
           position={p.pos}
           args={p.args}
           bevel={0.008}
-        >
-          <ApplianceBodyMaterial finish={body} />
-        </BeveledBox>
+        />
       ))}
       {/* Interior back panel with a cool LED glow — bright enough to read
           through the tinted glass at room + daylight range. */}

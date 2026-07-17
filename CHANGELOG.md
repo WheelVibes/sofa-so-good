@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.81 — Cross-cutting: appliance finish-swap reconciliation + TV footprints
+
+MAT-004b rebuilt as a single representation: `applianceBodyMaterial(color, finish)`
+returns ONE cached Material for every finish (steel → shared brushed metal; matte/gloss →
+shared painted material with the byte-identical preset), always on the mesh `material=`
+prop across all 8 steel-bodied appliances — the old steel-on-prop vs matte-as-child split
+didn't reconcile on inspector finish swaps and left a stale white carcass (confirmed via
+browser probe in wave 2A). Regression tests prove the material instance changes on swap.
+flatscreen-tv/tv-wall `defaultFootprint` pinned to the largest (75") size option (enums
+can't feed footprintParams — conservative over-report, dog-crate precedent).
+src/furniture/CLAUDE.md MAT-004b note rewritten. Needs a later visual spot-check of the
+finish toggle on both tiers (queued in wave 4).
+
 ## v0.21.2.80 — Realism wave 2: kitchen/appliances/bathroom/laundry/electronics
 
 28 defs audited with the hardened rubric (attachment verified per joint — closeups +

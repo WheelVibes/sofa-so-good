@@ -1,12 +1,6 @@
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
-import {
-  ApplianceBodyMaterial,
-  applianceBody,
-  applianceBodyMeshProps,
-  readNum,
-  readStr,
-} from './shared'
+import { applianceBodyMaterial, readNum, readStr } from './shared'
 
 /** Appliance bodies read better with a slightly rounder edge than furniture
  *  (real white goods have ~1 cm radii) — still auto-clamped by `safeBevelRadius`. */
@@ -21,21 +15,19 @@ export function Refrigerator({ props }: { props: ParamProps }) {
   const finish = readStr(props, 'finish', 'steel')
 
   const split = height * 0.66 // freezer drawer below
-  const body = applianceBody(color, finish)
+  const body = applianceBodyMaterial(color, finish)
   const handleMat = { color: '#9aa0a6', roughness: 0.3, metalness: 0.7 }
 
   return (
     <group>
       <BeveledBox
-        {...applianceBodyMeshProps(body)}
+        material={body}
         castShadow
         receiveShadow
         position={[0, height / 2, 0]}
         args={[width, height, depth]}
         bevel={APPLIANCE_BEVEL}
-      >
-        <ApplianceBodyMaterial finish={body} />
-      </BeveledBox>
+      />
       {/* Door seam */}
       <mesh position={[0, split, depth / 2 + 0.001]}>
         <boxGeometry args={[width, 0.01, 0.005]} />

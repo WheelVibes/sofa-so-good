@@ -1,6 +1,6 @@
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
-import { ApplianceBodyMaterial, applianceBody, applianceBodyMeshProps, readStr } from './shared'
+import { applianceBodyMaterial, readStr } from './shared'
 
 /** Freestanding cooker: oven body + cooktop with four burners and front
  *  control knobs. Faces +Z. */
@@ -11,7 +11,7 @@ export function Stove({ props }: { props: ParamProps }) {
   const d = 0.6
   const cabinetH = 0.85
   const topT = 0.04
-  const body = applianceBody(color, finish)
+  const body = applianceBodyMaterial(color, finish)
 
   const burners: [number, number][] = [
     [-0.14, -0.12],
@@ -24,15 +24,13 @@ export function Stove({ props }: { props: ParamProps }) {
     <group>
       {/* Oven body */}
       <BeveledBox
-        {...applianceBodyMeshProps(body)}
+        material={body}
         castShadow
         receiveShadow
         position={[0, cabinetH / 2, 0]}
         args={[w, cabinetH, d]}
         bevel={0.012}
-      >
-        <ApplianceBodyMaterial finish={body} />
-      </BeveledBox>
+      />
       {/* Oven door window */}
       <mesh position={[0, cabinetH * 0.45, d / 2 + 0.002]}>
         <boxGeometry args={[w * 0.7, cabinetH * 0.4, 0.01]} />

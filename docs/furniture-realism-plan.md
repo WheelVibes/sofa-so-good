@@ -55,15 +55,197 @@ visual review + an adversarial pass — audit them last, lightly.
 
 ## Expansion (after audit)
 
-New variants + categories inspired by `ikea_optimized/` coverage gaps vs our catalog —
-candidates: dressers/chests line, wardrobe systems (PAX-like), office (desks/chairs
-line-up), kids line, hallway (shoe cabinets, coat racks), curtains/blinds variants,
-outdoor set. Scoped after the audit closes (findings inform which primitives generalise
-into variants cheaply via paramSchema enums).
+**Ground rule (licensing).** `ikea_optimized/` is a **dimension + demand reference only** —
+licensed, dev-gated, never bundled (see the dev-gating hard rule). Every expansion item below is
+a **procedural original inspired by a product FAMILY** (a shoe-bench, a glass-door display
+cabinet, a fold-out sofa-bed), sized to real-world/SG norms. **No IKEA design is copied and no
+IKEA name (BILLY/PAX/KALLAX/MALM/POÄNG/ALEX/…) ships** — those names appear here purely to name
+the demand cluster.
+
+### Coverage map — ours vs IKEA family demand
+
+Our catalog: **131 parametric defs / 16 categories** (seating 10, tables 6, beds 5, storage 11,
+kitchen 5, appliances 9, bathroom 7, laundry 3, electronics 4, decor 26, lighting 5, textiles 3,
+outdoor 5, kids 5, others 1, pets 26). Most defs already carry a `style`/`shape`/`size`/`seats`
+enum — a cheap variant surface (the pets & dining precedents).
+
+IKEA family SKU counts (demand proxy, from folder-name clustering of 3,563 GLBs): table 264 ·
+cabinet 160 · wardrobe 115 · lamp 115 · desk 95 · shelving-unit 88 · rug 67 · rack 64 ·
+glass-door cabinet 63 · chest-of-drawers 58 · mirror 57 · tv/stand 56 · stool 49 · bench 49 ·
+bookcase 47 · side-table 41 · wall-shelf 36 · plant/stand 36 · sofa-bed 25 + day-bed 9 · footstool
+22 + pouffe 9 · trolley 20 · swivel chair 18 · bedside 16 · drawer-unit-on-castors 16 · gaming 16 ·
+clock 14 · sideboard 12 · corner-sofa 11 · blind 11 · coat/hook 19 · pegboard 8 · changing 7 ·
+nesting 7 · dressing-table 6 · cot 5 · plant-stand 5 · loft-bed 4.
+
+**Top-10 gaps (high demand, no/weak procedural counterpart):**
+
+1. **Sofa-bed / daybed** (34 SKUs) — no counterpart; core HDB living/study/guest piece.
+2. **Glass-door display cabinet / vitrine** (63) — we have wardrobe/sideboard/bookshelf but no
+   glazed display carcass.
+3. **Shoe bench / hallway bench with hooks** (bench 49 + shoe 27) — HDB **entry** is a named
+   design-guideline zone; we have `bench` + `shoe-cabinet` but no combined entry piece.
+4. **Wall/floating shelf variety** (36) — `wall-shelf` exists but lacks floating-shelf / picture
+   ledge / corner-shelf modes (all cheap enum adds).
+5. **Under-desk drawer pedestal on castors** (16) — home-office staple; `dresser` doesn't do the
+   slim mobile pedestal.
+6. **Gaming chair + gaming desk** (16) — distinct silhouette from `office-chair`/`desk`; cheap
+   enum on both.
+7. **Stool variety — step stool / kitchen stool** (49) — `bar-stool` only; a low step/kitchen
+   stool is a cheap `type` enum.
+8. **Wall coat/hook rail + pegboard** (19 + 8) — HDB **entry/service-yard**; only a freestanding
+   `coat-rack` today (wall-mounted organiser missing).
+9. **Nesting tables & bar/counter-height table** (7 + high-tables) — cheap `set`/`height` enums on
+   coffee/side/dining tables.
+10. **Utility / broom tall cabinet + display glass on sideboard** — HDB **service-yard/store**
+    storage; no tall utility carcass.
+
+### Prioritized expansion table
+
+Effort: **S** = new `paramSchema` enum on an existing primitive (hours) · **M** = new primitive in
+an existing category (day) · **L** = new primitive with novel geometry / a system builder (multi-day).
+Ordered by value ÷ effort.
+
+| # | Item | Category | Base / approach | Evidence (family / HDB) | Effort | Key dims (m) |
+|---|---|---|---|---|---|---|
+| **Tier 1 — new enum on an existing primitive (cheapest, ships fast)** |
+| 1 | Floating shelf / picture ledge / corner shelf | decor | `wall-shelf` `style` enum | wall-shelf 36 | S | 0.6–1.2 w × 0.18 d |
+| 2 | Nesting table set (2–3 pcs) | tables | `coffee-table`/`side-table` `set` enum | nesting 7 | S | nested Ø0.4–0.5 |
+| 3 | Bar / counter-height table | tables | `dining-table-4` `height` enum | bar-table demand | S | 0.6×0.6 × 0.9–1.05 h |
+| 4 | Step / kitchen stool | seating | `bar-stool` `type` enum | stool 49 | S | 0.35 × 0.45 h |
+| 5 | Gaming chair | seating | `office-chair` `style: gaming` | gaming 16 | S | 0.7 × 1.3 h |
+| 6 | Swivel accent / tub chair (swivel base) | seating | `armchair` swivel-base enum | swivel 18 | S | 0.75 × 0.75 |
+| 7 | Under-desk mobile drawer pedestal | storage | `dresser` `castors`+`slim` enum | drawer-unit 16 | S | 0.4 × 0.5 × 0.6 h |
+| 8 | Bedside size variants (narrow/wide) | storage | `nightstand` `size` enum | bedside 16 | S | 0.4–0.6 w |
+| 9 | Pouffe / knitted footstool | seating | `ottoman` `style: pouffe` | footstool 31 | S | Ø0.45 × 0.4 h |
+| 10 | Plant stand (raised pot) | decor | `potted-plant` `stand` enum / small prim | plant-stand 5 | S | Ø0.3 × 0.5 h |
+| 11 | Corner / mirror-door wardrobe | storage | `wardrobe-3door` `layout`+`door: mirror` | wardrobe 115 | S | 1.0–2.4 w × 0.6 d |
+| 12 | Gaming desk (cable-tray, riser) | tables | `desk` `style: gaming` enum | desk 95 / gaming | S | 1.2–1.4 w × 0.75 h |
+| **Tier 2 — new primitive in an existing category** |
+| 13 | Sofa-bed / daybed | seating | new prim (fold-out back, storage base) | sofa-bed 34 · HDB guest | L | 1.9–2.0 × 0.9 |
+| 14 | Glass-door display cabinet / vitrine | storage | new prim (glazed carcass, lit shelves) | glass-door 63 | M | 0.8–1.2 w × 1.8 h |
+| 15 | Shoe bench with cushion + hooks | storage | new prim (bench + open shoe cubbies) | bench 49 + shoe · HDB entry | M | 0.9–1.2 w × 0.85 h |
+| 16 | Wall coat/hook rail | storage | new prim (wall board + pegs/hooks) | coat/hook 19 · HDB entry | M | 0.6–1.0 w |
+| 17 | Pegboard organiser | storage | new prim (board + shelf/hook accessories) | pegboard 8 | M | 0.6–1.0 w |
+| 18 | Tall utility / broom cabinet | storage | new prim (full-height single-door + shelves) | HDB service-yard/store | M | 0.4–0.6 w × 2.0 h |
+| 19 | Recliner armchair | seating | new prim (reclined back + footrest) | recliner/swivel demand | M | 0.85 × 1.0 |
+| 20 | Wall-mounted fold-down / floating desk | tables | new prim (wall-anchored, `mounted`) | desk 95 · HDB study corner | M | 0.9–1.1 w × 0.75 h |
+| 21 | Loft / cabin bed (kids) | kids/beds | new prim (raised platform + ladder + desk void) | loft-bed 4 · HDB space-save | L | 0.9–1.4 × 1.6 h |
+| 22 | Trestle / adjustable-leg work desk | tables | new prim (trestle legs) | desk/trestle | M | 1.2–1.6 w |
+| 23 | TV media lowboy (long, drawers+open bay) | storage | new prim OR `tv-console` `style` enum | tv 56 | M | 1.6–2.0 w × 0.45 h |
+| 24 | Ottoman storage bench (blanket box) | storage | new prim (lift-lid upholstered box) | footstool/bench | M | 1.0 × 0.45 × 0.45 h |
+| **Tier 3 — larger lines / configurable systems** |
+| 25 | Modular sectional / corner-sofa builder | seating | parametric-type or multi-module def | corner-sofa 11 + modular 24 | L | per-module 0.9 |
+| 26 | Modular wardrobe system (PAX-like) | storage | extend `parametric` type (wardrobe) w/ fit-outs | wardrobe 115 + modular | L | up to 2.5 w × 2.36 h |
+| 27 | Bay-window daybed / window bench | seating | new prim (bench + bolsters, condo bay window) | day-bed 9 · HDB/condo bay | M | 1.4–2.0 w × 0.45 h |
+| 28 | Highchair / cot-bed convertible (kids) | kids | `high-chair`/`crib` size+convert enums | cot 5 / changing 7 | M | — |
+| 29 | Outdoor lounge/dining set (coordinated) | outdoor | new prims (bistro set, corner lounge) | outdoor family | M | — |
+| 30 | Pendant-cluster / multi-lamp ceiling | lighting | `ceiling-light`/`pendant` `arrangement` enum | pendant 29 + lamp 115 | S | drop 0.4–1.2 |
+
+### Proposed wave structure (implementation)
+
+Same cadence as the audit: **2 parallel agents (2 dev-server cap)**, one commit per batch with
+CHANGELOG + build bump, full suite once per commit, **a scenario capture per batch** (grid room +
+per-item profile closeups) reviewed against the audit rubric (scale/physics/z-fight/fidelity) plus
+the structural-soundness harness (every new primitive/enum mode must pass the connected-component +
+floor-touch assertions). Every new user-facing item gets a `FEATURE_FLAGS` entry with a `tier`
+(entry/storage staples → `simple`; gaming/utility/system builders → `pro`) and is tested in both
+Simple and Pro modes.
+
+| Wave | Batch A | Batch B | Rationale |
+|---|---|---|---|
+| E1 | Tier 1 rows 1–6 (shelf/nesting/bar-table/step-stool/gaming-chair/swivel) | Tier 1 rows 7–12 (pedestal/bedside/pouffe/plant-stand/wardrobe-variant/gaming-desk) | All pure enum adds on audited primitives — fastest value, validates the enum→footprint/structural pipeline before new geometry |
+| E2 | Rows 13–14 (sofa-bed **L**, display cabinet) | Rows 15–18 (shoe-bench, hook-rail, pegboard, utility cabinet) | HDB **entry + service-yard** cluster; Batch A carries the one L so batches stay balanced |
+| E3 | Rows 19–22 (recliner, fold-down desk, loft bed **L**, trestle desk) | Rows 23–24 + 27 + 30 (media lowboy, storage bench, bay-window daybed, pendant cluster) | Remaining Tier-2 new prims + the two cheap tail items |
+| E4 | Row 25 (sectional builder **L**) | Row 26 (wardrobe system **L**) + rows 28–29 | Configurable systems (extend the `parametric` type + scenario ladder per the furniture CLAUDE.md); slot last, largest effort |
+
+Re-scope after E1: the enum work will reveal which "M" new-primitive rows can collapse into an
+enum on a Tier-1 primitive (e.g. media lowboy → `tv-console` style, plant stand → `potted-plant`).
 
 ## Findings log
 
 (append per wave)
+
+### Structural-soundness harness — 2026-07-17
+
+Built the programmatic attachment harness (rubric point 2): a pure graph helper
+`src/furniture/primitives/structuralSoundness.ts` (ε-inflated AABB adjacency →
+union-find connected components + floor-contact, unit-tested in
+`structuralSoundness.unit.test.ts`) driven by `structuralSoundness.test.tsx`,
+which renders EVERY parametric def headless via **@react-three/test-renderer**
+(added as a devDependency, v9.1.0 — matches @react-three/fiber 9 / React 19),
+extracts each mesh's world-space AABB (InstancedMesh decomposed per instance via
+`instanceMatrix`), and asserts (a) one connected component and (b) floor contact
+for floor-anchored defs. Covered with default props **and** the first structural
+enum's modes (≈264 cases, ~12 s). **ε = 8 mm** — abutting parts with a sub-mm
+reveal still read as attached, but every real float found (19–75 mm) fails; 8 mm
+sits below the smallest real defect and above modelling noise. Canvas 2D is
+stubbed (happy-dom has none) so the procedural texture generators run; the
+`performance` tier + `showCeilingFixtures` are set so no primitive needs real GL
+or hides its body. Meshes are duck-typed via `.isMesh`/`.isInstancedMesh` (the
+test-renderer resolves a separate `three` instance, so `instanceof` fails).
+
+**Real attachment bugs found + FIXED** (pure-geometry, safe categories; harness
+re-run green after each):
+- `bar-cart` (tables) — the top guard-rail rotation was swapped, so the back/side
+  rails pointed the wrong way (along depth instead of spanning the edge); and the
+  push handle floated ~2 cm above the frame. Fixed the rail axis→rotation mapping
+  and mounted the handle on two short stems rising from the back corner posts.
+- `coffee-table` (tables, round/oval mode) — the single centre stretcher sat at
+  z=0 and reached no leg; replaced with an H-stretcher (two side rails + centre
+  bar) tying all four splayed legs.
+- `office-chair` (seating, esp. mesh mode) — the backrest floated ~2.5 cm above
+  the seat; added a back-support bracket anchoring the back to the seat.
+- `bench` (seating, slat mode) — 4 slats + 4 legs were all disconnected (slats
+  floated 3 cm above the legs); added two side rails on the leg tops that tie the
+  legs together and carry the slats.
+- `outdoor-chair` (outdoor) — the slatted back floated behind the seat with no
+  post; added a reclined back stile (matching the −0.18 rad slats) rising from the
+  rear leg.
+- `high-chair` (kids) — the tray floated ~7 cm off the seat; added two tray
+  mounting arms from the seat sides.
+- `changing-table` (kids) — the top guard rails floated ~4 cm above the top with
+  no posts; added four corner posts.
+- `crib` (kids) — the mattress floated (no base was modelled); added a solid
+  mattress-base board spanning to the frame.
+- `cube-shelf` (storage) — decorative storage boxes floated centred in their
+  cubbies; reseated them on the shelf floor.
+- `garment-rack` (storage) — hung garments floated ~3 cm below their hanger hooks;
+  raised the garment shoulders to meet the hooks/rail.
+- `wardrobe` (storage, open mode) — the hanging rail stopped ~3 cm short at each
+  end, leaving the rail + garments floating clear of the carcass; extended it to
+  socket into the side wall + divider.
+- `floor-lamp` (lighting, arc mode) — the bulb glow disc hung 2 cm below the shade
+  (arc offset differed from the pole case); tucked it up into the shade mouth.
+- `cove-light` (lighting) — the concealed LED strip floated in the trough; extended
+  it to abut the lip fascia.
+- `wall-sconce` (lighting) — the "arm" was a vertical stub that didn't bridge the
+  backplate to the shade; made it a horizontal spar spanning backplate→diffuser.
+- `wall-tapestry` (textiles) — the panel hung ~1.6 cm below its dowel; raised the
+  panel top to the dowel line.
+- `ceiling-light` (lighting, linear mode) — a central round rose left the ±0.45 m
+  drop cords (and the whole bar) hanging off nothing; gave the linear style a wide
+  canopy bar spanning both cords.
+
+**Deferred findings (real gaps, not fixed here — owned by another concurrent wave
+or the light-touch pet audit; each is an explicit `KNOWN_DISCONNECTED` entry with
+this reason so the harness stays green until fixed with visual verification):**
+- `shower` (bathroom wave) — riser rail / head / mixer are wall-mounted fittings
+  that attach to the absent wall, not the tray; split into separate components.
+- `bathtub` freestanding (bathroom wave) — basin/feet split into two components.
+- `drying-rack` (laundry wave) — the hanging bars don't reach the two A-frame ends.
+- `bird-cage` (pet audit) — interior perch dowels fall ~2–7 cm short of the bars
+  and the tripod feet dip below the floor.
+- `staircase` L-shape (staircase-model pass) — the turn produces AABB-separable
+  flights/railing at the landing (straight/U/spiral are fine).
+
+**Intentional multi-piece (`KNOWN_DISCONNECTED`, not bugs):** `curtains` (rod +
+two draped panels), `roller-blind` venetian (individual louvre slats), and
+`cat-wall-steps` (separately wall-mounted steps).
+
+**Surface-/wall-mounted (`FLOOR_EXEMPT`, connected but render off the floor):**
+`microwave`, `monitor`, `table-lamp`, `tabletop-decor` (all placed on a surface),
+`fireplace` wall style, `bathroom-sink` wall-hung, `flatscreen-tv` wall mount —
+their floor-standing sibling modes are still floor-asserted.
 
 ### Wave 1A — seating (10) + tables (6), 2026-07-17
 
@@ -256,3 +438,32 @@ Cross-cutting (shared with Wave 2A/1): chrome fittings read dark under the dark-
 routing taps/fittings through `metalLeg` (satin/stainless) per the program's METAL-LEGS guidance; still
 somewhat reflective on High but no longer black. The `mat:floor-wood-oak` busy grain (Wave-1 note) also shows
 on the vanity cabinet — left for the coordinated global retune.
+
+### Cross-cutting fixes (post-wave-2)
+
+Two targeted fixes in already-committed categories (unit/code-verified this round; no dev server —
+flagged below for a later visual pass):
+
+- **MAT-004b appliance finish-swap reconciliation (`shared.tsx` + 8 appliance primitives).** The old
+  `applianceBody`/`applianceBodyMeshProps`/`ApplianceBodyMaterial` trio put the steel material on the
+  body mesh's `material=` PROP but rendered matte/gloss as a `<meshStandardMaterial>` CHILD. Swapping
+  steel↔matte in the inspector crossed that prop↔child boundary and R3F left a stale white body.
+  Replaced the trio with a single-representation resolver `applianceBodyMaterial(color, finish)` that
+  returns ONE cached `Material` for every finish (steel → `getMetalMaterial`; matte/gloss →
+  `getSolidMaterial` with the byte-identical `applianceFinish` roughness/metalness), always set on the
+  `material=` prop — so a swap is a plain instance change on one mesh and reconciles cleanly. MAT-004b
+  invariants preserved (shared cached instances, no per-instance materials, glass/panels/handles
+  untouched); no intended visual change (painted params identical). Regression tests in
+  `primitives/applianceBody.test.tsx` (helper: steel/non-steel/cache/flat-tier/exact-params + a
+  steel→matte instance-change assertion; element-tree walk proving the body material is a `material=`
+  prop that changes instance on swap and is never a child; a `@testing-library` render+rerender harness
+  asserting the material prop actually changes). *Later visual check:* open an appliance inspector,
+  toggle finish steel↔matte↔gloss and confirm the body repaints (no white ghost) on all tiers.
+- **TV footprint doesn't track the `size` enum (`electronics.ts` flatscreen-tv, `appliances.ts`
+  tv-wall).** Same class as the committed dog-crate/aquarium-stand fix: enums can't feed
+  `footprintParams`, so pinned `defaultFootprint` to the LARGEST size (75" → 16:9 from a 1.905 m diag →
+  w ≈ 1.66 m; stand-top ≈ 1.03 m, wall panel ≈ 0.94 m) — a conservative over-report, never an
+  under-report that lets a 75" panel clip a wall/neighbour. `flatscreen-tv` → `{ w: 1.66, d: 0.25,
+  h: 1.04 }`; `tv-wall` (mounted, less collision-critical) → `{ w: 1.66, d: 0.1, h: 0.94 }`, with the
+  same comment style as pets.ts. No test asserted exact TV dims (autoArrange reads footprints
+  dynamically). This supersedes the deliberate-defer note in the flatscreen-tv findings above.

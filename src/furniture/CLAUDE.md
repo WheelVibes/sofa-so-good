@@ -291,16 +291,22 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   inside a primitive; let the group handle it. (Decor auto-styling still reads `def.defaultFootprint`
   unscaled — a minor density/height imperfection for a *scaled* decor host, not a crash.)
 - Match the surrounding primitive style: real-world metres, real three `Material` instances.
-- **Appliance bodies (MAT-004b)**: the 8 steel-bodied appliance primitives
+- **Appliance bodies (MAT-004b — single representation)**: the 8 steel-bodied appliance primitives
   (`Refrigerator`/`Oven`/`Stove`/`RangeHood`/`Dishwasher`/`Microwave`/`WashingMachine`/`WineCooler`)
-  render their carcass through `primitives/shared.tsx:applianceBody(color, finish)`. Steel → the
-  shared brushed-metal material (`materials/furnitureMaterials.ts:getMetalMaterial`, one cached
-  instance reused across every body part + appliance) set on the body `<mesh material={…}>` via
-  `applianceBodyMeshProps(body)`; non-steel ('matte'/'gloss') keeps the legacy `applianceFinish`
-  props on `<ApplianceBodyMaterial finish={body} />`. A body mesh is always
-  `<mesh {...applianceBodyMeshProps(body)} …><geometry/><ApplianceBodyMaterial finish={body}/></mesh>`.
-  Don't put the steel material on the door glass / control panels / handles — those keep their own
-  finishes. (`shared.tsx`, not `.ts`, because it exports the JSX `ApplianceBodyMaterial` component.)
+  render their carcass through `primitives/shared.tsx:applianceBodyMaterial(color, finish)`, which
+  returns **ONE `Material` instance for EVERY finish**, always set on the body mesh's `material=`
+  prop: steel → the shared brushed-metal material (`materials/furnitureMaterials.ts:getMetalMaterial`);
+  matte/gloss/unknown → a shared painted material (`getSolidMaterial(color, roughness, metalness)`
+  with the exact `applianceFinish` preset — byte-identical to the old inline `<meshStandardMaterial>`).
+  Both branches are cached (one instance reused across every body part + appliance — no per-instance
+  material). A body mesh is always `<BeveledBox material={body} …/>` (or
+  `<mesh material={body}>…geometry…</mesh>`) — **never** a `<meshStandardMaterial>` child.
+  **Why one representation:** the old split (steel on the mesh PROP, non-steel as a
+  `<meshStandardMaterial>` CHILD) did not reconcile when the user swapped steel↔matte in the
+  inspector — R3F left a stale (white) body. Routing both finishes through the `material=` prop makes
+  a swap a plain material-instance change on one mesh, which reconciles reliably. Don't put the body
+  material on the door glass / control panels / handles — those keep their own inline finishes.
+  (`shared.tsx`, `.tsx` for JSX-adjacent primitive helpers.)
 - **Metal legs / frames (METAL-LEGS)**: a primitive's structural metal members (legs, frames,
   rails, posts, gas-lifts, taps) route through `primitives/shared.tsx:metalLeg(color?, finish?, repeat?)`
   — a thin wrapper over `getMetalMaterial` that inherits its `pbrSurfaces` gate (brushed

@@ -1,6 +1,6 @@
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
-import { ApplianceBodyMaterial, applianceBody, applianceBodyMeshProps, readStr } from './shared'
+import { applianceBodyMaterial, readStr } from './shared'
 
 /**
  * Built-in / freestanding dishwasher: a base-cabinet-sized body with a proud
@@ -15,32 +15,28 @@ export function Dishwasher({ props }: { props: ParamProps }) {
   const w = 0.6
   const d = 0.6
   const h = 0.82
-  const body = applianceBody(color, finish)
+  const body = applianceBodyMaterial(color, finish)
   const trim = { color: '#9a9ea3', roughness: 0.3, metalness: 0.7 } as const
 
   return (
     <group>
       {/* Body */}
       <BeveledBox
-        {...applianceBodyMeshProps(body)}
+        material={body}
         castShadow
         receiveShadow
         position={[0, h / 2, 0]}
         args={[w, h, d]}
         bevel={0.012}
-      >
-        <ApplianceBodyMaterial finish={body} />
-      </BeveledBox>
+      />
       {/* Front door, slightly proud + inset border for a panel look */}
       <BeveledBox
-        {...applianceBodyMeshProps(body)}
+        material={body}
         castShadow
         position={[0, h * 0.46, d / 2 + 0.008]}
         args={[w - 0.03, h * 0.82, 0.016]}
         bevel={0.012}
-      >
-        <ApplianceBodyMaterial finish={body} />
-      </BeveledBox>
+      />
       {/* Recessed handle bar near the top of the door */}
       <mesh castShadow position={[0, h * 0.82, d / 2 + 0.02]}>
         <boxGeometry args={[w * 0.82, 0.025, 0.02]} />
