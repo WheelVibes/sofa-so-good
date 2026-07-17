@@ -29,6 +29,32 @@ kept in `scripts/scenarios/`.
   `pano-tour-journey.json`); keep each scenario focused and re-runnable on a clean
   profile (`first-run.json` is the worked example).
 
+## Local prod-build smoke test (`vite preview` needs a matching `VITE_BASE`)
+
+**`vite preview` must be given the same `VITE_BASE` the build used, or every asset
+404s into the SPA index.html fallback and boot hangs on the loader.** `vite preview`
+resolves its config with Vite's internal `command: "serve"` (not `"build"`), so
+`vite.config.ts`'s base ternary (`command === 'build' ? '/sofa-so-good/' : '/'`)
+silently reverts to `/` under preview — while `dist/` still references the sub-path
+base (`/sofa-so-good/`, the default GH-Pages build). Symptoms: the boot loader stuck
+on a random phrase ("Waiting for the lift…"), console full of resource 404s, and
+`curl -I` on any asset under the base returning `200`/`text/html` (it's silently
+serving `index.html`, Vite's SPA fallback). Correct invocations:
+
+```bash
+# GH-Pages-style build (default):
+VITE_BASE=/sofa-so-good/ npx vite preview --port 5300 --strictPort
+# → http://localhost:5300/sofa-so-good/
+# Root-served build (Docker/nginx/Cloudflare parity):
+VITE_BASE=/ npm run build && npx vite preview --port 5300 --strictPort
+# → http://localhost:5300/
+```
+
+Real deploys are unaffected (static hosts serve real files; they never re-run the
+command-aware config). `window.__store` does NOT exist in prod builds — drive
+prod smoke tests with DOM waits (`waitFor {css: "canvas"}`), not store predicates;
+a `502` on the `hasBackend()` health ping is expected/harmless with no local backend.
+
 ## Real-GPU mode (`SHOT_GPU=1`)
 
 By default the harness renders with **SwiftShader** (software WebGL) — fine for

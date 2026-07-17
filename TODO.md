@@ -111,15 +111,6 @@ proxy/mirror/host is missing, and standing one up is a deployment task, not a co
 - **Standard asset set expansion** (~80 assets) + **per-LOD texture variants** + **lazy/streaming
   GLB loading** — manifest schema already supports these; expand when bundle size justifies it.
 
-## Open — investigations
-- **`vite preview` of the prod build hangs at the boot loader ("Waiting for the lift…") with
-  repeated runtime-asset 404s** (2026-07-18 observation, PRE-EXISTING — A/B-confirmed identical
-  on builds from both the old and new `manualChunks` config, so unrelated to the PERF-BUNDLE
-  change). Entry chunks resolve (200) at the `/sofa-so-good/` base; the 404s are runtime fetches
-  (suspects: service-worker scope under preview, `hasBackend()` ping, public-asset base paths).
-  The deployed GitHub Pages staging build boots fine, so this may be preview-env-only — but
-  worth one focused investigation to rule out a real deploy-path asset bug.
-
 ## Risks tracked from specs
 - **Asset source URL drift** (Poly Haven / ambientCG slug versioning) — pin stable per-asset URLs,
   audit periodically.

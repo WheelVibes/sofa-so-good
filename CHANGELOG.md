@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.10 — Preview boot-hang investigation: resolved as invocation gap
+
+The `vite preview` prod-build hang is root-caused, NOT an app/deploy bug:
+`vite preview` resolves config with `command:"serve"`, so the base ternary
+picks `/` while `dist/` is baked for `/sofa-so-good/` — every asset request
+falls into the SPA index.html fallback (200/text/html) and boot never loads
+the module graph. Real deploys (GH Pages / Docker / Cloudflare) serve real
+files and are unaffected. Correct smoke invocation
+(`VITE_BASE=/sofa-so-good/ npx vite preview …`) documented in the
+visual-verification playbook (+ prod-smoke gotchas: no `window.__store` in
+prod, benign 502 health ping); TODO investigation entry resolved. Bonus: the
+verified boot (furnished scene screenshot) ran on a fresh build with the
+v0.22.2.9 chunk config — validating that change on a real prod boot.
+
 ## v0.22.2.9 — Bundle audit: −2.0 MB gzip off the eager boot payload
 
 Bundle/startup audit found `@react-three/xr` (+ `@pmndrs/*`, `iwer`, `@iwer/*`),
