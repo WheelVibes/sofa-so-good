@@ -1,0 +1,65 @@
+{
+  "name": "aiwalls-openings-scale",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setUiMode?.('pro'); s.reresolveFeatureFlags?.(); })()"
+    },
+    {
+      "name": "hook-exists",
+      "waitFor": {
+        "store": "typeof window.__applyAiVisionResponse === 'function'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "apply-draft",
+      "eval": "window.__aiResult = window.__applyAiVisionResponse(JSON.stringify({ walls: [ { x1: 0, z1: 0, x2: 6, z2: 0 }, { x1: 6, z1: 0, x2: 6, z2: 4 }, { x1: 6, z1: 4, x2: 0, z2: 4 }, { x1: 0, z1: 4, x2: 0, z2: 0 } ], openings: [ { kind: 'door', x: 3, z: 0, width: 0.9 }, { kind: 'window', x: 6, z: 2, width: 1.4 } ], scale: { metresPerPixel: 0.02 } }))"
+    },
+    {
+      "name": "walls-applied",
+      "waitFor": {
+        "store": "state.floorPlan.walls.length >= 4"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "openings-applied",
+      "waitFor": {
+        "store": "(state.floorPlan.walls.flatMap(w => w.openings || []).length + (state.floorPlan.openings || []).length) >= 2"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "probe",
+      "eval": "(() => { const s = window.__store.getState(); const viaWalls = s.floorPlan.walls.flatMap(w => (w.openings || []).map(o => w.id + ':' + (o.kind || o.type))); return JSON.stringify({ walls: s.floorPlan.walls.length, viaWalls, topLevel: (s.floorPlan.openings || []).length }); })()"
+    },
+    {
+      "name": "open-plan",
+      "eval": "window.__store.getState().setFloorPlanEditing(true)"
+    },
+    {
+      "name": "plan-visible",
+      "waitFor": {
+        "css": ".plan-screen"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "settle",
+      "wait": 1500
+    },
+    {
+      "name": "shot-plan",
+      "screenshot": "ai-draft-plan"
+    }
+  ]
+}

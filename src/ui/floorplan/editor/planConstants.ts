@@ -49,6 +49,10 @@ export interface Backdrop {
   /** World position (m) of the image's top-left corner. */
   ox: number
   oz: number
+  /** True once the user has calibrated the scale manually with the Scale tool.
+   *  AI plan recognition will NOT overwrite a manual calibration — its scale
+   *  estimate only applies while this is unset/false. */
+  scaleCalibrated?: boolean
 }
 
 export const FIT_PAD = 0.6 // metres of breathing room when fitting the plan to the view

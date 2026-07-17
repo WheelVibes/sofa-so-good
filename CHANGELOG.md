@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.0.8 — AI plan recognition: doors/windows + scale calibration
+
+The BYO-key "AI walls" trace (flag `aiWalls`, pro — same surface, no new flag)
+now asks the vision model for openings and scale in the SAME pass:
+`ai/floorPlanAi.ts` schema/prompt extended (walls block stays byte-compatible;
+`parseVisionResponse` is fully defensive — malformed openings dropped, widths
+defaulted per kind, unusable scale → undefined); new pure
+`ai/floorPlanAiPlacement.ts` snaps centre-point openings onto the nearest
+drafted wall (point-to-segment projection, ≤0.9 m, clamped width/offset,
+door 0/2.1 + window 0.9/2.1 sill/head defaults) and decides scale application
+(`shouldApplyAiScale`); `usePlanAiWalls.applyAiPlanDraft` adds walls →
+openings → calibrates `backdrop.mPerPx` ONLY when the user hasn't manually
+calibrated (new persisted `scaleCalibrated` on Backdrop/BackdropMeta, set by
+the Set-scale tool). Toast reports wall/opening/scale counts. Dev hook
+`window.__applyAiVisionResponse` (no-network); browser-verified (4 walls +
+door + window land correctly, scenario `aiwalls-openings-scale.json`); 34
+unit tests across parsing, placement math, calibration decision, store apply.
+
 ## v0.22.0.7 — Drop-folder material auto-detection (offline pipeline)
 
 `index-assets.ts` no longer silently skips a material folder without a

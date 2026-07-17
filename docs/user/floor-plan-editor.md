@@ -286,7 +286,10 @@ Have a real floor‑plan image or a room scan? Trace over it:
 3. Adjust **Trace opacity** (5–100%), then draw walls over the image. **Center**
    re‑centres the image on your plan at any time.
 4. *(Experimental, optional)* **AI walls** sends the photo to a vision model
-   (your own API key) and drafts the walls for you to correct.
+   (your own API key) and drafts the walls for you to correct. The same pass also
+   proposes **doors and windows** on the recognized walls, and — if the model can
+   read a dimension off the drawing — **calibrates the trace scale** for you
+   (your own **Set scale** calibration is never overwritten).
 
 Your reference photo and its calibration are **saved on your device** — close
 the editor or reload the app and it's still there when you come back. Remove it

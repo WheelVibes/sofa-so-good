@@ -244,6 +244,41 @@ async function exposeDevHelpers(): Promise<void> {
   const { persistUserMaterial } = await import('../../materials/upload/persist')
   ;(window as unknown as { __persistUserMaterial?: unknown }).__persistUserMaterial =
     persistUserMaterial
+  // Expose the standalone texture decode path (KTX2/DDS + the TGA/TIFF/EXR/HDR
+  // exotic formats) so the GPU scenario harness can verify a real WebGL readback
+  // headlessly (SHOT_GPU=1). `bytesB64` is the base64-encoded raw file; `name`
+  // supplies the extension the decoder routes on. Returns (and records on
+  // `__decodeMaterialImageResult`) a small summary — never the whole pixel buffer.
+  const { decodeImage } = await import('../../materials/convert/decodeImage')
+  ;(window as unknown as { __decodeMaterialImage?: unknown }).__decodeMaterialImage = async (
+    bytesB64: string,
+    name: string,
+  ) => {
+    const bin = atob(bytesB64)
+    const bytes = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+    const file = new File([bytes], name, { type: 'application/octet-stream' })
+    try {
+      const img = await decodeImage(file)
+      const result = {
+        ok: true as const,
+        width: img.width,
+        height: img.height,
+        length: img.data.length,
+        firstPixel: [img.data[0], img.data[1], img.data[2], img.data[3]],
+      }
+      ;(
+        window as unknown as { __decodeMaterialImageResult?: unknown }
+      ).__decodeMaterialImageResult = result
+      return result
+    } catch (e) {
+      const result = { ok: false as const, error: e instanceof Error ? e.message : String(e) }
+      ;(
+        window as unknown as { __decodeMaterialImageResult?: unknown }
+      ).__decodeMaterialImageResult = result
+      return result
+    }
+  }
   // Expose the Sweet Home 3D import path so the scenario harness can drive a full
   // `.sh3d` parse → place (PARITY-SH3D); `bytes` are the raw archive (the harness
   // base64-decodes a synthetic fixture into a Uint8Array).
@@ -292,6 +327,18 @@ async function exposeDevHelpers(): Promise<void> {
     ;(window as unknown as { __detectGroupsResult?: unknown }).__detectGroupsResult = result
     return result
   }
+  // Expose the AI plan-recognition APPLY path so the scenario harness can drive
+  // walls + doors/windows placement from a CANNED vision response — no network
+  // call (AI-PLAN-OPENINGS). Given the raw model reply text (or an already-shaped
+  // JSON string), it parses via the same defensive parser and applies the draft
+  // (blank plan → walls → snapped openings) to the store, returning the counts.
+  // Scale calibration is NOT applied here (it writes the editor's backdrop React
+  // state, unreachable from a window hook) — unit-tested separately.
+  const { parseVisionResponse } = await import('../../ai/floorPlanAi')
+  const { applyAiPlanDraft } = await import('../../ui/floorplan/editor/usePlanAiWalls')
+  ;(window as unknown as { __applyAiVisionResponse?: unknown }).__applyAiVisionResponse = (
+    text: string,
+  ) => applyAiPlanDraft(parseVisionResponse(text))
   // Expose the bulk GLB import path (convert → optimize-pool → LOD → persist)
   // so the scenario harness can drive a REAL import with REAL `Worker`
   // construction — unlike the Node/happy-dom unit tests, a real browser can

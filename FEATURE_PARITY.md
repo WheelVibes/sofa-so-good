@@ -43,7 +43,6 @@ are interaction/productivity features, plus the AI auto-layout family.
 | Feature | Have | Feasible | Gap & approach (reference our modules) | Effort |
 |---|---|---|---|---|
 | AI floor-plan generation (text → plan) | ❌ | 🔑 | BYO-key LLM emits wall/room JSON into the 2D plan schema. | L |
-| AI plan recognition: auto-detect doors/windows + scale | ◑ | 🔑 | Extend the existing BYO-key AI wall tracing to openings + scale calibration. | M |
 
 _(Hosted 60k–1M+ model library · branded/manufacturer catalogs · cloud accounts /
 multi-user collab / teams · supplier/e-commerce/CNC integration → see §4 Out of scope.)_
@@ -73,8 +72,7 @@ polylines), and its iconic **video flythrough** export.
 > Shipped items are removed from this list as they land (see `CHANGELOG.md`); this
 > section tracks only what is still open.
 
-**High-value medium efforts (M):**
-1. AI plan recognition: auto-detect openings + scale (Coohom, 🔑 BYO-key).
+**High-value medium efforts (M):** _(all shipped — records in `CHANGELOG.md`)_
 
 _(AI matting / background removal — **closed 2026-07-18, no consumer**: no surface in the app
 takes a user product photo as a visual element (the moodboard is auto-generated from the live

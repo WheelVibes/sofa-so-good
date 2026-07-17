@@ -25,6 +25,10 @@ export interface BackdropMeta {
   /** World position (m) of the image's top-left corner. */
   ox: number
   oz: number
+  /** True once the scale was calibrated manually (Scale tool). Persisted so a
+   *  manual calibration survives reload and AI recognition still won't clobber
+   *  it (see `Backdrop.scaleCalibrated`). */
+  scaleCalibrated?: boolean
 }
 
 export interface PersistedBackdrop {
@@ -44,6 +48,7 @@ function toMeta(
     mPerPx: n(raw?.mPerPx, 0.01),
     ox: n(raw?.ox, 0),
     oz: n(raw?.oz, 0),
+    ...(raw?.scaleCalibrated ? { scaleCalibrated: true } : {}),
   }
 }
 

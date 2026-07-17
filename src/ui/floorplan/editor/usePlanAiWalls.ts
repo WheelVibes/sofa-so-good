@@ -1,24 +1,72 @@
-import { useState } from 'react'
+import { type Dispatch, type SetStateAction, useState } from 'react'
 import {
   AiPlanError,
+  type AiPlanResult,
   classifyVisionEndpoint,
   getVisionKey,
   getVisionUrl,
   recognizeFloorPlan,
   setVisionKey,
 } from '../../../ai/floorPlanAi'
+import { placeAiOpenings, shouldApplyAiScale } from '../../../ai/floorPlanAiPlacement'
 import { useStore } from '../../../state/store'
 import type { Backdrop } from './planConstants'
 
 /**
- * Experimental AI wall recognition (Wave E) extracted from `FloorPlanEditor`:
- * send the trace `backdrop` to an OpenAI-compatible vision model and seed an
- * editable draft plan from the returned walls (falls back to manual tracing on
- * any failure). Owns the `aiBusy` flag; everything else it needs it reads fresh
- * from the store. Self-contained — the only editor input is the current
- * `backdrop`.
+ * Apply a recognized plan (walls + openings) as a fresh draft in the store:
+ * start a blank plan, add every wall, then snap each recognized opening onto its
+ * nearest drafted wall and add it as a proper `PlanOpening`. Returns how many of
+ * each landed. Defensive — an opening whose host wall couldn't be placed is
+ * silently skipped, so a walls-only result behaves exactly as before. Backdrop
+ * scale calibration is the caller's job (it owns the backdrop React state).
+ *
+ * Exported so the dev-only `__applyAiVisionResponse` harness hook can drive the
+ * exact same apply path from a canned response — no network call.
  */
-export function usePlanAiWalls(backdrop: Backdrop | null): {
+export function applyAiPlanDraft(result: AiPlanResult): { walls: number; openings: number } {
+  const st = useStore.getState()
+  st.pushHistory()
+  st.newFloorPlan('AI draft')
+  const wallIds: string[] = []
+  for (const w of result.walls) {
+    wallIds.push(
+      st.addWall({
+        start: [w.x1, w.z1],
+        end: [w.x2, w.z2],
+        thickness: w.external ? 'external' : 'internal',
+      }),
+    )
+  }
+  let openings = 0
+  for (const p of placeAiOpenings(result.walls, result.openings)) {
+    const wallId = wallIds[p.wallIndex]
+    if (!wallId) continue
+    st.addOpening({
+      kind: p.kind,
+      wallId,
+      offset: p.offset,
+      width: p.width,
+      sill: p.sill,
+      head: p.head,
+    })
+    openings++
+  }
+  return { walls: result.walls.length, openings }
+}
+
+/**
+ * Experimental AI plan recognition (Wave E) extracted from `FloorPlanEditor`:
+ * send the trace `backdrop` to an OpenAI-compatible vision model and seed an
+ * editable draft plan from the returned walls — plus any doors/windows it spots
+ * and a scale estimate that calibrates the backdrop (falls back to walls-only,
+ * then to manual tracing, on any failure). Owns the `aiBusy` flag; everything
+ * else it needs it reads fresh from the store. The only editor inputs are the
+ * current `backdrop` and its `setBackdrop` (to write the calibrated scale).
+ */
+export function usePlanAiWalls(
+  backdrop: Backdrop | null,
+  setBackdrop: Dispatch<SetStateAction<Backdrop | null>>,
+): {
   aiBusy: boolean
   runAiWalls: () => Promise<void>
 } {
@@ -68,19 +116,21 @@ export function usePlanAiWalls(backdrop: Backdrop | null): {
       c.width = backdrop.w
       c.height = backdrop.h
       c.getContext('2d')?.drawImage(img, 0, 0)
-      const walls = await recognizeFloorPlan(c.toDataURL('image/png'), { key })
-      const st = useStore.getState()
-      st.pushHistory()
-      st.newFloorPlan('AI draft')
-      for (const w of walls) {
-        st.addWall({
-          start: [w.x1, w.z1],
-          end: [w.x2, w.z2],
-          thickness: w.external ? 'external' : 'internal',
-        })
+      const result = await recognizeFloorPlan(c.toDataURL('image/png'), { key })
+      const { walls, openings } = applyAiPlanDraft(result)
+      // Calibrate the trace backdrop from the AI's scale estimate, but never
+      // clobber a manual calibration (the Scale tool sets `scaleCalibrated`).
+      const calibrated =
+        shouldApplyAiScale(result.mPerPx, Boolean(backdrop?.scaleCalibrated)) && backdrop != null
+      if (calibrated) {
+        const mPerPx = result.mPerPx as number
+        setBackdrop((b) => (b ? { ...b, mPerPx } : b))
       }
-      st.notify.start({
-        title: `AI drafted ${walls.length} walls — adjust as needed`,
+      const parts = [`${walls} walls`]
+      if (openings) parts.push(`${openings} openings`)
+      if (calibrated) parts.push('scale')
+      useStore.getState().notify.start({
+        title: `AI drafted ${parts.join(', ')} — adjust as needed`,
         kind: 'success',
       })
     } catch (e) {

@@ -334,7 +334,7 @@ export function FloorPlanEditor() {
     setTool,
     plan,
   )
-  const { aiBusy, runAiWalls } = usePlanAiWalls(backdrop)
+  const { aiBusy, runAiWalls } = usePlanAiWalls(backdrop, setBackdrop)
   const aiWalls = useFeature('aiWalls')
   // Persistent wall-length labels (on by default; toggle in the editor header).
   // Dimensions default OFF — they're the densest overlay and collide with walls
@@ -1743,6 +1743,9 @@ export function FloorPlanEditor() {
                       anchorX,
                       anchorZ,
                     ),
+                    // Mark as manually calibrated so AI recognition won't
+                    // overwrite this scale with its own estimate.
+                    scaleCalibrated: true,
                   }
                 : b,
             )

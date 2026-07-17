@@ -1566,7 +1566,11 @@ same change that reshapes a system.
   uniform-fit to the plan and renders above room fills but below walls/dims (pure math in
   `editor/backdropPlacement.ts` — fit/centre/anchored-rescale + the 25 MB cap); Scale-tool
   calibration (`mPerPx`) anchors on the drawn segment's midpoint; persisted to IDB
-  (`backdropPersist.ts`, `usePlanBackdrop.ts`) + **"AI walls"** (BYO-key).
+  (`backdropPersist.ts`, `usePlanBackdrop.ts`) + **"AI walls"** (BYO-key; the one vision pass
+  drafts walls AND door/window openings AND a scale estimate — `ai/floorPlanAi.ts:
+  parseVisionResponse` → pure `ai/floorPlanAiPlacement.ts` nearest-wall snap →
+  `usePlanAiWalls.applyAiPlanDraft`; AI scale never overwrites a manual Set-scale calibration
+  (`backdrop.scaleCalibrated`); dev hook `window.__applyAiVisionResponse` for no-network testing).
   **Snap to grid** (Plan menu "Snap to grid", `planGridSnap` flag, pro; PARITY-GRID-SNAP): a
   whole-plan transform that rounds every wall endpoint / room polygon vertex / opening offset /
   note·dim·polyline coordinate (and every upper storey + the `extent`) to the editor's current

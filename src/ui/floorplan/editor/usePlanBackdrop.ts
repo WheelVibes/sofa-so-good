@@ -77,6 +77,7 @@ export function usePlanBackdrop(
       mPerPx: backdrop.mPerPx,
       ox: backdrop.ox,
       oz: backdrop.oz,
+      ...(backdrop.scaleCalibrated ? { scaleCalibrated: true } : {}),
     }
     const t = setTimeout(() => void updateBackdropMeta(meta), 400)
     return () => clearTimeout(t)
