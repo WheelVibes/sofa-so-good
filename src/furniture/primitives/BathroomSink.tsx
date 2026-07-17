@@ -1,6 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
-import { readStr } from './shared'
+import { metalLeg, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
 /** Bathroom basin with a chrome mixer tap. `style` picks the support: a
@@ -14,18 +14,26 @@ export function BathroomSink({ props }: { props: ParamProps }) {
   const cabinetFinish = readStr(props, 'cabinetFinish', 'wood')
 
   const porcelain = { color, roughness: 0.16, metalness: 0.02 }
-  const chrome = { color: '#cdd2d6', roughness: 0.2, metalness: 0.85 }
+  // Tap + trap route through the shared brushed-metal material (satin so the
+  // small fitting reads as light steel, not a black mirror of the dark floor).
+  const chromeMat = metalLeg('#d2d6da', 'satin')
+  const pullProps = { color: '#cdd2d6', roughness: 0.2, metalness: 0.85 }
   const basinY = 0.82
 
+  // Mixer: a vertical body rising from the deck (base bottom ≈0.78, so it sits ON
+  // the counter/basin rim for every style) + an arched spout over the bowl.
   const tap = (
     <>
-      <mesh castShadow position={[0, basinY + 0.13, -0.16]}>
-        <cylinderGeometry args={[0.015, 0.015, 0.18, 10]} />
-        <meshStandardMaterial {...chrome} />
+      <mesh castShadow position={[0, basinY + 0.06, -0.15]} material={chromeMat}>
+        <cylinderGeometry args={[0.016, 0.018, 0.2, 12]} />
       </mesh>
-      <mesh position={[0, basinY + 0.21, -0.12]} rotation={[0.7, 0, 0]}>
-        <cylinderGeometry args={[0.013, 0.013, 0.12, 10]} />
-        <meshStandardMaterial {...chrome} />
+      <mesh
+        castShadow
+        position={[0, basinY + 0.17, -0.08]}
+        rotation={[0.7, 0, 0]}
+        material={chromeMat}
+      >
+        <cylinderGeometry args={[0.013, 0.013, 0.17, 12]} />
       </mesh>
     </>
   )
@@ -49,7 +57,7 @@ export function BathroomSink({ props }: { props: ParamProps }) {
             </mesh>
             <mesh position={[s * 0.03, cabH / 2, cd / 2 + 0.02]}>
               <boxGeometry args={[0.014, (cabH - 0.06) * 0.5, 0.018]} />
-              <meshStandardMaterial {...chrome} />
+              <meshStandardMaterial {...pullProps} />
             </mesh>
           </group>
         ))}
@@ -80,9 +88,8 @@ export function BathroomSink({ props }: { props: ParamProps }) {
           <meshStandardMaterial color="#e2e2de" roughness={0.2} />
         </mesh>
         {/* Chrome bottle trap below */}
-        <mesh castShadow position={[0, basinY - 0.16, -0.04]}>
+        <mesh castShadow position={[0, basinY - 0.16, -0.04]} material={chromeMat}>
           <cylinderGeometry args={[0.02, 0.02, 0.2, 12]} />
-          <meshStandardMaterial {...chrome} />
         </mesh>
         {tap}
       </group>

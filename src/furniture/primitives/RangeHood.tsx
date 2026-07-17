@@ -39,13 +39,16 @@ export function RangeHood({ props }: { props: ParamProps }) {
         <boxGeometry args={[width - 0.04, 0.02, 0.16]} />
         <meshStandardMaterial color="#2b2e33" roughness={0.3} metalness={0.4} />
       </mesh>
-      {/* Tapered transition up to the duct */}
+      {/* Tapered transition up to the duct — a 4-sided frustum rotated 45° so
+          its flat faces front/back/side (a real chimney taper) instead of a
+          corner-forward diamond. */}
       <mesh
         {...applianceBodyMeshProps(metal)}
         castShadow
         position={[0, canopyH + 0.12, -depth / 2 + 0.18]}
+        rotation={[0, Math.PI / 4, 0]}
       >
-        <cylinderGeometry args={[0.12, 0.2, 0.24, 4]} />
+        <cylinderGeometry args={[0.14, 0.24, 0.24, 4]} />
         <ApplianceBodyMaterial finish={metal} />
       </mesh>
       {/* Duct cover against the wall */}

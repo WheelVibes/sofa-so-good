@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.80 — Realism wave 2: kitchen/appliances/bathroom/laundry/electronics
+
+28 defs audited with the hardened rubric (attachment verified per joint — closeups +
+coordinate math; user directive). 19 passed. Fixed — bathroom: toilet seat ring rendered
+VERTICAL (no X-rotation; rebuilt as flat seat + lid, cistern seated on the bowl's back
+shelf instead of cantilevered), bathtub's solid top occluded the basin (rebuilt: open rim
+walls + recessed water + deck mixer + grounded feet), round mirror frame lay flat as a
+horizontal halo slicing the pane, sink mixer floated ~4 cm off the vanity deck, shower/
+sink fittings routed through shared metalLeg, towel-ladder towels thickened to read
+edge-on. Kitchen: range-hood duct read as a corner-forward diamond (proper trapezoidal
+frustum), kitchen-island sink was a solid box clipping the worktop (recessed stainless
+basin + curved spout, worktop framed around the cutout), wine-cooler carcass occluded its
+interior (open-front shell — glass now reveals wire shelves/bottles/LED). Cross-cutting
+bugs logged for the coordinated pass: appliance finish swap-in-place leaves a stale white
+body (applianceBody material-prop vs child reconciliation, all 8 steel appliances);
+flatscreen-tv footprint doesn't track the size enum; shared oak grain (wave 1 note).
+Scenarios realism-kitchen-appliances / realism-bath-laundry-electronics added.
+
 ## v0.21.2.79 — Realism wave 1: seating/tables/beds/storage audit + fixes
 
 New program (docs/furniture-realism-plan.md): audit all 131 parametric defs against a

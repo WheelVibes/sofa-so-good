@@ -1,6 +1,6 @@
 import type { ParamProps } from '../types'
 import { GlassMaterial } from './GlassMaterial'
-import { readNum, readStr } from './shared'
+import { metalLeg, readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
 /** Corner shower: low tray + two glass panels + wall riser with head and
@@ -14,7 +14,8 @@ export function Shower({ props }: { props: ParamProps }) {
   const corner = style === 'corner'
   const h = 2.0
   const half = size / 2
-  const chrome = { color: '#cdd2d6', roughness: 0.2, metalness: 0.85 }
+  // Fittings route through the shared brushed-metal material (stainless).
+  const chrome = metalLeg('#cdd2d6', 'stainless')
 
   return (
     <group>
@@ -24,9 +25,8 @@ export function Shower({ props }: { props: ParamProps }) {
         <meshStandardMaterial color={trayColor} roughness={0.3} metalness={0.05} />
       </mesh>
       {/* Drain */}
-      <mesh position={[0, 0.085, 0]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh position={[0, 0.085, 0]} rotation={[Math.PI / 2, 0, 0]} material={chrome}>
         <cylinderGeometry args={[0.05, 0.05, 0.01, seg(16, detail)]} />
-        <meshStandardMaterial {...chrome} />
       </mesh>
       {/* Glass panels on the two open sides (+X and +Z) */}
       <mesh position={[half, h / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
@@ -41,37 +41,35 @@ export function Shower({ props }: { props: ParamProps }) {
         </mesh>
       )}
       {/* Glass frame edges */}
-      <mesh position={[half, h, 0]}>
+      <mesh position={[half, h, 0]} material={chrome}>
         <boxGeometry args={[0.02, 0.02, size]} />
-        <meshStandardMaterial {...chrome} />
       </mesh>
       {corner && (
-        <mesh position={[0, h, half]}>
+        <mesh position={[0, h, half]} material={chrome}>
           <boxGeometry args={[size, 0.02, 0.02]} />
-          <meshStandardMaterial {...chrome} />
         </mesh>
       )}
       {/* Walk-in: a stabiliser bar from the screen top to the back wall */}
       {!corner && (
-        <mesh position={[half, h - 0.05, -half + 0.1]}>
+        <mesh position={[half, h - 0.05, -half + 0.1]} material={chrome}>
           <boxGeometry args={[0.02, 0.02, size - 0.2]} />
-          <meshStandardMaterial {...chrome} />
         </mesh>
       )}
       {/* Riser rail on the −X/−Z corner wall */}
-      <mesh castShadow position={[-half + 0.05, 1.1, -half + 0.05]}>
+      <mesh castShadow position={[-half + 0.05, 1.1, -half + 0.05]} material={chrome}>
         <cylinderGeometry args={[0.015, 0.015, 1.2, 10]} />
-        <meshStandardMaterial {...chrome} />
       </mesh>
       {/* Shower head */}
-      <mesh position={[-half + 0.18, 1.85, -half + 0.18]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh
+        position={[-half + 0.18, 1.85, -half + 0.18]}
+        rotation={[Math.PI / 2, 0, 0]}
+        material={chrome}
+      >
         <cylinderGeometry args={[0.07, 0.07, 0.03, seg(18, detail)]} />
-        <meshStandardMaterial {...chrome} />
       </mesh>
       {/* Mixer */}
-      <mesh position={[-half + 0.05, 0.95, -half + 0.05]}>
+      <mesh position={[-half + 0.05, 0.95, -half + 0.05]} material={chrome}>
         <boxGeometry args={[0.08, 0.12, 0.08]} />
-        <meshStandardMaterial {...chrome} />
       </mesh>
     </group>
   )

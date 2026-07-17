@@ -83,10 +83,10 @@ export function TowelLadder({ props }: { props: ParamProps }) {
                   key={`t${i}.${s}`}
                   castShadow
                   receiveShadow
-                  position={[0, y - 0.2, s * 0.024]}
+                  position={[0, y - 0.2, s * 0.032]}
                   material={towelMat}
                 >
-                  <boxGeometry args={[width * 0.74, 0.4, 0.006]} />
+                  <boxGeometry args={[width * 0.74, 0.4, 0.022]} />
                 </mesh>
               ))
             : [],
