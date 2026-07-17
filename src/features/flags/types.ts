@@ -66,6 +66,7 @@ export type FeatureFlag =
   | 'renderCompare'
   | 'stagingReveal'
   | 'timeCompare'
+  | 'dayNightClip'
   | 'styleTransfer'
   | 'styleQuiz'
   | 'shortcutsHelp'

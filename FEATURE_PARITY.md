@@ -42,7 +42,6 @@ are interaction/productivity features, plus the AI auto-layout family.
 
 | Feature | Have | Feasible | Gap & approach (reference our modules) | Effort |
 |---|---|---|---|---|
-| Day-to-night animated render clip | ◑ | ✅ | Animate the time-of-day slider along the video path (real-GPU final clip). | M |
 | AI floor-plan generation (text → plan) | ❌ | 🔑 | BYO-key LLM emits wall/room JSON into the 2D plan schema. | L |
 | AI plan recognition: auto-detect doors/windows + scale | ◑ | 🔑 | Extend the existing BYO-key AI wall tracing to openings + scale calibration. | M |
 | AI matting / background removal | ❌ | ✅ | WASM segmentation (MODNet/rembg-wasm) for product cutouts. | M |
@@ -76,9 +75,8 @@ polylines), and its iconic **video flythrough** export.
 > section tracks only what is still open.
 
 **High-value medium efforts (M):**
-1. Day-to-night animated render clip (Coohom) — animate time-of-day along the video path.
-2. AI plan recognition: auto-detect openings + scale (Coohom, 🔑 BYO-key).
-3. AI matting / background removal for product cutouts (WASM segmentation).
+1. AI plan recognition: auto-detect openings + scale (Coohom, 🔑 BYO-key).
+2. AI matting / background removal for product cutouts (WASM segmentation).
 
 _(The former "fast rasterized preview render tier" row was retired 2026-07-10: the capability
 substantively ships — one-tap raster render presets (`scene/renderPresets.ts`, F4) + the 2×

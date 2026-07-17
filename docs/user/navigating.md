@@ -156,6 +156,13 @@ and captures it: it asks for the total video length, then flies the tour and
 downloads the clip when it ends (an MP4 where your browser supports it, otherwise
 a WebM). Both need at least two saved views.
 
+**Day → night sweep** — a checkbox under **Record walkthrough video** animates
+the **time of day across the tour**: tick it, pick the **From** and **To** times
+on the two sliders that appear, and the flight (including the recorded clip)
+transitions through the day's lighting — say bright morning to warm evening
+lamps — as it moves through your views. It applies to the Cinematic tour too,
+and your original time of day is restored when the tour ends.
+
 **View → Render all views** flies through every saved view in turn and downloads
 a high-quality PNG of each — a one-click way to export a whole set of presentation
 images at once (named so they sort in saved-view order).

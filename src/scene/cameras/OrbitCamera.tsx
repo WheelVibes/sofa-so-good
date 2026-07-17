@@ -503,6 +503,11 @@ export function OrbitCamera() {
           rate: 1 / (useStore.getState().viewTourLegSeconds || VIEW_TOUR_LEG_SECONDS),
           lastLeg: -1,
         }
+        // Day → night clip sweep (DAY-NIGHT-CLIP): snapshot the current time +
+        // pin the clock to the sweep start. No-op unless the toggle is on;
+        // while active it drives the clock from tour progress each frame and
+        // takes over from each view's captured lighting hour below.
+        useStore.getState().beginTimeSweep()
       }
       if (!tour.current) {
         const plan = useStore.getState().floorPlan
@@ -533,6 +538,8 @@ export function OrbitCamera() {
       if (tour.current.t >= n) {
         c.enabled = true
         tour.current = null
+        // Restore the pre-sweep time before ending (no-op if no sweep ran).
+        useStore.getState().endTimeSweep()
         useStore.getState().setTouring(false)
         if (useStore.getState().recording) useStore.getState().setRecording(false)
         return
@@ -540,6 +547,12 @@ export function OrbitCamera() {
       const t = tour.current.t
       const i = Math.floor(t) % n
       const j = (i + 1) % n
+      // Day → night sweep active (DAY-NIGHT-CLIP): drive the clock from overall
+      // tour progress (0→1 across all legs) — a no-op when idle. When active it
+      // OWNS the time-of-day, so the per-leg captured-hour application below is
+      // skipped (the sweep would otherwise fight it each leg change).
+      const sweepActive = useStore.getState().timeSweepRestore != null
+      if (sweepActive) useStore.getState().applyTimeSweepProgress(t / n)
       // Saved-view legs: apply the destination view's captured lighting as the
       // leg begins, so the scene transitions while the camera flies.
       if (tour.current.lastLeg !== undefined && tour.current.lastLeg !== i) {
@@ -548,9 +561,11 @@ export function OrbitCamera() {
         if (lighting) {
           const st = useStore.getState()
           if (lighting.lights) st.setLightsMode(lighting.lights)
-          if (lighting.mode === 'manual' && typeof lighting.hour === 'number')
-            st.setManualHour(lighting.hour)
-          else if (lighting.mode === 'system') st.setTimeMode('system')
+          if (!sweepActive) {
+            if (lighting.mode === 'manual' && typeof lighting.hour === 'number')
+              st.setManualHour(lighting.hour)
+            else if (lighting.mode === 'system') st.setTimeMode('system')
+          }
         }
       }
       const f = smooth(t - Math.floor(t))
@@ -560,6 +575,8 @@ export function OrbitCamera() {
     } else if (tour.current) {
       tour.current = null
       c.enabled = true
+      // Tour stopped externally (Esc / manual stop) mid-sweep → restore time.
+      useStore.getState().endTimeSweep()
     }
     // Keep the orbit pivot on/above the floor: panning (shift-wheel or right-drag
     // with screenSpacePanning) can otherwise drag the target below Y=0, after

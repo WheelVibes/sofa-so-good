@@ -469,6 +469,18 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Day → night animated render clip — while recording the saved-views
+  // walkthrough video, sweep the time-of-day slider across a chosen range so
+  // the exported clip transitions through lighting conditions (Coohom
+  // day-to-night video parity, see REFERENCES.md). Pure client code (drives the
+  // existing sun rig from tour progress), prod-safe, but a presentation
+  // flourish layered on the pro recording path → pro tier.
+  dayNightClip: {
+    label: 'Day → night clip',
+    description: 'Sweep the time of day across the recorded walkthrough video',
+    default: true,
+    tier: 'pro',
+  },
   // One-tap style transfer — restyle every room's floor/wall finish + palette to
   // a named look (Scandi/Japandi/Industrial/…). Pure data + builtin CC0 finishes,
   // prod-safe, but an advanced design shortcut → pro tier.

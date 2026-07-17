@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.0.4 — Day→night animated render clip (DAY-NIGHT-CLIP)
+
+Closes the FEATURE_PARITY Coohom gap "day-to-night animated render clip": a
+**Day → night sweep** checkbox (+ From/To hour sliders) under **View → Record
+walkthrough video** (desktop) / the mobile View section animates `manualHour`
+across the saved-views tour, so the recorded clip (and the non-recording
+Cinematic tour) transitions through the day's lighting. New `dayNightClip` flag
+(pro, default on); pure sweep math in `scene/cameras/dayNightSweep.ts`
+(`sweepHourAt` — clamps, sweeps forward through midnight, wraps to [0,24));
+lifecycle in `timeSlice` (`begin/apply/endTimeSweep` — snapshots and restores
+the pre-tour time, incl. on external stop); `OrbitCamera`'s tour loop drives
+progress and skips per-view captured hours while a sweep is active. The setup
+control stops click propagation so the ToolbarMenu panel's close-on-click
+doesn't dismiss the menu mid-configuration (caught in visual verification).
+Real-GPU verified (8:00 day / 15:00 afternoon / 22:00 night frames + restore);
+both modes + mobile asserted; scenarios `daynight-clip-simple.json` +
+`daynight-clip-sweep.json`; 24 unit tests across sweep math, slice lifecycle,
+flag gating.
+
 ## v0.22.0.3 — 2D plan editor: docked catalog shrinks the plan viewport
 
 The plan-furnish docked catalog used to float OVER the plan; `.plan-screen` now

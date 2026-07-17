@@ -1,0 +1,134 @@
+{
+  "name": "daynight-clip-simple",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setUiMode?.('pro'); s.reresolveFeatureFlags?.(); })()"
+    },
+    {
+      "name": "save-two-views",
+      "eval": "(() => { const s = window.__store.getState(); s.saveCurrentView?.('View A'); s.saveCurrentView?.('View B'); })()"
+    },
+    {
+      "name": "views-saved",
+      "waitFor": {
+        "store": "(state.savedViews || []).length >= 2"
+      }
+    },
+    {
+      "name": "open-view-menu",
+      "eval": "(() => { const b = [...document.querySelectorAll('button')].find(b => /^\\s*View\\b/.test(b.textContent.trim()) && b.getAttribute('aria-haspopup')); if (!b) { const alt = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'View'); if (!alt) throw new Error('no View trigger; buttons: ' + [...document.querySelectorAll('.toolbar button')].map(x => x.textContent.trim()).filter(Boolean).slice(0, 20).join('|')); alt.click(); return; } b.click(); })()"
+    },
+    {
+      "name": "menu-open",
+      "waitFor": {
+        "text": "Record walkthrough video"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "shot-menu-at-open",
+      "screenshot": "view-menu-at-open"
+    },
+    {
+      "name": "probe-toggle",
+      "eval": "(() => { const has = document.body.textContent.includes('Day → night sweep'); if (!has) throw new Error('Day → night sweep toggle NOT in Pro View menu'); return 'present'; })()"
+    },
+    {
+      "name": "enable-sweep-ui",
+      "eval": "(() => { const el = [...document.querySelectorAll('button, input, label')].find(e => (e.textContent || '').includes('Day → night sweep')); (el.querySelector('input') || el).click(); })()"
+    },
+    {
+      "name": "sweep-enabled",
+      "waitFor": {
+        "store": "state.clipTimeSweep === true"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "settle",
+      "wait": 400
+    },
+    {
+      "name": "shot-menu-sweep-on",
+      "screenshot": "view-menu-sweep-on"
+    },
+    {
+      "name": "close-menu",
+      "key": "Escape"
+    },
+    {
+      "name": "to-simple",
+      "eval": "(() => { const s = window.__store.getState(); s.setUiMode('simple'); s.reresolveFeatureFlags?.(); })()"
+    },
+    {
+      "name": "flag-off",
+      "waitFor": {
+        "store": "state.featureFlags.dayNightClip === false"
+      }
+    },
+    {
+      "name": "reopen-menu-simple",
+      "eval": "(() => { const b = [...document.querySelectorAll('button')].find(b => /^\\s*View\\b/.test(b.textContent.trim())); b?.click(); })()"
+    },
+    {
+      "name": "settle2",
+      "wait": 600
+    },
+    {
+      "name": "assert-hidden-simple",
+      "eval": "(() => { if (document.body.textContent.includes('Day → night sweep')) throw new Error('sweep toggle visible in Simple'); return 'hidden in simple'; })()"
+    },
+    {
+      "name": "shot-menu-simple",
+      "screenshot": "view-menu-simple"
+    },
+    {
+      "name": "mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "to-pro-mobile",
+      "eval": "(() => { const s = window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags?.(); })()"
+    },
+    {
+      "name": "settle3",
+      "wait": 800
+    },
+    {
+      "name": "open-mobile-menu",
+      "eval": "(() => { const b = [...document.querySelectorAll('button')].find(b => (b.getAttribute('aria-label') || '').toLowerCase().includes('menu')); if (!b) throw new Error('no mobile menu button'); b.click(); })()"
+    },
+    {
+      "name": "settle4",
+      "wait": 800
+    },
+    {
+      "name": "probe-mobile",
+      "eval": "(() => { const secBtn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'View'); secBtn?.click(); return 'clicked view section: ' + !!secBtn; })()"
+    },
+    {
+      "name": "settle5",
+      "wait": 600
+    },
+    {
+      "name": "assert-mobile-toggle",
+      "eval": "(() => { const has = document.body.textContent.includes('Day → night sweep'); if (!has) throw new Error('sweep toggle NOT in mobile View section'); return 'present on mobile'; })()"
+    },
+    {
+      "name": "shot-mobile-menu",
+      "screenshot": "mobile-view-section"
+    }
+  ]
+}
