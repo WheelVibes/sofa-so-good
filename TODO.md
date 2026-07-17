@@ -79,8 +79,12 @@ See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full d
   (`scripts/vite-local-assets.mjs`) serving `/@local-assets/*`, `localAssets` devOnly flag,
   `localAssetsSlice` (`bootstrapLocalAssets`), `LocalGltfDef` source, merged in `catalog.ts`.
 - **Scrapers (Part 3).** `research/scrapers/` has 35 working scrapers with complete enumeration;
-  finalized tiering in the plan doc. Next: run Tier-1 CC0 scrapers into `local-assets/` (pairs with
-  Part 1), then surface Poly Haven models in prod (`remoteFurniture` flag).
+  finalized tiering in the plan doc. **Poly Haven model fetcher SHIPPED (v0.22.0.6)** —
+  `scripts/asset-pipeline/fetch-polyhaven-models.mjs` downloads CC0 gltf bundles and repacks
+  self-contained GLBs into `local-assets/<category>/` (11-item curated furniture set fetched,
+  verified loading + placing via the Part-1 plugin). Next: run more Tier-1 CC0 scrapers into
+  `local-assets/`, then surface Poly Haven models in prod (`remoteFurniture` flag — needs a
+  runtime fetch/repack path or pre-bundled assets, see the production-infra section).
 
 ## Open — UI/UX polish follow-ups
 - [ ] **P37 List virtualization — DEFERRED (2026-07-03 ruling).** Not justified now: the
@@ -98,8 +102,10 @@ proxy/mirror/host is missing, and standing one up is a deployment task, not a co
 - **Kenney / Quaternius mirrors** — no CORS-friendly API, ship single ZIPs; need a build-time mirror
   or proxy worker + format conversion (FBX/OBJ → GLB) before adding to the runtime catalog.
 - **Sketchfab** — REST + OAuth token + runtime fetch (auth/ToS friction).
-- **Poly Haven model fetcher / Kenney zip extraction** — Poly Haven serves multi-file gltf+bin+tex
-  bundles (not single GLBs); need a pipeline that downloads + repacks to a self-contained `.glb`.
+- **Kenney zip extraction** — no CORS-friendly API, ships single ZIPs; still needs a mirror +
+  format conversion. (The Poly Haven half of this item shipped as the DEV-side
+  `fetch-polyhaven-models.mjs` repack pipeline, v0.22.0.6 — a *runtime/prod* fetcher would still
+  need a proxy/host, same class as the ambientCG proxy above.)
 
 ## Assets — open pipeline deferrals
 - **KTX2/DDS standalone-material decode** — needs a WebGL readback; the model importer handles
@@ -153,17 +159,23 @@ was already physically correct via real lights.)
   measurements in the 2026-07-12 session records. (Drag inertia: still skip.)
 
 ## Open — customizability / UX
-- **Fold baseboard + accent-wall *creation* into the FinishPicker.** The FinishPicker now covers
-  floor + wall + ceiling and *manages* a room's existing accent walls (v0.9.0.45 — list + clear +
-  hint). Remaining: (a) *create* an accent from the panel by picking a wall (needs a room→walls
-  enumeration that works for both the fixed apartment `wallRoomSides` and custom plans); (b) fold
-  baseboard (2D-plan-inspector only, `wallBaseboard`, keyed per-wall → needs a per-room aggregation
-  decision). Medium effort, lower incremental value.
-- **2D-plan finish drag-and-drop** (S–M) — `finishDnd` drag-to-apply works in 3D
-  (`scene/FinishDropSurface`) but not the 2D plan editor. Add plan drop-zones reusing `finishDrop`
-  + `setRoomFinish`/`setWallFinish` (reuses the `finishDnd` flag). Lower reach (many users never
-  open the 2D editor); drag-drop is fiddly to verify headlessly. Note: 2D room polygons are SVG, so
-  the `ui/CLAUDE.md` "drop zones must be `<div>`" rule needs a workaround.
+- **Baseboard fold into FinishPicker — CLOSED as skip (2026-07-18 ruling).** Accent-wall
+  *creation* shipped (v0.22.0.5, `materials/roomWalls.ts` + FinishPicker "Add accent wall…").
+  Baseboard stays per-wall in the 2D-plan `WallInspector`: `wallBaseboard` is a genuinely
+  per-wall `PlanWall` property (mixed heights/colours per room → any per-room control is lossy
+  and clobbers variety), and the fixed apartment's 3D `WallSegment` has no per-wall baseboard
+  data at all, so a picker control would have nothing to bind to for the default flat. Don't
+  re-propose without a per-room aggregation design that handles both.
+- **2D-plan finish drag-and-drop — CLOSED, no entry point (2026-07-18 investigation).** The
+  proposed plan drop-zones would be dead UI: the ONLY finish drag source is the FinishPicker's
+  `SwatchGroup` tiles (`ui/finish/swatches.tsx` → `encodeFinishDrag`), and the FinishPicker never
+  mounts in the plan editor (needs `selectedRoomId`; the opaque `.plan-screen` z-30 overlay covers
+  the right dock, which has no `z-index` bump like the catalog's `.catalog-in-plan`; and
+  `ui/CLAUDE.md` + `editor/inspector/RoomInspector.tsx` deliberately keep finishes OUT of the plan
+  editor — "the plan stays a structural/layout view"). Reviving this requires a product decision to
+  surface a finish palette inside the plan editor first (contradicting that invariant), not a drop-
+  zone implementation; the pure decision layer (`materials/finishDrop.ts` +
+  `state/finishDropApply.ts`) is drop-surface-agnostic and would map cleanly if that ever happens.
 
 
 ## Core-loop parity gaps (2026-07-03 audit)

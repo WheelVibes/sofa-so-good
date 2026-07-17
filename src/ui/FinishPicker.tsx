@@ -26,6 +26,7 @@ import {
   tintMaterialId,
 } from '../materials/composeMaterial'
 import { resolveDesignerPicks } from '../materials/designerPicks'
+import { roomWallLabel, roomWalls } from '../materials/roomWalls'
 import type { MaterialCategory, MaterialDef } from '../materials/types'
 import { useMaterials } from '../materials/useMaterial'
 import { editableRooms } from '../state/rooms'
@@ -81,6 +82,7 @@ export function FinishPicker() {
   const setCeilingFinish = useStore((s) => s.setCeilingFinish)
   const clearCeilingFinish = useStore((s) => s.clearCeilingFinish)
   const clearWallAccent = useStore((s) => s.clearWallAccent)
+  const selectWall = useStore((s) => s.selectWall)
   const setAllFloorFinish = useStore((s) => s.setAllFloorFinish)
   const setAllWallFinish = useStore((s) => s.setAllWallFinish)
   const setAllCeilingFinish = useStore((s) => s.setAllCeilingFinish)
@@ -660,13 +662,22 @@ export function FinishPicker() {
             </>
           ) : null}
           {/* Accent walls (per-`wallId:roomId`): surface + manage this room's
-              accents in one place. Creating one stays a 3D wall tap (opens the
-              WallAccentPicker) — the wall→room mapping differs by plan type, so
-              we don't re-enumerate it here; this is the management/discovery view. */}
+              accents in one place. Creating one either taps a wall in the 3D
+              view OR picks a wall from the "Add accent wall" list below — the
+              wall→room enumeration (`materials/roomWalls.ts`) resolves the SAME
+              wall ids the accent key uses for BOTH the fixed apartment and
+              custom plans, so a picked wall opens the WallAccentPicker (finish
+              choice) exactly as a 3D tap does. */}
           {fWallAccent && activeTab === 'wall'
             ? (() => {
                 const accents = Object.entries(finishes.wallAccents).filter(
                   ([k]) => k.slice(k.lastIndexOf(':') + 1) === roomId,
+                )
+                const accentWallIds = new Set(accents.map(([k]) => k.slice(0, k.lastIndexOf(':'))))
+                // Walls of this room that don't yet carry an accent — the
+                // "Add accent wall" options. Works for fixed + custom plans.
+                const addable = roomWalls(plan, roomId ?? '').filter(
+                  (w) => !accentWallIds.has(w.wallId),
                 )
                 return (
                   <div className="sec">
@@ -680,8 +691,8 @@ export function FinishPicker() {
                           margin: 'var(--s-1) 0 0',
                         }}
                       >
-                        Tap any wall in the 3D view to paint it a different colour from the rest of
-                        the room.
+                        Pick a wall below (or tap any wall in the 3D view) to paint it a different
+                        colour from the rest of the room.
                       </p>
                     ) : (
                       <>
@@ -737,10 +748,29 @@ export function FinishPicker() {
                             margin: 'var(--s-2) 0 0',
                           }}
                         >
-                          Tap another wall in the 3D view to add one.
+                          Add another below, or tap a wall in the 3D view.
                         </p>
                       </>
                     )}
+                    {addable.length > 0 ? (
+                      <Select
+                        className="input"
+                        ariaLabel="Add an accent wall"
+                        value=""
+                        placeholder="Add accent wall…"
+                        onChange={(wallId) => {
+                          if (wallId && roomId) selectWall(wallId, roomId)
+                        }}
+                        style={{ marginTop: 'var(--s-2)', width: '100%' }}
+                        options={[
+                          { value: '', label: 'Add accent wall…', disabled: true },
+                          ...addable.map((w) => ({
+                            value: w.wallId,
+                            label: roomWallLabel(w, units),
+                          })),
+                        ]}
+                      />
+                    ) : null}
                   </div>
                 )
               })()

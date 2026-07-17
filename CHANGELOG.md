@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.0.5 — Accent-wall creation from the FinishPicker
+
+The Walls tab's "Accent walls" section gains an **"Add accent wall…"** Select
+listing the room's walls that don't yet carry an accent, labelled by compass
+side + length ("North wall · 3.50 m"); picking one hands off to the existing
+`WallAccentPicker` (same surface as a 3D wall tap). New pure
+`materials/roomWalls.ts` (`roomWalls`/`roomWallLabel`) enumerates a room's
+walls for BOTH plan types via the shared `getRoomEditorShell` dispatch (fixed
+apartment `WALLS` ids; custom-plan `floorPlan.walls` ids), matching the
+`${wallId}:${roomId}` accent key. Reuses the `wallAccentPicker` flag (simple
+tier — same surface, new entry point). Baseboard fold-in evaluated and SKIPPED
+(per-wall property, no per-room aggregation; ruling in TODO.md). Also records
+the 2D-plan finish-DnD closure ruling (no reachable entry point — finishes are
+deliberately excluded from the plan editor). GPU-verified end-to-end (Select →
+handoff → accent renders on the NE Living/Dining wall; mobile sheet parity);
+scenario `accent-wall-create.json`; 12 new unit tests.
+
 ## v0.22.0.4 — Day→night animated render clip (DAY-NIGHT-CLIP)
 
 Closes the FEATURE_PARITY Coohom gap "day-to-night animated render clip": a

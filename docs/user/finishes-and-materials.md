@@ -14,9 +14,11 @@
    ceiling to all rooms**, or **Reset ceiling to white** to go back to the plain
    default.
 6. **Accent walls** — click any single wall in the 3D view to paint it a different
-   colour from the rest of the room. The **Walls** tab lists this room's accent
-   walls under **Accent walls**, where you can remove one (match it back to the
-   room) at a tap.
+   colour from the rest of the room, or use the **Add accent wall…** dropdown in
+   the **Walls** tab's **Accent walls** section: it lists the room's walls by
+   compass side and length (e.g. *North wall · 3.50 m*), and picking one opens the
+   accent finish picker for it. The same section lists this room's existing accent
+   walls, where you can remove one (match it back to the room) at a tap.
 
 This works the same on a **custom floor plan** (a template or one you drew
 yourself): each plan room takes its own floor and wall finish, live in 3D, and
