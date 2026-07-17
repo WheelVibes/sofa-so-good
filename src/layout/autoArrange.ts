@@ -80,6 +80,30 @@ interface Ctx {
   /** Collision walls override for a user-authored plan. When omitted, the
    *  fixed flat's door-aware walls are used (default flat). */
   walls?: CollisionWall[]
+  /** Layout-variant seed (LAYOUT-REROLL). `0` = today's deterministic default
+   *  (byte-identical output); `> 0` rotates the candidate wall / bed-anchor /
+   *  focal-wall / lounge-band choices to produce a DIFFERENT layout. Validity
+   *  is unaffected — every placement still goes through `tryPlace`/`settle`,
+   *  which reject a colliding/blocked transform, so any seed stays as
+   *  collision-clean as the default. */
+  seed: number
+}
+
+/** How many distinct layout variants a per-room reroll cycles through before
+ *  wrapping (LAYOUT-REROLL). Seed 0 is the default "Tidy" layout; 1..N-1 are
+ *  alternatives, and the cycle returns to 0 so "the original tidy layout" is
+ *  always one tap away in the loop. */
+export const LAYOUT_VARIANT_COUNT = 4
+
+/** Rotate an edge-candidate list by `seed` (variant reroll). A seed of 0 — or a
+ *  list with fewer than two edges — is returned unchanged, so the default
+ *  layout is byte-identical. Rotation only reorders which wall an item TRIES
+ *  first; `tryPlace` still validates each candidate, so a rotated order can
+ *  never emit an overlapping/blocked layout. */
+function rotateEdges(edges: Edge[], seed: number): Edge[] {
+  if (seed <= 0 || edges.length < 2) return edges
+  const k = seed % edges.length
+  return k === 0 ? edges : [...edges.slice(k), ...edges.slice(0, k)]
 }
 
 /** Axis-aligned footprint AABB of a candidate (accounts for rotation). */
@@ -162,6 +186,11 @@ function usableRect(roomId: RoomId): Rect {
 /** Rooms whose seating should face a focal (TV) wall, and which edge it is. */
 const FOCAL: Partial<Record<RoomId, Edge>> = { livingDining: 'E' }
 
+/** Lounge-cluster bands (fraction of the room depth) a living-room reroll
+ *  cycles the sofa/console/coffee zone through (LAYOUT-REROLL). Index 0 is the
+ *  default north band; the rest slide the lounge to give a distinct layout. */
+const LIVING_LOUNGE_BANDS = [0.28, 0.62, 0.44, 0.74]
+
 /** Keep-clear rects per room: door swings + open passages between rooms, so
  *  the auto-arranger never blocks an entrance. Grounded in the fixed apartment
  *  geometry (DOORS/WALLS in apartment/constants.ts). */
@@ -188,7 +217,7 @@ function snapToWall(
   const def = ctx.catalog[item.defId]
   if (!def) return item
   const { w, d } = baseFootprint(item, def)
-  for (const edge of edges) {
+  for (const edge of rotateEdges(edges, ctx.seed)) {
     const rot = inward(edge)
     // Perpendicular half-extent (depth d faces the wall) and along-wall half (w).
     const along = w / 2
@@ -277,6 +306,7 @@ export function arrangeRoom(
   allItems: FurnitureItem[],
   catalog: Record<string, FurnitureDef>,
   doors: Record<string, { open: boolean }>,
+  seed = 0,
 ): FurnitureItem[] {
   return arrangeCore({
     rect: usableRect(roomId),
@@ -287,6 +317,7 @@ export function arrangeRoom(
     allItems,
     catalog,
     doors,
+    seed,
   })
 }
 
@@ -305,10 +336,23 @@ function arrangeCore(opts: {
   doors: Record<string, { open: boolean }>
   /** Custom-plan collision walls (omitted → fixed flat walls). */
   walls?: CollisionWall[]
+  /** Layout-variant seed (LAYOUT-REROLL); default 0 = today's exact output. */
+  seed?: number
 }): FurnitureItem[] {
-  const { rect, keepOut, inRoom, kind, focal, genericLiving, allItems, catalog, doors, walls } =
-    opts
-  const ctx: Ctx = { catalog, doors, keepOut, walls }
+  const {
+    rect,
+    keepOut,
+    inRoom,
+    kind,
+    focal,
+    genericLiving,
+    allItems,
+    catalog,
+    doors,
+    walls,
+    seed = 0,
+  } = opts
+  const ctx: Ctx = { catalog, doors, keepOut, walls, seed }
   const isFixed = (i: FurnitureItem) => {
     const r = roleOf(i.defId, catalog)
     return r === 'mounted' || r === 'ceiling'
@@ -489,9 +533,20 @@ function arrangeLiving(
   if (focal) {
     const console = get(['mediaConsole'])[0]
     const seatingRef = get(['seating'])[0]
-    consoleZ = seatingRef
-      ? clamp(seatingRef.position[1], rect.z0 + 1, rect.z1 - 1)
-      : rect.z0 + (rect.z1 - rect.z0) * 0.28
+    // Seed 0 keeps today's lounge band (aligned to the sofa's current z, or a
+    // default north band). A reroll (seed > 0) slides the whole lounge cluster
+    // — console + sofa + coffee/rug — to a different band along the TV wall.
+    consoleZ =
+      ctx.seed > 0
+        ? clamp(
+            rect.z0 +
+              (rect.z1 - rect.z0) * LIVING_LOUNGE_BANDS[ctx.seed % LIVING_LOUNGE_BANDS.length],
+            rect.z0 + 1,
+            rect.z1 - 1,
+          )
+        : seatingRef
+          ? clamp(seatingRef.position[1], rect.z0 + 1, rect.z1 - 1)
+          : rect.z0 + (rect.z1 - rect.z0) * 0.28
     if (console) {
       const def = catalog[console.defId]
       const d = def ? baseFootprint(console, def).d : 0.4
@@ -537,7 +592,17 @@ function arrangeLiving(
   // 4. Dining table + chairs → secondary zone (far half from the lounge).
   const dining = get(['diningTable'])[0]
   if (dining) {
-    const dz = focal === 'E' ? rect.z0 + (rect.z1 - rect.z0) * 0.74 : cz
+    // Seed 0: dining in the far (south) half. Reroll: put the dining zone at
+    // whichever end is OPPOSITE the (possibly-moved) lounge band, so the two
+    // zones don't collide as the lounge slides around.
+    const dz =
+      ctx.seed > 0
+        ? consoleZ < cz
+          ? rect.z0 + (rect.z1 - rect.z0) * 0.8
+          : rect.z0 + (rect.z1 - rect.z0) * 0.2
+        : focal === 'E'
+          ? rect.z0 + (rect.z1 - rect.z0) * 0.74
+          : cz
     const dx = clamp(dining.position[0], rect.x0 + 1, rect.x1 - 1)
     const placed = tryPlace(dining, [dx, dz], 0, world, ctx)
     const def = catalog[placed.defId]
@@ -597,11 +662,33 @@ function arrangeBedroom(
     const def = catalog[bed.defId]
     const fp = def ? baseFootprint(bed, def) : { w: 1.4, d: 2.0 }
     bedW = fp.w
-    // Headboard wall: the bed's nearest wall, centred along it for balance.
-    bedEdge = nearestEdge(bed.position, rect)
-    const horizontal = bedEdge === 'N' || bedEdge === 'S'
-    bedAlong = horizontal ? (rect.x0 + rect.x1) / 2 : (rect.z0 + rect.z1) / 2
-    const placed = placeFlush(bed, rect, bedEdge, bedAlong, world, ctx)
+    // Headboard wall: seed 0 keeps today's exact behaviour — the bed's nearest
+    // wall, centred along it, placed once. A reroll (seed > 0) tries a ROTATED
+    // set of walls and anchors the headboard to the first that fits, moving the
+    // whole room's furniture with it — a different but still collision-valid
+    // layout (placeFlush validates each candidate).
+    const nearest = nearestEdge(bed.position, rect)
+    const alongFor = (e: Edge): number =>
+      e === 'N' || e === 'S' ? (rect.x0 + rect.x1) / 2 : (rect.z0 + rect.z1) / 2
+    const candidates: Edge[] =
+      ctx.seed > 0
+        ? rotateEdges(
+            [nearest, ...(['N', 'E', 'S', 'W'] as Edge[]).filter((e) => e !== nearest)],
+            ctx.seed,
+          )
+        : [nearest]
+    bedEdge = nearest
+    bedAlong = alongFor(nearest)
+    let placed = bed
+    for (const e of candidates) {
+      const p = placeFlush(bed, rect, e, alongFor(e), world, ctx)
+      if (p !== bed) {
+        bedEdge = e
+        bedAlong = alongFor(e)
+        placed = p
+        break
+      }
+    }
     // Foot plane = bed centre + half-length away from the headboard wall.
     const len = fp.d
     if (bedEdge === 'N') bedFootZ = placed.position[1] + len / 2
@@ -883,8 +970,11 @@ function windowCentres(plan: FloorPlan): Array<[number, number]> {
   return pts
 }
 
-/** Pick a windowless edge of `rect` for a TV/media wall (prefer E, N, S, W). */
-function inferFocal(rect: Rect, windows: Array<[number, number]>): Edge | undefined {
+/** Pick a windowless edge of `rect` for a TV/media wall (prefer E, N, S, W).
+ *  A reroll (`seed > 0`) picks the seed-th windowless edge instead of always
+ *  the first, so a custom-plan lounge faces a different wall each variant;
+ *  seed 0 returns the first windowless edge (identical to before). */
+function inferFocal(rect: Rect, windows: Array<[number, number]>, seed = 0): Edge | undefined {
   const tol = 0.5
   const hasWindow = (edge: Edge): boolean =>
     windows.some(([wx, wz]) => {
@@ -896,8 +986,9 @@ function inferFocal(rect: Rect, windows: Array<[number, number]>): Edge | undefi
         return Math.abs(wx - rect.x0) < tol && wz > rect.z0 - tol && wz < rect.z1 + tol
       return Math.abs(wx - rect.x1) < tol && wz > rect.z0 - tol && wz < rect.z1 + tol
     })
-  for (const e of ['E', 'N', 'S', 'W'] as Edge[]) if (!hasWindow(e)) return e
-  return undefined
+  const windowless = (['E', 'N', 'S', 'W'] as Edge[]).filter((e) => !hasWindow(e))
+  if (windowless.length === 0) return undefined
+  return windowless[seed % windowless.length]
 }
 
 /** Arrange a single custom-plan room (shared by the per-room "Tidy" + the
@@ -915,6 +1006,7 @@ function arrangeOnePlanRoom(
   windows: Array<[number, number]>,
   walls: CollisionWall[],
   levelId: string = GROUND_LEVEL_ID,
+  seed = 0,
 ): FurnitureItem[] {
   const inRoom = (i: FurnitureItem) =>
     (i.levelId ?? GROUND_LEVEL_ID) === levelId &&
@@ -929,12 +1021,13 @@ function arrangeOnePlanRoom(
     kind,
     // Custom living rooms use the edge-generic arranger, facing seating to a
     // windowless wall in whatever direction it lies.
-    focal: kind === 'living' ? inferFocal(rect, windows) : undefined,
+    focal: kind === 'living' ? inferFocal(rect, windows, seed) : undefined,
     genericLiving: true,
     allItems: items,
     catalog,
     doors,
     walls,
+    seed,
   })
 }
 
@@ -949,6 +1042,7 @@ export function arrangePlanRoom(
   allItems: FurnitureItem[],
   catalog: Record<string, FurnitureDef>,
   doors: Record<string, { open: boolean }>,
+  seed = 0,
 ): FurnitureItem[] {
   // Resolve the room across ALL storeys (room ids are plan-unique): on a
   // multi-storey plan an upper-floor room id is absent from `plan.rooms`
@@ -968,6 +1062,7 @@ export function arrangePlanRoom(
     windowCentres(lp),
     planCollisionWalls(lp, doors),
     level.id,
+    seed,
   )
 }
 

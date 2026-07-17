@@ -62,6 +62,11 @@ import {
 import { createIsolateSlice, ISOLATE_INITIAL, type IsolateSlice } from './slices/isolateSlice'
 import { createItemsSlice, ITEMS_INITIAL, type ItemsSlice } from './slices/itemsSlice'
 import {
+  createLayoutVariantSlice,
+  LAYOUT_VARIANT_INITIAL,
+  type LayoutVariantSlice,
+} from './slices/layoutVariantSlice'
+import {
   createLightInteractSlice,
   LIGHT_INTERACT_INITIAL,
   type LightInteractSlice,
@@ -221,7 +226,8 @@ export interface RootState
     QuoteTemplateSlice,
     FeatureFlagsSlice,
     AuthSlice,
-    IsolateSlice {
+    IsolateSlice,
+    LayoutVariantSlice {
   __resetForTest: () => void
 }
 
@@ -272,6 +278,7 @@ const INITIAL = {
   ...STYLE_CLIPBOARD_INITIAL,
   ...USER_SETS_INITIAL,
   ...ISOLATE_INITIAL,
+  ...LAYOUT_VARIANT_INITIAL,
   ...USER_PRODUCTS_INITIAL,
   ...USER_COMPONENTS_INITIAL,
 }
@@ -327,6 +334,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createUserProductsSlice(set, get, api),
   ...createUserComponentsSlice(set, get, api),
   ...createIsolateSlice(set, get, api),
+  ...createLayoutVariantSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }))
 

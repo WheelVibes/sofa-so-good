@@ -33,6 +33,7 @@ import {
   sortCards,
 } from './catalogBrowse'
 import { LayersPanel } from './LayersPanel'
+import { RecentStrip } from './RecentStrip'
 import { RemoteCard } from './RemoteCard'
 import { clearRecent, loadRecent, pushRecent } from './recentSearches'
 import { confirmAndRemoveDef } from './removeImportedDef'
@@ -175,6 +176,10 @@ export function CatalogDrawer() {
   // Room-aware default landing category (CATALOG-ROOMAWARE) — see the effect
   // below that applies it on room ENTRY only.
   const fRoomAware = useFeature('catalogRoomAware')
+  // Recently-placed quick-add strip + "Recent" pseudo-category tab
+  // (CATALOG-RECENTS, simple tier). Gates both surfaces; the underlying
+  // `recentSlice` keeps recording placements regardless.
+  const fCatalogRecents = useFeature('catalogRecents')
   // Catalog filter control (availability / source / favourites) — pure
   // client-side filtering of the merged grid, gated by `catalogFilters` (simple
   // tier). State is component-local + ephemeral (never persisted).
@@ -225,10 +230,10 @@ export function CatalogDrawer() {
       ? fuzzySearchSmart(dq, unified.all, gridItemText)
       : active === 'favourites' && fFavourites
         ? unified.favourites
-        : active === 'recent'
+        : active === 'recent' && fCatalogRecents
           ? unified.recent
-          : active === 'favourites'
-            ? [] // favourites tab active but flag off: show nothing (edge-case guard)
+          : active === 'favourites' || active === 'recent'
+            ? [] // fav/recent tab active but its flag is off: show nothing (edge-case guard)
             : sortCards(
                 unified.byCategory[active] ?? [],
                 !priceOn && sortBy === 'price' ? 'default' : sortBy,
@@ -242,7 +247,7 @@ export function CatalogDrawer() {
       return [...cards.filter(isEssential), ...cards.filter((it) => !isEssential(it))]
     }
     return cards
-  }, [dq, unified, active, fFavourites, priceOn, sortBy, essentialIds])
+  }, [dq, unified, active, fFavourites, fCatalogRecents, priceOn, sortBy, essentialIds])
 
   const sortOptions = useMemo(
     () =>
@@ -657,7 +662,7 @@ export function CatalogDrawer() {
                     onSelect={selectCategory}
                     counts={unified.counts}
                     favCount={unified.favourites.length}
-                    recentCount={unified.recent.length}
+                    recentCount={fCatalogRecents ? unified.recent.length : 0}
                     favEnabled={fFavourites}
                     sort={
                       // Mobile hosts the sort in the panel header beside the
@@ -727,6 +732,14 @@ export function CatalogDrawer() {
                   <div className="catalog-search-hint">
                     Showing {matchedIntents(query).join(' & ')} furniture
                   </div>
+                ) : null}
+                {/* Recently-placed quick-add strip (CATALOG-RECENTS): a thin
+                    tap-to-place row atop the browse grid. Hidden on search /
+                    the favourites+recent tabs (redundant there) and when empty. */}
+                {fCatalogRecents && !q && active !== 'recent' && active !== 'favourites' ? (
+                  <RecentStrip
+                    defs={unified.recent.flatMap((it) => (it.kind === 'local' ? [it.def] : []))}
+                  />
                 ) : null}
                 <div
                   ref={gridRef}

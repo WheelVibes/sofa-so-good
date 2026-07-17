@@ -286,6 +286,7 @@ export function FinishPicker() {
   const fComposer = useFeature('materialComposer')
   const fSaveMaterials = useFeature('saveMaterials')
   const fRecolor = useFeature('finishRecolor')
+  const fLayoutReroll = useFeature('layoutReroll')
   const materials = useMaterials()
   const savedMaterials = useStore(useShallow((s) => s.savedMaterials))
   const saveMaterial = useStore((s) => s.saveMaterial)
@@ -810,6 +811,20 @@ export function FinishPicker() {
             <Icon.Tidy width={14} height={14} />
             Tidy up room
           </button>
+          {fLayoutReroll && roomItemIds.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (roomId) useStore.getState().rerollRoomLayout(roomId)
+              }}
+              title="Re-arrange this room into a different valid layout — tap again to cycle through alternatives. Collision-checked; undoable."
+              className="btn btn-soft btn-block"
+              style={{ marginTop: 'var(--s-2)' }}
+            >
+              <Icon.Refresh width={14} height={14} />
+              Try another layout
+            </button>
+          ) : null}
           {roomItemIds.length > 0 ? (
             <button
               type="button"

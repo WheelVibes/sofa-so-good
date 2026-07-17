@@ -1418,7 +1418,12 @@ same change that reshapes a system.
   The **auto-arrange tidy pass** (`layout/autoArrange.ts` → `tryPlace`) reuses the same broadphase:
   each candidate placement restricts `canPlace`'s `others` to its footprint neighbourhood via
   `placement.ts` `broadphaseNeighbours` (ARRANGE-GRID) — identical result, proven by
-  `layout/arrangeBroadphase.test.ts`.
+  `layout/arrangeBroadphase.test.ts`. **Layout reroll (LAYOUT-REROLL, `layoutReroll` flag, simple):**
+  `arrangeRoom`/`arrangePlanRoom` take a `seed` (default 0 = today's byte-identical output;
+  `LAYOUT_VARIANT_COUNT`=4) that rotates candidate walls / bed anchor / lounge z-band / focal wall —
+  each variant still validated by `tryPlace`, so never collision-dirty. `layoutVariantSlice`
+  (session-only `layoutVariants: Record<roomId, seed>`) `rerollRoomLayout(roomId)` advances the seed
+  and commits one `pushHistory` + `setItems` (one undo step); UI is FinishPicker's "Try another layout".
   On drop, a single **surface item** (one carrying a numeric `surfaceHeight`) over a table/shelf snaps
   its rest height onto that surface's top (PC2-SURFACE-DROP, pure `collision/surfaceDrop.ts`
   `resolveSurfaceDropHeight` over the `tables`/`storage` categories; updates `props.surfaceHeight` via

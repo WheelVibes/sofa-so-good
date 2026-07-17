@@ -12,6 +12,7 @@ import {
   arrangeAllRoomsForPlan,
   arrangePlanRoom,
   arrangeRoom,
+  LAYOUT_VARIANT_COUNT,
   roleForCategory,
   roleOf,
   roomKindFromName,
@@ -274,6 +275,84 @@ describe('arrangeRoom', () => {
         if (overlaps(box, k))
           throw new Error(`${it.id} (${it.defId}) blocks a door/opening at [${it.position}]`)
       }
+    }
+  })
+})
+
+describe('layout reroll variants (LAYOUT-REROLL)', () => {
+  // A signature that ignores id order — position + rotation per item.
+  const sig = (items: FurnitureItem[]) =>
+    items
+      .map(
+        (i) =>
+          `${i.id}:${i.position[0].toFixed(3)},${i.position[1].toFixed(3)}@${i.rotation.toFixed(3)}`,
+      )
+      .sort()
+      .join('|')
+
+  const ROOMS_UNDER_TEST = [
+    'livingDining',
+    'mainBedroom',
+    'bedroom2',
+    'bedroom3',
+    'kitchen',
+  ] as const
+
+  it('seed 0 is byte-identical to the default (no-seed) arranger', () => {
+    for (const room of ROOMS_UNDER_TEST) {
+      const base = hydrate()
+      const noSeed = arrangeRoom(room, base, BUILTIN_CATALOG, {})
+      const seed0 = arrangeRoom(room, base, BUILTIN_CATALOG, {}, 0)
+      expect(sig(seed0)).toBe(sig(noSeed))
+    }
+  })
+
+  it('every seed produces a collision-valid, in-room layout', () => {
+    for (const room of ROOMS_UNDER_TEST) {
+      for (let seed = 0; seed < LAYOUT_VARIANT_COUNT; seed++) {
+        const out = arrangeRoom(room, hydrate(), BUILTIN_CATALOG, {}, seed)
+        assertValid(out)
+        // No item was flung out of its room by a variant.
+        const before = hydrate().filter((i) => roomOf(i.position) === room)
+        const after = out.filter((i) => roomOf(i.position) === room)
+        expect(after.length).toBe(before.length)
+      }
+    }
+  })
+
+  it('at least one seed yields a DIFFERENT layout from the default per room', () => {
+    for (const room of ROOMS_UNDER_TEST) {
+      const base = hydrate()
+      const def = sig(arrangeRoom(room, base, BUILTIN_CATALOG, {}, 0))
+      const anyDifferent = Array.from({ length: LAYOUT_VARIANT_COUNT - 1 }, (_, i) =>
+        sig(arrangeRoom(room, base, BUILTIN_CATALOG, {}, i + 1)),
+      ).some((s) => s !== def)
+      expect(anyDifferent).toBe(true)
+    }
+  })
+
+  it('bedroom reroll moves the bed to a different headboard wall', () => {
+    const base = hydrate()
+    const bedOf = (items: FurnitureItem[]) =>
+      items.find(
+        (i) => roleOf(i.defId, BUILTIN_CATALOG) === 'bed' && roomOf(i.position) === 'mainBedroom',
+      )!
+    const def = bedOf(arrangeRoom('mainBedroom', base, BUILTIN_CATALOG, {}, 0))
+    const moved = Array.from({ length: LAYOUT_VARIANT_COUNT - 1 }, (_, i) =>
+      bedOf(arrangeRoom('mainBedroom', base, BUILTIN_CATALOG, {}, i + 1)),
+    ).some(
+      (b) =>
+        Math.hypot(b.position[0] - def.position[0], b.position[1] - def.position[1]) > 0.3 ||
+        Math.abs(b.rotation - def.rotation) > 0.1,
+    )
+    expect(moved).toBe(true)
+  })
+
+  it('custom-plan reroll stays valid across seeds (arrangePlanRoom)', () => {
+    const plan = buildDefaultPlan()
+    for (let seed = 0; seed < LAYOUT_VARIANT_COUNT; seed++) {
+      const out = arrangePlanRoom(plan, 'livingDining', hydrate(), BUILTIN_CATALOG, {}, seed)
+      assertValid(out)
     }
   })
 })

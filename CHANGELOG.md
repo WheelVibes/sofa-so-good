@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.0 — Two core-loop UX wins: catalog "Recent" strip + layout reroll
+
+From the UX research pass, the two highest value÷effort core-loop additions,
+both simple-tier, desktop + mobile:
+
+- **Recently-placed quick-add strip (`catalogRecents`).** A thin "Recent" strip
+  atop the catalog browse grid (+ the pre-existing Recent tab, now flag-gated)
+  showing the last 8 defs you placed, tap to place again — the automatic
+  item-level complement to the deliberate Favourites star. Reuses the existing
+  `recentSlice` (`hdb_recent_items`, recorded on every `addItem`) +
+  `useUnifiedCatalog`'s `recent` resolution (drops unresolvable/pets-gated);
+  new `RecentStrip` + a shared `useCatalogPlacement(def)` hook extracted from
+  `CatalogCard` so strip chips and full cards share ONE place grammar
+  (desktop arm/drag, mobile confirm, 2D-plan tap). Hidden when empty.
+
+- **"Try another layout" reroll (`layoutReroll`).** A button under "Tidy up
+  room" re-arranges the same furniture into a different valid layout, cycling 4
+  variants (tap again to cycle; the original tidy is one more tap away).
+  `autoArrange` gains a `seed` (default 0 = byte-identical to today, verified)
+  that rotates the anchor wall / bed headboard / lounge z-band / focal wall;
+  every variant still passes `tryPlace`, so it can never emit a collision-dirty
+  layout. Session-only `layoutVariantSlice.rerollRoomLayout` = one undo step.
+
+Both GPU-verified in the room editor (strip renders the 3 placed items; reroll
+changes the layout collision-clean); 20 unit tests; existing arranger suite
+byte-identical.
+
 ## v0.22.1.3 — Three floor-plan/history correctness fixes (bug-hunt round 2)
 
 A second core-loop bug-hunt sweep found three verified bugs, all fixed:

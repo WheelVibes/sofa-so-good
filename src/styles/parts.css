@@ -52,6 +52,43 @@
 }
 .cat-recent-clear:hover { color: var(--text); text-decoration: underline; }
 
+/* Recently-placed quick-add strip (CATALOG-RECENTS): a thin horizontal
+   tap-to-place row atop the browse grid. Chips scroll horizontally so the row
+   height stays fixed regardless of how many recents exist. */
+.cat-recent-strip { flex-shrink: 0; padding-top: var(--s-2); }
+.cat-recent-strip-head {
+  font-size: var(--t-2xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--text-3); margin-bottom: var(--s-1);
+}
+.cat-recent-strip-row {
+  display: flex; gap: var(--s-1); overflow-x: auto; scrollbar-width: none;
+  padding-bottom: var(--s-1);
+}
+.cat-recent-strip-row::-webkit-scrollbar { display: none; }
+.cat-recent-card {
+  flex: none; display: flex; align-items: center; gap: var(--s-1);
+  padding: var(--s-1) var(--s-2); border-radius: var(--r-2);
+  background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--text); cursor: pointer; max-width: 160px;
+  transition: border-color var(--dur) var(--ease), background-color var(--dur) var(--ease);
+}
+@media (hover: hover) {
+  .cat-recent-card:hover { border-color: var(--accent); background-color: var(--surface-3); }
+}
+.cat-recent-card:focus-visible {
+  outline: none; box-shadow: var(--focus-ring); border-color: var(--accent);
+}
+.cat-recent-thumb {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; flex: none; border-radius: var(--r-1);
+  background: var(--surface-3); overflow: hidden; color: var(--text-3);
+}
+.cat-recent-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.cat-recent-name {
+  font-size: var(--t-xs); font-weight: 600; line-height: 1.25;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+
 /* category rail — ::before/::after spacers (not padding) so horizontal scroll keeps
    the same inset at both edges; padding on overflow containers often clips flush. */
 .cat-rail {

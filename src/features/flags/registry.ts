@@ -82,6 +82,14 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  layoutReroll: {
+    label: 'Try another layout',
+    description: 'Reroll a room into a different valid auto-arrangement',
+    // Core arrange loop — a casual user exploring layout alternatives, so it
+    // ships in Simple mode (prod-safe, pure code).
+    default: true,
+    tier: 'simple',
+  },
   textBrief: {
     label: 'Describe-it brief',
     description: 'Free-text brief matched to a Smart Start style + budget',
@@ -972,6 +980,21 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   catalogRoomAware: {
     label: 'Room-aware catalog default',
     description: 'Land the catalog on the category most relevant to the room being edited',
+    default: true,
+    tier: 'simple',
+  },
+  // Recently-placed quick-add row (CATALOG-RECENTS, UX-research pick). Surfaces
+  // the last handful of defs the user actually placed as a thin tap-to-place
+  // strip atop the catalog grid PLUS the fuller "Recent" pseudo-category tab —
+  // the far-more-frequent "the thing I just used" complement to the deliberate
+  // Favourites star. Automatic + item-level: `recentSlice` records a defId on
+  // every `addItem` commit, self-persisted per-device to localStorage (like
+  // favourites, out of the save schema). Pure client-side, no external assets →
+  // prod-safe. A core furnish-loop convenience a casual user leans on → simple
+  // tier, present in both modes.
+  catalogRecents: {
+    label: 'Recently placed',
+    description: 'Quick-add strip + tab of the catalog items you most recently placed',
     default: true,
     tier: 'simple',
   },

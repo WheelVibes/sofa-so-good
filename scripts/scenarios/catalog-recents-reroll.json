@@ -1,0 +1,92 @@
+{
+  "name": "catalog-recents-reroll",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true || state.bootPhase === 'ready'"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "enter-room",
+      "eval": "window.__store.getState().enterRoomEditor('livingDining')"
+    },
+    {
+      "name": "place-a-few",
+      "eval": "(() => { const s = window.__store.getState(); s.addItem({ defId: 'armchair', position: [10.5, 3.6], rotation: 0, props: {} }); s.addItem({ defId: 'coffee-table', position: [10.5, 4.6], rotation: 0, props: {} }); s.addItem({ defId: 'floor-lamp', position: [9.2, 3.4], rotation: 0, props: {} }); })()"
+    },
+    {
+      "name": "recents-tracked",
+      "waitFor": {
+        "store": "(state.recentDefIds || []).length >= 3"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "open-catalog",
+      "eval": "window.__store.getState().setCatalogOpen(true)"
+    },
+    {
+      "name": "strip-visible",
+      "waitFor": {
+        "css": ".cat-recent-strip"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "settle",
+      "wait": 1200
+    },
+    {
+      "name": "shot-recents",
+      "screenshot": "recents-strip"
+    },
+    {
+      "name": "close-catalog",
+      "eval": "window.__store.getState().setCatalogOpen(false)"
+    },
+    {
+      "name": "select-room",
+      "eval": "window.__store.getState().selectRoom('livingDining')"
+    },
+    {
+      "name": "picker-open",
+      "waitFor": {
+        "css": ".finish-picker"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "reroll-visible",
+      "waitFor": {
+        "text": "Try another layout"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "scroll-to-reroll",
+      "eval": "(() => { const b = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Try another layout'); b?.scrollIntoView({ block: 'center' }); })()"
+    },
+    {
+      "name": "settle2",
+      "wait": 600
+    },
+    {
+      "name": "shot-reroll",
+      "screenshot": "reroll-button"
+    }
+  ]
+}

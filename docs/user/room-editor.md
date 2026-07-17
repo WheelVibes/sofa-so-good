@@ -41,6 +41,10 @@ Click a wall or the floor to open the finish picker, which also hosts per‑room
 layout actions:
 
 - **Tidy up room** — auto‑arrange the room to interior‑design clearances.
+- **Try another layout** — re‑arrange the same furniture into a *different*
+  valid layout (different anchor wall / seating orientation / zones). Tap again
+  to cycle through the alternatives; every option is collision‑checked and one
+  Undo away.
 - **Mirror room** — flip the room's furniture left↔right across its centre
   (great for symmetric bedrooms). Pieces that would hit a wall stay put.
 - **Copy layout to…** — clone this room's arrangement into another room
