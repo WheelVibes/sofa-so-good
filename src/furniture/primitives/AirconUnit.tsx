@@ -24,8 +24,9 @@ export function AirconUnit({ props }: { props: ParamProps }) {
         <boxGeometry args={[width - 0.04, bodyH - 0.08, 0.02]} />
         <meshStandardMaterial color="#fbfbf9" roughness={0.5} />
       </mesh>
-      {/* Bottom louvre slot */}
-      <mesh position={[0, -bodyH / 2 + 0.04, bodyD / 2 - 0.02]}>
+      {/* Bottom louvre slot — front face sits 4 mm PROUD of the body front
+          (was exactly coplanar with it → z-fighting flicker at distance). */}
+      <mesh position={[0, -bodyH / 2 + 0.04, bodyD / 2 - 0.016]}>
         <boxGeometry args={[width - 0.08, 0.04, 0.04]} />
         <meshStandardMaterial color="#3a3a3a" roughness={0.8} />
       </mesh>

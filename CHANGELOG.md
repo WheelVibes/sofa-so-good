@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.88 — Aircon louvre z-fighting fix
+
+User-reported: the wall aircon's bottom louvre front face sat EXACTLY coplanar with the
+body's front plane (`bodyD/2 − 0.02` centre + half-depth = `bodyD/2`) — guaranteed
+depth-buffer flicker as the camera moves (the wave-2 audit's static frames under-reported
+it). Louvre moved 4 mm proud of the body front; verified clean at room/mid/close ranges
+on a wall placement.
+
 ## v0.21.2.87 — Expansion E4: sectional builder + wardrobe fit-out system — EXPANSION COMPLETE
 
 **Modular sectional builder** (configurator, rides `productConfigurator`): the modular
