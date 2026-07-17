@@ -5,7 +5,8 @@
  * confirm modal) rather than deleting silently. Mirrors `LevelMenu.removeLevel`.
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { FEATURE_FLAGS } from '../../../features/featureFlags'
 import { useStore } from '../../../state/store'
 import { SavedViewsSection } from './SavedViewsSection'
 
@@ -55,5 +56,27 @@ describe('SavedViewsSection delete confirmation', () => {
     expect(() =>
       fireEvent.click(screen.getByRole('button', { name: /delete view/i })),
     ).not.toThrow()
+  })
+})
+
+describe('"Suggest views" — flag + tier gating (SAVED-VIEWS-SUGGEST)', () => {
+  afterEach(() => {
+    useStore.getState().setUiMode('simple')
+    useStore.getState().reresolveFeatureFlags()
+  })
+
+  it('shows in Pro mode', () => {
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    render(<SavedViewsSection />)
+    expect(screen.getByText('Suggest views')).toBeInTheDocument()
+  })
+
+  it('is hidden in Simple mode (pro-tier feature)', () => {
+    expect(FEATURE_FLAGS.suggestedViews.tier).toBe('pro')
+    useStore.getState().setUiMode('simple')
+    useStore.getState().reresolveFeatureFlags()
+    render(<SavedViewsSection />)
+    expect(screen.queryByText('Suggest views')).not.toBeInTheDocument()
   })
 })

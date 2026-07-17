@@ -143,7 +143,11 @@ has come, a compelling way to show off a design.
 ## Saved views & presentation (Pro)
 
 **View → Save current view** bookmarks the camera angle you're at (with the
-lighting at that moment), so you can jump back to it from the same menu. Each
+lighting at that moment), so you can jump back to it from the same menu.
+**View → Suggest views** *(Pro)* auto-adds a starter set — a well-composed
+corner angle for each of your largest furnished rooms plus a whole-home
+overview — so the Present / tour / render features below have content without
+any manual camera work (running it again never duplicates). Each
 saved view row has three small buttons:
 
 - **360°** — present this view as an interactive panorama slide (see below).

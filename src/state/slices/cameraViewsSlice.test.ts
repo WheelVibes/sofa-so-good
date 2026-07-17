@@ -92,6 +92,36 @@ describe('cameraViewsSlice', () => {
   })
 })
 
+describe('suggestSavedViews (SAVED-VIEWS-SUGGEST)', () => {
+  beforeEach(() => {
+    for (const v of [...useStore.getState().savedViews]) useStore.getState().deleteView(v.id)
+  })
+
+  it('adds a computed starter set and dedupes against an existing name on a second run', () => {
+    const added = useStore.getState().suggestSavedViews()
+    expect(added).toBeGreaterThan(0)
+    const namesAfterFirst = useStore.getState().savedViews.map((v) => v.name)
+    expect(namesAfterFirst).toContain('Overview')
+    expect(namesAfterFirst.length).toBe(added)
+
+    // Re-running with the same (unfurnished) plan proposes the exact same
+    // names — every one should now be skipped as a duplicate.
+    const addedAgain = useStore.getState().suggestSavedViews()
+    expect(addedAgain).toBe(0)
+    expect(useStore.getState().savedViews.length).toBe(namesAfterFirst.length)
+  })
+
+  it('captures a pose without touching the live camera singleton', () => {
+    cameraPose.px = 999
+    cameraPose.py = 999
+    cameraPose.pz = 999
+    useStore.getState().suggestSavedViews()
+    const overview = useStore.getState().savedViews.find((v) => v.name === 'Overview')
+    expect(overview).toBeDefined()
+    expect(overview?.pos).not.toEqual([999, 999, 999])
+  })
+})
+
 describe('saved-view cinematic tour state (V-TOUR)', () => {
   it('setTouring accepts the views mode and true maps to rooms (back-compat)', () => {
     useStore.getState().__resetForTest()

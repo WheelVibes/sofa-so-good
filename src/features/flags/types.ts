@@ -173,6 +173,7 @@ export type FeatureFlag =
   | 'petFittings'
   | 'petProfile'
   | 'petCompliance'
+  | 'suggestedViews'
   | 'profiler'
 
 export interface FlagDef {

@@ -1546,6 +1546,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // "Suggest views" (SAVED-VIEWS-SUGGEST) — auto-computes a starter set of saved
+  // camera views (a corner three-quarter angle per major furnished room + one
+  // whole-flat overview) so the saved-views-consuming presentation family
+  // (Present…, Cinematic tour, Record walkthrough, Render all views, Day→night
+  // clip) has content without the user hand-authoring every bookmark. Pure
+  // client-side geometry over the existing plan/items state (`scene/cameras/
+  // suggestViews.ts`), prod-safe. Feeds the pro presentation family → pro tier,
+  // matching `presentation`/`batchRender` above.
+  suggestedViews: {
+    label: 'Suggest views',
+    description: 'Auto-generate a starter set of saved camera views (per room + an overview)',
+    default: true,
+    tier: 'pro',
+  },
   profiler: {
     label: 'Profiler',
     description: 'Dev-only detached-window performance profiler (live metrics + cost breakdown)',

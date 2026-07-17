@@ -37,6 +37,7 @@ export function ViewSection({
   const fTwoPointPerspective = useFeature('twoPointPerspective')
   const fParallelProjection = useFeature('parallelProjection')
   const fDayNightClip = useFeature('dayNightClip')
+  const fSuggestedViews = useFeature('suggestedViews')
 
   return (
     <Section id="view" title="View" icon="Orbit" activeId={activeId}>
@@ -144,6 +145,14 @@ export function ViewSection({
                 })
                 if (name) s.getState().saveCurrentView(name, thumb)
               })}
+            />
+          ) : null}
+          {fSavedViews && fSuggestedViews ? (
+            <Item
+              icon="Star"
+              label="Suggest views"
+              sub="Auto-add a corner angle per room + an overview"
+              onClick={act(() => s.getState().suggestSavedViews(), { keep: true })}
             />
           ) : null}
           {fSavedViews && savedViews.length > 0 ? (

@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.5 — "Suggest views": auto-generated hero camera angles
+
+"Suggest views" in the View menu (desktop + mobile; `suggestedViews` flag, pro
+— it feeds the pro presentation family) computes and saves a starter set of
+camera views so Present…/Cinematic tour/Record/Render-all/day-night sweep have
+content without hand-authoring: a corner three-quarter angle per largest
+furnished room (eye 1.5 m, target biased toward the furniture centroid, far
+corner pick guarantees wall clearance, rooms <2.5 m skipped) + a whole-home
+overview mirroring `dollhouseFraming`. Pure math in
+`scene/cameras/suggestViews.ts` (works for the default flat AND custom plans);
+`cameraViewsSlice` gains a pose-based `saveView` (with `saveCurrentView`
+delegating) + `suggestSavedViews()` (dedup by name — second run adds 0,
+toasts the count). GPU-verified (corner view is a genuinely well-composed
+interior shot; overview matches home framing; dedup confirmed); 121 targeted
+tests incl. both modes.
+
 ## v0.22.2.4 — Finish eyedropper: sample a surface, paint it elsewhere
 
 The FinishPicker header gains an eyedropper toggle (`finishEyedropper` flag,
