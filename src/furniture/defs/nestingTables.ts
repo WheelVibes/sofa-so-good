@@ -10,19 +10,14 @@
  * the WHOLE set extent (an honest over-report vs the single largest piece,
  * matching the pets.ts enum→footprint convention).
  */
-export const NEST_SCALES: Record<string, number[]> = {
+const NEST_SCALES: Record<string, number[]> = {
   nest2: [1, 0.8],
   nest3: [1, 0.8, 0.62],
 }
 
 /** Diameter-scale factors per piece for a `set` value (`[1]` = a single table). */
-export function nestScales(set: string | undefined): number[] {
+function nestScales(set: string | undefined): number[] {
   return (set && NEST_SCALES[set]) || [1]
-}
-
-/** Whether a `set` value renders more than one table. */
-export function isNestSet(set: string | undefined): boolean {
-  return nestScales(set).length > 1
 }
 
 export interface NestPiece {

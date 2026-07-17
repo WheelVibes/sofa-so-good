@@ -5,6 +5,12 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.0.1 — CI fix: knip dead-code scan
+
+Un-exported 9 internal-only symbols the new programs left public (petCompliance
+thresholds/kind type, nesting-table helpers, footprintDim, leaf material cache internals,
+coplanarity epsilons) and deleted the genuinely unused `isNestSet`. No behaviour change.
+
 ## v0.22.0.0 — PR bump: pets program + furniture realism/expansion programs to staging
 
 Minor bump closing the r10 backlog branch for its staging PR. Carries: the pet-fittings

@@ -59,7 +59,7 @@ export function isPetType(v: unknown): v is PetType {
 /** A checklist entry's role. `required` = regulatory / welfare essential,
  *  `recommended` = comfort / enrichment, `info` = an advisory note with no
  *  pass/fail (always shown, never counted as missing). */
-export type PetChecklistKind = 'required' | 'recommended' | 'info'
+type PetChecklistKind = 'required' | 'recommended' | 'info'
 
 /** Fulfilment of a single entry. `partial` only occurs when `need > 1` (today,
  *  the cat window-mesh rule counting meshed windows vs. the plan's windows). */
@@ -101,7 +101,7 @@ export interface PetComplianceReport {
 }
 
 /** Tunable thresholds, kept in one auditable place (mirrors hdbCompliance). */
-export const PET_THRESHOLDS = {
+const PET_THRESHOLDS = {
   /** Each satisfying item needed for a simple required/recommended entry. */
   singleNeed: 1,
 } as const

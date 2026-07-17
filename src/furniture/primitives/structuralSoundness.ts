@@ -208,10 +208,10 @@ export interface CoplanarFace {
  *  is intentionally an order of magnitude TIGHTER than the 8 mm connectivity
  *  adjacency epsilon — an 8 mm "reveal" between abutting parts is a healthy
  *  offset that PREVENTS flicker; only faces at essentially the SAME depth fight. */
-export const COPLANAR_PLANE_EPS = 0.0003
+const COPLANAR_PLANE_EPS = 0.0003
 /** Minimum overlap area to count as a flicker risk (~4 cm²). A corner/edge kiss
  *  (near-zero shared area) never visibly z-fights. */
-export const COPLANAR_MIN_AREA = 0.0004
+const COPLANAR_MIN_AREA = 0.0004
 
 /**
  * Flags pairs of axis-aligned boxes whose faces will z-fight: two faces that are

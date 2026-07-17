@@ -13,7 +13,7 @@ import type { FurnitureDef } from './types'
  * Single source for the six former inline copies (collision/placement,
  * dragHelpers, ScatterFill, InspectorHeader, PlanFurnitureInspector, ikeaSets).
  */
-export function footprintDim(v: unknown): number | null {
+function footprintDim(v: unknown): number | null {
   if (typeof v === 'number' && Number.isFinite(v) && v > 0) return v
   if (typeof v === 'string' && v.trim() !== '') {
     const n = Number(v)

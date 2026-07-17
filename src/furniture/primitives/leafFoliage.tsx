@@ -27,13 +27,13 @@ import { getLeafTexture, type LeafSpecies } from './leafTexture'
  */
 
 /** Cap on distinct (species,colour) leaf materials held live (AUD-002). */
-export const LEAF_MAT_CACHE_MAX = 32
+const LEAF_MAT_CACHE_MAX = 32
 const matCache = new LruCache<MeshStandardMaterial>({
   max: LEAF_MAT_CACHE_MAX,
   dispose: (m) => m.dispose(),
 })
 
-export function getLeafMaterial(species: LeafSpecies, color: string): MeshStandardMaterial {
+function getLeafMaterial(species: LeafSpecies, color: string): MeshStandardMaterial {
   const key = `${species}|${color}`
   const hit = matCache.get(key)
   if (hit) return hit
