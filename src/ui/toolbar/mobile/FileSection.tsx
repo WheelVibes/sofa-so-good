@@ -19,6 +19,7 @@ import { openDesignReport } from '../../openReport'
 import { downloadRoomScheduleCsv } from '../../openRoomScheduleCsv'
 import { exportScene3d } from '../../openSceneExport'
 import { openSh3dImport } from '../../openSh3dImport'
+import { openSh3fImport } from '../../openSh3fImport'
 import { openShoppingList } from '../../openShoplist'
 import { Icon } from '../icons'
 import { Item, Section, SubHeader } from './parts'
@@ -58,6 +59,7 @@ export function FileSection({
   const fDxf = useFeature('dxfExport')
   const fSceneExport = useFeature('sceneExport3d')
   const fImportSh3d = useFeature('importSh3d')
+  const fImportSh3f = useFeature('importSh3f')
 
   const saveLayout = async () => {
     const name = await s.getState().promptText({
@@ -301,6 +303,15 @@ export function FileSection({
           sub="Load walls & rooms from a .sh3d file"
           docs="importSh3d"
           onClick={act(() => openSh3dImport())}
+        />
+      ) : null}
+      {fImportSh3f ? (
+        <Item
+          icon="Upload"
+          label="Import SH3D library…"
+          sub="Load furniture from a .sh3f library file"
+          docs="importSh3f"
+          onClick={act(() => openSh3fImport())}
         />
       ) : null}
       <Item

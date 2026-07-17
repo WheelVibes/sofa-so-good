@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.1.0 — AI floor-plan generation (text → plan) + Sweet Home 3D `.sh3f` import
+
+Two marquee parity features (closes the last Coohom AI gap + the SH3D `.sh3f`
+library gap):
+
+**AI floor-plan generation** (`aiPlanGenerate` flag, pro, default on — mirrors
+`aiWalls`; BYO key `hdb_ai_vision_*`, reused). "Generate plan with AI…" in the
+plan editor's Plan menu (desktop + mobile) + ⌘K "Generate plan with AI (BYO
+key)": a natural-language brief → text LLM → wall/opening/**room** JSON parsed
+by the extended `ai/floorPlanAi.ts:parseGeneratedPlan` (new `AiRoom`, tolerant
+`roomsFromRaw`) and applied through the SAME `usePlanAiWalls.applyAiPlanDraft`
+path as AI-walls tracing (now also creates named rooms via `addRoom`), opening
+the editor on an editable draft (undoable, never a silent overwrite). Prompt in
+`ai/floorPlanGenerate.ts` asks for closed rectilinear per-room loops, shared
+partitions, HDB-realistic sizes, inter-room doors + a window per room. Dev hook
+`window.__applyAiGeneratedPlan`; browser-verified (2-room draft: Living +
+Bedroom, partition, doors, windows render editable); scenario
+`ai-plan-generate.json`.
+
+**Sweet Home 3D `.sh3f` furniture-library import** (`importSh3f` flag, pro,
+default on — pure client). "Import SH3D library…" in the File menu (desktop +
+mobile) + ⌘K. Pure `furniture/import/sh3f.ts` unzips + parses the Java
+`PluginFurnitureCatalog*.properties` (ISO-8859-1, `#`/`!` comments, `=`/`:`/ws
+separators, continuations, `\uXXXX` escapes), maps each entry (dims cm→m,
+shared category guess, model format by extension, movable/doorOrWindow) →
+`ui/openSh3fImport.ts` resolves model + siblings/nested zip, converts to GLB via
+the existing upload converter (OBJ/DAE/3DS/FBX/STL/PLY/3MF/USDZ — all supported;
+unknown format / missing bytes / conversion failure skip per-entry with an
+"N of M imported, K skipped" summary), persists via `persistUserGlb` +
+`addManyUserFurniture`. Dev hook `window.__importSh3fBytes`. 109 + 118 unit
+tests across both features.
+
 ## v0.22.0.9 — KTX2/DDS GPU decode: two readback bugs fixed + real-GPU verified
 
 The C274 standalone KTX2/DDS material decode's GPU-readback branch

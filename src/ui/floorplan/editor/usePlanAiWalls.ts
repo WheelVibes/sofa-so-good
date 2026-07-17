@@ -23,7 +23,11 @@ import type { Backdrop } from './planConstants'
  * Exported so the dev-only `__applyAiVisionResponse` harness hook can drive the
  * exact same apply path from a canned response — no network call.
  */
-export function applyAiPlanDraft(result: AiPlanResult): { walls: number; openings: number } {
+export function applyAiPlanDraft(result: AiPlanResult): {
+  walls: number
+  openings: number
+  rooms: number
+} {
   const st = useStore.getState()
   st.pushHistory()
   st.newFloorPlan('AI draft')
@@ -51,7 +55,16 @@ export function applyAiPlanDraft(result: AiPlanResult): { walls: number; opening
     })
     openings++
   }
-  return { walls: result.walls.length, openings }
+  // Named rooms ride along only for text→plan generation (vision leaves `rooms`
+  // absent, so this is a no-op there). Each becomes an axis-aligned `PlanRoom`
+  // rectangle the user can reshape; boundary walls/openings are auto-named by
+  // `addRoom`.
+  let rooms = 0
+  for (const r of result.rooms ?? []) {
+    st.addRoom({ name: r.name, origin: [r.x, r.z], width: r.width, depth: r.depth })
+    rooms++
+  }
+  return { walls: result.walls.length, openings, rooms }
 }
 
 /**

@@ -92,6 +92,7 @@ import {
   wallTapCommits,
 } from './editor/toolDraftReducer'
 import { UndoRedoButtons } from './editor/UndoRedoButtons'
+import { usePlanAiGenerate } from './editor/usePlanAiGenerate'
 import { usePlanAiWalls } from './editor/usePlanAiWalls'
 import { usePlanBackdrop } from './editor/usePlanBackdrop'
 import { usePlanLevel } from './editor/usePlanLevel'
@@ -336,6 +337,8 @@ export function FloorPlanEditor() {
   )
   const { aiBusy, runAiWalls } = usePlanAiWalls(backdrop, setBackdrop)
   const aiWalls = useFeature('aiWalls')
+  const { genBusy, runAiGenerate } = usePlanAiGenerate()
+  const fAiPlanGen = useFeature('aiPlanGenerate')
   // Persistent wall-length labels (on by default; toggle in the editor header).
   // Dimensions default OFF — they're the densest overlay and collide with walls
   // when zoomed out; the toolbar "Dims" toggle turns them on. When on, callouts
@@ -1908,6 +1911,20 @@ export function FloorPlanEditor() {
       <button type="button" onClick={() => a.resetFloorPlan()} className="btn btn-sm">
         Reset to HDB
       </button>
+      {/* Text brief → editable floor plan via a BYO-key LLM (marquee L). Lands as
+          an undoable draft (blank plan → walls/openings/rooms), exactly like AI
+          wall drafting. Gated by the `aiPlanGenerate` pro flag (hidden in Simple). */}
+      {fAiPlanGen ? (
+        <button
+          type="button"
+          onClick={runAiGenerate}
+          disabled={genBusy}
+          title="Experimental: describe a home in words and let an LLM draft an editable plan (your API key)"
+          className="btn btn-sm"
+        >
+          {genBusy ? 'Generating…' : 'Generate plan with AI…'}
+        </button>
+      ) : null}
       {/* Mirror the whole plan (walls + rooms + openings + furniture) about its
           centre-X — for mirror-image HDB stacks / condo pairs
           (PARITY-PLAN-MIRROR-REGION), gated by the `planMirrorRegion` pro flag

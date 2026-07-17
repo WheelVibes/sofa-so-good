@@ -40,6 +40,23 @@ IKEA model folders (a `metadata.json` plus `<finish>.glb` files) are
 **auto‑detected** and imported as one catalog card per product, with selectable
 finishes.
 
+### Import a Sweet Home 3D furniture library (.sh3f) *(Pro)*
+
+A Sweet Home 3D **`.sh3f`** file bundles a whole furniture *library* — many
+pieces plus their 3D models. Import the lot in one step:
+
+1. **File → Import SH3D library…** (desktop), the mobile **File** sheet's
+   **Import SH3D library…**, or ⌘K → **Import Sweet Home 3D library (.sh3f)**.
+2. Pick the `.sh3f` file. Each piece is read from the library catalog, its model
+   converted to GLB (same in‑browser pipeline as a normal upload), and added to
+   your catalog with its name, size, and best‑guess category.
+3. A summary tells you how many pieces imported — e.g. *"12 of 18 imported,
+   6 skipped"*. Pieces whose model is in an unreadable format (or is missing from
+   the file) are skipped and listed, never silently dropped.
+
+Imported library pieces are treated like your own uploads (you can resize,
+recolour, and remove them). This is a **Pro** feature.
+
 ### Resize an imported model
 
 Select it and use the **Scale** slider in the inspector — it shows the resulting

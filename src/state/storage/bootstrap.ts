@@ -288,6 +288,22 @@ async function exposeDevHelpers(): Promise<void> {
     bytes: Uint8Array,
     name = 'Imported plan',
   ) => applySh3dResult(parseSh3d(bytes, name), name)
+  // Expose the Sweet Home 3D furniture-LIBRARY import (PARITY-SH3F) so the
+  // scenario harness can verify a full `.sh3f` parse → OBJ/DAE/3DS→GLB convert →
+  // persist headlessly (needs a REAL browser for the three loaders + GLTFExporter,
+  // so a unit test can't cover the convert leg — this is the end-to-end seam).
+  // `bytes` are the raw archive (base64-decoded to a Uint8Array); resolves to the
+  // import summary (imported / duplicate / skipped counts).
+  const { parseSh3f } = await import('../../furniture/import/sh3f')
+  const { applySh3fResult } = await import('../../ui/openSh3fImport')
+  ;(window as unknown as { __importSh3fBytes?: unknown }).__importSh3fBytes = async (
+    bytes: Uint8Array,
+    name = 'Imported library',
+  ) => {
+    const result = await applySh3fResult(parseSh3f(bytes, name), name)
+    ;(window as unknown as { __importSh3fResult?: unknown }).__importSh3fResult = result
+    return result
+  }
   // Expose the model-group detection path so the scenario harness can drive a
   // full detect over a synthetic folder headlessly (the upload dialog itself is
   // React.lazy and won't mount headless — see visual-verification-playbook.md).
@@ -334,11 +350,17 @@ async function exposeDevHelpers(): Promise<void> {
   // (blank plan → walls → snapped openings) to the store, returning the counts.
   // Scale calibration is NOT applied here (it writes the editor's backdrop React
   // state, unreachable from a window hook) — unit-tested separately.
-  const { parseVisionResponse } = await import('../../ai/floorPlanAi')
+  const { parseVisionResponse, parseGeneratedPlan } = await import('../../ai/floorPlanAi')
   const { applyAiPlanDraft } = await import('../../ui/floorplan/editor/usePlanAiWalls')
   ;(window as unknown as { __applyAiVisionResponse?: unknown }).__applyAiVisionResponse = (
     text: string,
   ) => applyAiPlanDraft(parseVisionResponse(text))
+  // Sibling hook for text→plan GENERATION (AI-PLAN-GENERATE): parse a CANNED LLM
+  // reply (walls + openings + named rooms) and apply it as a fresh draft — same
+  // apply path as generation, no network call. Returns the landed counts.
+  ;(window as unknown as { __applyAiGeneratedPlan?: unknown }).__applyAiGeneratedPlan = (
+    text: string,
+  ) => applyAiPlanDraft(parseGeneratedPlan(text))
   // Expose the bulk GLB import path (convert → optimize-pool → LOD → persist)
   // so the scenario harness can drive a REAL import with REAL `Worker`
   // construction — unlike the Node/happy-dom unit tests, a real browser can

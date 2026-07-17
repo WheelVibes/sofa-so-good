@@ -1111,6 +1111,25 @@ same change that reshapes a system.
   (`setItems` + `setFloorPlan` with the openings) + a toast summarising walls / rooms / furniture
   placed / openings / unmatched (with each unplaceable piece as a warning detail). File menu +
   mobile File + ⌘K (`import-sh3d`).
+- **Sweet Home 3D furniture library import** (`importSh3f` flag, pro; PARITY-SH3F): imports a
+  `.sh3f` furniture LIBRARY (not a home plan) as user furniture. Pure parser core
+  `furniture/import/sh3f.ts` `parseSh3f(bytes)` unzips the archive (fflate `unzipSync`), parses
+  every `PluginFurnitureCatalog*.properties` (a hand-rolled Java-`.properties` reader —
+  `parseJavaProperties`: `#`/`!` comments, `=`/`:`/whitespace separators, line continuations,
+  `\uXXXX`/escape handling; catalog bytes decoded ISO-8859-1), and maps each indexed entry
+  (`name#n`/`model#n`/`width#n`…) to a normalized `Sh3fEntry` — dims cm→m, category via the
+  shared `categoryForPieceName`, model format by extension (`convert/formats.ts`
+  `modelFormatFromName`), `movable`/`doorOrWindow` flags. Pure (no three/React/store), so the
+  mapping is unit-tested without a browser. DOM glue `ui/openSh3fImport.ts` resolves each entry's
+  model (+ sibling MTL/textures, or a nested multi-part `.zip`) to `File`s, converts it to a
+  self-contained GLB through the SAME upload path as drag-drop imports (`convert/convertModel` →
+  `GLTFExporter`, so OBJ/DAE/3DS/FBX/STL/PLY/… are all supported), and persists it via
+  `persistUserGlb` (batch-committed with `addManyUserFurniture`). Entries with an unrecognized
+  model extension, a missing model, or a conversion failure are SKIPPED per-entry with a note; the
+  toast summarises "N of M imported, K skipped". `.sh3f` content is user-supplied → treated like
+  any other user upload (no bundled-asset licence). File menu + mobile File + ⌘K (`import-sh3f`);
+  dev hook `window.__importSh3fBytes(bytes, name)` (mirrors `__importSh3dBytes`) drives the full
+  parse→convert→persist headlessly (needs a real browser for the three loaders).
 - **Multi-axis furniture tilt** (`tiltFurniture` flag, pro; PARITY-TILT): `FurnitureItem` gains optional
   `pitch`/`roll` (radians); `furniture/tiltRotation.ts` `itemRotation` returns the intrinsic Euler tuple
   `[pitch, yaw, roll, 'YXZ']` the `Furniture` root group uses (reduces to pure yaw when untilted). The

@@ -143,6 +143,7 @@ export const FEATURE_DOCS: Partial<Record<DocKey, DocEntry>> = {
   parametricFurniture: { page: 'importing-models', anchor: 'design-your-own-asset' },
   glbDesigner: { page: 'importing-models', anchor: 'design-your-own-asset' },
   importSh3d: { page: 'floor-plan-editor', anchor: 'templates-saving' },
+  importSh3f: { page: 'importing-models', anchor: 'importing' },
   importTextures: { page: 'importing-textures', anchor: 'importing-using' },
 
   // ── exporting (3D / CAD / AR / moodboard) ───────────────────────────────

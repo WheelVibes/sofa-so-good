@@ -184,6 +184,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  aiPlanGenerate: {
+    label: 'AI plan generation',
+    description: 'Text brief → editable floor plan (experimental)',
+    default: true,
+    tier: 'pro',
+  },
   ikeaLive: {
     label: 'IKEA live scrape',
     description: 'Local scraper pack (needs a sidecar)',
@@ -1096,6 +1102,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   importSh3d: {
     label: 'Import Sweet Home 3D',
     description: 'Import a Sweet Home 3D (.sh3d) plan — walls, rooms and furniture',
+    default: true,
+    tier: 'pro',
+  },
+  // Import a Sweet Home 3D `.sh3f` furniture LIBRARY (PARITY-SH3F). Pure
+  // client-side parse (unzip + Java-properties catalogs) + the existing upload
+  // conversion path (OBJ/DAE/3DS/… → GLB via GLTFExporter), no sidecar /
+  // licensing → prod-safe (default on). An import/interop surface beyond the
+  // core furnish loop → pro tier (hidden in Simple mode automatically).
+  importSh3f: {
+    label: 'Import Sweet Home 3D library',
+    description: 'Import a Sweet Home 3D (.sh3f) furniture library as user furniture',
     default: true,
     tier: 'pro',
   },

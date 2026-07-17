@@ -90,7 +90,7 @@ describe('applyAiPlanDraft (store apply path — no network)', () => {
         { kind: 'door', x: 20, z: 20, width: 0.9 }, // far from any wall → dropped
       ],
     })
-    expect(counts).toEqual({ walls: 2, openings: 2 })
+    expect(counts).toEqual({ walls: 2, openings: 2, rooms: 0 })
     const plan = useStore.getState().floorPlan
     // A fresh plan seeds 4 shell walls; the 2 AI walls are added on top.
     expect(plan.walls).toHaveLength(6)
@@ -110,7 +110,31 @@ describe('applyAiPlanDraft (store apply path — no network)', () => {
       walls: [{ x1: 0, z1: 0, x2: 4, z2: 0 }],
       openings: [],
     })
-    expect(counts).toEqual({ walls: 1, openings: 0 })
+    expect(counts).toEqual({ walls: 1, openings: 0, rooms: 0 })
     expect(useStore.getState().floorPlan.openings).toHaveLength(0)
+  })
+
+  it('creates named rooms from a generated result (text→plan)', () => {
+    const counts = applyAiPlanDraft({
+      walls: [
+        { x1: 0, z1: 0, x2: 4, z2: 0, external: true },
+        { x1: 4, z1: 0, x2: 4, z2: 3, external: true },
+      ],
+      openings: [],
+      rooms: [
+        { name: 'Living', x: 0, z: 0, width: 4, depth: 3 },
+        { name: 'Kitchen', x: 4, z: 0, width: 2.5, depth: 3 },
+      ],
+    })
+    expect(counts).toEqual({ walls: 2, openings: 0, rooms: 2 })
+    const plan = useStore.getState().floorPlan
+    // A fresh blank plan seeds one default room; the 2 AI rooms add on top.
+    const names = plan.rooms.map((r) => r.name)
+    expect(names).toContain('Living')
+    expect(names).toContain('Kitchen')
+    const living = plan.rooms.find((r) => r.name === 'Living')
+    expect(living?.origin).toEqual([0, 0])
+    expect(living?.width).toBe(4)
+    expect(living?.depth).toBe(3)
   })
 })

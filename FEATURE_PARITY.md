@@ -42,7 +42,6 @@ are interaction/productivity features, plus the AI auto-layout family.
 
 | Feature | Have | Feasible | Gap & approach (reference our modules) | Effort |
 |---|---|---|---|---|
-| AI floor-plan generation (text → plan) | ❌ | 🔑 | BYO-key LLM emits wall/room JSON into the 2D plan schema. | L |
 
 _(Hosted 60k–1M+ model library · branded/manufacturer catalogs · cloud accounts /
 multi-user collab / teams · supplier/e-commerce/CNC integration → see §4 Out of scope.)_
@@ -61,7 +60,7 @@ polylines), and its iconic **video flythrough** export.
 
 | Feature | Have | Feasible | Gap & approach (reference our modules) | Effort |
 |---|---|---|---|---|
-| Import SH3D **`.sh3f` libraries** + legacy archives | ◑ | ✅ | `.sh3d` (Home.xml) walls/rooms/furniture/openings already import; remaining: `.sh3f` furniture libraries, legacy serialized (non-`Home.xml`) archives, exact sill from SH3D `elevation`. | L |
+| Import SH3D legacy archives + exact sill | ◑ | ✅ | `.sh3d` (Home.xml) walls/rooms/furniture/openings AND `.sh3f` furniture libraries now import; remaining: legacy serialized (non-`Home.xml`) archives, exact sill from SH3D `elevation`. | L |
 | Multi-language UI (20+) | ❌ | ✅ | i18n framework + translations; large, pure-client, low near-term value for HDB focus. | L |
 | Plugin/extension API | ❌ | ✅ | Define a JS extension surface; large architectural effort, low near-term value. | L |
 
@@ -89,8 +88,7 @@ raster capture (`RenderCompareModal`) together ARE the local analog to Coohom's 
 no distinct feature remains to build.)_
 
 **Marquee large efforts (L):**
-5. **AI floor-plan generation** (text → plan, Coohom, 🔑 BYO-key).
-6. Import SH3D **`.sh3f`** libraries + legacy archives; multi-language UI; plugin/extension API (SH3D) — large, lower near-term value.
+6. Import SH3D legacy serialized archives + exact `elevation` sill; multi-language UI; plugin/extension API (SH3D) — large, lower near-term value.
 
 **Consumer/styling front-end (context, not Coohom/SH3D):** the remaining consumer front-of-funnel
 edge (Spoak/Decor8/Havenly/DecorMatters) is the community/gamification/feed layer, which is ☁️

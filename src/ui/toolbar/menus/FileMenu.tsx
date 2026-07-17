@@ -25,6 +25,7 @@ import { openDesignReport } from '../../openReport'
 import { downloadRoomScheduleCsv } from '../../openRoomScheduleCsv'
 import { exportScene3d } from '../../openSceneExport'
 import { openSh3dImport } from '../../openSh3dImport'
+import { openSh3fImport } from '../../openSh3fImport'
 import { openShoppingList } from '../../openShoplist'
 import { viewInAr } from '../../viewInAr'
 import { shortcutLabel } from '../shortcuts'
@@ -60,6 +61,7 @@ export function FileMenu() {
   const fSceneExport = useFeature('sceneExport3d')
   const fViewInAr = useFeature('viewInAr')
   const fImportSh3d = useFeature('importSh3d')
+  const fImportSh3f = useFeature('importSh3f')
   const [slots, setSlots] = useState<SlotMeta[]>([])
 
   // Refresh the slot list whenever the menu mounts a panel render.
@@ -370,6 +372,15 @@ export function FileMenu() {
           sub="Load walls & rooms from a .sh3d file"
           docs="importSh3d"
           onClick={() => openSh3dImport()}
+        />
+      ) : null}
+      {fImportSh3f ? (
+        <MenuItem
+          icon="Upload"
+          label="Import SH3D library…"
+          sub="Load furniture from a .sh3f library file"
+          docs="importSh3f"
+          onClick={() => openSh3fImport()}
         />
       ) : null}
       <MenuItem

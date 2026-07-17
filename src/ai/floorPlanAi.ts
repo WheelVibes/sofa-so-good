@@ -125,13 +125,30 @@ export interface AiOpening {
   width: number
 }
 
+/** A named room the model proposed, as an axis-aligned rectangle in metres
+ *  (image/world frame, origin top-left). Optional — only text→plan GENERATION
+ *  (`parseGeneratedPlan`) emits rooms; vision recognition leaves it absent and
+ *  the apply path derives nothing. Landed onto the plan as a `PlanRoom`
+ *  (`origin=[x,z]`, `width`, `depth`) by `applyAiPlanDraft`. */
+export interface AiRoom {
+  name: string
+  /** NW corner of the room's interior rectangle (metres). */
+  x: number
+  z: number
+  width: number
+  depth: number
+}
+
 /** Full recognition result: walls (backward-compatible), any openings the model
  *  proposed, and an optional scale estimate (metres per image pixel). Openings
  *  and scale are best-effort — either may be empty/absent and the caller falls
- *  back to walls-only exactly as before. */
+ *  back to walls-only exactly as before. `rooms` rides along for the text→plan
+ *  generator only (vision never sets it). */
 export interface AiPlanResult {
   walls: AiWall[]
   openings: AiOpening[]
+  /** Named rooms (text→plan generation only); absent/empty for vision. */
+  rooms?: AiRoom[]
   /** Estimated metres per image pixel, if the model could calibrate the plan
    *  (from a dimension label or a known-width heuristic). Absent when unknown. */
   mPerPx?: number
@@ -233,6 +250,35 @@ function openingsFromRaw(raw: unknown): AiOpening[] {
   return out
 }
 
+/** Plausible bounds (m) on a single room side — a value outside this range is a
+ *  mis-read (a 0.4 m or 40 m "room") and the entry is dropped. Deliberately wide
+ *  so unusual-but-real spaces (a 0.6 m store, a 12 m great room) still pass. */
+const MIN_ROOM_SIDE = 0.5
+const MAX_ROOM_SIDE = 40
+
+/** Extract named rectangular rooms from an already-parsed `rooms` value. Drops
+ *  entries with a non-finite/degenerate rectangle; a missing name falls back to
+ *  a generic "Room". Tolerates `{x,z,width,depth}` or `{origin:[x,z],...}`
+ *  shapes. Pure. */
+function roomsFromRaw(raw: unknown): AiRoom[] {
+  if (!Array.isArray(raw)) return []
+  const out: AiRoom[] = []
+  for (const r of raw) {
+    const rec = r as Record<string, unknown>
+    const origin = Array.isArray(rec?.origin) ? (rec.origin as unknown[]) : null
+    const x = Number(origin ? origin[0] : rec?.x)
+    const z = Number(origin ? origin[1] : rec?.z)
+    const width = Number(rec?.width ?? rec?.w)
+    const depth = Number(rec?.depth ?? rec?.d)
+    if (![x, z, width, depth].every(Number.isFinite)) continue
+    if (width < MIN_ROOM_SIDE || depth < MIN_ROOM_SIDE) continue
+    if (width > MAX_ROOM_SIDE || depth > MAX_ROOM_SIDE) continue
+    const rawName = typeof rec?.name === 'string' ? rec.name.trim() : ''
+    out.push({ name: rawName || 'Room', x, z, width, depth })
+  }
+  return out
+}
+
 /** Extract a metres-per-pixel scale from an already-parsed `scale` value —
  *  either a direct `metresPerPixel`/`mPerPx`, or a reference span
  *  (`pixels`+`metres`). Returns undefined when unusable. Pure. */
@@ -265,6 +311,23 @@ export function parseVisionResponse(text: string): AiPlanResult {
   return {
     walls: wallsFromRaw(obj.walls),
     openings: openingsFromRaw(obj.openings),
+    ...(mPerPx !== undefined ? { mPerPx } : {}),
+  }
+}
+
+/** Parse a text→plan GENERATION reply: walls + openings + named rooms (+ an
+ *  optional scale, ignored downstream for generation since coordinates are
+ *  already in metres). Shares the same defensive helpers as
+ *  `parseVisionResponse` — any missing/malformed part degrades to empty, never
+ *  throws. Pure. */
+export function parseGeneratedPlan(text: string): AiPlanResult {
+  const obj = parseJsonBlock(text)
+  if (!obj) return { walls: [], openings: [], rooms: [] }
+  const mPerPx = scaleFromRaw(obj.scale)
+  return {
+    walls: wallsFromRaw(obj.walls),
+    openings: openingsFromRaw(obj.openings),
+    rooms: roomsFromRaw(obj.rooms),
     ...(mPerPx !== undefined ? { mPerPx } : {}),
   }
 }

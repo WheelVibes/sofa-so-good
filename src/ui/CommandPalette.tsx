@@ -27,6 +27,7 @@ import { useStore } from '../state/store'
 import { toolActionsForSurface } from './actions/toolActions'
 import { closeAllAuxPanels } from './auxPanels'
 import { type DocKey, FEATURE_DOCS, openDocs, openToolDocs } from './docsUrl'
+import { runAiPlanGeneration } from './floorplan/editor/usePlanAiGenerate'
 import { downloadCostBreakdownCsv } from './openCostBreakdownCsv'
 import { downloadFfeCsv } from './openFfeCsv'
 import { downloadFurnitureCsv } from './openFurnitureCsv'
@@ -36,6 +37,7 @@ import { openDesignReport } from './openReport'
 import { downloadRoomScheduleCsv } from './openRoomScheduleCsv'
 import { exportScene3d } from './openSceneExport'
 import { openSh3dImport } from './openSh3dImport'
+import { openSh3fImport } from './openSh3fImport'
 import { openShoppingList } from './openShoplist'
 import { ProUpsellHint } from './ProUpsellHint'
 import { pickPaletteFromPhoto } from './paletteFromPhoto'
@@ -69,12 +71,14 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'plan-svg': 'dxfExport',
   'export-3d': 'sceneExport3d',
   'import-sh3d': 'importSh3d',
+  'import-sh3f': 'importSh3f',
   parametric: 'parametricFurniture',
   'configure-product': 'productConfigurator',
   'stamp-mode': 'stampPlace',
   'parallel-projection': 'parallelProjection',
   'replace-similar': 'replaceSimilar',
   'ai-furnish': 'aiLayout',
+  'ai-plan-generate': 'aiPlanGenerate',
   'drawing-callouts': 'drawingCallouts',
   'quote-template': 'quoteTemplate',
   'sel-group': 'furnitureGroups',
@@ -512,11 +516,28 @@ export function CommandPalette() {
         run: () => openSh3dImport(),
       },
       {
+        id: 'import-sh3f',
+        group: 'Tools & panels',
+        label: 'Import Sweet Home 3D library (.sh3f)',
+        icon: 'Upload',
+        run: () => openSh3fImport(),
+      },
+      {
         id: 'floorplan',
         group: 'Tools & panels',
         label: 'Floor plan editor',
         icon: 'FloorPlan',
         run: () => s().setFloorPlanEditing(true),
+      },
+      {
+        id: 'ai-plan-generate',
+        group: 'Tools & panels',
+        label: 'Generate plan with AI (BYO key)',
+        hint: 'LLM',
+        icon: 'FloorPlan',
+        run: () => {
+          void runAiPlanGeneration()
+        },
       },
       {
         id: 'edit-room',
