@@ -5,7 +5,9 @@ import { seg, useDetail } from './useDetail'
 
 /** Counter-height bar stool. Styles: 'splayed' (round seat on four splayed
  *  legs + footrest ring), 'pedestal' (central column on a weighted disc base,
- *  gas-lift look), and 'backed' (splayed legs + a low curved backrest).
+ *  gas-lift look), 'backed' (splayed legs + a low curved backrest), 'step' (a
+ *  two-tread wooden step stool, ~0.45 m top tread), and 'kitchen' (a low
+ *  backless kitchen stool, ~0.6 m seat, on splayed legs + a stretcher ring).
  *  Faces +Z. */
 export function BarStool({ props }: { props: ParamProps }) {
   const detail = useDetail()
@@ -21,6 +23,79 @@ export function BarStool({ props }: { props: ParamProps }) {
   // Legs / column / footrest ring / backrest bars route through the shared
   // brushed-metal material (matte black-steel grain, tinted by legColor).
   const metal = metalLeg(legColor, 'black-steel')
+
+  // ── Step stool: a two-tread wooden step. Two side panels (floor → top tread)
+  // carry a top tread (~0.45 m) and a lower step tread toward the front; both
+  // treads span between and overlap the panels, so it's one grounded piece. ──
+  if (style === 'step') {
+    const topH = 0.45
+    const stepH = 0.23
+    const w = 0.4
+    const d = 0.32
+    const treadT = 0.03
+    const panelT = 0.03
+    const px = w / 2 - panelT / 2
+    return (
+      <group>
+        {[-px, px].map((x) => (
+          <mesh key={x} castShadow receiveShadow position={[x, topH / 2, 0]} material={seatMat}>
+            <boxGeometry args={[panelT, topH, d]} />
+          </mesh>
+        ))}
+        {/* Top tread */}
+        <mesh castShadow receiveShadow position={[0, topH - treadT / 2, 0]} material={seatMat}>
+          <boxGeometry args={[w, treadT, d]} />
+        </mesh>
+        {/* Lower step tread (front) */}
+        <mesh
+          castShadow
+          position={[0, stepH - treadT / 2, d / 2 - (d * 0.55) / 2]}
+          material={seatMat}
+        >
+          <boxGeometry args={[w, treadT, d * 0.55]} />
+        </mesh>
+      </group>
+    )
+  }
+
+  // ── Kitchen stool: a low (~0.6 m) backless stool — round seat on four splayed
+  // metal legs tied by a low stretcher ring (no tall footrest). ───────────────
+  if (style === 'kitchen') {
+    const kSeatH = 0.6
+    const kLegs = [0, 1, 2, 3].map((i) => {
+      const a = (i / 4) * Math.PI * 2 + Math.PI / 4
+      const tx = Math.sin(a) * (r - 0.03)
+      const tz = Math.cos(a) * (r - 0.03)
+      const bx = Math.sin(a) * (r + 0.08)
+      const bz = Math.cos(a) * (r + 0.08)
+      const mx = (tx + bx) / 2
+      const mz = (tz + bz) / 2
+      const lean = Math.atan2(Math.hypot(bx - tx, bz - tz), kSeatH)
+      return (
+        <mesh
+          key={i}
+          castShadow
+          position={[mx, kSeatH / 2, mz]}
+          rotation={[Math.cos(a) * lean, 0, -Math.sin(a) * lean]}
+          material={metal}
+        >
+          <cylinderGeometry args={[0.016, 0.016, kSeatH, 8]} />
+        </mesh>
+      )
+    })
+    return (
+      <group>
+        <mesh castShadow receiveShadow position={[0, kSeatH, 0]} material={seatMat}>
+          <cylinderGeometry args={[r, r, 0.05, seg(24, detail)]} />
+        </mesh>
+        {kLegs}
+        {/* Low stretcher ring tying the legs */}
+        <mesh position={[0, 0.22, 0]} rotation={[Math.PI / 2, 0, 0]} material={metal}>
+          <torusGeometry args={[r + 0.04, 0.012, seg(8, detail), seg(24, detail)]} />
+        </mesh>
+      </group>
+    )
+  }
 
   const splayedLegs = [0, 1, 2, 3].map((i) => {
     const a = (i / 4) * Math.PI * 2 + Math.PI / 4

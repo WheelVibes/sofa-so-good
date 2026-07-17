@@ -1,6 +1,7 @@
 import { canPlace } from '../../collision/placement'
 import { placementWalls } from '../../collision/placementWalls'
 import { useCatalog } from '../../furniture/catalog'
+import { resolveFootprintDims } from '../../furniture/footprintDims'
 import type { FurnitureDef, FurnitureItem, ParamField } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
@@ -14,11 +15,9 @@ function itemFootprintWD(item: FurnitureItem, def: FurnitureDef): { w: number; d
   let w = def.defaultFootprint.w
   let d = def.defaultFootprint.d
   if (def.kind === 'parametric') {
-    const map = def.footprintParams ?? {}
-    const wv = item.props[map.w ?? 'width']
-    const dv = item.props[map.d ?? 'depth']
-    if (typeof wv === 'number') w = wv
-    if (typeof dv === 'number') d = dv
+    const dims = resolveFootprintDims(def, item.props, { w, d })
+    w = dims.w
+    d = dims.d
   }
   return { w, d }
 }

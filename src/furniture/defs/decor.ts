@@ -558,6 +558,7 @@ export const DECOR_DEFS = {
     kind: 'parametric',
     id: 'wall-shelf',
     name: 'Wall shelf',
+    keywords: ['floating shelf', 'picture ledge', 'picture rail', 'corner shelf', 'wall ledge'],
     category: 'decor',
     primitive: 'WallShelf',
     defaultFootprint: { w: 0.8, d: 0.22, h: 0.15 },
@@ -597,14 +598,20 @@ export const DECOR_DEFS = {
       },
       { kind: 'color', key: 'color', label: 'Colour', default: '#8a6b48' },
       {
+        // Order keeps the multi-part modes (which the structural harness must
+        // verify connect) within the auto-covered default + first 3 extras;
+        // 'floating' (a single solid slab, trivially one component) is the mode
+        // left out of the auto-sample.
         kind: 'enum',
         key: 'style',
         label: 'Style',
         default: 'bracket',
         options: [
           { value: 'bracket', label: 'L-bracket' },
-          { value: 'floating', label: 'Floating' },
+          { value: 'ledge', label: 'Picture ledge' },
+          { value: 'corner', label: 'Corner (L-plan)' },
           { value: 'twotier', label: 'Two-tier' },
+          { value: 'floating', label: 'Floating slab' },
         ],
       },
       {
@@ -753,8 +760,19 @@ export const DECOR_DEFS = {
           { value: 'large', label: 'Large' },
         ],
       },
+      {
+        kind: 'enum',
+        key: 'stand',
+        label: 'Stand',
+        default: 'none',
+        options: [
+          { value: 'none', label: 'On the floor' },
+          { value: 'raised', label: 'Mid-century stand' },
+        ],
+      },
       { kind: 'color', key: 'potColor', label: 'Pot', default: '#b9743f' },
       { kind: 'color', key: 'leafColor', label: 'Foliage', default: '#3f6b3a' },
+      { kind: 'color', key: 'standColor', label: 'Stand', default: '#7a5230' },
     ],
   },
   fireplace: {

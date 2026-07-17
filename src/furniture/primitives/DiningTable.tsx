@@ -16,7 +16,16 @@ interface DiningTableProps {
  */
 export function DiningTable({ props }: DiningTableProps) {
   const seatsKey = readStr(props, 'seats', '4')
-  const dim = DINING_SEAT_DIMENSIONS[seatsKey] ?? DINING_SEAT_DIMENSIONS['4']
+  const seatDim = DINING_SEAT_DIMENSIONS[seatsKey] ?? DINING_SEAT_DIMENSIONS['4']
+  // Explicit width/depth props (used by the reused bar/counter-height table
+  // def) override the seat-derived top size; the dining table itself has no
+  // width/depth params, so it always falls back to the seat dimensions.
+  const wProp = props.width
+  const dProp = props.depth
+  const dim = {
+    w: typeof wProp === 'number' ? wProp : seatDim.w,
+    d: typeof dProp === 'number' ? dProp : seatDim.d,
+  }
   const topColor = readStr(props, 'topColor', '#9e7b53')
   const legColor = readStr(props, 'legColor', '#5b4126')
   const finish = readStr(props, 'finish', 'wood')
@@ -24,7 +33,9 @@ export function DiningTable({ props }: DiningTableProps) {
   const shape = readStr(props, 'shape', 'rect')
 
   const topThickness = 0.04
-  const totalH = 0.74
+  // tableHeight lets the same primitive serve a standard dining table (0.74) and
+  // a bar/counter-height table (~0.9–1.05); legs/aprons/pedestal derive from it.
+  const totalH = readNum(props, 'tableHeight', 0.74)
   const legThickness = 0.06
   const legInset = 0.1
 

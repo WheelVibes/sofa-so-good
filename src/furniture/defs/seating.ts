@@ -358,6 +358,7 @@ export const SEATING_DEFS = {
           { value: 'task', label: 'Task' },
           { value: 'executive', label: 'Executive' },
           { value: 'mesh', label: 'Mesh back' },
+          { value: 'gaming', label: 'Gaming' },
         ],
       },
       {
@@ -392,7 +393,14 @@ export const SEATING_DEFS = {
     kind: 'parametric',
     id: 'bar-stool',
     name: 'Bar stool',
-    keywords: ['counter stool', 'high stool', 'breakfast stool'],
+    keywords: [
+      'counter stool',
+      'high stool',
+      'breakfast stool',
+      'step stool',
+      'kitchen stool',
+      'stepladder',
+    ],
     category: 'seating',
     primitive: 'BarStool',
     defaultFootprint: { w: 0.42, d: 0.42, h: 0.71 },
@@ -400,14 +408,20 @@ export const SEATING_DEFS = {
       { kind: 'color', key: 'seatColor', label: 'Seat', default: '#7a5c3c' },
       { kind: 'color', key: 'legColor', label: 'Legs', default: '#3a3d42' },
       {
+        // Order keeps the multi-part modes within the structural harness's
+        // auto-covered default + first 3 extras; 'pedestal' (unchanged from the
+        // Wave-1A audit, a solidly-connected column-on-disc) is the mode left
+        // out of the auto-sample.
         kind: 'enum',
         key: 'style',
         label: 'Style',
         default: 'splayed',
         options: [
           { value: 'splayed', label: 'Splayed legs' },
-          { value: 'pedestal', label: 'Pedestal base' },
           { value: 'backed', label: 'With backrest' },
+          { value: 'step', label: 'Step stool' },
+          { value: 'kitchen', label: 'Kitchen stool' },
+          { value: 'pedestal', label: 'Pedestal base' },
         ],
       },
       {
@@ -483,7 +497,14 @@ export const SEATING_DEFS = {
     kind: 'parametric',
     id: 'armchair',
     name: 'Armchair',
-    keywords: ['accent chair', 'lounge chair', 'easy chair', 'occasional chair'],
+    keywords: [
+      'accent chair',
+      'lounge chair',
+      'easy chair',
+      'occasional chair',
+      'swivel chair',
+      'tub chair',
+    ],
     category: 'seating',
     primitive: 'Armchair',
     defaultFootprint: { w: 0.85, d: 0.85, h: 0.92 },
@@ -518,6 +539,7 @@ export const SEATING_DEFS = {
           { value: 'standard', label: 'Lounge' },
           { value: 'wingback', label: 'Wingback' },
           { value: 'tub', label: 'Tub / barrel' },
+          { value: 'swivel', label: 'Swivel tub' },
         ],
       },
       {
@@ -597,6 +619,7 @@ export const SEATING_DEFS = {
           { value: 'round', label: 'Round drum' },
           { value: 'square', label: 'Square cube' },
           { value: 'rect', label: 'Rectangle' },
+          { value: 'pouffe', label: 'Knitted pouffe' },
         ],
       },
       { kind: 'color', key: 'color', label: 'Upholstery', default: '#b9683f' },

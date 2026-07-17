@@ -1,6 +1,7 @@
 import { ellipseFootprintParts } from '../footprintShapes'
 import type { FurnitureDef } from '../types'
 import { diningSeatDim } from './diningSeatDims'
+import { nestFootprint } from './nestingTables'
 
 /** tables furniture definitions. Part of the built-in catalog (see ../builtinCatalog.ts). */
 export const TABLES_DEFS = {
@@ -98,6 +99,9 @@ export const TABLES_DEFS = {
       },
       { kind: 'color', key: 'color', label: 'Colour', default: '#d5c2a3' },
       {
+        // Placed AFTER `legStyle` so `legStyle` stays the def's first structural
+        // enum (its panel/legs/hairpin modes keep their structural-harness
+        // coverage); the gaming style is covered via the harness EXTRA_MODES map.
         kind: 'enum',
         key: 'legStyle',
         label: 'Legs',
@@ -106,6 +110,16 @@ export const TABLES_DEFS = {
           { value: 'panel', label: 'Panel + drawer' },
           { value: 'legs', label: 'Four legs' },
           { value: 'hairpin', label: 'Hairpin' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'standard',
+        options: [
+          { value: 'standard', label: 'Standard' },
+          { value: 'gaming', label: 'Gaming (riser + cable tray)' },
         ],
       },
       {
@@ -304,17 +318,26 @@ export const TABLES_DEFS = {
     kind: 'parametric',
     id: 'side-table',
     name: 'Side table',
-    keywords: ['end table', 'accent table'],
+    keywords: ['end table', 'accent table', 'nesting tables', 'nest of tables', 'stacking tables'],
     category: 'tables',
     primitive: 'SideTable',
     defaultFootprint: { w: 0.45, d: 0.45, h: 0.5 },
     footprintParams: { w: 'diameter', d: 'diameter' },
     // 'round' (3-leg) and 'drum' (cylindrical pedestal) are true circles — the
     // diameter×diameter bbox is already square, so the inscribed-OBB ellipse
-    // union is a proper circle here. 'square' keeps the single full box.
+    // union is a proper circle here. 'square' keeps the single full box. A
+    // `set` nest (2–3 staggered round tables) spans wider than one table, so its
+    // footprint tracks the WHOLE set extent (nestFootprint) — an honest
+    // over-report vs the single largest piece, like the pets.ts enum→footprint
+    // convention (the enum can't feed the 1:1 `footprintParams`).
     footprintParts: (props) => {
-      if (props.shape === 'square') return []
       const dia = typeof props.diameter === 'number' ? props.diameter : 0.45
+      const set = typeof props.set === 'string' ? props.set : 'single'
+      if (set !== 'single') {
+        const { w, d } = nestFootprint(dia, set)
+        return [{ dx: 0, dz: 0, w, d }]
+      }
+      if (props.shape === 'square') return []
       return ellipseFootprintParts(dia, dia)
     },
     paramSchema: [
@@ -341,6 +364,21 @@ export const TABLES_DEFS = {
       { kind: 'color', key: 'topColor', label: 'Top', default: '#9e7b53' },
       { kind: 'color', key: 'legColor', label: 'Legs', default: '#4a3722' },
       {
+        // Nesting set (2–3 round tables that tuck together). `shape` stays the
+        // first structural enum; the nest modes get structural coverage via the
+        // harness's EXTRA_STRUCTURAL_MODES. A nest always renders round pieces
+        // regardless of `shape` (see SideTable).
+        kind: 'enum',
+        key: 'set',
+        label: 'Set',
+        default: 'single',
+        options: [
+          { value: 'single', label: 'Single' },
+          { value: 'nest2', label: 'Nesting (2)' },
+          { value: 'nest3', label: 'Nesting (3)' },
+        ],
+      },
+      {
         kind: 'enum',
         key: 'shape',
         label: 'Shape',
@@ -356,6 +394,87 @@ export const TABLES_DEFS = {
         key: 'finish',
         label: 'Top finish',
         default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+          { value: 'marble', label: 'Marble' },
+          { value: 'concrete', label: 'Concrete' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    ],
+  },
+  // Bar / counter-height table — a tall small-top table for a breakfast bar /
+  // kitchen island. Reuses the DiningTable primitive with its own defaults: an
+  // explicit small width/depth (overriding the seat-derived top) and a raised
+  // `tableHeight` (bar-stool territory). Its own def keeps the dining table's
+  // seat enum + dims undistorted.
+  'bar-table': {
+    kind: 'parametric',
+    id: 'bar-table',
+    name: 'Bar table',
+    keywords: ['counter table', 'high table', 'pub table', 'poseur table', 'breakfast bar'],
+    category: 'tables',
+    primitive: 'DiningTable',
+    defaultFootprint: { w: 0.7, d: 0.7, h: 1.05 },
+    footprintParams: { w: 'width', d: 'depth' },
+    // Round → the inscribed-OBB ellipse union (footprintShapes.ts); rect falls
+    // back to the single enclosing OBB from footprintParams.
+    footprintParts: (props) => {
+      if (props.shape !== 'round') return []
+      const w = typeof props.width === 'number' ? props.width : 0.7
+      const d = typeof props.depth === 'number' ? props.depth : 0.7
+      return ellipseFootprintParts(w, d)
+    },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 0.55,
+        max: 0.9,
+        step: 0.05,
+        default: 0.7,
+        unit: 'm',
+      },
+      {
+        kind: 'number',
+        key: 'depth',
+        label: 'Depth',
+        min: 0.55,
+        max: 0.8,
+        step: 0.05,
+        default: 0.7,
+        unit: 'm',
+      },
+      {
+        kind: 'number',
+        key: 'tableHeight',
+        label: 'Height',
+        min: 0.9,
+        max: 1.1,
+        step: 0.05,
+        default: 1.05,
+        unit: 'm',
+      },
+      {
+        kind: 'enum',
+        key: 'shape',
+        label: 'Shape',
+        default: 'rect',
+        options: [
+          { value: 'rect', label: 'Rectangular' },
+          { value: 'round', label: 'Round pedestal' },
+        ],
+      },
+      { kind: 'color', key: 'topColor', label: 'Top', default: '#9e7b53' },
+      { kind: 'color', key: 'legColor', label: 'Legs', default: '#5b4126' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Top finish',
+        default: 'mat:floor-wood-oak',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },

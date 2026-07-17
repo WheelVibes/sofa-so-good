@@ -147,9 +147,12 @@ Same cadence as the audit: **2 parallel agents (2 dev-server cap)**, one commit 
 CHANGELOG + build bump, full suite once per commit, **a scenario capture per batch** (grid room +
 per-item profile closeups) reviewed against the audit rubric (scale/physics/z-fight/fidelity) plus
 the structural-soundness harness (every new primitive/enum mode must pass the connected-component +
-floor-touch assertions). Every new user-facing item gets a `FEATURE_FLAGS` entry with a `tier`
-(entry/storage staples → `simple`; gaming/utility/system builders → `pro`) and is tested in both
-Simple and Pro modes.
+floor-touch assertions). Flag policy (corrected 2026-07-17 to match repo precedent): catalog **content** — new enum
+variants and new defs inside existing categories — is NOT individually flag-gated (flags gate
+features/surfaces; the pets flag gated a whole new category+tab, and parametric TYPES like
+kitchen-run carry flags). E1–E3 items therefore ship un-flagged like every other catalog def.
+E4's configurable **systems** extend the `parametric`/configurator types and DO get flags with a
+`tier` per the src/furniture/CLAUDE.md parametric-type checklist, tested in both modes.
 
 | Wave | Batch A | Batch B | Rationale |
 |---|---|---|---|
@@ -799,3 +802,155 @@ pets, autoArrange, windowFixture). Structural-soundness harness stays green.
    honest `defaultFootprint.d`). `footprintParams: { w: 'length' }`. No test asserted the mapping;
    the generic `autoArrange`/`PlanFurnitureInspector` `?? 'depth'` fallback resolves identically
    (the `depth` prop never existed), so behaviour is unchanged.
+
+### Wave E1B — Expansion Tier-1 rows 7–12 (enum variants on audited primitives), 2026-07-17
+
+Six new catalog-content modes (procedural originals inspired by product families; NO new feature
+flags — enum variants are content). All sized to real-metre/SG norms (cross-checked vs
+`ikea_optimized/` folder dims as reference only). Audit scenario:
+`scripts/scenarios/expansion-e1b.json` (14 frames, whole-flat ORBIT dollhouse camera, High tier
+under `SHOT_GPU=1` so mirror reflectors + knit/metal read truthfully; every new mode + its existing
+sibling for regression). **Attachment verified two-channel:** the structural-soundness harness
+(`structuralSoundness.test.tsx`) renders and passes EVERY new mode (comps=1 + floor contact) and the
+closeups confirm each joint. tsc clean; Biome clean on all touched files; targeted vitest **337
+green** (structuralSoundness + builtinCatalog + builtinKeywords + furniturePrices +
+furnitureMaterialFinish + granular/roundOval footprint).
+
+- **7. drawer-pedestal (NEW def, reuses the `Dresser` primitive)** — the slim under-desk mobile
+  pedestal. Bolting a `pedestal` variant straight onto `dresser` would distort its honest
+  1.2×0.5×0.93 footprint, so per the row's sanctioned fallback this is its own def with slim defaults
+  (0.4 w × 0.5 d × 0.6 h, 1 col × 3 drawers, bar pulls, painted). A `variant` enum drives the body in
+  the shared primitive: `pedestal` = 4 swivel castors (a dark housing socketing into the body
+  underside + a wheel touching y=0 — the assembly runs body→housing→wheel to the floor, one grounded
+  component) on a ~0.54 m body (~0.6 total, desk-clearance); `chest` = the taller 0.85 m body on
+  legs (a narrow drawer tower). Footprint pinned to the taller `chest` height (0.93, height is not
+  collision-critical); width tracked via `footprintParams`. Price 180 SGD, office/castor keywords.
+  Verified: slim single-column drawer unit on visible castors, grounded; chest sibling taller on
+  legs.
+- **8. nightstand `size` enum (narrow/standard/wide)** — replaced the redundant continuous `width`
+  slider with a discrete `size` enum (DogCrate precedent) that maps to a width in the primitive
+  (narrow 0.38 / standard 0.45 / wide 0.6 m). Since `size` is an enum (can't feed `footprintParams`),
+  the width is pinned to the LARGEST (wide 0.6) per the pets.ts largest-mode comment style; depth
+  stays numeric → tracked via `footprintParams`. Geometry identical across sizes (structure sound at
+  every width). Verified: three progressively wider bedside cabinets, grounded.
+- **9. ottoman knitted pouffe** — added `pouffe` as a `shape` value (round/square/rect/**pouffe**)
+  rather than a separate `style` key, so the structural harness (first-structural-enum = `shape`,
+  MAX_EXTRA_MODES=3) auto-covers it alongside the three existing shapes with ZERO coverage loss
+  (default round + [square, rect, pouffe] = exactly 3 extras). Rendered as a single lathed body with
+  a gently barrelled (bulged) silhouette — widest point at the footprint radius so the collision box
+  stays honest, top/bottom pulled in for the plump hand-knit look — plus a small braided crown
+  button, no feet, seated flush on the floor; uses the existing fabric/upholstery material (knit
+  reads as fabric). Verified: clear bulge + button vs the straight round drum, both grounded.
+- **10. potted-plant raised mid-century stand** — new `stand` enum (none/raised) + a `standColor`.
+  `raised` lifts the pot (and everything above) so its lower body seats INSIDE a wooden cradle ring,
+  carried by three splayed legs running floor→ring — one grounded assembly (legs reach the floor, pot
+  seated in the ring, ring hugs the scaled pot base). Leg splay is bounded so the foot circle stays
+  within the honest 0.55 footprint even at the large size. `stand` isn't a first-structural enum
+  (`type` stays first, keeping bush/snake/palm/fiddle coverage), so `stand=raised` is asserted via a
+  new **`EXTRA_STRUCTURAL_MODES`** map added to the harness (general "cover a def's second
+  shape-changing enum" mechanism). Verified (hero shot): pot cradled in the ring on splayed legs vs
+  the on-floor sibling.
+- **11. wardrobe corner (L-plan) + mirror-door finish** — two additions to `wardrobe-3door`.
+  `layout` enum (straight/corner): corner renders two 0.6 m-deep arms meeting at the back-left
+  corner (overlapping there → connected), the concave inner corner left open (sofa-lshape precedent);
+  a props-driven `footprintParts` returns the single width-tracking box for straight and the two L
+  OBBs for corner (also fixes the pre-existing straight under-report where width wasn't tracked).
+  `doorFinish` enum (panel/mirror): mirror door faces render `MirrorMaterial` (tier-aware — real
+  planar reflection on High/Maximum, cheap fake-shiny on Performance/Medium, so the flat fallback is
+  automatic) on the hinged/sliding/corner panels. `layout` placed AFTER `doorStyle` (doorStyle stays
+  first structural → hinged/sliding/open keep coverage); `layout=corner` covered via
+  `EXTRA_STRUCTURAL_MODES`. Verified: L-plan carcass with open notch (panel); bright mirrored panels
+  on both L arms (corner mirror). *Note:* the straight-mirror closeup framed the carcass from behind
+  (doors face +Z away from the dollhouse camera), so mirror vs panel read identical there — the
+  mirror finish is proven by the camera-facing corner-mirror frame.
+- **12. gaming desk (`desk` `style: gaming`)** — new `style` enum (standard/gaming), placed AFTER
+  `legStyle` (legStyle stays first structural → panel/legs/hairpin keep coverage; gaming covered via
+  `EXTRA_STRUCTURAL_MODES`). Gaming renders two black-steel closed-loop side frames (front+back posts
+  + foot rail + top rail, `metalLeg` black-steel, reaching the floor and meeting the desktop
+  underside) + a rear cross stretcher, a cable-management tray slung under the rear edge between the
+  frames (ends meet the back posts), and a monitor riser shelf on two blocks resting on the desktop —
+  all grounded/connected. Default width 1.3–1.4 (wider top). Verified: O-leg steel frames + riser +
+  tray, grounded (best read on the rear closeup; the front frame washed under the dollhouse
+  translucency).
+
+**Harness extension (shared, general):** added `EXTRA_STRUCTURAL_MODES: Record<defId, {label →
+props patch}>` to `structuralSoundness.test.tsx`'s `buildCases`, appended after the first-enum sweep
+— covers a def's SECOND shape-changing enum (`potted-plant` stand, `wardrobe-3door` layout, `desk`
+style) without displacing the first enum's coverage. All new modes report comps=1 + floor contact.
+
+**Judgment calls:** (a) pouffe as a `shape` value not a separate `style` key — full harness coverage,
+no loss; (b) nightstand `size` enum replaces the width slider (DogCrate pattern) rather than
+coexisting with it — avoids a confusing double width control; (c) drawer-pedestal as its own def
+(sanctioned fallback) rather than a `dresser` variant — keeps both footprints honest; (d) new-enum
+ordering (layout after doorStyle, style after legStyle) chosen to preserve existing first-enum harness
+coverage, with the new modes covered via the `EXTRA_STRUCTURAL_MODES` mechanism. Cross-cutting
+unchanged: the dollhouse orbit camera renders near-walls translucent, washing some mid-room closeups
+(the clear-angle frames + the harness carry the verification); the shared `mat:floor-wood-oak`
+watermark grain still shows on wood finishes (coordinated global retune, not a per-def fix).
+
+### Wave E1A — Tier-1 rows 1–6 (enum variants on audited primitives), 2026-07-17
+
+Six items, all new `paramSchema` enum variants (no new feature flags — catalog content).
+Scenario `scripts/scenarios/expansion-e1a.json` (26-item grid staged on open ground BESIDE the
+flat — mounted/floor items read as clean product shots with no wall occlusion/camera clipping;
+wide overview + 12 per-item profile closeups) reviewed against the rubric; every new mode also
+passes the structural-soundness harness (comps=1 + floor contact where anchored). tsc clean, biome
+clean, targeted vitest green (structuralSoundness + builtinCatalog + furniturePrices +
+builtinKeywords + catalogSearch + footprintShapes + roundOvalFootprint).
+
+- **1 · wall-shelf (decor) `style`** — added `ledge` (picture ledge: plank + raised front lip rail),
+  `corner` (L-plan: a long back arm + a short side arm overlapping at the corner block), and made
+  `floating` a thick solid slab (was a thin plank). Kept `bracket`/`twotier`. Enum ordered
+  bracket(default)/ledge/corner/twotier/floating so the multi-part modes fall in the harness's
+  auto-covered default+3; `floating` (a single BeveledBox, trivially one component) is the mode left
+  out of the auto-sample. Visual: lip, L-plan, and the chunky slab all read; mounted, so placed at
+  1.4 m (floats free in the open-ground scenario, as expected). (`primitives/WallShelf.tsx`,
+  `defs/decor.ts`)
+- **2 · side-table (tables) `set`** — nesting set of 2–3 round tables (`nest2`/`nest3`) staggered
+  along +X, re-centred, each ~4 cm shorter so the smaller ones tuck under. hStep = topThk+4 mm keeps
+  each piece's top within ε of the next taller piece's underside → the whole set is ONE connected
+  component (verified). A nest always renders round pieces regardless of `shape`. Footprint tracks
+  the whole-set extent via a shared pure `defs/nestingTables.ts` (`nestPieces`/`nestFootprint`) wired
+  into both the primitive and the def `footprintParts` (honest over-report vs the largest single
+  piece, pets.ts convention). `set` is NOT in STRUCTURAL_ENUM_KEYS (so `shape` stays the first enum,
+  keeping round/square/drum auto-covered); the nest modes get coverage via `EXTRA_STRUCTURAL_MODES`
+  (E1B's mechanism). Visual: three staggered round tops read clearly as a nest, grounded.
+  (`primitives/SideTable.tsx`, `defs/nestingTables.ts`, `defs/tables.ts`)
+- **3 · bar-table (tables, NEW def reusing the DiningTable primitive)** — bolting a height onto
+  dining-table-4 would have distorted its seat-enum sizing, so a separate `bar-table` def (still
+  content, no flag) drives the DiningTable primitive with an explicit small `width`/`depth`
+  (override the seat-derived top) and a `tableHeight` (0.9–1.1, default 1.05). Parametrised
+  DiningTable to read optional `width`/`depth`/`tableHeight` (dining-table-4 has none → unchanged,
+  totalH still 0.74). `shape` rect/round(pedestal). Price 340. Visual: reads as a counter/bar table,
+  4-leg apron + round pedestal both grounded at counter height. (`primitives/DiningTable.tsx`,
+  `defs/tables.ts`, `furniturePrices.ts`)
+- **4 · bar-stool (seating) `style`** — added `step` (two-tread wooden step stool ~0.45 m: two side
+  panels carry a top tread + a lower front step, both treads span/overlap the panels) and `kitchen`
+  (low ~0.6 m backless stool: round seat on four splayed metal legs + a low stretcher ring). Existing
+  splayed/pedestal/backed untouched. Enum ordered so the new modes fall in the auto-covered
+  default+3; `pedestal` (unchanged Wave-1A column-on-disc) is the mode left out of the auto-sample.
+  Visual: 2-tread step + low kitchen stool both read distinct, grounded. (`primitives/BarStool.tsx`,
+  `defs/seating.ts`)
+- **5 · office-chair (seating) `style: gaming`** — racing bucket silhouette on the existing 5-star
+  castor base: taller (0.7) padded back panel + angled contrast side wings + lumbar pillow + headrest
+  pillow + contrast seat bolsters. Contrast trim = a darkened shade of the upholstery colour
+  (`darkenHex`), routed through the shared upholstery material. Visual: unmistakably a gaming chair,
+  grounded on the gas-lift + castors (contrast reads muted on the very-dark default upholstery — pops
+  with a lighter colour). (`primitives/OfficeChair.tsx`, `defs/seating.ts`)
+- **6 · armchair (seating) `style: swivel`** — the tub barrel silhouette lifted 6 cm onto a round
+  metal swivel plate + central hub (satin `metalLeg`) instead of the four tapered feet; reuses the
+  tub shell/base/seat geometry (`style === 'tub' || 'swivel'`). Plate→hub→body all overlap (one
+  grounded assembly, verified). Visual: barrel tub on a round pedestal base reads as a swivel accent
+  chair. (`primitives/Armchair.tsx`, `defs/seating.ts`)
+
+**Judgment calls:** (a) staged the audit grid on OPEN GROUND beside the flat (not in the furnished
+rooms) — the mounted wall-shelves + closeups were being occluded/clipped by walls in-room; open
+ground gives clean product-shot silhouettes with correct daylight + grounding shadows. (b) bar-table
+as its own def (the task's sanctioned fallback) rather than a dining-table `height` enum — keeps the
+dining table's seat sizing undistorted and its footprint honest. (c) wall-shelf `floating` and
+bar-stool `pedestal` are the modes dropped from the harness auto-sample (both single-mesh-trivial or
+unchanged+previously-verified); every NEW mode is auto-covered, and side-table's nests use
+`EXTRA_STRUCTURAL_MODES` so no existing mode loses coverage. (d) a nest renders round pieces only
+(the classic nesting look) even under shape=square/drum — documented in the primitive. Cross-cutting
+unchanged: the shared `mat:floor-wood-oak` cathedral-grain watermark still shows on wood finishes
+(coordinated global retune, not a per-def fix).

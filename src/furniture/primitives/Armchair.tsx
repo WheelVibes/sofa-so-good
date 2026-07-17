@@ -3,11 +3,13 @@ import { useMemo } from 'react'
 import { DoubleSide } from 'three'
 import { getUpholsteryMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
-import { readNum, readStr } from './shared'
+import { metalLeg, readNum, readStr } from './shared'
+import { seg, useDetail } from './useDetail'
 
 /** Upholstered armchair. Styles: 'standard' (boxy lounge chair), 'wingback'
  *  (tall winged back + rolled arms on tapered wood legs, STRANDMON-style),
- *  and 'tub' (a low curved barrel back wrapping into the arms). Faces +Z. */
+ *  'tub' (a low curved barrel back wrapping into the arms), and 'swivel' (the
+ *  tub silhouette on a round metal swivel plate base instead of feet). +Z. */
 export function Armchair({ props }: { props: ParamProps }) {
   const width = readNum(props, 'width', 0.85)
   const depth = readNum(props, 'depth', 0.85)
@@ -17,6 +19,7 @@ export function Armchair({ props }: { props: ParamProps }) {
   const pattern = readStr(props, 'pattern', 'plain')
   const style = readStr(props, 'style', 'standard')
 
+  const detail = useDetail()
   const mat = getUpholsteryMaterial(material, color, sheen, pattern)
   // The open-ended barrel shell needs both faces lit; clone so we don't
   // mutate the shared cached material (which other items reuse).
@@ -26,16 +29,25 @@ export function Armchair({ props }: { props: ParamProps }) {
     return m
   }, [mat])
 
-  if (style === 'tub') {
+  if (style === 'tub' || style === 'swivel') {
     // Low barrel chair: a curved upholstered shell (open-ended cylinder
-    // segment) wrapping the back and arms, with a thick seat cushion.
+    // segment) wrapping the back and arms, with a thick seat cushion. The
+    // 'swivel' variant lifts the body onto a round metal swivel plate (a small
+    // pedestal gap shows the mechanism) instead of the four tapered feet.
+    const swivel = style === 'swivel'
     const r = Math.min(width, depth) / 2
     const shellH = 0.62
     const seatH = 0.42
+    const lift = swivel ? 0.06 : 0
     return (
       <group>
         {/* Curved back/arm shell — a ~230° arc opening toward +Z */}
-        <mesh castShadow receiveShadow position={[0, shellH / 2 + 0.06, 0]} material={shellMat}>
+        <mesh
+          castShadow
+          receiveShadow
+          position={[0, shellH / 2 + 0.06 + lift, 0]}
+          material={shellMat}
+        >
           <cylinderGeometry
             args={[r, r * 0.96, shellH, 40, 1, true, Math.PI * 0.89, Math.PI * 1.22]}
           />
@@ -46,7 +58,7 @@ export function Armchair({ props }: { props: ParamProps }) {
           radius={0.06}
           smoothness={2}
           castShadow
-          position={[0, 0.13, 0]}
+          position={[0, 0.13 + lift, 0]}
           material={mat}
         />
         {/* Seat cushion */}
@@ -55,17 +67,39 @@ export function Armchair({ props }: { props: ParamProps }) {
           radius={0.06}
           smoothness={3}
           castShadow
-          position={[0, seatH + 0.02, 0.05]}
+          position={[0, seatH + 0.02 + lift, 0.05]}
           material={mat}
         />
-        {/* Short tapered feet */}
-        {[-1, 1].map((sx) =>
-          [-1, 1].map((sz) => (
-            <mesh key={`${sx}.${sz}`} castShadow position={[sx * (r - 0.1), 0.025, sz * (r - 0.1)]}>
-              <cylinderGeometry args={[0.022, 0.018, 0.05, 10]} />
-              <meshStandardMaterial color="#2c2118" roughness={0.45} metalness={0.2} />
+        {swivel ? (
+          <>
+            {/* Round swivel plate on the floor */}
+            <mesh
+              castShadow
+              receiveShadow
+              position={[0, 0.018, 0]}
+              material={metalLeg('#8a8f94', 'satin')}
+            >
+              <cylinderGeometry args={[r * 0.62, r * 0.66, 0.036, seg(36, detail)]} />
             </mesh>
-          )),
+            {/* Central hub bridging the plate to the body underside */}
+            <mesh castShadow position={[0, 0.09, 0]} material={metalLeg('#8a8f94', 'satin')}>
+              <cylinderGeometry args={[0.055, 0.07, 0.11, seg(20, detail)]} />
+            </mesh>
+          </>
+        ) : (
+          /* Short tapered feet */
+          [-1, 1].map((sx) =>
+            [-1, 1].map((sz) => (
+              <mesh
+                key={`${sx}.${sz}`}
+                castShadow
+                position={[sx * (r - 0.1), 0.025, sz * (r - 0.1)]}
+              >
+                <cylinderGeometry args={[0.022, 0.018, 0.05, 10]} />
+                <meshStandardMaterial color="#2c2118" roughness={0.45} metalness={0.2} />
+              </mesh>
+            )),
+          )
         )}
       </group>
     )

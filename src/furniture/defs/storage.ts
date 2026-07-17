@@ -46,6 +46,22 @@ export const STORAGE_DEFS = {
     keywords: ['closet', 'almirah', 'armoire'],
     primitive: 'Wardrobe',
     defaultFootprint: { w: 1.5, d: 0.6, h: 2.1 },
+    // Straight: a single box that tracks the live width. Corner (L-plan): two
+    // 0.6 m-deep arms meeting at the back-left corner — the return arm's length
+    // is capped so the L stays within a sensible footprint. The concave inner
+    // corner stays open so a piece can tuck into the L (sofa-lshape precedent).
+    footprintParts: (props) => {
+      const width = typeof props.width === 'number' ? props.width : 1.5
+      const d0 = 0.6
+      if (props.layout !== 'corner') return [{ dx: 0, dz: 0, w: width, d: d0 }]
+      const ret = Math.min(width, 1.2) // return-arm length along Z
+      // Footprint bbox: width (X) × ret (Z), centred at origin (matches the
+      // primitive). Main arm spans the back in X; return arm spans Z on the left.
+      return [
+        { dx: 0, dz: -ret / 2 + d0 / 2, w: width, d: d0 },
+        { dx: -width / 2 + d0 / 2, dz: 0, w: d0, d: ret },
+      ]
+    },
     paramSchema: [
       {
         kind: 'number',
@@ -67,6 +83,29 @@ export const STORAGE_DEFS = {
           { value: 'hinged', label: 'Hinged' },
           { value: 'sliding', label: 'Sliding' },
           { value: 'open', label: 'Open (no doors)' },
+        ],
+      },
+      {
+        // Placed AFTER `doorStyle` so `doorStyle` stays the first structural enum
+        // (hinged/sliding/open keep harness coverage); the corner L-plan is
+        // covered via the harness EXTRA_MODES map.
+        kind: 'enum',
+        key: 'layout',
+        label: 'Layout',
+        default: 'straight',
+        options: [
+          { value: 'straight', label: 'Straight' },
+          { value: 'corner', label: 'Corner (L-shape)' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'doorFinish',
+        label: 'Door front',
+        default: 'panel',
+        options: [
+          { value: 'panel', label: 'Panelled' },
+          { value: 'mirror', label: 'Mirrored' },
         ],
       },
       {
@@ -144,6 +183,76 @@ export const STORAGE_DEFS = {
         key: 'finish',
         label: 'Finish',
         default: 'mat:floor-wood-oak',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    ],
+  },
+  'drawer-pedestal': {
+    kind: 'parametric',
+    id: 'drawer-pedestal',
+    name: 'Drawer pedestal',
+    keywords: [
+      'drawer unit',
+      'pedestal',
+      'under-desk drawers',
+      'mobile drawers',
+      'filing cabinet',
+      'castors',
+      'office',
+    ],
+    category: 'storage',
+    primitive: 'Dresser',
+    // A slim under-desk mobile pedestal. `variant` (pedestal on castors / a
+    // taller chest on legs) drives the body height in the primitive; height is
+    // not collision-critical, so the footprint height is pinned to the taller
+    // chest (0.93). Width is a numeric param → tracked via footprintParams.
+    defaultFootprint: { w: 0.4, d: 0.5, h: 0.93 },
+    footprintParams: { w: 'width' },
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'variant',
+        label: 'Base',
+        default: 'pedestal',
+        options: [
+          { value: 'pedestal', label: 'Mobile (castors)' },
+          { value: 'chest', label: 'Tall (legs)' },
+        ],
+      },
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 0.35,
+        max: 0.55,
+        step: 0.05,
+        default: 0.4,
+        unit: 'm',
+      },
+      { kind: 'integer', key: 'rows', label: 'Drawers', min: 2, max: 4, default: 3 },
+      { kind: 'integer', key: 'cols', label: 'Columns', min: 1, max: 2, default: 1 },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#8a6b48' },
+      {
+        kind: 'enum',
+        key: 'handle',
+        label: 'Handles',
+        default: 'bar',
+        options: [
+          { value: 'knob', label: 'Round knob' },
+          { value: 'bar', label: 'Bar pull' },
+          { value: 'recessed', label: 'Recessed' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'painted',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -434,17 +543,23 @@ export const STORAGE_DEFS = {
     keywords: ['bedside table', 'night table', 'bedside cabinet'],
     category: 'storage',
     primitive: 'Nightstand',
+    // `size` values are metre STRINGS so the shared footprint resolver
+    // (furniture/footprintDims.ts) tracks the enum EXACTLY — no largest-mode
+    // pinning needed (that fallback remains for non-numeric enums like the
+    // dog-crate's 'S'/'M').
     defaultFootprint: { w: 0.45, d: 0.4, h: 0.52 },
+    footprintParams: { w: 'size', d: 'depth' },
     paramSchema: [
       {
-        kind: 'number',
-        key: 'width',
-        label: 'Width',
-        min: 0.35,
-        max: 0.6,
-        step: 0.05,
-        default: 0.45,
-        unit: 'm',
+        kind: 'enum',
+        key: 'size',
+        label: 'Size',
+        default: '0.45',
+        options: [
+          { value: '0.38', label: 'Narrow (38 cm)' },
+          { value: '0.45', label: 'Standard (45 cm)' },
+          { value: '0.6', label: 'Wide (60 cm)' },
+        ],
       },
       {
         kind: 'number',

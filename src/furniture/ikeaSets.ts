@@ -10,6 +10,7 @@
  */
 
 import { CLEARANCE } from '../layout/designRules'
+import { resolveFootprintDims } from './footprintDims'
 import type { FurnitureDef, FurnitureItem, ParamProps } from './types'
 import { defaultParamProps } from './types'
 
@@ -170,11 +171,9 @@ function defFootprint(def: FurnitureDef, props: ParamProps): MemberFootprint {
   let w = def.defaultFootprint.w
   let d = def.defaultFootprint.d
   if (def.kind === 'parametric') {
-    const map = def.footprintParams ?? {}
-    const wv = props[map.w ?? 'width']
-    const dv = props[map.d ?? 'depth']
-    if (typeof wv === 'number') w = wv
-    if (typeof dv === 'number') d = dv
+    const dims = resolveFootprintDims(def, props, { w, d })
+    w = dims.w
+    d = dims.d
   }
   return { w, d }
 }

@@ -1,4 +1,5 @@
 import { useFeature } from '../../features/useFeature'
+import { resolveFootprintDims } from '../../furniture/footprintDims'
 import { itemPrice } from '../../furniture/furniturePrices'
 import { isEmitter } from '../../furniture/lightEmitters'
 import type { FurnitureDef, FurnitureItem } from '../../furniture/types'
@@ -41,11 +42,9 @@ export function InspectorHeader({
   let w = def.defaultFootprint.w
   let d = def.defaultFootprint.d
   if (def.kind === 'parametric') {
-    const map = def.footprintParams ?? {}
-    const wv = item.props[map.w ?? 'width']
-    const dv = item.props[map.d ?? 'depth']
-    if (typeof wv === 'number') w = wv
-    if (typeof dv === 'number') d = dv
+    const dims = resolveFootprintDims(def, item.props, { w, d })
+    w = dims.w
+    d = dims.d
   }
 
   return (

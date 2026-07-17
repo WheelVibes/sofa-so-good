@@ -118,6 +118,23 @@ interface HarnessCase {
   anchored: boolean
 }
 
+/**
+ * Extra structural modes to render beyond the first-structural-enum sweep, for
+ * defs whose SECOND (non-first) enum also reshapes the part graph — so their new
+ * geometry is asserted without displacing the first enum's coverage. Keyed by
+ * def id; each entry is `label → props patch` merged over the def defaults.
+ */
+const EXTRA_STRUCTURAL_MODES: Record<string, Record<string, ParamProps>> = {
+  // Raised mid-century stand adds splayed legs + a pot-cradling ring.
+  'potted-plant': { 'stand=raised': { stand: 'raised' } },
+  // Corner (L-plan) wardrobe is a two-arm carcass (doorStyle stays first enum).
+  'wardrobe-3door': { 'layout=corner': { layout: 'corner' } },
+  // Gaming desk adds a steel leg frame + cable tray + monitor riser.
+  desk: { 'style=gaming': { style: 'gaming' } },
+  // Nesting side-table sets render 2–3 tucked tables (shape stays first enum).
+  'side-table': { 'set=nest2': { set: 'nest2' }, 'set=nest3': { set: 'nest3' } },
+}
+
 function buildCases(): HarnessCase[] {
   const cases: HarnessCase[] = []
   for (const def of Object.values(BUILTIN_CATALOG)) {
@@ -146,6 +163,18 @@ function buildCases(): HarnessCase[] {
           def,
           mode: v,
           props: { ...base, [structEnum.key]: v },
+          anchored,
+        })
+      }
+    }
+    const extraModes = EXTRA_STRUCTURAL_MODES[def.id]
+    if (extraModes) {
+      for (const [label, patch] of Object.entries(extraModes)) {
+        cases.push({
+          id: `${def.id} [${label}]`,
+          def,
+          mode: label,
+          props: { ...base, ...patch },
           anchored,
         })
       }

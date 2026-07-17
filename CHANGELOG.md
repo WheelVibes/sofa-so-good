@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.84 — Expansion E1: 12 variant families + exact enum footprints
+
+Tier-1 expansion (procedural originals, catalog content — no new flags): wall-shelf
+floating/picture-ledge/corner styles; side-table nesting sets of 2–3; new bar-table def
+(counter/bar height, DiningTable reuse); bar-stool step/kitchen modes; office-chair
+gaming bucket; armchair swivel tub; new drawer-pedestal def (castors/chest, Dresser
+reuse); nightstand size presets; ottoman knitted pouffe; potted-plant raised stand;
+wardrobe corner L-layout (props-driven footprintParts — also fixes the straight-width
+under-report) + mirror doors (tier-aware); gaming desk (cable tray, riser, black-steel
+frames). Every new mode passes the structural-soundness harness (EXTRA_STRUCTURAL_MODES
+extension covers second structural enums) + per-frame scenario review (expansion-e1a/b).
+Infra: the 6 inline footprintParams copies consolidated into
+`furniture/footprintDims.ts:resolveFootprintDims`, which now parses numeric-STRING enum
+values — so the nightstand `size` enum ('0.38'/'0.45'/'0.6') drives collision EXACTLY
+(no largest-mode pinning; fixes bedroom-set/defaultLayout/autoArrange overlaps the
+pinned footprint caused). Prices/keywords updated.
+
 ## v0.21.2.83 — Realism wave 4: coordinated pass + pets/others — AUDIT PHASE COMPLETE
 
 Coordinated cross-cutting fixes, all A/B-verified on real GPU: furniture wood retuned

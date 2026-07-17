@@ -9,6 +9,7 @@
  *   - the cached GLB footprint from ../furniture/GltfModel.ts
  */
 
+import { resolveFootprintDims } from '../furniture/footprintDims'
 import { getCachedGltfFootprint } from '../furniture/GltfModel'
 import type { FootprintPart, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { type AabbItem, buildGrid, candidatePairs, queryRect } from './broadphase'
@@ -79,15 +80,11 @@ export function itemFootprint(item: FurnitureItem, def: FurnitureDef): OBB {
   let oz = 0
 
   if (def.kind === 'parametric') {
-    // Recompute footprint from live params using the def's mapping; falls
-    // back to the standard 'width' / 'depth' keys.
-    const map = def.footprintParams ?? {}
-    const wKey = map.w ?? 'width'
-    const dKey = map.d ?? 'depth'
-    const wv = item.props[wKey]
-    const dv = item.props[dKey]
-    if (typeof wv === 'number') w = wv
-    if (typeof dv === 'number') d = dv
+    // Recompute footprint from live params using the def's mapping (shared
+    // resolver — also parses numeric-string enum values, footprintDims.ts).
+    const dims = resolveFootprintDims(def, item.props, { w, d })
+    w = dims.w
+    d = dims.d
   } else {
     // For any GLB-backed def (builtin / user upload / remote / pack),
     // prefer the cached real bounding box over the def's authored
