@@ -108,9 +108,6 @@ proxy/mirror/host is missing, and standing one up is a deployment task, not a co
   need a proxy/host, same class as the ambientCG proxy above.)
 
 ## Assets — open pipeline deferrals
-- **Build-time KTX2 in the offline asset pipeline** — `@gltf-transform/functions` lacks a bundled
-  KTX2 encoder; integrate `@gltf-transform/cli` (`toktx`) or `basisu` for the offline pipeline
-  (`scripts/asset-pipeline/process-texture.ts`). (The *in-browser* encoder already ships.)
 - **Standard asset set expansion** (~80 assets) + **per-LOD texture variants** + **lazy/streaming
   GLB loading** — manifest schema already supports these; expand when bundle size justifies it.
 

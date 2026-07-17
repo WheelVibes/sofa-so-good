@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.1.2 — Build-time KTX2 encode in the offline GLB pipeline (opt-in)
+
+Wires an optional KTX2/UASTC texture-encode step into the offline GLB pipeline
+using the SAME Basis-Universal WASM encoder the browser already ships
+(`ktx2-encoder` + `sharp` decode — no native `toktx`/`basisu` binary, which are
+absent in this env). New `scripts/asset-pipeline/ktx2-encode.ts`: pure
+`decideKtx2` eligibility (mime routing, already-KTX2 skip → idempotent,
+sRGB-for-colour / linear-for-normal), an `isKtx2EncoderAvailable` probe, and a
+`@gltf-transform` `ktx2()` transform that degrades cleanly (encoder absent or
+per-texture failure → warn + keep source). Opt-in only: `processGlb(…, {ktx2:
+true})` / `node scripts/fetch-assets.ts --ktx2` (registers `KHR_texture_basisu`,
+decoded at runtime by the existing KTX2Loader). **Off by default** (~0.6–1.3 s
+WASM encode per texture; the win is runtime VRAM, not download size) — enable on
+a CI/asset-bake box. Real KTX2 output byte-verified (valid container magic +
+extension); 14 tests incl. real-encode integration. Clears the TODO deferral;
+corrects the stale process-texture.ts comment (KTX2 rides GLB textures via
+`KHR_texture_basisu`, not the standalone-material path).
+
 ## v0.22.1.1 — Collision fixes: flip footprint drift + resized vertical span
 
 Bug-hunt sweep of the core loop found two verified collision bugs, both fixed

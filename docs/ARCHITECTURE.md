@@ -1898,6 +1898,11 @@ same change that reshapes a system.
   `local-assets/<category>/` (gitignored) for the Part-1 local-asset dev DB; pure selection
   helpers in `polyhaven-select.mjs` (unit-tested); idempotent, rate-limited,
   `--limit/--category/--ids/--res`.
+  **Build-time KTX2** (`scripts/asset-pipeline/ktx2-encode.ts`, opt-in): an optional
+  UASTC-encode `@gltf-transform` transform for GLB textures via the same Basis-Universal WASM
+  encoder as the browser (`ktx2-encoder` + `sharp`, no native `toktx`), registering
+  `KHR_texture_basisu`. `processGlb(…, {ktx2:true})` / `fetch-assets.ts --ktx2`; OFF by default
+  (WASM encode is slow; win is VRAM not size); degrades cleanly when the encoder is absent.
   **Cache lifecycle (PERF-001/008)**: `GltfModel` caches parsed GPU scenes (drei `useGLTF`)
   plus module-level `FOOTPRINT_CACHE`/`SUPPORT_PLANE_*`; removal paths (`freeResource` in
   `userAssetsSlice`, `markPackUninstalled` in `installedPacksSlice`) call
