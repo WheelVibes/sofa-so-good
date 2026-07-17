@@ -29,41 +29,49 @@ export function applyAiPlanDraft(result: AiPlanResult): {
   rooms: number
 } {
   const st = useStore.getState()
-  st.pushHistory()
-  st.newFloorPlan('AI draft')
-  const wallIds: string[] = []
-  for (const w of result.walls) {
-    wallIds.push(
-      st.addWall({
-        start: [w.x1, w.z1],
-        end: [w.x2, w.z2],
-        thickness: w.external ? 'external' : 'internal',
-      }),
-    )
-  }
   let openings = 0
-  for (const p of placeAiOpenings(result.walls, result.openings)) {
-    const wallId = wallIds[p.wallIndex]
-    if (!wallId) continue
-    st.addOpening({
-      kind: p.kind,
-      wallId,
-      offset: p.offset,
-      width: p.width,
-      sill: p.sill,
-      head: p.head,
-    })
-    openings++
-  }
-  // Named rooms ride along only for text→plan generation (vision leaves `rooms`
-  // absent, so this is a no-op there). Each becomes an axis-aligned `PlanRoom`
-  // rectangle the user can reshape; boundary walls/openings are auto-named by
-  // `addRoom`.
   let rooms = 0
-  for (const r of result.rooms ?? []) {
-    st.addRoom({ name: r.name, origin: [r.x, r.z], width: r.width, depth: r.depth })
-    rooms++
-  }
+  // One undoable step for the whole draft: snapshot the pre-AI design ONCE, then
+  // build inside `runWithoutHistory` so the composed newFloorPlan + N addWall/
+  // addOpening/addRoom calls (each of which normally pushes its own history
+  // entry) don't spam the undo stack — and, on a large recognized plan, can't
+  // push the pre-AI snapshot off the capped stack, making the original design
+  // unrecoverable (BUG: AI-draft history spam).
+  st.pushHistory()
+  st.runWithoutHistory(() => {
+    st.newFloorPlan('AI draft')
+    const wallIds: string[] = []
+    for (const w of result.walls) {
+      wallIds.push(
+        st.addWall({
+          start: [w.x1, w.z1],
+          end: [w.x2, w.z2],
+          thickness: w.external ? 'external' : 'internal',
+        }),
+      )
+    }
+    for (const p of placeAiOpenings(result.walls, result.openings)) {
+      const wallId = wallIds[p.wallIndex]
+      if (!wallId) continue
+      st.addOpening({
+        kind: p.kind,
+        wallId,
+        offset: p.offset,
+        width: p.width,
+        sill: p.sill,
+        head: p.head,
+      })
+      openings++
+    }
+    // Named rooms ride along only for text→plan generation (vision leaves
+    // `rooms` absent, so this is a no-op there). Each becomes an axis-aligned
+    // `PlanRoom` rectangle the user can reshape; boundary walls/openings are
+    // auto-named by `addRoom`.
+    for (const r of result.rooms ?? []) {
+      st.addRoom({ name: r.name, origin: [r.x, r.z], width: r.width, depth: r.depth })
+      rooms++
+    }
+  })
   return { walls: result.walls.length, openings, rooms }
 }
 

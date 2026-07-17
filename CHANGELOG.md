@@ -5,6 +5,30 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.1.3 — Three floor-plan/history correctness fixes (bug-hunt round 2)
+
+A second core-loop bug-hunt sweep found three verified bugs, all fixed:
+- **AI plan-draft history spam (HIGH, self-introduced v0.22.0.8/.1.0):**
+  `applyAiPlanDraft` chained `newFloorPlan` + N `addWall`/`addOpening`/`addRoom`,
+  each pushing its own undo entry — a recognized plan produced ~18 undo steps,
+  and a plan with ≳48 walls pushed the pre-AI snapshot off the capped stack,
+  making the original design **unrecoverable**. New reusable
+  `historySlice.runWithoutHistory(fn)` transaction (sets `_suppressHistory`,
+  restored even on throw) so the draft is ONE undoable step: push once, build
+  inside the batch. (Matches the documented "batch = one undo entry" contract.)
+- **Level stacking used the ground ceiling height (BUG-6 class):** `addLevel` /
+  `duplicateLevel` stacked a new storey at `topElevation + plan.ceilingHeight +
+  slab`, so above a storey with a non-default ceiling the new floor intersected
+  the ceiling below. Both now route through `restackLevelElevations` (the helper
+  `moveLevel` already uses).
+- **Wall-drag left openings hanging off the wall:** `moveWallVertex` /
+  `moveWallTo` shortened a wall without re-clamping its openings, so a door past
+  the new wall end vanished from the editor + 3D (and persisted invalid). New
+  `reclampOpenings` re-clamps width/offset against each resized host wall
+  (reference-stable when nothing changed), mirroring `updateOpening`.
+
+7 regression tests added; full suite green (7228).
+
 ## v0.22.1.2 — Build-time KTX2 encode in the offline GLB pipeline (opt-in)
 
 Wires an optional KTX2/UASTC texture-encode step into the offline GLB pipeline

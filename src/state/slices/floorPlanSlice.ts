@@ -111,6 +111,27 @@ function applyRoomElementNames(
   return { walls: nextWalls, openings: nextOpenings }
 }
 
+/** Re-clamp every opening's width + offset against its (possibly resized) host
+ *  wall, so shortening a wall (e.g. dragging its vertex/endpoint) never leaves
+ *  an opening hanging off the wall end — where `openingCenter` computes a point
+ *  past the span and the door/window vanishes from the editor + 3D (BUG: wall-
+ *  drag opening drift). Returns the same array reference when nothing changed,
+ *  so a drag that didn't resize any hosting wall stays reference-stable. */
+function reclampOpenings(walls: PlanWall[], openings: PlanOpening[]): PlanOpening[] {
+  let changed = false
+  const next = openings.map((o) => {
+    const wall = walls.find((w) => w.id === o.wallId)
+    if (!wall) return o
+    const wlen = wallLength(wall)
+    const width = clampOpeningWidth(o.width, wlen)
+    const offset = clampOpeningOffset(o.offset, width, wlen)
+    if (width === o.width && offset === o.offset) return o
+    changed = true
+    return { ...o, width, offset }
+  })
+  return changed ? next : openings
+}
+
 export interface FloorPlanSlice {
   /** The active, rendered floor plan. */
   floorPlan: FloorPlan
@@ -691,17 +712,16 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         const EPS = 1e-3
         const shared = (p: [number, number]) =>
           Math.abs(p[0] - from[0]) < EPS && Math.abs(p[1] - from[1]) < EPS
-        return {
-          walls: g.walls.map((w) => {
-            // Locked walls stay anchored even when they share this corner: the
-            // dragged wall detaches from them instead of dragging them along.
-            if (w.locked) return w
-            const next = { ...w }
-            if (shared(w.start)) next.start = [...to] as [number, number]
-            if (shared(w.end)) next.end = [...to] as [number, number]
-            return next
-          }),
-        }
+        const walls = g.walls.map((w) => {
+          // Locked walls stay anchored even when they share this corner: the
+          // dragged wall detaches from them instead of dragging them along.
+          if (w.locked) return w
+          const next = { ...w }
+          if (shared(w.start)) next.start = [...to] as [number, number]
+          if (shared(w.end)) next.end = [...to] as [number, number]
+          return next
+        })
+        return { walls, openings: reclampOpenings(walls, g.openings) }
       }),
     }))
   },
@@ -724,13 +744,12 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         // shared either corner, so the network stays connected.
         const remap = (p: [number, number]): [number, number] =>
           near(p, cs) ? [...newStart] : near(p, ce) ? [...newEnd] : p
-        return {
-          // Locked walls stay anchored even at a shared corner — the moved wall
-          // detaches from them rather than dragging them along.
-          walls: g.walls.map((w) =>
-            w.locked ? w : { ...w, start: remap(w.start), end: remap(w.end) },
-          ),
-        }
+        // Locked walls stay anchored even at a shared corner — the moved wall
+        // detaches from them rather than dragging them along.
+        const walls = g.walls.map((w) =>
+          w.locked ? w : { ...w, start: remap(w.start), end: remap(w.end) },
+        )
+        return { walls, openings: reclampOpenings(walls, g.openings) }
       }),
     }))
   },
@@ -1192,19 +1211,23 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     set((s) => {
       const existing = s.floorPlan.upperLevels ?? []
       const slab = 0.3
-      const top = existing.reduce(
-        (m, l) => Math.max(m, l.elevation),
-        0, // ground floor slab top
-      )
       const level: PlanUpperLevel = {
         id,
         name: name ?? `Level ${existing.length + 2}`,
-        elevation: top + s.floorPlan.ceilingHeight + slab,
+        elevation: 0, // recomputed by restackLevelElevations below
         walls: [],
         openings: [],
         rooms: [],
       }
-      return { floorPlan: { ...forkIfDefault(s.floorPlan), upperLevels: [...existing, level] } }
+      // Stack the new storey above the one below using THAT storey's own ceiling
+      // height, not the ground default (BUG-6 class): restack the whole array so
+      // each level's floor sits directly on the ceiling below it.
+      const upperLevels = restackLevelElevations(
+        [...existing, level],
+        s.floorPlan.ceilingHeight,
+        slab,
+      )
+      return { floorPlan: { ...forkIfDefault(s.floorPlan), upperLevels } }
     })
     return id
   },
@@ -1220,13 +1243,11 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       { walls: src.walls, openings: src.openings, rooms: src.rooms },
       planId,
     )
-    const existing = plan.upperLevels ?? []
     const slab = 0.3
-    const top = existing.reduce((m, l) => Math.max(m, l.elevation), 0)
     const level: PlanUpperLevel = {
       id: newId,
       name: `${src.name} copy`,
-      elevation: top + plan.ceilingHeight + slab,
+      elevation: 0, // recomputed by restackLevelElevations below
       ...(src.ceilingHeight !== undefined ? { ceilingHeight: src.ceilingHeight } : {}),
       walls: cloned.walls,
       openings: cloned.openings,
@@ -1267,10 +1288,17 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         const nr = cloned.roomIdMap[rid]
         if (nw && nr) wallAccents[`${nw}:${nr}`] = mat
       }
+      // Stack the copy above the storey below it using that storey's own ceiling
+      // height, not the ground default (BUG-6 class) — restack the whole array.
+      const upperLevels = restackLevelElevations(
+        [...(s.floorPlan.upperLevels ?? []), level],
+        s.floorPlan.ceilingHeight,
+        slab,
+      )
       return {
         floorPlan: {
           ...forkIfDefault(s.floorPlan),
-          upperLevels: [...(s.floorPlan.upperLevels ?? []), level],
+          upperLevels,
         },
         items: [...s.items, ...newItems],
         finishes: {
