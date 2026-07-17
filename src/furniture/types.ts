@@ -61,6 +61,7 @@ export type FurnitureType = string
 export type PrimitiveKind =
   | 'Bed'
   | 'Sofa'
+  | 'SofaBed'
   | 'SofaSectional'
   | 'FeatureWall'
   | 'ConsoleTable'
@@ -189,6 +190,11 @@ export type PrimitiveKind =
   | 'SmallPetPen'
   | 'HamsterTank'
   | 'AquariumStand'
+  | 'ShoeBench'
+  | 'WallHookRail'
+  | 'Pegboard'
+  | 'UtilityCabinet'
+  | 'DisplayCabinet'
 
 export type ParamField =
   | {

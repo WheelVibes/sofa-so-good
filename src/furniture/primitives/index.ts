@@ -47,6 +47,7 @@ import { DeskPlant } from './DeskPlant'
 import { DiningChair } from './DiningChair'
 import { DiningTable } from './DiningTable'
 import { Dishwasher } from './Dishwasher'
+import { DisplayCabinet } from './DisplayCabinet'
 import { DogBedOrthopedic } from './DogBedOrthopedic'
 import { DogCrate } from './DogCrate'
 import { DogRamp } from './DogRamp'
@@ -82,6 +83,7 @@ import { OutdoorLounger } from './OutdoorLounger'
 import { OutdoorParasol } from './OutdoorParasol'
 import { OutdoorTable } from './OutdoorTable'
 import { Oven } from './Oven'
+import { Pegboard } from './Pegboard'
 import { PetBed } from './PetBed'
 import { PetDoorInsert } from './PetDoorInsert'
 import { PetGate } from './PetGate'
@@ -98,6 +100,7 @@ import { RollerBlind } from './RollerBlind'
 import { RoomDivider } from './RoomDivider'
 import { Rug } from './Rug'
 import { ScratchingPost } from './ScratchingPost'
+import { ShoeBench } from './ShoeBench'
 import { ShoeCabinet } from './ShoeCabinet'
 import { Shower } from './Shower'
 import { Sideboard } from './Sideboard'
@@ -105,6 +108,7 @@ import { SideTable } from './SideTable'
 import { SmallPetPen } from './SmallPetPen'
 import { SmallSculpture } from './SmallSculpture'
 import { Sofa } from './Sofa'
+import { SofaBed } from './SofaBed'
 import { SofaSectional } from './SofaSectional'
 import { Soundbar } from './Soundbar'
 import { Staircase } from './Staircase'
@@ -121,10 +125,12 @@ import { TowelRail } from './TowelRail'
 import { ToyStorage } from './ToyStorage'
 import { TrailingPlant } from './TrailingPlant'
 import { TVConsole } from './TVConsole'
+import { UtilityCabinet } from './UtilityCabinet'
 import { Vanity } from './Vanity'
 import { WallArt } from './WallArt'
 import { WallCabinet } from './WallCabinet'
 import { WallClock } from './WallClock'
+import { WallHookRail } from './WallHookRail'
 import { WallMirror } from './WallMirror'
 import { WallSconce } from './WallSconce'
 import { WallShelf } from './WallShelf'
@@ -139,6 +145,7 @@ export type PrimitiveComponent = ComponentType<{ props: ParamProps }>
 export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Bed,
   Sofa,
+  SofaBed,
   SofaSectional,
   FeatureWall,
   ConsoleTable,
@@ -267,4 +274,9 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   SmallPetPen,
   HamsterTank,
   AquariumStand,
+  DisplayCabinet,
+  ShoeBench,
+  WallHookRail,
+  Pegboard,
+  UtilityCabinet,
 }

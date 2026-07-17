@@ -38,6 +38,7 @@ export const ITEM_PRICE: Record<string, number> = {
   'office-chair': 260,
   'bar-stool': 110,
   bench: 220,
+  'sofa-bed': 899,
   // Beds
   'bed-single': 450,
   'bed-double': 700,
@@ -65,6 +66,11 @@ export const ITEM_PRICE: Record<string, number> = {
   sideboard: 680,
   'tv-console': 420,
   'shoe-cabinet': 180,
+  'display-cabinet': 449,
+  'shoe-bench': 199,
+  'wall-hook-rail': 39,
+  pegboard: 59,
+  'utility-cabinet': 329,
   'kitchen-counter': 1400,
   'room-divider': 300,
   // Appliances

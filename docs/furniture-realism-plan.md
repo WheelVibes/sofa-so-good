@@ -954,3 +954,138 @@ unchanged+previously-verified); every NEW mode is auto-covered, and side-table's
 (the classic nesting look) even under shape=square/drum — documented in the primitive. Cross-cutting
 unchanged: the shared `mat:floor-wood-oak` cathedral-grain watermark still shows on wood finishes
 (coordinated global retune, not a per-def fix).
+
+### Wave E2A — Tier-2 rows 13–14 (two NEW primitives), 2026-07-17
+
+Two new catalog-content primitives (procedural originals inspired by product families; NO new feature
+flags — new defs in existing categories are content). All sized to real-metre/SG norms. Audit
+scenario: `scripts/scenarios/expansion-e2a.json` (9 frames, whole-flat ORBIT dollhouse camera, High
+tier under `SHOT_GPU=1` so glass + fabric + the emissive lit strip read truthfully; wide + profile
+closeups + a bed-mode fold-seam closeup + a lit-vitrine night frame). **Attachment verified
+two-channel:** the structural-soundness harness (`structuralSoundness.test.tsx`) renders and passes
+EVERY new def × mode (`sofa-bed` sofa/bed, `display-cabinet` full-glass/half/wall — comps=1 + floor
+contact where anchored) and the closeups confirm each joint. tsc clean on the two new source files;
+Biome clean on all touched files; targeted vitest **302 green** (structuralSoundness + builtinCatalog
++ furniturePrices + builtinKeywords + defaultLayout).
+
+- **13. sofa-bed (seating, NEW primitive `SofaBed.tsx`, effort L)** — a click-clack/fold-out sleeper.
+  Real dims: sofa ~1.9 w × 0.95 d × 0.85 h; `bed` mode extends depth to 1.2 m for a real single
+  sleeping surface (~1.78 × 1.08 m at ~0.5 m top). `mode` enum sofa/bed: **sofa** = upholstered frame
+  on short tapered feet + 3 seat cushions + back cushions + reclined backrest with a visible
+  horizontal FOLD-LINE seam + two throw pillows near the arms; **bed** = the back folded flat into a
+  mattress with a visible mid FOLD SEAM (the click-clack hinge) + two head pillows + RETAINED lower
+  side arms. Optional `storage` enum (default drawer) = a proud drawer front + metal bar pull on the
+  base front (verified visible in both modes). Studied `Sofa.tsx` for the cushion/arm idiom + shared
+  `getUpholsteryMaterial`/`getFabricMaterial` handling. **Footprint approach (honest per-mode, the
+  chosen option over pinning-to-deepest):** the two modes differ in DEPTH and `mode` is an enum (can't
+  feed `footprintParams`), so a **props-driven `footprintParts` keyed on `mode`** (sofa-lshape /
+  wardrobe-corner precedent) serves each mode its TRUE depth — the piece's back (wall) edge is pinned
+  at −bboxDepth/2 so it only grows FORWARD into the room when unfolded, matching how a real sofa-bed
+  pulls out. **Justification:** this is more honest than pinning every mode to the deeper bed box
+  (which would over-report collision in the common sofa state and block a piece that could sit in
+  front of a folded sofa); the shared `SOFA_BED_DEPTH` map keeps the primitive + def in lockstep, and
+  `defaultFootprint.d` = the deeper bed depth so the enclosing bbox still covers every part (broadphase
+  invariant). Price 899 SGD; keywords sofa bed/sleeper/futon/daybed/guest bed/click-clack. `mode` is a
+  first-structural-enum key → the harness auto-sweeps both modes (storage defaults on so the drawer is
+  asserted too). Verified: sofa reads as a 3-seat sofa-bed (cushions + drawer + feet grounded); bed
+  reads as a flat sleeper with the fold seam + drawer + retained arms.
+- **14. display-cabinet (storage, NEW primitive `DisplayCabinet.tsx`, effort M)** — a glazed vitrine.
+  Dims ~1.0 w × 0.4 d × 1.8 h. Wood corner posts + solid back/top/bottom panels; glass sides + a glass
+  front door + interior glass shelves via the same tier-agnostic inline transparent
+  `MeshStandardMaterial` (metalness 0, opacity ~0.28) as WineCooler/Aquarium. `style` enum:
+  **full-glass** (default, full-height glazing, 4 glass shelves, thin frame) / **half** (glazed upper
+  vitrine with a counter divider over a solid 2-door base cabinet + handles, 3 shelves) / **wall**
+  (compact 0.9 m variant, 2 shelves). `lit` enum adds a warm-glow **emissive strip mesh** under the top
+  panel (NOT a registered `lightEmitters` emitter — an emissive mesh is enough and keeps fixtureGlow/
+  bloom constants untouched; verified glowing in the night frame). Price 449 SGD; keywords vitrine/
+  glass cabinet/curio/display case/showcase. **Floor + wall duality (judgment call, fireplace
+  precedent):** a single static `mounted` def-flag can't serve the tall floor styles AND a wall box, so
+  the def stays **FLOOR-anchored** for collision and the `wall` style renders LIFTED to a mount height
+  (bottom ≈1.1 m) inside the primitive (exactly like `fireplace::wall` / `flatscreen-tv::wall`), with a
+  new harness `FLOOR_EXEMPT['display-cabinet::wall']` entry; the full-glass/half floor styles ARE
+  floor-asserted. `style` is the first structural enum → the harness auto-sweeps all three. Verified:
+  full-glass reads as a glazed case with 4 shelves; half = glazed-over-solid-doors; wall = a clean
+  floating vitrine (wood top/posts + transparent glass + 2 shelves + door pull) — the clearest read;
+  lit = a warm interior glow at night.
+
+**Judgment calls:** (a) sofa-bed footprint = props-driven per-mode `footprintParts` (honest per-mode
+depth) over pinning to the deepest box — justified above; the back edge is pinned so unfolding grows
+forward, not symmetrically. (b) display-cabinet kept as ONE def with the `wall` style rendered at a
+mount height + FLOOR_EXEMPT (fireplace precedent) rather than a `mounted` flag (would break the floor
+styles) or a separate def — the note documents the collision caveat (wall variant's collision box
+stays at the floor). (c) glass via the inline transparent material the task pointed at (WineCooler/
+Aquarium), not the tier-aware `getGlassMaterial` — matches the referenced precedent, no store-tier
+threading. Cross-cutting unchanged: the dollhouse orbit camera renders near-walls translucent, washing
+the full-glass/half mid-room closeups (the wall-variant clear-angle frame + the harness carry the
+verification, per E1A/E1B); glass reads faint under the bright daylight IBL (the same WineCooler/
+Aquarium note) but clearly at the wall variant + lit night frame.
+
+### Wave E2B — Expansion Tier-2 rows 15–18 (HDB entry + service-yard storage), 2026-07-17
+
+Four NEW procedural-original storage defs (inspired by product families, no IKEA designs/names;
+catalog content, no feature flags). All real-metre/SG-sized; registered in `PrimitiveKind` +
+`primitives/index.ts` + `defs/storage.ts` + `furniturePrices.ts`. Audit scenario
+`scripts/scenarios/expansion-e2b.json` (15 frames, staged on OPEN GROUND beside the flat so the two
+mounted defs read as clean product shots with no wall occlusion; whole-flat ORBIT dollhouse camera at
+High tier under `SHOT_GPU=1`; per-item joint closeups). **Attachment verified two-channel:** the
+structural-soundness harness (`structuralSoundness.test.tsx`) renders + passes every new def × every
+enum mode (comps=1; floor contact for the two floor-anchored defs) and the closeups confirm each
+joint. Gates: tsc clean; Biome clean on all touched files; targeted vitest green — structuralSoundness
+(271) + builtinCatalog + builtinKeywords + furniturePrices + pegboardTexture + meshGridTexture (303 in
+the batch run).
+
+- **15 · shoe-bench (NEW, `ShoeBench.tsx`)** — entryway bench, 1.0 w × 0.35 d × ~0.49 h (seat
+  ~0.42 + a plump 0.07 upholstered cushion). Wooden carcass (two side panels to the floor + back +
+  bottom + a mid shelf → **two cubby rows**, split into ~0.33 m columns by dividers) carrying a
+  RoundedBox seat cushion (fabric/velvet/leather). `style` enum: **cubbies** (open front, shoes on
+  display) / **flip** (two tilt-open flip fronts with a finger-pull reveal per row, the ShoeCabinet
+  precedent). Cushion overlaps the seat deck; every panel/shelf/divider ties the sides. Price 199.
+  Verified: 2×3 open cubbies + plump seated cushion; flip fronts read distinctly; grounded, cushion
+  flush (no gap), no z-fight.
+- **16 · wall-hook-rail (NEW, `WallHookRail.tsx`, `mounted`)** — coat/hook rail, 0.8 w, mount 1.6 m
+  (`verticalSpan` 1.5–1.72). A slim wooden mounting board with a row of `hooks` (3–8). `style` enum:
+  **rail** (metal J-hooks — a back plate socketing into the board + a forward stem + a descending
+  hook tip + an up-turned catch, `metalLeg` satin) / **pegs** (turned Shaker wooden pegs — a tapered
+  forward dowel + a ball tip). Every hook/peg's base overlaps the board front → the whole rail is one
+  connected assembly (mounted → connectivity-only in the harness, per its mounted handling). Price 39.
+  Verified (rail 5-hook, pegs, 8-hook): hooks/pegs socket into the board, project into the room, no
+  float.
+- **17 · pegboard (NEW, `Pegboard.tsx`, `mounted`)** — perforated organiser, 0.8 w × 0.9 h, mount
+  1.3 m. The board face carries a **real peg-hole grid** via a new bounded-LRU canvas texture
+  (`pegboardTexture.ts` — one hole cell tiled to the hole count, the `meshGridTexture` precedent; no
+  per-hole geometry; cache capped 24, dispose-on-evict; unit-tested `pegboardTexture.test.ts`), in a
+  slim wooden frame. `kit` enum: **shelf+hooks** (a forward shelf on two brackets + two J-hooks) /
+  **hooks** (a row of three J-hooks) / **cups** (three small open cups on brackets). Every accessory
+  sockets into the board front (one connected assembly). `kit` is not a structural-enum key, so the
+  hooks/cups kits are asserted via the harness `EXTRA_STRUCTURAL_MODES` (shelf+hooks is the default
+  swept case). Price 59. Verified: crisp hole-grid texture reads at High; shelf/hooks/cups all
+  attached and projecting.
+- **18 · utility-cabinet (NEW, `UtilityCabinet.tsx`)** — tall broom/utility cupboard, 0.5 w × 0.4 d
+  × 2.0 h. Closed carcass (sides + back + top/bottom decks + two interior shelves in the upper third)
+  on a **recessed dark plinth/toe-kick** (grounded). Door fronts stand PROUD of the carcass with a
+  shadow-gap reveal (the TVConsole "fronts never buried" lesson) and a vertical bar handle. `doors`
+  enum: **single** / **double**; `doorStyle` enum: **panel** (flat) / **louvre** (a stile+rail frame
+  filled with tilted horizontal slats via one `InstancedBoxes` draw call). `doorStyle` is the
+  first-structural enum (panel default + louvre swept); `doors=double` is covered via
+  `EXTRA_STRUCTURAL_MODES` (single/double is not a structural-enum key). Doors connect to the carcass
+  via top/bottom-deck overlap (the leaf spans just inboard of the sides). Price 329. Verified across
+  single/double × panel/louvre: proud doors + reveals + dark plinth + full-height louvre slats;
+  grounded on the plinth, no float, no z-fight.
+
+**Harness additions:** `EXTRA_STRUCTURAL_MODES` gained `utility-cabinet` (`doors=double`) and
+`pegboard` (`kit=hooks`, `kit=cups`) so each def's second (non-first) shape-changing enum is asserted
+without displacing the first-enum sweep (the E1 mechanism). No new escape-hatch exemptions — every new
+def + mode passes connectivity, and the two floor-anchored defs pass floor contact.
+
+**Judgment calls:** (a) shoe-bench `style` = cubbies/flip as the first-structural enum (auto-swept),
+matching the ShoeCabinet open/closed pattern; both grounded via the full-height side panels. (b)
+utility-cabinet models two interior shelves behind the closed opaque doors (honest carcass, negligible
+cost, connected) rather than omitting them — occluded when closed but correct if a future open state is
+added. (c) Both mounted defs (rail/pegboard) staged on open ground at their mount height so the
+hook→board / accessory→board joints read cleanly — the dollhouse-orbit camera occluded the two mounted
+frames' floor-anchored utility-cabinet neighbours in a couple of mid-room closeups (frames 10–11), so
+verification leans on the clear-angle louvre/plinth frames + the harness (the E1A/E1B occlusion note).
+(d) Pegboard holes drawn as a tiled colour texture (dark recessed discs on the board colour) rather
+than see-through alpha or per-hole geometry — reads convincingly as a peg-hole grid at every tier with
+zero geometry cost. Cross-cutting unchanged: the shared `mat:floor-wood-oak` grain shows on the wood
+finishes (coordinated global retune, not a per-def fix).

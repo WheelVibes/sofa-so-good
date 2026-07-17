@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.85 — Expansion E2: sofa-bed + vitrine + HDB entry/service-yard cluster
+
+Six new primitives (procedural originals, catalog content). Seating: **sofa-bed**
+(sofa/bed fold modes with visible fold seam + retained arms + optional storage drawer;
+props-driven footprintParts pin the BACK edge so unfolding grows the collision box
+forward like a real pull-out). Storage: **display-cabinet** (glazed vitrine —
+full-glass / half / wall styles, optional lit glow strip, wall style FLOOR_EXEMPT per
+the fireplace precedent); **shoe-bench** (cushioned seat over cubby/flip shoe rows);
+**wall-hook-rail** (mounted, J-hooks or Shaker pegs socketed into the board);
+**pegboard** (mounted, real hole-grid via a new bounded-LRU canvas texture
+`pegboardTexture.ts` + kits: shelf+hooks/hooks/cups); **utility-cabinet** (full-height
+broom cupboard, single/double + panel/louvre doors — louvre slats via InstancedBoxes,
+proud fronts with reveals). All modes harness-covered (EXTRA_STRUCTURAL_MODES) and
+frame-reviewed (expansion-e2a/b scenarios); prices + keywords wired.
+
 ## v0.21.2.84 — Expansion E1: 12 variant families + exact enum footprints
 
 Tier-1 expansion (procedural originals, catalog content — no new flags): wall-shelf

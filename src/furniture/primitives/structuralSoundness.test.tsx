@@ -85,6 +85,8 @@ const FLOOR_EXEMPT: Record<string, string> = {
     'wall-hung basin renders at its mount height; the pedestal/vanity styles ARE floor-asserted.',
   'flatscreen-tv::wall':
     'wall-mounted TV renders at its mount height; the stand style IS floor-asserted.',
+  'display-cabinet::wall':
+    "compact wall-mounted vitrine renders lifted to its mount height; the full-glass/half floor styles ARE floor-asserted (fireplace-wall precedent — a single static `mounted` flag can't serve the tall floor styles AND a wall box).",
 }
 
 const STRUCTURAL_ENUM_KEYS = new Set([
@@ -133,6 +135,12 @@ const EXTRA_STRUCTURAL_MODES: Record<string, Record<string, ParamProps>> = {
   desk: { 'style=gaming': { style: 'gaming' } },
   // Nesting side-table sets render 2–3 tucked tables (shape stays first enum).
   'side-table': { 'set=nest2': { set: 'nest2' }, 'set=nest3': { set: 'nest3' } },
+  // Double-door utility cabinet is a two-leaf front (doorStyle stays first enum,
+  // covering panel/louvre; `doors` single/double is not a structural-enum key).
+  'utility-cabinet': { 'doors=double': { doors: 'double' } },
+  // Pegboard accessory kits each socket different parts into the board front
+  // (`kit` is not a structural-enum key; the default shelf+hooks is swept above).
+  pegboard: { 'kit=hooks': { kit: 'hooks' }, 'kit=cups': { kit: 'cups' } },
 }
 
 function buildCases(): HarnessCase[] {

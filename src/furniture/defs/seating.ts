@@ -1,3 +1,4 @@
+import { SOFA_BED_DEPTH } from '../primitives/SofaBed'
 import type { FurnitureDef } from '../types'
 
 /** seating furniture definitions. Part of the built-in catalog (see ../builtinCatalog.ts). */
@@ -711,6 +712,91 @@ export const SEATING_DEFS = {
         ],
       },
       { kind: 'color', key: 'legColor', label: 'Legs', default: '#3a2c1d' },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    ],
+  },
+  'sofa-bed': {
+    kind: 'parametric',
+    id: 'sofa-bed',
+    name: 'Sofa bed',
+    category: 'seating',
+    keywords: ['sofa bed', 'sleeper', 'futon', 'daybed', 'guest bed', 'click-clack', 'convertible'],
+    primitive: 'SofaBed',
+    // Bbox depth = the deeper BED mode (the enclosing bbox must cover every
+    // footprintParts box); the shallower sofa depth is served per-mode below.
+    defaultFootprint: { w: 1.9, d: SOFA_BED_DEPTH.bed, h: 0.85 },
+    // Honest per-mode footprint (sofa-lshape / wardrobe-corner precedent): the
+    // piece's back (wall) edge is pinned at −bboxDepth/2, so it only grows
+    // FORWARD into the room when unfolded to `bed`. `mode` is an enum (can't
+    // feed footprintParams), so a props-driven footprintParts serves each mode
+    // its true depth rather than pinning every mode to the deepest box.
+    footprintParts: (props) => {
+      const width = typeof props.width === 'number' ? props.width : 1.9
+      const mode = typeof props.mode === 'string' ? props.mode : 'sofa'
+      const bboxDepth = SOFA_BED_DEPTH.bed
+      const pieceDepth = SOFA_BED_DEPTH[mode] ?? SOFA_BED_DEPTH.sofa
+      const backZ = -bboxDepth / 2
+      return [{ dx: 0, dz: backZ + pieceDepth / 2, w: width, d: pieceDepth }]
+    },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 1.7,
+        max: 2.1,
+        step: 0.05,
+        default: 1.9,
+        unit: 'm',
+      },
+      {
+        kind: 'enum',
+        key: 'mode',
+        label: 'Mode',
+        default: 'sofa',
+        options: [
+          { value: 'sofa', label: 'Sofa' },
+          { value: 'bed', label: 'Fold-out bed' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'storage',
+        label: 'Under-seat storage',
+        default: 'yes',
+        options: [
+          { value: 'yes', label: 'Drawer' },
+          { value: 'no', label: 'None' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Upholstery', default: '#6f7a82' },
+      {
+        kind: 'enum',
+        key: 'material',
+        label: 'Material',
+        default: 'fabric',
+        options: [
+          { value: 'fabric', label: 'Fabric' },
+          { value: 'leather', label: 'Leather' },
+          { value: 'velvet', label: 'Velvet' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'pattern',
+        label: 'Weave',
+        default: 'plain',
+        options: [
+          { value: 'plain', label: 'Plain' },
+          { value: 'striped', label: 'Striped' },
+          { value: 'herringbone', label: 'Herringbone' },
+          { value: 'checkered', label: 'Checkered' },
+          { value: 'plaid', label: 'Plaid' },
+          { value: 'dots', label: 'Dots' },
+        ],
+      },
+      { kind: 'color', key: 'pillowColor', label: 'Throw pillows', default: '#b8836a' },
+      { kind: 'color', key: 'legColor', label: 'Legs', default: '#2c2620' },
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
