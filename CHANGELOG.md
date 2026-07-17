@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.0.2 — User-docs full audit + tracker cleanup
+
+All 16 user-guide pages verified claim-by-claim against source (labels, shortcuts vs
+keybindings.ts, Simple/Pro tiers vs the flag registry, behaviours vs the area CLAUDE.mds).
+10 fixes — headline: a hallucinated browsable "Poly Pizza" library removed
+(placing-furniture), the toolbar menu list corrected to the real View/Scene/Edit/Arrange/
+Tools(Pro)/File set, walk-camera settings re-tiered simple (registry is truth over a stale
+code comment), tone-mapping FAQ corrected to the Auto default, remote-materials Browse
+marked Pro, configurator tabs updated (Bed / Modular sectional / Cat tree) with the ⌘K
+path fixed. Full-repo coverage matrix (158 flags × ⌘K commands × menus): 3 NEW pages —
+Exporting your design, Style helpers & AI, Accounts & cloud sync — registered in the
+sidebar + in-app DOC_PAGES/FEATURE_DOCS (19 pages, 10 new deep links); ~34 missing feature
+entries added across 7 existing pages (arrays/scatter, ceiling design, IES lights, camera
+DoF, curved/sloping walls, quote template, asset credits, wardrobe fit-outs, …), every
+label re-verified. Trackers: TODO.md/TASKS.md cleared of shipped programs (Asset Studio,
+pets, Toolbar UX, empty audit backlogs, retired dead-export plan) per the remove-on-ship
+rule; realism plan header corrected to the true v0.21.2.79–.90 / 58-defect record.
+
 ## v0.22.0.1 — CI fix: knip dead-code scan
 
 Un-exported 9 internal-only symbols the new programs left public (petCompliance

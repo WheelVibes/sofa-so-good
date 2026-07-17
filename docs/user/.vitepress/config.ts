@@ -53,6 +53,14 @@ export default defineConfig({
         ],
       },
       {
+        text: 'Sharing & exporting',
+        items: [
+          { text: 'Exporting your design', link: '/exporting' },
+          { text: 'Style helpers & AI', link: '/style-and-ai' },
+          { text: 'Accounts & cloud sync', link: '/accounts-and-sync' },
+        ],
+      },
+      {
         text: 'Reference',
         items: [
           { text: 'Keyboard shortcuts', link: '/keyboard-shortcuts' },

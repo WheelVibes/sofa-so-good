@@ -9,20 +9,6 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 > researching `REFERENCES.md`; then reliability/edge-cases, a11y, and test-coverage hardening.
 > Avoid pricing/quotes/analytics deliverables unless asked.
 
-## Done — Asset Studio: GLB editor → professional furniture builder (2026-07-16, user goal) — ✅ COMPLETE (v0.21.2.40)
-Turned the GLB designer into a professional asset-building tool for high-fidelity custom
-furniture (complex shapes, components, templates, materials/finishes/colours/gradients/
-sheen/gloss, fittings, parts, groups, sets, modular customization). Staged plan + research
-conclusions: **[docs/asset-studio-plan.md](docs/asset-studio-plan.md)**. **All stages shipped**:
-0 foundations → 1 geometry → 2 materials → 3 components/templates → 4 precision UX → 5 realism
-detail layer (decals/piping/cushion-plump, v0.21.2.40). Shipped stages log in `CHANGELOG.md`.
-
-## Active — Pet fittings & furniture program (2026-07-17, user goal)
-SG pet compliance (Cat Management Framework window/balcony meshing, HDB dog rules) +
-annoyance-fixers + per-pet-type furniture, procedural/parametric, presets by pet type.
-Staged plan + research conclusions: **[docs/pet-fittings-plan.md](docs/pet-fittings-plan.md)**
-(P1 compliance → P2 cats → P3 dogs → P4 other pets → P5 presets/integration).
-
 ## Active — graphics-tier performance optimization (2026-07-08, user goal)
 Systematically speed up frame processing/rendering **without sacrificing visual quality**, focused
 on the heavy **Maximum** tier (also opportunistic wins on other tiers). Shipped work lives in
@@ -96,8 +82,7 @@ See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full d
   finalized tiering in the plan doc. Next: run Tier-1 CC0 scrapers into `local-assets/` (pairs with
   Part 1), then surface Poly Haven models in prod (`remoteFurniture` flag).
 
-## UI/UX polish program — remaining follow-ups (2026-07-02 program, completed 2026-07-03)
-The 39-item Vi-develop-derived program shipped (see CHANGELOG); only these follow-ups remain:
+## Open — UI/UX polish follow-ups
 - [ ] **P37 List virtualization — DEFERRED (2026-07-03 ruling).** Not justified now: the
   catalog is already paginated (`PAGE_SIZE=12`, never renders >12 cards); history/layers
   realistically render <100 rows. Revisit with a lightweight slice-on-scroll window (NOT a new
@@ -152,11 +137,6 @@ was already physically correct via real lights.)
   in `livePrice.ts` purely for the test. Unit coverage already exercises the client logic; revisit
   only if the sidecar path regresses.
 
-## Toolbar UX program (2026-07-10, user goal) — COMPLETE 2026-07-11
-All sequenced findings (TB-1 … TB-10 + tails) shipped; records live in `CHANGELOG.md`
-(v0.18.6.x … v0.20.0.5) and the audit doc `docs/research/2026-07-10-toolbar-ux-audit.md`
-is retained as the methodology/grounding reference.
-
 ## Open — core interactions
 - **Live slide during drag — PARKED (2026-07-12 evaluation, numeric evidence).** The specified
   per-move minimal-axis MTV slide (vs walls + furniture, reusing `nudgeToValid`) is provably
@@ -190,12 +170,10 @@ is retained as the methodology/grounding reference.
 Ranked by value/effort. All pure-client, core-loop (furnish→arrange→finish→view→share) +
 discoverability/customizability, desktop **and** mobile; none shipped or tracked above. (Verified
 absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARITY.md`.)
-- [ ] **PLAN-FURNISH Phases 2–4 — plan-editor furniture placement follow-ups.** Phase 1
-  (desktop click-to-place; `planFurnish` flag) has shipped — see `CHANGELOG.md` and
+- [ ] **PLAN-FURNISH — plan-editor furniture placement follow-ups.** Phases 1–3
+  (desktop click-to-place `planFurnish` flag; mobile tap/long-press-from-card; window-bound
+  fixture snap) have shipped — see `CHANGELOG.md` and
   `docs/research/2026-07-03-plan-furnish-implementation-plan.md` (marked done there). Remaining:
-  - Phase 2 (mobile tap-to-place + long-press-from-card + stamp reuse) **SHIPPED v0.18.6.19**
-    (user decision 2026-07-10: arm auto-closes the catalog sheet, mirroring 3D `placeConfirm`).
-  - Phase 3 (window-bound fixtures snap in the plan) **SHIPPED v0.18.6.20**.
   - [ ] **Phase 4** — HTML5 drag-from-catalog onto the plan SVG. **Recommend keeping deferred
     (2026-07-11 assessment)**: desktop already places via click-to-arm→ghost→click and mobile via
     tap/long-press-drag (Phases 1–2), so this adds a third gesture purely for 3D-drag-habit
@@ -204,26 +182,6 @@ absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARI
   - [ ] *(Polish, not phase-gated)* the docked catalog currently floats over the plan rather than
     shrinking its viewport like `.stage-area` does in 3D (`--left-rail` doesn't apply to
     `.plan-screen`) — low-risk follow-up.
-
-## Open — round-2 audit backlog (2026-07-04)
-Open, client-doable items from `docs/research/2026-07-04-audit-round2-tests-mobile-features.md`
-(full detail + code refs there). Shipped from this audit — MOBILE-1/2/3, TEST-3/4/5/6/7/8,
-FEAT-A/B/C/D — are in `CHANGELOG.md`. Still open:
-- ~~FEAT-E — grid-snap for furniture placement in 3D~~ **STALE, struck 2026-07-10**: already
-  shipped since v0.7.0.0 — the room-editor toolbar's "Snap to grid" toggle (`snapEnabled` +
-  `gridSize`/`cycleGridSize`) quantizes `dragControllerHandlers.onMove:107` via `snapToGrid`, the
-  `PlacementGhost` snaps too, and `GridOverlay` renders the live grid. The only unshipped nuance
-  is neighbour-snap composing WITH grid snap (guides are skipped while grid snap is on —
-  deliberate); not worth a separate item.
-- New reference: **Home Planner** (backend/licensed-asset-led — informs the tracked catalog-expansion/
-  F11 work, not a client-doable feature). Added to `REFERENCES.md`.
-
-## Open — round-3 audit backlog (2026-07-04)
-Open, client-doable items from `docs/research/2026-07-04-audit-round3-backlog-refill.md`
-(full detail + code refs there). This pass confirmed the app is near-saturated — a wide
-competitor sweep found history-panel/shortcut-help/room-area/favourites/copy-paste/nudge/
-room-palette/lock/align-distribute all already shipped — so the list is short + evidence-based,
-ranked by value ÷ effort:
 
 ## Process
 - Update this file whenever work is planned/deferred; remove items entirely once shipped (they live

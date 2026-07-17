@@ -12,8 +12,7 @@ grid** that merges everything in one searchable place:
 
 - built‑in parametric furniture and generated pieces,
 - your own uploaded models and imported IKEA products,
-- already‑downloaded CC0 assets, plus the browsable Poly Haven / Poly Pizza
-  libraries.
+- CC0 props you've installed from the **Packs** tab (curated Poly Haven bundles).
 
 Use the **category tabs** to filter (beds, seating, tables, storage, lighting,
 decor, and more), the **search box** to fuzzy‑search across everything, and the
@@ -33,6 +32,12 @@ when the online/shared library has cards here), **Source** (built‑in, your own
 uploads/imports, or the CC0 library), and a **Favourites only** toggle. An active
 filter shows a dot on the button; pick **Reset to All** to clear it. Filters are
 per‑session and never change your saved design.
+
+**Resize the catalog** (desktop). Drag the catalog panel's right edge to make the
+grid wider or narrower (or nudge it with <kbd>←</kbd>/<kbd>→</kbd> when the handle
+is focused); the width is remembered on your device. **(Pro)** Hover a model card
+to see its **size and creator / licence** in the tooltip, so you know a piece's
+real dimensions and attribution before you place it.
 
 **It opens on what the room needs.** When you open a room to furnish it, the
 catalog lands on the category that fits best — **Beds** in a bedroom,
@@ -101,6 +106,19 @@ dimensions, colours, and style options. The inspector's **Face into room** butto
 turns a piece's back to the nearest wall in one click (handy for beds, sofas and
 desks). **Double‑click** focuses the camera on it.
 
+**Standard mounting heights.** For a wall‑ or ceiling‑mounted piece — a sconce,
+picture, wall shelf or pendant — the inspector offers a **Standard heights** row of
+one‑tap presets, so it lands at a sensible height without you dialling in a number.
+
+**Copy a finish between pieces.** Select a piece, press **Copy appearance**, then
+select another and press **Paste appearance** to re‑skin it with the same finish
+and colour — a quick way to match a whole category of items to one look.
+
+**Fade or hide a piece (Pro).** In the inspector, an **Opacity** slider makes a
+placed item semi‑transparent, and **Hide in 3D view** takes it out of sight
+entirely — useful for peeking past a tall wardrobe or seeing under a rug while you
+arrange the rest of the room.
+
 ### Modular kitchen cabinets
 
 The **Kitchen** category includes three fully customisable cabinet carcasses —
@@ -111,6 +129,17 @@ drawers, glass or open shelves), and toggles for the **countertop** (base), a
 **worktop fitting** — a **sink basin** or a **hob/cooktop** cut into the base
 worktop — the **cornice/crown cap** (wall & tall) and the **toe‑kick**. Build a
 whole run by placing several side by side.
+
+### Custom‑size furniture
+
+Beyond the fixed catalog you can **generate storage to exact dimensions** —
+bookshelves, wardrobes, sideboards, desks and kitchen runs — dialling in the
+width, height and depth and placing the result like any other piece (the full
+flow lives in [Design your own asset](/importing-models#design-your-own-asset)).
+A custom **Wardrobe** goes further with a modular (PAX‑style) interior: set its
+**Bays** (1–6), a **Front** (**Sliding**, **Hinged** or **Open**) and, per bay,
+an **Interior fit‑out** — **Hang**, **Double hang**, **Shelves**, **Drawers** or
+**Shoe rack** — for a made‑to‑measure closet.
 
 ### Pet fittings
 
@@ -154,9 +183,10 @@ playpen** place and resize like ordinary furniture.
 - **Cat tunnel** — a fabric play tube in **Straight** or **S‑curve** shapes, with
   a **Length** and **Diameter**.
 
-You can also build a **modular cat tree** in the product configurator (**Tools →
-Configure a product → Cat tree (modular)**): pick a platform, house cube, hammock
-or cup perch for each tier, then add it to your room.
+You can also build a **modular cat tree** in the product configurator (open
+**Configure a product** from the ⌘K command palette, then pick the **Cat tree
+(modular)** tab): pick a platform, house cube, hammock or cup perch for each
+tier, then add it to your room.
 
 **For dogs**, the Pets tab has a comfort‑and‑access set sized for the small breeds
 allowed in HDB flats:
@@ -225,7 +255,10 @@ spin the piece — perfect for touch, where there's no keyboard. It snaps to **1
 steps for tidy alignment; hold <kbd>Shift</kbd> while dragging for free rotation.
 A live angle read‑out follows the knob, the ring turns **red** if the new angle
 would overlap a wall or another piece, and releasing on a blocked angle snaps it
-back. (The <kbd>R</kbd> key still does quick 90° turns.)
+back. (The <kbd>R</kbd> key still does quick 90° turns.) **(Pro)** As you spin,
+the angle also **snaps to a neighbouring piece or a nearby wall** so a chair lines
+up square with its table or a sofa sits parallel to the wall — it falls back to the
+plain 15° grid when nothing is close.
 
 **Select several pieces** and the ring grows to enclose the whole group — drag it
 to **rotate the whole arrangement** as one, pivoting around its centre (the
@@ -233,7 +266,8 @@ read‑out shows how far you've turned). Great for angling a sofa‑and‑rug se
 dining table with its chairs together. A two‑or‑more selection also gets **corner
 resize handles** on its bounding box — drag a corner to scale the whole group
 uniformly about the opposite corner (a single piece is resized from the inspector
-instead). The same unified bounding box, rotation ring and corner handles appear
+instead). A live **width × depth** read‑out follows the box as you drag, so you can
+size the group to a real dimension. The same unified bounding box, rotation ring and corner handles appear
 in the 2D floor‑plan editor too.
 
 ### Tilt a piece (Pro)
@@ -262,8 +296,9 @@ of a group.)
 
 Some pieces are **built to order from parts**. Open **Configure a product** from the
 ⌘K command palette to assemble one: pick a product with the tabs at the top — a
-**Bed (mattress on frame)** or a **Modular sofa** — then choose one option per section
-on the right and watch the 3D preview (and running price) update live.
+**Bed (mattress on frame)**, a **Modular sectional**, or a **Cat tree (modular)** —
+then choose one option per section on the right and watch the 3D preview (and
+running price) update live.
 
 The bed, for example, lets you pick the **Mattress** (Foam, Pocket‑spring or Hybrid),
 the **Headboard** (Padded panel, Slatted timber, or none), and a **Bedside lamp** — an
@@ -272,6 +307,10 @@ like, then **Add to room** to drop it straight into the room you're editing, or 
 catalog** to keep it for later. It becomes a normal catalog item you can place, move,
 price and re‑finish like any other. (If a part can't be built, you'll see an error and
 nothing is saved.)
+
+The **Modular sectional** builds a couch from a two‑seat core plus a **Left end** and a
+**Right end**, each set to an **Armrest**, **Seat + arm**, **Corner (L)** or **Seat +
+corner** — put a corner on one end for an L‑shape or on both for a U‑shaped sofa.
 
 ## Replace with similar
 
@@ -312,6 +351,19 @@ change anything (the copy keeps moving); dropping it somewhere invalid, or
 letting go without actually moving, discards the copy instead of leaving a
 stray duplicate behind. Alt-dragging a multi-selection duplicates the whole
 set at once, re-grouped if they were already a group.
+
+## Array & scatter copies (Pro)
+
+To place many copies of the selected piece at once, the inspector offers three
+placement helpers (each collision‑checked, so copies that wouldn't fit are dropped
+and reported):
+
+- **Radial array** — place N copies **evenly around a circle**, e.g. chairs around
+  a round dining table.
+- **Path array** — place N copies **along a drawn plan polyline**, e.g. chairs
+  strung along an L‑shaped counter.
+- **Fill room** — **scatter‑fill** the room by evenly spreading N collision‑safe
+  copies of the piece across its free floor.
 
 ## Multi‑select, align & group
 

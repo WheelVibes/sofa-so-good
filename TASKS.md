@@ -55,9 +55,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   pixel A/B 2026-07-15 — grout recession/occlusion confirmed at High/Max, no artifacts, no code
   change, v0.21.2.19**; the remaining two stay blocked on a real WebGPU adapter in-sandbox).
 
-## Dead-export prune plan (from docs/research/2026-07-03-dead-export-audit.md, verified per-symbol)
-
-
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.
 - Keep this file pending-only; keep `TODO.md` (legacy deferred-work log) current.

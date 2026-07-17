@@ -29,8 +29,10 @@ floor-plan editor). On the very first visit you'll see:
 ## What you see
 
 - **3D viewport** — the flat, pre‑furnished with a move‑in‑ready layout.
-- **Toolbar** (top) — camera, view, scene, arrange, tools, and file actions, plus
-  Appearance, the **User guide** (book icon), and Help on the right.
+- **Toolbar** (top) — the **View**, **Scene**, **Edit**, **Arrange**, **Tools**
+  (Pro only) and **File** menus, plus **Graphics** and **Appearance** on the
+  right (the Appearance popover holds the theme picker, a **User guide** link,
+  and **Help**).
 - **Catalog** — open it with the <kbd>C</kbd> key or the Catalog button.
 - **Nav cluster** (bottom‑right) — a fused compass, zoom rail, and minimap.
 

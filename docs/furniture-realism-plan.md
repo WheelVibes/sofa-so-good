@@ -1,7 +1,8 @@
 # Furniture realism program — audit + fix + expand
 
-**PROGRAM COMPLETE (2026-07-17, v0.21.2.79–.87):** audit — all 131 defs verified, 45
-defects fixed, structural-soundness harness shipped as a permanent CI gate; expansion —
+**PROGRAM COMPLETE (2026-07-17, v0.21.2.79–.90):** audit — all 131 defs verified, 58
+defects fixed (incl. 13 latent z-fights), structural-soundness harness shipped as a
+permanent CI gate (attachment + coplanarity), plus a foliage-fidelity overhaul; expansion —
 E1–E4 shipped (12 new primitives, 14 variant families, sectional builder + wardrobe
 fit-out system). Wave-by-wave record in the Findings log.
 

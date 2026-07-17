@@ -50,7 +50,14 @@ For a contractor-ready costing, **File → Quote (BOQ)** opens a printable bill 
 quantities (FF&E, flooring/painting finishes priced per area, and built-in
 carpentry by linear metre, with per-section subtotals + a grand total). **File →
 Quote → Excel (.xlsx)** downloads the same bill as a spreadsheet you can edit or
-send on. All of these sit together under the File menu's **Budget & costs**
+send on.
+
+**Quote template (Pro).** **File → Quote template** customises the quote itself —
+your **company branding**, standard **notes**, **GST** and a **markup**, plus which
+BOQ sections appear — so the printed bill goes out looking like your own. **Price
+rules (Pro)**, in the same dialog, let you **edit the per‑m² finish and carpentry
+rates** used to cost the quote and the renovation estimate, so the figures match
+your real supply‑and‑install pricing. All of these sit together under the File menu's **Budget & costs**
 group, so every cost surface has one entry point.
 
 For a single machine-readable costing file, **File → Cost breakdown (CSV)** (also
@@ -76,6 +83,11 @@ panel shows a Blocking / Overlapping / In‑wall / Clear summary and a card per
 issue with fix hints; clicking a card selects and frames the offending piece
 (both pieces, for an overlap). Stacked items (a mattress on its frame, decor on
 a surface), rugs, and wall‑mounted items are never flagged.
+
+**Fix narrow gaps (Pro).** Where the checks flag a **narrow walkway gap** between
+two pieces, a **Fix narrow gaps** action nudges the furniture apart to open the
+gap back up to a comfortable clearance — the quick fix for the **circulation**
+pinch‑points the [Design score](#design-score) marks down.
 
 ## Design score
 
@@ -264,8 +276,8 @@ On mobile, touch-drag the divider to compare. The feature requires Pro mode.
 
 **File → Time-of-day compare** (or the ⌘K command *Time-of-day compare*) shows
 the exact same view at two times of day on a draggable reveal slider — the
-same mechanism as *Before / after* above, but comparing lighting instead of
-furnishing. It's a quick way to check how a room reads in the morning versus
+same draggable-divider mechanism as *Render compare* above, but comparing
+lighting instead of render presets. It's a quick way to check how a room reads in the morning versus
 at night, or which rooms catch evening sun.
 
 1. Pick **Time A** and **Time B** from the drop-downs at the bottom of the

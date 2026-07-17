@@ -35,6 +35,13 @@ spacing and hit-targets stay the same. Your choice is remembered between
 visits — but compact spacing pauses in Simple mode (the control is Pro-only)
 and comes back as soon as you switch to Pro again.
 
+## Asset credits
+
+The Appearance popover also has an **Asset credits** viewer — open it to see the
+**attribution and licences** for the bundled and downloaded assets your design
+uses (Poly Haven, ambientCG, Kenney, Poly Pizza and the like), so you can credit
+CC‑BY sources correctly.
+
 ## Discovering Pro tools
 
 In **Simple** mode, opening the command palette (<kbd>⌘K</kbd>) shows a small

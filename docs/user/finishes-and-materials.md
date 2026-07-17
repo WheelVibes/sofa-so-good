@@ -49,6 +49,11 @@ Colour, texture/pattern, and material behave as separate, mix‑and‑match choi
   apartment palette — upload a black‑and‑white pattern once and reuse it in
   every colourway.
 
+**Save a custom material.** Happy with a composed / tinted finish? Press **Save
+material** in **Compose your own…** to name it and keep it — it appears as a
+reusable swatch in that surface's picker grid, ready to apply anywhere (remove it
+later with its **×**).
+
 ## Apartment colour palette & presets
 
 The finish picker's **Apartment colour palette…** section sets a master palette
@@ -87,10 +92,12 @@ matter how big the surface is:
   reeded panels** (oak / walnut / plaster feature walls), plus a **wall accent**
   picker for a single feature wall.
 
-## Browse the online library
+## Browse the online library *(Pro)*
 
 Click **Browse** in the finishes panel to pull free CC0 textures from Poly Haven
-and ambientCG:
+and ambientCG. The **Browse** button is a **Pro-mode** feature — switch to Pro
+from the Appearance popover to show it (in Simple mode the finishes panel keeps
+just the built-in palette + **Upload**):
 
 - It opens **pre‑filtered to the surface you're editing** — refinishing a floor
   shows floor textures first. Use the **All surfaces / Floor / Wall** chips to
@@ -108,6 +115,21 @@ one and the piece re‑renders with that material. Below the dropdown, a **Quick
 finishes** row offers common woods + marble (oak, walnut, teak, ash, ebony,
 marble) as one‑tap swatches, and **Apply finish to all** copies the piece's
 finish to every other item of the same type.
+
+## Ceilings, floor texture & trim
+
+A few finishing touches shape the surfaces beyond a flat colour:
+
+- **Ceiling design (Pro)** — give a room a **Tray**, **Coffered** or **Dropped**
+  ceiling shape (distinct from the flat **Ceiling** finish tab, which only paints
+  it). Select a room in the **2D [floor‑plan editor](/floor-plan-editor)** and use
+  the **Ceiling** style picker in its inspector to pick the treatment and its
+  parameters.
+- **Floor texture scale & angle** — in the same room inspector, **Tile size (×)**
+  and **Angle (°)** scale and rotate a room's floor texture, so a plank or tile
+  pattern runs the way you want and reads at the right size.
+- **Crown molding** — a decorative trim strip is drawn automatically at the
+  **wall–ceiling junction**, with mitre‑cut corners, for a more finished room.
 
 ## Tidy up a room
 

@@ -22,6 +22,8 @@ Open it in any of these ways:
   different one from the toolbar **room dropdown** — which shows a **furniture
   count** per room so you can see at a glance which rooms still need work. Press
   <kbd>,</kbd> / <kbd>.</kbd> to jump to the previous / next room without the menu.
+  The list is **A–Z** by default; **drag the handle** on a dropdown entry to
+  **reorder the rooms** into an order that suits you (remembered on your device).
 - **Full editing** — placing, dragging, rotating, measuring, and finishing all
   happen here, on the same furniture that makes up the whole flat. An empty room
   shows a prompt to open the catalog; click a room's floor for the finish picker,
