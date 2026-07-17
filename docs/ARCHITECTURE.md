@@ -395,7 +395,9 @@ same change that reshapes a system.
   (`inspector/ScatterFillSection.tsx` → pure `layout/scatterInRoom.ts` — evenly fills the
   selected item's room with N collision-safe copies on a packed grid, deterministic by seed;
   Pro-only via `scatterFill` flag)), FinishPicker, WallAccentPicker (paint one wall face an accent
-  finish, opened by a wall-face click; `wallAccentPicker` flag), GraphicsSettings,
+  finish, opened by a wall-face click OR the FinishPicker Walls-tab "Add accent wall…" Select —
+  room→walls enumeration for both plan types via the pure `materials/roomWalls.ts`;
+  `wallAccentPicker` flag), GraphicsSettings,
   BudgetPanel, NavCluster, CreditsModal (asset attribution/licenses, opened from the Appearance
   panel's "Asset credits" entry; `assetCredits` flag; built on the shared `Modal`),
   CommandPalette, **ContextMenu** (dynamic right-click menu — `featuresSlice.ContextTarget`
@@ -1868,6 +1870,11 @@ same change that reshapes a system.
   (+ optional `.glb.json` sidecar) into `public/assets/furniture/`, `npm run index-assets`
   → regenerates `generatedCatalog.ts` + `CREDITS`. Must be floor-anchored + centred (no
   runtime fit). License CC0 default, may be CC-BY (sidecar → inspector `SourceLine`).
+  **Poly Haven fetcher** (`scripts/asset-pipeline/fetch-polyhaven-models.mjs`, dev): downloads
+  CC0 model gltf bundles (1k default) and repacks self-contained GLBs into
+  `local-assets/<category>/` (gitignored) for the Part-1 local-asset dev DB; pure selection
+  helpers in `polyhaven-select.mjs` (unit-tested); idempotent, rate-limited,
+  `--limit/--category/--ids/--res`.
   **Cache lifecycle (PERF-001/008)**: `GltfModel` caches parsed GPU scenes (drei `useGLTF`)
   plus module-level `FOOTPRINT_CACHE`/`SUPPORT_PLANE_*`; removal paths (`freeResource` in
   `userAssetsSlice`, `markPackUninstalled` in `installedPacksSlice`) call

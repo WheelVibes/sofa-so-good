@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.0.6 — Poly Haven CC0 model fetcher → local-asset dev DB
+
+New dev pipeline `scripts/asset-pipeline/fetch-polyhaven-models.mjs`: queries
+the Poly Haven API, downloads a model's gltf+bin+texture bundle (1k default),
+repacks it into a single self-contained `.glb` via @gltf-transform
+(weld/dedup/prune, embedded buffers+textures — no new dependencies) and writes
+`local-assets/<category>/<slug>.glb` (+ a provenance sidecar: author, CC0,
+source URL), where the Part-1 dev plugin (`vite-local-assets.mjs` →
+`localAssetsSlice`) auto-loads it into the catalog. Idempotent, 400 ms
+rate-limited; `--limit/--category/--ids/--res/--out/--force`. Pure selection
+helpers in `polyhaven-select.mjs` (bundle/resolution pick, slug, category
+mapping, attribution — 17 unit tests). Curated 11-item furniture set fetched
+(~20 MB total, all < 4 MB each, parse-verified); catalog pickup + placement
+GPU-verified (Mid Century Lounge Chair card → placed in Living/Dining with
+real 1.01×1.19 m footprint). Unblocks the TODO Part-3 "Poly Haven model
+fetcher" deferral; `local-assets/` stays gitignored (scripts are the
+deliverable).
+
 ## v0.22.0.5 — Accent-wall creation from the FinishPicker
 
 The Walls tab's "Accent walls" section gains an **"Add accent wall…"** Select
