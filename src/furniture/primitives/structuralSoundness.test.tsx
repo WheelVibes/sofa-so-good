@@ -80,7 +80,7 @@ const FLOOR_EXEMPT: Record<string, string> = {
   'table-lamp': 'table-top lamp — renders at table height, placed on a table/nightstand.',
   'tabletop-decor': 'table-top decor object — renders at table height, placed on a surface.',
   'fireplace::wall':
-    'wall-mounted electric fireplace (default style) renders at wall height; the floor "console" style IS floor-asserted.',
+    'wall-mounted electric fireplace renders at its mount height; the default floor "console" style IS floor-asserted (mirrors flatscreen-tv::wall).',
   'bathroom-sink::wall-hung':
     'wall-hung basin renders at its mount height; the pedestal/vanity styles ARE floor-asserted.',
   'flatscreen-tv::wall':

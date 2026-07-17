@@ -112,6 +112,10 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 
 /** Curtain overhang past each side of the glass (m) so it covers the window. */
 const CURTAIN_OVERHANG = 0.18
+/** Curtain standoff from the wall (m) so its fold troughs clear the interior
+ *  sill/frame (which projects ~0.14 m past the wall — `apartment/Window.tsx`).
+ *  Sized above the sill projection + the fullest fold depth. */
+const CURTAIN_SILL_STANDOFF = 0.16
 /** Blind overhang past each side of the glass (m) — slightly bigger than the window. */
 const BLIND_OVERHANG = 0.06
 
@@ -140,6 +144,11 @@ export function windowFixtureProps(
       // Stored so the `length: 'sill'` mode can drop the hem to just below the
       // sill without re-deriving the window.
       sillY: win.sill,
+      // Stand the panel off the wall so the interior sill/frame (projects
+      // ~0.14 m into the room, `apartment/Window.tsx`) clears the fabric's fold
+      // troughs instead of poking through them. A prop (not the snap point), so
+      // the exact-snap contract (windowSnap position d=0) is untouched.
+      standoff: CURTAIN_SILL_STANDOFF,
     }
   }
   if (defId === 'window-mesh-screen') {

@@ -131,8 +131,13 @@ function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
       }
       // Straight grain running along v, with only a slight lengthwise waver so
       // the lines stay parallel (clean sawn board, not a knotty burl).
-      const waver = (warpN(u * 0.6, v * 2.5) - 0.5) * 0.25
-      const ring = (u + waver + phase) * Math.PI * 11
+      // Wave 4A: this furniture-only wood (the `wood` finish token; the FLOOR
+      // uses the separate `woodFields` painter) read as a busy wavy watermark —
+      // worst on dark tints (tv-console/crib). Fewer, calmer, straighter grain
+      // lines (waver 0.25→0.12, 11→7 rings) and a shallower latewood darkening
+      // (so a dark tint keeps its value range instead of crushing to near-black).
+      const waver = (warpN(u * 0.6, v * 2.5) - 0.5) * 0.12
+      const ring = (u + waver + phase) * Math.PI * 7
       // Latewood lines: sharp dark bands where the ring turns over. Raising
       // the sine to a power tightens the dark line so earlywood stays pale.
       const s = Math.abs(Math.sin(ring))
@@ -142,16 +147,19 @@ function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
       const pore = clamp01((poreN(u * 18, v * 1.2) - 0.6) * 2.5)
       const figure = (figureN(u * 1.2, v * 3) - 0.5) * 0.05
       // White-ish luminance so material.color tints it into real wood; the
-      // latewood lines, pores, per-board tone + seam grooves darken it.
-      const lum = clamp01(0.99 + plankTone - late * 0.3 - pore * 0.1 + figure - groove * 0.45)
+      // latewood lines, pores, per-board tone + seam grooves darken it. The
+      // grain-darkening terms are held gentle (late 0.3→0.2, groove 0.45→0.34)
+      // so a dark-stained board keeps a plausible tonal range.
+      const lum = clamp01(0.99 + plankTone - late * 0.2 - pore * 0.1 + figure - groove * 0.34)
       const i = y * N + x
       const c = Math.round(lum * 255)
       albedo[i * 4] = c
       albedo[i * 4 + 1] = c
       albedo[i * 4 + 2] = c
       albedo[i * 4 + 3] = 255
-      // Pores + latewood + seam grooves sit slightly recessed for a tactile normal.
-      height[i] = late * 0.5 + pore * 0.4 + figure + groove * 0.8
+      // Pores + latewood + seam grooves sit slightly recessed for a tactile
+      // normal (latewood relief eased with the albedo so it doesn't emboss).
+      height[i] = late * 0.32 + pore * 0.4 + figure + groove * 0.8
       // Open pores and latewood scatter more (rougher); earlywood is smoother.
       const r = clamp01(0.4 + late * 0.24 + pore * 0.2)
       const rc = Math.round(r * 255)
@@ -867,6 +875,21 @@ const furnitureRepeatCache = new LruCache<MeshStandardMaterial>({
   dispose: disposeOwnedMaterial,
 })
 
+/** Wave 4A — the shared `mat:floor-wood-*` oak/walnut/… grain is tuned for the
+ *  FLOOR (a large world-UV tile, viewed from standing distance). Applied to
+ *  furniture (per-face UVs, tall vertical panels seen up close) the same tile
+ *  squishes into a busy wavy "cathedral"/watermark grain — worst on wardrobe/
+ *  bookshelf doors. These two furniture-only knobs calm it WITHOUT touching the
+ *  floor build (the floor never goes through `getFurnitureMatWithRepeat`):
+ *   - coarsen the tile (fewer, wider boards + fewer grain bands per panel), and
+ *   - soften the baked grain relief (a gentler normal scale). */
+const FURNITURE_WOOD_COARSEN = 0.5
+const FURNITURE_WOOD_NORMAL_SCALE = 0.24
+/** Catalog wood materials are ided `floor-wood-<species>` (+ any `tint:`/`compose:`
+ *  of one). Match on the `wood` token so every wood finish — but no stone/tile/
+ *  concrete DLC — is coarsened. */
+const FURNITURE_WOOD_MAT_RE = /wood/i
+
 /** Return (or build) a variant of a furniture `mat:` material with `repeat`
  *  applied to all texture channels.  The base is cloned and each texture
  *  (`map`, `normalMap`, `roughnessMap`) is individually cloned + re-set so
@@ -875,8 +898,9 @@ function getFurnitureMatWithRepeat(
   matId: string,
   base: MeshStandardMaterial,
   repeat: number,
+  wood = false,
 ): MeshStandardMaterial {
-  const key = `${furnitureMaterialCacheId(matId)}:x${repeat.toFixed(2)}`
+  const key = `${furnitureMaterialCacheId(matId)}:x${repeat.toFixed(2)}${wood ? ':w' : ''}`
   const hit = furnitureRepeatCache.get(key)
   if (hit) return hit
   const m = base.clone()
@@ -895,6 +919,9 @@ function getFurnitureMatWithRepeat(
     m.roughnessMap.needsUpdate = true
     m.roughnessMap.repeat.set(repeat, repeat)
   }
+  // Soften the grain relief on furniture wood so the coarsened tile doesn't read
+  // as an embossed watermark (floor keeps its own, stronger relief).
+  if (wood) m.normalScale.set(FURNITURE_WOOD_NORMAL_SCALE, FURNITURE_WOOD_NORMAL_SCALE)
   furnitureRepeatCache.set(key, m)
   return m
 }
@@ -926,7 +953,16 @@ export function getSurfaceMaterial(
       // with procedural wood (`getWoodMaterial(color, repeat)`). The base
       // furniture material's texture already tiles at FURNITURE_UV (2×); when
       // a primitive requests a different repeat we serve a cached clone.
-      const r = Math.round(repeat * 100) / 100
+      const isWood = FURNITURE_WOOD_MAT_RE.test(matId)
+      // Wave 4A: coarsen furniture wood so the floor-tuned grain doesn't squish
+      // into a busy watermark on tall panels (floor-safe — see the constants).
+      let r = Math.round(repeat * 100) / 100
+      if (isWood) {
+        r = Math.round(r * FURNITURE_WOOD_COARSEN * 100) / 100
+        // Always serve the softened clone for wood (even at r≈1) so the calmer
+        // normal scale + coarser tile apply.
+        return getFurnitureMatWithRepeat(matId, built, r, true)
+      }
       if (Math.abs(r - 1) < 0.005) return built
       return getFurnitureMatWithRepeat(matId, built, r)
     }
@@ -970,9 +1006,9 @@ export function getWoodMaterial(color: string, repeat = 1, rough = 0.5): MeshSta
     normalMap: normal,
     roughnessMap: roughMap,
   })
-  // Crisper grain relief — pores + latewood lines catch raking light without
-  // tipping into noise on the high tiers.
-  m.normalScale.set(0.7, 0.7)
+  // Grain relief — pores + latewood lines catch raking light. Kept moderate
+  // (Wave 4A) so the calmer grain doesn't read as an embossed watermark.
+  m.normalScale.set(0.45, 0.45)
   cache.set(key, m)
   return m
 }

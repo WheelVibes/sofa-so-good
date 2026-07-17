@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.83 — Realism wave 4: coordinated pass + pets/others — AUDIT PHASE COMPLETE
+
+Coordinated cross-cutting fixes, all A/B-verified on real GPU: furniture wood retuned
+calm (furniture-only coarsen 0.5 + softened relief in getSurfaceMaterial/
+getFurnitureMatWithRepeat; `wood` token waver/rings/normalScale gentled, dark-tint-safe;
+floor grain byte-unchanged); curtain panels get a 0.16 m standoff via windowFixtureProps
+(clears the ~0.14 m sill projection that poked through fold troughs; exact-snap d=0
+contract untouched); appliance finish toggle visually verified at Performance + High (no
+stale carcass — v0.21.2.81 fix confirmed); fireplace defaults to the floor `console`
+style (wall stays the mount-height alternative, flatscreen-tv precedent); planter-trough
+dead footprintParams dropped. Wave 4B: staircase OK all 4 styles (L-shape railing fix
+holds visually); 8 artifact-prone pets items spot-checked attachment-sound; aquarium-stand
+tank opacities matched to the wave-3A decor aquarium fix (was a black box with floating
+rim). **All 131 parametric defs now audited** for scale/attachment/artifacts/fidelity with
+the structural-soundness harness as a permanent gate; 45 defects fixed across waves 1–4.
+
 ## v0.21.2.82 — Structural-soundness harness + realism wave 3 (decor/lighting/textiles/outdoor/kids)
 
 New permanent regression gate `primitives/structuralSoundness.test.tsx` (+ pure union-find

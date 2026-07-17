@@ -132,7 +132,10 @@ export const OUTDOOR_DEFS = {
     category: 'outdoor',
     primitive: 'PlanterTrough',
     defaultFootprint: { w: 0.9, d: 0.28, h: 0.65 },
-    footprintParams: { w: 'length', d: 'depth' },
+    // Only `length` is a schema param; depth is a fixed 0.28 m in the primitive,
+    // so `defaultFootprint.d` (0.28) is the honest depth. (No `d` mapping — the
+    // old `d: 'depth'` referenced a param the schema never exposed.)
+    footprintParams: { w: 'length' },
     paramSchema: [
       {
         kind: 'number',

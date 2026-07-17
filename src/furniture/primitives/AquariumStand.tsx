@@ -154,6 +154,9 @@ export function AquariumStand({ props }: { props: ParamProps }) {
         </mesh>
       ))}
       {/* ---- Tinted water volume ---- */}
+      {/* Kept fairly opaque so it reads as a filled tank — a near-transparent
+          tint washes out against a bright window and the tank looks empty
+          (matches the decor `Aquarium` Wave-3A fix; the two must read alike). */}
       <mesh position={[0, standH + gravelH + waterH / 2, 0]}>
         <boxGeometry args={[innerW - 0.004, waterH, innerD - 0.004]} />
         <meshStandardMaterial
@@ -161,18 +164,23 @@ export function AquariumStand({ props }: { props: ParamProps }) {
           roughness={0.1}
           metalness={0}
           transparent
-          opacity={0.42}
+          opacity={0.7}
         />
       </mesh>
       {/* ---- Glass tank shell (transparent, drawn last) ---- */}
+      {/* Opacity high enough that the glass box itself reads at every tier — at
+          ~0.16 the walls vanished under the faked IBL and only the black top
+          rim showed, floating over the stand with an empty air gap (the same
+          defect fixed in the decor `Aquarium`). metalness 0 avoids a dark
+          mirror-black front. */}
       <mesh position={[0, standH + tankH / 2, 0]}>
         <boxGeometry args={[w, tankH, d]} />
         <meshStandardMaterial
           color="#cfe0e6"
-          roughness={0.05}
-          metalness={0.1}
+          roughness={0.06}
+          metalness={0}
           transparent
-          opacity={0.16}
+          opacity={0.3}
         />
       </mesh>
       {/* Black rim trim at the top of the glass. */}

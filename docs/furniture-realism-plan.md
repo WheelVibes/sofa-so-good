@@ -673,3 +673,129 @@ here (a `painted`/light default reads correctly, proving the geometry). Gates: `
 + `slatLayout` vitest green (265); no source changed in this batch (audit-only), so tsc/biome are
 unaffected by it (a stray `_diag.test.tsx` tsc error in the tree is a concurrent agent's scratch
 file, not this batch).
+
+### Wave 4B — others + pets spot-check, 2026-07-17
+
+Audit scenario: `scripts/scenarios/realism-wave4-pets-others.json` (19 frames — each item placed at
+the L/D centre and framed with `requestFrameSelection`; door-/window-bound items on the real
+`door-main` / `win-livingDining-N` openings; the dog ramp against a real 3-seat sofa; the cat-wall
+run on the N wall). **Camera lesson (added for the next pet/others audit):** the room-editor Canvas
+camera is **polar-clamped near top-down** (a vertical drag only spins azimuth), which hides
+float/sink — run pet/others closeups in the **whole-flat ORBIT (dollhouse)** camera instead
+(`exitRoomEditor` + `setCameraMode('orbit')`), whose ~3/4 elevation reveals attachment; every
+`requestFrameSelection` inherits that angle. **Attachment (rubric-2) verified two-channel:** the
+asserting `structuralSoundness.test.tsx` renders staircase (all 4 styles) + every pets def × its
+structural-enum modes and stays green (comps=1 + floor/mount contact), and the ORBIT closeups
+confirm each joint visually.
+
+others (1):
+- **staircase** — OK across straight / lshape / ushape / spiral × railing side/both. The **L-shape
+  landing-railing fix (v0.21.2.82)** holds visually: at the turn the railing posts + handrail run
+  parallel to each flight (no post/rail spun perpendicular off the run into its own fragment — the
+  old `buildLShape` double-rotation bug). Straight = treads/risers + both-side rail climb cleanly;
+  U-shape = two parallel flights + half-landing, rails follow; spiral = treads fan around a grounded
+  central newel with an outer-edge post+handrail. Treads show the shared oak watermark grain
+  (Wave-1 X-cut), geometry sound.
+
+pets spot-check (the ~8 most artifact-prone, closeup incl. joints — all pass except the fix below):
+- **cat-tree** — OK (3-tier + house cube + top perch AND 5-tier / no house / ribbed posts / perch).
+  Base slab grounded, each sisal/ribbed post segment bridges the platform below (or base) to the one
+  above, house cube seats on the middle platform, top-perch rim cup on the top platform. Zig-zag
+  stagger keeps the stack over the base.
+- **rabbit-hutch** — OK. Two-zone (enclosed timber sleeping box + pitched roof / open wire run) on
+  four legs; shared floor pan ties the zones, legs reach the floor, wire bars frame the run.
+- **bird-cage** — OK (dome-on-stand default + rect/tabletop). The deferred-finding fix holds: the
+  tripod feet are grounded (y=0) with the horizontal stability ring, and the interior perch dowels
+  span the full inner diameter to socket into the bars (no ~2–7 cm short).
+- **dog-ramp** — OK against a real sofa. Inclined carpeted board on side skirts + a high-end support
+  post (grounded), side rails; rises to ~sofa-seat height.
+- **cat-wall shelf/steps/bridge** — OK as a wall run at spacing. Each ledge = plank + plush grip pad
+  on two under-brackets reaching back to the wall; steps climb diagonally, bridge slats span between
+  two anchor shelves. (`cat-wall-steps` stays a sanctioned `KNOWN_DISCONNECTED` — separately
+  wall-mounted steps.)
+- **cat-window-perch** — OK. Snaps windowBound to the sill; cushion plank projects into the room on
+  two diagonal brackets angling back down to the wall below the sill.
+- **litter-cabinet** — OK. Closed bench-style wood carcass grounded (side entry hole + rear vent
+  slots are on the non-camera faces; geometry sound). Oak watermark grain (X-cut).
+- **pet-gate** — OK in the `door-main` doorway (doorBound). Two posts to the floor + top/bottom rails
+  frame the infill (bars OR fine mesh) + the walk-through flap outline; spans the opening.
+
+**FIXED — aquarium-stand vs decor-aquarium consistency (`primitives/AquariumStand.tsx`).** The
+pets `aquarium-stand` tank still used the OLD low opacities the decor `Aquarium` fixed in Wave 3A
+(water 0.42, glass 0.16, glass metalness 0.1), so under the faked IBL the tank washed out to a
+**black box with the rim floating over an air gap** — the exact defect Wave 3A cured on the sibling.
+Matched the decor values (water 0.42→**0.7**, glass 0.16→**0.30**, metalness 0.1→**0**, roughness
+0.05→0.06); the tank now reads as a filled glass box (gravel + tinted water + plants + glass + black
+rim) and the two aquaria read alike side-by-side. Opacity-only change — no structural/collision
+impact, harness stays green. Verified at closeup (`13b`) + side-by-side (`13`).
+
+Gates: `structuralSoundness` + `pets` (defs + catalog) + `staircaseModel` vitest green (294); `tsc
+--noEmit` clean; Biome clean on the one changed source file (`AquariumStand.tsx`). No
+version.ts/CHANGELOG edit (per batch scope). Cross-cutting unchanged: the app-wide `wood`/
+`mat:floor-wood-oak` watermark grain shows on the staircase treads, rabbit-hutch, litter-cabinet and
+aquarium-stand cabinet — the coordinated global material retune, not a per-def fix.
+
+### Wave 4A — coordinated cross-cutting pass, 2026-07-17
+
+Five cross-cutting items the earlier waves deferred. Verified visually on **real GPU**
+(`SHOT_GPU=1`) via `scripts/scenarios/realism-wave4-materials.json` (wardrobe/bookshelf/
+tv-console/crib/changing-table + floor + fridge/washer finish toggle + fireplace wall/console)
+and `realism-wave4-curtain-sill.json` (curtain-sill A/B). Gates: `tsc --noEmit` clean; Biome clean
+on the 6 changed files; targeted vitest **402 green** (windowSnap, structuralSoundness, materials,
+pets, autoArrange, windowFixture). Structural-soundness harness stays green.
+
+1. **Wood-grain retune (the big one) — FIXED.** Diagnosed TWO distinct wood surfaces, both
+   flagged by waves 1–3, and confirmed the worst offenders split across them:
+   - **`mat:floor-wood-*` (the shared oak, floor + furniture)** — wardrobe / bookshelf / crib /
+     changing-table. Root cause: the `woodFields` painter (`procedural/patterns/wood.ts`) is tuned
+     for the FLOOR (a large world-UV tile at `uvScale [1.9,1.2]`, viewed from standing distance).
+     Furniture re-scopes the SAME tile to `FURNITURE_UV [0.5,0.5]` (`FurnitureMaterialLoader.tsx`)
+     and then a per-primitive `repeat` (1.4–2), so the tile is squished onto tall thin panels →
+     the cathedral warp reads as a busy wavy watermark, worst up close. **Floor-safe fix
+     (`materials/furnitureMaterials.ts`):** furniture wood (`mat:` ids matching `/wood/`) is
+     COARSENED (`FURNITURE_WOOD_COARSEN 0.5` → wider boards, fewer grain bands per panel) and its
+     baked relief SOFTENED (`FURNITURE_WOOD_NORMAL_SCALE 0.24` vs 0.4) in
+     `getSurfaceMaterial`/`getFurnitureMatWithRepeat` — the FLOOR never routes through those
+     functions (it builds via the world-UV `cache.ts` path), so the floor grain is byte-unchanged
+     (before/after floor frames identical).
+   - **`wood` procedural token (furniture-only)** — tv-console (`#3a2f24` dark), cube-shelf. Root
+     cause: `getWoodMaps` (a SEPARATE generator from the floor painter) had a strong low-freq warp
+     ("cathedral arches" per its own comment) + 11 ring cycles + heavy latewood darkening, which on
+     a dark tint multiplied down to a near-black watermark. **Floor-safe fix (same file):** calmer,
+     straighter grain (waver 0.25→0.12, 11→7 rings), gentler darkening (`late` 0.3→0.2, groove
+     0.45→0.34, height relief eased) so a dark stain keeps a plausible tonal range, and
+     `getWoodMaterial` normalScale 0.7→0.45. `getWoodMaps` is used ONLY by `getWoodMaterial`
+     (furniture) — never the floor — so this is inherently floor-safe.
+   - A/B result: wardrobe/bookshelf read calm at room + closeup (soft figured grain, no embossed
+     zebra); tv-console reads a clean dark unit; crib is now plausible light oak (was near-black);
+     floor frame unchanged. Judgment call: kept the shared `woodFields` painter (and thus the floor)
+     untouched and pushed all calming into the furniture-only consumer path, per the charter.
+2. **Curtain-sill standoff — FIXED.** The snap plants the panel on the wall centre-line while the
+   interior sill/frame projects ~0.14 m into the room (`apartment/Window.tsx` sill box: z 0.06,
+   depth 0.16 → front face 0.14), so the sill poked through the fabric fold troughs (Wave 3B). Added
+   a `standoff` prop to the `Curtain` primitive (offsets the panels + rod in +Z; default 0 keeps
+   free-placed curtains wall-flush) and set `standoff: 0.16` in `windowFixtureProps` (`windowSnap.ts`)
+   — applied via **fixture props, not the snap point**, so the exact-snap contract (windowSnap
+   position d=0) is untouched (windowSnap tests green). Geometry: panel front 0.05→0.21 m, troughs
+   (drawn) ≥0.16 m > sill front 0.14 → clears. Verified with a top-down A/B (blackout drawn): the
+   fold-strip visibly shifts off the wall from standoff 0 (hugging) to 0.16 (offset into room).
+   *Harness note:* the single-room room editor CULLS a windowBound curtain whose snapped window is
+   owned by a neighbouring room (a shared-wall opening), so the A/B was captured in the main orbit
+   scene where all items render — pre-existing room-editor visibility quirk, unrelated to this fix.
+3. **Appliance finish toggle — VERIFIED (not broken).** Scenarioed a fridge + washer, toggled
+   `body` steel→matte→gloss→steel via `updateItemProps` at **Performance AND High** tiers. The
+   MAT-004b single-representation body (`applianceBodyMaterial`) repaints cleanly at every step —
+   NO stale white carcass at either tier through the full cycle including back-to-steel. No fix.
+4. **Fireplace wall-mode — FIXED (smallest correct).** The def defaulted to the floating `wall`
+   style (harness FLOOR_EXEMPT'd) while the `console` style stands. A single static `mounted` flag
+   can't serve both. Chose the minimal convention-matching fix: **default → `console`** (floor,
+   reaches the floor, harness-asserted), mirroring how `flatscreen-tv` defaults to its floor `stand`
+   rather than the wall mount; the `wall` style stays the wall-fixture alternative (renders at
+   `mountHeight`, `fireplace::wall` FLOOR_EXEMPT, exactly like `flatscreen-tv::wall`). No new def
+   needed. Updated the harness exemption comment. Verified: console default stands with hearth +
+   mantel; wall style renders at mount height with the glowing firebox.
+5. **planter-trough dead footprint mapping — FIXED.** Dropped the inert `footprintParams.d:
+   'depth'` (the schema exposes only `length`; depth is a fixed 0.28 m in the primitive, which is the
+   honest `defaultFootprint.d`). `footprintParams: { w: 'length' }`. No test asserted the mapping;
+   the generic `autoArrange`/`PlanFurnitureInspector` `?? 'depth'` fallback resolves identically
+   (the `depth` prop never existed), so behaviour is unchanged.

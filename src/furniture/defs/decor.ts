@@ -778,13 +778,20 @@ export const DECOR_DEFS = {
         unit: 'm',
       },
       {
+        // Default is the floor-standing console (a hearth + mantel that reaches
+        // the floor), mirroring how `flatscreen-tv` defaults to its floor `stand`
+        // style rather than the wall mount. The def stays floor-anchored; the
+        // `wall` style is the wall-fixture alternative (renders at `mountHeight`,
+        // FLOOR_EXEMPT in the structural harness like `flatscreen-tv::wall`).
+        // Keeps a single def honest — a static `mounted` flag can't be right for
+        // both a floor console and a wall unit.
         kind: 'enum',
         key: 'style',
         label: 'Style',
-        default: 'wall',
+        default: 'console',
         options: [
-          { value: 'wall', label: 'Wall-mounted' },
           { value: 'console', label: 'Console + mantel' },
+          { value: 'wall', label: 'Wall-mounted' },
         ],
       },
       {
