@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.4 — Finish eyedropper: sample a surface, paint it elsewhere
+
+The FinishPicker header gains an eyedropper toggle (`finishEyedropper` flag,
+simple tier): arm it, click any wall/floor in the 3D scene to SAMPLE the finish
+it's actually rendering (pure `materials/sampleFinish.ts` — accent wallId →
+live slice → plan-room default → app default precedence, never null), then
+each subsequent click PAINTS the held finish onto the clicked surface by
+reusing the exact drag-to-apply pipeline (`resolveFinishDrop` +
+`finishDropApply` — same one-undo step, recents, toast). Held-sample chip with
+× in the header; crosshair + accent viewport ring while armed;
+Escape/toggle/leave-editor disarms. Session-only `eyedropperSlice`; the click
+side is a capture-phase canvas listener over the existing `finishDropTarget`
+raycast. v1 samples at room-wall granularity (the surface tag carries no
+wallId; the accent branch is implemented + tested for a later per-wall tag).
+Browser-verified (arm → hint row → sampled chip "Warm cream" → apply to
+another room → Escape disarms); 17 unit tests incl. both modes.
+
 ## v0.22.2.3 — Room-starter "essentials" chips in the empty-room state
 
 The room editor's empty-room hint now offers **tap-to-add essentials** for the

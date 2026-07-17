@@ -604,6 +604,23 @@
    no hairline — scoped to the picker so the base rule other panels rely on is
    untouched. */
 .finish-picker .sec-h { position: static; background: transparent; box-shadow: none; }
+/* Eyedropper (UX-7): armed toggle in the picker header + the sampling hint row.
+   `.icon-btn.on` marks the armed/pressed state with the accent (reused by any
+   icon-btn that toggles a mode). */
+.icon-btn.on { background: var(--accent-soft); color: var(--accent); }
+.icon-btn.on:hover { background: var(--accent-soft); color: var(--accent); }
+.eyedrop-hint {
+  display: flex; align-items: center; gap: var(--s-2);
+  margin: var(--s-1) var(--s-4) var(--s-3);
+  padding: var(--s-2) var(--s-3); border-radius: var(--r-2);
+  background: var(--accent-soft); color: var(--accent-soft-text);
+  border: 1px solid var(--accent);
+  font-size: var(--t-xs); line-height: var(--lh-body);
+}
+.eyedrop-hint .swatch { flex: none; }
+.eyedrop-hint strong { font-weight: 700; }
+/* Crosshair sampling cue on the canvas while the eyedropper is armed. */
+.stage-area.finish-eyedropper-active canvas { cursor: crosshair; }
 /* Full-width Floor | Walls | Ceiling surface tab row in the finish picker — the
    `.seg` pill stretched to the panel width, each tab flexing evenly (no fixed
    widths, so it holds at 390 px). */

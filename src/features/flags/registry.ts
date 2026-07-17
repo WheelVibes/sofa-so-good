@@ -439,6 +439,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Eyedropper — sample a floor/wall's finish in the 3D scene, then paint it
+  // onto other surfaces. Pure prod-safe code, part of the core finish loop →
+  // simple tier (shown in both Simple and Pro).
+  finishEyedropper: {
+    label: 'Finish eyedropper',
+    description: "Sample a surface's finish in the 3D scene, then apply it to other walls/floors",
+    default: true,
+    tier: 'simple',
+  },
   // An authoring tool, prod-safe pure code. Surfaced in the default experience
   // (curated launch set) → simple tier.
   parametricFurniture: {

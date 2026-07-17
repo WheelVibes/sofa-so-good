@@ -13,7 +13,11 @@
 5. On the **Ceiling** tab, paint a room's ceiling from the same palette, **Apply
    ceiling to all rooms**, or **Reset ceiling to white** to go back to the plain
    default.
-6. **Accent walls** — click any single wall in the 3D view to paint it a different
+6. **Match a finish (eyedropper)** — the small eyedropper button in the finish
+   picker's header arms a sample mode: click any wall or floor in the 3D view to
+   pick up its finish (a chip shows what you're holding), then tap other surfaces
+   to paint it on. Press <kbd>Esc</kbd> or toggle the button again to stop.
+7. **Accent walls** — click any single wall in the 3D view to paint it a different
    colour from the rest of the room, or use the **Add accent wall…** dropdown in
    the **Walls** tab's **Accent walls** section: it lists the room's walls by
    compass side and length (e.g. *North wall · 3.50 m*), and picking one opens the

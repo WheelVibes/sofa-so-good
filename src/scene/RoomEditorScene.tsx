@@ -20,6 +20,7 @@ import { DragController } from './DragController'
 import { deselectOnMiss } from './deselectOnMiss'
 import { Effects } from './Effects'
 import { FinishDropSurface } from './FinishDropSurface'
+import { FinishEyedropperSurface } from './FinishEyedropperSurface'
 import { FrameRenderedNotifier } from './FrameRenderedNotifier'
 import { GridOverlay } from './GridOverlay'
 import { CurtainLightController } from './lighting/CurtainLightController'
@@ -145,6 +146,7 @@ export function RoomEditorScene() {
       <PlacementDropAnimator />
       <DragController />
       <FinishDropSurface />
+      <FinishEyedropperSurface />
       <MarqueeCameraTracker />
       <CameraRig />
       <CameraForwardTracker />

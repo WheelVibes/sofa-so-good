@@ -287,6 +287,11 @@ export function FinishPicker() {
   const fSaveMaterials = useFeature('saveMaterials')
   const fRecolor = useFeature('finishRecolor')
   const fLayoutReroll = useFeature('layoutReroll')
+  const fEyedropper = useFeature('finishEyedropper')
+  const eyedropperArmed = useStore((s) => s.eyedropperArmed)
+  const sampledFinish = useStore((s) => s.sampledFinish)
+  const toggleEyedropper = useStore((s) => s.toggleEyedropper)
+  const setSampledFinish = useStore((s) => s.setSampledFinish)
   const materials = useMaterials()
   const savedMaterials = useStore(useShallow((s) => s.savedMaterials))
   const saveMaterial = useStore((s) => s.saveMaterial)
@@ -472,16 +477,69 @@ export function FinishPicker() {
             </div>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => selectRoom(null)}
-          className="icon-btn"
-          aria-label="Close finish picker"
-        >
-          <Icon.Close width={16} height={16} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-1)' }}>
+          {fEyedropper && view === 'swatch' ? (
+            <button
+              type="button"
+              onClick={toggleEyedropper}
+              className={`icon-btn${eyedropperArmed ? ' on' : ''}`}
+              aria-label="Eyedropper — sample a finish from a surface"
+              aria-pressed={eyedropperArmed}
+              title="Eyedropper — click a wall or floor in the 3D view to sample its finish, then apply it elsewhere"
+            >
+              <Icon.Eyedropper width={16} height={16} />
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => selectRoom(null)}
+            className="icon-btn"
+            aria-label="Close finish picker"
+          >
+            <Icon.Close width={16} height={16} />
+          </button>
+        </div>
       </div>
       <hr className="hr" />
+      {fEyedropper && eyedropperArmed ? (
+        <div className="eyedrop-hint" role="status">
+          {sampledFinish ? (
+            <>
+              <span
+                className="swatch"
+                style={{
+                  backgroundColor: sampledFinish.finishId.startsWith('#')
+                    ? sampledFinish.finishId
+                    : (materials[sampledFinish.finishId]?.swatch ?? '#ccc'),
+                }}
+                aria-hidden="true"
+              />
+              <span className="flex-1" style={{ minWidth: 0 }}>
+                Sampled{' '}
+                <strong>
+                  {sampledFinish.finishId.startsWith('#')
+                    ? sampledFinish.finishId.toUpperCase()
+                    : (materials[sampledFinish.finishId]?.name ?? sampledFinish.finishId)}
+                </strong>{' '}
+                — tap a surface to apply
+              </span>
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={() => setSampledFinish(null)}
+                aria-label="Clear sampled finish"
+                title="Clear the held finish and sample another"
+              >
+                <Icon.Close width={14} height={14} />
+              </button>
+            </>
+          ) : (
+            <span className="flex-1">
+              Eyedropper armed — tap a wall or floor to sample its finish.
+            </span>
+          )}
+        </div>
+      ) : null}
 
       {view === 'swatch' ? (
         <div className="panel-body">

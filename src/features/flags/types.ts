@@ -63,6 +63,7 @@ export type FeatureFlag =
   | 'pbrSurfaces'
   | 'comments'
   | 'finishDnd'
+  | 'finishEyedropper'
   | 'parametricFurniture'
   | 'kitchenCabinets'
   | 'productConfigurator'

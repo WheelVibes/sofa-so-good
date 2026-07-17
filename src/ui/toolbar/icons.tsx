@@ -265,6 +265,13 @@ export const Icon = {
       <circle cx="15" cy="7.5" r="1" fill="currentColor" stroke="none" />
     </Svg>
   ),
+  Eyedropper: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L13 14l-4 1 1-4z" />
+      <path d="M14 6l4 4" />
+      <path d="M11 9l-6.5 6.5a2 2 0 0 0 0 2.8l.2.2a2 2 0 0 0 2.8 0L14 12" />
+    </Svg>
+  ),
   Help: (p: SVGProps<SVGSVGElement>) => (
     <Svg {...p}>
       <circle cx="12" cy="12" r="9" />

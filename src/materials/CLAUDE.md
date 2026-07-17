@@ -243,6 +243,17 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   `state/finishDropApply.ts` (shared store dispatch: one undo step + recents + toast).
   Existing surfaces (Layers rows, 3D canvas via `scene/FinishDropSurface.tsx` +
   `scene/finishDropTarget.ts`) gate on the `finishDnd` flag — gate new ones the same way.
+- **Finish eyedropper (UX-7, `finishEyedropper` flag, simple tier):** `sampleFinish.ts` is the
+  pure sampler — `resolveSampledFinish(surface, maps, plan)` returns the finish id the renderer
+  currently shows on a clicked floor/wall (same read precedence as the scene: accent `wallId` →
+  live slice → plan-room default → app default; an unfinished wall resolves to `DEFAULT_WALL`, never
+  null, so the pick is always applicable). Armed from the FinishPicker header, it holds the sampled
+  swatch in `state/slices/eyedropperSlice.ts` (session-only: `eyedropperArmed` + `sampledFinish`);
+  the click side is `scene/FinishEyedropperSurface.tsx` (capture-phase canvas click → raycast →
+  `finishDropTarget.ts` hit → sample, then paint each subsequent click by REUSING
+  `resolveFinishDrop` + `state/finishDropApply.ts`). The in-app path samples at room-wall
+  granularity (the surface tag carries no `wallId`); the accent branch is kept + tested for a later
+  per-wall tag. Escape / toggle-off / leaving the editor disarms.
 - **OffscreenCanvas worker generation** (`procedural/procedural.worker.ts` +
   `procedural/runProceduralWorker.ts` + `proceduralSwapSignal.ts`): `buildMaterial` for
   procedural kinds generates a sync fallback texture immediately (no first-paint block),

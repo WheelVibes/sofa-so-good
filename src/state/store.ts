@@ -36,6 +36,11 @@ import {
   type DrawingCalloutsSlice,
 } from './slices/drawingCalloutsSlice'
 import {
+  createEyedropperSlice,
+  EYEDROPPER_INITIAL,
+  type EyedropperSlice,
+} from './slices/eyedropperSlice'
+import {
   createFavouritesSlice,
   FAVOURITES_INITIAL,
   type FavouritesSlice,
@@ -227,6 +232,7 @@ export interface RootState
     FeatureFlagsSlice,
     AuthSlice,
     IsolateSlice,
+    EyedropperSlice,
     LayoutVariantSlice {
   __resetForTest: () => void
 }
@@ -278,6 +284,7 @@ const INITIAL = {
   ...STYLE_CLIPBOARD_INITIAL,
   ...USER_SETS_INITIAL,
   ...ISOLATE_INITIAL,
+  ...EYEDROPPER_INITIAL,
   ...LAYOUT_VARIANT_INITIAL,
   ...USER_PRODUCTS_INITIAL,
   ...USER_COMPONENTS_INITIAL,
@@ -334,6 +341,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createUserProductsSlice(set, get, api),
   ...createUserComponentsSlice(set, get, api),
   ...createIsolateSlice(set, get, api),
+  ...createEyedropperSlice(set, get, api),
   ...createLayoutVariantSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }))

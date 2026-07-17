@@ -5,6 +5,7 @@ import { useNudge } from './controls/useNudge'
 import { useFeature } from './features/useFeature'
 import { consumeJustUpdated } from './pwa/swUpdate'
 import { FinishDragOverlay } from './scene/FinishDragOverlay'
+import { FinishEyedropperOverlay } from './scene/FinishEyedropperOverlay'
 import { MobileLongPress } from './scene/MobileLongPress'
 import { RoomEditorScene } from './scene/RoomEditorScene'
 import { Scene } from './scene/Scene'
@@ -321,6 +322,8 @@ export default function App() {
           {/* Drop-target ring: shown while a finish drag is over the canvas
               (DOM overlay, outside R3F — works under frameloop="demand"). */}
           <FinishDragOverlay />
+          {/* Sampling-mode ring: shown while the finish eyedropper is armed. */}
+          <FinishEyedropperOverlay />
           <FpsCounter />
           <RoomEditorCaption />
           {roomEditorActive && (
