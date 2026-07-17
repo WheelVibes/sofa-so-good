@@ -119,6 +119,25 @@ describe('decodeKtx2 Basis-compressed (mocked WebGL path)', () => {
   })
 })
 
+// ─── KTX2 Basis-compressed real fixture (routes to WebGL path) ────────────────
+// `basis-teal-8x8.ktx2` is a real UASTC + Zstd container (vkFormat=0,
+// supercompressionScheme=ZSTD) produced by the in-repo encoder (src/lib/
+// ktx2encode.ts). It exercises the actual Basis/WebGL readback branch of
+// decodeKtx2 — the true GPU decode is verified by the SHOT_GPU=1 scenario;
+// here we assert it ROUTES to the GPU path (surfaces the friendly context
+// error when OffscreenCanvas is unavailable), never the pure-JS fast path.
+
+describe('decodeKtx2 (real Basis-compressed fixture routes to WebGL)', () => {
+  const fixturePath = join(__dirname, '__fixtures__/basis-teal-8x8.ktx2')
+
+  it('takes the GPU path (friendly error when OffscreenCanvas is unavailable)', async () => {
+    vi.stubGlobal('OffscreenCanvas', undefined)
+    const buf = fileToArrayBuffer(fixturePath)
+    await expect(decodeKtx2(buf)).rejects.toThrow(/OffscreenCanvas|WebGL|GPU/)
+    vi.unstubAllGlobals()
+  })
+})
+
 // ─── DDS pure-JS decode (uncompressed fixture) ────────────────────────────────
 
 describe('decodeDds (uncompressed ARGB fixture)', () => {
