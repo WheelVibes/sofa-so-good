@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.0.3 — 2D plan editor: docked catalog shrinks the plan viewport
+
+The plan-furnish docked catalog used to float OVER the plan; `.plan-screen` now
+reads `--left-rail` (screens.css) exactly like `.stage-area`, so on desktop the
+plan viewport shrinks beside the rail (catalog resize included) and
+`usePlanViewport`'s ResizeObserver re-fits/re-centres the plan automatically —
+no JS changes. Mobile bottom-sheet behaviour unchanged (`--left-rail` is gated
+to ≥641px). Closes the PLAN-FURNISH polish deferral in TODO.md. Visually
+verified (desktop dock + re-fit, mobile untouched); scenario
+`plan-leftrail-dock.json`.
+
 ## v0.22.0.2 — User-docs full audit + tracker cleanup
 
 All 16 user-guide pages verified claim-by-claim against source (labels, shortcuts vs

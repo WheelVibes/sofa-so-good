@@ -41,8 +41,10 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   the `left:50%` toolbar re-centres over the remaining space) and the panel docks full-height. Pure
   CSS keyed on the panel's *presence* (panels mount only when open) — no JS open-state. A new panel
   that should reflow the canvas just needs the right `dock-panel`/`dock-panel-left` class; mobile
-  (≤640px) keeps bottom-sheets (the dock rules are gated to ≥641px). (The 2D floor-plan editor has
-  its own layout — not docked yet.) **The catalog dock is user-resizable** (`catalogResize` flag,
+  (≤640px) keeps bottom-sheets (the dock rules are gated to ≥641px). (The 2D floor-plan editor's
+  `.plan-screen` also reads `--left-rail` (screens.css) so the docked catalog shrinks the plan
+  viewport the same way — the SVG's `ResizeObserver`-backed `usePlanViewport` re-fits on the
+  resulting resize, no JS wiring needed.) **The catalog dock is user-resizable** (`catalogResize` flag,
   simple tier, desktop only): `CatalogResizeHandle` (a `col-resize` grab handle on the panel's right
   edge) pointer-drags to set `--catalog-w` on the root, which drives BOTH `--left-rail` and the
   panel `width` (default 320px, clamped 260–560px). Width persists per-device to localStorage

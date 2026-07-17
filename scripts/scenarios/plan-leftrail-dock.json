@@ -1,0 +1,74 @@
+{
+  "name": "plan-leftrail-dock",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setUiMode?.('pro'); s.reresolveFeatureFlags?.(); })()"
+    },
+    {
+      "name": "open-plan",
+      "eval": "window.__store.getState().setFloorPlanEditing(true)"
+    },
+    {
+      "name": "plan-visible",
+      "waitFor": {
+        "css": ".plan-screen"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "shot-plan-alone",
+      "screenshot": "plan-no-catalog"
+    },
+    {
+      "name": "open-catalog",
+      "eval": "window.__store.getState().setCatalogOpen(true)"
+    },
+    {
+      "name": "catalog-docked",
+      "waitFor": {
+        "css": ".dock-panel-left.catalog-in-plan"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "settle",
+      "wait": 600
+    },
+    {
+      "name": "shot-plan-catalog",
+      "screenshot": "plan-with-catalog"
+    },
+    {
+      "name": "assert-left-rail",
+      "eval": "(() => { const ps = document.querySelector('.plan-screen'); const left = parseFloat(getComputedStyle(ps).left); if (!(left > 100)) throw new Error('plan-screen left not shrunk: ' + left); return left; })()"
+    },
+    {
+      "name": "mobile-viewport",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "settle-mobile",
+      "wait": 600
+    },
+    {
+      "name": "shot-mobile",
+      "screenshot": "plan-mobile"
+    },
+    {
+      "name": "assert-mobile-left-zero",
+      "eval": "(() => { const ps = document.querySelector('.plan-screen'); const left = parseFloat(getComputedStyle(ps).left); if (left !== 0) throw new Error('mobile plan-screen left should be 0, got ' + left); return 'ok'; })()"
+    }
+  ]
+}

@@ -179,9 +179,6 @@ absent this pass; avoids the AI/backend/GPU gaps already logged in `FEATURE_PARI
     tap/long-press-drag (Phases 1–2), so this adds a third gesture purely for 3D-drag-habit
     parity; the `<div>`-vs-SVG drop-zone friction remains (workaround: transparent overlay div
     during drag). Revisit only on user demand.
-  - [ ] *(Polish, not phase-gated)* the docked catalog currently floats over the plan rather than
-    shrinking its viewport like `.stage-area` does in 3D (`--left-rail` doesn't apply to
-    `.plan-screen`) — low-risk follow-up.
 
 ## Process
 - Update this file whenever work is planned/deferred; remove items entirely once shipped (they live
