@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.1.1 — Collision fixes: flip footprint drift + resized vertical span
+
+Bug-hunt sweep of the core loop found two verified collision bugs, both fixed
+in `collision/placement.ts`: (1) `itemFootprint` never mirrored a GLB's
+authored off-origin offset (`ox/oz`) on flip, so a flipped off-origin model's
+collision OBB + selection/hover footprint drifted from the mesh by 2·ox·scaleX
+(the model could clip a wall while collision read clear, or a click miss the
+mesh) — now negates the offset per flipped axis, matching how
+`resolveFootprintParts` already mirrors part offsets and how `Furniture.tsx`
+renders the flip. (2) `verticalSpan` used the static def height regardless of a
+per-item resize, so the height-aware furniture-vs-furniture test used the wrong
+height for a scaled piece — now scales the span by the item's Y scale, matching
+the XZ footprint. Regression test added; collision + layout suites green (350).
+
 ## v0.22.1.0 — AI floor-plan generation (text → plan) + Sweet Home 3D `.sh3f` import
 
 Two marquee parity features (closes the last Coohom AI gap + the SH3D `.sh3f`

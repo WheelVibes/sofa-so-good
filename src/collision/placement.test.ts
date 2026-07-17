@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ROOMS } from '../apartment/constants'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
+import { seedGltfFootprint } from '../furniture/GltfModel'
 import type { BuiltinGltfDef, FurnitureItem } from '../furniture/types'
 import { canPlace, findItemOverlaps, findWallClips, itemFootprint } from './placement'
 import { buildCollisionWalls } from './wallsFromState'
@@ -52,6 +53,30 @@ describe('placement', () => {
     const fp = itemFootprint(item, def)
     expect(fp.hx * 2).toBeCloseTo(4, 6) // width 2 × scaleX 2
     expect(fp.hz * 2).toBeCloseTo(0.5, 6) // depth 1 × scaleZ 0.5
+  })
+
+  it('itemFootprint mirrors a GLB off-origin offset on flip (BUG: flip footprint drift)', () => {
+    // A GLB authored off its local origin: bbox centre at +0.4 X. The renderer
+    // mirrors a flipX via a scale=[-1,1,1] wrapper around the origin, so the
+    // geometry renders at −0.4; the footprint centre must follow.
+    seedGltfFootprint('/off-origin.glb', { w: 1, d: 1, h: 1, anchorOffset: [0.4, 0.3, -0.2] })
+    const def: BuiltinGltfDef = {
+      id: 'oo',
+      name: 'OO',
+      category: 'decor',
+      kind: 'gltf',
+      source: 'builtin',
+      url: '/off-origin.glb',
+      license: 'CC0',
+      defaultFootprint: { w: 1, d: 1, h: 1 },
+    }
+    const base: FurnitureItem = { id: 'oo1', defId: 'oo', position: [0, 0], rotation: 0, props: {} }
+    expect(itemFootprint(base, def).cx).toBeCloseTo(0.4, 6)
+    expect(itemFootprint(base, def).cz).toBeCloseTo(-0.2, 6)
+    // Flipping X negates the X offset (Z untouched); flipping Z negates Z.
+    expect(itemFootprint({ ...base, flipX: true }, def).cx).toBeCloseTo(-0.4, 6)
+    expect(itemFootprint({ ...base, flipX: true }, def).cz).toBeCloseTo(-0.2, 6)
+    expect(itemFootprint({ ...base, flipZ: true }, def).cz).toBeCloseTo(0.2, 6)
   })
 
   it('itemFootprint reflects parametric width/depth overrides', () => {
