@@ -1,0 +1,80 @@
+{
+  "name": "cornerfillet-simple",
+  "url": "http://localhost:5211/",
+  "description": "IXT-SUITES simple rung for `cornerFillet` (pro tier, PARITY-CORNER-FILLET): the 2D plan editor's 'Round corner' / 'Bevel corner' buttons in the Plan menu, enabled only with exactly two connected walls selected. Simple: the buttons never render (the two-wall selection guard is irrelevant — the whole `cornerFillet` block is flag-gated). Pro: two real walls that share an endpoint are selected via `setPlanSelection` + `toggleWallSelection` (mirrors the real multi-select gesture), then 'Round corner' calls the real `filletCorner` op, trimming the two walls to tangent points and inserting a curved connector — asserted via a real geometry change (`floorPlan.walls.length` increases by exactly one, matching `applyWallFillet`'s synthetic connector wall) and undone back to the original wall count.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    { "name": "assert-flag-off-simple", "eval": "(function(){ const f = window.__store.getState().featureFlags.cornerFillet; if (f !== false) throw new Error('cornerFillet should resolve false in Simple mode, got ' + f); })()" },
+
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 30000 },
+    { "name": "settle-plan-mount", "wait": 1200 },
+
+    {
+      "name": "select-two-connected-walls",
+      "comment": "Find a real pair of walls sharing an endpoint on the ground level, then select them exactly the way the UI multi-select gesture does (primary + toggleWallSelection).",
+      "eval": "(function(){ const s = window.__store.getState(); const walls = s.floorPlan.walls; const key = (p) => p[0].toFixed(2) + ',' + p[1].toFixed(2); let pair = null; outer: for (const w1 of walls) { for (const w2 of walls) { if (w1.id === w2.id) continue; const pts1 = [key(w1.start), key(w1.end)]; const pts2 = [key(w2.start), key(w2.end)]; if (pts1.some((p) => pts2.includes(p))) { pair = [w1.id, w2.id]; break outer; } } } if (!pair) throw new Error('no two connected walls found in the default plan'); window.__fillet = { idA: pair[0], idB: pair[1] }; s.setPlanSelection({ type: 'wall', id: pair[0] }); s.toggleWallSelection(pair[1]); })()"
+    },
+    {
+      "name": "selection-set",
+      "waitFor": { "store": "state.planSelection?.type === 'wall' && state.selectedWallIds.length === 1" }
+    },
+    { "name": "record-wall-count", "eval": "window.__w0 = window.__store.getState().floorPlan.walls.length" },
+
+    {
+      "name": "open-plan-menu-simple",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { if (document.querySelector('.plan-menu-panel')) return; const b = find(); if (b) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu did not open'); })()"
+    },
+    { "name": "wait-plan-menu-simple", "waitFor": { "css": ".plan-menu-panel" }, "timeout": 5000 },
+    { "name": "settle-menu-simple", "wait": 300 },
+    {
+      "name": "assert-hidden-in-simple",
+      "eval": "(function(){ const panel = document.querySelector('.plan-menu-panel'); if (!panel) throw new Error('Plan menu panel missing'); const t = panel.textContent||''; if (t.includes('Round corner') || t.includes('Bevel corner')) throw new Error('fillet controls visible in Simple mode (2 walls selected) — cornerFillet is pro-tier and should be hidden'); })()"
+    },
+    { "name": "shot-simple-menu", "screenshot": "simple-menu-two-walls-selected" },
+    {
+      "name": "close-plan-menu",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 3000; while (Date.now() < deadline) { if (!document.querySelector('.plan-menu-panel')) return; const b = find(); if (b) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu did not close'); })()"
+    },
+    { "name": "settle-close-simple", "wait": 300 },
+
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "assert-flag-on-pro", "eval": "(function(){ const f = window.__store.getState().featureFlags.cornerFillet; if (f !== true) throw new Error('cornerFillet should resolve true in Pro mode, got ' + f); })()" },
+    {
+      "name": "reselect-walls-after-mode-switch",
+      "comment": "setUiMode/reresolveFeatureFlags don't touch selection, but re-assert the two-wall selection is still intact before relying on it.",
+      "eval": "(function(){ const s = window.__store.getState(); if (s.planSelection?.type !== 'wall' || s.selectedWallIds.length !== 1) { s.setPlanSelection({ type: 'wall', id: window.__fillet.idA }); s.toggleWallSelection(window.__fillet.idB); } })()"
+    },
+
+    {
+      "name": "open-plan-menu-pro",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { const panel = document.querySelector('.plan-menu-panel'); if (panel && (panel.textContent||'').includes('Round corner')) return; const b = find(); if (b && !panel) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu (Pro) did not show fillet controls'); })()"
+    },
+    { "name": "settle-menu-pro", "wait": 300 },
+    { "name": "shot-pro-menu", "screenshot": "pro-menu-fillet-controls" },
+    {
+      "name": "click-round-corner",
+      "eval": "(function(){ const panel = document.querySelector('.plan-menu-panel'); const btn = panel && [...panel.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Round corner'); if (!btn) throw new Error(\"'Round corner' button not found in Pro menu\"); btn.click(); })()"
+    },
+    {
+      "name": "fillet-applied",
+      "waitFor": { "store": "state.floorPlan.walls.length === window.__w0 + 1", "timeout": 8000 }
+    },
+    { "name": "shot-fillet-applied", "screenshot": "fillet-applied" },
+
+    { "name": "undo-fillet", "eval": "window.__store.getState().undo()" },
+    {
+      "name": "fillet-reverted",
+      "waitFor": { "store": "state.floorPlan.walls.length === window.__w0", "timeout": 8000 }
+    },
+
+    { "name": "back-to-simple", "store": { "action": "setUiMode", "args": ["simple"] } },
+    { "name": "reresolve-flags-2", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "assert-flag-off-again", "eval": "(function(){ const f = window.__store.getState().featureFlags.cornerFillet; if (f !== false) throw new Error('cornerFillet should resolve false back in Simple mode, got ' + f); })()" }
+  ]
+}

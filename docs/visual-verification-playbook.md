@@ -615,6 +615,50 @@ place (same id, new geometry, no duplicate) and the placed instance still resolv
   or the `WallAccentPicker` mounts against a wall the room doesn't own and the accent key
   (`wallId:roomId`) never resolves in the 3D scene.
 
+### Gotchas from the IXT-SUITES back-fill batch 2 (dimensionChain / planGuides / cornerFillet / roomInset)
+
+- **`PlanMenu.tsx`'s panel closes the WHOLE menu on ANY click inside it** — the `.plan-menu-panel`
+  wrapper has its own `onClick={() => setOpen(false)}` and the comment says so outright
+  ("Clicking an action closes the menu (bubbles to the panel)"): every action button in the "Plan
+  ▾" menu is a **one-shot** control. A multi-action scenario (add a V guide, then an H guide, then
+  Clear guides) must **reopen the menu before every single click**, not just the first — reusing
+  the same self-retrying open-eval from the `aiwalls-simple.json` gotcha (poll until the target
+  button's text is present in `.plan-menu-panel`, re-clicking the "Plan ▾" trigger if it isn't).
+  Forgetting this makes the *second* action's button-lookup fail with "button not found" even
+  though the first click worked fine — it's not a missing feature, the panel is simply gone.
+- **Add explicit settle waits around every Plan-menu open/close, even when the open-eval already
+  polls for `.plan-menu-panel` to appear.** A single self-retrying open-eval that returns the
+  instant it sees the panel can still race the SAME stray scroll/resize the aiwalls-simple gotcha
+  documented — the panel can flicker shut again microseconds after the eval returns, so the very
+  next step (an assertion or a screenshot) sometimes finds it already gone. `aiwalls-simple.json`'s
+  actual working pattern is open-eval → `waitFor {css:'.plan-menu-panel'}` → a short **300 ms
+  settle `wait`** → THEN assert/screenshot/click; mirror that three-step shape (not just the
+  open-eval alone) for every open, and add a 300 ms settle after every close too. Skipping the
+  settle produced an intermittent "Plan menu panel missing" failure that a bare re-run without the
+  waits did not reproduce every time — a genuine timing race, not a flaky harness fluke.
+- **Selecting two connected walls for `cornerFillet` (or any two-wall action) mirrors the real
+  multi-select gesture exactly**: `setPlanSelection({type:'wall', id: idA})` (primary) followed by
+  `toggleWallSelection(idB)` (adds it as an "extra" in `selectedWallIds`) reproduces
+  `FloorPlanEditor`'s own `selectedWalls` memo (`sel.id` ∪ `selectedWallIds`, filtered to walls
+  that still exist) — don't hand-write `{selectedWallIds:[idA,idB]}` via `setState` directly, since
+  the component's `useMemo` also folds in `planSelection` and a hand-rolled state shape can
+  silently disagree with what the two "Round corner"/"Bevel corner" buttons actually read
+  (`selectedWalls.size === 2`). Find a genuinely-connected pair generically at runtime (search
+  `floorPlan.walls` for two whose `start`/`end` share a point, keyed by a rounded string) rather
+  than hardcoding wall ids from one plan snapshot — plan-generation details can shift the ids.
+- **`RoomInspector`'s `.plan-props` aside is a plain component, not a `Popover`-based menu** — its
+  buttons ("Inset −0.1 m", "Grow +0.1 m", the ceiling-style segmented control, …) do **not**
+  auto-close anything on click, so (unlike the Plan-menu buttons above) a sequence of clicks inside
+  it needs no reopen dance. Select the room via `setPlanSelection({type:'room', id})` — the panel
+  mounts on `sel?.type === 'room'` and stays open across a Simple↔Pro `setUiMode` switch (selection
+  state is untouched by the mode switch, only the flag-gated JSX inside the panel changes).
+- **Pick the LARGEST room for a room-outline-shrinking op.** `insetRoom` rejects (returns `false`,
+  shows an error toast) when the offset would collapse the outline — `insetPolygon`'s degenerate
+  check. A small room (a bathroom, a household shelter) in the default HDB flat can legitimately
+  reject a 0.1 m inset depending on its narrowest span; reduce the flakiness by reducing over
+  `rooms.reduce((a,b) => a.width*a.depth >= b.width*b.depth ? a : b)` to always target the biggest
+  room (Living/Dining in the default flat), which comfortably tolerates the standard 0.1 m nudge.
+
 ### Worked example — GLB designer CSG v2 non-destructive booleans (Stage 1b)
 
 **`glb-designer-stage1b.json`** drives the CSG v2 flow: build a Box, add a Cylinder, rotate/size

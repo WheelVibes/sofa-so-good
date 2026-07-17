@@ -1,0 +1,74 @@
+{
+  "name": "dimensionchain-simple",
+  "url": "http://localhost:5211/",
+  "description": "IXT-SUITES simple rung for `dimensionChain` (pro tier): the 2D plan editor's 'Chain dims' button, gated by the `dimensionChain` flag, in the Plan menu (fileActions fragment). Simple: Plan menu has no 'Chain dims' entry at all. Pro: click 'Chain dims' generates a real row of consecutive dimension strings along the default flat's bottom + left baselines (`addChainDimensions`) — asserted via the store's `floorPlan.dimensions` array, then undone, then re-verified hidden back in Simple.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    { "name": "assert-flag-off-simple", "eval": "(function(){ const f = window.__store.getState().featureFlags.dimensionChain; if (f !== false) throw new Error('dimensionChain should resolve false in Simple mode, got ' + f); })()" },
+
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 30000 },
+    { "name": "settle-plan-mount", "wait": 1200 },
+
+    {
+      "name": "open-plan-menu-simple",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { if (document.querySelector('.plan-menu-panel')) return; const b = find(); if (b) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu did not open'); })()"
+    },
+    {
+      "name": "assert-hidden-in-simple",
+      "eval": "(function(){ const panel = document.querySelector('.plan-menu-panel'); if (!panel) throw new Error('Plan menu panel missing'); if ((panel.textContent||'').includes('Chain dims')) throw new Error(\"'Chain dims' visible in Simple mode — dimensionChain is pro-tier and should be hidden\"); })()"
+    },
+    { "name": "shot-simple-menu", "screenshot": "simple-menu" },
+    {
+      "name": "close-plan-menu",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 3000; while (Date.now() < deadline) { if (!document.querySelector('.plan-menu-panel')) return; const b = find(); if (b) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu did not close'); })()"
+    },
+
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "assert-flag-on-pro", "eval": "(function(){ const f = window.__store.getState().featureFlags.dimensionChain; if (f !== true) throw new Error('dimensionChain should resolve true in Pro mode, got ' + f); })()" },
+
+    { "name": "record-dims-baseline", "eval": "window.__dims0 = (window.__store.getState().floorPlan.dimensions||[]).length" },
+
+    {
+      "name": "open-plan-menu-pro",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { const panel = document.querySelector('.plan-menu-panel'); if (panel && (panel.textContent||'').includes('Chain dims')) return; const b = find(); if (b && !panel) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu (Pro) did not show Chain dims'); })()"
+    },
+    { "name": "shot-pro-menu", "screenshot": "pro-menu" },
+    {
+      "name": "click-chain-dims",
+      "eval": "(function(){ const panel = document.querySelector('.plan-menu-panel'); const btn = panel && [...panel.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Chain dims'); if (!btn) throw new Error(\"'Chain dims' button not found in Pro menu\"); btn.click(); })()"
+    },
+    {
+      "name": "dims-added",
+      "waitFor": { "store": "(state.floorPlan.dimensions||[]).length > window.__dims0", "timeout": 10000 }
+    },
+    {
+      "name": "close-plan-menu-2",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 3000; while (Date.now() < deadline) { if (!document.querySelector('.plan-menu-panel')) return; const b = find(); if (b) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu did not close'); })()"
+    },
+    { "name": "shot-dims-applied", "screenshot": "dims-applied" },
+
+    { "name": "undo-chain", "eval": "window.__store.getState().undo()" },
+    {
+      "name": "dims-reverted",
+      "waitFor": { "store": "(state.floorPlan.dimensions||[]).length === window.__dims0", "timeout": 10000 }
+    },
+
+    { "name": "back-to-simple", "store": { "action": "setUiMode", "args": ["simple"] } },
+    { "name": "reresolve-flags-2", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "assert-flag-off-again", "eval": "(function(){ const f = window.__store.getState().featureFlags.dimensionChain; if (f !== false) throw new Error('dimensionChain should resolve false back in Simple mode, got ' + f); })()" },
+    {
+      "name": "open-plan-menu-simple-2",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { if (document.querySelector('.plan-menu-panel')) return; const b = find(); if (b) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu did not open'); })()"
+    },
+    {
+      "name": "assert-hidden-again",
+      "eval": "(function(){ const panel = document.querySelector('.plan-menu-panel'); if (!panel) throw new Error('Plan menu panel missing'); if ((panel.textContent||'').includes('Chain dims')) throw new Error(\"'Chain dims' visible back in Simple mode\"); })()"
+    }
+  ]
+}

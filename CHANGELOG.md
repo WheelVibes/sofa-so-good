@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.12 — IXT-SUITES back-fill batch 2: 4 pro plan-tool ladders
+
+Four more uncovered flags gain green, visually-verified simple rungs, all
+driven through the real Plan-menu / room-inspector UI with Simple-hidden /
+Pro-present gating + undo round-trips: `dimensionchain-simple.json`
+(addChainDimensions baselines), `planguides-simple.json` (pointer-placed
+V/H guides → PlanGuidesLayer renders → clear), `cornerfillet-simple.json`
+(runtime-discovered connected wall pair → Round corner → +1 wall → undo),
+`roominset-simple.json` (largest-room inset −0.1 m, 24.3→22.2 m² → undo).
+No app bugs found. Five new playbook gotchas recorded (PlanMenu one-shot
+close-on-click, open/settle shape, two-wall selection via the real actions,
+plain-aside vs Popover, largest-room rule for shrink ops). Uncovered flags:
+72 → 68.
+
 ## v0.22.2.11 — IXT-SUITES back-fill: 4 new scenario ladders (71→67 uncovered)
 
 Coverage map of 170 flags vs 341 scenarios found 71 flags with zero scenario
