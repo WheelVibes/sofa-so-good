@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.9 — Bundle audit: −2.0 MB gzip off the eager boot payload
+
+Bundle/startup audit found `@react-three/xr` (+ `@pmndrs/*`, `iwer`, `@iwer/*`),
+`ktx-parse`, and `denoiser` — all dynamic-import-only in src — swept into the
+EAGER `vendor` chunk by `manualChunks` (which matches module ids, not
+static-vs-dynamic status; the config's own comment already documents this trap
+for postprocessing/@gltf-transform/meshoptimizer/utif). Extending the existing
+exclusion regex cut `vendor` from 7,016 kB (2,254 kB gzip) to 886 kB (263 kB
+gzip) — **−6.1 MB raw / −2.0 MB gzip off first load**; the bulk was
+`@iwer/devui`'s WebXR-emulator debug-room presets (music_room 2.1 MB, …) now
+correctly deferred behind VR activation. Verified by three A/B rebuilds (the
+delta is exactly these libraries; no new eager reachability; index/three/store
+chunks byte-stable). Audit also confirmed clean: 23 lazy panels + idle preload,
+worker bundles separate, three/examples loaders already excluded, no shipped
+sourcemaps, no bundled CREDITS. Report-only items recorded (eager GLTFLoader
+via userProductsSlice→gltfSlot, nested three copies in tree-shaken/lazy deps).
+A separate PRE-EXISTING `vite preview` boot hang was observed and A/B-cleared
+of any connection to this change — recorded in TODO.md for investigation.
+
 ## v0.22.2.8 — A11y sweep: canvas labels + layout-change announcements
 
 Accessibility audit across this session's new surfaces (RecentStrip,

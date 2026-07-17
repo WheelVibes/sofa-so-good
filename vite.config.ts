@@ -163,9 +163,17 @@ export default defineConfig(({ command }) => ({
           // always-loaded vendor/three bundles: the post-processing stack
           // (high tier only, lazy via Effects.tsx), the GLB optimize + LOD
           // pass (@gltf-transform/draco/meshoptimizer, bulk-import only),
-          // TIFF decode (utif, texture upload only).
+          // TIFF decode (utif, texture upload only), the WebXR provider
+          // (@react-three/xr + its @pmndrs/xr + iwer/@iwer deps — only
+          // imported from the lazy `XrProvider.tsx`, mounted by `MaybeXr`
+          // once `vrActive` flips), KTX2/BasisU container parsing (ktx-parse,
+          // texture-decode path only), and the HQ AI denoiser (`denoiser`,
+          // only dynamic-imported from `hqAiDenoise.ts`). Without this these
+          // would otherwise still land in the shared 'vendor' chunk (matched
+          // only by module id, not by static-vs-dynamic import) and ship
+          // eagerly even though every importer above is itself lazy-loaded.
           if (
-            /[\\/]node_modules[\\/](postprocessing|n8ao|@react-three[\\/]postprocessing|@gltf-transform|draco3dgltf|meshoptimizer|utif)[\\/]/.test(
+            /[\\/]node_modules[\\/](postprocessing|n8ao|@react-three[\\/]postprocessing|@gltf-transform|draco3dgltf|meshoptimizer|utif|@react-three[\\/]xr|@pmndrs[\\/]xr|@pmndrs[\\/]pointer-events|iwer|@iwer|ktx-parse|denoiser)[\\/]/.test(
               id,
             )
           )
