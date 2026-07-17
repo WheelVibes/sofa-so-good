@@ -39,8 +39,8 @@ export function CoveLight({ props }: { props: ParamProps }) {
       </mesh>
       {/* Concealed LED strip sitting in the trough, facing up toward the
           ceiling. Slightly recessed behind the lip so it reads as indirect. */}
-      <mesh position={[0, lipH / 2 - 0.005, lipD * 0.45]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[length - 0.04, lipD * 0.55]} />
+      <mesh position={[0, lipH / 2 - 0.005, lipD * 0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[length - 0.04, lipD * 0.8]} />
         <meshStandardMaterial
           ref={stripRef}
           color={ledColor}

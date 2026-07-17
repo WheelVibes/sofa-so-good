@@ -41,6 +41,12 @@ export function OutdoorChair({ props }: { props: ParamProps }) {
       <mesh castShadow position={[0, 0.51, 0.24]} material={mat}>
         <boxGeometry args={[legT, 0.22, legT]} />
       </mesh>
+      {/* back stile — a reclined upright rising from the rear leg that the back
+          slats attach to (they previously floated behind the seat with no
+          support post). Matches the slats' −0.18 rad recline. */}
+      <mesh castShadow position={[0, 0.62, -0.29]} rotation={[-0.18, 0, 0]} material={mat}>
+        <boxGeometry args={[legT, 0.52, legT]} />
+      </mesh>
     </group>
   )
 

@@ -82,6 +82,14 @@ export function OfficeChair({ props }: { props: ParamProps }) {
         material={mat}
       />
 
+      {/* Back-support bracket — the moulded arm that carries the backrest up
+          from behind the seat, so the back is anchored to the seat rather than
+          floating a couple of cm above it (notably in the slim 'mesh' style). */}
+      <mesh castShadow position={[0, seatH - 0.01, -seatD / 2 + 0.06]}>
+        <boxGeometry args={[0.12, 0.18, 0.05]} />
+        <meshStandardMaterial {...plastic} />
+      </mesh>
+
       {/* Back — mesh panel, or padded (task/executive) with a slight recline */}
       <group position={[0, seatH + 0.08, -seatD / 2 + 0.05]} rotation={[0.08, 0, 0]}>
         {style === 'mesh' ? (

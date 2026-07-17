@@ -25,9 +25,11 @@ export function WallSconce({ props }: { props: ParamProps }) {
         <boxGeometry args={[0.1, 0.16, 0.02]} />
         <meshStandardMaterial color={metalColor} roughness={0.4} metalness={0.6} />
       </mesh>
-      {/* Short arm */}
-      <mesh castShadow position={[0, 0, 0.06]}>
-        <cylinderGeometry args={[0.012, 0.012, 0.08, 8]} />
+      {/* Short arm — a horizontal spar (along +Z) physically bridging the wall
+          backplate to the diffuser, so the shade is carried by the arm rather
+          than floating in front of a detached backplate. */}
+      <mesh castShadow position={[0, 0, 0.065]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.012, 0.012, 0.11, 8]} />
         <meshStandardMaterial color={metalColor} roughness={0.4} metalness={0.6} />
       </mesh>
       {/* Frosted diffuser cylinder, open-ended, glowing */}

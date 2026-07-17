@@ -27,11 +27,21 @@ export function CeilingLight({ props }: { props: ParamProps }) {
   if (!showFixtures) return null
   return (
     <group position={[0, fixtureY, 0]}>
-      {/* Ceiling rose */}
-      <mesh position={[0, drop + 0.01, 0]}>
-        <cylinderGeometry args={[0.05, 0.05, 0.02, 16]} />
-        <meshStandardMaterial color="#d8d4cc" roughness={0.6} />
-      </mesh>
+      {/* Ceiling mount: a wide canopy bar for the linear fixture (both cords
+          descend from it) or a round rose for the flush/pendant styles. (A
+          central round rose left the linear fixture's ±0.45 m cords —and thus
+          the whole bar— hanging off nothing.) */}
+      {style === 'linear' ? (
+        <mesh position={[0, drop + 0.01, 0]}>
+          <boxGeometry args={[1.0, 0.02, 0.09]} />
+          <meshStandardMaterial color="#d8d4cc" roughness={0.6} />
+        </mesh>
+      ) : (
+        <mesh position={[0, drop + 0.01, 0]}>
+          <cylinderGeometry args={[0.05, 0.05, 0.02, 16]} />
+          <meshStandardMaterial color="#d8d4cc" roughness={0.6} />
+        </mesh>
+      )}
       {style === 'linear' ? (
         <>
           {/* Two drop cords */}

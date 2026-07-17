@@ -106,8 +106,11 @@ export function Bathtub({ props }: { props: ParamProps }) {
           )),
         )}
 
-      {/* Mixer tap at one end — base sits on the deck rim */}
-      <group position={[width / 2 - 0.12, h, 0]}>
+      {/* Mixer tap at one end — base sits ON the deck rim (centred over the rim
+          wall's top so the stem overlaps it). A fixed inset floated the tap
+          inboard of the thinner freestanding wall (wallT 0.07 vs built-in 0.09),
+          splitting it into its own AABB component — the deferred harness finding. */}
+      <group position={[width / 2 - wallT / 2, h, 0]}>
         <mesh castShadow position={[0, 0.06, 0]} material={chrome}>
           <cylinderGeometry args={[0.018, 0.022, 0.14, 10]} />
         </mesh>

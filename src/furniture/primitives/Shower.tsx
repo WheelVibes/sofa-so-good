@@ -55,9 +55,22 @@ export function Shower({ props }: { props: ParamProps }) {
           <boxGeometry args={[0.02, 0.02, size - 0.2]} />
         </mesh>
       )}
-      {/* Riser rail on the −X/−Z corner wall */}
-      <mesh castShadow position={[-half + 0.05, 1.1, -half + 0.05]} material={chrome}>
-        <cylinderGeometry args={[0.015, 0.015, 1.2, 10]} />
+      {/* Riser rail on the −X/−Z corner. Runs the full height from INTO the tray
+          (y 0.05, embedded in the 0–0.08 m tray) up to the head arm, so the whole
+          plumbing column (riser + mixer + head arm + head) reads as one grounded
+          assembly attached to the tray rather than floating fittings on an absent
+          wall — the deferred harness finding. */}
+      <mesh castShadow position={[-half + 0.05, 0.94, -half + 0.05]} material={chrome}>
+        <cylinderGeometry args={[0.015, 0.015, 1.78, 10]} />
+      </mesh>
+      {/* Shower-head arm — a short diagonal spar bridging the riser top to the
+          head so the head sockets onto the riser instead of hanging free. */}
+      <mesh
+        position={[-half + 0.115, 1.82, -half + 0.115]}
+        rotation={[0, -Math.PI / 4, 0]}
+        material={chrome}
+      >
+        <boxGeometry args={[0.26, 0.022, 0.022]} />
       </mesh>
       {/* Shower head */}
       <mesh

@@ -125,6 +125,11 @@ export const DECOR_DEFS = {
     primitive: 'TabletopDecor',
     defaultFootprint: { w: 0.34, d: 0.22, h: 0.22 },
     verticalSpan: { base: 0.42, top: 0.66 },
+    // A surface-styling vignette that sits ON a table/console (like its
+    // book-stack / candle-cluster / decor-tray siblings) — never a floor item,
+    // so it must not participate in floor collision (was the only surface prop
+    // missing this, which also made the structural probe read it as floating).
+    noClip: true,
     paramSchema: [
       {
         kind: 'number',

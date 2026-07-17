@@ -65,25 +65,34 @@ export function BirdCage({ props }: { props: ParamProps }) {
           <mesh castShadow position={[0, standH / 2, 0]} material={bars}>
             <cylinderGeometry args={[0.02, 0.022, standH, r]} />
           </mesh>
-          {/* Splayed feet. */}
+          {/* Splayed feet. Each foot lives in a group rotated about Y by its
+              azimuth, so local +Z is the outward radial; the foot then runs from
+              the pole base (local y=footTopY, on the axis) down-and-out to the
+              floor (local y=0, z=footR). This grounds every foot at y=0 AND
+              sockets its top into the pole — the previous rotation put the tilt
+              on Z regardless of azimuth, so a foot leant sideways, dipped below
+              the floor, and detached from the pole (the deferred harness finding). */}
           {[0, 1, 2].map((i) => {
             const a = (i / 3) * Math.PI * 2
-            const fx = Math.sin(a) * rad * 0.8
-            const fz = Math.cos(a) * rad * 0.8
+            const footR = rad * 0.8
+            const footTopY = 0.06
+            const legLen = Math.hypot(footTopY, footR)
             return (
-              <mesh
-                key={`foot${i}`}
-                castShadow
-                position={[fx / 2, 0.02, fz / 2]}
-                rotation={[0, -a, Math.atan2(rad * 0.8, standH * 0.28)]}
-                material={bars}
-              >
-                <cylinderGeometry args={[0.012, 0.012, Math.hypot(rad * 0.8, standH * 0.28), r]} />
-              </mesh>
+              <group key={`foot${i}`} rotation={[0, a, 0]}>
+                <mesh
+                  castShadow
+                  position={[0, footTopY / 2, footR / 2]}
+                  rotation={[Math.atan2(footR, -footTopY), 0, 0]}
+                  material={bars}
+                >
+                  <cylinderGeometry args={[0.012, 0.012, legLen, r]} />
+                </mesh>
+              </group>
             )
           })}
-          {/* Foot ring for stability. */}
-          <mesh position={[0, 0.015, 0]} material={bars}>
+          {/* Foot ring for stability — horizontal (about XZ), sitting just above
+              the floor at the feet radius so it ties the three feet together. */}
+          <mesh position={[0, 0.015, 0]} rotation={[Math.PI / 2, 0, 0]} material={bars}>
             <torusGeometry args={[rad * 0.7, 0.01, 6, r * 2]} />
           </mesh>
         </group>
@@ -200,6 +209,11 @@ export function BirdCage({ props }: { props: ParamProps }) {
       )}
 
       {/* ---- Interior perch dowels ---- */}
+      {/* Span the full inner diameter so each dowel's ends socket into the cage
+          bars (the previous dia*0.75 length left them ~2–7 cm short of the wall,
+          the deferred harness finding). A small z-offset + yaw stays clear of the
+          centre; a hair over `dia` guarantees the ends reach the bar circle even
+          with the yaw. */}
       {[0.4, 0.65].map((f, i) => (
         <mesh
           key={`perch${i}`}
@@ -208,7 +222,7 @@ export function BirdCage({ props }: { props: ParamProps }) {
           rotation={[0, i === 0 ? 0.2 : -0.3, Math.PI / 2]}
           material={perch}
         >
-          <cylinderGeometry args={[0.008, 0.008, dia * 0.75, 6]} />
+          <cylinderGeometry args={[0.008, 0.008, dia * 1.02, 6]} />
         </mesh>
       ))}
     </group>

@@ -57,6 +57,18 @@ export function ChangingTable({ props }: { props: ParamProps }) {
       <mesh castShadow receiveShadow position={[0, bodyH + 0.04, 0]} material={pad}>
         <boxGeometry args={[width - 0.06, 0.08, depth - 0.06]} />
       </mesh>
+      {/* Corner posts carrying the guard rails down to the carcass top (the
+          rails previously floated ~4 cm above the top with nothing under them). */}
+      {[
+        [-width / 2 + 0.05, -depth / 2 + 0.05],
+        [width / 2 - 0.05, -depth / 2 + 0.05],
+        [-width / 2 + 0.05, (depth - 0.06) / 2],
+        [width / 2 - 0.05, (depth - 0.06) / 2],
+      ].map(([x, z], i) => (
+        <mesh key={`gp${i}`} castShadow position={[x, bodyH + 0.09, z]} material={wood}>
+          <cylinderGeometry args={[railR, railR, 0.18, 8]} />
+        </mesh>
+      ))}
       {/* Guard rails (back + two ends) */}
       {[
         {

@@ -62,8 +62,9 @@ export function GarmentRack({ props }: { props: ParamProps }) {
               <torusGeometry args={[0.018, 0.003, 6, 10, Math.PI]} />
               <meshStandardMaterial color="#b7bcc2" roughness={0.4} metalness={0.6} />
             </mesh>
-            {/* Garment body (tapered, slightly varied) */}
-            <mesh castShadow receiveShadow position={[0, -len / 2 - 0.02, 0]}>
+            {/* Garment body (tapered, slightly varied) — its shoulders meet the
+                hanger hook/rail (previously it hung ~3 cm clear of the hook). */}
+            <mesh castShadow receiveShadow position={[0, -len / 2 + 0.006, 0]}>
               <boxGeometry args={[0.13, len, 0.05]} />
               {i % 2 === 0 ? (
                 <primitive object={clothMat} attach="material" />

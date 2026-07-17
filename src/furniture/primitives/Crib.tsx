@@ -132,8 +132,13 @@ export function Crib({ props }: { props: ParamProps }) {
           ))
         : null}
 
+      {/* Mattress base platform — a solid board spanning to the frame that the
+          mattress rests on (previously the mattress floated with no base). */}
+      <mesh castShadow receiveShadow position={[0, platformY, 0]} material={wood}>
+        <boxGeometry args={[width - postT, 0.02, depth - postT]} />
+      </mesh>
       {/* Mattress on the inner platform */}
-      <mesh castShadow receiveShadow position={[0, platformY + 0.05, 0]} material={mattMat}>
+      <mesh castShadow receiveShadow position={[0, platformY + 0.06, 0]} material={mattMat}>
         <boxGeometry args={[width - postT * 2 - 0.04, 0.1, depth - postT * 2 - 0.04]} />
       </mesh>
     </group>

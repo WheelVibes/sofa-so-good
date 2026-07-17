@@ -50,7 +50,7 @@ visual review + an adversarial pass — audit them last, lightly.
 |---|---|---|---|
 | 1 | seating (10) + tables (6) | beds (5) + storage (11) | dispatched |
 | 2 | kitchen (5) + appliances (9) | bathroom (7) + laundry (3) + electronics (4) | 2A done · 2B pending |
-| 3 | decor (26) | lighting (5) + textiles (3) + outdoor (5) + kids (5) | pending |
+| 3 | decor (26) | lighting (5) + textiles (3) + outdoor (5) + kids (5) | 3A done · 3B pending |
 | 4 | others (1) + pets spot-check (26) | — | pending |
 
 ## Expansion (after audit)
@@ -246,6 +246,55 @@ two draped panels), `roller-blind` venetian (individual louvre slats), and
 `microwave`, `monitor`, `table-lamp`, `tabletop-decor` (all placed on a surface),
 `fireplace` wall style, `bathroom-sink` wall-hung, `flatscreen-tv` wall mount —
 their floor-standing sibling modes are still floor-asserted.
+
+#### Deferred findings resolved — 2026-07-17 (owning files now free)
+
+All five deferred `KNOWN_DISCONNECTED` findings were genuine geometry gaps (none
+"by design") and have been **FIXED** in their primitives; their harness entries
+were removed so each is asserted like every other def. Harness re-run: all five
+defs + every one of their structural-enum modes now report **1 connected
+component** (plus floor contact for the floor-anchored ones). `tsc --noEmit`
+clean; Biome clean on all touched files.
+
+- `shower` (`primitives/Shower.tsx`) — the riser rail / mixer / head were floating
+  in the −X/−Z corner, attached only to an absent wall. **Fixed:** extended the
+  riser rail DOWN into the tray (y 0.05, embedded in the 0–0.08 m tray) so the
+  plumbing column is grounded + tied to the tray, and added a short diagonal
+  shower-head arm bridging the riser top to the head (was hanging ~4–8 cm clear).
+  Whole shower is now one grounded assembly in both `corner` and `walkin` modes.
+- `bathtub::freestanding` (`primitives/Bathtub.tsx`) — the deck mixer tap sat at a
+  fixed inset (`width/2 − 0.12`) that floated ~2.9 cm inboard of the thinner
+  freestanding rim wall (wallT 0.07 vs built-in 0.09). **Fixed:** anchored the tap
+  group over the rim-wall top (`width/2 − wallT/2`) so the stem overlaps the rim
+  in both styles (built-in was previously connected only marginally, at exactly ε).
+- `drying-rack` (`primitives/slatLayout.ts` `dryingRackCylinders`) — NOT a harness
+  InstancedMesh artifact (the per-instance AABB decomposition was correct). The
+  three middle drying bars ran along X (parallel to the two end frames) at
+  intermediate Z, touching neither frame, so they floated as separate components.
+  **Fixed:** the two end bars became explicit top rails (run along X, tie each
+  frame's legs), and the three drying bars now run along **Z**, frame-to-frame,
+  spanning the full `RACK_SPREAD` so both ends meet the top rails — matching the
+  Wave-2B review's stated intent ("bars span the two frames"). Still 11 rods / one
+  `InstancedCylinders` draw call (instancing NOT regressed); `slatLayout.test.ts`
+  bar-layout assertions updated to the corrected spanning geometry.
+- `bird-cage` (`primitives/BirdCage.tsx`) — real gaps, not epsilon-marginal: the
+  tripod feet applied their splay tilt about Z regardless of azimuth, so a foot
+  leant sideways, detached from the pole, and dipped ~9 cm below the floor; and the
+  perch dowels (length `dia*0.75`) fell ~2–7 cm short of the cage bars. **Fixed:**
+  rebuilt each foot inside a Y-azimuth group running pole-base→floor (grounded at
+  y=0, socketed into the pole), made the stability ring horizontal, and lengthened
+  the perches to `dia*1.02` so their ends socket into the bars. Verified across
+  `stand`/`tabletop` mounts and `dome`/`rect` shapes.
+- `staircase::lshape` (`primitives/staircaseModel.ts` `buildLShape`) — the turned
+  second flight was passed `rot = π/2` ON TOP of `axis:'x'`, which already swaps the
+  box dims + marches the run along X. The redundant rotation spun every
+  already-correct box 90°: the wide treads still overlapped enough to read connected,
+  but the thin railing posts + handrail segments were spun perpendicular to the run,
+  so each post+rail pair broke into its own component (6 fragments). **Fixed:**
+  `rot` stays 0 for the turned flight (it also corrects the treads' visual
+  orientation). `staircaseModel.test.ts`'s "second flight rotated 90°" case rewritten
+  to assert the turn via the swapped tread dimensions + perpendicular runs (rot=0),
+  which is the actual mechanism. Straight/U/spiral were already connected.
 
 ### Wave 1A — seating (10) + tables (6), 2026-07-17
 
@@ -467,3 +516,160 @@ flagged below for a later visual pass):
   h: 1.04 }`; `tv-wall` (mounted, less collision-critical) → `{ w: 1.66, d: 0.1, h: 0.94 }`, with the
   same comment style as pets.ts. No test asserted exact TV dims (autoArrange reads footprints
   dynamically). This supersedes the deliberate-defer note in the flatscreen-tv findings above.
+
+### Wave 3A — decor (26), 2026-07-17
+
+Audit scenario: `scripts/scenarios/realism-decor.json` (54 frames — every def at the L/D area;
+`noClip` surface props placed ON a coffee-table host, mounted/wall items at their `mountHeight`
+against the wall, floor items at a low 3/4; variant frames per distinct enum mode) +
+`realism-decor-suspects.json` (close cameras on the four suspects). **Attachment (rubric-2) verified
+two-channel:** the structural probe reported **comps=1 and gap=0.0 mm for ALL 26 defs** (one
+connected component, no dangling/floating parts), and the closeups confirm it visually; the
+asserting `structuralSoundness.test.tsx` stays green with the fixes. Scale cross-checked vs
+`ikea_optimized/` where comparable (fluted TV wall, room divider, floor vase, wall shelf/mirror).
+
+- **feature-wall** — OK (fluted half-round ribs / slat battens on a backing board; instanced, flush,
+  floor-to-ceiling). Attached: ribs proud of the shared backing board.
+- **room-divider** — OK across slat / fluted / grid; slim floor frame (bottom rail on the floor),
+  battens/lattice inside the frame. Attached. (Fluted panel shows the shared oak watermark — X-cut.)
+- **tabletop-decor** — **fixed(noClip)**. Was the ONLY surface-styling prop def missing `noClip` (its
+  book-stack/candle/tray siblings all have it) — so it participated in floor collision AND the
+  structural probe read it as floating (anchored, minY 420 mm). Added `noClip: true`; now consistent,
+  non-anchored. Geometry itself (tray + books + vase + sprig) reads fine on a table. (`defs/decor.ts`)
+- **roller-blind** — OK (roller fabric panel / venetian slat stack). Cassette→fabric/slats→weighted
+  bottom rail; the venetian bottom slats looked scattered in the wide frame but the closeup shows a
+  clean stack + rail (the "splay" was the full 1.7 m drop foreshortened) — no fix.
+- **hanging-plant** — OK. Three ceiling cords → pot rim, mounded crown on the pot, trailing
+  cone-vines below; cords reach the mount height. Attached.
+- **floor-vase** — OK (tall taper / round belly / wide × pampas / branch / empty). Stems insert into
+  the neck; two-cylinder body grounded. Round-belly has a slightly hard mid-shoulder (minor).
+- **wall-mirror** — OK (round / arch / rect). Frame + mirror pane proud of the frame face, wall-flush.
+- **wall-art** — OK (thin / gallery / box / frameless × solid/gradient/stripes/blocks/chevron). Print
+  proud of the frame; frameless gets a wrapped-canvas slab. Attached to the wall plane.
+- **wall-clock** — OK (round / square × quarter/all-hour markers). Rim+face+markers+10:10 hands+cap,
+  wall-flush. Attached.
+- **wall-shelf** — OK (bracket / floating / two-tier). Plank against the wall + L-brackets under it
+  (or hidden cleat / end panels for two-tier). Attached.
+- **floor-mirror** — OK (leaning rect / round cheval). Rect pivots about its floor base; cheval ring
+  overlaps its side posts (ring tube r+0.03 vs post inner r+0.025) on a foot-bar tripod. Grounded.
+- **aquarium** — **fixed(glass+water)**. The glass shell (opacity 0.18) and tinted water (0.42) both
+  washed out to near-invisible against the bright window, so the tank walls vanished and only the
+  black top rim showed — reading as a black cabinet with a **floating lid over an air gap**, not a
+  filled tank. Raised the water opacity (0.42→0.7) and the glass opacity (0.18→0.30, metalness 0 to
+  kill the dark mirror-black front) + filled a touch higher; the glass box now reads at every tier,
+  enclosing the gravel/plants and connecting the stand to the rim. (`primitives/Aquarium.tsx`)
+- **potted-plant** — OK (bush / snake / palm / fiddle × tapered/cylinder/square pot × S/M/L). Trunk/
+  leaves rise from the soil, canopy blobs attached; grounded.
+- **fireplace** — OK. Wall style: linear firebox + glowing flame/ember bed, wall-mounted (floats by
+  design — it's the wall variant). Console style: hearth+surround+mantel reach the floor. *Judgment
+  call (not fixed):* the def models BOTH a wall-mounted and a floor variant, so a single static
+  `mounted` flag can't be right for both — left floor-anchored (default style is `wall`, which the
+  structural probe flags as floating, but that IS a wall fixture); changing it has collision-placement
+  ripple beyond this batch. Console reads dark under SwiftShader (dark-navy gloss + weak faked IBL) —
+  the flame renders (verified on the wall variant); a real-GPU highlight pass is a X-cut, not a defect.
+- **piano** — OK (upright / digital). Plinth→body→keybed→white/black keys→pedals→music desk, grounded.
+  Black gloss reads dark under SwiftShader (IBL limitation) but the keyboard/pedals/silhouette read.
+- **book-stack** — OK. Flat stack + two leaning volumes; page edges proud. On host, grounded.
+- **throw-cushion** — OK (square / rect × plain/stripe). Puffed RoundedBox + flange seam. On host.
+- **throw-blanket** — OK (plain/stripe/herringbone). Folded slabs + draped corner. On host.
+- **candle-cluster** — OK (lit/unlit). Three pillars + wicks + flames on a plate. On host.
+- **fruit-bowl** — OK (fruit/empty × glazed/matte/stoneware). Bowl body+rim+foot ring + fruit inside.
+- **magazine-stack** — OK. Fanned thin magazines with page edges. On host.
+- **small-sculpture** — OK (twist / arch / sphere) on a dark plinth. Reads (small).
+- **desk-plant** — OK (succulent / trailing). Compact pot + rosette / arching stems. On host.
+- **photo-frame-cluster** — OK. Three framed photos (mat + art + lean foot), overlapping group.
+- **trailing-plant** — OK (full / sparse). Raised pot with deterministic polyline vines cascading over
+  the surface edge with leaf pairs; upright crown tuft. Hero prop reads well. On host.
+- **decor-tray** — OK (mixed / candles / minimal × full/sparse). Tray base+rim walls + candle/bowl/
+  books vignette sitting on the base. On host.
+
+Gates: `structuralSoundness.test.tsx` + `decorStyling` + `furnitureSets` + `collision/placement`
+vitest green (295); tsc + biome clean on the two changed source files (`defs/decor.ts`,
+`primitives/Aquarium.tsx`). The stray `_diag.test.tsx` tsc/vitest error in the tree is a concurrent
+agent's scratch file, not this batch. Cross-cutting (unchanged, shared with Wave 1/2): the app-wide
+`mat:floor-wood-oak` "cathedral" watermark grain shows on dark decor (aquarium stand, coffee-table
+host, fluted panels), and dark-gloss items (piano, console fireplace) go flat-black under SwiftShader's
+faked IBL — both belong to the coordinated global material retune, not a per-def fix.
+
+### Wave 3B — lighting (5) + textiles (3) + outdoor (5) + kids (5), 2026-07-17
+
+Audit scenario: `scripts/scenarios/realism-light-textile-outdoor-kids.json` (each def at the L/D
+centre under the 2.6 m ceiling, or on the MB north window for curtains; low 3/4 + eye-level +
+up-look cameras, daylight + a night pass for every lit fixture; variant frames per enum mode) plus
+rechecks `realism-w3b-recheck.json` (ceiling fixtures with `showCeilingFixtures` on, cove reframed,
+toy-storage wood lit from the window side) and `realism-w3b-curtains{,-cur2}.json` (in-room oblique
++ blackout/sheer opacity A/B). Real-GPU (`SHOT_GPU=1`) so night glow/bloom reads truthfully.
+Attachment verified per rubric-2 TWO-channel: closeup frames + the structural-soundness harness
+(`structuralSoundness.test.tsx`, 265 tests green across all defs incl. these 18). Every piece sits
+flat / spans its mount with no float/sink, no self-z-fighting, no dangling members. **No per-def
+geometry fixes were required — all 18 pass.**
+
+Lighting (glow verified at night — cove washes the ceiling, sconce/table/floor/ceiling shades
+self-illuminate + bloom; emissive intensities untouched):
+- **cove-light** — OK. Wall lip + returning soffit + concealed up-facing LED strip; strip glows,
+  ceiling wash reads as the HDB cove signature. Lip→soffit→strip abut.
+- **wall-sconce** — OK. Backplate→arm→frosted diffuser (the short spar physically bridges wall to
+  shade, no float). Diffuser glows at night. Modest silhouette but reads.
+- **table-lamp** — OK (empire/drum/cone). Base→slim stem→emissive shade all overlap; grounded when
+  sat on a surface (floats alone by design — a surface item).
+- **floor-lamp** — OK (disc / tripod / arc × empire/drum/cone). Disc/tripod legs grounded; arc =
+  heavy marble base→riser→12-seg arch→drop stem→shade hanging at reach, all connected; bulb glow
+  disc under each shade.
+- **ceiling-light** — OK (pendant dome/globe/cone/drum, linear bar, flush). Rose on ceiling→cord(s)→
+  shade/bar; flush disc abuts the ceiling. Only renders with `showCeilingFixtures` on (store default
+  off — not a def defect). `mountHeight` fixed at 2.55 (no schema param) leaves a ~4 cm rose gap
+  under a 2.6 m ceiling — visually hidden by the cornice, acceptable.
+
+Textiles:
+- **rug** — OK (rect / round / oval × solid/gradient/striped/herringbone/checkered/plaid/dots).
+  Border slab + inset field on the `+0.006`/`+0.013` coplanar offsets (noClip decal pattern kept);
+  lies flat, no floor z-fight, woven texture reads. Oval `scaleZ`, round = true circle.
+- **curtains** — OK (drawn/open/half × floor/sill × cotton/velvet × sheer→blackout). Rod→finials→
+  two wavy draped panels→hem all correct and connected; draw/gather + opacity axis behave. *Cross-
+  cutting observation (not a curtain defect, not fixed):* the window **sill/frame projects through
+  the panel's fold troughs** — confirmed via the blackout (opaque) A/B, the "tabs" persist IN FRONT
+  of the opaque cloth, so it is sill-vs-curtain interpenetration, not show-through. The snap plants
+  the panel ~5 cm off the wall (`windowSnap.position` = wall centre) while the sill projects further;
+  a free-placed curtain also inherits a `sillY` fallback (0.9) that can leave a real window's lower
+  grille exposed below a sill-length hem. Belongs to a coordinated curtain-standoff / sill-depth pass
+  (touches snap/sizing, out of batch scope), not a per-def geometry edit.
+- **wall-tapestry** — OK (macramé fringed / woven panel). Dowel rod→panel (top reaches the dowel
+  line, draped, not floating)→knotted fringe tassels; woven=rattan weave, macramé=fabric.
+
+Outdoor:
+- **outdoor-parasol** — OK. Weighted base→metal pole→octagonal canopy cone + valance skirt + finial;
+  grounded, `verticalSpan` keeps the high canopy from reading as a floor obstacle.
+- **outdoor-table** — OK (teak/rattan/painted/metal × low/dining). Slatted top on 4 tapered legs +
+  two X-stretchers (front/back ladder frame); legs grounded, top slats abut legs.
+- **outdoor-chair** — OK (teak/rattan/…). Side frames (front+back legs, seat rail, armrest, arm
+  support, reclined back stile), slatted seat + reclined back slats attach to the back stile (the
+  earlier float fix holds). Grounded.
+- **outdoor-lounger** — OK (teak/metal/…). Short feet→side rails→base slats + thick seat cushion +
+  inclined head cushion; grounded, all abut.
+- **planter-trough** — OK. Tapered box + soil + bushy foliage clusters + tall sprigs, grounded.
+  *Minor def note (harmless, not fixed):* `footprintParams.d: 'depth'` references a param the schema
+  doesn't expose — the `d` mapping is inert (depth stays the honest 0.28), no functional impact.
+
+Kids (prior attachment fixes all verified holding — changing-table guard posts, high-chair tray
+arms, crib mattress platform):
+- **changing-table** — OK (drawers / open shelves). Carcass + proud drawer fronts + bar pulls (or
+  shelves) + padded mat + corner posts carrying the guard rails down to the top; grounded.
+- **high-chair** — OK (wood / moulded plastic). Splayed legs→footrest bar→seat→back; tray carried up
+  from the seat sides by the mounting arms (no float). Grounded.
+- **crib** — OK (slatted / solid ends × low/high base). 4 posts + top/bottom rails all 4 sides +
+  instanced vertical slats + mattress platform board + mattress; connected, grounded. Default finish
+  `mat:floor-wood-oak` reads very dark (see wood-texture note).
+- **toddler-bed** — OK. Legs→low base→mattress+pillow + tall headboard/low footboard + head-half
+  safety side rails; grounded, connected.
+- **toy-storage** — OK (2–4 cols × 1–3 rows). Instanced carcass (back + dividers + shelves) + bright
+  fabric bins in most cubbies; grounded. `finish:'painted'` reads crisp and cheerful; `finish:'wood'`
+  goes near-black in shadow (wood-texture note) — geometry is identical and sound in both.
+
+Cross-cutting (shared with Wave 1/2, NOT fixed per-def): the procedural **`wood` / `mat:floor-wood-
+oak` surface reads either as the silvery "cathedral" watermark grain (changing-table `wood`) or near-
+black in shadow (crib default, toy-storage `wood`), hurting the kids category's default look. Same
+app-wide wood-material issue the Wave-1/2 notes flagged for a coordinated global retune — deferred
+here (a `painted`/light default reads correctly, proving the geometry). Gates: `structuralSoundness`
++ `slatLayout` vitest green (265); no source changed in this batch (audit-only), so tsc/biome are
+unaffected by it (a stray `_diag.test.tsx` tsc error in the tree is a concurrent agent's scratch
+file, not this batch).

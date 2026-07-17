@@ -59,7 +59,9 @@ export function FloorLamp({ props }: { props: ParamProps }) {
     ? [reach, archTopY - shadeH / 2 - 0.04, 0]
     : [0, poleH + shadeH / 2 - 0.02, 0]
   const bulbPos: [number, number, number] = arc
-    ? [reach, archTopY - shadeH - 0.06, 0]
+    ? // Tuck the glow disc up into the mouth of the shade (as in the non-arc
+      // case) rather than hanging it a couple of cm below the shade.
+      [reach, archTopY - shadeH + 0.02, 0]
     : [0, poleH + 0.02, 0]
 
   return (

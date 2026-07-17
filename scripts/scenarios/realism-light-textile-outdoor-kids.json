@@ -1,0 +1,205 @@
+{
+  "name": "realism-light-textile-outdoor-kids",
+  "description": "Wave 3B realism audit: lighting (5) + textiles (3) + outdoor (5) + kids (5). Each def placed at the L/D centre (ceiling present) or on the MB north window (curtains), low 3/4 + profile + up-look cameras, daylight + one night pass for lit fixtures. Variant frames per distinct enum mode.",
+  "url": "http://localhost:5302/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try{localStorage.setItem('hdb_onboarded','1')}catch{}; const s=window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setShowCeilingFixtures?.(true)" },
+    { "name": "daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "helpers", "eval": "window.__place=(defId,props,pos)=>window.__store.getState().setItems([{id:'AUD',defId,position:pos||[10.5,4.0],rotation:0,props:props||{}}]); window.__cam=(ex,ey,ez,tx,ty,tz)=>{const t=window.__three;if(!t)return;const c=t.controls;t.camera.position.set(ex,ey,ez);if(c){c.target.set(tx,ty,tz);c.update();}t.camera.lookAt(tx,ty,tz);}; window.__low=()=>window.__cam(12.3,0.7,5.6,10.5,0.3,4.0); window.__mid=()=>window.__cam(12.6,1.3,6.0,10.5,0.7,4.0); window.__eye=()=>window.__cam(12.8,1.7,6.2,10.5,1.5,4.0); window.__up=()=>window.__cam(11.6,1.3,6.0,10.5,2.4,4.0); window.__win=()=>window.__cam(1.64,1.5,3.4,1.64,1.4,0.15); true" },
+    { "name": "warmup-place", "eval": "window.__place('table-lamp',{})" },
+    { "name": "wait-mount", "wait": 6000 },
+    { "name": "warmup-cam", "eval": "window.__mid()" },
+    { "name": "wait-mount2", "wait": 1500 },
+
+    { "name": "p-cove", "eval": "window.__place('cove-light',{}); window.__up()" },
+    { "name": "w-cove", "wait": 1300 },
+    { "name": "s-cove", "screenshot": "light-cove-day" },
+
+    { "name": "p-sconce", "eval": "window.__place('wall-sconce',{}); window.__eye()" },
+    { "name": "w-sconce", "wait": 1300 },
+    { "name": "s-sconce", "screenshot": "light-sconce-day" },
+
+    { "name": "p-tlamp", "eval": "window.__place('table-lamp',{surfaceHeight:0}); window.__mid()" },
+    { "name": "w-tlamp", "wait": 1300 },
+    { "name": "s-tlamp", "screenshot": "light-tablelamp-empire" },
+
+    { "name": "p-tlamp-drum", "eval": "window.__place('table-lamp',{surfaceHeight:0,shade:'drum'}); window.__mid()" },
+    { "name": "w-tlamp-drum", "wait": 1200 },
+    { "name": "s-tlamp-drum", "screenshot": "light-tablelamp-drum" },
+
+    { "name": "p-tlamp-cone", "eval": "window.__place('table-lamp',{surfaceHeight:0,shade:'cone'}); window.__mid()" },
+    { "name": "w-tlamp-cone", "wait": 1200 },
+    { "name": "s-tlamp-cone", "screenshot": "light-tablelamp-cone" },
+
+    { "name": "p-flamp", "eval": "window.__place('floor-lamp',{}); window.__eye()" },
+    { "name": "w-flamp", "wait": 1300 },
+    { "name": "s-flamp", "screenshot": "light-floorlamp-disc-empire" },
+
+    { "name": "p-flamp-tripod", "eval": "window.__place('floor-lamp',{base:'tripod',shade:'drum'}); window.__eye()" },
+    { "name": "w-flamp-tripod", "wait": 1200 },
+    { "name": "s-flamp-tripod", "screenshot": "light-floorlamp-tripod-drum" },
+
+    { "name": "p-flamp-arc", "eval": "window.__place('floor-lamp',{base:'arc'}); window.__cam(13.2,1.8,6.4,10.6,1.3,4.0)" },
+    { "name": "w-flamp-arc", "wait": 1200 },
+    { "name": "s-flamp-arc", "screenshot": "light-floorlamp-arc" },
+
+    { "name": "p-flamp-arc-low", "eval": "window.__low()" },
+    { "name": "w-flamp-arc-low", "wait": 900 },
+    { "name": "s-flamp-arc-low", "screenshot": "light-floorlamp-arc-base" },
+
+    { "name": "p-ceil", "eval": "window.__place('ceiling-light',{}); window.__up()" },
+    { "name": "w-ceil", "wait": 1300 },
+    { "name": "s-ceil", "screenshot": "light-ceiling-pendant-dome" },
+
+    { "name": "p-ceil-globe", "eval": "window.__place('ceiling-light',{shade:'globe'}); window.__up()" },
+    { "name": "w-ceil-globe", "wait": 1200 },
+    { "name": "s-ceil-globe", "screenshot": "light-ceiling-pendant-globe" },
+
+    { "name": "p-ceil-cone", "eval": "window.__place('ceiling-light',{shade:'cone'}); window.__up()" },
+    { "name": "w-ceil-cone", "wait": 1200 },
+    { "name": "s-ceil-cone", "screenshot": "light-ceiling-pendant-cone" },
+
+    { "name": "p-ceil-linear", "eval": "window.__place('ceiling-light',{style:'linear'}); window.__up()" },
+    { "name": "w-ceil-linear", "wait": 1200 },
+    { "name": "s-ceil-linear", "screenshot": "light-ceiling-linear" },
+
+    { "name": "p-ceil-flush", "eval": "window.__place('ceiling-light',{style:'flush'}); window.__up()" },
+    { "name": "w-ceil-flush", "wait": 1200 },
+    { "name": "s-ceil-flush", "screenshot": "light-ceiling-flush" },
+
+    { "name": "night", "eval": "window.__store.getState().setManualHour?.(21)" },
+    { "name": "w-night", "wait": 1000 },
+
+    { "name": "p-cove-n", "eval": "window.__place('cove-light',{}); window.__up()" },
+    { "name": "w-cove-n", "wait": 1300 },
+    { "name": "s-cove-n", "screenshot": "light-cove-night" },
+
+    { "name": "p-sconce-n", "eval": "window.__place('wall-sconce',{}); window.__eye()" },
+    { "name": "w-sconce-n", "wait": 1200 },
+    { "name": "s-sconce-n", "screenshot": "light-sconce-night" },
+
+    { "name": "p-tlamp-n", "eval": "window.__place('table-lamp',{surfaceHeight:0}); window.__mid()" },
+    { "name": "w-tlamp-n", "wait": 1200 },
+    { "name": "s-tlamp-n", "screenshot": "light-tablelamp-night" },
+
+    { "name": "p-flamp-n", "eval": "window.__place('floor-lamp',{}); window.__eye()" },
+    { "name": "w-flamp-n", "wait": 1200 },
+    { "name": "s-flamp-n", "screenshot": "light-floorlamp-night" },
+
+    { "name": "p-ceil-n", "eval": "window.__place('ceiling-light',{}); window.__up()" },
+    { "name": "w-ceil-n", "wait": 1200 },
+    { "name": "s-ceil-n", "screenshot": "light-ceiling-night" },
+
+    { "name": "backday", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "w-backday", "wait": 800 },
+
+    { "name": "p-rug", "eval": "window.__place('rug',{}); window.__low()" },
+    { "name": "w-rug", "wait": 1300 },
+    { "name": "s-rug", "screenshot": "textile-rug-rect-solid" },
+
+    { "name": "p-rug-strip", "eval": "window.__place('rug',{pattern:'striped'}); window.__low()" },
+    { "name": "w-rug-strip", "wait": 1200 },
+    { "name": "s-rug-strip", "screenshot": "textile-rug-striped" },
+
+    { "name": "p-rug-round", "eval": "window.__place('rug',{shape:'round',pattern:'gradient'}); window.__low()" },
+    { "name": "w-rug-round", "wait": 1200 },
+    { "name": "s-rug-round", "screenshot": "textile-rug-round-gradient" },
+
+    { "name": "p-rug-oval", "eval": "window.__place('rug',{shape:'oval',pattern:'checkered'}); window.__low()" },
+    { "name": "w-rug-oval", "wait": 1200 },
+    { "name": "s-rug-oval", "screenshot": "textile-rug-oval-checkered" },
+
+    { "name": "p-cur", "eval": "window.__place('curtains',{width:1.8,height:2.6},[1.64,0.2]); window.__win()" },
+    { "name": "w-cur", "wait": 1400 },
+    { "name": "s-cur", "screenshot": "textile-curtains-drawn" },
+
+    { "name": "p-cur-open", "eval": "window.__place('curtains',{width:1.8,height:2.6,drawAmount:0},[1.64,0.2]); window.__win()" },
+    { "name": "w-cur-open", "wait": 1400 },
+    { "name": "s-cur-open", "screenshot": "textile-curtains-open" },
+
+    { "name": "p-cur-sill", "eval": "window.__place('curtains',{width:1.8,height:2.6,length:'sill',material:'velvet',color:'#7a4a55'},[1.64,0.2]); window.__win()" },
+    { "name": "w-cur-sill", "wait": 1400 },
+    { "name": "s-cur-sill", "screenshot": "textile-curtains-sill-velvet" },
+
+    { "name": "p-tap", "eval": "window.__place('wall-tapestry',{}); window.__eye()" },
+    { "name": "w-tap", "wait": 1300 },
+    { "name": "s-tap", "screenshot": "textile-tapestry-macrame" },
+
+    { "name": "p-tap-woven", "eval": "window.__place('wall-tapestry',{style:'woven'}); window.__eye()" },
+    { "name": "w-tap-woven", "wait": 1200 },
+    { "name": "s-tap-woven", "screenshot": "textile-tapestry-woven" },
+
+    { "name": "p-parasol", "eval": "window.__place('outdoor-parasol',{}); window.__cam(13.4,1.9,6.6,10.5,1.4,4.0)" },
+    { "name": "w-parasol", "wait": 1300 },
+    { "name": "s-parasol", "screenshot": "outdoor-parasol" },
+
+    { "name": "p-parasol-low", "eval": "window.__low()" },
+    { "name": "w-parasol-low", "wait": 900 },
+    { "name": "s-parasol-low", "screenshot": "outdoor-parasol-base" },
+
+    { "name": "p-otable", "eval": "window.__place('outdoor-table',{}); window.__low()" },
+    { "name": "w-otable", "wait": 1300 },
+    { "name": "s-otable", "screenshot": "outdoor-table-teak" },
+
+    { "name": "p-otable-metal", "eval": "window.__place('outdoor-table',{finish:'gloss',height:0.4}); window.__low()" },
+    { "name": "w-otable-metal", "wait": 1200 },
+    { "name": "s-otable-metal", "screenshot": "outdoor-table-metal-low" },
+
+    { "name": "p-ochair", "eval": "window.__place('outdoor-chair',{}); window.__low()" },
+    { "name": "w-ochair", "wait": 1300 },
+    { "name": "s-ochair", "screenshot": "outdoor-chair-teak" },
+
+    { "name": "p-ochair-rattan", "eval": "window.__place('outdoor-chair',{finish:'rattan'}); window.__low()" },
+    { "name": "w-ochair-rattan", "wait": 1200 },
+    { "name": "s-ochair-rattan", "screenshot": "outdoor-chair-rattan" },
+
+    { "name": "p-lounger", "eval": "window.__place('outdoor-lounger',{}); window.__cam(12.9,1.1,6.4,10.5,0.35,4.0)" },
+    { "name": "w-lounger", "wait": 1300 },
+    { "name": "s-lounger", "screenshot": "outdoor-lounger-teak" },
+
+    { "name": "p-lounger-metal", "eval": "window.__place('outdoor-lounger',{finish:'gloss'}); window.__cam(12.9,1.1,6.4,10.5,0.35,4.0)" },
+    { "name": "w-lounger-metal", "wait": 1200 },
+    { "name": "s-lounger-metal", "screenshot": "outdoor-lounger-metal" },
+
+    { "name": "p-planter", "eval": "window.__place('planter-trough',{}); window.__low()" },
+    { "name": "w-planter", "wait": 1300 },
+    { "name": "s-planter", "screenshot": "outdoor-planter" },
+
+    { "name": "p-changing", "eval": "window.__place('changing-table',{}); window.__mid()" },
+    { "name": "w-changing", "wait": 1300 },
+    { "name": "s-changing", "screenshot": "kids-changing-drawers" },
+
+    { "name": "p-changing-shelf", "eval": "window.__place('changing-table',{base:'shelves',finish:'wood'}); window.__mid()" },
+    { "name": "w-changing-shelf", "wait": 1200 },
+    { "name": "s-changing-shelf", "screenshot": "kids-changing-shelves" },
+
+    { "name": "p-highchair", "eval": "window.__place('high-chair',{}); window.__mid()" },
+    { "name": "w-highchair", "wait": 1300 },
+    { "name": "s-highchair", "screenshot": "kids-highchair-wood" },
+
+    { "name": "p-highchair-plastic", "eval": "window.__place('high-chair',{style:'plastic'}); window.__mid()" },
+    { "name": "w-highchair-plastic", "wait": 1200 },
+    { "name": "s-highchair-plastic", "screenshot": "kids-highchair-plastic" },
+
+    { "name": "p-crib", "eval": "window.__place('crib',{}); window.__eye()" },
+    { "name": "w-crib", "wait": 1300 },
+    { "name": "s-crib", "screenshot": "kids-crib-slat-low" },
+
+    { "name": "p-crib-solid", "eval": "window.__place('crib',{endStyle:'solid',mattressLevel:'high'}); window.__eye()" },
+    { "name": "w-crib-solid", "wait": 1200 },
+    { "name": "s-crib-solid", "screenshot": "kids-crib-solid-high" },
+
+    { "name": "p-toddler", "eval": "window.__place('toddler-bed',{}); window.__cam(12.9,1.0,6.2,10.5,0.4,4.0)" },
+    { "name": "w-toddler", "wait": 1300 },
+    { "name": "s-toddler", "screenshot": "kids-toddler-bed" },
+
+    { "name": "p-toys", "eval": "window.__place('toy-storage',{}); window.__low()" },
+    { "name": "w-toys", "wait": 1300 },
+    { "name": "s-toys", "screenshot": "kids-toy-storage-3x2" },
+
+    { "name": "p-toys-4x3", "eval": "window.__place('toy-storage',{cols:4,rows:3,finish:'painted'}); window.__low()" },
+    { "name": "w-toys-4x3", "wait": 1200 },
+    { "name": "s-toys-4x3", "screenshot": "kids-toy-storage-4x3" }
+  ]
+}

@@ -213,10 +213,16 @@ function buildLShape(s: Required<StaircaseSpec>): StaircasePart[] {
   const landY = n1 * s.riserHeight
   const landZ = flight1Depth + s.width / 2
   parts.push(landing(landY, 0, landZ, s.width))
-  // Second flight turns 90° and climbs +X off the landing.
+  // Second flight turns 90° and climbs +X off the landing. The turn is fully
+  // expressed by `axis: 'x'` (flightTreads/railRun already swap the box dims +
+  // march the run along X) — so `rot` stays 0. Passing a further Math.PI/2 here
+  // used to DOUBLE-rotate every already-X-oriented box: treads ended up width-in-X
+  // (overlapping enough to still read as connected) but the thin railing posts +
+  // handrail segments were spun perpendicular to the run, so each post+rail pair
+  // broke off into its own AABB component (the deferred harness finding).
   const cx2 = s.width / 2 + (n2 * s.treadDepth) / 2
-  parts.push(...flightTreads(s, n2, landY, cx2, landZ, 'x', 1, Math.PI / 2))
-  parts.push(...flightRailing(s, n2, landY, cx2, landZ, 'x', 1, Math.PI / 2))
+  parts.push(...flightTreads(s, n2, landY, cx2, landZ, 'x', 1, 0))
+  parts.push(...flightRailing(s, n2, landY, cx2, landZ, 'x', 1, 0))
   return parts
 }
 

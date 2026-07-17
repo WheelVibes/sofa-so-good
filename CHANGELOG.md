@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.82 — Structural-soundness harness + realism wave 3 (decor/lighting/textiles/outdoor/kids)
+
+New permanent regression gate `primitives/structuralSoundness.test.tsx` (+ pure union-find
+helper + unit tests; devDep @react-three/test-renderer): renders every parametric def
+headless, extracts per-mesh world AABBs (incl. per-instance InstancedMesh decomposition),
+and asserts one ε-connected part graph (8 mm) + floor contact for floor-anchored defs —
+264+ cases across all 131 defs × structural enum modes, ~12 s. It caught 21 real
+attachment bugs the visual audits missed, all fixed: bar-cart guard rail/push handle,
+round coffee-table stretcher, office-chair back bracket, bench slat rails, outdoor-chair
+back stile, high-chair tray arms, changing-table corner posts, crib base board, cube-shelf
+boxes, garment-rack garments, wardrobe hanging rail, arc floor-lamp bulb, cove-light
+strip, wall-sconce arm, wall-tapestry dowel, linear ceiling-light canopy bar; plus 5
+deferred: shower riser/head arm grounded to tray, freestanding-tub tap seated on rim,
+drying-rack bars reoriented frame-to-frame (instancing kept), bird-cage tripod feet +
+perch sockets, L-staircase double-rotation railing fragmentation. Wave 3 audit (44 defs):
+42 pass; fixed aquarium glass/water opacity (read as black cabinet with floating lid) and
+tabletop-decor missing noClip. Intentional multi-piece pieces are escape-hatched with
+written reasons. New cross-cutting notes queued: curtain-sill standoff, fireplace
+wall-mode mounted flag, planter-trough dead footprintParams.
+
 ## v0.21.2.81 — Cross-cutting: appliance finish-swap reconciliation + TV footprints
 
 MAT-004b rebuilt as a single representation: `applianceBodyMaterial(color, finish)`

@@ -50,8 +50,11 @@ export function Wardrobe({ props }: WardrobeProps) {
       const n = Math.max(3, Math.round(bw / 0.14))
       return (
         <group key={key}>
+          {/* Rail spans the full bay and sockets into the side wall + divider
+              (it previously stopped ~3 cm short at each end, leaving the rail +
+              its garments floating clear of the carcass). */}
           <mesh position={[cx, ry, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.012, 0.012, bw - 0.06, 10]} />
+            <cylinderGeometry args={[0.012, 0.012, bw + 0.02, 10]} />
             <meshStandardMaterial color="#9aa0a6" roughness={0.3} metalness={0.7} />
           </mesh>
           {Array.from({ length: n }, (_, i) => {
