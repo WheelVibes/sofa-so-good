@@ -177,7 +177,9 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
 - **Versions** *(Pro)* — save, restore, and delete named snapshots of your layout,
   each with a thumbnail (deleting asks you to confirm).
 - **Share & export** — copy a shareable link or export a real **PNG snapshot** of
-  the current view. **Copy 3D link** makes a compact link (up to ~16 KB) that
+  the current view. **Save hero image** builds a polished, share-ready card in
+  one tap — your current 3D view framed with the design's name, an item/area/room
+  stat line, and its colour palette — sized for messaging and social feeds. **Copy 3D link** makes a compact link (up to ~16 KB) that
   opens an editable copy of your design on any device; **Copy plan link** is the
   uncapped variant. Neither can carry your uploaded 3D models — use **Export
   file** (`.sofa.json`) to share those. *(Experimental: a "Make photoreal"

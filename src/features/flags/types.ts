@@ -42,6 +42,7 @@ export type FeatureFlag =
   | 'designScore'
   | 'accessibility'
   | 'moodboard'
+  | 'shareCard'
   | 'paletteFromPhoto'
   | 'dxfExport'
   | 'boq'

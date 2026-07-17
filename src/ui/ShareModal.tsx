@@ -13,6 +13,7 @@ import { AiPhotorealSection } from './ai/AiPhotorealSection'
 import { Modal } from './Modal'
 import { openDesignReport } from './openReport'
 import { exportScene3d } from './openSceneExport'
+import { openShareCard } from './openShareCard'
 import { buildShareSummary } from './shareSummary'
 import { Icon } from './toolbar/icons'
 
@@ -27,6 +28,7 @@ export function ShareModal() {
   const setDesignNote = useStore((s) => s.setDesignNote)
   const aiPhotoreal = useFeature('aiPhotoreal')
   const sceneExport = useFeature('sceneExport3d')
+  const shareCard = useFeature('shareCard')
 
   const toast = (title: string) => useStore.getState().notify.start({ title, kind: 'success' })
 
@@ -147,6 +149,30 @@ export function ShareModal() {
         <div className="sec-h">
           <span>Export</span>
         </div>
+        {shareCard && (
+          <>
+            <button
+              type="button"
+              className="btn btn-accent btn-block"
+              onClick={() => {
+                void openShareCard()
+              }}
+            >
+              <Icon.Frame width={14} height={14} />
+              Save hero image
+            </button>
+            <p
+              style={{
+                fontSize: 'var(--t-2xs)',
+                color: 'var(--text-3)',
+                margin: 'var(--s-2) 0 var(--s-3)',
+                lineHeight: 1.4,
+              }}
+            >
+              A share-ready card: your 3D view framed with the design's palette, name and stats.
+            </p>
+          </>
+        )}
         <div className="export-row">
           <button
             type="button"

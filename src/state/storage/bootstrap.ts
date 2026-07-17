@@ -383,4 +383,13 @@ async function exposeDevHelpers(): Promise<void> {
     ;(window as unknown as { __importGlbFilesResult?: unknown }).__importGlbFilesResult = result
     return result
   }
+  // Expose the one-tap hero-card builder so the scenario harness can verify the
+  // composed PNG headlessly (the canvas raster needs a real browser). Returns the
+  // card's PNG data URL and records it on `__buildShareCardResult`.
+  const { buildShareCardDataUrl } = await import('../../ui/openShareCard')
+  ;(window as unknown as { __buildShareCard?: unknown }).__buildShareCard = async () => {
+    const url = await buildShareCardDataUrl()
+    ;(window as unknown as { __buildShareCardResult?: unknown }).__buildShareCardResult = url
+    return url
+  }
 }

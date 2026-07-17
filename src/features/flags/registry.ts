@@ -250,6 +250,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // One-tap "hero card": the current 3D snapshot framed with the design's palette
+  // swatches + name + stat line + a "Sofa So Good" wordmark, as a single share-
+  // ready PNG (4:5). Closes the "share" stage of the core loop with a delight
+  // artifact → simple tier. Pure client-side canvas raster, no sidecar → prod-safe.
+  shareCard: {
+    label: 'Share card',
+    description: 'One-tap branded hero image (3D snapshot + palette + stats)',
+    default: true,
+    tier: 'simple',
+  },
   paletteFromPhoto: {
     label: 'Palette from photo',
     description: 'Extract a palette from an image → finishes',

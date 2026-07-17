@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.2 — One-tap "hero card" share image (SHARE-CARD)
+
+"**Save hero image**" in the Share modal's Export section (`shareCard` flag,
+simple tier, desktop + mobile) builds a polished 1080×1350 share-ready PNG:
+the current 3D snapshot (same hi-fi `captureCanvasPng` SSAA path as
+Screenshot/photoreal) on a fixed-dark card with the design name, an
+items·area·rooms stat line (metric + imperial), a ≤6-swatch palette strip
+(master palette → finish-derived fallback), and an accent "Sofa So Good"
+wordmark (live `--accent` read via getComputedStyle — on-brand across all 5
+themes). Pure helpers in `ui/shareCard.ts` (stats/swatches/strip-layout/
+filename — 17 tests, both modes); canvas raster + orchestration in
+`ui/openShareCard.ts` mirroring `openMoodboard`; 2D-editor capture miss falls
+back to an accent-wash placeholder card. Dev hook `window.__buildShareCard`;
+GPU-verified (card renders name/stats/swatches/wordmark correctly); scenario
+`share-card.json`.
+
 ## v0.22.2.1 — Onboarding copy: drop stale "75-item" / "4-room" claims
 
 First-run onboarding undersold/misdescribed the app: the Furnish feature card
