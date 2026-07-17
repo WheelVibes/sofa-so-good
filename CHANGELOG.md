@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.1 — Onboarding copy: drop stale "75-item" / "4-room" claims
+
+First-run onboarding undersold/misdescribed the app: the Furnish feature card
+advertised a fixed "75-item catalog" (the catalog now far exceeds that with
+parametric/kitchen/pet/CC0/IKEA-import content) and the welcome lede hard-coded
+"your 4-room flat" despite custom plans, `.sh3d` import, and AI plan generation.
+Now "a rich furniture catalog" + "start from the furnished 4-room HDB or your
+own plan" — accurate without a brittle number.
+
 ## v0.22.2.0 — Two core-loop UX wins: catalog "Recent" strip + layout reroll
 
 From the UX research pass, the two highest value÷effort core-loop additions,

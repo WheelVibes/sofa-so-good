@@ -24,7 +24,7 @@ export function hasOnboarded(): boolean {
 }
 
 const FEATURES: { icon: IconName; title: string; sub: string }[] = [
-  { icon: 'Catalog', title: 'Furnish', sub: 'Drag from a 75-item catalog' },
+  { icon: 'Catalog', title: 'Furnish', sub: 'Drag from a rich furniture catalog' },
   { icon: 'Palette', title: 'Refinish', sub: 'Repaint walls & swap flooring' },
   { icon: 'Walk', title: 'Walk through', sub: 'Feel the scale at eye level' },
 ]
@@ -105,8 +105,8 @@ export function Onboarding() {
               </div>
               <h2 className="onb-title">Welcome to Sofa So Good</h2>
               <p className="onb-lede">
-                Design your 4-room flat in the browser — furnish it, refinish the walls and floors,
-                then walk through the result.
+                Design your home in the browser — start from the furnished 4-room HDB or your own
+                plan, furnish it, refinish the walls and floors, then walk through the result.
               </p>
               <div className="onb-feats">
                 {FEATURES.map((f) => {
