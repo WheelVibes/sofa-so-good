@@ -1,0 +1,107 @@
+{
+  "name": "wallaccentpicker-simple",
+  "description": "Simple ladder for wallAccentPicker (Accent walls): enters the room editor, selects a real wall (wall-ext-E on livingDining, mirroring the FinishPicker 'Add accent wall' Select which drives the same selectWall(wallId, roomId) store action), asserts the WallAccentPicker panel mounts, paints the wall via a real swatch-button click, then clears it back via 'Match room finish'. wallAccentPicker is simple-tier (present in both Simple and Pro) — asserted ON in both modes.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "Expected uiMode=simple at boot"
+    },
+    {
+      "name": "verify-wallaccentpicker-on-in-simple",
+      "waitFor": {
+        "store": "state.featureFlags && state.featureFlags.wallAccentPicker === true"
+      },
+      "timeout": 10000,
+      "failMessage": "wallAccentPicker should be ON in Simple mode (it is simple-tier)"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 5000
+    },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading?.()" },
+    { "name": "wait-room-load", "wait": 1500 },
+    { "name": "shot-room-editor", "screenshot": "01-room-editor-no-wall-selected" },
+    {
+      "name": "select-wall",
+      "store": { "action": "selectWall", "args": ["wall-ext-E", "livingDining"] }
+    },
+    {
+      "name": "wall-accent-panel-visible",
+      "waitFor": { "text": "Accent wall" },
+      "timeout": 10000,
+      "failMessage": "WallAccentPicker panel ('Accent wall' title) did not appear after selectWall"
+    },
+    {
+      "name": "verify-selectedwall-in-store",
+      "waitFor": {
+        "store": "state.selectedWall && state.selectedWall.wallId === 'wall-ext-E' && state.selectedWall.roomId === 'livingDining'"
+      },
+      "timeout": 5000
+    },
+    { "name": "shot-wall-accent-panel-open", "screenshot": "02-wall-accent-panel-open" },
+    {
+      "name": "paint-accent-swatch",
+      "eval": "document.querySelector('.panel.inspector .swatches .swatch')?.click()"
+    },
+    {
+      "name": "verify-accent-applied",
+      "waitFor": {
+        "store": "state.finishes && Object.keys(state.finishes.wallAccents || {}).some((k) => k.startsWith('wall-ext-E:') && k.endsWith(':livingDining'))"
+      },
+      "timeout": 10000,
+      "failMessage": "Expected finishes.wallAccents to gain an entry keyed 'wall-ext-E:livingDining' after clicking a swatch"
+    },
+    { "name": "shot-accent-applied", "screenshot": "03-accent-wall-painted" },
+    {
+      "name": "clear-accent",
+      "click": { "text": "Match room finish" }
+    },
+    {
+      "name": "verify-accent-cleared",
+      "waitFor": {
+        "store": "state.finishes && !Object.keys(state.finishes.wallAccents || {}).some((k) => k.startsWith('wall-ext-E:') && k.endsWith(':livingDining'))"
+      },
+      "timeout": 10000,
+      "failMessage": "Expected the wall-ext-E:livingDining accent to be removed after 'Match room finish'"
+    },
+    { "name": "shot-accent-cleared", "screenshot": "04-accent-wall-cleared" },
+    {
+      "name": "switch-to-pro",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "verify-pro-mode",
+      "waitFor": { "store": "state.uiMode === 'pro'" },
+      "timeout": 5000
+    },
+    {
+      "name": "verify-wallaccentpicker-on-in-pro",
+      "waitFor": {
+        "store": "state.featureFlags && state.featureFlags.wallAccentPicker === true"
+      },
+      "timeout": 10000,
+      "failMessage": "wallAccentPicker should still be ON in Pro mode (simple-tier flags are shown in both modes)"
+    },
+    {
+      "name": "panel-still-present-in-pro",
+      "waitFor": { "text": "Accent wall" },
+      "timeout": 10000,
+      "failMessage": "WallAccentPicker panel should still render in Pro mode (selectedWall is still set)"
+    },
+    { "name": "shot-pro-mode-panel", "screenshot": "05-pro-mode-panel-present" }
+  ]
+}

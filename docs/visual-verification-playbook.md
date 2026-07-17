@@ -597,6 +597,24 @@ place (same id, new geometry, no duplicate) and the placed instance still resolv
   (`apartment/constants.ts` — e.g. Living/Dining centre ≈ `[10.55, 4.1]`). `enterRoomEditor('<roomId>')`
   first to frame the room for a clean before/after screenshot.
 
+### Gotchas from the IXT-SUITES back-fill (materialComposer / wallAccentPicker / planCompass / unroomedFlag)
+
+- **`MaterialComposer` auto-seeds a `tint:` of the ACTIVE catalog material, not a fresh
+  `compose:` pattern**, whenever the room's current finish matches a catalog id — an "apply
+  composed finish" assertion expecting a `compose:` prefix must first drive the composer's
+  custom `Select` to an explicit procedural pattern option (trigger click → portalled
+  `[role="option"]` click), or it will (correctly) get a `tint:` id and fail.
+- **A `pointer-events:none` layer that is ALWAYS in the DOM can't be probed by presence or
+  point-picking.** `unroomedFlag`'s red polygon exists at the full building footprint at all
+  times — it's merely occluded by the `RoomsLayer` fills painted above it, and
+  `elementFromPoint` skips it (`pointer-events:none`). Assert OCCLUSION instead: check whether
+  any room-fill element still covers a known world point after the mutation (e.g. does a
+  `[fill^='var(--surface']` rect contain the point), not whether the flag layer "appeared".
+- **Store actions that mirror a picker's internals need the SAME argument pair the UI uses** —
+  `selectWall(wallId, roomId)` must be a genuinely bordering pair (verify via `wallRoomSides()`)
+  or the `WallAccentPicker` mounts against a wall the room doesn't own and the accent key
+  (`wallId:roomId`) never resolves in the 3D scene.
+
 ### Worked example — GLB designer CSG v2 non-destructive booleans (Stage 1b)
 
 **`glb-designer-stage1b.json`** drives the CSG v2 flow: build a Box, add a Cylinder, rotate/size

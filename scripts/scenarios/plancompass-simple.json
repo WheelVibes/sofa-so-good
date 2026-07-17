@@ -1,0 +1,127 @@
+{
+  "name": "plancompass-simple",
+  "description": "Simple ladder for planCompass (North/compass rose on the 2D floor plan): opens the 2D plan editor, asserts the compass SVG ('North compass' title) mounts, then drives a real interaction \u2014 rotating the plan orientation via setOrientationDeg \u2014 and asserts the compass SVG's rotate() transform tracks the new orientation. planCompass is simple-tier (present in both Simple and Pro) \u2014 asserted ON in both modes.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": {
+        "store": "state.uiMode === 'simple'"
+      },
+      "timeout": 5000,
+      "failMessage": "Expected uiMode=simple at boot"
+    },
+    {
+      "name": "verify-plancompass-on-in-simple",
+      "waitFor": {
+        "store": "state.featureFlags && state.featureFlags.planCompass === true"
+      },
+      "timeout": 10000,
+      "failMessage": "planCompass should be ON in Simple mode (it is simple-tier)"
+    },
+    {
+      "name": "reset-orientation",
+      "eval": "window.__store.getState().setOrientationDeg?.(0)"
+    },
+    {
+      "name": "open-plan-editor",
+      "store": {
+        "action": "setFloorPlanEditing",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "plan-screen-visible",
+      "waitFor": {
+        "css": ".plan-screen"
+      },
+      "timeout": 30000,
+      "failMessage": ".plan-screen did not mount after setFloorPlanEditing(true)"
+    },
+    {
+      "name": "compass-visible",
+      "waitFor": {
+        "text": "North compass"
+      },
+      "timeout": 10000,
+      "failMessage": "The compass SVG ('North compass' title) did not render"
+    },
+    {
+      "name": "verify-compass-at-zero",
+      "waitFor": {
+        "store": "(() => { const svg = [...document.querySelectorAll('svg')].find((s) => s.querySelector('title')?.textContent === 'North compass'); return !!svg && /rotate\\(-?0deg\\)/.test(svg.style.transform); })()"
+      },
+      "timeout": 5000,
+      "failMessage": "Expected the compass at 0\u00b0 orientation to have no rotation"
+    },
+    {
+      "name": "shot-compass-north",
+      "screenshot": "01-compass-at-zero"
+    },
+    {
+      "name": "rotate-plan-orientation",
+      "eval": "window.__store.getState().setOrientationDeg?.(45)"
+    },
+    {
+      "name": "verify-compass-rotated",
+      "waitFor": {
+        "store": "(() => { const svg = [...document.querySelectorAll('svg')].find((s) => s.querySelector('title')?.textContent === 'North compass'); return !!svg && svg.style.transform.includes('rotate(-45deg)'); })()"
+      },
+      "timeout": 5000,
+      "failMessage": "Expected the compass SVG to rotate(-45deg) after setOrientationDeg(45)"
+    },
+    {
+      "name": "shot-compass-rotated",
+      "screenshot": "02-compass-rotated-45deg"
+    },
+    {
+      "name": "switch-to-pro",
+      "store": {
+        "action": "setUiMode",
+        "args": [
+          "pro"
+        ]
+      }
+    },
+    {
+      "name": "verify-pro-mode",
+      "waitFor": {
+        "store": "state.uiMode === 'pro'"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "verify-plancompass-on-in-pro",
+      "waitFor": {
+        "store": "state.featureFlags && state.featureFlags.planCompass === true"
+      },
+      "timeout": 10000,
+      "failMessage": "planCompass should still be ON in Pro mode (simple-tier flags are shown in both modes)"
+    },
+    {
+      "name": "compass-still-present-in-pro",
+      "waitFor": {
+        "text": "North compass"
+      },
+      "timeout": 10000,
+      "failMessage": "Compass should still render in Pro mode"
+    },
+    {
+      "name": "shot-pro-mode-compass",
+      "screenshot": "03-pro-mode-compass-present"
+    }
+  ]
+}

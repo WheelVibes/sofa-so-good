@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.11 — IXT-SUITES back-fill: 4 new scenario ladders (71→67 uncovered)
+
+Coverage map of 170 flags vs 341 scenarios found 71 flags with zero scenario
+references; added simple rungs for the 4 highest-value Simple-tier core-loop
+gaps, each run green against the live dev server before check-in:
+`materialcomposer-simple.json` (compose-your-own → `compose:` id applied to
+the floor), `wallaccentpicker-simple.json` (selectWall → paint → clear →
+both modes), `plancompass-simple.json` (compass mounts + tracks
+`setOrientationDeg`), `unroomedflag-simple.json` (removeRoom → red flag
+shows through → undo restores). Three new playbook gotchas recorded
+(composer tint-vs-compose seeding, occlusion-probing an always-present
+pointer-events:none layer, selectWall needs a genuinely bordering
+wall/room pair). Skipped-with-reason: devOnly/sidecar flags, non-preloaded
+lazy modals, WebXR, continuous-animation effects.
+
 ## v0.22.2.10 — Preview boot-hang investigation: resolved as invocation gap
 
 The `vite preview` prod-build hang is root-caused, NOT an app/deploy bug:
