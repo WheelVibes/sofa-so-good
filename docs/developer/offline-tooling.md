@@ -25,10 +25,15 @@ Python is 3.10+; use `python3`.
 - `scraper-server.mjs` (`npm run scraper-server`) — local sidecar driving the
   IKEA live-scrape pack (SSE progress; default port 5174, `SCRAPER_PORT`).
 - `price-server.mjs` (`npm run price-server`) — local sidecar for the Shopping
-  panel's dev-only live-pricing toggle. Retailers: IKEA SG (SIK search JSON API),
-  Courts, HipVan and Castlery (best-effort search adapters with fuzzy top-hit
-  matching — their fixtures still need a real-network verification pass, see
-  TODO.md). Disk-cached; default port 5175, `PRICE_PORT`. All parsers
+  panel's dev-only live-pricing toggle. Retailers (verified live 2026-07):
+  **IKEA SG** (SIK search JSON API) and **Courts** (Magento GraphQL) return real
+  SGD prices + links; **Castlery** now embeds its results as Algolia `hits` in the
+  Next.js RSC payload (the old JSON-LD Product markup is gone — the parser reads
+  the embedded hits with a JSON-LD fallback); **HipVan**'s public search endpoint
+  was retired for an authenticated `api.communa.sg` gateway (session token +
+  refresh), so that adapter degrades to "no match" until a public endpoint
+  returns and stays dev-gated best-effort. Fuzzy top-hit matching throughout;
+  disk-cached; default port 5175, `PRICE_PORT`. All parsers
   (`parseSikResponse`/`parseCourtsResponse`/`parseHipvanResponse`/
   `parseCastleryResponse` + `pickBestMatch`) are pure + unit-tested
   (`price-server.test.mjs`).

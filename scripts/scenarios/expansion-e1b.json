@@ -1,0 +1,100 @@
+{
+  "name": "expansion-e1b",
+  "description": "Expansion wave E1B audit — every new Tier-1 enum mode from rows 7-12 plus existing sibling modes for regression: drawer-pedestal (pedestal on castors / tall chest on legs), nightstand size (narrow/standard/wide), ottoman knitted pouffe (+ round drum sibling), potted-plant raised mid-century stand (+ on-floor sibling), wardrobe corner L-plan + mirror-door finish (+ straight panel/mirror siblings), gaming desk (+ standard sibling). Runs in the whole-flat ORBIT (dollhouse) camera at High tier under SHOT_GPU so mirror reflectors and knit/metal materials read truthfully; every requestFrameSelection closeup inherits the ~3/4 elevation that reveals float/attachment.",
+  "url": "http://localhost:5302/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "set-high-tier", "eval": "window.__store.getState().setQualityTier?.('high')" },
+    { "name": "ensure-orbit", "eval": "(function(){ const s = window.__store.getState(); s.exitRoomEditor?.(); s.setCameraMode?.('orbit'); })()" },
+    { "name": "wait-orbit", "wait": 2000 },
+    { "name": "clear-items", "store": { "action": "setItems", "args": [[]] } },
+    { "name": "wait-clear", "wait": 800 },
+    {
+      "name": "compute-anchors",
+      "eval": "(function(){ const st = window.__store.getState(); const fp = st.floorPlan; const room = fp.rooms.find(r => r.id === 'livingDining') || fp.rooms[0]; if (!room) throw new Error('no room'); const ox = room.origin[0], oz = room.origin[1], W = room.width, D = room.depth; window.__room = { ox, oz, W, D, cx: ox + W/2, cz: oz + D/2 }; console.log('room', JSON.stringify(window.__room)); })()"
+    },
+
+    { "name": "grid-all", "eval": "(function(){ const r = window.__room; const gx=(i)=>r.cx-1.6+i*1.05; const items=[ {id:'g-ped',defId:'drawer-pedestal',position:[gx(0),r.cz-1.1],rotation:0,props:{variant:'pedestal',width:0.4,cols:1,rows:3,handle:'bar',finish:'painted'}}, {id:'g-night',defId:'nightstand',position:[gx(1),r.cz-1.1],rotation:0,props:{size:'wide'}}, {id:'g-pouffe',defId:'ottoman',position:[gx(2),r.cz-1.1],rotation:0,props:{shape:'pouffe'}}, {id:'g-plant',defId:'potted-plant',position:[gx(3),r.cz-1.1],rotation:0,props:{stand:'raised',type:'fiddle'}}, {id:'g-desk',defId:'desk',position:[r.cx-0.8,r.cz+0.6],rotation:0,props:{style:'gaming',width:1.3}}, {id:'g-ward',defId:'wardrobe-3door',position:[r.cx+1.2,r.cz+0.6],rotation:0,props:{layout:'corner',doorFinish:'mirror'}} ]; window.__store.getState().setItems(items); })()" },
+    { "name": "wait-grid", "wait": 1400 },
+    { "name": "frame-grid", "eval": "(function(){ const r = window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx, 0.9, r.cz-0.2], radius:4.2}); })()" },
+    { "name": "wait-frame-grid", "wait": 2000 },
+    { "name": "shot-00-grid-wide", "screenshot": "00-grid-wide" },
+
+    { "name": "place-ped", "eval": "(function(){ const r=window.__room; window.__store.getState().setItems([{id:'it',defId:'drawer-pedestal',position:[r.cx,r.cz],rotation:0.5,props:{variant:'pedestal',width:0.4,cols:1,rows:3,handle:'bar',finish:'painted'}}]); })()" },
+    { "name": "w1", "wait": 900 },
+    { "name": "frame-ped", "eval": "(function(){ const r=window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx,0.35,r.cz],radius:0.75}); })()" },
+    { "name": "w1b", "wait": 1600 },
+    { "name": "shot-01-pedestal-castors", "screenshot": "01-pedestal-castors" },
+
+    { "name": "place-ped-chest", "eval": "(function(){ const r=window.__room; window.__store.getState().setItems([{id:'it',defId:'drawer-pedestal',position:[r.cx,r.cz],rotation:0.5,props:{variant:'chest',width:0.4,cols:1,rows:3,handle:'bar',finish:'painted'}}]); })()" },
+    { "name": "w2", "wait": 900 },
+    { "name": "frame-ped-chest", "eval": "(function(){ const r=window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx,0.5,r.cz],radius:0.95}); })()" },
+    { "name": "w2b", "wait": 1600 },
+    { "name": "shot-02-pedestal-chest", "screenshot": "02-pedestal-chest" },
+
+    { "name": "place-night-narrow", "eval": "(function(){ const r=window.__room; window.__store.getState().setItems([{id:'a',defId:'nightstand',position:[r.cx-0.55,r.cz],rotation:0,props:{size:'narrow'}},{id:'b',defId:'nightstand',position:[r.cx,r.cz],rotation:0,props:{size:'standard'}},{id:'c',defId:'nightstand',position:[r.cx+0.6,r.cz],rotation:0,props:{size:'wide'}}]); })()" },
+    { "name": "w3", "wait": 900 },
+    { "name": "frame-night", "eval": "(function(){ const r=window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx,0.35,r.cz],radius:1.35}); })()" },
+    { "name": "w3b", "wait": 1600 },
+    { "name": "shot-03-nightstand-sizes", "screenshot": "03-nightstand-sizes" },
+
+    { "name": "place-pouffe", "eval": "(function(){ const r=window.__room; window.__store.getState().setItems([{id:'a',defId:'ottoman',position:[r.cx-0.5,r.cz],rotation:0,props:{shape:'pouffe',color:'#b98a5a'}},{id:'b',defId:'ottoman',position:[r.cx+0.5,r.cz],rotation:0,props:{shape:'round'}}]); })()" },
+    { "name": "w4", "wait": 900 },
+    { "name": "frame-pouffe", "eval": "(function(){ const r=window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx,0.3,r.cz],radius:1.05}); })()" },
+    { "name": "w4b", "wait": 1600 },
+    { "name": "shot-04-pouffe-vs-round", "screenshot": "04-pouffe-vs-round" },
+
+    { "name": "place-plant", "eval": "(function(){ const r=window.__room; window.__store.getState().setItems([{id:'a',defId:'potted-plant',position:[r.cx-0.6,r.cz],rotation:0,props:{stand:'raised',type:'fiddle'}},{id:'b',defId:'potted-plant',position:[r.cx+0.5,r.cz],rotation:0,props:{stand:'none',type:'fiddle'}}]); })()" },
+    { "name": "w5", "wait": 900 },
+    { "name": "frame-plant", "eval": "(function(){ const r=window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx,0.7,r.cz],radius:1.35}); })()" },
+    { "name": "w5b", "wait": 1600 },
+    { "name": "shot-05-plant-stand", "screenshot": "05-plant-stand" },
+    { "name": "frame-plant-joint", "eval": "(function(){ const r=window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx-0.6,0.45,r.cz],radius:0.55}); })()" },
+    { "name": "w5c", "wait": 1600 },
+    { "name": "shot-06-plant-ring-legs", "screenshot": "06-plant-ring-legs" },
+
+    { "name": "place-ward-corner", "eval": "(function(){ const r=window.__room; window.__store.getState().setItems([{id:'it',defId:'wardrobe-3door',position:[r.cx,r.cz],rotation:0,props:{layout:'corner',doorFinish:'panel'}}]); })()" },
+    { "name": "w6", "wait": 1100 },
+    { "name": "frame-ward-corner", "eval": "(function(){ const r=window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx-0.2,1.05,r.cz+0.1],radius:1.9}); })()" },
+    { "name": "w6b", "wait": 1800 },
+    { "name": "shot-07-wardrobe-corner-panel", "screenshot": "07-wardrobe-corner-panel" },
+
+    { "name": "place-ward-corner-mirror", "eval": "(function(){ const r=window.__room; window.__store.getState().setItems([{id:'it',defId:'wardrobe-3door',position:[r.cx,r.cz],rotation:0,props:{layout:'corner',doorFinish:'mirror'}}]); })()" },
+    { "name": "w7", "wait": 1100 },
+    { "name": "frame-ward-corner-mirror", "eval": "(function(){ const r=window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx-0.2,1.05,r.cz+0.1],radius:1.9}); })()" },
+    { "name": "w7b", "wait": 1800 },
+    { "name": "shot-08-wardrobe-corner-mirror", "screenshot": "08-wardrobe-corner-mirror" },
+
+    { "name": "place-ward-straight-mirror", "eval": "(function(){ const r=window.__room; window.__store.getState().setItems([{id:'it',defId:'wardrobe-3door',position:[r.cx,r.cz],rotation:0,props:{layout:'straight',doorStyle:'hinged',doorFinish:'mirror'}}]); })()" },
+    { "name": "w8", "wait": 1100 },
+    { "name": "frame-ward-straight-mirror", "eval": "(function(){ const r=window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx,1.05,r.cz],radius:1.6}); })()" },
+    { "name": "w8b", "wait": 1800 },
+    { "name": "shot-09-wardrobe-straight-mirror", "screenshot": "09-wardrobe-straight-mirror" },
+
+    { "name": "place-ward-straight-panel", "eval": "(function(){ const r=window.__room; window.__store.getState().setItems([{id:'it',defId:'wardrobe-3door',position:[r.cx,r.cz],rotation:0,props:{layout:'straight',doorStyle:'hinged',doorFinish:'panel'}}]); })()" },
+    { "name": "w9", "wait": 1100 },
+    { "name": "frame-ward-straight-panel", "eval": "(function(){ const r=window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx,1.05,r.cz],radius:1.6}); })()" },
+    { "name": "w9b", "wait": 1800 },
+    { "name": "shot-10-wardrobe-straight-panel", "screenshot": "10-wardrobe-straight-panel" },
+
+    { "name": "place-desk-gaming", "eval": "(function(){ const r=window.__room; window.__store.getState().setItems([{id:'it',defId:'desk',position:[r.cx,r.cz],rotation:0.35,props:{style:'gaming',width:1.3}}]); })()" },
+    { "name": "w10", "wait": 900 },
+    { "name": "frame-desk-gaming", "eval": "(function(){ const r=window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx,0.5,r.cz],radius:1.25}); })()" },
+    { "name": "w10b", "wait": 1600 },
+    { "name": "shot-11-desk-gaming", "screenshot": "11-desk-gaming" },
+    { "name": "frame-desk-gaming-rear", "eval": "(function(){ const r=window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx,0.55,r.cz-0.25],radius:0.85}); })()" },
+    { "name": "w10c", "wait": 1600 },
+    { "name": "shot-12-desk-gaming-tray-riser", "screenshot": "12-desk-gaming-tray-riser" },
+
+    { "name": "place-desk-standard", "eval": "(function(){ const r=window.__room; window.__store.getState().setItems([{id:'it',defId:'desk',position:[r.cx,r.cz],rotation:0.35,props:{style:'standard',legStyle:'panel'}}]); })()" },
+    { "name": "w11", "wait": 900 },
+    { "name": "frame-desk-standard", "eval": "(function(){ const r=window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx,0.5,r.cz],radius:1.25}); })()" },
+    { "name": "w11b", "wait": 1600 },
+    { "name": "shot-13-desk-standard", "screenshot": "13-desk-standard" }
+  ]
+}

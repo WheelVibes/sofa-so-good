@@ -339,6 +339,22 @@ same change that reshapes a system.
   unmapped/whole-flat view leaves today's persisted default untouched. This only changes the
   DEFAULT landing tab — the CategoryTabs order, search, filters, and favourites/recent are
   unchanged. Flag off → today's behaviour exactly.
+  **Pet fittings** (Pet program P1, `petFittings` flag, tier: **simple**, default on): the `pets`
+  `FurnitureCategory` (16th value) collects pet beds, safety fittings and pet furniture. The flag
+  gates the tab via `useUnifiedCatalog(includeRemote, includeShared, includePets)` — off zeroes the
+  pets block so the tab hides and its cards never surface (grid/search/favourites/recent). Two
+  fitting kinds snap to the plan like curtains do to windows: the **window/balcony mesh screen**
+  (`windowBound`; a slim frame + an alpha-mapped canvas grid texture in
+  `primitives/meshGridTexture.ts` that reads as ≤5 cm safety mesh — the SG Cat Management Framework
+  fitting), and — via **NEW `doorBound` plumbing** — the **pet gate** + **pet-door insert**, which
+  snap across the nearest **door** opening. `doorBound` is the door analog of `windowBound`:
+  `furniture/placement/doorSnap.ts:snapToNearestDoor`/`doorFixtureProps` (a clone of `windowSnap`
+  filtering `kind==='door'`, floor-anchored, spanning `op.width`) threaded through the same three
+  surfaces windowBound uses — `usePlacementController` (`commitDoorBound`), `scene/PlacementGhost`
+  preview, and the plan editor (`planFurnishPlacement.ts:buildPlanDoorGhostItem`/`planHasDoor`,
+  wired in `FloorPlanEditor`) — and every "static fixture" gate (`Furniture.tsx` drag, inspector
+  Transform sections, plan `FurnitureLayer`/`FurnitureRotateHandle`) now checks
+  `windowBound || doorBound`. The **playpen** is an ordinary freestanding item (`frontClearance`).
   **Stable order across download** (STABLE-CATALOG-ORDER, in `useUnifiedCatalog.ts`): each category
   lists a leading local block, then the remote CC0 block, then the shared-library block — and a card
   never jumps blocks when it's downloaded. When a remote entry's `provider:slug` resolves to a local
@@ -560,8 +576,26 @@ same change that reshapes a system.
   by default) — the HQ-render border-beam (`.beam`, mounts only while rendering, IntersectionObserver-
   paused off-screen) and the catalog/preset mouse-follow radial gradient (pointermove-driven `--mx`/
   `--my`, `color-mix` accent, no continuous animation).
-- **GLB Asset Designer** (`furniture/glbEdit/`, `ui/glbEditor/GlbDesignerDialog.tsx`,
-  `featuresSlice.glbDesignerOpen`): compose a custom asset from primitive shapes
+- **GLB Asset Designer** (a.k.a. Asset Studio — `furniture/glbEdit/`, `ui/glbEditor/`,
+  `featuresSlice.glbDesignerOpen`, gated by the **`glbDesigner`** flag — pro tier, default on;
+  the flag gates the dialog mount, the ⌘K `glb-designer` command (COMMAND_FLAGS) and the catalog
+  "Design" button). **State lives in a designer context** (Stage 4a, `ui/glbEditor/
+  designerContext.tsx` — `DesignerProvider` + `useDesigner()`): the controller hook owns the spec +
+  bounded undo/redo history, selection (parts + transform group), gizmo mode + the live-preview
+  mesh/group registries, armed component/template state, live combine (CSG v2) evaluation, the
+  make-configurable assignments, and every commit/save/export handler + the reset-on-open / modal
+  guard / hotkey / dev-only `__glbDesigner*` automation-seam effects (it runs unconditionally, so
+  those stay stable whether the dialog is open or closed). `GlbDesignerDialog.tsx` is then pure
+  **composition** — the dialog chrome under `<DesignerProvider>` plus a flat list of panels, each of
+  which reads what it needs from `useDesigner()` (no props; conditionally-shown panels self-gate).
+  This replaced the ~99 hand-threaded props the panels carried through Stages 0–3, so a new Stage-4
+  tool no longer widens a prop firehose. The UI is split into focused sibling modules —
+  `DesignerViewport` (canvas + gizmo + source model), `DesignerToolbar` (undo/redo + add-shape
+  palette), `LayersPanel` (part list), `SourcePanel` (start-from + restore + recolour),
+  `CombinePanel` (CSG), `SavePanel` (name/category/placement/save) + `PartInspector` +
+  `GroupInspector` + `TemplatesPanel` + `ComponentsPanel` + `MakeConfigurablePanel` +
+  `PartsPreview`. All pure spec/geometry logic stays in `furniture/glbEdit/` — the context is only
+  the React state wiring. Compose a custom asset from primitive shapes
   (box/cylinder/sphere/cone/pyramid/capsule/torus/wedge — pure tested `editSpec.ts` `SHAPE_KINDS`;
   geometry via `buildObject.ts` `partGeometry` + per-part PBR via `partMaterial` — both shared by
   the live preview so it can't drift; each part carries colour + roughness + metalness +
@@ -573,7 +607,95 @@ same change that reshapes a system.
   `partMaterial` resolves the finish to a clone of the cached material — solid-colour fallback
   while unbuilt/unknown, never a crash. The texture is **baked into the exported GLB** (like
   the solid colours), so the saved asset needs no `mat:` re-resolution; CSG results gain
-  box-projected UVs (`boxProjectUvs`) so a finish tiles on them too)
+  box-projected UVs (`boxProjectUvs`) so a finish tiles on them too).
+  **Stage 2 — materials** (v0.21.2.32): each part also carries optional
+  `PhysicalSurfaceFields` (`editSpec.ts`) — sheen / clearcoat / transmission+ior+thickness /
+  anisotropy — and an optional two-tone `gradient`. `buildSurfaceMaterial` upgrades to a
+  `MeshPhysicalMaterial` ONLY when a physical axis is set (`hasPhysicalLook`; plain
+  `MeshStandardMaterial` otherwise — cost discipline); the gradient bakes to a `COLOR_0` vertex
+  attribute (`glbEdit/gradient.ts`, applied in `partGeometry`) rendered with `vertexColors`. The
+  inspector's `PartMaterialSection.tsx` shows a one-tap **finish preset** gallery (pure
+  `glbEdit/finishPresets.ts`, 14 curated bundles), a "Custom finish" `Disclosure` of the raw
+  sliders, and a "Gradient" `Disclosure`. Every field round-trips losslessly through the GLB
+  export (verified — `physicalMaterialExport.test.ts`; support matrix in `docs/asset-studio-plan.md`).
+  **Stage 3a — transform groups** (v0.21.2.33): named `PartGroup`s (`editSpec.ts`, `partGroups[]`)
+  hold a shared `position`/`rotation` applied ON TOP of member transforms — **distinct from a CSG
+  `CombineGroup`** (UI copy "Group" vs "Combine"); a part can be in one of each. `buildEditedObject`
+  nests grouped parts under a three.Group carrying the group transform (`glbEdit/groupTransform.ts`
+  — pure `groupedPartWorldPosition` + `ungroupPartGroup` which flattens so nothing jumps; flat
+  groups only, no nesting). `LayersPanel` is a shallow tree (group rows: inline rename, collapse,
+  indented members, Ungroup/Duplicate/Mirror; a **Group** action on the multi-select toolbar); the
+  gizmo drags a whole group via a group proxy (`gizmoWriteBack.ts:groupGizmoPatch`).
+  **Stage 3b — fittings/component library** (v0.21.2.34): a curated set of parametric hardware
+  fittings (`glbEdit/components.ts`, pure + unit-tested — 13 legs/handles/feet/hinges, each a
+  builder emitting an ordinary `ShapePart[]` in a component-local frame with 1–3 clamped params +
+  metal/wood/rubber finish defaults). The **`ComponentsPanel`** arms a fitting; a preview face-click
+  places it (SWOOD): `glbEdit/componentPlace.ts` (`componentTransform`) maps the component's mount
+  axis (`floor` legs/feet → down, `wall` handles/hinges → out) onto the clicked world normal, 5 mm-
+  snaps, and `editSpec.ts:addPlacedComponent` lands it as a named `PartGroup` (no new part kind).
+  Face clicks come from `PartsPreview`/`DesignerViewport` (R3F `onClick` + a ground plane; a
+  `window.__glbDesignerPlaceOnFace` automation seam mirrors `window.__store`). `GroupInspector`'s
+  **Repeat to corners** (`editSpec.ts:repeatComponentGroup` + `assetCenterXZ`, pure) mirrors a placed
+  fitting to 2/4 symmetric positions about the asset bbox centre. Scenario `glb-designer-stage3b`.
+  **Stage 3c — template-first flows** (v0.21.2.35): 6 archetype STARTER templates (`glbEdit/templates.ts`,
+  pure + unit-tested — Dining/Coffee table, Bookshelf, Cabinet, Bed frame, Sofa frame), each a pure
+  builder (clamped ergonomic dims → `ShapePart[]` + one wrapping `PartGroup`). The **parametric→designer
+  bridge is ruled to FLATTEN at insertion** (not a live recipe in the spec — that would be a fourth spec
+  concept; a template is just parts + a group, already covered by the v4 `partGroups` envelope). The
+  Bookshelf **reuses `parametric/buildParts.ts`** (its box `ParametricPart[]` map cleanly to `ShapePart`s
+  via a thin adapter); cabinet/table/bed/sofa reuse `components.ts` fittings + `finishPresets.ts` (sofa
+  cushions get **Velvet**). `TemplatesPanel.tsx` (above Components) arms a template → a compact parametric
+  step (2–4 ergonomic sliders with unit + range + hint) with a **live viewport preview** (the dialog
+  renders the would-be-inserted spec) → `insertTemplate` (pure) flattens it in as ONE undo step: an empty
+  spec is REPLACED, a non-empty spec inserts ALONGSIDE (offset on +X, no confirm). Scenario
+  `glb-designer-stage3c`.
+  **Stage 3d — sets & modular customization** (v0.21.2.36, closes Stage 3): (1) **Designer →
+  configurable product export** (`configurator/designerExport.ts`, pure planner unit-tested + async
+  baker; `ui/glbEditor/MakeConfigurablePanel.tsx`, flag `assetConfigurableExport`) — name a **Slot**
+  on a `PartGroup` (two groups sharing a slot name = alternative options, first = default) → emit a
+  `ConfigurableProduct`. **Options are baked GLB `data:` URLs** on the existing `gltfUrl` field (a
+  box-only `ConfiguredPart` can't hold lathe/cylinder/CSG parts), baked in product-world space at an
+  identity slot anchor, so the configurator's `model`/`compose`/`buildObject`/`saveConfigured` are
+  UNCHANGED; footprint `h` = vertical extent so `fitScaleToFootprint` stays ≈1. Exported products
+  register in the `userConfigurableProducts` slice (`state/slices/userProductsSlice.ts`, localStorage
+  `hdb_user_products`) and merge into `ConfiguratorDialog`'s tabs + resolution. (2) **Sets**
+  (`glbEdit/setSplit.ts`, pure + unit-tested; `SavePanel` switch, flag `assetSets`) — "Save groups as
+  separate assets" splits a multi-piece design so each top-level group also saves as its own catalog
+  asset (group transform flattened in), no new runtime concept. Scenario `glb-designer-stage3d`.
+  `specPersist` is at **v4**, and both it and the configurator's `slotSpec` now ride the shared
+  versioned **`furniture/specEnvelope.ts`** `{ kind, v, payload }` envelope + `EnvelopeCodec` (one
+  parse/serialize/migrate/guard path — `parseAssetSpec`/`serializeAssetSpec` +
+  `configurator/configuredPersist.ts` `parseConfiguredSpec`/`serializeConfiguredSpec`; `parseLegacy`
+  keeps reading pre-envelope blobs, re-saved in the envelope on next write).
+  **Stage 4b — precision & pro UX** (v0.21.2.39): **align/distribute** (`glbEdit/arrange.ts`, pure +
+  tested — kind-aware rotation-projected AABB extents `partWorldExtent`; `alignParts`/`distributeParts`),
+  **linear/radial array** (`glbEdit/arrayBuild.ts`, pure + tested — radial **reuses** room
+  `radialArray.ts:radialArrayPlacements`, linear implemented directly), and **arbitrary-axis mirror**
+  (`editSpec.ts:mirroredTransform`/`mirrorPartAxis`/`mirrorPartsAxis` — the single shared mirror
+  conjugation) all surface in `ui/glbEditor/ArrangePanel.tsx` on selection. A **grid-snap** preference
+  (`ui/glbEditor/gridSnapPref.ts`, per-device localStorage) feeds an optional length step into
+  `gizmoWriteBack.ts` (default 5 mm) + the inspector's numeric stepping; the viewport (`DesignerViewport.tsx`)
+  adds a magnet toggle + step Select, **Front/Side/Top/Home** camera presets (in-canvas responder,
+  perspective camera kept) and a live **W×D×H** dimension readout (`useFrame` Box3 union over the
+  selected preview objects). `LayersPanel.tsx` gains a name **filter** + inline part **rename**;
+  `ShapePart.name` bumps the envelope to **v6** (additive identity migration). Scenario `glb-designer-stage4`.
+  **Stage 5 — realism detail layer** (v0.21.2.40, closes the program): a **Details** panel
+  (`ui/glbEditor/DetailsPanel.tsx`) arms a curated **decal** kind (Button/Stitch line/Seam/Round
+  patch/Wear spot); a click on a part surface projects it with three's `DecalGeometry`
+  (`glbEdit/decals.ts` + `decalTexture.ts` procedural canvas patterns; the Stage-3b face-click seam
+  reused, dev seam `window.__glbDesignerPlaceDecal`). `AssetEditSpec.decals[]` stores each in the
+  target part's LOCAL frame (`{partId,position,normal,size,kind,color?,rotation?}`), so it's built
+  against the part geometry at identity and rendered as a CHILD of the part mesh — it follows a
+  grouped/moved part and `removePart` prunes it (`pruneDecals`). Decals are REAL geometry offset a
+  hair along the normal (zero z-fighting, survives export) → they EXPORT into the GLB and reimport
+  intact (`decalExport.test.ts`). **Piping** (`glbEdit/piping.ts`): one-tap on a box/extrude traces
+  its top-face perimeter (`roundedRectPathPoints`) as a thin `sweep` welt (new explicit `sweepPoints`
+  override on the sweep part), grouped with the host, host colour darkened. **Cushion "plump"**
+  (`glbEdit/plump.ts`): a `plump` 0…1 box/capsule param applies a sine-falloff vertex bulge (crown +
+  bow, corners pinned, normals recomputed) on a tessellated box — the shipped cushion-realism ruling
+  (b), see `PHOTOREALISM.md`. Envelope bumps to **v7** (`decals[]` + `plump` + `sweepPoints`, additive
+  identity migration). Scenario `glb-designer-stage5`. **The Asset Studio program is complete
+  (Stages 0–5).**
   and/or start from an uploaded GLB
   (uniformly scaled) to make a variant; live R3F preview (`buildEditedObject`), then
   `saveAsset.ts` exports via `exportGlb` (GLTFExporter) → `persistUserGlb` so it lands
@@ -589,9 +711,90 @@ same change that reshapes a system.
   gets a drei `TransformControls` gizmo in the preview (Move/Rotate/Scale segmented control
   overlay + G/R/S keys in-dialog; orbit auto-pauses while dragging via `makeDefault`). A
   finished drag is written back through the SAME `updatePart` path as the numeric inputs —
-  `gizmoWriteBack.ts` `gizmoPatch` (pure, tested) coalesces per drag-END and snaps to 5 mm /
-  1°; `mesh` parts hide Scale (triangles are baked). Launched from ⌘K. TODO:
-  per-component recolour/hide of a source GLB's meshes (v2).
+  `gizmoWriteBack.ts` `gizmoPatch` (pure, tested) coalesces per drag-END and snaps lengths to the
+  grid-snap step (default 5 mm, Stage 4b) / rotation to 1°; `mesh` parts hide Scale (triangles are baked).
+  **Precision II (Iteration 2, Stage 6d, v0.21.2.45):** with the magnet on, a finished translate also
+  **face-snaps** — `faceSnap.ts` (pure, tested) snaps the committed position flush to a nearby part's
+  AABB face within ~8 mm (abut = zero-gap outer faces; align = coplanar same-side faces; locality-gated
+  on perpendicular overlap, per-axis, face snap wins over grid), with a brief accent-edge hint
+  (`SnapHintOverlay`). **Precision III (Iteration 3, Stage 7b, v0.21.2.50):** the snap is now previewed
+  **live during the drag** — `TransformControls`' `objectChange` (rAF-gated) runs `dragSnapSession.ts`
+  (pure, tested: memoised targets captured once at drag start + per-axis **hysteresis**, a 1.5× release
+  band so it doesn't flicker at the threshold), snapping the dragged mesh flush in place with the hint
+  showing live; `onMouseUp` still commits through the same 6d write-back (commit-time snap stays the
+  authority, so the committed value equals what the user saw). Works for a part and a whole group;
+  holding **Alt** disables the magnet for that drag (CAD escape hatch, skips live + commit snap). A viewport **Centre /
+  Base / Corner pivot** switch (`pivot.ts`, pure, tested) changes the reference point for numeric
+  rotation + gizmo rotate/scale via position compensation on write-back (Centre = byte-identical to
+  today); applies to a part and a whole transform group. Both are ephemeral UI state (no spec/envelope
+  field). **Realism II (Iteration 2, Stage 6e, v0.21.2.46):** a plumped box/capsule cushion gains a
+  procedural **fabric wrinkle** normal map (`glbEdit/wrinkleTexture.ts`, pure height field + bounded
+  texture cache) — low-freq creases gathering toward the pinned seam corners (a `cornerness` mask) +
+  fine cloth nap, seeded from the part id (stable across renders + save/reload). A **Wrinkles (fabric)**
+  inspector slider (next to Plump) is default-on subtle (`DEFAULT_WRINKLES`) when `plump>0`, 0 = off;
+  visible strength is `normalScale ≈ 0.15…0.4` following plump depth × intensity. Baked as a
+  `DataTexture` (headless-generatable → the spec→material wiring is testable; `GLTFExporter` embeds it
+  as PNG, `normalTexture`+`scale` survive), cached in a bounded dispose-on-evict `LruCache` keyed by
+  `(seed, intensity-bucket)` (a slider drag reuses a handful of tiles). A textured `mat:<id>` finish
+  owns the normal channel, so wrinkles are skipped when a finish is set (inspector shows a hint).
+  New spec field `parts[].wrinkles?`, envelope bumps to **v10** (additive identity migration); wood-grain
+  direction was already Stage 6c (`finishRotation`). **Undo/redo** (Stage 0): a bounded
+  (~50-entry) history around the spec (`specHistory.ts`, pure + tested — push/undo/redo with
+  ~300 ms same-key coalescing so a slider drag is one step), wired to ⌘Z / ⇧⌘Z in-dialog (⌘Y
+  too) + the toolbar buttons (disabled at the ends). **Editable saves** (Stage 0): the edit
+  spec is embedded on the saved def as a versioned JSON `assetSpec` (`specPersist.ts`, the shared
+  `specEnvelope` `{ kind:'asset', v, payload }` — same envelope as the configurator's `slotSpec` —
+  travels IDB meta + the save schema), so re-picking a designer-built asset as the "Start from"
+  source offers **Restore
+  editable parts** (its full part list re-opens editable instead of a frozen source mesh); an
+  absent spec keeps today's frozen-source behaviour. Launched from ⌘K / the catalog Design button.
+  **Any furniture as an editable template (Stage 9a):** the `SourcePanel` "Make parts editable"
+  section lets you pick ANY catalog def — a grouped all-catalog `Select` (Built-ins / My uploads /
+  Shared library / Packs, built from `useDesigner().decomposableDefs`) — and decompose it into
+  editable parts/groups, replacing the current spec as one undo step. Pure core:
+  `glbEdit/decompose.ts` `decomposeObject(root, opts)` bakes each mesh's world transform (relative
+  to the decompose root) into root-local space, re-centres it on its bbox (so `position`/rotation
+  behave like any primitive), and wraps meshes sharing a top-level named child into one
+  `PartGroup`; an `InstancedMesh` de-instances one part per instance up to
+  `DECOMPOSE_INSTANCE_CAP` (64), merging into a single baked part beyond it, and the pass reports
+  `overBudget` past `DECOMPOSE_TRI_BUDGET` (150k tris, informational only — never blocks). Two
+  output flavours: **bake** (procedural defs — inlines geometry arrays) and **reference**
+  (`opts.ref: { defId }`, GLB defs — emits a `ShapePart.srcRef` = `{ defId, meshPath }` instead of
+  inlining a heavy source's triangles). `glbEdit/srcRefCache.ts` lazily resolves a `srcRef` back
+  into real geometry: it loads the def's GLB once through the SEC-1 loader
+  (`gltf/loaderSecurity.ts`), walks its decomposable meshes in the SAME order
+  `decompose.ts:forEachDecomposableMesh` used (so the mesh index re-resolves to the same mesh),
+  bakes+re-centres identically, and caches by `defId::meshIndex`; `buildObject.ts`'s mesh-geometry
+  case reads the cache synchronously (a placeholder box shows until resolved) and a resolution
+  epoch (`getSrcRefEpoch`/`subscribeSrcRef`) re-renders the preview the moment a def finishes
+  loading. `glbEdit/decomposeLoader.ts` is the GLB-side async glue: `decomposeGlbDef(defId, url)`
+  loads the GLB once, seeds the srcRef cache from that same scene (no second fetch), and
+  decomposes in reference mode; `specSrcRefDefIds(spec)` gathers a spec's referenced def ids
+  (awaited via `ensureSpecSrcRefs` before export so `buildObject` bakes real geometry into the
+  GLB); `dropUnresolvableSrcRefParts` prunes any `srcRef` part whose source def is gone at
+  restore time (honest degradation, never a crash). Procedural defs have no pure geometry builder,
+  so the PROCEDURAL path renders offscreen: `ui/glbEditor/decomposeHost.tsx`'s `DecomposeHost`
+  (mounted once inside the open dialog) is a hidden on-demand `<Canvas>` that mounts the armed
+  primitive, waits two frames for its children to build, reads back the group, and resolves
+  `requestPrimitiveDecompose(def)` with `decomposeObject(group, { ref: null })` (bake mode) — a
+  6s watchdog resolves `null` if a primitive never settles, so a decompose can never hang. The
+  spec envelope bumps to **v13** for the new optional `parts[].srcRef` (additive, `specPersist.ts`).
+  **Component building blocks (Stage 9b):** two ways to reuse decomposed geometry. **Selective
+  extraction** (`glbEdit/decomposeSelect.ts`, pure): SourcePanel's "Choose parts to insert…" runs
+  the same decompose, then `decomposeEntries(result)` presents a part-granular picker (a group
+  "select-all" row + indented member rows, then loose parts; selection is by PART id) and
+  `insertDecomposedSubset(spec, parts, groups)` adds only the chosen meshes **alongside** the design
+  (fresh part/group ids, srcRefs verbatim, +X offset — never replacing; a source group survives only
+  when fully selected). **User components** (`glbEdit/componentFragment.ts`): `captureGroupFragment`
+  turns a `PartGroup` into a small `ComponentFragment` (parts-only, srcRefs kept) serialized to the
+  shared spec envelope kind **`'component'` v1**; `state/slices/userComponentsSlice.ts` persists them
+  to `localStorage` (`hdb_user_components`, the `userProductsSlice` metadata + fail-loud pattern).
+  They render in the Components panel under "My components" with the built-in arm→click-to-place flow
+  (`placeComponentFragmentOnFace` via the shared `componentPlace` math, `'floor'` mount);
+  `componentFragmentFits` refuses a >256 KB fragment (a baked-mesh member) at save;
+  `dropUnresolvableComponentParts` (reusing 9a's `dropUnresolvableSrcRefParts`) degrades a
+  place whose `srcRef` def is gone; delete gates on `confirmAction` (confirm, no undo). Scenario
+  `scripts/scenarios/glb-designer-stage9b.json`.
 - **Onboarding/tour/wizard**: **Onboarding** (`Onboarding.tsx`, `hdb_onboarded`) is the
   **first** first-run surface — fires on clean profile, bot decision extracted to
   `ui/bootDecision.ts` (pure, tested). Carousel step 3 offers "Take the guided tour" as the
@@ -818,14 +1021,20 @@ same change that reshapes a system.
 - **Downloadable content** (`catalog/packs/registry.ts`, `ui/catalog/PacksTab.tsx`):
   declarative `AVAILABLE_PACKS`; `visiblePacks(isDev)` hides `devOnly`. **Gating rule**:
   CORS/programmatic download → prod; needs proxy/sidecar/hand-download → `devOnly`. Kinds
-  `'poly-pizza'` (prod), `'zip'` (Kenney dev), `'ikea-live'` (dev sidecar `scraper-server.mjs`
-  → `public/assets/ikea/`, SSE), `'manual'`. **Remote material providers**
-  (`catalog/remote/providers/`): Poly Haven (CORS, prod) + ambientCG (proxy, dev), gated
+  `'poly-pizza'` (prod), `'poly-haven-bundle'` (prod), `'zip'` (Kenney dev), `'ikea-live'` (dev
+  sidecar `scraper-server.mjs` → `public/assets/ikea/`, SSE), `'manual'`. **Curated Poly Haven
+  set-dressing bundles** (`catalog/packs/polyHaven.ts`, `POLY_HAVEN_BUNDLES`): themed one-click
+  installs (Indoor plants / Shelf & table decor / Kitchen counter) of CC0 props from the keyless
+  Poly Haven API. Poly Haven models are multi-file glTF (`.gltf`+`.bin`+textures), so
+  `installPolyHavenBundle` fetches each item (deps come from the API `include` map, never
+  constructed) and packs it into a self-contained GLB in-browser via `convertModel`
+  (`furniture/convert/`), then reuses `buildEntry`/`commit`; nothing is vendored. **Remote material
+  providers** (`catalog/remote/providers/`): Poly Haven (CORS, prod) + ambientCG (proxy, dev), gated
   by `activeProviderIds`/`PROD_PROVIDER_IDS`. **Poly Haven supplies materials/textures (+ HDRIs
-  via `scene/lighting/hdriCatalog.ts`) only — its furniture *models* are deliberately not an
-  asset source**, so no provider currently emits `kind:'furniture'` (the `remoteFurniture` browse
-  is dormant until one does). Add a source: poly-pizza-style client reusing `buildEntry`/`commit`,
-  a `RemoteProvider`, or a `'manual'` entry.
+  via `scene/lighting/hdriCatalog.ts`) plus these curated model bundles — but is NOT a *browsable*
+  model source** (its multi-file glTF is why), so no provider emits `kind:'furniture'` (the
+  `remoteFurniture` browse is dormant until one does). Add a source: poly-pizza-style client reusing
+  `buildEntry`/`commit`, a `RemoteProvider`, or a `'manual'` entry.
 - **Shared library (R2, prod)** (`state/slices/sharedLibrarySlice.ts`, `ui/catalog/SharedCard.tsx`,
   `catalog/packs/sharedLibrary.ts`): the Cloudflare R2 library **auto-populates the catalog grid**
   for signed-in **admins** — `bootstrapSharedLibrary` fetches `library/index.json` once on catalog
@@ -1078,6 +1287,18 @@ same change that reshapes a system.
   door clear widths vs 0.85 m + 1.5 m wheelchair turning circle per habitable room; BCA-Code rule of
   thumb). `ui/AccessibilityPanel.tsx` (`.aux`, Tools + ⌘K) + the report's Accessibility section.
   Plan-only (reads for a bare shell).
+- **Pet compliance** (Pet program P6) (`analysis/petCompliance.ts` pure → `buildPetCompliance(petTypes,
+  items, plan)`: a data-driven `PET_RULES` table over the declared `PetType[]` producing
+  `required`/`recommended`/`info` checklist entries with `status` (`done`/`partial`/`missing`),
+  `have`/`need`, `cite` + satisfying `defIds`; the cat window-mesh rule counts `window-mesh-screen`
+  items vs the plan's window openings across every storey. Also `petComplianceSummary` (badge counts) +
+  `essentialDefIdsForPetTypes` (catalog surfacing). The per-design `petTypes` profile lives on
+  `state/slices/petProfileSlice.ts` (`setPetTypes`/`togglePetType`), persisted via the save schema
+  (`schema.ts` optional `petTypes` + autosave watch-list, like `location`). Surfaces: the "Do you have
+  pets?" setting (shared `ui/PetProfileControl.tsx`, in the Scene menu/sheet, `petProfile` simple flag),
+  the catalog "Essential" badge + first-ordering in the pets tab (`petProfile`), `ui/PetCompliancePanel.tsx`
+  (`.aux`, Tools + ⌘K, `petCompliance` pro flag; "Add" CTA jumps the catalog to the pets tab via the
+  session-only `pendingCatalogCategory`), and the report's Pet-compliance section.
 - **Daylight & ventilation check** (`analysis/daylight.ts` pure → `buildDaylightReport(plan)`:
   per-room window glazing % + openable % vs rule-of-thumb thresholds `DAYLIGHT_MIN_RATIO` (0.1) /
   `VENT_MIN_RATIO` (0.05); windows attributed to rooms by a wall-midpoint probe, `OPENABLE_FRACTION`

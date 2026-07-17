@@ -146,7 +146,11 @@ function FurnitureInner({ item, def, passive, contactShadow, dimmed }: Furniture
       // window-bound (curtains/blinds) pieces are selectable (to unlock) but never
       // draggable, so they never begin a drag either.
       if (
-        !shouldBeginItemDrag({ alreadySelected, locked: item.locked, windowBound: def.windowBound })
+        !shouldBeginItemDrag({
+          alreadySelected,
+          locked: item.locked,
+          windowBound: def.windowBound || def.doorBound,
+        })
       )
         return
       const offset: [number, number] = [e.point.x - item.position[0], e.point.z - item.position[1]]
@@ -191,7 +195,7 @@ function FurnitureInner({ item, def, passive, contactShadow, dimmed }: Furniture
         altKey: e.altKey,
         alreadySelected,
         locked: item.locked,
-        windowBound: def.windowBound,
+        windowBound: def.windowBound || def.doorBound,
         featureEnabled: isFeatureEnabled('altDragDuplicate'),
       })
       state.startDrag(
@@ -203,7 +207,7 @@ function FurnitureInner({ item, def, passive, contactShadow, dimmed }: Furniture
         duplicate ? ids : undefined,
       )
     },
-    [item.id, item.position, item.rotation, passive, item.locked, def.windowBound],
+    [item.id, item.position, item.rotation, passive, item.locked, def.windowBound, def.doorBound],
   )
 
   // Hover is gated on the FOOTPRINT, not the raw mesh (HOVER-FOOTPRINT): project

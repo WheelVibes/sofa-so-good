@@ -68,6 +68,18 @@ export function HighChair({ props }: { props: ParamProps }) {
         position={[0, seatY + 0.2, -seatD / 2 + 0.02]}
         material={seatMat}
       />
+      {/* Tray mounting arms — short posts carrying the tray up from the seat
+          sides (the tray previously floated ~7 cm clear of the seat). */}
+      {[-1, 1].map((sx) => (
+        <mesh
+          key={`ta${sx}`}
+          castShadow
+          position={[sx * (seatW / 2), seatY + 0.06, seatD / 2 - 0.03]}
+          material={legMat}
+        >
+          <cylinderGeometry args={[0.012, 0.012, 0.16, 8]} />
+        </mesh>
+      ))}
       {/* Front tray */}
       <RoundedBox
         args={[seatW + 0.12, 0.03, 0.22]}

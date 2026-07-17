@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { placementWalls } from '../../collision/placementWalls'
 import { allPlanRooms, GROUND_LEVEL_ID, levelOfRoom } from '../../floorplan/levels'
 import { pointInRoom, roomPolygon } from '../../floorplan/types'
+import { resolveFootprintDims } from '../../furniture/footprintDims'
 import type { FurnitureDef, FurnitureItem } from '../../furniture/types'
 import { scatterInRoom } from '../../layout/scatterInRoom'
 import { useStore } from '../../state/store'
@@ -41,11 +42,9 @@ export function ScatterFillSection({
   let w = def.defaultFootprint.w
   let d = def.defaultFootprint.d
   if (def.kind === 'parametric') {
-    const map = def.footprintParams ?? {}
-    const wv = item.props[map.w ?? 'width']
-    const dv = item.props[map.d ?? 'depth']
-    if (typeof wv === 'number') w = wv
-    if (typeof dv === 'number') d = dv
+    const dims = resolveFootprintDims(def, item.props, { w, d })
+    w = dims.w
+    d = dims.d
   }
 
   const apply = () => {

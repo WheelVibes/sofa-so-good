@@ -1,0 +1,113 @@
+{
+  "name": "glb-designer-stage1a",
+  "description": "Asset Studio Stage 1a — the new profile-driven shape kinds (lathe/extrude/sweep) + ubiquitous bevels in the GLB designer. In Pro with glbDesigner on: add a Lathe (seeds the turned-leg preset), an Extrude (rounded-rect, bevel ON by default), a Sweep (piping ring) and a Box, then bevel the box via its 'Corner radius' slider. Asserts 4 parts via the designer's own layer-row Remove buttons (scoped to .glb-designer). Then selects the lathe, reads its first profile point's X input, sets it to a distinctive value (0.234) through the ProfileEditor numeric field, and asserts the input reflects it — a DOM readback of the part's live `profile` param (the input is bound to part.profile[sel][0], so the new value only appears if the edit round-tripped through updatePart → re-render). Finally saves and asserts the persisted UserGltfDef's `assetSpec` JSON contains that 0.234 coordinate AND all four Stage-1a kinds (lathe/extrude/sweep) — the end-to-end proof the geometry params reached the exported spec. Screenshots the decisive frames (all four shapes framed by the Bounds fit; the bevelled box; the restored/edited profile). Part rows counted with `.glb-designer button[aria-label^=\"Remove \"]`.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "verify-flag-on",
+      "waitFor": { "store": "state.featureFlags.glbDesigner === true" },
+      "timeout": 5000,
+      "failMessage": "glbDesigner is a pro-tier flag → on in Pro mode by default"
+    },
+    { "name": "open-designer", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    {
+      "name": "wait-designer",
+      "waitFor": { "text": "3D asset designer" },
+      "timeout": 15000,
+      "failMessage": "designer dialog should mount with the flag on in Pro mode"
+    },
+    { "name": "shot-designer-open", "screenshot": "01-designer-open" },
+    { "name": "add-lathe", "click": { "text": "Lathe" } },
+    {
+      "name": "wait-lathe",
+      "waitFor": { "css": ".glb-designer button[aria-label='Remove lathe 1']" },
+      "timeout": 5000,
+      "failMessage": "adding a Lathe should append a lathe layer row"
+    },
+    { "name": "add-extrude", "click": { "text": "Extrude" } },
+    {
+      "name": "wait-extrude",
+      "waitFor": { "css": ".glb-designer button[aria-label='Remove extrude 2']" },
+      "timeout": 5000
+    },
+    { "name": "add-sweep", "click": { "text": "Sweep" } },
+    {
+      "name": "wait-sweep",
+      "waitFor": { "css": ".glb-designer button[aria-label='Remove sweep 3']" },
+      "timeout": 5000
+    },
+    { "name": "add-box", "click": { "text": "Box" } },
+    {
+      "name": "wait-box",
+      "waitFor": { "css": ".glb-designer button[aria-label='Remove box 4']" },
+      "timeout": 5000
+    },
+    {
+      "name": "assert-four-parts",
+      "eval": "(function(){ const n = document.querySelectorAll('.glb-designer button[aria-label^=\"Remove \"]').length; if (n !== 4) throw new Error('expected 4 shape parts, got ' + n); })()"
+    },
+    { "name": "settle-shapes", "wait": 800 },
+    { "name": "shot-four-shapes", "screenshot": "02-four-shapes-lathe-extrude-sweep-box" },
+    {
+      "name": "bevel-the-box",
+      "comment": "The box is the selected part (add-shape auto-selects). Drive its 'Corner radius' slider to a visible fillet.",
+      "eval": "(function(){ const sl = [...document.querySelectorAll('.glb-designer input[type=range]')].find(i => i.getAttribute('aria-label') === 'Corner radius (m)'); if (!sl) throw new Error('Corner radius slider not found for the box'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(sl), 'value').set; setter.call(sl, '0.08'); sl.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    { "name": "settle-bevel", "wait": 500 },
+    { "name": "shot-bevelled-box", "screenshot": "03-bevelled-box" },
+    {
+      "name": "select-lathe",
+      "comment": "Click the lathe layer row to select it (opens its PartInspector with the ProfileEditor).",
+      "eval": "(function(){ const rows = [...document.querySelectorAll('.glb-designer .lyr-row')]; const row = rows.find(r => /lathe 1/i.test(r.textContent || '')); if (!row) throw new Error('lathe layer row not found'); row.click(); })()"
+    },
+    {
+      "name": "wait-profile-editor",
+      "waitFor": { "css": ".glb-designer input[aria-label='Profile point X']" },
+      "timeout": 5000,
+      "failMessage": "selecting the lathe should show the shared ProfileEditor with numeric X/Y fields"
+    },
+    {
+      "name": "record-profile-x-before",
+      "eval": "window.__latheXBefore = document.querySelector('.glb-designer input[aria-label=\"Profile point X\"]').value"
+    },
+    {
+      "name": "edit-profile-point-x",
+      "comment": "Set the selected profile point's X to a distinctive 0.234 via the numeric field — a param edit that must round-trip through updatePart back into part.profile.",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Profile point X\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, '0.234'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    { "name": "settle-profile-edit", "wait": 500 },
+    {
+      "name": "assert-profile-readback",
+      "comment": "DOM readback of the part's live param: the input is bound to part.profile[sel][0], so it shows 0.234 only if the edit reached the spec and re-rendered.",
+      "eval": "(function(){ const v = document.querySelector('.glb-designer input[aria-label=\"Profile point X\"]').value; if (Number(v) !== 0.234) throw new Error('profile point X should read back 0.234 after the numeric edit, got ' + v); if (v === window.__latheXBefore) throw new Error('profile point X did not change'); })()"
+    },
+    { "name": "shot-profile-edited", "screenshot": "04-lathe-profile-point-edited" },
+    {
+      "name": "set-asset-name",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Asset name\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, 'Stage1a Shapes'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "record-baseline",
+      "eval": "window.__glbBaseline = window.__store.getState().userFurniture.length"
+    },
+    {
+      "name": "click-save",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer button')].find(b => b.textContent.trim() === 'Save asset' && !b.disabled); if (!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-saved-spec-carries-params",
+      "comment": "End-to-end proof: the saved UserGltfDef's assetSpec JSON carries all Stage-1a kinds AND the edited 0.234 profile coordinate.",
+      "waitFor": {
+        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Stage1a Shapes' && typeof d.assetSpec === 'string' && d.assetSpec.includes('\"lathe\"') && d.assetSpec.includes('\"extrude\"') && d.assetSpec.includes('\"sweep\"') && d.assetSpec.includes('0.234'))"
+      },
+      "timeout": 30000,
+      "failMessage": "saved assetSpec should embed lathe/extrude/sweep parts and the edited 0.234 lathe profile coordinate"
+    },
+    { "name": "shot-saved", "screenshot": "05-saved" }
+  ]
+}

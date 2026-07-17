@@ -6,8 +6,15 @@ import { readNum, readStr } from './shared'
 /** Bedside cabinet on short legs. Styles: 'drawers' (two drawer fronts),
  *  'drawer-shelf' (one top drawer over an open cubby), and 'open' (a single
  *  open cubby with a mid shelf). Faces +Z. */
+/** Legacy named `size` values (m) — current enum values are metre strings
+ *  ('0.38'/'0.45'/'0.6') parsed directly, so the footprint resolver tracks them. */
+const NIGHTSTAND_WIDTH: Record<string, number> = { narrow: 0.38, standard: 0.45, wide: 0.6 }
+
 export function Nightstand({ props }: { props: ParamProps }) {
-  const width = readNum(props, 'width', 0.45)
+  const size = readStr(props, 'size', '0.45')
+  const sizeWidth = NIGHTSTAND_WIDTH[size] ?? Number(size)
+  // Back-compat: an older placed item may still carry a numeric `width` prop.
+  const width = readNum(props, 'width', Number.isFinite(sizeWidth) ? sizeWidth : 0.45)
   const depth = readNum(props, 'depth', 0.4)
   const color = readStr(props, 'color', '#8a6b48')
   const finish = readStr(props, 'finish', 'wood')

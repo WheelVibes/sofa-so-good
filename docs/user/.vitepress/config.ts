@@ -30,6 +30,7 @@ export default defineConfig({
         text: 'Designing',
         items: [
           { text: 'Placing & arranging furniture', link: '/placing-furniture' },
+          { text: 'Pet fittings & furniture', link: '/pet-fittings' },
           { text: 'Finishes & materials', link: '/finishes-and-materials' },
           { text: 'Lighting & time of day', link: '/lighting-and-time' },
           { text: 'Themes & appearance', link: '/themes-and-appearance' },
@@ -49,6 +50,14 @@ export default defineConfig({
           { text: 'Per-room editor', link: '/room-editor' },
           { text: 'Walkthrough & sun study', link: '/walkthrough-and-sun-study' },
           { text: 'Budget, checks & report', link: '/design-tools' },
+        ],
+      },
+      {
+        text: 'Sharing & exporting',
+        items: [
+          { text: 'Exporting your design', link: '/exporting' },
+          { text: 'Style helpers & AI', link: '/style-and-ai' },
+          { text: 'Accounts & cloud sync', link: '/accounts-and-sync' },
         ],
       },
       {

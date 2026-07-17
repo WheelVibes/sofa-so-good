@@ -46,6 +46,22 @@ export const STORAGE_DEFS = {
     keywords: ['closet', 'almirah', 'armoire'],
     primitive: 'Wardrobe',
     defaultFootprint: { w: 1.5, d: 0.6, h: 2.1 },
+    // Straight: a single box that tracks the live width. Corner (L-plan): two
+    // 0.6 m-deep arms meeting at the back-left corner — the return arm's length
+    // is capped so the L stays within a sensible footprint. The concave inner
+    // corner stays open so a piece can tuck into the L (sofa-lshape precedent).
+    footprintParts: (props) => {
+      const width = typeof props.width === 'number' ? props.width : 1.5
+      const d0 = 0.6
+      if (props.layout !== 'corner') return [{ dx: 0, dz: 0, w: width, d: d0 }]
+      const ret = Math.min(width, 1.2) // return-arm length along Z
+      // Footprint bbox: width (X) × ret (Z), centred at origin (matches the
+      // primitive). Main arm spans the back in X; return arm spans Z on the left.
+      return [
+        { dx: 0, dz: -ret / 2 + d0 / 2, w: width, d: d0 },
+        { dx: -width / 2 + d0 / 2, dz: 0, w: d0, d: ret },
+      ]
+    },
     paramSchema: [
       {
         kind: 'number',
@@ -67,6 +83,29 @@ export const STORAGE_DEFS = {
           { value: 'hinged', label: 'Hinged' },
           { value: 'sliding', label: 'Sliding' },
           { value: 'open', label: 'Open (no doors)' },
+        ],
+      },
+      {
+        // Placed AFTER `doorStyle` so `doorStyle` stays the first structural enum
+        // (hinged/sliding/open keep harness coverage); the corner L-plan is
+        // covered via the harness EXTRA_MODES map.
+        kind: 'enum',
+        key: 'layout',
+        label: 'Layout',
+        default: 'straight',
+        options: [
+          { value: 'straight', label: 'Straight' },
+          { value: 'corner', label: 'Corner (L-shape)' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'doorFinish',
+        label: 'Door front',
+        default: 'panel',
+        options: [
+          { value: 'panel', label: 'Panelled' },
+          { value: 'mirror', label: 'Mirrored' },
         ],
       },
       {
@@ -144,6 +183,76 @@ export const STORAGE_DEFS = {
         key: 'finish',
         label: 'Finish',
         default: 'mat:floor-wood-oak',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    ],
+  },
+  'drawer-pedestal': {
+    kind: 'parametric',
+    id: 'drawer-pedestal',
+    name: 'Drawer pedestal',
+    keywords: [
+      'drawer unit',
+      'pedestal',
+      'under-desk drawers',
+      'mobile drawers',
+      'filing cabinet',
+      'castors',
+      'office',
+    ],
+    category: 'storage',
+    primitive: 'Dresser',
+    // A slim under-desk mobile pedestal. `variant` (pedestal on castors / a
+    // taller chest on legs) drives the body height in the primitive; height is
+    // not collision-critical, so the footprint height is pinned to the taller
+    // chest (0.93). Width is a numeric param → tracked via footprintParams.
+    defaultFootprint: { w: 0.4, d: 0.5, h: 0.93 },
+    footprintParams: { w: 'width' },
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'variant',
+        label: 'Base',
+        default: 'pedestal',
+        options: [
+          { value: 'pedestal', label: 'Mobile (castors)' },
+          { value: 'chest', label: 'Tall (legs)' },
+        ],
+      },
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 0.35,
+        max: 0.55,
+        step: 0.05,
+        default: 0.4,
+        unit: 'm',
+      },
+      { kind: 'integer', key: 'rows', label: 'Drawers', min: 2, max: 4, default: 3 },
+      { kind: 'integer', key: 'cols', label: 'Columns', min: 1, max: 2, default: 1 },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#8a6b48' },
+      {
+        kind: 'enum',
+        key: 'handle',
+        label: 'Handles',
+        default: 'bar',
+        options: [
+          { value: 'knob', label: 'Round knob' },
+          { value: 'bar', label: 'Bar pull' },
+          { value: 'recessed', label: 'Recessed' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'painted',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -296,7 +405,14 @@ export const STORAGE_DEFS = {
     id: 'tv-console',
     name: 'TV console',
     category: 'storage',
-    keywords: ['tv stand', 'media unit', 'media console', 'entertainment unit'],
+    keywords: [
+      'tv stand',
+      'media unit',
+      'media console',
+      'entertainment unit',
+      'lowboy',
+      'media lowboy',
+    ],
     primitive: 'TVConsole',
     defaultFootprint: { w: 1.8, d: 0.4, h: 0.45 },
     paramSchema: [
@@ -330,6 +446,7 @@ export const STORAGE_DEFS = {
         options: [
           { value: 'drawers', label: 'Drawers' },
           { value: 'doors', label: 'Doors' },
+          { value: 'lowboy', label: 'Media lowboy (drawers + open bay)' },
         ],
       },
       {
@@ -434,17 +551,23 @@ export const STORAGE_DEFS = {
     keywords: ['bedside table', 'night table', 'bedside cabinet'],
     category: 'storage',
     primitive: 'Nightstand',
+    // `size` values are metre STRINGS so the shared footprint resolver
+    // (furniture/footprintDims.ts) tracks the enum EXACTLY — no largest-mode
+    // pinning needed (that fallback remains for non-numeric enums like the
+    // dog-crate's 'S'/'M').
     defaultFootprint: { w: 0.45, d: 0.4, h: 0.52 },
+    footprintParams: { w: 'size', d: 'depth' },
     paramSchema: [
       {
-        kind: 'number',
-        key: 'width',
-        label: 'Width',
-        min: 0.35,
-        max: 0.6,
-        step: 0.05,
-        default: 0.45,
-        unit: 'm',
+        kind: 'enum',
+        key: 'size',
+        label: 'Size',
+        default: '0.45',
+        options: [
+          { value: '0.38', label: 'Narrow (38 cm)' },
+          { value: '0.45', label: 'Standard (45 cm)' },
+          { value: '0.6', label: 'Wide (60 cm)' },
+        ],
       },
       {
         kind: 'number',
@@ -593,6 +716,417 @@ export const STORAGE_DEFS = {
         ],
       },
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0.1 },
+    ],
+  },
+  'display-cabinet': {
+    kind: 'parametric',
+    id: 'display-cabinet',
+    name: 'Display cabinet',
+    category: 'storage',
+    keywords: ['vitrine', 'glass cabinet', 'curio', 'display case', 'glazed cabinet', 'showcase'],
+    primitive: 'DisplayCabinet',
+    defaultFootprint: { w: 1.0, d: 0.4, h: 1.8 },
+    footprintParams: { w: 'width' },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 0.8,
+        max: 1.2,
+        step: 0.05,
+        default: 1.0,
+        unit: 'm',
+      },
+      {
+        // The 'wall' compact variant renders lifted to a mount height while the
+        // def stays FLOOR-anchored for collision (fireplace-wall precedent): a
+        // single static `mounted` flag can't serve the tall floor styles AND a
+        // wall box. Harness FLOOR_EXEMPT for `display-cabinet::wall`.
+        kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'full-glass',
+        options: [
+          { value: 'full-glass', label: 'Full glass' },
+          { value: 'half', label: 'Glass + base cabinet' },
+          { value: 'wall', label: 'Wall-mounted (compact)' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'lit',
+        label: 'Interior light',
+        default: 'no',
+        options: [
+          { value: 'no', label: 'Off' },
+          { value: 'yes', label: 'Warm glow' },
+        ],
+      },
+      { kind: 'color', key: 'frameColor', label: 'Frame', default: '#5a4632' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Frame finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+    ],
+  },
+  'shoe-bench': {
+    kind: 'parametric',
+    id: 'shoe-bench',
+    name: 'Shoe bench',
+    category: 'storage',
+    keywords: [
+      'shoe bench',
+      'entryway bench',
+      'hallway bench',
+      'entry',
+      'shoe storage',
+      'shoe rack',
+    ],
+    primitive: 'ShoeBench',
+    defaultFootprint: { w: 1.0, d: 0.35, h: 0.49 },
+    footprintParams: { w: 'width', d: 'depth' },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 0.9,
+        max: 1.2,
+        step: 0.05,
+        default: 1.0,
+        unit: 'm',
+      },
+      {
+        kind: 'number',
+        key: 'depth',
+        label: 'Depth',
+        min: 0.3,
+        max: 0.4,
+        step: 0.02,
+        default: 0.35,
+        unit: 'm',
+      },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'cubbies',
+        options: [
+          { value: 'cubbies', label: 'Open cubbies' },
+          { value: 'flip', label: 'Flip fronts' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Frame', default: '#8a6b48' },
+      { kind: 'color', key: 'cushion', label: 'Cushion', default: '#4f5a63' },
+      {
+        kind: 'enum',
+        key: 'cushionMaterial',
+        label: 'Cushion fabric',
+        default: 'fabric',
+        options: [
+          { value: 'fabric', label: 'Fabric' },
+          { value: 'velvet', label: 'Velvet' },
+          { value: 'leather', label: 'Leather' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'mat:floor-wood-oak',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    ],
+  },
+  'wall-hook-rail': {
+    kind: 'parametric',
+    id: 'wall-hook-rail',
+    name: 'Wall hook rail',
+    category: 'storage',
+    keywords: ['coat hooks', 'wall hooks', 'hook rail', 'coat rail', 'entry', 'peg rail', 'hooks'],
+    primitive: 'WallHookRail',
+    defaultFootprint: { w: 0.8, d: 0.1, h: 0.15 },
+    footprintParams: { w: 'width' },
+    mounted: true,
+    verticalSpan: { base: 1.5, top: 1.72 },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 0.6,
+        max: 1.0,
+        step: 0.05,
+        default: 0.8,
+        unit: 'm',
+      },
+      { kind: 'integer', key: 'hooks', label: 'Hooks', min: 3, max: 8, default: 5 },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'rail',
+        options: [
+          { value: 'rail', label: 'Metal J-hooks' },
+          { value: 'pegs', label: 'Shaker pegs' },
+        ],
+      },
+      {
+        kind: 'number',
+        key: 'mountHeight',
+        label: 'Mount height',
+        min: 1.3,
+        max: 1.9,
+        step: 0.05,
+        default: 1.6,
+        unit: 'm',
+      },
+      { kind: 'color', key: 'color', label: 'Board', default: '#6f553f' },
+      { kind: 'color', key: 'hookColor', label: 'Hooks', default: '#2b2d31' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Board finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+    ],
+  },
+  pegboard: {
+    kind: 'parametric',
+    id: 'pegboard',
+    name: 'Pegboard organiser',
+    category: 'storage',
+    keywords: [
+      'pegboard',
+      'wall organiser',
+      'wall organizer',
+      'service yard',
+      'tool board',
+      'peg board',
+    ],
+    primitive: 'Pegboard',
+    defaultFootprint: { w: 0.8, d: 0.2, h: 0.9 },
+    footprintParams: { w: 'width' },
+    mounted: true,
+    verticalSpan: { base: 0.85, top: 1.75 },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 0.6,
+        max: 1.0,
+        step: 0.05,
+        default: 0.8,
+        unit: 'm',
+      },
+      {
+        kind: 'number',
+        key: 'height',
+        label: 'Height',
+        min: 0.6,
+        max: 1.2,
+        step: 0.05,
+        default: 0.9,
+        unit: 'm',
+      },
+      {
+        kind: 'enum',
+        key: 'kit',
+        label: 'Accessories',
+        default: 'shelf+hooks',
+        options: [
+          { value: 'shelf+hooks', label: 'Shelf + hooks' },
+          { value: 'hooks', label: 'Hooks' },
+          { value: 'cups', label: 'Cups' },
+        ],
+      },
+      {
+        kind: 'number',
+        key: 'mountHeight',
+        label: 'Mount height',
+        min: 1.0,
+        max: 1.6,
+        step: 0.05,
+        default: 1.3,
+        unit: 'm',
+      },
+      { kind: 'color', key: 'color', label: 'Board', default: '#d8c39a' },
+    ],
+  },
+  'utility-cabinet': {
+    kind: 'parametric',
+    id: 'utility-cabinet',
+    name: 'Utility cabinet',
+    category: 'storage',
+    keywords: [
+      'utility cabinet',
+      'broom cupboard',
+      'broom closet',
+      'tall cabinet',
+      'service yard',
+      'store room',
+      'cleaning cupboard',
+    ],
+    primitive: 'UtilityCabinet',
+    defaultFootprint: { w: 0.5, d: 0.4, h: 2.0 },
+    footprintParams: { w: 'width', d: 'depth' },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 0.4,
+        max: 0.6,
+        step: 0.05,
+        default: 0.5,
+        unit: 'm',
+      },
+      {
+        kind: 'number',
+        key: 'depth',
+        label: 'Depth',
+        min: 0.35,
+        max: 0.5,
+        step: 0.05,
+        default: 0.4,
+        unit: 'm',
+      },
+      {
+        kind: 'number',
+        key: 'height',
+        label: 'Height',
+        min: 1.8,
+        max: 2.2,
+        step: 0.05,
+        default: 2.0,
+        unit: 'm',
+      },
+      {
+        kind: 'enum',
+        key: 'doors',
+        label: 'Doors',
+        default: 'single',
+        options: [
+          { value: 'single', label: 'Single door' },
+          { value: 'double', label: 'Double door' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'doorStyle',
+        label: 'Door style',
+        default: 'panel',
+        options: [
+          { value: 'panel', label: 'Flat panel' },
+          { value: 'louvre', label: 'Louvre (slatted)' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#e4ddcf' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'painted',
+        options: [
+          { value: 'painted', label: 'Painted' },
+          { value: 'wood', label: 'Wood' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    ],
+  },
+  'storage-bench': {
+    kind: 'parametric',
+    id: 'storage-bench',
+    name: 'Storage bench',
+    category: 'storage',
+    keywords: [
+      'blanket box',
+      'ottoman bench',
+      'storage bench',
+      'toy box',
+      'lift-lid bench',
+      'chest',
+      'end-of-bed bench',
+    ],
+    primitive: 'StorageBench',
+    defaultFootprint: { w: 1.0, d: 0.45, h: 0.45 },
+    footprintParams: { w: 'width', d: 'depth' },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 0.8,
+        max: 1.4,
+        step: 0.05,
+        default: 1.0,
+        unit: 'm',
+      },
+      {
+        kind: 'number',
+        key: 'depth',
+        label: 'Depth',
+        min: 0.4,
+        max: 0.5,
+        step: 0.02,
+        default: 0.45,
+        unit: 'm',
+      },
+      {
+        kind: 'enum',
+        key: 'base',
+        label: 'Base',
+        default: 'legs',
+        options: [
+          { value: 'legs', label: 'Tapered legs' },
+          { value: 'plinth', label: 'Plinth' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Lid',
+        default: 'plain',
+        options: [
+          { value: 'plain', label: 'Piped edge' },
+          { value: 'tufted', label: 'Tufted' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Upholstery', default: '#5b6670' },
+      {
+        kind: 'enum',
+        key: 'material',
+        label: 'Fabric',
+        default: 'fabric',
+        options: [
+          { value: 'fabric', label: 'Fabric' },
+          { value: 'velvet', label: 'Velvet' },
+          { value: 'leather', label: 'Leather' },
+        ],
+      },
+      { kind: 'color', key: 'legColor', label: 'Legs', default: '#2c2620' },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
 } satisfies Record<string, FurnitureDef>

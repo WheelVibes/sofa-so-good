@@ -65,11 +65,13 @@ import { PlanTotalLabel } from './editor/PlanTotalLabel'
 import { PlanViewMenuActions } from './editor/PlanViewMenuActions'
 import { EXPORT_PAD, GRID_MARGIN, type Tool, ZOOM_BTN_STEP } from './editor/planConstants'
 import {
+  buildPlanDoorGhostItem,
   buildPlanGhostItem,
   buildPlanWindowGhostItem,
   decidePlanCommit,
   decidePlanTouchLift,
   planGhostValid,
+  planHasDoor,
   planHasWindow,
   screenToGridPoint,
 } from './editor/planFurnishPlacement'
@@ -623,6 +625,16 @@ export function FloorPlanEditor() {
         },
         itemLevelId,
       )
+    // A door-bound fixture's ghost snaps to the nearest doorway on the edited
+    // storey (mirrors the window-bound snap above).
+    if (planDef.doorBound)
+      return buildPlanDoorGhostItem(
+        planDef,
+        planGhostWorld,
+        levelPlan.walls,
+        levelPlan.openings,
+        itemLevelId,
+      )
     return buildPlanGhostItem(planDef, planGhostWorld, ghostRotation, itemLevelId)
     // levelPlan is a fresh object every render (levelAsPlan) but its
     // walls/openings arrays + ceilingHeight are stable references — depend on
@@ -640,7 +652,7 @@ export function FloorPlanEditor() {
     if (!planGhostItem || !planDef) return false
     // A window-bound ghost only exists when it snapped to a window — the snap
     // IS its validity (Phase 3); `canPlace` is a floor rule that doesn't apply.
-    if (planDef.windowBound) return true
+    if (planDef.windowBound || planDef.doorBound) return true
     return planGhostValid(planGhostItem, planDef, {
       others: items,
       defs: catalogRef.current,
@@ -667,6 +679,20 @@ export function FloorPlanEditor() {
     // planDef itself is derived from activeDefId — this effect intentionally
     // re-runs only when the armed def, the flag, or the edited level's
     // walls/openings change, not on every unrelated re-render.
+  }, [planDef, fPlanFurnish, levelPlan.walls, levelPlan.openings])
+
+  // Door-bound analog of the no-window disarm above: a level with no doorway can
+  // never commit a door-bound fixture (pet gate / pet-door insert), so disarm
+  // with the same explanatory toast rather than stranding an armed ghost.
+  useEffect(() => {
+    if (!fPlanFurnish || !planDef?.doorBound) return
+    if (planHasDoor(levelPlan.walls, levelPlan.openings)) return
+    useStore.getState().notify.start({
+      kind: 'info',
+      title: 'No doorway to place on',
+      message: `${planDef.name} can only be placed on a doorway — this plan has none.`,
+    })
+    useStore.getState().cancelPlacement()
   }, [planDef, fPlanFurnish, levelPlan.walls, levelPlan.openings])
 
   // Arming a placement always shows furniture footprints (otherwise the just
@@ -769,7 +795,12 @@ export function FloorPlanEditor() {
       const svg = svgRef.current
       setPlanGhostWorld(
         svg && isOnPlan(svg, ev.clientX, ev.clientY)
-          ? clientToWorld(svg, ev.clientX, ev.clientY, !!getDef(defId)?.windowBound)
+          ? clientToWorld(
+              svg,
+              ev.clientX,
+              ev.clientY,
+              !!(getDef(defId)?.windowBound || getDef(defId)?.doorBound),
+            )
           : null,
       )
     }
@@ -795,7 +826,9 @@ export function FloorPlanEditor() {
       const svg = svgRef.current
       const onPlan = !!svg && isOnPlan(svg, ev.clientX, ev.clientY)
       const world =
-        svg && onPlan ? clientToWorld(svg, ev.clientX, ev.clientY, !!def?.windowBound) : null
+        svg && onPlan
+          ? clientToWorld(svg, ev.clientX, ev.clientY, !!(def?.windowBound || def?.doorBound))
+          : null
       const ctx = planTouchCtxRef.current
       const { levelId: liveLevelId, itemLevelId: liveItemLevelId } = ctx
       let ghost: FurnitureItem | null = null
@@ -810,6 +843,9 @@ export function FloorPlanEditor() {
             { walls: ctx.walls, openings: ctx.openings, ceilingHeight: ctx.ceilingHeight },
             liveItemLevelId,
           )
+          valid = ghost !== null
+        } else if (def.doorBound) {
+          ghost = buildPlanDoorGhostItem(def, world, ctx.walls, ctx.openings, liveItemLevelId)
           valid = ghost !== null
         } else {
           ghost = buildPlanGhostItem(def, world, st.ghostRotation, liveItemLevelId)
@@ -1004,6 +1040,17 @@ export function FloorPlanEditor() {
               openings: levelPlan.openings,
               ceilingHeight: levelPlan.ceilingHeight,
             },
+            itemLevelId,
+          )
+          valid = ghost !== null
+        } else if (def.doorBound) {
+          // Door-bound fixtures snap to the nearest doorway (raw drop point, like
+          // the window-bound branch, so wall magnetism can't corrupt the facing).
+          ghost = buildPlanDoorGhostItem(
+            def,
+            pointerPlanRaw(e),
+            levelPlan.walls,
+            levelPlan.openings,
             itemLevelId,
           )
           valid = ghost !== null
@@ -1227,7 +1274,9 @@ export function FloorPlanEditor() {
     // snapping would corrupt the facing; the ghost itself lands on the
     // window, so an unsnapped cursor is invisible anyway).
     if (fPlanFurnish && activeDefId) {
-      setPlanGhostWorld(planDef?.windowBound ? pointerPlanRaw(e) : pointerWorld(e))
+      setPlanGhostWorld(
+        planDef?.windowBound || planDef?.doorBound ? pointerPlanRaw(e) : pointerWorld(e),
+      )
       return
     }
     if (movingStop) {

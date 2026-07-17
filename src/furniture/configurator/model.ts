@@ -74,7 +74,7 @@ export interface ProductSlot {
   accepts?: string[]
 }
 
-type SlotConstraint =
+export type SlotConstraint =
   | { kind: 'mutex'; slots: string[] }
   | { kind: 'requires'; ifSlot: string; ifOption: string; thenSlot: string; thenOption: string }
   | {

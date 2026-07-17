@@ -150,40 +150,57 @@ describe('slatLayout', () => {
   })
 
   describe('dryingRackCylinders', () => {
-    it('emits 2 frames × (2 legs + 1 rail) + 5 bars = 11 rods', () => {
+    it('emits 2 frames × (2 legs + 1 rail) + (2 top rails + 3 cross bars) = 11 rods', () => {
       expect(dryingRackCylinders(0.9)).toHaveLength(11)
     })
 
-    it('legs are splayed ±0.32 rad, rails + bars are horizontal (PI/2 about Z)', () => {
+    it('legs splayed ±0.32 rad; foot + top rails horizontal about Z; cross bars span about X', () => {
       const rods = dryingRackCylinders(0.9)
       const legs = rods.filter((r) => Math.abs(r.rotation?.[2] ?? 0) === 0.32)
-      const horizontals = rods.filter((r) => r.rotation?.[2] === Math.PI / 2)
+      const zRails = rods.filter((r) => r.rotation?.[2] === Math.PI / 2)
+      const crossBars = rods.filter((r) => r.rotation?.[0] === Math.PI / 2)
       expect(legs).toHaveLength(4) // 2 per frame
-      expect(horizontals).toHaveLength(7) // 2 foot rails + 5 bars
+      expect(zRails).toHaveLength(4) // 2 foot rails + 2 top rails (run along X)
+      expect(crossBars).toHaveLength(3) // drying bars run along Z, frame-to-frame
       // Mirrored leg pairs: both signs of splay present.
       expect(legs.some((l) => l.rotation?.[2] === 0.32)).toBe(true)
       expect(legs.some((l) => l.rotation?.[2] === -0.32)).toBe(true)
     })
 
-    it('reproduces the old bar layout: 5 bars evenly spaced across the 0.5 m spread', () => {
+    it('top rails run along X at each frame (z = ±spread/2); cross bars span Z at z = 0', () => {
       const width = 1.2
       const rods = dryingRackCylinders(width)
-      // Bars: y = 0.95 - 0.04 = 0.91, size [0.008, width*0.78, 0.008].
-      const bars = rods.filter((r) => r.size[0] === 0.008)
-      expect(bars).toHaveLength(5)
-      bars.forEach((bar, i) => {
+      // Top rails: horizontal about Z, at the top, one per frame end.
+      const topRails = rods.filter(
+        (r) => r.rotation?.[2] === Math.PI / 2 && r.position[1] > 0.5 && r.size[0] === 0.008,
+      )
+      expect(topRails).toHaveLength(2)
+      topRails.forEach((r) => {
+        expect(r.position[1]).toBeCloseTo(0.91, 12)
+        expect(r.size[1]).toBeCloseTo(width * 0.78, 12)
+        expect(Math.abs(r.position[2])).toBeCloseTo(0.25, 12) // ±spread/2
+      })
+      // Cross drying bars: run along Z (rotated about X), centred at z = 0, each
+      // as long as the frame separation so the ends meet both top rails.
+      const crossBars = rods.filter((r) => r.rotation?.[0] === Math.PI / 2)
+      expect(crossBars).toHaveLength(3)
+      crossBars.forEach((bar) => {
         expect(bar.position[1]).toBeCloseTo(0.91, 12)
-        expect(bar.position[2]).toBeCloseTo(-0.25 + (0.5 * i) / 4, 12)
-        expect(bar.size[1]).toBeCloseTo(width * 0.78, 12)
+        expect(bar.position[2]).toBeCloseTo(0, 12)
+        expect(bar.size[1]).toBeCloseTo(0.5, 12) // RACK_SPREAD
       })
     })
 
-    it('scales rod length with width (rails 80%, bars 78%)', () => {
+    it('scales rod length with width (foot rails 80%, top rails 78%; cross bars fixed span)', () => {
       const rods = dryingRackCylinders(2.0)
       const rail = rods.find((r) => r.size[0] === 0.012)
-      const bar = rods.find((r) => r.size[0] === 0.008)
+      const topRail = rods.find(
+        (r) => r.rotation?.[2] === Math.PI / 2 && r.position[1] > 0.5 && r.size[0] === 0.008,
+      )
+      const crossBar = rods.find((r) => r.rotation?.[0] === Math.PI / 2)
       expect(rail?.size[1]).toBeCloseTo(2.0 * 0.8, 12)
-      expect(bar?.size[1]).toBeCloseTo(2.0 * 0.78, 12)
+      expect(topRail?.size[1]).toBeCloseTo(2.0 * 0.78, 12)
+      expect(crossBar?.size[1]).toBeCloseTo(0.5, 12)
     })
 
     it('stays finite for a degenerate zero width', () => {

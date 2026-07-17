@@ -149,6 +149,46 @@ describe('optimize worker pool (mock Worker)', () => {
     await p2
   })
 
+  it('reclaims a hung worker after JOB_TIMEOUT_MS: terminates it, fails its pending jobs, respawns fresh', async () => {
+    const { runOptimize, JOB_TIMEOUT_MS } = await freshModule(1) // 1 worker: both calls queue on it
+    const input = new Uint8Array([7, 7])
+
+    const p1 = runOptimize(input)
+    const p2 = runOptimize(input)
+    expect(FakeWorker.instances).toHaveLength(1)
+    const hung = FakeWorker.instances[0]
+    expect(hung.posted).toHaveLength(2)
+
+    // Worker never answers (no replyOk, no fail — a hung WASM stack). The
+    // watchdog must reclaim it and fail-soft BOTH queued jobs to the raw input.
+    vi.advanceTimersByTime(JOB_TIMEOUT_MS + 1)
+    const [r1, r2] = await Promise.all([p1, p2])
+    expect(r1.data).toEqual(input)
+    expect(r2.data).toEqual(input)
+    expect(hung.terminated).toBe(true)
+
+    // Reclaimed worker was dropped from the pool — the next call spawns fresh.
+    const p3 = runOptimize(input)
+    expect(FakeWorker.instances).toHaveLength(2)
+    const fresh = FakeWorker.instances[1]
+    fresh.replyOk(fresh.posted[0].id)
+    const r3 = await p3
+    expect(r3.report.afterBytes).toBe(40)
+  })
+
+  it('clears a job’s watchdog on a normal reply so a fast job leaves no lingering timer', async () => {
+    const { runOptimize } = await freshModule(3)
+    const input = new Uint8Array([1])
+
+    const p1 = runOptimize(input)
+    const w = FakeWorker.instances[0]
+    w.replyOk(w.posted[0].id)
+    await p1
+    // Only the idle-teardown timer should remain — the per-job watchdog was
+    // cleared on reply (no leaked watchdog to later terminate an idle worker).
+    expect(vi.getTimerCount()).toBe(1)
+  })
+
   it('cancels a worker’s idle-teardown timer if it is reclaimed before the timer fires', async () => {
     const { runOptimize, IDLE_TEARDOWN_MS } = await freshModule(3)
     const input = new Uint8Array([1])
@@ -165,12 +205,16 @@ describe('optimize worker pool (mock Worker)', () => {
     vi.advanceTimersByTime(IDLE_TEARDOWN_MS / 2)
     const p2 = runOptimize(input)
     expect(FakeWorker.instances).toHaveLength(1) // reused, not respawned
-    expect(vi.getTimerCount()).toBe(0) // stale timer cancelled on reclaim
+    // The stale idle-teardown timer was cancelled on reclaim; the one remaining
+    // timer is p2's fresh per-job watchdog (armed just now, not the old idle one).
+    expect(vi.getTimerCount()).toBe(1)
     expect(w.terminated).toBe(false)
 
-    // Even past the original deadline, the reclaimed worker must not be torn
-    // down mid-task.
-    vi.advanceTimersByTime(IDLE_TEARDOWN_MS)
+    // Even past the ORIGINAL idle deadline (t≈30s), the reclaimed worker must not
+    // be torn down mid-task — advance past it but short of p2's watchdog (armed at
+    // t≈15s, fires at t≈45s) so this test stays about the idle timer, not the
+    // watchdog (covered separately above).
+    vi.advanceTimersByTime(IDLE_TEARDOWN_MS / 2 + 1000)
     expect(w.terminated).toBe(false)
 
     w.replyOk(w.posted[1].id)

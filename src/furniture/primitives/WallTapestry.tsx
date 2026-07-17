@@ -18,8 +18,9 @@ export function WallTapestry({ props }: { props: ParamProps }) {
 
   const panelMat = style === 'woven' ? getRattanMaterial(color, 4) : getFabricMaterial(color, 0.96)
   const fringe = style === 'macrame'
-  // Panel hangs below the dowel; the dowel overhangs the panel a touch.
-  const panelTopY = topY - 0.03
+  // Panel hangs from the dowel — its top reaches the dowel line (draped over it)
+  // rather than floating a few cm below, so the hanging reads as attached.
+  const panelTopY = topY
   const panelH = fringe ? drop * 0.8 : drop
   const panelCY = panelTopY - panelH / 2
 

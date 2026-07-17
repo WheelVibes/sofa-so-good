@@ -108,54 +108,91 @@ describe('buildParametric — bookshelf', () => {
   })
 })
 
-describe('buildParametric — wardrobe', () => {
-  it('default wardrobe has doors, a rail and a top shelf per bay', () => {
+describe('buildParametric — wardrobe (modular fit-out system)', () => {
+  it('default wardrobe: sliding front (2 panels), a hang fit-out per bay', () => {
     const spec = defaultSpec('wardrobe')
     const m = buildParametric(spec)
     expectSound(m, spec)
-    expect(m.doorCount).toBe(2) // 1.2 m → two ≤0.6 m leaves
+    expect(m.bays).toBe(2)
+    expect(m.doorCount).toBe(2) // sliding = two bypass panels
+    // One top shelf + one rail per bay (default 'hang' fit-out).
     expect(byRole(m, 'rail')).toHaveLength(m.bays)
     expect(byRole(m, 'shelf')).toHaveLength(m.bays)
-    // Doors sit proud of the carcass front and within bounds.
-    for (const d of byRole(m, 'door')) {
-      expect(d.position[2] - d.size[2] / 2).toBeCloseTo(spec.depth / 2, 9)
-      expect(d.size[0]).toBeLessThanOrEqual(MAX_DOOR_LEAF + EPS)
-    }
-    // One handle per leaf.
-    expect(byRole(m, 'handle')).toHaveLength(m.doorCount)
-    // Bounds include the proud door depth.
+    // Sliding panels bulge proud of the carcass front.
     expect(m.bounds.d).toBeGreaterThan(spec.depth)
+    // Two finger-pulls (one per sliding panel).
+    expect(byRole(m, 'handle')).toHaveLength(2)
   })
 
-  it('doors off = open front (no door/handle parts, depth = carcass)', () => {
-    const spec = { ...defaultSpec('wardrobe'), doors: false }
+  it('open front = no doors/handles; fit-outs stay visible', () => {
+    const spec = { ...defaultSpec('wardrobe'), wardrobeFront: 'open' as const }
     const m = buildParametric(spec)
     expectSound(m, spec)
     expect(m.doorCount).toBe(0)
     expect(byRole(m, 'door')).toHaveLength(0)
     expect(byRole(m, 'handle')).toHaveLength(0)
+    // Fit-outs still present.
+    expect(byRole(m, 'rail').length).toBeGreaterThan(0)
+    // Depth equals the carcass (no proud front).
     expect(m.bounds.d).toBeCloseTo(spec.depth, 9)
   })
 
-  it('a 3 m wardrobe splits into enough ≤0.6 m leaves and ≥2 bays', () => {
-    const spec = { ...defaultSpec('wardrobe'), width: 3.0 }
+  it('hinged front: per-bay leaves each ≤ 60 cm with one handle each', () => {
+    const spec = {
+      ...defaultSpec('wardrobe'),
+      wardrobeFront: 'hinged' as const,
+      width: 2.4,
+      bays: 2,
+    }
     const m = buildParametric(spec)
     expectSound(m, spec)
-    expect(m.bays).toBeGreaterThanOrEqual(3)
-    // Every door leaf fits within the per-leaf size limit.
-    for (const d of byRole(m, 'door')) expect(d.size[0]).toBeLessThanOrEqual(MAX_DOOR_LEAF + EPS)
-    // One handle per door leaf (vertical bar handle).
-    expect(byRole(m, 'handle')).toHaveLength(m.doorCount)
-    // Leaves correctly reported by doorCount.
     expect(byRole(m, 'door')).toHaveLength(m.doorCount)
+    expect(byRole(m, 'handle')).toHaveLength(m.doorCount)
+    for (const dr of byRole(m, 'door')) expect(dr.size[0]).toBeLessThanOrEqual(MAX_DOOR_LEAF + EPS)
   })
 
-  it('the hanging rail sits below its shelf, inside the carcass', () => {
-    const m = buildParametric(defaultSpec('wardrobe'))
+  it('bays drive the column count (dividers = bays − 1)', () => {
+    for (const bays of [1, 3, 5]) {
+      const spec = { ...defaultSpec('wardrobe'), width: 2.5, bays }
+      const m = buildParametric(spec)
+      expectSound(m, spec)
+      expect(m.bays).toBe(bays)
+      expect(byRole(m, 'divider')).toHaveLength(bays - 1)
+    }
+  })
+
+  it('per-bay fit-outs: shelves / drawers / shoe / double-hang', () => {
+    const spec = {
+      ...defaultSpec('wardrobe'),
+      width: 2.4,
+      bays: 4,
+      wardrobeFront: 'open' as const,
+      wardrobeFitOuts: ['shelves', 'drawers', 'shoe', 'double-hang'],
+    } satisfies ParametricSpec
+    const m = buildParametric(spec)
+    expectSound(m, spec)
+    // A drawers bay emits drawer fronts.
+    expect(m.drawerCount).toBeGreaterThan(0)
+    expect(byRole(m, 'drawer-front').length).toBe(m.drawerCount)
+    // Shelves + shoe bays emit multiple shelves; shoe is denser than shelves.
+    expect(byRole(m, 'shelf').length).toBeGreaterThan(4)
+    // double-hang emits two rails for its bay + one top shelf.
+    expect(byRole(m, 'rail').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('the hanging rail sits below its top shelf, at hanging height', () => {
+    const spec = { ...defaultSpec('wardrobe'), wardrobeFront: 'open' as const }
+    const m = buildParametric(spec)
     const shelf = byRole(m, 'shelf')[0]
     const rail = byRole(m, 'rail')[0]
     expect(rail.position[1]).toBeLessThan(shelf.position[1])
     expect(rail.position[1]).toBeGreaterThan(1.0) // hanging height, not at the floor
+  })
+
+  it('builds soundly at the max envelope (2.5 × 2.36 × 0.58 m)', () => {
+    const spec = { ...defaultSpec('wardrobe'), width: 2.5, height: 2.36, depth: 0.58, bays: 4 }
+    const m = buildParametric(spec)
+    expectSound(m, spec)
   })
 })
 
@@ -259,18 +296,19 @@ describe('drawer-front parts', () => {
     expect(m.drawerCount).toBe(fronts.length)
   })
 
-  it('wardrobe bay set to drawer has fronts but no rail (rail would be hidden)', () => {
+  it('wardrobe bay with a drawers fit-out has fronts but no rail', () => {
     const spec: ParametricSpec = {
       ...defaultSpec('wardrobe'),
-      doors: true,
-      compartments: [{ style: 'drawer' }], // bay 0 is drawers; bay 1 (if any) is door
+      bays: 2,
+      wardrobeFront: 'open',
+      wardrobeFitOuts: ['drawers', 'hang'], // bay 0 drawers, bay 1 hang
     }
     const m = buildParametric(spec)
     expectSound(m, spec)
     const fronts = byRole(m, 'drawer-front')
     expect(fronts.length).toBeGreaterThan(0)
-    // Rails are omitted for drawer bays.
-    expect(byRole(m, 'rail').length).toBeLessThanOrEqual(m.bays - 1)
+    // Only the 'hang' bay contributes a rail.
+    expect(byRole(m, 'rail')).toHaveLength(1)
     expect(m.drawerCount).toBe(fronts.length)
   })
 
@@ -323,22 +361,23 @@ describe('drawer-front parts', () => {
 // ============================================================================
 
 describe('per-compartment configuration', () => {
-  it('mixed wardrobe: bay 0 open, bay 1 door, bay 2 drawer (if 3 bays)', () => {
-    // Need 3 bays → width > 2 * MAX_BAY_SPAN
+  it('mixed wardrobe fit-outs: hang / shelves / drawers across 3 bays', () => {
     const spec: ParametricSpec = {
       ...defaultSpec('wardrobe'),
       width: 2.5,
-      doors: true,
-      compartments: [{ style: 'open' }, { style: 'door' }, { style: 'drawer' }],
+      bays: 3,
+      wardrobeFront: 'sliding',
+      wardrobeFitOuts: ['hang', 'shelves', 'drawers'],
     }
     const m = buildParametric(spec)
     expectSound(m, spec)
-    expect(m.bays).toBeGreaterThanOrEqual(3)
-    // 'open' bay → no door, no drawer-front for bay 0
-    // 'door' bay → at least 1 door leaf
-    expect(m.doorCount).toBeGreaterThan(0)
-    // 'drawer' bay → at least 1 drawer-front
+    expect(m.bays).toBe(3)
+    // hang bay → a rail; shelves bay → multiple shelves; drawers bay → fronts.
+    expect(byRole(m, 'rail').length).toBeGreaterThan(0)
+    expect(byRole(m, 'shelf').length).toBeGreaterThan(1)
     expect(m.drawerCount).toBeGreaterThan(0)
+    // Sliding front still covers everything with two panels.
+    expect(m.doorCount).toBe(2)
   })
 
   it('compartments shorter than bays: extra bays fall back to global default', () => {

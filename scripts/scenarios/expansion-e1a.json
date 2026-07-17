@@ -1,0 +1,73 @@
+{
+  "name": "expansion-e1a",
+  "url": "http://localhost:5301/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s = window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); })()"
+    },
+    {
+      "name": "place-grid",
+      "eval": "(() => { const s = window.__store.getState(); const items = [ ['wall-shelf',{}], ['wall-shelf',{style:'ledge'}], ['wall-shelf',{style:'corner'}], ['wall-shelf',{style:'twotier'}], ['wall-shelf',{style:'floating'}], ['side-table',{}], ['side-table',{set:'nest2'}], ['side-table',{set:'nest3'}], ['side-table',{shape:'square'}], ['side-table',{shape:'drum'}], ['bar-table',{}], ['bar-table',{shape:'round'}], ['bar-table',{tableHeight:0.92}], ['bar-stool',{}], ['bar-stool',{style:'backed'}], ['bar-stool',{style:'pedestal'}], ['bar-stool',{style:'step'}], ['bar-stool',{style:'kitchen'}], ['office-chair',{}], ['office-chair',{style:'executive'}], ['office-chair',{style:'mesh'}], ['office-chair',{style:'gaming'}], ['armchair',{}], ['armchair',{style:'wingback'}], ['armchair',{style:'tub'}], ['armchair',{style:'swivel'}] ]; const cols = 7; const dx = 1.5, dz = 1.8, x0 = 1.0, z0 = -7.5; const pos = {}; const list = items.map(([defId, props], i) => { const c = i % cols, r = Math.floor(i / cols); const x = x0 + c * dx, z = z0 + r * dz; const key = defId + ':' + JSON.stringify(props); pos[key] = [x, z]; return { id: 'audit-' + i, defId, position: [x, z], rotation: 0, props }; }); window.__auditPos = pos; s.setItems(list); return list.length; })()"
+    },
+    { "name": "settle", "wait": 1200 },
+    { "name": "frame-overview", "eval": "(() => { window.__store.getState().requestFrameSelection({ center: [5.5, 0.5, -4.8], radius: 7.5 }); })()" },
+    { "name": "settle-ov", "wait": 900 },
+    { "name": "shot-overview", "screenshot": "overview" },
+
+    { "name": "frame-ws-ledge", "eval": "(() => { const p = window.__auditPos['wall-shelf:{\"style\":\"ledge\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 1.4, p[1]], radius: 0.7 }); })()" },
+    { "name": "settle-ws-ledge", "wait": 900 },
+    { "name": "shot-ws-ledge", "screenshot": "wallshelf-ledge" },
+
+    { "name": "frame-ws-corner", "eval": "(() => { const p = window.__auditPos['wall-shelf:{\"style\":\"corner\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 1.4, p[1]], radius: 0.8 }); })()" },
+    { "name": "settle-ws-corner", "wait": 900 },
+    { "name": "shot-ws-corner", "screenshot": "wallshelf-corner" },
+
+    { "name": "frame-ws-floating", "eval": "(() => { const p = window.__auditPos['wall-shelf:{\"style\":\"floating\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 1.4, p[1]], radius: 0.7 }); })()" },
+    { "name": "settle-ws-floating", "wait": 900 },
+    { "name": "shot-ws-floating", "screenshot": "wallshelf-floating" },
+
+    { "name": "frame-nest2", "eval": "(() => { const p = window.__auditPos['side-table:{\"set\":\"nest2\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.35, p[1]], radius: 0.8 }); })()" },
+    { "name": "settle-nest2", "wait": 900 },
+    { "name": "shot-nest2", "screenshot": "sidetable-nest2" },
+
+    { "name": "frame-nest3", "eval": "(() => { const p = window.__auditPos['side-table:{\"set\":\"nest3\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.35, p[1]], radius: 0.9 }); })()" },
+    { "name": "settle-nest3", "wait": 900 },
+    { "name": "shot-nest3", "screenshot": "sidetable-nest3" },
+
+    { "name": "frame-bartable", "eval": "(() => { const p = window.__auditPos['bar-table:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.6, p[1]], radius: 1.1 }); })()" },
+    { "name": "settle-bartable", "wait": 900 },
+    { "name": "shot-bartable", "screenshot": "bartable-rect" },
+
+    { "name": "frame-bartable-round", "eval": "(() => { const p = window.__auditPos['bar-table:{\"shape\":\"round\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.6, p[1]], radius: 1.1 }); })()" },
+    { "name": "settle-bartable-round", "wait": 900 },
+    { "name": "shot-bartable-round", "screenshot": "bartable-round" },
+
+    { "name": "frame-step", "eval": "(() => { const p = window.__auditPos['bar-stool:{\"style\":\"step\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.3, p[1]], radius: 0.6 }); })()" },
+    { "name": "settle-step", "wait": 900 },
+    { "name": "shot-step", "screenshot": "barstool-step" },
+
+    { "name": "frame-kitchen", "eval": "(() => { const p = window.__auditPos['bar-stool:{\"style\":\"kitchen\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.35, p[1]], radius: 0.6 }); })()" },
+    { "name": "settle-kitchen", "wait": 900 },
+    { "name": "shot-kitchen", "screenshot": "barstool-kitchen" },
+
+    { "name": "frame-gaming", "eval": "(() => { const p = window.__auditPos['office-chair:{\"style\":\"gaming\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.6, p[1]], radius: 0.9 }); })()" },
+    { "name": "settle-gaming", "wait": 900 },
+    { "name": "shot-gaming", "screenshot": "office-gaming" },
+
+    { "name": "frame-swivel", "eval": "(() => { const p = window.__auditPos['armchair:{\"style\":\"swivel\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.45, p[1]], radius: 0.9 }); })()" },
+    { "name": "settle-swivel", "wait": 900 },
+    { "name": "shot-swivel", "screenshot": "armchair-swivel" },
+
+    { "name": "frame-barstool-row", "eval": "(() => { const p = window.__auditPos['bar-stool:{}']; window.__store.getState().requestFrameSelection({ center: [p[0] + 1.6, 0.4, p[1]], radius: 2.4 }); })()" },
+    { "name": "settle-barstool-row", "wait": 900 },
+    { "name": "shot-barstool-row", "screenshot": "barstool-row" },
+
+    { "name": "frame-overview2", "eval": "(() => { window.__store.getState().requestFrameSelection({ center: [5.5, 0.5, -4.8], radius: 7.5 }); })()" },
+    { "name": "settle-ov2", "wait": 900 },
+    { "name": "orbit-lower", "drag": { "from": [900, 540], "to": [900, 380] } },
+    { "name": "settle2", "wait": 800 },
+    { "name": "shot-overview-low", "screenshot": "overview-low" }
+  ]
+}

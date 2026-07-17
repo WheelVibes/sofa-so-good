@@ -1,0 +1,155 @@
+{
+  "name": "glb-designer-stage3c",
+  "description": "Asset Studio Stage 3c \u2014 template-first flows in the GLB Asset Designer (Pro, glbDesigner on). Open the Templates section, tap 'Dining table' to arm it (a compact parametric step opens with the template's ergonomic sliders + a LIVE preview), widen it via the Width slider, then 'Use template' \u2014 it flattens into the (empty) spec as a single named 'Dining table' Group. Then tap 'Bookshelf', 'Use template' again \u2014 because the spec is now non-empty it inserts ALONGSIDE (offset on +X), so both pieces are present as two Group rows. Finally Save and assert the persisted assetSpec envelope embeds BOTH template groups: the dining table at identity (it replaced the empty spec) with its tabletop top at the height param, and the bookshelf carrying a positive X offset. Screenshots the template picker with sliders + live preview, the inserted dining table, and table + bookshelf together.",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "set-pro-mode",
+      "store": {
+        "action": "setUiMode",
+        "args": [
+          "pro"
+        ]
+      }
+    },
+    {
+      "name": "open-glb-designer",
+      "store": {
+        "action": "setGlbDesignerOpen",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "wait-designer",
+      "waitFor": {
+        "text": "3D asset designer"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "shot-designer-open",
+      "screenshot": "01-designer-open"
+    },
+    {
+      "name": "expand-templates",
+      "comment": "Expand the collapsed Templates section (progressive-disclosure Disclosure) before interacting.",
+      "eval": "(function(){const s=[...document.querySelectorAll('.glb-designer details.compose > summary')].find(x=>(x.textContent||'').trim()==='Templates');if(!s)throw new Error('Templates summary not found');if(!s.parentElement.open)s.click();})()"
+    },
+    {
+      "name": "arm-dining-template",
+      "comment": "Tap the Dining table template \u2014 the picker opens its parametric step (sliders + live preview).",
+      "click": {
+        "selector": "button[aria-label='Start from Dining table template']",
+        "timeout": 5000
+      }
+    },
+    {
+      "name": "assert-dining-armed",
+      "comment": "The parametric step shows the template's ergonomic Width slider (with unit + range + hint) and Use/Cancel actions.",
+      "eval": "(function(){ if (!document.querySelector('.glb-designer input[aria-label=\"Dining table Width\"]')) throw new Error('Dining table Width slider missing \u2014 template did not arm'); if (!document.querySelector('.glb-designer button[aria-label=\"Use Dining table template\"]')) throw new Error('Use template action missing'); })()"
+    },
+    {
+      "name": "widen-dining",
+      "comment": "Drag the Width slider to 2.0 m \u2014 the live preview updates before anything is committed.",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Dining table Width\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, '2'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "wait-preview",
+      "wait": 600
+    },
+    {
+      "name": "shot-template-picker",
+      "screenshot": "02-template-picker-live-preview"
+    },
+    {
+      "name": "use-dining",
+      "comment": "Insert the flattened dining table. The empty spec is REPLACED; the new 'Dining table' group is selected.",
+      "click": {
+        "selector": "button[aria-label='Use Dining table template']",
+        "timeout": 5000
+      }
+    },
+    {
+      "name": "wait-dining",
+      "wait": 600
+    },
+    {
+      "name": "assert-dining-group",
+      "comment": "One 'Dining table' group row appears in the layers tree and it's selected (its Edit-group panel is up).",
+      "eval": "(function(){ const names = [...document.querySelectorAll('.glb-designer .lyr-nm')].map(n => (n.textContent||'').trim()); const n = names.filter(t => t === 'Dining table').length; if (n !== 1) throw new Error('expected 1 Dining table group row, got ' + n); if (!document.querySelector('.glb-designer input[aria-label=\"group position X\"]')) throw new Error('inserted group not selected (Edit-group fields missing)'); })()"
+    },
+    {
+      "name": "shot-dining",
+      "screenshot": "03-dining-table-inserted"
+    },
+    {
+      "name": "expand-templates-2",
+      "comment": "Expand the collapsed Templates section (progressive-disclosure Disclosure) before interacting.",
+      "eval": "(function(){const s=[...document.querySelectorAll('.glb-designer details.compose > summary')].find(x=>(x.textContent||'').trim()==='Templates');if(!s)throw new Error('Templates summary not found');if(!s.parentElement.open)s.click();})()"
+    },
+    {
+      "name": "arm-bookshelf-template",
+      "comment": "Tap the Bookshelf template (DOM-click by aria-label \u2014 robust to any scroll).",
+      "eval": "(function(){ const btn = document.querySelector('.glb-designer button[aria-label=\"Start from Bookshelf template\"]'); if (!btn) throw new Error('Bookshelf template button not found'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-bookshelf-armed",
+      "eval": "(function(){ if (!document.querySelector('.glb-designer button[aria-label=\"Use Bookshelf template\"]')) throw new Error('Bookshelf template did not arm'); })()"
+    },
+    {
+      "name": "use-bookshelf",
+      "comment": "Insert alongside \u2014 the spec is non-empty, so the bookshelf lands offset on +X (no confirm).",
+      "eval": "(function(){ const btn = document.querySelector('.glb-designer button[aria-label=\"Use Bookshelf template\"]'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "wait-bookshelf",
+      "wait": 700
+    },
+    {
+      "name": "assert-both-present",
+      "comment": "Two Group rows now: 'Dining table' + 'Bookshelf' \u2014 both pieces are in the spec.",
+      "eval": "(function(){ const names = [...document.querySelectorAll('.glb-designer .lyr-nm')].map(n => (n.textContent||'').trim()); if (names.filter(t => t === 'Dining table').length !== 1) throw new Error('Dining table group missing after inserting bookshelf'); if (names.filter(t => t === 'Bookshelf').length !== 1) throw new Error('Bookshelf group missing'); })()"
+    },
+    {
+      "name": "shot-both",
+      "screenshot": "04-table-and-bookshelf"
+    },
+    {
+      "name": "set-asset-name",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Asset name\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, 'Stage3c Templates'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "record-baseline",
+      "eval": "window.__glbBaseline = window.__store.getState().userFurniture.length"
+    },
+    {
+      "name": "click-save",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer button')].find(b => b.textContent.trim() === 'Save asset' && !b.disabled); if (!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-saved-templates",
+      "comment": "End-to-end proof: the saved assetSpec is the shared asset envelope and embeds BOTH template groups \u2014 the dining table at identity (replaced the empty spec) with its tabletop top at the 0.75 m height param, and the bookshelf offset on +X (inserted alongside). Templates round-trip as editable PartGroups and restore intact.",
+      "waitFor": {
+        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Stage3c Templates' && typeof d.assetSpec === 'string' && d.assetSpec.includes('\"kind\":\"asset\"') && (() => { try { const env = JSON.parse(d.assetSpec); const s = env.payload; const groups = s.partGroups || []; const dining = groups.filter(g => g.name === 'Dining table'); const shelf = groups.filter(g => g.name === 'Bookshelf'); if (groups.length !== 2 || dining.length !== 1 || shelf.length !== 1) return false; if (dining[0].position) return false; if (!shelf[0].position || !(shelf[0].position[0] > 0)) return false; const dIds = new Set(dining[0].partIds); let topY = -Infinity; let minX = Infinity; let maxX = -Infinity; for (const p of s.parts) { if (!dIds.has(p.id)) continue; topY = Math.max(topY, p.position[1] + p.size[1] / 2); minX = Math.min(minX, p.position[0] - p.size[0] / 2); maxX = Math.max(maxX, p.position[0] + p.size[0] / 2); } return Math.abs(topY - 0.75) < 0.03 && Math.abs((maxX - minX) - 2.0) < 0.05; } catch { return false } })())"
+      },
+      "timeout": 60000,
+      "failMessage": "saved assetSpec should embed a 'Dining table' group (identity, tabletop top 0.75 m, width 2.0 m) + a 'Bookshelf' group offset on +X"
+    },
+    {
+      "name": "shot-saved",
+      "screenshot": "05-saved-with-templates"
+    }
+  ]
+}

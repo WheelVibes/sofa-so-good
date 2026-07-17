@@ -22,7 +22,9 @@ export function Mirror({ props }: { props: ParamProps }) {
     const r = width / 2
     return (
       <group position={[0, centerY, 0]}>
-        <mesh castShadow rotation={[Math.PI / 2, 0, 0]}>
+        {/* Frame ring — a torus in the XY plane so the ring faces the room (+Z),
+            surrounding the pane. (No X-rotation: that would lay the ring flat.) */}
+        <mesh castShadow>
           <torusGeometry args={[r, 0.025, seg(14, detail), seg(40, detail)]} />
           <meshStandardMaterial color={frameColor} roughness={0.35} metalness={0.6} />
         </mesh>

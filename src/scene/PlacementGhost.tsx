@@ -8,6 +8,7 @@ import { noExportUserData } from '../export/sceneGltf'
 import { useCatalogGetter } from '../furniture/catalog'
 import { Furniture } from '../furniture/Furniture'
 import { defaultItemProps as defaultProps } from '../furniture/placement/defaultItemProps'
+import { snapToNearestDoor } from '../furniture/placement/doorSnap'
 import { snapToNearestWindow } from '../furniture/placement/windowSnap'
 import type { FurnitureItem } from '../furniture/types'
 import { canEditScene } from '../state/editing'
@@ -99,6 +100,25 @@ export function PlacementGhost() {
         groupRef.current.position.set(snap.position[0], 0, snap.position[1])
         // Total world yaw = outer-group + the Furniture inner group's item.rotation;
         // set the outer so the two sum to the snapped rotation.
+        groupRef.current.rotation.y = snap.rotation - ghostItem.rotation
+      } else {
+        groupRef.current.position.set(px, 0, pz)
+        groupRef.current.rotation.y = 0
+      }
+      if (valid !== validRef.current) {
+        validRef.current = valid
+        tintMaterial.color.copy(valid ? greenColor : redColor)
+      }
+      useStore.getState().setGhostWorld([px, pz], valid)
+      return
+    }
+    // Door-bound fixtures (pet gates / pet-door inserts, DOOR-FIXTURE) preview
+    // spanning the nearest doorway, mirroring the window-bound branch above.
+    if (def.doorBound) {
+      const snap = snapToNearestDoor(st.floorPlan.walls, st.floorPlan.openings, [px, pz])
+      const valid = snap != null
+      if (snap) {
+        groupRef.current.position.set(snap.position[0], 0, snap.position[1])
         groupRef.current.rotation.y = snap.rotation - ghostItem.rotation
       } else {
         groupRef.current.position.set(px, 0, pz)

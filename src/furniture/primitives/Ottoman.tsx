@@ -1,4 +1,6 @@
 import { RoundedBox } from '@react-three/drei'
+import { useMemo } from 'react'
+import { Vector2 } from 'three'
 import { getUpholsteryMaterial, getWoodMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
@@ -25,6 +27,38 @@ export function Ottoman({ props }: { props: ParamProps }) {
   const uphol = getUpholsteryMaterial(material, color, sheen)
   const legMat = getWoodMaterial(legColor, 0.4)
   const detail = useDetail()
+
+  // Knitted pouffe: a soft floor cushion with a gently barrelled (bulged)
+  // silhouette — a single lathed body, no feet, seated flush on the floor. The
+  // widest point sits at the footprint radius so the collision box stays honest;
+  // the top/bottom pull in slightly for the plump, hand-knitted look.
+  const pouffeProfile = useMemo(() => {
+    const r = Math.min(width, depth) / 2
+    return [
+      new Vector2(0, 0),
+      new Vector2(r * 0.72, 0),
+      new Vector2(r * 0.9, height * 0.14),
+      new Vector2(r, height * 0.5),
+      new Vector2(r * 0.86, height * 0.86),
+      new Vector2(r * 0.6, height - 0.005),
+      new Vector2(0, height),
+    ]
+  }, [width, depth, height])
+
+  if (shape === 'pouffe') {
+    const r = Math.min(width, depth) / 2
+    return (
+      <group>
+        <mesh castShadow receiveShadow material={uphol}>
+          <latheGeometry args={[pouffeProfile, seg(32, detail)]} />
+        </mesh>
+        {/* Braided top button + a faint seam ring, reading as the knit crown. */}
+        <mesh position={[0, height - 0.01, 0]} material={uphol}>
+          <sphereGeometry args={[r * 0.1, 10, 8]} />
+        </mesh>
+      </group>
+    )
+  }
 
   const footH = feet === 'wood' ? 0.07 : 0
   const bodyH = height - footH

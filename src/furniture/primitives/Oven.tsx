@@ -1,12 +1,6 @@
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
-import {
-  ApplianceBodyMaterial,
-  applianceBody,
-  applianceBodyMeshProps,
-  readNum,
-  readStr,
-} from './shared'
+import { applianceBodyMaterial, readNum, readStr } from './shared'
 
 /**
  * Built-in single oven (the split-kitchen counterpart to the cabinet hob): a
@@ -22,22 +16,20 @@ export function Oven({ props }: { props: ParamProps }) {
   const w = 0.6
   const d = 0.58
   const h = 0.6
-  const body = applianceBody(color, finish)
+  const body = applianceBodyMaterial(color, finish)
   const steel = { color: '#9a9ea3', roughness: 0.3, metalness: 0.75 } as const
 
   return (
     <group position={[0, mountY, 0]}>
       {/* Body */}
       <BeveledBox
-        {...applianceBodyMeshProps(body)}
+        material={body}
         castShadow
         receiveShadow
         position={[0, h / 2, 0]}
         args={[w, h, d]}
         bevel={0.012}
-      >
-        <ApplianceBodyMaterial finish={body} />
-      </BeveledBox>
+      />
       {/* Top control fascia */}
       <mesh castShadow position={[0, h * 0.9, d / 2 + 0.006]}>
         <boxGeometry args={[w - 0.02, h * 0.16, 0.012]} />
@@ -51,14 +43,12 @@ export function Oven({ props }: { props: ParamProps }) {
       ))}
       {/* Door — recessed glass window framed by the body, with a bar handle. */}
       <BeveledBox
-        {...applianceBodyMeshProps(body)}
+        material={body}
         castShadow
         position={[0, h * 0.42, d / 2 + 0.006]}
         args={[w - 0.04, h * 0.6, 0.012]}
         bevel={0.012}
-      >
-        <ApplianceBodyMaterial finish={body} />
-      </BeveledBox>
+      />
       <mesh position={[0, h * 0.42, d / 2 + 0.014]}>
         <boxGeometry args={[w - 0.16, h * 0.42, 0.006]} />
         <meshStandardMaterial

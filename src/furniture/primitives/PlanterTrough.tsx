@@ -1,7 +1,8 @@
-import { hexToRgb } from '../../materials/procedural/noise'
 import type { ParamProps } from '../types'
+import type { BoxInstance } from './InstancedBoxes'
+import { InstancedLeaves, leafJitter, leafTintHex } from './leafFoliage'
 import { readNum, readStr } from './shared'
-import { seg, useDetail } from './useDetail'
+import { useDetail } from './useDetail'
 
 /**
  * Outdoor / balcony planter trough: a long rectangular planter box (terracotta /
@@ -16,18 +17,37 @@ export function PlanterTrough({ props }: { props: ParamProps }) {
   const d = 0.28
   const boxH = 0.34
   const detail = useDetail()
-  const sphereSeg = seg(16, detail)
 
-  const [lr, lg, lb] = hexToRgb(leafColor)
-  const tint = (f: number) =>
-    `rgb(${Math.round(Math.min(255, lr * f))},${Math.round(Math.min(255, lg * f))},${Math.round(Math.min(255, lb * f))})`
-
-  // Foliage clusters spaced along the length (≈ every 0.26 m).
+  // Foliage clusters spaced along the length (≈ every 0.26 m). Each cluster is a
+  // low bushy shrub of reading leaves radiating from the soil (base at the soil
+  // top → connected to the box), with a couple of taller sprigs.
   const n = Math.max(2, Math.round(length / 0.26))
-  const clusters = Array.from({ length: n }, (_, i) => {
-    const x = -length / 2 + (length * (i + 0.5)) / n
-    return x
-  })
+  const GOLD = 2.399963
+  const perCluster = Math.max(5, Math.round(8 * detail))
+  const leaves: BoxInstance[] = []
+  let li = 0
+  for (let i = 0; i < n; i++) {
+    const cx = -length / 2 + (length * (i + 0.5)) / n
+    const cz = (i % 2 ? 1 : -1) * 0.02
+    for (let k = 0; k < perCluster; k++) {
+      const a = k * GOLD + i
+      const tilt = 0.3 + ((k % 5) / 5) * 1.0 + leafJitter(li) * 0.12
+      const len = 0.15 + (k % 3) * 0.04
+      leaves.push({
+        position: [cx + Math.sin(a) * 0.03, boxH - 0.005, cz + Math.cos(a) * 0.03],
+        size: [0.09, len, 0.09],
+        rotation: [Math.cos(a) * tilt, a, -Math.sin(a) * tilt],
+        color: leafTintHex(li++, i),
+      })
+    }
+    // A taller central sprig.
+    leaves.push({
+      position: [cx, boxH - 0.005, cz],
+      size: [0.08, 0.26, 0.08],
+      rotation: [0.1, i, 0.05],
+      color: leafTintHex(li++, i + 9),
+    })
+  }
 
   return (
     <group>
@@ -36,32 +56,15 @@ export function PlanterTrough({ props }: { props: ParamProps }) {
         <boxGeometry args={[length, boxH, d]} />
         <meshStandardMaterial color={potColor} roughness={0.8} metalness={0.02} />
       </mesh>
-      {/* Soil */}
-      <mesh receiveShadow position={[0, boxH - 0.02, 0]}>
+      {/* Soil — mounded 4 mm PROUD of the planter rim (top face at boxH+0.004,
+          not coplanar with the rim top at boxH → no z-fight; a slight mound reads
+          naturally). Its underside stays buried inside the box. */}
+      <mesh receiveShadow position={[0, boxH - 0.016, 0]}>
         <boxGeometry args={[length - 0.06, 0.04, d - 0.06]} />
         <meshStandardMaterial color="#3a2c1e" roughness={1} />
       </mesh>
-      {/* Greenery: a couple of overlapping blobs per cluster + a taller sprig */}
-      {clusters.map((x, i) => (
-        <group key={i} position={[x, boxH, (i % 2 ? 1 : -1) * 0.02]}>
-          <mesh castShadow position={[0, 0.12, 0]}>
-            <sphereGeometry args={[0.15, sphereSeg, sphereSeg]} />
-            <meshStandardMaterial color={tint(1)} roughness={0.85} />
-          </mesh>
-          <mesh castShadow position={[0.09, 0.07, 0.05]}>
-            <sphereGeometry args={[0.11, sphereSeg, sphereSeg]} />
-            <meshStandardMaterial color={tint(0.85)} roughness={0.85} />
-          </mesh>
-          <mesh castShadow position={[-0.08, 0.08, -0.04]}>
-            <sphereGeometry args={[0.1, sphereSeg, sphereSeg]} />
-            <meshStandardMaterial color={tint(0.92)} roughness={0.85} />
-          </mesh>
-          <mesh castShadow position={[0, 0.26, 0]}>
-            <sphereGeometry args={[0.08, sphereSeg, sphereSeg]} />
-            <meshStandardMaterial color={tint(1.12)} roughness={0.85} />
-          </mesh>
-        </group>
-      ))}
+      {/* Bushy shrub greenery */}
+      <InstancedLeaves species="oval" color={leafColor} instances={leaves} />
     </group>
   )
 }

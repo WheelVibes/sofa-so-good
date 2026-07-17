@@ -1,0 +1,202 @@
+{
+  "name": "glb-designer-stage3b",
+  "description": "Asset Studio Stage 3b \u2014 fittings/component library + snap-to-surface placement in the GLB Asset Designer (Pro, glbDesigner on). Build a wide flat tabletop box (underside raised off the floor), arm a Tapered leg in the Components panel, and PLACE it on the tabletop underside via the SWOOD face-click (driven through the window.__glbDesignerPlaceOnFace automation seam with an underside point + downward normal) \u2014 it lands as a named 'Tapered leg' Group, oriented plumb, its top flush on the underside plane. Repeat \u00d74 mirrors it to all four corners \u2192 4 'Tapered leg' group rows in the layers tree. Then add a second box, arm a Bar pull, and place it on that box's upright +Z face \u2014 the placed group carries an identity (no) rotation, proving the bar stays HORIZONTAL against the face. Finally Save and assert the persisted UserGltfDef's assetSpec envelope embeds all 5 component groups (4 legs + 1 pull) with the pull's identity orientation \u2014 so a placed fitting round-trips as an editable PartGroup. Screenshots the four-legged frame + the handle on the face.",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "set-pro-mode",
+      "store": {
+        "action": "setUiMode",
+        "args": [
+          "pro"
+        ]
+      }
+    },
+    {
+      "name": "open-glb-designer",
+      "store": {
+        "action": "setGlbDesignerOpen",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "wait-designer",
+      "waitFor": {
+        "text": "3D asset designer"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "shot-designer-open",
+      "screenshot": "01-designer-open"
+    },
+    {
+      "name": "add-tabletop",
+      "click": {
+        "text": "Box"
+      }
+    },
+    {
+      "name": "wait-box",
+      "waitFor": {
+        "css": "input[aria-label='box size X']"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "shape-tabletop",
+      "comment": "Make box 1 a wide flat tabletop raised to y=0.45 so its underside plane (y\u22480.425) is a leg-height off the floor.",
+      "eval": "(function(){ const set = (label, val) => { const inp = document.querySelector(`.glb-designer input[aria-label=\"${label}\"]`); if (!inp) throw new Error('missing input: ' + label); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, String(val)); inp.dispatchEvent(new Event('input', { bubbles: true })); }; set('box size X', 1.2); set('box size Y', 0.05); set('box size Z', 0.8); set('box position Y', 0.45); })()"
+    },
+    {
+      "name": "wait-tabletop",
+      "wait": 600
+    },
+    {
+      "name": "shot-tabletop",
+      "screenshot": "02-tabletop"
+    },
+    {
+      "name": "expand-components",
+      "comment": "Expand the collapsed Components section (progressive-disclosure Disclosure) before interacting.",
+      "eval": "(function(){const s=[...document.querySelectorAll('.glb-designer details.compose > summary')].find(x=>(x.textContent||'').trim()==='Components');if(!s)throw new Error('Components summary not found');if(!s.parentElement.open)s.click();})()"
+    },
+    {
+      "name": "arm-tapered-leg",
+      "comment": "Arm the Tapered leg fitting \u2014 the Components panel then invites a face click.",
+      "click": {
+        "selector": "button[aria-label='Place Tapered leg']",
+        "timeout": 5000
+      }
+    },
+    {
+      "name": "assert-armed",
+      "eval": "(function(){ if (!document.body.textContent.includes('Tapered leg armed')) throw new Error('Tapered leg did not arm'); if (typeof window.__glbDesignerPlaceOnFace !== 'function') throw new Error('placement seam window.__glbDesignerPlaceOnFace missing'); })()"
+    },
+    {
+      "name": "place-leg-1",
+      "comment": "SWOOD click on the tabletop UNDERSIDE near the +X/+Z corner: point on the underside plane, normal pointing straight down. The leg hangs down from it, plumb, its top flush on the plane.",
+      "eval": "window.__glbDesignerPlaceOnFace([0.52, 0.425, 0.32], [0, -1, 0])"
+    },
+    {
+      "name": "wait-leg-1",
+      "wait": 500
+    },
+    {
+      "name": "assert-leg-group-and-inspector",
+      "comment": "One 'Tapered leg' group row appears and the group is selected (the Repeat \u00d74 action is available in its Edit-group panel).",
+      "eval": "(function(){ const names = [...document.querySelectorAll('.glb-designer .lyr-nm')].map(n => (n.textContent||'').trim()); const legs = names.filter(t => t === 'Tapered leg').length; if (legs !== 1) throw new Error('expected 1 Tapered leg group row, got ' + legs); if (!document.querySelector('.glb-designer button[aria-label=\"Repeat to all four corners\"]')) throw new Error('Repeat \u00d74 action missing \u2014 the placed group should be selected'); })()"
+    },
+    {
+      "name": "repeat-x4",
+      "comment": "One tap mirrors the leg to all four corners about the tabletop bbox centre.",
+      "click": {
+        "selector": "button[aria-label='Repeat to all four corners']",
+        "timeout": 5000
+      }
+    },
+    {
+      "name": "wait-repeat",
+      "wait": 800
+    },
+    {
+      "name": "assert-four-legs",
+      "eval": "(function(){ const names = [...document.querySelectorAll('.glb-designer .lyr-nm')].map(n => (n.textContent||'').trim()); const legs = names.filter(t => t === 'Tapered leg').length; if (legs !== 4) throw new Error('expected 4 Tapered leg group rows after Repeat \u00d74, got ' + legs); })()"
+    },
+    {
+      "name": "shot-four-legs",
+      "screenshot": "03-four-legged-frame"
+    },
+    {
+      "name": "add-drawer-box",
+      "comment": "A second box to carry a handle on its upright front face (DOM-click the Add-shape Box button \u2014 the toolbar is scrolled out of view after Repeat, so a coordinate click would miss).",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer button')].find(b => b.textContent.trim() === 'Box'); if (!btn) throw new Error('Add-shape Box button not found'); btn.click(); })()"
+    },
+    {
+      "name": "wait-box-2",
+      "waitFor": {
+        "css": "input[aria-label='box position Y']"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "shape-drawer-box",
+      "eval": "(function(){ const set = (label, val) => { const inp = document.querySelector(`.glb-designer input[aria-label=\"${label}\"]`); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, String(val)); inp.dispatchEvent(new Event('input', { bubbles: true })); }; set('box size X', 0.6); set('box size Y', 0.6); set('box size Z', 0.05); set('box position X', 1.3); set('box position Y', 0.3); set('box position Z', 0); })()"
+    },
+    {
+      "name": "wait-box-2-shape",
+      "wait": 500
+    },
+    {
+      "name": "expand-components-2",
+      "comment": "Expand the collapsed Components section (progressive-disclosure Disclosure) before interacting.",
+      "eval": "(function(){const s=[...document.querySelectorAll('.glb-designer details.compose > summary')].find(x=>(x.textContent||'').trim()==='Components');if(!s)throw new Error('Components summary not found');if(!s.parentElement.open)s.click();})()"
+    },
+    {
+      "name": "arm-bar-pull",
+      "click": {
+        "selector": "button[aria-label='Place Bar pull']",
+        "timeout": 5000
+      }
+    },
+    {
+      "name": "assert-pull-armed",
+      "eval": "(function(){ if (!document.body.textContent.includes('Bar pull armed')) throw new Error('Bar pull did not arm'); })()"
+    },
+    {
+      "name": "place-bar-pull",
+      "comment": "Click the drawer box's upright +Z front face (normal +Z). The pull sits on the face, bar horizontal \u2014 identity rotation.",
+      "eval": "window.__glbDesignerPlaceOnFace([1.3, 0.3, 0.025], [0, 0, 1])"
+    },
+    {
+      "name": "wait-pull",
+      "wait": 500
+    },
+    {
+      "name": "assert-pull-horizontal",
+      "comment": "The placed Bar pull group is selected; its Edit-group rotation fields read 0/0/0 \u2192 identity \u2192 the bar's long axis stays world-horizontal against the face.",
+      "eval": "(function(){ const names = [...document.querySelectorAll('.glb-designer .lyr-nm')].map(n => (n.textContent||'').trim()); if (names.filter(t => t === 'Bar pull').length !== 1) throw new Error('expected 1 Bar pull group row'); const rot = ['X','Y','Z'].map(a => { const inp = document.querySelector(`.glb-designer input[aria-label=\"group rotation ${a}\"]`); if (!inp) throw new Error('group rotation ' + a + ' field missing (pull group not selected?)'); return Number(inp.value); }); if (!rot.every(v => v === 0)) throw new Error('Bar pull should be placed with identity rotation (horizontal), got ' + rot.join(',')); })()"
+    },
+    {
+      "name": "shot-handle",
+      "screenshot": "04-bar-pull-on-face"
+    },
+    {
+      "name": "set-asset-name",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Asset name\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, 'Stage3b Fittings'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "record-baseline",
+      "eval": "window.__glbBaseline = window.__store.getState().userFurniture.length"
+    },
+    {
+      "name": "click-save",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer button')].find(b => b.textContent.trim() === 'Save asset' && !b.disabled); if (!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-saved-component-groups",
+      "comment": "End-to-end proof: the saved assetSpec is the shared asset envelope and embeds all 5 component groups (4 'Tapered leg' + 1 'Bar pull'), with the pull carrying no rotation (identity \u2192 horizontal). A placed fitting persists as an editable PartGroup and restores intact.",
+      "waitFor": {
+        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Stage3b Fittings' && typeof d.assetSpec === 'string' && d.assetSpec.includes('\"kind\":\"asset\"') && (() => { try { const env = JSON.parse(d.assetSpec); const s = env.payload; const groups = s.partGroups || []; const legs = groups.filter(g => g.name === 'Tapered leg'); const pulls = groups.filter(g => g.name === 'Bar pull'); return groups.length === 5 && legs.length === 4 && pulls.length === 1 && !pulls[0].rotation; } catch { return false } })())"
+      },
+      "timeout": 60000,
+      "failMessage": "saved assetSpec should embed 4 'Tapered leg' + 1 'Bar pull' component groups, the pull with identity rotation"
+    },
+    {
+      "name": "shot-saved",
+      "screenshot": "05-saved-with-fittings"
+    }
+  ]
+}

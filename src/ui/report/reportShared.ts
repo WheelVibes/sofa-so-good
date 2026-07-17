@@ -50,6 +50,7 @@ export const CAT_LABEL: Record<FurnitureCategory, string> = {
   outdoor: 'Outdoor',
   electronics: 'Electronics',
   kids: 'Baby & Kids',
+  pets: 'Pets',
   laundry: 'Laundry',
   others: 'Others',
 }

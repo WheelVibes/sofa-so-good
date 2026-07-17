@@ -60,7 +60,10 @@ export function ConsoleTable({ props }: { props: ParamProps }) {
             args={[width - inset * 2, 0.16, depth - inset * 2]}
           />
           {[-1, 1].map((s) => (
-            <mesh key={s} position={[s * width * 0.22, h - topT - 0.09, depth / 2 + 0.012]}>
+            <mesh
+              key={s}
+              position={[s * width * 0.22, h - topT - 0.09, (depth - inset * 2) / 2 + 0.011]}
+            >
               <boxGeometry args={[width * 0.2, 0.018, 0.02]} />
               <meshStandardMaterial {...metal} />
             </mesh>

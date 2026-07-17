@@ -2,6 +2,7 @@ import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import { doorHingePivot, isCabinetOpen } from '../cabinetOpen'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MirrorMaterial } from './MirrorMaterial'
 import { HingedDoor } from './openable'
 import { readNum, readStr } from './shared'
 
@@ -22,6 +23,8 @@ export function Wardrobe({ props }: WardrobeProps) {
   const sheen = readNum(props, 'sheen', 0)
   const doorStyle = readStr(props, 'doorStyle', 'hinged')
   const interiorLayout = readStr(props, 'interior', 'mixed')
+  const layout = readStr(props, 'layout', 'straight')
+  const mirrored = readStr(props, 'doorFinish', 'panel') === 'mirror'
 
   const depth = 0.6
   const height = 2.1
@@ -33,6 +36,96 @@ export function Wardrobe({ props }: WardrobeProps) {
   const wood = getSurfaceMaterial(finish, color, 2, sheen)
   const frameMetal = { color: '#b8bcc0', roughness: 0.35, metalness: 0.75 } as const
   const open = doorStyle === 'open'
+
+  // A door face is either a wood/laminate panel or (mirror finish) a reflective
+  // pane — MirrorMaterial is tier-aware (real planar reflection on High/Maximum,
+  // a cheap fake-shiny material on Performance/Medium), so the flat fallback is
+  // automatic on the default tier. `frontProps` picks the panel material.
+  const frontProps = mirrored ? {} : ({ material: wood } as const)
+  const mirrorPane = mirrored ? <MirrorMaterial tint="#dfe8ee" /> : null
+
+  // Corner (L-plan) wardrobe: two 0.6 m-deep arms meeting at the back-left
+  // corner, matching the def's footprintParts. Reaches the floor; the concave
+  // inner corner is left open. Rendered as its own assembly (the straight body /
+  // doors / interior below are skipped in corner mode).
+  if (layout === 'corner') {
+    const d0 = 0.6
+    const ret = Math.min(width, 1.2)
+    const panelH = height - 0.1
+    const mainFrontZ = -ret / 2 + d0 // +Z face of the main (X) arm
+    const retFrontX = -width / 2 + d0 // +X face of the return (Z) arm
+    const mainExposed = width - d0 // main-arm front not covered by the return
+    const retExposed = ret - d0 // return-arm front not covered by the main arm
+    const handleMetal = { color: '#8a8d92', roughness: 0.3, metalness: 0.7 } as const
+
+    const face = (
+      key: string,
+      position: [number, number, number],
+      args: [number, number, number],
+      rotation?: [number, number, number],
+    ) => (
+      <BeveledBox
+        key={key}
+        castShadow
+        position={position}
+        rotation={rotation}
+        args={args}
+        {...frontProps}
+      >
+        {mirrorPane}
+      </BeveledBox>
+    )
+
+    return (
+      <group>
+        {/* Main arm carcass (spans width along X, at the back) */}
+        <BeveledBox
+          castShadow
+          receiveShadow
+          position={[0, height / 2, -ret / 2 + d0 / 2]}
+          material={wood}
+          args={[width, height, d0]}
+        />
+        {/* Return arm carcass (spans ret along Z, on the left) */}
+        <BeveledBox
+          castShadow
+          receiveShadow
+          position={[-width / 2 + d0 / 2, height / 2, 0]}
+          material={wood}
+          args={[d0, height, ret]}
+        />
+        {/* Two doors on the main-arm exposed front (+Z) */}
+        {[0, 1].map((i) => {
+          const panelW = mainExposed / 2 - 0.02
+          const xc = -width / 2 + d0 + mainExposed / 2 // centre of exposed span
+          const x = xc - mainExposed / 4 + i * (mainExposed / 2)
+          const handleX = x + (i === 0 ? 1 : -1) * (panelW / 2 - 0.05)
+          return (
+            <group key={`m${i}`}>
+              {face(`mf${i}`, [x, height / 2, mainFrontZ + 0.006], [panelW, panelH, 0.02])}
+              <mesh castShadow position={[handleX, height / 2, mainFrontZ + 0.03]}>
+                <boxGeometry args={[0.02, 0.22, 0.02]} />
+                <meshStandardMaterial {...handleMetal} />
+              </mesh>
+            </group>
+          )
+        })}
+        {/* One door on the return-arm exposed front (+X) */}
+        {(() => {
+          const zc = -ret / 2 + d0 + retExposed / 2
+          return (
+            <group>
+              {face('rf', [retFrontX + 0.006, height / 2, zc], [0.02, panelH, retExposed - 0.03])}
+              <mesh castShadow position={[retFrontX + 0.03, height / 2, zc - retExposed / 2 + 0.1]}>
+                <boxGeometry args={[0.02, 0.22, 0.02]} />
+                <meshStandardMaterial {...handleMetal} />
+              </mesh>
+            </group>
+          )
+        })()}
+      </group>
+    )
+  }
 
   // Open wardrobe: an exposed carcass (no doors) with a configurable fit-out
   // (`interior`): hanging rails, shelf stacks and/or a drawer bank — for
@@ -50,8 +143,11 @@ export function Wardrobe({ props }: WardrobeProps) {
       const n = Math.max(3, Math.round(bw / 0.14))
       return (
         <group key={key}>
+          {/* Rail spans the full bay and sockets into the side wall + divider
+              (it previously stopped ~3 cm short at each end, leaving the rail +
+              its garments floating clear of the carcass). */}
           <mesh position={[cx, ry, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.012, 0.012, bw - 0.06, 10]} />
+            <cylinderGeometry args={[0.012, 0.012, bw + 0.02, 10]} />
             <meshStandardMaterial color="#9aa0a6" roughness={0.3} metalness={0.7} />
           </mesh>
           {Array.from({ length: n }, (_, i) => {
@@ -178,24 +274,31 @@ export function Wardrobe({ props }: WardrobeProps) {
     if (!sliding) return null
     const n = Math.max(2, Math.min(3, doorCount >= 3 ? 3 : 2))
     const overlap = 0.04
-    const panelW = (width + overlap * (n - 1)) / n
+    // Panels span an INSET width (10 mm off each carcass side) so the outer
+    // panels' side faces don't sit coplanar with the carcass sides (metal frame
+    // vs wood body → z-fight). The two bypass tracks are 32 mm apart so no part's
+    // back face lands on the other track's frame back plane either.
+    const effW = width - 0.02
+    const panelW = (effW + overlap * (n - 1)) / n
     const panelH = height - 0.06
     return Array.from({ length: n }, (_, i) => {
-      const x = -width / 2 + panelW / 2 + i * (panelW - overlap)
-      const z = depth / 2 - (i % 2) * 0.03 // alternate track depth
+      const x = -effW / 2 + panelW / 2 + i * (panelW - overlap)
+      const z = depth / 2 - (i % 2) * 0.032 // alternate track depth
       return (
         <group key={i}>
           {/* Aluminium frame */}
           <BeveledBox castShadow position={[x, height / 2, z]} args={[panelW, panelH, 0.03]}>
             <meshStandardMaterial {...frameMetal} />
           </BeveledBox>
-          {/* Laminate insert */}
+          {/* Laminate (or mirror) insert */}
           <BeveledBox
             castShadow
             position={[x, height / 2, z + 0.016]}
-            material={wood}
             args={[panelW - 0.05, panelH - 0.05, 0.01]}
-          />
+            {...frontProps}
+          >
+            {mirrorPane}
+          </BeveledBox>
           {/* Recessed edge pull (vertical channel on the leading edge) */}
           <mesh position={[x + panelW / 2 - 0.03, height / 2, z + 0.02]}>
             <boxGeometry args={[0.015, panelH - 0.2, 0.01]} />
@@ -231,9 +334,11 @@ export function Wardrobe({ props }: WardrobeProps) {
               <BeveledBox
                 castShadow
                 position={[x, height / 2, depth / 2 - doorInset]}
-                material={wood}
                 args={[doorPanelW, doorPanelH, 0.015]}
-              />
+                {...frontProps}
+              >
+                {mirrorPane}
+              </BeveledBox>
               <mesh castShadow position={[handleX, height / 2, depth / 2 + 0.012]}>
                 <boxGeometry args={[0.02, 0.22, 0.02]} />
                 <meshStandardMaterial color="#8a8d92" roughness={0.3} metalness={0.7} />

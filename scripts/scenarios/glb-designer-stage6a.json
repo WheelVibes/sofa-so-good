@@ -1,0 +1,164 @@
+{
+  "name": "glb-designer-stage6a",
+  "description": "Asset Studio Iteration 2 Stage 6a — content expansion in the GLB Asset Designer (Pro, glbDesigner on). Arm the new 'Dining chair' template, tune it, and 'Use template' — it flattens into the empty spec as one named 'Dining chair' Group (seat + legs + apron + reclined back). Screenshots from the default 3/4 iso viewport to confirm the chair reads correctly (legs plumb at the corners, seat level, back reclined). Then insert 'Wardrobe' and 'Desk' alongside (offset on +X) — three archetype Group rows. Finally arm the new 'Slat set' structural component and place it on the floor in front of the chair via the window.__glbDesignerPlaceOnFace seam — it lands as a named 'Slat set' Group. Asserts every group + part count and screenshots the chair, the trio, and the slat set.",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "set-pro-mode",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "open-glb-designer",
+      "store": { "action": "setGlbDesignerOpen", "args": [true] }
+    },
+    {
+      "name": "wait-designer",
+      "waitFor": { "css": ".glb-designer" },
+      "timeout": 20000
+    },
+    {
+      "name": "settle-designer",
+      "wait": 800
+    },
+    {
+      "name": "shot-designer-open",
+      "screenshot": "01-designer-open"
+    },
+    {
+      "name": "expand-templates",
+      "comment": "Expand the collapsed Templates section before interacting.",
+      "eval": "(function(){const s=[...document.querySelectorAll('.glb-designer details.compose > summary')].find(x=>(x.textContent||'').trim()==='Templates');if(!s)throw new Error('Templates summary not found');if(!s.parentElement.open)s.click();})()"
+    },
+    {
+      "name": "arm-chair-template",
+      "comment": "Tap the new Dining chair template — its parametric step opens with the ergonomic seat/back sliders + a live preview.",
+      "click": { "selector": "button[aria-label='Start from Dining chair template']", "timeout": 5000 }
+    },
+    {
+      "name": "assert-chair-armed",
+      "eval": "(function(){ if (!document.querySelector('.glb-designer input[aria-label=\"Dining chair Seat height\"]')) throw new Error('Seat height slider missing — chair template did not arm'); if (!document.querySelector('.glb-designer input[aria-label=\"Dining chair Back height\"]')) throw new Error('Back height slider missing'); if (!document.querySelector('.glb-designer button[aria-label=\"Use Dining chair template\"]')) throw new Error('Use template action missing'); })()"
+    },
+    {
+      "name": "raise-back",
+      "comment": "Drag the Back height slider toward 0.95 m — the live preview updates before anything is committed.",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Dining chair Back height\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, '0.95'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "wait-preview",
+      "wait": 600
+    },
+    {
+      "name": "shot-chair-picker",
+      "screenshot": "02-chair-picker-live-preview"
+    },
+    {
+      "name": "use-chair",
+      "comment": "Insert the flattened dining chair. The empty spec is REPLACED; the 'Dining chair' group is selected.",
+      "click": { "selector": "button[aria-label='Use Dining chair template']", "timeout": 5000 }
+    },
+    {
+      "name": "wait-chair",
+      "wait": 700
+    },
+    {
+      "name": "assert-chair-group",
+      "comment": "One 'Dining chair' group row appears and it is selected (its Edit-group panel is up).",
+      "eval": "(function(){ const names = [...document.querySelectorAll('.glb-designer .lyr-nm')].map(n => (n.textContent||'').trim()); if (names.filter(t => t === 'Dining chair').length !== 1) throw new Error('expected 1 Dining chair group row, got ' + names.filter(t=>t==='Dining chair').length); if (!document.querySelector('.glb-designer input[aria-label=\"group position X\"]')) throw new Error('inserted group not selected (Edit-group fields missing)'); })()"
+    },
+    {
+      "name": "shot-chair",
+      "comment": "3/4 iso view of the chair — legs must be plumb at the four corners, the seat level, the back reclined.",
+      "screenshot": "03-dining-chair"
+    },
+    {
+      "name": "expand-templates-2",
+      "eval": "(function(){const s=[...document.querySelectorAll('.glb-designer details.compose > summary')].find(x=>(x.textContent||'').trim()==='Templates');if(!s)throw new Error('Templates summary not found');if(!s.parentElement.open)s.click();})()"
+    },
+    {
+      "name": "arm-wardrobe-template",
+      "eval": "(function(){ const btn = document.querySelector('.glb-designer button[aria-label=\"Start from Wardrobe template\"]'); if (!btn) throw new Error('Wardrobe template button not found'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-wardrobe-armed",
+      "eval": "(function(){ if (!document.querySelector('.glb-designer button[aria-label=\"Use Wardrobe template\"]')) throw new Error('Wardrobe template did not arm'); })()"
+    },
+    {
+      "name": "use-wardrobe",
+      "comment": "Insert alongside — the spec is non-empty, so the wardrobe lands offset on +X.",
+      "eval": "(function(){ const btn = document.querySelector('.glb-designer button[aria-label=\"Use Wardrobe template\"]'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "wait-wardrobe",
+      "wait": 700
+    },
+    {
+      "name": "expand-templates-3",
+      "eval": "(function(){const s=[...document.querySelectorAll('.glb-designer details.compose > summary')].find(x=>(x.textContent||'').trim()==='Templates');if(!s)throw new Error('Templates summary not found');if(!s.parentElement.open)s.click();})()"
+    },
+    {
+      "name": "arm-desk-template",
+      "eval": "(function(){ const btn = document.querySelector('.glb-designer button[aria-label=\"Start from Desk template\"]'); if (!btn) throw new Error('Desk template button not found'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-desk-armed",
+      "eval": "(function(){ if (!document.querySelector('.glb-designer button[aria-label=\"Use Desk template\"]')) throw new Error('Desk template did not arm'); })()"
+    },
+    {
+      "name": "use-desk",
+      "eval": "(function(){ const btn = document.querySelector('.glb-designer button[aria-label=\"Use Desk template\"]'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "wait-desk",
+      "wait": 800
+    },
+    {
+      "name": "assert-trio",
+      "comment": "Three archetype Group rows now: Dining chair + Wardrobe + Desk — all three pieces are in the spec, wardrobe + desk offset on +X.",
+      "eval": "(function(){ const names = [...document.querySelectorAll('.glb-designer .lyr-nm')].map(n => (n.textContent||'').trim()); for (const g of ['Dining chair','Wardrobe','Desk']) { if (names.filter(t => t === g).length !== 1) throw new Error('missing group row: ' + g); } })()"
+    },
+    {
+      "name": "shot-trio",
+      "screenshot": "04-chair-wardrobe-desk-trio"
+    },
+    {
+      "name": "expand-components",
+      "comment": "Expand the Components section and confirm the new Structure category is present.",
+      "eval": "(function(){const s=[...document.querySelectorAll('.glb-designer details.compose > summary')].find(x=>(x.textContent||'').trim()==='Components');if(!s)throw new Error('Components summary not found');if(!s.parentElement.open)s.click();})()"
+    },
+    {
+      "name": "arm-slat-set",
+      "comment": "Arm the new Slat set structural component (Structure category).",
+      "eval": "(function(){ const btn = document.querySelector('.glb-designer button[aria-label=\"Place Slat set\"]'); if (!btn) throw new Error('Slat set component button not found (Structure category missing?)'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-slat-armed",
+      "eval": "(function(){ if (!document.body.textContent.includes('Slat set armed')) throw new Error('Slat set did not arm'); if (typeof window.__glbDesignerPlaceOnFace !== 'function') throw new Error('placement seam window.__glbDesignerPlaceOnFace missing'); })()"
+    },
+    {
+      "name": "place-slat-set",
+      "comment": "Place the slat set on the floor in front of the chair (point on the ground, up normal) — a row of slats rests on the ground.",
+      "eval": "window.__glbDesignerPlaceOnFace([0, 0, 0.7], [0, 1, 0])"
+    },
+    {
+      "name": "wait-slat",
+      "wait": 600
+    },
+    {
+      "name": "assert-slat-group",
+      "comment": "One 'Slat set' group row appears — the structural component lands as a named, editable PartGroup.",
+      "eval": "(function(){ const names = [...document.querySelectorAll('.glb-designer .lyr-nm')].map(n => (n.textContent||'').trim()); if (names.filter(t => t === 'Slat set').length !== 1) throw new Error('expected 1 Slat set group row, got ' + names.filter(t=>t==='Slat set').length); })()"
+    },
+    {
+      "name": "shot-slat-set",
+      "screenshot": "05-slat-set-placed"
+    }
+  ]
+}

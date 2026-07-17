@@ -1,0 +1,36 @@
+{
+  "name": "realism-wave4-curtain-sill",
+  "description": "Wave 4A — curtain sill standoff A/B in the main orbit scene (all items render regardless of room). One blackout drawn curtain snapped to a window; standoff toggled 0 (before, sill pokes through) vs 0.16 (after, clears).",
+  "url": "http://localhost:5301/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "boot-ready", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 60000 },
+    { "name": "dismiss", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s=window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "wait-load", "wait": 1500 },
+    { "name": "angle-1", "drag": { "from": [800, 180], "to": [800, 470] } },
+    { "name": "wait-a1", "wait": 400 },
+    { "name": "angle-2", "drag": { "from": [800, 180], "to": [800, 460] } },
+    { "name": "wait-a2", "wait": 700 },
+    {
+      "name": "pick-window",
+      "eval": "(function(){ const st=window.__store.getState(); const fp=st.floorPlan; const byId=Object.fromEntries(fp.walls.map(w=>[w.id,w])); const centre=(o)=>{const w=byId[o.wallId];const dx=w.end[0]-w.start[0],dz=w.end[1]-w.start[1];const len=Math.hypot(dx,dz);const t=o.offset+o.width/2;return{id:o.id,cx:w.start[0]+dx/len*t,cz:w.start[1]+dz/len*t,nx:-dz/len,nz:dx/len,width:o.width,sill:o.sill,head:o.head};}; const wins=fp.openings.filter(o=>byId[o.wallId]&&o.kind==='window').map(centre); const ld=fp.rooms.find(r=>r.id==='livingDining')||fp.rooms.reduce((a,r)=>r.width*r.depth>a.width*a.depth?r:a); const rc=[ld.origin[0]+ld.width/2, ld.origin[1]+ld.depth/2]; window.__C=rc; wins.sort((a,b)=>Math.hypot(a.cx-rc[0],a.cz-rc[1])-Math.hypot(b.cx-rc[0],b.cz-rc[1])); window.__win=wins[0]; console.log('WIN', JSON.stringify(window.__win), 'RC', JSON.stringify(rc)); })()"
+    },
+    { "name": "arm", "store": { "action": "setActiveDefId", "args": ["curtains"] } },
+    { "name": "drop", "eval": "(function(){ const w=window.__win; const c=window.__C; let ux=c[0]-w.cx,uz=c[1]-w.cz; const l=Math.hypot(ux,uz)||1; ux/=l;uz/=l; window.__inx=ux; window.__inz=uz; window.__store.getState().setGhostWorld([w.cx+ux*0.4, w.cz+uz*0.4], true); })()" },
+    { "name": "click", "eval": "(function(){ document.querySelector('canvas').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,button:0})); })()" },
+    { "name": "committed", "waitFor": { "store": "state.items.some(it=>it.defId==='curtains')" }, "timeout": 6000 },
+    { "name": "cid", "eval": "(function(){ const its=window.__store.getState().items.filter(i=>i.defId==='curtains'); window.__cid=its[its.length-1].id; })()" },
+    { "name": "blackout-nostandoff", "eval": "(function(){ window.__store.getState().updateItemProps?.(window.__cid, { drawAmount:1, lightBlock:'blackout', color:'#3a3f46', standoff:0 }); })()" },
+    { "name": "wait1", "wait": 1200 },
+    { "name": "frame-before", "eval": "(function(){ const w=window.__win; const ux=window.__inx,uz=window.__inz; window.__store.getState().requestFrameSelection?.({center:[w.cx+ux*0.35, 0.3, w.cz+uz*0.35], radius:1.15}); })()" },
+    { "name": "wait2", "wait": 1600 },
+    { "name": "shot-before", "screenshot": "01-standoff0-sill-pokes" },
+    { "name": "with-standoff", "eval": "(function(){ window.__store.getState().updateItemProps?.(window.__cid, { standoff:0.16 }); })()" },
+    { "name": "wait3", "wait": 1200 },
+    { "name": "shot-after", "screenshot": "02-standoff016-sill-clear" },
+    { "name": "frame-wide", "eval": "(function(){ const w=window.__win; const ux=window.__inx,uz=window.__inz; window.__store.getState().requestFrameSelection?.({center:[w.cx+ux*0.9, (w.sill||0.4)+0.4, w.cz+uz*0.9], radius:1.7}); })()" },
+    { "name": "wait4", "wait": 1600 },
+    { "name": "shot-wide", "screenshot": "03-standoff016-wide" }
+  ]
+}

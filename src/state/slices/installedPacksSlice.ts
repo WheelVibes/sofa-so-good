@@ -8,20 +8,17 @@ export interface InstalledPacksSlice {
   installedPacks: Record<string, InstalledPack>
   /** Hydrated by hydratePacks() at boot from IDB blobs. */
   packFurniture: PackGltfDef[]
-  installing: Record<string, { progress: number; notificationId: string }>
   markPackInstalled: (pack: InstalledPack) => void
   markPackUninstalled: (packId: string) => void
   setPackFurniture: (defs: PackGltfDef[]) => void
-  setInstalling: (packId: string, info: { progress: number; notificationId: string } | null) => void
 }
 
 export const INSTALLED_PACKS_INITIAL: Pick<
   InstalledPacksSlice,
-  'installedPacks' | 'packFurniture' | 'installing'
+  'installedPacks' | 'packFurniture'
 > = {
   installedPacks: {},
   packFurniture: [],
-  installing: {},
 }
 
 export const createInstalledPacksSlice: SliceCreator<InstalledPacksSlice, RootState> = (set) => ({
@@ -29,9 +26,6 @@ export const createInstalledPacksSlice: SliceCreator<InstalledPacksSlice, RootSt
   markPackInstalled: (pack) =>
     set((s) => ({
       installedPacks: { ...s.installedPacks, [pack.packId]: pack },
-      installing: Object.fromEntries(
-        Object.entries(s.installing).filter(([k]) => k !== pack.packId),
-      ),
     })),
   markPackUninstalled: (packId) =>
     set((s) => {
@@ -56,11 +50,4 @@ export const createInstalledPacksSlice: SliceCreator<InstalledPacksSlice, RootSt
       }
     }),
   setPackFurniture: (defs) => set({ packFurniture: defs }),
-  setInstalling: (packId, info) =>
-    set((s) => {
-      const next = { ...s.installing }
-      if (info) next[packId] = info
-      else delete next[packId]
-      return { installing: next }
-    }),
 })

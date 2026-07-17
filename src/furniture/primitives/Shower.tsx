@@ -1,6 +1,6 @@
 import type { ParamProps } from '../types'
 import { GlassMaterial } from './GlassMaterial'
-import { readNum, readStr } from './shared'
+import { metalLeg, readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
 /** Corner shower: low tray + two glass panels + wall riser with head and
@@ -14,7 +14,15 @@ export function Shower({ props }: { props: ParamProps }) {
   const corner = style === 'corner'
   const h = 2.0
   const half = size / 2
-  const chrome = { color: '#cdd2d6', roughness: 0.2, metalness: 0.85 }
+  // Glass panels sit ON the tray (foot at the 0.08 m tray top) rather than
+  // spanning down THROUGH it — otherwise the panel plane at x/z = ±half lies
+  // coplanar with the tray's side faces over the tray's height and z-fights the
+  // opaque tray. Foot-on-tray reads correctly and keeps the assembly connected.
+  const trayTop = 0.08
+  const glassH = h - trayTop
+  const glassY = trayTop + glassH / 2
+  // Fittings route through the shared brushed-metal material (stainless).
+  const chrome = metalLeg('#cdd2d6', 'stainless')
 
   return (
     <group>
@@ -24,54 +32,64 @@ export function Shower({ props }: { props: ParamProps }) {
         <meshStandardMaterial color={trayColor} roughness={0.3} metalness={0.05} />
       </mesh>
       {/* Drain */}
-      <mesh position={[0, 0.085, 0]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh position={[0, 0.085, 0]} rotation={[Math.PI / 2, 0, 0]} material={chrome}>
         <cylinderGeometry args={[0.05, 0.05, 0.01, seg(16, detail)]} />
-        <meshStandardMaterial {...chrome} />
       </mesh>
-      {/* Glass panels on the two open sides (+X and +Z) */}
-      <mesh position={[half, h / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
-        <planeGeometry args={[size, h]} />
+      {/* Glass panels on the two open sides (+X and +Z), foot on the tray top */}
+      <mesh position={[half, glassY, 0]} rotation={[0, Math.PI / 2, 0]}>
+        <planeGeometry args={[size, glassH]} />
         <GlassMaterial color="#bcd4e6" opacity={0.22} />
       </mesh>
       {/* Second panel only on the corner enclosure; walk-in leaves +Z open */}
       {corner && (
-        <mesh position={[0, h / 2, half]}>
-          <planeGeometry args={[size, h]} />
+        <mesh position={[0, glassY, half]}>
+          <planeGeometry args={[size, glassH]} />
           <GlassMaterial color="#bcd4e6" opacity={0.22} />
         </mesh>
       )}
       {/* Glass frame edges */}
-      <mesh position={[half, h, 0]}>
+      <mesh position={[half, h, 0]} material={chrome}>
         <boxGeometry args={[0.02, 0.02, size]} />
-        <meshStandardMaterial {...chrome} />
       </mesh>
       {corner && (
-        <mesh position={[0, h, half]}>
+        <mesh position={[0, h, half]} material={chrome}>
           <boxGeometry args={[size, 0.02, 0.02]} />
-          <meshStandardMaterial {...chrome} />
         </mesh>
       )}
       {/* Walk-in: a stabiliser bar from the screen top to the back wall */}
       {!corner && (
-        <mesh position={[half, h - 0.05, -half + 0.1]}>
+        <mesh position={[half, h - 0.05, -half + 0.1]} material={chrome}>
           <boxGeometry args={[0.02, 0.02, size - 0.2]} />
-          <meshStandardMaterial {...chrome} />
         </mesh>
       )}
-      {/* Riser rail on the −X/−Z corner wall */}
-      <mesh castShadow position={[-half + 0.05, 1.1, -half + 0.05]}>
-        <cylinderGeometry args={[0.015, 0.015, 1.2, 10]} />
-        <meshStandardMaterial {...chrome} />
+      {/* Riser rail on the −X/−Z corner. Runs the full height from INTO the tray
+          (y 0.05, embedded in the 0–0.08 m tray) up to the head arm, so the whole
+          plumbing column (riser + mixer + head arm + head) reads as one grounded
+          assembly attached to the tray rather than floating fittings on an absent
+          wall — the deferred harness finding. */}
+      <mesh castShadow position={[-half + 0.05, 0.94, -half + 0.05]} material={chrome}>
+        <cylinderGeometry args={[0.015, 0.015, 1.78, 10]} />
+      </mesh>
+      {/* Shower-head arm — a short diagonal spar bridging the riser top to the
+          head so the head sockets onto the riser instead of hanging free. */}
+      <mesh
+        position={[-half + 0.115, 1.82, -half + 0.115]}
+        rotation={[0, -Math.PI / 4, 0]}
+        material={chrome}
+      >
+        <boxGeometry args={[0.26, 0.022, 0.022]} />
       </mesh>
       {/* Shower head */}
-      <mesh position={[-half + 0.18, 1.85, -half + 0.18]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh
+        position={[-half + 0.18, 1.85, -half + 0.18]}
+        rotation={[Math.PI / 2, 0, 0]}
+        material={chrome}
+      >
         <cylinderGeometry args={[0.07, 0.07, 0.03, seg(18, detail)]} />
-        <meshStandardMaterial {...chrome} />
       </mesh>
       {/* Mixer */}
-      <mesh position={[-half + 0.05, 0.95, -half + 0.05]}>
+      <mesh position={[-half + 0.05, 0.95, -half + 0.05]} material={chrome}>
         <boxGeometry args={[0.08, 0.12, 0.08]} />
-        <meshStandardMaterial {...chrome} />
       </mesh>
     </group>
   )

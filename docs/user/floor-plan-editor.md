@@ -76,6 +76,10 @@ On desktop the toolbar is a single compact row: a **Select** pointer icon, then
   other room, and a door or window that isn't on a wall. The header shows a
   `⚠ N stray` count; connect or delete the flagged items to clear it. *(Hidden
   in Simple mode.)*
+- **Un‑roomed areas** — a space that's fully **walled in but has no room assigned**
+  is highlighted in **red**, so you can spot an enclosure you forgot to turn into a
+  room (drop a room over it, or use **Auto room**, to clear the flag). This is
+  distinct from the stray‑element flags above, which mark *disconnected* pieces.
 
 ## Inspecting an element
 
@@ -91,9 +95,14 @@ furniture inspector — a **Name** field on top, then a grid of quick actions:
   is never overwritten.
 - **Walls** — *Reverse*, *Split* (cut in two at the midpoint), *Join* (merge a
   collinear neighbour), *Duplicate*, *Lock* and *Delete*, with the exact
-  thickness / start / end / length / angle fields underneath.
+  thickness / start / end / length / angle fields underneath. A **Baseboard /
+  skirting** section sets this wall's skirting **height** and **colour** (or hides
+  it), and a **Wall colour** picker recolours just this one wall (with a *reset*).
 - **Doors / windows** — *Flip hinge* and *Flip swing* (doors), *Duplicate*,
-  *Lock* and *Delete*, plus the offset / width / sill / head fields.
+  *Lock* and *Delete*, plus the offset / width / sill / head fields. A **Style**
+  picker sets a **door** style (**Panelled**, **Flush** or **Glazed**) or a
+  **window** style (**Plain glass**, **Safety grille** or **Louvre**), and a colour
+  picker sets the door's **Leaf colour** or the window's **Glass tint**.
 - **Lock** — a locked wall or opening can still be selected but won't move,
   reshape or delete by accident (its drag handles disappear) — unlock it to edit
   again.
@@ -145,6 +154,12 @@ Rooms don't have to be plain rectangles:
   knob) and swing it — just like the furniture rotation gizmo. For exact sizes,
   the inspector has **Length (m)** and **Angle (°)** fields: set a wall to
   precisely 3.2 m, or rotate it to 45°, without nudging the X/Z by hand.
+- **Curved walls** — drag a straight wall's **midpoint handle** to bow it into a
+  **curve** (drag it back to the line to straighten it again). Curved walls can't
+  carry doors or windows.
+- **Sloping walls** — give a wall a **sloped (shed / mono‑pitch) top** from its
+  inspector: set a different **top height at each end** for a raked ceiling, then
+  **Reset to flat top** to undo it. A sloped wall carries no openings.
 - **L‑shaped rooms** — with a room selected, click **Make L‑shaped** to add a
   second rectangle (the “extension”), then set its offset and size. The room's
   **area updates to include the extension**, and the 3D flat renders both parts.

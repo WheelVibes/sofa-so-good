@@ -9,6 +9,7 @@ import type { WallFaceInput } from '../collision/equalSpacing'
 import { itemFootprint } from '../collision/placement'
 import type { CollisionWall } from '../collision/walls'
 import { isIkeaDef } from '../furniture/catalog'
+import { resolveFootprintDims } from '../furniture/footprintDims'
 import { resolveCompatible } from '../furniture/ikea/compatibility'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 
@@ -72,11 +73,9 @@ export function halfExtents(
   let w = def.defaultFootprint.w
   let d = def.defaultFootprint.d
   if (def.kind === 'parametric') {
-    const map = def.footprintParams ?? {}
-    const wv = item.props[map.w ?? 'width']
-    const dv = item.props[map.d ?? 'depth']
-    if (typeof wv === 'number') w = wv
-    if (typeof dv === 'number') d = dv
+    const dims = resolveFootprintDims(def, item.props, { w, d })
+    w = dims.w
+    d = dims.d
   }
   const c = Math.abs(Math.cos(item.rotation))
   const s = Math.abs(Math.sin(item.rotation))

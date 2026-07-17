@@ -159,6 +159,12 @@ export type FeatureFlag =
   | 'parallelProjection'
   | 'catalogResize'
   | 'catalogFilters'
+  | 'glbDesigner'
+  | 'assetConfigurableExport'
+  | 'assetSets'
+  | 'petFittings'
+  | 'petProfile'
+  | 'petCompliance'
   | 'profiler'
 
 export interface FlagDef {

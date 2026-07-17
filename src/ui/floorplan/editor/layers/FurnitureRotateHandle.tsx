@@ -38,7 +38,7 @@ export function FurnitureRotateHandle({
 }: FurnitureRotateHandleProps) {
   if (!item || item.locked) return null
   const def = getDef(item.defId)
-  if (!def || def.windowBound) return null
+  if (!def || def.windowBound || def.doorBound) return null
   const obb = itemFootprint(item, def)
   const cx = toPx(obb.cx)
   const cy = toPx(obb.cz)

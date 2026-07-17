@@ -33,10 +33,18 @@ interface WorkerReply {
   lodMedium?: ArrayBuffer
 }
 
+/** One in-flight call on a worker: its resolver plus a per-job watchdog timer
+ *  that reclaims the worker if it never answers (see {@link JOB_TIMEOUT_MS}). */
+interface PendingJob {
+  resolve: (r: RunOptimizeResult | null) => void
+  watchdog: ReturnType<typeof setTimeout>
+}
+
 interface PoolWorker {
   worker: Worker
-  /** In-flight call resolvers keyed by message id (worker processes serially). */
-  pending: Map<number, (r: RunOptimizeResult | null) => void>
+  /** In-flight jobs keyed by message id (worker processes serially, but the
+   *  pool can queue several calls on it while busy). */
+  pending: Map<number, PendingJob>
   /** Pending idle-teardown timer, armed once `pending` empties; cleared if a
    *  new job claims this worker before the timer fires. */
   idleTimer?: ReturnType<typeof setTimeout>
@@ -53,6 +61,22 @@ interface PoolWorker {
  * timers instead of a real 30s wait.
  */
 export const IDLE_TEARDOWN_MS = 30_000
+
+/**
+ * Per-job watchdog (IO-008 follow-up). A `messageerror`/`error` retires a worker,
+ * but a worker that simply NEVER answers (a hung Draco/Basis WASM stack — the same
+ * class of failure `saveOptimize`'s 20 s race guards against) fires no event at
+ * all, so its `pending` resolver would sit forever and permanently occupy a pool
+ * slot. Each posted job arms a watchdog; on expiry the whole worker is reclaimed
+ * (terminated, all its pending jobs rejected to the fail-soft `null` path, dropped
+ * from the pool → a fresh one respawns lazily on the next call). Set slightly ABOVE
+ * the caller's own timeout ({@link OPTIMIZE_SAVE_TIMEOUT_MS} = 20 s in
+ * `glbEdit/saveOptimize.ts`) so a legitimately-slow-but-eventual job is claimed by
+ * the caller's race first and this only ever fires on a genuinely stuck worker.
+ * A normal fast job clears its watchdog on reply — no cost beyond arming one timer.
+ * Exported so tests can drive it with fake timers instead of a real 30 s wait.
+ */
+export const JOB_TIMEOUT_MS = 30_000
 
 /**
  * Upper bound on the optimize-worker pool, derived from the device's capability
@@ -133,6 +157,25 @@ function scheduleIdleTeardown(pw: PoolWorker): void {
   }, IDLE_TEARDOWN_MS)
 }
 
+/**
+ * Retire ONE worker: clear its idle + per-job watchdog timers, fall all its
+ * in-flight calls back to the direct/unoptimized path (`null`), drop it from the
+ * pool (a fresh one respawns on demand), and terminate it. Shared by the
+ * `error`/`messageerror` handlers (a crash / un-cloneable reply) AND the per-job
+ * watchdog (a silently-hung worker) — both retire the whole worker's queue, since
+ * a serial worker stuck on one job can never drain the calls queued behind it.
+ */
+function retireWorker(pw: PoolWorker): void {
+  clearIdleTimer(pw)
+  for (const [, job] of pw.pending) {
+    clearTimeout(job.watchdog)
+    job.resolve(null)
+  }
+  pw.pending.clear()
+  pool = pool.filter((p) => p !== pw)
+  terminate(pw)
+}
+
 function spawn(): PoolWorker | null {
   try {
     const pw: PoolWorker = {
@@ -140,10 +183,11 @@ function spawn(): PoolWorker | null {
       pending: new Map(),
     }
     pw.worker.onmessage = (e: MessageEvent<WorkerReply>) => {
-      const resolve = pw.pending.get(e.data.id)
-      if (!resolve) return
+      const job = pw.pending.get(e.data.id)
+      if (!job) return
+      clearTimeout(job.watchdog)
       pw.pending.delete(e.data.id)
-      resolve(replyToResult(e.data))
+      job.resolve(replyToResult(e.data))
       if (pw.pending.size === 0) scheduleIdleTeardown(pw)
     }
     // Retire only THIS worker on failure: fall its own in-flight calls back to
@@ -151,16 +195,10 @@ function spawn(): PoolWorker | null {
     // spawned on demand). `messageerror` fires when a reply can't be
     // structured-cloned — without handling it that call would hang forever and
     // wedge a bulk-import slot (IO-008); we can't tell which id, so fail this
-    // worker's whole queue.
-    const retire = () => {
-      clearIdleTimer(pw)
-      for (const [, resolve] of pw.pending) resolve(null)
-      pw.pending.clear()
-      pool = pool.filter((p) => p !== pw)
-      terminate(pw)
-    }
-    pw.worker.onerror = retire
-    pw.worker.onmessageerror = retire
+    // worker's whole queue. A worker that answers with NEITHER a reply nor an
+    // error (a hung WASM stack) is instead reclaimed by the per-job watchdog.
+    pw.worker.onerror = () => retireWorker(pw)
+    pw.worker.onmessageerror = () => retireWorker(pw)
     return pw
   } catch {
     return null
@@ -227,7 +265,10 @@ export async function runOptimize(
 
   const result = await new Promise<RunOptimizeResult | null>((resolve) => {
     const id = ++seq
-    pw.pending.set(id, resolve)
+    // Per-job watchdog: if this worker never answers (hung WASM stack), reclaim
+    // it so its pool slot isn't held forever (callers already fail-soft on null).
+    const watchdog = setTimeout(() => retireWorker(pw), JOB_TIMEOUT_MS)
+    pw.pending.set(id, { resolve, watchdog })
     // Transfer a copy so the caller keeps its own buffer intact.
     const copy = input.slice()
     pw.worker.postMessage({ id, input: copy.buffer, opts, lodTiers: runOpts.lodTiers }, [

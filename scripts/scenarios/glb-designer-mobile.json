@@ -1,0 +1,47 @@
+{
+  "name": "glb-designer-mobile",
+  "description": "Asset Studio Stage 10b — mobile designer regression leg. Drives the REAL GLB designer UI on a 390x844 phone viewport (run with SHOT_VIEWPORT=390,844 SHOT_TOUCH=1): open the designer, add a Box by TAPPING the toolbar tile, select it by TAPPING its layer row, numeric-edit its size, open the Templates disclosure + insert a Coffee table, then save the asset end-to-end. Every interaction is a real tap/type; a screenshot is captured at each step so the mobile layout (no overflow, non-colliding viewport overlays, 44px touch targets) stays regression-guarded.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 120000 },
+    { "name": "dismiss-overlays", "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()" },
+    { "name": "set-pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "open-glb-designer", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    { "name": "wait-designer", "waitFor": { "css": ".glb-designer" }, "timeout": 20000 },
+    { "name": "settle", "wait": 1200 },
+    { "name": "shot-open", "screenshot": "01-designer-open" },
+
+    { "name": "tap-add-box", "comment": "Real tap on the Box toolbar tile.", "click": { "text": "Box" } },
+    { "name": "wait-box", "waitFor": { "css": ".glb-designer .lyr-nm" }, "timeout": 8000 },
+    { "name": "assert-box-added", "eval": "(function(){ const s = window.__glbDesigner.getSpec(); if (s.parts.length !== 1 || s.parts[0].kind !== 'box') throw new Error('expected 1 box, got '+JSON.stringify(s.parts.map(p=>p.kind))); })()" },
+    { "name": "shot-box", "screenshot": "02-box-added" },
+
+    { "name": "tap-select-box", "comment": "Select the box by TAPPING its layer row.", "click": { "selector": ".glb-designer .lyr-nm" } },
+    { "name": "wait-select", "waitFor": { "css": ".glb-designer input[aria-label=\"box size X\"]" }, "timeout": 8000 },
+    { "name": "shot-selected", "screenshot": "03-box-selected-inspector" },
+
+    { "name": "edit-size-x", "comment": "Numeric-edit the box width (Size X) — set the controlled React input to 0.9 m.", "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"box size X\"]'); if(!inp) throw new Error('size X input not found'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, '0.9'); inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true })); })()" },
+    { "name": "wait-resize", "wait": 600 },
+    { "name": "assert-resized", "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const sx = s.parts[0].size[0]; if (Math.abs(sx - 0.9) > 0.001) throw new Error('expected size X 0.9, got '+sx); })()" },
+    { "name": "shot-resized", "screenshot": "04-box-resized" },
+
+    { "name": "open-templates", "comment": "Open the Templates disclosure by tapping its summary.", "click": { "text": "Templates" } },
+    { "name": "wait-templates", "waitFor": { "text": "Coffee table" }, "timeout": 8000 },
+    { "name": "shot-templates", "screenshot": "05-templates-open" },
+    { "name": "arm-coffee-table", "comment": "Tap the Coffee table archetype to arm its parametric preview.", "click": { "text": "Coffee table" } },
+    { "name": "wait-armed", "waitFor": { "text": "Use template" }, "timeout": 8000 },
+    { "name": "scroll-to-use", "comment": "Bring the armed card's Use-template button into view before tapping (it sits below the fold once the card expands).", "eval": "(function(){ const btn=[...document.querySelectorAll('.glb-designer button')].find(b=>/Use template/.test(b.textContent||'')); if(!btn) throw new Error('Use template button not found'); btn.scrollIntoView({block:'center'}); })()" },
+    { "name": "wait-scroll", "wait": 400 },
+    { "name": "insert-template", "comment": "Insert the template's editable parts alongside the box.", "click": { "text": "Use template" } },
+    { "name": "wait-inserted", "wait": 900 },
+    { "name": "assert-inserted", "eval": "(function(){ const s = window.__glbDesigner.getSpec(); if (s.parts.length < 3) throw new Error('template did not insert parts, total='+s.parts.length); if (!s.partGroups.some(g=>/Coffee/i.test(g.name))) throw new Error('no Coffee table group; groups='+JSON.stringify(s.partGroups.map(g=>g.name))); })()" },
+    { "name": "shot-inserted", "screenshot": "06-template-inserted" },
+
+    { "name": "set-asset-name", "comment": "Type the asset name.", "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Asset name\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, 'Mobile Coffee Table'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()" },
+    { "name": "record-baseline", "eval": "window.__glbBaseline = window.__store.getState().userFurniture.length" },
+    { "name": "scroll-to-save", "comment": "Bring the Save asset button into view (bottom of the scrolling controls column) before tapping.", "eval": "(function(){ const btn=[...document.querySelectorAll('.glb-designer button')].find(b=>/Save asset/.test(b.textContent||'')); if(!btn) throw new Error('Save asset button not found'); btn.scrollIntoView({block:'center'}); })()" },
+    { "name": "wait-scroll-save", "wait": 400 },
+    { "name": "tap-save", "comment": "Real tap on Save asset.", "click": { "text": "Save asset" } },
+    { "name": "assert-saved", "waitFor": { "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Mobile Coffee Table' && typeof d.byteSize === 'number' && d.byteSize > 0)" }, "timeout": 60000, "failMessage": "the mobile-built asset should persist with a byteSize" },
+    { "name": "shot-saved", "screenshot": "07-asset-saved" }
+  ]
+}

@@ -1,14 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import {
   type AssetEditSpec,
+  addCombineGroup,
   addPart,
+  addPartGroup,
+  combineSpansPartGroups,
   createEmptySpec,
+  defaultPart,
   duplicatePart,
+  duplicatePartGroup,
   isBuildable,
   mirrorPart,
+  mirrorPartGroup,
+  partGroupForPart,
+  partGroupMemberIds,
+  partGroups,
   removePart,
+  removePartGroupRaw,
+  renamePartGroup,
   setMeshOverride,
   updatePart,
+  updatePartGroupTransform,
 } from './editSpec'
 
 describe('AssetEditSpec', () => {
@@ -115,6 +127,31 @@ describe('setMeshOverride', () => {
     const s = addPart(createEmptySpec(), 'box')
     expect(mirrorPart(s, 'nope')).toBe(s)
   })
+
+  it('duplicate/mirror deep-copy the Stage-6b arrays (loft outlines + custom path)', () => {
+    // A loft seeds loftBottom/loftTop; add a custom sweep path too.
+    let s = addPart(createEmptySpec(), 'loft')
+    const loftId = s.parts[0]!.id
+    s = updatePart(s, loftId, {
+      sweepPathPoints: [
+        [-0.5, 0],
+        [0.5, 0],
+      ],
+    })
+    const dup = duplicatePart(s, loftId)
+    const copy = dup.parts[1]!
+    // Deep-copied — mutating the clone's arrays must not touch the source.
+    copy.loftBottom![0][0] = 999
+    copy.loftTop![0][0] = 999
+    copy.sweepPathPoints![0][0] = 999
+    expect(s.parts[0]!.loftBottom![0][0]).not.toBe(999)
+    expect(s.parts[0]!.loftTop![0][0]).not.toBe(999)
+    expect(s.parts[0]!.sweepPathPoints![0][0]).not.toBe(999)
+    // Mirror likewise deep-copies.
+    const mir = mirrorPart(s, loftId)
+    expect(mir.parts[1]!.loftBottom).toEqual(s.parts[0]!.loftBottom)
+    expect(mir.parts[1]!.loftBottom).not.toBe(s.parts[0]!.loftBottom)
+  })
 })
 
 describe('per-part texture finish (GE3c) — schema + back-compat', () => {
@@ -149,6 +186,48 @@ describe('per-part texture finish (GE3c) — schema + back-compat', () => {
     expect(revived.parts[0]!.finish).toBe('mat:ambientcg:Wood048:1k')
   })
 
+  it('Stage 1a kinds seed their parametric defaults (profile/outline/preset/bevel)', () => {
+    const lathe = defaultPart('lathe')
+    expect(lathe.kind).toBe('lathe')
+    expect(Array.isArray(lathe.profile)).toBe(true)
+    expect(lathe.profile!.length).toBeGreaterThan(1)
+    expect(lathe.segments).toBe(32)
+
+    const extrude = defaultPart('extrude')
+    expect(Array.isArray(extrude.outline)).toBe(true)
+    // Bevel ON by default for extrudes.
+    expect(extrude.bevel).toBeGreaterThan(0)
+
+    const sweep = defaultPart('sweep')
+    expect(sweep.sweepProfile).toBe('circle')
+    expect(sweep.sweepPath).toBe('ring')
+
+    // Box/wedge default sharp (bevel absent → byte-identical geometry).
+    expect(defaultPart('box').bevel).toBeUndefined()
+    expect(defaultPart('wedge').bevel).toBeUndefined()
+  })
+
+  it('duplicate/mirror deep-copy a lathe profile (no shared tuple array)', () => {
+    let s = addPart(createEmptySpec(), 'lathe')
+    const id = s.parts[0]!.id
+    s = duplicatePart(s, id)
+    const src = s.parts[0]!
+    const copy = s.parts[1]!
+    expect(copy.profile).toEqual(src.profile)
+    expect(copy.profile).not.toBe(src.profile) // distinct array
+    expect(copy.profile![0]).not.toBe(src.profile![0]) // distinct points
+    // Mutating the copy's profile never leaks into the source.
+    copy.profile![0][0] = 999
+    expect(src.profile![0][0]).not.toBe(999)
+  })
+
+  it('an extrude outline survives a JSON round trip', () => {
+    const s = addPart(createEmptySpec(), 'extrude')
+    const revived = JSON.parse(JSON.stringify(s)) as AssetEditSpec
+    expect(revived.parts[0]!.outline).toEqual(s.parts[0]!.outline)
+    expect(revived.parts[0]!.bevel).toBe(s.parts[0]!.bevel)
+  })
+
   it('a pre-GE3c spec (no finish anywhere) round-trips unchanged and stays buildable', () => {
     const legacy: AssetEditSpec = {
       sourceScale: 1,
@@ -164,5 +243,129 @@ describe('per-part texture finish (GE3c) — schema + back-compat', () => {
     // Editing a legacy part never invents a finish.
     const next = updatePart(revived, 'a', { color: '#112233' })
     expect(next.parts[0]!.finish).toBeUndefined()
+  })
+})
+
+describe('combine ⨯ transform-group boundary (finding 1)', () => {
+  /** Four boxes; ids[0..1] in group A, ids[2..3] in group B, plus two ungrouped. */
+  function fourBoxesTwoGroups() {
+    let s = createEmptySpec()
+    for (let i = 0; i < 4; i++) s = addPart(s, 'box')
+    const ids = s.parts.map((p) => p.id)
+    s = addPartGroup(s, [ids[0], ids[1]]).spec
+    s = addPartGroup(s, [ids[2], ids[3]]).spec
+    return { s, ids }
+  }
+
+  it('allows a combine whose members all share one transform group', () => {
+    const { s, ids } = fourBoxesTwoGroups()
+    expect(combineSpansPartGroups(s, [ids[0], ids[1]])).toBe(false)
+    const { groupId } = addCombineGroup(s, [ids[0], ids[1]], 'union')
+    expect(groupId).toBeTruthy()
+  })
+
+  it('blocks a combine spanning two different transform groups', () => {
+    const { s, ids } = fourBoxesTwoGroups()
+    expect(combineSpansPartGroups(s, [ids[0], ids[2]])).toBe(true)
+    const { spec, groupId } = addCombineGroup(s, [ids[0], ids[2]], 'union')
+    expect(groupId).toBeNull()
+    expect(spec).toBe(s) // unchanged
+  })
+
+  it('blocks a combine mixing a grouped member with an ungrouped one', () => {
+    let s = createEmptySpec()
+    for (let i = 0; i < 2; i++) s = addPart(s, 'box')
+    const ids = s.parts.map((p) => p.id)
+    s = addPartGroup(s, [ids[0]]).spec // ids[0] grouped, ids[1] free
+    expect(combineSpansPartGroups(s, ids)).toBe(true)
+    expect(addCombineGroup(s, ids, 'union').groupId).toBeNull()
+  })
+
+  it('allows a combine of two ungrouped parts (result lives at root)', () => {
+    let s = createEmptySpec()
+    for (let i = 0; i < 2; i++) s = addPart(s, 'box')
+    const ids = s.parts.map((p) => p.id)
+    expect(combineSpansPartGroups(s, ids)).toBe(false)
+    expect(addCombineGroup(s, ids, 'union').groupId).toBeTruthy()
+  })
+})
+
+describe('transform groups (Stage 3a)', () => {
+  function twoBoxes() {
+    const s = addPart(addPart(createEmptySpec(), 'box'), 'box')
+    return { s, ids: s.parts.map((p) => p.id) }
+  }
+
+  it('addPartGroup records a named group over ≥1 distinct existing parts', () => {
+    const { s, ids } = twoBoxes()
+    const { spec, groupId } = addPartGroup(s, ids)
+    expect(groupId).toBeTruthy()
+    expect(partGroups(spec)).toHaveLength(1)
+    expect(partGroups(spec)[0]).toMatchObject({ name: 'Group 1', partIds: ids })
+    expect(partGroupForPart(spec, ids[0])?.id).toBe(groupId)
+    expect([...partGroupMemberIds(spec)]).toEqual(ids)
+  })
+
+  it('addPartGroup rejects a part already in another transform group', () => {
+    const { s, ids } = twoBoxes()
+    const first = addPartGroup(s, [ids[0]]).spec
+    // ids[0] is already grouped — a new group over it is rejected.
+    const { groupId } = addPartGroup(first, ids)
+    expect(groupId).toBeNull()
+  })
+
+  it('rename / transform update are immutable + clear identity transforms', () => {
+    const { s, ids } = twoBoxes()
+    const { spec, groupId } = addPartGroup(s, ids)
+    const named = renamePartGroup(spec, groupId!, 'Legs')
+    expect(partGroups(named)[0].name).toBe('Legs')
+    const moved = updatePartGroupTransform(named, groupId!, { position: [0.5, 0, 0] })
+    expect(partGroups(moved)[0].position).toEqual([0.5, 0, 0])
+    // Setting the transform back to zero clears the field (identity → absent).
+    const cleared = updatePartGroupTransform(moved, groupId!, { position: [0, 0, 0] })
+    expect(partGroups(cleared)[0].position).toBeUndefined()
+  })
+
+  it('duplicatePartGroup deep-copies members into a new offset group', () => {
+    const { s, ids } = twoBoxes()
+    const { spec, groupId } = addPartGroup(s, ids)
+    const withXf = updatePartGroupTransform(spec, groupId!, { position: [1, 0, 0] })
+    const { spec: dup, groupId: newId } = duplicatePartGroup(withXf, groupId!)
+    expect(newId).toBeTruthy()
+    expect(newId).not.toBe(groupId)
+    expect(dup.parts).toHaveLength(4) // members deep-copied
+    expect(partGroups(dup)).toHaveLength(2)
+    const copy = partGroups(dup).find((g) => g.id === newId)!
+    // Copy is offset in +X from the original transform and shares NO part ids.
+    expect(copy.position![0]).toBeGreaterThan(1)
+    expect(copy.partIds.some((id) => ids.includes(id))).toBe(false)
+  })
+
+  it('mirrorPartGroup mirrors the group transform + its members across X=0', () => {
+    const { s, ids } = twoBoxes()
+    const positioned = updatePart(s, ids[0], { position: [0.5, 0.2, 0] })
+    const { spec, groupId } = addPartGroup(positioned, ids)
+    const withXf = updatePartGroupTransform(spec, groupId!, { position: [1, 0, 0] })
+    const { spec: mir, groupId: newId } = mirrorPartGroup(withXf, groupId!)
+    const mgroup = partGroups(mir).find((g) => g.id === newId)!
+    expect(mgroup.position![0]).toBe(-1)
+    const mMember = mir.parts.find((p) => p.id === mgroup.partIds[0])!
+    expect(mMember.position[0]).toBe(-0.5)
+  })
+
+  it('removePart prunes a member from its transform group (empty group dropped)', () => {
+    const { s, ids } = twoBoxes()
+    const { spec } = addPartGroup(s, [ids[0]])
+    const after = removePart(spec, ids[0])
+    expect(partGroups(after)).toHaveLength(0)
+    expect(after.partGroups).toBeUndefined()
+  })
+
+  it('removePartGroupRaw drops the group without touching member transforms', () => {
+    const { s, ids } = twoBoxes()
+    const { spec, groupId } = addPartGroup(s, ids)
+    const after = removePartGroupRaw(spec, groupId!)
+    expect(partGroups(after)).toHaveLength(0)
+    expect(after.parts).toEqual(spec.parts) // members untouched
   })
 })

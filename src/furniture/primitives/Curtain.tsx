@@ -102,6 +102,15 @@ export function Curtain({ props }: { props: ParamProps }) {
   const sillY = readNum(props, 'sillY', 0.9)
   const bottom = lengthMode === 'sill' ? Math.max(0.1, sillY - 0.1) : 0
   const panelHeight = Math.max(0.4, height - bottom)
+  // Standoff from the wall (m): the snap plants the panel on the wall centre-line,
+  // but a typical HDB window has an interior sill/frame that projects ~0.14 m into
+  // the room (see `apartment/Window.tsx`), which used to poke through the fabric's
+  // fold troughs. Placement sets a standoff (via `windowFixtureProps`) so the panel
+  // — troughs and all — clears the sill. Free-placed curtains keep the flush look
+  // (default 0). The rod/finials shift with the panels so the drape hangs plumb.
+  const standoff = readNum(props, 'standoff', 0)
+  const panelZ = 0.05 + standoff
+  const rodZ = 0.04 + standoff
 
   const geo = useMemo(() => buildWavyPanel(panelHeight), [panelHeight])
   useEffect(() => () => geo.dispose(), [geo])
@@ -170,24 +179,24 @@ export function Curtain({ props }: { props: ParamProps }) {
   return (
     <group>
       {/* Rod + finials, just above the drop. */}
-      <mesh position={[0, height + 0.04, 0.04]} rotation={[0, 0, Math.PI / 2]}>
+      <mesh position={[0, height + 0.04, rodZ]} rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.015, 0.015, width + 0.2, 10]} />
         <meshStandardMaterial color="#54585e" roughness={0.4} metalness={0.6} />
       </mesh>
       {[-1, 1].map((s) => (
-        <mesh key={s} position={[s * (width / 2 + 0.1), height + 0.04, 0.04]}>
+        <mesh key={s} position={[s * (width / 2 + 0.1), height + 0.04, rodZ]}>
           <sphereGeometry args={[0.025, 12, 8]} />
           <meshStandardMaterial color="#54585e" roughness={0.4} metalness={0.6} />
         </mesh>
       ))}
       {/* Two draped panels (gather to the sides when open), hung from the rod
           down to the hem (`bottom`). */}
-      <group ref={leftRef} position={[left0.centreX, bottom, 0.05]} scale={[left0.covered, 1, 1]}>
+      <group ref={leftRef} position={[left0.centreX, bottom, panelZ]} scale={[left0.covered, 1, 1]}>
         <mesh geometry={geo} material={fabricMat} castShadow />
       </group>
       <group
         ref={rightRef}
-        position={[right0.centreX, bottom, 0.05]}
+        position={[right0.centreX, bottom, panelZ]}
         scale={[right0.covered, 1, 1]}
       >
         <mesh geometry={geo} material={fabricMat} castShadow />

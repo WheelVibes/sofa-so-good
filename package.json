@@ -1,7 +1,7 @@
 {
   "name": "sofa-so-good",
   "private": true,
-  "version": "0.21.2",
+  "version": "0.22.0",
   "type": "module",
   "main": "electron/main.mjs",
   "engines": {
@@ -82,6 +82,7 @@
     "@gltf-transform/extensions": "^4.3.0",
     "@gltf-transform/functions": "^4.3.0",
     "@playwright/test": "^1.60.0",
+    "@react-three/test-renderer": "^9.1.0",
     "@tailwindcss/postcss": "^4.3.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

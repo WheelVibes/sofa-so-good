@@ -1,0 +1,146 @@
+{
+  "name": "glb-designer-stage4",
+  "description": "Asset Studio Stage 4b — precision & pro UX in the GLB Asset Designer (Pro, glbDesigner on). Builds 3 ragged boxes via the dev seam, multi-selects them, aligns their centres on X (all X equal) and distributes them on Z (equal gaps, endpoints fixed). Seeds a 1 cm grid-snap pref so the inspector's numeric size/position inputs step by 1 cm. Renames a shape via the inspector Name field. Linear-arrays one shape x4 into a named Array group with equal gaps. Snaps the camera to the Front preset and confirms the live W x H x D dimension readout is visible while a shape is selected. Screenshots each milestone.",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays-and-seed-snap",
+      "comment": "Dismiss first-run overlays AND seed a 1 cm grid-snap pref so loadGridSnap restores it when the designer opens (persistence).",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1'); localStorage.setItem('hdb_designer_grid_snap','1'); localStorage.setItem('hdb_designer_snap_step','0.01') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "set-pro-mode",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "open-glb-designer",
+      "store": { "action": "setGlbDesignerOpen", "args": [true] }
+    },
+    {
+      "name": "wait-designer",
+      "waitFor": { "text": "3D asset designer" },
+      "timeout": 60000
+    },
+    {
+      "name": "build-3-boxes",
+      "comment": "Deterministically build 3 ragged boxes via the dev-only __glbDesigner seam (mirrors stage3d).",
+      "eval": "window.__glbDesigner.setSpec({ sourceScale: 1, meshOverrides: {}, parts: [ { id: 'b1', kind: 'box', position: [0, 0.2, 0], size: [0.4, 0.4, 0.4], color: '#c0392b' }, { id: 'b2', kind: 'box', position: [0.8, 0.35, 0.7], size: [0.4, 0.4, 0.4], color: '#2980b9' }, { id: 'b3', kind: 'box', position: [1.7, 0.15, 1.9], size: [0.4, 0.4, 0.4], color: '#27ae60' } ] })"
+    },
+    { "name": "wait-boxes", "wait": 500 },
+    {
+      "name": "assert-3-rows",
+      "eval": "(function(){ const names = [...document.querySelectorAll('.glb-designer .lyr-nm')].map(n => (n.textContent||'').trim()); for (const t of ['box 1','box 2','box 3']) if (!names.includes(t)) throw new Error('missing layer row ' + t); })()"
+    },
+    { "name": "shot-boxes", "screenshot": "01-three-boxes" },
+    {
+      "name": "enter-select-mode",
+      "comment": "Turn on multi-select so each row shows a checkbox.",
+      "click": { "selector": ".glb-designer button.chip", "timeout": 5000 }
+    },
+    {
+      "name": "select-all-three",
+      "comment": "Tick all three shapes.",
+      "eval": "(function(){ for (const t of ['Select box 1','Select box 2','Select box 3']) { const cb = document.querySelector(`.glb-designer input[aria-label='${t}']`); if (!cb) throw new Error('checkbox missing: ' + t); cb.click(); } })()"
+    },
+    {
+      "name": "assert-arrange-visible",
+      "comment": "The Arrange section's align controls appear with 2+ selected.",
+      "eval": "(function(){ if (!document.querySelector(\".glb-designer button[aria-label='Align centre on X']\")) throw new Error('Arrange align controls missing on multi-select'); })()"
+    },
+    {
+      "name": "align-centre-x",
+      "click": { "selector": ".glb-designer button[aria-label='Align centre on X']", "timeout": 5000 }
+    },
+    { "name": "wait-align", "wait": 300 },
+    {
+      "name": "assert-aligned-x",
+      "comment": "All three shapes now share the same centre X (= centre of the union bounds, 0.85).",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const xs = ['b1','b2','b3'].map(id => s.parts.find(p => p.id === id).position[0]); for (const x of xs) if (Math.abs(x - xs[0]) > 1e-6) throw new Error('X not aligned: ' + JSON.stringify(xs)); if (Math.abs(xs[0] - 0.85) > 1e-6) throw new Error('expected centre X 0.85, got ' + xs[0]); })()"
+    },
+    {
+      "name": "switch-axis-z",
+      "comment": "Set the Arrange axis to Z before distributing.",
+      "eval": "(function(){ const grp = document.querySelector(\".glb-designer [aria-label='Arrange axis']\"); if (!grp) throw new Error('Arrange axis segmented missing'); const z = [...grp.querySelectorAll('button')].find(b => (b.textContent||'').trim() === 'Z'); if (!z) throw new Error('Z axis button missing'); z.click(); })()"
+    },
+    {
+      "name": "distribute-z",
+      "click": { "selector": ".glb-designer button[aria-label='Distribute on Z']", "timeout": 5000 }
+    },
+    { "name": "wait-distribute", "wait": 300 },
+    {
+      "name": "assert-distributed-z",
+      "comment": "Equal gaps between adjacent shape centres on Z; the two outermost stay put (0 and 1.9).",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const zs = ['b1','b2','b3'].map(id => s.parts.find(p => p.id === id).position[2]).sort((a,b) => a-b); const g1 = zs[1]-zs[0]; const g2 = zs[2]-zs[1]; if (Math.abs(g1-g2) > 1e-6) throw new Error('uneven Z gaps: ' + JSON.stringify(zs)); if (Math.abs(zs[0]-0) > 1e-6 || Math.abs(zs[2]-1.9) > 1e-6) throw new Error('endpoints moved: ' + JSON.stringify(zs)); })()"
+    },
+    { "name": "shot-aligned", "screenshot": "02-aligned-distributed" },
+    {
+      "name": "exit-select-mode",
+      "comment": "Leave multi-select so a plain row click selects a single shape.",
+      "click": { "selector": ".glb-designer button.chip.on", "timeout": 5000 }
+    },
+    {
+      "name": "single-select-b1",
+      "eval": "(function(){ const row = [...document.querySelectorAll('.glb-designer .lyr-nm')].find(n => (n.textContent||'').trim() === 'box 1'); if (!row) throw new Error('box 1 row missing'); row.closest('.lyr-row').click(); })()"
+    },
+    {
+      "name": "assert-snap-step-1cm",
+      "comment": "The 1 cm snap pref was restored and drives the inspector's numeric size/position step; the magnet toggle is present.",
+      "eval": "(function(){ if (!document.querySelector(\".glb-designer button[aria-label='Toggle grid snap'], button[aria-label='Toggle grid snap']\")) throw new Error('grid snap toggle missing'); const inp = document.querySelector(\"input[aria-label='box position X']\"); if (!inp) throw new Error('position input missing'); if (inp.getAttribute('step') !== '0.01') throw new Error('expected numeric step 0.01 (1 cm), got ' + inp.getAttribute('step')); })()"
+    },
+    {
+      "name": "rename-b1",
+      "comment": "Rename via the inspector Name field.",
+      "eval": "(function(){ const inp = document.querySelector(\"input[aria-label='Shape name']\"); if (!inp) throw new Error('Shape name field missing'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, 'Front leg'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    { "name": "wait-rename", "wait": 300 },
+    {
+      "name": "assert-renamed",
+      "comment": "The shape carries the new name (spec) and its layer row shows it.",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); if (s.parts.find(p => p.id === 'b1').name !== 'Front leg') throw new Error('name not set in spec'); const names = [...document.querySelectorAll('.glb-designer .lyr-nm')].map(n => (n.textContent||'').trim()); if (!names.includes('Front leg')) throw new Error('layer row not renamed'); })()"
+    },
+    { "name": "shot-renamed", "screenshot": "03-renamed" },
+    {
+      "name": "open-array",
+      "comment": "Open the Array disclosure inside the Arrange section.",
+      "eval": "(function(){ const s = [...document.querySelectorAll('.glb-designer details.compose > summary')].find(x => (x.textContent||'').trim() === 'Array'); if (!s) throw new Error('Array disclosure missing'); if (!s.parentElement.open) s.click(); })()"
+    },
+    {
+      "name": "set-array-params",
+      "eval": "(function(){ const set = (label, val) => { const inp = document.querySelector(`.glb-designer input[aria-label='${label}']`); if (!inp) throw new Error('missing ' + label); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, String(val)); inp.dispatchEvent(new Event('input', { bubbles: true })); }; set('Linear array count', 4); set('Linear array gap', 0.3); })()"
+    },
+    {
+      "name": "create-linear-array",
+      "click": { "selector": ".glb-designer button[aria-label='Create linear array']", "timeout": 5000 }
+    },
+    { "name": "wait-array", "wait": 400 },
+    {
+      "name": "assert-array-group",
+      "comment": "A named Array group holds 4 copies at an even 0.7 m pitch on X — edge-gap semantics: the 0.4 m box extent + the 0.3 m edge gap. The clear space between adjacent boxes is 0.3 m.",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const groups = (s.partGroups||[]).filter(g => g.name === 'Array'); if (groups.length !== 1) throw new Error('expected 1 Array group, got ' + groups.length); const g = groups[0]; if (g.partIds.length !== 4) throw new Error('expected 4 copies, got ' + g.partIds.length); const xs = g.partIds.map(id => s.parts.find(p => p.id === id).position[0]).sort((a,b)=>a-b); for (let i = 2; i < xs.length; i++) { const g1 = xs[i-1]-xs[i-2]; const g2 = xs[i]-xs[i-1]; if (Math.abs(g1-g2) > 1e-6) throw new Error('uneven array pitch: ' + JSON.stringify(xs)); } if (Math.abs((xs[1]-xs[0]) - 0.7) > 1e-6) throw new Error('pitch not 0.7 (extent 0.4 + gap 0.3): ' + JSON.stringify(xs)); })()"
+    },
+    { "name": "shot-array", "screenshot": "04-linear-array" },
+    {
+      "name": "front-view",
+      "comment": "Snap the camera to the Front orthographic-style preset.",
+      "click": { "selector": ".glb-designer button[aria-label='Front view']", "timeout": 5000 }
+    },
+    { "name": "wait-front", "wait": 500 },
+    { "name": "shot-front", "screenshot": "05-front-view" },
+    {
+      "name": "select-for-dims",
+      "comment": "Select a single shape so the live dimension readout has a subject.",
+      "eval": "(function(){ const row = [...document.querySelectorAll('.glb-designer .lyr-nm')].find(n => (n.textContent||'').trim() === 'Front leg'); if (!row) throw new Error('Front leg row missing'); row.closest('.lyr-row').click(); })()"
+    },
+    { "name": "wait-dims", "wait": 700 },
+    {
+      "name": "assert-dimension-readout",
+      "comment": "The live W x D x H readout is visible while a shape is selected (~40 cm box).",
+      "eval": "(function(){ const el = document.querySelector(\"[aria-label='Selection dimensions']\"); if (!el) throw new Error('dimension readout not visible'); const txt = (el.textContent||'').trim(); if (!/\\d+\\s*×\\s*\\d+\\s*×\\s*\\d+\\s*cm/.test(txt)) throw new Error('readout text unexpected: ' + txt); })()"
+    },
+    { "name": "shot-dims", "screenshot": "06-dimension-readout" }
+  ]
+}

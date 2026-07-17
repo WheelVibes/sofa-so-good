@@ -46,9 +46,11 @@ export function PetBed({ props }: { props: ParamProps }) {
   const bolT = 0.1
   return (
     <group>
-      {/* Base cushion */}
+      {/* Base cushion — 4 mm smaller each side than the bolster perimeter so its
+          outer faces tuck UNDER the bolsters (which overhang it) instead of
+          sitting coplanar with the bolster sides (different fabrics → z-fight). */}
       <mesh castShadow receiveShadow position={[0, 0.045, 0]} material={cushionMat}>
-        <boxGeometry args={[w, 0.09, d]} />
+        <boxGeometry args={[w - 0.008, 0.09, d - 0.008]} />
       </mesh>
       {/* Back bolster (−Z) */}
       <mesh

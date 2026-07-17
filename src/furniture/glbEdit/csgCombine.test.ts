@@ -4,20 +4,8 @@ import { buildMaterial } from '../../materials/cache'
 import { furnitureMaterialCacheId } from '../../materials/furnitureMaterials'
 import type { SolidMaterialDef } from '../../materials/types'
 import { partGeometry, partMaterials } from './buildObject'
-import {
-  bakedPartGeometry,
-  canCombineParts,
-  combineParts,
-  meshPartFromGeometry,
-  partTransformMatrix,
-  replaceWithCombined,
-} from './csgCombine'
-import {
-  type AssetEditSpec,
-  createEmptySpec,
-  type GroupMaterialData,
-  type ShapePart,
-} from './editSpec'
+import { bakedPartGeometry, meshPartFromGeometry, partTransformMatrix } from './csgCombine'
+import type { GroupMaterialData, ShapePart } from './editSpec'
 
 function buildFinishIntoCache(id: string, swatch = '#8a5a2b'): void {
   const def: SolidMaterialDef = {
@@ -38,27 +26,6 @@ function box(
 ): ShapePart {
   return { id, kind: 'box', position, size, color: '#112233', ...extra }
 }
-
-function specWith(...parts: ShapePart[]): AssetEditSpec {
-  return { ...createEmptySpec(), parts }
-}
-
-describe('canCombineParts', () => {
-  const spec = specWith(box('a', [0, 0, 0]), box('b', [0.5, 0, 0]))
-
-  it('accepts two distinct existing parts', () => {
-    expect(canCombineParts(spec, 'a', 'b')).toBe(true)
-  })
-
-  it('rejects the same part twice', () => {
-    expect(canCombineParts(spec, 'a', 'a')).toBe(false)
-  })
-
-  it('rejects an unknown id on either side', () => {
-    expect(canCombineParts(spec, 'a', 'ghost')).toBe(false)
-    expect(canCombineParts(spec, 'ghost', 'b')).toBe(false)
-  })
-})
 
 describe('partTransformMatrix / bakedPartGeometry', () => {
   it('bakes the position into the geometry (bbox moves to the part centre)', () => {
@@ -252,124 +219,5 @@ describe('meshPartFromGeometry', () => {
       rebuilt.dispose()
       geo.dispose()
     })
-  })
-})
-
-describe('replaceWithCombined', () => {
-  it('replaces A in place (keeping list order) and drops B', () => {
-    const spec = specWith(box('a', [0, 0, 0]), box('mid', [1, 0, 0]), box('b', [2, 0, 0]))
-    const combined = box('new', [0, 0, 0], [1, 1, 1])
-    const next = replaceWithCombined(spec, 'a', 'b', combined)
-    expect(next.parts.map((p) => p.id)).toEqual(['new', 'mid'])
-    expect(spec.parts).toHaveLength(3) // immutability
-  })
-})
-
-describe('combineParts (CSG wiring, real engine)', () => {
-  // Two unit boxes overlapping by 0.5m on X, centred at y=0.5 (floor-resting).
-  const overlapping = () =>
-    specWith(box('a', [0, 0.5, 0]), box('b', [0.5, 0.5, 0], [1, 1, 1], { color: '#ff0000' }))
-
-  it('union replaces both parts with one mesh part spanning both boxes', async () => {
-    const { spec, partId } = await combineParts(overlapping(), 'a', 'b', 'union')
-    expect(spec.parts).toHaveLength(1)
-    const p = spec.parts[0]
-    expect(p.id).toBe(partId)
-    expect(p.kind).toBe('mesh')
-    expect(p.color).toBe('#112233') // first operand's colour (fallback)
-    expect(p.size[0]).toBeCloseTo(1.5, 3)
-    expect(p.size[1]).toBeCloseTo(1, 3)
-    expect(p.position[0]).toBeCloseTo(0.25, 3) // bounds centre of the union
-    expect(p.position[1]).toBeCloseTo(0.5, 3)
-  })
-
-  it('union preserves per-part materials in geometry.groups / geometry.materials', async () => {
-    const { spec } = await combineParts(overlapping(), 'a', 'b', 'union')
-    const p = spec.parts[0]
-    // With useGroups=true, the CSG result carries groups for each source part's material.
-    expect(p.geometry!.groups).toBeDefined()
-    expect(p.geometry!.groups!.length).toBeGreaterThanOrEqual(1)
-    expect(p.geometry!.materials).toBeDefined()
-    // Part A had color '#112233', part B had '#ff0000' — both should appear.
-    const colors = p.geometry!.materials!.map((m) => m.color)
-    expect(colors).toContain('#112233')
-    expect(colors).toContain('#ff0000')
-  })
-
-  it('partMaterials returns a material array for a union with distinct part finishes', async () => {
-    const spec = specWith(
-      box('a', [0, 0.5, 0], [1, 1, 1], { color: '#112233' }),
-      box('b', [0.5, 0.5, 0], [1, 1, 1], { color: '#ff0000' }),
-    )
-    const { spec: combined } = await combineParts(spec, 'a', 'b', 'union')
-    const p = combined.parts[0]
-    const mats = partMaterials(p)
-    expect(Array.isArray(mats)).toBe(true)
-    expect((mats as unknown[]).length).toBeGreaterThanOrEqual(1)
-  })
-
-  it('parts sharing the same finish+colour produce one merged group (deduplication)', async () => {
-    // Both parts have the same colour → the Evaluator should merge their groups.
-    const spec = specWith(
-      box('a', [0, 0.5, 0], [1, 1, 1], { color: '#aabbcc' }),
-      box('b', [0.5, 0.5, 0], [1, 1, 1], { color: '#aabbcc' }),
-    )
-    const { spec: combined } = await combineParts(spec, 'a', 'b', 'union')
-    const p = combined.parts[0]
-    // When both brushes share the same proxy material the Evaluator merges groups.
-    if (p.geometry?.groups) {
-      // All materialIndex values should point to the same entry (merged).
-      const indices = p.geometry.groups.map((g) => g.materialIndex)
-      expect(indices.every((i) => i === 0)).toBe(true)
-    }
-  })
-
-  it('geometry has box-projected UVs after union (tiling finish works)', async () => {
-    const { spec } = await combineParts(overlapping(), 'a', 'b', 'union')
-    const p = spec.parts[0]
-    const geo = partGeometry(p)
-    expect(geo.getAttribute('uv')).toBeTruthy()
-    expect(geo.getAttribute('uv').count).toBe(geo.getAttribute('position').count)
-    geo.dispose()
-  })
-
-  it('serialize round-trip: groups + materials survive JSON stringify/parse', async () => {
-    const { spec } = await combineParts(overlapping(), 'a', 'b', 'union')
-    const serialized = JSON.parse(JSON.stringify(spec))
-    const p = serialized.parts[0]
-    if (p.geometry?.groups) {
-      expect(
-        p.geometry.groups.every(
-          (g: { materialIndex: number }) => typeof g.materialIndex === 'number',
-        ),
-      ).toBe(true)
-      expect(
-        p.geometry.materials.every((m: GroupMaterialData) => typeof m.color === 'string'),
-      ).toBe(true)
-    }
-  })
-
-  it('subtract keeps only the un-carved half of the first box', async () => {
-    const { spec } = await combineParts(overlapping(), 'a', 'b', 'subtract')
-    const p = spec.parts[0]
-    expect(p.size[0]).toBeCloseTo(0.5, 3) // 1m box minus 0.5m overlap
-    expect(p.position[0]).toBeCloseTo(-0.25, 3)
-  })
-
-  it('intersect keeps only the overlap', async () => {
-    const { spec } = await combineParts(overlapping(), 'a', 'b', 'intersect')
-    const p = spec.parts[0]
-    expect(p.size[0]).toBeCloseTo(0.5, 3)
-    expect(p.position[0]).toBeCloseTo(0.25, 3)
-  })
-
-  it('rejects when intersecting disjoint shapes (degenerate result)', async () => {
-    const spec = specWith(box('a', [0, 0.5, 0]), box('b', [5, 0.5, 0]))
-    await expect(combineParts(spec, 'a', 'b', 'intersect')).rejects.toThrow()
-  })
-
-  it('rejects unknown / identical ids', async () => {
-    await expect(combineParts(overlapping(), 'a', 'a', 'union')).rejects.toThrow()
-    await expect(combineParts(overlapping(), 'a', 'ghost', 'union')).rejects.toThrow()
   })
 })

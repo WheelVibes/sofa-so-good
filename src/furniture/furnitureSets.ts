@@ -191,4 +191,15 @@ export const FURNITURE_SETS: FurnitureSet[] = [
       { defId: 'outdoor-parasol', dx: 0, dz: -1.0, rotation: 0 },
     ],
   },
+  {
+    // A small round bistro table with two facing folding chairs — the classic
+    // café two-seater sized for a condo/HDB balcony (row 29).
+    id: 'bistro-set',
+    name: 'Balcony bistro set',
+    items: [
+      { defId: 'bistro-table', dx: 0, dz: 0, rotation: 0 },
+      { defId: 'folding-chair', dx: 0, dz: 0.62, rotation: Math.PI },
+      { defId: 'folding-chair', dx: 0, dz: -0.62, rotation: 0 },
+    ],
+  },
 ]

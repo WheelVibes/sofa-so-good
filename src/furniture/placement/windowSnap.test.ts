@@ -105,6 +105,27 @@ describe('windowFixtureProps', () => {
     expect(p.drop as number).toBeGreaterThan(winDims.head - winDims.sill)
   })
 
+  it('sizes a window mesh screen to cover the whole opening (sill→head, slight overhang)', () => {
+    const p = windowFixtureProps('window-mesh-screen', winDims, 2.8)
+    // Slightly wider than the glass so there is no gap for a cat to slip through.
+    expect(p.width as number).toBeGreaterThan(winDims.width)
+    expect(p.width).toBeCloseTo(1.4 + 0.06, 6)
+    // Covers from sill to head.
+    expect(p.sillY).toBeCloseTo(0.9, 6)
+    expect(p.topY).toBeCloseTo(2.1, 6)
+  })
+
+  it('sizes a cat window perch to the sill (fits the opening width, sits at the sill)', () => {
+    const p = windowFixtureProps('cat-window-perch', winDims, 2.8)
+    // Fits WITHIN the opening (a small inset each side) so it sits in the reveal.
+    expect(p.width as number).toBeLessThan(winDims.width)
+    expect(p.width).toBeCloseTo(1.4 - 0.08, 6)
+    // Anchored AT the sill height (never covering the glass above it).
+    expect(p.sillY).toBeCloseTo(0.9, 6)
+    // No `topY` — the perch is a shelf at the sill, not a full-opening cover.
+    expect(p.topY).toBeUndefined()
+  })
+
   it('returns no sizing for a non-window-fixture def', () => {
     expect(windowFixtureProps('sofa-3seat', winDims, 2.8)).toEqual({})
   })

@@ -88,7 +88,16 @@ export const KIDS_DEFS = {
     id: 'crib',
     name: 'Baby crib',
     category: 'kids',
-    keywords: ['cot', 'bassinet', 'baby bed', 'nursery', 'bed'],
+    keywords: [
+      'cot',
+      'bassinet',
+      'baby bed',
+      'nursery',
+      'bed',
+      'convertible',
+      'cot-bed',
+      'toddler',
+    ],
     primitive: 'Crib',
     defaultFootprint: { w: 1.32, d: 0.72, h: 0.96 },
     footprintParams: { w: 'width', d: 'depth' },
@@ -133,6 +142,16 @@ export const KIDS_DEFS = {
         options: [
           { value: 'slat', label: 'Slatted' },
           { value: 'solid', label: 'Solid panel' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'convert',
+        label: 'Mode',
+        default: 'crib',
+        options: [
+          { value: 'crib', label: 'Crib' },
+          { value: 'toddler', label: 'Toddler bed' },
         ],
       },
       {
@@ -190,6 +209,47 @@ export const KIDS_DEFS = {
         key: 'finish',
         label: 'Finish',
         default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    ],
+  },
+  'loft-bed': {
+    kind: 'parametric',
+    id: 'loft-bed',
+    name: 'Loft bed',
+    category: 'kids',
+    keywords: ['cabin bed', 'high sleeper', 'mid sleeper', 'bunk', 'space saver', 'raised bed'],
+    primitive: 'LoftBed',
+    // Fixed single-mattress platform (~1.0 × 2.0 m) at ~1.75 m; the under-bed
+    // fit-out sits within this footprint, so no per-mode footprint change.
+    defaultFootprint: { w: 1.0, d: 2.0, h: 2.1 },
+    paramSchema: [
+      { kind: 'color', key: 'frameColor', label: 'Frame', default: '#c2a06a' },
+      { kind: 'color', key: 'bedding', label: 'Bedding', default: '#cdd7de' },
+      {
+        // Under-bed fit-out. `under` is not a first-structural-enum key; the
+        // desk/wardrobe fit-outs are asserted via the harness EXTRA_MODES map
+        // (the `open` default is the base swept case).
+        kind: 'enum',
+        key: 'under',
+        label: 'Under-bed',
+        default: 'open',
+        options: [
+          { value: 'open', label: 'Open space' },
+          { value: 'desk', label: 'Built-in desk' },
+          { value: 'wardrobe', label: 'Wardrobe' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'painted',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },

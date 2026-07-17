@@ -37,10 +37,11 @@ lighting, post‑processing, higher‑detail assets) whenever you want a richer 
 
 **Can I change the overall colour / "look" of the render?**
 Yes — **Graphics → Look (tone mapping)** picks the view transform applied to the
-whole scene: **Filmic** (punchy contrast, the default), **AgX** (gentler
-highlights, more photographic — great for daylight), or **Neutral** (minimal
-shift, truest material colour — best for product/showroom shots). It applies on
-every quality tier and is remembered per device. The **Exposure** slider just
+whole scene: **Auto** (the default — Neutral while you're picking finishes so
+colours read true, Filmic otherwise), **Filmic** (punchy contrast), **AgX**
+(gentler highlights, more photographic — great for daylight), or **Neutral**
+(minimal shift, truest material colour — best for product/showroom shots). It
+applies on every quality tier and is remembered per device. The **Exposure** slider just
 below it dials the overall brightness up or down (like a camera's exposure
 compensation), on top of the automatic day/night exposure.
 

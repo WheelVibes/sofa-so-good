@@ -1,0 +1,155 @@
+{
+  "name": "glb-designer-stage10c",
+  "description": "Asset Studio Iteration 6 Stage 10c — Chesterfield (diamond) tufting in the GLB Asset Designer (Pro, glbDesigner on). Insert the Bench template (its upholstered top ships plumped + tufted, a rectangular grid), give the seat cushion a velvet sheen, then switch the Tufting Pattern to Diamond and turn Stitch lines ON — the classic chesterfield read: an offset button lattice with diagonal stitch lines running through the dimple valleys. Assert the offset lattice + tagged stitch decals generated, toggle back to Grid (assert the decals regenerate), flip back to Diamond, and Save — asserting the persisted def's assetSpec is a v>=13 envelope (asserted loosely so a concurrent envelope bump can't false-fail) embedding parts[].tuft.pattern='diamond' + stitches + the tagged stitch decals. Run with SHOT_GPU=1 (the velvet sheen + stitch lines read best on a real GPU).",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "set-pro-mode",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "open-glb-designer",
+      "store": { "action": "setGlbDesignerOpen", "args": [true] }
+    },
+    {
+      "name": "wait-designer",
+      "waitFor": { "css": ".glb-designer" },
+      "timeout": 20000
+    },
+    {
+      "name": "settle-designer",
+      "wait": 800
+    },
+    {
+      "name": "expand-templates",
+      "eval": "(function(){const s=[...document.querySelectorAll('.glb-designer details.compose > summary')].find(x=>(x.textContent||'').trim()==='Templates');if(!s)throw new Error('Templates summary not found');if(!s.parentElement.open)s.click();})()"
+    },
+    {
+      "name": "arm-bench",
+      "click": { "selector": "button[aria-label='Start from Bench template']", "timeout": 5000 }
+    },
+    {
+      "name": "use-bench",
+      "click": { "selector": "button[aria-label='Use Bench template']", "timeout": 5000 }
+    },
+    {
+      "name": "wait-bench",
+      "wait": 900
+    },
+    {
+      "name": "velvet-cushion",
+      "comment": "Give the Seat cushion a velvet sheen (KHR_materials_sheen) so the diamond dimples + stitch lines catch light — the chesterfield read. Driven through the designer setSpec seam (deterministic, no fragile material-UI walk).",
+      "eval": "(function(){ const api = window.__glbDesigner; const s = api.getSpec(); const parts = s.parts.map(p => p.name === 'Seat cushion' ? { ...p, color: '#5b2733', sheen: 0.9, sheenColor: '#8a4a56', sheenRoughness: 0.65, roughness: 0.85, metalness: 0 } : p); api.setSpec({ ...s, parts }); })()"
+    },
+    {
+      "name": "home-view",
+      "eval": "(function(){ const b = document.querySelector('.glb-designer button[aria-label=\"Home view\"]'); if (b) b.click(); })()"
+    },
+    {
+      "name": "wait-home",
+      "wait": 1000
+    },
+    {
+      "name": "select-cushion",
+      "comment": "Select the bench's Seat cushion so the Tufting controls appear (expand the Bench group first if collapsed).",
+      "eval": "(function(){ const findRow = () => [...document.querySelectorAll('.glb-designer .lyr-nm')].find(n => (n.textContent||'').trim() === 'Seat cushion'); let nm = findRow(); if (!nm) { const exp = document.querySelector('.glb-designer button[aria-label=\"Expand Bench\"]'); if (exp) exp.click(); nm = findRow(); } if (!nm) throw new Error('Seat cushion layer row not found'); const row = nm.closest('.lyr-row'); row.scrollIntoView(); row.click(); })()"
+    },
+    {
+      "name": "wait-inspector",
+      "wait": 400
+    },
+    {
+      "name": "assert-tuft-controls",
+      "eval": "(function(){ if (!document.querySelector('.glb-designer input[aria-label=\"Tufting rows\"]')) throw new Error('Tufting rows slider missing — the cushion is not selected or not tuftable'); if (!document.querySelector('.glb-designer div[role=\"radiogroup\"][aria-label=\"Tufting pattern\"]')) throw new Error('Tufting pattern segmented missing'); if (!document.querySelector('.glb-designer button[aria-label=\"Tufting stitches\"]')) throw new Error('Tufting stitches toggle missing'); })()"
+    },
+    {
+      "name": "shot-grid-baseline",
+      "comment": "The 7c reference: the bench's rectangular button grid, for comparison against the diamond frame.",
+      "screenshot": "01-grid-baseline"
+    },
+    {
+      "name": "select-diamond",
+      "comment": "Click the Diamond segment of the Tufting Pattern control — the offset-row lattice.",
+      "eval": "(function(){ const grp = document.querySelector('.glb-designer div[role=\"radiogroup\"][aria-label=\"Tufting pattern\"]'); if (!grp) throw new Error('pattern segmented not found'); const btn = [...grp.querySelectorAll('button')].find(b => (b.textContent||'').trim() === 'Diamond'); if (!btn) throw new Error('Diamond segment not found'); btn.click(); })()"
+    },
+    {
+      "name": "enable-stitches",
+      "comment": "Turn Stitch lines ON — diagonal stitches between adjacent buttons.",
+      "eval": "(function(){ const btn = document.querySelector('.glb-designer button[aria-label=\"Tufting stitches\"]'); if (!btn) throw new Error('stitches toggle not found'); if (btn.getAttribute('aria-checked') !== 'true') btn.click(); })()"
+    },
+    {
+      "name": "wait-regen",
+      "wait": 500
+    },
+    {
+      "name": "assert-diamond-stitches",
+      "comment": "The cushion carries a diamond tuft grid with stitches ON, its buttons form an offset lattice (odd rows shifted vs even rows) and tagged stitch decals were generated.",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const c = s.parts.find(p => p.name === 'Seat cushion'); if (!c || !c.tuft) throw new Error('cushion has no tuft grid'); if (c.tuft.pattern !== 'diamond') throw new Error('pattern is not diamond: ' + c.tuft.pattern); if (c.tuft.stitches !== true) throw new Error('stitches not enabled'); const dec = (s.decals||[]).filter(d => d.tuft && d.partId === c.id); const buttons = dec.filter(d => d.kind === 'button'); const lines = dec.filter(d => d.kind === 'stitch'); if (buttons.length !== c.tuft.rows * c.tuft.cols) throw new Error('button count ' + buttons.length + ' != ' + (c.tuft.rows*c.tuft.cols)); if (lines.length === 0) throw new Error('no stitch decals generated'); if (!lines.every(d => typeof d.rotation === 'number')) throw new Error('stitch decals missing a rotation angle'); window.__diamondDecalIds = dec.map(d => d.id); })()"
+    },
+    {
+      "name": "shot-chesterfield",
+      "comment": "THE frame this stage exists for: the velvet seat cushion with DIAMOND tufting + stitch lines — an offset button lattice with visible diagonal stitch lines running through the dimple valleys (the chesterfield read). Compare against 01-grid-baseline.",
+      "screenshot": "02-diamond-chesterfield"
+    },
+    {
+      "name": "toggle-back-to-grid",
+      "comment": "Switch the pattern back to Grid — the tagged decals must regenerate (fresh ids, orthogonal stitches).",
+      "eval": "(function(){ const grp = document.querySelector('.glb-designer div[role=\"radiogroup\"][aria-label=\"Tufting pattern\"]'); const btn = [...grp.querySelectorAll('button')].find(b => (b.textContent||'').trim() === 'Grid'); if (!btn) throw new Error('Grid segment not found'); btn.click(); })()"
+    },
+    {
+      "name": "wait-regrid",
+      "wait": 500
+    },
+    {
+      "name": "assert-grid-regen",
+      "comment": "Back on the grid: the pattern flipped off diamond and the tuft decals were fully replaced (no id survives the pattern change).",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const c = s.parts.find(p => p.name === 'Seat cushion'); if (c.tuft.pattern === 'diamond') throw new Error('pattern did not leave diamond'); const dec = (s.decals||[]).filter(d => d.tuft && d.partId === c.id); const before = new Set(window.__diamondDecalIds || []); if (dec.some(d => before.has(d.id))) throw new Error('old diamond decals were not replaced'); if (dec.filter(d => d.kind === 'stitch').length === 0) throw new Error('grid stitches missing (stitches should stay on)'); })()"
+    },
+    {
+      "name": "shot-grid-stitches",
+      "screenshot": "03-grid-stitches"
+    },
+    {
+      "name": "restore-diamond",
+      "comment": "Flip back to Diamond so the saved asset is the chesterfield showcase.",
+      "eval": "(function(){ const grp = document.querySelector('.glb-designer div[role=\"radiogroup\"][aria-label=\"Tufting pattern\"]'); const btn = [...grp.querySelectorAll('button')].find(b => (b.textContent||'').trim() === 'Diamond'); btn.click(); })()"
+    },
+    {
+      "name": "wait-restore",
+      "wait": 500
+    },
+    {
+      "name": "set-asset-name",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Asset name\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, 'Stage10c Chesterfield'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "record-baseline",
+      "eval": "window.__glbBaseline = window.__store.getState().userFurniture.length"
+    },
+    {
+      "name": "click-save",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer button')].find(b => b.textContent.trim() === 'Save asset' && !b.disabled); if (!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-saved-chesterfield",
+      "comment": "End-to-end proof: the saved assetSpec is a v>=13 envelope (loose — a concurrent envelope bump must not false-fail) embedding parts[].tuft.pattern='diamond' + stitches + the tagged stitch decals — the chesterfield round-trips as an editable spec.",
+      "waitFor": {
+        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Stage10c Chesterfield' && typeof d.assetSpec === 'string' && (() => { try { const env = JSON.parse(d.assetSpec); if (typeof env.v !== 'number' || env.v < 13) return false; const s = env.payload; const c = s.parts.find(p => p.name === 'Seat cushion'); if (!c || !c.tuft || c.tuft.pattern !== 'diamond' || c.tuft.stitches !== true) return false; const lines = (s.decals||[]).filter(x => x.tuft && x.kind === 'stitch'); const buttons = (s.decals||[]).filter(x => x.tuft && x.kind === 'button'); return lines.length > 0 && buttons.length === c.tuft.rows * c.tuft.cols; } catch { return false } })())"
+      },
+      "timeout": 90000,
+      "failMessage": "saved assetSpec should embed parts[].tuft.pattern='diamond' + stitches + tagged stitch decals at a v>=13 envelope"
+    },
+    {
+      "name": "shot-saved",
+      "screenshot": "04-saved-chesterfield"
+    }
+  ]
+}

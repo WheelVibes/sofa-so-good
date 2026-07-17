@@ -203,21 +203,20 @@ describe('parseHipvanResponse', () => {
 })
 
 describe('parseCastleryResponse', () => {
-  // Trimmed search page with a JSON-LD ItemList of Products (best-effort).
-  const html = `<!doctype html><html><head>
-    <script type="application/ld+json">{"@context":"https://schema.org","@type":"ItemList",
-      "itemListElement":[
-        {"@type":"ListItem","position":1,"item":{"@type":"Product","name":"Seb Side Table",
-          "url":"https://www.castlery.com/sg/products/seb-side-table","image":["seb.jpg"],
-          "offers":{"@type":"Offer","price":"269","priceCurrency":"SGD"}}},
-        {"@type":"ListItem","position":2,"item":{"@type":"Product","name":"Adams 3 Seater Sofa",
-          "url":"https://www.castlery.com/sg/products/adams-sofa",
-          "offers":[{"@type":"Offer","price":"2199","priceCurrency":"SGD"}]}}
-      ]}</script>
-    <script type="application/ld+json">not json — must be skipped</script>
-    </head><body></body></html>`
+  // Trimmed snapshot of the LIVE search page (verified 2026-07): the results are
+  // rendered as a Next.js RSC payload that embeds the Algolia response, and each
+  // product's price/image live on its first variant. This mirrors the real
+  // `"hits":[…]` shape (minus the hundreds of unused fields per hit).
+  const html = `<!doctype html><html><body><script>self.__next_f.push([1,"…\
+    {"query":"sofa","page":0,"results":[{"hits":[
+      {"objectID":"6609","name":"Seb Side Table","slug":"seb-side-table",
+        "variants":[{"price":"269.0","list_price":"269.0",
+          "images":[{"large":"https://res.cloudinary.com/castlery/seb.jpg"}]}]},
+      {"objectID":"7020","name":"Adams 3 Seater Sofa","slug":"adams-sofa",
+        "variants":[{"price":"2199.0","list_price":"2199.0","images":[]}]}
+    ],"nbHits":2,"query":"sofa"}]}"])</script></body></html>`
 
-  it('extracts JSON-LD products and fuzzy-matches the query', () => {
+  it('extracts embedded Algolia hits and fuzzy-matches the query', () => {
     const r = parseCastleryResponse(html, '3 seater sofa')
     expect(r).toEqual({
       price: 2199,
@@ -229,11 +228,23 @@ describe('parseCastleryResponse', () => {
     })
   })
 
-  it('reads a direct Product / @graph block and survives drift', () => {
+  it('reads the first variant price + image and skips priceless hits', () => {
+    const r = parseCastleryResponse(html, 'side table')
+    expect(r?.price).toBe(269)
+    expect(r?.image).toBe('https://res.cloudinary.com/castlery/seb.jpg')
+    const priceless = `<script>self.__next_f.push([1,"{"hits":[{"name":"No Variant"}]}"])</script>`
+    expect(parseCastleryResponse(priceless, 'x')).toBeNull()
+  })
+
+  it('falls back to JSON-LD Product / @graph blocks when no hits are embedded', () => {
     const direct = `<script type="application/ld+json">{"@graph":[{"@type":"Product",
       "name":"Dawson Armchair","url":"u","offers":{"price":899,"priceCurrency":"SGD"}}]}</script>`
     expect(parseCastleryResponse(direct, 'armchair')?.price).toBe(899)
-    expect(parseCastleryResponse('<html>no ld+json</html>', 'x')).toBeNull()
+    const itemList = `<script type="application/ld+json">{"@type":"ItemList","itemListElement":[
+      {"@type":"ListItem","item":{"@type":"Product","name":"Nolan Sofa","url":"u2",
+        "image":["n.jpg"],"offers":{"price":"1299","priceCurrency":"SGD"}}}]}</script>`
+    expect(parseCastleryResponse(itemList, 'sofa')?.price).toBe(1299)
+    expect(parseCastleryResponse('<html>no data</html>', 'x')).toBeNull()
     expect(parseCastleryResponse(undefined, 'x')).toBeNull()
   })
 })

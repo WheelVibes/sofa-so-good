@@ -3,10 +3,16 @@ import { createPortal } from 'react-dom'
 import { useModalGuard } from '../../controls/modalGuard'
 import { useFeature } from '../../features/useFeature'
 import { composeProduct } from '../../furniture/configurator/compose'
-import { clampConfig, offeredOptions, productLabel } from '../../furniture/configurator/model'
+import { parseConfiguredSpec } from '../../furniture/configurator/configuredPersist'
+import {
+  type ConfigurableProduct,
+  clampConfig,
+  offeredOptions,
+  productLabel,
+} from '../../furniture/configurator/model'
 import {
   CONFIGURABLE_PRODUCTS,
-  getConfigurableProduct,
+  visibleConfigurableProducts,
 } from '../../furniture/configurator/products'
 import { saveConfiguredAsset } from '../../furniture/configurator/saveConfigured'
 import { canEditScene } from '../../state/editing'
@@ -29,6 +35,17 @@ export function ConfiguratorDialog() {
   const enabled = useFeature('productConfigurator')
   const priceOn = useFeature('budget')
   const isMobile = useIsMobile()
+  // Authored products + the user's own exported configurable products (Stage 3d).
+  // Pets products follow the catalog's `petFittings` gate — the configurator is a
+  // separate surface, so it must apply the same category gating itself.
+  const petsOn = useFeature('petFittings')
+  const userProducts = useStore((s) => s.userConfigurableProducts)
+  const allProducts = useMemo<ConfigurableProduct[]>(
+    () => visibleConfigurableProducts([...CONFIGURABLE_PRODUCTS, ...userProducts], petsOn),
+    [userProducts, petsOn],
+  )
+  const resolveProduct = (id: string): ConfigurableProduct | null =>
+    allProducts.find((p) => p.id === id) ?? null
   const close = () => {
     const st = useStore.getState()
     st.setConfiguratorOpen(false)
@@ -39,7 +56,7 @@ export function ConfiguratorDialog() {
   }
 
   const [productId, setProductId] = useState(CONFIGURABLE_PRODUCTS[0].id)
-  const product = getConfigurableProduct(productId) ?? CONFIGURABLE_PRODUCTS[0]
+  const product = resolveProduct(productId) ?? CONFIGURABLE_PRODUCTS[0]
   const [selections, setSelections] = useState<Selections>(
     () => clampConfig(CONFIGURABLE_PRODUCTS[0], null).selections,
   )
@@ -53,17 +70,19 @@ export function ConfiguratorDialog() {
     if (!open) return
     const editJson = useStore.getState().configuratorEditSpec
     let seeded = false
-    if (editJson) {
-      try {
-        const parsed = JSON.parse(editJson) as { productId?: string; selections?: Selections }
-        const p = parsed.productId ? getConfigurableProduct(parsed.productId) : null
-        if (p) {
-          setProductId(p.id)
-          setSelections(clampConfig(p, { selections: parsed.selections ?? {} }).selections)
-          seeded = true
-        }
-      } catch {
-        // Malformed recipe → fall through to a fresh product.
+    // Parse through the shared versioned envelope (Stage 3a) — handles both the
+    // new `{ kind:'configured', … }` envelope and legacy raw-JSON blobs; returns
+    // null (→ fresh product) for anything malformed.
+    const parsed = parseConfiguredSpec(editJson)
+    if (parsed) {
+      // Resolve over authored + user products via getState (keeps the effect's
+      // deps `[open]` — `resolveProduct` is a per-render closure).
+      const products = [...CONFIGURABLE_PRODUCTS, ...useStore.getState().userConfigurableProducts]
+      const p = products.find((x) => x.id === parsed.productId) ?? null
+      if (p) {
+        setProductId(p.id)
+        setSelections(clampConfig(p, { selections: parsed.selections }).selections)
+        seeded = true
       }
     }
     if (!seeded) {
@@ -97,7 +116,7 @@ export function ConfiguratorDialog() {
 
   const selectProduct = (id: string) => {
     if (id === productId) return
-    const p = getConfigurableProduct(id)
+    const p = resolveProduct(id)
     if (!p) return
     setProductId(id)
     setSelections(clampConfig(p, null).selections)
@@ -174,7 +193,7 @@ export function ConfiguratorDialog() {
           </button>
         </div>
         <div className="tabs">
-          {CONFIGURABLE_PRODUCTS.map((p) => (
+          {allProducts.map((p) => (
             <button
               key={p.id}
               type="button"

@@ -184,7 +184,13 @@ export const LIGHTING_DEFS = {
     keywords: ['pendant', 'pendant light', 'light fixture'],
     category: 'lighting',
     primitive: 'CeilingLight',
-    defaultFootprint: { w: 0.45, d: 0.45, h: 0.5 },
+    // verticalSpan matches the DEFAULT single pendant. The static span can't
+    // track the `arrangement` enum (same limitation as enum footprints), so the
+    // cluster mode's longest drop (~1.35 m) is NOT vertically collision-tracked
+    // — lowering base to 1.35 for all modes made the default bathroom pendant
+    // falsely collide with the shower in defaultLayout. Cluster drops sit over
+    // tables in practice; accepted as a visual-only extent.
+    defaultFootprint: { w: 0.55, d: 0.55, h: 0.5 },
     mounted: true,
     verticalSpan: { base: 2.0, top: 2.7 },
     paramSchema: [
@@ -198,6 +204,24 @@ export const LIGHTING_DEFS = {
           { value: 'linear', label: 'Linear bar' },
           { value: 'flush', label: 'Flush mount' },
         ],
+      },
+      {
+        kind: 'enum',
+        key: 'arrangement',
+        label: 'Arrangement',
+        default: 'single',
+        options: [
+          { value: 'single', label: 'Single' },
+          { value: 'cluster', label: 'Pendant cluster' },
+        ],
+      },
+      {
+        kind: 'integer',
+        key: 'count',
+        label: 'Pendants (cluster)',
+        min: 3,
+        max: 5,
+        default: 4,
       },
       {
         kind: 'enum',

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hexToHsl, hslToHex, normalizeHex, recommendedBlends } from './colorHarmony'
+import { hexToHsl, hslToHex, normalizeHex, recommendedBlends, tonalContrast } from './colorHarmony'
 
 describe('normalizeHex', () => {
   it('expands #rgb, lower-cases, and drops alpha', () => {
@@ -73,5 +73,48 @@ describe('recommendedBlends', () => {
 
   it('updates when the palette changes (dynamic harmony)', () => {
     expect(recommendedBlends(['#3366cc'])).not.toEqual(recommendedBlends(['#cc3333']))
+  })
+})
+
+describe('tonalContrast (tuft stitch thread derivation)', () => {
+  it('LIGHTENS a dark host (dark velvet → a lighter thread of the same hue)', () => {
+    const host = '#5b2733' // oxblood — a dark velvet
+    const out = tonalContrast(host)
+    expect(out).not.toBeNull()
+    const hHost = hexToHsl(host)!
+    const hOut = hexToHsl(out!)!
+    expect(hOut.l).toBeGreaterThan(hHost.l) // lighter thread reads AGAINST dark
+    expect(hOut.h).toBeCloseTo(hHost.h, 0) // same hue family (tonal, not chalk)
+    expect(hOut.l).toBeLessThan(1) // not blown to white
+  })
+
+  it('DARKENS a light host (pale linen → a subtle shadow line)', () => {
+    const host = '#e8ddc4' // pale linen
+    const out = tonalContrast(host)
+    const hHost = hexToHsl(host)!
+    const hOut = hexToHsl(out!)!
+    expect(hOut.l).toBeLessThan(hHost.l)
+    expect(hOut.h).toBeCloseTo(hHost.h, 0)
+  })
+
+  it('keeps hue + saturation, moving ONLY lightness', () => {
+    const host = '#3366cc'
+    const hHost = hexToHsl(host)!
+    const hOut = hexToHsl(tonalContrast(host)!)!
+    expect(hOut.h).toBeCloseTo(hHost.h, 0)
+    expect(hOut.s).toBeCloseTo(hHost.s, 1)
+    expect(hOut.l).not.toBeCloseTo(hHost.l, 2)
+  })
+
+  it('respects the tunable amounts and normalises #rgb shorthand', () => {
+    const gentle = hexToHsl(tonalContrast('#502030', 0.05)!)!
+    const strong = hexToHsl(tonalContrast('#502030', 0.4)!)!
+    expect(strong.l).toBeGreaterThan(gentle.l) // more lift = lighter
+    expect(tonalContrast('#000')).not.toBeNull() // shorthand accepted
+  })
+
+  it('returns null for an unparseable hex', () => {
+    expect(tonalContrast('rebeccapurple')).toBeNull()
+    expect(tonalContrast('')).toBeNull()
   })
 })

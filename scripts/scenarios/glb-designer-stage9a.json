@@ -1,0 +1,92 @@
+{
+  "name": "glb-designer-stage9a",
+  "description": "Asset Studio Stage 9a — 'Make parts editable' decomposes ANY catalog def (here the procedural 'dining-chair' primitive) into editable mesh parts + groups via window.__glbDesigner.makePartsEditable(defId). Asserts parts/groups landed, mutates the spec to explode one part far on +X and recolour another, then screenshots the decomposed/mid-edit piece.",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1'); } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    { "name": "set-pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "force-glb-designer-flag",
+      "eval": "window.__store.getState().setFeatureFlag?.('glbDesigner', true); window.__store.getState().reresolveFeatureFlags?.();"
+    },
+    { "name": "open-glb-designer", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    { "name": "wait-designer", "waitFor": { "css": ".glb-designer" }, "timeout": 20000 },
+    { "name": "wait-seam", "waitFor": { "store": "typeof window.__glbDesigner !== 'undefined'" }, "timeout": 20000 },
+    { "name": "settle-designer", "wait": 1200 },
+    {
+      "name": "shot-blank-designer",
+      "screenshot": "00-blank-designer"
+    },
+    {
+      "name": "decompose-dining-chair",
+      "comment": "Kick off makePartsEditable on the procedural 'dining-chair' def. Must NOT return the promise itself — page.evaluate awaits a returned promise, and the multi-RAF offscreen decompose can outlive the CDP round-trip ('Promise was collected'). Stash it on window and return undefined instead; the following waitFor gates on the resulting spec.",
+      "eval": "(function(){ window.__nineAPromise = window.__glbDesigner.makePartsEditable('dining-chair'); return undefined; })()"
+    },
+    {
+      "name": "wait-decomposed",
+      "waitFor": {
+        "store": "(() => { const s = window.__glbDesigner && window.__glbDesigner.getSpec(); return !!s && Array.isArray(s.parts) && s.parts.length > 0; })()"
+      },
+      "timeout": 20000,
+      "failMessage": "makePartsEditable('dining-chair') never populated spec.parts — offscreen procedural decompose may not work headlessly"
+    },
+    {
+      "name": "assert-parts-and-groups",
+      "comment": "The dining-chair primitive has several distinct meshes (seat, back, 4 legs, ...) so decompose should yield multiple parts, and repeated parts (the 4 legs) should merge into at least one PartGroup.",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const partCount = s.parts.length; const groupCount = (s.partGroups || []).length; console.log('9A_DECOMPOSE parts='+partCount+' groups='+groupCount+' ids='+JSON.stringify(s.parts.map(p => p.id))); if (partCount < 1) throw new Error('expected >=1 part, got '+partCount); window.__nineA = { partCount, groupCount }; })()"
+    },
+    {
+      "name": "render-decomposed",
+      "eval": "(function(){ const t = window.__glbDesignerThree; if (t) t.gl.render(t.scene, t.camera); })()"
+    },
+    { "name": "shot-decomposed", "screenshot": "01-decomposed-dining-chair" },
+    {
+      "name": "explode-and-recolour",
+      "comment": "Mutate the spec directly via getSpec/setSpec: move the LAST part far on +X (a leg or the back — 'exploded' proof) and recolour the FIRST part a vivid hex. Record the before/after for assertions.",
+      "eval": "(function(){ const s = JSON.parse(JSON.stringify(window.__glbDesigner.getSpec())); const movedId = s.parts[s.parts.length - 1].id; const recolouredId = s.parts[0].id; const before = s.parts.find(p => p.id === movedId).position.slice(); const movedPart = s.parts.find(p => p.id === movedId); movedPart.position = [before[0] + 0.6, before[1], before[2]]; const recolouredPart = s.parts.find(p => p.id === recolouredId); recolouredPart.color = '#ff2e6b'; window.__glbDesigner.setSpec(s); window.__nineA = Object.assign(window.__nineA || {}, { movedId, recolouredId, beforePos: before, expectedX: before[0] + 0.6 }); })()"
+    },
+    {
+      "name": "wait-exploded",
+      "waitFor": {
+        "store": "(() => { const s = window.__glbDesigner.getSpec(); const p = s.parts.find(p => p.id === window.__nineA.movedId); return !!p && Math.abs(p.position[0] - window.__nineA.expectedX) < 1e-6; })()"
+      },
+      "timeout": 10000,
+      "failMessage": "moved part position did not update after setSpec"
+    },
+    {
+      "name": "assert-explode-and-recolour",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const moved = s.parts.find(p => p.id === window.__nineA.movedId); const recoloured = s.parts.find(p => p.id === window.__nineA.recolouredId); if (Math.abs(moved.position[0] - window.__nineA.expectedX) > 1e-6) throw new Error('moved part x mismatch: '+moved.position[0]+' vs expected '+window.__nineA.expectedX); if (recoloured.color !== '#ff2e6b') throw new Error('recolour did not apply, got '+recoloured.color); console.log('9A_MUTATE movedX='+moved.position[0]+' recolour='+recoloured.color); })()"
+    },
+    {
+      "name": "render-exploded",
+      "eval": "(function(){ const t = window.__glbDesignerThree; if (t) t.gl.render(t.scene, t.camera); })()"
+    },
+    { "name": "settle-fit", "wait": 1500 },
+    {
+      "name": "render-exploded-2",
+      "eval": "(function(){ const t = window.__glbDesignerThree; if (t) t.gl.render(t.scene, t.camera); })()"
+    },
+    {
+      "name": "shot-exploded-recoloured-perspective",
+      "screenshot": "02-exploded-recoloured-perspective"
+    },
+    {
+      "name": "click-top-view",
+      "comment": "Re-frame from Top so the whole scene (including the far-displaced part, now well outside the original chair footprint) refits into view — bounds.refresh() re-includes the moved part's new position, unlike the perspective shot above which can crop it off-canvas.",
+      "click": { "text": "Top" }
+    },
+    { "name": "wait-view-settle", "wait": 1800 },
+    {
+      "name": "render-top",
+      "eval": "(function(){ const t = window.__glbDesignerThree; if (t) t.gl.render(t.scene, t.camera); })()"
+    },
+    { "name": "shot-exploded-top", "screenshot": "03-exploded-recoloured-top" }
+  ]
+}

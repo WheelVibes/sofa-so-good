@@ -9,6 +9,7 @@
  */
 
 import { z } from 'zod'
+import { PET_TYPES, type PetType } from '../analysis/petCompliance'
 import { isNonDefaultPriceRules, mergePriceRules } from '../analysis/renovationCost'
 import { ROOMS } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
@@ -72,12 +73,28 @@ const UserGltfDefZ = z.object({
   verticalSpan: z.object({ base: z.number(), top: z.number() }).optional(),
   finishTargets: z.array(z.object({ key: z.string(), label: z.string() })).optional(),
   finishOverrides: z.record(z.string(), z.string()).optional(),
+  // Optional granular footprint decomposition (non-rectangular baked shape, e.g.
+  // an L/U configurator sectional) so collision keeps the concave notch on
+  // import — additive; absent defs fall back to the bbox.
+  footprintParts: z
+    .array(
+      z.object({
+        dx: z.number(),
+        dz: z.number(),
+        w: z.number(),
+        d: z.number(),
+        rot: z.number().optional(),
+      }),
+    )
+    .optional(),
   // Optional def-level price estimate (parametric generator) — additive.
   price: z.number().optional(),
   // Optional GLB byte size for the catalog model-info tooltip — additive.
   byteSize: z.number().optional(),
   // Optional slot-configurator recipe (JSON) for re-editing (SLOT-204) — additive.
   slotSpec: z.string().optional(),
+  // Optional GLB-designer edit spec (JSON) for re-editing (Asset Studio S0) — additive.
+  assetSpec: z.string().optional(),
 })
 
 const IkeaVariantZ = z.object({
@@ -423,6 +440,10 @@ const RawSerializedStateZ = z.object({
     .optional()
     .default(null),
   locationPromptDismissed: z.boolean().optional().default(false),
+  // Declared household pet types (Pet program P6) — drives the pet-compliance
+  // checklist + catalog essentials. Optional + additive (no schema-version bump);
+  // absent → [] on load. Unknown values are dropped by the enum.
+  petTypes: z.array(z.enum(PET_TYPES as unknown as [PetType, ...PetType[]])).optional(),
   // Free-text project note that travels with the design (optional, back-compat).
   note: z.string().optional(),
   // Optional free-text callouts on drawing-set sheets (PARITY-LIGHTINGTEMPLATE-TEXT).
@@ -573,8 +594,10 @@ export function serialize(state: RootState): SerializedState {
               verticalSpan: d.verticalSpan,
               finishTargets: d.finishTargets,
               finishOverrides: d.finishOverrides,
+              footprintParts: Array.isArray(d.footprintParts) ? d.footprintParts : undefined,
               price: d.price,
               slotSpec: d.slotSpec,
+              assetSpec: d.assetSpec,
             },
       ),
     userMaterials: state.userMaterials.map((d) => ({
@@ -597,6 +620,8 @@ export function serialize(state: RootState): SerializedState {
     orientationDeg: state.orientationDeg,
     location: state.location,
     locationPromptDismissed: state.locationPromptDismissed,
+    // Persist declared pet types only when the household has any (keeps saves lean).
+    ...(state.petTypes.length ? { petTypes: state.petTypes } : {}),
     ...(state.designNote ? { note: state.designNote } : {}),
     // Persist tour stops so shared designs arrive with stops in place.
     // Images are NOT embedded — receivers capture live, same as C252 model.
@@ -699,6 +724,7 @@ export function applySerialized(
     orientationDeg: state.orientationDeg ?? 0,
     location: state.location ?? null,
     locationPromptDismissed: state.locationPromptDismissed ?? false,
+    petTypes: state.petTypes ?? [],
     designNote: state.note ?? '',
     // Restore tour stops from the shared design (absent in older saves → []).
     panoTourStops: state.panoTourStops ?? [],

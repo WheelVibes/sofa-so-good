@@ -25,7 +25,13 @@ const ROOM_KIND_CATEGORIES: Partial<Record<RoomKind, readonly FurnitureCategory[
   living: ['seating', 'tables', 'electronics', 'lighting', 'decor'],
   dining: ['tables', 'seating', 'lighting', 'decor'],
   study: ['tables', 'storage', 'seating', 'electronics', 'lighting'],
-  balcony: ['outdoor', 'storage', 'laundry'],
+  // `balcony` is the classifier's bucket for BOTH balconies AND service /
+  // utility yards (see `roomKindFromName` — "yard/service/utility/store" all
+  // resolve here; there is no distinct service-yard `RoomKind` and inventing
+  // one is forbidden). Both are where SG pet compliance + smelly gear live —
+  // window/balcony safety mesh, litter cabinets, feeding/toy storage — so
+  // `pets` is surfaced prominently (right after `outdoor`, ahead of storage).
+  balcony: ['outdoor', 'pets', 'storage', 'laundry'],
 }
 
 /** The categories most relevant to `kind`, most-relevant-first. Empty for an

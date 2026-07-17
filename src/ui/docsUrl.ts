@@ -41,18 +41,19 @@ type NonFlagDocKey =
 export type DocKey = FeatureFlag | NonFlagDocKey
 
 interface DocEntry {
-  /** Page slug = the md filename without extension (one of the 15 guide pages). */
+  /** Page slug = the md filename without extension (one of the 19 guide pages). */
   page: string
   /** Heading anchor (the generated `id`), or omitted to link to the page top. */
   anchor?: string
 }
 
-/** The 15 user-guide page slugs (used by the test's integrity guard). */
+/** The 19 user-guide page slugs (used by the test's integrity guard). */
 export const DOC_PAGES = [
   'index',
   'getting-started',
   'navigating',
   'placing-furniture',
+  'pet-fittings',
   'finishes-and-materials',
   'lighting-and-time',
   'themes-and-appearance',
@@ -62,6 +63,9 @@ export const DOC_PAGES = [
   'room-editor',
   'walkthrough-and-sun-study',
   'design-tools',
+  'exporting',
+  'style-and-ai',
+  'accounts-and-sync',
   'keyboard-shortcuts',
   'tips-and-faq',
 ] as const
@@ -140,6 +144,22 @@ export const FEATURE_DOCS: Partial<Record<DocKey, DocEntry>> = {
   glbDesigner: { page: 'importing-models', anchor: 'design-your-own-asset' },
   importSh3d: { page: 'floor-plan-editor', anchor: 'templates-saving' },
   importTextures: { page: 'importing-textures', anchor: 'importing-using' },
+
+  // ── exporting (3D / CAD / AR / moodboard) ───────────────────────────────
+  sceneExport3d: { page: 'exporting', anchor: 'export-a-3d-model' },
+  viewInAr: { page: 'exporting', anchor: 'view-in-your-room-ar' },
+  dxfExport: { page: 'exporting', anchor: 'export-the-2d-plan-dxf-svg' },
+  moodboard: { page: 'exporting', anchor: 'moodboard' },
+
+  // ── style helpers & AI ──────────────────────────────────────────────────
+  styleQuiz: { page: 'style-and-ai', anchor: 'style-quiz' },
+  styleTransfer: { page: 'style-and-ai', anchor: 'style-transfer' },
+  aiLayout: { page: 'style-and-ai', anchor: 'ai-auto-furnish' },
+  paletteFromPhoto: { page: 'style-and-ai', anchor: 'palette-from-photo' },
+
+  // ── accounts & cloud sync ───────────────────────────────────────────────
+  accounts: { page: 'accounts-and-sync', anchor: 'signing-in' },
+  sharedLibrary: { page: 'accounts-and-sync', anchor: 'admin-accounts' },
 }
 
 /** Build the absolute docs URL for a tool/feature key, or the guide home if the

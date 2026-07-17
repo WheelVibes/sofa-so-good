@@ -140,6 +140,19 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
   Revisit only with a measured budget win (e.g. `transmissionResolutionScale` ≤ 0.5 profiling).
 
 ### Tier 3 — ultra-detail materials/assets (memory-bound, mostly verifiable)
+- **PHOTO-CUSHION — cushion-deformation ruling (2026-07-16, Asset Studio Stage 5): SHIPPED
+  option (b) — procedural vertex "plump".** Real upholstery reads soft because cushions crown and
+  bow; a flat box/capsule reads CAD-hard. The honest browser-side option set was: **(a)** offline-baked
+  cloth-sim GLB cushion variants shipped as designer components — highest fidelity but **needs asset
+  production** (a DCC cloth bake per shape/size), out of scope for a pure-code stage and a payload cost;
+  **(b)** a procedural approximation — a sine-falloff vertex displacement on a tessellated
+  box/capsule (top/bottom crown, sides bow, corners pinned = the seam line, normals recomputed);
+  **(c)** skip. **Shipped (b)** (`glbEdit/plump.ts`, a `plump` 0…1 part param): it reads convincingly
+  as a stuffed cushion at real-GPU (Stage-5 scenario `02-cushion-plump`) for **zero** asset production
+  and a resolution-independent, export-safe geometry tweak (it's just displaced vertices in the GLB).
+  Live cloth SIMULATION stays ruled out for the editor (offline-bake territory, per the plan's paradigm
+  decision). Revisit (a) only if a curated pre-baked cushion pack is produced externally — it would drop
+  in as ordinary designer components with no new code.
 
 ### Tier 4 — frontier (WebGPU / large)
 - **PHOTO-WEBGPU — ruling (2026-07-12): REJECTED-FOR-NOW, revisit on triggers below.** three.js

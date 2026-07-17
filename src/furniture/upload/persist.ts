@@ -8,7 +8,7 @@ import {
   unregisterLodVariants,
 } from '../gltf/lod'
 import type { LodVariantSet } from '../optimize/lodVariants'
-import type { FurnitureCategory, UserGltfDef } from '../types'
+import type { FootprintPart, FurnitureCategory, UserGltfDef } from '../types'
 import { hashBuffer } from './hashFile'
 import { validateGlbFile } from './validate'
 
@@ -31,6 +31,12 @@ export interface PersistOptions {
    *  the catalog card + first-placement collision are right before the GLB
    *  loads. Defaults to a 1 m cube (refined from the GLB bbox at render). */
   footprint?: { w: number; d: number; h: number }
+  /** Optional granular footprint decomposition (a static list of OBBs relative
+   *  to the footprint centre) for a non-rectangular baked shape — e.g. an L/U
+   *  modular sectional from the configurator, so collision carves the concave
+   *  notch instead of the full bounding box. Persisted + rehydrated; read by
+   *  `itemFootprintParts` like any def's `footprintParts`. */
+  footprintParts?: FootprintPart[]
   /** Generated -low/-medium LOD variants (from `optimize/lodVariants.ts`).
    *  Persisted as sibling IDB records under derived keys (`lodAssetId`) and
    *  registered so the renderer serves them on low/medium asset tiers. */
@@ -40,6 +46,9 @@ export interface PersistOptions {
   /** Slot-configurator recipe (JSON `ConfiguredSpec`) so a placed configured
    *  product can be re-opened in the configurator and re-baked (SLOT-204). */
   slotSpec?: string
+  /** GLB-designer edit spec (versioned JSON) so a designer-built asset re-opens
+   *  editable in the designer instead of a frozen source mesh (Asset Studio S0). */
+  assetSpec?: string
 }
 
 export type PersistResult =
@@ -98,9 +107,17 @@ export async function persistUserGlb(file: File, opts: PersistOptions): Promise<
       // Slot-configurator recipe (already a JSON string) → stored verbatim so a
       // placed configured product round-trips for re-editing (SLOT-204).
       ...(opts.slotSpec ? { slotSpec: opts.slotSpec } : {}),
+      // GLB-designer edit spec (versioned JSON string) → stored verbatim so a
+      // designer-built asset re-opens editable (Asset Studio S0).
+      ...(opts.assetSpec ? { assetSpec: opts.assetSpec } : {}),
       // Footprint (when measured up front) JSON-encodes into the primitive
       // meta store so hydration restores exact dims before the GLB loads.
       ...(opts.footprint ? { footprint: JSON.stringify(opts.footprint) } : {}),
+      // Granular footprint parts (non-rectangular baked shape) → JSON into meta;
+      // hydrateAssets decodes it back onto the def's `footprintParts`.
+      ...(opts.footprintParts?.length
+        ? { footprintParts: JSON.stringify(opts.footprintParts) }
+        : {}),
       // finishTargets/finishOverrides are arrays/objects → JSON-encode into the
       // primitive meta store; hydrateAssets decodes them back.
       ...(opts.finishTargets ? { finishTargets: JSON.stringify(opts.finishTargets) } : {}),
@@ -153,9 +170,11 @@ export async function persistUserGlb(file: File, opts: PersistOptions): Promise<
       noClip: opts.noClip,
       finishTargets: opts.finishTargets,
       finishOverrides: opts.finishOverrides,
+      ...(opts.footprintParts?.length ? { footprintParts: opts.footprintParts } : {}),
       byteSize: buf.byteLength,
       ...(typeof opts.price === 'number' ? { price: opts.price } : {}),
       ...(opts.slotSpec ? { slotSpec: opts.slotSpec } : {}),
+      ...(opts.assetSpec ? { assetSpec: opts.assetSpec } : {}),
     }
     if (opts.commit ?? true) useStore.getState().addUserFurniture(def)
     return { ok: true, def }

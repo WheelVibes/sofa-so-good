@@ -1,0 +1,76 @@
+{
+  "name": "expansion-e4b",
+  "description": "Expansion wave E4 Batch B: modular wardrobe fit-out system (parametric dialog preview, 3 fit-out configs + doors open/off), crib toddler-mode conversion, and the balcony bistro set (round table + 2 folding chairs) with joint closeups.",
+  "url": "http://localhost:5302/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try{localStorage.setItem('hdb_onboarded','1')}catch{}; const s=window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.();" },
+    { "name": "daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "helpers", "eval": "window.__place=(defId,props,pos)=>window.__store.getState().setItems([{id:'AUD',defId,position:pos||[10.5,4.0],rotation:0,props:props||{}}]); window.__placeMany=(arr)=>window.__store.getState().setItems(arr.map((it,i)=>({id:'AUD'+i,defId:it.d,position:it.p||[10.5,4.0],rotation:it.r||0,props:it.pr||{}}))); window.__cam=(ex,ey,ez,tx,ty,tz)=>{const t=window.__three;if(!t)return;const c=t.controls;t.camera.position.set(ex,ey,ez);if(c){c.target.set(tx,ty,tz);c.update();}t.camera.lookAt(tx,ty,tz);}; window.__low=()=>window.__cam(12.1,0.7,5.7,10.5,0.4,4.0); window.__mid=()=>window.__cam(12.4,1.2,6.0,10.5,0.7,4.0); window.__bist=()=>window.__cam(11.7,0.8,5.3,10.5,0.45,4.0); window.__set=()=>window.__cam(12.4,1.3,6.1,10.5,0.5,4.0); true" },
+    { "name": "warmup-place", "eval": "window.__place('crib',{})" },
+    { "name": "wait-mount", "wait": 6000 },
+    { "name": "warmup-cam", "eval": "window.__mid()" },
+    { "name": "wait-mount2", "wait": 1500 },
+
+    { "name": "p-crib", "eval": "window.__place('crib',{convert:'crib'}); window.__low()" },
+    { "name": "w-crib", "wait": 1300 },
+    { "name": "s-crib", "screenshot": "e4b-crib-default" },
+
+    { "name": "p-crib-tod", "eval": "window.__place('crib',{convert:'toddler'}); window.__low()" },
+    { "name": "w-crib-tod", "wait": 1300 },
+    { "name": "s-crib-tod", "screenshot": "e4b-crib-toddler" },
+
+    { "name": "p-crib-tod-mid", "eval": "window.__mid()" },
+    { "name": "w-crib-tod-mid", "wait": 900 },
+    { "name": "s-crib-tod-mid", "screenshot": "e4b-crib-toddler-3q" },
+
+    { "name": "p-bistro-t", "eval": "window.__place('bistro-table',{}); window.__bist()" },
+    { "name": "w-bistro-t", "wait": 1300 },
+    { "name": "s-bistro-t", "screenshot": "e4b-bistro-table" },
+
+    { "name": "p-fold", "eval": "window.__place('folding-chair',{}); window.__bist()" },
+    { "name": "w-fold", "wait": 1300 },
+    { "name": "s-fold", "screenshot": "e4b-folding-chair" },
+
+    { "name": "p-fold-wood", "eval": "window.__place('folding-chair',{finish:'wood',color:'#a9763f'}); window.__bist()" },
+    { "name": "w-fold-wood", "wait": 1200 },
+    { "name": "s-fold-wood", "screenshot": "e4b-folding-chair-teak" },
+
+    { "name": "p-set", "eval": "window.__placeMany([{d:'bistro-table',p:[10.5,4.0]},{d:'folding-chair',p:[10.5,4.62],r:Math.PI},{d:'folding-chair',p:[10.5,3.38],r:0}]); window.__set()" },
+    { "name": "w-set", "wait": 1400 },
+    { "name": "s-set", "screenshot": "e4b-bistro-set" },
+
+    { "name": "p-set-low", "eval": "window.__cam(11.9,0.6,5.2,10.5,0.4,4.0)" },
+    { "name": "w-set-low", "wait": 900 },
+    { "name": "s-set-low", "screenshot": "e4b-bistro-set-low" },
+
+    { "name": "clear-items", "eval": "window.__store.getState().setItems([])" },
+    { "name": "open-dialog", "eval": "window.__store.getState().setParametricOpen(true)" },
+    { "name": "w-dialog", "wait": 1200 },
+    { "name": "pick-wardrobe", "eval": "[...document.querySelectorAll('.tab,button')].find(b=>b.textContent&&b.textContent.trim()==='Wardrobe')?.click(); true" },
+    { "name": "w-wardrobe", "wait": 1600 },
+    { "name": "s-wardrobe-sliding", "screenshot": "e4b-wardrobe-sliding-closed" },
+
+    { "name": "front-open", "eval": "[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')==='Front: Open')?.click(); true" },
+    { "name": "w-open", "wait": 1500 },
+    { "name": "s-wardrobe-open-hang", "screenshot": "e4b-wardrobe-open-hang" },
+
+    { "name": "set-bays-4", "eval": "const el=document.querySelector('input[aria-label=\"Bay count\"]'); if(el){const set=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set; set.call(el,'4'); el.dispatchEvent(new Event('input',{bubbles:true}));} true" },
+    { "name": "w-bays4", "wait": 1400 },
+    { "name": "fitout-mixed", "eval": "const clk=(l)=>[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')===l)?.click(); clk('Bay 1: Shelves'); clk('Bay 2: Drawers'); clk('Bay 3: Shoe rack'); clk('Bay 4: Double hang'); true" },
+    { "name": "w-mixed", "wait": 1600 },
+    { "name": "s-wardrobe-mixed", "screenshot": "e4b-wardrobe-open-mixed-4bay" },
+
+    { "name": "fitout-config3", "eval": "const clk=(l)=>[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')===l)?.click(); clk('Bay 1: Hang'); clk('Bay 2: Double hang'); clk('Bay 3: Shelves'); clk('Bay 4: Shoe rack'); true" },
+    { "name": "w-config3", "wait": 1500 },
+    { "name": "s-wardrobe-config3", "screenshot": "e4b-wardrobe-open-config3-4bay" },
+
+    { "name": "front-sliding", "eval": "[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')==='Front: Sliding')?.click(); true" },
+    { "name": "w-sliding4", "wait": 1500 },
+    { "name": "s-wardrobe-sliding4", "screenshot": "e4b-wardrobe-sliding-4bay" },
+
+    { "name": "front-hinged", "eval": "[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')==='Front: Hinged')?.click(); true" },
+    { "name": "w-hinged", "wait": 1500 },
+    { "name": "s-wardrobe-hinged", "screenshot": "e4b-wardrobe-hinged-4bay" }
+  ]
+}

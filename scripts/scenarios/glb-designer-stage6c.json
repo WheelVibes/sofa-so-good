@@ -1,0 +1,94 @@
+{
+  "name": "glb-designer-stage6c",
+  "description": "Asset Studio Iteration 2 Stage 6c — materials II in the GLB Asset Designer (Pro, glbDesigner on). Build a tabletop box with an oak veneer TOP and a darker walnut EDGE band (per-face finishes / edge banding) — at a 3/4 angle the top/side split must read clearly. Add two wood-finished boards side by side with the grain running Along X vs Along Z (grain direction visibly differs). Coarsen one board's texture Scale so the tiling change is visible. Finally Save and assert the persisted UserGltfDef's assetSpec (v9 envelope) embeds the box faceFinishes, finishRotation, and finishScale — the whole materials layer round-trips as an editable spec.",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "set-pro-mode",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "open-glb-designer",
+      "store": { "action": "setGlbDesignerOpen", "args": [true] }
+    },
+    {
+      "name": "wait-designer",
+      "waitFor": { "css": ".glb-designer" },
+      "timeout": 20000
+    },
+    {
+      "name": "settle-designer",
+      "wait": 800
+    },
+    {
+      "name": "build-materials-scene",
+      "comment": "A tabletop board (oak veneer top + darker walnut edge band) plus two wood boards for the grain-direction comparison — grain Along X vs Along Z, the second also coarser (finishScale).",
+      "eval": "(function(){ const s = JSON.parse(JSON.stringify(window.__glbDesigner.getSpec())); s.parts = [ { id: 'tabletop', kind: 'box', name: 'Tabletop', position: [-0.55, 0.45, 0], size: [0.72, 0.09, 0.5], color: '#b08d57', faceFinishes: { top: { finish: 'mat:floor-wood-oak' }, sides: { finish: 'mat:floor-wood-walnut' } } }, { id: 'grain-x', kind: 'box', name: 'Grain X', position: [0.35, 0.2, 0], size: [0.32, 0.32, 0.02], color: '#b08d57', finish: 'mat:floor-wood-oak', finishRotation: 0, finishScale: 2 }, { id: 'grain-z', kind: 'box', name: 'Grain Z', position: [0.75, 0.2, 0], size: [0.32, 0.32, 0.02], color: '#b08d57', finish: 'mat:floor-wood-oak', finishRotation: 90, finishScale: 2 } ]; window.__glbDesigner.setSpec(s); })()"
+    },
+    {
+      "name": "wait-materials",
+      "comment": "Give the mat:<id> procedural finishes time to build into the material cache.",
+      "wait": 2500
+    },
+    {
+      "name": "assert-face-finishes",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const t = s.parts.find(p => p.id === 'tabletop'); if (!t) throw new Error('tabletop missing'); if (!t.faceFinishes || t.faceFinishes.top.finish !== 'mat:floor-wood-oak' || t.faceFinishes.sides.finish !== 'mat:floor-wood-walnut') throw new Error('tabletop faceFinishes not set'); const gx = s.parts.find(p => p.id === 'grain-x'); const gz = s.parts.find(p => p.id === 'grain-z'); if ((gx.finishRotation ?? 0) !== 0 || gz.finishRotation !== 90) throw new Error('grain rotation not set'); })()"
+    },
+    {
+      "name": "shot-face-and-grain",
+      "comment": "3/4 angle (the default Home pose): the tabletop's oak top vs darker walnut edge band must read; the two boards' grain must run visibly different directions.",
+      "screenshot": "01-face-finishes-and-grain"
+    },
+    {
+      "name": "coarsen-grain-x-scale",
+      "comment": "Coarsen the first board's texture Scale further so the tiling change reads next to its sibling.",
+      "eval": "(function(){ const s = JSON.parse(JSON.stringify(window.__glbDesigner.getSpec())); const gx = s.parts.find(p => p.id === 'grain-x'); gx.finishScale = 4; window.__glbDesigner.setSpec(s); })()"
+    },
+    {
+      "name": "wait-scale",
+      "wait": 900
+    },
+    {
+      "name": "assert-scale",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const gx = s.parts.find(p => p.id === 'grain-x'); if (gx.finishScale !== 4) throw new Error('finishScale not applied, got ' + gx.finishScale); })()"
+    },
+    {
+      "name": "shot-scale",
+      "comment": "The first board's wood grain now tiles coarser (4×) than the second.",
+      "screenshot": "02-texture-scale"
+    },
+    {
+      "name": "set-asset-name",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Asset name\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, 'Stage6c Materials'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "record-baseline",
+      "eval": "window.__glbBaseline = window.__store.getState().userFurniture.length"
+    },
+    {
+      "name": "click-save",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer button')].find(b => b.textContent.trim() === 'Save asset' && !b.disabled); if (!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-saved-materials",
+      "comment": "End-to-end proof: the saved assetSpec (v9 envelope) embeds the box faceFinishes (oak top + walnut edge), the grain-Z rotation, and the coarsened texture scale — the Stage-6c materials layer round-trips as an editable spec.",
+      "waitFor": {
+        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Stage6c Materials' && typeof d.assetSpec === 'string' && d.assetSpec.includes('\"kind\":\"asset\"') && (() => { try { const env = JSON.parse(d.assetSpec); if (env.v !== 9) return false; const s = env.payload; const t = s.parts.find(p => p.id === 'tabletop'); const gz = s.parts.find(p => p.id === 'grain-z'); const gx = s.parts.find(p => p.id === 'grain-x'); return t && t.faceFinishes && t.faceFinishes.top.finish === 'mat:floor-wood-oak' && t.faceFinishes.sides.finish === 'mat:floor-wood-walnut' && gz && gz.finishRotation === 90 && gx && gx.finishScale === 4; } catch { return false } })())"
+      },
+      "timeout": 60000,
+      "failMessage": "saved assetSpec should embed the box faceFinishes, the grain-Z rotation, and the texture scale (v9 envelope)"
+    },
+    {
+      "name": "shot-saved",
+      "screenshot": "03-saved-with-materials"
+    }
+  ]
+}

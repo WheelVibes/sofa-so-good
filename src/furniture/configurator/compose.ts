@@ -9,6 +9,7 @@
  * (`buildObject.ts`) and the bake (`saveConfigured.ts`) consume its output.
  */
 
+import type { FootprintPart } from '../types'
 import {
   type ConfigurableProduct,
   type ConfiguredPart,
@@ -33,6 +34,14 @@ export interface ComposedModel {
   parts: ConfiguredPart[]
   gltfPieces: ComposedGltfPiece[]
   bounds: { w: number; d: number; h: number }
+  /**
+   * Granular composite footprint — one OBB per contribution (base + each filled
+   * slot), authored **relative to the `bounds` centre** so an L/U sectional
+   * collides with its true concave shape instead of the full bounding box (the
+   * `sofa-lshape` precedent, but composed). Threaded onto the baked product def
+   * so `itemFootprintParts` reads it like any def's `footprintParts`.
+   */
+  footprintParts: FootprintPart[]
   /** base.price + Σ selected option.price. */
   price: number
   finishTargets: { key: string; label: string }[]
@@ -79,6 +88,24 @@ function footprintAabb(fp: { w: number; d: number; h: number }, anchor: SlotAnch
   return { minX: ax - w / 2, maxX: ax + w / 2, minZ: az - d / 2, maxZ: az + d / 2, top: ay + fp.h }
 }
 
+/** Exact AABB of a transformed box part (position is the box CENTRE, +Z forward). */
+function partAabb(p: ConfiguredPart): Aabb {
+  const [x, y, z] = p.position
+  const [w, h, d] = p.size
+  return { minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, top: y + h / 2 }
+}
+
+function mergeAabb(a: Aabb | null, b: Aabb): Aabb {
+  if (!a) return { ...b }
+  return {
+    minX: Math.min(a.minX, b.minX),
+    maxX: Math.max(a.maxX, b.maxX),
+    minZ: Math.min(a.minZ, b.minZ),
+    maxZ: Math.max(a.maxZ, b.maxZ),
+    top: Math.max(a.top, b.top),
+  }
+}
+
 /** Humanise a finish key ("base:frame" → "Base frame"). Shared with
  *  `gltfSlot.ts`'s per-slot GLB namespacing so both label the same way. */
 export function finishLabel(key: string): string {
@@ -96,26 +123,23 @@ export function composeProduct(
   const parts: ConfiguredPart[] = []
   const gltfPieces: ComposedGltfPiece[] = []
 
-  let minX = Number.POSITIVE_INFINITY
-  let maxX = Number.NEGATIVE_INFINITY
-  let minZ = Number.POSITIVE_INFINITY
-  let maxZ = Number.NEGATIVE_INFINITY
-  let top = 0
-  const include = (fp: { w: number; d: number; h: number }, anchor: SlotAnchor) => {
-    const a = footprintAabb(fp, anchor)
-    minX = Math.min(minX, a.minX)
-    maxX = Math.max(maxX, a.maxX)
-    minZ = Math.min(minZ, a.minZ)
-    maxZ = Math.max(maxZ, a.maxZ)
-    top = Math.max(top, a.top)
-  }
+  // Each contribution (base + each filled slot) tracks its OWN AABB — from its
+  // actual box parts (exact) plus any GLB piece footprint — so the composite
+  // `footprintParts` carves the concave notch of an L/U sectional rather than
+  // reporting one over-wide bounding box.
+  const contributions: Aabb[] = []
 
-  // Base at identity.
-  include(product.base.footprint, IDENTITY)
-  if (product.base.parts) {
+  // Base contribution: exact from parts when present, else the authored base
+  // footprint; union any base GLB piece footprint.
+  let baseAabb: Aabb | null = null
+  if (product.base.parts?.length) {
     for (const p of product.base.parts) {
-      parts.push({ ...p, finishKey: p.finishKey ?? `base:${p.role}` })
+      const part = { ...p, finishKey: p.finishKey ?? `base:${p.role}` }
+      parts.push(part)
+      baseAabb = mergeAabb(baseAabb, partAabb(part))
     }
+  } else {
+    baseAabb = footprintAabb(product.base.footprint, IDENTITY)
   }
   if (product.base.gltfUrl) {
     gltfPieces.push({
@@ -124,7 +148,9 @@ export function composeProduct(
       finishPrefix: 'base',
       footprint: product.base.footprint,
     })
+    baseAabb = mergeAabb(baseAabb, footprintAabb(product.base.footprint, IDENTITY))
   }
+  if (baseAabb) contributions.push(baseAabb)
 
   let price = product.base.price
 
@@ -132,11 +158,13 @@ export function composeProduct(
     const opt = selectedOption(slot, spec)
     if (!opt) continue
     price += opt.price
-    include(opt.footprint, slot.anchor)
+    let slotAabb: Aabb | null = null
     if (opt.parts) {
       for (const p of opt.parts) {
         const tp = transformPart(p, slot.anchor)
-        parts.push({ ...tp, finishKey: p.finishKey ?? `${slot.id}:${p.role}` })
+        const part = { ...tp, finishKey: p.finishKey ?? `${slot.id}:${p.role}` }
+        parts.push(part)
+        slotAabb = mergeAabb(slotAabb, partAabb(part))
       }
     } else if (opt.gltfUrl) {
       gltfPieces.push({
@@ -145,19 +173,35 @@ export function composeProduct(
         finishPrefix: slot.id,
         footprint: opt.footprint,
       })
+      slotAabb = footprintAabb(opt.footprint, slot.anchor)
     }
+    if (slotAabb) contributions.push(slotAabb)
   }
 
   // Degenerate guard (no geometry at all): fall back to the base footprint.
-  if (!Number.isFinite(minX)) {
+  if (contributions.length === 0) {
     const f = product.base.footprint
     return {
       parts,
       gltfPieces,
       bounds: { w: f.w, d: f.d, h: f.h },
+      footprintParts: [],
       price,
       finishTargets: [],
     }
+  }
+
+  let minX = Number.POSITIVE_INFINITY
+  let maxX = Number.NEGATIVE_INFINITY
+  let minZ = Number.POSITIVE_INFINITY
+  let maxZ = Number.NEGATIVE_INFINITY
+  let top = 0
+  for (const c of contributions) {
+    minX = Math.min(minX, c.minX)
+    maxX = Math.max(maxX, c.maxX)
+    minZ = Math.min(minZ, c.minZ)
+    maxZ = Math.max(maxZ, c.maxZ)
+    top = Math.max(top, c.top)
   }
 
   const bounds = {
@@ -165,6 +209,19 @@ export function composeProduct(
     d: Math.max(0.05, maxZ - minZ),
     h: Math.max(0.05, top),
   }
+
+  // Composite footprint parts, authored relative to the bounds CENTRE (= the
+  // baked GLB's bbox centre, which `itemFootprintParts` uses as the parts origin).
+  // A single-contribution product collapses to one part covering the whole bbox
+  // (equivalent to the plain OBB), so it costs nothing there.
+  const bcx = (minX + maxX) / 2
+  const bcz = (minZ + maxZ) / 2
+  const footprintParts: FootprintPart[] = contributions.map((c) => ({
+    dx: (c.minX + c.maxX) / 2 - bcx,
+    dz: (c.minZ + c.maxZ) / 2 - bcz,
+    w: Math.max(0.05, c.maxX - c.minX),
+    d: Math.max(0.05, c.maxZ - c.minZ),
+  }))
 
   // Unique finish-target keys (procedural parts); GLB pieces' keys are discovered
   // + namespaced at bake (SLOT-203).
@@ -177,5 +234,5 @@ export function composeProduct(
     finishTargets.push({ key, label: finishLabel(key) })
   }
 
-  return { parts, gltfPieces, bounds, price, finishTargets }
+  return { parts, gltfPieces, bounds, footprintParts, price, finishTargets }
 }

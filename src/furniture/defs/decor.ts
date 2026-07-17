@@ -125,6 +125,11 @@ export const DECOR_DEFS = {
     primitive: 'TabletopDecor',
     defaultFootprint: { w: 0.34, d: 0.22, h: 0.22 },
     verticalSpan: { base: 0.42, top: 0.66 },
+    // A surface-styling vignette that sits ON a table/console (like its
+    // book-stack / candle-cluster / decor-tray siblings) — never a floor item,
+    // so it must not participate in floor collision (was the only surface prop
+    // missing this, which also made the structural probe read it as floating).
+    noClip: true,
     paramSchema: [
       {
         kind: 'number',
@@ -553,6 +558,7 @@ export const DECOR_DEFS = {
     kind: 'parametric',
     id: 'wall-shelf',
     name: 'Wall shelf',
+    keywords: ['floating shelf', 'picture ledge', 'picture rail', 'corner shelf', 'wall ledge'],
     category: 'decor',
     primitive: 'WallShelf',
     defaultFootprint: { w: 0.8, d: 0.22, h: 0.15 },
@@ -592,14 +598,20 @@ export const DECOR_DEFS = {
       },
       { kind: 'color', key: 'color', label: 'Colour', default: '#8a6b48' },
       {
+        // Order keeps the multi-part modes (which the structural harness must
+        // verify connect) within the auto-covered default + first 3 extras;
+        // 'floating' (a single solid slab, trivially one component) is the mode
+        // left out of the auto-sample.
         kind: 'enum',
         key: 'style',
         label: 'Style',
         default: 'bracket',
         options: [
           { value: 'bracket', label: 'L-bracket' },
-          { value: 'floating', label: 'Floating' },
+          { value: 'ledge', label: 'Picture ledge' },
+          { value: 'corner', label: 'Corner (L-plan)' },
           { value: 'twotier', label: 'Two-tier' },
+          { value: 'floating', label: 'Floating slab' },
         ],
       },
       {
@@ -705,40 +717,6 @@ export const DECOR_DEFS = {
       { kind: 'color', key: 'waterColor', label: 'Water tint', default: '#3f7d8c' },
     ],
   },
-  'pet-bed': {
-    kind: 'parametric',
-    id: 'pet-bed',
-    name: 'Pet bed',
-    keywords: ['dog bed', 'cat bed', 'pet', 'basket', 'dog', 'cat'],
-    category: 'decor',
-    primitive: 'PetBed',
-    defaultFootprint: { w: 0.7, d: 0.7, h: 0.22 },
-    footprintParams: { w: 'size', d: 'size' },
-    paramSchema: [
-      {
-        kind: 'number',
-        key: 'size',
-        label: 'Size',
-        min: 0.45,
-        max: 1.1,
-        step: 0.05,
-        default: 0.7,
-        unit: 'm',
-      },
-      {
-        kind: 'enum',
-        key: 'shape',
-        label: 'Shape',
-        default: 'round',
-        options: [
-          { value: 'round', label: 'Round basket' },
-          { value: 'rect', label: 'Rectangular mat' },
-        ],
-      },
-      { kind: 'color', key: 'color', label: 'Bolster', default: '#9b6f52' },
-      { kind: 'color', key: 'cushion', label: 'Cushion', default: '#d8c9b0' },
-    ],
-  },
   'potted-plant': {
     kind: 'parametric',
     id: 'potted-plant',
@@ -782,8 +760,19 @@ export const DECOR_DEFS = {
           { value: 'large', label: 'Large' },
         ],
       },
+      {
+        kind: 'enum',
+        key: 'stand',
+        label: 'Stand',
+        default: 'none',
+        options: [
+          { value: 'none', label: 'On the floor' },
+          { value: 'raised', label: 'Mid-century stand' },
+        ],
+      },
       { kind: 'color', key: 'potColor', label: 'Pot', default: '#b9743f' },
       { kind: 'color', key: 'leafColor', label: 'Foliage', default: '#3f6b3a' },
+      { kind: 'color', key: 'standColor', label: 'Stand', default: '#7a5230' },
     ],
   },
   fireplace: {
@@ -807,13 +796,20 @@ export const DECOR_DEFS = {
         unit: 'm',
       },
       {
+        // Default is the floor-standing console (a hearth + mantel that reaches
+        // the floor), mirroring how `flatscreen-tv` defaults to its floor `stand`
+        // style rather than the wall mount. The def stays floor-anchored; the
+        // `wall` style is the wall-fixture alternative (renders at `mountHeight`,
+        // FLOOR_EXEMPT in the structural harness like `flatscreen-tv::wall`).
+        // Keeps a single def honest — a static `mounted` flag can't be right for
+        // both a floor console and a wall unit.
         kind: 'enum',
         key: 'style',
         label: 'Style',
-        default: 'wall',
+        default: 'console',
         options: [
-          { value: 'wall', label: 'Wall-mounted' },
           { value: 'console', label: 'Console + mantel' },
+          { value: 'wall', label: 'Wall-mounted' },
         ],
       },
       {

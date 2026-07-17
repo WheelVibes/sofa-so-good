@@ -55,6 +55,10 @@ interface CatalogCardProps {
    * no cue at all (never a false "won't fit").
    */
   roomRects?: RoomFreeRect[] | null
+  /** Pet program P6 — this def is a REQUIRED fitting for a declared household
+   *  pet, so it gets an "Essentials" corner badge. Off unless the pets profile
+   *  surfaces it. */
+  essential?: boolean
 }
 
 export function CatalogCard({
@@ -64,6 +68,7 @@ export function CatalogCard({
   refreshing,
   staggerIndex,
   roomRects,
+  essential,
 }: CatalogCardProps) {
   const isUser = isUserDef(def)
   const isIkea = isIkeaDef(def)
@@ -311,6 +316,10 @@ export function CatalogCard({
       {isUser ? (
         <span className="badge neutral" style={{ position: 'absolute', top: 6, left: 6 }}>
           Uploaded
+        </span>
+      ) : essential ? (
+        <span className="badge ok" style={{ position: 'absolute', top: 6, left: 6 }}>
+          Essential
         </span>
       ) : null}
     </div>

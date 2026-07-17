@@ -192,6 +192,21 @@ export const TOOL_ACTIONS: readonly ToolAction[] = [
     ),
   },
   {
+    id: 'pet-compliance',
+    label: 'Pet compliance',
+    paletteLabel: 'Pet compliance checklist',
+    sub: 'Required & recommended fittings for your pets',
+    icon: 'Pets',
+    category: 'analyze',
+    flag: 'petCompliance',
+    surfaces: ['desktop', 'mobile', 'palette'],
+    isActive: (s) => s.petComplianceOpen,
+    run: auxToggle(
+      (s) => s.petComplianceOpen,
+      (store) => store.getState().setPetComplianceOpen(true),
+    ),
+  },
+  {
     id: 'measure',
     // 'Measure distance' (not plain 'Measure') — the toolbar's 'Dimensions'
     // overlay toggle used to be called 'Measurements', and the two near-identical

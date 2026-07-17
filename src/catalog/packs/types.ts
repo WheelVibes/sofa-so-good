@@ -47,10 +47,13 @@ export interface Pack {
   id: string
   /** 'zip' = fetch a hosted archive (default install flow); 'ikea-live' =
    *  drive the local scraper sidecar; 'poly-pizza' = fetch GLBs on demand from
-   *  the Poly Pizza API (user-supplied key, in-browser, CORS-friendly); 'manual'
-   *  = a link-out card for sources with no programmatic/CORS download (the user
-   *  downloads by hand and imports via the Upload dialog). */
-  kind?: 'zip' | 'ikea-live' | 'poly-pizza' | 'manual'
+   *  the Poly Pizza API (user-supplied key, in-browser, CORS-friendly);
+   *  'poly-haven-bundle' = a curated CC0 set-dressing bundle fetched from the
+   *  keyless Poly Haven API and packed into self-contained GLBs in-browser (see
+   *  `polyHaven.ts`); 'manual' = a link-out card for sources with no
+   *  programmatic/CORS download (the user downloads by hand and imports via the
+   *  Upload dialog). */
+  kind?: 'zip' | 'ikea-live' | 'poly-pizza' | 'poly-haven-bundle' | 'manual'
   /** What the source provides — drives the import hint on `manual` cards
    *  (furniture → Upload model dialog; material → Upload material dialog).
    *  Defaults to 'furniture'. */

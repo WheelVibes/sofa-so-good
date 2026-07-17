@@ -66,40 +66,293 @@ glass model). On lower tiers it stays a normal surface.
 No model to import? Open the **3D asset designer** (⌘K → "Design a 3D asset") to
 build one in the browser:
 
+- **Templates** — the fastest start: the **Templates** section offers ready-made pieces —
+  **Dining table**, **Coffee table**, **Bookshelf**, **Cabinet**, **Bed frame**, **Sofa
+  frame**, **Dining chair**, **Wardrobe**, **Desk**, **TV console**, **Bench**, **Bar stool**,
+  **Floating shelf** and **Bathroom vanity**. Tap one and a small panel
+  opens with 2–4 dimension sliders (each shows its unit, the
+  allowed range and a hint naming the standard — e.g. *"Standard dining height 0.75 m"*), and the
+  **preview updates live** as you drag. The dimensions are clamped to sensible furniture sizes, so
+  the proportions always look right. Tap **Use template** to drop its **editable parts** into your
+  design — if the canvas is empty it *replaces* it, otherwise it's added **alongside** what's
+  already there. It arrives as its own named **Group** (so you can move the whole piece), and every
+  part is fully editable, so you can then recolour, resize, combine or ungroup it like anything you
+  built by hand. **Cancel** backs out. It's one undo step.
 - **Compose from shapes** — add boxes, cylinders, spheres, cones, pyramids, capsules,
   torus rings and wedges, then set each one's size, position, **rotation**, colour and **surface finish**
   (roughness, metalness, **glow** and **opacity** sliders — so a part can read as matte
   wood, polished metal, a lit neon/lamp, or translucent glass). A live 3D preview
   updates as you go.
+- **Rounded edges** — boxes and wedges gain a **Corner radius** slider that softens their
+  edges so they catch light like real furniture (0 = sharp).
+- **More shapes** — below the primitives, a **Lathe / Extrude / Sweep / Loft** row adds
+  profile-driven shapes:
+  - **Lathe** revolves a 2D profile into turned legs, bowls, vases and columns — pick a
+    **preset**, drag the profile points (or type X/Y), and set the number of **sides**.
+  - **Extrude** turns a 2D outline (rounded rectangle, ellipse, L, T, arch) into a prism with
+    a bevel on by default.
+  - **Sweep** runs a cross-section (round piping, half-round, ogee moulding, rectangle) along
+    a path (straight, L-corner, U-channel, ring) for railings, edging and mouldings. Pick
+    **Custom (draw)** to draw your own path in the top-view editor for a free rail or S-curve.
+  - **Loft** blends between two outlines — a **Bottom section** and a **Top section** — for
+    tapered, organic bodies (a round base rising to a square top, a tapering plinth). Pick a
+    **transition preset** (Round → square, Taper) to seed both, then drag either outline.
+- **Smooth vs. sharp points** — in any profile editor (lathe, extrude, loft, sweep path) each
+  point can be a **smooth curve** or a **sharp corner**. Smooth points show as **circles** and the
+  drawn path follows a flowing curve through them; sharp points show as **squares** and keep a crisp
+  corner. **Double-tap a point** (or select it and tap the curve/corner button) to switch. The
+  **Vase** and **Bowl** presets already use smooth points so their walls read as one continuous
+  curve instead of a faceted outline.
+- **Hollow it out** — **box** and **extrude** shapes have a **Hollow (wall)** slider: raise it to
+  carve an open-top carcass with uniform walls (a cabinet, tray or drawer box) in one move; 0 keeps
+  the shape solid.
+- **Taper** — solid **box** and **extrude** shapes have a **Taper** slider: raise it to shrink the
+  **top** face (box) or **front** face (extrude) toward the opposite face, for splayed carcass
+  sides, tapered plinths and pedestals, or A-frame legs; 0 keeps the sides straight. It works
+  together with **Corner radius** (a rounded, tapered box), but is hidden once a box is hollowed or
+  plumped (set those to 0 to taper). The taper shrinks evenly on both sides — a lopsided/wedge taper
+  isn't offered.
 - **Texture a shape** — each shape also has a **Texture** picker: choose **None — solid
   colour** (the default), tap a curated **Quick finishes** swatch (Oak, Walnut, Teak, Ash,
   Ebony, Marble), or pick any catalog / downloaded CC0 material from the dropdown — the
   same finishes you can apply to placed furniture. The texture defines the surface
   (its own roughness/metalness; those two sliders hide while one is set), while glow and
   opacity still apply on top; tap the active swatch (or pick None) to go back to the solid
-  colour. Textures are baked into the saved asset, and a **Combined** shape keeps the first
-  shape's texture.
+  colour. Textures are baked into the saved asset, and a combined shape keeps each source
+  shape's own texture on its own faces.
+- **Finish presets** — under the texture picker, a grid of one‑tap **Finish presets** sets a
+  realistic surface *feel* while keeping the shape's own colour: **Velvet**, **Satin**,
+  **Leather**, **Lacquered wood**, **Oiled wood**, **Matte paint**, **Powder‑coat**, **Brushed
+  steel**, **Polished chrome**, **Brass**, **Clear glass**, **Frosted glass**, **Ceramic** and
+  **Rubber**. Tap one to apply it (the matching preset stays highlighted); it clears any texture so
+  the finish shows. Open **Custom finish** to fine‑tune the raw sliders yourself — **Sheen** (the
+  soft glow of velvet/satin), **Clearcoat** (a lacquer gloss film), **Transmission** (see‑through
+  glass, with **Index of refraction** + **Thickness**) and **Anisotropy** (a brushed‑metal
+  highlight, with a **Brush angle**). *Glass see‑through only shows in the preview on the
+  High/Maximum graphics tiers, but it always exports correctly.*
+- **Texture scale & grain** — once a texture is set, a **Texture** section appears: **Scale**
+  (0.25×–4×) makes the pattern coarser or finer, and **Grain** (**Along X** / **Along Z**) turns the
+  grain a quarter‑turn so wood runs along the length you want. Both are baked into the saved asset.
+- **Per‑face finish (edge banding)** — a **sharp box** (corner radius, hollow and plump all at 0) has
+  a **Per‑face finish (edge banding)** section that gives its **Top (veneer)**, **Edge (band)** and
+  **Bottom** their own colour or texture — leave a zone blank to inherit the box's base look. Set an
+  oak veneer on top and a darker edge band around the sides for a realistic laminated board. (Round
+  the corners, hollow the box, or plump it and this section is replaced by a hint — per‑face finishes
+  need a flat, sharp box.)
+- **Two‑tone gradient** — open **Gradient** and tap **Add two‑tone gradient** to fade the shape
+  between two colours: pick the **Axis** (X/Y/Z) and the **From** / **To** colours. The gradient is
+  baked into the shape and survives export. It's for solid‑colour shapes — if a texture is set, clear
+  it first (the picker tells you).
+- **Solid or Hole** — every shape's edit panel has a **Type** switch: **Solid** (the
+  default) or **Hole**. A **Hole only cuts inside a Subtract combine** (below): once it's
+  carving inside one it shows as a translucent ghost. On its own — before it's part of a
+  Subtract — a Hole stays a plain solid and saves as one (the layers list tags it *Hole
+  (inert)* to make that clear), so marking a shape as a Hole changes nothing until you
+  combine it.
 - **Drag it in the preview** — selecting a shape shows a 3D gizmo on it, with a
   **Move / Rotate / Scale** switch in the preview's corner (or press **G**, **R**, **S**).
   Drag the arrows/rings/handles to place the shape; when you let go, the numbers in the
   edit panel update (snapped to 5 mm and 1°), so you can still fine-tune by typing.
-  A **Combined** shape can be moved and rotated but not scaled — its geometry is baked,
-  so the Scale option is hidden for it.
 - **Start from an uploaded model** — pick one of your uploaded GLBs as the base and
   resize it to make a custom variant (optionally kit‑bashing extra shapes on top).
-- **Combine (boolean)** — with a shape selected and at least one other shape in the
-  list, pick the second shape in the **with…** dropdown, then **Union** (merge both
-  into one solid), **Subtract** (carve the picked shape out of the selected one — a
-  notch, a hole) or **Intersect** (keep only the overlap). The result replaces both
-  shapes as a single **Combined** shape that keeps the selected shape's colour, texture and
-  finish; you can keep moving/rotating it, recombining it, or carving it again. It
-  works on shapes only (not the source model), and there's no undo inside the
-  designer — re-add the shapes if you change your mind. If two shapes can't be
-  combined (for example intersecting shapes that don't overlap), you'll see
-  "Couldn't combine these shapes".
+- **Combine (boolean)** — booleans are **non-destructive**: the shapes you combine stay
+  fully editable and the result updates live as you move them. In the **Shapes** list, tap
+  **Select** (or shift/⌘-click rows) to pick **two or more** shapes, then choose:
+    - **Union** — merge them into one solid.
+    - **Subtract** — carve holes out of solids. Shapes marked **Hole** are cut out of the
+      solids; if you didn't mark any Hole, the **first** shape you selected is the base and
+      the rest are carved out of it.
+    - **Intersect** — keep only the overlap of all the shapes.
+
+  Each combine appears under **Combined groups** with two actions: **Bake** (freeze the
+  result into one editable shape — handy to then combine it with something else) and
+  **Ungroup** (dissolve the combine; the shapes go back to how they were). A heavy combine
+  briefly shows **Computing…** while it works. Tip: don't line shapes up so two faces sit
+  *exactly* flush — overlap or offset them slightly so the cut doesn't flicker. If the
+  shapes don't overlap the result can be **Empty** — an Empty combine **blocks Save** (so it
+  can't silently vanish from the saved asset); fix the overlap or **Ungroup** it first.
+- **Group shapes** — to move several shapes together as one unit, tap **Select**
+  (or shift/⌘-click rows) to pick **two or more** shapes in the **Shapes** list, then
+  hit **Group**. They appear in the list under a **Group 1** row with the members
+  indented beneath it (double-click the name to rename it; the ▸ chevron collapses
+  or expands it). Click the group row to select the whole group — a **Move / Rotate**
+  gizmo drives all of its shapes together. Each group row also has **Duplicate** (deep-copies
+  the group and its shapes), **Mirror** (mirrors it across the centre — handy for a matching
+  pair) and **Ungroup**. **Ungroup** releases the shapes exactly where they are on screen (they
+  don't jump), and it's undoable, so **⌘Z** brings the group back. A **Group** ("Group N") is
+  a different thing from a **Combine** (⛓) — a Group just moves shapes together and keeps them
+  separate; a Combine fuses them with a boolean. A shape can be in one of each.
+- **Components (fittings)** — the **Components** panel is a library of ready-made hardware:
+  **Legs** (Tapered / Round / Square / Hairpin / Angled), **Handles** (Bar pull / Arc pull /
+  Round knob / Recessed pull), **Feet** (Dome foot / Puck foot / Castor), a **Butt hinge**, and
+  **Structure** parts (Apron rail / Stretcher / Slat set / Drawer box / Shelf pins) for the frame
+  and internals of a piece.
+  Tap one to **arm** it — a panel opens with 1–3 sliders (height, width, length…) and a hint.
+  Now **click a surface in the preview** to drop the fitting there: it snaps to the face and
+  orients itself automatically — a leg dropped on a tabletop's **underside** (or the floor)
+  hangs straight down and stands plumb; a bar pull clicked on an **upright** drawer/door front
+  sits flush with its bar horizontal. Tap the armed component again, or press **Esc**, to cancel.
+  A placed fitting lands as its own named **Group**, so you can move, resize, recolour or ungroup
+  it like anything else.
+- **Repeat to corners** — placed one leg or foot? Select its group and use **Mirror X**,
+  **Mirror Z** or **Repeat ×4** (in the group panel) to copy it to the matching corner(s) of the
+  piece in one tap — place a single leg, get a four-legged table. It's one undo step.
+- **Details (buttons, stitching, wear)** — the **Details** panel adds fine upholstery detail. Tap
+  a detail — **Button**, **Stitch line**, **Seam**, **Round patch** or **Wear spot** — to **arm**
+  it, then **click a shape's surface** in the preview to place it there. It sits flush on the
+  surface, follows the shape if you move or group it, and is saved into the asset (real geometry, so
+  it exports too). A **Placed details** list lets you remove any one. Press **Esc** to cancel an
+  armed detail. Details (and tufting, below) apply to a *standalone* shape — a shape that's part of a
+  **Combine** can't carry them (the boolean fuses it into one result), so those controls hide with a
+  short "Combines hide surface details — bake or ungroup first" note, and combining a shape that
+  already has details drops them (one undo step; ungrouping doesn't bring them back).
+- **Piping** — in the **Details** panel, with a **box** or **extrude** shape selected, tap **Add
+  piping** to trace a soft welt around the shape's top edge — the classic upholstered-cushion look —
+  with no manual path drawing. Set the **Tube ⌀** and **Edge inset** first. The piping lands grouped
+  with the shape (it moves with it) in the shape's colour, slightly darkened.
+- **Plump a cushion** — box and capsule shapes have a **Plump (cushion)** slider in their edit
+  panel: raise it to bulge the shape like a stuffed cushion (the top crowns and the sides bow, while
+  the corners stay pinned like a seam). 0 keeps it flat.
+- **Crown/tuft face** — once a **box** is plumped, a **Face** switch (Top / Front / Back / Left /
+  Right) picks *which* face bulges and tufts. **Top** is the usual cushion; **Front** or **Back**
+  crowns an upright vertical face — so a thin board becomes a padded, button-tufted backrest or sofa
+  arm — and **Left**/**Right** do the side faces. The wrinkles, buttons and stitch lines all follow
+  the face you choose.
+- **Fabric wrinkles** — once a shape is plumped, a **Wrinkles (fabric)** slider appears just below
+  Plump. It adds a subtle procedural fabric texture — soft creases that gather toward the pinned
+  corners plus a fine cloth nap — so the cushion reads as sewn upholstery rather than a smooth
+  shell. It's **on by default** at a gentle level; drag it to **Off** to remove it, or up for a more
+  gathered look. (If you apply a **material finish** to the shape, its own surface texture takes over
+  and the wrinkles step aside — a short note replaces the slider.)
+- **Tufting** — once a **box** is plumped, a **Tufting (buttons)** toggle appears just below the
+  Plump/Wrinkles controls. Turn it on to add a **grid of buttons** to the cushion top: **Rows** and
+  **Columns** (1–6 each) set the grid and **Dimple depth** sets how deep each button pulls the
+  padding in. Each button sits in its own soft dimple — the classic button-tufted upholstery look.
+  A **Pattern** switch picks **Grid** (a plain rectangle) or **Diamond** — the offset-row
+  Chesterfield lattice — and a **Stitch lines** toggle adds thread lines connecting the buttons
+  (diagonals on the diamond, straight lines on the grid) for the full buttoned-and-piped read.
+  Changing any of these regenerates the buttons/stitches; any details you placed by hand are left
+  alone. The **Bench** template ships tufted by default, so it's a quick way to see the effect.
+- **Arrange (align, distribute, mirror, array)** — with shapes selected, an **Arrange**
+  section appears. Pick an **axis** (X/Y/Z), then **Align min**, **Align centre** or **Align max**
+  to line the selected shapes up on that axis (needs 2+ shapes), or **Distribute** to space 3+
+  shapes with equal gaps. **Mirror X** / **Mirror Z** drop a mirrored copy of the selection across
+  the piece's centre — one shape or many. **Array** (in the Array drop-down) duplicates the
+  selection into a repeated pattern: a **Linear array** (count, gap, axis) makes a row, a **Radial
+  array** (count, radius, sweep) makes a ring. Each array lands as its own **Array** group. Every
+  arrange action is one undo step.
+- **Grid snap** — the **magnet** button (top-right of the preview) turns grid snapping on/off, and
+  the step menu beside it (**1 mm / 5 mm / 1 cm / 5 cm**) sets how coarsely a gizmo drag and the
+  size/position number fields step. Your choice is remembered on this device.
+- **Face snapping (magnetic surfaces)** — with the **magnet** on, dragging a shape (or a whole group)
+  so a face comes within about 8 mm of another shape's face **snaps it flush** — the two surfaces meet
+  with no gap, or line up edge-to-edge. The snap happens **live while you drag**: the shape jumps flush
+  the moment it gets close and a coloured edge marks the shared face, and it holds there until you pull
+  it clearly away again (so it doesn't flicker at the edge). Hold **Alt** while dragging to switch the
+  magnet off just for that drag, or turn the magnet button off to place freely.
+- **Pivot (rotation / scale point)** — the **Centre / Base / Corner** switch (top-left, under the
+  Move / Rotate / Scale switch) sets the point a shape rotates and scales around. **Centre** is the
+  default; **Base** keeps the bottom face put (rotate a leg without it sinking, or grow a shape upward
+  from the floor); **Corner** pins the shape's minimum corner. It applies to both the gizmo and the
+  number fields.
+- **Dimension readout** — while shapes are selected, the preview shows the selection's size
+  (**W × D × H** in centimetres) in the bottom-left corner, updating live as you drag.
+- **Views** — the **Front / Side / Top** buttons (top-right) snap the camera to a straight-on view
+  of each side; **Home** (the house icon) resets to the default angle.
+- **Preview lighting** — the **Studio / Room** switch (bottom-right) chooses the light the preview
+  uses. **Studio** (the default) is an even studio rig, best for checking shape and colour. **Room**
+  lights the shape with the app's room environment, so shiny finishes look the way they will once the
+  asset is placed — velvet catches a soft sheen, chrome and polished metal pick up reflections, and
+  glass shows its see‑through look. Switch to **Room** when you're judging a finish. Your choice is
+  remembered on this device.
+- **Find & rename shapes** — use the **filter box** above the shape list to find a shape by name.
+  Double-click a shape's name (or use its pencil button, or the **Name** field in its edit panel)
+  to rename it; a blank name goes back to the default "box 1" style label.
+- **Undo / redo** — every edit (add, move, resize, recolour, combine, group, align, array, …) is
+  undoable: press **⌘Z** (⇧⌘Z to redo), or use the **↶ / ↷** buttons next to
+  "Add shape". A slider or gizmo drag counts as a single step.
+- **Start from an asset you designed** — if you pick one of your own
+  designer-built assets as the base, a **Restore editable parts** button appears:
+  tap it to re-open its original shapes and keep editing them, instead of treating
+  the saved asset as a fixed model.
+- **Make parts editable** — a separate section, lower down, lets you turn **any**
+  furniture into an editable design: pick an item from the dropdown (grouped into
+  **Built-ins**, **My uploads**, **Shared library** and **Packs** — every catalog
+  item, not just your own uploads) and hit **Make parts editable**. It breaks the
+  piece into shapes you can move, recolour and combine, just like a design you built
+  from scratch. This **replaces your current design**, so use it to start a new one —
+  it's a different path from **Start from** above, which keeps a picked model as a
+  single frozen piece unless it's already one of your own designer-built assets.
+- **Choose parts to insert…** — right below **Make parts editable**, this lets you
+  **grab just some pieces** of an item instead of the whole thing. Pick an item, hit
+  **Choose parts to insert…**, then tick the parts you want in the list (each group,
+  or its individual meshes — e.g. just the four legs) and hit **Insert selected parts**.
+  The chosen pieces drop in **alongside** your current design (off to one side), so you
+  can kit-bash — say, borrow a chair's legs under a slab you drew — without replacing
+  what you already have.
+
+### Save and reuse your own components
+
+Made a cluster of shapes you'll want again — a leg, a handle assembly, a shelf? Select
+its **Group** and hit **Save as component** in the group panel. It's saved to
+**My components** in the **Components** panel (bottom of the shape list), per-device.
+From there a saved component works exactly like the built-in fittings: tap it to arm it,
+then **click a face** in the preview to drop a fresh copy oriented to that surface. A
+small **×** removes a component (it asks you to confirm first, since it's a saved item).
+Very heavy pieces made of baked/combined meshes can't be saved as components — you'll get
+a hint if so; keep a component to simple shapes or parts borrowed from other furniture.
 
 Give it a name and category and hit **Save asset** — it's exported to a GLB and
 added to your catalog like any upload, ready to place and reuse. When you started
 from one of your own models, flip **Update original** before saving to overwrite
 that asset in place — every copy you've already placed updates to the new edit.
+Because that changes every placed copy and **can't be undone**, Save first asks you
+to confirm.
+
+### Save a multi‑piece design as a set
+
+Designed more than one piece in the same canvas — say a table and a bookshelf, each in
+its own **Group**? Flip **Save groups as separate assets** in the Save panel before you
+hit **Save asset**. You get the whole thing as one catalog asset **plus** each group
+saved as its own single‑piece asset (named after the group), so you can place them
+individually or together later. The switch only appears when your design has at least one
+group.
+
+### Turn a design into a configurable product
+
+Want to offer swappable options — e.g. round **or** square legs — instead of one fixed
+piece? Group the parts that make up each option (for example, put the four legs in their
+own group, then **Duplicate** that group and edit the copy into square legs), then use the
+**Make configurable** panel:
+
+1. **Name a Slot** on each group you want to offer as an option (e.g. type `Legs`).
+   Groups you give the **same** slot name become **alternatives** of that slot — the first
+   one is the default. Leave a group's slot blank to keep it as fixed base geometry;
+   loose (ungrouped) shapes are always part of the base.
+2. Give each option a short **label** and a **price** (defaults to 0 — edit it if you like).
+3. *(Optional)* Set **compatibility rules** between options — see below.
+4. Hit **Save as configurable product**.
+
+It opens straight into **Configure a product**, where you (or anyone) can pick an option
+per slot, watch the piece update live, and **Save to catalog** / **Add to room** the exact
+configuration you want — just like the built‑in configurable products. Your saved product
+also shows up as its own tab in **Configure a product** for next time.
+
+#### Compatibility rules (requires / excludes)
+
+Some option combinations don't make sense together — a glass top might only be rated for
+steel legs, or you might not want two chaise ends on one sofa. Expand the **Rules**
+section under any option to add rules against options in **other** slots:
+
+- **requires** — picking this option automatically switches the target slot to the
+  required option (e.g. *Top · Glass* **requires** *Legs · Steel* → choosing the glass top
+  snaps the legs to steel).
+- **excludes** — this option and the target can't both be chosen; picking this one clears
+  the conflicting option back to that slot's default.
+
+Rules are enforced live in **Configure a product**: an invalid pick auto-resolves so you
+can never build an impossible combination. If two rules contradict each other (an option
+that both requires *and* excludes the same target) or make a slot impossible to fill, the
+save is blocked with a message telling you which rule to fix. If you later delete an option
+group and re-export, any rule that pointed at it is quietly dropped.
 

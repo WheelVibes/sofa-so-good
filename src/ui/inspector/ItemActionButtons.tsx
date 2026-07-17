@@ -28,7 +28,7 @@ type ItemActionProps = {
 export function ItemBasicActions({ item, def, catalog }: ItemActionProps) {
   return (
     <div className="action-grid">
-      {!def.windowBound ? (
+      {!(def.windowBound || def.doorBound) ? (
         <>
           <button
             type="button"

@@ -50,7 +50,6 @@ export function CubeShelf({ props }: { props: ParamProps }) {
     for (let c = 0; c < cols; c++) {
       if (rnd() > 0.5) continue
       const cx = -width / 2 + t + cube / 2 + c * (cube + t)
-      const cy = t + cube / 2 + r * (cube + t)
       if (rnd() > 0.5) {
         // a small stack of books leaning
         books.push({
@@ -59,8 +58,12 @@ export function CubeShelf({ props }: { props: ParamProps }) {
           color: BOX_COLORS[Math.floor(rnd() * BOX_COLORS.length)],
         })
       } else {
-        // a storage box
-        woodBoxes.push({ position: [cx, cy, 0], size: [cube * 0.9, cube * 0.88, depth * 0.86] })
+        // a storage box — rested on the shelf floor of its cubby (its base
+        // sits on the shelf top) so it reads as sitting in the cube rather than
+        // floating centred in the opening.
+        const boxH = cube * 0.88
+        const restY = t + r * (cube + t) + boxH / 2
+        woodBoxes.push({ position: [cx, restY, 0], size: [cube * 0.9, boxH, depth * 0.86] })
       }
     }
   }

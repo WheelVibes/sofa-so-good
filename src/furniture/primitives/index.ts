@@ -9,19 +9,28 @@ import type { ComponentType } from 'react'
 import type { ParamProps, PrimitiveKind } from '../types'
 import { AirconUnit } from './AirconUnit'
 import { Aquarium } from './Aquarium'
+import { AquariumStand } from './AquariumStand'
 import { Armchair } from './Armchair'
 import { BarCart } from './BarCart'
 import { BarStool } from './BarStool'
 import { BathroomSink } from './BathroomSink'
 import { Bathtub } from './Bathtub'
+import { BayDaybed } from './BayDaybed'
 import { Bed } from './Bed'
 import { Bench } from './Bench'
+import { BirdCage } from './BirdCage'
+import { BirdPlayGym } from './BirdPlayGym'
+import { BistroTable } from './BistroTable'
 import { BookStack } from './BookStack'
 import { Bookshelf } from './Bookshelf'
 import { BunkBed } from './BunkBed'
 import { CabinetCorner } from './CabinetCorner'
 import { CabinetBase, CabinetTall, CabinetWall } from './CabinetModule'
 import { CandleCluster } from './CandleCluster'
+import { CatWallBridge, CatWallShelf, CatWallSteps } from './CatShelves'
+import { CatTree } from './CatTree'
+import { CatTunnel } from './CatTunnel'
+import { CatWindowPerch } from './CatWindowPerch'
 import { CeilingFan } from './CeilingFan'
 import { CeilingLight } from './CeilingLight'
 import { ChaiseLounge } from './ChaiseLounge'
@@ -29,6 +38,7 @@ import { ChangingTable } from './ChangingTable'
 import { CoatRack } from './CoatRack'
 import { CoffeeTable } from './CoffeeTable'
 import { ConsoleTable } from './ConsoleTable'
+import { CoolingMat } from './CoolingMat'
 import { CoveLight } from './CoveLight'
 import { Crib } from './Crib'
 import { CubeShelf } from './CubeShelf'
@@ -39,22 +49,32 @@ import { DeskPlant } from './DeskPlant'
 import { DiningChair } from './DiningChair'
 import { DiningTable } from './DiningTable'
 import { Dishwasher } from './Dishwasher'
+import { DisplayCabinet } from './DisplayCabinet'
+import { DogBedOrthopedic } from './DogBedOrthopedic'
+import { DogCrate } from './DogCrate'
+import { DogRamp } from './DogRamp'
 import { Dresser } from './Dresser'
 import { DryingRack } from './DryingRack'
 import { FeatureWall } from './FeatureWall'
+import { FeedingStation } from './FeedingStation'
 import { Fireplace } from './Fireplace'
 import { FlatscreenTV } from './FlatscreenTV'
 import { FloorLamp } from './FloorLamp'
 import { FloorMirror } from './FloorMirror'
 import { FloorSpeaker } from './FloorSpeaker'
 import { FloorVase } from './FloorVase'
+import { FoldingChair } from './FoldingChair'
 import { FruitBowl } from './FruitBowl'
 import { GarmentRack } from './GarmentRack'
+import { HamsterTank } from './HamsterTank'
 import { HangingPlant } from './HangingPlant'
 import { HighChair } from './HighChair'
 import { KitchenCounter } from './KitchenCounter'
 import { KitchenIsland } from './KitchenIsland'
 import { LaundryHamper } from './LaundryHamper'
+import { LitterBox } from './LitterBox'
+import { LitterCabinet } from './LitterCabinet'
+import { LoftBed } from './LoftBed'
 import { MagazineStack } from './MagazineStack'
 import { Microwave } from './Microwave'
 import { Mirror } from './Mirror'
@@ -67,26 +87,38 @@ import { OutdoorLounger } from './OutdoorLounger'
 import { OutdoorParasol } from './OutdoorParasol'
 import { OutdoorTable } from './OutdoorTable'
 import { Oven } from './Oven'
+import { Pegboard } from './Pegboard'
 import { PetBed } from './PetBed'
+import { PetDoorInsert } from './PetDoorInsert'
+import { PetGate } from './PetGate'
+import { PetPlaypen } from './PetPlaypen'
+import { PetToyBin } from './PetToyBin'
 import { PhotoFrameCluster } from './PhotoFrameCluster'
 import { Piano } from './Piano'
 import { PlanterTrough } from './PlanterTrough'
 import { PottedPlant } from './PottedPlant'
+import { RabbitHutch } from './RabbitHutch'
 import { RangeHood } from './RangeHood'
+import { Recliner } from './Recliner'
 import { Refrigerator } from './Refrigerator'
 import { RollerBlind } from './RollerBlind'
 import { RoomDivider } from './RoomDivider'
 import { Rug } from './Rug'
+import { ScratchingPost } from './ScratchingPost'
+import { ShoeBench } from './ShoeBench'
 import { ShoeCabinet } from './ShoeCabinet'
 import { Shower } from './Shower'
 import { Sideboard } from './Sideboard'
 import { SideTable } from './SideTable'
+import { SmallPetPen } from './SmallPetPen'
 import { SmallSculpture } from './SmallSculpture'
 import { Sofa } from './Sofa'
+import { SofaBed } from './SofaBed'
 import { SofaSectional } from './SofaSectional'
 import { Soundbar } from './Soundbar'
 import { Staircase } from './Staircase'
 import { StandingFan } from './StandingFan'
+import { StorageBench } from './StorageBench'
 import { Stove } from './Stove'
 import { TableLamp } from './TableLamp'
 import { TabletopDecor } from './TabletopDecor'
@@ -98,17 +130,22 @@ import { TowelLadder } from './TowelLadder'
 import { TowelRail } from './TowelRail'
 import { ToyStorage } from './ToyStorage'
 import { TrailingPlant } from './TrailingPlant'
+import { TrestleDesk } from './TrestleDesk'
 import { TVConsole } from './TVConsole'
+import { UtilityCabinet } from './UtilityCabinet'
 import { Vanity } from './Vanity'
 import { WallArt } from './WallArt'
 import { WallCabinet } from './WallCabinet'
 import { WallClock } from './WallClock'
+import { WallDesk } from './WallDesk'
+import { WallHookRail } from './WallHookRail'
 import { WallMirror } from './WallMirror'
 import { WallSconce } from './WallSconce'
 import { WallShelf } from './WallShelf'
 import { WallTapestry } from './WallTapestry'
 import { Wardrobe } from './Wardrobe'
 import { WashingMachine } from './WashingMachine'
+import { WindowMeshScreen } from './WindowMeshScreen'
 import { WineCooler } from './WineCooler'
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>
@@ -116,6 +153,7 @@ export type PrimitiveComponent = ComponentType<{ props: ParamProps }>
 export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Bed,
   Sofa,
+  SofaBed,
   SofaSectional,
   FeatureWall,
   ConsoleTable,
@@ -208,6 +246,8 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   OutdoorTable,
   OutdoorParasol,
   OutdoorLounger,
+  BistroTable,
+  FoldingChair,
   BookStack,
   ThrowCushion,
   ThrowBlanket,
@@ -219,4 +259,40 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   PhotoFrameCluster,
   TrailingPlant,
   DecorTray,
+  WindowMeshScreen,
+  PetGate,
+  PetDoorInsert,
+  PetPlaypen,
+  CatTree,
+  CatWallShelf,
+  CatWallSteps,
+  CatWallBridge,
+  ScratchingPost,
+  LitterBox,
+  LitterCabinet,
+  CatWindowPerch,
+  CatTunnel,
+  DogCrate,
+  DogBedOrthopedic,
+  FeedingStation,
+  DogRamp,
+  CoolingMat,
+  PetToyBin,
+  BirdCage,
+  BirdPlayGym,
+  RabbitHutch,
+  SmallPetPen,
+  HamsterTank,
+  AquariumStand,
+  DisplayCabinet,
+  ShoeBench,
+  WallHookRail,
+  Pegboard,
+  UtilityCabinet,
+  StorageBench,
+  BayDaybed,
+  Recliner,
+  WallDesk,
+  LoftBed,
+  TrestleDesk,
 }

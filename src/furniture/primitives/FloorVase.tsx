@@ -1,5 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import type { BoxInstance } from './InstancedBoxes'
+import { InstancedLeaves, leafTintHex } from './leafFoliage'
 import { readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
@@ -26,6 +28,41 @@ export function FloorVase({ props }: { props: ParamProps }) {
   const h1 = height * 0.45
   const h2 = height * 0.55
   const stemMat = { color: stemColor, roughness: 0.9, metalness: 0 } as const
+
+  // Foliage atop the stems: feathery pampas plumes (drawn in the dried stem
+  // tone), or small sage leaves along decorative branches. Each foliage instance
+  // shares its stem's centre + lean so it overlaps the stem (stays connected).
+  const nStems = stems === 'branch' ? 5 : 9
+  const foliage: BoxInstance[] = []
+  if (stems === 'pampas' || stems === 'branch') {
+    for (let i = 0; i < nStems; i++) {
+      const a = (i / nStems) * Math.PI * 2
+      const lean = stems === 'branch' ? 0.22 : 0.14
+      const len = (stems === 'branch' ? 0.7 : 0.55) * (0.8 + (i % 3) * 0.12)
+      const cx = Math.cos(a) * tr * 0.5
+      const cz = Math.sin(a) * tr * 0.5
+      const cy = height + len / 2 - 0.02
+      const rot: [number, number, number] = [Math.cos(a) * lean, 0, -Math.sin(a) * lean]
+      if (stems === 'pampas') {
+        foliage.push({
+          position: [cx, cy - len * 0.35, cz],
+          size: [0.17, len * 1.1, 0.17],
+          rotation: rot,
+          color: leafTintHex(i),
+        })
+      } else {
+        // A few small leaves fanned along the branch.
+        for (let k = 0; k < 3; k++) {
+          foliage.push({
+            position: [cx, cy - len * 0.2 + k * len * 0.22, cz],
+            size: [0.05, 0.07, 0.05],
+            rotation: [rot[0] + (k - 1) * 0.3, a + k * 1.3, rot[2]],
+            color: leafTintHex(i * 3 + k, 2),
+          })
+        }
+      }
+    }
+  }
 
   return (
     <group>
@@ -59,6 +96,12 @@ export function FloorVase({ props }: { props: ParamProps }) {
             </mesh>
           )
         })}
+
+      {/* Feathery plumes / sage branch leaves */}
+      {stems === 'pampas' && (
+        <InstancedLeaves species="pampas" color={stemColor} instances={foliage} />
+      )}
+      {stems === 'branch' && <InstancedLeaves species="oval" color="#8a9a63" instances={foliage} />}
     </group>
   )
 }

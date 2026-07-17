@@ -1,9 +1,19 @@
 import { unzipSync } from 'fflate'
+import { runConvert } from '../../furniture/convert/runConvert'
 import type { FurnitureCategory, PackGltfDef } from '../../furniture/types'
 import { IdbAssetStore } from '../../state/storage/IdbAssetStore'
 import { useStore } from '../../state/store'
 import { glbFootprint } from './footprint'
 import { InstalledPackStore } from './installedPackStore'
+import {
+  POLY_HAVEN_API,
+  POLY_HAVEN_RESOLUTION,
+  type PolyHavenItem,
+  polyHavenAttribution,
+  polyHavenBundle,
+  polyHavenSourceUrl,
+  resolvePolyHavenGltfFiles,
+} from './polyHaven'
 import type { PolyPizzaModel } from './polyPizza'
 import { searchPolyPizza } from './polyPizza'
 import { packEntryScale, scaledFootprint } from './scaleHeuristic'
@@ -140,6 +150,66 @@ async function commit(
   return installed
 }
 
+/**
+ * Shared per-item install runner for the API-sourced packs (Poly Pizza + Poly
+ * Haven), whose install loops are identical after the round-10 fixes: render a
+ * thumbnail + persist each fetched item, skip any single item that fails to
+ * download/convert/persist (an AbortError still cancels the whole run), drive
+ * the progress notification, then commit the survivors. The caller owns the
+ * notification lifecycle (start + the terminal `notify.error`) since Poly
+ * Pizza does an async search first; this runner drives the per-item updates and
+ * the success toast. `progressBase` is where the per-item loop starts (Poly
+ * Pizza reserves 0→0.1 for its search step; Poly Haven starts at 0).
+ */
+async function installItems<T>(cfg: {
+  pack: Pack
+  notifId: string
+  items: T[]
+  signal?: AbortSignal
+  progressBase: number
+  itemNoun: string
+  emptyError: string
+  additive: boolean
+  /** Fetch one item's GLB bytes; throw to skip it (AbortError cancels all). */
+  fetchGlb: (item: T) => Promise<Uint8Array>
+  describe: (item: T) => {
+    descriptor: { id: string; name: string; category: FurnitureCategory }
+    meta: EntryMeta
+  }
+}): Promise<InstalledPack> {
+  const { pack, notifId, items, signal, progressBase, itemNoun, emptyError, additive } = cfg
+  const { notify } = useStore.getState()
+  const renderer = new ThumbnailRenderer()
+  const built: { entry: InstalledPackEntry; def: PackGltfDef }[] = []
+  try {
+    for (let i = 0; i < items.length; i++) {
+      if (signal?.aborted) throw new Error('Cancelled')
+      try {
+        // buildEntry is INSIDE the try so a persist/thumbnail failure skips the
+        // item (documented per-item semantics) instead of failing the batch.
+        const glbBytes = await cfg.fetchGlb(items[i])
+        const { descriptor, meta } = cfg.describe(items[i])
+        built.push(await buildEntry(pack, descriptor, glbBytes, renderer, meta))
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') throw err
+        // Skip an individual item that fails to download/convert/persist.
+        continue
+      }
+      notify.update(notifId, {
+        progress: progressBase + (1 - progressBase) * ((i + 1) / items.length),
+        message: `Downloading… ${i + 1}/${items.length}`,
+      })
+    }
+  } finally {
+    renderer.dispose()
+  }
+
+  if (built.length === 0) throw new Error(emptyError)
+  const installed = await commit(pack, built, additive)
+  notify.success(notifId, `${built.length} ${itemNoun} added to your catalog`)
+  return installed
+}
+
 export async function installPack(pack: Pack, opts: InstallOpts = {}): Promise<InstalledPack> {
   if (pack.kind === 'poly-pizza') throw new Error(`Use installPolyPizzaPack for "${pack.id}".`)
   if (pack.kind === 'ikea-live' || !pack.downloadUrl || !pack.parseEntries) {
@@ -260,48 +330,120 @@ export async function installPolyPizzaPack(
       message: `Found ${models.length} models — downloading…`,
     })
 
-    const renderer = new ThumbnailRenderer()
-    const built: { entry: InstalledPackEntry; def: PackGltfDef }[] = []
-    try {
-      for (let i = 0; i < models.length; i++) {
-        if (opts.signal?.aborted) throw new Error('Cancelled')
-        const m = models[i]
-        let glbBytes: Uint8Array
-        try {
-          const res = await fetchImpl(m.downloadUrl, { signal: opts.signal })
-          if (!res.ok) throw new Error(`HTTP ${res.status}`)
-          glbBytes = new Uint8Array(await res.arrayBuffer())
-        } catch (err) {
-          if (err instanceof DOMException && err.name === 'AbortError') throw err
-          // Skip an individual model that fails to download; keep the rest.
-          continue
-        }
-        built.push(
-          await buildEntry(
-            pack,
-            { id: m.id, name: m.name, category: m.category },
-            glbBytes,
-            renderer,
-            {
-              attribution: m.attribution,
-              license: m.license,
-              sourceUrl: `https://poly.pizza/m/${m.id}`,
-            },
-          ),
-        )
-        notify.update(notifId, {
-          progress: 0.1 + 0.9 * ((i + 1) / models.length),
-          message: `Downloading… ${i + 1}/${models.length}`,
-        })
-      }
-    } finally {
-      renderer.dispose()
-    }
+    return await installItems({
+      pack,
+      notifId,
+      items: models,
+      signal: opts.signal,
+      progressBase: 0.1,
+      itemNoun: 'models',
+      additive: true,
+      emptyError: 'Every model failed to download (possible CORS issue).',
+      fetchGlb: async (m) => {
+        const res = await fetchImpl(m.downloadUrl, { signal: opts.signal })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return new Uint8Array(await res.arrayBuffer())
+      },
+      describe: (m) => ({
+        descriptor: { id: m.id, name: m.name, category: m.category },
+        meta: {
+          attribution: m.attribution,
+          license: m.license,
+          sourceUrl: `https://poly.pizza/m/${m.id}`,
+        },
+      }),
+    })
+  } catch (err) {
+    notify.error(notifId, err instanceof Error ? err.message : String(err))
+    throw err
+  }
+}
 
-    if (built.length === 0) throw new Error('Every model failed to download (possible CORS issue).')
-    const installed = await commit(pack, built, true)
-    notify.success(notifId, `${built.length} models added to your catalog`)
-    return installed
+/**
+ * Fetch one Poly Haven model's multi-file glTF (`.gltf` + `.bin` + textures) and
+ * pack it into a self-contained binary GLB. The dependency URLs come from the
+ * API's `include` map — never constructed here. The entry glTF and its external
+ * deps are handed to the pooled CONVERT pipeline (`runConvert`) as **sibling
+ * files**: the sibling pool resolves the glTF's relative `buffer`/`image` refs
+ * by basename (`convert/loadToObject.ts:resolveSiblingUrl`), so no data-URI
+ * inlining is needed and the conversion runs off the main thread like every
+ * other multi-file drag-drop import. (Inlining was previously required because a
+ * pre-existing bug short-circuited the sibling pool for refs resolved against a
+ * `blob:` base — fixed in the round-10 review, which is what lets this route
+ * through siblings + `runConvert`.)
+ */
+async function fetchPolyHavenGlb(
+  item: PolyHavenItem,
+  fetchImpl: typeof fetch,
+  signal?: AbortSignal,
+): Promise<Uint8Array> {
+  const filesRes = await fetchImpl(`${POLY_HAVEN_API}/files/${item.slug}`, { signal })
+  if (!filesRes.ok) throw new Error(`files ${item.slug}: HTTP ${filesRes.status}`)
+  const plan = resolvePolyHavenGltfFiles(await filesRes.json(), POLY_HAVEN_RESOLUTION)
+  if (!plan) throw new Error(`${item.slug}: no ${POLY_HAVEN_RESOLUTION} glTF variant`)
+
+  const fetchBytes = async (url: string, label: string): Promise<Uint8Array> => {
+    const res = await fetchImpl(url, { signal })
+    if (!res.ok) throw new Error(`${label}: HTTP ${res.status}`)
+    return new Uint8Array(await res.arrayBuffer())
+  }
+
+  const [gltfBytes, ...depBytes] = await Promise.all([
+    fetchBytes(plan.gltfUrl, plan.gltfName),
+    ...plan.deps.map((d) => fetchBytes(d.url, d.name)),
+  ])
+  const entry = new File([new Uint8Array(gltfBytes)], plan.gltfName, { type: 'model/gltf+json' })
+  const siblings = plan.deps.map((d, i) => new File([new Uint8Array(depBytes[i])], d.name))
+  const { glb } = await runConvert(entry, siblings)
+  return new Uint8Array(await glb.arrayBuffer())
+}
+
+/**
+ * Installs a curated Poly Haven set-dressing bundle: fetches each item's glTF +
+ * textures in-browser (keyless, CORS-friendly), packs each into a self-contained
+ * GLB, and registers them through the shared pack pipeline. All items are CC0 —
+ * the author is captured for the credit line. An individual item that fails is
+ * skipped; the flow only rejects when every item fails.
+ */
+export async function installPolyHavenBundle(
+  pack: Pack,
+  opts: InstallOpts = {},
+): Promise<InstalledPack> {
+  if (pack.kind !== 'poly-haven-bundle') throw new Error(`"${pack.id}" is not a Poly Haven bundle.`)
+  const bundle = polyHavenBundle(pack.id)
+  if (!bundle) throw new Error(`Unknown Poly Haven bundle "${pack.id}".`)
+  const fetchImpl = opts.fetchImpl ?? fetch
+  const { notify } = useStore.getState()
+  const notifId =
+    opts.notificationId ??
+    notify.start({
+      title: `Adding ${pack.name}`,
+      kind: 'progress',
+      message: 'Downloading…',
+    })
+
+  try {
+    return await installItems({
+      pack,
+      notifId,
+      items: bundle.items,
+      signal: opts.signal,
+      progressBase: 0,
+      itemNoun: 'items',
+      // Additive (matching Poly Pizza) so a retry after a partial failure tops
+      // up the pack instead of replacing it.
+      additive: true,
+      emptyError: 'Every item failed to download (possible network/CORS issue).',
+      fetchGlb: (item) => fetchPolyHavenGlb(item, fetchImpl, opts.signal),
+      describe: (item) => ({
+        descriptor: { id: item.slug, name: item.name, category: item.category },
+        meta: {
+          attribution: polyHavenAttribution(item),
+          license: 'CC0',
+          sourceUrl: polyHavenSourceUrl(item.slug),
+        },
+      }),
+    })
   } catch (err) {
     notify.error(notifId, err instanceof Error ? err.message : String(err))
     throw err

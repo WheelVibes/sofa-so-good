@@ -652,6 +652,12 @@
 .quick-finish-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .quick-finish-row .swatch { width: 30px; height: 30px; }
 
+/* GLB designer — Stage 2 finish preset gallery (physics-only named bundles) */
+.fin-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: var(--s-1); margin-top: var(--s-1); }
+.fin-preset { padding: var(--s-1) var(--s-2); border: 1px solid var(--border); border-radius: var(--r-2); background: var(--surface-2); color: var(--text-2); font-size: var(--t-2xs); font-weight: 600; cursor: pointer; text-align: center; transition: var(--dur) var(--ease); }
+.fin-preset:hover { background: var(--surface-3); border-color: var(--border-2); }
+.fin-preset.on { border-color: var(--accent); color: var(--text); background: var(--surface-3); box-shadow: 0 0 0 1px var(--accent); }
+
 /* Estimated price line in the inspector header */
 .insp-price { font-size: var(--t-2xs); color: var(--accent-soft-text); font-weight: 700; margin-top: 2px; }
 

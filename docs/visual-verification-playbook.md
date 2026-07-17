@@ -504,8 +504,9 @@ inside the room, plus a door + a window opening on the plan. **Key gotchas learn
 ### Worked example — GLB asset designer simple rung (IXT-SUITES GLB-designer re-rung)
 
 **`glb-designer-simple.json`** covers the pro-only 3D asset designer
-(`ui/glbEditor/GlbDesignerDialog.tsx`, gated directly on `uiMode==='pro'` — NOT a `FEATURE_FLAGS`
-entry, so drive it with `setUiMode('pro')`, no `reresolveFeatureFlags`): Simple/Pro gate (dialog
+(`ui/glbEditor/GlbDesignerDialog.tsx`, gated by the **`glbDesigner`** flag — pro tier, so
+`setUiMode('pro')` resolves it on; the Stage-0 `glb-designer-stage0.json` rung additionally
+drives the flag directly via `setFeatureFlag('glbDesigner', …)`): Simple/Pro gate (dialog
 stays UNMOUNTED in Simple even with `glbDesignerOpen` forced true, present in Pro) → a real edit
 round-trip (add box → set size X to 1 m + raise position Y to 0.8 m; the controlled numeric inputs
 AND the live 3D preview both reflect the elongated raised box) → a real **save round-trip to the
@@ -539,6 +540,67 @@ mobile legs re-assert hidden. **Key gotchas learned here:**
   in `state.notifications` (an array), not `notify.current`. Gate a save assertion on the durable
   store change (`userFurniture` length/entry), not a `waitFor {text:"Saved"}` that can miss the
   toast's 3 s window.
+
+### Worked example — GLB designer "Update original" round-trip (GE4)
+
+**`glb-update-original.json`** verifies the designer's edit-existing-asset flow: create a box
+asset → place an instance in a room editor → re-open the designer, pick that asset as the
+"Start from" source, scale it, toggle **Update original**, save → assert the def is replaced in
+place (same id, new geometry, no duplicate) and the placed instance still resolves.
+**New gotchas beyond the simple rung above:**
+- **The designer's "Start from" picker is the custom `ui/controls/Select`, NOT a native
+  `<select>`** — you can't set `.value` + dispatch `change`. Drive it in two eval steps: click the
+  trigger `button[aria-label="Source model"]`, then (after a short settle) click the option:
+  `[...document.querySelectorAll('[role="option"]')].find(o => o.textContent.trim().includes('<name>')).click()`.
+  The option list is portalled (`Popover`), so it's a sibling of the trigger in the DOM, not a child.
+- **Wait for the source GLB to actually LOAD before saving an "Update original"**, or the re-export
+  silently omits the original geometry (`buildEditedObject(source=null, …)` builds an empty object
+  and placed instances lose their mesh). The **"Recolour parts"** section only renders once the
+  source scene has loaded into the preview and its named meshes populate `meshNames` — `waitFor
+  {text:"Recolour parts"}` (generous timeout — GLB parse under SwiftShader) is the load gate.
+- **Assert the EXACT expected size, not just "changed".** This scenario caught a real bug where a
+  `scale` prop on `<primitive object={gltf.scene}>` mutated the shared `useGLTF`-cached scene's
+  `.scale`, so the export double-applied the source scale (a 0.8 m box at source-scale 2× saved at
+  3.2 m / 6.4 m — non-deterministic 4×/8×). A loose `footprint > original` assertion passes on the
+  buggy 8×; a bracketed `> ×1.7 && < ×2.4` pins the correct 2× and fails the regression. General
+  lesson: never put a display-only `scale` on a `<primitive>` bound to a shared cached object — wrap
+  it in a `<group scale>` instead (the cached scene is exported / reused by other consumers).
+- **Place a programmatic instance with `addItem` + a known interior coordinate.** `addItem` does no
+  collision check, so `window.__store.getState().addItem({defId, position:[x,z], rotation:0,
+  props:{}})` always lands; for the default flat, room centroids are stable
+  (`apartment/constants.ts` — e.g. Living/Dining centre ≈ `[10.55, 4.1]`). `enterRoomEditor('<roomId>')`
+  first to frame the room for a clean before/after screenshot.
+
+### Worked example — GLB designer CSG v2 non-destructive booleans (Stage 1b)
+
+**`glb-designer-stage1b.json`** drives the CSG v2 flow: build a Box, add a Cylinder, rotate/size
+it to pierce the box, mark it a **Hole** (Type toggle), multi-select both, **Subtract** → a
+non-destructive `Combine 1 · subtract` group that renders as a box-with-hole; then move the hole
+(numeric edit) to prove live re-evaluation; multi-**Union** three more boxes; **Bake** that group
+to one `mesh` part; save + assert the persisted `assetSpec` embeds `combineGroups` + the subtract
+op + the `role:"hole"`. **New gotchas beyond the earlier designer rungs:**
+- **Toggling "Select" mode and clicking rows in the SAME synchronous `eval` uses the STALE
+  `selectMode`.** The layer-row `onClick` reads the `selectMode` prop at click time; clicking the
+  Select toggle only schedules a React state update, which hasn't re-rendered the rows yet within
+  one eval tick — so every row click in that same eval still sees `selectMode === false` and
+  RESETS the selection to a single part (Union/Subtract then reads <2 operands and is disabled).
+  Fix: additive-select via **shift-click MouseEvents** — `row.dispatchEvent(new MouseEvent('click',
+  { bubbles: true, shiftKey: true }))` — which the row's `e.shiftKey` branch honours regardless of
+  render timing (React reads `nativeEvent.shiftKey`). Reserve the Select-mode toggle for a
+  SEPARATE step if you must exercise it (as the subtract selection does — toggle in one step, click
+  the row in the next, one render apart).
+- **Assert a combine RESULT via its group's Bake button enabling, not a text match.** The boolean
+  evaluates off the main thread (worker pool → main-thread `foldCsg` fallback headless) and is
+  debounced; the `Bake <group> to a mesh` button is `disabled` until a non-degenerate result lands.
+  `waitFor {css:".glb-designer button[aria-label='Bake Combine 1 to a mesh']:not([disabled])"}` is a
+  clean "the box-with-hole actually evaluated" gate (a degenerate/empty fold leaves it disabled +
+  shows an `Empty` badge). The same gate re-fires after moving an operand (re-evaluation).
+- **`add shape` resets the multi-selection** (`addPart` mints a fresh id and the dialog
+  single-selects it), so build all operands FIRST, then select — don't interleave add + select.
+- Offset test geometry so no two operand faces sit exactly coplanar (three-bvh-csg z-fights on
+  exact coplanar faces): the box-through-hole cylinder pierces both faces (length > box depth) and
+  the union boxes overlap/clear cleanly — verified artifact-free (no open faces / flipped normals /
+  z-fighting) across all 7 frames.
 
 ### Worked example — model-upload group detection at scale (UPLOAD-DETECT-PAGINATION)
 
@@ -599,6 +661,53 @@ pre-network UI state. **Key gotcha learned here:**
   idle-preloaded lazy chunk (`preloadOnIdle.ts` `PRELOAD_ORDER`), so it mounts headless like the
   Share modal. Leaving it open across all four mode/flag flips lets the toggle's appear/disappear
   track the resolved flag live in one session.
+
+### Worked example — aiWalls full-UI rung (IXT-SUITES, plan-trace backdrop → "AI walls" button)
+
+**`aiwalls-simple.json`** (57 steps) lands the leg `ai-surfaces-simple.json` deferred: the
+FloorPlanEditor "AI walls" vision-model trace button only renders once a 2D plan-trace backdrop
+image is uploaded, so the earlier rung could only store-flag-check `aiWalls`. Both `aiWalls` and its
+host `planTraceBackdrop` are **pro-tier**, so in Simple neither the trace UI nor the button exists.
+Flow: open the plan editor (`setFloorPlanEditing(true)`, an idle-preloaded lazy screen — mounts
+headless like the Share modal) → (A) Simple: the Plan menu has no trace section at all → (B) Pro:
+inject a tiny canvas PNG through the REAL hidden trace file input (`usePlanBackdrop.loadBackdrop`,
+native-setter + DataTransfer + `change`, mirroring `backdrop-upload-simple.json`) and assert the "AI
+walls" button **mounts** enabled (absent before any backdrop — it's backdrop-gated) → (C) back to
+Simple with the backdrop still resident: button **absent even with the backdrop present** (tier
+gate, not a missing backdrop) → (D) back to Pro WITHOUT re-uploading: button reappears (backdrop was
+retained) → (E) click "AI walls" with no key → the real "Vision-model API key" `PromptModal`
+(`usePlanAiWalls.runAiWalls`) → Cancel, so `runAiWalls` returns at `if (!key) return` before
+`classifyVisionEndpoint`/`recognizeFloorPlan`'s `fetch` (never touch the network — same rule as the
+other two AI surfaces). **Key gotchas learned here:**
+- **A `{label} ▾` menu trigger renders as TWO text nodes (`"Plan"` + `" ▾"`), so `clickByText` can
+  never match the whole `"Plan ▾"` label** — no single text node contains the full string, and
+  clicking the bare `"Plan"` substring is fragile (the LAST-match rule can pick a later `Plan…` item
+  in the open panel). Click the trigger by exact button text instead:
+  `[...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Plan ▾')` — a
+  `button`'s `textContent` **concatenates** its child text nodes, so it equals `"Plan ▾"` even though
+  no individual node does.
+- **The `Popover`-portaled menu panel (`ui/toolbar/Popover.tsx`) keeps its open state in the
+  `PlanMenu` component's local `useState`, and closes itself on ANY outside `pointerdown` / capture-
+  phase `scroll` / `resize`.** Under headless the plan editor's mount/fit settling can fire a stray
+  scroll/resize that snaps a just-opened menu shut between the eval-click step and the next
+  `waitFor`, so a single `.click()` + a separate `waitFor {css:.plan-menu-panel}` is flaky (it opened
+  reliably in a standalone probe but raced in-scenario). Make open/close **atomic and self-retrying**
+  inside one async `eval`: click the trigger, poll up to ~5 s for `.plan-menu-panel` to appear (open)
+  or disappear (close), re-clicking if it flipped back. `.click()` (a real dispatched click event
+  React honours) DOES open it — this is a timing/re-render race, not a click-doesn't-register bug.
+- **Injecting a backdrop needs the menu OPEN in Pro** — the hidden trace `<input type=file>` is part
+  of the `fileActions` fragment that only mounts inside the Plan menu's popover panel (and only when
+  `planTraceBackdrop` is on), so target `.plan-menu-panel input[type="file"]`, not a global query.
+- **"Absent even with the backdrop present" is provable without reading React state:** the backdrop
+  lives in `usePlanBackdrop`'s component-local `useState`, which survives a `setUiMode` flip (the
+  editor isn't remounted). Assert the button is gone in Simple, then re-open the Pro menu WITHOUT
+  re-uploading and assert it reappears — that round-trip proves the backdrop was retained the whole
+  time and only the tier gate hid it.
+- **No-network proof mirrors `ai-surfaces`:** install a non-blocking `window.fetch` spy in the setup
+  eval that records every URL, clear `localStorage['hdb_ai_vision_key']` so `runAiWalls` takes the
+  key-PROMPT path, cancel the prompt, then assert no logged URL matches `openai`/`replicate` and no
+  `drafted`/`recognition failed`/second-prompt appeared — Vite HMR uses websockets/module loads, not
+  `window.fetch`, so the spy stays clean.
 
 ### Worked example — optimize worker pool + IO-002 early size-cap gate (2026-07-03)
 
@@ -1364,3 +1473,46 @@ real browser actually run the OBJLoader→GLTFExporter round-trip inside a real 
   Basis wasm fails to compile in this sandbox's headless Chromium — "Incorrect response MIME
   type" / bad magic word). Not a regression: `optimizeGlb` treats a failed Draco registration as
   best-effort, so the import still succeeds without geometry compression. Don't chase it here.
+
+### Worked example — GLB designer showcase integration build (Asset Studio Stage 11b)
+
+**`glb-designer-showcase.json`** (109 steps, 11 frames, run `SHOT_GPU=1`) builds a complete
+catalog-quality chesterfield sofa end-to-end in ONE session — Sofa frame template → oxblood velvet +
+oiled-wood clearcoat materials → seat-cushion abut (precision) → diamond tufting + stitch lines →
+piping welts → Studio-vs-Room IBL → save (optimize-on-save) → restore from a clean reopened session
+(asserts 14 parts / 1 group / 38 decals survive the round-trip) → place the saved sofa in the flat's
+Living/Dining room at High tier (the money shot). It's the Stage-11b integration regression.
+**Reusable landmines learned here (beyond the earlier designer rungs):**
+- **Face-to-face magnetic snapping now ENGAGES on a grouped MEMBER (fixed v0.21.2.68).** Previously
+  `__glbDesignerPrecision.drag` on a part inside a `PartGroup` committed the raw position verbatim
+  (no face snap), so a "drag 5 mm shy → asserts flush" step failed with the gap left at the raw
+  offset — the workaround was to compute the exact flush target and drag to it numerically. That's
+  fixed: the drag now runs in the member's **group-local frame** (targets localised via
+  `groupTransform.ts:worldToGroupLocalPosition`), so a member snaps to its SIBLINGS (and outside
+  parts) exactly like a top-level part. The `precision-abut-seats` phase now drives the REAL magnet
+  — drop the member ~4 mm short of flush (inside the 8 mm band; set a fine `setSnapStep(0.001)` so
+  grid quantisation can't leave the band) and assert both `gap ≈ 0` AND `committedX !== proposedX`
+  (proving the magnet, not a verbatim commit, closed it). The old "compute exact target + drag
+  verbatim" recipe still works for a top-level part but is no longer needed for grouped members.
+- **The plump/tuft system is TOP-FACE only** — tufting reads on a horizontal seat cushion, never on a
+  vertical backrest/arm (its dimples would land on the thin top edge). So a "chesterfield" built this
+  way tufts the seat, not the back.
+- **`Save asset` auto-closes the designer** (`glbDesignerOpen → false`). A same-session restore/re-edit
+  must **reopen** it (`setGlbDesignerOpen(true)`), which resets the spec to blank — making the
+  subsequent "pick the saved source → Restore editable parts" a genuine from-storage round-trip (a
+  strictly stronger proof than restoring an in-memory spec). Probe this if a post-save DOM query
+  ("Source model trigger not found") fails: the panel is simply gone, not relocated.
+- **The designer's `SourcePanel` controls (Source-model Select, "Restore editable parts" button) are
+  NOT under the `.glb-designer` root selector** that the layers/inspector/details panels answer to —
+  query them with a **bare** `button[aria-label="Source model"]` / `document.querySelectorAll('button')`
+  (as `glb-update-original.json` does), not a `.glb-designer button…` prefix, or you get a false
+  "not found".
+- **A headless orbit-drag as the FIRST room-editor camera move can swing the camera off the room into
+  empty space** (blank money shot). Do a **wheel zoom first**, THEN orbit, THEN zoom again — wheel-only
+  moves stay inside the scene; the drag re-frames around a target that a fresh room-editor fit may not
+  have centred where you expect. Sequence that reliably framed the placed sofa: `wheel(-520)` →
+  `drag [690,470]→[700,560]` → `wheel(-420)`.
+- **A "recolour the upholstery" pass must not key only on the velvet sheen preset.** The Sofa frame
+  template tags cushions AND arms/backrest with the same grey `#8a8f98` FABRIC look, but only the
+  cushions carry the velvet `sheen` bundle; filtering on `sheen>0` recolours the cushions and leaves
+  the arms grey (a half-finished sofa). Key on the FABRIC colour tag to upholster the whole piece.

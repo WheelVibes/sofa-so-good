@@ -48,4 +48,23 @@ is the lean rule set.
   `.glb.json` sidecars). First user: the bed's `lamp` slot (bundled Poly Haven CC0 desk lamp).
 - **Flag-gated** by `productConfigurator` (simple tier, prod-safe). The dialog (`ui/configurator/`)
   + ⌘K command gate on it; test both modes.
+- **Designer → configurable product export (Stage 3d, `designerExport.ts`).** The GLB designer's
+  "Make configurable" flow turns a built asset into a `ConfigurableProduct`: top-level `PartGroup`s
+  sharing a slot name become a slot's alternative **options**; ungrouped parts + unslotted groups
+  bake into the base. **Option representation is a baked GLB `data:` URL** (each option + the base is
+  `exportGlb`'d and base64-embedded on the existing `gltfUrl` field) — NOT box `parts`, because a
+  `ConfiguredPart` is box-only and can't hold arbitrary designer `ShapePart`s (lathe/cylinder legs,
+  CSG, sweeps). This reuses the SLOT-203 `gltfUrl` path with **zero** change to `model`/`compose`/
+  `buildObject`/`saveConfigured`. Each option GLB is baked in product-world space (group transform
+  flattened into every part) at an **identity slot anchor**, so the v1 quarter-turn `SlotAnchor`
+  limit never bites; footprint `h` is the geometry's **vertical extent** (not floor-to-top) so
+  `fitScaleToFootprint` keeps the real-metre GLB at scale ≈1 (top-based `h` blows an off-floor slab
+  up by its height ratio — the fixed bug). The planner half is pure + unit-tested; the async baker is
+  browser-only.
+- **User products registry.** `CONFIGURABLE_PRODUCTS` is authored/static; exported products live in
+  the `userConfigurableProducts` store slice (`state/slices/userProductsSlice.ts`, self-persisted to
+  localStorage `hdb_user_products`). `ConfiguratorDialog` merges `[...CONFIGURABLE_PRODUCTS,
+  ...userProducts]` for its tabs + product resolution (incl. the SLOT-204 re-edit seed). The baked
+  catalog item still persists via the normal user-furniture path; the product spec is the authoring
+  recipe.
 - **Fast-follows (open):** SLOT-204 (re-editable placed items via `item.props['__slotSpec']`).

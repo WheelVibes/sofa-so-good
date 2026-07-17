@@ -64,4 +64,18 @@ describe('roleOf', () => {
     // A mounted electronics item (e.g. soundbar-like import) → mounted, not media.
     expect(roleOf('x', def({ mounted: true, category: 'electronics' }))).toBe('mounted')
   })
+
+  it('maps the opening-bound fixture ids to mounted (autoArrange skips them)', () => {
+    expect(roleOf('window-mesh-screen', {})).toBe('mounted')
+    expect(roleOf('pet-gate', {})).toBe('mounted')
+    expect(roleOf('pet-door-insert', {})).toBe('mounted')
+  })
+
+  it('resolves any windowBound/doorBound def to mounted regardless of id', () => {
+    // Fixes the class, not the instances: a def carrying the flag but absent from
+    // the ROLE map (e.g. a future opening-bound fixture) must not fall to a floor
+    // role — even when its category would otherwise slot it (pets → other).
+    expect(roleOf('x', def({ windowBound: true, category: 'pets' }))).toBe('mounted')
+    expect(roleOf('x', def({ doorBound: true, category: 'pets' }))).toBe('mounted')
+  })
 })

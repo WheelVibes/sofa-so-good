@@ -108,10 +108,21 @@ export function pickBestMatch(query, candidates) {
 
 // ── retailer adapters ────────────────────────────────────────────────────────
 //
-// NOTE: the Courts / HipVan / Castlery fixtures + URL shapes are best-effort
-// reconstructions of each site's plausible search-response shape, authored in
-// an offline sandbox (no outbound network to these retailers). They need a
-// real-network verification pass before being relied on — tracked in TODO.md.
+// Verified against the live sites 2026-07 (X-SHOP):
+//  - Courts (`courts-sg`): Magento GraphQL `products` search — live, returns real
+//    SGD prices + product links; parser unchanged.
+//  - Castlery (`castlery-sg`): the search page dropped its JSON-LD Product blocks
+//    (only a BreadcrumbList remains) and now renders results as a Next.js RSC
+//    payload that embeds the Algolia response. The parser reads the embedded
+//    `"hits":[…]` product records (with a JSON-LD fallback kept for resilience).
+//  - HipVan (`hipvan-sg`): the old `www.hipvan.com/api/search/products` endpoint is
+//    gone (404 SPA shell). Search now goes through an authenticated `api.communa.sg`
+//    API-gateway route (`/hv_shop/api/v1/search/products`) that requires a session
+//    token with refresh on top of the `x-api-key` — a plain browser-UA fetch cannot
+//    retrieve results, so this adapter is a documented best-effort shape (see
+//    TASKS.md X-SHOP) that degrades to 'no match' until/unless a public endpoint
+//    returns. It stays dev-gated and fails soft like the others.
+//
 // Each parser is defensive: any drift from the expected shape returns null
 // (-> 404 'no match') instead of throwing, and every fetch is timeboxed.
 
@@ -187,16 +198,77 @@ export function parseHipvanResponse(json, query, retailer = 'hipvan-sg') {
   return pickBestMatch(query, candidates)
 }
 
-/** Build the Castlery SG search-page URL (HTML; products in JSON-LD). */
+/** Build the Castlery SG search-page URL (HTML; products embedded in the RSC
+ *  payload as Algolia hits). */
 export function castleryUrl(query) {
   return `https://www.castlery.com/sg/search?q=${encodeURIComponent(query)}`
 }
 
-/** Parse a Castlery search page: extract `application/ld+json` blocks and pick
- *  Product entries (direct, in an ItemList, or in a @graph) — fuzzy top-hit
- *  matched. HTML drift -> null. Pure — unit tested. */
-export function parseCastleryResponse(html, query, retailer = 'castlery-sg') {
-  if (typeof html !== 'string') return null
+/** Bracket-match a JSON array literal in `s` starting at `s[open] === '['` and
+ *  return the array text (quote/escape aware), or null if unterminated. Pure. */
+function matchJsonArray(s, open) {
+  let depth = 0
+  let inStr = false
+  let esc = false
+  for (let i = open; i < s.length; i++) {
+    const c = s[i]
+    if (inStr) {
+      if (esc) esc = false
+      else if (c === '\\') esc = true
+      else if (c === '"') inStr = false
+    } else if (c === '"') inStr = true
+    else if (c === '[') depth++
+    else if (c === ']') {
+      depth--
+      if (depth === 0) return s.slice(open, i + 1)
+    }
+  }
+  return null
+}
+
+/** Extract Castlery product candidates from the Algolia `"hits":[…]` arrays the
+ *  search page embeds in its Next.js RSC payload. Each hit's price/image live on
+ *  its first variant. Pure. */
+function castleryHitCandidates(html, retailer) {
+  const candidates = []
+  const marker = '"hits":['
+  for (
+    let idx = html.indexOf(marker);
+    idx !== -1;
+    idx = html.indexOf(marker, idx + marker.length)
+  ) {
+    const arr = matchJsonArray(html, idx + '"hits":'.length)
+    if (!arr) continue
+    let hits
+    try {
+      hits = JSON.parse(arr)
+    } catch {
+      continue // not a clean JSON array here — keep scanning
+    }
+    if (!Array.isArray(hits)) continue
+    for (const h of hits) {
+      if (!h?.name) continue
+      const variant = Array.isArray(h.variants) ? h.variants[0] : undefined
+      const value = Number(variant?.price ?? h.price)
+      if (!Number.isFinite(value)) continue
+      const image = variant?.images?.[0]?.large ?? (Array.isArray(h.image) ? h.image[0] : h.image)
+      candidates.push({
+        price: value,
+        currency: 'SGD',
+        url: h.slug ? `https://www.castlery.com/sg/products/${h.slug}` : null,
+        title: h.name,
+        retailer,
+        image: image || null,
+      })
+    }
+  }
+  return candidates
+}
+
+/** Extract Castlery product candidates from `application/ld+json` Product blocks
+ *  (direct, in an ItemList, or in a @graph). Kept as a fallback in case the site
+ *  restores JSON-LD product markup. Pure. */
+function castleryJsonLdCandidates(html, retailer) {
   const candidates = []
   const re = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
   for (const m of html.matchAll(re)) {
@@ -232,6 +304,16 @@ export function parseCastleryResponse(html, query, retailer = 'castlery-sg') {
       })
     }
   }
+  return candidates
+}
+
+/** Parse a Castlery search page into our normalized shape via fuzzy top-hit
+ *  matching. Prefers the embedded Algolia `hits` (the live shape), falling back
+ *  to JSON-LD Product blocks. HTML drift -> null. Pure — unit tested. */
+export function parseCastleryResponse(html, query, retailer = 'castlery-sg') {
+  if (typeof html !== 'string') return null
+  const candidates = castleryHitCandidates(html, retailer)
+  if (candidates.length === 0) candidates.push(...castleryJsonLdCandidates(html, retailer))
   return candidates.length ? pickBestMatch(query, candidates) : null
 }
 

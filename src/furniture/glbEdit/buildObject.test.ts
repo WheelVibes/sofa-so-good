@@ -1,4 +1,12 @@
-import { BoxGeometry, BufferGeometry, Group, Mesh, MeshStandardMaterial } from 'three'
+import {
+  BoxGeometry,
+  BufferGeometry,
+  Group,
+  Mesh,
+  type MeshPhysicalMaterial,
+  MeshStandardMaterial,
+  Vector3,
+} from 'three'
 import { describe, expect, it } from 'vitest'
 import { buildMaterial } from '../../materials/cache'
 import { furnitureMaterialCacheId } from '../../materials/furnitureMaterials'
@@ -11,14 +19,20 @@ import {
   partMaterial,
 } from './buildObject'
 import {
+  addCombineGroup,
   addPart,
+  addPartGroup,
   createEmptySpec,
   DEFAULT_PART_METALNESS,
   DEFAULT_PART_ROUGHNESS,
   defaultPart,
   SHAPE_KINDS,
   type ShapePart,
+  setPartRole,
+  updatePart,
+  updatePartGroupTransform,
 } from './editSpec'
+import { groupedPartWorldPosition } from './groupTransform'
 
 /** Simulate the furniture material loader having built `mat:<id>` into the
  *  shared cache (the same pattern as `furnitureMaterialFinish.test.ts` — a
@@ -177,6 +191,62 @@ describe('partMaterial — per-part PBR', () => {
   })
 })
 
+describe('partMaterial — Stage 2 physical fields', () => {
+  it('stays a plain MeshStandardMaterial (not physical) when no physical field is set', () => {
+    const m = partMaterial(defaultPart('box'))
+    expect((m as { isMeshPhysicalMaterial?: boolean }).isMeshPhysicalMaterial).toBeFalsy()
+    expect(m.vertexColors).toBe(false)
+  })
+
+  it('upgrades to MeshPhysicalMaterial + carries sheen when sheen > 0', () => {
+    const m = partMaterial({
+      ...defaultPart('capsule'),
+      sheen: 1,
+      sheenRoughness: 0.3,
+      sheenColor: '#8899ff',
+    }) as unknown as MeshPhysicalMaterial
+    expect(m.isMeshPhysicalMaterial).toBe(true)
+    expect(m.sheen).toBeCloseTo(1)
+    expect(m.sheenRoughness).toBeCloseTo(0.3)
+    expect(m.sheenColor.getHexString()).toBe('8899ff')
+  })
+
+  it('carries clearcoat / transmission+ior+thickness / anisotropy', () => {
+    const coat = partMaterial({
+      ...defaultPart('box'),
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.12,
+    }) as unknown as MeshPhysicalMaterial
+    expect(coat.isMeshPhysicalMaterial).toBe(true)
+    expect(coat.clearcoat).toBeCloseTo(0.8)
+    const glass = partMaterial({
+      ...defaultPart('box'),
+      transmission: 0.9,
+      ior: 1.4,
+      thickness: 0.2,
+    }) as unknown as MeshPhysicalMaterial
+    expect(glass.transmission).toBeCloseTo(0.9)
+    expect(glass.ior).toBeCloseTo(1.4)
+    expect(glass.thickness).toBeCloseTo(0.2)
+    const brushed = partMaterial({
+      ...defaultPart('cylinder'),
+      anisotropy: 0.7,
+      anisotropyRotation: 0.5,
+    }) as unknown as MeshPhysicalMaterial
+    expect(brushed.anisotropy).toBeCloseTo(0.7)
+    expect(brushed.anisotropyRotation).toBeCloseTo(0.5)
+  })
+
+  it('a gradient part renders vertexColors and carries a COLOR_0 attribute', () => {
+    const part = {
+      ...defaultPart('box'),
+      gradient: { axis: 'y' as const, from: '#ff0000', to: '#0000ff' },
+    }
+    const m = partMaterial(part)
+    expect(m.vertexColors).toBe(true)
+  })
+})
+
 describe('partMaterial — per-part texture finish (GE3c)', () => {
   it('resolves a built `mat:<id>` finish to an owned CLONE of the cached material', () => {
     const built = buildFinishIntoCache('test:ge3c-oak')
@@ -299,3 +369,163 @@ describe('boxProjectUvs — UVs for CSG mesh parts', () => {
     geo.dispose()
   })
 })
+
+describe('buildEditedObject — CSG v2 combine groups (Stage 1b)', () => {
+  function meshPartFromBox(id: string): ShapePart {
+    const g = new BoxGeometry(1, 1, 1)
+    const pos = Array.from(g.getAttribute('position').array)
+    const nor = Array.from(g.getAttribute('normal').array)
+    const idx = g.getIndex() ? Array.from(g.getIndex()!.array) : undefined
+    g.dispose()
+    return {
+      id,
+      kind: 'mesh',
+      position: [0, 0.5, 0],
+      size: [1, 1, 1],
+      color: '#889900',
+      geometry: { positions: pos, normals: nor, index: idx },
+    }
+  }
+
+  it('skips consumed operands, renders a free hole as a solid, and bakes the group result mesh', () => {
+    let s = createEmptySpec()
+    s = addPart(s, 'box') // a — free solid
+    s = addPart(s, 'box') // b — will be consumed
+    s = addPart(s, 'box') // c — will be consumed
+    s = addPart(s, 'box') // h — free hole (no group) — now exports as a solid
+    const [a, b, c, h] = s.parts.map((p) => p.id)
+    s = setPartRole(s, h, 'hole')
+    s = addCombineGroup(s, [b, c], 'union').spec
+    const groupId = s.combineGroups![0].id
+
+    const results = new Map<string, ShapePart>([[groupId, meshPartFromBox('result')]])
+    const obj = buildEditedObject(null, s, results)
+    const names = obj.children.map((o) => o.name)
+    // Free solid 'a' renders (box-1); consumed b/c do NOT; a groupless hole 'h'
+    // renders as a normal solid (box-4); the group result renders as combine-1.
+    expect(names).toContain('box-1')
+    expect(names).toContain('box-4')
+    expect(names).toContain('combine-1')
+    expect(names).not.toContain('box-2')
+    expect(names).not.toContain('box-3')
+    expect(names.filter((n) => n.startsWith('box-'))).toEqual(['box-1', 'box-4'])
+    // a (solid) + h (groupless hole → solid) + the combine result = 3 meshes.
+    expect(obj.children).toHaveLength(3)
+    expect(a && b && c && h).toBeTruthy()
+  })
+
+  it('a groupless hole exports its geometry (role is inert until grouped)', () => {
+    let s = createEmptySpec()
+    s = addPart(s, 'cylinder')
+    const id = s.parts[0].id
+    s = setPartRole(s, id, 'hole')
+    const obj = buildEditedObject(null, s)
+    // One mesh with real triangles — NOT skipped.
+    expect(obj.children).toHaveLength(1)
+    const mesh = obj.children[0] as Mesh
+    expect(mesh.name).toBe('cylinder-1')
+    const pos = (mesh.geometry as BufferGeometry).getAttribute('position')
+    expect(pos.count).toBeGreaterThan(0)
+  })
+
+  it('omits a group with no ready result (its operands are still not double-rendered)', () => {
+    let s = createEmptySpec()
+    s = addPart(s, 'box')
+    s = addPart(s, 'box')
+    const [a, b] = s.parts.map((p) => p.id)
+    s = addCombineGroup(s, [a, b], 'union').spec
+    // Empty results map (evaluation not ready) → nothing for the group, and the
+    // consumed operands are still suppressed.
+    const obj = buildEditedObject(null, s, new Map())
+    expect(obj.children).toHaveLength(0)
+  })
+
+  it('with no combine groups, builds exactly as before (back-compat)', () => {
+    let s = createEmptySpec()
+    s = addPart(s, 'box')
+    s = addPart(s, 'cylinder')
+    const obj = buildEditedObject(null, s)
+    expect(obj.children).toHaveLength(2)
+    expect(obj.children.map((o) => o.name)).toEqual(['box-1', 'cylinder-2'])
+  })
+})
+
+describe('buildEditedObject — transform groups (Stage 3a)', () => {
+  it('builds a grouped part at group transform ∘ part transform (world position)', () => {
+    let s = addPart(addPart(createEmptySpec(), 'box'), 'box')
+    const ids = s.parts.map((p) => p.id)
+    s = updatePart(s, ids[0], { position: [0.5, 0.2, 0] })
+    s = updatePart(s, ids[1], { position: [-0.5, 0.2, 0] })
+    const { spec, groupId } = addPartGroup(s, ids)
+    const withXf = updatePartGroupTransform(spec, groupId!, {
+      position: [1, 0, 0.3],
+      rotation: [0, 90, 0],
+    })
+    const obj = buildEditedObject(null, withXf)
+    obj.updateMatrixWorld(true)
+    // The group is one nested container child; each member's WORLD position must
+    // equal the pure `groupedPartWorldPosition` invariant.
+    const container = obj.children.find((c) => c.name === 'group-1')!
+    expect(container).toBeTruthy()
+    expect(container.children).toHaveLength(2)
+    const group = withXf.partGroups![0]
+    withXf.parts.forEach((part) => {
+      const mesh = container.children.find((m) => m.position.equals(new Vector3(...part.position)))!
+      const world = mesh.getWorldPosition(new Vector3())
+      const expected = groupedPartWorldPosition(group, part)
+      expect(world.x).toBeCloseTo(expected[0], 5)
+      expect(world.y).toBeCloseTo(expected[1], 5)
+      expect(world.z).toBeCloseTo(expected[2], 5)
+    })
+  })
+
+  it('an ungrouped part still builds at the asset root (back-compat)', () => {
+    const s = addPart(addPart(createEmptySpec(), 'box'), 'cylinder')
+    const ids = s.parts.map((p) => p.id)
+    const { spec, groupId } = addPartGroup(s, [ids[0]])
+    void groupId
+    const obj = buildEditedObject(null, spec)
+    // One group container (holding the box) + the ungrouped cylinder at root.
+    expect(obj.children.map((c) => c.name).sort()).toEqual(['cylinder-2', 'group-1'])
+  })
+
+  // ---- finding 1: a combine whose members share a transform group must bake
+  // its result UNDER that group's container so it moves with the group. --------
+  it('bakes a combine result inside its members transform-group container', () => {
+    let s = addPart(addPart(createEmptySpec(), 'box'), 'box')
+    const ids = s.parts.map((p) => p.id)
+    // Group the two boxes, then combine them (all members share one group).
+    const { spec: grouped, groupId } = addPartGroup(s, ids)
+    s = addCombineGroup(grouped, ids, 'union').spec
+    const cgId = s.combineGroups![0].id
+    // A baked result sitting at the group-local origin.
+    const results = new Map<string, ShapePart>([[cgId, meshResultAt('r', [0, 0.5, 0])]])
+    // Offset the group by +2m X so the container's transform is observable.
+    const withXf = updatePartGroupTransform(s, groupId!, { position: [2, 0, 0] })
+    const obj = buildEditedObject(null, withXf, results)
+    obj.updateMatrixWorld(true)
+    const container = obj.children.find((c) => c.name === 'group-1')!
+    // The combine result is a CHILD of the container, not a root child.
+    const result = container.children.find((c) => c.name === 'combine-1')!
+    expect(result).toBeTruthy()
+    expect(obj.children.find((c) => c.name === 'combine-1')).toBeUndefined()
+    // Its world X reflects the group's +2m offset (local 0 → world 2).
+    expect(result.getWorldPosition(new Vector3()).x).toBeCloseTo(2, 5)
+  })
+})
+
+/** A baked `mesh` result part centred at `position`. */
+function meshResultAt(id: string, position: [number, number, number]): ShapePart {
+  const g = new BoxGeometry(1, 1, 1)
+  const pos = Array.from(g.getAttribute('position').array)
+  const nor = Array.from(g.getAttribute('normal').array)
+  g.dispose()
+  return {
+    id,
+    kind: 'mesh',
+    position,
+    size: [1, 1, 1],
+    color: '#889900',
+    geometry: { positions: pos, normals: nor },
+  }
+}

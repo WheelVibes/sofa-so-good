@@ -1,0 +1,146 @@
+{
+  "name": "glb-update-original",
+  "description": "GE4 real-env verification of the GLB designer's 'Update original' round-trip (`ui/glbEditor/GlbDesignerDialog.tsx` -> `furniture/glbEdit/saveAsset.ts:exportAndSaveAsset(overwriteId)` -> `state/slices/userAssetsSlice.ts:replaceUserFurniture`). Pro mode. Creates a real user asset (a 0.8 m box) via the designer save path, places an instance of it in the Living/Dining room editor, then re-opens the designer, picks that asset as the 'Start from' source, scales it 2x, toggles the 'Update original' switch, and clicks 'Update original'. Asserts the REAL round-trip against the live Zustand store, NOT toast text: (1) the def count did NOT grow (no duplicate catalog entry) — `userFurniture.length` stays at the post-create baseline; (2) the SAME def id now carries the new geometry — its `defaultFootprint.w` ~doubled AND its `assetId` changed (a fresh GLB blob was written under the same id); (3) the previously placed instance still resolves — `items` still holds an item whose `defId` is that same def id. Screenshots the placed instance in the room BEFORE and AFTER the update so the size change is visible in the 3D scene. NOTE: both the initial 'Save asset' and the 'Update original' saves are triggered via DOM `.click()` evals because those buttons live at the bottom of the scrolling right panel (below the fold) — the coordinate text-click would miss them (see glb-designer-simple.json's click-save comment + the playbook gotcha). The source-model picker is the custom `ui/controls/Select` (not a native <select>): driven by clicking its `button[aria-label='Source model']` trigger then the `[role='option']` whose label matches. The 'Recolour parts' section only renders once the source GLB has loaded into the preview (its named meshes populate `meshNames`), so the scenario waits on that text as the load gate before scaling + saving — this guarantees the re-exported GLB actually contains the original geometry (not an empty object) so placed instances can't silently lose their mesh.",
+  "url": "http://localhost:5330/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "open-designer", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    {
+      "name": "wait-designer",
+      "waitFor": { "text": "3D asset designer" },
+      "timeout": 15000,
+      "failMessage": "designer dialog should mount in Pro mode (lazy but idle-preloaded)"
+    },
+    { "name": "add-box", "click": { "text": "Box" } },
+    {
+      "name": "wait-box-fields",
+      "waitFor": { "css": "input[aria-label='box size X']" },
+      "timeout": 5000
+    },
+    {
+      "name": "set-box-size-x",
+      "eval": "(function(){ const inp = document.querySelector('input[aria-label=\"box size X\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, '0.8'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "set-box-size-y",
+      "eval": "(function(){ const inp = document.querySelector('input[aria-label=\"box size Y\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, '0.8'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "set-box-size-z",
+      "eval": "(function(){ const inp = document.querySelector('input[aria-label=\"box size Z\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, '0.8'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "set-asset-name",
+      "eval": "(function(){ const inp = document.querySelector('input[aria-label=\"Asset name\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, 'IXT Update RT'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "record-baseline",
+      "eval": "window.__glbBaseline = window.__store.getState().userFurniture.length"
+    },
+    {
+      "name": "click-save",
+      "comment": "DOM .click() — the 'Save asset' button is below the fold in the scrolling right panel; the coordinate text-click would miss it (see glb-designer-simple.json).",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Save asset' && !b.disabled); if (!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-created",
+      "waitFor": {
+        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'IXT Update RT' && d.source === 'user')"
+      },
+      "timeout": 25000,
+      "failMessage": "creating the asset should add a UserGltfDef via persistUserGlb -> addUserFurniture"
+    },
+    {
+      "name": "capture-def",
+      "comment": "Capture the created def's id, original footprint width, original assetId, and the post-create catalog length — the baselines the update assertions compare against.",
+      "eval": "(function(){ const s = window.__store.getState(); const def = s.userFurniture.find(d => d.name === 'IXT Update RT' && d.source === 'user'); if (!def) throw new Error('created def missing'); window.__updDefId = def.id; window.__origFpW = def.defaultFootprint.w; window.__origAssetId = def.assetId; window.__afterCreateLen = s.userFurniture.length; if (!(window.__origFpW > 0)) throw new Error('bad original footprint ' + window.__origFpW); })()"
+    },
+    {
+      "name": "assert-designer-closed",
+      "waitFor": { "store": "state.glbDesignerOpen === false" },
+      "timeout": 5000,
+      "failMessage": "a successful save should close the dialog"
+    },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "settle-room-editor", "wait": 2500 },
+    {
+      "name": "place-instance",
+      "eval": "(function(){ const s = window.__store.getState(); window.__placedId = s.addItem({ defId: window.__updDefId, position: [9.6, 2.6], rotation: 0, props: {} }); if (!window.__placedId) throw new Error('addItem returned no id'); })()"
+    },
+    {
+      "name": "assert-instance-placed",
+      "waitFor": { "store": "state.items.some(it => it.defId === window.__updDefId)" },
+      "timeout": 5000,
+      "failMessage": "the placed item should reference the created def"
+    },
+    { "name": "settle-render-before", "wait": 3000 },
+    { "name": "shot-before", "screenshot": "01-placed-instance-before-update" },
+    { "name": "reopen-designer", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    {
+      "name": "wait-designer-2",
+      "waitFor": { "text": "3D asset designer" },
+      "timeout": 15000,
+      "failMessage": "designer should reopen in Pro mode"
+    },
+    {
+      "name": "open-source-select",
+      "eval": "(function(){ const t = document.querySelector('button[aria-label=\"Source model\"]'); if (!t) throw new Error('Source model select trigger missing'); t.click(); })()"
+    },
+    { "name": "settle-source-popover", "wait": 600 },
+    {
+      "name": "pick-source",
+      "eval": "(function(){ const opts = [...document.querySelectorAll('[role=\"option\"]')]; const o = opts.find(b => b.textContent.trim().includes('IXT Update RT')); if (!o) throw new Error('source option not found; options=' + opts.map(x=>x.textContent.trim()).join('|')); o.click(); })()"
+    },
+    {
+      "name": "wait-source-loaded",
+      "comment": "The 'Recolour parts' section only renders once the source GLB has loaded into the preview canvas and its named meshes populate meshNames — the gate that the re-export will include the original geometry. Generous timeout: GLB parse under headless SwiftShader.",
+      "waitFor": { "text": "Recolour parts" },
+      "timeout": 30000,
+      "failMessage": "source GLB should load into the designer preview (named meshes populate 'Recolour parts') — without this the re-exported object would be empty and placed instances would lose geometry"
+    },
+    {
+      "name": "scale-source-2x",
+      "eval": "(function(){ const inp = document.querySelector('input[aria-label=\"Source scale\"]'); if (!inp) throw new Error('Source scale slider missing'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, '2'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "assert-scale-stuck",
+      "eval": "(function(){ const inp = document.querySelector('input[aria-label=\"Source scale\"]'); if (Number(inp.value) !== 2) throw new Error('source scale did not round-trip, got ' + inp.value); })()"
+    },
+    {
+      "name": "toggle-update-original",
+      "eval": "(function(){ const sw = document.querySelector('button[aria-label=\"Update original\"]'); if (!sw) throw new Error('Update original switch missing'); if (sw.getAttribute('aria-checked') !== 'true') sw.click(); })()"
+    },
+    {
+      "name": "assert-switch-on",
+      "eval": "(function(){ const sw = document.querySelector('button[aria-label=\"Update original\"]'); if (sw.getAttribute('aria-checked') !== 'true') throw new Error('Update original switch did not turn on'); const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Update original' && b.classList.contains('btn')); if (!btn) throw new Error('save button should relabel to Update original'); if (btn.disabled) throw new Error('Update original button disabled'); })()"
+    },
+    { "name": "shot-designer-update", "screenshot": "02-designer-update-original-armed" },
+    {
+      "name": "click-update-original",
+      "comment": "DOM .click() — the relabelled 'Update original' save button is at the bottom of the scrolling right panel (below the fold).",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Update original' && b.classList.contains('btn') && !b.disabled); if (!btn) throw new Error('Update original button not found/disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-roundtrip",
+      "comment": "The REAL round-trip proof: (1) no duplicate — length stays at the post-create baseline; (2) same def id carries new geometry — footprint scaled by ~2x EXACTLY (a guard against the fixed scale-double-application bug that produced 4x/8x), a fresh assetId, AND the name preserved (guard against the fixed name-clobber-to-'Custom asset' bug); (3) placed instance still resolves to the same def id.",
+      "waitFor": {
+        "store": "state.userFurniture.length === window.__afterCreateLen && (state.userFurniture.find(d => d.id === window.__updDefId)?.defaultFootprint.w ?? 0) > window.__origFpW * 1.7 && (state.userFurniture.find(d => d.id === window.__updDefId)?.defaultFootprint.w ?? 0) < window.__origFpW * 2.4 && state.userFurniture.find(d => d.id === window.__updDefId)?.assetId !== window.__origAssetId && state.userFurniture.find(d => d.id === window.__updDefId)?.name === 'IXT Update RT' && state.items.some(it => it.defId === window.__updDefId)"
+      },
+      "timeout": 25000,
+      "failMessage": "Update original should replace the def in place (same id, ~2x footprint EXACTLY, fresh assetId, name preserved) WITHOUT growing the catalog, and the placed instance must still reference it"
+    },
+    {
+      "name": "assert-designer-closed-2",
+      "waitFor": { "store": "state.glbDesignerOpen === false" },
+      "timeout": 5000,
+      "failMessage": "a successful update should close the dialog"
+    },
+    { "name": "settle-render-after", "wait": 4000 },
+    { "name": "shot-after", "screenshot": "03-placed-instance-after-update" }
+  ]
+}

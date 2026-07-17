@@ -1,0 +1,84 @@
+{
+  "name": "realism-seating-tables-profile",
+  "url": "http://localhost:5301/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s = window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); })()"
+    },
+    {
+      "name": "place-row",
+      "eval": "(() => { const s = window.__store.getState(); const items = [ ['sofa-3seat',{}], ['sofa-lshape',{}], ['dining-chair',{}], ['office-chair',{style:'executive'}], ['bar-stool',{}], ['bar-stool',{style:'pedestal'}], ['bench',{}], ['armchair',{style:'wingback'}], ['armchair',{style:'tub'}], ['ottoman',{}], ['chaise-lounge',{}], ['dining-table-4',{}], ['dining-table-4',{shape:'round'}], ['dining-table-4',{shape:'oval',seats:'6'}], ['desk',{legStyle:'hairpin'}], ['coffee-table',{shape:'round'}], ['console-table',{style:'drawers'}], ['bar-cart',{tiers:3}], ['side-table',{}], ['side-table',{shape:'drum'}] ]; const dz = 2.6, x = 10.5, z0 = 2.0; const pos = {}; const list = items.map(([defId, props], i) => { const z = z0 + i * dz; const key = defId + ':' + JSON.stringify(props); pos[key] = [x, z]; return { id: 'audit-' + i, defId, position: [x, z], rotation: Math.PI, props }; }); window.__auditPos = pos; s.setItems(list); return list.length; })()"
+    },
+    { "name": "settle", "wait": 1200 },
+    { "name": "orbit-to-side", "drag": { "from": [800, 300], "to": [800, 70] } },
+    { "name": "settle-orbit", "wait": 700 },
+    {
+      "name": "frame-sofa",
+      "eval": "(() => { const p = window.__auditPos['sofa-3seat:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.45, p[1]], radius: 1.6 }); })()"
+    },
+    { "name": "s1", "wait": 900 },
+    { "name": "shot-sofa", "screenshot": "p-sofa" },
+    {
+      "name": "frame-barstools",
+      "eval": "(() => { const p = window.__auditPos['bar-stool:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.4, p[1] + 1.3], radius: 1.4 }); })()"
+    },
+    { "name": "s2", "wait": 900 },
+    { "name": "shot-barstools", "screenshot": "p-barstools" },
+    {
+      "name": "frame-office",
+      "eval": "(() => { const p = window.__auditPos['office-chair:{\"style\":\"executive\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.5, p[1]], radius: 0.9 }); })()"
+    },
+    { "name": "s3", "wait": 900 },
+    { "name": "shot-office", "screenshot": "p-office" },
+    {
+      "name": "frame-wingback-tub",
+      "eval": "(() => { const p = window.__auditPos['armchair:{\"style\":\"wingback\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.5, p[1] + 1.3], radius: 1.6 }); })()"
+    },
+    { "name": "s4", "wait": 900 },
+    { "name": "shot-wingback-tub", "screenshot": "p-wingback-tub" },
+    {
+      "name": "frame-chaise",
+      "eval": "(() => { const p = window.__auditPos['chaise-lounge:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.4, p[1]], radius: 1.4 }); })()"
+    },
+    { "name": "s5", "wait": 900 },
+    { "name": "shot-chaise", "screenshot": "p-chaise" },
+    {
+      "name": "frame-dining-rect",
+      "eval": "(() => { const p = window.__auditPos['dining-table-4:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.4, p[1]], radius: 1.3 }); })()"
+    },
+    { "name": "s6", "wait": 900 },
+    { "name": "shot-dining-rect", "screenshot": "p-dining-rect" },
+    {
+      "name": "frame-dining-round",
+      "eval": "(() => { const p = window.__auditPos['dining-table-4:{\"shape\":\"round\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.4, p[1]], radius: 1.2 }); })()"
+    },
+    { "name": "s7", "wait": 900 },
+    { "name": "shot-dining-round", "screenshot": "p-dining-round" },
+    {
+      "name": "frame-console",
+      "eval": "(() => { const p = window.__auditPos['console-table:{\"style\":\"drawers\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.5, p[1]], radius: 0.9 }); })()"
+    },
+    { "name": "s8", "wait": 900 },
+    { "name": "shot-console", "screenshot": "p-console" },
+    {
+      "name": "frame-barcart",
+      "eval": "(() => { const p = window.__auditPos['bar-cart:{\"tiers\":3}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.45, p[1]], radius: 0.8 }); })()"
+    },
+    { "name": "s9", "wait": 900 },
+    { "name": "shot-barcart", "screenshot": "p-barcart" },
+    {
+      "name": "frame-sidetables",
+      "eval": "(() => { const p = window.__auditPos['side-table:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.35, p[1] + 1.3], radius: 1.5 }); })()"
+    },
+    { "name": "s10", "wait": 900 },
+    { "name": "shot-sidetables", "screenshot": "p-sidetables" },
+    {
+      "name": "frame-desk-hairpin",
+      "eval": "(() => { const p = window.__auditPos['desk:{\"legStyle\":\"hairpin\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.4, p[1]], radius: 1.1 }); })()"
+    },
+    { "name": "s11", "wait": 900 },
+    { "name": "shot-desk-hairpin", "screenshot": "p-desk-hairpin" }
+  ]
+}

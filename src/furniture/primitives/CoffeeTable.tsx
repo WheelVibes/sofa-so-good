@@ -68,7 +68,18 @@ export function CoffeeTable({ props }: { props: ParamProps }) {
             </mesh>
           )
         })}
-        {/* Low cross-strut for stability (reads as a stretcher) */}
+        {/* Low H-stretcher tying all four legs together: two side rails running
+            front↔back at each leg line, joined by a centre cross bar. (The
+            previous single centre bar sat at z=0 and reached no leg.) */}
+        {[-lx, lx].map((x) => (
+          <BeveledBox
+            key={`sr${x}`}
+            castShadow
+            position={[x, legH * 0.32, 0]}
+            material={wood}
+            args={[0.025, 0.025, lz * 2 + legR]}
+          />
+        ))}
         <BeveledBox
           castShadow
           position={[0, legH * 0.32, 0]}

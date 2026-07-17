@@ -10,6 +10,7 @@ import type { LightsMode } from '../../../state/slices/uiSlice'
 import { useStore } from '../../../state/store'
 import { Select } from '../../controls/Select'
 import { SliderField } from '../../controls/SliderField'
+import { PetProfileControl } from '../../PetProfileControl'
 import { BackdropUpload } from '../../scene/BackdropUpload'
 import { TimeOfDaySlider } from '../../scene/TimeOfDaySlider'
 import { CompassModal } from '../CompassModal'
@@ -69,6 +70,7 @@ export function SceneMenu() {
   const hdriId = useStore((s) => s.hdriId)
   const setHdri = useStore((s) => s.setHdri)
   const fRenderPresets = useFeature('renderPresets')
+  const fPetProfile = useFeature('petProfile')
   const fMotion = useFeature('furnitureMotion')
   const motionEnabled = useStore((s) => s.motionEnabled)
   const toggleMotion = useStore((s) => s.toggleMotion)
@@ -223,6 +225,18 @@ export function SceneMenu() {
               options={WALL_REVEAL_SCOPES.map((s) => ({ value: s.key, label: s.label }))}
             />
           </label>
+        )}
+
+        {/* ---- Household pets (P6): declares which pets the home has, driving
+            the pet-compliance checklist + catalog essentials ---- */}
+        {fPetProfile && (
+          <>
+            <div className="scene-sep" />
+            <div className="scene-field" onClick={(e) => e.stopPropagation()}>
+              <span>Do you have pets?</span>
+              <PetProfileControl />
+            </div>
+          </>
         )}
 
         {/* ---- Sun direction (Pro) ---- */}

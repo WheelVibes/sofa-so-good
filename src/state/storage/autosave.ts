@@ -39,6 +39,7 @@ type Persistent = {
   orientationDeg: unknown
   location: unknown
   locationPromptDismissed: unknown
+  petTypes: unknown
   designNote: unknown
   panoTourStops: unknown
   quoteTemplate: unknown
@@ -67,6 +68,7 @@ export const PERSISTENT_WATCH_KEYS = [
   'orientationDeg',
   'location',
   'locationPromptDismissed',
+  'petTypes',
   'designNote',
   'panoTourStops',
   'quoteTemplate',
@@ -94,6 +96,7 @@ function pickPersistent(): Persistent {
     orientationDeg: s.orientationDeg,
     location: s.location,
     locationPromptDismissed: s.locationPromptDismissed,
+    petTypes: s.petTypes,
     designNote: s.designNote,
     panoTourStops: s.panoTourStops,
     quoteTemplate: s.quoteTemplate,
@@ -121,6 +124,7 @@ function shallowEqual(a: Persistent, b: Persistent): boolean {
     a.orientationDeg === b.orientationDeg &&
     a.location === b.location &&
     a.locationPromptDismissed === b.locationPromptDismissed &&
+    a.petTypes === b.petTypes &&
     a.designNote === b.designNote &&
     a.panoTourStops === b.panoTourStops &&
     a.quoteTemplate === b.quoteTemplate &&

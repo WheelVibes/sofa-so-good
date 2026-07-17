@@ -1,0 +1,81 @@
+{
+  "name": "glb-designer-stage11a",
+  "description": "Asset Studio Stage 11a — per-point CURVED profiles in the GLB Asset Designer (Pro, glbDesigner on). Part 1: two lathe vases side by side seeded via __glbDesigner.setSpec — LEFT uses the smooth vase preset (belly points carry the [x, y, 1] smooth flag → Catmull-Rom); RIGHT uses the SAME points all-sharp ([x, y]) → a faceted polyline. Asserts the smooth part's spec profile carries a length-3 point while the sharp part's does not, then screenshots the 3D preview — the smooth vase must read as one continuous curve with no faceted kinks, the sharp one visibly polygonal. Part 2: select the sharp vase, open its ProfileEditor (all SQUARE markers, straight-ish preview), DOUBLE-CLICK an interior point's touch target to toggle it smooth (the documented double-tap gesture), assert the spec's profile[3] gained a third element AND a CIRCLE marker appeared, and screenshot the editor showing the mixed circle/square points + the curved preview path. Review the frames HARD — the curve quality is the deliverable.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "verify-flag-on",
+      "waitFor": { "store": "state.featureFlags.glbDesigner === true" },
+      "timeout": 5000,
+      "failMessage": "glbDesigner is a pro-tier flag → on in Pro mode by default"
+    },
+    { "name": "open-designer", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    { "name": "wait-designer", "waitFor": { "css": ".glb-designer" }, "timeout": 20000 },
+    { "name": "settle-designer", "wait": 1200 },
+    {
+      "name": "seed-two-vases",
+      "comment": "LEFT: smooth vase (belly points flagged [x,y,1]). RIGHT: identical points all-sharp.",
+      "eval": "(function(){ const smooth = [[0,0],[0.42,0.02,1],[0.5,0.1,1],[0.86,0.34,1],[0.56,0.6,1],[0.36,0.8,1],[0.52,0.94,1],[0.44,1]]; const sharp = smooth.map(p => [p[0], p[1]]); const s = JSON.parse(JSON.stringify(window.__glbDesigner.getSpec())); s.partGroups = []; s.combineGroups = []; s.parts = [ { id:'vase-smooth', kind:'lathe', name:'Smooth vase', position:[-0.32,0.25,0], size:[0.3,0.5,0.3], color:'#7a9bbf', roughness:0.4, metalness:0.05, segments:48, profile: smooth }, { id:'vase-sharp', kind:'lathe', name:'Sharp vase', position:[0.32,0.25,0], size:[0.3,0.5,0.3], color:'#bf8a6a', roughness:0.4, metalness:0.05, segments:48, profile: sharp } ]; window.__glbDesigner.setSpec(s); })()"
+    },
+    { "name": "settle-vases", "wait": 1500 },
+    {
+      "name": "assert-smooth-flag-in-spec",
+      "comment": "The smooth vase's profile carries at least one length-3 (flagged) point; the sharp vase carries none — proof the representation round-trips through the spec.",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const sm = s.parts.find(p => p.id==='vase-smooth'); const sh = s.parts.find(p => p.id==='vase-sharp'); if (!sm || !sh) throw new Error('vase parts missing'); const smoothCount = sm.profile.filter(p => p.length === 3 && p[2]).length; if (smoothCount < 1) throw new Error('smooth vase should carry flagged points, got ' + smoothCount); const sharpFlagged = sh.profile.filter(p => p.length === 3).length; if (sharpFlagged !== 0) throw new Error('sharp vase must have no flagged points, got ' + sharpFlagged); console.log('STAGE11A_SPEC smoothFlagged=' + smoothCount + ' sharpFlagged=' + sharpFlagged); })()"
+    },
+    {
+      "name": "shot-smooth-vs-sharp",
+      "comment": "LEFT vase = continuous curve (no faceted kinks along the profile); RIGHT vase = visibly polygonal. Curve quality is the deliverable — review this frame.",
+      "screenshot": "01-smooth-vs-sharp-vase"
+    },
+    {
+      "name": "select-sharp-vase",
+      "comment": "Click the Sharp vase layer row → opens its PartInspector + ProfileEditor.",
+      "eval": "(function(){ const rows = [...document.querySelectorAll('.glb-designer .lyr-row')]; const row = rows.find(r => /sharp vase/i.test(r.textContent || '')); if (!row) throw new Error('Sharp vase layer row not found'); row.click(); })()"
+    },
+    {
+      "name": "wait-profile-editor",
+      "waitFor": { "css": ".glb-designer svg[aria-label='Profile point editor']" },
+      "timeout": 5000,
+      "failMessage": "selecting the lathe should show the shared ProfileEditor"
+    },
+    { "name": "settle-editor", "wait": 400 },
+    {
+      "name": "assert-all-square-before",
+      "comment": "A fully-sharp profile → the editor draws only SQUARE (rect) markers, no smooth circles.",
+      "eval": "(function(){ const svg = document.querySelector('.glb-designer svg[aria-label=\"Profile point editor\"]'); const rects = svg.querySelectorAll('rect'); const markers = [...svg.querySelectorAll('circle')].filter(c => c.getAttribute('fill') !== 'transparent'); if (rects.length < 1) throw new Error('expected square markers for an all-sharp profile'); if (markers.length !== 0) throw new Error('an all-sharp profile should have no circle markers, got ' + markers.length); window.__sqBefore = rects.length; })()"
+    },
+    {
+      "name": "scroll-editor-into-view",
+      "eval": "(function(){ const svg = document.querySelector('.glb-designer svg[aria-label=\"Profile point editor\"]'); svg.scrollIntoView({ block: 'center' }); })()"
+    },
+    { "name": "settle-scroll", "wait": 400 },
+    { "name": "shot-sharp-editor", "screenshot": "02-sharp-profile-editor-squares" },
+    {
+      "name": "toggle-point-smooth",
+      "comment": "Double-tap an interior point's transparent 44px touch target (index 3, a belly point) → onDoubleClick flips it smooth.",
+      "eval": "(function(){ const svg = document.querySelector('.glb-designer svg[aria-label=\"Profile point editor\"]'); const touch = [...svg.querySelectorAll('circle')].filter(c => c.getAttribute('fill') === 'transparent'); if (touch.length < 4) throw new Error('expected >=4 touch targets, got ' + touch.length); touch[3].dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); })()"
+    },
+    { "name": "settle-toggle", "wait": 500 },
+    {
+      "name": "keep-editor-in-view",
+      "eval": "(function(){ const svg = document.querySelector('.glb-designer svg[aria-label=\"Profile point editor\"]'); svg.scrollIntoView({ block: 'center' }); })()"
+    },
+    { "name": "settle-scroll-2", "wait": 400 },
+    {
+      "name": "assert-point-now-smooth",
+      "comment": "The toggled point gained a third (flag) element in the live spec AND a circle marker rendered.",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const sh = s.parts.find(p => p.id==='vase-sharp'); if (!sh) throw new Error('sharp vase missing'); const p3 = sh.profile[3]; if (!(p3.length === 3 && p3[2])) throw new Error('profile[3] should be smooth after the toggle, got ' + JSON.stringify(p3)); const svg = document.querySelector('.glb-designer svg[aria-label=\"Profile point editor\"]'); const markers = [...svg.querySelectorAll('circle')].filter(c => c.getAttribute('fill') !== 'transparent'); if (markers.length < 1) throw new Error('expected a circle marker for the newly-smooth point'); console.log('STAGE11A_TOGGLE profile3=' + JSON.stringify(p3) + ' circleMarkers=' + markers.length); })()"
+    },
+    {
+      "name": "shot-toggled-editor",
+      "comment": "The editor now shows a CIRCLE at the toggled point among the SQUARE corners, and the preview path curves through it.",
+      "screenshot": "03-toggled-point-smooth-editor"
+    }
+  ]
+}

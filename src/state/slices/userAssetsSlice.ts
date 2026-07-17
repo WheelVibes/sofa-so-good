@@ -1,4 +1,5 @@
 import { evictGltfAsset } from '../../furniture/GltfModel'
+import { evictDefSrcRefs } from '../../furniture/glbEdit/srcRefCache'
 import { LOD_TIERS, lodAssetId, unregisterLodVariants } from '../../furniture/gltf/lod'
 import type { IkeaGltfDef, UserGltfDef } from '../../furniture/types'
 import { disposeCachedMaterialsFor } from '../../materials/cache'
@@ -97,6 +98,10 @@ export const createUserAssetsSlice: SliceCreator<UserAssetsSlice, RootState> = (
       }
     })
     if (def) for (const r of defResources(def)) freeResource(r)
+    // Also evict any GLB-decompose srcRef geometry cached for this def so a
+    // designer session holding refs into it stops serving stale geometry
+    // (Stage-9a review — parallels the evictGltfAsset call in freeResource).
+    evictDefSrcRefs(id)
   },
   replaceUserFurniture: (def) => {
     const existing = get().userFurniture.find((d) => d.id === def.id)
@@ -109,6 +114,12 @@ export const createUserAssetsSlice: SliceCreator<UserAssetsSlice, RootState> = (
     set((s) => ({
       userFurniture: s.userFurniture.map((d) => (d.id === def.id ? def : d)),
     }))
+    // A replaced def's GLB is a DIFFERENT model behind the same id, so any cached
+    // srcRef geometry decomposed from the old GLB is now stale — evict it. The
+    // drift fingerprint on each ref is the second line of defence (a ref resolved
+    // against the new GLB whose fingerprint mismatches renders a placeholder, not
+    // the wrong mesh); eviction forces a clean re-resolution (Stage-9a review).
+    evictDefSrcRefs(def.id)
     // Free only the OLD resources the NEW def no longer references.
     const kept = new Set<string>()
     for (const r of defResources(def)) {
@@ -136,6 +147,8 @@ export const createUserAssetsSlice: SliceCreator<UserAssetsSlice, RootState> = (
     for (const def of defs) {
       const old = prevById.get(def.id)
       if (!old) continue
+      // Stale srcRef geometry from the replaced GLB — evict (Stage-9a review).
+      evictDefSrcRefs(def.id)
       const kept = new Set<string>()
       for (const r of defResources(def)) {
         if (r.url) kept.add(`url:${r.url}`)

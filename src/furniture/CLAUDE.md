@@ -2,10 +2,12 @@
 
 Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
 
-- **CPU-heavy upload-pipeline steps run in a pooled Worker, never the main thread.** Two
-  instances today: `optimize/runOptimize.ts` (Draco/WebP re-encode — its own from-scratch pool,
-  don't refactor it) and `convert/runConvert.ts` (OBJ/FBX/STL/PLY/DAE/3DS/3MF/USDZ/gltf → GLB via
-  `convertModel`, built on the generic `furniture/worker/workerPool.ts`). Both: spawn-on-contention
+- **CPU-heavy steps run in a pooled Worker, never the main thread.** Three instances today:
+  `optimize/runOptimize.ts` (Draco/WebP re-encode — its own from-scratch pool, don't refactor it),
+  `convert/runConvert.ts` (OBJ/FBX/STL/… → GLB via `convertModel`) and `glbEdit/csgWorkerPool.ts`
+  (CSG v2 boolean folds via `glbEdit/csgEval.ts:foldCsg` + `csg.worker.ts`, Stage 1b) — the latter
+  two are built on the generic `furniture/worker/workerPool.ts`; **any new pool builds on it too,
+  never a fourth copy of the pattern.** All: spawn-on-contention
   (reuse an idle worker before growing the pool), a worker `error`/`messageerror` retires only
   that worker (its own queued calls fall back, the rest of the pool is unaffected), idle-teardown
   after 30s so a burst doesn't hold its peak size all session, and a graceful **per-file** fallback
@@ -139,10 +141,24 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   unit. Gated by the `cabinetOpen` flag (simple tier — a furnish/view delight, not an analytical
   tool). The inspector control lives in `ui/inspector/ParametricBody.tsx`, shown only when the flag
   is on AND `supportsCabinetOpen(def)`.
-- **Categories**: 15 `FurnitureCategory` values. A new one must update the union,
+- **Categories**: 16 `FurnitureCategory` values. A new one must update the union,
   `FURNITURE_CATEGORIES`, **every** exhaustive `Record<FurnitureCategory,…>` consumer the
   type-checker flags, and `ui/catalog/CategoryTabs`/`CategoryIcon`. Category is auto-detected
-  for imports, **never** typed by hand.
+  for imports, **never** typed by hand. The `pets` category (Pet program) is gated behind the
+  `petFittings` flag: `useUnifiedCatalog(includeRemote, includeShared, includePets)` zeroes the
+  pets block when off so the tab hides + its cards never surface (browse/search/favourites).
+- **Door-bound fixtures (`def.doorBound`, DOOR-FIXTURE)** — pet gates, pet-door inserts, and any
+  fixture that spans a doorway — are the door analog of `windowBound` (above): placed ONLY on a
+  door opening, static once placed (inspector hides Transform, scene drag blocked, 2D plan
+  gating mirrored), and at placement **snap to the nearest door** via the pure
+  `placement/doorSnap.ts:snapToNearestDoor(walls, openings, dropPos)` (a clone of `windowSnap`
+  filtering `kind==='door'`, spanning `op.width`, floor-anchored at the opening). Threaded through
+  the SAME three call sites windowBound uses — `usePlacementController` commit (`commitDoorBound`),
+  `scene/PlacementGhost` preview, and the plan editor (`planFurnishPlacement.ts:buildPlanDoorGhostItem`
+  + `planHasDoor`, wired in `FloorPlanEditor`). `doorFixtureProps(defId, door)` spans the fixture
+  to the doorway. Every `windowBound` gate that means "static fixture" (`Furniture.tsx` drag,
+  `ItemActionButtons`/`InspectorPanel`/`PlanFurnitureInspector` Transform, `FurnitureLayer`/
+  `FurnitureRotateHandle`) now also checks `|| def.doorBound`.
 - **Per-part finish** of any GLB: a placed item's `props['finish:<materialOrMeshName>']` re-skins that
   named group — value is either a hex `#colour` (retints the part's own material, keeping its maps) OR a
   material token (`wood`/`marble`/`stone`/`metal`/`rattan`/`concrete`/`painted`/`gloss`/`mat:<id>`,
@@ -176,7 +192,7 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   throwing. `secureGltfLoader` is drei `useGLTF`'s `extendLoader` injection point — pass it as the
   4th arg (`useGLTF(url, true, true, secureGltfLoader)`, keeping `true, true` so DRACO/meshopt
   defaults aren't dropped) on every runtime `useGLTF` call site (`GltfModel.tsx`,
-  `ui/catalog/thumbnails.tsx`, `ui/glbEditor/GlbDesignerDialog.tsx`); it mutates only the single
+  `ui/catalog/thumbnails.tsx`, `ui/glbEditor/DesignerViewport.tsx`); it mutates only the single
   `GLTFLoader` instance drei memoizes for `useGLTF` (never `THREE.DefaultLoadingManager`), so
   material/HDRI loaders elsewhere are untouched. A raw `GLTFLoader` (not via `useGLTF`) —
   `catalog/packs/thumbnail.ts`'s `ThumbnailRenderer` — takes `getSecureGltfManager()` straight into
@@ -275,16 +291,22 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   inside a primitive; let the group handle it. (Decor auto-styling still reads `def.defaultFootprint`
   unscaled — a minor density/height imperfection for a *scaled* decor host, not a crash.)
 - Match the surrounding primitive style: real-world metres, real three `Material` instances.
-- **Appliance bodies (MAT-004b)**: the 8 steel-bodied appliance primitives
+- **Appliance bodies (MAT-004b — single representation)**: the 8 steel-bodied appliance primitives
   (`Refrigerator`/`Oven`/`Stove`/`RangeHood`/`Dishwasher`/`Microwave`/`WashingMachine`/`WineCooler`)
-  render their carcass through `primitives/shared.tsx:applianceBody(color, finish)`. Steel → the
-  shared brushed-metal material (`materials/furnitureMaterials.ts:getMetalMaterial`, one cached
-  instance reused across every body part + appliance) set on the body `<mesh material={…}>` via
-  `applianceBodyMeshProps(body)`; non-steel ('matte'/'gloss') keeps the legacy `applianceFinish`
-  props on `<ApplianceBodyMaterial finish={body} />`. A body mesh is always
-  `<mesh {...applianceBodyMeshProps(body)} …><geometry/><ApplianceBodyMaterial finish={body}/></mesh>`.
-  Don't put the steel material on the door glass / control panels / handles — those keep their own
-  finishes. (`shared.tsx`, not `.ts`, because it exports the JSX `ApplianceBodyMaterial` component.)
+  render their carcass through `primitives/shared.tsx:applianceBodyMaterial(color, finish)`, which
+  returns **ONE `Material` instance for EVERY finish**, always set on the body mesh's `material=`
+  prop: steel → the shared brushed-metal material (`materials/furnitureMaterials.ts:getMetalMaterial`);
+  matte/gloss/unknown → a shared painted material (`getSolidMaterial(color, roughness, metalness)`
+  with the exact `applianceFinish` preset — byte-identical to the old inline `<meshStandardMaterial>`).
+  Both branches are cached (one instance reused across every body part + appliance — no per-instance
+  material). A body mesh is always `<BeveledBox material={body} …/>` (or
+  `<mesh material={body}>…geometry…</mesh>`) — **never** a `<meshStandardMaterial>` child.
+  **Why one representation:** the old split (steel on the mesh PROP, non-steel as a
+  `<meshStandardMaterial>` CHILD) did not reconcile when the user swapped steel↔matte in the
+  inspector — R3F left a stale (white) body. Routing both finishes through the `material=` prop makes
+  a swap a plain material-instance change on one mesh, which reconciles reliably. Don't put the body
+  material on the door glass / control panels / handles — those keep their own inline finishes.
+  (`shared.tsx`, `.tsx` for JSX-adjacent primitive helpers.)
 - **Metal legs / frames (METAL-LEGS)**: a primitive's structural metal members (legs, frames,
   rails, posts, gas-lifts, taps) route through `primitives/shared.tsx:metalLeg(color?, finish?, repeat?)`
   — a thin wrapper over `getMetalMaterial` that inherits its `pbrSurfaces` gate (brushed

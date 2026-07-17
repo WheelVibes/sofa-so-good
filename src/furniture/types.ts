@@ -31,6 +31,7 @@ export type FurnitureCategory =
   | 'outdoor'
   | 'electronics'
   | 'kids'
+  | 'pets'
   | 'laundry'
   | 'others'
 
@@ -48,6 +49,7 @@ export const FURNITURE_CATEGORIES: readonly FurnitureCategory[] = [
   'outdoor',
   'electronics',
   'kids',
+  'pets',
   'laundry',
   'others',
 ]
@@ -59,6 +61,7 @@ export type FurnitureType = string
 export type PrimitiveKind =
   | 'Bed'
   | 'Sofa'
+  | 'SofaBed'
   | 'SofaSectional'
   | 'FeatureWall'
   | 'ConsoleTable'
@@ -151,6 +154,8 @@ export type PrimitiveKind =
   | 'OutdoorTable'
   | 'OutdoorParasol'
   | 'OutdoorLounger'
+  | 'BistroTable'
+  | 'FoldingChair'
   | 'BookStack'
   | 'ThrowCushion'
   | 'ThrowBlanket'
@@ -162,6 +167,42 @@ export type PrimitiveKind =
   | 'PhotoFrameCluster'
   | 'TrailingPlant'
   | 'DecorTray'
+  | 'WindowMeshScreen'
+  | 'PetGate'
+  | 'PetDoorInsert'
+  | 'PetPlaypen'
+  | 'CatTree'
+  | 'CatWallShelf'
+  | 'CatWallSteps'
+  | 'CatWallBridge'
+  | 'ScratchingPost'
+  | 'LitterBox'
+  | 'LitterCabinet'
+  | 'CatWindowPerch'
+  | 'CatTunnel'
+  | 'DogCrate'
+  | 'DogBedOrthopedic'
+  | 'FeedingStation'
+  | 'DogRamp'
+  | 'CoolingMat'
+  | 'PetToyBin'
+  | 'BirdCage'
+  | 'BirdPlayGym'
+  | 'RabbitHutch'
+  | 'SmallPetPen'
+  | 'HamsterTank'
+  | 'AquariumStand'
+  | 'ShoeBench'
+  | 'WallHookRail'
+  | 'Pegboard'
+  | 'UtilityCabinet'
+  | 'DisplayCabinet'
+  | 'Recliner'
+  | 'WallDesk'
+  | 'LoftBed'
+  | 'TrestleDesk'
+  | 'StorageBench'
+  | 'BayDaybed'
 
 export type ParamField =
   | {
@@ -221,6 +262,9 @@ interface FurnitureDefBase {
    *  catalog search finds an item even when the user types a common alias.
    *  Matched alongside the display name. */
   keywords?: string[]
+  /** Optional short descriptive note surfaced in the inspector (e.g. an
+   *  aquarium stand's load-rating advisory). One or two plain sentences. */
+  description?: string
   /** Default Y-axis rotation in radians, applied at placement. */
   defaultRotation?: number
   /**
@@ -244,6 +288,11 @@ interface FurnitureDefBase {
    *  window — no move/rotate/flip (the inspector hides those + drag is blocked).
    *  Customisation (size/colour/texture/draw) still applies. */
   windowBound?: boolean
+  /** Door-bound fixture (pet gates / pet-door inserts): statically placed across
+   *  a door opening — no move/rotate/flip (the inspector hides those + drag is
+   *  blocked, exactly like `windowBound`). At placement it snaps to the nearest
+   *  door opening, sized to span it. Customisation (size/colour/style) still applies. */
+  doorBound?: boolean
   /** Clear floor (m) the layout must preserve in front of this piece; from IKEA design semantics. */
   frontClearance?: number
   /**
@@ -321,6 +370,11 @@ export interface UserGltfDef extends FurnitureDefBase {
    *  the product configurator — lets the inspector re-open it for editing
    *  (SLOT-204). Persisted (IDB meta + save schema). Absent for other defs. */
   slotSpec?: string
+  /** GLB-designer edit spec (versioned JSON `{ v, spec }`, `glbEdit/specPersist.ts`)
+   *  when this def was built in the 3D asset designer — lets the designer re-open it
+   *  with its full editable part list instead of a frozen source mesh. Persisted
+   *  (IDB meta + save schema). Absent for other defs. */
+  assetSpec?: string
 }
 
 export interface RemoteGltfDef extends FurnitureDefBase {

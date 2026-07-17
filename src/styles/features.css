@@ -569,6 +569,10 @@ body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
 .scene-field { display: block; padding: 0 6px 4px; }
 .scene-field > span { display: block; font-size: var(--t-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); padding: 2px 0 4px; }
 .scene-select { width: 100%; }
+/* Pet-profile multi-select (P6) — a wrap of toggle chips, shared by the Scene
+   menu, mobile Scene sheet, and the Pet-compliance panel empty state. */
+.pet-chip-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 6px 4px; }
+.pet-chip-row .chip { padding: 5px 10px; font-size: var(--t-2xs); cursor: pointer; }
 .backdrop-upload-row { display: flex; gap: 6px; }
 .backdrop-upload-row .btn { flex: 1 1 auto; }
 

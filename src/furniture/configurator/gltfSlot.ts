@@ -78,24 +78,42 @@ function getLoader(): GLTFLoader {
 
 /** Parsed-scene cache: `url` → its parse Promise, so repeated attaches of the
  *  same slot GLB (a selection change, two slots sharing one asset) decode it
- *  ONCE instead of re-fetching + re-parsing per click. Bounded — only the few
- *  bundled slot urls ever key it, held for the session. */
+ *  ONCE instead of re-fetching + re-parsing per click. Keyed ONLY by BUNDLED
+ *  urls (`/assets/…`) — a `data:`/`blob:` option GLB (a designer-exported user
+ *  product, potentially large + re-minted on every re-export) is NEVER cached,
+ *  so the map can't grow unbounded across a session (finding 6). */
 const sceneCache = new Map<string, Promise<GLTF>>()
+
+/** True for a non-bundled inline/object url — a designer-exported product's
+ *  self-contained GLB. These are deliberately kept out of `sceneCache`. */
+function isInlineUrl(url: string): boolean {
+  return url.startsWith('data:') || url.startsWith('blob:')
+}
+
+/** Drop a single cached slot-scene parse (call when its user product is
+ *  removed/replaced so a stale template can't be re-attached). No-op for an
+ *  uncached url. `data:`/`blob:` urls are never cached, so this only matters for
+ *  bundled urls. */
+export function evictSlotScene(url: string): void {
+  sceneCache.delete(url)
+}
 
 /** Load a bundled slot GLB into a scene `Group`. The `gltfUrl` is stored
  *  root-relative (`/assets/…`); `withBase` makes it correct under the prod
- *  sub-path base. The parse is cached per url (above), then each call returns an
- *  independent `scene.clone(true)` whose MATERIALS are cloned per-attach — so
- *  `namespaceGltfFinishTargets`'s in-place renaming (and any later per-slot tint)
- *  can't leak between two instances, or back onto the cached template. Geometry
- *  and textures stay shared with the template (cheap to re-upload; never
- *  renamed); the caller still disposes the returned subtree's materials/textures
- *  (`disposeConfiguredObject`). */
+ *  sub-path base. A BUNDLED parse is cached per url (above), then each call
+ *  returns an independent `scene.clone(true)` whose MATERIALS are cloned
+ *  per-attach — so `namespaceGltfFinishTargets`'s in-place renaming (and any
+ *  later per-slot tint) can't leak between two instances, or back onto the
+ *  cached template. A `data:`/`blob:` url (user product) is parsed fresh each
+ *  attach (never cached). Geometry and textures stay shared with the template
+ *  (cheap to re-upload; never renamed); the caller still disposes the returned
+ *  subtree's materials/textures (`disposeConfiguredObject`). */
 export async function loadSlotGltfScene(url: string): Promise<Group> {
   let parse = sceneCache.get(url)
   if (!parse) {
     parse = getLoader().loadAsync(withBase(url))
-    sceneCache.set(url, parse)
+    // Only bundled urls are cached; inline (data:/blob:) urls are one-shot.
+    if (!isInlineUrl(url)) sceneCache.set(url, parse)
   }
   const gltf = await parse
   const scene = gltf.scene.clone(true)
@@ -127,7 +145,7 @@ export function namespaceGltfFinishTargets(root: Object3D, prefix: string): Fini
     for (const m of mats) {
       if (!m || done.has(m)) continue
       done.add(m)
-      const base = m.name && m.name.length ? m.name : mesh.name || 'part'
+      const base = m.name?.length ? m.name : mesh.name || 'part'
       const key = namespaceFinishKey(prefix, base)
       m.name = key
       if (!seenKey.has(key)) {

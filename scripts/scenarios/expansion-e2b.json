@@ -1,0 +1,77 @@
+{
+  "name": "expansion-e2b",
+  "description": "Expansion wave E2B audit — the HDB entry + service-yard storage cluster: shoe-bench (open cubbies / flip fronts), wall-hook-rail (metal J-hooks / Shaker pegs, 5 & 8 hooks), pegboard (shelf+hooks / hooks / cups accessory kits), utility-cabinet (single/double door × flat-panel/louvre). Staged on open ground BESIDE the flat (mounted rail/pegboard read as clean product shots at their mount height, no wall occlusion) in the whole-flat ORBIT dollhouse camera whose ~3/4 elevation reveals float/attachment. Every requestFrameSelection closeup targets a joint: cushion→bench, hooks→board, shelf/cups→pegboard, proud door→carcass.",
+  "url": "http://localhost:5302/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s = window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setQualityTier?.('high'); s.exitRoomEditor?.(); s.setCameraMode?.('orbit'); })()"
+    },
+    { "name": "wait-orbit", "wait": 1600 },
+    {
+      "name": "place-grid",
+      "eval": "(() => { const s = window.__store.getState(); const items = [ ['shoe-bench',{}], ['shoe-bench',{style:'flip'}], ['wall-hook-rail',{}], ['wall-hook-rail',{style:'pegs'}], ['wall-hook-rail',{hooks:8}], ['pegboard',{}], ['pegboard',{kit:'hooks'}], ['pegboard',{kit:'cups'}], ['utility-cabinet',{}], ['utility-cabinet',{doors:'double'}], ['utility-cabinet',{doorStyle:'louvre'}], ['utility-cabinet',{doors:'double',doorStyle:'louvre'}] ]; const cols = 4; const dx = 1.7, dz = 2.2, x0 = 1.0, z0 = -6.5; const pos = {}; const list = items.map(([defId, props], i) => { const c = i % cols, r = Math.floor(i / cols); const x = x0 + c * dx, z = z0 + r * dz; const key = defId + ':' + JSON.stringify(props); pos[key] = [x, z]; return { id: 'audit-' + i, defId, position: [x, z], rotation: 0, props }; }); window.__auditPos = pos; s.setItems(list); return list.length; })()"
+    },
+    { "name": "settle", "wait": 1400 },
+    { "name": "frame-overview", "eval": "(() => { window.__store.getState().requestFrameSelection({ center: [3.5, 0.9, -3.6], radius: 7.2 }); })()" },
+    { "name": "settle-ov", "wait": 1000 },
+    { "name": "shot-overview", "screenshot": "00-overview" },
+
+    { "name": "frame-bench-cubbies", "eval": "(() => { const p = window.__auditPos['shoe-bench:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.3, p[1]], radius: 0.95 }); })()" },
+    { "name": "s1", "wait": 1000 },
+    { "name": "shot-bench-cubbies", "screenshot": "01-bench-cubbies" },
+
+    { "name": "frame-bench-flip", "eval": "(() => { const p = window.__auditPos['shoe-bench:{\"style\":\"flip\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.3, p[1]], radius: 0.95 }); })()" },
+    { "name": "s2", "wait": 1000 },
+    { "name": "shot-bench-flip", "screenshot": "02-bench-flip" },
+
+    { "name": "frame-bench-cushion-joint", "eval": "(() => { const p = window.__auditPos['shoe-bench:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.44, p[1]+0.1], radius: 0.5 }); })()" },
+    { "name": "s2b", "wait": 1000 },
+    { "name": "shot-bench-cushion-joint", "screenshot": "03-bench-cushion-joint" },
+
+    { "name": "frame-rail-jhook", "eval": "(() => { const p = window.__auditPos['wall-hook-rail:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 1.6, p[1]+0.05], radius: 0.5 }); })()" },
+    { "name": "s3", "wait": 1000 },
+    { "name": "shot-rail-jhook", "screenshot": "04-rail-jhook" },
+
+    { "name": "frame-rail-pegs", "eval": "(() => { const p = window.__auditPos['wall-hook-rail:{\"style\":\"pegs\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 1.6, p[1]+0.05], radius: 0.5 }); })()" },
+    { "name": "s4", "wait": 1000 },
+    { "name": "shot-rail-pegs", "screenshot": "05-rail-pegs" },
+
+    { "name": "frame-rail-8", "eval": "(() => { const p = window.__auditPos['wall-hook-rail:{\"hooks\":8}']; window.__store.getState().requestFrameSelection({ center: [p[0], 1.6, p[1]+0.05], radius: 0.6 }); })()" },
+    { "name": "s5", "wait": 1000 },
+    { "name": "shot-rail-8", "screenshot": "06-rail-8hooks" },
+
+    { "name": "frame-peg-shelf", "eval": "(() => { const p = window.__auditPos['pegboard:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 1.3, p[1]+0.05], radius: 0.75 }); })()" },
+    { "name": "s6", "wait": 1000 },
+    { "name": "shot-peg-shelf", "screenshot": "07-pegboard-shelf-hooks" },
+
+    { "name": "frame-peg-hooks", "eval": "(() => { const p = window.__auditPos['pegboard:{\"kit\":\"hooks\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 1.3, p[1]+0.05], radius: 0.7 }); })()" },
+    { "name": "s7", "wait": 1000 },
+    { "name": "shot-peg-hooks", "screenshot": "08-pegboard-hooks" },
+
+    { "name": "frame-peg-cups", "eval": "(() => { const p = window.__auditPos['pegboard:{\"kit\":\"cups\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 1.3, p[1]+0.05], radius: 0.7 }); })()" },
+    { "name": "s8", "wait": 1000 },
+    { "name": "shot-peg-cups", "screenshot": "09-pegboard-cups" },
+
+    { "name": "frame-util-single", "eval": "(() => { const p = window.__auditPos['utility-cabinet:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 1.0, p[1]], radius: 1.35 }); })()" },
+    { "name": "s9", "wait": 1000 },
+    { "name": "shot-util-single", "screenshot": "10-utility-single-panel" },
+
+    { "name": "frame-util-double", "eval": "(() => { const p = window.__auditPos['utility-cabinet:{\"doors\":\"double\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 1.0, p[1]], radius: 1.35 }); })()" },
+    { "name": "s10", "wait": 1000 },
+    { "name": "shot-util-double", "screenshot": "11-utility-double-panel" },
+
+    { "name": "frame-util-louvre", "eval": "(() => { const p = window.__auditPos['utility-cabinet:{\"doorStyle\":\"louvre\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 1.0, p[1]], radius: 1.35 }); })()" },
+    { "name": "s11", "wait": 1000 },
+    { "name": "shot-util-louvre", "screenshot": "12-utility-single-louvre" },
+
+    { "name": "frame-util-louvre-joint", "eval": "(() => { const p = window.__auditPos['utility-cabinet:{\"doors\":\"double\",\"doorStyle\":\"louvre\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 1.3, p[1]], radius: 0.7 }); })()" },
+    { "name": "s12", "wait": 1000 },
+    { "name": "shot-util-louvre-joint", "screenshot": "13-utility-double-louvre-slats" },
+
+    { "name": "frame-util-base", "eval": "(() => { const p = window.__auditPos['utility-cabinet:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.2, p[1]], radius: 0.55 }); })()" },
+    { "name": "s13", "wait": 1000 },
+    { "name": "shot-util-base", "screenshot": "14-utility-plinth-base" }
+  ]
+}

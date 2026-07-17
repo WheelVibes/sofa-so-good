@@ -1,0 +1,179 @@
+/**
+ * Slot-constraint authoring support (Asset Studio Stage 7d).
+ *
+ * The configurator already ENFORCES `SlotConstraint`s at pick/bake time
+ * (`model.ts:clampConfig`). This module is the pure authoring/validation half so
+ * the GLB designer's "Make configurable" flow can let an author declare
+ * cross-slot `requires` / `excludes` rules and export a product that carries
+ * real compatibility rules — with two safety nets:
+ *
+ * - {@link validateProductConstraints} — a pure checker that returns
+ *   human-readable problems (contradiction, unsatisfiable/circular requires,
+ *   dangling reference). Export blocks + toasts the first problem.
+ *
+ * The stale-reference self-heal that used to live here (a product-level
+ * `pruneProductConstraints`) now runs at the AUTHORING layer instead —
+ * `designerExport.ts:pruneAssignmentRules` drops assignments/rules the instant a
+ * group is ungrouped/deleted, which is where a dangling reference actually
+ * originates — so the product built for export never carries one to prune.
+ *
+ * Pure + dependency-free (no three.js / React) → exhaustively unit-testable,
+ * mirroring `model.ts`'s discipline.
+ */
+
+import type { ConfigurableProduct, ProductSlot, SlotConstraint } from './model'
+
+/** Index a product's slots/options for O(1) existence + label lookups. */
+interface ProductIndex {
+  slotById: Map<string, ProductSlot>
+  optionExists: (slotId: string, optionId: string) => boolean
+  slotLabel: (slotId: string) => string
+  optionLabel: (slotId: string, optionId: string) => string
+  /** "Legs · Steel" — a readable reference to one option. */
+  ref: (slotId: string, optionId: string) => string
+}
+
+function indexProduct(product: ConfigurableProduct): ProductIndex {
+  const slotById = new Map(product.slots.map((s) => [s.id, s]))
+  const slotLabel = (slotId: string) => slotById.get(slotId)?.label ?? slotId
+  const optionLabel = (slotId: string, optionId: string) =>
+    slotById.get(slotId)?.options.find((o) => o.id === optionId)?.label ?? optionId
+  return {
+    slotById,
+    optionExists: (slotId, optionId) =>
+      slotById.get(slotId)?.options.some((o) => o.id === optionId) ?? false,
+    slotLabel,
+    optionLabel,
+    ref: (slotId, optionId) => `${slotLabel(slotId)} · ${optionLabel(slotId, optionId)}`,
+  }
+}
+
+/** The (slot, option) target a constraint points at that must EXIST. Returns the
+ *  pairs a constraint references, so a dangling check is one shared helper. */
+function referencedPairs(c: SlotConstraint): { slot: string; option: string }[] {
+  if (c.kind === 'requires') {
+    return [
+      { slot: c.ifSlot, option: c.ifOption },
+      { slot: c.thenSlot, option: c.thenOption },
+    ]
+  }
+  if (c.kind === 'excludes') {
+    return [{ slot: c.slot, option: c.option }, c.conflictsWith]
+  }
+  return [] // mutex references whole slots, not options — no option pair to check.
+}
+
+/**
+ * Pure checker — returns a list of human-readable problems with a product's
+ * authored constraints; an empty list means the rules are internally consistent.
+ * Detects:
+ *  - **Dangling reference** — a rule points to a slot/option that no longer exists.
+ *  - **Contradiction** — one option both `requires` AND `excludes` the same target.
+ *  - **Unsatisfiable / circular requires** — following the `requires` chain from
+ *    an option forces one slot to two different options at once (e.g. A requires
+ *    B, B requires a *different* option of A's slot), or forces a pair that an
+ *    `excludes` rule forbids. Catches circular requires that make a slot
+ *    impossible to fill.
+ */
+export function validateProductConstraints(product: ConfigurableProduct): string[] {
+  const idx = indexProduct(product)
+  const constraints = product.constraints ?? []
+  const problems = new Set<string>()
+
+  // 1. Dangling references.
+  for (const c of constraints) {
+    if (c.kind === 'mutex') {
+      if (!c.slots.every((s) => idx.slotById.has(s))) {
+        problems.add('A "one of these slots" rule references a slot that no longer exists.')
+      }
+      continue
+    }
+    if (!referencedPairs(c).every((p) => idx.optionExists(p.slot, p.option))) {
+      const verb = c.kind === 'requires' ? 'requires' : 'excludes'
+      problems.add(`A "${verb}" rule references an option that no longer exists.`)
+    }
+  }
+
+  const key = (slot: string, option: string) => `${slot}::${option}`
+  const requires = constraints.filter((c) => c.kind === 'requires')
+  const excludes = constraints.filter((c) => c.kind === 'excludes')
+
+  // 2. Direct contradiction — the same source option requires AND excludes the
+  //    same target option (either excludes direction: A excludes B, or B excludes A).
+  const excludeSet = new Set<string>()
+  for (const c of excludes) {
+    if (c.kind !== 'excludes') continue
+    excludeSet.add(`${key(c.slot, c.option)}::${key(c.conflictsWith.slot, c.conflictsWith.option)}`)
+    excludeSet.add(`${key(c.conflictsWith.slot, c.conflictsWith.option)}::${key(c.slot, c.option)}`)
+  }
+  for (const c of requires) {
+    if (c.kind !== 'requires') continue
+    const forward = `${key(c.ifSlot, c.ifOption)}::${key(c.thenSlot, c.thenOption)}`
+    if (excludeSet.has(forward)) {
+      problems.add(
+        `${idx.ref(c.ifSlot, c.ifOption)} both requires and excludes ${idx.ref(
+          c.thenSlot,
+          c.thenOption,
+        )}.`,
+      )
+    }
+  }
+
+  // 3. Unsatisfiable / circular requires — follow the requires closure from every
+  //    option and check the forced set never conflicts (two options for one slot,
+  //    or a forbidden excludes pair).
+  const excludePairs = excludes.flatMap((c) =>
+    c.kind === 'excludes'
+      ? [
+          [key(c.slot, c.option), key(c.conflictsWith.slot, c.conflictsWith.option)] as const,
+          [key(c.conflictsWith.slot, c.conflictsWith.option), key(c.slot, c.option)] as const,
+        ]
+      : [],
+  )
+  for (const slot of product.slots) {
+    for (const opt of slot.options) {
+      // Forced selection map slotId -> optionId, seeded with this option.
+      const forced = new Map<string, string>([[slot.id, opt.id]])
+      const queue: { slot: string; option: string }[] = [{ slot: slot.id, option: opt.id }]
+      let conflict = false
+      while (queue.length > 0 && !conflict) {
+        const cur = queue.shift() as { slot: string; option: string }
+        for (const c of requires) {
+          if (c.kind !== 'requires') continue
+          if (c.ifSlot !== cur.slot || c.ifOption !== cur.option) continue
+          const have = forced.get(c.thenSlot)
+          if (have !== undefined) {
+            if (have !== c.thenOption) {
+              problems.add(
+                `${idx.ref(slot.id, opt.id)} can't be satisfied: its rules force ${idx.slotLabel(
+                  c.thenSlot,
+                )} to be both ${idx.optionLabel(c.thenSlot, have)} and ${idx.optionLabel(
+                  c.thenSlot,
+                  c.thenOption,
+                )}.`,
+              )
+              conflict = true
+              break
+            }
+          } else {
+            forced.set(c.thenSlot, c.thenOption)
+            queue.push({ slot: c.thenSlot, option: c.thenOption })
+          }
+        }
+      }
+      if (conflict) continue
+      // The forced set must not contain a forbidden excludes pair.
+      const forcedKeys = new Set([...forced].map(([s, o]) => key(s, o)))
+      for (const [a, b] of excludePairs) {
+        if (forcedKeys.has(a) && forcedKeys.has(b)) {
+          problems.add(
+            `${idx.ref(slot.id, opt.id)} can't be satisfied: its required options include a forbidden combination.`,
+          )
+          break
+        }
+      }
+    }
+  }
+
+  return [...problems]
+}

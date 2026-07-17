@@ -45,3 +45,47 @@ out in daylight. You control this with the **Lights** toggle in the toolbar:
 > 2. Set the Lights toggle to **On**.
 > 3. Orbit down to eye level (or switch to [Walk](/walkthrough-and-sun-study)) to
 >    see the lamps glow.
+
+### Turn any item into a light
+
+Not just lamps: select **any** placed piece and tap the **light** icon in the
+inspector header to make it **emit light at night** (tap again to turn it back
+off) — handy for a glowing shelf, a display cabinet, or a feature piece.
+
+**Photometric beams (Pro).** For a light‑emitting item, the inspector's
+**Photometry (IES)** picker drives it with a real luminaire **.ies** beam shape,
+so a downlight or wall‑washer throws the same pool and spread as its real‑world
+fixture.
+
+## Daylight through windows
+
+Two effects shape how the sun enters a room, both automatic:
+
+- **Window glass tint** — a window's **glass tint** colour (set on the window in
+  the [floor‑plan editor](/floor-plan-editor)) can **colour the sunlight** that
+  passes through it, so tinted glazing warms or cools the light it lets in.
+- **Curtains dim the sun** — **draw a room's curtains or blinds** and they
+  attenuate the sunlight coming through that window, softening the interior just
+  like real fabric.
+
+## A live sky in the window (Pro)
+
+In [walk mode](/walkthrough-and-sun-study) you choose what's seen through the
+windows from the **Scene** menu's **Window view (walk mode)** picker (photo
+backdrops are covered in [Navigating](/navigating#the-window-view-walk-mode)).
+**(Pro)** Pick **Sky** there — also on ⌘K as **Backdrop — Sky** — for a
+sun‑driven procedural sky that **tracks your current time of day**, brightening at
+noon and reddening at dusk to match the interior light.
+
+## Furniture in motion
+
+The **Scene** menu's **Motion** toggle animates moving parts — spinning
+**ceiling‑fan blades** and the like — so the flat feels alive; turn it off for a
+still scene.
+
+## Render camera lens (Pro)
+
+When you shoot an [HQ render](/navigating#hq-render), the render dialog exposes
+**focal length**, **aperture (f‑stop)** and **focus** controls, so you can frame
+with a chosen lens and throw the background out of focus with a shallow depth of
+field.

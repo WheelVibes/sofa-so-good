@@ -53,8 +53,10 @@ export function BookStack({ props }: { props: ParamProps }) {
               receiveShadow
               bevel={0.003}
             />
-            {/* Page edges — slightly inset from spine width */}
-            <mesh position={[0, 0, (b.d - 0.003) / 2]}>
+            {/* Page edges — inset from the spine width AND recessed 4 mm behind
+                the cover fore-edge (the cover boards overhang the block), so the
+                page front doesn't sit coplanar with the cover front → no z-fight. */}
+            <mesh position={[0, 0, (b.d - 0.003) / 2 - 0.004]}>
               <boxGeometry args={[b.w - 0.005, b.h - 0.002, 0.003]} />
               <meshStandardMaterial {...(pageMat as object)} />
             </mesh>

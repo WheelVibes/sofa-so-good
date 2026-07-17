@@ -617,6 +617,42 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // tool — biggest win on mobile where WASD/drag-walking across a whole flat
   // is slow (RoomSketcher/Coohom tour parity). Pure code, no external assets
   // → prod-safe; simple tier like its `walkScreens`/`walkLights` siblings.
+  // Pet fittings & furniture catalog category (Pet program). Adds the `pets`
+  // catalog tab — pet beds, safety window/balcony mesh screens, doorway pet
+  // gates, pet-door inserts, playpens (procedural, real-metre, structurally
+  // sound). Pure procedural geometry, no external assets → prod-safe. Placing
+  // pet furniture is part of the core furnish loop (many SG homes have pets;
+  // the window-mesh screen is a Cat-Management-Framework compliance fitting) →
+  // simple tier. When off, the `pets` category is hidden from the catalog.
+  petFittings: {
+    label: 'Pet fittings',
+    description: 'Pet beds, safety window mesh screens, doorway gates, pet doors & playpens',
+    default: true,
+    tier: 'simple',
+  },
+  // Pet profile (Pet program P6): the "Do you have pets?" per-design setting (a
+  // multi-select of the 7 pet types) + the catalog "Essentials" surfacing for the
+  // declared types. Declaring pets tailors the core furnish loop (essentials
+  // surfaced first) → simple tier, present in both modes. Pure procedural, no
+  // external assets → prod-safe. When off, the setting + essentials cue hide.
+  petProfile: {
+    label: 'Pet profile',
+    description: 'Declare your household pets to surface the essentials they need',
+    default: true,
+    tier: 'simple',
+  },
+  // Pet compliance checklist (Pet program P6): the "Pet compliance" panel + ⌘K
+  // command + design-report section — a data-driven checklist of the required /
+  // recommended fittings each declared pet needs (Cat Management Framework window
+  // meshing, litter, dog rest area, …) with have/need counts + citations. An
+  // analytical/advisory review tool → pro tier (hidden in Simple, like the other
+  // Analyse panels). Pure procedural, no external assets → prod-safe.
+  petCompliance: {
+    label: 'Pet compliance',
+    description: 'Checklist of required & recommended fittings for your declared pets',
+    default: true,
+    tier: 'pro',
+  },
   minimapTeleport: {
     label: 'Minimap tap-to-teleport',
     description: 'Click or tap a spot on the walk-mode minimap to move there instantly',
@@ -1390,6 +1426,39 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Filter the catalog by availability, source and favourites',
     default: true,
     tier: 'simple',
+  },
+  // 3D asset designer (GLB designer / Asset Studio). Compose a custom furniture
+  // asset from primitive shapes (+ CSG combine, per-part finishes) and/or start
+  // from an uploaded GLB, then save it into the catalog through the same
+  // export/persist pipeline as an upload. Pure client-side geometry + the
+  // existing GLB export path (no sidecar / licensing) → prod-safe, default on.
+  // A power authoring tool that needs the full-screen canvas → pro tier
+  // (forced off in Simple mode, keeping the casual UI minimal — the ⌘K command,
+  // the catalog "Design" button and the dialog itself all gate on it).
+  glbDesigner: {
+    label: '3D asset designer',
+    description: 'Compose or edit a custom 3D furniture asset from shapes and/or an uploaded GLB',
+    default: true,
+    tier: 'pro',
+  },
+  // Asset Studio Stage 3d — export a designed piece as a configurable product
+  // family (mark part groups as variant slots → a slot-based product). Rides the
+  // existing pure-code configurator (baked GLB options), prod-safe, but a power
+  // authoring surface inside the designer → pro tier (forced off in Simple).
+  assetConfigurableExport: {
+    label: 'Save as configurable product',
+    description: 'Turn a designed asset into a customizable product family (variant slots)',
+    default: true,
+    tier: 'pro',
+  },
+  // Asset Studio Stage 3d — save a multi-piece design as a "set" (each top-level
+  // group becomes its own catalog asset, plus the whole as one). Pure code,
+  // prod-safe; a designer authoring convenience → pro tier.
+  assetSets: {
+    label: 'Save groups as separate assets',
+    description: 'Split a multi-piece design so each group also saves as its own asset',
+    default: true,
+    tier: 'pro',
   },
   profiler: {
     label: 'Profiler',

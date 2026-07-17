@@ -74,17 +74,36 @@ export function Bench({ props }: { props: ParamProps }) {
           const n = Math.max(3, Math.round(depth / 0.09))
           const sd = (depth - 0.04) / n
           const slatMat = getSurfaceMaterial('wood', color, 1.2, sheen)
-          return Array.from({ length: n }, (_, i) => (
-            <mesh
-              key={i}
-              castShadow
-              receiveShadow
-              position={[0, topY, -depth / 2 + 0.02 + sd * (i + 0.5)]}
-              material={slatMat}
-            >
-              <boxGeometry args={[width, 0.04, sd * 0.7]} />
-            </mesh>
-          ))
+          return (
+            <>
+              {/* Two side rails on the leg tops that the slats rest across —
+                  they tie the front/back legs together AND carry the slats
+                  (which otherwise floated ~3 cm above the legs). */}
+              {xs.map((x) => (
+                <BeveledBox
+                  key={`rail${x}`}
+                  castShadow
+                  position={[x, legH + 0.01, 0]}
+                  material={slatMat}
+                  // Slightly NARROWER than the leg (legT) so the rail's side faces
+                  // tuck inside the leg's rather than sitting coplanar with them
+                  // (different woods → z-fight where rail meets the leg top).
+                  args={[legT - 0.008, 0.04, depth - 0.02]}
+                />
+              ))}
+              {Array.from({ length: n }, (_, i) => (
+                <mesh
+                  key={i}
+                  castShadow
+                  receiveShadow
+                  position={[0, topY, -depth / 2 + 0.02 + sd * (i + 0.5)]}
+                  material={slatMat}
+                >
+                  <boxGeometry args={[width, 0.04, sd * 0.7]} />
+                </mesh>
+              ))}
+            </>
+          )
         })()
       ) : (
         <RoundedBox

@@ -74,12 +74,15 @@ const tableAt = (
 describe('round/oval table footprints — dining-table-4', () => {
   const def = BUILTIN_CATALOG['dining-table-4']!
 
+  // The dining table sizes its top off the `seats` enum (DINING_SEAT_DIMENSIONS,
+  // not width/depth), so its footprint tracks seats too: a 4-seater is 1.4 x
+  // 0.85 (bbox half-extents 0.7 x 0.425).
   it('round: frees a corner the bounding box would block', () => {
-    const table = tableAt('dining-table-4', 0, 0, { shape: 'round', width: 1.5, depth: 0.9 })
-    // Bbox half-extents are 0.75 x 0.45; the disc's widest band is only
-    // 0.693 m half-width, so (0.74, 0.4) is inside the bbox corner but clear
+    const table = tableAt('dining-table-4', 0, 0, { shape: 'round', seats: '4' })
+    // Bbox half-extents are 0.7 x 0.425; the disc's widest band at z=0.4 is only
+    // ~0.24 m half-width, so (0.68, 0.4) is inside the bbox corner but clear
     // of every part.
-    const corner = tinyProbeAt(0.74, 0.4)
+    const corner = tinyProbeAt(0.68, 0.4)
     expect(canPlace(corner, tinyProbeDef, ctx([table]))).toBe(true)
     // The single enclosing boxes DO overlap — proving the disc union (not
     // mere distance) is what frees the corner.
@@ -87,21 +90,21 @@ describe('round/oval table footprints — dining-table-4', () => {
   })
 
   it('round: still blocks the centre', () => {
-    const table = tableAt('dining-table-4', 0, 0, { shape: 'round', width: 1.5, depth: 0.9 })
+    const table = tableAt('dining-table-4', 0, 0, { shape: 'round', seats: '4' })
     expect(canPlace(probeAt(0, 0), probeDef, ctx([table]))).toBe(false)
     expect(itemFootprintParts(table, def).length).toBeGreaterThan(1)
   })
 
   it('oval: frees a corner, still blocks the centre', () => {
-    const table = tableAt('dining-table-4', 0, 0, { shape: 'oval', width: 1.5, depth: 0.9 })
-    expect(canPlace(tinyProbeAt(0.74, 0.4), tinyProbeDef, ctx([table]))).toBe(true)
+    const table = tableAt('dining-table-4', 0, 0, { shape: 'oval', seats: '4' })
+    expect(canPlace(tinyProbeAt(0.68, 0.4), tinyProbeDef, ctx([table]))).toBe(true)
     expect(canPlace(probeAt(0, 0), probeDef, ctx([table]))).toBe(false)
   })
 
   it('rect: unchanged single-box behaviour (same corner still blocked)', () => {
-    const table = tableAt('dining-table-4', 0, 0, { shape: 'rect', width: 1.5, depth: 0.9 })
+    const table = tableAt('dining-table-4', 0, 0, { shape: 'rect', seats: '4' })
     expect(itemFootprintParts(table, def)).toHaveLength(1)
-    expect(canPlace(tinyProbeAt(0.74, 0.4), tinyProbeDef, ctx([table]))).toBe(false)
+    expect(canPlace(tinyProbeAt(0.68, 0.4), tinyProbeDef, ctx([table]))).toBe(false)
   })
 })
 
@@ -157,16 +160,10 @@ describe('round/oval table footprints — transforms', () => {
   const def = BUILTIN_CATALOG['dining-table-4']!
 
   it('rotates with the item — a corner freed at yaw 0 is blocked at the swapped axis after 90°', () => {
-    const flat = tableAt('dining-table-4', 0, 0, { shape: 'round', width: 1.5, depth: 0.9 })
-    const rotated = tableAt(
-      'dining-table-4',
-      0,
-      0,
-      { shape: 'round', width: 1.5, depth: 0.9 },
-      Math.PI / 2,
-    )
-    // At yaw 0 the disc's local +X corner (0.74, 0.4) is free.
-    expect(canPlace(tinyProbeAt(0.74, 0.4), tinyProbeDef, ctx([flat]))).toBe(true)
+    const flat = tableAt('dining-table-4', 0, 0, { shape: 'round', seats: '4' })
+    const rotated = tableAt('dining-table-4', 0, 0, { shape: 'round', seats: '4' }, Math.PI / 2)
+    // At yaw 0 the disc's local +X corner (0.68, 0.4) is free.
+    expect(canPlace(tinyProbeAt(0.68, 0.4), tinyProbeDef, ctx([flat]))).toBe(true)
     // After a +90° yaw the local +X axis now points along world -Z, so the
     // *same world point* (0.74, 0.4) is no longer trivially free — but the
     // centre (0,0) stays blocked regardless of rotation (it's the item's own
@@ -224,8 +221,11 @@ describe('round/oval table footprints — transforms', () => {
   })
 
   it('very large round table stays proportionate (no runaway part count/size)', () => {
-    const huge = tableAt('dining-table-4', 0, 0, { shape: 'round', width: 20, depth: 12 })
-    const parts = itemFootprintParts(huge, def)
+    // Uses coffee-table (width/depth-driven) since dining-table-4 now sizes off
+    // its `seats` enum rather than arbitrary width/depth.
+    const cdef = BUILTIN_CATALOG['coffee-table']!
+    const huge = tableAt('coffee-table', 0, 0, { shape: 'round', width: 20, depth: 12 })
+    const parts = itemFootprintParts(huge, cdef)
     expect(parts).toHaveLength(5)
     for (const p of parts) {
       expect(p.hx).toBeLessThanOrEqual(10 + 1e-9)

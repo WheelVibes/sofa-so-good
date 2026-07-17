@@ -90,6 +90,18 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   running uniformly. The lean is keyed by a hash **independent of** each painter's tint stream, so it
   never perturbs the existing value/warmth/phase. Keep it subtle (a larger angle reads as warped
   laminate). Path-A micro-detail (no flag, all tiers); albedo sRGB, normal/roughness linear.
+- **Designer finish texture variants (`finishTextureVariant.ts`, Asset Studio Stage 6c)**: a
+  GLB-designer part with a `mat:<id>` finish can override the texture **tile size** (`finishScale`
+  0.25–4×, larger = coarser, mirroring the `compose:@<scale>` convention → `repeat` divided) and
+  **grain direction** (`finishRotation` 0/90° → `texture.rotation` about centre 0.5). Because the
+  shared finish materials in `furnitureMaterials.ts` OWN their textures across the whole app,
+  `finishTextureVariant(base, scale, rotationDeg)` **clones** the texture and transforms the clone —
+  it MUST never mutate the passed-in source's `repeat`/`rotation`. Variants go through a bounded
+  `LruCache` keyed `(source uuid, scale, rotation)` (max 96, dispose-on-evict — the same AUD-002
+  discipline as `furnitureRepeatCache`) so a slider drag reuses a handful of variants instead of
+  leaking a GPU texture per frame. Applied in `glbEdit/buildObject.ts:buildSurfaceMaterial`'s finish
+  branch (`applyFinishTextureTransform`), which also rotates `anisotropyRotation` where the finish is
+  a `MeshPhysicalMaterial` (brushed metal) so the highlight tracks the visible grain.
 - **Texture anisotropy** (`anisotropy.ts`, RD-401): never hardcode `texture.anisotropy`.
   Route every CanvasTexture creation (and every per-repeat `.clone()`) through
   `applyAnisotropy(tex)` — it stamps the shared cap and tracks the texture. The cap defaults

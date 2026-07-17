@@ -1,6 +1,7 @@
 import { seedGltfFootprint } from '../../furniture/GltfModel'
 import { LOD_TIERS, type LodTier, lodAssetId, registerLodVariants } from '../../furniture/gltf/lod'
 import {
+  type FootprintPart,
   FURNITURE_CATEGORIES,
   type FurnitureCategory,
   type IkeaGltfDef,
@@ -148,9 +149,16 @@ export async function hydrateUserAssets(): Promise<void> {
         noClip: m.meta?.['noClip'] as boolean | undefined,
         finishTargets: safeParse<{ key: string; label: string }[]>(m.meta?.['finishTargets']),
         finishOverrides: safeParse<Record<string, string>>(m.meta?.['finishOverrides']),
+        // Granular footprint decomposition for a non-rectangular baked shape
+        // (configurator L/U sectional). Back-compat: absent on legacy records.
+        ...(() => {
+          const fp = safeParse<FootprintPart[]>(m.meta?.['footprintParts'])
+          return Array.isArray(fp) && fp.length ? { footprintParts: fp } : {}
+        })(),
         ...(typeof m.meta?.['price'] === 'number' ? { price: m.meta['price'] } : {}),
         ...(typeof m.meta?.['byteSize'] === 'number' ? { byteSize: m.meta['byteSize'] } : {}),
         ...(typeof m.meta?.['slotSpec'] === 'string' ? { slotSpec: m.meta['slotSpec'] } : {}),
+        ...(typeof m.meta?.['assetSpec'] === 'string' ? { assetSpec: m.meta['assetSpec'] } : {}),
       })
       // Re-resolve the asset's generated LOD tier siblings (derived keys) and
       // re-register them — blob URLs are session-scoped, so the registry must

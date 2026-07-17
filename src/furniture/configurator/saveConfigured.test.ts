@@ -36,6 +36,7 @@ vi.mock('./gltfSlot', async (importOriginal) => {
   }
 })
 
+import { parseConfiguredSpec } from './configuredPersist'
 import { loadSlotGltfScene } from './gltfSlot'
 import { getConfigurableProduct } from './products'
 import { saveConfiguredAsset } from './saveConfigured'
@@ -63,10 +64,12 @@ describe('saveConfiguredAsset (SLOT-103)', () => {
       'lamp::desk_lamp_arm_01',
       'mattress:cover',
     ])
-    // SLOT-204: the recipe rides on the def for later re-editing.
-    const recipe = JSON.parse(opts.slotSpec as string)
-    expect(recipe.productId).toBe('mattress-frame')
-    expect(recipe.selections.mattress).toBe('m-foam')
+    // SLOT-204: the recipe rides on the def for later re-editing. Since Stage 3a
+    // it's wrapped in the shared versioned envelope (kind 'configured').
+    const recipe = parseConfiguredSpec(opts.slotSpec as string)
+    expect(recipe).not.toBeNull()
+    expect(recipe!.productId).toBe('mattress-frame')
+    expect(recipe!.selections.mattress).toBe('m-foam')
   })
 
   it('omitting the headboard drops its finish target + lowers the price', async () => {

@@ -14,6 +14,7 @@ import { exportGlb } from '../convert/toGlb'
 import type { PersistResult } from '../upload/persist'
 import { persistUserGlb } from '../upload/persist'
 import { buildConfiguredObject, disposeConfiguredObject } from './buildObject'
+import { serializeConfiguredSpec } from './configuredPersist'
 import { type ConfigurableProduct, type ConfiguredSpec, clampConfig, productLabel } from './model'
 
 export async function saveConfiguredAsset(
@@ -36,9 +37,13 @@ export async function saveConfiguredAsset(
     name: display,
     category: product.category,
     footprint: model.bounds,
+    // Granular L/U notch (multi-contribution products only — a single-block
+    // product's one part equals the bbox, so this is a no-op there).
+    footprintParts: model.footprintParts.length > 1 ? model.footprintParts : undefined,
     price: model.price,
     finishTargets,
-    // The recipe rides on the def so a placed product re-opens for editing (SLOT-204).
-    slotSpec: JSON.stringify(clamped),
+    // The recipe rides on the def so a placed product re-opens for editing
+    // (SLOT-204). Wrapped in the shared versioned envelope (Stage 3a).
+    slotSpec: serializeConfiguredSpec(clamped),
   })
 }

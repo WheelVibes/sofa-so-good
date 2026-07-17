@@ -9,7 +9,13 @@ export const ELECTRONICS_DEFS = {
     keywords: ['television', 'telly', 'flat screen'],
     category: 'electronics',
     primitive: 'FlatscreenTV',
-    defaultFootprint: { w: 1.25, d: 0.25, h: 0.85 },
+    // The `size` enum (43"–75" diagonal) drives the live panel dims in the
+    // primitive (16:9 from the diagonal); enums can't feed `footprintParams`, so
+    // the footprint is pinned to the LARGEST size (75" → 1.905 m diag → w ≈ 1.66 m,
+    // stand-top ≈ 1.03 m) — a conservative over-report for smaller sets, never an
+    // under-report that would let a 75" panel clip a wall / neighbour. Depth (0.25)
+    // is the fixed foot-plate depth, size-independent.
+    defaultFootprint: { w: 1.66, d: 0.25, h: 1.04 },
     paramSchema: [
       {
         kind: 'enum',

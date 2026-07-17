@@ -1,5 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import type { BoxInstance } from './InstancedBoxes'
+import { InstancedLeaves, leafJitter, leafTintHex } from './leafFoliage'
 import { readNum, readStr } from './shared'
 
 /**
@@ -25,13 +27,34 @@ export function Aquarium({ props }: { props: ParamProps }) {
 
   const tankY = standH + tankH / 2
   const gravelH = 0.05
-  const waterH = tankH - 0.06
-  const plant = (x: number, z: number, h: number, c: string) => (
-    <mesh key={`${x}-${z}`} castShadow position={[x, standH + gravelH + h / 2, z]}>
-      <cylinderGeometry args={[0.006, 0.02, h, 6]} />
-      <meshStandardMaterial color={c} roughness={0.8} />
-    </mesh>
-  )
+  // Water filled to ~3 cm BELOW the rim (top at standH+tankH−0.03), so the water
+  // surface isn't coplanar with the glass shell top (both transparent → they'd
+  // z-fight/alpha-sort-fight at the exact same height).
+  const waterH = tankH - 0.08
+
+  // Aquatic seagrass: clusters of ribbon blades rising from the gravel. They use
+  // alphaTest (opaque depth writes), NOT alpha blending, so they render
+  // depth-correct INSIDE the tank's transparent glass — no sort-fight/halo.
+  const gravelTop = standH + gravelH
+  const blades: BoxInstance[] = []
+  let bi = 0
+  const seagrassCluster = (cxp: number, czp: number, tall: number, count: number) => {
+    for (let k = 0; k < count; k++) {
+      const a = k * 2.399963 + cxp * 5
+      const rr = 0.01 + (k % 3) * 0.012
+      const h = tall * (0.7 + (k % 4) * 0.12)
+      const lean = 0.08 + (k % 3) * 0.06
+      blades.push({
+        position: [cxp + Math.sin(a) * rr, gravelTop, czp + Math.cos(a) * rr],
+        size: [0.05, Math.min(h, waterH * 0.95), 0.05],
+        rotation: [Math.cos(a) * lean, a, -Math.sin(a) * lean + leafJitter(bi) * 0.1],
+        color: leafTintHex(bi++, 1),
+      })
+    }
+  }
+  seagrassCluster(-w * 0.28, -0.06, 0.3, 7)
+  seagrassCluster(-w * 0.05, 0.07, 0.22, 5)
+  seagrassCluster(w * 0.24, -0.02, 0.34, 8)
 
   return (
     <group>
@@ -39,8 +62,10 @@ export function Aquarium({ props }: { props: ParamProps }) {
       <mesh castShadow receiveShadow position={[0, standH / 2, 0]} material={standMat}>
         <boxGeometry args={[w, standH, d]} />
       </mesh>
-      {/* Stand toe recess shadow line (a thin darker plinth) */}
-      <mesh position={[0, 0.02, d / 2 - 0.005]}>
+      {/* Stand toe recess shadow line (a thin darker plinth) — recessed 7 mm
+          behind the stand front so it reads as a recess AND its front face isn't
+          coplanar with the stand front (opaque z-fight). */}
+      <mesh position={[0, 0.02, d / 2 - 0.012]}>
         <boxGeometry args={[w - 0.04, 0.04, 0.01]} />
         <meshStandardMaterial color="#1c1813" roughness={0.7} />
       </mesh>
@@ -49,7 +74,9 @@ export function Aquarium({ props }: { props: ParamProps }) {
         <boxGeometry args={[innerW, gravelH, innerD]} />
         <meshStandardMaterial color="#b9a888" roughness={0.95} />
       </mesh>
-      {/* Tinted water volume */}
+      {/* Tinted water volume — kept fairly opaque so it reads as a filled tank
+          (a near-transparent tint washes out against a bright window and the
+          tank looks empty). */}
       <mesh position={[0, standH + gravelH + waterH / 2, 0]}>
         <boxGeometry args={[innerW - 0.004, waterH, innerD - 0.004]} />
         <meshStandardMaterial
@@ -57,22 +84,23 @@ export function Aquarium({ props }: { props: ParamProps }) {
           roughness={0.1}
           metalness={0}
           transparent
-          opacity={0.42}
+          opacity={0.7}
         />
       </mesh>
-      {/* Planted stems */}
-      {plant(-w * 0.28, -0.06, 0.22, '#3f7a3a')}
-      {plant(-w * 0.18, 0.05, 0.16, '#4f9244')}
-      {plant(w * 0.26, 0.02, 0.26, '#356b32')}
-      {/* Glass tank shell (drawn last, transparent) */}
+      {/* Planted seagrass (alphaTest — depth-correct behind the glass) */}
+      <InstancedLeaves species="seagrass" color="#3f7a3a" instances={blades} castShadow={false} />
+      {/* Glass tank shell (drawn last). Opacity high enough that the glass box
+          itself reads at every tier — at ~0.18 the walls vanished under the
+          faked IBL and only the black top rim showed, floating over the stand
+          with an empty air gap. metalness 0 avoids a dark mirror-black front. */}
       <mesh position={[0, tankY, 0]}>
         <boxGeometry args={[w, tankH, d]} />
         <meshStandardMaterial
           color="#cfe0e6"
-          roughness={0.05}
-          metalness={0.1}
+          roughness={0.06}
+          metalness={0}
           transparent
-          opacity={0.18}
+          opacity={0.3}
         />
       </mesh>
       {/* Black rim trim at the top of the glass */}

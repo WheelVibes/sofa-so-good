@@ -89,6 +89,11 @@ import {
 } from './slices/orientationSlice'
 import { createPanoTourSlice, PANO_TOUR_INITIAL, type PanoTourSlice } from './slices/panoTourSlice'
 import {
+  createPetProfileSlice,
+  PET_PROFILE_INITIAL,
+  type PetProfileSlice,
+} from './slices/petProfileSlice'
+import {
   createPlacementSlice,
   PLACEMENT_INITIAL,
   type PlacementSlice,
@@ -144,6 +149,16 @@ import {
   USER_ASSETS_INITIAL,
   type UserAssetsSlice,
 } from './slices/userAssetsSlice'
+import {
+  createUserComponentsSlice,
+  USER_COMPONENTS_INITIAL,
+  type UserComponentsSlice,
+} from './slices/userComponentsSlice'
+import {
+  createUserProductsSlice,
+  USER_PRODUCTS_INITIAL,
+  type UserProductsSlice,
+} from './slices/userProductsSlice'
 import { createUserSetsSlice, USER_SETS_INITIAL, type UserSetsSlice } from './slices/userSetsSlice'
 import {
   createUserStylesSlice,
@@ -188,6 +203,8 @@ export interface RootState
     FeaturesSlice,
     StyleClipboardSlice,
     UserSetsSlice,
+    UserProductsSlice,
+    UserComponentsSlice,
     UserStylesSlice,
     RecentSlice,
     CalloutsSlice,
@@ -197,6 +214,7 @@ export interface RootState
     ColorPaletteSlice,
     CameraViewsSlice,
     PanoTourSlice,
+    PetProfileSlice,
     PromptSlice,
     ProjectSlice,
     PriceRulesSlice,
@@ -246,6 +264,7 @@ const INITIAL = {
   ...COLOR_PALETTE_INITIAL,
   ...CAMERA_VIEWS_INITIAL,
   ...PANO_TOUR_INITIAL,
+  ...PET_PROFILE_INITIAL,
   ...PROMPT_INITIAL,
   ...PROJECT_INITIAL,
   ...QUOTE_TEMPLATE_INITIAL,
@@ -253,6 +272,8 @@ const INITIAL = {
   ...STYLE_CLIPBOARD_INITIAL,
   ...USER_SETS_INITIAL,
   ...ISOLATE_INITIAL,
+  ...USER_PRODUCTS_INITIAL,
+  ...USER_COMPONENTS_INITIAL,
 }
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -296,12 +317,15 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createColorPaletteSlice(set, get, api),
   ...createCameraViewsSlice(set, get, api),
   ...createPanoTourSlice(set, get, api),
+  ...createPetProfileSlice(set, get, api),
   ...createPromptSlice(set, get, api),
   ...createProjectSlice(set, get, api),
   ...createQuoteTemplateSlice(set, get, api),
   ...createPriceRulesSlice(set, get, api),
   ...createStyleClipboardSlice(set, get, api),
   ...createUserSetsSlice(set, get, api),
+  ...createUserProductsSlice(set, get, api),
+  ...createUserComponentsSlice(set, get, api),
   ...createIsolateSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }))

@@ -3,6 +3,9 @@ import { useStore } from '../../state/store'
 import { exportGlb } from '../convert/toGlb'
 import type { FurnitureCategory, UserGltfDef } from '../types'
 import { type PersistResult, persistUserGlb } from '../upload/persist'
+import type { AssetEditSpec } from './editSpec'
+import { optimizeSavedGlb } from './saveOptimize'
+import { serializeAssetSpec } from './specPersist'
 
 /** Measured world footprint (m) of a built object, for an accurate
  *  `defaultFootprint`. Returns null for an empty/degenerate object. */
@@ -30,10 +33,24 @@ export async function exportAndSaveAsset(
    *  in place (keeping every placed instance referencing it) instead of adding a
    *  new catalog entry — "save edits back over the original". */
   overwriteId?: string,
+  /** The designer's edit spec — embedded on the saved def (versioned JSON) so
+   *  the asset re-opens editable (Asset Studio S0). Absent → no spec is stored
+   *  (today's behaviour: the def re-opens as a frozen source mesh). */
+  spec?: AssetEditSpec,
 ): Promise<PersistResult> {
-  const buffer = await exportGlb(object)
+  const raw = new Uint8Array(await exportGlb(object))
+  // Stage 6f — route the raw exporter output through the shared optimize pipeline
+  // (weld/dedup/prune + Draco geometry pack + near-lossless WebP texture
+  // re-encode, off the main thread) before persist. Keep-smaller guard inside, so
+  // it can only shrink or no-op; every designer material feature survives the pass
+  // (verified in saveOptimize.test.ts). ~89% on an untextured table, more with
+  // textures.
+  const { data } = await optimizeSavedGlb(raw)
+  // Copy into a fresh ArrayBuffer so the File BlobPart type is unambiguous (a
+  // Uint8Array view can wrap a SharedArrayBuffer in the TS lib types).
+  const bytes = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer
   const safe = (name.trim() || 'Custom asset').replace(/[^\w\- ]+/g, '').slice(0, 60)
-  const file = new File([buffer], `${safe || 'asset'}.glb`, { type: 'model/gltf-binary' })
+  const file = new File([bytes], `${safe || 'asset'}.glb`, { type: 'model/gltf-binary' })
   // Overwrite only a def that actually exists + is a user asset (defensive).
   const overwriting =
     !!overwriteId &&
@@ -44,6 +61,8 @@ export async function exportAndSaveAsset(
     mounted: opts.mounted,
     noClip: opts.noClip,
     footprint: measureFootprint(object) ?? undefined,
+    // Embed the edit spec so this asset re-opens editable in the designer.
+    assetSpec: spec ? serializeAssetSpec(spec) : undefined,
     // Don't auto-register a new def when overwriting — we re-home it under the
     // existing id ourselves so placed instances ride through.
     commit: !overwriting,

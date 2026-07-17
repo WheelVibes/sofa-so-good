@@ -1,0 +1,99 @@
+{
+  "name": "pets-p2",
+  "description": "Pet program Stage P2 (the cat set): a cat corner (cat tree with staggered plush platforms + sisal posts, scratching post, litter concealment cabinet, fabric tunnel) placed on the living-room floor; a wall run of cat wall shelf + steps + bridge at staggered heights; a window perch snapped to a window at the sill (windowBound — asserts snap + sillY); and the modular cat tree opened in the product configurator with a module swapped.",
+  "url": "http://localhost:5232/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "room-editor-active", "waitFor": { "store": "state.roomEditor.active === true" }, "timeout": 8000 },
+    { "name": "wait-room-load", "wait": 2500 },
+    { "name": "dismiss-hints", "eval": "(function(){ const s = window.__store.getState(); s.dismissCallout?.('empty-room-hint'); s.dismissCallout?.('room-editor'); })()" },
+    { "name": "clear-items", "store": { "action": "setItems", "args": [[]] } },
+
+    {
+      "name": "compute-room-anchors",
+      "eval": "(function(){ const st = window.__store.getState(); const fp = st.floorPlan; const room = fp.rooms.find(r => r.id === st.roomEditor.roomId) || fp.rooms.find(r => r.id === 'livingDining'); if (!room) throw new Error('no living/dining room'); const ox = room.origin[0], oz = room.origin[1], W = room.width, D = room.depth; window.__room = { ox, oz, W, D, cx: ox + W/2, cz: oz + D/2 }; const byId = Object.fromEntries(fp.walls.map(w => [w.id, w])); const centre = (o) => { const w = byId[o.wallId]; const dx = w.end[0]-w.start[0], dz = w.end[1]-w.start[1]; const len = Math.hypot(dx,dz); const t = o.offset + o.width/2; return { id:o.id, cx: w.start[0]+dx/len*t, cz: w.start[1]+dz/len*t, nx:-dz/len, nz:dx/len, width:o.width, sill:o.sill, head:o.head }; }; const wins = fp.openings.filter(o => o.kind==='window' && byId[o.wallId]).map(centre); const inRoom = wins.find(w => w.cx >= ox-0.5 && w.cx <= ox+W+0.5 && w.cz >= oz-0.5 && w.cz <= oz+D+0.5); window.__win = inRoom || wins[0]; if (!window.__win) throw new Error('no window opening for the perch'); })()"
+    },
+
+    { "name": "arm-cat-tree", "store": { "action": "setActiveDefId", "args": ["cat-tree"] } },
+    { "name": "drop-cat-tree", "eval": "(function(){ const r = window.__room; window.__store.getState().setGhostWorld([r.ox + r.W*0.32, r.oz + r.D*0.35], true); })()" },
+    { "name": "click-tree", "eval": "(function(){ const c = document.querySelector('canvas'); c.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })); })()" },
+    { "name": "tree-placed", "waitFor": { "store": "state.items.some(it => it.defId === 'cat-tree')" }, "timeout": 5000, "failMessage": "The cat tree should place as a floor item" },
+    { "name": "confirm-tree", "eval": "(function(){ const st = window.__store.getState(); if (st.pendingEdit) st.confirmPendingEdit?.(); })()" },
+
+    { "name": "arm-scratching-post", "store": { "action": "setActiveDefId", "args": ["scratching-post"] } },
+    { "name": "drop-post", "eval": "(function(){ const r = window.__room; window.__store.getState().setGhostWorld([r.ox + r.W*0.55, r.oz + r.D*0.32], true); })()" },
+    { "name": "click-post", "eval": "(function(){ const c = document.querySelector('canvas'); c.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })); })()" },
+    { "name": "post-placed", "waitFor": { "store": "state.items.some(it => it.defId === 'scratching-post')" }, "timeout": 5000, "failMessage": "The scratching post should place" },
+    { "name": "confirm-post", "eval": "(function(){ const st = window.__store.getState(); if (st.pendingEdit) st.confirmPendingEdit?.(); })()" },
+
+    { "name": "arm-litter-cabinet", "store": { "action": "setActiveDefId", "args": ["litter-cabinet"] } },
+    { "name": "drop-cabinet", "eval": "(function(){ const r = window.__room; window.__store.getState().setGhostWorld([r.ox + r.W*0.34, r.oz + r.D*0.62], true); })()" },
+    { "name": "click-cabinet", "eval": "(function(){ const c = document.querySelector('canvas'); c.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })); })()" },
+    { "name": "cabinet-placed", "waitFor": { "store": "state.items.some(it => it.defId === 'litter-cabinet')" }, "timeout": 5000, "failMessage": "The litter cabinet should place" },
+    { "name": "confirm-cabinet", "eval": "(function(){ const st = window.__store.getState(); if (st.pendingEdit) st.confirmPendingEdit?.(); })()" },
+
+    { "name": "arm-tunnel", "store": { "action": "setActiveDefId", "args": ["cat-tunnel"] } },
+    { "name": "drop-tunnel", "eval": "(function(){ const r = window.__room; window.__store.getState().setGhostWorld([r.ox + r.W*0.62, r.oz + r.D*0.6], true); })()" },
+    { "name": "click-tunnel", "eval": "(function(){ const c = document.querySelector('canvas'); c.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })); })()" },
+    { "name": "tunnel-placed", "waitFor": { "store": "state.items.some(it => it.defId === 'cat-tunnel')" }, "timeout": 5000, "failMessage": "The cat tunnel should place" },
+    { "name": "confirm-tunnel", "eval": "(function(){ const st = window.__store.getState(); if (st.pendingEdit) st.confirmPendingEdit?.(); })()" },
+
+    { "name": "frame-corner", "eval": "(function(){ const r = window.__room; window.__store.getState().requestFrameSelection?.({center:[r.ox + r.W*0.45, 0.7, r.oz + r.D*0.47], radius:2.8}); })()" },
+    { "name": "wait-frame-corner", "wait": 1800 },
+    { "name": "deselect-corner", "eval": "window.__store.getState().selectItem?.(null)" },
+    { "name": "shot-01-cat-corner", "screenshot": "01-cat-corner" },
+
+    { "name": "clear-for-wall-run", "store": { "action": "setItems", "args": [[]] } },
+    {
+      "name": "inject-wall-run",
+      "eval": "(function(){ const st = window.__store.getState(); const r = window.__room; const eps = 0.06; const zLine = r.oz + eps; const rot = Math.atan2(0, 1); const at = (fx, mh, defId, extra) => ({ id: defId + '-run', defId, position: [r.ox + r.W*fx, zLine], rotation: rot, props: Object.assign({ mountHeight: mh }, extra || {}) }); const items = [ at(0.28, 0.85, 'cat-wall-steps', { count:4, rise:0.28, run:0.4 }), at(0.58, 1.5, 'cat-wall-shelf', { width:0.5, depth:0.28 }), at(0.8, 1.75, 'cat-wall-bridge', { span:1.0, depth:0.26 }) ]; st.setItems(items); window.__runC = [r.ox + r.W*0.5, r.oz + 0.4]; })()"
+    },
+    { "name": "wait-run-render", "wait": 1400 },
+    { "name": "frame-run", "eval": "(function(){ const c = window.__runC; window.__store.getState().requestFrameSelection?.({center:[c[0], 1.4, c[1]], radius:2.6}); })()" },
+    { "name": "wait-frame-run", "wait": 1800 },
+    { "name": "deselect-run", "eval": "window.__store.getState().selectItem?.(null)" },
+    { "name": "shot-02-cat-wall-run", "screenshot": "02-cat-wall-run" },
+
+    { "name": "clear-for-perch", "store": { "action": "setItems", "args": [[]] } },
+    { "name": "arm-perch", "store": { "action": "setActiveDefId", "args": ["cat-window-perch"] } },
+    { "name": "drop-perch-near-window", "eval": "(function(){ const w = window.__win; const r = window.__room; let ux = r.cx - w.cx, uz = r.cz - w.cz; const l = Math.hypot(ux, uz) || 1; ux/=l; uz/=l; window.__store.getState().setGhostWorld([w.cx + ux*0.4, w.cz + uz*0.4], true); })()" },
+    { "name": "click-perch", "eval": "(function(){ const c = document.querySelector('canvas'); c.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })); })()" },
+    { "name": "perch-committed", "waitFor": { "store": "state.items.some(it => it.defId === 'cat-window-perch') && state.activeDefId === null" }, "timeout": 5000, "failMessage": "The window perch should commit (windowBound snap) and disarm" },
+    {
+      "name": "assert-perch-on-window",
+      "eval": "(function(){ const st = window.__store.getState(); const it = st.items.find(i => i.defId === 'cat-window-perch'); const d = Math.hypot(it.position[0]-window.__win.cx, it.position[1]-window.__win.cz); if (d > 0.001) throw new Error('perch is ' + d.toFixed(3) + 'm from the window centre — not snapped'); const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v)); const expW = clamp(window.__win.width - 0.08, 0.4, 1.4); if (Math.abs(it.props.width - expW) > 1e-6) throw new Error('perch width ' + it.props.width + ' != expected ' + expW); if (Math.abs(it.props.sillY - window.__win.sill) > 1e-6) throw new Error('perch sillY ' + it.props.sillY + ' != window sill ' + window.__win.sill); console.log('perch snapped to window ' + window.__win.id + ' at sill ' + it.props.sillY + ' (d=' + d.toFixed(4) + ')'); })()"
+    },
+    { "name": "exit-for-perch-view", "store": { "action": "exitRoomEditor", "args": [] } },
+    { "name": "wait-orbit-perch", "wait": 2000 },
+    { "name": "focus-perch", "eval": "window.__store.getState().requestFrameSelection?.({center:[window.__win.cx, window.__win.sill - 0.05, window.__win.cz], radius:1.35})" },
+    { "name": "wait-focus-perch", "wait": 1800 },
+    { "name": "deselect-perch", "eval": "window.__store.getState().selectItem?.(null)" },
+    { "name": "shot-03-window-perch", "screenshot": "03-window-perch" },
+
+    { "name": "enable-configurator", "eval": "window.__store.getState().setFeatureFlag?.('productConfigurator', true)" },
+    { "name": "open-configurator", "store": { "action": "setConfiguratorOpen", "args": [true] } },
+    { "name": "configurator-visible", "waitFor": { "css": ".configurator-dialog" }, "timeout": 10000, "failMessage": "Configurator dialog did not appear" },
+    {
+      "name": "select-cat-tree-product",
+      "eval": "(function(){ const tab = [...document.querySelectorAll('.configurator-dialog .tabs .tab')].find(t => (t.textContent||'').includes('Cat tree')); if (!tab) throw new Error('Cat tree (modular) tab not found: ' + [...document.querySelectorAll('.configurator-dialog .tabs .tab')].map(t=>t.textContent).join(' | ')); tab.click(); })()"
+    },
+    { "name": "wait-cat-product", "wait": 900 },
+    { "name": "shot-04-configurator-open", "screenshot": "04-configurator-cat-tree" },
+    {
+      "name": "swap-a-module",
+      "eval": "(function(){ const secs = [...document.querySelectorAll('.configurator-dialog .sec')]; const top = secs.find(s => (s.querySelector('.sec-h')?.textContent||'').includes('Top tier')); if (!top) throw new Error('Top tier slot not found'); const btns = [...top.querySelectorAll('button.btn')]; const active = btns.find(b => b.className.includes('btn-accent')); const target = btns.find(b => !b.className.includes('btn-accent') && (b.textContent||'').trim().length); if (!target) throw new Error('no alternative option to swap to'); window.__before = active ? active.textContent.trim() : ''; target.click(); window.__after = target.textContent.trim(); })()"
+    },
+    { "name": "wait-swap", "wait": 700 },
+    {
+      "name": "assert-swap-took",
+      "eval": "(function(){ const secs = [...document.querySelectorAll('.configurator-dialog .sec')]; const top = secs.find(s => (s.querySelector('.sec-h')?.textContent||'').includes('Top tier')); const active = [...top.querySelectorAll('button.btn')].find(b => b.className.includes('btn-accent')); const now = active ? active.textContent.trim() : ''; if (!now || now === window.__before) throw new Error('module swap did not change the active option (before=' + window.__before + ', now=' + now + ')'); console.log('swapped top tier: ' + window.__before + ' -> ' + now); })()"
+    },
+    { "name": "shot-05-configurator-swapped", "screenshot": "05-configurator-module-swapped" }
+  ]
+}

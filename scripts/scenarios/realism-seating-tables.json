@@ -1,0 +1,80 @@
+{
+  "name": "realism-seating-tables",
+  "url": "http://localhost:5301/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s = window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); })()"
+    },
+    {
+      "name": "place-grid",
+      "eval": "(() => { const s = window.__store.getState(); const items = [ ['sofa-3seat',{}], ['sofa-3seat',{armStyle:'armless'}], ['sofa-2seat',{}], ['sofa-lshape',{}], ['sofa-lshape',{chaiseSide:'left'}], ['dining-chair',{}], ['dining-chair',{style:'upholstered'}], ['office-chair',{}], ['office-chair',{style:'executive'}], ['office-chair',{style:'mesh'}], ['bar-stool',{}], ['bar-stool',{style:'pedestal'}], ['bar-stool',{style:'backed'}], ['bench',{}], ['bench',{style:'storage'}], ['bench',{style:'slat'}], ['armchair',{}], ['armchair',{style:'wingback'}], ['armchair',{style:'tub'}], ['ottoman',{}], ['ottoman',{shape:'square'}], ['ottoman',{shape:'rect'}], ['chaise-lounge',{}], ['dining-table-4',{}], ['dining-table-4',{seats:'8'}], ['dining-table-4',{shape:'round'}], ['dining-table-4',{shape:'oval',seats:'6'}], ['desk',{}], ['desk',{legStyle:'legs'}], ['desk',{legStyle:'hairpin'}], ['coffee-table',{}], ['coffee-table',{shape:'round'}], ['coffee-table',{shape:'oval'}], ['console-table',{}], ['console-table',{style:'drawers'}], ['bar-cart',{}], ['bar-cart',{tiers:3}], ['side-table',{}], ['side-table',{shape:'square'}], ['side-table',{shape:'drum'}] ]; const cols = 8; const dx = 1.5, dz = 2.0, x0 = 1.2, z0 = 1.2; const pos = {}; const list = items.map(([defId, props], i) => { const c = i % cols, r = Math.floor(i / cols); const x = x0 + c * dx, z = z0 + r * dz; const key = defId + ':' + JSON.stringify(props); pos[key] = [x, z]; return { id: 'audit-' + i, defId, position: [x, z], rotation: 0, props }; }); window.__auditPos = pos; s.setItems(list); return list.length; })()"
+    },
+    { "name": "settle", "wait": 1200 },
+    { "name": "shot-overview", "screenshot": "overview" },
+    { "name": "orbit-lower", "drag": { "from": [900, 300], "to": [900, 560] } },
+    { "name": "settle2", "wait": 800 },
+    { "name": "shot-overview-low", "screenshot": "overview-low" },
+    {
+      "name": "frame-lshape",
+      "eval": "(() => { const p = window.__auditPos['sofa-lshape:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.45, p[1]], radius: 1.7 }); })()"
+    },
+    { "name": "settle-lshape", "wait": 900 },
+    { "name": "shot-lshape", "screenshot": "sofa-lshape" },
+    {
+      "name": "frame-office-exec",
+      "eval": "(() => { const p = window.__auditPos['office-chair:{\"style\":\"executive\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.55, p[1]], radius: 0.8 }); })()"
+    },
+    { "name": "settle-office", "wait": 900 },
+    { "name": "shot-office-exec", "screenshot": "office-exec" },
+    {
+      "name": "frame-barstool-ped",
+      "eval": "(() => { const p = window.__auditPos['bar-stool:{\"style\":\"pedestal\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.4, p[1]], radius: 0.7 }); })()"
+    },
+    { "name": "settle-barstool", "wait": 900 },
+    { "name": "shot-barstool-ped", "screenshot": "barstool-pedestal" },
+    {
+      "name": "frame-barcart",
+      "eval": "(() => { const p = window.__auditPos['bar-cart:{\"tiers\":3}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.45, p[1]], radius: 0.8 }); })()"
+    },
+    { "name": "settle-barcart", "wait": 900 },
+    { "name": "shot-barcart", "screenshot": "bar-cart-3tier" },
+    {
+      "name": "frame-dining-round",
+      "eval": "(() => { const p = window.__auditPos['dining-table-4:{\"shape\":\"round\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.4, p[1]], radius: 1.2 }); })()"
+    },
+    { "name": "settle-dining-round", "wait": 900 },
+    { "name": "shot-dining-round", "screenshot": "dining-round" },
+    {
+      "name": "frame-dining-oval",
+      "eval": "(() => { const p = window.__auditPos['dining-table-4:{\"shape\":\"oval\",\"seats\":\"6\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.4, p[1]], radius: 1.4 }); })()"
+    },
+    { "name": "settle-dining-oval", "wait": 900 },
+    { "name": "shot-dining-oval", "screenshot": "dining-oval" },
+    {
+      "name": "frame-console-drawers",
+      "eval": "(() => { const p = window.__auditPos['console-table:{\"style\":\"drawers\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.4, p[1]], radius: 0.9 }); })()"
+    },
+    { "name": "settle-console", "wait": 900 },
+    { "name": "shot-console-drawers", "screenshot": "console-drawers" },
+    {
+      "name": "frame-chaise",
+      "eval": "(() => { const p = window.__auditPos['chaise-lounge:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.4, p[1]], radius: 1.3 }); })()"
+    },
+    { "name": "settle-chaise", "wait": 900 },
+    { "name": "shot-chaise", "screenshot": "chaise-lounge" },
+    {
+      "name": "frame-sidetables",
+      "eval": "(() => { const p = window.__auditPos['side-table:{\"shape\":\"drum\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.35, p[1]], radius: 0.9 }); })()"
+    },
+    { "name": "settle-sidetables", "wait": 900 },
+    { "name": "shot-sidetables", "screenshot": "side-tables" },
+    {
+      "name": "frame-wingback",
+      "eval": "(() => { const p = window.__auditPos['armchair:{\"style\":\"wingback\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.5, p[1]], radius: 0.9 }); })()"
+    },
+    { "name": "settle-wingback", "wait": 900 },
+    { "name": "shot-wingback", "screenshot": "armchair-wingback" }
+  ]
+}

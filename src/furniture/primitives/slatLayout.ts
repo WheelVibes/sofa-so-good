@@ -127,13 +127,29 @@ export function dryingRackCylinders(width: number): BoxInstance[] {
       size: [RACK_RAIL_R, width * 0.8, RACK_RAIL_R],
     })
   }
-  // Top drying bars spanning the two frames.
-  for (let i = 0; i < RACK_BARS; i++) {
-    const z = -RACK_SPREAD / 2 + (RACK_SPREAD * i) / (RACK_BARS - 1)
+  // Top structure spanning the two frames. Two top rails run along X (like the
+  // foot rails) tying each frame's legs at the top; the drying bars proper run
+  // along Z, frame-to-frame, joining the two A-frames into one rigid assembly.
+  // (The bars used to run along X at intermediate Z — parallel to the frames and
+  // touching neither, so the middle bars floated as separate AABB components: the
+  // deferred harness finding. Now every rod connects.) Still 2 rails + 3 bars = 5.
+  const topRailY = RACK_HEIGHT - 0.04
+  for (const z of frames) {
     rods.push({
-      position: [0, RACK_HEIGHT - 0.04, z],
+      position: [0, topRailY, z],
       rotation: [0, 0, Math.PI / 2],
       size: [RACK_BAR_R, width * 0.78, RACK_BAR_R],
+    })
+  }
+  const crossBars = RACK_BARS - 2
+  for (let i = 0; i < crossBars; i++) {
+    const x = (-width * 0.78) / 2 + (width * 0.78 * (i + 1)) / (crossBars + 1)
+    rods.push({
+      position: [x, topRailY, 0],
+      // PI/2 about X turns the unit (Y-axis) cylinder to run along Z, spanning
+      // the frame separation so both ends meet the top rails at z = ±spread/2.
+      rotation: [Math.PI / 2, 0, 0],
+      size: [RACK_BAR_R, RACK_SPREAD, RACK_BAR_R],
     })
   }
   return rods

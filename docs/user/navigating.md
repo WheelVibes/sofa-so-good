@@ -54,6 +54,13 @@ plan‑like hero shots and for judging proportions without perspective
 distortion. Toggling it keeps your current viewpoint, and you still orbit, pan
 and zoom the same way. Turn it off to return to perspective.
 
+### Vertical lock (Pro)
+
+Also in the **View** menu, **Vertical lock** keeps a building's **vertical lines
+parallel** when the camera is pitched up or down, instead of letting them converge
+— the classic two‑point‑perspective look architects use so walls don't appear to
+lean. Great for a clean, upright hero shot.
+
 ## Walk mode
 
 Switch to walk (<kbd>V</kbd>) to feel the real scale of the flat at eye level.
@@ -89,10 +96,10 @@ There's no mouse to capture, so walk mode switches to touch controls:
 You're bounded by the walls — an open door is a gap you can walk through, a
 closed one isn't.
 
-### Camera controls (Pro)
+### Walk camera settings
 
-In **Pro** mode, a small panel appears in the top‑right while you walk with two
-sliders:
+While you're in walk mode, open the **Appearance** popover (top‑right of the
+toolbar) and it grows a **Walk settings** section with two sliders:
 
 - **Field of view** (50°–100°) — how wide a view you see. A lower value zooms in
   (a tighter, more telephoto look); a higher value gives a wide‑angle view that
@@ -102,6 +109,36 @@ sliders:
   and inches if you've set imperial units.)
 
 Both apply instantly and are remembered on your device.
+
+### The window view (walk mode)
+
+What you see through the windows is a **backdrop** you can pick from the **Scene**
+menu's **Window view (walk mode)** picker — a photographic **city / dusk / …**
+panorama that sits realistically beyond the glass. Prefer your own outlook?
+**Upload your own photo** as the window view from the same picker. (For a live,
+time‑of‑day **Sky** backdrop, see
+[Lighting & time](/lighting-and-time#a-live-sky-in-the-window-pro).)
+
+### Enter VR (Pro)
+
+On a supported WebXR headset, **View → Enter VR** drops you into an immersive
+**room‑scale walkthrough** of your flat — look and move around your design at true
+scale in VR.
+
+## HQ render
+
+**File → HQ render** (also on ⌘K as **HQ render (path‑traced)**) produces a
+**photoreal still** of the current view — a progressive path‑traced image that
+refines as it goes, with soft shadows, accurate reflections and realistic light
+bounce. An **AI denoise** pass cleans up the result for a smooth, noise‑free final
+image. (Lens and depth‑of‑field controls are in
+[Lighting & time](/lighting-and-time#render-camera-lens-pro).)
+
+## Before / after reveal (Pro)
+
+**File → Before / after** compares the **empty room** with your **furnished
+design** on a **draggable divider** — slide it across to reveal how far the space
+has come, a compelling way to show off a design.
 
 ## Saved views & presentation (Pro)
 

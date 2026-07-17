@@ -5,6 +5,1860 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.0.2 — User-docs full audit + tracker cleanup
+
+All 16 user-guide pages verified claim-by-claim against source (labels, shortcuts vs
+keybindings.ts, Simple/Pro tiers vs the flag registry, behaviours vs the area CLAUDE.mds).
+10 fixes — headline: a hallucinated browsable "Poly Pizza" library removed
+(placing-furniture), the toolbar menu list corrected to the real View/Scene/Edit/Arrange/
+Tools(Pro)/File set, walk-camera settings re-tiered simple (registry is truth over a stale
+code comment), tone-mapping FAQ corrected to the Auto default, remote-materials Browse
+marked Pro, configurator tabs updated (Bed / Modular sectional / Cat tree) with the ⌘K
+path fixed. Full-repo coverage matrix (158 flags × ⌘K commands × menus): 3 NEW pages —
+Exporting your design, Style helpers & AI, Accounts & cloud sync — registered in the
+sidebar + in-app DOC_PAGES/FEATURE_DOCS (19 pages, 10 new deep links); ~34 missing feature
+entries added across 7 existing pages (arrays/scatter, ceiling design, IES lights, camera
+DoF, curved/sloping walls, quote template, asset credits, wardrobe fit-outs, …), every
+label re-verified. Trackers: TODO.md/TASKS.md cleared of shipped programs (Asset Studio,
+pets, Toolbar UX, empty audit backlogs, retired dead-export plan) per the remove-on-ship
+rule; realism plan header corrected to the true v0.21.2.79–.90 / 58-defect record.
+
+## v0.22.0.1 — CI fix: knip dead-code scan
+
+Un-exported 9 internal-only symbols the new programs left public (petCompliance
+thresholds/kind type, nesting-table helpers, footprintDim, leaf material cache internals,
+coplanarity epsilons) and deleted the genuinely unused `isNestSet`. No behaviour change.
+
+## v0.22.0.0 — PR bump: pets program + furniture realism/expansion programs to staging
+
+Minor bump closing the r10 backlog branch for its staging PR. Carries: the pet-fittings
+program (P1–P6, v0.21.2.70–.78 — SG-compliance fittings, per-pet-type catalog, profile +
+compliance checklist); the furniture realism program (v0.21.2.79–.90 — all 131 defs
+audited, 58 defects fixed incl. 13 latent z-fights, structural-soundness harness with
+attachment + coplanarity CI gates, wood/curtain/appliance coordinated fixes, foliage
+fidelity overhaul); and the catalog expansion E1–E4 (12 new primitives, 14 variant
+families, modular sectional builder, parametric wardrobe fit-out system).
+
+## v0.21.2.90 — Coplanarity (z-fight) gate in the structural harness + 13 fixes
+
+From the aircon lesson (v0.21.2.88 — static frames under-report z-fighting): the harness
+gains a pure `detectCoplanarFaces` sweep across every def × mode. Flags same-normal
+axis-aligned face pairs on the same plane (≤0.3 mm) with ≥4 cm² 2D overlap; abutting
+joints (opposing normals), rotated/round-geometry synthetic AABB faces, same-material
+invisible pairs, and floor-occluded bottoms are refined away in the detector — the
+KNOWN_COPLANAR exemption map ships EMPTY because every residual hit was a real bug.
+Fixed 13: book-stack pages, planter soil-at-rim, pegboard frame edges, display-cabinet
+half glass, shower glass↔tray, bench slat rails, pet-bed bolster, hamster-tank glass
+bottom, aquarium toe strip + waterline, photo-frame backs, gaming-chair bolsters,
+recliner flap tops, sliding-wardrobe panels. 9 new detector unit tests; harness 290/290.
+
+## v0.21.2.89 — Foliage fidelity: proper species leaves everywhere
+
+User directive: plants must have proper leaves, not low-def blobs. New shared modules:
+`leafTexture.ts` (canvas-drawn per-species×colour leaf silhouettes — 10 species, bounded
+LRU) + `leafFoliage.tsx` (curved base-pivot leaf plane, one InstancedMesh per cluster,
+alphaTest materials — depth-correct inside the aquarium glass, seeded per-instance tint,
+pure jitter hash). Rewritten foliage: potted-plant (bush dome / snake blades / pinnate
+palm fronds / fiddle paddles, stand mode kept), hanging + trailing pothos hearts draping
+rims/vines, desk succulent rosette, floor-vase pampas plumes + branch leaves,
+planter-trough shrubs, BOTH aquariums' literal green cones → seagrass blade clusters, and
+the tabletop-decor icosahedron sprig. Leaf counts tier-scaled (Performance modest → High
+lush); every def keeps its existing species enum + leafColor API (visual-only change).
+Structural harness green across all foliage modes (leaves attach at their base to
+stems→trunks→soil); before/after frames reviewed per species at room + closeup range.
+
+## v0.21.2.88 — Aircon louvre z-fighting fix
+
+User-reported: the wall aircon's bottom louvre front face sat EXACTLY coplanar with the
+body's front plane (`bodyD/2 − 0.02` centre + half-depth = `bodyD/2`) — guaranteed
+depth-buffer flicker as the camera moves (the wave-2 audit's static frames under-reported
+it). Louvre moved 4 mm proud of the body front; verified clean at room/mid/close ranges
+on a wall placement.
+
+## v0.21.2.87 — Expansion E4: sectional builder + wardrobe fit-out system — EXPANSION COMPLETE
+
+**Modular sectional builder** (configurator, rides `productConfigurator`): the modular
+sofa rebuilt as a 2-seat armless core + self-terminating end slots (armrest / seat+arm /
+corner / seat+corner) composing 2–6 modules — loveseat, L either way, 4/5/6-module U,
+straight run — with per-section fabric via the finish channels. `composeProduct` now
+emits composite `footprintParts` threaded through persist/IDB/schema (back-compat
+guarded), so an L/U collides with its true concave shape (a coffee table fits inside the
+U). Verified through the real dialog flow (8 compositions). **Parametric wardrobe
+fit-out system** (rides `parametricFurniture`): dedicated `buildWardrobe` with per-bay
+interiors (hang / double-hang / shelves / drawers / shoe rack), sliding/hinged/open
+fronts, bay-driven width; new WardrobeControls; connectivity unit-tested across 45+
+combos via the pure structural helper (baked GLBs aren't primitive-swept). Tail: crib
+`convert: toddler` mode (front drops to a low guard); bistro set as two new defs
+(BistroTable pedestal + FoldingChair scissor legs) + a 'Balcony bistro set' vignette
+(furnitureSets precedent); high-chair grow-modes skipped (no size parametrisation to hook
+— noted). Harness 290 cases green; full suite green (known flake isolated-passed).
+
+## v0.21.2.86 — Expansion E3: recliner, wall/trestle desks, loft bed, lowboy, storage bench, bay daybed, pendant cluster
+
+Six new primitives + two enum absorptions. New: **recliner** (upright/reclined — back
+leans back ~29°, footrest deploys on a visible scissor linkage; forward-growing
+footprintParts, sofa-bed precedent; a recline-direction bug caught in visual review and
+fixed), **wall-desk** (mounted floating / fold-down with drop legs), **loft-bed** (kids —
+raised platform, posts/guardrails/ladder, under-fits open/desk/wardrobe), **trestle-desk**
+(A-frame/H-frame/adjustable pin-hole legs), **storage-bench** (lift-lid blanket box,
+plain/tufted lid, piano hinge), **bay-daybed** (freestanding window bench: drawer base,
+cushion, bolsters). Absorbed as enums per the E1 re-scope: **media lowboy** →
+`tv-console front:'lowboy'` (open centre AV bay flanked by drawer blocks + cable notch —
+numeric width keeps the footprint honest) and **pendant cluster** → `ceiling-light
+arrangement:'cluster'` (3–5 staggered drops, every cord bridging canopy→shade,
+glow/bloom constants untouched, night frame verified). ceiling-light verticalSpan kept at
+the single-pendant default (static span can't track the enum — lowering it made the
+default bathroom pendant falsely collide with the shower; cluster drops noted as
+visual-only extent). All modes harness-covered + frame-reviewed (expansion-e3a/b).
+
+## v0.21.2.85 — Expansion E2: sofa-bed + vitrine + HDB entry/service-yard cluster
+
+Six new primitives (procedural originals, catalog content). Seating: **sofa-bed**
+(sofa/bed fold modes with visible fold seam + retained arms + optional storage drawer;
+props-driven footprintParts pin the BACK edge so unfolding grows the collision box
+forward like a real pull-out). Storage: **display-cabinet** (glazed vitrine —
+full-glass / half / wall styles, optional lit glow strip, wall style FLOOR_EXEMPT per
+the fireplace precedent); **shoe-bench** (cushioned seat over cubby/flip shoe rows);
+**wall-hook-rail** (mounted, J-hooks or Shaker pegs socketed into the board);
+**pegboard** (mounted, real hole-grid via a new bounded-LRU canvas texture
+`pegboardTexture.ts` + kits: shelf+hooks/hooks/cups); **utility-cabinet** (full-height
+broom cupboard, single/double + panel/louvre doors — louvre slats via InstancedBoxes,
+proud fronts with reveals). All modes harness-covered (EXTRA_STRUCTURAL_MODES) and
+frame-reviewed (expansion-e2a/b scenarios); prices + keywords wired.
+
+## v0.21.2.84 — Expansion E1: 12 variant families + exact enum footprints
+
+Tier-1 expansion (procedural originals, catalog content — no new flags): wall-shelf
+floating/picture-ledge/corner styles; side-table nesting sets of 2–3; new bar-table def
+(counter/bar height, DiningTable reuse); bar-stool step/kitchen modes; office-chair
+gaming bucket; armchair swivel tub; new drawer-pedestal def (castors/chest, Dresser
+reuse); nightstand size presets; ottoman knitted pouffe; potted-plant raised stand;
+wardrobe corner L-layout (props-driven footprintParts — also fixes the straight-width
+under-report) + mirror doors (tier-aware); gaming desk (cable tray, riser, black-steel
+frames). Every new mode passes the structural-soundness harness (EXTRA_STRUCTURAL_MODES
+extension covers second structural enums) + per-frame scenario review (expansion-e1a/b).
+Infra: the 6 inline footprintParams copies consolidated into
+`furniture/footprintDims.ts:resolveFootprintDims`, which now parses numeric-STRING enum
+values — so the nightstand `size` enum ('0.38'/'0.45'/'0.6') drives collision EXACTLY
+(no largest-mode pinning; fixes bedroom-set/defaultLayout/autoArrange overlaps the
+pinned footprint caused). Prices/keywords updated.
+
+## v0.21.2.83 — Realism wave 4: coordinated pass + pets/others — AUDIT PHASE COMPLETE
+
+Coordinated cross-cutting fixes, all A/B-verified on real GPU: furniture wood retuned
+calm (furniture-only coarsen 0.5 + softened relief in getSurfaceMaterial/
+getFurnitureMatWithRepeat; `wood` token waver/rings/normalScale gentled, dark-tint-safe;
+floor grain byte-unchanged); curtain panels get a 0.16 m standoff via windowFixtureProps
+(clears the ~0.14 m sill projection that poked through fold troughs; exact-snap d=0
+contract untouched); appliance finish toggle visually verified at Performance + High (no
+stale carcass — v0.21.2.81 fix confirmed); fireplace defaults to the floor `console`
+style (wall stays the mount-height alternative, flatscreen-tv precedent); planter-trough
+dead footprintParams dropped. Wave 4B: staircase OK all 4 styles (L-shape railing fix
+holds visually); 8 artifact-prone pets items spot-checked attachment-sound; aquarium-stand
+tank opacities matched to the wave-3A decor aquarium fix (was a black box with floating
+rim). **All 131 parametric defs now audited** for scale/attachment/artifacts/fidelity with
+the structural-soundness harness as a permanent gate; 45 defects fixed across waves 1–4.
+
+## v0.21.2.82 — Structural-soundness harness + realism wave 3 (decor/lighting/textiles/outdoor/kids)
+
+New permanent regression gate `primitives/structuralSoundness.test.tsx` (+ pure union-find
+helper + unit tests; devDep @react-three/test-renderer): renders every parametric def
+headless, extracts per-mesh world AABBs (incl. per-instance InstancedMesh decomposition),
+and asserts one ε-connected part graph (8 mm) + floor contact for floor-anchored defs —
+264+ cases across all 131 defs × structural enum modes, ~12 s. It caught 21 real
+attachment bugs the visual audits missed, all fixed: bar-cart guard rail/push handle,
+round coffee-table stretcher, office-chair back bracket, bench slat rails, outdoor-chair
+back stile, high-chair tray arms, changing-table corner posts, crib base board, cube-shelf
+boxes, garment-rack garments, wardrobe hanging rail, arc floor-lamp bulb, cove-light
+strip, wall-sconce arm, wall-tapestry dowel, linear ceiling-light canopy bar; plus 5
+deferred: shower riser/head arm grounded to tray, freestanding-tub tap seated on rim,
+drying-rack bars reoriented frame-to-frame (instancing kept), bird-cage tripod feet +
+perch sockets, L-staircase double-rotation railing fragmentation. Wave 3 audit (44 defs):
+42 pass; fixed aquarium glass/water opacity (read as black cabinet with floating lid) and
+tabletop-decor missing noClip. Intentional multi-piece pieces are escape-hatched with
+written reasons. New cross-cutting notes queued: curtain-sill standoff, fireplace
+wall-mode mounted flag, planter-trough dead footprintParams.
+
+## v0.21.2.81 — Cross-cutting: appliance finish-swap reconciliation + TV footprints
+
+MAT-004b rebuilt as a single representation: `applianceBodyMaterial(color, finish)`
+returns ONE cached Material for every finish (steel → shared brushed metal; matte/gloss →
+shared painted material with the byte-identical preset), always on the mesh `material=`
+prop across all 8 steel-bodied appliances — the old steel-on-prop vs matte-as-child split
+didn't reconcile on inspector finish swaps and left a stale white carcass (confirmed via
+browser probe in wave 2A). Regression tests prove the material instance changes on swap.
+flatscreen-tv/tv-wall `defaultFootprint` pinned to the largest (75") size option (enums
+can't feed footprintParams — conservative over-report, dog-crate precedent).
+src/furniture/CLAUDE.md MAT-004b note rewritten. Needs a later visual spot-check of the
+finish toggle on both tiers (queued in wave 4).
+
+## v0.21.2.80 — Realism wave 2: kitchen/appliances/bathroom/laundry/electronics
+
+28 defs audited with the hardened rubric (attachment verified per joint — closeups +
+coordinate math; user directive). 19 passed. Fixed — bathroom: toilet seat ring rendered
+VERTICAL (no X-rotation; rebuilt as flat seat + lid, cistern seated on the bowl's back
+shelf instead of cantilevered), bathtub's solid top occluded the basin (rebuilt: open rim
+walls + recessed water + deck mixer + grounded feet), round mirror frame lay flat as a
+horizontal halo slicing the pane, sink mixer floated ~4 cm off the vanity deck, shower/
+sink fittings routed through shared metalLeg, towel-ladder towels thickened to read
+edge-on. Kitchen: range-hood duct read as a corner-forward diamond (proper trapezoidal
+frustum), kitchen-island sink was a solid box clipping the worktop (recessed stainless
+basin + curved spout, worktop framed around the cutout), wine-cooler carcass occluded its
+interior (open-front shell — glass now reveals wire shelves/bottles/LED). Cross-cutting
+bugs logged for the coordinated pass: appliance finish swap-in-place leaves a stale white
+body (applianceBody material-prop vs child reconciliation, all 8 steel appliances);
+flatscreen-tv footprint doesn't track the size enum; shared oak grain (wave 1 note).
+Scenarios realism-kitchen-appliances / realism-bath-laundry-electronics added.
+
+## v0.21.2.79 — Realism wave 1: seating/tables/beds/storage audit + fixes
+
+New program (docs/furniture-realism-plan.md): audit all 131 parametric defs against a
+4-point rubric (scale vs real dims, physics/structure, z-fighting, fidelity) in 4 waves,
+then expand variants/categories; ikea_optimized/ is the dimension reference (dev-gated,
+never bundled). Wave 1 (32 defs, all frames reviewed at profile angles): 27 passed as-is.
+Fixed: dining-table-4 collision footprint now derives from the `seats` enum via a shared
+`diningSeatDims.ts` (a 6/8-seater rendered up to 2.2 m wide over a ~1.5 m box) + the round
+pedestal's column↔foot gap closed; console-table drawer pulls floated ~5 cm off the
+recessed band (now proud of the real front); side-table 3-leg variant routed through the
+shared leg material; tv-console drawer/door fronts were buried inside the carcass
+(featureless slab + floating handles — now proud faces with shadow-gap reveals); coat-rack
+tripod feet sank through the floor (re-modelled splay, grounded). Cross-cutting note
+logged: the shared oak grain reads busy on large panels — global retune queued, not
+per-def. Scenarios `realism-seating-tables`/`realism-beds-storage` added.
+
+## v0.21.2.78 — Pets P6: pet profile + compliance checklist
+
+"Do you have pets?" per-design setting (`petProfileSlice`, 7 pet types; rides the save
+schema like `location` — optional/omit-empty field + autosave watch key, no version bump)
+with a chip selector in the Scene menu (desktop + mobile). New pure
+`analysis/petCompliance.ts` (data-driven PET_RULES mirroring hdbCompliance): per selected
+pet type, required/recommended/info entries with done/partial/missing statuses and AVS/CMF
+citations — the cat meshing rule counts mesh screens against the plan's actual windows
+("N of M windows meshed"). Two flags: `petProfile` (simple — setting + catalog essentials:
+required defs badged ESSENTIAL and sorted first in the pets tab) and `petCompliance` (pro —
+"Pet compliance" panel via Tools/⌘K with per-row Add CTA jumping the catalog to pets, plus
+a report section riding the `report` flag). New `Icon.Pets` paw glyph;
+`pendingCatalogCategory` session signal for the Add CTA. Both-modes flag tests, slice/
+persistence round-trip, exhaustive checker tests; scenario `pets-compliance.json` frames
+verified (partial → all-done statuses, essentials badging, mobile sheet).
+
+## v0.21.2.77 — Pets P5: presets, room-aware surfacing, showcase + P2–P4 review fixes
+
+Program-closing stage. Keyword curation (compliance fittings match every pet type they
+serve; coverage-matrix test); pets tab ordered compliance-first then per-pet clusters;
+balcony room kind (the classifier's bucket for balconies AND service/utility yards)
+surfaces `pets` second in the room-aware catalog landing; new user docs page
+(`docs/user/pet-fittings.md`: CMF meshing/≤5 cm/31 Aug 2026, HDB 1 dog/≤2 cats, placement
+how-tos); showcase scenario `pets-showcase.json` (pet-ready 4-room flat: mesh screens on
+all windows, gated kitchen doorway, cat wall run + tree, litter in the service yard) —
+frames verified. P2–P4 adversarial review fixes: CatTunnel TubeGeometry disposed on param
+change/unmount (leak); configurator gates pets products on `petFittings`
+(`visibleConfigurableProducts`, tested both flag states); CatTree tiers=2 house/perch
+interpenetration fixed (house needs a middle tier) + perch kept within declared height;
+dog-crate/aquarium-stand footprints pinned to the largest enum size (enum dims can't feed
+footprintParams — conservative over-report, never under-report); cat-wall-steps footprint
+honest for the default run. Pet-fittings program (P1–P5) complete.
+
+## v0.21.2.76 — Pets P4: birds, small pets, fish
+
+Six defs for the remaining pet types (pets category, keyworded by pet): bird cage
+(dome/rect shapes, stand/tabletop mounts, S/M via BIRD_CAGE_SIZES, seed tray + perches),
+bird play gym (tray/uprights/ladder/rings), rabbit hutch (two-zone: enclosed pitched-roof
+sleeping box + open wire run, default 135×60×90), C&C small-pet pen (gridsX×gridsY over
+the 0.36 m grid cell, coroplast liner), hamster tank (glass ≥100×50 at M, floor/stand
+base, mesh lid, wheel + hideout), aquarium stand (steel frame + MDF cabinet, tank
+0.6/0.9/1.2 m with water/gravel/plants; ~300 kg load rating surfaced via a new optional
+`FurnitureDefBase.description` rendered in the inspector). Scenario `pets-p4.json` frames
+verified (aquarium glass/water reads, dome cage bars converge cleanly, hutch two-zone
+visible); user docs gain For birds / For small pets / Aquariums.
+
+## v0.21.2.75 — Pets P3: the dog set
+
+Six dog items (pets category, 'dog' keywords): dog crate (XXS-M researched dims via
+CRATE_SIZES; wire cage vs SG furniture side-table styles), orthopedic bed (distinct new
+primitive — judgment recorded vs extending pet-bed), raised feeding station (1-2 steel
+bowls), sofa ramp/steps (carpet tread, optional rails), noClip gel cooling mat (quilted,
+S/M), woven toy bin. Scenario `pets-p3.json` frames verified (furniture crate reads as
+furniture, wire as cage, ramp reaches seat); defs/prices tests extended.
+
+## v0.21.2.74 — Pets P1 review fixes
+
+Four verified findings: doorBound fixtures offset off the wall centreline (gate z+0.045,
+insert z+0.03 — clear of the 5 cm closed door leaf, no z-fight, snap contract intact);
+auto-arrange now classifies any windowBound/doorBound def as 'mounted' (class-level fix +
+explicit ids) so snap fixtures are never relocated as rugs; mesh-grid/sisal texture caches
+bounded (LRU 24, dispose-on-evict) with per-param clone disposal in all four consumers;
+favourites' remote/shared branches honour includePets.
+
+## v0.21.2.73 — Pets P2: the cat set
+
+Eight cat items (pets category, 'cat' keywords): parametric cat tree (2-5 staggered tiers,
+sisal-read posts via shared `sisalTexture.ts`, optional house/top perch, structurally sound),
+wall shelf + diagonal step run + slatted bridge (mounted/mountHeight), scratching post
+(vertical/angled/pad), litter box (open/covered/top-entry at researched dims) + ventilated
+litter concealment cabinet, window perch (windowBound at sill height via a new
+windowFixtureProps branch + sillY prop), fabric cat tunnel (straight/S), and a modular
+cat-tree configurator product (3 tier slots, hammock-requires-platform constraint).
+Scenario `pets-p2.json` 60 steps green (cat corner / wall run / perch snap d=0 /
+configurator swap frames verified); 117 targeted tests.
+
+## v0.21.2.72 — Pets P1: pets category + SG compliance fittings
+
+Foundations + the Singapore-differentiating fittings: new `pets` FurnitureCategory (paw tab,
+all exhaustive Record sites; pet-bed migrated from decor, id unchanged); `petFittings` flag
+(simple tier) gating the tab; **window/balcony mesh screen** (`windowBound`, canvas-grid
+alpha texture reading as ≤5 cm CMF safety mesh); **NEW `doorBound` placement plumbing**
+(`placement/doorSnap.ts` mirroring windowSnap, threaded through controller/ghost/plan editor)
+carrying a doorway **pet gate** + **pet-door insert**; freestanding **playpen** (4–8 panels).
+Scenario `pets-p1.json` (60 steps): exact-snap asserts (d=0.0000 to window/door centres),
+mesh-read + doorway-span frames verified; both-modes flag tests; doorSnap unit tests.
+
+## v0.21.2.71 — Asset Studio Stage 12 — face-choice tufting & plump
+
+The plump crown + tuft dimples + button/stitch decals can now sit on ANY box face, not just the
+top — the upright chesterfield backrest / sofa-arm case the showcase had no way to build.
+
+- **Face axis (`parts[].plumpFace`: `top` | `front` | `back` | `left` | `right`).** A single pure
+  **coordinate-frame permutation** (`tufting.ts` `FaceFrame`) wraps the EXISTING crown/dimple/lattice
+  math — the chosen face's outward axis becomes the crown axis, its two in-plane axes the lattice
+  plane. One helper feeds all of `plumpVertexDelta` / `tuftButtonPositionsXZ` / stitches / decal
+  placement (positions AND normals follow the face frame); the crown/dimple/lattice functions are
+  never forked. `top` / absent is the **identity permutation → byte-identical** to the pre-Stage-12
+  output. All five faces shipped (the axis permutation generalises to ±X/±Z trivially).
+- **Stitch roll on any face** — the thread's decal rotation is the signed angle from the face's
+  reference direction to the local button-to-button direction; reduces EXACTLY to the top-face
+  `-atan2(Δz, Δx)` and generalises. Verified empirically against the real `decalOrientation` (the
+  transform the renderer + GLB export use) across all five faces.
+- **UI** — a compact **Face** `Segmented` (Top/Front/Back/Left/Right) in the Plump/Tufting section,
+  shown when a box is plumped; switching it regenerates the tuft decals in one undo step.
+- **Wrinkle normals follow the face for free** — the fabric wrinkle map is per-face in UV space
+  (corner-gathering keys on each face's own UV corners), so it already applies to the plumped face
+  with no change (verified in the scenario).
+- **Clone/mirror carry the face** — an X-mirror swaps `left`↔`right`, a Z-mirror `front`↔`back`
+  (`mirrorPlumpFace`); combined with the existing decal-local flip the cloned tuft buttons land
+  exactly on the mirrored face's dimples (proven by test). Duplicate/array carry the face verbatim.
+- **Plumbing** — envelope **additive within v14** (an older build ignores the unknown field; an
+  older spec has none → `top`, byte-identical), strict validation of the face value. Templates left
+  functionally unchanged; the Stage-12 scenario proves the showcase **Sofa frame** backrest CAN now
+  tuft its upright front face. Scenario `scripts/scenarios/glb-designer-stage12.json`; tests for the
+  permutation math, default-top byte-identity, mirror semantics, and envelope round-trip.
+
+## v0.21.2.70 — Pet fittings program: research + staged plan
+
+New user goal (2026-07-17): SG pet compliance fittings (Cat Management Framework window/
+balcony meshing mandate, HDB small-breed dog rules), annoyance-fixers, and per-pet-type
+furniture — procedural, to-scale, fully customizable. Research (regulations + dimensions +
+CC0 verdict: procedural is the route) and vehicle mapping (parametric primitives; windowBound
+for mesh screens; NEW doorBound plumbing for gates; configurator for modular pieces; new
+`pets` category) distilled into `docs/pet-fittings-plan.md` (P1 compliance → P5 presets).
+Docs only.
+
+## v0.21.2.69 — Asset Studio iteration 8 plan
+
+Stage 12 (face-choice tufting/plump — the showcase's recorded upright-backrest gap). Docs only.
+
+## v0.21.2.68 — Asset Studio Stage 11b follow-up — actionable findings fixed
+
+The two ACTIONABLE findings from the Stage-11b showcase integration build (v0.21.2.67), fixed +
+tested. The remaining findings stay recorded (face-choice tufting is a future axis; `Save asset`
+auto-close is accepted UX).
+
+- **Grouped-member face snapping now engages (finding 1).** Dragging a part that belongs to a
+  `PartGroup` gave plain grid snap only — no face snap against its siblings, exactly where a
+  template user wants it (cushions inside the `Sofa frame` group). The member's mesh + `position`
+  field are **group-local**, but the snap targets were world AABBs, so `snapFaces` was mixing
+  frames. Fix: the drag now runs entirely in the member's **group-local frame** — every target's
+  world centre is pulled into that frame via the new pure
+  `glbEdit/groupTransform.ts:worldToGroupLocalPosition` (the exact inverse of
+  `groupedPartWorldPosition`), so a same-group sibling maps back to its own local position and an
+  outside/ungrouped part to its localised centre. A same-group sibling abut and a member-vs-outside
+  abut both engage; the live snap hint is lifted back to world so it lands on the real faces. Wired
+  through the live drag session (`beginPartDrag`/`applyLivePartDragSnap`/`liveDrag`), the
+  `__glbDesignerPrecision.drag` seam (`faceSnapPartPosition`), and the `mergeEngagedSnap` commit —
+  an ungrouped drag is byte-identical (its frame IS world).
+- **Tuft stitch thread is now TONAL (finding 5).** Stitch decals defaulted to a fixed light tint
+  (`#efe9dc`), reading as bright chalk dashes on dark velvet. `glbEdit/tufting.ts:tuftStitchDecals`
+  now derives the default stitch colour from the host part's own colour via the new pure
+  `materials/colorHarmony.ts:tonalContrast` — WCAG `relativeLuminance` (reused from
+  `analysis/imagePalette.ts`) picks the direction (darken ~25 % for a light host, lighten ~20 % for
+  a dark host), keeping the host's hue + saturation and moving only lightness. Stitches on oxblood
+  velvet read as a lighter thread of the same colour; on pale linen as a subtle shadow line. Users
+  still override per-decal via the colour field; no host colour → the previous light default.
+- **Showcase scenario precision phase now exercises the real magnet.** `precision-abut-seats` drops
+  cushion 1 four mm short of flush and lets the group-local face magnet abut it to its sibling
+  (fine grid so quantisation can't leave the 8 mm band), then asserts the committed X differs from
+  the raw proposed X — the flush-abut assertion it previously had to work around is restored.
+- **Tests + gates.** New pure tests: `dragSnapSession.test.ts` (grouped member abuts a sibling AND
+  an outside part flush at every grid step, honest localised distance), `colorHarmony.test.ts` +
+  `tufting.test.ts` (tonal derivation direction/hue-preservation/override). `tsc` + `biome` +
+  `knip` clean; scenarios `glb-designer-showcase.json` + `glb-designer-stage10c.json` re-run green
+  (improved chesterfield frame: `03-precision-abut` + the diamond-tuft frames now read as thread).
+
+## v0.21.2.67 — Asset Studio Stage 11b — showcase integration build (shipped-with-findings)
+
+Scripted end-to-end integration build of a complete catalog-quality **chesterfield sofa** in the
+GLB Asset Designer, exercising as many Asset Studio systems as compose naturally in ONE session, and
+proving the whole asset round-trips and lands in the real flat. Ships as a permanent integration
+regression scenario (`scripts/scenarios/glb-designer-showcase.json`, run with `SHOT_GPU=1`) plus a
+findings list. No product source touched — this is a verification deliverable.
+
+- **The build (9 phases, 109 steps, 11 frames).** (1) Insert the **Sofa frame template** with tuned
+  ergonomic sliders (1.70 × 0.92 m, seat 0.44 m). (2) **Materials** — the whole piece (cushions +
+  arms + backrest) upholstered in one consistent oxblood **velvet** (KHR_materials_sheen); the four
+  tapered legs given an **oiled-wood clearcoat** (KHR_materials_clearcoat); cushions plumped 0.7.
+  (3) **Precision** — the two seat cushions placed flush via the gizmo drag seam. (4) **Diamond
+  tufting + stitch lines** on both seat cushions via the real inspector UI (Stage 7c/10c). (5)
+  **Piping** welts traced round each seat-cushion perimeter (Stage 5). (6) **Studio vs Room IBL**
+  preview (Stage 8a), same pose. (7) **Save** through the optimize-on-save path — the persisted
+  assetSpec envelope embeds every system (14 parts, 1 group, 38 decals). (8) **Restore** the saved
+  def's editable parts from a clean reopened session — part/group/decal counts survive the
+  persistence round-trip EXACTLY (14/1/38). (9) Close the designer and **place** the sofa in the
+  flat's Living/Dining room at **High** quality — the money shot, the custom chesterfield living
+  alongside the flat's existing furniture.
+
+- **Integration findings (reported, not fixed — a concurrent agent owns the geometry/profile source):**
+  - **Face-to-face magnetic snapping (Stage 6d) does not engage on a grouped MEMBER** — and every
+    template cushion is a member of the wrapping `Sofa frame` group, exactly where a user building
+    from a template most wants it. The `__glbDesignerPrecision.drag` seam committed the raw position
+    verbatim (no auto-snap) on a cushion; the scenario works around it by computing the exact flush
+    target and placing numerically. (Documented behaviour per the 6d/7b notes, but a real usability
+    gap for the template-first flow — a member ought to snap to its siblings.)
+  - **The plump/tuft system is TOP-FACE only**, so a true chesterfield's *vertical* backrest
+    diamond-tufting isn't expressible — tufting a back cushion would dimple its thin top edge, not
+    the visible front face. The diamond lattice can only be applied to the horizontal seat cushions
+    (which is what the scenario does). A future "tuft on a chosen face" axis would unlock upright
+    tufted backs/arms.
+  - **Tuft stitch lines read as high-contrast light dashed lines** on dark velvet (the stitch
+    decal's default tint), closer to a dashed sketch than sewn thread up close. Cosmetic — a
+    darker/tonal stitch colour default would read more like real thread.
+  - **A material pass that keys only on the velvet sheen preset leaves the sofa half-finished** —
+    the template's arms/backrest are plain `FABRIC` boxes WITHOUT the cushions' velvet sheen, so an
+    early pass that filtered on `sheen>0` recoloured only the cushions and left the arms grey.
+    Tuned within the scenario (key on the template's `#8a8f98` FABRIC tag instead) so the whole
+    piece is one consistent velvet — noted as guidance for any future "recolour the upholstery"
+    automation.
+  - **`Save asset` auto-closes the designer** — so a same-session re-edit/restore must reopen it
+    (the scenario reopens for the restore round-trip, which incidentally makes it a stronger
+    from-storage proof). Not a bug, but a non-obvious flow the scenario documents.
+  - **Placing at exact room-centre overlaps the flat's existing default furniture** (coffee table /
+    default sofa cluster at the L/D centroid); `addItem` does no collision check so it lands anyway.
+    A scenario placement choice, not a product defect — the custom sofa still reads clearly.
+  - **Headless orbit-drag can swing the room-editor camera off the room into empty space if it's the
+    first camera move** — zoom (wheel) first, then orbit, keeps it inside the scene (playbook note
+    added).
+
+## v0.21.2.66 — Asset Studio Stage 11a — curved profiles (per-point smoothing)
+
+ProfileEditor points gain a per-point **smooth/sharp** flag: the polyline is expanded through
+smooth points with a uniform **Catmull-Rom** curve (~8 samples per curved segment) while sharp
+points stay exact corners, so a lathe vase / bowl / extrude outline / loft cross-section reads as
+one continuous curve instead of a faceted polygon. The whole geometry layer is untouched.
+
+- **Representation.** The smooth flag rides the point tuple as an optional THIRD element —
+  `[x, y, 1]` is a smooth point, `[x, y]` a sharp corner. One representation travels with the point
+  through every editor add/remove/drag and through clone/persist with no parallel array to keep in
+  sync. `ProfilePoint` widened to `[number, number, number?]`; the spec fields
+  `profile`/`outline`/`loftBottom`/`loftTop`/`sweepPathPoints` carry it.
+- **Pure helper.** `furniture/glbEdit/shapeProfiles.ts:smoothProfile(points, {closed, subdiv})`
+  (+ `isSmoothPoint`) expands smooth points via uniform Catmull-Rom; the tangent at a SHARP
+  endpoint is clamped to itself so the curve leaves/arrives straight (corner preserved) while still
+  passing through EVERY original point. `closed` wraps the tangents for extrude outlines + loft
+  cross-sections; open profiles (lathe, sweep path) clamp their endpoints. Applied in
+  `buildObject.ts` BEFORE the existing dedupe/resample/geometry stages, so lathe/extrude/loft/
+  sweep-path all benefit with **zero geometry-code changes**. An all-sharp profile is the identity
+  → every pre-11a spec builds byte-identically.
+- **UI.** `ProfileEditor` renders smooth points as **circles**, sharp as **squares**; the drawn
+  preview shows the real **curve** (not the control polygon); a point toggles smooth/sharp via
+  **double-tap** or the curve/corner button. The `closed` flag is threaded through `ProfileSpace`
+  so the preview matches the built geometry.
+- **Presets.** `vase` + `bowl` (lathe) belly points are now smooth (the ogee sweep section already
+  used bezier curves). `turned-leg`/`tapered-leg`/`column` stay all-sharp.
+- **Persistence.** Envelope bumped to **v14** (`isVec2` relaxed to accept the optional third
+  element; migration is the identity — a v13 blob has only `[x, y]` points and loads unchanged).
+
+## v0.21.2.65 — Asset Studio iteration 7 plan
+
+Stage 11a (curved profiles) + 11b (showcase integration build) appended to the plan. Docs only.
+
+## v0.21.2.64 — iteration-6 review fixes
+
+Two verified findings from the closing review: `PartsPreview`'s material memo now depends on
+the srcRef resolve epoch (a late-resolving textured part no longer keeps its flat placeholder
+material after the geometry arrives), and the mobile designer's dense icon-row hit areas cap
+horizontal expansion at -2px (a symmetric -9px overlapped ~32px-pitch neighbours by ~12px,
+stealing taps).
+
+## v0.21.2.63 — Asset Studio Stage 10c — Chesterfield (diamond) tufting
+
+The Stage-7c rectangular tuft grid gains the classic **diamond (Chesterfield) lattice** plus
+optional **stitch lines**, so a plumped box cushion can read as a real buttoned-and-piped
+chesterfield. Pure geometry in `furniture/glbEdit/tufting.ts` (three-free, unit-tested); the
+spec type + validator carry the new fields additively **within envelope v13** (no bump).
+
+- **Diamond pattern.** `TuftGrid` gains `pattern: 'grid' | 'diamond'` (absent → `grid`,
+  byte-identical migration). Diamond offsets every odd row by half a column (edge-clamped to the
+  inset window) — `tuftButtonPositionsXZ` applies the shift, and the plump gaussian dimples follow
+  the shifted button points through the same `ry²·cos·cos` falloff (the four seam corners stay
+  pinned in both patterns).
+- **Stitch lines.** A new `stitches: boolean` on the tuft config generates tagged `stitch` line
+  decals along the connections between adjacent buttons — the diagonal lattice for `diamond`,
+  orthogonal neighbours for `grid` (`tuftStitchPairs`). Each line is centred between its two buttons
+  and rolled to the connection angle (the Stage-5 decal `rotation` field: a top-face decal's long
+  axis lands at `atan2(z,x) = −rotation`). Bounded by `TUFT_STITCH_MAX` (80; a 6×6 grid is ≤60,
+  diamond ≤55). Buttons + stitches regenerate together (`tuftDecals`) and are both tagged `tuft`,
+  so editing rows/cols/depth/pattern/stitches replaces only the generated decals — user-placed
+  decals are never touched. Clone/mirror carry the grid + its decals as before.
+- **Inspector.** The Tufting section adds a **Pattern** segmented control (Grid / Diamond) and a
+  **Stitch lines** toggle (`PartInspector.tsx`), replacing the old "rectangular grid only" hint.
+- **Plumbing.** `parts[].tuft.pattern`/`.stitches` are additive optional fields the `isTuftGrid`
+  validator already tolerated, so they ride **within v13** (strict-validated when present:
+  `pattern ∈ grid|diamond`, `stitches` boolean) — the same within-version judgment as `srcRef.fp`;
+  no v14 migration needed. A Stage-7c grid tuft loads unchanged.
+- **Tests.** `tufting.test.ts` (diamond offset/clamp/count, corner-pinned dimples, stitch pair
+  counts + caps, midpoints/angles/tagging, `setTuftGrid` regeneration on pattern/stitches change) +
+  `specPersist.test.ts` (diamond round-trip within v13, grid-tuft back-compat, rejects a bad
+  pattern / non-boolean stitches). Visual `scripts/scenarios/glb-designer-stage10c.json` (SHOT_GPU:
+  a velvet plumped cushion with diamond tufting + stitches; toggle back to grid; save/restore).
+
+## v0.21.2.62 — Asset Studio Stage 10b — mobile designer UX pass
+
+The full-screen GLB Asset Designer dialog owns its own layout (not a bottom-sheet) and had
+shipped with **zero** mobile CSS. Audited at 390×844 with `SHOT_TOUCH=1`
+(`scripts/scenarios/glb-designer-mobile-audit.json`, before/after screenshots) and fixed in the
+UI layer only — mobile-scoped rules in `src/styles/responsive.css` + class hooks on the viewport
+overlays in `DesignerViewport.tsx`; desktop rendering is untouched (`body.mobile`/`:has`-gated).
+
+- **Panel no longer clipped.** The centered-modal padding (`28px 8px` at ≤960px) fought the
+  designer's inline `width:100vw`/`height:100dvh`, overflowing the padded centred overlay grid so
+  content ran off the right edge (view presets, snap select, Combine seg) and the app peeked
+  through top-left. `.modal-overlay:has(> .glb-designer) { padding: 0 }` makes the full-bleed
+  editor fill the viewport.
+- **Viewport overlays reflowed for narrow widths.** The six floating clusters (gizmo mode · pivot ·
+  snap · view presets · dims · env) got `.dv-ov` class hooks; on mobile each is capped at
+  `calc(50vw - 10px)` with horizontal scroll (a left and a right cluster can never overlap/overflow)
+  and the second row drops below the now-taller first — no more mid-line collision at 390px.
+- **44px touch targets throughout.** Floating seg switches + the snap toggle/step select grow to
+  44px; block form controls (selects, inputs, add-shape tiles) get `min-height: 44px` (overriding
+  the smaller inline heights on the filter/rename/snap inputs); dense row-action icon buttons
+  (layers rename/dup/remove/ungroup, ProfileEditor add/remove, inspector) keep their compact size
+  but gain a 44px **hit area** via `::after { inset: -9px }` (the repo's `.m-sheet-head` pattern) so
+  a 5-button group row doesn't blow its width.
+- **Preview given more room.** The mobile split rose from `0 0 38vh` to `0 0 44vh`.
+- **Verified, no fix:** the iOS focus-zoom guard (boot-time global `maximum-scale=1`) already
+  covers the portaled designer's inputs; ProfileEditor points already have 44px hit circles +
+  `touch-action: none`; gizmo-vs-orbit on touch is handled by drei's `TransformControls`.
+- **Regression leg** `scripts/scenarios/glb-designer-mobile.json` (`SHOT_VIEWPORT=390,844
+  SHOT_TOUCH=1`): open → tap-add Box → tap-select layer row → numeric-edit size → open Templates
+  disclosure → arm + insert a Coffee table → save end-to-end, screenshot at each step. All real taps.
+
+## v0.21.2.61 — Asset Studio Stage 10a — decomposed-part texture fidelity (srcRef source materials)
+
+A part decomposed from a GLB source keeps a `srcRef` pointer instead of inlined triangles
+(Stage 9a), but until now its material was flattened to colour/roughness/metalness only — a
+textured sofa's leg decomposed to a **flat brown box**. Stage 10a keeps the SOURCE mesh's real
+PBR material, so a decomposed part renders + exports with the source's actual maps. Pure
+glbEdit material path — the spec stores **nothing new** (textures live in the runtime source,
+the whole point of refs).
+
+- **Texture capture through the srcRef cache** (`srcRefCache.ts`): each resolved cache entry now
+  also holds ONE cloned source `MeshStandardMaterial` carrying the source mesh's
+  map/normal/roughness/metalness/ao + their transforms/colorSpace. The clone SHARES the texture
+  instances (only the material object is cloned — never a texture image), so the cache mints one
+  material per entry and nothing per-frame; disposed on evict/reset. New
+  `getCachedSrcRefMaterial(ref)` (drift-`fp`-checked like the geometry accessor).
+- **Source-material render/export path** (`srcRefMaterial.ts` → `buildObject.ts:partMaterials`):
+  a resolved srcRef part builds its material from the cached source clone (textures shared),
+  applying the part's own fields as OVERRIDES — colour multiplies onto the map (the `tint:`
+  idiom, so the captured colour = verbatim, a recolour tints), roughness/metalness override the
+  source scalar. A `mat:<id>` **finish** REPLACES the source textures (returns null → the
+  standard finish path wins, unchanged). Baked-inline (procedural) decompose parts are untouched.
+- **Reset to source look** (`srcRefMaterial.ts`): pure `srcRefSourceLook` /
+  `srcRefPartHasOverride` / `resetSrcRefPartToSourceLook` back the inspector's "reset overrides"
+  affordance (clears finish/variant/gradient + restores colour/roughness/metalness to source).
+- **Export + optimize survival**: a srcRef-textured part bakes the source `baseColorTexture` into
+  the exported GLB (real GLTFExporter round-trip test) and survives the Stage-6f WebP/Draco
+  optimize pass (new case in `saveOptimize.test.ts`). **Component fragments** of a textured srcRef
+  part keep fidelity automatically (the ref resolves at placement).
+- Tests: `srcRefTexture.test.ts` (capture / one-material-per-entry / verbatim / tint-keeps-map /
+  finish-replaces / override-detect + reset / procedural-unaffected / export round-trip / fragment
+  fidelity) + the saveOptimize case. Visual: `scripts/scenarios/glb-designer-stage10a.json`
+  (SHOT_GPU) — a saved oak-finish box decomposes via srcRef with the **wood grain intact** beside
+  a flat-colour control, then tint + reset.
+
+## v0.21.2.60 — Asset Studio iteration 6 plan
+
+Stage 10a (decomposed-part texture fidelity), 10b (mobile designer UX pass), 10c
+(chesterfield tufting) appended to `docs/asset-studio-plan.md`. Docs only.
+
+## v0.21.2.59 — Asset Studio Iteration 5 review — srcRef drift safety + component decal capture
+
+Two verified iteration-5 review findings on the Stage 9a/9b decompose-and-reuse path.
+
+- **srcRef cache staleness + mesh-drift safety** (`furniture/glbEdit/srcRefCache.ts`,
+  `decompose.ts`, `state/slices/userAssetsSlice.ts`). A GLB-decompose `srcRef` resolved its
+  geometry from a per-def module cache keyed by `defId::meshIndex` — but the cache was never
+  invalidated when a def was replaced/removed, and a ref carried no way to tell whether the mesh
+  it points at is still the SAME mesh. Two-part fix: (a) **eviction** — `evictDefSrcRefs(defId)` is
+  now called from `removeUserFurniture` / `replaceUserFurniture` / `addManyUserFurniture` (alongside
+  the existing `evictGltfAsset`), so a replaced GLB's stale geometry is dropped and re-resolved
+  cleanly. (b) **drift detection** — `decompose` now captures a cheap fingerprint
+  (`${meshCount}:${meshName}:${vertexCount}`) on each `srcRef`; `srcRefCache` recomputes it from the
+  CURRENT source scene at resolution and, on mismatch, resolves to `null` (a placeholder box, never
+  the wrong mesh). The designer's **restore** flow now runs a post-resolution drift pass
+  (`isSrcRefDrifted`) that drops mismatched refs with the existing honest-degradation toast. The
+  fingerprint is an additive optional field WITHIN envelope v13 (the strict validator tolerates it;
+  a legacy v13 spec has no `fp` and resolves exactly as before).
+- **componentFragment dropped decals** (`furniture/glbEdit/componentFragment.ts`). A saved
+  component captured only a group's parts, not the decals projected onto them — so a **tufted**
+  group lost its buttons (the part's tuft grid and its tagged button decals are a pairing). The
+  `ComponentFragment` now carries `decals[]` (component envelope kind bumped **v1 → v2**, legacy v1
+  fragments still parse — additive identity migration): `captureGroupFragment` captures the group
+  parts' decals (a decal whose partId isn't in the group is excluded), and `insertComponentFragment`
+  re-ids them onto the freshly-cloned parts (new `editSpec.appendRemappedDecals`), so the tuft
+  pairing survives a save + place. `dropUnresolvableComponentParts` keeps only the surviving parts'
+  decals.
+
+## v0.21.2.58 — Asset Studio Stage 9b — component building blocks (selective extraction + user components; closes Iteration 5)
+
+Two ways to reuse existing geometry in the GLB designer, building on Stage 9a's decompose.
+
+- **Selective extraction — "grab the legs"** (`furniture/glbEdit/decomposeSelect.ts`, pure +
+  unit-tested). The SourcePanel "Make parts editable" section gains a second action, **"Choose
+  parts to insert…"**, that decomposes the picked def and shows a part-granular picker: each
+  top-level group as a "select all" row followed by its indented member rows, then loose parts
+  (checkboxes, default-all). **"Insert selected parts"** adds ONLY the chosen meshes **alongside**
+  the current design (offset on +X like a template insert — it does **not** replace, unlike 9a's
+  full-replace "Make parts editable", which stays the default action). Fresh part/group ids
+  (duplicate-id safe), `srcRef`s kept verbatim; a source group survives only when every member is
+  chosen (a partial pick drops to loose parts). One undo step.
+- **User components** (`furniture/glbEdit/componentFragment.ts` + `state/slices/userComponentsSlice.ts`).
+  A **"Save as component"** action on a selected transform group (GroupInspector) captures its parts
+  as a small `ComponentFragment` (srcRefs preserved → GLB-decompose parts carry no geometry) and
+  persists it per-device to `localStorage` (`hdb_user_components`, the `userProductsSlice`
+  metadata pattern — fail-loud on a failed write). Saved components appear in the Components panel
+  under **"My components"** with the same arm → click-a-face-to-place flow as built-in fittings
+  (shared `componentPlace` math, `'floor'` mount default); a small **×** deletes one behind a
+  `confirmAction` (a re-creatable reusable thing — confirm, no undo). A group whose serialized
+  fragment exceeds **256 KB** is refused at save with an honest hint (only a baked-`mesh` member
+  inlines enough triangles to hit it). Placing a component whose `srcRef` def is gone drops those
+  parts with a toast (reuses 9a's `dropUnresolvableSrcRefParts`).
+- **Plumbing:** new spec-envelope kind **`'component'` v1** (`furniture/specEnvelope.ts`) via the
+  shared registry. Tests: `decomposeSelect.test.ts`, `componentFragment.test.ts`,
+  `userComponentsSlice.test.ts`. Scenario `scripts/scenarios/glb-designer-stage9b.json` (grab the
+  dining-chair legs onto a slab top → frankenstein table; save/place/delete a "My leg" component).
+  Rides the existing `glbDesigner` pro flag (no new flag).
+
+## v0.21.2.57 — Asset Studio Stage 9a — any furniture as an editable template (envelope v13)
+
+"Make parts editable" on **any** catalog item — a built-in procedural primitive (the ~110-shape
+vocabulary), a user upload, a shared-library asset, or a pack item — decomposes it into editable
+designer parts + groups (one undo step, opt-in beside the frozen-source flow). Each source mesh
+becomes a frozen `mesh` `ShapePart` (the CSG-bake representation), meshes sharing a top-level named
+child are wrapped in one `PartGroup` mirroring the source hierarchy, and each mesh's material
+colour/roughness/metalness is captured. Decomposed parts behave exactly like CSG-baked mesh parts —
+translate/rotate gizmo, recolour, group/duplicate/mirror, combine, face-snap/arrange off their
+bounds — and the exported GLB always bakes real geometry.
+
+- **Decompose core** (`furniture/glbEdit/decompose.ts`, pure three math — unit-tested): `decomposeObject`
+  bakes each mesh's world transform (relative to the decompose root, so it's invariant to where the
+  root sits) into its geometry, re-centres it on its bbox (position = the centre, no rotation), and
+  emits one part per mesh + a group per multi-mesh top-level child. `InstancedMesh` (procedural
+  `InstancedBoxes`) de-instances one-to-one up to a **64-instance cap**; beyond it every instance
+  merges into ONE baked part (documented). A **150k-triangle budget** flag (`overBudget`) surfaces a
+  size hint — decompose always completes, never hangs.
+- **Spec-size strategy — REFERENCE parts.** A **procedural** decompose bakes geometry inline (small).
+  A **GLB** decompose emits `parts[].srcRef` (`{ defId, meshPath }`) INSTEAD of arrays — resolved
+  lazily via `srcRefCache.ts` (SEC-1 loader → mesh by index → baked+centred geometry, cached per def,
+  a resolve epoch re-renders the preview). At SAVE the export bakes the resolved real geometry into
+  the GLB; the stored spec keeps the small refs. On restore, a `srcRef` whose source def is gone is
+  **dropped with a toast** (honest degradation) via `dropUnresolvableSrcRefParts`.
+- **UI:** SourcePanel grows a **"Make parts editable"** section — a grouped, all-catalog picker
+  (Built-ins / My uploads / Shared library / Packs) + a button; the existing frozen-source
+  "Start from" path stays the default. A procedural def renders offscreen (`decomposeHost.tsx`, a
+  hidden on-demand `<Canvas>` mirroring the thumbnail host) since primitives have no pure builder.
+- **Persistence:** envelope **v12 → v13** (`specPersist.ts`) — additive identity migration + strict
+  `srcRef` validation. Older v12 specs load unchanged.
+- **Tests:** `decompose.test.ts` (part/group counts, leg lands at the leg position, root-transform
+  invariance, ref mode, instance cap de-instance/merge, budget flag), `srcRef.test.ts` (v13
+  round-trip/migration/reject, cache resolution, missing-def degradation, real GLTFExporter →
+  GLTFLoader GLB round-trip → decompose → resolve). Scenario `scripts/scenarios/glb-designer-stage9a.json`.
+  Rides the existing `glbDesigner` pro flag; no new feature flag.
+
+## v0.21.2.56 — Asset Studio iteration 5 plan
+
+User direction: existing furniture (incl. shared-library assets) as editable templates, and
+selective mesh extraction as building blocks. Stage 9a/9b appended to
+`docs/asset-studio-plan.md`. Docs only.
+
+## v0.21.2.55 — Asset Studio Stage 8b — taper deformer (box/extrude splayed sides, envelope v12)
+
+The GLB Asset Designer gains a **Taper** slider on solid **box** and **extrude** shapes — the
+common furniture case of a shape whose top narrows relative to its base: splayed carcass sides,
+tapered plinths/pedestals, A-frame legs. Forms a lathe/loft can't express on a rectangular
+footprint. Plan: `docs/asset-studio-plan.md` Iteration 4 · Stage 8b.
+
+- **`taper` field + `applyTaper` deformer** (`glbEdit/taper.ts`, pure) — a single 0…1 factor
+  scaling the cross-section linearly along one axis so the face at the axis maximum is `1 − taper`
+  of the face at the minimum. **Box tapers along Y** (the +Y top face shrinks in X/Z);
+  **extrude tapers along Z** — the extrude/depth axis (the +Z front cross-section shrinks in X/Y
+  toward the outline centroid; only the depth axis leaves a full face at one end and a shrunk face
+  at the other). Runs after geometry construction, recomputes normals so the sloped sides shade
+  correctly, and leaves UVs untouched. A directional / wedge-like taper is deliberately out of
+  scope (one symmetric shrink factor).
+- **Interplay** (`taperable`): taper **composes with** the corner **bevel** (a rounded tapered
+  box/planter) **and** box per-face **finishes** / edge-banding (the in-place vertex transform
+  keeps a plain `BoxGeometry` a `BoxGeometry`, so the six-face group remap is unaffected — verified
+  and allowed). It is **hidden / not applied** for a **hollow (`shell`)** box/extrude or a
+  **plumped/tufted** box (each assumes a constant footprint the taper would break); the inspector
+  shows a one-line hint there.
+- **Inspector** — a **Taper** slider next to Corner radius for eligible parts ("Taper (top)" on a
+  box, "Taper (front)" on an extrude), 0 = None. The move/scale gizmo is unaffected (taper is
+  intrinsic geometry, not a transform).
+- **Plumbing** — duplicate/mirror carry the value; spec **envelope v11 → v12** additive migration
+  (identity) + a finite-`taper` validation guard, so old saves load unchanged with straight sides.
+- Tests: `taper.test.ts` (top-face extent = (1 − taper) × bottom, finite normals, UVs intact,
+  bevel+taper composes, extrude Z-axis taper, the `taperable` gate matrix, `partGeometry`
+  integration incl. faceFinishes-composes + shell-gated) + `specPersist.test.ts` v12
+  round-trip/migration/reject. Visual verification: `scripts/scenarios/glb-designer-stage8b.json`
+  (tapered box pedestal, tapered+bevelled planter, tapered extrude; save/restore v12).
+
+## v0.21.2.54 — Asset Studio Stage 8a — designer preview environment (Studio rig / Room IBL)
+
+The GLB Asset Designer viewport gains a **preview-environment toggle** (a small Studio / Room
+Segmented, bottom-right of the preview) so finishes can be judged under representative lighting.
+Plan: `docs/asset-studio-plan.md` Iteration 4 · Stage 8a.
+
+- **Studio (default)** — the fixed 3-light rig (ambient + hemisphere + key), byte-identical to the
+  pre-Stage-8a viewport. No look change out of the box.
+- **Room** — the app's procedural Lightformer image-based-lighting probe, scoped to the designer
+  canvas (`DesignerEnvironment.tsx`), with a single dimmed key kept for shadow grounding and the
+  ambient/hemisphere fill dropped so physical finishes (sheen / clearcoat / transmission /
+  anisotropy) respond against the environment the way they do when the asset is placed in a room —
+  velvet sheen glows, chrome reflects, glass transmits. The Lightformer set is a documented local
+  copy of `scene/lighting/SceneEnvironment.tsx` (that RD-409 bloom-lock-step main-scene component is
+  never touched or imported); it renders `frames={1}` inside the `frameloop="demand"` canvas and
+  invalidates a frame on toggle so the one-shot probe bake always lands.
+- **Per-device preference** (`previewEnvPref.ts`, localStorage `hdb_designer_preview_env`, the
+  grid-snap-pref pattern — NOT part of the design save schema): the choice survives reloads.
+- Tests: `previewEnvPref.test.ts` (defaults / round-trip / garbage fallback / type guard). Visual
+  verification: `scripts/scenarios/glb-designer-stage8a.json` (velvet cushion + chrome lathe + glass
+  extrude, Studio vs Room same pose).
+
+## v0.21.2.53 — Asset Studio Iteration 3 · review fixes (snap authority, combine details, dropped rules, hung-worker reclaim)
+
+Six iteration-3 review findings closed; no user-facing feature added — correctness + honesty fixes
+across the GLB Asset Designer + optimize pipeline. Plan: `docs/asset-studio-plan.md` Iteration 3
+(marked complete-with-review).
+
+- **Live-vs-commit snap divergence at coarse grid steps (finding 1).** When a live face-snap was
+  ENGAGED at drag end, the flush position now wins over grid quantisation: `endPartDrag`/`endGroupDrag`
+  capture the engaged-axis state + flush position from the drag session and hand it to
+  `commitGizmoDrag`/`commitGroupGizmoDrag`, which commit the flush value VERBATIM on each engaged axis
+  (grid rounding applies only to the NON-snapped axes) via the new pure
+  `gizmoWriteBack.ts:mergeEngagedSnap`. Previously the commit grid-quantised the flush position THEN
+  re-derived the face snap, so at a coarse 5 cm step the re-derivation could miss the 8 mm engage band
+  and commit a non-flush value that diverged from the live preview. The committed value now equals the
+  live-shown flush at EVERY grid step. Scenario `glb-designer-stage7b` gains a 5 cm-step phase (wall at
+  x=0.52 → flush centre 0.12, off-grid) asserting the commit lands flush (0.12), not grid-rounded
+  (0.10); unit-tested in `gizmoWriteBack.test.ts`.
+- **Decals/tufting on combine-consumed parts (finding 2).** A part folded into a combine is consumed
+  by the baked result, so its per-part surface details can't project onto it — they were silently
+  dropped at bake. Now `editSpec.ts:addCombineGroup` PRUNES a member's decals + clears its `tuft`
+  field as the part joins the combine (one undo step; ungroup does NOT resurrect them), the
+  PartInspector hides the Tufting section for a combine member with a hint ("Combines hide surface
+  details — bake or ungroup first"), and decal placement onto a combine member is refused with the
+  same hint instead of dropping silently.
+- **Silently-dropped constraint rules (finding 3).** `exportConfigurable` now surfaces every rule the
+  plan would drop (dangling / same-slot target) in a confirm dialog BEFORE the bake (author can
+  cancel), via the new `ExportPlan.droppedRules` (from the shared `classifyRules` pass). Ungrouping a
+  transform group prunes stale assignment rules pointing at the removed group
+  (`designerExport.ts:pruneAssignmentRules`) so the panel never shows a rule pointing at nothing. The
+  dead product-level `pruneProductConstraints` was removed — its self-heal logic now lives at the
+  authoring layer where the dangling reference originates.
+- **Hung-worker reclamation (finding 4).** The optimize worker pool (`optimize/runOptimize.ts`) gains
+  a per-job watchdog (`JOB_TIMEOUT_MS` = 30 s, just above `saveOptimize`'s 20 s caller race): a worker
+  that never answers is terminated, its pending jobs fail-soft to `null` (callers keep the raw GLB),
+  and it's dropped so a fresh worker respawns lazily — a normal fast job just arms + clears one timer.
+  `saveOptimize`'s doc comment updated to match. Tested with a never-responding fake worker.
+- **NUL-byte map key (finding 5).** `constraints.ts` internal key separator changed from a literal
+  `\0` to `::` (matching the file's other keys) — the file diffs as text again.
+- **Dead biome suppression (finding 6).** Removed the no-longer-triggering `noArrayIndexKey`
+  suppression in `MakeConfigurablePanel.tsx`.
+
+## v0.21.2.52 — Asset Studio Iteration 3 · Stage 7d — slot-constraint authoring for configurable exports
+
+The GLB Asset Designer's "Make configurable" flow gains per-option **compatibility-rule authoring**:
+an author can declare `requires` / `excludes` rules between options of different slots, and the
+exported product family enforces them automatically (invalid combos become unpickable / auto-resolve).
+Reuses the configurator's existing `SlotConstraint` model + `clampConfig` enforcement — no parallel
+constraint system. Behind the existing `assetConfigurableExport` pro flag; no persistence/envelope
+change (a `ConfigurableProduct` already persists its `constraints`). Plan:
+`docs/asset-studio-plan.md` Iteration 3 Stage 7d.
+
+- **Authoring model reuses the configurator's exact vocabulary.** Each exposed option (a `PartGroup`
+  assigned a slot) carries `rules: { kind: 'requires' | 'excludes'; target: <group id> }[]` on its
+  `GroupAssignment`; `configurator/designerExport.ts:mapRulesToConstraints` maps them into the
+  existing `model.ts` `SlotConstraint` (`requires`/`excludes`) at plan time — an option id IS its
+  group id and a slot id IS its slot key, so the mapping is exact — and carries them onto
+  `ConfigurableProduct.constraints`. Only **cross-slot** targets are emitted (a same-slot or
+  non-exposed/base target is meaningless and dropped). `ConfiguratorDialog`'s existing `clampConfig`
+  makes invalid combos auto-resolve end-to-end (pick Glass top → Legs auto-flip to Steel).
+- **Compact per-option Rules UI** (`ui/glbEditor/MakeConfigurablePanel.tsx`): a "Rules" `Disclosure`
+  under each exposed option, each rule a kind Select (requires/excludes) + a cross-slot target Select
+  (labelled "<slot> · <option>") with add/remove; only options in OTHER slots are offered.
+  `controls/Disclosure` gained an optional `style` prop for the nested indent.
+- **Validation** (`configurator/constraints.ts`, pure + unit-tested): `validateProductConstraints`
+  returns human-readable problems — **contradiction** (an option both requires AND excludes the same
+  target), **unsatisfiable / circular requires** (the requires closure forces one slot to two options
+  at once, or forces a forbidden excludes pair), and **dangling** references. Export validates a cheap
+  product SHELL BEFORE the expensive GLB bake and **blocks with a toast** naming the first problem.
+  `pruneProductConstraints` drops constraints referencing a removed slot/option (+ warnings) so a
+  stale rule self-heals rather than crashing `clampConfig`.
+- **Persistence**: constraints live in the exported product (`userProductsSlice` path unchanged);
+  re-export via the stable `spec.exportedProductId` preserves/updates rules; **re-edit seeding** —
+  `restoreSpec` reconstructs the panel's assignments (slot / label / price / **rules**) from the
+  matching user product via `reconstructAssignments`, pruning any rule whose target group was deleted.
+- **Tests**: constraint mapping designer→product + `reconstructAssignments` round-trip
+  (`designerExport.test.ts`); `validateProductConstraints`/`pruneProductConstraints` cases — ok,
+  contradiction, circular, dangling (`constraints.test.ts`); `clampConfig` integration (a requires
+  rule flips the dependent slot). Scenario `scripts/scenarios/glb-designer-stage7d.json`.
+
+## v0.21.2.51 — Asset Studio Iteration 3 · Stage 7c — tufting generator + more archetypes
+
+The GLB Asset Designer gains **one-tap tufting** on plumped cushions plus four new archetype
+templates (bench, bar stool, floating shelf, bathroom vanity). Behind the existing `glbDesigner`
+pro flag; spec envelope **v10 → v11** (additive). Plan: `docs/asset-studio-plan.md` Iteration 3
+Stage 7c.
+
+- **Tufting** (`furniture/glbEdit/tufting.ts`, pure + unit-tested): a `TuftGrid { rows, cols, depth }`
+  (1–6 × 1–6, depth 0…1) on a plumped **box** does two coordinated things — (a) `plumpVertexDelta`
+  subtracts smooth **gaussian dimples** from the plump crown at each button point, weighted by the
+  SAME `ry²·cos·cos` falloff as the crown so the four seam corners stay pinned and the dimple is
+  top-face only; (b) `setTuftGrid` regenerates a matching grid of **button decals** (the Stage-5 decal
+  system, reused) sitting IN the dimples (local Y from `plumpTopSurfaceY`). Tuft decals are **tagged**
+  (`Decal.tuft`) so editing rows/cols/depth REPLACES only the tuft buttons and never touches
+  user-placed decals. **Rectangular grid only** — the diamond/Chesterfield look is out of scope
+  (documented). The plump crown/bow/dimple math moved into `tufting.ts` (pure, three-free);
+  `plump.ts:applyPlump`/`plumpBoxGeometry` now delegate to it (byte-identical without a tuft grid).
+  Inspector: a "Tufting (buttons)" toggle + Rows/Columns/Dimple-depth sliders next to Plump, shown
+  only for a plumped box (`ui/glbEditor/PartInspector.tsx`).
+- **Archetype templates** (`furniture/glbEdit/templates.ts`, now **14** starters, unit-tested):
+  **Bench** (upholstered top plumped + tufted by default — the showcase — on square legs + rails),
+  **Bar stool** (round lathe seat + tall tapered legs + a swept foot ring, seat 0.65–0.78 m),
+  **Floating shelf** (a wall-mounted board + concealed cleats; carries a `placement: 'wall'` hint the
+  Save panel applies), and **Bathroom vanity** (reuses `buildCarcass`/`buildDoorRow`/`buildPlinth` +
+  ships WITH a built-in **subtract combine** — countertop minus a basin-hole cylinder). Ergonomic
+  clamps: bench seat ~0.45 m, stool 0.65–0.78 m, vanity counter 0.80–0.90 m. `TemplateResult` gained
+  optional `decals` (bench tuft buttons) + `combineGroups` (vanity basin); `insertTemplate` attaches
+  both (part ids are minted in `build()`, so the combine members share the wrapping group's home).
+- **Persistence**: envelope **v10 → v11** (`specPersist.ts`) — additive identity migration + strict
+  validation for `parts[].tuft` (`{rows,cols,depth}` finite) and `decals[].tuft` (boolean tag). An
+  older v10 spec loads unchanged.
+- **Tests**: `tufting.test.ts` (grid layout/inset/symmetry, dimple-below-crown + monotonic depth +
+  corner pinning + top-only, decal tagging, `setTuftGrid` regeneration/replacement + user-decal
+  safety + deep-copy on duplicate) + new `templates.test.ts` cases (each archetype buildable + bbox;
+  the vanity's built-in combine round-trips through insert AND evaluates to a mesh).
+- **Visual verification** (SHOT_GPU=1): `scripts/scenarios/glb-designer-stage7c.json` — insert the
+  bench (tufted top: dimples + buttons centred in each), then bar stool + vanity alongside (basin
+  cavity visibly carved by the combine preview), bump the tufting rows (button grid regenerates,
+  count changes, old tuft decals replaced), and save → the persisted `assetSpec` is the v11 envelope
+  embedding `parts[].tuft` + the tagged tuft decals.
+
+## v0.21.2.50 — Asset Studio Iteration 3 · Stage 7b — live during-drag face snapping
+
+The Stage-6d deferral: the magnetic face snap now previews **live while you drag** in the GLB Asset
+Designer (the shape jumps flush + the hint edge shows during the drag), not only at commit. Behind
+the existing `glbDesigner` pro flag; no persistence/envelope change. Plan:
+`docs/asset-studio-plan.md` Iteration 3 Stage 7b.
+
+- **Pure `glbEdit/dragSnapSession.ts`** — a thin stateful wrapper over the existing `snapFaces`
+  engine that adds the two things a per-frame magnetic drag needs: **memoised targets** (the other
+  parts' world AABBs are captured ONCE at drag start — they can't move mid-drag — so the per-frame
+  pass stays a cheap `O(n)` AABB scan even at ~50 parts) and **per-axis hysteresis** (an axis
+  engages within the tight 8 mm threshold and holds flush until the drag pulls past a wider **1.5×
+  release band**, `DRAG_SNAP_RELEASE_FACTOR` ≈ 12 mm, so the snap doesn't flicker at the boundary).
+  `startDragSnapSession` → per-frame `updateDragSnap` → discard. Fully unit-tested
+  (`dragSnapSession.test.ts`): engage, hold-in-release-band, release-then-re-engage, axis
+  independence, targets-stay-fixed, custom threshold.
+- **Live wiring** (`ui/glbEditor/designerContext.tsx` + `DesignerViewport.tsx`) —
+  `TransformControls`' `onMouseDown` opens the session (translate mode, magnet on, Alt not held),
+  `onObjectChange` **rAF-gated** to one snap computation per frame (the 6e ProfileEditor precedent)
+  snaps the dragged mesh in place and shows the hint live, `onMouseUp` commits through the
+  **unchanged Stage-6d authority path** so the committed value equals what the user saw. Works for a
+  **single part and a whole transform group** (union-bounds proxy). The live-hint React state updates
+  only when the engaged-snap signature changes, so a per-frame drag never re-renders the flat context
+  each frame (the mesh position is mutated imperatively regardless).
+- **Alt escape hatch** (CAD convention) — holding **Alt** while dragging disables the magnet for that
+  drag (skips both the live and the commit-time snap). Documented in `docs/user/importing-models.md`.
+- **Scenario** `scripts/scenarios/glb-designer-stage7b.json` drives the live seam
+  (`window.__glbDesignerPrecision.liveDrag`) through a far → engage → hysteresis-hold sequence,
+  asserting the mid-drag position is flush **before any commit** (the spec still reads the un-moved
+  origin), screenshots the live hint during the open drag, then commits and asserts the committed
+  position matches. Visually verified (GPU): the mover jumps flush against the wall with a green
+  abut-edge hint mid-drag, and the committed frame is identical.
+
+## v0.21.2.49 — Asset Studio Iteration 3 · Stage 7a — optimize-on-save fail-soft guard (AS-OPT-GUARD)
+
+Robustness fix for the GLB Asset Designer's save. The save-time optimize pass
+(`glbEdit/saveOptimize.ts`) is now bounded by a **20 s timeout** (`OPTIMIZE_SAVE_TIMEOUT_MS`,
+`Promise.race`) and swallows any rejection: on timeout OR failure it logs a `console.warn` and
+persists the **raw** GLB unchanged, so a hung/failed Draco/Basis WASM stack can never wedge the
+save. Restores the shrink-or-no-op contract even in the degenerate case (in the dev harness a wrong
+`.wasm` MIME type was reported as hanging the save). Plan: `docs/asset-studio-plan.md` Iteration 3
+Stage 7a.
+
+- **Fail-soft `optimizeSavedGlb`** — wraps `runOptimize` in a bounded race against a documented
+  20 s ceiling; a unique symbol sentinel distinguishes the timeout arm from any real (even slow)
+  optimize result, and a `try/catch/finally` also catches rejections and always clears the timer.
+  On timeout/rejection the raw export is returned (`optimized: false`), never a throw.
+- **Worker-leak note (intentional).** `runOptimize` has no job-cancel API, so a timed-out in-flight
+  worker call is simply abandoned; the pool worker returns to idle and is reused (or torn down by
+  the existing 30 s idle-teardown). No cancellation infra is built — a leaked *idle* worker is
+  bounded by `POOL_MAX` and self-healing.
+- **Unit tests** (`saveOptimize.guard.test.ts`) — never-resolving optimize → raw bytes persisted
+  within the test timeout (fake timers); rejection → raw bytes; success (strictly smaller) adopted;
+  not-smaller → raw kept. The existing `saveOptimize.test.ts` feature-survival matrix is unchanged.
+- **Scenario hygiene** — stripped the hardcoded `url` (dead dev ports :5301/:5310/:5312) from every
+  `glb-designer-stage*.json` so they resolve the harness base (`SHOT_URL`/default 5173) like the
+  other scenarios; and fixed `glb-designer-stage6b`'s **stale version-pinned save assert** (it
+  required `env.v === 8`, but the spec envelope has since bumped to v10 — the "hang" at the save
+  step was this assert never becoming true, not the WASM warning) to a forward-compatible `env.v >=
+  8`. Re-ran `glb-designer-stage6b` green through the save step (GPU, isolated worktree at HEAD):
+  the asset saves in ~2 s with the "Saved …" toast.
+
+## v0.21.2.48 — Asset Studio Iteration 2 · Stage-6 review-fix cluster
+
+Adversarial review of the Stage-6 iteration-2 work (geometry/materials/components/templates,
+modular customization, precision, realism, performance). All eight findings fixed in one cluster;
+pure refactors are behaviour-preserving (existing tests unchanged), each new behaviour has a unit
+test. Plan: `docs/asset-studio-plan.md` "Iteration 2 — review-fix cluster". Behind the existing
+`glbDesigner` pro flag. No persistence/envelope change.
+
+- **Loft winding twist fixed** (`glbEdit/shellLoft.ts` `loftGeometry`) — after re-orienting both
+  cross-sections CCW, the top profile's start index is now aligned to the bottom via a best-offset
+  search (`alignTopToBottom` — minimises total vertex-pair XZ distance over the N cyclic rotations),
+  so a CW-authored top lofts to the SAME untwisted body as a CCW top instead of spiralling the side
+  walls. Test: identical top/bottom rings loft to vertical side-wall edges (zero horizontal pairing
+  offset, uniform edge length) for both windings.
+- **Dead bevel slider hidden on hollow extrudes** (`ui/glbEditor/PartInspector.tsx`) — the
+  Corner-radius slider is hidden when an extrude has `shell > 0` (the shell op disables the bevel),
+  replaced by a "Hollow disables the corner bevel" hint (same idiom as the plump/wrinkles gates).
+- **insetPolygon duplication resolved** — the designer's inset is renamed `insetOutline` and split
+  into a new `glbEdit/polygonOffset.ts`, with cross-reference comments in it and
+  `floorplan/insetRoom.ts`. Deliberately NOT merged: their required behaviours differ (the designer
+  clamps a runaway reflex miter to a bevel + is inset-only; the floorplan one is signed inset/outset
+  + returns null on any over-run).
+- **insetPolygon bowtie gap closed** (`polygonOffset.ts`) — `insetOutline` now runs an O(n²)
+  segment-segment self-intersection check (`polygonSelfIntersects`) on the result and returns null
+  (→ solid fallback) when a concave neck folds the inner ring into a same-orientation bowtie the
+  existing area/edge-reversal guards missed. Unit-tested with a hand-built bowtie + a staple outline.
+- **Carcass triplication removed** (`glbEdit/templates.ts`) — `buildCarcass` / `buildDoorRow` /
+  `buildPlinth` extracted and shared by the cabinet/wardrobe/TV-console builders (behaviour-
+  preserving; the 34 template tests pass unchanged). The desk drawer pedestal stays bespoke (a
+  vertical stack, not a horizontal door row).
+- **shapeProfiles.ts split** (911 → ~465 lines) into `shapeProfiles.ts` (profile utils + presets +
+  the box/wedge/lathe/extrude builders), `polygonOffset.ts` (the extrude-shell inset) and
+  `shellLoft.ts` (the shell/loft/sweep builders); pure code motion, imports updated, test files
+  split to match (`shapeProfiles`/`polygonOffset`/`shellLoft` `.test.ts`).
+- **pivot/groupTransform helper duplication removed** — the shared `clean` / `cleanVec` / `DEG` /
+  `rotationMatrix` / `trsMatrix` helpers moved into `glbEdit/transformMath.ts`, imported by both.
+- **Wrinkle cache byte budget halved** (`glbEdit/wrinkleTexture.ts`) — the procedural fabric-wrinkle
+  normal map drops from 256px to **128px** (64 KB/tile — a 4× memory cut, LRU ≤ 48 → ~3 MB ceiling
+  vs ~12 MB) with **mipmaps disabled** (the detail is subtle + near-1:1 mapped, so a mip chain buys
+  no visible quality for +33% memory). Verified against the stage6e scenario that it still reads as
+  sewn fabric at typical cushion sizes; byte budget documented in the header.
+
+## v0.21.2.47 — Asset Studio Iteration 2 · Stage 6f — performance (save-time GLB optimize + instanced array preview)
+
+Three performance moves in the GLB Asset Designer, all behind the existing `glbDesigner` pro flag.
+Plan: `docs/asset-studio-plan.md` Stage 6f. Measure-first — numbers below.
+
+- **Save-time GLB optimization** (`furniture/glbEdit/saveOptimize.ts`) — `exportAndSaveAsset` now routes
+  the raw GLTFExporter output through the shared optimize pipeline (`optimize/runOptimize` →
+  weld/dedup/prune + Draco geometry pack + near-lossless WebP texture re-encode, off the main thread)
+  before persist. **Keep-smaller guard**: adopts the optimized bytes only when strictly smaller, else
+  keeps the raw export — so it can only shrink or no-op. **Measured**: an untextured 4-leg table
+  20552 B → 2248 B (**89.1% smaller** — GLTFExporter writes verbose uncompressed floats that
+  weld+dedup+Draco pack hard); textured assets save more again from the WebP re-encode.
+- **Feature-safe, proven** (`saveOptimize.test.ts`) — a round-trip test locks in that the pass preserves
+  every material feature the designer bakes: KHR physical extensions (sheen/clearcoat/transmission/ior/
+  volume/anisotropy), multi-material primitives (Stage 6c per-face boxes), vertex-colour gradients
+  (Stage 2 COLOR_0), and embedded normal maps (Stage 6e wrinkles / decal textures). The enabler:
+  `optimizeGlb.ts` now `registerExtensions(ALL_EXTENSIONS)` on its WebIO — gltf-transform DROPS any
+  UNREGISTERED extension on read, so without this the pass would silently strip those KHR extensions
+  (a latent bug that also affected the upload/convert optimize path — now fixed).
+- **Instanced array preview** (`furniture/glbEdit/groupInstance.ts` pure detector +
+  `ui/glbEditor/PartsPreview.tsx` `InstancedParts`) — a transform group of ≥4 geometry- AND
+  material-identical members (what `linearArray`/`radialArray` produce) renders as ONE `InstancedMesh`
+  in the live preview instead of N meshes: **N draw calls → 1** (a 20-leg array drops from 20 group
+  draw calls to 1). Clicking any instance selects the whole GROUP (members are identical); selecting an
+  individual member falls back to non-instanced rendering so its gizmo still attaches. The group gizmo
+  works either way (the InstancedMesh lives in the group's transform container). Preview-only — the
+  exported GLB is unchanged.
+- **Context slicing — RULED OUT with numbers** (`designerContext.perf.test.tsx`) — the plan's recorded
+  scaling debt (split the flat `DesignerProvider` if a keystroke re-renders panels expensively). A React
+  `Profiler` probe measured a name keystroke at 30 parts: the cascade fires (12 consumer re-renders over
+  12 keystrokes) but the per-keystroke cost is **~0 ms** — a `setName` never touches `spec.parts`, so
+  `PartMesh` geometry (memoised on part identity) rebuilds nothing; it's pure reconciliation. Well under
+  the plan's 5 ms/keystroke split threshold → **no split shipped**, matching the "revisit when the
+  profiler shows it" note. The probe stays as a regression guard.
+- Scenario `scripts/scenarios/glb-designer-stage6f.json` (20-leg array asserts `renderer.info.render.calls`
+  drops vs the non-instanced control; save a textured asset and assert the persisted blob is smaller).
+
+## v0.21.2.46 — Asset Studio Iteration 2 · Stage 6e — realism II (procedural fabric wrinkle normals on plumped cushions)
+
+Plumped cushions in the GLB Asset Designer now read as sewn upholstery instead of a smooth shell, behind
+the existing `glbDesigner` pro flag (no new flag — like plump/faceFinishes it's a designer sub-control).
+Plan: `docs/asset-studio-plan.md` Stage 6e.
+
+- **Procedural fabric wrinkle normal map** (`furniture/glbEdit/wrinkleTexture.ts`, pure + unit-tested) —
+  a plumped box/capsule gains a seeded procedural normal map: soft low-frequency creases that **gather
+  toward the pinned seam corners** (a `cornerness` mask, peaking at the tile corners and zero at the
+  crowned centre — where a stuffed cushion actually creases) plus a **fine fabric nap** over the whole
+  face (value-noise fbm, seeded from the part id → stable across renders + save/reload; no bespoke art).
+  A **"Wrinkles (fabric)"** slider sits next to Plump, **default ON at a subtle level** (0.6) whenever
+  `plump > 0`; an explicit `0` disables it. Visible strength is the material's `normalScale`, ≈ 0.15…0.4
+  following plump depth × the Wrinkles setting. Baked as a `DataTexture` (no 2D canvas needed to
+  generate — headless-testable); `GLTFExporter` embeds it as a PNG on export (the `normalTexture` +
+  `scale` survive the round-trip, verified against the exported GLB's JSON chunk).
+- **Bounded cache** — baked maps go through a dispose-on-evict `LruCache` (max 48) keyed by a coarse
+  `(seed, intensity-bucket)` (0.1 steps), mirroring `finishTextureVariant.ts` (AUD-002): a Plump/Wrinkles
+  slider drag reuses a handful of tiles instead of leaking a GPU texture per frame (tested).
+- **Interplay with finishes** — a textured `mat:<id>` finish clone owns the normal channel, so wrinkles
+  are **skipped** when a finish is set (never clobbering the finish's map) and the inspector shows a
+  one-line hint in place of the slider. Velvet/sheen presets compose on top (velvet + plump + wrinkles =
+  the sofa-cushion look).
+- **Plumbing** — `parts[].wrinkles?` (0…1) on box/capsule; envelope **v9 → v10** additive identity
+  migration + strict validation (non-finite rejected); duplicate/mirror carry it verbatim. Wrinkles are
+  **material-only** — the plumped geometry is byte-identical with wrinkles on or off (tested). Scenario
+  `scripts/scenarios/glb-designer-stage6e.json`. **Wood-grain direction** (the other 6e line item) was
+  already shipped in Stage 6c (`finishRotation`); the optional corner-pinch **AO** extra was deliberately
+  skipped (it would fight the Stage-2 gradient's `COLOR_0` channel — see plan).
+
+## v0.21.2.45 — Asset Studio Iteration 2 · Stage 6d — precision II (face-to-face snapping + pivot control)
+
+Two precision tools in the GLB Asset Designer, behind the existing `glbDesigner` pro flag. Both are
+ephemeral UI behaviour — no spec field, no persistence/envelope bump. Plan: `docs/asset-studio-plan.md`
+Stage 6d.
+
+- **Face-to-face magnetic snapping** (`glbEdit/faceSnap.ts`, pure + unit-tested) — while translating a
+  part/group with the gizmo, the committed position snaps FLUSH to a nearby part's AABB face on any
+  axis within an ~8 mm world threshold (CAD-style). Two flavours per axis: **abut** (outer face meets
+  outer face, zero gap — higher priority) and **align** (same-side faces coplanar). A snap only fires
+  when the two boxes overlap on the OTHER two axes (locality gate), and each axis decides independently
+  (axis isolation). Rides the **existing magnet toggle** (grid + face snap share it) and **wins over the
+  grid quantisation** it just applied. **Live-vs-commit: commit-time snap** — drei `TransformControls`
+  mutates the preview mesh directly and the write-back already runs once on `onMouseUp`, so snapping the
+  committed value is the clean seam (a live during-drag snap would fight the gizmo's own per-frame
+  mutation — deferred). **Hint:** a brief (~0.9 s) accent-edge quad (`SnapHintOverlay`) on each snapped
+  face plane — green abut / blue align — auto-clearing. Works for an ungrouped part and a whole transform
+  group (union bounds vs the parts outside it); a grouped MEMBER individually dragged keeps plain grid
+  snap (its mesh position is group-local — documented).
+- **Pivot control** (`glbEdit/pivot.ts`, pure + unit-tested) — a **Centre / Base / Corner** segmented in
+  the viewport (top-left) changes the reference point for **numeric rotation** (part + group inspector)
+  and **gizmo rotate/scale** of a part (and group). Position compensation on write-back: rotate about
+  base keeps the bottom face in place (`C' = C + R_old·o − R_new·o`), scale from base grows upward, corner
+  keeps the −X −Y −Z corner fixed. **Default Centre is byte-identical to today** (compensation skipped).
+  For a group, `centre` maps to the group origin (today); `base`/`corner` use the members' local union
+  bounds.
+- **Plumbing** — `arrange.ts` exports `boundsFromCenterExtent` / `unionBounds` (and a shared
+  `partBounds`) so the snap write-back reuses the same rotation-aware AABB math as align/distribute;
+  `designerContext` wires both into `commitGizmoDrag` / `commitGroupGizmoDrag` / the numeric rotation
+  handlers. Pure ops unit-tested (`faceSnap.test.ts` — abut both directions, align, threshold miss,
+  perpendicular-overlap/axis isolation, group-union + multi-target; `pivot.test.ts` — pivot offsets,
+  rotate-about-base fixed pivot, minY preserved, scale-from-base/corner, centre identity, group base
+  pivot). Scenario `scripts/scenarios/glb-designer-stage6d.json`.
+
+## v0.21.2.44 — Asset Studio Iteration 2 · Stage 6c — materials II (per-face finishes / edge banding + texture scale & grain)
+
+Two materials capabilities in the GLB Asset Designer, behind the existing `glbDesigner` pro flag.
+Spec envelope bumped **v8 → v9** (additive superset → identity migration + strict validation for the
+new fields). Plan: `docs/asset-studio-plan.md` Stage 6c.
+
+- **Per-face finishes on boxes (edge banding)** — an optional `faceFinishes` on box parts, THREE
+  zones not six faces (`{ top?, bottom?, sides? }`, each an optional `{ color?, finish? }` override
+  over the part's base look): exactly the veneer + edge-band split of a laminated board (the
+  Polyboard/SWOOD board-construction cue). `BoxGeometry`'s six face groups are remapped to three
+  materials (sides share one) via `remapBoxFaceGroups` + `boxFaceMaterials`. **Sharp boxes only** —
+  a bevelled box is a `RoundedBoxGeometry` with no face groups, and a hollow/plumped box is not a
+  flat board, so `boxFaceFinishesActive` gates on `bevel`/`shell`/`plump` all 0; the inspector hides
+  the section (with a one-line hint) otherwise. **Combine limit:** inside a CSG combine an operand
+  keeps its BASE look only (the fold assigns one material per operand — no `csgEval` fork).
+  Multi-material boxes export as distinct glTF primitives (verified — round-trip test asserts a
+  3-zone box reimports ≥2 distinct materials).
+- **Texture scale + grain direction per part** — optional `finishScale` (0.25–4×, default 1; larger =
+  coarser, mirroring `compose:@<scale>`) and `finishRotation` (0 / 90° — grain Along X / Along Z) on
+  any part carrying a `mat:<id>` finish. The finish-material clone swaps each texture channel for a
+  cloned + transformed variant from a bounded LRU (`materials/finishTextureVariant.ts`, keyed
+  `(source uuid, scale, rotation)`, max 96, dispose-on-evict) — the shared cache textures are never
+  mutated and a slider drag reuses a handful of variants (no per-frame VRAM leak). A grain rotation
+  also rotates `anisotropyRotation` where the finish set one (brushed metal). Inspector: a "Texture"
+  disclosure (Scale slider + Grain segmented) shown only when a texture finish is set.
+- **Plumbing** — `editSpec` types (`FaceFinish`/`FaceFinishes`/`FaceFinishZone` + pure
+  `setFaceFinish`/`boxFaceFinishesActive`/`faceFinishHasOverride`) + `clonePart` deep-copies
+  `faceFinishes` and carries `finishScale`/`finishRotation` (duplicate/mirror copy grain verbatim — a
+  reflection preserves the grain axis, so no X↔Z flip). `specPersist` v9 strict validation. Pure ops,
+  cache-bound, and export round-trip unit-tested; scenario `scripts/scenarios/glb-designer-stage6c.json`.
+
+## v0.21.2.43 — Asset Studio Iteration 2 · Stage 6b — geometry ops II (shell/hollow, loft, free sweep path)
+
+Three new geometry capabilities in the GLB Asset Designer, all pure builders in
+`furniture/glbEdit/shapeProfiles.ts` (unit-tested), behind the existing `glbDesigner` pro flag. Spec
+envelope bumped **v7 → v8** (additive superset → identity migration + strict validation for the new
+fields). Plan: `docs/asset-studio-plan.md` Stage 6b.
+
+- **Shell / hollow** — an optional `shell` (wall thickness, m) on box + extrude parts carves an open
+  hollow carcass (the one-click cabinet/drawer-box case). **Implementation: pure construction (not
+  CSG)** — the box shell is 5 `BoxGeometry` panels (4 walls + a bottom slab) merged, exact with
+  correct per-face normals/UVs and zero CSG cost; the extrude shell uses `ExtrudeGeometry`'s native
+  hole support (outer outline minus an inset inner outline via a `Shape` hole) + a bottom cap. The
+  inner outline comes from a pure miter **polygon-offset** helper (`insetPolygon`) that CLAMPS runaway
+  reflex miters and returns `null` on collapse/self-intersection — a concave outline too tight for the
+  wall thickness falls back to a SOLID extrude (a fail-safe, documented, never a crash). `shell: 0`/
+  absent = solid (byte-identical). Open face: box opens **+Y** (top); the extrude opens along its
+  extrude axis (a follow-up for face choice is out of scope). Inspector: a "Hollow (wall)" slider
+  (hides the plump slider on a hollow box — a plumped carcass is nonsensical).
+- **Loft** — a new `loft` shape kind: two horizontal cross-section outlines (bottom + top) resampled
+  to a common point count (`resampleProfile` reused) + height → side-wall quads + centroid-fan caps,
+  built NON-INDEXED so `computeVertexNormals` keeps the cap edges crisp and never smears a twisted
+  normal across the seam. Correct outward normals (winding tested), planar cap UVs, bbox tracks size,
+  size scales both profiles. Presets: round→square, square→round, taper (square/round). Inspector:
+  the `ProfileEditor` twice (Bottom / Top) + a transition preset that seeds both.
+- **Free sweep path** — the `sweep` kind gains a `'custom'` path drawn in the 2D `ProfileEditor` (XZ
+  top-view), stored as normalized `sweepPathPoints`, swept OPEN with the existing cross-section
+  presets. Distinct from Stage-5 piping's closed absolute `sweepPoints` (precedence: piping > custom >
+  preset). Path presets: S-curve / wave / arc / L-bend.
+- **Plumbing**: `editSpec` types + `loft` in `SHAPE_KINDS`/`SHAPE_LABEL`/`DEFAULT_SIZE`/`defaultPart`
+  + duplicate/mirror deep-copy the new arrays; `specPersist` v8 additive migration + strict guards
+  (`shell` finite, `loftBottom`/`loftTop`/`sweepPathPoints` are `[x,y]` lists). Gizmo size semantics
+  for loft need no special-casing (unlike lathe/sweep it's not forced round — size scales the whole
+  body).
+- **Tests**: geometry-level (`shapeProfiles.test.ts` — shell inner cavity + measurable wall thickness,
+  loft caps closed + cap-normal winding, `insetPolygon`/`polygonSignedArea` incl. a concave L outline
+  + over-inset collapse, custom-path sweep bbox), spec round-trips + v7→v8 migration
+  (`specPersist.test.ts`), duplicate/mirror deep-copy (`editSpec.test.ts`). Scenario
+  `scripts/scenarios/glb-designer-stage6b.json` (hollow a box, loft a round→square vase, custom-path
+  S-curve rail, save/restore round-trip).
+
+## v0.21.2.42 — Asset Studio Iteration 2 · Stage 6a — content expansion (chair + storage templates, structural components)
+
+Adds the conspicuous archetype gaps to the GLB Asset Designer's template + component libraries. All
+pure builders in `furniture/glbEdit/`, unit-tested, emitting ordinary `ShapePart[]` + a wrapping
+`PartGroup` exactly like the Stage-3c/3b libraries — no new spec field, no persistence bump, all behind
+the existing `glbDesigner` pro flag (the panels render library entries generically, so no UI wiring
+changed). Plan: `docs/asset-studio-plan.md` Stage 6a.
+
+- **Dining chair template** (`glbEdit/templates.ts` `buildChair`) — seat board + 4 square legs (reuses
+  the `leg-straight-square` component) + 4 apron rails + two rear posts reclined ~8° + a lumbar back
+  board. Ergonomic clamps: seat height 0.42–0.48 m (0.45), seat width 0.40–0.50 m (0.44), seat depth
+  0.38–0.45 m (0.42), back-top height 0.80–1.00 m (0.90) — each slider names its standard.
+- **Wardrobe template** (`buildWardrobe`) — plinth + tall carcass + 2–3 doors with bar pulls + an
+  interior steel hanging rail (cylinder). Params W (0.6–1.8) / H (1.8–2.4) / D (0.5–0.65) / doors (2–3).
+- **Desk template** (`buildDesk`) — top + a drawer pedestal (2–3 stacked drawer fronts + bar pulls) on
+  one side + two square legs on the other. Params W (1.0–1.8) / D (0.6–0.8) / H (0.72–0.76) / drawers.
+- **TV console template** (`buildTvConsole`) — low open carcass + one middle shelf + four short tapered
+  legs (a media unit, distinct from the door-fronted Cabinet). Params W / D / H (0.4–0.6, low).
+- **Structural components** (`glbEdit/components.ts`, new **Structure** category) — **Apron rail** (flat
+  under-surface rail, floor mount), **Stretcher** (round leg-to-leg rod, wall mount), **Slat set** (N
+  thin slats across a span — one `count` param, floor mount), **Drawer box** (open 5-panel carcass:
+  front + back + 2 sides + bottom, geometry only, floor mount), **Shelf pins** (a spaced pair of support
+  pins, wall mount). 1–3 clamped params each with metal/wood finish defaults.
+- **Tests** — `templates.test.ts` (10 archetypes; chair-proportion / wardrobe-rail / desk-pedestal /
+  low-console bbox checks) and `components.test.ts` (17 fittings across 5 categories; slat-count,
+  drawer-carcass, shelf-pin assertions). Scenario `scripts/scenarios/glb-designer-stage6a.json`.
+
+## v0.21.2.41 — Asset Studio: final fix round (decals, plump, array semantics, footprints)
+
+A post-completion correctness pass over the Asset Studio designer. Pure geometry/spec logic in
+`furniture/glbEdit/`, unit-tested; no new user-facing feature (all behind the existing `glbDesigner`
+pro flag).
+
+- **Decals follow a part resize** (`glbEdit/editSpec.ts` `updatePart`) — a decal's LOCAL position now
+  scales proportionally per axis when its target part is resized, so it stays on the same relative spot
+  of the (re-sized) surface instead of drifting off the face. Normals are unchanged.
+- **Bake prunes orphaned decals** (`glbEdit/editSpec.ts` `bakeCombineGroup`) — baking a combine group
+  folds its member parts into one mesh; any decal projected onto a baked-away member is now pruned
+  (reuses `pruneDecals`) instead of orphaning.
+- **Duplicate / mirror / array clone decals** — `duplicatePart`, `mirrorPartAxis`/`mirrorPartsAxis`,
+  `duplicatePartGroup`/`mirrorPartGroup`/`repeatComponentGroup`, and `arrayBuild.ts`
+  `linearArray`/`radialArray` now clone the source parts' decals onto the new part ids (shared
+  `appendClonedDecals` helper). Mirror ops reflect each cloned decal's local position + normal on the
+  mirrored axis (X and/or Z) to match the part reflection.
+- **`plump` respects an explicit bevel** (`glbEdit/plump.ts` `plumpBoxGeometry`) — plump only needs a
+  tessellated box, not rounded corners, so `bevel = 0 + plump > 0` now keeps SHARP corners on a
+  segmented `BoxGeometry` (the previous forced minimum radius silently rounded a cushion the user
+  asked to keep crisp); `bevel > 0` still rounds via `RoundedBoxGeometry`.
+- **Linear array uses edge-gap semantics** (`arrayBuild.ts` + `ui/glbEditor/ArrangePanel.tsx`) — the
+  "gap" control is now a true EDGE gap (clear space between adjacent copies' bounding boxes); the pitch
+  is `sourceExtent + gap` using the rotation/kind-aware extent from `arrange.selectionBounds`, so the
+  word "gap" matches the geometry. Radial array unchanged.
+- **`designerExport.symmetricFootprint` is rotation- + kind-aware** — reuses `arrange.partWorldExtent`
+  so a rotated lathe/torus/mesh option's baked-product footprint provably covers its geometry (was a
+  raw-`size` AABB that under-reported a swung part).
+- **Migration test extended** (`specPersist.test.ts`) — `migrateAssetSpec` identity coverage now spans
+  every known version v1…v7 (was v1…v4) with a corrected title.
+- **Inline-px guard fix** (`ui/glbEditor/DetailsPanel.tsx`) — the placed-details row used a literal
+  `padding: '2px 0'` (a new-file violation of `inlinePxGuard`); swapped to the `--s-1` spacing token.
+
+## v0.21.2.40 — Asset Studio Stage 5: realism detail layer (program COMPLETE)
+
+Closes Stage 5 — the FINAL stage — of the Asset Studio plan; **all stages (0–5) are now shipped**.
+Adds the realism detail layer to the GLB designer, riding the existing `glbDesigner` pro flag and
+the Stage-4a `useDesigner()` context (zero new prop threading). All pure geometry/spec logic lives
+in `furniture/glbEdit/`, unit-tested.
+
+- **Decal / detail layer** (`glbEdit/decals.ts` + `decalTexture.ts`, pure + tested; UI
+  `ui/glbEditor/DetailsPanel.tsx`) — a new **Details** section arms a curated detail (**Button**,
+  **Stitch line**, **Seam**, **Round patch**, **Wear spot**), then a click on a shape's surface in
+  the preview projects it with three's `DecalGeometry` (the Stage-3b place-on-face raycast seam,
+  reused; the automation seam `window.__glbDesignerPlaceDecal` stays dev-gated). Spec:
+  `decals[]` on `AssetEditSpec` — each decal's `position`/`normal` live in the target part's LOCAL
+  frame, so it's built against the part geometry at identity and rendered as a CHILD of the part
+  mesh: it follows a grouped/moved part automatically, and deleting a part prunes its decals. Zero
+  z-fighting (each vertex offset 0.7 mm along its normal — survives export — plus `depthWrite:false`).
+  Patterns are tiny procedural canvas textures (headless-guarded). Decals are REAL geometry → they
+  **export into the GLB and reimport intact** (verified round-trip, `decalExport.test.ts`).
+- **Piping / seam preset** (`glbEdit/piping.ts`, pure + tested) — one-tap **Add piping** on a
+  selected box/extrude traces its top-face perimeter as a rounded-rect path and renders it as a thin
+  round `sweep` welt (Stage-1 sweep reused via a new explicit `sweepPoints` override), grouped with
+  the host, finish defaulting to the host colour darkened. Params: tube diameter + edge inset.
+- **Cushion "plump"** (`glbEdit/plump.ts`, pure + tested) — a `plump` 0…1 slider on box/capsule
+  parts applies a sine-falloff vertex bulge (crowned top/bottom, bowed sides, pinned corners, normals
+  recomputed) so upholstery reads soft. This is the shipped cushion-realism ruling **(b)** — a pure
+  geometry tweak — over offline-baked cloth-sim GLB variants (asset production, out of scope) or
+  skipping; recorded in `PHOTOREALISM.md`.
+- Persistence: spec envelope **v6 → v7** (additive identity migration + strict validation of
+  `decals[]`, `parts[].plump`, `parts[].sweepPoints`). Scenario
+  `scripts/scenarios/glb-designer-stage5.json` drives plump → piping → 3 button decals → save/restore
+  round-trip (asserts the envelope embeds all three + export sanity).
+
+## v0.21.2.39 — Asset Studio Stage 4b: precision & pro UX (Stage 4 complete)
+
+Closes Stage 4 of the Asset Studio plan. Adds the professional precision toolset to the GLB
+designer, all riding the existing `glbDesigner` pro flag, all built on the Stage-4a
+`useDesigner()` context (zero new prop threading). Pure geometry lives in `furniture/glbEdit/`,
+unit-tested.
+
+- **Align & distribute** (`glbEdit/arrange.ts`, pure + tested) — a compact **Arrange** section
+  appears on any selection: with 2+ shapes selected, an axis picker (X/Y/Z) + Align min/centre/max,
+  and Distribute (3+ shapes) for equal gaps between adjacent bounding boxes. Kind-aware
+  rotation-projected AABB extents (`partWorldExtent`: a lathe/sweep read their diameter on X **and**
+  Z, a torus spans its outer diameter on X/Z, a mesh reads its baked geometry bounds). One undo step
+  per action.
+- **Grid snap toggle + step** (`ui/glbEditor/gridSnapPref.ts`) — a viewport magnet toggle + step
+  Select (1 mm/5 mm/1 cm/5 cm). The step drives BOTH the gizmo write-back snapping
+  (`gizmoWriteBack.ts` now takes an optional length step, defaulting to the old 5 mm) and the part
+  inspector's numeric size/position stepping. Persisted per-device to localStorage
+  (`hdb_designer_grid_snap`/`hdb_designer_snap_step`, like the catalog width — NOT the save schema).
+- **Live dimension readout** — a viewport-corner overlay shows the selection's W×D×H in cm, updated
+  live during a gizmo drag (a `useFrame` Box3 union over the selected preview objects).
+- **Arbitrary-axis mirror** — Mirror X / Mirror Z for a single part AND a multi-selection
+  (`editSpec.mirrorPartAxis`/`mirrorPartsAxis`), reusing the shared `mirroredTransform`
+  conjugation the group mirror already used (not re-derived). The single-part "Mirror across centre"
+  inspector action stays (now a thin X alias).
+- **Linear & radial array** (`glbEdit/arrayBuild.ts`, pure + tested) — duplicate the selection
+  (parts or a selected group) into a named "Array" group: linear (count, gap, axis) and radial
+  (count, radius, sweep). The radial path **reuses the room editor's `radialArrayPlacements`
+  verbatim** (its `{position:[x,z], rotation}` maps straight onto a designer part's `[x,y,z]` +
+  Y-rotation); the linear path is a trivial 3D translation implemented directly (the room helper's
+  `arrayOffsets` is XZ-plane + FurnitureItem-shaped — the wrong fit). One undo step.
+- **Ortho view presets + Home** — Front/Side/Top/Home buttons over the viewport reposition the
+  (kept) perspective camera to fit-framed poses looking down each axis via an in-canvas responder;
+  no persistence.
+- **Part search & rename** — a filter input above the layers tree (case-insensitive name substring,
+  shows matched rows + their groups, force-expands under an active filter) and inline part rename
+  (double-click the label / an Edit button / a Name field in the inspector — the same affordance
+  groups have). `ShapePart` gains an optional `name`; the spec envelope bumps **v5 → v6** (additive
+  identity migration, `parseAssetSpec` guard rejects a non-string name). The default label falls
+  back to `kind N`.
+- Scenario `scripts/scenarios/glb-designer-stage4.json`; docs (`docs/asset-studio-plan.md` Stage 4
+  marked shipped, user designer guide, ARCHITECTURE module list). No new feature flag — everything
+  rides `glbDesigner` (pro, both-modes-tested).
+
+## v0.21.2.38 — Asset Studio Stage 4a: designer context (pre-Stage-4 refactor)
+
+Behaviour-preserving refactor ahead of Stage 4 (precision & pro UX). `GlbDesignerDialog`
+had accreted ~99 hand-threaded props across its 11 child panels over Stages 0–3; every new
+Stage-4 tool would widen that firehose further. Introduces a designer **context** so the
+panels read state/handlers directly. No feature or UI change; all designer scenarios
+(stage0/1a/1b/2/3a/3b/3c/3d) stay green.
+
+- **`ui/glbEditor/designerContext.tsx`** — new `DesignerProvider` + `useDesigner()` owning
+  the whole editing model: spec + bounded undo/redo history (the `specHistory` wiring),
+  selection (parts + transform group), gizmo mode + the live-preview mesh/group registries,
+  armed component/template state, live combine (CSG v2) evaluation, "make configurable"
+  assignments, and every commit/save/export handler. The controller hook runs unconditionally
+  (matching the pre-4a dialog body) so its hooks/effects — reset-on-open, the modal guard,
+  the dialog hotkeys, and the dev-only `__glbDesigner`/`__glbDesignerPlaceOnFace` automation
+  seams — stay stable whether the dialog is open or closed.
+- **`GlbDesignerDialog.tsx` is now pure composition** — the ~1100-line wiring file drops to
+  the dialog chrome + a flat list of panels under `<DesignerProvider>`; it gates its own render
+  on `open`/`enabled` while the provider stays mounted.
+- **All 11 panels consume `useDesigner()`** (DesignerViewport, DesignerToolbar, SourcePanel,
+  TemplatesPanel, ComponentsPanel, LayersPanel, PartInspector, GroupInspector, CombinePanel,
+  MakeConfigurablePanel, SavePanel). Panels that were conditionally mounted now self-gate
+  (PartInspector self-gates after its hooks; GroupInspector/CombinePanel/MakeConfigurablePanel
+  early-return). **Total prop bindings across the panels: ~99 → 0.**
+- **Re-render scope unchanged.** The pre-4a dialog already re-rendered every panel on any state
+  change (handlers were recreated each render, so none of the panels were prop-stable); a single
+  provider is exactly equivalent, and the Stage-3 memoization win — `LayersPanel`'s `useMemo`
+  keyed on `spec` + its `PartRow` `memo` — is preserved because `spec`'s identity is unaffected
+  by unrelated state changes.
+- **Pure logic untouched** — `furniture/glbEdit/*` and `configurator/designerExport.ts` change
+  only in that the imports now resolve from `designerContext.tsx`. `PartInspector.test.tsx` mounts
+  the panel via a minimal `DesignerContext.Provider` value (the raw context is exported for tests);
+  `GlbDesignerDialog.test.tsx` is unchanged.
+
+## v0.21.2.37 — Asset Studio Stage-3 review fixes (correctness + cleanup)
+
+Verified fixes from the Stage-3 adversarial review, spanning the designer's combine/group
+interaction, the configurable-product export, persistence, and the designer panels.
+
+- **Combine result honours its transform group** (`glbEdit/buildObject.ts` + `ui/glbEditor/
+  PartsPreview.tsx`): a CSG combine whose members all live in one `PartGroup` now bakes/renders its
+  result UNDER that group's container, so it moves with the group instead of snapping to the asset
+  root. `addCombineGroup` blocks combining ACROSS different groups (or mixing grouped + ungrouped)
+  via the new `combineSpansPartGroups` guard, with a specific dialog hint; a combine's shared home
+  group is resolved by `combineHomeGroup`. Unit-tested (result transforms with the group;
+  cross-group blocked).
+- **designerExport bakes CSG into options/base** (`configurator/designerExport.ts`): each option
+  and the base now carry their self-contained combine groups, which are EVALUATED at bake time so
+  the option GLB holds carved/fused geometry (was silently dropping the CSG and baking raw
+  operands). A combine straddling a slot boundary blocks "Make configurable" with a hint
+  (`crossBucketCombineName`). Option bakes now run in parallel (`Promise.all`). Unit-tested
+  (internal subtract bakes carved geometry vs raw).
+- **Set-split saves fail loud** (`ui/glbEditor/GlbDesignerDialog.tsx`): a degenerate combine inside
+  a split-out group aborts the whole save with a naming toast, matching the main save path (was
+  baking a piece silently missing its CSG result).
+- **User-products persistence fails loud** (`state/slices/userProductsSlice.ts`): `persistProducts`
+  reports success; `addUserConfigurableProduct` returns it and the dialog toasts an error + does NOT
+  claim success (or open the configurator) when the localStorage write blows quota — the in-memory
+  registry never claims a product the reload won't have. (The heavier IDB-blob route was scoped out;
+  see `userProductsSlice` doc.)
+- **Stable exported product id** (`glbEdit/editSpec.ts` + `specPersist.ts` v5): a design stamps an
+  `exportedProductId` on first "Make configurable" and REUSES it on re-export, so re-exports REPLACE
+  their prior product instead of minting duplicates; replacing evicts the stale one's slot-scene
+  caches.
+- **gltfSlot cache bounded** (`configurator/gltfSlot.ts`): `data:`/`blob:` slot GLBs (designer
+  products) are no longer cached (the map can't grow unbounded across a session); added
+  `evictSlotScene(url)` called on product remove/replace. Bundled-URL behaviour unchanged.
+- **Dev-gated automation seams** (`GlbDesignerDialog.tsx`): both `window.__glbDesigner*`
+  registrations are wrapped in `import.meta.env.DEV` (scenarios run against the dev server, so they
+  keep working).
+- **setSplit name de-dup + dead-code drop** (`glbEdit/setSplit.ts`): duplicate group names within
+  one split are suffixed ("Cabinet", "Cabinet 2", …); the unused `specAabbFootprint` was deleted.
+- **Cleanup:** `LayersPanel` memoises its derived maps + `React.memo`s `PartRow` + moves the
+  rename draft into a row-local input (keystrokes no longer re-render the tree); shared `ArmedCard`
+  scaffolding extracted for Templates/Components; a single parameterised `GizmoModeOverlay` replaces
+  the two DesignerViewport overlays; `gizmoWriteBack` shares its snap/clamp helpers across the part
+  and group patches; Templates/Components/Make-configurable panels wrap in `controls/Disclosure`
+  (collapsed by default, open when armed/active).
+- Recorded the pre-Stage-4 `GlbDesignerDialog` context refactor as the first Stage-4 task
+  (`docs/asset-studio-plan.md`).
+
+## v0.21.2.36 — Asset Studio Stage 3d — sets & modular customization (closes Stage 3)
+
+Two designer authoring surfaces that turn a built piece into reusable products, closing Asset
+Studio Stage 3.
+
+- **Designer → configurable product export** (`furniture/configurator/designerExport.ts`, pure
+  planner unit-tested + async baker): a "Make configurable" panel exposes the design's top-level
+  `PartGroup`s. Name a **Slot** on a group to offer it as a swappable option; give two groups the
+  **same** slot name to make them alternatives (the first is the default). Blank groups + loose
+  parts bake into the fixed base. On save it emits a `ConfigurableProduct` (the configurator's own
+  model) that opens in the **existing** `ConfiguratorDialog`, swaps options live, and bakes to the
+  catalog through the **unchanged** `saveConfiguredAsset` path.
+  - **Option-representation decision:** a configurator `SlotOption` holds a box-only `ConfiguredPart`
+    or a `gltfUrl` — it cannot carry arbitrary designer `ShapePart`s (lathe/cylinder legs, CSG,
+    sweeps, bevels, gradients). So each option **and** the base is **baked to its own small GLB
+    embedded as a self-contained `data:` URL** on the existing `gltfUrl` field. This preserves full
+    shape fidelity and touches the configurator's `model`/`compose`/`buildObject`/`saveConfigured`
+    **zero** (they already load, fit, namespace, and re-skin `gltfUrl` options). Each option GLB is
+    baked in product-world space (the group transform flattened into every part) with an identity
+    slot anchor, so the v1 quarter-turn `SlotAnchor` limit never bites; footprints are symmetric
+    world spans (a provable superset for the origin-centred compose bounds). Per-option **price**
+    inputs default 0.
+- **User products registry** (`state/slices/userProductsSlice.ts`): exported products register in
+  `userConfigurableProducts` and appear alongside the authored `CONFIGURABLE_PRODUCTS` wherever
+  configurable products are browsed (`ConfiguratorDialog` tabs) + resolve for the SLOT-204 re-edit
+  seed. Self-persists to localStorage (`hdb_user_products`, the per-device authored-library pattern
+  shared with `userSetsSlice`) — the products the flow bakes into the catalog still persist through
+  the normal user-furniture path.
+- **Sets** (`furniture/glbEdit/setSplit.ts`, pure + unit-tested): a "Save groups as separate assets"
+  switch in `SavePanel` splits a multi-piece design so **each top-level group also saves as its own
+  catalog asset** (named after the group, group transform flattened in) in addition to the whole
+  saving as one asset. A placed set is just the individual assets — no new runtime concept.
+- **Flags** (both pro-tier, default on, forced off in Simple, both-modes tested):
+  `assetConfigurableExport` gates the Make-configurable panel; `assetSets` gates the split switch.
+- Scenario `scripts/scenarios/glb-designer-stage3d.json` (build a table with round + square leg
+  groups → export as a Legs-slot product → swap Round→Square in the configurator → save; then a
+  2-group design split into 3 defs). Stage 3 fully shipped.
+
+## v0.21.2.35 — Asset Studio Stage 3c — template-first flows
+
+Adds archetype STARTER templates to the GLB Asset Designer: tap a template, tune a couple of
+ergonomic sliders with a live preview, then insert its editable parts. Proportions are right by
+construction (Tylko "start from a working piece").
+
+- **Parametric→designer bridge ruled** (recorded in `docs/asset-studio-plan.md`): a template
+  **flattens to plain `ShapePart`s at insertion** (option b), NOT a live parametric recipe in the
+  spec — a live recipe would be a fourth spec concept and fights the part-level editing model. The
+  approachability win is kept by making the **dialog parametric**: the user adjusts clamped
+  ergonomic sliders with a live viewport preview BEFORE inserting, and the insert flattens the
+  previewed geometry. No new spec field, no persistence bump (a template is just parts + a group,
+  already covered by the v4 `partGroups` envelope, like a placed component).
+- **Template library** (`furniture/glbEdit/templates.ts`, pure + unit-tested): 6 archetype
+  starters — **Dining table** (top + 4 tapered legs), **Coffee table** (lower default), **Bookshelf**
+  (sides/top/bottom/back + N shelves), **Cabinet** (carcass + 2–4 doors with bar pulls + puck feet),
+  **Bed frame** (platform + headboard + 4 legs by SG mattress preset), **Sofa frame** (base + back +
+  2 arms + 4 legs + seat/back cushions with a Velvet finish). Each is a pure builder (clamped dims →
+  `ShapePart[]` + one wrapping `PartGroup`). Every param is clamped to an ergonomic range with the
+  default at the sweet spot (dining 0.72–0.78 m, seat 0.40–0.48 m, shelf depth 0.25–0.40 m, SG
+  mattress presets …) and carries a hint naming the standard.
+- **Reuse over rewrite**: the **Bookshelf** template REUSES `parametric/buildParts.ts` — its
+  bookshelf `ParametricPart[]` map cleanly to box `ShapePart`s via a thin adapter (no re-derived
+  carcass geometry). Cabinet/table/bed/sofa reuse `components.ts` fittings (tapered/square legs, bar
+  pulls, puck feet); sofa cushions reuse the `finishPresets.ts` **Velvet** bundle.
+- **Template picker** (`ui/glbEditor/TemplatesPanel.tsx`, above Components in the toolbar panel):
+  tap a template → a compact parametric step (its 2–4 sliders, each showing unit + allowed range +
+  the ergonomic hint) with a **live viewport preview** (the dialog renders the would-be-inserted
+  spec) → **Use template** flattens it in. An empty spec is **replaced**; a non-empty spec **inserts
+  alongside** (offset on +X, no confirm — least surprising). Cancel backs out cleanly. One undo step.
+  `insertTemplate` (pure) computes the alongside offset and selects the inserted group.
+- Scenario `scripts/scenarios/glb-designer-stage3c.json`; `src/version.ts` → `0.21.2.35`. Docs:
+  plan (3c + bridge ruling shipped), ARCHITECTURE, user guide (Templates flow, exact labels).
+
+## v0.21.2.34 — Asset Studio Stage 3b — fittings/component library + snap-to-surface placement
+
+Adds a curated hardware component library to the GLB Asset Designer with the SWOOD click-a-face
+placement pattern and a one-tap symmetric repeat — place one leg, get a four-legged table.
+
+- **Component library** (`furniture/glbEdit/components.ts`, pure + unit-tested): 13 parametric
+  FITTINGS grouped Legs / Handles / Feet / Hinges — tapered/round/square/hairpin/angled legs, bar/
+  arc/knob/recessed pulls, dome/puck/castor feet, a butt hinge. Each is a pure builder emitting an
+  ordinary `ShapePart[]` in a component-local frame (`floor` fittings hang down from local y=0;
+  `wall` fittings protrude +Z with the long axis horizontal), with 1–3 clamped params and metal/
+  wood/rubber finish defaults on the plain `ShapePart` colour/roughness/metalness fields (no
+  `mat:<id>` textures). A placed component is just parts + a named `PartGroup` — no new part kind,
+  no bespoke render/export path, fully editable (gizmo/inspector/ungroup) once landed.
+- **Snap-to-surface placement** (`furniture/glbEdit/componentPlace.ts`, pure + unit-tested): the
+  new **Components** panel (`ui/glbEditor/ComponentsPanel.tsx`) arms a fitting (with live param
+  sliders); clicking a face in the preview places it. `componentTransform` builds the minimal
+  rotation mapping the component's declared mount axis onto the clicked world normal (a leg on a
+  table underside hangs straight down and sits flush; a bar pull on an upright face stays
+  horizontal), 5 mm-snaps the hit point, and `addPlacedComponent` lands it as a named group,
+  selected. Real R3F face click via `DesignerViewport`/`PartsPreview` (+ a ground plane for floor
+  drops); Esc / re-tap disarms. A small `window.__glbDesignerPlaceOnFace` automation seam (like
+  `window.__store`) lets the scenario drive a deterministic face-place.
+- **Symmetric "Repeat to corners"** (`editSpec.ts:repeatComponentGroup`, pure + unit-tested): from
+  the `GroupInspector`, Mirror X / Mirror Z (2 copies) or Repeat ×4 (all four corners) duplicates a
+  placed fitting about the asset bounding-box centre (`assetCenterXZ`), deep-copying members with
+  mirrored group transforms in one undo step.
+- **Scenario** `scripts/scenarios/glb-designer-stage3b.json`; docs + plan updated. Persistence is
+  unchanged — a component is a `PartGroup`, already covered by the v4 `partGroups` envelope.
+
+## v0.21.2.33 — Asset Studio Stage 3a — spec-envelope unification + transform groups
+
+Folds the designer + configurator persisted recipes under one versioned envelope (the recorded
+Stage-1 review debt) and adds named part groups to the GLB Asset Designer.
+
+- **One versioned spec envelope** (`furniture/specEnvelope.ts`, pure + unit-tested): a shared
+  `{ kind: 'asset' | 'configured', v, payload }` envelope + `EnvelopeCodec` (strict payload guard +
+  version migration + a `parseLegacy` recogniser). `assetSpec` (`glbEdit/specPersist.ts`, kind
+  `'asset'`) and the configurator's `slotSpec` (`configurator/configuredPersist.ts`, kind
+  `'configured'`) now share the single `parseEnvelope`/`serializeEnvelope` path instead of two
+  ad-hoc `{v,…}` / raw-JSON blobs. `parseLegacy` keeps reading the old shapes (`{v,spec}` for asset,
+  raw `{productId,selections}` for configured) so **no existing save breaks** — re-saved in the
+  envelope on the next write. The two def FIELDS (`assetSpec`/`slotSpec` strings) stay separate for
+  schema stability. Closes the recorded envelope debt + reserves "Group" vs "Combine" naming.
+- **Named transform groups** (`editSpec.ts` `PartGroup` — distinct from the CSG `CombineGroup`):
+  `partGroups[]` with an optional group `position`/`rotation` applied ON TOP of member transforms at
+  build time. Pure ops (add / rename / update-transform / duplicate — deep-copies members / mirror /
+  prune) + `glbEdit/groupTransform.ts` (three math: `groupedPartWorldPosition`, `ungroupPartGroup`
+  which flattens the group transform into members so nothing jumps). **Flat groups only** (no nesting
+  — deliberate scope). A part is in at most one PartGroup AND may be in a CombineGroup independently.
+- **Build + gizmo** (`buildObject.ts` / `DesignerViewport` / `gizmoWriteBack.ts`): a grouped part
+  builds under a nested three.Group carrying the group transform (unit-tested: world = group
+  transform ∘ part transform). The gizmo selects + drags a whole group (LayersPanel group-row click
+  → group proxy → `TransformControls`, translate/rotate only, same 5 mm/1° snap via `groupGizmoPatch`).
+- **LayersPanel → shallow tree** (`ui/glbEditor/LayersPanel.tsx`): group rows with inline rename,
+  collapse/expand, indented member rows, and per-group Ungroup / Duplicate / Mirror; a **Group**
+  action on the multi-select toolbar. The combine ⛓ badge stays distinct from group membership.
+  Mobile parity (rows in the stacked layout, touch-revealed actions).
+- **History/undo:** every group op is one `commit()` history entry; undo of ungroup restores the
+  group intact.
+- **Persistence** bumped to **v4** (`specPersist.ts`): additive superset of v3 → v1–v3 → v4 identity
+  migration; strict validation of the new `partGroups` shape (a malformed blob is un-restorable).
+
+## v0.21.2.32 — Asset Studio Stage 2 — Materials (finishes, presets, gradients)
+
+Physically-based finishes for the GLB Asset Designer: sheen, clearcoat, transmission (glass),
+anisotropy (brushed metal), a one-tap finish preset gallery, and two-tone vertex-colour gradients.
+
+- **Physical material fields on `ShapePart` + per-group `GroupMaterialData`** (`editSpec.ts`
+  `PhysicalSurfaceFields`): optional `sheen`/`sheenColor`/`sheenRoughness`, `clearcoat`/
+  `clearcoatRoughness`, `transmission`/`ior`/`thickness`, `anisotropy`/`anisotropyRotation` — all
+  absent by default (byte-identical output). `buildObject.ts:buildSurfaceMaterial` upgrades to a
+  `MeshPhysicalMaterial` ONLY when one of the four primary axes is > 0 (`hasPhysicalLook` gate —
+  cost discipline; plain `MeshStandardMaterial` otherwise). Combine bakes carry the fields through
+  `partAsGroupMaterial` + `csgEval.materialKey`.
+- **Finish preset gallery** (`glbEdit/finishPresets.ts`, pure + unit-tested): 14 named,
+  colour-agnostic physics bundles (Velvet, Satin, Leather, Lacquered wood, Oiled wood, Matte paint,
+  Powder-coat, Brushed steel, Polished chrome, Brass, Clear glass, Frosted glass, Ceramic, Rubber),
+  reusing the pure `materialRealism.ts` sheen/clearcoat helpers. A `.fin-presets` swatch grid in the
+  inspector (`PartMaterialSection.tsx`) — presets FIRST, then the basic PBR sliders, with the raw
+  sheen/clearcoat/transmission/anisotropy sliders behind a "Custom finish" `Disclosure`. One tap
+  applies (clears any textured finish + stale fields); the matching preset highlights.
+- **Two-tone gradients** (`glbEdit/gradient.ts`, pure + unit-tested): per-part
+  `gradient: {axis, from, to}` baked as a `COLOR_0` vertex attribute over every shape kind (in
+  `partGeometry`) and rendered with `vertexColors`. Inspector: axis `Segmented` + two `ColorPicker`s
+  behind a "Gradient" `Disclosure`, disabled when a textured finish is set (texture × gradient reads
+  muddy — hint shown).
+- **Export reality check** (`physicalMaterialExport.test.ts`): a three-r184 `GLTFExporter` →
+  app `GLTFLoader` round-trip proves **every** field bakes AND restores losslessly
+  (KHR_materials_sheen / clearcoat / transmission / ior / volume / anisotropy + core COLOR_0). The
+  only caveat is a RENDER one — transmission's transmissive pass needs a real GPU, so the preview
+  reads flat on low tiers (the export is always correct). Support matrix recorded in
+  `docs/asset-studio-plan.md`.
+- **Persistence** bumped to **v3** (`specPersist.ts`): additive superset of v2 → v2→v3 identity
+  migration; strict validation of the new numeric fields + gradient shape (a malformed blob is
+  un-restorable).
+- Docs: `docs/user/importing-models.md` designer section (preset gallery + gradient);
+  `docs/asset-studio-plan.md` Stage 2 marked shipped + the export matrix; scenario
+  `scripts/scenarios/glb-designer-stage2.json` (velvet/lacquer/glass/brushed/gradient, saved-spec
+  assertion). Version → `0.21.2.32`.
+
+## v0.21.2.31 — Asset Studio Stage-0/1 review-fix cluster
+
+Correctness, efficiency and cleanup fixes from the Stage-0/1 review of the GLB Asset Designer.
+
+Correctness:
+- **Fail-loud save on a degenerate combine** (`GlbDesignerDialog.save` + `SavePanel.canSave`):
+  a combine group that fails to evaluate no longer silently vanishes from the saved asset — Save
+  is disabled while `useCombineResults` reports an Empty group, and the save re-check blocks with
+  a toast naming the group (`Combine 'X' failed — fix or ungroup it before saving`).
+  `evaluateAllGroups` keeps skipping degenerate groups for the **live preview** only.
+- **`specPersist.isSpec` validates `combineGroups` + part `role`** (array of
+  `{id,partIds[],op ∈ CSG ops}`, roles ∈ `solid|hole`) so a malformed blob is not restorable
+  (parse returns null) instead of loading a corrupt/partial spec.
+- **Gizmo Z-scale on lathe/sweep** (`gizmoWriteBack.ts`): the driving diameter axis is now
+  whichever of X/Z the user actually dragged (larger |scale−1|), mirrored to the other — a Z-only
+  drag is no longer a no-op that returned null.
+- **`useCombineResults` stale-signature prune**: per-group signatures are pruned alongside the
+  results Map when a group disappears (pure `reconcileGroupSignatures` helper), so an
+  ungroup-then-undo of the same group re-evaluates instead of showing no result.
+- **Free hole-role parts are honest**: a hole NOT in a Subtract combine renders + exports as a
+  normal solid (ghost styling applies only to holes consumed by a group); the layers row tags it
+  *Hole (inert)* and the inspector notes "Holes only cut inside a Subtract combine".
+- **Update-original is gated** behind a `confirmAction({danger:true})` prompt before the
+  overwrite save runs; bails cleanly on cancel.
+
+Efficiency:
+- **Designer viewport `frameloop="demand"`** — the preview only repaints on demand
+  (controls/interaction + prop-change re-renders) instead of a permanent 60fps loop.
+- **`ProfileEditor` rAF-coalesced drag** — a fast pointer drag fires at most one `onChange` per
+  animation frame (latest point stashed, flushed on `pointerup`).
+- **`bake()` reuses the cached combine result** — clones the live `useCombineResults` part with a
+  fresh id instead of re-running the CSG fold (recompute stays as the fallback).
+
+Cleanup:
+- Deleted dead exports `LATHE_PRESET_IDS`/`EXTRUDE_PRESET_IDS`/`PROFILE_KINDS` and the orphaned v1
+  `combineParts`/`canCombineParts`/`replaceWithCombined` (+ their tests); un-exported
+  `PolyHavenFileRef` (internal-only) — `npm run deadcode` (knip) is green.
+- `SliderField` migration: PartInspector's roughness/metalness/glow/opacity + SourcePanel's
+  source-scale slider now use `controls/SliderField`.
+- DesignerToolbar undo/redo reuses `ui/floorplan/editor/UndoRedoButtons`.
+- `buildObject` extracts one `buildSurfaceMaterial(look)` shared by the part + per-group material
+  wrappers.
+
+## v0.21.2.30 — Asset Studio Stage 1b: CSG v2 (non-destructive booleans)
+
+Finishes **Stage 1** of the asset-studio plan (`docs/asset-studio-plan.md`). Replaces the v1
+two-operand bake-into-one-frozen-mesh combine with a **non-destructive, TinkerCAD-style
+solid/hole** boolean system: operands stay editable in the spec and the result is re-evaluated
+live from their transforms. Heavy folds run on a shared Web Worker pool; a per-file main-thread
+fallback keeps parity where no Worker exists.
+
+- **Non-destructive combine groups** (`glbEdit/editSpec.ts`): `AssetEditSpec.combineGroups[]`
+  (`{id,name,partIds[],op}`) records a Union/Subtract/Intersect over 2+ **member parts that stay
+  editable**; a part gains an optional `role: 'solid' | 'hole'`. `addCombineGroup` /
+  `removeCombineGroup` (ungroup — operands untouched) / `bakeCombineGroup` / `setPartRole` /
+  `pruneCombineGroups` are pure + unit-tested; `removePart` prunes members and dissolves a group
+  that drops below 2 operands.
+- **Multi-operand booleans** (`glbEdit/csgEval.ts` `foldCsg`): union/intersect fold across all
+  operands; **subtract** carves the `hole`-role operands out of the solids (with none marked, the
+  first-selected part is the base). Per-source draw groups + material preservation carry over from
+  v1 (`meshPartFromGeometry`).
+- **Worker offload** (`glbEdit/csgWorkerPool.ts` + `csg.worker.ts`): the THIRD pooled worker,
+  built on the shared `furniture/worker/workerPool.ts` (not a copy) — geometry attributes cross as
+  transferables; a main-thread `foldCsg` fallback runs when no Worker is available or one fails.
+  The preview evaluates **debounced** (`useCombineResults`) and shows a "Computing…" hint for slow
+  folds; a `hole` renders as a translucent ghost (opacity only, no bespoke texture) with the
+  evaluated solid on top.
+- **Bake escape hatch**: "Bake to mesh" freezes a group's evaluated result into one editable
+  `mesh` part (to then CSG against a source GLB or reduce complexity). v1 `mesh` parts from
+  previously-saved assets load/render unchanged.
+- **Export**: the built GLB bakes each group's evaluated result (holes carved, not exported as
+  geometry); the full non-destructive graph stays in `assetSpec` so re-opening restores editability.
+- **Spec persistence** bumped to **v2** with a v1→v2 identity migration (v1 is a structural subset
+  — old designer assets keep opening editable).
+- **UI**: the layers panel is now multi-select (Select mode toggle + shift/⌘-click); the combine
+  panel is selection-driven (Union/Subtract/Intersect + a per-group Bake / Ungroup); the part edit
+  panel gains a **Solid / Hole** toggle. Panel copy documents the subtract rule and the
+  offset-coplanar-faces guidance (three-bvh-csg limitation). All under the existing `glbDesigner`
+  pro flag (tested in both modes via the flag suite).
+- Tests: spec-level (recording, hole semantics, multi-operand, migration, bake, prune, round-trip),
+  geometry-level (`foldCsg`/`combineGroupToMeshPart` — union/subtract/intersect bbox + vertex
+  sanity, hole-inside-solid volume decrease, disjoint degeneracy), and the build path (consumed
+  operands + free holes skipped, results baked). Scenario `glb-designer-stage1b.json`.
+
+## v0.21.2.29 — Asset Studio Stage 1a: new shape kinds + ubiquitous bevels
+
+Geometry expansion for the GLB designer (`docs/asset-studio-plan.md`, Stage 1a; CSG v2 is a
+separate later task). All geometry maths are pure + unit-tested in
+`furniture/glbEdit/shapeProfiles.ts` (finite verts, correct normals + UVs, bbox tracks `size`).
+
+- **Ubiquitous bevels** — new optional `bevel` (metres) on `box` + `wedge`: box via three's
+  `RoundedBoxGeometry` addon (correct normals/UVs), wedge via a bevel-enabled `ExtrudeGeometry`
+  profile. `bevel` 0 / absent is **byte-identical** to the old sharp geometry (tested), so every
+  existing spec/test is unaffected. A "Corner radius" `SliderField` shows for bevelable kinds.
+- **`lathe`** — revolve a normalized 2D profile (`profile: [x,y][]`, x = radius fraction, y =
+  height fraction) with editable `segments`. Preset profiles: turned leg, tapered leg, bowl,
+  vase, column.
+- **`extrude`** — 2D outline (`outline: [x,y][]`, centred [-0.5,0.5]) → prism via `ExtrudeGeometry`
+  with a bevel **ON by default**. Presets: rounded rectangle, ellipse, L-shape, T-shape, arch.
+- **`sweep`** — a preset cross-section (round/piping, half-round, ogee moulding, rectangle) swept
+  along a preset path (straight, L-corner, U-channel, ring). Circle profile → `TubeGeometry`;
+  others → `ExtrudeGeometry` with an `extrudePath`. Presets-only param surface by design.
+- **Shared 2D profile editor** (`ui/glbEditor/ProfileEditor.tsx`) — a compact SVG point editor in
+  the inspector: draggable points (44px touch targets → works on mobile), add/remove, numeric X/Y
+  entry, and a preset dropdown that seeds the whole point list. Pure profile helpers
+  (`validateProfilePoints`/`dedupeProfile`/`closeProfile`/`resampleProfile`) unit-tested.
+- **Plumbing** — `SHAPE_KINDS`/`SHAPE_LABEL`/`DEFAULT_SIZE`/`defaultPart` extended;
+  `duplicatePart`/`mirrorPart` deep-copy the profile/outline arrays; `partGeometry` builders wired;
+  `gizmoWriteBack` keeps radially-symmetric kinds (lathe/sweep) round under a scale drag
+  (X mirrored into Z); `specPersist` round-trips the new fields (tested). New kinds export with UVs
+  (`ExtrudeGeometry`/`LatheGeometry`/`TubeGeometry` all generate their own).
+- **Add-shape UI** — `DesignerToolbar` gains a "More shapes" cluster (Lathe / Extrude / Sweep)
+  below the primitive grid.
+- Scenario `scripts/scenarios/glb-designer-stage1a.json` (Pro, flag on): adds a turned-leg lathe,
+  a bevelled rounded-rect extrude, a piping-ring sweep and a bevelled box; asserts part/layer
+  counts and that a numeric lathe-profile edit changes the part's stored params.
+
+## v0.21.2.28 — Asset Studio Stage 0: flag, undo/redo, editable saves, dialog split
+
+Foundations for growing the GLB designer into a professional asset builder
+(`docs/asset-studio-plan.md`, Stage 0).
+
+- **`glbDesigner` feature flag** (pro tier, default on, prod-safe) — closes the
+  every-feature-behind-a-flag gap. Gates the dialog mount (was a bare `uiMode==='pro'`
+  check), the ⌘K `glb-designer` command (`COMMAND_FLAGS`, dropped the redundant
+  `PRO_ONLY_COMMANDS` entry) and the catalog "Design" button (desktop + mobile). Both-modes
+  test (`features/flags/glbDesigner.test.ts`).
+- **Undo/redo** — new pure `furniture/glbEdit/specHistory.ts`: a bounded (~50-entry) snapshot
+  history around the `AssetEditSpec` with ~300 ms same-key coalescing (a slider/gizmo drag is
+  one undo step), truncate-on-fork, front-drop bound. Wired to ⌘Z / ⇧⌘Z (+ ⌘Y) in-dialog
+  (respecting the modal-guard idiom that suppresses global hotkeys) + toolbar ↶/↷ buttons with
+  disabled states. Unit-tested (push/undo/redo/coalesce/bound/truncate).
+- **Editable saves (spec persistence)** — the edit spec is embedded on the saved def as a
+  versioned JSON `assetSpec` (`furniture/glbEdit/specPersist.ts`, `{ v: 1, spec }`), mirroring the
+  configurator's `slotSpec` round-trip: threaded through `saveAsset.ts` → `persistUserGlb`
+  (IDB meta + def) → `hydrateAssets` → the save schema (`schema.ts`, additive — no schema-version
+  bump). Re-picking a designer-built asset as the "Start from" source now offers **Restore
+  editable parts** (its full part list re-opens editable instead of a frozen source mesh); an
+  absent spec keeps today's behaviour, so non-designer defs are unaffected. Round-trip unit tests
+  (`specPersist.test.ts` + a mocked-persist `saveAsset.test.ts` case).
+- **Dialog decomposition** — the ~800-line `GlbDesignerDialog.tsx` is now composition + state
+  wiring; the UI is split into focused `ui/glbEditor/` modules: `DesignerViewport` (canvas + gizmo
+  + source model), `DesignerToolbar` (undo/redo + add-shape palette), `LayersPanel` (part list),
+  `SourcePanel` (start-from + restore + recolour), `CombinePanel` (CSG), `SavePanel`
+  (name/category/placement/save), `PartsPreview`. Behaviour-preserving; SEC-1 `secureGltfLoader`
+  now lives on `DesignerViewport`'s `useGLTF` call site (docs updated).
+- Visual verification: `scripts/scenarios/glb-designer-stage0.json` (flag-off hides even in Pro →
+  flag-on opens → build 2 parts, undo/redo the second, save-with-spec → reopen restores parts).
+- Docs: `asset-studio-plan.md` Stage 0 marked shipped; `ARCHITECTURE.md`, `visual-verification-playbook.md`,
+  `docs/user/importing-models.md` (undo + Restore editable parts) updated.
+
+## v0.21.2.27 — Asset Studio: staged plan + research references
+
+New user goal (2026-07-16): grow the GLB designer into a professional furniture
+asset-building tool. Research (current-capability map + external tool survey) distilled
+into a staged program at `docs/asset-studio-plan.md` (Stage 0 foundations → 1 geometry →
+2 materials → 3 components/templates → 4 precision UX → 5 realism detail); TODO.md active
+goal added; REFERENCES.md gains a furniture-modeling/CAD tool section (Tylko, Shapr3D,
+Plasticity, Womp, TinkerCAD, SWOOD, Polyboard, chili3d/replicad, …). Docs only.
+
+## v0.21.2.26 — Round-10 review-fix cluster: pack install + a pre-existing multi-file-import bug
+
+A cluster of round-10 review fixes centred on the pack-install path, plus the
+**pre-existing multi-file drag-drop import bug** the review surfaced.
+
+- **[bug] Multi-file drag-drop imports silently lost their sibling files
+  (`furniture/convert/loadToObject.ts`).** The convert sibling-pool
+  `LoadingManager` URL modifier early-returned on `isEmbeddedOrBlobUrl(url)`
+  BEFORE the basename lookup — but GLTFLoader/OBJ/MTL resolve a glTF's relative
+  refs (`scene.bin`, `textures/wood.jpg`) against the entry's `blob:` base into a
+  synthetic `blob:<origin>/scene.bin`, which passed `isEmbeddedOrBlobUrl` and
+  short-circuited the pool, so every referenced `.bin`/texture of a multi-file
+  drop resolved to nothing. Fixed at the shared mechanism: the new pure,
+  unit-tested `resolveSiblingUrl(pool, url)` attempts the basename lookup FIRST
+  (a resolved-relative ref matches its dropped sibling), passes the entry's/
+  siblings' own object URLs + `data:` URIs through unchanged, and only then
+  honours a bare `blob:`/blocks a foreign ref (SEC-1 closed allowlist unchanged).
+- **Poly Haven bundles now import through the pooled `runConvert` with real
+  sibling files, dropping the data-URI inlining workaround
+  (`catalog/packs/install.ts`, `catalog/packs/polyHaven.ts`).** With the sibling
+  bug fixed, `fetchPolyHavenGlb` hands the entry glTF + its `.bin`/textures to
+  `runConvert` as siblings (off the main thread) instead of base64-inlining every
+  dependency into the glTF and calling `convertModel` on the main thread. Removed
+  the now-dead `inlineGltfUris`/`GltfUriDoc`/`polyHavenDataMime`/`bytesToBase64`
+  (this also made the finding-8 "share the URI-rewrite helper with
+  `remote/resolver.ts`" moot — the helper no longer exists).
+- **Poly Haven bundle install is now additive** (matching Poly Pizza) so a retry
+  after a partial failure tops the pack up instead of replacing it.
+- **`buildEntry` moved inside the per-item try/catch** in both API-pack installers
+  so a persist/thumbnail failure skips that one item per the documented per-item
+  semantics, and the two identical install loops were extracted into one shared
+  `installItems` runner.
+- **`PolyHavenBundleCard` gained a local busy state** (`Adding…`, disabled while
+  inflight) like `PolyPizzaCard`; deleted the dead `installing`/`setInstalling`
+  store field (never written — the notification system already drives progress)
+  and its now-dead `inflight` card branches. Extracted a shared `PackCardShell` +
+  `PackRemoveRow` used by the zip / Poly Pizza / Poly Haven cards.
+
+## v0.21.2.25 — GE4: "Update original" round-trip verified + two real bugs fixed
+
+Closes the GE4 tail — a real-env verification pass of the GLB designer's **"Update
+original"** flow (re-open an existing user asset as the "Start from" source →
+edit → toggle *Update original* → the stored def is replaced in place under the
+same id, so placed instances ride through). Built a new IXT scenario
+(`scripts/scenarios/glb-update-original.json`, 38 steps): Pro mode, create a 0.8 m
+box asset via the designer save path, place an instance in the Living/Dining room
+editor, re-open the designer, pick that asset as the source, scale it 2×, toggle
+*Update original*, click it — then assert the REAL Zustand round-trip (not toast
+text): the catalog did **not** grow (no duplicate), the same def id carries the new
+geometry (footprint scaled ~2× exactly + a fresh `assetId`) with its name preserved,
+and the previously placed instance still resolves to that def. Before/after
+screenshots of the placed instance confirm the size change in the 3D scene.
+
+The verification surfaced **two real defects**, both fixed:
+
+- **Source scale double-applied → geometry saved 4×/8× too large
+  (`ui/glbEditor/GlbDesignerDialog.tsx`).** `SourceModel` rendered the preview via
+  `<primitive object={gltf.scene} scale={scale}>`, and a `scale` prop on a
+  `<primitive>` **mutates the shared `useGLTF`-cached scene's own `.scale`**. That
+  mutated scale then (a) leaked into the object reported to the exporter, so
+  `buildEditedObject`'s `clone.scale.multiplyScalar(sourceScale)` applied the scale a
+  second time (measured 3.2 m / 6.4 m for a 0.8 m box at source-scale 2×, i.e.
+  non-deterministic 4×–8×), and (b) corrupted the cache for any other consumer of the
+  same GLB (the placed instance). Fixed by applying the preview scale on a **wrapper
+  `<group scale>`** so `<primitive object={gltf.scene}>` never touches the cached
+  scene — the reported source stays at native scale and `sourceScale` is applied
+  exactly once (0.8 m → 1.6 m at 2×).
+- **"Update original" clobbered the def name to "Custom asset".** Re-opening the
+  designer resets the name field to the default; selecting a source didn't repopulate
+  it, so the overwrite saved the placeholder name. Fixed by **seeding the name +
+  category from the picked source** in the "Start from" `onChange` (the user can still
+  rename before saving as a new asset).
+
+Blob hygiene on update is already correct: `replaceUserFurniture`
+(`state/slices/userAssetsSlice.ts`) frees the old def's IndexedDB blob + revokes its
+runtime/LOD URLs + evicts its GLTF cache entry (the fresh persist writes a new
+`assetId`, so the old one is no longer referenced) — verified by the scenario's
+`assetId`-changed assertion.
+
+## v0.21.2.24 — C-PLANTS/DECOR: curated CC0 Poly Haven set-dressing bundles
+
+Closes the C-PLANTS/DECOR tail. Three themed **one-click set-dressing bundles** now
+appear as pack cards in the Packs tab (Pro, `packs` flag — no new flag): **Indoor
+plants** (6), **Shelf & table decor** (7), **Kitchen counter** (7) — 20 curated
+**CC0** props total, all from Poly Haven. "Add bundle" fetches every item, packs it
+into a self-contained GLB in-browser, and registers it through the existing pack
+pipeline so the items land in the catalog like any installed pack (floor-anchored,
+real-metre scale, per-item credit in the inspector).
+
+- **`catalog/packs/polyHaven.ts`** (new): the curated `POLY_HAVEN_BUNDLES` data +
+  pure helpers (`resolvePolyHavenGltfFiles` turns a Poly Haven `/files/<slug>`
+  response into a download plan; `polyHavenBasename`/`polyHavenAttribution`/
+  `polyHavenSourceUrl`/`polyHavenBundle`). Every item captures its author for the
+  credit line even though CC0 needs no attribution; the license label is `CC0`.
+- **Poly Haven, not Poly Pizza.** Poly Pizza's search API requires a per-user key
+  (verified 401 without one) and its CDN download URLs aren't reachable without that
+  search step, so it can't drive a keyless curated bundle. Poly Haven's API is fully
+  public + `access-control-allow-origin: *`, so it's the bundle source. Its models are
+  **multi-file glTF** (`.gltf` + external `.bin` + `textures/*.jpg`) — the reason Poly
+  Haven was dropped as a *browsable* model source (v0.9.0.64) — so `installPolyHavenBundle`
+  (`catalog/packs/install.ts`) fetches each item's files (dependency URLs come straight
+  from the API `include` map, never constructed) and re-exports them into one
+  self-contained GLB via the existing model-CONVERT pipeline (`furniture/convert/
+  convertModel`), then reuses `buildEntry`/`commit`. Nothing is vendored into the repo —
+  items stay remote-fetched, like Poly Pizza.
+- **UI**: `PolyHavenBundleCard` (`ui/catalog/PacksTab.tsx`) — item count, description,
+  attribution + source link, an "Add bundle (N items)" button with install progress,
+  and a "Remove all" once installed. Bundles ride the existing `packs` flag (the whole
+  Packs tab is Pro + `packs`-gated), so no new `FEATURE_FLAGS` entry.
+- **Licensing**: all CC0 → no `CREDITS.json` change needed (that file is for *bundled*
+  assets; these are remote-fetched CC0). Per-item license (`CC0`) + author attribution
+  surface in the inspector via the pack entry's `license`/`attribution`.
+- Tests: `catalog/packs/polyHaven.test.ts` (resolver happy/edge paths, basename, bundle
+  data invariants, prod-visibility of the bundle packs). `src/version.ts` → `0.21.2.24`.
+
+## v0.21.2.23 — X-SHOP: live-verify Courts/HipVan/Castlery price adapters
+
+Ran the deferred real-network verification pass over the dev-only price sidecar
+(`scripts/price-server.mjs`) adapters, each against the live SG retailer with a
+browser UA for `sofa` / `queen bed` / `dining table`:
+
+- **Courts** (`courts-sg`, Magento GraphQL `products` search): still live and
+  correct — HTTP 200 with real SGD prices + product links (e.g. sofa → $499 Muze
+  Tammi Armless Sofa, queen bed → $1063 Dunlopillo mattress, dining table → $328
+  Levin). Parser unchanged.
+- **Castlery** (`castlery-sg`): **drifted and fixed.** The search page dropped its
+  JSON-LD Product markup (only a `BreadcrumbList` remains) and now renders results
+  as a Next.js RSC payload that embeds the Algolia response. `parseCastleryResponse`
+  now reads the embedded `"hits":[…]` product records (price/image on the first
+  variant, `slug` → `/sg/products/<slug>`), with the old JSON-LD scan kept as a
+  fallback. Verified live: sofa → $149, queen bed → $849 Seb Bed, dining table →
+  $1259 Sawyer. Bracket-matched JSON extraction is quote/escape aware.
+- **HipVan** (`hipvan-sg`): **blocked (documented).** The public
+  `www.hipvan.com/api/search/products` endpoint is gone (404 SPA shell); search now
+  goes through an authenticated `api.communa.sg` API gateway
+  (`/hv_shop/api/v1/search/products`) that needs a session token with refresh on top
+  of an `x-api-key` — a plain browser-UA fetch can't retrieve results. Adapter left
+  as-is (dev-gated, fails soft to "no match"); limitation recorded in `TASKS.md`.
+
+Test fixture (`scripts/price-server.test.mjs`) updated to a trimmed snapshot of
+Castlery's live embedded-Algolia shape (offline, no live-fetching tests); all
+parsers stay pure + unit-tested (15 tests green). Docs refreshed
+(`docs/developer/offline-tooling.md`). Dev-only + licensing gating unchanged; no
+new retailers.
+
+## v0.21.2.22 — IXT-SUITES: aiWalls full-UI rung (last deferred leg)
+
+Landed the final deferred IXT-SUITES rung — the `aiWalls` full-UI leg that
+`ai-surfaces-simple.json` could only store-flag-check (the "AI walls" trace button
+renders only once a 2D plan-trace backdrop image is uploaded inside `FloorPlanEditor`).
+New `scripts/scenarios/aiwalls-simple.json` (57 steps, all green): opens the floor-plan
+editor, and (A) in **Simple** asserts the Plan menu has NO trace section at all
+(`planTraceBackdrop` + `aiWalls` both pro-tier, forced off); (B) in **Pro** injects a
+tiny canvas-generated PNG through the REAL hidden trace file input
+(`usePlanBackdrop.loadBackdrop`, native-setter + DataTransfer + change — no binary
+fixture) and asserts the "AI walls" button **mounts** enabled (and is absent before any
+backdrop, since it's backdrop-gated); (C) back in **Simple** with the backdrop still
+resident asserts the button is **absent even with the backdrop present** (tier gate, not
+missing backdrop), then (D) back in **Pro** WITHOUT re-uploading proves the backdrop was
+retained and the button reappears; (E) exercises the pre-inference path safely — clicking
+"AI walls" with no key opens the real "Vision-model API key" `PromptModal`
+(`usePlanAiWalls.runAiWalls`), which is cancelled so `runAiWalls` returns at
+`if (!key) return` before `classifyVisionEndpoint`/`recognizeFloorPlan`'s `fetch` (a
+fetch spy proves no `openai`/`replicate` call ever fired; no draft notification, no
+second prompt). Mirrors `backdrop-upload-simple.json`'s real-file-input pattern for the
+2D plan-trace backdrop and `ai-surfaces-simple.json`'s never-touch-the-network rule.
+Docs-only elsewhere: removed the now-fully-shipped IXT-SUITES entry from `TASKS.md`
+(per the shipped-items-are-removed policy) and recorded the new harness gotcha (the
+`Plan ▾` two-text-node clickByText miss + popover local-state race → self-retrying
+open/close evals) in the visual-verification playbook. No app-source changes.
+
 ## v0.21.2.21 — knip: recordViewTour un-exported
 
 The v0.21.2.20 guard dedup left `recordViewTour` with a single caller in its own module

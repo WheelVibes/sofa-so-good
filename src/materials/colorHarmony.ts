@@ -7,6 +7,8 @@
  * a per-room override) changes. Unit-tested.
  */
 
+import { relativeLuminance } from '../analysis/imagePalette'
+
 /** Normalise a hex string to lower-case `#rrggbb`, or `null` if not a hex colour.
  *  Accepts `#rgb`, `#rrggbb`, and `#rrggbbaa` (alpha dropped). */
 export function normalizeHex(hex: string): string | null {
@@ -78,6 +80,28 @@ export function hslToHex({ h, s, l }: Hsl): string {
       .toString(16)
       .padStart(2, '0')
   return `#${to2(r)}${to2(g)}${to2(b)}`
+}
+
+/**
+ * A TONAL contrast colour derived from a host `hex`: the SAME hue + saturation,
+ * nudged only in lightness so a thin thread/detail (a tuft stitch) reads AGAINST
+ * its host instead of the fixed chalk-white default. The direction is chosen by
+ * the host's WCAG relative luminance — a LIGHT host is darkened by `darkenAmt`
+ * (relative), a DARK host lightened by `lightenAmt` (toward white) — so stitches
+ * on dark velvet read as a slightly lighter thread of the same colour, and on a
+ * pale linen as a subtle shadow line. Returns `null` for an unparseable hex.
+ * Pure (reuses `relativeLuminance` + the hex↔HSL pair). */
+export function tonalContrast(hex: string, lightenAmt = 0.2, darkenAmt = 0.25): string | null {
+  const norm = normalizeHex(hex)
+  const hsl = norm ? hexToHsl(norm) : null
+  if (!norm || !hsl) return null
+  const r = Number.parseInt(norm.slice(1, 3), 16)
+  const g = Number.parseInt(norm.slice(3, 5), 16)
+  const b = Number.parseInt(norm.slice(5, 7), 16)
+  // Luminance ~0.2 ≈ the perceptual light/dark midpoint (mid-grey sits near it).
+  const light = relativeLuminance({ r, g, b }) > 0.2
+  const l = light ? hsl.l * (1 - darkenAmt) : hsl.l + (1 - hsl.l) * lightenAmt
+  return hslToHex({ h: hsl.h, s: hsl.s, l: Math.min(1, Math.max(0, l)) })
 }
 
 /** Candidate blends derived from ONE base colour, ordered most→least essential:

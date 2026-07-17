@@ -11,6 +11,7 @@ import { buildElectricalSchedule } from '../analysis/electricalSchedule'
 import { buildHandoverChecklist } from '../analysis/handoverChecklist'
 import { buildComplianceReport } from '../analysis/hdbCompliance'
 import { buildOpeningSchedule } from '../analysis/openingSchedule'
+import { buildPetCompliance, PET_TYPE_LABEL, type PetType } from '../analysis/petCompliance'
 import { buildPlanStatistics, roomKindLabel } from '../analysis/planStatistics'
 import { buildRenoTimeline } from '../analysis/renoTimeline'
 import { estimateRenovation, type PriceRules } from '../analysis/renovationCost'
@@ -87,6 +88,7 @@ export function buildReportHtml(
   budgetTarget?: number | null,
   baselinePlan?: FloorPlan,
   priceRules?: PriceRules,
+  petTypes: readonly PetType[] = [],
 ): string {
   // Multi-storey fan-out (F13): on a multi-level plan every plan-derived
   // diagram (floor plan, dimensioned plan, hacking plan, lighting plan) renders
@@ -783,6 +785,35 @@ export function buildReportHtml(
         .join('')}
     </div>`
 
+  // Pet compliance checklist (Pet program P6) — the required/recommended fittings
+  // each declared household pet needs (CMF window meshing, litter, dog rest area,
+  // …) with status + citations. Rides the existing `report` flag like the
+  // handover checklist; only rendered when the design declares pet types.
+  const petReport = petTypes.length > 0 ? buildPetCompliance(petTypes, items, plan) : null
+  const petStatusBadge = (status: string) =>
+    status === 'done' ? '#15803d' : status === 'partial' ? '#b45309' : '#b91c1c'
+  const petStatusLabel = (status: string) =>
+    status === 'done' ? 'Done' : status === 'partial' ? 'Partial' : 'To add'
+  const petComplianceSection =
+    !petReport || petReport.entries.length === 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>Pet compliance</h2>
+      <div class="foot" style="margin-bottom:6px">Household pets: ${esc(
+        petTypes.map((t) => PET_TYPE_LABEL[t]).join(', '),
+      )} · ${petReport.requiredDone}/${petReport.requiredTotal} required fittings in place — guidance only, confirm with NParks / AVS &amp; HDB.</div>
+      ${petReport.entries
+        .map((e) => {
+          const badge =
+            e.kind === 'info'
+              ? '<span class="badge" style="background:#6b7280;color:#fff">Info</span>'
+              : `<span class="badge" style="background:${petStatusBadge(e.status)};color:#fff">${esc(petStatusLabel(e.status))}</span>`
+          const count = e.need > 1 ? ` <em>(${e.have} of ${e.need} windows)</em>` : ''
+          return `<div class="ci-detail" style="margin-top:6px">${badge} <strong>${esc(PET_TYPE_LABEL[e.petType])} · ${esc(e.title)}</strong>${count}<br>${esc(e.detail)} <span style="color:#9ca3af">(${esc(e.cite)})</span></div>`
+        })
+        .join('')}
+    </div>`
+
   // Wall elevations — the vertical drawings, only for walls that actually carry
   // furniture or openings (skip the many bare structural segments).
   const elevations = hasItems
@@ -988,6 +1019,7 @@ export function buildReportHtml(
   ${daylightSection}
   ${openingsSection}
   ${complianceSection}
+  ${petComplianceSection}
   ${handoverSection}
   ${hackingSection}
   ${dimensionedPlanSection}

@@ -1,0 +1,127 @@
+{
+  "name": "realism-wave4-pets-others",
+  "description": "Wave 4B realism audit — others (staircase, all 4 styles + railings incl. the L-shape landing-railing fix) and a spot-check of the artifact-prone pets (cat-tree tier/house/perch combos, rabbit-hutch, bird-cage dome/rect, dog-ramp against a real sofa, cat-wall shelf/steps/bridge run on a wall, cat-window-perch on a window, aquarium-stand vs decor aquarium consistency, litter-cabinet, pet-gate in a doorway). Runs in the whole-flat ORBIT (dollhouse) camera — its ~3/4 elevation reveals floats/attachment that the polar-clamped room-editor camera hides; every requestFrameSelection closeup inherits that angle.",
+  "url": "http://localhost:5302/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "ensure-orbit", "eval": "(function(){ const s = window.__store.getState(); s.exitRoomEditor?.(); s.setCameraMode?.('orbit'); })()" },
+    { "name": "wait-orbit", "wait": 1500 },
+    { "name": "clear-items", "store": { "action": "setItems", "args": [[]] } },
+    { "name": "wait-clear", "wait": 800 },
+    {
+      "name": "compute-anchors",
+      "eval": "(function(){ const st = window.__store.getState(); const fp = st.floorPlan; const room = fp.rooms.find(r => r.id === 'livingDining') || fp.rooms[0]; if (!room) throw new Error('no living/dining room'); const ox = room.origin[0], oz = room.origin[1], W = room.width, D = room.depth; window.__room = { ox, oz, W, D, cx: ox + W/2, cz: oz + D/2 }; const byId = Object.fromEntries(fp.walls.map(w => [w.id, w])); const centre = (o) => { const w = byId[o.wallId]; const dx = w.end[0]-w.start[0], dz = w.end[1]-w.start[1]; const len = Math.hypot(dx,dz); const t = o.offset + o.width/2; return { id:o.id, kind:o.kind, cx: w.start[0]+dx/len*t, cz: w.start[1]+dz/len*t, nx:-dz/len, nz:dx/len, width:o.width, sill:o.sill, head:o.head }; }; const ops = fp.openings.filter(o => byId[o.wallId]).map(centre); const inRoom = (p) => p.cx >= ox-0.6 && p.cx <= ox+W+0.6 && p.cz >= oz-0.6 && p.cz <= oz+D+0.6; const wins = ops.filter(o => o.kind==='window'); const doors = ops.filter(o => o.kind==='door'); window.__win = wins.find(inRoom) || wins[0]; window.__door = doors.find(inRoom) || doors[0]; console.log('anchors', JSON.stringify(window.__room), 'win', window.__win && window.__win.id, 'door', window.__door && window.__door.id); })()"
+    },
+
+    { "name": "place-stair-straight", "eval": "(function(){ const r = window.__room; window.__store.getState().setItems([{ id:'stair-straight', defId:'staircase', position:[r.cx, r.cz], rotation:0, props:{ style:'straight', railing:'both' } }]); })()" },
+    { "name": "wait-stair-1", "wait": 1000 },
+    { "name": "frame-stair-straight", "eval": "(function(){ const r = window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx, 1.0, r.cz], radius:2.9}); })()" },
+    { "name": "wait-frame-1", "wait": 1800 },
+    { "name": "shot-01-stair-straight", "screenshot": "01-stair-straight" },
+
+    { "name": "place-stair-lshape", "eval": "(function(){ const r = window.__room; window.__store.getState().setItems([{ id:'stair-lshape', defId:'staircase', position:[r.cx, r.cz], rotation:0, props:{ style:'lshape', railing:'both' } }]); })()" },
+    { "name": "wait-stair-2", "wait": 1000 },
+    { "name": "frame-stair-lshape", "eval": "(function(){ const r = window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx+0.3, 1.0, r.cz+0.3], radius:3.0}); })()" },
+    { "name": "wait-frame-2", "wait": 1800 },
+    { "name": "shot-02-stair-lshape", "screenshot": "02-stair-lshape" },
+
+    { "name": "place-stair-ushape", "eval": "(function(){ const r = window.__room; window.__store.getState().setItems([{ id:'stair-ushape', defId:'staircase', position:[r.cx, r.cz], rotation:0, props:{ style:'ushape', railing:'both' } }]); })()" },
+    { "name": "wait-stair-3", "wait": 1000 },
+    { "name": "frame-stair-ushape", "eval": "(function(){ const r = window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx+0.4, 1.0, r.cz+0.3], radius:3.1}); })()" },
+    { "name": "wait-frame-3", "wait": 1800 },
+    { "name": "shot-03-stair-ushape", "screenshot": "03-stair-ushape" },
+
+    { "name": "place-stair-spiral", "eval": "(function(){ const r = window.__room; window.__store.getState().setItems([{ id:'stair-spiral', defId:'staircase', position:[r.cx, r.cz], rotation:0, props:{ style:'spiral', railing:'side' } }]); })()" },
+    { "name": "wait-stair-4", "wait": 1000 },
+    { "name": "frame-stair-spiral", "eval": "(function(){ const r = window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx, 1.1, r.cz], radius:2.4}); })()" },
+    { "name": "wait-frame-4", "wait": 1800 },
+    { "name": "shot-04-stair-spiral", "screenshot": "04-stair-spiral" },
+
+    { "name": "place-cat-tree-default", "eval": "(function(){ const r = window.__room; window.__store.getState().setItems([{ id:'cattree-def', defId:'cat-tree', position:[r.cx, r.cz], rotation:0, props:{ tiers:3, house:'yes', topPerch:'yes' } }]); })()" },
+    { "name": "wait-cattree-1", "wait": 1000 },
+    { "name": "frame-cattree-1", "eval": "(function(){ const r = window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx, 0.8, r.cz], radius:1.6}); })()" },
+    { "name": "wait-frame-ct1", "wait": 1800 },
+    { "name": "shot-05-cat-tree-default", "screenshot": "05-cat-tree-default" },
+
+    { "name": "place-cat-tree-5tier", "eval": "(function(){ const r = window.__room; window.__store.getState().setItems([{ id:'cattree-5', defId:'cat-tree', position:[r.cx, r.cz], rotation:0, props:{ tiers:5, height:1.8, house:'no', topPerch:'yes', postStyle:'ribbed' } }]); })()" },
+    { "name": "wait-cattree-2", "wait": 1000 },
+    { "name": "frame-cattree-2", "eval": "(function(){ const r = window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx, 0.95, r.cz], radius:1.9}); })()" },
+    { "name": "wait-frame-ct2", "wait": 1800 },
+    { "name": "shot-06-cat-tree-5tier-noHouse", "screenshot": "06-cat-tree-5tier-noHouse" },
+
+    { "name": "place-rabbit-hutch", "eval": "(function(){ const r = window.__room; window.__store.getState().setItems([{ id:'hutch', defId:'rabbit-hutch', position:[r.cx, r.cz], rotation:0, props:{} }]); })()" },
+    { "name": "wait-hutch", "wait": 1000 },
+    { "name": "frame-hutch", "eval": "(function(){ const r = window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx, 0.5, r.cz], radius:1.6}); })()" },
+    { "name": "wait-frame-hutch", "wait": 1800 },
+    { "name": "shot-07-rabbit-hutch", "screenshot": "07-rabbit-hutch" },
+
+    { "name": "place-birdcage-dome", "eval": "(function(){ const r = window.__room; window.__store.getState().setItems([{ id:'cage-dome', defId:'bird-cage', position:[r.cx, r.cz], rotation:0, props:{ shape:'dome', mount:'stand', size:'M' } }]); })()" },
+    { "name": "wait-cage-1", "wait": 1000 },
+    { "name": "frame-cage-1", "eval": "(function(){ const r = window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx, 0.9, r.cz], radius:1.3}); })()" },
+    { "name": "wait-frame-cage1", "wait": 1800 },
+    { "name": "shot-08-bird-cage-dome", "screenshot": "08-bird-cage-dome" },
+
+    { "name": "place-birdcage-rect", "eval": "(function(){ const r = window.__room; window.__store.getState().setItems([{ id:'cage-rect', defId:'bird-cage', position:[r.cx, r.cz], rotation:0, props:{ shape:'rect', mount:'tabletop', size:'M' } }]); })()" },
+    { "name": "wait-cage-2", "wait": 1000 },
+    { "name": "frame-cage-2", "eval": "(function(){ const r = window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx, 0.45, r.cz], radius:0.95}); })()" },
+    { "name": "wait-frame-cage2", "wait": 1800 },
+    { "name": "shot-09-bird-cage-rect", "screenshot": "09-bird-cage-rect" },
+
+    { "name": "place-ramp-scene", "eval": "(function(){ const r = window.__room; window.__store.getState().setItems([{ id:'sofa', defId:'sofa-3seat', position:[r.cx, r.cz-0.55], rotation:0, props:{} }, { id:'ramp', defId:'dog-ramp', position:[r.cx, r.cz+0.5], rotation:0, props:{ style:'ramp', rails:'yes', height:0.45 } }]); })()" },
+    { "name": "wait-ramp", "wait": 1000 },
+    { "name": "frame-ramp", "eval": "(function(){ const r = window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx, 0.35, r.cz+0.3], radius:1.4}); })()" },
+    { "name": "wait-frame-ramp", "wait": 1800 },
+    { "name": "shot-10-dog-ramp-sofa", "screenshot": "10-dog-ramp-sofa" },
+
+    { "name": "place-wall-run", "eval": "(function(){ const st = window.__store.getState(); const r = window.__room; const zLine = r.oz + 0.06; const at = (fx, mh, defId, extra) => ({ id: defId+'-run', defId, position:[r.ox + r.W*fx, zLine], rotation:0, props: Object.assign({ mountHeight: mh }, extra||{}) }); st.setItems([ at(0.30, 0.85, 'cat-wall-steps', { count:4, rise:0.28, run:0.4 }), at(0.58, 1.5, 'cat-wall-shelf', { width:0.5, depth:0.28 }), at(0.8, 1.75, 'cat-wall-bridge', { span:1.0, depth:0.26 }) ]); window.__runC = [r.ox + r.W*0.55, r.oz + 0.35]; })()" },
+    { "name": "wait-wall-run", "wait": 1200 },
+    { "name": "frame-wall-run", "eval": "(function(){ const c = window.__runC; window.__store.getState().requestFrameSelection?.({center:[c[0], 1.35, c[1]], radius:2.7}); })()" },
+    { "name": "wait-frame-run", "wait": 1800 },
+    { "name": "shot-11-cat-wall-run", "screenshot": "11-cat-wall-run" },
+    { "name": "close-wall-shelf", "eval": "(function(){ const r = window.__room; window.__store.getState().requestFrameSelection?.({center:[r.ox + r.W*0.58, 1.5, r.oz + 0.2], radius:0.85}); })()" },
+    { "name": "wait-close-shelf", "wait": 1800 },
+    { "name": "shot-11b-cat-wall-shelf-close", "screenshot": "11b-cat-wall-shelf-close" },
+    { "name": "close-wall-bridge", "eval": "(function(){ const r = window.__room; window.__store.getState().requestFrameSelection?.({center:[r.ox + r.W*0.8, 1.75, r.oz + 0.2], radius:1.0}); })()" },
+    { "name": "wait-close-bridge", "wait": 1800 },
+    { "name": "shot-11c-cat-wall-bridge-close", "screenshot": "11c-cat-wall-bridge-close" },
+
+    { "name": "clear-for-perch", "store": { "action": "setItems", "args": [[]] } },
+    { "name": "arm-perch", "store": { "action": "setActiveDefId", "args": ["cat-window-perch"] } },
+    { "name": "drop-perch-near-window", "eval": "(function(){ const w = window.__win; const r = window.__room; let ux = r.cx - w.cx, uz = r.cz - w.cz; const l = Math.hypot(ux, uz) || 1; ux/=l; uz/=l; window.__store.getState().setGhostWorld([w.cx + ux*0.4, w.cz + uz*0.4], true); })()" },
+    { "name": "click-perch", "eval": "(function(){ const c = document.querySelector('canvas'); c.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })); })()" },
+    { "name": "perch-committed", "waitFor": { "store": "state.items.some(it => it.defId === 'cat-window-perch') && state.activeDefId === null" }, "timeout": 6000, "failMessage": "The window perch should commit (windowBound snap) and disarm" },
+    { "name": "focus-perch", "eval": "(function(){ const w = window.__win; window.__store.getState().requestFrameSelection?.({center:[w.cx, (w.sill||0.9)+0.05, w.cz], radius:1.0}); })()" },
+    { "name": "wait-focus-perch", "wait": 1800 },
+    { "name": "shot-12-cat-window-perch", "screenshot": "12-cat-window-perch" },
+
+    { "name": "place-aquaria", "eval": "(function(){ const r = window.__room; window.__store.getState().setItems([{ id:'aq-stand', defId:'aquarium-stand', position:[r.cx-0.95, r.cz], rotation:0, props:{ tankLength:'0.9', doors:'yes' } }, { id:'aq-decor', defId:'aquarium', position:[r.cx+0.95, r.cz], rotation:0, props:{} }]); })()" },
+    { "name": "wait-aquaria", "wait": 1200 },
+    { "name": "frame-aquaria", "eval": "(function(){ const r = window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx, 0.9, r.cz], radius:2.5}); })()" },
+    { "name": "wait-frame-aq", "wait": 1800 },
+    { "name": "shot-13-aquarium-stand-vs-decor", "screenshot": "13-aquarium-stand-vs-decor" },
+    { "name": "close-aq-stand", "eval": "(function(){ const r = window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx-0.95, 0.95, r.cz], radius:1.15}); })()" },
+    { "name": "wait-close-aq", "wait": 1800 },
+    { "name": "shot-13b-aquarium-stand-close", "screenshot": "13b-aquarium-stand-close" },
+
+    { "name": "place-litter-cabinet", "eval": "(function(){ const r = window.__room; window.__store.getState().setItems([{ id:'litter-cab', defId:'litter-cabinet', position:[r.cx, r.cz], rotation:0, props:{ entrySide:'left' } }]); })()" },
+    { "name": "wait-litter", "wait": 1000 },
+    { "name": "frame-litter", "eval": "(function(){ const r = window.__room; window.__store.getState().requestFrameSelection?.({center:[r.cx, 0.35, r.cz], radius:1.3}); })()" },
+    { "name": "wait-frame-litter", "wait": 1800 },
+    { "name": "shot-14-litter-cabinet", "screenshot": "14-litter-cabinet" },
+
+    { "name": "place-pet-gate", "eval": "(function(){ const d = window.__door; if (!d) { const r = window.__room; window.__store.getState().setItems([{ id:'gate', defId:'pet-gate', position:[r.cx, r.cz], rotation:0, props:{ width:0.85, height:0.75, style:'bars', flap:'yes' } }]); window.__gateC=[r.cx,r.cz,0.75]; return; } const rot = Math.atan2(d.nx, d.nz); window.__store.getState().setItems([{ id:'gate', defId:'pet-gate', position:[d.cx, d.cz], rotation:rot, props:{ width:d.width, height:0.75, style:'bars', flap:'yes' } }]); window.__gateC=[d.cx, d.cz, 0.75]; })()" },
+    { "name": "wait-gate", "wait": 1000 },
+    { "name": "frame-gate", "eval": "(function(){ const g = window.__gateC; window.__store.getState().requestFrameSelection?.({center:[g[0], 0.45, g[1]], radius:1.2}); })()" },
+    { "name": "wait-frame-gate", "wait": 1800 },
+    { "name": "shot-15-pet-gate-doorway", "screenshot": "15-pet-gate-doorway" },
+
+    { "name": "place-pet-gate-mesh", "eval": "(function(){ window.__store.getState().updateItemProps?.('gate', { style:'mesh' }); })()" },
+    { "name": "wait-gate-mesh", "wait": 1200 },
+    { "name": "shot-15b-pet-gate-mesh", "screenshot": "15b-pet-gate-mesh" }
+  ]
+}

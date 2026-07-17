@@ -1,0 +1,116 @@
+{
+  "name": "glb-designer-stage7d",
+  "description": "Asset Studio Stage 7d — slot-constraint authoring for configurable exports. Build a 2-slot design (Top: Glass/Oak + Legs: Steel/Wood), author 'Top:Glass requires Legs:Steel', export as a user configurable product (asserting the product carries the mapped SlotConstraint). Open it in the existing ConfiguratorDialog seeded on Oak top + Wood legs (no rule active), then pick Glass top → assert Legs auto-resolve/lock to Steel (the requires flips + holds the dependent slot). Reset to Wood legs first then Glass top → assert the clamp still resolves Legs → Steel (order-independent). Finally, re-seed the design and author a CONTRADICTION (Glass both requires AND excludes Steel) → assert export is BLOCKED with a toast naming the conflict + the product is NOT registered.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 120000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1'); localStorage.removeItem('hdb_user_products') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setUserConfigurableProducts?.([]); s.setQualityTier?.('performance'); })()"
+    },
+    { "name": "set-pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "settle-boot", "wait": 3000 },
+    { "name": "open-glb-designer", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    { "name": "wait-designer", "waitFor": { "text": "3D asset designer" }, "timeout": 25000 },
+
+    {
+      "name": "seed-two-slot-design",
+      "comment": "A table with a Top slot (Glass vs Oak boards) + a Legs slot (Steel vs Wood posts). Each option is its own PartGroup; a shared apron is loose base geometry.",
+      "eval": "(function(){ const legs=[[-0.5,-0.3],[0.5,-0.3],[-0.5,0.3],[0.5,0.3]]; const parts=[{id:'apron',kind:'box',position:[0,0.68,0],size:[1.1,0.06,0.7],color:'#7d6240'}]; const steel=[]; const wood=[]; legs.forEach((c,i)=>{ const st='st'+i, wd='wd'+i; parts.push({id:st,kind:'cylinder',position:[c[0],0.34,c[1]],size:[0.05,0.68,0.05],color:'#b8bcc0'}); parts.push({id:wd,kind:'box',position:[c[0],0.34,c[1]],size:[0.06,0.68,0.06],color:'#8a6a45'}); steel.push(st); wood.push(wd); }); parts.push({id:'glass',kind:'box',position:[0,0.75,0],size:[1.2,0.02,0.8],color:'#cfe6ea'}); parts.push({id:'oak',kind:'box',position:[0,0.75,0],size:[1.2,0.04,0.8],color:'#9a7b50'}); window.__glbDesigner.setSpec({ sourceScale:1, meshOverrides:{}, parts, partGroups:[ {id:'g-glass',name:'Glass top',partIds:['glass']}, {id:'g-oak',name:'Oak top',partIds:['oak']}, {id:'g-steel',name:'Steel legs',partIds:steel}, {id:'g-wood',name:'Wood legs',partIds:wood} ] }); })()"
+    },
+    { "name": "wait-seed", "wait": 600 },
+    { "name": "shot-designer", "screenshot": "01-designer-two-slots" },
+    {
+      "name": "author-and-export",
+      "comment": "Top: Glass(default)/Oak · Legs: Steel(default)/Wood. Author 'Glass REQUIRES Steel' as a per-option rule, then bake → a user configurable product carrying the mapped SlotConstraint.",
+      "eval": "window.__cfgProductId='pending'; window.__glbDesigner.makeConfigurable({ 'g-glass':{slot:'Top',label:'Glass',price:0,rules:[{kind:'requires',target:'g-steel'}]}, 'g-oak':{slot:'Top',label:'Oak',price:0}, 'g-steel':{slot:'Legs',label:'Steel',price:0}, 'g-wood':{slot:'Legs',label:'Wood',price:0} }).then(id=>{ window.__cfgProductId=id })"
+    },
+    {
+      "name": "assert-product-with-constraint",
+      "comment": "The exported product registers with a Top + Legs slot and the mapped requires constraint (Glass → Steel).",
+      "waitFor": { "store": "state.userConfigurableProducts.length === 1 && state.userConfigurableProducts[0].slots.length === 2 && Array.isArray(state.userConfigurableProducts[0].constraints) && state.userConfigurableProducts[0].constraints.length === 1 && state.userConfigurableProducts[0].constraints[0].kind === 'requires' && state.userConfigurableProducts[0].constraints[0].ifSlot === 'Top' && state.userConfigurableProducts[0].constraints[0].ifOption === 'g-glass' && state.userConfigurableProducts[0].constraints[0].thenSlot === 'Legs' && state.userConfigurableProducts[0].constraints[0].thenOption === 'g-steel'" },
+      "timeout": 30000,
+      "failMessage": "exported product should register with a Top+Legs pair of slots and one requires constraint (Glass → Steel)"
+    },
+    { "name": "close-designer", "store": { "action": "setGlbDesignerOpen", "args": [false] } },
+
+    {
+      "name": "open-configurator-oak-wood",
+      "comment": "Seed the dialog on Oak top + Wood legs (no rule active) so the flip is observable when Glass is picked.",
+      "eval": "(function(){ const st=window.__store.getState(); const p=st.userConfigurableProducts[0]; st.setConfiguratorEditSpec(JSON.stringify({productId:p.id, selections:{Top:'g-oak', Legs:'g-wood'}})); st.setConfiguratorOpen(true); })()"
+    },
+    { "name": "wait-configurator", "waitFor": { "text": "Configure a product" }, "timeout": 15000 },
+    { "name": "wait-preview-a", "wait": 1500 },
+    {
+      "name": "assert-initial-oak-wood",
+      "comment": "With Oak selected the requires is dormant → Wood legs stay the active pick (no forced flip yet).",
+      "eval": "(function(){ const btn=t=>[...document.querySelectorAll('.configurator-dialog button')].find(b=>(b.textContent||'').trim().startsWith(t)); const oak=btn('Oak'), wood=btn('Wood'), steel=btn('Steel'); if(!oak||!wood||!steel) throw new Error('option buttons missing'); if(!oak.className.includes('btn-accent')) throw new Error('Oak should be the active top'); if(!wood.className.includes('btn-accent')) throw new Error('Wood should be the active legs before the rule fires'); if(steel.className.includes('btn-accent')) throw new Error('Steel should NOT be active yet'); })()"
+    },
+    { "name": "shot-oak-wood", "screenshot": "02-configurator-oak-wood" },
+    {
+      "name": "pick-glass-top",
+      "comment": "Pick the Glass top — clampConfig's requires must auto-resolve Legs → Steel.",
+      "eval": "(function(){ const glass=[...document.querySelectorAll('.configurator-dialog button')].find(b=>(b.textContent||'').trim().startsWith('Glass')); if(!glass) throw new Error('Glass option missing'); glass.click(); })()"
+    },
+    { "name": "wait-flip", "wait": 1500 },
+    {
+      "name": "assert-legs-flipped-to-steel",
+      "comment": "Glass now active AND the requires flipped Legs → Steel (Wood no longer active).",
+      "eval": "(function(){ const btn=t=>[...document.querySelectorAll('.configurator-dialog button')].find(b=>(b.textContent||'').trim().startsWith(t)); const glass=btn('Glass'), steel=btn('Steel'), wood=btn('Wood'); if(!glass.className.includes('btn-accent')) throw new Error('Glass should be the active top'); if(!steel.className.includes('btn-accent')) throw new Error('requires did not flip Legs to Steel'); if(wood.className.includes('btn-accent')) throw new Error('Wood should no longer be active'); })()"
+    },
+    { "name": "shot-glass-steel", "screenshot": "03-configurator-glass-forces-steel" },
+    {
+      "name": "assert-legs-locked",
+      "comment": "Try to pick Wood while Glass is selected — the requires re-clamps it straight back to Steel (locked).",
+      "eval": "(function(){ const wood=[...document.querySelectorAll('.configurator-dialog button')].find(b=>(b.textContent||'').trim().startsWith('Wood')); wood.click(); })()"
+    },
+    { "name": "wait-lock", "wait": 1200 },
+    {
+      "name": "assert-still-steel",
+      "eval": "(function(){ const btn=t=>[...document.querySelectorAll('.configurator-dialog button')].find(b=>(b.textContent||'').trim().startsWith(t)); if(!btn('Steel').className.includes('btn-accent')) throw new Error('Legs should stay locked to Steel while Glass is chosen'); if(btn('Wood').className.includes('btn-accent')) throw new Error('Wood pick should have been re-clamped away'); })()"
+    },
+    {
+      "name": "reset-wood-first-then-glass",
+      "comment": "Order-independence: reset to Oak+Wood, pick Wood legs FIRST, then Glass top → the clamp still resolves Legs → Steel.",
+      "eval": "(function(){ const btn=t=>[...document.querySelectorAll('.configurator-dialog button')].find(b=>(b.textContent||'').trim().startsWith(t)); btn('Oak').click(); })()"
+    },
+    { "name": "wait-reset", "wait": 900 },
+    {
+      "name": "pick-wood-then-glass",
+      "eval": "(function(){ const btn=t=>[...document.querySelectorAll('.configurator-dialog button')].find(b=>(b.textContent||'').trim().startsWith(t)); btn('Wood').click(); setTimeout(()=>btn('Glass').click(), 250); })()"
+    },
+    { "name": "wait-reorder", "wait": 1600 },
+    {
+      "name": "assert-order-independent",
+      "eval": "(function(){ const btn=t=>[...document.querySelectorAll('.configurator-dialog button')].find(b=>(b.textContent||'').trim().startsWith(t)); if(!btn('Glass').className.includes('btn-accent')) throw new Error('Glass should be active'); if(!btn('Steel').className.includes('btn-accent')) throw new Error('picking Wood-then-Glass should still resolve Legs to Steel'); })()"
+    },
+    { "name": "shot-order-independent", "screenshot": "04-order-independent-resolve" },
+    { "name": "close-configurator", "store": { "action": "setConfiguratorOpen", "args": [false] } },
+
+    {
+      "name": "reopen-designer-contradiction",
+      "store": { "action": "setGlbDesignerOpen", "args": [true] }
+    },
+    { "name": "wait-designer-2", "waitFor": { "text": "3D asset designer" }, "timeout": 15000 },
+    {
+      "name": "re-seed-two-slot-design",
+      "eval": "(function(){ const legs=[[-0.5,-0.3],[0.5,-0.3],[-0.5,0.3],[0.5,0.3]]; const parts=[{id:'apron',kind:'box',position:[0,0.68,0],size:[1.1,0.06,0.7],color:'#7d6240'}]; const steel=[]; const wood=[]; legs.forEach((c,i)=>{ const st='st'+i, wd='wd'+i; parts.push({id:st,kind:'cylinder',position:[c[0],0.34,c[1]],size:[0.05,0.68,0.05],color:'#b8bcc0'}); parts.push({id:wd,kind:'box',position:[c[0],0.34,c[1]],size:[0.06,0.68,0.06],color:'#8a6a45'}); steel.push(st); wood.push(wd); }); parts.push({id:'glass',kind:'box',position:[0,0.75,0],size:[1.2,0.02,0.8],color:'#cfe6ea'}); parts.push({id:'oak',kind:'box',position:[0,0.75,0],size:[1.2,0.04,0.8],color:'#9a7b50'}); window.__glbDesigner.setSpec({ sourceScale:1, meshOverrides:{}, parts, partGroups:[ {id:'g-glass',name:'Glass top',partIds:['glass']}, {id:'g-oak',name:'Oak top',partIds:['oak']}, {id:'g-steel',name:'Steel legs',partIds:steel}, {id:'g-wood',name:'Wood legs',partIds:wood} ] }); })()"
+    },
+    { "name": "wait-reseed", "wait": 600 },
+    {
+      "name": "record-product-count",
+      "eval": "window.__prodBefore = window.__store.getState().userConfigurableProducts.length"
+    },
+    {
+      "name": "author-contradiction",
+      "comment": "Glass both REQUIRES and EXCLUDES Steel — a contradiction. Export must block before baking.",
+      "eval": "window.__badResult='pending'; window.__glbDesigner.makeConfigurable({ 'g-glass':{slot:'Top',label:'Glass',price:0,rules:[{kind:'requires',target:'g-steel'},{kind:'excludes',target:'g-steel'}]}, 'g-oak':{slot:'Top',label:'Oak',price:0}, 'g-steel':{slot:'Legs',label:'Steel',price:0}, 'g-wood':{slot:'Legs',label:'Wood',price:0} }).then(id=>{ window.__badResult=id })"
+    },
+    { "name": "wait-block", "wait": 1200 },
+    {
+      "name": "assert-export-blocked",
+      "comment": "The export returned null (blocked), no new product registered, and a toast names the conflict.",
+      "eval": "(function(){ if(window.__badResult!==null) throw new Error('contradiction export should resolve to null, got '+window.__badResult); const after=window.__store.getState().userConfigurableProducts.length; if(after!==window.__prodBefore) throw new Error('a contradictory product must NOT be registered'); const txt=(document.body.textContent||''); if(!/rules conflict|requires and excludes/i.test(txt)) throw new Error('expected a toast naming the rule conflict'); })()"
+    },
+    { "name": "shot-contradiction-blocked", "screenshot": "05-contradiction-blocked" }
+  ]
+}

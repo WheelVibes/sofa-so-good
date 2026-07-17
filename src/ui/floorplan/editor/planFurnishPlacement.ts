@@ -15,6 +15,7 @@ import { canPlace } from '../../../collision/placement'
 import type { CollisionWall } from '../../../collision/walls'
 import type { PlanOpening, PlanWall } from '../../../floorplan/types'
 import { defaultItemProps } from '../../../furniture/placement/defaultItemProps'
+import { doorFixtureProps, snapToNearestDoor } from '../../../furniture/placement/doorSnap'
 import { snapToNearestWindow, windowFixtureProps } from '../../../furniture/placement/windowSnap'
 import type { FurnitureDef, FurnitureItem } from '../../../furniture/types'
 
@@ -107,6 +108,46 @@ export function buildPlanWindowGhostItem(
   }
 }
 
+/** Whether the edited level has at least one door a fixture could snap to.
+ *  Probes `snapToNearestDoor` so "has a door" and "will snap" can't disagree. */
+export function planHasDoor(
+  walls: ReadonlyArray<PlanWall>,
+  openings: ReadonlyArray<PlanOpening>,
+): boolean {
+  return snapToNearestDoor(walls, openings, [0, 0]) !== null
+}
+
+/**
+ * The door-snapped ghost/commit item for a `doorBound` def (pet gate, pet-door
+ * insert) dropped at `worldPoint`. Reuses the EXACT pure pair the 3D commit uses
+ * (`furniture/placement/doorSnap.ts`): `snapToNearestDoor` picks the nearest
+ * door on the edited level and the room-side facing, `doorFixtureProps` spans
+ * the fixture to that doorway. The user-dialed `ghostRotation` is ignored (a
+ * door fixture's orientation is the doorway's). Returns `null` when the level has
+ * no door to snap to (caller toasts + disarms). Mirrors `buildPlanWindowGhostItem`.
+ */
+export function buildPlanDoorGhostItem(
+  def: FurnitureDef,
+  worldPoint: [number, number],
+  walls: ReadonlyArray<PlanWall>,
+  openings: ReadonlyArray<PlanOpening>,
+  levelId?: string,
+): FurnitureItem | null {
+  const snap = snapToNearestDoor(walls, openings, worldPoint)
+  if (!snap) return null
+  return {
+    id: PLAN_GHOST_ID,
+    defId: def.id,
+    position: snap.position,
+    rotation: snap.rotation,
+    props: {
+      ...defaultItemProps(def),
+      ...doorFixtureProps(def.id, snap.door),
+    },
+    ...(levelId ? { levelId } : {}),
+  }
+}
+
 /** Validity of a FLOOR-standing plan ghost at its current world point — the
  *  same `canPlace` rule every other plan-space transform (move/rotate/scale)
  *  already validates against. Window-bound defs never take this path (their
@@ -119,7 +160,7 @@ export function planGhostValid(
   def: FurnitureDef,
   ctx: PlanGhostContext,
 ): boolean {
-  if (def.windowBound) return false
+  if (def.windowBound || def.doorBound) return false
   return canPlace(ghostItem, def, ctx)
 }
 
@@ -135,7 +176,7 @@ export type PlanCommitDecision = 'commit' | 'invalid' | 'ineligible'
  *  returned an item), not `canPlace`. */
 export function decidePlanCommit(def: FurnitureDef, valid: boolean): PlanCommitDecision {
   if (valid) return 'commit'
-  return def.windowBound ? 'ineligible' : 'invalid'
+  return def.windowBound || def.doorBound ? 'ineligible' : 'invalid'
 }
 
 /**

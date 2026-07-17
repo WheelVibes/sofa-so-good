@@ -469,6 +469,72 @@ body.mobile {
     width: min(360px, calc(100vw - 24px));
     max-height: calc(100vh - 56px);
   }
+
+  /* ============================================================
+     SCREEN: 3D Asset Designer (Asset Studio) — mobile UX pass (10b)
+     The full-screen designer dialog owns its own layout (NOT a
+     bottom-sheet — it sets width:100vw/height:100dvh inline) and
+     shipped with zero mobile styling. Fill the viewport, reflow the
+     floating viewport-overlay clusters so they can't collide/overflow
+     at 390px, and lift every control to a 44px touch target. All rules
+     are `body.mobile`-scoped (or :has-gated) so desktop is untouched.
+     ============================================================ */
+
+  /* Full-bleed: the centered-modal padding (28px 8px) clips a
+     full-viewport panel on every edge (content ran off-screen on the
+     right, the app peeked through top-left). Drop it for this dialog. */
+  .modal-overlay:has(> .glb-designer) { padding: 0; }
+
+  /* --- Floating viewport overlays -------------------------------
+     Six absolutely-positioned clusters (gizmo mode / pivot / snap /
+     view presets / dims / env). Cap each at ~half the width and let it
+     scroll, so a left cluster and a right cluster sharing a row can
+     never overlap or run off-screen; drop the second row below the now
+     44px-tall first row. */
+  body.mobile .glb-designer .dv-ov { max-width: calc(50vw - 10px); }
+  body.mobile .glb-designer .dv-ov-gizmo,
+  body.mobile .glb-designer .dv-ov-pivot,
+  body.mobile .glb-designer .dv-ov-snap,
+  body.mobile .glb-designer .dv-ov-views,
+  body.mobile .glb-designer .dv-ov-env { overflow-x: auto; scrollbar-width: none; }
+  body.mobile .glb-designer .dv-ov-gizmo::-webkit-scrollbar,
+  body.mobile .glb-designer .dv-ov-pivot::-webkit-scrollbar,
+  body.mobile .glb-designer .dv-ov-snap::-webkit-scrollbar,
+  body.mobile .glb-designer .dv-ov-views::-webkit-scrollbar,
+  body.mobile .glb-designer .dv-ov-env::-webkit-scrollbar { display: none; }
+  /* Second row clears the taller first row (8 + 44 + 8). */
+  body.mobile .glb-designer .dv-ov-pivot,
+  body.mobile .glb-designer .dv-ov-views { top: 60px !important; }
+  /* 44px touch targets on the floating seg switches (room to grow). The
+     buttons don't shrink, so an over-wide cluster scrolls rather than
+     squashing its labels below the tap target. */
+  body.mobile .glb-designer .dv-ov.seg,
+  body.mobile .glb-designer .dv-ov-env .seg { flex-wrap: nowrap; }
+  body.mobile .glb-designer .dv-ov.seg button,
+  body.mobile .glb-designer .dv-ov-env .seg button { min-height: 44px; flex: 0 0 auto; }
+  /* Snap toggle + step select. */
+  body.mobile .glb-designer .dv-ov-snap .icon-btn { width: 44px; height: 44px; }
+  body.mobile .glb-designer .dv-ov-snap .select-trigger { min-height: 44px; }
+
+  /* --- Controls column -----------------------------------------
+     Block form controls (selects, inputs, add-shape tiles) to 44px;
+     min-height overrides the smaller inline heights on the filter /
+     rename / snap inputs without touching the JSX. */
+  body.mobile .glb-designer .panel-body select.input,
+  body.mobile .glb-designer .panel-body .select-trigger,
+  body.mobile .glb-designer .panel-body .input,
+  body.mobile .glb-designer .panel-body .act { min-height: 44px; }
+  /* Dense row-action icon buttons (layers rename/dup/remove/ungroup,
+     ProfileEditor add/remove, inspector) keep their compact visual size
+     but gain a taller HIT AREA via ::after — the repo's .m-sheet-head
+     pattern — so a layer row doesn't blow its width with 5 big buttons.
+     Horizontal expansion is capped at -2px: the 5-icon group rows sit at
+     ~32px pitch, so a symmetric -9px would overlap neighbours by ~12px
+     and steal taps — worse than a slightly narrower target. */
+  body.mobile .glb-designer .panel-body .icon-btn { position: relative; }
+  body.mobile .glb-designer .panel-body .icon-btn::after {
+    content: ''; position: absolute; inset: -9px -2px;
+  }
   /* Help modal: comfortable body padding on phones. */
   #helpPanel .panel-body { padding: var(--s-2) var(--s-4) var(--s-5); }
   .kbd-grid { grid-template-columns: 1fr; gap: 9px 0; }

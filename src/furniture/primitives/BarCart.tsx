@@ -100,17 +100,27 @@ export function BarCart({ props }: { props: ParamProps }) {
       ].map((r, i) => (
         <mesh
           key={i}
+          // Span along the rail's own axis: X-rails rotate the unit cylinder
+          // (default +Y) onto +X (roll about Z), Z-rails onto +Z (pitch about X).
+          // (Previously swapped, which pointed the back/side rails the wrong way
+          // and left them only nominally touching the corner posts.)
           position={r.pos}
-          rotation={[r.axis === 'z' ? 0 : Math.PI / 2, 0, r.axis === 'z' ? Math.PI / 2 : 0]}
+          rotation={[r.axis === 'z' ? Math.PI / 2 : 0, 0, r.axis === 'x' ? Math.PI / 2 : 0]}
           material={frameMat}
         >
           <cylinderGeometry args={[0.006, 0.006, r.len, 8]} />
         </mesh>
       ))}
 
-      {/* Push handle, arching over the back edge */}
+      {/* Push handle on two short stems rising from the back corner posts, so it
+          reads as a mounted push bar rather than a rail floating above the top. */}
       <group position={[0, totalH - 0.02, -pz]}>
-        <mesh position={[0, 0.05, -0.04]} rotation={[0, 0, Math.PI / 2]} material={frameMat}>
+        {[-1, 1].map((s) => (
+          <mesh key={s} position={[s * px, 0.025, 0]} material={frameMat}>
+            <cylinderGeometry args={[postT * 0.7, postT * 0.7, 0.11, 8]} />
+          </mesh>
+        ))}
+        <mesh position={[0, 0.06, 0]} rotation={[0, 0, Math.PI / 2]} material={frameMat}>
           <cylinderGeometry args={[0.01, 0.01, width - postT, 10]} />
         </mesh>
       </group>

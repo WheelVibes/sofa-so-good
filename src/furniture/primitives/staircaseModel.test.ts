@@ -92,10 +92,19 @@ describe('buildStaircase', () => {
       expect(treads(parts)).toHaveLength(base.steps)
     })
 
-    it('the second flight is rotated 90° (uses different tread orientations)', () => {
+    it('the second flight turns 90° — its treads run along X while the first flight runs along Z', () => {
       const t = treads(buildStaircase({ ...base, style: 'lshape' }))
-      const rots = new Set(t.map((p) => (p.rot ?? 0).toFixed(4)))
-      expect(rots.size).toBeGreaterThan(1)
+      // Flight 1 climbs +Z at x≈0; flight 2 climbs +X off the landing (x>0).
+      const flight1 = t.filter((p) => Math.abs(p.position[0]) < 1e-6)
+      const flight2 = t.filter((p) => p.position[0] > 1e-6)
+      expect(flight1.length).toBeGreaterThan(0)
+      expect(flight2.length).toBeGreaterThan(0)
+      // Flight 1 treads are wide in X (full stair width), deep-along-Z; flight 2
+      // is the mirror (deep-along-X, wide in Z) — the turn is expressed by the
+      // swapped box dimensions, not a per-part Y rotation (which stays 0).
+      expect(flight1[0].size[0]).toBeGreaterThan(flight1[0].size[2])
+      expect(flight2[0].size[2]).toBeGreaterThan(flight2[0].size[0])
+      expect(t.every((p) => (p.rot ?? 0) === 0)).toBe(true)
     })
 
     it('total rise still ≈ steps × riserHeight', () => {

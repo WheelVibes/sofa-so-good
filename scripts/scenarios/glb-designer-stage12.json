@@ -1,0 +1,74 @@
+{
+  "name": "glb-designer-stage12",
+  "description": "Asset Studio Stage 12 — face-choice tufting & plump (Pro, glbDesigner on). An upright BACKREST board (thin box) plumped + diamond-tufted with stitches on its VERTICAL front face (plumpFace='front'), beside a normal TOP-face tufted seat cushion as a control. Proves the crown/dimples/buttons/stitches all sit on the chosen face with the corners pinned. A later step reshapes the backrest to the showcase Sofa-frame backrest dimensions (full width, thin, at the rear) and tufts its front face — proving the showcase sofa CAN now tuft its upright back. Save asserts the persisted assetSpec (v14 envelope) embeds parts[].plumpFace='front'. Run with SHOT_GPU=1.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 120000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    { "name": "set-pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "open-glb-designer", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    { "name": "wait-designer", "waitFor": { "css": ".glb-designer" }, "timeout": 45000 },
+    { "name": "settle-designer", "wait": 1500 },
+    {
+      "name": "build-face-tuft-scene",
+      "comment": "LEFT: an upright thin backrest board, plumped + diamond-tufted with stitches on its FRONT (+Z) vertical face. RIGHT: a normal seat cushion tufted on the TOP (+Y) face — the control that must be unchanged.",
+      "eval": "(function(){ const s = JSON.parse(JSON.stringify(window.__glbDesigner.getSpec())); const velvet = { color: '#5b2733', sheen: 1, sheenRoughness: 0.35, sheenColor: '#caa', roughness: 0.55, metalness: 0 }; s.parts = [ Object.assign({ id: 'backrest', kind: 'box', name: 'Backrest (front-tuft)', position: [-0.55, 0.45, 0], size: [0.8, 0.5, 0.12], plump: 0.5, plumpFace: 'front', tuft: { rows: 3, cols: 4, depth: 0.55, pattern: 'diamond', stitches: true } }, velvet), Object.assign({ id: 'seat', kind: 'box', name: 'Seat (top-tuft control)', position: [0.55, 0.12, 0], size: [0.8, 0.18, 0.55], plump: 0.6, tuft: { rows: 2, cols: 4, depth: 0.5, pattern: 'diamond', stitches: true } }, velvet) ]; delete s.decals; window.__glbDesigner.setSpec(s); })()"
+    },
+    {
+      "name": "regen-tufts",
+      "comment": "setSpec sets parts[].tuft (→ dimples in the geometry) but not the button/stitch decals — regenerate them from the current spec so they follow each part's plumpFace.",
+      "eval": "window.__glbDesigner.regenTufts()"
+    },
+    { "name": "wait-build", "wait": 1500 },
+    {
+      "name": "assert-face-fields",
+      "eval": "(function(){ const s = window.__glbDesigner.getSpec(); const b = s.parts.find(p => p.id === 'backrest'); const seat = s.parts.find(p => p.id === 'seat'); if (!b || !seat) throw new Error('parts missing'); if (b.plumpFace !== 'front') throw new Error('backrest should be plumpFace front, got ' + b.plumpFace); if (seat.plumpFace !== undefined) throw new Error('seat control must stay top (undefined), got ' + seat.plumpFace); const dcls = s.decals || []; const bBtns = dcls.filter(d => d.partId === 'backrest' && d.tuft && d.kind === 'button'); const bStit = dcls.filter(d => d.partId === 'backrest' && d.tuft && d.kind === 'stitch'); if (bBtns.length !== 12) throw new Error('backrest should have 12 buttons, got ' + bBtns.length); if (bStit.length === 0) throw new Error('backrest should have stitch lines'); if (!bBtns.every(d => Math.abs(d.normal[2]) === 1 && d.normal[0] === 0 && d.normal[1] === 0)) throw new Error('backrest buttons must face ±Z (front)'); if (!bBtns.every(d => d.position[2] > 0.05)) throw new Error('backrest buttons must sit on the +Z surface'); const seatBtns = dcls.filter(d => d.partId === 'seat' && d.tuft && d.kind === 'button'); if (!seatBtns.every(d => d.normal[1] === 1)) throw new Error('seat control buttons must face +Y (top)'); })()"
+    },
+    {
+      "name": "front-view",
+      "comment": "Head-on: the backrest's vertical front face crowns toward the camera and carries the diamond buttons + stitch threads in their dimples; the board's four corners stay pinned flat.",
+      "eval": "(function(){ const b = document.querySelector('.glb-designer button[aria-label=\"Front view\"]'); if (!b) throw new Error('Front view button not found'); b.click(); })()"
+    },
+    { "name": "wait-front", "wait": 1200 },
+    { "name": "shot-front", "screenshot": "01-face-tuft-front" },
+    {
+      "name": "home-view",
+      "eval": "(function(){ const b = document.querySelector('.glb-designer button[aria-label=\"Home view\"]'); if (!b) throw new Error('Home view button not found'); b.click(); })()"
+    },
+    { "name": "wait-home", "wait": 1200 },
+    { "name": "shot-iso", "screenshot": "02-face-tuft-iso" },
+    {
+      "name": "sofa-backrest-proof",
+      "comment": "Showcase proof: reshape the backrest to the Sofa-frame template's backrest geometry — full width, thin (backT ≈ 0.14) along Z, standing at the rear — and tuft its upright FRONT face. The template itself is unchanged; this proves the showcase sofa's backrest CAN now tuft.",
+      "eval": "(function(){ const s = JSON.parse(JSON.stringify(window.__glbDesigner.getSpec())); s.parts = s.parts.filter(p => p.id === 'backrest'); const b = s.parts[0]; b.name = 'Sofa backrest'; b.position = [0, 0.5, -0.4]; b.size = [1.6, 0.44, 0.14]; b.plump = 0.45; b.plumpFace = 'front'; b.tuft = { rows: 2, cols: 6, depth: 0.5, pattern: 'diamond', stitches: true }; delete s.decals; window.__glbDesigner.setSpec(s); window.__glbDesigner.regenTufts(); })()"
+    },
+    { "name": "wait-sofa", "wait": 1500 },
+    {
+      "name": "front-view-sofa",
+      "eval": "(function(){ const b = document.querySelector('.glb-designer button[aria-label=\"Front view\"]'); if (b) b.click(); })()"
+    },
+    { "name": "wait-sofa-front", "wait": 1000 },
+    { "name": "shot-sofa-backrest", "screenshot": "03-sofa-backrest-front-tuft" },
+    {
+      "name": "set-asset-name",
+      "eval": "(function(){ const inp = document.querySelector('.glb-designer input[aria-label=\"Asset name\"]'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, 'Stage12 FaceTuft'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    { "name": "record-baseline", "eval": "window.__glbBaseline = window.__store.getState().userFurniture.length" },
+    {
+      "name": "click-save",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.glb-designer button')].find(b => b.textContent.trim() === 'Save asset' && !b.disabled); if (!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-saved-face",
+      "comment": "End-to-end: the saved assetSpec (v14 envelope) embeds parts[].plumpFace='front' — the Stage-12 face axis round-trips as an editable spec.",
+      "waitFor": {
+        "store": "state.userFurniture.length > window.__glbBaseline && state.userFurniture.some(d => d.name === 'Stage12 FaceTuft' && typeof d.assetSpec === 'string' && (() => { try { const env = JSON.parse(d.assetSpec); if (env.v !== 14) return false; const s = env.payload; return s.parts.some(p => p.plumpFace === 'front' && p.tuft); } catch { return false } })())"
+      },
+      "timeout": 60000,
+      "failMessage": "saved assetSpec should embed parts[].plumpFace='front' at the v14 envelope"
+    },
+    { "name": "shot-saved", "screenshot": "04-saved-face-tuft" }
+  ]
+}

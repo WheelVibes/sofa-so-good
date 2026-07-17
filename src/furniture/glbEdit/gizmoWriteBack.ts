@@ -8,7 +8,7 @@
  * numeric inputs' bounds. Pure of three/react — unit-testable.
  */
 
-import type { ShapeKind, ShapePart } from './editSpec'
+import type { PartGroup, ShapeKind, ShapePart } from './editSpec'
 
 export type GizmoMode = 'translate' | 'rotate' | 'scale'
 
@@ -19,6 +19,10 @@ export const GIZMO_MODES: { mode: GizmoMode; label: string; hotkey: string }[] =
   { mode: 'scale', label: 'Scale', hotkey: 's' },
 ]
 
+/** Gizmo modes for a whole transform group (Stage 3a): a group moves + rotates
+ *  as a unit but has no Scale (its members keep their own sizes). */
+export const GROUP_GIZMO_MODES = GIZMO_MODES.filter((m) => m.mode !== 'scale')
+
 /** Gizmo modes available for a part kind. A combined `mesh` part's triangles
  *  are baked (its `size` is informational, no field drives the geometry), so
  *  scale is hidden for it — translate/rotate still move the whole result. */
@@ -26,12 +30,17 @@ export function gizmoModesFor(kind: ShapeKind): GizmoMode[] {
   return kind === 'mesh' ? ['translate', 'rotate'] : ['translate', 'rotate', 'scale']
 }
 
-/** Snap precision: 5 mm for lengths (the numeric inputs step 0.05 m but accept
- *  finer), 1° for rotations. Coarse enough to read clean in the inputs, fine
- *  enough not to fight the drag. */
-const POSITION_SNAP_M = 0.005
-const SIZE_SNAP_M = 0.005
+/** Default snap precision: 5 mm for lengths, 1° for rotations. Coarse enough to
+ *  read clean in the inputs, fine enough not to fight the drag. The length step
+ *  is overridable per-drag (Stage 4 grid-snap toggle — 1 mm/5 mm/1 cm/5 cm);
+ *  rotation stays 1°. */
+const DEFAULT_SNAP_M = 0.005
 const ROTATION_SNAP_DEG = 1
+
+/** The length snap step (metres) for one gizmo write-back — position + size share
+ *  it. Absent → `DEFAULT_SNAP_M` (5 mm, the pre-Stage-4 behaviour). A finer step
+ *  (e.g. 0.001) effectively disables snapping without a separate off-path. */
+export type SnapStep = number | undefined
 
 /** Bounds mirroring the numeric inputs: position min −3 m (kept symmetric at
  *  +3 m — the preview grid is 6 m), size min 0.02 m. */
@@ -63,6 +72,26 @@ export interface GizmoSnapshot {
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 const same = (a: readonly number[], b: readonly number[]) => a.every((v, i) => v === b[i])
 
+/** A gizmo snapshot's position → the part/group `position` field: snapped to
+ *  `step` (default 5 mm) and clamped to ±3 m. Shared by `gizmoPatch` +
+ *  `groupGizmoPatch`. */
+function snappedPosition(snap: GizmoSnapshot, step: SnapStep): [number, number, number] {
+  const s = step ?? DEFAULT_SNAP_M
+  return snap.position.map((v) => clamp(snapValue(v, s), -POSITION_LIMIT_M, POSITION_LIMIT_M)) as [
+    number,
+    number,
+    number,
+  ]
+}
+
+/** A gizmo snapshot's rotation (Euler XYZ radians) → the degree `rotation`
+ *  field: snapped to 1° and normalised to [-180, 180). Shared by both patches. */
+function snappedRotationDeg(snap: GizmoSnapshot): [number, number, number] {
+  return snap.rotation.map((rad) =>
+    normalizeDeg(snapValue((rad * 180) / Math.PI, ROTATION_SNAP_DEG)),
+  ) as [number, number, number]
+}
+
 /**
  * Compute the `updatePart` patch for one finished gizmo drag, or `null` when
  * the snapped result equals the part's current fields (no spec churn).
@@ -76,18 +105,16 @@ export function gizmoPatch(
   part: ShapePart,
   mode: GizmoMode,
   snap: GizmoSnapshot,
+  step?: SnapStep,
 ): Partial<ShapePart> | null {
+  const lenStep = step ?? DEFAULT_SNAP_M
   switch (mode) {
     case 'translate': {
-      const position = snap.position.map((v) =>
-        clamp(snapValue(v, POSITION_SNAP_M), -POSITION_LIMIT_M, POSITION_LIMIT_M),
-      ) as [number, number, number]
+      const position = snappedPosition(snap, lenStep)
       return same(position, part.position) ? null : { position }
     }
     case 'rotate': {
-      const deg = snap.rotation.map((rad) =>
-        normalizeDeg(snapValue((rad * 180) / Math.PI, ROTATION_SNAP_DEG)),
-      ) as [number, number, number]
+      const deg = snappedRotationDeg(snap)
       const cleared = deg.every((v) => v === 0)
       const current = part.rotation ?? [0, 0, 0]
       if (same(deg, current)) return null
@@ -96,9 +123,69 @@ export function gizmoPatch(
     case 'scale': {
       if (part.kind === 'mesh') return null
       const size = part.size.map((s, i) =>
-        Math.max(MIN_SIZE_M, snapValue(s * snap.scale[i], SIZE_SNAP_M)),
+        Math.max(MIN_SIZE_M, snapValue(s * snap.scale[i], lenStep)),
       ) as [number, number, number]
+      // Radially-symmetric kinds (lathe revolve, sweep) read their diameter from a
+      // single axis and must stay round. Whichever of X/Z the user actually dragged
+      // — the one with the larger |scale−1| — drives the diameter, mirrored onto the
+      // other; Y stays independent. (Mirroring X→Z unconditionally made a Z-only drag
+      // a no-op that returned null. extrude keeps its own W/H/depth.)
+      if (part.kind === 'lathe' || part.kind === 'sweep') {
+        const driveX = Math.abs(snap.scale[0] - 1) >= Math.abs(snap.scale[2] - 1)
+        const driven = driveX ? size[0] : size[2]
+        size[0] = driven
+        size[2] = driven
+      }
       return same(size, part.size) ? null : { size }
     }
   }
+}
+
+/** Per-axis engaged flags from a live face-snap session at drag end. */
+export interface EngagedAxes {
+  x: boolean
+  y: boolean
+  z: boolean
+}
+
+/**
+ * Reconcile a grid-snapped position with the flush position a LIVE face snap was
+ * showing when the drag ended (Stage 7b · finding 1). On every axis the live snap
+ * was engaged, the flush value wins VERBATIM — grid rounding is skipped — so the
+ * committed value equals what the user saw at ANY grid step (at a coarse 5 cm step
+ * a re-derivation from the grid-quantised position could miss the engage band and
+ * commit a non-flush value, diverging from the live preview). Non-engaged axes keep
+ * the grid-snapped value. Pure.
+ */
+export function mergeEngagedSnap(
+  gridPos: readonly [number, number, number],
+  flushPos: readonly [number, number, number],
+  engaged: EngagedAxes,
+): [number, number, number] {
+  return [
+    engaged.x ? flushPos[0] : gridPos[0],
+    engaged.y ? flushPos[1] : gridPos[1],
+    engaged.z ? flushPos[2] : gridPos[2],
+  ]
+}
+
+/**
+ * Compute the transform-group patch for one finished GROUP gizmo drag (Stage
+ * 3a), or `null` when the snapped result equals the group's current transform.
+ * A group only translates/rotates (no scale) — same 5 mm / 1° snapping + ±3 m
+ * clamp as a part. An all-zero position/rotation is returned explicitly so
+ * `updatePartGroupTransform` can clear the field (identity → absent).
+ */
+export function groupGizmoPatch(
+  group: PartGroup,
+  mode: GizmoMode,
+  snap: GizmoSnapshot,
+  step?: SnapStep,
+): { position?: [number, number, number]; rotation?: [number, number, number] } | null {
+  if (mode === 'rotate') {
+    const rotation = snappedRotationDeg(snap)
+    return same(rotation, group.rotation ?? [0, 0, 0]) ? null : { rotation }
+  }
+  const position = snappedPosition(snap, step)
+  return same(position, group.position ?? [0, 0, 0]) ? null : { position }
 }

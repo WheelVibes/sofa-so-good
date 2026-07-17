@@ -1,0 +1,95 @@
+{
+  "name": "expansion-e3b",
+  "description": "Expansion wave E3B audit — Tier-2/tail rows 23,24,27,30: media-lowboy (tv-console front=lowboy: flanking drawer bays + central open shelf niche + rear cable notch), storage-bench (plain piped lid on legs / tufted lid / plinth base), bay-daybed (window daybed: storage base + seat cushion + side bolsters + back cushions, narrow & wide), ceiling-light pendant-cluster (3–5 pendants at staggered drops from one canopy — cords MUST connect canopy→shade — dome/globe/cone + a single-pendant regression). Staged on open ground BESIDE the flat in the whole-flat ORBIT dollhouse camera whose ~3/4 elevation reveals float/attachment; a NIGHT pass for the cluster glow. showCeilingFixtures on so the ceiling lights render.",
+  "url": "http://localhost:5302/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s = window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setTimeMode?.('manual'); s.setQualityTier?.('high'); s.setShowCeilingFixtures?.(true); s.exitRoomEditor?.(); s.setCameraMode?.('orbit'); })()"
+    },
+    { "name": "wait-orbit", "wait": 1600 },
+    {
+      "name": "place-grid",
+      "eval": "(() => { const s = window.__store.getState(); const items = [ ['tv-console',{}], ['tv-console',{front:'lowboy'}], ['storage-bench',{}], ['storage-bench',{style:'tufted'}], ['storage-bench',{base:'plinth'}], ['bay-daybed',{}], ['bay-daybed',{width:2.0}], ['ceiling-light',{arrangement:'cluster'}], ['ceiling-light',{arrangement:'cluster',count:5,shade:'globe'}], ['ceiling-light',{arrangement:'cluster',count:3,shade:'cone'}], ['ceiling-light',{}] ]; const cols = 4; const dx = 2.4, dz = 2.6, x0 = 1.0, z0 = -6.5; const pos = {}; const list = items.map(([defId, props], i) => { const c = i % cols, r = Math.floor(i / cols); const x = x0 + c * dx, z = z0 + r * dz; const key = defId + ':' + JSON.stringify(props); pos[key] = [x, z]; return { id: 'audit-' + i, defId, position: [x, z], rotation: 0, props }; }); window.__auditPos = pos; s.setItems(list); return list.length; })()"
+    },
+    { "name": "settle", "wait": 1400 },
+    { "name": "frame-overview", "eval": "(() => { window.__store.getState().requestFrameSelection({ center: [4.6, 1.0, -3.6], radius: 8.5 }); })()" },
+    { "name": "settle-ov", "wait": 1000 },
+    { "name": "shot-overview", "screenshot": "00-overview" },
+
+    { "name": "frame-lowboy", "eval": "(() => { const p = window.__auditPos['tv-console:{\"front\":\"lowboy\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.35, p[1]], radius: 1.35 }); })()" },
+    { "name": "s1", "wait": 1000 },
+    { "name": "shot-lowboy", "screenshot": "01-media-lowboy" },
+
+    { "name": "frame-lowboy-niche", "eval": "(() => { const p = window.__auditPos['tv-console:{\"front\":\"lowboy\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.35, p[1]+0.15], radius: 0.6 }); })()" },
+    { "name": "s1b", "wait": 1000 },
+    { "name": "shot-lowboy-niche", "screenshot": "02-media-lowboy-open-bay" },
+
+    { "name": "frame-lowboy-drawers-reg", "eval": "(() => { const p = window.__auditPos['tv-console:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.35, p[1]], radius: 1.2 }); })()" },
+    { "name": "s1c", "wait": 1000 },
+    { "name": "shot-tvconsole-drawers", "screenshot": "03-tvconsole-drawers-regression" },
+
+    { "name": "frame-bench-plain", "eval": "(() => { const p = window.__auditPos['storage-bench:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.25, p[1]], radius: 0.9 }); })()" },
+    { "name": "s2", "wait": 1000 },
+    { "name": "shot-bench-plain", "screenshot": "04-storage-bench-plain-legs" },
+
+    { "name": "frame-bench-lid-joint", "eval": "(() => { const p = window.__auditPos['storage-bench:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.36, p[1]-0.1], radius: 0.45 }); })()" },
+    { "name": "s2b", "wait": 1000 },
+    { "name": "shot-bench-lid-hinge", "screenshot": "05-storage-bench-lid-hinge" },
+
+    { "name": "frame-bench-tufted", "eval": "(() => { const p = window.__auditPos['storage-bench:{\"style\":\"tufted\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.3, p[1]], radius: 0.7 }); })()" },
+    { "name": "s3", "wait": 1000 },
+    { "name": "shot-bench-tufted", "screenshot": "06-storage-bench-tufted" },
+
+    { "name": "frame-bench-plinth", "eval": "(() => { const p = window.__auditPos['storage-bench:{\"base\":\"plinth\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.2, p[1]], radius: 0.8 }); })()" },
+    { "name": "s4", "wait": 1000 },
+    { "name": "shot-bench-plinth", "screenshot": "07-storage-bench-plinth" },
+
+    { "name": "frame-daybed", "eval": "(() => { const p = window.__auditPos['bay-daybed:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.35, p[1]], radius: 1.35 }); })()" },
+    { "name": "s5", "wait": 1000 },
+    { "name": "shot-daybed", "screenshot": "08-bay-daybed" },
+
+    { "name": "frame-daybed-bolster", "eval": "(() => { const p = window.__auditPos['bay-daybed:{}']; window.__store.getState().requestFrameSelection({ center: [p[0]-0.6, 0.5, p[1]], radius: 0.6 }); })()" },
+    { "name": "s5b", "wait": 1000 },
+    { "name": "shot-daybed-bolster-joint", "screenshot": "09-bay-daybed-bolster-back-cushion" },
+
+    { "name": "frame-daybed-drawers", "eval": "(() => { const p = window.__auditPos['bay-daybed:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.2, p[1]+0.3], radius: 0.8 }); })()" },
+    { "name": "s5c", "wait": 1000 },
+    { "name": "shot-daybed-drawers", "screenshot": "10-bay-daybed-drawers" },
+
+    { "name": "frame-daybed-wide", "eval": "(() => { const p = window.__auditPos['bay-daybed:{\"width\":2}']; window.__store.getState().requestFrameSelection({ center: [p[0], 0.35, p[1]], radius: 1.5 }); })()" },
+    { "name": "s6", "wait": 1000 },
+    { "name": "shot-daybed-wide", "screenshot": "11-bay-daybed-wide" },
+
+    { "name": "frame-cluster-dome", "eval": "(() => { const p = window.__auditPos['ceiling-light:{\"arrangement\":\"cluster\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 1.9, p[1]], radius: 1.4 }); })()" },
+    { "name": "s7", "wait": 1000 },
+    { "name": "shot-cluster-dome", "screenshot": "12-pendant-cluster-dome" },
+
+    { "name": "frame-cluster-cords", "eval": "(() => { const p = window.__auditPos['ceiling-light:{\"arrangement\":\"cluster\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 2.3, p[1]], radius: 0.7 }); })()" },
+    { "name": "s7b", "wait": 1000 },
+    { "name": "shot-cluster-cords-canopy", "screenshot": "13-pendant-cluster-cords-canopy" },
+
+    { "name": "frame-cluster-globe", "eval": "(() => { const p = window.__auditPos['ceiling-light:{\"arrangement\":\"cluster\",\"count\":5,\"shade\":\"globe\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 1.9, p[1]], radius: 1.5 }); })()" },
+    { "name": "s8", "wait": 1000 },
+    { "name": "shot-cluster-globe", "screenshot": "14-pendant-cluster-globe-5" },
+
+    { "name": "frame-cluster-cone", "eval": "(() => { const p = window.__auditPos['ceiling-light:{\"arrangement\":\"cluster\",\"count\":3,\"shade\":\"cone\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 1.9, p[1]], radius: 1.4 }); })()" },
+    { "name": "s9", "wait": 1000 },
+    { "name": "shot-cluster-cone", "screenshot": "15-pendant-cluster-cone-3" },
+
+    { "name": "frame-single-pendant-reg", "eval": "(() => { const p = window.__auditPos['ceiling-light:{}']; window.__store.getState().requestFrameSelection({ center: [p[0], 2.1, p[1]], radius: 0.8 }); })()" },
+    { "name": "s10", "wait": 1000 },
+    { "name": "shot-single-pendant", "screenshot": "16-single-pendant-regression" },
+
+    { "name": "go-night", "eval": "(() => { const s = window.__store.getState(); s.setManualHour?.(21); s.setTimeMode?.('manual'); s.setLightsMode?.('on'); })()" },
+    { "name": "settle-night", "wait": 1600 },
+    { "name": "frame-cluster-night", "eval": "(() => { const p = window.__auditPos['ceiling-light:{\"arrangement\":\"cluster\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 1.9, p[1]], radius: 1.5 }); })()" },
+    { "name": "s11", "wait": 1000 },
+    { "name": "shot-cluster-night", "screenshot": "17-pendant-cluster-NIGHT-glow" },
+
+    { "name": "frame-cluster-globe-night", "eval": "(() => { const p = window.__auditPos['ceiling-light:{\"arrangement\":\"cluster\",\"count\":5,\"shade\":\"globe\"}']; window.__store.getState().requestFrameSelection({ center: [p[0], 1.9, p[1]], radius: 1.6 }); })()" },
+    { "name": "s12", "wait": 1000 },
+    { "name": "shot-cluster-globe-night", "screenshot": "18-pendant-cluster-globe-NIGHT" }
+  ]
+}
