@@ -28,6 +28,7 @@ import {
   type Sh3fParseResult,
 } from '../furniture/import/sh3f'
 import type { FurnitureCategory } from '../furniture/types'
+import { hashBuffer } from '../furniture/upload/hashFile'
 import { persistUserGlb } from '../furniture/upload/persist'
 import { useStore } from '../state/store'
 
@@ -115,6 +116,8 @@ export async function importSh3fResult(result: Sh3fParseResult): Promise<Sh3fImp
     ReturnType<typeof useStore.getState>['addManyUserFurniture']
   >[0]
   let duplicates = 0
+  // Content hashes persisted by THIS batch (see the dedup note in the loop).
+  const batchHashes = new Set<string>()
 
   for (const entry of result.entries) {
     if (!entry.modelFormat) {
@@ -135,12 +138,24 @@ export async function importSh3fResult(result: Sh3fParseResult): Promise<Sh3fImp
         entry.width != null && entry.depth != null && entry.height != null
           ? { w: entry.width, d: entry.depth, h: entry.height }
           : undefined
+      // Batch-local dedup: `persistUserGlb`'s content-hash check reads the LIVE
+      // store, but this loop commits in one `addManyUserFurniture` batch at the
+      // end — so two entries in the SAME archive resolving to byte-identical
+      // model bytes (common: locale/variant catalogs pointing at one model
+      // file) would each get a fresh assetId + IDB blob. Hash first and skip
+      // anything this batch already imported.
+      const contentHash = await hashBuffer(await glb.arrayBuffer())
+      if (batchHashes.has(contentHash)) {
+        duplicates++
+        continue
+      }
       const persistResult = await persistUserGlb(glb, {
         name: entry.name,
         category: entry.category ?? DEFAULT_CATEGORY,
         mounted: entry.doorOrWindow || undefined,
         footprint,
         commit: false,
+        contentHash,
       })
       if (!persistResult.ok) {
         skipped.push({ name: entry.name, reason: persistResult.reason })
@@ -148,6 +163,7 @@ export async function importSh3fResult(result: Sh3fParseResult): Promise<Sh3fImp
         duplicates++
       } else {
         pendingDefs.push(persistResult.def)
+        batchHashes.add(contentHash)
       }
     } catch (e) {
       const reason =

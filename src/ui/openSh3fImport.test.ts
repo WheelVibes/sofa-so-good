@@ -11,8 +11,11 @@ const { FakeConvertError, convertModel, persistUserGlb } = vi.hoisted(() => {
     FakeConvertError,
     convertModel: vi.fn(async (entry: File) => {
       if (entry.name === 'fail.obj') throw new FakeConvertError('conversion blew up')
+      // Per-entry bytes: the importer now content-hash-dedups WITHIN a batch,
+      // so identical bytes for every mock entry would collapse them all into
+      // one import. Entries that should dedup use the same source name.
       return {
-        glb: new File([new Uint8Array([1, 2, 3])], entry.name.replace(/\.\w+$/, '.glb')),
+        glb: new File([new TextEncoder().encode(entry.name)], entry.name.replace(/\.\w+$/, '.glb')),
         format: 'obj' as const,
       }
     }),
@@ -77,6 +80,20 @@ describe('importSh3fResult', () => {
     expect(summary.skipped).toHaveLength(0)
     // A single batch write, not per-item.
     expect(useStore.getState().userFurniture.map((d) => d.id)).toEqual(['user-Chair'])
+  })
+
+  it('dedupes byte-identical models WITHIN one batch (locale/variant catalogs)', async () => {
+    // Two differently-named entries pointing at the SAME model file — the
+    // in-store hash check can't see them (the batch commits once at the end),
+    // so the batch-local hash set must collapse them (BUG: sh3f batch dedup).
+    const entries = [
+      entry({ name: 'Sofa EN', modelPath: 'sofa.obj' }),
+      entry({ name: 'Sofa FR', modelPath: 'sofa.obj' }),
+    ]
+    const summary = await importSh3fResult(result(entries, { 'sofa.obj': OBJ }))
+    expect(summary.imported).toBe(1)
+    expect(summary.duplicates).toBe(1)
+    expect(persistUserGlb).toHaveBeenCalledTimes(1)
   })
 
   it('skips an unsupported model format with a note', async () => {

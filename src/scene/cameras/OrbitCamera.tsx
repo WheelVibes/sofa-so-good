@@ -450,6 +450,23 @@ export function OrbitCamera() {
     rate?: number
     lastLeg?: number
   } | null>(null)
+  // Tour/sweep cleanup normally lives in the frame loop's `else if
+  // (tour.current)` branch — but that only runs while THIS component renders.
+  // Switching to walk mode mid-tour unmounts OrbitCamera (CameraRig swaps the
+  // camera component), which used to orphan `touring` (RenderPump renders
+  // continuously forever) and `timeSweepRestore` (the day→night sweep never
+  // restores the clock), and a later return to orbit restarted the whole tour
+  // from scratch. Unmounting mid-tour now ends the tour + restores time.
+  useEffect(
+    () => () => {
+      if (!tour.current) return
+      tour.current = null
+      const st = useStore.getState()
+      if (st.touring) st.setTouring(false)
+      st.endTimeSweep()
+    },
+    [],
+  )
   useFrame((_, dt) => {
     const c = controlsRef.current
     if (!c) return

@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.7 — Two integration fixes (bug-hunt round 3)
+
+- **Mid-tour camera-mode switch orphaned the tour + day/night sweep.** The
+  cinematic tour's cleanup lived only in `OrbitCamera`'s frame loop, so
+  toggling to walk mode mid-tour (V / ⌘K — neither blocks while touring)
+  unmounted the component with `touring` stuck truthy forever (RenderPump
+  rendered continuously — silent battery/perf drain), `timeSweepRestore`
+  never restored the clock, and returning to orbit RESTARTED the whole tour.
+  `OrbitCamera` now ends the tour + restores time in an unmount cleanup.
+  Browser-verified (tour+sweep → walk switch → touring cleared, hour restored
+  to 13:00, no restart on return).
+- **`.sh3f` import duplicated byte-identical models within one archive.**
+  `persistUserGlb`'s content-hash dedup reads the LIVE store, but the import
+  batch commits once at the end — so locale/variant catalog entries pointing
+  at the same model file each got a fresh assetId + IndexedDB blob. The loop
+  now hashes first and skips batch-local repeats (the hash is passed through
+  so nothing is hashed twice). Regression test added (per-entry mock bytes so
+  the suite still exercises distinct models).
+
 ## v0.22.2.6 — Walk-mode point-to-point measure (WALK-MEASURE)
 
 Measure real distances while walking (`walkMeasure` flag, simple tier —
