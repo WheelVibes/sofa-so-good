@@ -34,14 +34,18 @@ describe('estimatePrice', () => {
     expect(big).toBeGreaterThan(small)
   })
 
-  it('doors add hardware cost over an open front', () => {
-    const open = estimatePrice(buildParametric({ ...defaultSpec('wardrobe'), doors: false }))
-    const doored = estimatePrice(buildParametric({ ...defaultSpec('wardrobe'), doors: true }))
+  it('a sliding/hinged front adds hardware cost over an open front', () => {
+    const open = estimatePrice(
+      buildParametric({ ...defaultSpec('wardrobe'), wardrobeFront: 'open' }),
+    )
+    const doored = estimatePrice(
+      buildParametric({ ...defaultSpec('wardrobe'), wardrobeFront: 'sliding' }),
+    )
     expect(doored).toBeGreaterThan(open)
   })
 
   it('lands in a plausible flat-pack band for a PAX-class wardrobe', () => {
-    // 1.5 × 2.2 × 0.6 m hinged wardrobe ≈ mid-hundreds SGD, not $50, not $5000.
+    // 1.5 × 2.2 × 0.6 m modular wardrobe ≈ mid-hundreds SGD, not $50, not $5000.
     const price = estimatePrice(buildParametric({ ...defaultSpec('wardrobe'), width: 1.5 }))
     expect(price).toBeGreaterThan(150)
     expect(price).toBeLessThan(1500)

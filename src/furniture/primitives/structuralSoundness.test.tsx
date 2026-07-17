@@ -158,6 +158,9 @@ const EXTRA_STRUCTURAL_MODES: Record<string, Record<string, ParamProps>> = {
   // wardrobe under the head end (`under` is not a structural-enum key; the
   // `open` default is the base swept case).
   'loft-bed': { 'under=desk': { under: 'desk' }, 'under=wardrobe': { under: 'wardrobe' } },
+  // Cot-bed conversion drops the front long side to a low toddler guard
+  // (short slats + a low guard rail); assert it stays one grounded assembly.
+  crib: { 'convert=toddler': { convert: 'toddler' } },
 }
 
 function buildCases(): HarnessCase[] {

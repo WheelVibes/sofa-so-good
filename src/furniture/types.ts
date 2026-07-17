@@ -154,6 +154,8 @@ export type PrimitiveKind =
   | 'OutdoorTable'
   | 'OutdoorParasol'
   | 'OutdoorLounger'
+  | 'BistroTable'
+  | 'FoldingChair'
   | 'BookStack'
   | 'ThrowCushion'
   | 'ThrowBlanket'

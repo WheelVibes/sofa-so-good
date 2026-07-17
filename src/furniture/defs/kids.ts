@@ -88,7 +88,16 @@ export const KIDS_DEFS = {
     id: 'crib',
     name: 'Baby crib',
     category: 'kids',
-    keywords: ['cot', 'bassinet', 'baby bed', 'nursery', 'bed'],
+    keywords: [
+      'cot',
+      'bassinet',
+      'baby bed',
+      'nursery',
+      'bed',
+      'convertible',
+      'cot-bed',
+      'toddler',
+    ],
     primitive: 'Crib',
     defaultFootprint: { w: 1.32, d: 0.72, h: 0.96 },
     footprintParams: { w: 'width', d: 'depth' },
@@ -133,6 +142,16 @@ export const KIDS_DEFS = {
         options: [
           { value: 'slat', label: 'Slatted' },
           { value: 'solid', label: 'Solid panel' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'convert',
+        label: 'Mode',
+        default: 'crib',
+        options: [
+          { value: 'crib', label: 'Crib' },
+          { value: 'toddler', label: 'Toddler bed' },
         ],
       },
       {

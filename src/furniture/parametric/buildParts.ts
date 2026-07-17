@@ -22,6 +22,7 @@
 
 import {
   AUTO_SHELF_SPACING,
+  bayFitOut,
   bayStyle,
   clampSpec,
   MAX_BAY_SPAN,
@@ -473,7 +474,200 @@ function buildKitchenRun(spec: ParametricSpec): ParametricModel {
 }
 
 // ============================================================================
-// Storage carcass builder (bookshelf / wardrobe / sideboard)
+// Modular wardrobe builder (PAX-like fit-out system)
+// ============================================================================
+
+// Wardrobe fit-out constants
+const WR_TOP_SHELF_DROP = 0.32 // top shelf this far below the top panel
+const WR_RAIL_BELOW_SHELF = 0.06 // hanging rail just under the top shelf
+const WR_SLIDE_OVERLAP = 0.03 // sliding panels overlap this much at the centre
+const WR_HANDLE_INSET = 0.03 // vertical finger-pull inset from the leading edge
+
+/**
+ * Build a modular wardrobe (PAX-class fit-out system).
+ *
+ * Origin: footprint centred on X/Z, floor at y=0, front face toward +Z.
+ *
+ * Structure:
+ *  - Recessed toe-kick plinth; carcass sides (floor→top), top/bottom, back.
+ *  - `spec.bays` equal columns divided by full-height dividers.
+ *  - Per bay one of five interior fit-outs (`spec.wardrobeFitOuts`):
+ *      hang (top shelf + rail) · double-hang (shelf + two stacked rails) ·
+ *      shelves (book-spaced stack) · drawers (interior drawer bank) ·
+ *      shoe (dense shelf stack).
+ *  - Front covering (`spec.wardrobeFront`): sliding bypass panels on two tracks
+ *    (offset in Z so they never z-fight), per-bay hinged leaves, or an open
+ *    front that leaves the fit-outs visible.
+ */
+export function buildWardrobe(spec: ParametricSpec): ParametricModel {
+  const { width: w, height: h, depth: d } = spec
+  const numBays = Math.max(1, Math.min(spec.bays, 6))
+  const parts: ParametricPart[] = []
+
+  const carcassBottom = PLINTH_H
+  const carcassTop = h
+
+  // ---- Recessed toe-kick plinth ---------------------------------------------
+  parts.push({
+    role: 'plinth',
+    position: [0, PLINTH_H / 2, -PLINTH_RECESS / 2],
+    size: [w - PANEL_T * 2, PLINTH_H, d - PLINTH_RECESS],
+  })
+
+  // ---- Carcass shell ---------------------------------------------------------
+  const sideH = carcassTop // sides run floor → top (the visible supports)
+  for (const sx of [-1, 1]) {
+    parts.push({
+      role: 'side',
+      position: [sx * (w / 2 - PANEL_T / 2), sideH / 2, 0],
+      size: [PANEL_T, sideH, d],
+    })
+  }
+  const innerW = w - PANEL_T * 2
+  parts.push({
+    role: 'top',
+    position: [0, carcassTop - PANEL_T / 2, 0],
+    size: [innerW, PANEL_T, d],
+  })
+  parts.push({
+    role: 'bottom',
+    position: [0, carcassBottom + PANEL_T / 2, 0],
+    size: [innerW, PANEL_T, d],
+  })
+  const backH = carcassTop - carcassBottom
+  parts.push({
+    role: 'back',
+    position: [0, carcassBottom + backH / 2, -d / 2 + BACK_T / 2],
+    size: [innerW, backH, BACK_T],
+  })
+
+  // ---- Bays + dividers -------------------------------------------------------
+  const bayW = (innerW - PANEL_T * (numBays - 1)) / numBays
+  const innerBottom = carcassBottom + PANEL_T
+  const innerTop = carcassTop - PANEL_T
+  const innerH = innerTop - innerBottom
+  for (let b = 1; b < numBays; b++) {
+    const x = -innerW / 2 + b * bayW + (b - 0.5) * PANEL_T
+    parts.push({
+      role: 'divider',
+      position: [x, innerBottom + innerH / 2, BACK_T / 2],
+      size: [PANEL_T, innerH, d - BACK_T],
+    })
+  }
+  const bayX = (b: number) => -innerW / 2 + bayW / 2 + b * (bayW + PANEL_T)
+  const shelfD = d - BACK_T - 0.02
+
+  const addShelf = (cx: number, y: number) => {
+    parts.push({ role: 'shelf', position: [cx, y, BACK_T / 2], size: [bayW, PANEL_T, shelfD] })
+  }
+  const addRail = (cx: number, y: number) => {
+    parts.push({ role: 'rail', position: [cx, y, BACK_T / 2], size: [bayW, RAIL_T, RAIL_T] })
+  }
+
+  // ---- Per-bay interior fit-outs ---------------------------------------------
+  const frontZ = d / 2
+  let drawerCount = 0
+  let shelfTally = 0
+  for (let b = 0; b < numBays; b++) {
+    const cx = bayX(b)
+    const fit = bayFitOut(spec, b)
+    if (fit === 'hang') {
+      const shelfY = innerTop - WR_TOP_SHELF_DROP
+      addShelf(cx, shelfY)
+      addRail(cx, shelfY - WR_RAIL_BELOW_SHELF)
+      shelfTally += 1
+    } else if (fit === 'double-hang') {
+      const shelfY = innerTop - WR_TOP_SHELF_DROP
+      addShelf(cx, shelfY)
+      addRail(cx, shelfY - WR_RAIL_BELOW_SHELF) // upper garment rail
+      addRail(cx, innerBottom + innerH * 0.5) // lower garment rail
+      shelfTally += 1
+    } else if (fit === 'shelves') {
+      const count = Math.max(1, autoShelfCount(innerH))
+      const spacing = innerH / (count + 1)
+      for (let s = 1; s <= count; s++) addShelf(cx, innerBottom + spacing * s)
+      shelfTally += count
+    } else if (fit === 'shoe') {
+      // Dense shelf stack (~22 cm gaps) reading as a shoe rack.
+      const count = Math.max(2, Math.round(innerH / 0.24))
+      const spacing = innerH / (count + 1)
+      for (let s = 1; s <= count; s++) addShelf(cx, innerBottom + spacing * s)
+      shelfTally += count
+    } else {
+      // 'drawers' — interior drawer bank spanning the bay height.
+      drawerCount += addDrawerFronts(parts, cx, bayW, innerBottom, innerTop, frontZ)
+    }
+  }
+
+  // ---- Front covering --------------------------------------------------------
+  const front = spec.wardrobeFront
+  let doorCount = 0
+  const doorH = carcassTop - carcassBottom - 2 * REVEAL
+  const doorY = carcassBottom + REVEAL + doorH / 2
+  if (front === 'hinged') {
+    for (let b = 0; b < numBays; b++) {
+      const cx = bayX(b)
+      const leaves = doorLeafCount(bayW)
+      const leafW = (bayW - REVEAL * (leaves - 1)) / leaves
+      doorCount += leaves
+      for (let i = 0; i < leaves; i++) {
+        const lx = cx - bayW / 2 + leafW / 2 + i * (leafW + REVEAL)
+        const doorZ = frontZ + DOOR_T / 2
+        parts.push({ role: 'door', position: [lx, doorY, doorZ], size: [leafW, doorH, DOOR_T] })
+        const hingeSign = i < leaves / 2 ? 1 : -1
+        const handleH = Math.min(0.22, doorH * 0.3)
+        parts.push({
+          role: 'handle',
+          position: [
+            lx + hingeSign * (leafW / 2 - 0.04),
+            doorY + doorH * 0.05,
+            doorZ + DOOR_T / 2 + 0.012,
+          ],
+          size: [HANDLE_W, handleH, HANDLE_D],
+        })
+      }
+    }
+  } else if (front === 'sliding') {
+    // Two bypass panels each covering half the front + a centre overlap, on two
+    // tracks offset in Z (front track proud, back track just off the carcass).
+    const panelW = innerW / 2 + WR_SLIDE_OVERLAP
+    doorCount = 2
+    const tracks: { x: number; z: number; lead: number }[] = [
+      { x: -innerW / 2 + panelW / 2, z: frontZ + DOOR_T + DOOR_T / 2, lead: 1 }, // front track
+      { x: innerW / 2 - panelW / 2, z: frontZ + DOOR_T / 2, lead: -1 }, // back track
+    ]
+    for (const t of tracks) {
+      parts.push({ role: 'door', position: [t.x, doorY, t.z], size: [panelW, doorH, DOOR_T] })
+      // Slim vertical finger-pull near the leading edge.
+      const pullX = t.x + t.lead * (panelW / 2 - WR_HANDLE_INSET)
+      parts.push({
+        role: 'handle',
+        position: [pullX, doorY, t.z + DOOR_T / 2 + 0.008],
+        size: [0.02, doorH * 0.4, 0.014],
+      })
+    }
+  }
+  // 'open' front: nothing proud — the fit-outs show.
+
+  // Depth grows only by however far the front bulges proud of the carcass.
+  let maxProud = 0
+  for (const p of parts) {
+    const proud = p.position[2] + p.size[2] / 2 - d / 2
+    if (proud > maxProud) maxProud = proud
+  }
+
+  return {
+    parts,
+    bounds: { w, d: d + Math.max(0, maxProud), h },
+    bays: numBays,
+    doorCount,
+    shelvesPerBay: Math.round(shelfTally / numBays),
+    drawerCount,
+  }
+}
+
+// ============================================================================
+// Storage carcass builder (bookshelf / sideboard)
 // ============================================================================
 
 export function buildParametric(input: ParametricSpec): ParametricModel {
@@ -483,6 +677,7 @@ export function buildParametric(input: ParametricSpec): ParametricModel {
   // Delegate to the appropriate specialist builder.
   if (type === 'desk') return buildDesk(spec)
   if (type === 'kitchen-run') return buildKitchenRun(spec)
+  if (type === 'wardrobe') return buildWardrobe(spec)
 
   const parts: ParametricPart[] = []
   const onLegs = type === 'sideboard' && spec.base === 'legs'
@@ -568,52 +763,29 @@ export function buildParametric(input: ParametricSpec): ParametricModel {
   /** Centre X of bay `b` (0-based). */
   const bayX = (b: number) => -innerW / 2 + bayW / 2 + b * (bayW + PANEL_T)
 
-  // ---- Interior: shelves (+ wardrobe rail) ------------------------------------
+  // ---- Interior: shelves -----------------------------------------------------
   const shelfD = d - BACK_T - 0.02 // clear the back panel + a nose recess
-  let shelvesPerBay: number
-  if (type === 'wardrobe') {
-    // Fixed layout: one top shelf with a hanging rail below it, per bay.
-    shelvesPerBay = 1
-    const shelfY = innerTop - 0.3 // shelf ~30 cm below the top
-    for (let b = 0; b < bays; b++) {
-      // Only add shelf/rail for bays that are not fully drawers.
-      const style = bayStyle(spec, b)
-      if (style !== 'drawer') {
-        parts.push({
-          role: 'shelf',
-          position: [bayX(b), shelfY, BACK_T / 2],
-          size: [bayW, PANEL_T, shelfD],
-        })
-        parts.push({
-          role: 'rail',
-          position: [bayX(b), shelfY - 0.08, BACK_T / 2],
-          size: [bayW, RAIL_T, RAIL_T],
-        })
-      }
-    }
-  } else {
-    shelvesPerBay =
-      spec.shelves === 'auto'
-        ? autoShelfCount(innerH)
-        : Math.min(spec.shelves, Math.floor(innerH / 0.1))
-    const spacing = innerH / (shelvesPerBay + 1)
-    for (let b = 0; b < bays; b++) {
-      // Skip shelves in drawer bays — they'd be hidden behind the fronts
-      // and would require cut-outs, which the box model doesn't support.
-      if (bayStyle(spec, b) === 'drawer') continue
-      for (let s = 1; s <= shelvesPerBay; s++) {
-        parts.push({
-          role: 'shelf',
-          position: [bayX(b), innerBottom + spacing * s, BACK_T / 2],
-          size: [bayW, PANEL_T, shelfD],
-        })
-      }
+  const shelvesPerBay =
+    spec.shelves === 'auto'
+      ? autoShelfCount(innerH)
+      : Math.min(spec.shelves, Math.floor(innerH / 0.1))
+  const spacing = innerH / (shelvesPerBay + 1)
+  for (let b = 0; b < bays; b++) {
+    // Skip shelves in drawer bays — they'd be hidden behind the fronts
+    // and would require cut-outs, which the box model doesn't support.
+    if (bayStyle(spec, b) === 'drawer') continue
+    for (let s = 1; s <= shelvesPerBay; s++) {
+      parts.push({
+        role: 'shelf',
+        position: [bayX(b), innerBottom + spacing * s, BACK_T / 2],
+        size: [bayW, PANEL_T, shelfD],
+      })
     }
   }
 
   // ---- Per-bay fronts: doors + drawers + open --------------------------------
-  // For wardrobe/sideboard we honour per-bay style. Bookshelf is always open.
-  const canHaveFront = type === 'wardrobe' || type === 'sideboard'
+  // Sideboard honours per-bay style; bookshelf is always open.
+  const canHaveFront = type === 'sideboard'
   let doorCount = 0
   let drawerCount = 0
   let hasFront = false // whether any bay emits something proud of the carcass

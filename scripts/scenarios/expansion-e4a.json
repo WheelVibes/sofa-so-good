@@ -1,0 +1,44 @@
+{
+  "name": "expansion-e4a",
+  "description": "Expansion E4A — modular sectional builder (extends the productConfigurator MODULAR_SOFA). Opens the configurator dialog, switches to the Modular sectional tab, and drives per-end options via a slot-label-aware picker (both end slots share option labels, so clickByText is ambiguous — an eval helper finds the .sec by its .sec-h text). Screenshots the live composed preview for: 2-module loveseat, L both ways, 4-module U, 5-module U, 6-module max, plus an orbit profile for joint review.",
+  "url": "http://localhost:5301/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "open", "store": { "action": "setConfiguratorOpen", "args": [true] } },
+    { "name": "dialog-mounts", "waitFor": { "text": "Configure a product" }, "timeout": 30000, "failMessage": "configurator dialog did not mount" },
+    { "name": "settle-mount", "wait": 1500 },
+    { "name": "install-picker", "eval": "window.__pickOpt = (slotLabel, optLabel) => { const secs=[...document.querySelectorAll('.configurator-dialog .sec')]; const sec=secs.find(s=>s.querySelector('.sec-h')?.textContent?.trim()===slotLabel); if(!sec) throw new Error('no slot '+slotLabel); const btn=[...sec.querySelectorAll('button')].find(b=>(b.textContent||'').includes(optLabel)); if(!btn) throw new Error('no opt '+optLabel+' in '+slotLabel); btn.click(); return btn.textContent; }" },
+    { "name": "to-sectional", "click": { "text": "Modular sectional" }, "timeout": 10000 },
+    { "name": "settle-loveseat", "wait": 2500 },
+    { "name": "shot-loveseat", "screenshot": "e4a-01-loveseat-2mod" },
+
+    { "name": "l-left-set", "eval": "window.__pickOpt('Left end','Corner (L)'); window.__pickOpt('Right end','Armrest')" },
+    { "name": "settle-l-left", "wait": 2000 },
+    { "name": "shot-l-left", "screenshot": "e4a-02-L-left-3mod" },
+
+    { "name": "l-right-set", "eval": "window.__pickOpt('Left end','Armrest'); window.__pickOpt('Right end','Corner (L)')" },
+    { "name": "settle-l-right", "wait": 2000 },
+    { "name": "shot-l-right", "screenshot": "e4a-03-L-right-3mod" },
+
+    { "name": "u4-set", "eval": "window.__pickOpt('Left end','Corner (L)'); window.__pickOpt('Right end','Corner (L)')" },
+    { "name": "settle-u4", "wait": 2000 },
+    { "name": "shot-u4", "screenshot": "e4a-04-U-4mod" },
+
+    { "name": "u4-profile-drag", "drag": { "from": [430, 340], "to": [620, 250] } },
+    { "name": "settle-u4-profile", "wait": 1500 },
+    { "name": "shot-u4-profile", "screenshot": "e4a-05-U-4mod-profile" },
+
+    { "name": "u5-set", "eval": "window.__pickOpt('Left end','Seat + corner'); window.__pickOpt('Right end','Corner (L)')" },
+    { "name": "settle-u5", "wait": 2000 },
+    { "name": "shot-u5", "screenshot": "e4a-06-U-5mod" },
+
+    { "name": "max6-set", "eval": "window.__pickOpt('Left end','Seat + corner'); window.__pickOpt('Right end','Seat + corner')" },
+    { "name": "settle-max6", "wait": 2000 },
+    { "name": "shot-max6", "screenshot": "e4a-07-max-6mod" },
+
+    { "name": "seatarm-set", "eval": "window.__pickOpt('Left end','Seat + arm'); window.__pickOpt('Right end','Seat + arm')" },
+    { "name": "settle-seatarm", "wait": 2000 },
+    { "name": "shot-seatarm", "screenshot": "e4a-08-4seat-run" }
+  ]
+}

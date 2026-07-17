@@ -129,153 +129,155 @@ const MATTRESS_FRAME: ConfigurableProduct = {
   ],
 }
 
-/** §6.2 Modular sofa — repeated/linear slots + mutex/excludes constraints. */
+/**
+ * §6.2 Modular sectional builder (Expansion E4A) — a 2-seat armless CORE plus a
+ * terminal slot at each end. Every end option authors its own complete geometry
+ * (arm / seat+arm / forward-turning corner / seat+corner) extending from the
+ * core edge, so the user composes a **2–6-module** sectional: a loveseat
+ * (arm+arm), an L either way (one corner), or a U (both ends turn forward). No
+ * per-selection gaps — end options are self-terminating, so `clampConfig`'s
+ * output is always buildable without a constraint. Per-end fabric rides the
+ * existing finish channel (`base:` / `leftEnd:` / `rightEnd:` finishKeys →
+ * per-section finish pickers on the baked GLB). Real metres: seat module
+ * 0.9 w × 0.95 d, corner 0.95 × 0.95 (forward return 1.525 deep), seat 0.85 high.
+ */
+const SEAT_D = 0.95
+const CORE_HALF = 0.9 // core is two 0.9-wide seats → left/right edges at ±0.9
+const RETURN_D = 1.525 // forward-projecting corner depth (0.95 + ~0.575 chaise)
+const RETURN_CZ = (RETURN_D - SEAT_D) / 2 // corner block centre-Z (back pinned at −SEAT_D/2)
+
+/** One armless seat module authored around centre `cx` (finishKey `slotId`). */
+function seatModule(cx: number, slotId: string): ConfiguredPart[] {
+  const k = `${slotId}:upholstery`
+  return [
+    box('upholstery', [cx, 0.2, 0], [0.9, 0.4, SEAT_D], 'painted', SOFA_FABRIC, k),
+    box('upholstery', [cx, 0.55, -0.4], [0.9, 0.5, 0.15], 'painted', SOFA_FABRIC, k),
+    box('upholstery', [cx, 0.46, 0.05], [0.86, 0.14, 0.8], 'painted', '#9aa89e', k),
+    box('upholstery', [cx, 0.62, -0.33], [0.84, 0.34, 0.12], 'painted', SOFA_FABRIC, k),
+  ]
+}
+
+/** A padded arm hugging the run at centre `cx`. */
+function armModule(cx: number, slotId: string): ConfiguredPart {
+  return box(
+    'upholstery',
+    [cx, 0.33, 0],
+    [0.16, 0.62, SEAT_D],
+    'painted',
+    SOFA_FABRIC,
+    `${slotId}:upholstery`,
+  )
+}
+
+/** A forward-turning corner/chaise return whose inner edge is at run-x `innerX`
+ *  and outer edge at `innerX + side*0.95`; projects forward to +RETURN_D. */
+function cornerModule(innerX: number, side: number, slotId: string): ConfiguredPart[] {
+  const k = `${slotId}:upholstery`
+  const cx = innerX + side * 0.475 // block centre
+  return [
+    box('upholstery', [cx, 0.2, RETURN_CZ], [0.95, 0.4, RETURN_D], 'painted', SOFA_FABRIC, k),
+    // Outer arm running the full return depth.
+    box(
+      'upholstery',
+      [innerX + side * 0.87, 0.33, RETURN_CZ],
+      [0.16, 0.62, RETURN_D],
+      'painted',
+      SOFA_FABRIC,
+      k,
+    ),
+    // Back panel across the −Z (wall) end, tying the corner into the core back line.
+    box('upholstery', [cx, 0.55, -0.4], [0.95, 0.5, 0.15], 'painted', SOFA_FABRIC, k),
+    // Long chaise seat cushion.
+    box('upholstery', [cx, 0.46, 0.2], [0.82, 0.14, 1.3], 'painted', '#9aa89e', k),
+  ]
+}
+
+/** Build one end slot's option parts (side −1 = left edge, +1 = right edge). */
+function endParts(
+  side: number,
+  kind: 'arm' | 'seat-arm' | 'corner' | 'seat-corner',
+  slotId: string,
+): ConfiguredPart[] {
+  const edge = side * CORE_HALF // core edge (±0.9)
+  switch (kind) {
+    case 'arm':
+      return [armModule(edge + side * 0.08, slotId)]
+    case 'seat-arm':
+      return [...seatModule(edge + side * 0.45, slotId), armModule(edge + side * 0.98, slotId)]
+    case 'corner':
+      return cornerModule(edge, side, slotId)
+    case 'seat-corner':
+      return [
+        ...seatModule(edge + side * 0.45, slotId),
+        ...cornerModule(edge + side * 0.9, side, slotId),
+      ]
+  }
+}
+
+/** End-slot options are self-terminating (each authors a complete extent from
+ *  the core edge), so both ends share one option table — differing only by the
+ *  side sign + finishKey slot id. Anchor is identity: parts are authored in the
+ *  product frame, and `composeProduct` unions the real box AABBs for bounds +
+ *  footprint parts. */
+function endOptions(side: number, slotId: string) {
+  return [
+    {
+      id: 'arm',
+      label: 'Armrest',
+      price: 90,
+      footprint: { w: 0.16, d: SEAT_D, h: 0.64 },
+      parts: endParts(side, 'arm', slotId),
+    },
+    {
+      id: 'seat-arm',
+      label: 'Seat + arm',
+      price: 330,
+      footprint: { w: 1.06, d: SEAT_D, h: 0.85 },
+      parts: endParts(side, 'seat-arm', slotId),
+    },
+    {
+      id: 'corner',
+      label: 'Corner (L)',
+      price: 420,
+      footprint: { w: 0.95, d: RETURN_D, h: 0.85 },
+      parts: endParts(side, 'corner', slotId),
+    },
+    {
+      id: 'seat-corner',
+      label: 'Seat + corner',
+      price: 690,
+      footprint: { w: 1.9, d: RETURN_D, h: 0.85 },
+      parts: endParts(side, 'seat-corner', slotId),
+    },
+  ]
+}
+
 const MODULAR_SOFA: ConfigurableProduct = {
   id: 'modular-sofa',
-  label: 'Modular sofa',
+  label: 'Modular sectional',
   category: 'seating',
   base: {
-    footprint: { w: 2.1, d: 0.95, h: 0.85 },
+    // Two-seat armless core (edges at ±0.9); ends grow the run into the room.
+    footprint: { w: 1.8, d: SEAT_D, h: 0.85 },
     price: 520,
-    parts: [
-      box('upholstery', [0, 0.2, 0], [2.1, 0.4, 0.95], 'painted', SOFA_FABRIC, 'base:upholstery'),
-      box(
-        'upholstery',
-        [0, 0.55, -0.4],
-        [2.1, 0.5, 0.15],
-        'painted',
-        SOFA_FABRIC,
-        'base:upholstery',
-      ),
-      box('upholstery', [0, 0.46, 0.05], [2.0, 0.12, 0.8], 'painted', '#9aa89e', 'base:upholstery'),
-    ],
+    parts: [...seatModule(-0.45, 'base'), ...seatModule(0.45, 'base')],
   },
   slots: [
     {
       id: 'leftEnd',
       label: 'Left end',
-      anchor: { position: [-1.05, 0, 0] },
+      anchor: { position: [0, 0, 0] },
       optional: true,
-      defaultOptionId: 'arm-std',
-      options: [
-        {
-          id: 'arm-std',
-          label: 'Armrest',
-          price: 90,
-          footprint: { w: 0.2, d: 0.95, h: 0.65 },
-          parts: [
-            box(
-              'upholstery',
-              [0, 0.325, 0],
-              [0.2, 0.65, 0.95],
-              'painted',
-              SOFA_FABRIC,
-              'leftEnd:upholstery',
-            ),
-          ],
-        },
-        {
-          id: 'chaise-l',
-          label: 'Left chaise',
-          price: 380,
-          footprint: { w: 0.95, d: 1.6, h: 0.45 },
-          parts: [
-            box(
-              'upholstery',
-              [0, 0.225, 0],
-              [0.95, 0.45, 1.6],
-              'painted',
-              SOFA_FABRIC,
-              'leftEnd:upholstery',
-            ),
-          ],
-        },
-      ],
+      defaultOptionId: 'arm',
+      options: endOptions(-1, 'leftEnd'),
     },
     {
       id: 'rightEnd',
       label: 'Right end',
-      anchor: { position: [1.05, 0, 0], rotationY: Math.PI },
+      anchor: { position: [0, 0, 0] },
       optional: true,
-      defaultOptionId: 'arm-std',
-      options: [
-        {
-          id: 'arm-std',
-          label: 'Armrest',
-          price: 90,
-          footprint: { w: 0.2, d: 0.95, h: 0.65 },
-          parts: [
-            box(
-              'upholstery',
-              [0, 0.325, 0],
-              [0.2, 0.65, 0.95],
-              'painted',
-              SOFA_FABRIC,
-              'rightEnd:upholstery',
-            ),
-          ],
-        },
-        {
-          id: 'chaise-r',
-          label: 'Right chaise',
-          price: 380,
-          footprint: { w: 0.95, d: 1.6, h: 0.45 },
-          parts: [
-            box(
-              'upholstery',
-              [0, 0.225, 0],
-              [0.95, 0.45, 1.6],
-              'painted',
-              SOFA_FABRIC,
-              'rightEnd:upholstery',
-            ),
-          ],
-        },
-      ],
-    },
-    {
-      id: 'corner',
-      label: 'Corner section',
-      anchor: { position: [1.05, 0, -0.95] }, // extends back-right into an L
-      optional: true,
-      defaultOptionId: 'corner-1',
-      options: [
-        {
-          id: 'corner-1',
-          label: 'Corner section',
-          price: 420,
-          footprint: { w: 0.95, d: 0.95, h: 0.85 },
-          parts: [
-            box(
-              'upholstery',
-              [0, 0.2, 0],
-              [0.95, 0.4, 0.95],
-              'painted',
-              SOFA_FABRIC,
-              'corner:upholstery',
-            ),
-            box(
-              'upholstery',
-              [0, 0.55, -0.4],
-              [0.95, 0.5, 0.15],
-              'painted',
-              SOFA_FABRIC,
-              'corner:upholstery',
-            ),
-          ],
-        },
-      ],
-    },
-  ],
-  constraints: [
-    // A corner section replaces the right end (can't have both at the right edge).
-    { kind: 'mutex', slots: ['rightEnd', 'corner'] },
-    // No L on both ends (footprint would overflow an HDB living room).
-    {
-      kind: 'excludes',
-      slot: 'leftEnd',
-      option: 'chaise-l',
-      conflictsWith: { slot: 'corner', option: 'corner-1' },
+      defaultOptionId: 'arm',
+      options: endOptions(1, 'rightEnd'),
     },
   ],
 }

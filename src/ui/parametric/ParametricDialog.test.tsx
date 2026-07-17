@@ -59,18 +59,39 @@ describe('ParametricDialog (PF1) — Simple/Pro gating', () => {
     )
   })
 
-  it('switching type resets to that type defaults (wardrobe doors on)', () => {
+  it('switching to Wardrobe shows the modular fit-out controls (bays, front, per-bay)', () => {
     act(() => {
       useStore.getState().setUiMode('pro')
       useStore.getState().setParametricOpen(true)
     })
     render(<ParametricDialog />)
     fireEvent.click(screen.getByText('Wardrobe'))
-    expect(screen.getByLabelText('Doors')).toBeTruthy()
-    expect((screen.getByLabelText('Doors') as HTMLElement).getAttribute('aria-checked')).toBe(
-      'true',
-    )
-    expect(screen.getByText('2 leaves (each ≤ 60 cm)')).toBeTruthy()
+    // Bay-count slider + front segmented + per-bay fit-out picker.
+    expect(screen.getByLabelText('Bay count')).toBeTruthy()
+    expect(screen.getByLabelText('Front: Sliding')).toBeTruthy()
+    expect(screen.getByLabelText('Front: Hinged')).toBeTruthy()
+    expect(screen.getByLabelText('Front: Open')).toBeTruthy()
+    // Default wardrobe has 2 bays → two per-bay fit-out rows.
+    expect(screen.getByLabelText('Bay 1: Hang')).toBeTruthy()
+    expect(screen.getByLabelText('Bay 2: Hang')).toBeTruthy()
+  })
+
+  it('wardrobe modular controls are present in BOTH Simple and Pro (parametricFurniture is simple-tier)', () => {
+    for (const mode of ['simple', 'pro'] as const) {
+      useStore.getState().__resetForTest()
+      act(() => {
+        useStore.getState().setUiMode(mode)
+        useStore.getState().setParametricOpen(true)
+      })
+      const { unmount } = render(<ParametricDialog />)
+      // parametricFurniture is simple-tier → the wardrobe type + its controls
+      // are available regardless of mode.
+      expect(useStore.getState().featureFlags.parametricFurniture).toBe(true)
+      fireEvent.click(screen.getByText('Wardrobe'))
+      expect(screen.getByLabelText('Bay count')).toBeTruthy()
+      expect(screen.getByLabelText('Front: Open')).toBeTruthy()
+      unmount()
+    }
   })
 })
 

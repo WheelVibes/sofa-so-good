@@ -41,6 +41,39 @@ export interface CompartmentConfig {
   style: CompartmentStyle
 }
 
+/** Modular-wardrobe (PAX-like) interior fit-out for a single bay:
+ *  a single hanging rail / two stacked rails (short garments) / a shelf stack /
+ *  an interior drawer bank / a dense shoe-shelf stack. */
+export type WardrobeFitOut = 'hang' | 'double-hang' | 'shelves' | 'drawers' | 'shoe'
+
+export const WARDROBE_FIT_OUTS: readonly WardrobeFitOut[] = [
+  'hang',
+  'double-hang',
+  'shelves',
+  'drawers',
+  'shoe',
+]
+
+export const WARDROBE_FIT_OUT_LABEL: Record<WardrobeFitOut, string> = {
+  hang: 'Hang',
+  'double-hang': 'Double hang',
+  shelves: 'Shelves',
+  drawers: 'Drawers',
+  shoe: 'Shoe rack',
+}
+
+/** Wardrobe front covering. `sliding`/`hinged` conceal the interior; `open`
+ *  removes the doors so the per-bay fit-outs are visible. */
+export type WardrobeFront = 'sliding' | 'hinged' | 'open'
+
+export const WARDROBE_FRONTS: readonly WardrobeFront[] = ['sliding', 'hinged', 'open']
+
+export const WARDROBE_FRONT_LABEL: Record<WardrobeFront, string> = {
+  sliding: 'Sliding',
+  hinged: 'Hinged',
+  open: 'Open',
+}
+
 export interface ParametricSpec {
   type: ParametricType
   /** Overall outer width (m). */
@@ -77,10 +110,17 @@ export interface ParametricSpec {
   deskLegs: 'legs' | 'pedestal'
   /** Desk only: number of pedestal drawers (1–3; only when deskLegs='pedestal'). */
   pedestalDrawers: number
-  /** Kitchen-run only: number of carcass bays (1–6). */
+  /** Kitchen-run + wardrobe: number of carcass bays (1–6). Wardrobe drives its
+   *  column layout off this (the modular-system bay count); other storage types
+   *  auto-size dividers off `MAX_BAY_SPAN`. */
   bays: number
   /** Kitchen-run only: include upper cabinet row above worktop. */
   hasUppers: boolean
+  /** Wardrobe only: front covering (sliding bypass / hinged / open front). */
+  wardrobeFront: WardrobeFront
+  /** Wardrobe only: per-bay interior fit-out (index = 0-based bay). Missing
+   *  entries fall back to a single hanging rail (`hang`). */
+  wardrobeFitOuts: WardrobeFitOut[]
 }
 
 export interface DimRange {
@@ -160,6 +200,8 @@ export const DEFAULT_SPECS: Record<ParametricType, ParametricSpec> = {
     pedestalDrawers: 2,
     bays: 1,
     hasUppers: false,
+    wardrobeFront: 'sliding',
+    wardrobeFitOuts: [],
   },
   wardrobe: {
     type: 'wardrobe',
@@ -174,8 +216,10 @@ export const DEFAULT_SPECS: Record<ParametricType, ParametricSpec> = {
     compartments: [],
     deskLegs: 'legs',
     pedestalDrawers: 2,
-    bays: 1,
+    bays: 2,
     hasUppers: false,
+    wardrobeFront: 'sliding',
+    wardrobeFitOuts: [],
   },
   sideboard: {
     type: 'sideboard',
@@ -192,6 +236,8 @@ export const DEFAULT_SPECS: Record<ParametricType, ParametricSpec> = {
     pedestalDrawers: 2,
     bays: 1,
     hasUppers: false,
+    wardrobeFront: 'sliding',
+    wardrobeFitOuts: [],
   },
   desk: {
     type: 'desk',
@@ -208,6 +254,8 @@ export const DEFAULT_SPECS: Record<ParametricType, ParametricSpec> = {
     pedestalDrawers: 2,
     bays: 3,
     hasUppers: false,
+    wardrobeFront: 'sliding',
+    wardrobeFitOuts: [],
   },
   'kitchen-run': {
     type: 'kitchen-run',
@@ -224,11 +272,13 @@ export const DEFAULT_SPECS: Record<ParametricType, ParametricSpec> = {
     pedestalDrawers: 2,
     bays: 3,
     hasUppers: false,
+    wardrobeFront: 'sliding',
+    wardrobeFitOuts: [],
   },
 }
 
 export function defaultSpec(type: ParametricType): ParametricSpec {
-  return { ...DEFAULT_SPECS[type], compartments: [] }
+  return { ...DEFAULT_SPECS[type], compartments: [], wardrobeFitOuts: [] }
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
@@ -248,6 +298,14 @@ function clampCompartments(raw: unknown): CompartmentConfig[] {
       ? (c as CompartmentConfig).style
       : 'open',
   }))
+}
+
+/** Validate a per-bay wardrobe fit-out list; unknown entries become `hang`. */
+function clampFitOuts(raw: unknown): WardrobeFitOut[] {
+  if (!Array.isArray(raw)) return []
+  return raw.map((f) =>
+    WARDROBE_FIT_OUTS.includes(f as WardrobeFitOut) ? (f as WardrobeFitOut) : 'hang',
+  )
 }
 
 /**
@@ -290,6 +348,12 @@ export function clampSpec(raw: Partial<ParametricSpec> | null | undefined): Para
 
   const hasUppers = typeof raw?.hasUppers === 'boolean' ? raw.hasUppers : (d.hasUppers ?? false)
 
+  const rawFront = raw?.wardrobeFront
+  const wardrobeFront: WardrobeFront = WARDROBE_FRONTS.includes(rawFront as WardrobeFront)
+    ? (rawFront as WardrobeFront)
+    : d.wardrobeFront
+  const wardrobeFitOuts = clampFitOuts(raw?.wardrobeFitOuts)
+
   return {
     type,
     width: clamp(num(raw?.width, d.width), lim.width.min, lim.width.max),
@@ -306,6 +370,8 @@ export function clampSpec(raw: Partial<ParametricSpec> | null | undefined): Para
     pedestalDrawers,
     bays,
     hasUppers,
+    wardrobeFront,
+    wardrobeFitOuts,
   }
 }
 
@@ -331,4 +397,11 @@ export function bayStyle(spec: ParametricSpec, b: number): CompartmentStyle {
   if (override && VALID_COMPARTMENT_STYLES.includes(override)) return override
   // Global fallback: doors flag → 'door', else 'open'.
   return spec.doors ? 'door' : 'open'
+}
+
+/** Resolved interior fit-out for wardrobe bay `b` (0-based); falls back to a
+ *  single hanging rail when no per-bay entry is set. */
+export function bayFitOut(spec: ParametricSpec, b: number): WardrobeFitOut {
+  const f = spec.wardrobeFitOuts?.[b]
+  return f && WARDROBE_FIT_OUTS.includes(f) ? f : 'hang'
 }

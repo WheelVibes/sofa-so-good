@@ -73,6 +73,20 @@ const UserGltfDefZ = z.object({
   verticalSpan: z.object({ base: z.number(), top: z.number() }).optional(),
   finishTargets: z.array(z.object({ key: z.string(), label: z.string() })).optional(),
   finishOverrides: z.record(z.string(), z.string()).optional(),
+  // Optional granular footprint decomposition (non-rectangular baked shape, e.g.
+  // an L/U configurator sectional) so collision keeps the concave notch on
+  // import — additive; absent defs fall back to the bbox.
+  footprintParts: z
+    .array(
+      z.object({
+        dx: z.number(),
+        dz: z.number(),
+        w: z.number(),
+        d: z.number(),
+        rot: z.number().optional(),
+      }),
+    )
+    .optional(),
   // Optional def-level price estimate (parametric generator) — additive.
   price: z.number().optional(),
   // Optional GLB byte size for the catalog model-info tooltip — additive.
@@ -580,6 +594,7 @@ export function serialize(state: RootState): SerializedState {
               verticalSpan: d.verticalSpan,
               finishTargets: d.finishTargets,
               finishOverrides: d.finishOverrides,
+              footprintParts: Array.isArray(d.footprintParts) ? d.footprintParts : undefined,
               price: d.price,
               slotSpec: d.slotSpec,
               assetSpec: d.assetSpec,

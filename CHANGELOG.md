@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.87 — Expansion E4: sectional builder + wardrobe fit-out system — EXPANSION COMPLETE
+
+**Modular sectional builder** (configurator, rides `productConfigurator`): the modular
+sofa rebuilt as a 2-seat armless core + self-terminating end slots (armrest / seat+arm /
+corner / seat+corner) composing 2–6 modules — loveseat, L either way, 4/5/6-module U,
+straight run — with per-section fabric via the finish channels. `composeProduct` now
+emits composite `footprintParts` threaded through persist/IDB/schema (back-compat
+guarded), so an L/U collides with its true concave shape (a coffee table fits inside the
+U). Verified through the real dialog flow (8 compositions). **Parametric wardrobe
+fit-out system** (rides `parametricFurniture`): dedicated `buildWardrobe` with per-bay
+interiors (hang / double-hang / shelves / drawers / shoe rack), sliding/hinged/open
+fronts, bay-driven width; new WardrobeControls; connectivity unit-tested across 45+
+combos via the pure structural helper (baked GLBs aren't primitive-swept). Tail: crib
+`convert: toddler` mode (front drops to a low guard); bistro set as two new defs
+(BistroTable pedestal + FoldingChair scissor legs) + a 'Balcony bistro set' vignette
+(furnitureSets precedent); high-chair grow-modes skipped (no size parametrisation to hook
+— noted). Harness 290 cases green; full suite green (known flake isolated-passed).
+
 ## v0.21.2.86 — Expansion E3: recliner, wall/trestle desks, loft bed, lowboy, storage bench, bay daybed, pendant cluster
 
 Six new primitives + two enum absorptions. New: **recliner** (upright/reclined — back

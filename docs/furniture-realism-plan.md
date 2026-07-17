@@ -1,5 +1,10 @@
 # Furniture realism program — audit + fix + expand
 
+**PROGRAM COMPLETE (2026-07-17, v0.21.2.79–.87):** audit — all 131 defs verified, 45
+defects fixed, structural-soundness harness shipped as a permanent CI gate; expansion —
+E1–E4 shipped (12 new primitives, 14 variant families, sectional builder + wardrobe
+fit-out system). Wave-by-wave record in the Findings log.
+
 **Goal (2026-07-17):** go through all existing procedurally generated furniture, make sure
 they are as realistic-looking as possible, high fidelity, to scale, follow physics, no
 z-fighting. Fix them if not. Once verified, build more furniture variants and expand
@@ -48,10 +53,10 @@ visual review + an adversarial pass — audit them last, lightly.
 
 | Wave | Batch A | Batch B | Status |
 |---|---|---|---|
-| 1 | seating (10) + tables (6) | beds (5) + storage (11) | dispatched |
-| 2 | kitchen (5) + appliances (9) | bathroom (7) + laundry (3) + electronics (4) | 2A done · 2B pending |
-| 3 | decor (26) | lighting (5) + textiles (3) + outdoor (5) + kids (5) | 3A done · 3B pending |
-| 4 | others (1) + pets spot-check (26) | — | pending |
+| 1 | seating (10) + tables (6) | beds (5) + storage (11) | done (v0.21.2.79) |
+| 2 | kitchen (5) + appliances (9) | bathroom (7) + laundry (3) + electronics (4) | done (v0.21.2.80) |
+| 3 | decor (26) | lighting (5) + textiles (3) + outdoor (5) + kids (5) | done (v0.21.2.82) |
+| 4 | others (1) + pets spot-check (26) | coordinated cross-cutting pass | done (v0.21.2.83) |
 
 ## Expansion (after audit)
 
@@ -1250,3 +1255,258 @@ unchanged: the shared `mat:floor-wood-oak` cathedral-grain watermark shows on th
 base wood (coordinated global retune, not a per-def fix); the dollhouse orbit camera's large mid-air
 cluster domes occluded a couple of neighbouring closeups (the clear cords-canopy + night frames carry
 the verification, per the E1A/E2B occlusion note).
+
+### Wave E4A — Expansion row 25: modular sectional / corner-sofa builder, 2026-07-17
+
+**Architecture decision — EXTEND the `productConfigurator` `MODULAR_SOFA` (Option A), not a new
+`sofa-sectional` parametric def (Option B).** Decisive factor: the deliverable's "**per-module fabric
+via the existing finish channels**" is specifically the configurator's mechanism — each slot option's
+`finishKey` bakes into a named material group, surfaced as a per-section finish picker on the placed
+GLB through the existing finish-override channel (`props['finish:<key>']`). A live parametric def can
+NOT do per-mesh finish overrides (those apply only to GLB-rendered items via `GltfModel`), so Option B
+would have to fake per-module fabric with N colour params — not "the existing finish channels". Option A
+also rides the existing `productConfigurator` flag (simple tier, on in both modes — **no new flag**),
+reuses the whole bake/persist/dialog/preview pipeline, and keeps `SofaSectional` (the parametric
+`sofa-lshape` primitive) untouched for the fixed-shape L. The one thing Option B wins natively — an
+honest concave footprint via a `footprintParts` function — I recovered for the baked product by
+teaching `composeProduct` to EMIT a composite `footprintParts` (see below), so Option A now delivers
+BOTH requirements. (The pre-existing `SofaSectional` primitive / `sofa-lshape` def stays as the
+single-shape catalog L; this builder is the compose-your-own surface.)
+
+**What a user can now compose** (configurator → "Modular sectional" tab → per-end option → Add/Save):
+a **2–6-module** sectional from a 2-seat armless CORE (1.8 × 0.95 m) plus a self-terminating slot at
+each end (`leftEnd`/`rightEnd`), each offering **Armrest** (+0), **Seat + arm** (+1), **Corner (L)**
+(+1, forward-turning return), **Seat + corner** (+2). Reachable configs: **2-mod loveseat** (arm+arm),
+**3-mod L either way** (one corner — flip precedent is native, not a mirror flag), **4-mod U**
+(corner+corner), **5-mod U** (seat-corner + corner), **6-mod U** (seat-corner both ends), and a
+straight **4-seat run** (seat-arm both ends). Real metres: seat module 0.9 w × 0.95 d, corner
+0.95 × 0.95 with a 1.525 m forward chaise return, seat 0.85 h. Per-end fabric via `base:` / `leftEnd:`
+/ `rightEnd:` finishKeys. Every option carries an explicit SGD price (90 / 330 / 420 / 690); base 520.
+
+**No-gap design (why no constraint is needed).** The old `MODULAR_SOFA` used a fixed 3-seat base + a
+separate `corner` slot with `mutex`/`excludes` to stop gaps/overflow, and could NOT make a loveseat
+(base too big) or a U (excludes forbade two forward returns). The rebuild makes each END option author
+its OWN complete geometry extending from the core edge (`endParts(side, kind)`), so the two ends share
+one option table (differing only by a side sign + finishKey) and `clampConfig`'s output is ALWAYS
+buildable with **zero constraints** — every module abuts the next at a shared face plane. Both ends may
+turn forward independently → U is naturally expressible.
+
+**Honest composite footprint (the `footprintParts` thread).** `composeProduct` now tracks a per-
+contribution AABB (base + each filled slot) from the ACTUAL transformed box parts (exact) plus any GLB
+piece footprint, unions them for `bounds`, and emits one `FootprintPart` per contribution **relative to
+the bounds centre** — so an L/U collides with its true concave notch instead of the full bbox (the
+`sofa-lshape` precedent, but composed; a single-contribution product collapses to one part = the plain
+OBB, a no-op). Threaded onto the baked def: `ComposedModel.footprintParts` → `saveConfiguredAsset`
+(passed only when >1 contribution) → `PersistOptions.footprintParts` → IDB meta (JSON) + the def object
+→ `hydrateAssets` decode (back-compat: absent on legacy records) → `schema.ts` (Zod + serialize, for
+design export/import round-trip). Collision reads it through the EXISTING `itemFootprintParts` (which
+already resolves `def.footprintParts` for any def kind + mirrors on flip) — no new collision path.
+Bounds also became part-exact (was per-option-footprint-at-anchor), a strict improvement; the mattress/
+cat-tree bounds assertions still hold.
+
+**Verification.** Scenario `scripts/scenarios/expansion-e4a.json` drives the REAL dialog on port 5301
+(SHOT_GPU=1): opens the configurator, switches to the Modular sectional tab, and sets per-end options
+via an eval helper that finds each `.sec` by its `.sec-h` label (both end slots share option labels, so
+`clickByText` alone is ambiguous), screenshotting the live composed preview (the same
+`buildConfiguredPreview` the bake uses). 8 frames reviewed — **01 loveseat** (arms abut the seat,
+cushions seated, tight joints), **02 L-left / 03 L-right** (corner projects forward, reads as an L both
+ways), **04 U-4 + 05 U-4 profile** (both returns forward, symmetric U, solid junctions, no gaps at the
+corner-to-core joint), **06 U-5** (extra left seat before the corner), **07 max-6** (large U), **08
+4-seat run** (straight extended sofa). No z-fighting (abutting boxes share face planes back-to-back,
+interior joins hidden), no floating parts, scale correct. (Camera persisted at the profile-drag angle
+for frames 06–08 — a harmless OrbitControls carry-over; frames 01–05 are the hero/profile angles.)
+
+**Gates.** tsc clean on all touched files (the only tree errors are the concurrent E4B wave's
+`parametric/buildParts.test.ts`). Biome clean. Targeted vitest green: `configurator` (78:
+compose/clamp/constraints/persist/saveConfigured **both-modes flag** + the new sectional compose cases)
++ `structuralSoundness` (unaffected — no parametric def/primitive touched) + `collision` (granular
+footprintParts) + `schema` + `storage`. (`broadphase.test.ts`'s random "huge sparse extents" fuzz case
+flaked in the batch run; passes in isolation — not this change.) The `visibleConfigurableProducts` pets
+gate is untouched and still tested in both modes.
+
+**Judgment calls.** (a) Extended the configurator over a parametric def — justified by the per-module-
+fabric-via-finish-channel requirement (above). (b) Per-section fabric grain (base / left / right = 3
+finish channels) rather than per-individual-seat: matches the slot model (each end IS a module/section)
+and the "corner module / chaise end / armless middle" vocabulary; a finer per-seat grain would need
+per-seat roles on one shared base slab (overkill). (c) Emitted a static `footprintParts` through persist
++ schema (additive, back-compat, guarded) rather than accept the over-wide bbox — a U-sofa bbox would
+block its own open interior (a coffee table couldn't sit in the U), so the notch matters; this is the
+smallest additive infra change and reuses the existing `itemFootprintParts` consumer. (d) Kept box parts
+on the `painted` token material (the configurator's box-part model, matching the old MODULAR_SOFA and
+mattress/cat-tree) — photoreal fabric is available post-bake via the per-section finish pickers. (e) No
+constraints on the new product (self-terminating end options can't gap/overflow within the 2–6 range
+the charter asks for); the `clampConfig` mutex/excludes MECHANISM coverage moved to a small inline test
+fixture so it stays covered independently of the sofa's (now empty) constraint set.
+
+### Wave E4B — Expansion row 26 (modular wardrobe system) + rows 28–29 (kids convertibles, outdoor bistro set), 2026-07-17
+
+**Row 26 — modular wardrobe system.** Extended the EXISTING `parametric` `wardrobe` type in place (per
+the corrected flag policy — a configurable system extends a parametric type, no parallel channel), not
+a new type/channel. `spec.ts`: added `WardrobeFitOut` ('hang' / 'double-hang' / 'shelves' / 'drawers' /
+'shoe', + `WARDROBE_FIT_OUTS`/`_LABEL`), `WardrobeFront` ('sliding' / 'hinged' / 'open', +
+`WARDROBE_FRONTS`/`_LABEL`), and two new `ParametricSpec` fields — `wardrobeFront` and
+`wardrobeFitOuts: WardrobeFitOut[]` (per-bay, index = bay) — both clamped in `clampSpec`
+(`clampFitOuts` validates/repairs unknown entries to `'hang'`) and defaulted per-type in `DEFAULT_SPECS`
+(wardrobe's default `bays` bumped 1→2 so the fit-out picker has something to show out of the box).
+`bays` (already used by kitchen-run) is now shared by wardrobe too — it drives the modular column count
+directly (unlike bookshelf/sideboard, which still auto-divide via `bayCount`/`MAX_BAY_SPAN`).
+`buildParts.ts`: added `buildWardrobe(spec)` — a dedicated builder (the shared bookshelf/sideboard
+carcass builder's wardrobe branches were removed, since the fixed "one shelf + one rail" layout no
+longer applies): recessed plinth, floor→top sides carrying `spec.bays` divided columns, and per-bay
+interior fit-out (`hang` = top shelf + rail at hanging height; `double-hang` = top shelf + an upper AND
+a lower rail for short garments; `shelves` = an evenly-spaced stack sized off `autoShelfCount`; `shoe` =
+a denser stack, ~0.24 m gaps; `drawers` = a stacked drawer bank via the existing shared
+`addDrawerFronts` helper). Front covering is independent of the fit-out: `open` emits nothing proud
+(interior visible), `hinged` emits per-bay leaves (reusing `doorLeafCount`/`MAX_DOOR_LEAF` so no leaf
+exceeds 0.6 m) each with a vertical bar handle, `sliding` emits two bypass panels on two Z-offset tracks
+(so they never z-fight) each spanning half the width plus a small centre overlap, with a slim
+finger-pull near its leading edge instead of a handle (real sliding-wardrobe doors have no protruding
+pulls). Max envelope 2.5 w × 2.36 h × 0.58 d (fits the row's "up to 2.5 w × 2.36 h × 0.58 d" spec,
+inside the existing `PARAMETRIC_LIMITS.wardrobe` — unchanged, since 2.5/2.36/0.58 already sit within
+0.5–3.0 / 1.8–2.4 / 0.55–0.65). `ParametricControls.tsx`: added a dedicated `WardrobeControls` layout
+(dimensions → bay-count slider + front segmented control → per-bay `WardrobeFitOutPicker` rows →
+finish), mirroring the existing `KitchenControls` dedicated-layout precedent (wardrobe no longer shares
+the generic bookshelf/sideboard/desk controls branch — its options diverged too far: no `doors`
+boolean, no `shelves`/`base` fields, a wholly different per-bay vocabulary). Bakes through the
+UNCHANGED, existing `exportGlb → persistUserGlb` channel — `buildWardrobe`'s output is still a flat
+list of box `ParametricPart`s consumed by `buildParametricObject`/`saveParametricAsset` exactly like
+every other parametric type; `footprint: model.bounds` (a plain rectangular AABB — the sliding front's
+proud bulge folds into `bounds.d`, the same convention `buildKitchenRun`/the old wardrobe branch already
+used for a proud door) and `price: estimatePrice(model)` are the only `PersistOptions` fields touched,
+both pre-existing. **No schema/persist/hydrate changes were needed or made for this row** (see the
+schema-change note below — those files' diffs in the shared tree belong to the concurrent E4A wave).
+
+**Flag.** `parametricFurniture` already gates the whole parametric dialog (simple tier, default on,
+prod-safe pure code — set at PF1). Wardrobe is one of its existing tabs, so no new flag was needed;
+extended its existing both-modes coverage instead: `ParametricDialog.test.tsx`'s wardrobe test now
+asserts the new bay-count slider + front segmented control + per-bay pickers render, plus an explicit
+"wardrobe modular controls are present in BOTH Simple and Pro" case (loops `['simple','pro']`,
+re-resolving `parametricFurniture` is `true` in both, and that the Wardrobe tab's new controls are
+reachable in both — per the corrected flag policy, this is content ON an existing simple-tier feature,
+not a new gate).
+
+**Schema-change note (why `src/state/schema.ts` / `src/furniture/upload/persist.ts` /
+`src/state/storage/hydrateAssets.ts` show as modified in this tree).** Those three files were touched
+by the CONCURRENT E4A wave (row 25, the modular-sectional/corner-sofa configurator builder running in
+the same shared working directory), not by this wardrobe work — confirmed via `git diff` (the diff is
+entirely the `footprintParts` granular-footprint plumbing E4A's findings section documents above) and
+by grep (nothing in `parametric/saveParametric.ts`, `parametric/buildObject.ts`, or this wave's own
+diffs references `footprintParts`/`schema`/`hydrateAssets`). The brief's "bake through the EXISTING
+`exportGlb → persistUserGlb` channel, no parallel persistence" applies cleanly here with ZERO schema
+changes: `buildWardrobe` always returns a single rectangular `bounds` AABB (never a concave notch — a
+wardrobe carcass, even with a proud sliding/hinged front, is representable as one enclosing box, unlike
+E4A's L/U sectional whose bbox would block its own open interior), so the existing `footprint` field
+already carried by `PersistOptions` is sufficient; nothing new needed persisting or hydrating.
+
+**Row 28 — kids convertibles.** `crib` gained a `convert` enum (`crib` / `toddler`) reusing the SAME
+crib geometry per the brief: the front long side (+Z) drops its slat height and top rail from the full
+`railTopY` (0.92 m) to a low `guardTopY` (0.36 m) — a low toddler-bed guard rail — while the back/two
+ends stay full height, so the mattress-base + frame + joinery are 100% shared between modes (pure
+parametrised height, no new parts). Keyword `'convertible'` added to the def (+ `'cot-bed'`/`'toddler'`)
+per the brief. `high-chair` `size` grow-modes: **skipped, with a note** — the primitive's every
+dimension (`seatY`/`seatW`/`seatD`/tray/footrest) is a hardcoded literal with no size-derived scaling
+anywhere, so a real "grows with the child" mode would mean re-deriving ~10 interdependent offsets (tray
+height relative to seat, footrest position, leg splay reach) for at least 2 more sizes — not the "cheap
+enum" the brief allows to skip; the crib conversion was cheap (7 constants gated behind one boolean)
+because it only ever touches the ALREADY-parametrised front-side height. Deferred to a dedicated
+high-chair pass if/when demanded.
+
+**Row 29 — outdoor bistro set.** Decision: **two new discrete defs + a `furnitureSets` entry**
+(`bistro-table` + `folding-chair` + the `'bistro-set'` set), not a single 3-part composite def. Rationale
+(per the brief's own steer): `furnitureSets.ts` is the established precedent for exactly this shape — a
+coordinated multi-item vignette the user can drop in one click while each piece remains independently
+selectable/movable/collidable afterward (see `'balcony'`/`'sun-deck'`, the outdoor sets already there).
+A single composite def would need either (a) one dishonest bbox spanning table+chairs+the gaps between
+them (the walkway between an armchair and a bistro table is real walkable space, not part of the
+"footprint"), or (b) `footprintParts` faking three separate OBBs on one def — extra machinery for zero
+benefit over just having three real catalog items, since bistro sets are routinely rearranged (chairs
+pulled out, table pushed to a rail) unlike a single rigid product. `BistroTable` (new primitive): round
+top (Ø0.6 default, 0.5–0.8 m range) on a central column over a weighted round foot — table Ø0.6 × 0.71 h
+matches the brief exactly. `FoldingChair` (new primitive): scissor-crossed leg pairs (the folding-chair
+silhouette) carrying a slatted seat + slim slatted back, 0.42 w matching the brief. Both share the same
+`finish` vocabulary as the existing outdoor defs (teak/rattan/painted/metal) via `getSurfaceMaterial`,
+with the metal option routed through the shared `metalLeg` helper (METAL-LEGS) for a proper brushed
+finish rather than a flat painted grey. `furnitureSets.ts` gained `'bistro-set'` ("Balcony bistro set")
+— table centred, two chairs facing it front/back at 0.62 m offsets (clear of the table's 0.3 m radius +
+the chair's own depth). No flags (catalog content, per the corrected flag policy — new defs in an
+existing category). Prices added to `furniturePrices.ts` (`bistro-table` 130, `folding-chair` 70 — in
+the existing `outdoor-*` band).
+
+**Harness coverage.** The parametric generator bakes to a static GLB, so the primitive-sweeping
+`structuralSoundness.test.tsx` (which renders BUILTIN parametric defs headless) does not cover it —
+per the brief, added `parametric/__tests__/wardrobe.test.ts` calling the render-agnostic
+`connectedComponents` helper directly on `buildWardrobe`'s output boxes: every `front × fit-out ×
+bay-count` combination (3 fronts × 5 fit-outs × [1,2,4] bays = 45 cases) plus a mixed 5-bay layout and
+the smallest single-bay wardrobe all assert **one connected component + floor contact** (ε = 8 mm,
+matching the primitive harness's tolerance). `BistroTable`/`FoldingChair`, being ordinary primitives (not
+baked GLBs), ARE covered by the existing `structuralSoundness.test.tsx` sweep automatically (registered
+in `PRIMITIVE_COMPONENTS`/`PrimitiveKind`, no harness edit needed) — both pass at default props. The
+new `bistro-table`/`folding-chair` default cases plus the crib's new `convert=toddler` extra-mode case
+bring the sweep to 290 total structural cases (harness green throughout). `crib`'s toddler mode was
+added to the harness's `EXTRA_MODES` map (`convert=toddler`) since `convert` is not one of the swept
+first-structural-enum keys — asserts the dropped front side stays one grounded assembly, not a
+disconnected low guard floating apart from the tall back/ends.
+
+**Verification.** Scenario `scripts/scenarios/expansion-e4b.json` (dev server port 5302, `SHOT_GPU=1`
+for the in-room frames) plus follow-up scenarios iterated to get robust dialog automation (see judgment
+call below): **crib** — `e4b-crib-default`/`e4b-crib-toddler`/`e4b-crib-toddler-3q` (the toddler frame
+at a low angle clearly shows the front dropped to a low guard rail with short slats while the back/ends
+stay full height, mattress-base still spans the frame, all joints attached; the 3/4 frame happened to
+frame two TALL sides, not a defect — the low-angle frame is the informative one). **Bistro set** —
+`e4b-bistro-table` (round top, central column, weighted foot, all overlapping/abutting), `e4b-folding-
+chair` + `e4b-folding-chair-teak` (scissor legs read clearly, slatted seat/back attached), `e4b-bistro-
+set` + `e4b-bistro-set-low` (table + two facing chairs, walkable gaps between pieces, reads as a real
+café two-seater). **Wardrobe** (parametric dialog, live preview — the SAME `buildParametricObject` the
+bake path exports, so preview never drifts from the saved GLB) — `e4b-wardrobe-open-mixed-4bay` (4
+bays: Shelves / Drawers / Shoe rack / Double hang, each visibly distinct — dense even shelf stack,
+drawer fronts+handles, denser shoe stack, top-shelf-plus-two-rails), `e4b-wardrobe-sliding-4bay` (same
+mixed interior, front switched to Sliding — two bypass panels with finger-pulls, fit-out state
+preserved across the front change), `e4b-wardrobe-hinged-4bay` (per-bay hinged leaves with vertical bar
+handles, one per ≤0.6 m leaf), `e4b-wardrobe-open-config3` (a second mixed layout: Hang / Shelves /
+Double hang / Drawers). All four wardrobe frames were captured with an explicit in-page assertion
+(`classList.contains('on')`) confirming each clicked option actually took effect before the screenshot,
+not merely "the click fired" — see the judgment call below on why that mattered.
+
+**Judgment calls.**
+(a) **Dedicated `buildWardrobe` builder vs. extending the shared bookshelf/sideboard carcass function.**
+The shared builder's wardrobe branches (fixed one-shelf-one-rail layout, `doors` boolean, per-bay
+`CompartmentConfig` reused from sideboard) could not express 5 independent fit-outs × an independent
+3-way front without turning `CompartmentStyle`/`bayStyle` into a wardrobe-specific mess that would also
+have back-compat implications for the OLD wardrobe defaults (`doors: true` meaning "hinged", now one of
+3 front options). A separate builder keeps both call paths simple and the diff auditable; the shared
+carcass primitives (`PANEL_T`, `addDrawerFronts`, `doorLeafCount`, `bayFitOut`) are still reused, so
+there's no geometry duplication, only the assembly order differs.
+(b) **`bays` field reused across kitchen-run AND wardrobe** (both drive an explicit user-set column
+count, unlike bookshelf/sideboard's auto-dividing `bayCount`) rather than adding a second field — the
+field's doc comment was updated to describe both uses; this keeps `ParametricSpec` from growing a
+near-duplicate field for the same concept.
+(c) **Sliding-panel proud depth folds into `bounds.d`** rather than emitting `footprintParts` — a
+sliding wardrobe's collision-relevant footprint is still a single rectangle (unlike E4A's concave U
+sofa), so the existing "bounds absorb the proud front" convention (already used by hinged wardrobe/
+sideboard doors and kitchen worktops) is the right level of honesty; no new persistence machinery
+earned its cost here.
+(d) **High-chair size grow-modes skipped** (see row 28 above) — the brief explicitly allows skipping
+"if not trivially cheap", and every dimension in `HighChair.tsx` is a hardcoded literal with no existing
+size-driven scaling to hook into, unlike the crib conversion which only touches an already-parametrised
+height constant.
+(e) **Bistro set as two defs + a `furnitureSets` entry, not one composite** (row 29 above) — matches the
+established multi-item-vignette precedent instead of introducing footprint machinery for a set of
+pieces that are routinely rearranged independently in real use.
+(f) **Scenario automation iteration.** The first scenario pass used raw `eval` steps ending in a
+trailing `true` (to make the JS expression truthy) — this **silently swallows a failed element lookup**
+(a missed click becomes a no-op that still reports step "OK"), which masked two real problems in
+sequence: React state-update batching (four rapid synchronous `.click()` calls in one eval only ever
+read the FIRST stale `spec` closure, so only the last click's effect won) and, later, CDP round-trip
+latency spiking to 15–40 s per trivial step (system-wide, from a concurrent agent's own `SHOT_GPU=1`
+Chrome instance contending for the same GPU — confirmed via a diagnostic scenario showing the dialog
+WAS open with the correct state while a plain-text `waitFor` still timed out). Fixed by switching to the
+harness's `click`/`waitFor` step types (which throw/timeout loudly instead of no-op) with generous
+timeouts, one settle-wait between each single click (avoiding the batching issue), and an explicit
+in-page `classList.contains('on')` assertion before each screenshot — cheap insurance against ever
+reporting a stale/no-op frame as verified again.
+
+**Gates.** `tsc --noEmit` clean (repo-wide, including the concurrent E4A tree). Biome clean on all 17
+touched/added files for this wave. Targeted vitest green: `furniture/parametric` (spec/buildParts/price/
+the new `wardrobe.test.ts`) + `ui/parametric` (`ParametricControls`/`ParametricDialog`, both-modes) +
+`furnitureSets.test.ts` + `furniturePrices.test.ts` + `structuralSoundness.test.tsx` (290 cases,
+crib/bistro-table/folding-chair included) + `featureFlags.test.ts` — **511 tests, 0 failures**.

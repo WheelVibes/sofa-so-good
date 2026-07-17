@@ -20,6 +20,7 @@ import { Bed } from './Bed'
 import { Bench } from './Bench'
 import { BirdCage } from './BirdCage'
 import { BirdPlayGym } from './BirdPlayGym'
+import { BistroTable } from './BistroTable'
 import { BookStack } from './BookStack'
 import { Bookshelf } from './Bookshelf'
 import { BunkBed } from './BunkBed'
@@ -62,6 +63,7 @@ import { FloorLamp } from './FloorLamp'
 import { FloorMirror } from './FloorMirror'
 import { FloorSpeaker } from './FloorSpeaker'
 import { FloorVase } from './FloorVase'
+import { FoldingChair } from './FoldingChair'
 import { FruitBowl } from './FruitBowl'
 import { GarmentRack } from './GarmentRack'
 import { HamsterTank } from './HamsterTank'
@@ -244,6 +246,8 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   OutdoorTable,
   OutdoorParasol,
   OutdoorLounger,
+  BistroTable,
+  FoldingChair,
   BookStack,
   ThrowCushion,
   ThrowBlanket,
