@@ -1510,3 +1510,73 @@ touched/added files for this wave. Targeted vitest green: `furniture/parametric`
 the new `wardrobe.test.ts`) + `ui/parametric` (`ParametricControls`/`ParametricDialog`, both-modes) +
 `furnitureSets.test.ts` + `furniturePrices.test.ts` + `structuralSoundness.test.tsx` (290 cases,
 crib/bistro-table/folding-chair included) + `featureFlags.test.ts` — **511 tests, 0 failures**.
+
+### Foliage fidelity pass — 2026-07-17
+
+User directive: "Make sure furniture like potted plants have proper leaves and not
+just low def blobs." Every foliage-bearing primitive was rebuilt from icosahedron
+blobs / literal cones to **per-species alpha-silhouette leaves on curved instanced
+planes**. Two shared modules (new): `primitives/leafTexture.ts` — canvas-drawn
+per-(species,colour) leaf silhouettes (10 species: monstera / fiddle / frond /
+blade / pothos / fern / oval / succulent / pampas / seagrass), tip-up on a
+transparent ground with pale midrib + veins, bounded-LRU cached (AUD-002,
+`LEAF_TEX_CACHE_MAX=32`, unit-tested `leafTexture.test.ts`) exactly like
+`meshGridTexture`/`sisalTexture`; and `primitives/leafFoliage.tsx` — a shared
+gently-curved leaf plane (base pivot at y=0 → leaf attaches at its base and grows
+to its tip) rendered as ONE `InstancedMesh` per cluster (`InstancedLeaves`), a
+bounded-LRU leaf-material cache (white base + `map`, **`alphaTest` not transparent
+blending** so depth writes normally), per-instance `instanceColor` seeded green
+tint (`leafTintHex`), and a pure `leafJitter` hash (no RNG — keeps primitives
+pure). Leaf counts tier-scale via `useDetail()`.
+
+**Why alphaTest, not alpha blending:** the aquarium plants live INSIDE the tank's
+transparent glass — alpha-blended planes would sort-fight the glass walls (halo /
+z-order pop). alphaTest writes depth in the opaque pass, so seagrass renders
+depth-correct behind the glass at every angle (verified in the closeups).
+
+Per-primitive (species → approach; instance counts are default/Performance..High
+via `detail` 0.7→1.8):
+- **PottedPlant** (`bush`/`snake`/`palm`/`fiddle` × pot × size × raised stand) —
+  bush → `oval` dome crown on the kept woody stem (~17..38); snake → upright
+  `blade` swords from the soil (~8..18); palm → arching `frond` (pinnate) crown on
+  the kept trunk (~6..14); fiddle → broad `fiddle` paddles up the kept trunk
+  (~6..14). Trunks/stems reach the soil; leaves base-overlap them → still one
+  connected component.
+- **HangingPlant** — trailing `pothos` hearts: an upright crown mound + longer
+  leaves draping past the rim (tilt past horizontal), all based at the pot + a new
+  soil disc. Replaces the sphere-crown + foliage cones.
+- **TrailingPlant** (hero) — kept the deterministic vine polylines; replaced the
+  sphere leaves with `pothos` hearts collected into ONE instanced cluster (crown
+  tuft + leaf pairs draping along each vine). Reads as a genuine cascading pothos.
+- **DeskPlant** — succulent → plump `succulent` rosette (outer + inner) from the
+  soil; trailing → arching stems each ending in a small `pothos` leaf.
+- **FloorVase** — pampas → feathery `pampas` plumes atop the kept stems (dense
+  filament-over-soft-body texture, drawn in the dried stem tone); branch → small
+  sage `oval` leaves fanned along the branches.
+- **PlanterTrough** — low bushy `oval` shrubs per cluster (dome radiating from the
+  soil) + a taller central sprig. Replaces the sphere blobs.
+- **Aquarium** (decor) + **AquariumStand** (pets) — the literal green CONES are
+  gone: `seagrass` ribbon-blade clusters rising from the gravel (`castShadow`
+  off), alphaTest → depth-correct inside the transparent tank.
+
+**Judgment calls:** (1) leaf colour comes from each def's existing `leafColor`
+prop drawn INTO the texture (white material + `instanceColor` variation), so the
+texture cache keys on `species|colour` and genuinely needs the LRU bound (matches
+the meshGrid/sisal precedent) — no def/API/enum changes, purely a visual upgrade.
+(2) A single-plane leaf viewed exactly edge-on can read as a thin line; the curved
+geometry mitigates it at all but grazing angles, and it's far better than the old
+blobs — not worth doubled draw cost of crossed quads. (3) FloorVase `branch`
+leaves use a fixed sage `#8a9a63` (the def has no `leafColor`; hex greens in 3D
+content are sanctioned).
+
+**Gates.** `tsc --noEmit` clean; Biome clean on all changed/added files;
+`structuralSoundness.test.tsx` green — all foliage defs × modes (incl.
+`potted-plant::stand=raised`) report ONE connected component + floor contact, so
+the thin instanced leaf planes stay attached (no `KNOWN_DISCONNECTED` additions);
+`leafTexture.test.ts` (cache-hit / all-species-draw / LRU-cap) + `InstancedBoxes`
+green (300 tests across the three files). Before/after frames captured with
+`scripts/scenarios/foliage-fidelity.json` (every def × species/mode, room +
+0.8 m closeup, aquarium-inside-glass) under `SHOT_GPU=1`; reviewed every frame —
+leaves read as species-recognisable at closeup and believable plants at room
+range, no z-fight, no alpha-sort artifacts against the glass. NOT committed
+(no version.ts/CHANGELOG bump).

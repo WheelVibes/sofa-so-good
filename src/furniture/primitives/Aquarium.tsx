@@ -1,5 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import type { BoxInstance } from './InstancedBoxes'
+import { InstancedLeaves, leafJitter, leafTintHex } from './leafFoliage'
 import { readNum, readStr } from './shared'
 
 /**
@@ -26,12 +28,30 @@ export function Aquarium({ props }: { props: ParamProps }) {
   const tankY = standH + tankH / 2
   const gravelH = 0.05
   const waterH = tankH - 0.05
-  const plant = (x: number, z: number, h: number, c: string) => (
-    <mesh key={`${x}-${z}`} castShadow position={[x, standH + gravelH + h / 2, z]}>
-      <cylinderGeometry args={[0.006, 0.02, h, 6]} />
-      <meshStandardMaterial color={c} roughness={0.8} />
-    </mesh>
-  )
+
+  // Aquatic seagrass: clusters of ribbon blades rising from the gravel. They use
+  // alphaTest (opaque depth writes), NOT alpha blending, so they render
+  // depth-correct INSIDE the tank's transparent glass — no sort-fight/halo.
+  const gravelTop = standH + gravelH
+  const blades: BoxInstance[] = []
+  let bi = 0
+  const seagrassCluster = (cxp: number, czp: number, tall: number, count: number) => {
+    for (let k = 0; k < count; k++) {
+      const a = k * 2.399963 + cxp * 5
+      const rr = 0.01 + (k % 3) * 0.012
+      const h = tall * (0.7 + (k % 4) * 0.12)
+      const lean = 0.08 + (k % 3) * 0.06
+      blades.push({
+        position: [cxp + Math.sin(a) * rr, gravelTop, czp + Math.cos(a) * rr],
+        size: [0.05, Math.min(h, waterH * 0.95), 0.05],
+        rotation: [Math.cos(a) * lean, a, -Math.sin(a) * lean + leafJitter(bi) * 0.1],
+        color: leafTintHex(bi++, 1),
+      })
+    }
+  }
+  seagrassCluster(-w * 0.28, -0.06, 0.3, 7)
+  seagrassCluster(-w * 0.05, 0.07, 0.22, 5)
+  seagrassCluster(w * 0.24, -0.02, 0.34, 8)
 
   return (
     <group>
@@ -62,10 +82,8 @@ export function Aquarium({ props }: { props: ParamProps }) {
           opacity={0.7}
         />
       </mesh>
-      {/* Planted stems */}
-      {plant(-w * 0.28, -0.06, 0.22, '#3f7a3a')}
-      {plant(-w * 0.18, 0.05, 0.16, '#4f9244')}
-      {plant(w * 0.26, 0.02, 0.26, '#356b32')}
+      {/* Planted seagrass (alphaTest — depth-correct behind the glass) */}
+      <InstancedLeaves species="seagrass" color="#3f7a3a" instances={blades} castShadow={false} />
       {/* Glass tank shell (drawn last). Opacity high enough that the glass box
           itself reads at every tier — at ~0.18 the walls vanished under the
           faked IBL and only the black top rim showed, floating over the stand

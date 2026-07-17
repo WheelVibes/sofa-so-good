@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.89 — Foliage fidelity: proper species leaves everywhere
+
+User directive: plants must have proper leaves, not low-def blobs. New shared modules:
+`leafTexture.ts` (canvas-drawn per-species×colour leaf silhouettes — 10 species, bounded
+LRU) + `leafFoliage.tsx` (curved base-pivot leaf plane, one InstancedMesh per cluster,
+alphaTest materials — depth-correct inside the aquarium glass, seeded per-instance tint,
+pure jitter hash). Rewritten foliage: potted-plant (bush dome / snake blades / pinnate
+palm fronds / fiddle paddles, stand mode kept), hanging + trailing pothos hearts draping
+rims/vines, desk succulent rosette, floor-vase pampas plumes + branch leaves,
+planter-trough shrubs, BOTH aquariums' literal green cones → seagrass blade clusters, and
+the tabletop-decor icosahedron sprig. Leaf counts tier-scaled (Performance modest → High
+lush); every def keeps its existing species enum + leafColor API (visual-only change).
+Structural harness green across all foliage modes (leaves attach at their base to
+stems→trunks→soil); before/after frames reviewed per species at room + closeup range.
+
 ## v0.21.2.88 — Aircon louvre z-fighting fix
 
 User-reported: the wall aircon's bottom louvre front face sat EXACTLY coplanar with the

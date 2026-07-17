@@ -1,4 +1,6 @@
 import type { ParamProps } from '../types'
+import type { BoxInstance } from './InstancedBoxes'
+import { InstancedLeaves, leafTintHex } from './leafFoliage'
 import { readNum, readStr } from './shared'
 
 /** A small styling vignette for surfaces (coffee tables, consoles, shelves):
@@ -8,6 +10,19 @@ export function TabletopDecor({ props }: { props: ParamProps }) {
   const surfaceH = readNum(props, 'surfaceHeight', 0.42)
   const bookColor = readStr(props, 'bookColor', '#8a5a3c')
   const vaseColor = readStr(props, 'vaseColor', '#cfd3d6')
+
+  // A few small oval leaves fanning out of the vase (reads as a fresh sprig, not
+  // a blob). Bases sit at the vase mouth so they overlap it → stay connected.
+  const sprig: BoxInstance[] = Array.from({ length: 5 }, (_, i) => {
+    const a = (i / 5) * Math.PI * 2 + 0.3
+    const tilt = 0.35 + (i % 3) * 0.22
+    return {
+      position: [0.1 + Math.sin(a) * 0.012, 0.12, Math.cos(a) * 0.012],
+      size: [0.04, 0.07 + (i % 3) * 0.015, 0.04],
+      rotation: [Math.cos(a) * tilt, a, -Math.sin(a) * tilt],
+      color: leafTintHex(i),
+    }
+  })
 
   return (
     <group position={[0, surfaceH, 0]}>
@@ -30,11 +45,8 @@ export function TabletopDecor({ props }: { props: ParamProps }) {
         <cylinderGeometry args={[0.035, 0.045, 0.13, 14]} />
         <meshStandardMaterial color={vaseColor} roughness={0.3} metalness={0.1} />
       </mesh>
-      {/* Sprig */}
-      <mesh castShadow position={[0.1, 0.17, 0]}>
-        <icosahedronGeometry args={[0.05, 1]} />
-        <meshStandardMaterial color="#4f6b43" roughness={0.85} flatShading />
-      </mesh>
+      {/* Sprig — small leaves fanning from the vase */}
+      <InstancedLeaves species="oval" color="#4f6b43" instances={sprig} />
     </group>
   )
 }

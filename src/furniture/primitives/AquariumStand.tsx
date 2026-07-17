@@ -1,6 +1,8 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import type { BoxInstance } from './InstancedBoxes'
+import { InstancedLeaves, leafJitter, leafTintHex } from './leafFoliage'
 import { metalLeg, readStr } from './shared'
 
 /**
@@ -43,6 +45,28 @@ export function AquariumStand({ props }: { props: ParamProps }) {
   const innerD = d - glassT * 2
   const gravelH = 0.05
   const waterH = tankH - 0.07
+
+  // Aquatic seagrass clusters (alphaTest → depth-correct behind the tank glass).
+  const gravelTop = standH + gravelH
+  const blades: BoxInstance[] = []
+  let bi = 0
+  const seagrassCluster = (cxp: number, czp: number, tall: number, count: number) => {
+    for (let k = 0; k < count; k++) {
+      const a = k * 2.399963 + cxp * 5
+      const rr = 0.012 + (k % 3) * 0.014
+      const h = tall * (0.7 + (k % 4) * 0.12)
+      const lean = 0.08 + (k % 3) * 0.06
+      blades.push({
+        position: [cxp + Math.sin(a) * rr, gravelTop, czp + Math.cos(a) * rr],
+        size: [0.055, Math.min(h, waterH * 0.95), 0.055],
+        rotation: [Math.cos(a) * lean, a, -Math.sin(a) * lean + leafJitter(bi) * 0.1],
+        color: leafTintHex(bi++, 1),
+      })
+    }
+  }
+  seagrassCluster(-w * 0.3, -0.05, 0.28, 6)
+  seagrassCluster(-w * 0.14, 0.06, 0.2, 4)
+  seagrassCluster(w * 0.28, 0.02, 0.34, 7)
 
   return (
     <group>
@@ -138,21 +162,8 @@ export function AquariumStand({ props }: { props: ParamProps }) {
         <boxGeometry args={[innerW, gravelH, innerD]} />
         <meshStandardMaterial color="#b9a888" roughness={0.95} />
       </mesh>
-      {/* Planted stems for life. */}
-      {[
-        [-w * 0.3, -0.05, 0.2, '#3f7a3a'],
-        [-w * 0.16, 0.06, 0.15, '#4f9244'],
-        [w * 0.28, 0.02, 0.24, '#356b32'],
-      ].map(([x, z, h, c], i) => (
-        <mesh
-          key={`plant${i}`}
-          castShadow
-          position={[x as number, standH + gravelH + (h as number) / 2, z as number]}
-        >
-          <cylinderGeometry args={[0.006, 0.02, h as number, 6]} />
-          <meshStandardMaterial color={c as string} roughness={0.8} />
-        </mesh>
-      ))}
+      {/* Planted seagrass for life (alphaTest — depth-correct behind the glass) */}
+      <InstancedLeaves species="seagrass" color="#3f7a3a" instances={blades} castShadow={false} />
       {/* ---- Tinted water volume ---- */}
       {/* Kept fairly opaque so it reads as a filled tank — a near-transparent
           tint washes out against a bright window and the tank looks empty

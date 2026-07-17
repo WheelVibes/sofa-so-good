@@ -1,6 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
-import { hexToRgb } from '../../materials/procedural/noise'
 import type { ParamProps } from '../types'
+import type { BoxInstance } from './InstancedBoxes'
+import { InstancedLeaves, leafTintHex } from './leafFoliage'
 import { readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
@@ -27,10 +28,6 @@ export function TrailingPlant({ props }: { props: ParamProps }) {
   const potMat = getSurfaceMaterial(potFinish, potColor, 1, 0.08)
   const stemMat = getSurfaceMaterial('painted', '#5a7a36', 1, 0)
   const r = seg(18, useDetail())
-
-  const [lr, lg, lb] = hexToRgb(leafColor)
-  const tint = (f: number) =>
-    `rgb(${Math.round(Math.min(255, lr * f))},${Math.round(Math.min(255, lg * f))},${Math.round(Math.min(255, lb * f))})`
 
   // Pot — a compact rounded planter raised slightly off the surface on a foot.
   const potH = 0.14
@@ -81,6 +78,42 @@ export function TrailingPlant({ props }: { props: ParamProps }) {
     return nodes
   }
 
+  // Precompute vine polylines, then collect every leaf into ONE instanced
+  // cluster of pothos hearts (heart leaves attached along the vines + an upright
+  // crown tuft). Each leaf bases on a stem node, so the drape stays connected.
+  const vinesNodes = vines.map(vinePath)
+  const leaves: BoxInstance[] = []
+  let li = 0
+  // Upright central tuft.
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2 + 0.2
+    const tilt = 0.25 + (i % 2) * 0.14
+    leaves.push({
+      position: [Math.sin(a) * 0.02, rimY + 0.01, Math.cos(a) * 0.02],
+      size: [0.055, 0.075 + (i % 3) * 0.015, 0.055],
+      rotation: [Math.cos(a) * tilt, a, -Math.sin(a) * tilt],
+      color: leafTintHex(li++, 1),
+    })
+  }
+  // Leaves along each vine, draping downward.
+  vinesNodes.forEach((nodes, vi) => {
+    for (let ni = 1; ni < nodes.length; ni++) {
+      if (ni % (fullness === 'sparse' ? 2 : 1) !== 0) continue
+      const n = nodes[ni]
+      const prev = nodes[ni - 1]
+      const yaw = Math.atan2(n.x - prev.x, n.z - prev.z)
+      const size = 0.05 + (ni % 3) * 0.012
+      for (const s of [1, -1]) {
+        leaves.push({
+          position: [n.x + s * 0.008, n.y, n.z + s * 0.005],
+          size: [size, size * 1.25, size],
+          rotation: [1.9 + (ni % 3) * 0.16, yaw + s * 0.7, 0],
+          color: leafTintHex(li++, vi + 2),
+        })
+      }
+    }
+  })
+
   return (
     <group position={[0, surfaceH, 0]}>
       {/* Base foot — raises the pot a touch so the cascade clears the surface */}
@@ -103,88 +136,36 @@ export function TrailingPlant({ props }: { props: ParamProps }) {
 
       {/* Everything above sits in pot-top space (offset by the foot height) */}
       <group position={[0, 0.02, 0]}>
-        {/* Upright central tuft — a few short leaves so the crown reads full */}
-        {Array.from({ length: 5 }, (_, i) => {
-          const a = (i / 5) * Math.PI * 2 + 0.2
-          const len = 0.07 + (i % 3) * 0.02
-          const tilt = 0.25 + (i % 2) * 0.12
-          return (
-            <mesh
-              key={`tuft${i}`}
-              castShadow
-              position={[Math.sin(a) * 0.02, rimY + len * 0.45, Math.cos(a) * 0.02]}
-              rotation={[Math.cos(a) * tilt, a, -Math.sin(a) * tilt]}
-            >
-              <boxGeometry args={[0.012, len, 0.026]} />
-              <meshStandardMaterial color={tint(1.05 + (i % 3) * 0.08)} roughness={0.7} />
-            </mesh>
-          )
-        })}
-
-        {/* Trailing vines */}
-        {vines.map((v, vi) => {
-          const nodes = vinePath(v)
-          return (
-            <group key={`vine${vi}`}>
-              {nodes.slice(0, -1).map((n, ni) => {
-                const next = nodes[ni + 1]
-                const mx = (n.x + next.x) / 2
-                const my = (n.y + next.y) / 2
-                const mz = (n.z + next.z) / 2
-                const dx = next.x - n.x
-                const dy = next.y - n.y
-                const dz = next.z - n.z
-                const len = Math.hypot(dx, dy, dz) || 0.001
-                // Orient a +Y cylinder along the segment direction.
-                const yaw = Math.atan2(dx, dz)
-                const pitch = Math.acos(Math.max(-1, Math.min(1, dy / len)))
-                const taper = 1 - ni / (nodes.length * 1.6) // thins toward the tip
-                return (
-                  <group key={`s${ni}`}>
-                    {/* Stem segment */}
-                    <mesh
-                      castShadow
-                      position={[mx, my, mz]}
-                      rotation={[pitch, yaw, 0]}
-                      material={stemMat}
-                    >
-                      <cylinderGeometry args={[0.0045 * taper, 0.0055 * taper, len, 5]} />
-                    </mesh>
-                    {/* A pair of leaves at most nodes (skip the very first) */}
-                    {ni > 0 && ni % (fullness === 'sparse' ? 2 : 1) === 0 && (
-                      <>
-                        <mesh
-                          castShadow
-                          position={[next.x + 0.012, next.y, next.z + 0.006]}
-                          rotation={[0.3, yaw + 0.6, 0.2]}
-                          scale={[0.024, 0.008, 0.034]}
-                        >
-                          <sphereGeometry args={[1, 8, 6]} />
-                          <meshStandardMaterial
-                            color={tint(v.shade + (ni % 3) * 0.06)}
-                            roughness={0.65}
-                          />
-                        </mesh>
-                        <mesh
-                          castShadow
-                          position={[next.x - 0.012, next.y - 0.004, next.z - 0.006]}
-                          rotation={[-0.3, yaw - 0.6, -0.2]}
-                          scale={[0.022, 0.008, 0.03]}
-                        >
-                          <sphereGeometry args={[1, 8, 6]} />
-                          <meshStandardMaterial
-                            color={tint(v.shade - 0.05 + (ni % 2) * 0.08)}
-                            roughness={0.65}
-                          />
-                        </mesh>
-                      </>
-                    )}
-                  </group>
-                )
-              })}
-            </group>
-          )
-        })}
+        {/* Vine stems */}
+        {vinesNodes.map((nodes, vi) => (
+          <group key={`vine${vi}`}>
+            {nodes.slice(0, -1).map((n, ni) => {
+              const next = nodes[ni + 1]
+              const mx = (n.x + next.x) / 2
+              const my = (n.y + next.y) / 2
+              const mz = (n.z + next.z) / 2
+              const dx = next.x - n.x
+              const dy = next.y - n.y
+              const dz = next.z - n.z
+              const len = Math.hypot(dx, dy, dz) || 0.001
+              const yaw = Math.atan2(dx, dz)
+              const pitch = Math.acos(Math.max(-1, Math.min(1, dy / len)))
+              const taper = 1 - ni / (nodes.length * 1.6)
+              return (
+                <mesh
+                  key={`s${ni}`}
+                  castShadow
+                  position={[mx, my, mz]}
+                  rotation={[pitch, yaw, 0]}
+                  material={stemMat}
+                >
+                  <cylinderGeometry args={[0.0045 * taper, 0.0055 * taper, len, 5]} />
+                </mesh>
+              )
+            })}
+          </group>
+        ))}
+        <InstancedLeaves species="pothos" color={leafColor} instances={leaves} />
       </group>
     </group>
   )

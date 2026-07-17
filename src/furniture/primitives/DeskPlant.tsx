@@ -1,6 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
-import { hexToRgb } from '../../materials/procedural/noise'
 import type { ParamProps } from '../types'
+import type { BoxInstance } from './InstancedBoxes'
+import { InstancedLeaves, leafTintHex } from './leafFoliage'
 import { readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
@@ -21,36 +22,48 @@ export function DeskPlant({ props }: { props: ParamProps }) {
   const potMat = getSurfaceMaterial(potFinish, potColor, 1, 0.08)
   const r = seg(16, useDetail())
 
-  const [lr, lg, lb] = hexToRgb(leafColor)
-  const tint = (f: number) =>
-    `rgb(${Math.round(Math.min(255, lr * f))},${Math.round(Math.min(255, lg * f))},${Math.round(Math.min(255, lb * f))})`
-
   const potH = 0.08
   const potRTop = 0.055
   const potRBot = 0.042
 
-  // Succulent: a compact rosette of thick fleshy leaves radiating from center
-  const succulentLeaves = Array.from({ length: 8 }, (_, i) => {
-    const a = (i / 8) * Math.PI * 2
-    const ring = 0.018 + (i % 3) * 0.006
-    const len = 0.032 + (i % 4) * 0.008
-    const tilt = 0.5 + (i % 3) * 0.15
-    return { a, ring, len, tilt, shade: 0.8 + (i % 4) * 0.1 }
-  })
-
-  // Inner smaller leaves at center
-  const innerLeaves = Array.from({ length: 4 }, (_, i) => {
+  // Succulent: a compact rosette of plump leaves radiating from the centre, plus
+  // a few smaller upright inner leaves — all based at the soil (connected).
+  const succulentLeaves: BoxInstance[] = []
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2
+    const ring = 0.014 + (i % 3) * 0.006
+    const len = 0.04 + (i % 4) * 0.008
+    const tilt = 0.6 + (i % 3) * 0.18
+    succulentLeaves.push({
+      position: [Math.sin(a) * ring, potH + 0.004, Math.cos(a) * ring],
+      size: [0.026, len, 0.026],
+      rotation: [Math.cos(a) * tilt, a, -Math.sin(a) * tilt],
+      color: leafTintHex(i),
+    })
+  }
+  for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2 + 0.4
-    return { a, ring: 0.008, len: 0.02, tilt: 0.2, shade: 1.1 }
-  })
+    succulentLeaves.push({
+      position: [Math.sin(a) * 0.007, potH + 0.006, Math.cos(a) * 0.007],
+      size: [0.02, 0.026, 0.02],
+      rotation: [Math.cos(a) * 0.2, a, -Math.sin(a) * 0.2],
+      color: leafTintHex(i, 3),
+    })
+  }
 
-  // Trailing: a few cascading stems with small oval leaves
+  // Trailing: a few cascading stems (cylinders) each ending in a pothos leaf.
   const trailingStems = Array.from({ length: 4 }, (_, i) => {
     const a = (i / 4) * Math.PI * 2
     const lean = 0.7 + (i % 2) * 0.2
     const len = 0.06 + (i % 3) * 0.018
     return { a, lean, len }
   })
+  const trailingLeaves: BoxInstance[] = trailingStems.map((s, i) => ({
+    position: [Math.sin(s.a) * s.len * 0.9, potH + 0.01 + s.len * 0.6, Math.cos(s.a) * s.len * 0.9],
+    size: [0.03, 0.04, 0.03],
+    rotation: [1.4 + s.lean, s.a, 0],
+    color: leafTintHex(i, 5),
+  }))
 
   return (
     <group position={[0, surfaceH, 0]}>
@@ -69,66 +82,28 @@ export function DeskPlant({ props }: { props: ParamProps }) {
       </mesh>
 
       {type === 'succulent' && (
-        <>
-          {/* Outer rosette leaves */}
-          {succulentLeaves.map((l, i) => (
-            <mesh
-              key={i}
-              castShadow
-              position={[Math.sin(l.a) * l.ring, potH + 0.012, Math.cos(l.a) * l.ring]}
-              rotation={[Math.cos(l.a) * l.tilt, l.a, -Math.sin(l.a) * l.tilt]}
-            >
-              <boxGeometry args={[0.012, l.len, 0.02]} />
-              <meshStandardMaterial color={tint(l.shade)} roughness={0.7} metalness={0} />
-            </mesh>
-          ))}
-          {/* Inner smaller leaves */}
-          {innerLeaves.map((l, i) => (
-            <mesh
-              key={`in${i}`}
-              castShadow
-              position={[Math.sin(l.a) * l.ring, potH + 0.018, Math.cos(l.a) * l.ring]}
-              rotation={[Math.cos(l.a) * l.tilt, l.a, -Math.sin(l.a) * l.tilt]}
-            >
-              <boxGeometry args={[0.009, l.len, 0.014]} />
-              <meshStandardMaterial color={tint(l.shade)} roughness={0.7} metalness={0} />
-            </mesh>
-          ))}
-        </>
+        <InstancedLeaves species="succulent" color={leafColor} instances={succulentLeaves} />
       )}
 
       {type === 'trailing' && (
         <>
           {/* Stems arching out of the pot */}
           {trailingStems.map((s, i) => (
-            <group key={i} position={[Math.sin(s.a) * 0.01, potH + 0.01, Math.cos(s.a) * 0.01]}>
-              <mesh
-                castShadow
-                rotation={[Math.cos(s.a) * s.lean, s.a, -Math.sin(s.a) * s.lean]}
-                position={[Math.sin(s.a) * s.len * 0.5, s.len * 0.4, Math.cos(s.a) * s.len * 0.5]}
-              >
-                <cylinderGeometry args={[0.002, 0.003, s.len, 5]} />
-                <meshStandardMaterial color="#5a8030" roughness={0.9} />
-              </mesh>
-              {/* Small oval leaf at end */}
-              <mesh
-                castShadow
-                position={[
-                  Math.sin(s.a) * s.len * 0.95,
-                  s.len * 0.72,
-                  Math.cos(s.a) * s.len * 0.95,
-                ]}
-                scale={[0.018, 0.006, 0.024]}
-              >
-                <sphereGeometry args={[1, 8, 6]} />
-                <meshStandardMaterial
-                  color={tint(0.95 + (i % 3) * 0.1)}
-                  roughness={0.65}
-                  metalness={0}
-                />
-              </mesh>
-            </group>
+            <mesh
+              key={i}
+              castShadow
+              rotation={[Math.cos(s.a) * s.lean, s.a, -Math.sin(s.a) * s.lean]}
+              position={[
+                Math.sin(s.a) * s.len * 0.5,
+                potH + 0.01 + s.len * 0.4,
+                Math.cos(s.a) * s.len * 0.5,
+              ]}
+            >
+              <cylinderGeometry args={[0.002, 0.003, s.len, 5]} />
+              <meshStandardMaterial color="#5a8030" roughness={0.9} />
+            </mesh>
           ))}
+          <InstancedLeaves species="pothos" color={leafColor} instances={trailingLeaves} />
         </>
       )}
     </group>
