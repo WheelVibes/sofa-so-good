@@ -48,5 +48,9 @@ export const createLayoutVariantSlice: SliceCreator<LayoutVariantSlice, RootStat
     s.pushHistory()
     s.setItems(next)
     set((st) => ({ layoutVariants: { ...st.layoutVariants, [roomId]: seed } }))
+    // A11Y: the reroll silently reshuffles every item's position/rotation with
+    // no visible confirmation control (unlike mirror/clone/swap, which all
+    // toast) — a screen-reader user gets no signal the room actually changed.
+    s.notify.start({ title: 'Layout rerolled', kind: 'success' })
   },
 })

@@ -85,8 +85,20 @@ export function Scene() {
   // sharper. R3F applies `dpr` changes live, so this tracks a tier switch.
   const dprMax = useQuality().dprMax
   const shadowMapType = SHADOW_FILTER_THREE[shadowFilterForTier(useStore((s) => s.qualityTier))]
+  const cameraMode = useStore((s) => s.cameraMode)
   return (
     <Canvas
+      // A11Y: r3f's Canvas forwards unknown HTML attributes to the wrapping
+      // div (CanvasProps extends React.HTMLAttributes<HTMLDivElement>) — so
+      // this labels the actual interactive surface for a screen reader, which
+      // otherwise announces a bare, unlabelled <canvas>. Wording tracks the
+      // active camera mode (orbit drags/scrolls; first-person walks WASD).
+      role="img"
+      aria-label={
+        cameraMode === 'firstPerson'
+          ? '3D first-person walkthrough of your home'
+          : '3D view of your home — drag to orbit, scroll to zoom'
+      }
       // Demand mode: render only when RenderPump calls invalidate() — the scene
       // draws 0 frames when idle (battery/thermal win) and continuously only
       // while something animates. See RenderPump / renderDecision.

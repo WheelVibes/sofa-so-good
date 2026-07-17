@@ -107,6 +107,9 @@ export function FinishPicker() {
       ? arrangeRoom(roomId as RoomId, s.items, furnitureCatalog, s.doors)
       : arrangePlanRoom(s.floorPlan, roomId, s.items, furnitureCatalog, s.doors)
     s.setItems(next)
+    // A11Y: like rerollRoomLayout, this silently repositions every item with no
+    // visible confirmation — announce it the same way mirror/clone/swap do.
+    s.notify.start({ title: 'Room tidied up', kind: 'success' })
   }
   // Unlocked items inside this room (the set the room editor shows). Drives the
   // "Clear room" action + its count.

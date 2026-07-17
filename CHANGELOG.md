@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.8 — A11y sweep: canvas labels + layout-change announcements
+
+Accessibility audit across this session's new surfaces (RecentStrip,
+DayNightClipSetup, eyedropper, starter chips, WalkHud measure, share card —
+all verified already-clean: aria names/pressed states, keyboard reach, focus
+ring coverage, alt-text pattern, reduced-motion block, aria-live toasts). Two
+real gaps fixed: (1) the main orbit + room-editor `<Canvas>` wrappers had no
+accessible name at all — now `role="img"` + a mode-aware descriptive
+aria-label; (2) `tidyRoom` and `rerollRoomLayout` reshuffled a whole room
+silently while every sibling layout action toasts — both now announce via the
+existing aria-live toast container ("Room tidied up" / "Layout rerolled").
+Browser-verified (labelled canvas present; reroll toast lands in a live
+region); 3 tests added.
+
 ## v0.22.2.7 — Two integration fixes (bug-hunt round 3)
 
 - **Mid-tour camera-mode switch orphaned the tour + day/night sweep.** The

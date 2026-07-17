@@ -89,6 +89,19 @@ describe('layoutVariantSlice — rerollRoomLayout (LAYOUT-REROLL)', () => {
     expect(sig()).toBe(before)
     expect(useStore.getState().layoutVariants).toEqual({})
   })
+
+  // A11Y: the reroll silently repositions every item — a screen-reader user
+  // needs a toast announcement to know anything happened at all.
+  it('announces the reroll via a toast (no silent layout change)', () => {
+    useStore.getState().rerollRoomLayout(ROOM)
+    const toasts = useStore.getState().notifications
+    expect(toasts.some((t) => t.title === 'Layout rerolled')).toBe(true)
+  })
+
+  it('does not toast for a no-op empty room id', () => {
+    useStore.getState().rerollRoomLayout('')
+    expect(useStore.getState().notifications).toHaveLength(0)
+  })
 })
 
 describe('layoutReroll flag gating', () => {
