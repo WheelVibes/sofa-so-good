@@ -85,7 +85,10 @@ export function Bench({ props }: { props: ParamProps }) {
                   castShadow
                   position={[x, legH + 0.01, 0]}
                   material={slatMat}
-                  args={[legT, 0.04, depth - 0.02]}
+                  // Slightly NARROWER than the leg (legT) so the rail's side faces
+                  // tuck inside the leg's rather than sitting coplanar with them
+                  // (different woods → z-fight where rail meets the leg top).
+                  args={[legT - 0.008, 0.04, depth - 0.02]}
                 />
               ))}
               {Array.from({ length: n }, (_, i) => (

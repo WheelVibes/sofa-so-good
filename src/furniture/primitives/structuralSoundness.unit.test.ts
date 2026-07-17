@@ -3,9 +3,11 @@ import {
   type AABB,
   analyzeStructure,
   boxesConnected,
+  type CoplanarBox,
   componentCentroid,
   componentGap,
   connectedComponents,
+  detectCoplanarFaces,
   unionBox,
 } from './structuralSoundness'
 
@@ -115,5 +117,98 @@ describe('analyzeStructure', () => {
     expect(r.componentCount).toBe(0)
     expect(r.union).toBeNull()
     expect(Number.isNaN(r.minY)).toBe(true)
+  })
+})
+
+describe('detectCoplanarFaces', () => {
+  const cbox = (
+    x0: number,
+    y0: number,
+    z0: number,
+    x1: number,
+    y1: number,
+    z1: number,
+    extra: Partial<CoplanarBox> = {},
+  ): CoplanarBox => ({ min: [x0, y0, z0], max: [x1, y1, z1], ...extra })
+
+  it('flags two same-normal (+Z) faces on the same plane with overlapping area', () => {
+    // Both boxes' +Z (max) face at z=1, projections overlap fully in X/Y.
+    const boxes = [cbox(0, 0, 0, 0.5, 0.5, 1), cbox(0, 0, 0.5, 0.5, 0.5, 1)]
+    const hits = detectCoplanarFaces(boxes)
+    const zHit = hits.find((h) => h.axis === 2 && h.dir === 1)
+    expect(zHit).toBeDefined()
+    expect(zHit?.plane).toBeCloseTo(1, 6)
+    expect(zHit?.area).toBeCloseTo(0.25, 6)
+  })
+
+  it('flags the aircon case — a small face flush INSIDE a big box front plane', () => {
+    // Body front at z=0.1; buried louvre front also at z=0.1 (coplanar, same +Z).
+    const body = cbox(-0.42, 0, -0.1, 0.42, 0.3, 0.1, { material: 'body' })
+    const louvre = cbox(-0.38, 0, 0.06, 0.38, 0.04, 0.1, { material: 'louvre' })
+    const hits = detectCoplanarFaces([body, louvre])
+    expect(hits.some((h) => h.axis === 2 && h.dir === 1)).toBe(true)
+  })
+
+  it('does NOT flag an abutting face-to-face joint (leg top meets seat bottom)', () => {
+    // Leg y 0..0.4 (max face y=0.4); seat y 0.4..0.5 (min face y=0.4). Same plane
+    // but OPPOSING normals (+Y vs −Y) — a legitimate contact, not a z-fight.
+    const leg = cbox(0, 0, 0, 0.1, 0.4, 0.1)
+    const seat = cbox(-0.3, 0.4, -0.3, 0.3, 0.5, 0.3)
+    const hits = detectCoplanarFaces([leg, seat])
+    expect(hits).toHaveLength(0)
+  })
+
+  it('does NOT flag a corner/edge kiss (coplanar but ~zero shared area)', () => {
+    // Two boxes with coplanar +Y tops (y=1) but touching only along an edge in X.
+    const a = cbox(0, 0, 0, 1, 1, 1)
+    const b = cbox(1, 0, 0, 2, 1, 1)
+    expect(detectCoplanarFaces([a, b])).toHaveLength(0)
+  })
+
+  it('does NOT flag faces on DIFFERENT planes (a healthy proud offset)', () => {
+    // Second box front is 4 mm proud of the first — beyond the 0.3 mm eps.
+    const a = cbox(0, 0, 0, 1, 1, 1)
+    const b = cbox(0.1, 0.1, 0, 0.9, 0.9, 1.004)
+    const hits = detectCoplanarFaces([a, b])
+    expect(hits.some((h) => h.axis === 2 && h.dir === 1)).toBe(false)
+  })
+
+  it('does NOT flag a face strictly INSIDE the other box volume', () => {
+    // Small box fully inside big box, no face on any surface plane.
+    const big = cbox(0, 0, 0, 1, 1, 1)
+    const small = cbox(0.3, 0.3, 0.3, 0.7, 0.7, 0.7)
+    expect(detectCoplanarFaces([big, small])).toHaveLength(0)
+  })
+
+  it('does NOT flag a same-material coplanar pair (invisible flicker)', () => {
+    // Identical to the first test but both carry the same material signature.
+    const boxes = [
+      cbox(0, 0, 0, 0.5, 0.5, 1, { material: 'oak' }),
+      cbox(0, 0, 0.5, 0.5, 0.5, 1, { material: 'oak' }),
+    ]
+    expect(detectCoplanarFaces(boxes)).toHaveLength(0)
+  })
+
+  it('DOES flag a different-material coplanar pair', () => {
+    const boxes = [
+      cbox(0, 0, 0, 0.5, 0.5, 1, { material: 'oak' }),
+      cbox(0, 0, 0.5, 0.5, 0.5, 1, { material: 'steel' }),
+    ]
+    expect(detectCoplanarFaces(boxes).length).toBeGreaterThan(0)
+  })
+
+  it('skips rotated (non-axis-aligned) boxes entirely', () => {
+    const boxes = [cbox(0, 0, 0, 0.5, 0.5, 1, { axisAligned: false }), cbox(0, 0, 0.5, 0.5, 0.5, 1)]
+    expect(detectCoplanarFaces(boxes)).toHaveLength(0)
+  })
+
+  it('skips round-geometry boxes (synthetic AABB faces — two bottles side by side)', () => {
+    // Two cylinders' AABBs share top/bottom planes and overlap in XZ, but their
+    // curved sides only kiss the AABB — not a real coplanar surface.
+    const boxes = [
+      cbox(0, 0, 0, 0.1, 0.3, 0.1, { boxFaces: false }),
+      cbox(0.05, 0, 0.05, 0.15, 0.3, 0.15, { boxFaces: false }),
+    ]
+    expect(detectCoplanarFaces(boxes)).toHaveLength(0)
   })
 })

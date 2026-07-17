@@ -1580,3 +1580,101 @@ green (300 tests across the three files). Before/after frames captured with
 leaves read as species-recognisable at closeup and believable plants at room
 range, no z-fight, no alpha-sort artifacts against the glass. NOT committed
 (no version.ts/CHANGELOG bump).
+
+### Coplanarity gate (z-fighting detection) — 2026-07-17
+
+Extended the structural-soundness harness (rubric point 3: no z-fighting) with a
+pure `detectCoplanarFaces(boxes)` in `primitives/structuralSoundness.ts`, swept
+across ALL defs × modes alongside the connectivity/support asserts. Static frame
+audits under-report z-fighting because it's a camera-MOTION artifact (the wall
+aircon louvre-front, v0.21.2.88, sat EXACTLY coplanar with the body front and
+only flickered as the camera moved) — this catches it from coordinate math.
+
+**Detector design.** For each pair of world AABBs it flags a face pair that is
+(a) on the SAME axis-aligned plane within `COPLANAR_PLANE_EPS = 0.3 mm` (true
+coplanarity — an order of magnitude tighter than the 8 mm connectivity adjacency
+ε, which is a *healthy* reveal that PREVENTS flicker), (b) facing the SAME
+direction (both MAX or both MIN faces on that axis — an *abutting* joint, one
+box's MAX face meeting the other's MIN face, has opposing normals and is a
+legitimate contact, e.g. a leg top on a seat bottom, NOT a z-fight), and (c)
+whose face rectangles OVERLAP in 2D with area ≥ `COPLANAR_MIN_AREA = 4 cm²`
+(corner/edge kisses don't flicker). A small box buried INSIDE a big one with a
+face flush to the big box's surface plane IS flagged (the aircon case); a face
+strictly inside the other's volume is not.
+
+**Refinements (preferred over per-def exemptions).** Three principled skips, all
+grounded in "this AABB face pair cannot visibly flicker":
+1. **Material signature** — same colour+PBR+texture+transparency coplanar faces
+   render identical pixels, so the depth tie-break is invisible. Only DIFFERENT-
+   material pairs are flagged. (Detector: `CoplanarBox.material`.)
+2. **Box-face geometry only** — an AABB face is a real mesh face only for a
+   box/slab (`BoxGeometry`/`ExtrudeGeometry`(RoundedBox/BeveledBox)/`PlaneGeometry`).
+   A round primitive (cylinder/sphere/torus/lathe) merely KISSES its AABB along a
+   tangent, so its side AABB faces are synthetic — two bottles side by side would
+   falsely read as coplanar. (Detector: `CoplanarBox.boxFaces`.) Removed 16 of the
+   34 raw hits.
+3. **Axis-aligned only** — a rotated mesh's AABB faces don't correspond to real
+   faces (the stated AABB-model limitation); rotated instances are skipped.
+   (Detector: `CoplanarBox.axisAligned`, 90°-multiple basis check.)
+4. **Floor-occluded downward faces** (harness policy, not the pure detector) — two
+   MIN(−Y) faces coplanar at the floor plane (≤12 mm) are hidden against the floor
+   (furniture is never viewed from below), so a bin's base + walls bottoming at
+   Y=0 can't flicker. Cleared `pet-toy-bin` entirely with no primitive change.
+
+`KNOWN_COPLANAR` (the escape hatch, reason-asserted like the others) is **EMPTY** —
+every residual hit was a REAL bug fixed in the primitive.
+
+**Real z-fights found + fixed** (13 primitives; each a tiny proud/inset offset,
+the aircon 4 mm / wave-1 TVConsole-reveal pattern):
+- **BookStack** — page block front was flush with the cover fore-edge; recessed
+  4 mm (cover boards overhang the block). (`primitives/BookStack.tsx`)
+- **PlanterTrough** — soil top exactly at the planter rim; mounded 4 mm proud.
+  (`primitives/PlanterTrough.tsx`)
+- **Pegboard** (default/hooks/cups) — board top/bottom/side faces flush with the
+  frame rails; shrank the board 8 mm each dim so its edges tuck behind the rails.
+  (`primitives/Pegboard.tsx`)
+- **DisplayCabinet** (half) — glass vitrine door front coplanar with the flush
+  wood counter front; recessed the door 4 mm. (`primitives/DisplayCabinet.tsx`)
+- **Shower** (corner/walkin) — glass panel plane coplanar with the tray side over
+  the tray's height; raised the panels to sit ON the tray top (foot-on-tray).
+  (`primitives/Shower.tsx`)
+- **Bench** (slat) — slat side rails the same width as the legs (coplanar sides,
+  different woods); narrowed the rails 8 mm so they tuck inside the leg.
+  (`primitives/Bench.tsx`)
+- **PetBed** (rect) — bolster outer faces flush with the base cushion sides;
+  shrank the base 8 mm so the bolsters overhang it. (`primitives/PetBed.tsx`)
+- **HamsterTank** (floor/stand) — glass shell bottom coplanar with the opaque
+  black frame rim; shortened the glass 20 mm so both ends embed inside the rims.
+  (`primitives/HamsterTank.tsx`)
+- **Aquarium** — (a) toe-recess strip front flush with the stand front (recessed
+  7 mm); (b) tinted water top exactly at the glass-shell top (both transparent →
+  sort-fight; dropped the fill ~3 cm below the rim). (`primitives/Aquarium.tsx`)
+- **PhotoFrameCluster** — art panel back coplanar with the mat back; moved the
+  art proud (back embedded in the mat). (`primitives/PhotoFrameCluster.tsx`)
+- **OfficeChair** (gaming) — seat side bolster top coplanar with the armrest post
+  top at the seat corner; dropped the bolster 6 mm. (`primitives/OfficeChair.tsx`)
+- **Recliner** (upright) — folded-footrest flap top coplanar with the steel
+  linkage-stub top; dropped the stub 6 mm. (`primitives/Recliner.tsx`)
+- **Wardrobe** (sliding) — outer sliding panels' side faces flush with the wood
+  carcass sides (metal-vs-wood), and a middle-panel pull back landing on the
+  other track's frame back; inset the panels 10 mm off each carcass side and
+  widened the bypass-track separation to 32 mm. (`primitives/Wardrobe.tsx`)
+
+**False-positive classes encountered + how refined away** (NOT exemptions):
+- Round-geometry AABBs (wine-cooler bottles, pet-bed round torus, cat-tree posts,
+  planter foliage, outdoor-parasol pole, book-stack leaners, changing-table
+  rails, …) → the `boxFaces` gate (16 hits).
+- Same-colour+material continuous surfaces → the material-signature refinement.
+- Rotated instances (venetian slats, drying-rack rods, tilted photo frames) → the
+  `axisAligned` gate.
+- Downward faces bottoming on the floor (bin base + walls) → the floor-occlusion
+  harness filter.
+
+**Gates.** `tsc --noEmit` clean; Biome clean on all changed/added files;
+`structuralSoundness.unit.test.ts` (28 — incl. 9 new detector cases: same-normal
+overlap flagged, abutting joint / corner kiss / different plane / interior face /
+same-material / rotated / round not) + `structuralSoundness.test.tsx` (290 —
+every def × mode green on connectivity + support + the new coplanarity assert).
+Visual re-check under `SHOT_GPU=1` (aquarium, shower, planter, pet-bed, hamster
+tank, book-stack, display-cabinet-half) — all clean, offsets read naturally.
+NOT committed (no version.ts/CHANGELOG bump).

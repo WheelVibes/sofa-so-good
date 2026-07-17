@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.21.2.90 — Coplanarity (z-fight) gate in the structural harness + 13 fixes
+
+From the aircon lesson (v0.21.2.88 — static frames under-report z-fighting): the harness
+gains a pure `detectCoplanarFaces` sweep across every def × mode. Flags same-normal
+axis-aligned face pairs on the same plane (≤0.3 mm) with ≥4 cm² 2D overlap; abutting
+joints (opposing normals), rotated/round-geometry synthetic AABB faces, same-material
+invisible pairs, and floor-occluded bottoms are refined away in the detector — the
+KNOWN_COPLANAR exemption map ships EMPTY because every residual hit was a real bug.
+Fixed 13: book-stack pages, planter soil-at-rim, pegboard frame edges, display-cabinet
+half glass, shower glass↔tray, bench slat rails, pet-bed bolster, hamster-tank glass
+bottom, aquarium toe strip + waterline, photo-frame backs, gaming-chair bolsters,
+recliner flap tops, sliding-wardrobe panels. 9 new detector unit tests; harness 290/290.
+
 ## v0.21.2.89 — Foliage fidelity: proper species leaves everywhere
 
 User directive: plants must have proper leaves, not low-def blobs. New shared modules:

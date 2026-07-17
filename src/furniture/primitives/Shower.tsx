@@ -14,6 +14,13 @@ export function Shower({ props }: { props: ParamProps }) {
   const corner = style === 'corner'
   const h = 2.0
   const half = size / 2
+  // Glass panels sit ON the tray (foot at the 0.08 m tray top) rather than
+  // spanning down THROUGH it — otherwise the panel plane at x/z = ±half lies
+  // coplanar with the tray's side faces over the tray's height and z-fights the
+  // opaque tray. Foot-on-tray reads correctly and keeps the assembly connected.
+  const trayTop = 0.08
+  const glassH = h - trayTop
+  const glassY = trayTop + glassH / 2
   // Fittings route through the shared brushed-metal material (stainless).
   const chrome = metalLeg('#cdd2d6', 'stainless')
 
@@ -28,15 +35,15 @@ export function Shower({ props }: { props: ParamProps }) {
       <mesh position={[0, 0.085, 0]} rotation={[Math.PI / 2, 0, 0]} material={chrome}>
         <cylinderGeometry args={[0.05, 0.05, 0.01, seg(16, detail)]} />
       </mesh>
-      {/* Glass panels on the two open sides (+X and +Z) */}
-      <mesh position={[half, h / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
-        <planeGeometry args={[size, h]} />
+      {/* Glass panels on the two open sides (+X and +Z), foot on the tray top */}
+      <mesh position={[half, glassY, 0]} rotation={[0, Math.PI / 2, 0]}>
+        <planeGeometry args={[size, glassH]} />
         <GlassMaterial color="#bcd4e6" opacity={0.22} />
       </mesh>
       {/* Second panel only on the corner enclosure; walk-in leaves +Z open */}
       {corner && (
-        <mesh position={[0, h / 2, half]}>
-          <planeGeometry args={[size, h]} />
+        <mesh position={[0, glassY, half]}>
+          <planeGeometry args={[size, glassH]} />
           <GlassMaterial color="#bcd4e6" opacity={0.22} />
         </mesh>
       )}

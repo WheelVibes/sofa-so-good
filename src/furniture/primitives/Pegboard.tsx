@@ -44,9 +44,11 @@ export function Pegboard({ props }: { props: ParamProps }) {
 
   return (
     <group position={[0, mountH, 0]}>
-      {/* Perforated board */}
+      {/* Perforated board — 4 mm smaller each edge than the frame envelope so its
+          top/bottom/side faces tuck BEHIND the frame rails instead of sitting
+          coplanar with them (the rails overhang the board edges → no z-fight). */}
       <mesh castShadow receiveShadow position={[0, 0, boardT / 2]}>
-        <boxGeometry args={[width, height, boardT]} />
+        <boxGeometry args={[width - 0.008, height - 0.008, boardT]} />
         <meshStandardMaterial map={holeTex} roughness={0.72} metalness={0.05} />
       </mesh>
       {/* Slim frame around the board (four members, proud of the face) */}

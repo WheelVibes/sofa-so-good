@@ -78,11 +78,13 @@ export function PhotoFrameCluster({ props }: { props: ParamProps }) {
               position={[0, 0, 0]}
               bevel={0.002}
             />
-            {/* Art area — slightly inset from mat */}
+            {/* Art area — sits PROUD of the mat (back embedded in the mat, front
+                just above it) so the photo reads in the window and its back plane
+                isn't coplanar with the mat back (different colours → z-fight). */}
             <BeveledBox
               args={[fw - frameThick * 2 - 0.016, fh - frameThick * 2 - 0.016, depth * 0.2]}
               material={artMat}
-              position={[0, 0, -depth * 0.1]}
+              position={[0, 0, depth * 0.2]}
               bevel={0.001}
             />
             {/* Small support foot — back base so frame leans slightly */}

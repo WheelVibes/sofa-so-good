@@ -128,9 +128,12 @@ export function DisplayCabinet({ props }: DisplayCabinetProps) {
         [w / 2 - postT - glassT / 2, (vitrineBottom + vitrineTop) / 2, 0],
         [glassT, vitrineTop - vitrineBottom, d - postT],
       )}
+      {/* Glass door — recessed 4 mm behind the cabinet front plane so its front
+          face doesn't sit coplanar with the flush counter/top panels (the 'half'
+          style's counter front is at d/2) → no glass-vs-wood z-fight. */}
       {glassPane(
         'door',
-        [0, (vitrineBottom + vitrineTop) / 2, d / 2 - glassT / 2],
+        [0, (vitrineBottom + vitrineTop) / 2, d / 2 - glassT / 2 - 0.004],
         [w - postT * 2, vitrineTop - vitrineBottom, glassT],
       )}
       {/* Vertical door pull */}

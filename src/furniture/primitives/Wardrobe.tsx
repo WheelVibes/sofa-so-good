@@ -274,11 +274,16 @@ export function Wardrobe({ props }: WardrobeProps) {
     if (!sliding) return null
     const n = Math.max(2, Math.min(3, doorCount >= 3 ? 3 : 2))
     const overlap = 0.04
-    const panelW = (width + overlap * (n - 1)) / n
+    // Panels span an INSET width (10 mm off each carcass side) so the outer
+    // panels' side faces don't sit coplanar with the carcass sides (metal frame
+    // vs wood body → z-fight). The two bypass tracks are 32 mm apart so no part's
+    // back face lands on the other track's frame back plane either.
+    const effW = width - 0.02
+    const panelW = (effW + overlap * (n - 1)) / n
     const panelH = height - 0.06
     return Array.from({ length: n }, (_, i) => {
-      const x = -width / 2 + panelW / 2 + i * (panelW - overlap)
-      const z = depth / 2 - (i % 2) * 0.03 // alternate track depth
+      const x = -effW / 2 + panelW / 2 + i * (panelW - overlap)
+      const z = depth / 2 - (i % 2) * 0.032 // alternate track depth
       return (
         <group key={i}>
           {/* Aluminium frame */}

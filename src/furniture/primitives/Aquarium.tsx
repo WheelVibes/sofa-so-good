@@ -27,7 +27,10 @@ export function Aquarium({ props }: { props: ParamProps }) {
 
   const tankY = standH + tankH / 2
   const gravelH = 0.05
-  const waterH = tankH - 0.05
+  // Water filled to ~3 cm BELOW the rim (top at standH+tankH−0.03), so the water
+  // surface isn't coplanar with the glass shell top (both transparent → they'd
+  // z-fight/alpha-sort-fight at the exact same height).
+  const waterH = tankH - 0.08
 
   // Aquatic seagrass: clusters of ribbon blades rising from the gravel. They use
   // alphaTest (opaque depth writes), NOT alpha blending, so they render
@@ -59,8 +62,10 @@ export function Aquarium({ props }: { props: ParamProps }) {
       <mesh castShadow receiveShadow position={[0, standH / 2, 0]} material={standMat}>
         <boxGeometry args={[w, standH, d]} />
       </mesh>
-      {/* Stand toe recess shadow line (a thin darker plinth) */}
-      <mesh position={[0, 0.02, d / 2 - 0.005]}>
+      {/* Stand toe recess shadow line (a thin darker plinth) — recessed 7 mm
+          behind the stand front so it reads as a recess AND its front face isn't
+          coplanar with the stand front (opaque z-fight). */}
+      <mesh position={[0, 0.02, d / 2 - 0.012]}>
         <boxGeometry args={[w - 0.04, 0.04, 0.01]} />
         <meshStandardMaterial color="#1c1813" roughness={0.7} />
       </mesh>

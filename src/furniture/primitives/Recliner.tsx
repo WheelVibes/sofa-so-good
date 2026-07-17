@@ -183,12 +183,14 @@ export function Recliner({ props }: ReclinerProps) {
             position={[0, baseTop - 0.18, seatFrontZ + 0.06]}
             material={mat}
           />
-          {/* Short linkage stubs flanking the flap top (the stowed mechanism) */}
+          {/* Short linkage stubs flanking the flap top (the stowed mechanism) —
+              dropped 6 mm so the steel stub top isn't coplanar with the leather
+              flap top (both reached baseTop+0.02) where they overlap. */}
           {[-1, 1].map((s) => (
             <mesh
               key={`lnk${s}`}
               castShadow
-              position={[s * (innerW / 2 - 0.05), baseTop - 0.06, seatFrontZ + 0.02]}
+              position={[s * (innerW / 2 - 0.05), baseTop - 0.066, seatFrontZ + 0.02]}
               material={steel}
             >
               <boxGeometry args={[0.03, 0.16, 0.03]} />

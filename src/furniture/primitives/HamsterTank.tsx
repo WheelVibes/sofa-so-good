@@ -93,9 +93,11 @@ export function HamsterTank({ props }: { props: ParamProps }) {
         <meshStandardMaterial color="#b8674a" roughness={0.7} />
       </mesh>
 
-      {/* ---- Glass shell (drawn transparent) ---- */}
+      {/* ---- Glass shell (drawn transparent) ---- shortened 10 mm at each end so
+           its top/bottom faces embed INSIDE the opaque black rims (below) rather
+           than sitting coplanar with the rim bottom → no glass-vs-frame z-fight. */}
       <mesh position={[0, tankBase + tankH / 2, 0]}>
-        <boxGeometry args={[w, tankH, d]} />
+        <boxGeometry args={[w, tankH - 0.02, d]} />
         <meshStandardMaterial
           color={glassColor}
           roughness={0.05}

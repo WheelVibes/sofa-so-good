@@ -56,8 +56,10 @@ export function PlanterTrough({ props }: { props: ParamProps }) {
         <boxGeometry args={[length, boxH, d]} />
         <meshStandardMaterial color={potColor} roughness={0.8} metalness={0.02} />
       </mesh>
-      {/* Soil */}
-      <mesh receiveShadow position={[0, boxH - 0.02, 0]}>
+      {/* Soil — mounded 4 mm PROUD of the planter rim (top face at boxH+0.004,
+          not coplanar with the rim top at boxH → no z-fight; a slight mound reads
+          naturally). Its underside stays buried inside the box. */}
+      <mesh receiveShadow position={[0, boxH - 0.016, 0]}>
         <boxGeometry args={[length - 0.06, 0.04, d - 0.06]} />
         <meshStandardMaterial color="#3a2c1e" roughness={1} />
       </mesh>

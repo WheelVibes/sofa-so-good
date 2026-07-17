@@ -36,10 +36,11 @@ import type { ParametricDef, ParamProps } from '../types'
 import { defaultParamProps } from '../types'
 import { PRIMITIVE_COMPONENTS } from './index'
 import {
-  type AABB,
   analyzeStructure,
+  type CoplanarBox,
   componentCentroid,
   connectedComponents,
+  detectCoplanarFaces,
 } from './structuralSoundness'
 
 /** AABB inflation for the adjacency graph. */
@@ -88,6 +89,19 @@ const FLOOR_EXEMPT: Record<string, string> = {
   'display-cabinet::wall':
     "compact wall-mounted vitrine renders lifted to its mount height; the full-glass/half floor styles ARE floor-asserted (fireplace-wall precedent — a single static `mounted` flag can't serve the tall floor styles AND a wall box).",
 }
+
+/**
+ * Coplanar-face (z-fighting) exceptions — a def (or a def in a specific mode)
+ * with a same-normal, overlapping, DIFFERENT-material coplanar face pair that
+ * nonetheless cannot visibly flicker, and that can't be refined away in the pure
+ * detector without losing real coverage. Key is `defId` (all modes) or
+ * `defId::<mode>`. Every entry MUST carry a written reason (asserted below).
+ *
+ * Prefer FIXING the primitive (a tiny proud/inset offset, the aircon 4 mm
+ * pattern) or REFINING the detector (material signature) over adding an entry
+ * here. Empty is the goal.
+ */
+const KNOWN_COPLANAR: Record<string, string> = {}
 
 const STRUCTURAL_ENUM_KEYS = new Set([
   'style',
@@ -244,11 +258,21 @@ function fakeCtx(): CanvasRenderingContext2D {
   }) as unknown as CanvasRenderingContext2D
 }
 
+interface MatLike {
+  type?: string
+  color?: { getHexString?: () => string }
+  roughness?: number
+  metalness?: number
+  map?: { uuid?: string } | null
+  transparent?: boolean
+  opacity?: number
+}
 interface MeshLike {
   isMesh?: boolean
   isInstancedMesh?: boolean
   count?: number
-  geometry?: { boundingBox?: Box3 | null; computeBoundingBox: () => void }
+  geometry?: { boundingBox?: Box3 | null; computeBoundingBox: () => void; type?: string }
+  material?: MatLike | MatLike[]
   matrixWorld: Matrix4
   getMatrixAt?: (i: number, m: Matrix4) => void
 }
@@ -257,8 +281,57 @@ interface ObjLike {
   updateMatrixWorld: (force: boolean) => void
 }
 
-function collectWorldBoxes(root: ObjLike): AABB[] {
-  const boxes: AABB[] = []
+/** Colour+material signature: two coplanar faces sharing it render identical
+ *  pixels, so their depth tie-break is invisible (no perceptible flicker). Folds
+ *  in colour, PBR params, texture identity and transparency — any difference
+ *  between two coplanar surfaces makes their overlap a REAL flicker risk. */
+function materialSig(material: MeshLike['material']): string | undefined {
+  if (!material) return undefined
+  const m = Array.isArray(material) ? material[0] : material
+  if (!m) return undefined
+  const parts: string[] = [m.type ?? '']
+  parts.push(m.color?.getHexString ? m.color.getHexString() : '?')
+  if (typeof m.roughness === 'number') parts.push(`r${m.roughness.toFixed(2)}`)
+  if (typeof m.metalness === 'number') parts.push(`n${m.metalness.toFixed(2)}`)
+  parts.push(m.map?.uuid ? `map:${m.map.uuid}` : '-')
+  if (m.transparent) parts.push(`a${(m.opacity ?? 1).toFixed(2)}`)
+  return parts.join('|')
+}
+
+/** Geometry types whose real flat faces FILL the AABB (so an AABB face is a real
+ *  mesh face): a sharp box, a chamfered box (drei RoundedBox → ExtrudeGeometry),
+ *  a flat panel. Round geometries (cylinder/sphere/torus/lathe/cone/circle/ring)
+ *  only kiss their AABB along a tangent, so their side AABB faces are synthetic —
+ *  two round parts side by side must NOT read as coplanar. */
+const BOX_FACE_GEOMS = new Set(['BoxGeometry', 'ExtrudeGeometry', 'PlaneGeometry'])
+
+/** True when a world matrix's basis vectors are axis-aligned (rotation is a
+ *  multiple of 90°, any scale). Only then do the AABB's faces coincide with the
+ *  mesh's real faces — a rotated mesh's AABB faces are synthetic, so coplanarity
+ *  between them is meaningless and the box is skipped by `detectCoplanarFaces`. */
+function isAxisAligned(m: Matrix4): boolean {
+  const e = m.elements
+  const cols = [
+    [e[0], e[1], e[2]],
+    [e[4], e[5], e[6]],
+    [e[8], e[9], e[10]],
+  ]
+  for (const c of cols) {
+    const len = Math.hypot(c[0], c[1], c[2])
+    if (len < 1e-9) return false
+    let onAxis = 0
+    for (const comp of c) {
+      const t = Math.abs(comp) / len
+      if (t > 0.999) onAxis++
+      else if (t > 0.001) return false // an off-axis component → rotated
+    }
+    if (onAxis !== 1) return false
+  }
+  return true
+}
+
+function collectWorldBoxes(root: ObjLike): CoplanarBox[] {
+  const boxes: CoplanarBox[] = []
   root.updateMatrixWorld(true)
   const tmp = new Box3()
   const m = new Matrix4()
@@ -271,6 +344,8 @@ function collectWorldBoxes(root: ObjLike): AABB[] {
     if (!geom.boundingBox) geom.computeBoundingBox()
     const bb = geom.boundingBox
     if (!bb) return
+    const material = materialSig(mesh.material)
+    const boxFaces = BOX_FACE_GEOMS.has(geom.type ?? '')
     if (mesh.isInstancedMesh && mesh.getMatrixAt) {
       const count = mesh.count ?? 0
       for (let i = 0; i < count; i++) {
@@ -280,6 +355,9 @@ function collectWorldBoxes(root: ObjLike): AABB[] {
         boxes.push({
           min: [tmp.min.x, tmp.min.y, tmp.min.z],
           max: [tmp.max.x, tmp.max.y, tmp.max.z],
+          material,
+          axisAligned: isAxisAligned(m),
+          boxFaces,
         })
       }
     } else {
@@ -287,13 +365,16 @@ function collectWorldBoxes(root: ObjLike): AABB[] {
       boxes.push({
         min: [tmp.min.x, tmp.min.y, tmp.min.z],
         max: [tmp.max.x, tmp.max.y, tmp.max.z],
+        material,
+        axisAligned: isAxisAligned(mesh.matrixWorld),
+        boxFaces,
       })
     }
   })
   return boxes
 }
 
-async function renderWorldBoxes(def: ParametricDef, props: ParamProps): Promise<AABB[]> {
+async function renderWorldBoxes(def: ParametricDef, props: ParamProps): Promise<CoplanarBox[]> {
   const Comp = PRIMITIVE_COMPONENTS[def.primitive]
   const renderer = await ReactThreeTestRenderer.create(<Comp props={props} />)
   const scene = (renderer.scene as unknown as { instance: ObjLike }).instance
@@ -351,6 +432,38 @@ describe('structural soundness — every parametric primitive is one grounded as
         `${c.id}: floor-anchored def does not reach the floor (min-Y ${(report.minY * 1000).toFixed(1)} mm > ${FLOOR_TOL * 1000} mm)`,
       ).toBeLessThanOrEqual(FLOOR_TOL)
     }
+
+    // COPLANARITY — no two different-material, axis-aligned faces share a plane
+    // with a same normal and an overlapping (> ~4 cm²) projection (z-fighting).
+    if (!exempt(KNOWN_COPLANAR, c.def.id, c.mode)) {
+      const hits = detectCoplanarFaces(boxes).filter(
+        // Two DOWNWARD faces (dir −1) coplanar at the floor plane are occluded by
+        // the floor — furniture is never viewed from below Y=0, so two parts
+        // bottoming on the floor (e.g. a bin's base + walls) can't visibly
+        // flicker. This is the floor analog of the boxFaces/rotation limits.
+        (h) => !(h.dir === -1 && h.plane <= FLOOR_TOL),
+      )
+      if (hits.length > 0) {
+        const detail = hits
+          .slice(0, 6)
+          .map((h) => {
+            const ax = 'XYZ'[h.axis]
+            const norm = `${h.dir > 0 ? '+' : '-'}${ax}`
+            const ca = componentCentroid(boxes, [h.a])
+            const cb = componentCentroid(boxes, [h.b])
+            return (
+              `  box${h.a} @[${ca.map((v) => v.toFixed(3)).join(',')}] (${boxes[h.a].material}) ` +
+              `↔ box${h.b} @[${cb.map((v) => v.toFixed(3)).join(',')}] (${boxes[h.b].material}) ` +
+              `coplanar ${norm} @ ${ax}=${h.plane.toFixed(4)}, overlap ${(h.area * 1e4).toFixed(1)} cm²`
+            )
+          })
+          .join('\n')
+        throw new Error(
+          `${c.id}: ${hits.length} z-fighting coplanar face pair(s) — two different ` +
+            `surfaces share a plane facing the same way with overlapping area:\n${detail}`,
+        )
+      }
+    }
   })
 })
 
@@ -366,4 +479,5 @@ describe('escape-hatch hygiene', () => {
   }
   check(KNOWN_DISCONNECTED, 'KNOWN_DISCONNECTED')
   check(FLOOR_EXEMPT, 'FLOOR_EXEMPT')
+  check(KNOWN_COPLANAR, 'KNOWN_COPLANAR')
 })

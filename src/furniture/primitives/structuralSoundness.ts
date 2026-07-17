@@ -161,6 +161,119 @@ export function componentGap(boxes: AABB[], compA: number[], compB: number[]): n
   return best === Number.POSITIVE_INFINITY ? 0 : best
 }
 
+// ---- coplanar-face (z-fighting) detection -----------------------------------
+
+/**
+ * A world-space AABB annotated for coplanar-face detection. Extends {@link AABB}
+ * with two optional tags the harness fills in from the rendered mesh:
+ *
+ *  - `material` — a colour+material *signature* string. Two coplanar faces that
+ *    share a signature render the SAME pixels at the same depth, so the GPU's
+ *    tie-break is invisible (no perceptible flicker). Same-signature pairs are
+ *    therefore skipped — a genuine z-fight needs two DIFFERENT surfaces fighting
+ *    for the same depth. `undefined` = unknown material → always compared.
+ *  - `axisAligned` — whether the source mesh's world matrix is axis-aligned
+ *    (rotation is a multiple of 90°). Only then do the AABB's six faces coincide
+ *    with the mesh's real faces. A rotated mesh's AABB faces are synthetic (they
+ *    don't exist in the geometry), so a coplanarity between them is meaningless;
+ *    such boxes are skipped. `undefined`/`true` = treat as axis-aligned.
+ *  - `boxFaces` — whether the source geometry actually FILLS its AABB with flat
+ *    faces (a box/slab). A round primitive (cylinder/sphere/torus/lathe) only
+ *    KISSES its AABB along tangents, so its AABB side faces are synthetic in the
+ *    same way a rotated box's are — two bottles side by side would falsely read
+ *    as coplanar. Such boxes are skipped. `undefined`/`true` = treat as a box.
+ */
+export interface CoplanarBox extends AABB {
+  material?: string
+  axisAligned?: boolean
+  boxFaces?: boolean
+}
+
+/** A detected same-normal coplanar overlap between two boxes — a z-fight risk. */
+export interface CoplanarFace {
+  /** Indices into the input array (a < b). */
+  a: number
+  b: number
+  /** Normal axis of the shared plane (0=X, 1=Y, 2=Z). */
+  axis: 0 | 1 | 2
+  /** Shared normal direction: +1 = both MAX faces, -1 = both MIN faces. */
+  dir: 1 | -1
+  /** The shared plane coordinate on `axis` (metres). */
+  plane: number
+  /** Overlap area of the two face rectangles in the other two axes (m²). */
+  area: number
+}
+
+/** True coplanarity threshold: two faces within 0.3 mm of the same plane. This
+ *  is intentionally an order of magnitude TIGHTER than the 8 mm connectivity
+ *  adjacency epsilon — an 8 mm "reveal" between abutting parts is a healthy
+ *  offset that PREVENTS flicker; only faces at essentially the SAME depth fight. */
+export const COPLANAR_PLANE_EPS = 0.0003
+/** Minimum overlap area to count as a flicker risk (~4 cm²). A corner/edge kiss
+ *  (near-zero shared area) never visibly z-fights. */
+export const COPLANAR_MIN_AREA = 0.0004
+
+/**
+ * Flags pairs of axis-aligned boxes whose faces will z-fight: two faces that are
+ * (a) on the SAME axis-aligned plane within {@link COPLANAR_PLANE_EPS}, (b)
+ * facing the SAME direction (both MAX or both MIN faces on that axis — an
+ * *abutting* joint, one box's MAX face meeting the other's MIN face, has
+ * opposing normals and is a legitimate contact, NOT a z-fight), and (c) whose
+ * face rectangles OVERLAP in 2D with area ≥ {@link COPLANAR_MIN_AREA}.
+ *
+ * A small box buried INSIDE a big one with a face flush to the big box's surface
+ * plane IS flagged (same normal, overlapping projection) — that's exactly the
+ * aircon louvre-at-body-front bug. A face lying strictly inside the other box's
+ * volume (not on any of its surface planes) never matches and is fine.
+ *
+ * Same-`material` pairs are skipped (identical surfaces can't visibly flicker);
+ * boxes tagged `axisAligned === false` OR `boxFaces === false` are skipped (their
+ * AABB faces are synthetic — this is an AABB model, so a rotated or round mesh
+ * can't be judged here).
+ *
+ * O(n²) pairwise over the axes — matches the connectivity sweep's cost profile.
+ */
+export function detectCoplanarFaces(
+  boxes: CoplanarBox[],
+  planeEps: number = COPLANAR_PLANE_EPS,
+  minArea: number = COPLANAR_MIN_AREA,
+): CoplanarFace[] {
+  const hits: CoplanarFace[] = []
+  const n = boxes.length
+  for (let i = 0; i < n; i++) {
+    const a = boxes[i]
+    if (a.axisAligned === false || a.boxFaces === false) continue
+    for (let j = i + 1; j < n; j++) {
+      const b = boxes[j]
+      if (b.axisAligned === false || b.boxFaces === false) continue
+      // Identical colour+material coplanar surfaces render the same pixels → the
+      // depth tie-break is invisible; skip (refinement over an exemption list).
+      if (a.material != null && b.material != null && a.material === b.material) continue
+      for (let axis = 0; axis < 3; axis++) {
+        const u = (axis + 1) % 3
+        const v = (axis + 2) % 3
+        // Face rectangles overlap iff the box projections overlap on u AND v.
+        const ou = Math.min(a.max[u], b.max[u]) - Math.max(a.min[u], b.min[u])
+        if (ou <= 0) continue
+        const ov = Math.min(a.max[v], b.max[v]) - Math.max(a.min[v], b.min[v])
+        if (ov <= 0) continue
+        const area = ou * ov
+        if (area < minArea) continue
+        const ax = axis as 0 | 1 | 2
+        // Both MAX faces coplanar (both point +axis).
+        if (Math.abs(a.max[axis] - b.max[axis]) <= planeEps) {
+          hits.push({ a: i, b: j, axis: ax, dir: 1, plane: (a.max[axis] + b.max[axis]) / 2, area })
+        }
+        // Both MIN faces coplanar (both point −axis).
+        if (Math.abs(a.min[axis] - b.min[axis]) <= planeEps) {
+          hits.push({ a: i, b: j, axis: ax, dir: -1, plane: (a.min[axis] + b.min[axis]) / 2, area })
+        }
+      }
+    }
+  }
+  return hits
+}
+
 export interface StructureReport {
   /** Number of connected components (1 = every part attached). */
   componentCount: number

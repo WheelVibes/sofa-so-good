@@ -106,7 +106,9 @@ export function OfficeChair({ props }: { props: ParamProps }) {
             radius={0.03}
             smoothness={3}
             castShadow
-            position={[s * (seatW / 2 - 0.03), seatH + 0.06, 0]}
+            // 6 mm lower than the armrest-post top (seatH+0.10) so the bolster top
+            // isn't coplanar with the post top where they meet at the seat corner.
+            position={[s * (seatW / 2 - 0.03), seatH + 0.054, 0]}
             material={accent}
           />
         ))}
