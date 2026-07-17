@@ -1,0 +1,69 @@
+{
+  "name": "room-starters",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true || state.bootPhase === 'ready'"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "empty-bedroom",
+      "eval": "(() => { const s = window.__store.getState(); s.setItems(s.items.filter(i => { const r = s.floorPlan.rooms.find(r => r.id === 'mainBedroom'); if (!r) return true; const [x, z] = i.position; return !(x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth); })); s.enterRoomEditor('mainBedroom'); })()"
+    },
+    {
+      "name": "chips-visible",
+      "waitFor": {
+        "text": "This room is empty"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "overlay-clear",
+      "waitFor": {
+        "store": "!state.loading || state.loading.active === false"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "settle",
+      "wait": 1500
+    },
+    {
+      "name": "shot-chips",
+      "screenshot": "starter-chips"
+    },
+    {
+      "name": "click-bed-chip",
+      "eval": "(() => { const b = [...document.querySelectorAll('button')].find(b => /queen bed/i.test(b.textContent)); if (!b) throw new Error('no Queen bed chip: ' + [...document.querySelectorAll('.panel button')].map(x => x.textContent.trim()).join('|')); b.click(); })()"
+    },
+    {
+      "name": "bed-added",
+      "waitFor": {
+        "store": "state.items.some(i => i.defId === 'bed-queen')"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "settle2",
+      "wait": 3000
+    },
+    {
+      "name": "shot-placed",
+      "screenshot": "bed-placed"
+    }
+  ]
+}

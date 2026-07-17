@@ -1008,6 +1008,21 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Room-starter "essentials" chips (roomStarters, UX-research pick #5). When a
+  // user enters an EMPTY room, the empty-state offers a row of tap-to-add chips
+  // for that room-kind's key anchor pieces (bedroom → bed/wardrobe/nightstand,
+  // living → sofa/TV console/coffee table, …); each chip adds ONE sensibly
+  // wall-anchored piece. Fixes a Simple-tier dead-end — the room-kind guidance
+  // data exists but the analytical `suggestions` surface is Pro-only, so the
+  // casual persona got no concrete starting help. Pure client-side, built-in
+  // catalog only, no external assets → prod-safe. Core furnish-loop onboarding
+  // help for a first-time user → simple tier, present in both modes.
+  roomStarters: {
+    label: 'Room starter chips',
+    description: 'Tap-to-add starter pieces in the empty-room hint, tailored to the room',
+    default: true,
+    tier: 'simple',
+  },
   // Soft contact-shadow blobs that ground every piece of furniture against the
   // floor (RZ1). One shared radial-gradient texture + a transparent plane per
   // item — cheap fill-rate overdraw, no shadow map — so it reads even on the

@@ -26,7 +26,10 @@ Open it in any of these ways:
   **reorder the rooms** into an order that suits you (remembered on your device).
 - **Full editing** — placing, dragging, rotating, measuring, and finishing all
   happen here, on the same furniture that makes up the whole flat. An empty room
-  shows a prompt to open the catalog; click a room's floor for the finish picker,
+  shows a starter prompt with **tap-to-add essentials** for that room type (bed /
+  wardrobe / nightstand in a bedroom, sofa / TV console / coffee table in the
+  living room, …) — each tap adds one sensibly wall-anchored piece — plus the
+  **Open catalog** button for everything else; click a room's floor for the finish picker,
   which also has a **Clear room** button to wipe its furniture and start over.
 - **Bounded walk** — in walk mode you're confined to the room (an open door is
   still a gap), and walk stays view‑only.

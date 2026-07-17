@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.3 — Room-starter "essentials" chips in the empty-room state
+
+The room editor's empty-room hint now offers **tap-to-add essentials** for the
+room's kind (`roomStarters` flag, simple tier — fixes the Simple-persona
+dead-end where all guidance was pro-tier): bedroom → Queen bed / Wardrobe /
+Nightstand, living → sofa / TV console / coffee table, kitchen / bath / dining /
+study per their patterns (pure `ui/catalog/roomStarters.ts` mapping over the
+existing `RoomKind` taxonomy — all ids verified in `BUILTIN_CATALOG`). Each
+chip adds ONE sensibly-placed piece via the new pure
+`layout/placeStarterItem.ts`: wall-flush midpoints (inward-facing, wallGap
+clearance, `canPlace`-validated against the room's walls + items) → validated
+room centre → centre fallback; one `addItem` = one undo + recents entry.
+Unmapped kinds / flag off keep the plain "Open catalog" prompt. GPU-verified
+(chips render in the empty Main Bedroom; tapping "+ Queen bed" places it
+wall-anchored); 21 unit tests incl. both modes.
+
 ## v0.22.2.2 — One-tap "hero card" share image (SHARE-CARD)
 
 "**Save hero image**" in the Share modal's Export section (`shareCard` flag,
