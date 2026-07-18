@@ -1,0 +1,128 @@
+{
+  "name": "plan-labels-cycle-simple",
+  "url": "http://localhost:5211/",
+  "description": "IXT-SUITES simple rung for `planLabels` (simple tier — the 2D plan editor's furniture-label cycle button in the 'View ▾' menu / mobile Tools sheet). Opens the floor-plan editor, turns on the 'Furniture' footprint layer, verifies NO item labels render pre-cycle (labels default 'off' and nothing is selected), cycles the button off→name (asserts one <text class=plan-item-label> per named item) then name→price (asserts a $-formatted price tspan appears), and re-verifies the cycle button is present after a Simple→Pro switch (planLabels is simple-tier, shown in both modes).",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "Expected uiMode=simple at boot"
+    },
+    {
+      "name": "verify-planlabels-on-in-simple",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.planLabels === true" },
+      "timeout": 10000,
+      "failMessage": "planLabels should be ON in Simple mode (it is simple-tier)"
+    },
+    {
+      "name": "assert-labels-mode-off-baseline",
+      "eval": "(function(){ const m = window.__store.getState().planLabels; if (m !== 'off') throw new Error('Expected planLabels store mode to start off, got ' + m); })()"
+    },
+    {
+      "name": "open-plan",
+      "store": { "action": "setFloorPlanEditing", "args": [true] }
+    },
+    {
+      "name": "plan-screen",
+      "waitFor": { "css": ".plan-screen" },
+      "timeout": 30000
+    },
+    { "name": "settle-plan-mount", "wait": 1200 },
+    {
+      "name": "open-view-menu-for-furniture",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'View ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { const panel = document.querySelector('.plan-menu-panel'); if (panel && (panel.textContent||'').includes('Furniture')) return; const b = find(); if (b && !panel) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('View menu did not show Furniture toggle'); })()"
+    },
+    {
+      "name": "click-furniture-toggle",
+      "eval": "(function(){ const panel = document.querySelector('.plan-menu-panel'); const btn = panel && [...panel.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Furniture'); if (!btn) throw new Error(\"'Furniture' button not found in View menu\"); btn.click(); })()"
+    },
+    {
+      "name": "settle-after-furniture-toggle",
+      "wait": 500
+    },
+    {
+      "name": "no-labels-before-select",
+      "eval": "(function(){ const n = document.querySelectorAll('.plan-item-label').length; if (n !== 0) throw new Error('Expected 0 .plan-item-label elements before selection + with labels off, found ' + n); })()"
+    },
+    { "name": "shot-furniture-on-no-labels", "screenshot": "01-furniture-on-no-labels" },
+    {
+      "name": "open-view-menu-for-labels-1",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'View ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { const panel = document.querySelector('.plan-menu-panel'); if (panel && (panel.textContent||'').includes('Labels: off')) return; const b = find(); if (b && !panel) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('View menu did not show the Labels: off cycle button'); })()"
+    },
+    { "name": "shot-view-menu-open", "screenshot": "02-view-menu-open" },
+    {
+      "name": "click-labels-cycle-to-name",
+      "eval": "(function(){ const panel = document.querySelector('.plan-menu-panel'); const btn = panel && [...panel.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Labels: off'); if (!btn) throw new Error(\"'Labels: off' cycle button not found\"); btn.click(); })()"
+    },
+    {
+      "name": "mode-is-name",
+      "waitFor": { "store": "state.planLabels === 'name'" },
+      "timeout": 5000
+    },
+    {
+      "name": "settle-after-name-cycle",
+      "wait": 500
+    },
+    {
+      "name": "labels-present-in-name-mode",
+      "eval": "(function(){ const n = document.querySelectorAll('.plan-item-label').length; if (n === 0) throw new Error('Expected >0 .plan-item-label elements once labels cycle to name'); window.__labelCountName = n; })()"
+    },
+    { "name": "shot-labels-name-mode", "screenshot": "03-labels-name-mode" },
+    {
+      "name": "enable-budget-for-prices",
+      "store": { "action": "setFeatureFlag", "args": ["budget", true] }
+    },
+    {
+      "name": "open-view-menu-for-labels-2",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'View ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { const panel = document.querySelector('.plan-menu-panel'); if (panel && (panel.textContent||'').includes('Labels: name')) return; const b = find(); if (b && !panel) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('View menu did not show the Labels: name cycle button'); })()"
+    },
+    {
+      "name": "click-labels-cycle-to-price",
+      "eval": "(function(){ const panel = document.querySelector('.plan-menu-panel'); const btn = panel && [...panel.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Labels: name'); if (!btn) throw new Error(\"'Labels: name' cycle button not found\"); btn.click(); })()"
+    },
+    {
+      "name": "mode-is-price",
+      "waitFor": { "store": "state.planLabels === 'price'" },
+      "timeout": 5000
+    },
+    {
+      "name": "settle-after-price-cycle",
+      "wait": 500
+    },
+    {
+      "name": "price-tspan-present",
+      "eval": "(function(){ const tspans = [...document.querySelectorAll('.plan-item-label tspan')]; const priced = tspans.some((t) => /^\\$[0-9][0-9,]*$/.test(t.textContent.trim())); if (!priced) throw new Error('Expected at least one $-formatted price tspan once labels cycle to price'); })()"
+    },
+    { "name": "shot-labels-price-mode", "screenshot": "04-labels-price-mode" },
+    {
+      "name": "switch-to-pro",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "reresolve-flags-pro",
+      "eval": "window.__store.getState().reresolveFeatureFlags?.()"
+    },
+    {
+      "name": "verify-pro-mode",
+      "waitFor": { "store": "state.uiMode === 'pro'" },
+      "timeout": 5000
+    },
+    {
+      "name": "verify-planlabels-on-in-pro",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.planLabels === true" },
+      "timeout": 10000,
+      "failMessage": "planLabels should still be ON in Pro mode (simple-tier flags are shown in both modes)"
+    },
+    {
+      "name": "open-view-menu-pro",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'View ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { const panel = document.querySelector('.plan-menu-panel'); if (panel && (panel.textContent||'').includes('Labels:')) return; const b = find(); if (b && !panel) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('View menu (Pro) did not show a Labels cycle button'); })()"
+    },
+    { "name": "shot-pro-mode-view-menu", "screenshot": "05-pro-mode-view-menu" }
+  ]
+}

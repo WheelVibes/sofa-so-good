@@ -659,6 +659,60 @@ place (same id, new geometry, no duplicate) and the placed instance still resolv
   `rooms.reduce((a,b) => a.width*a.depth >= b.width*b.depth ? a : b)` to always target the biggest
   room (Living/Dining in the default flat), which comfortably tolerates the standard 0.1 m nudge.
 
+### Gotchas from the IXT-SUITES back-fill batch 3 (layoutReroll / planLabels / wallThickness / designerPicks)
+
+- **A curated-swatch/name-search substring scan across `scripts/scenarios/*.json` gives false
+  "uncovered" results on a British/American spelling mismatch.** `elementColors` (flag) vs.
+  `element-colours-verify.json` (existing scenario) don't share a substring once dashes are
+  stripped (`elementcolors` vs `elementcolourverify`) — a naive "does the flag name normalize into
+  any scenario filename" pass will report an already-covered flag as a gap. Always grep the
+  registry `label`/`description` text too (or just open the top few candidate files) before
+  authoring a scenario that turns out to duplicate one that already exists under a differently
+  spelled name.
+- **A flag can gate a control that lives inside an ALREADY-flag-gated parent panel with no
+  dedicated route of its own.** `layoutReroll`'s only UI is the "Try another layout" button inside
+  `FinishPicker`'s "Room layout" section (itself reached via `enterRoomEditor` + `selectRoom`, the
+  same open sequence `materialcomposer-simple.json` established) — there's no separate menu/route
+  to discover it from a flag name search; `grep -rn "layoutReroll"` across `src/ui` is what actually
+  finds it (only 3 hits: `types.ts`, `registry.ts`, `FinishPicker.tsx`).
+- **`rerollRoomLayout`'s variant counter (`layoutVariants[roomId]`) is session-only state, NOT part
+  of `HistorySnapshot`** (see `src/state/CLAUDE.md`'s undo-granularity rule) — `undo()` reverts the
+  reshuffled `items` array but leaves `layoutVariants[roomId]` at whatever it last was. Don't assert
+  the variant counter decremented after an undo; assert only that the item transforms round-tripped
+  back to the pre-reroll snapshot.
+- **`planLabels`' cycle button lives in the "View ▾" `PlanMenu`** (the same self-closing-on-any-click
+  panel documented in the batch-2 gotchas) — reopen it before EVERY click (toggling "Furniture" ON,
+  then separately cycling "Labels: off"→"Labels: name"→"Labels: name"→"Labels: + price" are three
+  separate opens, not one). Two more gotchas specific to this flag: (1) **label TEXT rendering is
+  gated on the SEPARATE "Furniture" visibility toggle**, not just `planLabels` — `FurnitureLayer`
+  (and its `.plan-item-label` texts) only mounts at all when `showFurniture` is true, so a scenario
+  that skips turning Furniture on first will find zero label elements no matter what `planLabels`
+  mode is active. (2) **the price line needs `budget` (a `default:false` flag) ALSO on** —
+  `fPrice = useFeature('budget')` gates whether `itemPrice(...)` is even computed, so cycling to
+  `'price'` mode with `budget` still off silently produces name-only labels (no `$` tspan); flip
+  `budget` on via `setFeatureFlag('budget', true)` before asserting the price line.
+- **`wallThickness`'s plan-wide Exterior/Interior fields live in the NO-SELECTION `PlanInspector`
+  default panel** (`.plan-props`, desktop-only-by-default but always mounted since nothing is
+  selected) — no click/open dance needed, just `setFloorPlanEditing(true)` and wait for
+  `.plan-props`. The `Num` control has no `aria-label` on the `<input>` itself, only a sibling
+  `<span>` inside the wrapping `<label>` — locate it via `[...document.querySelectorAll('.plan-props
+  label')].find(l => l.querySelector('span')?.textContent.trim() === 'Exterior (m)')` then
+  `.querySelector('input')`, and commit a value with the native-setter + `dispatchEvent(new
+  Event('input', {bubbles:true}))` trick (`expansion-e4b.json`'s established pattern) — a plain
+  `.value = '0.3'` assignment does NOT fire React's `onChange` (React's controlled-input tracker
+  ignores a direct property write). The SAME `Num` component (same lack of `aria-label`) backs the
+  per-wall `WallInspector` "Thickness (m)" override field one selection away — select a wall via
+  `setPlanSelection({type:'wall', id})` first.
+- **`designerPicks`' curated row is `[role="group"][aria-label="Designer picks"]`**, rendered by a
+  local `DesignerPicks` component inside `ui/finish/swatches.tsx`'s `SwatchGroup` (shared by every
+  surface tab) — the SAME `aria-label` string appears independently on the Floor AND Walls tabs (two
+  separate DOM nodes, one per active tab), so `waitFor {css: "[role=group][aria-label='Designer
+  picks']"}` after switching tabs is sufficient (no need to disambiguate by tab). Each swatch
+  button's own `aria-label` is `Designer pick: <name>` — with no easy DOM-exposed material id, assert
+  the applied finish id is a MEMBER of the six known curated floor ids (mirroring `designerPicks.ts`'s
+  `DESIGNER_FLOOR_IDS` list in the scenario's assertion) rather than trying to derive the exact id
+  from the clicked button.
+
 ### Worked example — GLB designer CSG v2 non-destructive booleans (Stage 1b)
 
 **`glb-designer-stage1b.json`** drives the CSG v2 flow: build a Box, add a Cylinder, rotate/size

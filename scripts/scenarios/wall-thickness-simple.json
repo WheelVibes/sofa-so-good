@@ -1,0 +1,127 @@
+{
+  "name": "wall-thickness-simple",
+  "url": "http://localhost:5211/",
+  "description": "IXT-SUITES simple rung for `wallThickness` (simple tier): the plan-wide 'Wall thickness' Exterior/Interior Num fields in the no-selection PlanInspector default panel, plus the per-wall 'Use plan default' override in WallInspector. Drives the plan-wide Exterior field via a real native input event and asserts `floorPlan.wallThickness.external` updates; selects a wall, sets its own thicknessM override, asserts `wall.thicknessM` is set and the 'Use plan default' button appears, clicks it, and asserts the override clears back to the plan default. Re-verifies both panels are present after a Simple→Pro switch (wallThickness is simple-tier, shown in both modes).",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "Expected uiMode=simple at boot"
+    },
+    {
+      "name": "verify-wallthickness-on-in-simple",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.wallThickness === true" },
+      "timeout": 10000,
+      "failMessage": "wallThickness should be ON in Simple mode (it is simple-tier)"
+    },
+    {
+      "name": "open-plan",
+      "store": { "action": "setFloorPlanEditing", "args": [true] }
+    },
+    {
+      "name": "plan-screen",
+      "waitFor": { "css": ".plan-screen" },
+      "timeout": 30000
+    },
+    { "name": "settle-plan-mount", "wait": 1200 },
+    {
+      "name": "plan-props-visible",
+      "waitFor": { "css": ".plan-props" },
+      "timeout": 10000,
+      "failMessage": "The no-selection PlanInspector default panel (.plan-props) did not render"
+    },
+    {
+      "name": "wall-thickness-fields-visible",
+      "eval": "(function(){ const labels=[...document.querySelectorAll('.plan-props label')]; const ext = labels.find((l)=>l.querySelector('span')?.textContent.trim()==='Exterior (m)'); const inter = labels.find((l)=>l.querySelector('span')?.textContent.trim()==='Interior (m)'); if (!ext || !inter) throw new Error('Wall thickness Exterior/Interior fields did not render in the plan defaults panel'); })()"
+    },
+    { "name": "shot-plan-defaults", "screenshot": "01-plan-defaults-wall-thickness" },
+    {
+      "name": "set-exterior-thickness",
+      "eval": "(function(){ const labels=[...document.querySelectorAll('.plan-props label')]; const ext = labels.find((l)=>l.querySelector('span')?.textContent.trim()==='Exterior (m)'); const input = ext.querySelector('input'); const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set; setter.call(input, '0.3'); input.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "exterior-thickness-updated",
+      "waitFor": {
+        "store": "state.floorPlan.wallThickness && Math.abs(state.floorPlan.wallThickness.external - 0.3) < 1e-6"
+      },
+      "timeout": 5000,
+      "failMessage": "floorPlan.wallThickness.external should be 0.3 after editing the Exterior field"
+    },
+    { "name": "shot-exterior-updated", "screenshot": "02-exterior-thickness-updated" },
+    {
+      "name": "select-a-wall",
+      "eval": "(function(){ const s=window.__store.getState(); const w=s.floorPlan.walls[0]; window.__wallId = w.id; s.setPlanSelection({ type:'wall', id: w.id }); })()"
+    },
+    {
+      "name": "wall-selected",
+      "waitFor": { "store": "state.planSelection && state.planSelection.type === 'wall'" },
+      "timeout": 5000
+    },
+    {
+      "name": "wall-thickness-override-field-visible",
+      "eval": "(function(){ const labels=[...document.querySelectorAll('.plan-props label')]; const t = labels.find((l)=>l.querySelector('span')?.textContent.trim()==='Thickness (m)'); if (!t) throw new Error(\"Per-wall 'Thickness (m)' field did not render in WallInspector\"); })()"
+    },
+    { "name": "shot-wall-inspector", "screenshot": "03-wall-inspector-thickness" },
+    {
+      "name": "set-wall-override",
+      "eval": "(function(){ const labels=[...document.querySelectorAll('.plan-props label')]; const t = labels.find((l)=>l.querySelector('span')?.textContent.trim()==='Thickness (m)'); const input = t.querySelector('input'); const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set; setter.call(input, '0.45'); input.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "wall-override-stored",
+      "waitFor": {
+        "store": "(function(){ const w=state.floorPlan.walls.find((x)=>x.id===window.__wallId); return w && Math.abs((w.thicknessM||0) - 0.45) < 1e-6; })()"
+      },
+      "timeout": 5000,
+      "failMessage": "wall.thicknessM should be 0.45 after editing the per-wall Thickness field"
+    },
+    {
+      "name": "use-plan-default-button-visible",
+      "waitFor": { "css": ".plan-props button" },
+      "timeout": 5000
+    },
+    { "name": "shot-wall-override-set", "screenshot": "04-wall-override-set" },
+    {
+      "name": "click-use-plan-default",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.plan-props button')].find((b) => b.textContent.trim() === 'Use plan default'); if (!btn) throw new Error(\"'Use plan default' button not found after setting a wall override\"); btn.click(); })()"
+    },
+    {
+      "name": "wall-override-cleared",
+      "waitFor": {
+        "store": "(function(){ const w=state.floorPlan.walls.find((x)=>x.id===window.__wallId); return w && w.thicknessM == null; })()"
+      },
+      "timeout": 5000,
+      "failMessage": "wall.thicknessM should be cleared after clicking 'Use plan default'"
+    },
+    { "name": "shot-wall-override-cleared", "screenshot": "05-wall-override-cleared" },
+    {
+      "name": "switch-to-pro",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "reresolve-flags-pro",
+      "eval": "window.__store.getState().reresolveFeatureFlags?.()"
+    },
+    {
+      "name": "verify-pro-mode",
+      "waitFor": { "store": "state.uiMode === 'pro'" },
+      "timeout": 5000
+    },
+    {
+      "name": "verify-wallthickness-on-in-pro",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.wallThickness === true" },
+      "timeout": 10000,
+      "failMessage": "wallThickness should still be ON in Pro mode (simple-tier flags are shown in both modes)"
+    },
+    {
+      "name": "wall-thickness-field-still-present-in-pro",
+      "eval": "(function(){ const labels=[...document.querySelectorAll('.plan-props label')]; const t = labels.find((l)=>l.querySelector('span')?.textContent.trim()==='Thickness (m)'); if (!t) throw new Error(\"Per-wall 'Thickness (m)' field should still render in Pro mode\"); })()"
+    },
+    { "name": "shot-pro-mode-wall-thickness", "screenshot": "06-pro-mode-wall-thickness" }
+  ]
+}

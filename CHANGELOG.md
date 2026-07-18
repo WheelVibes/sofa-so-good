@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.13 — IXT-SUITES back-fill batch 3: 4 more ladders
+
+Green, visually-reviewed simple rungs for `layoutReroll` (reroll twice →
+variants increment + layouts differ → double-undo restores),
+`planLabels` (off→name→price cycle with the furniture layer + budget-flag
+dependency), `wallThickness` (plan-wide fields + per-wall override + reset
+via the real Num inputs), and `designerPicks` (curated row on Floor+Walls
+tabs, swatch applies a known curated id, disappears when forced off). No app
+bugs. Six new playbook gotchas (uncovered-scan spelling false-positives,
+gated-parent discoverability, session-only variant undo caveat, planLabels'
+dual dependency, Num-control native-setter commit, role=group assertion
+pattern).
+
 ## v0.22.2.12 — IXT-SUITES back-fill batch 2: 4 pro plan-tool ladders
 
 Four more uncovered flags gain green, visually-verified simple rungs, all
