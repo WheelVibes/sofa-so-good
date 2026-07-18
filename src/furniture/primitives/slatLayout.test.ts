@@ -6,9 +6,14 @@ import {
   dryingRackCylinders,
   pitchedCount,
   pitchedOffsets,
+  ROMAN_FOLD_COUNT,
+  ROMAN_FOLD_HEIGHT,
+  romanFoldOffsets,
   VENETIAN_SLAT_TILT,
   venetianSlatCount,
   venetianSlatInstances,
+  zebraBandCount,
+  zebraBandInstances,
 } from './slatLayout'
 
 describe('slatLayout', () => {
@@ -146,6 +151,73 @@ describe('slatLayout', () => {
       // maxDrop 0 → pitch 0 → all slats stack at y=0 (no NaN).
       expect(insts.every((s) => Number.isFinite(s.position[1]))).toBe(true)
       expect(insts.every((s) => s.size[0] === 0)).toBe(true)
+    })
+  })
+
+  describe('zebraBandCount', () => {
+    it('matches the inline Math.max(4, Math.round(maxDrop/0.08)) formula', () => {
+      for (const maxDrop of [0.3, 0.8, 1.7, 2.3, 3.0]) {
+        expect(zebraBandCount(maxDrop)).toBe(Math.max(4, Math.round(maxDrop / 0.08)))
+      }
+    })
+
+    it('floors at 4 bands for a tiny / degenerate drop', () => {
+      expect(zebraBandCount(0.05)).toBe(4)
+      expect(zebraBandCount(0)).toBe(4)
+    })
+  })
+
+  describe('zebraBandInstances', () => {
+    it('splits alternating bands into opaque (even index) / sheer (odd index) buckets', () => {
+      const width = 1.3
+      const maxDrop = 1.7
+      const { opaque, sheer } = zebraBandInstances(width, maxDrop)
+      const n = zebraBandCount(maxDrop)
+      expect(opaque.length + sheer.length).toBe(n)
+      // Alternating: opaque gets the ceil half, sheer the floor half.
+      expect(opaque.length).toBe(Math.ceil(n / 2))
+      expect(sheer.length).toBe(Math.floor(n / 2))
+    })
+
+    it('bands descend from the cassette top (0) with even pitch and no overlap gap > 5%', () => {
+      const width = 1.0
+      const maxDrop = 2.0
+      const { opaque, sheer } = zebraBandInstances(width, maxDrop)
+      const all = [...opaque, ...sheer].sort((a, b) => b.position[1] - a.position[1])
+      const n = zebraBandCount(maxDrop)
+      const pitch = maxDrop / n
+      expect(all[0].position[1]).toBeCloseTo(-pitch * 0.5, 12)
+      expect(all[n - 1].position[1]).toBeCloseTo(-pitch * (n - 0.5), 12)
+      all.forEach((band) => {
+        expect(band.size[0]).toBe(width)
+        expect(band.size[1]).toBeCloseTo(pitch * 0.96, 12)
+      })
+    })
+
+    it('stays finite at a degenerate zero size', () => {
+      const { opaque, sheer } = zebraBandInstances(0, 0)
+      expect(opaque.length + sheer.length).toBe(4)
+      expect([...opaque, ...sheer].every((b) => b.position.every(Number.isFinite))).toBe(true)
+    })
+  })
+
+  describe('romanFoldOffsets', () => {
+    it('defaults to ROMAN_FOLD_COUNT overlapping folds descending from just under the cassette', () => {
+      const offsets = romanFoldOffsets()
+      expect(offsets).toHaveLength(ROMAN_FOLD_COUNT)
+      // First fold centred half a fold-height below the cassette (top edge at 0).
+      expect(offsets[0]).toBeCloseTo(-ROMAN_FOLD_HEIGHT / 2, 12)
+      // Consecutive folds step by (foldHeight - overlap), each closer together
+      // than a non-overlapping stack would be.
+      const step = offsets[1] - offsets[0]
+      expect(Math.abs(step)).toBeLessThan(ROMAN_FOLD_HEIGHT)
+    })
+
+    it('honours a custom count/height/overlap', () => {
+      const offsets = romanFoldOffsets(3, 0.1, 0.02)
+      expect(offsets).toHaveLength(3)
+      expect(offsets[0]).toBeCloseTo(-0.05, 12)
+      expect(offsets[1] - offsets[0]).toBeCloseTo(-0.08, 12)
     })
   })
 

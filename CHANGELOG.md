@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.64 — Opening variants round 1: zebra/roman blinds, invisible grille, bifold + door materials
+
+SG-staple opening variants with real hi-fi materials. Blinds: **zebra/combi**
+(`kind:'zebra'`, alternating opaque/sheer bands via `zebraBandInstances` — the
+sheer band rides the drapery sheer-opacity path, translucent cloth not a flat
+tint) and **roman** (`kind:'roman'`, stacked `RoundedBox` folds under the
+cassette scaled by `lower`), both on the anchored-stack instancing pattern in
+`primitives/slatLayout.ts`. Windows: **invisible grille** style (hair-thin
+vertical cables, the SG condo standard) via `floorplan/windowGrilleLayout.ts`.
+Doors: **bifold** style (two half-leaves, outer 45°/inner 135° when open — the
+SG toilet/utility standard) plus a new `PlanOpening.material` axis
+(`floorplan/doorMaterial.ts`): painted (default) / wood grain / **vinyl** PVC
+laminate (defaulted for bifold), gated behind `pbrSurfaces` like other
+physical materials. Linen curtains get a visibly coarser weave relief than
+cotton. Opening inspector exposes all new styles + the material select; unit
+tests across doorMaterial/windowGrilleLayout/slatLayout/drapery/vinyl +
+inspector; 7 visual scenarios (zebra/roman/bifold/openings) reviewed on GPU.
+
 ## v0.22.2.63 — RM1: user-settable room categories (foundation)
 
 `PlanRoom.category` (13 values: living/dining/bedroom/masterBedroom/kitchen/

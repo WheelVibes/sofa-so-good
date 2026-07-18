@@ -815,7 +815,16 @@ export function getDraperyMaterial(
   // cotton (default) | linen — linen reads a touch matter/coarser. (Legacy
   // `sheer` weave falls through to cotton; its translucency now comes from
   // `opacity`, set from the opacity level by the caller.)
-  return getFabricMaterial(color, kind === 'linen' ? 0.98 : 0.95, pattern, doubleSided, opacity)
+  const linen = kind === 'linen'
+  const m = getFabricMaterial(color, linen ? 0.98 : 0.95, pattern, doubleSided, opacity)
+  // Linen's rough roughness alone is a near-imperceptible delta up close — give
+  // it a visibly looser, coarser weave relief than cotton's finer one (the same
+  // shared fabric normal map, just a stronger intensity) so the two weaves read
+  // distinctly rather than only differing by a hairline roughness value. Safe
+  // to mutate the cached instance: linen's `rough=0.98` key never collides with
+  // cotton's `0.95` or any other `getFabricMaterial` caller.
+  m.normalScale.set(linen ? 0.95 : 0.65, linen ? 0.95 : 0.65)
+  return m
 }
 
 /** Flat painted material — matte by default, or glossy (lacquered) when
@@ -859,6 +868,46 @@ export function getPaintedMaterial(
   if (micro) m.normalScale.set(0.35, 0.35)
   cache.set(key, m)
   return m
+}
+
+/** Smooth vinyl / PVC laminate — the standard SG toilet/utility bifold-door
+ *  finish: a slightly glossy, subtle plastic sheen (rougher than a lacquered
+ *  `gloss` paint, smoother/flatter than matte `painted`), with no wood grain.
+ *  Under `pbrSurfaces` it's a `MeshPhysicalMaterial` with a thin clearcoat film
+ *  (reusing the shared paint micro-normal so it isn't dead-flat, same as
+ *  {@link getPaintedMaterial}'s gloss branch, at a lighter clearcoat so vinyl
+ *  reads less lacquered than gloss paint); with the flag off it's a plain
+ *  `MeshStandardMaterial` at the same roughness/metalness (the legacy flat-tier
+ *  look — no maps, no extra cost). Cached per colour. */
+export function getVinylMaterial(color: string): MeshStandardMaterial {
+  const rough = 0.35
+  const metal = 0.05
+  const key = `vinyl:${color}`
+  const hit = cache.get(key)
+  if (hit) return hit
+  if (!isFeatureEnabled('pbrSurfaces')) {
+    const m = new MeshStandardMaterial({ color, roughness: rough, metalness: metal })
+    cache.set(key, m)
+    return m
+  }
+  const micro = getPaintNormal()
+  const coat = clearcoatLayer('gloss')
+  const g = new MeshPhysicalMaterial({
+    color,
+    roughness: rough,
+    metalness: metal,
+    envMapIntensity: GLOSSY_ENV_INTENSITY,
+    normalMap: micro,
+  })
+  g.normalScale.set(0.2, 0.2)
+  if (coat) {
+    // Lighter than gloss paint's own clearcoat — vinyl reads as a smooth
+    // plastic sheet, not a wet-lacquered finish.
+    g.clearcoat = coat.clearcoat * 0.55
+    g.clearcoatRoughness = coat.clearcoatRoughness
+  }
+  cache.set(key, g)
+  return g
 }
 
 /** Per-repeat variant cache: `furn:<id>:x<repeat>` → a clone of the base

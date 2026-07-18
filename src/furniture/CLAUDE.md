@@ -57,7 +57,7 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   `ui/floorplan/editor/planFurnishPlacement.ts:buildPlanWindowGhostItem` wraps the same
   `snapToNearestWindow` + `windowFixtureProps` pair scoped to the EDITED level's walls/openings
   (`levelAsPlan`), ghost and commit both snapped; no-window levels toast + disarm on arming.
-  Window grilles stay an opening `style` (`grille`/`louvre`), not a fixture.
+  Window grilles stay an opening `style` (`grille`/`invisible-grille`/`louvre`), not a fixture.
   Placement also **sizes** the fixture to its window via the pure `windowFixtureProps(defId, window,
   ceilingHeight)` — curtains wider than the glass + floor-to-ceiling, blinds slightly wider with a
   covering drop. The `Curtain` primitive is a **double-sided wavy draped sheet** (two gathering panels,
@@ -91,6 +91,13 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   `<mesh position rotation>` box — verified byte-identical (AE=0) across the raise/lower range. The
   slat layout is pure geometry in `primitives/slatLayout.ts` (`venetianSlatInstances`/
   `venetianSlatCount`, unit-tested); the raise/lower toggle stays a Y-scale on the parent group.
+  **Zebra/combi** (`kind:'zebra'`, SG's most popular blind) reuses the same anchored-stack pattern
+  for its alternating opaque/sheer bands (`zebraBandInstances`, two `InstancedBoxes` buckets — one
+  material per band type, since a shared instanced material can't vary opacity per instance) —
+  the sheer band rides the drapery sheer-opacity path (translucent cloth, not a flat tint).
+  **Roman** (`kind:'roman'`) is a small fixed stack of overlapping `RoundedBox` folds right under
+  the cassette (`romanFoldOffsets`, few enough to render as plain meshes) plus the ordinary flat
+  roller panel below, scaled by `lower` exactly like the roller.
   The **drying rack** does the same for its rods via the sibling `InstancedCylinders`
   (unit-cylinder scaled `[radius, length, radius]` + rotation; `dryingRackCylinders` in the same
   module) — all 11 legs/rails/bars collapse to one draw call (bars unified to the leg tessellation).

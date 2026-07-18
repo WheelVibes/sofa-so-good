@@ -136,7 +136,20 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   (`draperyOpacity.ts` `DraperyOpacity` sheer→blackout → `{visual, transmit}`): the primitive passes
   `getDraperyMaterial`'s `opacity` (sheer renders translucent via `getFabricMaterial`'s `opacity` arg)
   and `windowLightModifiers` reads `draperyTransmit` for the daylight floor. Velvet uses
-  `getVelvetMaterial`'s `doubleSided` arg (cache-keyed, default-unchanged).
+  `getVelvetMaterial`'s `doubleSided` arg (cache-keyed, default-unchanged). Linen gets a visibly
+  coarser weave-relief `normalScale` than cotton (not just a hairline roughness delta — safe to
+  mutate the cached instance since linen's `rough=0.98` key never collides with cotton's `0.95`);
+  a zebra blind's translucent sheer band rides the same `opacity<1` path as a sheer curtain (real
+  cloth normal map kept, just transparent) rather than a flat unlit plane.
+  **Door leaf finish (`openingStyles` `material` axis):** `PlanOpening.material`
+  (`floorplan/doorMaterial.ts:resolveDoorLeafMaterialKind`, additive like `style`/`color`) picks
+  `painted` (flat `getPaintedMaterial`, default) / `wood` (`getWoodMaterial`) / `vinyl`
+  (`getVinylMaterial` — smooth PVC laminate, the SG toilet/utility-door standard, defaulted for
+  `style:'bifold'`), gated behind `pbrSurfaces` exactly like `getMetalMaterial` (physical +
+  clearcoat + micro-normal on, plain `MeshStandardMaterial` off). `PlanDoorLeaf` **clones** the
+  cached instance per door (same pattern as `WallSegment`'s `faded` clone) because its camera-reveal
+  fade mutates `opacity`/`transparent` per-instance — a shared cached material would leak that
+  mutation across every same-colour door.
   Don't invent bespoke texture art — apply a CC0 DLC material over the procedural fallback.
   The procedural micro-textures (256² shared singletons, tinted via `material.color`) get their
   higher-fidelity variants — plank wood, woven fabric, painted micro-normal — behind the

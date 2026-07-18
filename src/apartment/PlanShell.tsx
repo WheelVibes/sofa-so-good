@@ -28,6 +28,7 @@ import {
   wallLength,
 } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
+import { louvreSlatOffsets, verticalBarOffsets } from '../floorplan/windowGrilleLayout'
 import { BeveledBox } from '../furniture/primitives/BeveledBox'
 import {
   GLASS_SKYCATCH_COLOR,
@@ -948,21 +949,28 @@ function FadeWindow({
     mat.opacity += (target - mat.opacity) * 0.18
     if (Math.abs(mat.opacity - target) > 0.003) invalidate()
   })
-  // Optional safety grille (vertical bars) or louvre (horizontal slats) over the
-  // glass — pure thin geometry in the window plane (local Z = width, Y = height).
+  // Optional safety grille (vertical bars), louvre (horizontal slats), or
+  // invisible grille (hair-thin cables) over the glass — pure thin geometry in
+  // the window plane (local Z = width, Y = height); the layout maths lives in
+  // `windowGrilleLayout.ts` so it's unit-testable without a GPU.
   const style = win.style ?? 'plain'
   const bars: { pos: [number, number, number]; size: [number, number, number] }[] = []
+  const cables: { pos: [number, number, number] }[] = []
   if (style === 'grille') {
-    const n = Math.max(2, Math.round(win.width / 0.16))
-    for (let i = 1; i < n; i++) {
-      const z = -win.width / 2 + (win.width * i) / n
+    for (const z of verticalBarOffsets(win.width, 0.16)) {
       bars.push({ pos: [0, 0, z], size: [0.018, win.height * 0.98, 0.012] })
     }
   } else if (style === 'louvre') {
-    const n = Math.max(3, Math.round(win.height / 0.14))
-    for (let i = 0; i < n; i++) {
-      const y = -win.height / 2 + (win.height * (i + 0.5)) / n
+    for (const y of louvreSlatOffsets(win.height, 0.14)) {
       bars.push({ pos: [0, y, 0], size: [0.05, 0.02, win.width * 0.98] })
+    }
+  } else if (style === 'invisible-grille') {
+    // Modern "invisible grille" convention: hair-thin stainless cables spaced
+    // ~10 cm apart, near-transparent so they barely register at a glance
+    // (unlike the chunky visible `grille` bars) while still reading as a
+    // safety barrier close-up.
+    for (const z of verticalBarOffsets(win.width, 0.1)) {
+      cables.push({ pos: [0, 0, z] })
     }
   }
   return (
@@ -1000,6 +1008,18 @@ function FadeWindow({
         <mesh key={i} position={b.pos} castShadow>
           <boxGeometry args={b.size} />
           <meshStandardMaterial color="#cfd2d4" roughness={0.5} metalness={0.4} />
+        </mesh>
+      ))}
+      {cables.map((c, i) => (
+        <mesh key={i} position={c.pos}>
+          <cylinderGeometry args={[0.004, 0.004, win.height * 0.98, 6]} />
+          <meshStandardMaterial
+            color="#d7dade"
+            roughness={0.3}
+            metalness={0.7}
+            transparent
+            opacity={0.4}
+          />
         </mesh>
       ))}
     </group>

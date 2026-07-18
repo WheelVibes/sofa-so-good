@@ -251,6 +251,8 @@ export const DECOR_DEFS = {
         options: [
           { value: 'roller', label: 'Roller' },
           { value: 'venetian', label: 'Venetian slats' },
+          { value: 'zebra', label: 'Zebra / combi' },
+          { value: 'roman', label: 'Roman (fabric folds)' },
         ],
       },
     ],

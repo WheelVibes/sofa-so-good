@@ -1,9 +1,15 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { Color, type Group, Mesh, type MeshStandardMaterial, Vector3 } from 'three'
+import { resolveDoorLeafMaterialKind } from '../floorplan/doorMaterial'
 import type { PlanOpening, PlanWall } from '../floorplan/types'
 import { wallLength } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
+import {
+  getPaintedMaterial,
+  getVinylMaterial,
+  getWoodMaterial,
+} from '../materials/furnitureMaterials'
 import { dispatchWalkInteract } from '../state/editing'
 import { useStore } from '../state/store'
 import { FLAT } from './constants'
@@ -42,6 +48,18 @@ function shade(hex: string, f: number): string {
  * it through the shared `doors` store (so collision + render stay in sync). It
  * fades out with the wall it sits in when that wall is between the orbit camera
  * and the plan centre, matching `FadeWall`.
+ *
+ * `style: 'bifold'` (the standard SG toilet/utility door) renders as two
+ * half-width leaves instead of one: the outer leaf hinges at the jamb, the
+ * inner leaf hinges at the outer leaf's far edge and folds further in the same
+ * rotational sense, both driven by the same open/close `angleRef` timing — a
+ * fully open bifold reads as outer 45° / inner 135° off the wall. This is a
+ * simple, honest visual (not true accordion/piano-hinge kinematics); the 2D
+ * plan swing arc (`doorSwing.ts`) intentionally keeps the standard full-width
+ * quarter-round envelope for a bifold too (a conservative superset of the
+ * folded leaves' actual sweep, not a literal trace of it — parameterising the
+ * arc to the folded shape would need real per-leaf arc geometry the 2D layer
+ * doesn't model for any door style yet).
  */
 export function PlanDoorLeaf({
   wall,
@@ -67,10 +85,35 @@ export function PlanDoorLeaf({
   const toggle = useStore((s) => s.toggleDoor)
   const rootRef = useRef<Group>(null)
   const swingRef = useRef<Group>(null!)
+  // Bifold only: the second leaf's fold hinge, a child of `swingRef` anchored at
+  // the outer leaf's far edge (see the `isBifold` render branch below).
+  const foldRef = useRef<Group>(null)
   const angleRef = useRef(0)
   const opacityRef = useRef(1)
   const transparentRef = useRef(false)
   const { camera } = useThree()
+  const isBifold = (opening.style ?? 'panel') === 'bifold'
+  // Real leaf-surface material (door `material` axis) — painted (flat colour,
+  // today's default), procedural wood grain, or smooth vinyl/PVC laminate (the
+  // SG toilet-door standard, defaulted for `bifold`). A real three `Material`
+  // instance (not a plain props object) per the furniture-material convention.
+  const leafColor = opening.color ?? DEFAULT_LEAF
+  const leafMaterialKind = resolveDoorLeafMaterialKind(opening)
+  // Clone: the fade effect below mutates `opacity`/`transparent` per door, so
+  // this leaf needs its OWN material even though the cached helper shares one
+  // instance per (kind, colour) across every door — same pattern as
+  // `WallSegment`'s `faded` clone (textures still shared by reference; the
+  // clone only frees its own GPU program on unmount).
+  const leafMat = useMemo(() => {
+    const base =
+      leafMaterialKind === 'vinyl'
+        ? getVinylMaterial(leafColor)
+        : leafMaterialKind === 'wood'
+          ? getWoodMaterial(leafColor, 1, 0.45)
+          : getPaintedMaterial(leafColor)
+    return base.clone()
+  }, [leafMaterialKind, leafColor])
+  useEffect(() => () => leafMat.dispose(), [leafMat])
 
   const len = wallLength(wall)
   const sCentre = opening.offset + opening.width / 2
@@ -196,11 +239,55 @@ export function PlanDoorLeaf({
           ? target
           : angleRef.current + Math.sign(target - angleRef.current) * step
     }
-    if (swingRef.current)
-      swingRef.current.rotation.y = (swing === 'left' ? 1 : -1) * angleRef.current
+    const swingSign = swing === 'left' ? 1 : -1
+    if (isBifold) {
+      // Simple honest visual (not true accordion kinematics): the outer leaf
+      // swings 0→45° at the jamb, the inner leaf folds a further 0→90° at the
+      // mid-fold hinge — both in the SAME rotational sense — so a fully open
+      // bifold reads as outer 45° / inner 135° from the wall.
+      const t = angleRef.current / SWING_RAD
+      if (swingRef.current) swingRef.current.rotation.y = swingSign * t * (Math.PI / 4)
+      if (foldRef.current) foldRef.current.rotation.y = swingSign * t * (Math.PI / 2)
+    } else if (swingRef.current) {
+      swingRef.current.rotation.y = swingSign * angleRef.current
+    }
   })
 
   if (len === 0) return null
+
+  if (isBifold) {
+    // Two half-width leaves: the outer leaf hinges at the jamb (`swingRef`,
+    // reusing the same click/toggle + fade infrastructure as the single-leaf
+    // door); the inner leaf hinges at the outer leaf's far edge (`foldRef`) and
+    // folds further in the same rotational sense (see the `useFrame` above).
+    const halfWidth = opening.width / 2
+    const onLeafClick = (e: { stopPropagation: () => void }) => {
+      // Orbit mode is view-only (VIEW-EDIT-SPLIT) — see Door.tsx.
+      if (!dispatchWalkInteract(useStore.getState(), opening.id, toggle)) return
+      e.stopPropagation()
+    }
+    const leaf = (key: string) => (
+      <mesh
+        key={key}
+        position={[(direction * halfWidth) / 2, 0, 0]}
+        onClick={onLeafClick}
+        material={leafMat}
+        castShadow
+      >
+        <boxGeometry args={[halfWidth, height, LEAF_THICK]} />
+      </mesh>
+    )
+    return (
+      <group ref={rootRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
+        <group ref={swingRef} position={[hingeLocalX, opening.sill, 0]}>
+          <group position={[0, height / 2, 0]}>{leaf('outer')}</group>
+          <group ref={foldRef} position={[direction * halfWidth, height / 2, 0]}>
+            {leaf('inner')}
+          </group>
+        </group>
+      </group>
+    )
+  }
 
   return (
     <group ref={rootRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
@@ -212,10 +299,10 @@ export function PlanDoorLeaf({
               if (!dispatchWalkInteract(useStore.getState(), opening.id, toggle)) return
               e.stopPropagation()
             }}
+            material={leafMat}
             castShadow
           >
             <boxGeometry args={[opening.width, height, LEAF_THICK]} />
-            <meshStandardMaterial color={opening.color ?? DEFAULT_LEAF} roughness={0.7} />
           </mesh>
           {/* Recessed panels (two per face) for a panelled-door look — the
               default 'panel' style only; 'flush' is a plain slab. */}

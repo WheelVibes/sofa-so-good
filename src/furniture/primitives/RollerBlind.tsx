@@ -1,3 +1,4 @@
+import { RoundedBox } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import type { Group, Mesh } from 'three'
@@ -8,7 +9,26 @@ import { pulseShadowRefreshForMotion } from '../../scene/shadowRefreshSignal'
 import type { ParamProps } from '../types'
 import { InstancedBoxes } from './InstancedBoxes'
 import { readNum, readStr } from './shared'
-import { venetianSlatInstances } from './slatLayout'
+import {
+  ROMAN_FOLD_HEIGHT,
+  romanFoldOffsets,
+  venetianSlatInstances,
+  zebraBandInstances,
+} from './slatLayout'
+
+/** Lightens a `#rrggbb` colour toward white by `amount` (0-1) — used to derive
+ *  the pale sheer band tint of a zebra/combi blind from its fabric colour
+ *  without a general colour-mixing dependency. */
+function lightenHex(hex: string, amount: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
+  if (!m) return hex
+  const n = Number.parseInt(m[1], 16)
+  const mix = (channel: number) => Math.round(channel + (255 - channel) * amount)
+  const r = mix((n >> 16) & 0xff)
+  const g = mix((n >> 8) & 0xff)
+  const b = mix(n & 0xff)
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
+}
 
 /** How fast the raise/lower animation eases (fraction of the gap per second·dt). */
 const LOWER_SPEED = 3.0
@@ -56,6 +76,21 @@ export function RollerBlind({ props }: { props: ParamProps }) {
   // (previously one mesh per slat). The raise/lower stays a Y-scale on the
   // parent group, so the transforms rebuild only when width/drop change.
   const slatInstances = useMemo(() => venetianSlatInstances(width, maxDrop), [width, maxDrop])
+  // Zebra/combi: alternating opaque/sheer bands, same anchored-stack pattern as
+  // the venetian slats (two InstancedBoxes buckets since each band type needs
+  // its own material).
+  const zebraBands = useMemo(() => zebraBandInstances(width, maxDrop), [width, maxDrop])
+  const zebraOpaqueMat = getDraperyMaterial(fabric, color, pattern, false, visualOpacity)
+  const zebraSheerMat = getDraperyMaterial(
+    'cotton',
+    lightenHex(color, 0.55),
+    'plain',
+    false,
+    Math.min(visualOpacity, 0.55),
+  )
+  // Roman: a small fixed fold stack right under the cassette (raised-portion
+  // gather) plus the ordinary flat panel below, scaled by `lower` like roller.
+  const foldOffsets = useMemo(() => romanFoldOffsets(), [])
 
   const fabricRef = useRef<Mesh>(null)
   const railRef = useRef<Group>(null)
@@ -131,17 +166,45 @@ export function RollerBlind({ props }: { props: ParamProps }) {
             <meshStandardMaterial {...slatMat} />
           </InstancedBoxes>
         </group>
+      ) : kind === 'zebra' ? (
+        // Alternating opaque/sheer band stack anchored at the cassette top,
+        // scaled down toward it as raised — same group pattern as venetian.
+        <group ref={slatsRef} position={[0, fabricTop, 0]} scale={[1, drop0 / maxDrop, 1]}>
+          <InstancedBoxes instances={zebraBands.opaque} castShadow>
+            <primitive object={zebraOpaqueMat} attach="material" />
+          </InstancedBoxes>
+          <InstancedBoxes instances={zebraBands.sheer}>
+            <primitive object={zebraSheerMat} attach="material" />
+          </InstancedBoxes>
+        </group>
       ) : (
-        // Single fabric panel: a unit-height (1 m) box scaled to the drop.
-        <mesh
-          ref={fabricRef}
-          castShadow
-          position={[0, fabricTop - drop0 / 2, 0.04]}
-          scale={[1, drop0, 1]}
-          material={fabricMat}
-        >
-          <boxGeometry args={[width, 1, 0.012]} />
-        </mesh>
+        <>
+          {kind === 'roman' &&
+            // Fixed fold stack (the gathered header) sitting just under the
+            // cassette — always visible, independent of the raise/lower state.
+            foldOffsets.map((y, i) => (
+              <RoundedBox
+                key={i}
+                castShadow
+                args={[width, ROMAN_FOLD_HEIGHT, 0.05]}
+                radius={0.018}
+                smoothness={2}
+                position={[0, fabricTop + y, 0.03]}
+                material={fabricMat}
+              />
+            ))}
+          {/* Single fabric panel: a unit-height (1 m) box scaled to the drop.
+              Shared by roller and roman (the roman fold stack overlays its top). */}
+          <mesh
+            ref={fabricRef}
+            castShadow
+            position={[0, fabricTop - drop0 / 2, 0.04]}
+            scale={[1, drop0, 1]}
+            material={fabricMat}
+          >
+            <boxGeometry args={[width, 1, 0.012]} />
+          </mesh>
+        </>
       )}
       {/* Weighted bottom rail — follows the lowered edge. */}
       <group ref={railRef} position={[0, fabricTop - drop0, 0]}>
