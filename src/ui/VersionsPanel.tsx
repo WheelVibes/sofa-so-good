@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useFeature } from '../features/useFeature'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import { buildMergedCatalog } from '../furniture/catalog'
 import type { FurnitureItem } from '../furniture/types'
@@ -66,6 +67,8 @@ async function loadRows(): Promise<VersionRow[]> {
 export function VersionsPanel() {
   const open = useStore((s) => s.versionsOpen)
   const setOpen = useStore((s) => s.setVersionsOpen)
+  const setVersionCompare = useStore((s) => s.setVersionCompare)
+  const canCompare3d = useFeature('versionCompareView')
   const plan = useStore((s) => s.floorPlan)
   const itemCount = useStore((s) => s.items.length)
   const lastSavedAt = useStore((s) => s.lastSavedAt)
@@ -272,6 +275,15 @@ export function VersionsPanel() {
                   >
                     <Icon.Checks width={13} height={13} /> Compare
                   </button>
+                  {canCompare3d ? (
+                    <button
+                      type="button"
+                      onClick={() => setVersionCompare(r.slot)}
+                      title="Split-view compare this version against the current design in 3D"
+                    >
+                      <Icon.Compare width={13} height={13} /> Compare in 3D
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="del"

@@ -70,6 +70,7 @@ export type FeatureFlag =
   | 'renderCompare'
   | 'stagingReveal'
   | 'timeCompare'
+  | 'versionCompareView'
   | 'dayNightClip'
   | 'styleTransfer'
   | 'styleQuiz'

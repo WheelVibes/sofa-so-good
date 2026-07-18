@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.19 — Version compare in 3D (split-view reveal)
+
+Compare a saved version against the current design in the live 3D view
+(`versionCompareView` flag, pro): a "Compare in 3D" button on each Versions
+row opens a reveal-divider modal (Current | slot name) built on the proven
+capture-swap-restore pipeline (`RenderCompareModal`/`StagingRevealModal`
+pattern — captures two PNGs, never a live dual-scene render). Safety: the
+pure `withTemporaryDesign` helper pauses autosave (new
+`pauseAutosave`/`resumeAutosave` that cancel the pending debounce and resync
+the watch snapshot on restore) and runs BOTH the swap-in and restore inside
+`runWithoutHistory`, so a compare never leaks into undo history or a save —
+GPU-verified end-to-end (history length + item count unchanged after
+capture). Modal added to the idle-preload order (parity with its sibling).
+15 tests across the pure orchestration, flag gating, and panel wiring.
+
 ## v0.22.2.18 — Catalog comparison tray (CATALOG-COMPARE)
 
 Pick 2–3 same-category items and compare them side-by-side (`catalogCompare`

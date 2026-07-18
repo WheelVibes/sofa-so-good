@@ -58,6 +58,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     // in Simple mode.
     tier: 'pro',
   },
+  // Live 3D split-view compare against a saved version (sibling of `versions`,
+  // opened from a version row). Image-based (see versionCompare.ts docblock):
+  // captures the current view, then temporarily swaps the saved version's
+  // design into the live scene, captures it, and restores the exact prior
+  // state — reusing the renderCompare/stagingReveal reveal-divider UI rather
+  // than a live dual-scene render. Prod-safe pure code (same capture pipeline
+  // as those two), but a version-management surface → pro tier, same as
+  // `versions` itself.
+  versionCompareView: {
+    label: 'Compare version in 3D',
+    description: 'Split-view a saved version against the current design on a draggable divider',
+    default: true,
+    tier: 'pro',
+  },
   history: {
     label: 'Edit history',
     description: 'Undo timeline panel',

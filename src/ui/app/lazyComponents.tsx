@@ -44,6 +44,9 @@ export const RenderCompareModal = lazyWithRetry(() =>
 export const StagingRevealModal = lazyWithRetry(() =>
   import('../StagingRevealModal').then((m) => ({ default: m.StagingRevealModal })),
 )
+export const VersionCompareModal = lazyWithRetry(() =>
+  import('../VersionCompareModal').then((m) => ({ default: m.VersionCompareModal })),
+)
 export const TimeCompareModal = lazyWithRetry(() =>
   import('../TimeCompareModal').then((m) => ({ default: m.TimeCompareModal })),
 )

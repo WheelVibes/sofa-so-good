@@ -175,7 +175,9 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
 ## Versions, share & report
 
 - **Versions** *(Pro)* — save, restore, and delete named snapshots of your layout,
-  each with a thumbnail (deleting asks you to confirm).
+  each with a thumbnail (deleting asks you to confirm). **Compare in 3D** puts a
+  saved version side-by-side with your current design in the live view behind a
+  draggable reveal slider, so you can see exactly what changed before you restore.
 - **Share & export** — copy a shareable link or export a real **PNG snapshot** of
   the current view. **Save hero image** builds a polished, share-ready card in
   one tap — your current 3D view framed with the design's name, an item/area/room

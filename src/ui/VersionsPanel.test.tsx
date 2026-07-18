@@ -5,8 +5,10 @@
  * panel's real `save()` (verified by the prompt it opens — `promptText`
  * flips `textPrompt` from null, proving the real handler ran, not a stub).
  */
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { serialize } from '../state/schema'
+import { storage } from '../state/storage/adapter'
 import { useStore } from '../state/store'
 import { VersionsPanel } from './VersionsPanel'
 
@@ -17,6 +19,7 @@ beforeEach(() => {
 
 afterEach(() => {
   useStore.setState({ versionsOpen: false, textPrompt: null })
+  localStorage.clear()
 })
 
 describe('VersionsPanel empty state', () => {
@@ -34,7 +37,7 @@ describe('VersionsPanel empty state', () => {
     expect(useStore.getState().textPrompt?.title).toBe('Save version')
   })
 
-  it('behaves identically in Simple and Pro mode (component has no tier-conditional logic — the pro-tier gate lives upstream in toolActions/menu visibility)', () => {
+  it('behaves identically in Simple and Pro mode for save() (its own gate lives upstream in toolActions/menu visibility)', () => {
     for (const mode of ['simple', 'pro'] as const) {
       useStore.getState().setUiMode(mode)
       useStore.getState().reresolveFeatureFlags()
@@ -44,5 +47,29 @@ describe('VersionsPanel empty state', () => {
       useStore.setState({ textPrompt: null })
       unmount()
     }
+  })
+})
+
+describe('VersionsPanel "Compare in 3D" row action (versionCompareView gating)', () => {
+  beforeEach(async () => {
+    await storage.save('scandi-living-room', serialize(useStore.getState()))
+  })
+
+  it('is ON in Pro mode: renders the row action and opens the compare modal for that slot', async () => {
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+    render(<VersionsPanel />)
+    const btn = await screen.findByRole('button', { name: /Compare in 3D/ })
+    fireEvent.click(btn)
+    expect(useStore.getState().versionCompareOpen).toBe(true)
+    expect(useStore.getState().versionCompareSlot).toBe('scandi-living-room')
+  })
+
+  it('is forced OFF in Simple mode: the row action is not rendered', async () => {
+    useStore.getState().setUiMode('simple')
+    useStore.getState().reresolveFeatureFlags()
+    render(<VersionsPanel />)
+    await waitFor(() => expect(screen.getByText('scandi-living-room')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: /Compare in 3D/ })).not.toBeInTheDocument()
   })
 })

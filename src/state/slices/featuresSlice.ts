@@ -71,6 +71,12 @@ export interface FeaturesSlice {
   renderCompareOpen: boolean
   /** Before/after staging-reveal modal visibility (empty room vs furnished). */
   stagingRevealOpen: boolean
+  /** Live 3D version split-view compare modal visibility (current design vs a
+   *  saved version, reveal-divider). */
+  versionCompareOpen: boolean
+  /** The saved version slot the compare modal targets, or null when closed /
+   *  none chosen yet. Set together with `versionCompareOpen`. */
+  versionCompareSlot: string | null
   /** Time-of-day comparison reveal modal visibility (same scene, two times). */
   timeCompareOpen: boolean
   /** One-tap style-transfer modal visibility. */
@@ -157,6 +163,8 @@ export interface FeaturesSlice {
   setHqRenderOpen: (open: boolean) => void
   setRenderCompareOpen: (open: boolean) => void
   setStagingRevealOpen: (open: boolean) => void
+  /** Open the version-compare modal for `slot` (null to close). */
+  setVersionCompare: (slot: string | null) => void
   setTimeCompareOpen: (open: boolean) => void
   setStyleTransferOpen: (open: boolean) => void
   setStyleQuizOpen: (open: boolean) => void
@@ -208,6 +216,8 @@ export const FEATURES_INITIAL = {
   hqRenderOpen: false,
   renderCompareOpen: false,
   stagingRevealOpen: false,
+  versionCompareOpen: false,
+  versionCompareSlot: null as string | null,
   timeCompareOpen: false,
   styleTransferOpen: false,
   styleQuizOpen: false,
@@ -270,6 +280,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setHqRenderOpen: (hqRenderOpen) => set({ hqRenderOpen }),
   setRenderCompareOpen: (renderCompareOpen) => set({ renderCompareOpen }),
   setStagingRevealOpen: (stagingRevealOpen) => set({ stagingRevealOpen }),
+  setVersionCompare: (slot) => set({ versionCompareOpen: slot !== null, versionCompareSlot: slot }),
   setTimeCompareOpen: (timeCompareOpen) => set({ timeCompareOpen }),
   setStyleTransferOpen: (styleTransferOpen) => set({ styleTransferOpen }),
   setStyleQuizOpen: (styleQuizOpen) => set({ styleQuizOpen }),

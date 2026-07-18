@@ -140,6 +140,42 @@ export interface AutosaveOptions {
   onRecover?: () => void
 }
 
+/** Module-level pause switch (VERSION-COMPARE-VIEW): lets a caller that
+ *  temporarily swaps a DIFFERENT design into the live store (e.g. the version
+ *  split-view's capture-then-restore) guarantee the debounced write can never
+ *  fire mid-swap and persist that scratch state over the real autosave slot —
+ *  regardless of how long the swap holds the store (no race with `DEBOUNCE_MS`).
+ *  There's only ever one `startAutosave()` instance app-wide (wired once in
+ *  `bootstrap.ts`), so a module-level flag (rather than a per-instance one
+ *  threaded through closures) is sufficient and lets any caller reach it
+ *  without a store reference. */
+let autosavePaused = false
+/** Pending debounce timer, hoisted to module scope so `pauseAutosave` can
+ *  cancel a write that's already scheduled when the pause begins. */
+let pendingTimer: ReturnType<typeof setTimeout> | null = null
+/** Last-seen persisted snapshot, hoisted to module scope so `resumeAutosave`
+ *  can resync it to the just-restored state without a spurious write. */
+let lastPersistent: Persistent | null = null
+
+/** Suspend autosave scheduling: cancels any pending debounced write and
+ *  ignores further store changes until {@link resumeAutosave}. */
+export function pauseAutosave(): void {
+  autosavePaused = true
+  if (pendingTimer) {
+    clearTimeout(pendingTimer)
+    pendingTimer = null
+  }
+}
+
+/** Resume autosave scheduling and resync the watched snapshot to the CURRENT
+ *  state (called right after the caller has restored the store to its
+ *  pre-swap values), so the restore itself is never mistaken for a change
+ *  needing a write. */
+export function resumeAutosave(): void {
+  autosavePaused = false
+  lastPersistent = pickPersistent()
+}
+
 /** Subscribes to the store and writes the autosave slot at most once
  *  per `DEBOUNCE_MS`. Returns an unsubscribe + flush handle. */
 export function startAutosave({
@@ -147,12 +183,11 @@ export function startAutosave({
   onError,
   onRecover,
 }: AutosaveOptions = {}): () => void {
-  let timer: ReturnType<typeof setTimeout> | null = null
-  let last = pickPersistent()
+  lastPersistent = pickPersistent()
   let failed = false
 
   const flush = () => {
-    timer = null
+    pendingTimer = null
     const state = useStore.getState()
     const payload = serialize(state)
     adapter
@@ -171,11 +206,16 @@ export function startAutosave({
   }
 
   const unsubscribe = useStore.subscribe(() => {
+    // Ignore store changes entirely while a temporary-design swap (VERSION-
+    // COMPARE-VIEW) is in progress — `resumeAutosave()` resyncs `lastPersistent`
+    // once the swap restores the real state, so no write is ever scheduled for
+    // the scratch state and none is missed for the restore either.
+    if (autosavePaused) return
     const next = pickPersistent()
-    if (shallowEqual(next, last)) return
-    last = next
-    if (timer) clearTimeout(timer)
-    timer = setTimeout(flush, DEBOUNCE_MS)
+    if (lastPersistent && shallowEqual(next, lastPersistent)) return
+    lastPersistent = next
+    if (pendingTimer) clearTimeout(pendingTimer)
+    pendingTimer = setTimeout(flush, DEBOUNCE_MS)
   })
 
   // Flush a pending debounced write before the page goes away, so an edit made
@@ -186,8 +226,8 @@ export function startAutosave({
   const flushPending = () => {
     // Push any pending cloud autosave up before the page goes away.
     flushCloudAutosave()
-    if (!timer) return
-    clearTimeout(timer)
+    if (!pendingTimer) return
+    clearTimeout(pendingTimer)
     flush()
   }
   const onPageHide = () => flushPending()

@@ -41,6 +41,7 @@ import {
   StyleQuizModal,
   StyleTransferModal,
   TimeCompareModal,
+  VersionCompareModal,
   VersionsPanel,
 } from './ui/app/lazyComponents'
 import { preloadFeatureChunks } from './ui/app/preloadOnIdle'
@@ -111,6 +112,7 @@ export default function App() {
     hqRenderOpen: useStore((s) => s.hqRenderOpen),
     renderCompareOpen: useStore((s) => s.renderCompareOpen),
     stagingRevealOpen: useStore((s) => s.stagingRevealOpen),
+    versionCompareOpen: useStore((s) => s.versionCompareOpen),
     timeCompareOpen: useStore((s) => s.timeCompareOpen),
     styleTransferOpen: useStore((s) => s.styleTransferOpen),
     styleQuizOpen: useStore((s) => s.styleQuizOpen),
@@ -448,6 +450,11 @@ export default function App() {
         {lazyPanels.stagingRevealOpen ? (
           <Suspense fallback={null}>
             <StagingRevealModal />
+          </Suspense>
+        ) : null}
+        {lazyPanels.versionCompareOpen ? (
+          <Suspense fallback={null}>
+            <VersionCompareModal />
           </Suspense>
         ) : null}
         {lazyPanels.timeCompareOpen ? (
