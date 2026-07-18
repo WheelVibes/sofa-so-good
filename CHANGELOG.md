@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.39 — G6: DXF export enriched for CAD handoff
+
+`planToDxf` gains FURNITURE (each item's rotated OBB footprint — the same
+`itemFootprint` collision geometry — as a closed POLYLINE) + FURNITURE_TEXT
+(name), DIMENSIONS (the report's auto-dimension strings as LINE + tick +
+extension-stub + centred TEXT — deliberately not R12 DIMENSION entities,
+whose DIMSTYLE dependency renders inconsistently in lightweight readers),
+and OPENING_MARKS (D1/W1… labels matching the door/window schedule), each
+with a distinct AutoCAD colour index. Deterministic; stale defs skipped.
+24 dxf tests (60 with neighbours) green; structural round-trip verified by
+line-scanner (ezdxf unavailable in sandbox). User doc updated. (TODO G6 →
+cleared; ARCHITECTURE bullet rides the next commit — shared file with an
+in-flight agent.)
+
 ## v0.22.2.38 — Contractor-handover goal: research + gap analysis + roadmap
 
 New goal (user): output must be contractor-buildable — dimensioned, to-scale,
