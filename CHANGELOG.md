@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.33 — IXT-SUITES batch 12 (final): coverage complete + thumbnail-leak probe
+
+Six ladders close out the uncovered-flag pool: `sunStudy` (Tools time-lapse),
+`cameraDof` (HQ-render lens controls + f-stop store round-trip),
+`smartRotateSnap` (gizmo neighbour-axis snap vs 15° grid), `assetSets`
+(GLB-designer "Save groups as separate assets" — NOT the Arrange Sets picker,
+a near-miss the two-pass derivation caught), `pbrSurfaces` (material-factory
+oracle), `paletteFromPhoto` (gate-only; full flow blocked on the native file
+picker — no dev hook). **Uncovered drivable flags: 0.** Plus
+`thumbnail-clone-gpu-probe.json`: measured `gl.info.memory` across category
+cycles + a 3-concurrent compare-tray open → **no leak** (counts fluctuate and
+drop; SkeletonUtils.clone shares geometry with the useGLTF cache — ruling
+recorded in TODO). No app bugs; playbook gotchas appended (incl. reaching
+r3f's `_roots` via the Vite optimized-dep URL from page-context eval).
+
 ## v0.22.2.32 — Docs-currency pass (audit of the 43-commit session)
 
 Read-only docs audit found the user guide already current for every big new

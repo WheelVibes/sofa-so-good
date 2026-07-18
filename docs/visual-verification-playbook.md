@@ -2134,3 +2134,97 @@ Living/Dining room at High tier (the money shot). It's the Stage-11b integration
   without the `uv` attribute — the live scene graph reflects the new geometry object immediately, no
   extra settle wait needed beyond letting the store's re-render commit (~800 ms was generous, not
   required to be that long).
+
+### Gotchas from the IXT-SUITES back-fill batch 12 (sunStudy / cameraDof / smartRotateSnap / assetSets / pbrSurfaces) — likely the FINAL batch
+
+This batch closed out the six flags batch 11's report left uncovered. Re-deriving the "uncovered"
+list confirmed all six were genuinely un-scenario'd (two-pass check: `grep -rl <flag> scripts/
+scenarios/` found zero content hits for any of the six, and a filename dash-match found only
+unrelated near-miss files — `pbr-maps-verify.json` for `pbrSurfaces` (already known unrelated per
+batch 10) and `palettepresets-simple.json` for `paletteFromPhoto` (confirmed a genuinely different
+flag, `palettePresets`, by reading both `registry.ts` entries side by side)).
+
+- **A parent-agent task brief can misname which flag gates which UI — verify against the registry
+  before writing the scenario, not the brief's prose.** The brief described `assetSets` as "the
+  Arrange 'Sets' pick→apply" (`ArrangeMenu.tsx`'s "Drop a set" dropdown), but `grep -rn "assetSets"
+  src/` shows its only real wiring is `ui/glbEditor/designerContext.tsx`'s `setsEnabled` — the GLB
+  designer's "Save groups as separate assets" checkbox (Asset Studio Stage 3d,
+  `furniture/glbEdit/setSplit.ts`). The Arrange "Drop a set" picker is completely ungated (no flag
+  at all); `ArrangeMenu.tsx`'s "My sets" section uses a DIFFERENT flag (`userSets`). Always
+  `grep -rn "<flagName>" src/` before touching source/writing steps — a name that sounds like an
+  existing feature can point somewhere else entirely.
+- **`useSunStudy`'s time-lapse hardcodes its start hour to 6 (dawn), ignoring whatever
+  `manualHour` was before activation** (`scene/sunStudy.ts` / the near-duplicate copy inlined in
+  `ToolsMenu.tsx`) — only the STOP path restores the pre-toggle `timeMode`+`manualHour`. A
+  scenario that seeds `manualHour=13` then asserts the hour "advanced forward from 13" after
+  toggling on is wrong: the real first frame jumps DOWN to ~6 before climbing. Assert instead that
+  the hour lands on the 6–20h dawn→dusk band and has moved away from the pre-toggle baseline (in
+  either direction), then that it keeps moving frame-over-frame; assert the STOP path restores the
+  *exact* original mode+hour (that part IS a strict equality).
+- **A Pro-only menu's rows auto-close the WHOLE menu on any click (same class as the batch-2
+  `PlanMenu` gotcha) — reopen it before every subsequent click on a different row.**
+  `ToolsMenu`/`ToolbarMenu`'s doc comment says so outright ("choosing an item closes the menu, click
+  bubbles to the panel's onClick"). Toggling `sunStudy` on, then later off, needs the Tools menu
+  reopened before the second click — the first click's own re-render already tore the panel down.
+- **`cameraDof`'s two consumers are gated independently and need different verification
+  strategies.** The raster `<DepthOfField>` pass (`scene/Effects.tsx`/`EffectsImpl.tsx`) only
+  mounts on High/Maximum quality tiers — a live pixel diff needs a real-GPU tier switch, which the
+  playbook's own "don't switch quality tiers repeatedly in one GPU session" gotcha flags as
+  fragile. The HQ Render modal's lens-control DOM (`ui/HqRenderModal.tsx`, `hasLensControls =
+  useFeature('cameraDof')`) is the clean, GPU-free rung: flag off → one fallback "Depth of field"
+  select (f-stop presets incl. off); flag on → the full set (focal-length select, aperture select,
+  auto-focus checkbox, and — only once `dofAuto` is turned off, since it **defaults to `true`** —
+  a manual focus-distance input). `setHqRenderOpen(true)` mounts the modal directly; no need to
+  actually start a render session to prove the gate + a real store round-trip
+  (picking an aperture option commits `state.dofFStop`).
+- **A rotate-gizmo drag scenario can extend `gizmo-rotate-multitouch.json`'s exact
+  world→client-px projection recipe to test angle-SNAPPING logic, not just pointer-id gating.**
+  `smartRotateSnap`'s effect (`scene/selection/rotateGizmoMath.ts:smartSnapRotation`, 5° threshold
+  around a neighbour/wall axis, else the 15° grid) needs a genuinely non-grid reference axis (seed
+  a second item at e.g. 37°/0.6458 rad — deliberately NOT a 15° multiple) and a candidate drag
+  angle within 5° of it but clearly nearer the neighbour axis than the nearest 15°-grid step (39°:
+  |39−37|=2° vs |39−45|=6°) so the two rules would visibly disagree if the flag's effect were a
+  no-op. Reset the target item's rotation to 0 (`setItems`) before EACH attempt so the grab-handle
+  world position is deterministic and reusable across an on/off A-B pair in one session.
+- **Programmatic `.click()` calls on TWO separate multi-select checkboxes in the same `eval` can
+  silently under-select — not from a React batching race, but because the SECOND element may
+  already be pre-checked from an unrelated single-selection concept.** Authoring `asset-sets-
+  simple.json`: the GLB designer keeps one derived single-selection (`selId = selIds[selIds.length
+  - 1]`) that a NEWLY ADDED shape claims via `setSelId(newId)`, which REPLACES `selIds` with just
+  that one id. So after adding two boxes in sequence, the SECOND box (not the first) is already
+  the sole selection the instant "Select" (multi-select) mode is toggled on — its checkbox starts
+  CHECKED. A scenario that then does `box1.click(); box2.click()` assuming both start unchecked
+  actually toggles box 2 back OFF (its checkbox already reflected `selected=true`, so the additive
+  `toggleSel` call REMOVES it), leaving only box 1 selected and the "Group 2" chip never appearing
+  — a failure that looks exactly like a broken multi-select feature but is a test-authoring gap.
+  Fix: assert the real starting state first (`document.querySelector('input[aria-label="Select box
+  2"]').checked === true`), then click ONLY the checkbox(es) that still need adding, not every
+  checkbox indiscriminately. General lesson for any "add N things then multi-select them" flow:
+  check whether adding an item already leaves it selected before scripting the selection clicks.
+- **`pbrSurfaces`' material-factory functions (`materials/furnitureMaterials.ts:getMetalMaterial`/
+  `getPaintedMaterial`, etc.) read the flag at BUILD time and cache by a key that deliberately
+  omits the flag** (documented in `src/materials/CLAUDE.md`) — re-toggling the flag live and
+  re-requesting the SAME `(finish, color, repeat)` key returns the stale cached instance
+  regardless of the flag's new value. A scenario proving the gate must build each half at a FRESH,
+  never-before-built cache key (a different `color` per state), not toggle-and-rebuild-the-same-
+  key. Drive the pure factory functions directly via a page-context dynamic import
+  (`await import('/src/materials/furnitureMaterials.ts')`, the same technique
+  `hqRenderSource`/`newBadges` use) rather than placing furniture and traversing the scene graph —
+  it's simpler and sidesteps ever needing to identify which mesh in a crowded scene owns which
+  cached material. Verified: flag off → plain `MeshStandardMaterial`, no `normalMap`/
+  `roughnessMap`; flag on → `MeshPhysicalMaterial` with both maps + positive `anisotropy`;
+  re-requesting the OFF-built key while the flag is now on returns the exact same stale instance
+  (worth asserting explicitly so nobody "fixes" a future version of this test by expecting a live
+  rebuild).
+- **`paletteFromPhoto` (`ui/paletteFromPhoto.ts:pickPaletteFromPhoto`) cannot be driven end-to-end
+  headlessly — confirmed by reading the implementation, not assumed.** It creates a detached
+  `<input type=file>`, wires `onchange` as a closure over that same local variable (never exposed
+  on `window`), and calls `.click()` — a real native file-picker dialog that headless Chromium
+  either hangs on or silently auto-dismisses with no `change` event either way. Unlike the
+  `sh3d-furn-import` case (which got a dev-only `__importSh3dBytes` hook), no such hook exists here
+  yet. This rung stays intentionally GATE-ONLY: the Command Palette entry's Simple/Pro visibility
+  (`CommandPalette.tsx` `COMMAND_FLAGS['palette-from-photo']`), driven via `.cmdk-search input`
+  (note: the search input has NO `aria-label`, unlike most controls in this codebase — target it
+  by its wrapper class). Reviving full coverage would need a dev-only lever like
+  `window.__pickPaletteFromPhotoBytes(base64, mimeType)` mirroring `__importSh3dBytes` — flagged,
+  not built (out of scope for a coverage back-fill).

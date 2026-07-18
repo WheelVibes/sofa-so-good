@@ -1,0 +1,80 @@
+{
+  "name": "camera-dof-simple",
+  "description": "IXT-SUITES simple rung for the `cameraDof` flag (pro tier — PC2-CAM-DOF-LENS, `ui/HqRenderModal.tsx` + `scene/Effects.tsx`/`scene/EffectsImpl.tsx`). The flag gates TWO things: (1) the raster DoF pass in `EffectsImpl` (only on High/Maximum tiers, so a live-scene pixel diff would need a real-GPU High-tier session and isn't a clean 'simple' rung); (2) the HQ Render modal's lens controls — with the flag OFF it shows one f-stop fallback dropdown ('Depth of field'), with it ON it shows the FULL lens control set (focal length + aperture selects, auto-focus checkbox, focus-distance input). This rung exercises (2) — a real DOM-level Simple/Pro-ish gate proof plus a real interaction (changing the aperture actually commits to the store) — since it needs no GPU tier switch and no path-tracer session. Opens the modal via `setHqRenderOpen(true)` directly (no need to actually start a render).",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "verify-simple-default",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000
+    },
+    { "name": "force-flag-off", "eval": "window.__store.getState().setFeatureFlag('cameraDof', false)" },
+    { "name": "open-hq-modal", "store": { "action": "setHqRenderOpen", "args": [true] } },
+    {
+      "name": "wait-modal",
+      "waitFor": { "css": ".modal-overlay" },
+      "timeout": 10000
+    },
+    { "name": "shot-simple-fallback", "screenshot": "01-flag-off-fstop-fallback" },
+    {
+      "name": "assert-fallback-only",
+      "eval": "(() => { if (document.querySelector('[aria-label=\"Lens focal length\"]')) throw new Error('cameraDof=false should hide the full lens controls'); if (!document.querySelector('[aria-label=\"Depth of field\"]')) throw new Error('cameraDof=false should still show the simple DoF-stop fallback select'); })()"
+    },
+    { "name": "close-modal-off", "store": { "action": "setHqRenderOpen", "args": [false] } },
+    { "name": "force-flag-on", "eval": "window.__store.getState().setFeatureFlag('cameraDof', true)" },
+    { "name": "reopen-hq-modal", "store": { "action": "setHqRenderOpen", "args": [true] } },
+    {
+      "name": "wait-lens-controls",
+      "waitFor": { "css": "[aria-label='Lens focal length']" },
+      "timeout": 10000,
+      "failMessage": "cameraDof=true should reveal the full lens control set (focal length select)"
+    },
+    {
+      "name": "assert-full-controls",
+      "eval": "(() => { if (document.querySelector('[aria-label=\"Depth of field\"]')) throw new Error('cameraDof=true should hide the simple fallback select'); if (!document.querySelector('[aria-label=\"Aperture (f-stop)\"]')) throw new Error('aperture select missing'); })()"
+    },
+    { "name": "shot-pro-lens-controls", "screenshot": "02-flag-on-full-lens-controls" },
+    {
+      "name": "record-fstop-baseline",
+      "eval": "window.__dofBaseline = window.__store.getState().dofFStop"
+    },
+    {
+      "name": "open-aperture-select",
+      "eval": "(() => { const b = document.querySelector('[aria-label=\"Aperture (f-stop)\"]'); if (!b) throw new Error('aperture trigger not found'); b.click(); })()"
+    },
+    {
+      "name": "wait-aperture-options",
+      "waitFor": { "css": "[role='option']" },
+      "timeout": 5000
+    },
+    {
+      "name": "pick-f2.8",
+      "eval": "(() => { const opt = [...document.querySelectorAll('[role=\"option\"]')].find(o => o.textContent.includes('2.8')); if (!opt) throw new Error('f/2.8 option not found'); opt.click(); })()"
+    },
+    {
+      "name": "assert-fstop-committed",
+      "waitFor": { "store": "state.dofFStop === 2.8 && state.dofFStop !== window.__dofBaseline" },
+      "timeout": 5000,
+      "failMessage": "picking f/2.8 in the Pro lens controls should commit state.dofFStop = 2.8"
+    },
+    { "name": "shot-fstop-applied", "screenshot": "03-fstop-2.8-applied" },
+    {
+      "name": "assert-auto-focus-checkbox-present",
+      "eval": "(() => { if (!document.querySelector('[aria-label=\"Auto-focus on the centre of the view\"]')) throw new Error('auto-focus checkbox should be visible once DoF is on') })()"
+    },
+    { "name": "turn-off-auto-focus", "store": { "action": "setDofAuto", "args": [false] } },
+    {
+      "name": "assert-focus-distance-field-visible",
+      "waitFor": { "css": "[aria-label='Focus distance (metres)']" },
+      "timeout": 5000,
+      "failMessage": "focus distance field should show once DoF is on and auto-focus is turned off"
+    },
+    { "name": "shot-manual-focus", "screenshot": "04-manual-focus-distance-field" },
+    { "name": "close-modal", "store": { "action": "setHqRenderOpen", "args": [false] } }
+  ]
+}

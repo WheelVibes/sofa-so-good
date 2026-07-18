@@ -1,0 +1,52 @@
+{
+  "name": "palette-from-photo-simple",
+  "description": "IXT-SUITES simple rung for the `paletteFromPhoto` flag (pro tier — `ui/paletteFromPhoto.ts:pickPaletteFromPhoto`, wired only as a Command Palette entry, `CommandPalette.tsx` COMMAND_FLAGS['palette-from-photo'] = 'paletteFromPhoto'). SCOPE NOTE (per the task brief): the full photo->palette->moodboard flow needs a REAL native file-picker round trip (`input.click()` on a detached `<input type=file>`, then reading the user-picked `File` in the `onchange` handler closed over that same local `input` — there is no dev hook exposing the handler or the input on `window`), which a headless Chromium session cannot drive (a `.click()` on a file input either hangs waiting for a dialog that never resolves, or Puppeteer's default no-dialog-handler auto-dismisses it with no `change` event either way) — confirmed by reading the implementation, not assumed. This rung is intentionally GATE-ONLY: it proves the Simple/Pro tier gate on the command's presence in the palette (the same technique `ai-surfaces-simple.json`/render-compare use), which is the part that IS cleanly drivable. The image-upload->extraction->moodboard round trip stays BLOCKED-NEEDS-HOOK — unit coverage of `extractPalette`/`mapPaletteToFinishes` (pure) already exercises the core logic; reviving full headless coverage would need a dev-only lever like `window.__pickPaletteFromPhotoBytes(bytes, mimeType)` that decodes a base64 image without the native file dialog (mirroring `__importSh3dBytes`) — flagged here, not built (out of scope for a coverage back-fill, no source edits).",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    {
+      "name": "verify-simple-default",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000
+    },
+    { "name": "open-cmdk-simple", "store": { "action": "setCmdkOpen", "args": [true] } },
+    {
+      "name": "wait-cmdk-simple",
+      "waitFor": { "css": ".cmdk-item" },
+      "timeout": 10000
+    },
+    {
+      "name": "type-query-simple",
+      "eval": "(() => { const inp = document.querySelector('.cmdk-search input'); const target = inp || document.activeElement; if (!target) throw new Error('command palette input not found'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(target), 'value')?.set; if (setter) setter.call(target, 'Palette from photo'); target.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    { "name": "settle-filter-simple", "wait": 400 },
+    { "name": "shot-simple-filtered", "screenshot": "01-simple-palette-from-photo-absent" },
+    {
+      "name": "assert-command-absent-in-simple",
+      "eval": "(() => { const items = [...document.querySelectorAll('.cmdk-item')]; const hit = items.find(el => el.textContent.trim().includes('Palette from photo')); if (hit) throw new Error('paletteFromPhoto command should be hidden in Simple mode (pro tier)') })()"
+    },
+    { "name": "close-cmdk-simple", "store": { "action": "setCmdkOpen", "args": [false] } },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "open-cmdk-pro", "store": { "action": "setCmdkOpen", "args": [true] } },
+    {
+      "name": "wait-cmdk-pro",
+      "waitFor": { "css": ".cmdk-item" },
+      "timeout": 10000
+    },
+    {
+      "name": "type-query-pro",
+      "eval": "(() => { const inp = document.querySelector('.cmdk-search input'); const target = inp || document.activeElement; if (!target) throw new Error('command palette input not found'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(target), 'value')?.set; if (setter) setter.call(target, 'Palette from photo'); target.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    { "name": "settle-filter-pro", "wait": 400 },
+    {
+      "name": "assert-command-present-in-pro",
+      "eval": "(() => { const items = [...document.querySelectorAll('.cmdk-item')]; const hit = items.find(el => el.textContent.trim().includes('Palette from photo')); if (!hit) throw new Error('paletteFromPhoto command should be visible in Pro mode') })()"
+    },
+    { "name": "shot-pro-visible", "screenshot": "02-pro-palette-from-photo-visible" },
+    { "name": "close-cmdk-pro", "store": { "action": "setCmdkOpen", "args": [false] } }
+  ]
+}

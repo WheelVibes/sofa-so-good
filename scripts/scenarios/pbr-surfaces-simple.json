@@ -1,0 +1,55 @@
+{
+  "name": "pbr-surfaces-simple",
+  "description": "IXT-SUITES simple rung for the `pbrSurfaces` flag (simple tier, default on — `materials/furnitureMaterials.ts`/`materials/procedural/generators.ts` micro-detail gate: plank wood grain, woven-upholstery seams, painted micro-normal, marble roughness-drift, brushed-metal maps). Not a Simple/Pro mode gate (simple-tier flags resolve the same in both modes) — the tier-correct proof here is a direct `setFeatureFlag('pbrSurfaces', …)` override + a scene-graph/module-level oracle, per the batch-10 gotcha ('a `mesh`/`material` pair with a stable numeric property is a clean oracle for an invisible-from-orbit toggle') generalised to a MATERIAL FACTORY oracle: `getMetalMaterial`/`getPaintedMaterial` read `isFeatureEnabled('pbrSurfaces')` at BUILD time and are cached by a key that deliberately does NOT include the flag (`src/materials/CLAUDE.md`), so re-toggling the flag never rebuilds an already-cached key in the SAME session — this rung therefore builds each half's material at a FRESH (never-before-built) cache key so the flag's effect at build time is genuinely observed, rather than reusing one key across a live toggle (which would just return the stale cached instance either way — a real trap, documented so nobody 'fixes' the test by trying to force a live toggle to change an existing placed item's material instead). Drives the real module functions via a page-context dynamic import (no dev hook needed — mirrors the `hqRenderSource`/`newBadges` dynamic-import technique) rather than a full scene-graph traverse, since the factories are plain exported functions and the cache-key caveat above makes 'is this mesh's material rebuilt' the wrong question to ask live anyway.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "verify-flag-simple-tier-both-modes",
+      "eval": "(() => { const s = window.__store.getState(); if (s.uiMode !== 'simple') throw new Error('should boot Simple'); if (typeof s.featureFlags.pbrSurfaces !== 'boolean') throw new Error('pbrSurfaces should resolve to a boolean in Simple mode too (simple tier)') })()"
+    },
+    {
+      "name": "force-flag-off-fresh-key",
+      "eval": "window.__store.getState().setFeatureFlag('pbrSurfaces', false)"
+    },
+    {
+      "name": "build-metal-off",
+      "eval": "(async () => { const mod = await import('/src/materials/furnitureMaterials.ts'); window.__matOff = mod.getMetalMaterial('#a1b2c3', 'satin', 1); })()"
+    },
+    {
+      "name": "assert-off-no-maps",
+      "eval": "(() => { const m = window.__matOff; if (!m) throw new Error('material not built'); if (m.type !== 'MeshStandardMaterial') throw new Error('pbrSurfaces=false should build a plain MeshStandardMaterial (legacy flat steel), got ' + m.type); if (m.normalMap || m.roughnessMap) throw new Error('pbrSurfaces=false should have NO normal/roughness maps') })()"
+    },
+    {
+      "name": "force-flag-on-fresh-key",
+      "eval": "window.__store.getState().setFeatureFlag('pbrSurfaces', true)"
+    },
+    {
+      "name": "build-metal-on",
+      "comment": "A DIFFERENT colour -> a fresh, never-before-built cache key (`metal:satin:#c3b2a1:1`), so this genuinely observes the flag ON at build time rather than hitting the OFF material cached above under a different key.",
+      "eval": "(async () => { const mod = await import('/src/materials/furnitureMaterials.ts'); window.__matOn = mod.getMetalMaterial('#c3b2a1', 'satin', 1); })()"
+    },
+    {
+      "name": "assert-on-has-maps",
+      "eval": "(() => { const m = window.__matOn; if (!m) throw new Error('material not built'); if (m.type !== 'MeshPhysicalMaterial') throw new Error('pbrSurfaces=true should build a MeshPhysicalMaterial with brush maps, got ' + m.type); if (!m.normalMap) throw new Error('pbrSurfaces=true should carry a brushed-metal normal map'); if (!m.roughnessMap) throw new Error('pbrSurfaces=true should carry a brushed-metal roughness-streak map'); if (typeof m.anisotropy !== 'number' || m.anisotropy <= 0) throw new Error('pbrSurfaces=true should set a positive anisotropy for the swept highlight') })()"
+    },
+    {
+      "name": "cross-check-same-key-caches-stale",
+      "comment": "Documents the cache-key caveat explicitly: re-requesting the ORIGINAL (off-built) colour/finish key while the flag is now on returns the SAME stale plain-material instance (no maps) — proving the cache, not the flag, is authoritative for an already-built key within one session.",
+      "eval": "(async () => { const mod = await import('/src/materials/furnitureMaterials.ts'); const again = mod.getMetalMaterial('#a1b2c3', 'satin', 1); if (again !== window.__matOff) throw new Error('expected the cache to return the exact same stale instance for a previously-built key'); if (again.normalMap) throw new Error('the stale cached instance should still have no maps even though the flag is now on') })()"
+    },
+    {
+      "name": "build-painted-off-and-on",
+      "comment": "Second independent factory (getPaintedMaterial) confirms this isn't specific to getMetalMaterial. Distinct fresh colours per state.",
+      "eval": "(async () => { const mod = await import('/src/materials/furnitureMaterials.ts'); window.__store.getState().setFeatureFlag('pbrSurfaces', false); window.__paintOff = mod.getPaintedMaterial('#111111', false); window.__store.getState().setFeatureFlag('pbrSurfaces', true); window.__paintOn = mod.getPaintedMaterial('#222222', false); })()"
+    },
+    {
+      "name": "assert-painted-maps-gated",
+      "eval": "(() => { if (window.__paintOff.normalMap) throw new Error('pbrSurfaces=false painted material should have no micro-normal map'); if (!window.__paintOn.normalMap) throw new Error('pbrSurfaces=true painted material should carry the shared paint micro-normal map') })()"
+    }
+  ]
+}

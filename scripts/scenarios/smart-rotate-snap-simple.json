@@ -1,0 +1,70 @@
+{
+  "name": "smart-rotate-snap-simple",
+  "description": "IXT-SUITES simple rung for the `smartRotateSnap` flag (pro tier, PARITY-SNAP-ROTATE — `scene/selection/RotateGizmo.tsx` onGrab captures neighbour/wall reference axes via `neighbourAxes` ONLY when `isFeatureEnabled('smartRotateSnap')`; `scene/selection/rotateGizmoMath.ts:smartSnapRotation` then snaps a candidate yaw to the nearest ref axis (mod 90, within a 5 deg threshold) in preference to the coarse 15 deg grid). Reuses `gizmo-rotate-multitouch.json`'s exact recipe for driving the 3D rotate gizmo headlessly (project the handle's world position to client px via the dev `__three` camera, dispatch a real pointerdown/move/up on the canvas). Seeds a neighbour item at yaw 37 deg (0.6458 rad, deliberately NOT a multiple of 15 deg) so its axis is a genuine, non-grid snap target, then drags the OTHER (target) item's rotate handle to a candidate ~39 deg (within the 5 deg neighbour-snap threshold of 37, but far enough from the 15 deg grid's 45 deg neighbour to prove which rule won): with the flag ON the result lands on the neighbour's 37 deg axis; with the flag OFF (no refs captured -> plain grid fallback) the SAME drag lands on the 15-degree grid's 45 deg step instead. Tier gate: `smartRotateSnap` is pro (forced off in Simple) — the flag override drives both halves directly (dialog isn't Pro-gated, the gizmo itself works in both modes) rather than relying on `uiMode`, matching the batch pattern for a flag whose behaviour, not its parent surface, is tiered.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true && state.roomEditor.roomId === 'livingDining'" },
+      "timeout": 5000
+    },
+    { "name": "wait-room-load", "wait": 1500 },
+    {
+      "name": "verify-flag-tiered",
+      "eval": "(() => { const off = window.__store.getState().featureFlags.smartRotateSnap; if (typeof off !== 'boolean') throw new Error('smartRotateSnap should resolve to a boolean') })()"
+    },
+    {
+      "name": "seed-neighbour-and-target",
+      "comment": "neighbour: rotation 0.6458 rad (~37deg, NOT a 15deg multiple) far from the target so it only contributes an axis, never a collision. target: the sofa whose gizmo we'll drag, rotation 0 at room centre.",
+      "eval": "(() => { const s = window.__store.getState(); s.setItems([ { id: 'srs-neighbour', defId: 'side-table', position: [7.5, 2.0], rotation: 0.6458, props: {} }, { id: 'srs-target', defId: 'sofa-3seat', position: [10.5, 4.1], rotation: 0, props: {} } ]); s.selectItem('srs-target'); })()"
+    },
+    {
+      "name": "target-selected",
+      "waitFor": { "store": "state.items.length === 2 && state.selectedItemIds.includes('srs-target')" },
+      "timeout": 5000
+    },
+    { "name": "focus-target", "eval": "window.__store.getState().focusOn?.([10.5, 4.1])" },
+    { "name": "settle-focus", "wait": 1800 },
+    {
+      "name": "compute-world-to-client-helper",
+      "eval": "(() => { function applyM4(x,y,z,e){ const w=1/(e[3]*x+e[7]*y+e[11]*z+e[15]); return [ (e[0]*x+e[4]*y+e[8]*z+e[12])*w, (e[1]*x+e[5]*y+e[9]*z+e[13])*w, (e[2]*x+e[6]*y+e[10]*z+e[14])*w ]; } function worldToClient(wx,wy,wz){ const cam=window.__three.camera; cam.updateMatrixWorld(); const dom=window.__three.gl.domElement; const v1=applyM4(wx,wy,wz,cam.matrixWorldInverse.elements); const v2=applyM4(v1[0],v1[1],v1[2],cam.projectionMatrix.elements); const rect=dom.getBoundingClientRect(); return { x: rect.left+(v2[0]*0.5+0.5)*rect.width, y: rect.top+(1-(v2[1]*0.5+0.5))*rect.height }; } window.__worldToClient = worldToClient; const hx=2.1/2, hz=0.9/2; window.__radius = Math.max(0.55, Math.max(hx,hz)+0.38); })()"
+    },
+    {
+      "name": "define-attempt-runner",
+      "comment": "Runs one full grab->drag->release attempt for the CURRENT flag state and returns the committed rotation (radians). Always resets the target to rotation 0 first so every attempt starts from the identical grab geometry.",
+      "eval": "(() => { window.__runRotateAttempt = async (candidateDeg) => { const s = window.__store.getState(); s.setItems([ { id: 'srs-neighbour', defId: 'side-table', position: [7.5, 2.0], rotation: 0.6458, props: {} }, { id: 'srs-target', defId: 'sofa-3seat', position: [10.5, 4.1], rotation: 0, props: {} } ]); s.selectItem('srs-target'); await new Promise(r => setTimeout(r, 400)); const r = window.__radius; const p0 = window.__worldToClient(10.5, 0.02, 4.1 + r); const rad = candidateDeg * Math.PI / 180; const px = 10.5 + r * Math.sin(rad); const pz = 4.1 + r * Math.cos(rad); const p1 = window.__worldToClient(px, 0.02, pz); const dom = window.__three.gl.domElement; const opt = (x,y,buttons) => ({bubbles:true,cancelable:true,composed:true,pointerId:77,pointerType:'mouse',isPrimary:true,button:0,buttons,clientX:x,clientY:y}); dom.dispatchEvent(new PointerEvent('pointerdown', opt(p0.x, p0.y, 1))); await new Promise(r2 => setTimeout(r2, 60)); window.dispatchEvent(new PointerEvent('pointermove', opt(p1.x, p1.y, 1))); await new Promise(r2 => setTimeout(r2, 60)); window.dispatchEvent(new PointerEvent('pointerup', opt(p1.x, p1.y, 0))); await new Promise(r2 => setTimeout(r2, 200)); return window.__store.getState().items.find(i => i.id === 'srs-target').rotation; }; })()"
+    },
+    { "name": "force-flag-on", "eval": "window.__store.getState().setFeatureFlag('smartRotateSnap', true)" },
+    {
+      "name": "run-attempt-flag-on",
+      "eval": "(async () => { window.__rotOn = await window.__runRotateAttempt(39); })()"
+    },
+    { "name": "settle-on", "wait": 300 },
+    { "name": "shot-flag-on-result", "screenshot": "01-smartsnap-on-snapped-to-neighbour" },
+    {
+      "name": "assert-snapped-to-neighbour",
+      "eval": "(() => { const deg = ((window.__rotOn * 180 / Math.PI) % 360 + 360) % 360; const target = 37; if (Math.abs(deg - target) > 2) throw new Error('smartRotateSnap=true dragging near 39deg should snap to the neighbour axis (~37deg), got ' + deg.toFixed(2) + 'deg') })()"
+    },
+    { "name": "force-flag-off", "eval": "window.__store.getState().setFeatureFlag('smartRotateSnap', false)" },
+    {
+      "name": "run-attempt-flag-off",
+      "eval": "(async () => { window.__rotOff = await window.__runRotateAttempt(39); })()"
+    },
+    { "name": "settle-off", "wait": 300 },
+    { "name": "shot-flag-off-result", "screenshot": "02-smartsnap-off-grid-fallback" },
+    {
+      "name": "assert-grid-fallback",
+      "eval": "(() => { const deg = ((window.__rotOff * 180 / Math.PI) % 360 + 360) % 360; if (Math.abs(deg - 45) > 2) throw new Error('smartRotateSnap=false should fall back to the 15deg grid (45deg step nearest 39deg), got ' + deg.toFixed(2) + 'deg'); if (Math.abs(deg - 37) < 2) throw new Error('REGRESSION: flag=false still snapped to the neighbour axis — refs should be empty when the flag is off') })()"
+    },
+    {
+      "name": "assert-flag-changed-the-outcome",
+      "eval": "(() => { const on = ((window.__rotOn * 180/Math.PI)%360+360)%360; const off = ((window.__rotOff * 180/Math.PI)%360+360)%360; if (Math.abs(on - off) < 3) throw new Error('smartRotateSnap on vs off should have produced genuinely different snapped angles (37 vs 45), got on=' + on.toFixed(2) + ' off=' + off.toFixed(2)) })()"
+    }
+  ]
+}

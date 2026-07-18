@@ -132,15 +132,16 @@ proxy/mirror/host is missing, and standing one up is a deployment task, not a co
 - **Standard asset set expansion** (~80 assets) + **per-LOD texture variants** + **lazy/streaming
   GLB loading** — manifest schema already supports these; expand when bundle size justifies it.
 
-## Open — investigations (leads, not confirmed bugs)
-- **Thumbnail-clone GPU disposal under the compare tray (2026-07-18, perf sweep lead).** The
-  pre-existing `GltfThumbnailCapture` (`ui/catalog/thumbnails.tsx`) does `SkeletonUtils.clone(obj)`
-  per active def and swaps it via `<primitive object={obj}>`. The v0.22.2.18 catalog compare tray
-  now drives that queue harder (up to 3 concurrent thumbnail requests vs 1). Not a confirmed
-  regression — but worth confirming R3F's reconciler actually disposes the cloned geometry/texture
-  subtree on `<primitive>` unmount (vs. leaking a clone per request) now that the queue is busier.
-  Verify with a scene-graph/`renderer.info.memory` probe before/after cycling the tray; only act on
-  measured growth.
+## Closure rulings (don't re-propose)
+- **Thumbnail-clone GPU disposal — RESOLVED no-leak (2026-07-18, measured).**
+  `scripts/scenarios/thumbnail-clone-gpu-probe.json` read `gl.info.memory` on the thumbnail
+  canvas across 3 category cycles + a 3-concurrent compare-tray open: counts fluctuate and drop
+  back to single digits (no monotonic growth; 0 contextlost on that canvas). Root cause of the
+  non-leak: `SkeletonUtils.clone` shares the source `BufferGeometry`/`Material` with drei's
+  `useGLTF` per-URL cache — the clone owns nothing disposable, and R3F correctly never disposes
+  externally-supplied `<primitive>` objects. Resident GPU memory is the intentional per-URL
+  loader cache (documented in `src/furniture/CLAUDE.md`). Don't re-investigate absent new
+  evidence of monotonic growth.
 
 ## Risks tracked from specs
 - **Asset source URL drift** (Poly Haven / ambientCG slug versioning) — pin stable per-asset URLs,
