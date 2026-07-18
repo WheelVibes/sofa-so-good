@@ -1,0 +1,29 @@
+{
+  "name": "designscore-suggestions-simple",
+  "description": "IXT-SUITES batch 4: suggestions (pro) flag — the Design Score panel's own 'Suggestions' sub-section (contextual what-to-add tips), gated by a SEPARATE flag nested inside the already-pro-gated #designScorePanel. Proves the sub-flag independently: toggling `suggestions` off leaves the panel mounted (score/category rows still render) but hides only the tips block.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "clear-items", "eval": "window.__store.getState().setItems([])" },
+    { "name": "assert-simple-hidden", "waitFor": { "store": "state.uiMode === 'simple' && state.featureFlags.suggestions === false" }, "timeout": 5000, "failMessage": "suggestions should be OFF in Simple mode" },
+    { "name": "to-pro", "eval": "(() => { const s = window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags(); })()" },
+    { "name": "assert-pro-on", "waitFor": { "store": "state.featureFlags.designScore === true && state.featureFlags.suggestions === true" }, "timeout": 5000, "failMessage": "designScore + suggestions should both be ON in Pro mode" },
+    { "name": "open-panel", "store": { "action": "setDesignScoreOpen", "args": [true] } },
+    { "name": "panel-visible", "waitFor": { "css": "#designScorePanel" }, "timeout": 8000, "failMessage": "Design score panel did not mount" },
+    { "name": "suggestions-visible", "waitFor": { "text": "Suggestions" }, "timeout": 5000, "failMessage": "Suggestions sub-section should render for a totally-empty flat (every habitable room fires its empty-room tip)" },
+    { "name": "assert-tip-count", "eval": "(() => { const panel = document.querySelector('#designScorePanel'); const tips = [...panel.querySelectorAll('.ci-detail')].filter(el => el.textContent.includes('💡')); if (tips.length === 0) throw new Error('expected at least one 💡 suggestion line'); })()" },
+    { "name": "shot-with-suggestions", "screenshot": "designscore-with-suggestions" },
+    { "name": "disable-suggestions-only", "eval": "window.__store.getState().setFeatureFlag('suggestions', false)" },
+    { "name": "assert-suggestions-off", "waitFor": { "store": "state.featureFlags.suggestions === false" }, "timeout": 5000 },
+    { "name": "assert-panel-still-mounted", "waitFor": { "css": "#designScorePanel" }, "timeout": 5000, "failMessage": "Design score panel should stay mounted when only the nested suggestions flag flips off" },
+    { "name": "assert-suggestions-gone", "eval": "(() => { const panel = document.querySelector('#designScorePanel'); if (panel.textContent.includes('Suggestions')) throw new Error('Suggestions sub-section should be gone once the suggestions flag is off'); })()" },
+    { "name": "shot-without-suggestions", "screenshot": "designscore-without-suggestions" },
+    { "name": "reenable-suggestions", "eval": "window.__store.getState().setFeatureFlag('suggestions', true)" },
+    { "name": "assert-suggestions-back", "waitFor": { "text": "Suggestions" }, "timeout": 5000, "failMessage": "Suggestions should reappear once the flag is re-enabled" },
+    { "name": "close-panel", "store": { "action": "setDesignScoreOpen", "args": [false] } },
+    { "name": "back-to-simple", "eval": "(() => { const s = window.__store.getState(); s.resetFeatureFlags(); s.setUiMode('simple'); s.reresolveFeatureFlags(); })()" },
+    { "name": "assert-simple-again", "waitFor": { "store": "state.featureFlags.suggestions === false" }, "timeout": 5000 }
+  ]
+}

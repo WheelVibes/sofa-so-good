@@ -713,6 +713,53 @@ place (same id, new geometry, no duplicate) and the placed instance still resolv
   `DESIGNER_FLOOR_IDS` list in the scenario's assertion) rather than trying to derive the exact id
   from the clicked button.
 
+### Gotchas from the IXT-SUITES back-fill batch 4 (layerOrder / furnitureGroups / copyAppearance / suggestions)
+
+- **`openContextMenu(menu)` and `selectItem`/`setSelectedItemIds` are plain store actions — drive
+  the right-click ContextMenu and single/multi-item selection directly instead of trying to
+  synthesize a real right-click on the R3F canvas** (which doesn't raycast per the existing
+  gotcha above). `openContextMenu({x, y, target: {kind:'item', id}})` mounts `.ctx-menu` exactly
+  like a real right-click would, with the full selection-aware row set (`layerOrder`'s "Bring to
+  front"/"Send to back" rows among them) — no canvas interaction needed at all.
+- **`reorderItems(ids, move)`'s array-order contract is exact and cheap to assert**: `'front'`
+  moves the id(s) to the END of `items` (last = top of the 3D stack / SVG paint order), `'back'` to
+  the START. A round-trip scenario can assert `items[items.length-1].id === target` after "Bring to
+  front" and `items[0].id === target` after "Send to back" without any pixel/visual check.
+  `layerOrder` is `tier:'simple'` (always on regardless of Simple/Pro), so its scenario asserts
+  presence in both modes rather than a hidden→shown transition.
+- **`furnitureGroups`'s Group/Ungroup buttons live in `MultiSelectPanel` (`.panel.inspector`,
+  mounts when `selectedItemIds.length > 1`), a plain HTML panel** — unlike the context menu, no
+  store-action shortcut is needed, real `click: {text: "Group"/"Ungroup"}` steps work directly.
+  Two gotchas: (1) **`setSelectedItemIds([a,b])` does NOT set `activeGroupId`** (only the
+  selection-flow `selectItem`/plan-click paths that discover an existing group membership do) —
+  the panel decides Group-vs-Ungroup purely off `activeGroupId`, so after calling `groupItems`
+  via the UI, mirror what a real re-select would produce with `window.__store.setState({
+  activeGroupId: <the new shared groupId> })` before asserting the "Ungroup" button appears; don't
+  expect it to flip automatically. (2) The "Group" button additionally requires
+  `selectedItemIds.length > 1` — a plain 2-item `addItem` + `setSelectedItemIds` is enough, no
+  drag-marquee needed.
+- **`copyAppearance`'s clipboard only carries "look" keys — a GLB/IKEA item's is
+  `['variant','tint','reflective']`, but a *parametric* item's is whichever of its own
+  `paramSchema` fields are `kind:'color'` or an enum key matching `/finish|materi|wood|metal|
+  fabric|leather|colou?r|.../`** (`appearanceKeys()` in `furniture/appearanceProps.ts`). For a
+  parametric fixture like `sofa-3seat`, that's `props.color` (its `paramSchema`'s `kind:'color'`
+  field), NOT `tint` — seeding two sofas with different `props.color` and asserting the target's
+  `color` after paste is the reliable round-trip; a `tint`-based fixture would silently never
+  change on a parametric def since `tint` isn't in its appearance-key set.
+- **`suggestions` is a genuinely separate flag NESTED inside the already-`designScore`-flag-gated
+  `#designScorePanel`** (`DesignScorePanel.tsx`'s own `useFeature('suggestions')`), so the
+  Simple/Pro visibility ladder used for `designScore` itself (hidden/shown via the parent flag)
+  doesn't exercise `suggestions` independently — both default true/pro so they flip together on a
+  uiMode switch. Isolate it by leaving the panel open in Pro and calling
+  `setFeatureFlag('suggestions', false)` directly (dev build has `IS_DEV` true so overrides are
+  honoured): the panel (score dial + category rows) stays mounted while only the "Suggestions"
+  sub-block (💡 tip lines) disappears — proves the sub-flag's own gate rather than just its
+  parent's. **The suggester only fires per-room `empty-*` rules when a room has ZERO furniture
+  categories** (`buildSuggestions`'s `categories.size === 0` check) — the default HDB flat ships
+  furnished, so `setItems([])` first (clearing every room) is what makes the "Suggestions" section
+  populate at all; against the stock furnished flat the section can render empty/absent and look
+  like a false "hidden" result that's actually just "nothing to suggest".
+
 ### Worked example — GLB designer CSG v2 non-destructive booleans (Stage 1b)
 
 **`glb-designer-stage1b.json`** drives the CSG v2 flow: build a Box, add a Cylinder, rotate/size

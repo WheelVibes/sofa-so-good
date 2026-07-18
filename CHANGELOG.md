@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.14 — IXT-SUITES back-fill batch 4: 4 more ladders (~40 uncovered left)
+
+Green, visually-confirmed simple rungs for `layerOrder` (context-menu bring
+to front / send to back reorders `items`), `furnitureGroups` (Group hidden
+in Simple / present in Pro → shared groupId → Ungroup clears),
+`copyAppearance` (copy → paste turns the second sofa red), and
+`suggestions` (nested sub-flag: 💡 block disappears while the parent
+designScore panel stays mounted). No app bugs. Five new playbook gotchas
+(store-driven context menu, reorderItems contract, activeGroupId toggle,
+parametric-vs-GLB appearance keys, nested-flag gating). Genuinely-uncovered
+flags (after exclusions): ~44 → ~40.
+
 ## v0.22.2.13 — IXT-SUITES back-fill batch 3: 4 more ladders
 
 Green, visually-reviewed simple rungs for `layoutReroll` (reroll twice →
