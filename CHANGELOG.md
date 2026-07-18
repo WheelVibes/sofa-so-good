@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.36 — Asset pipeline: Kenney Furniture Kit fetcher (19 CC0 items)
+
+`scripts/asset-pipeline/fetch-kenney-models.mjs` + `kenney-select.mjs`:
+resolves the pack page's content-hash ZIP, extracts a curated 19-item CC0 set
+(beds/seating/tables/storage/kitchen/bathroom/laundry/lighting/decor/textiles/
+electronics, all self-contained GLBs < 40 KB), optimizes via gltf-transform
+(KHR-unlit registered so the flat-shaded look round-trips), writes CC0
+provenance sidecars; idempotent with --limit/--category/--force. local-assets/
+now 30 GLBs (+ Poly Haven 11); dev server picked them up live, scenario
+verified catalog search + a placed Design Sofa (24/24 steps). Caught a slug
+collision (Kenney "table" vs Poly Haven dining-table — renamed) — fetchers
+must keep slugs globally unique across sources. Unit tests for the curated
+list (5). Poly Pizza is API-key-gated; Quaternius queued as the next batch.
+
 ## v0.22.2.35 — UX research round 3: 5 vetted candidates queued
 
 Competitor sweep (Coohom/Homestyler/IKEA Kreativ/Behr/Dulux + 2026 changelogs)

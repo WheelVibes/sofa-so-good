@@ -82,9 +82,14 @@ See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full d
   finalized tiering in the plan doc. **Poly Haven model fetcher SHIPPED (v0.22.0.6)** —
   `scripts/asset-pipeline/fetch-polyhaven-models.mjs` downloads CC0 gltf bundles and repacks
   self-contained GLBs into `local-assets/<category>/` (11-item curated furniture set fetched,
-  verified loading + placing via the Part-1 plugin). Next: run more Tier-1 CC0 scrapers into
-  `local-assets/`, then surface Poly Haven models in prod (`remoteFurniture` flag — needs a
-  runtime fetch/repack path or pre-bundled assets, see the production-infra section).
+  verified loading + placing via the Part-1 plugin). **Kenney Furniture Kit fetcher SHIPPED
+  (v0.22.2.36)** — `fetch-kenney-models.mjs` extracts 19 curated CC0 GLBs (already
+  self-contained, KHR-unlit-preserving optimize pass) into `local-assets/` (30 GLBs total,
+  verified in-catalog + placed). Notes: Kenney site search/category pages are useless for
+  enumeration — go straight to known pack slugs; Poly Pizza needs an API key (auth gate, not
+  rot); **Quaternius is the natural next batch** (CC0, same ZIP shape). Then: surface these in
+  prod (`remoteFurniture` flag — needs a runtime fetch/repack path or pre-bundled assets, see
+  the production-infra section).
 
 ## Open — UX research round 2 queue (2026-07-18)
 Ranked by value÷effort; verified absent against registry + source this pass.
