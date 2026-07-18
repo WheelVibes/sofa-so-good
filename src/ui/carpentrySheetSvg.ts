@@ -25,6 +25,11 @@ export interface CarpentrySvgOpts {
   /** mm printed per metre of real-world extent — print-true sizing (TODO G2),
    *  same mechanism as every other drawing-set sheet builder. */
   printMmPerM?: number
+  /** Local-frame X (m, elevation coordinate space) of the section cut — when
+   *  set, draws a dash-dot vertical "section cut" line with "A" bubbles top
+   *  + bottom (standard SECTION A-A convention, TODO H2). Only meaningful on
+   *  the front-elevation view; the section view itself has no cut to mark. */
+  cutX?: number
 }
 
 // Wide enough for the longest label this module ever prints ("Drawer 2
@@ -85,6 +90,28 @@ function rectFill(r: CarpentryRect, palette: CarpentryPalette): string {
   return r.hidden ? 'none' : palette.fill
 }
 
+/** Vertical extent (metres, local frame) of the drawn GEOMETRY only (rects,
+ *  never the dimension lines) — where the section cut-line marker's "A"
+ *  bubbles sit, just clear of the carcass silhouette. `null` when the view
+ *  has no rects (never happens for a real piece, but keeps this total). */
+function geometryYExtent(view: CarpentryView): { y0: number; y1: number } | null {
+  if (view.rects.length === 0) return null
+  let y0 = Number.POSITIVE_INFINITY
+  let y1 = Number.NEGATIVE_INFINITY
+  for (const r of view.rects) {
+    if (r.y0 < y0) y0 = r.y0
+    if (r.y1 > y1) y1 = r.y1
+  }
+  return { y0, y1 }
+}
+
+/** Metres beyond the carcass silhouette the cut-line's "A" bubbles sit —
+ *  comfortably inside the dimension rows' own clearance (`OUT_START` in
+ *  `carpentryElevation.ts` is 0.14 m) so the bubble never collides with the
+ *  "Overall height"/"Overall width" dimension text. */
+const CUT_MARKER_MARGIN_M = 0.05
+const CUT_MARKER_R = 7
+
 /** Render one `CarpentryView` (elevation or section) as a standalone SVG. */
 export function carpentrySvg(view: CarpentryView, opts: CarpentrySvgOpts): string {
   const { palette } = opts
@@ -132,6 +159,31 @@ export function carpentrySvg(view: CarpentryView, opts: CarpentrySvgOpts): strin
     parts.push(dimMarkup(d, px, py, palette.ink, labelY[i]!))
   })
   parts.push('</g>')
+
+  if (opts.cutX != null) {
+    const extent = geometryYExtent(view)
+    if (extent) {
+      const cx = px(opts.cutX)
+      const topY = py(extent.y1 + CUT_MARKER_MARGIN_M)
+      const botY = py(extent.y0 - CUT_MARKER_MARGIN_M)
+      parts.push('<g class="section-cut">')
+      parts.push(
+        `<line x1="${n(cx)}" y1="${n(topY)}" x2="${n(cx)}" y2="${n(botY)}" ` +
+          `stroke="${esc(palette.ink)}" stroke-width="1" stroke-dasharray="8 3 2 3" />`,
+      )
+      for (const cy of [topY, botY]) {
+        parts.push(
+          `<circle cx="${n(cx)}" cy="${n(cy)}" r="${CUT_MARKER_R}" fill="#ffffff" ` +
+            `stroke="${esc(palette.ink)}" stroke-width="1" />`,
+        )
+        parts.push(
+          `<text x="${n(cx)}" y="${n(cy)}" font-size="${FONT}" font-weight="700" ` +
+            `text-anchor="middle" dominant-baseline="central" fill="${esc(palette.ink)}">A</text>`,
+        )
+      }
+      parts.push('</g>')
+    }
+  }
 
   parts.push('</svg>')
   return parts.join('\n')

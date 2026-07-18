@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.57 — H2: carpentry sheets gain buildability callouts
+
+Each carpentry sheet now carries a MATERIALS & FINISH block (spec finish +
+colour, board/back thickness read off the piece's own side/back parts,
+always hedged "confirm exact board/laminate code with fabricator" — no
+invented codes) and a HARDWARE block with counts derived from the real part
+list: sliding wardrobes → track+rollers+2 panels; hinged doors → 2 hinges
+≤1200mm / 3 above (rule stated inline) + handles; drawer banks → runner
+pairs ×N; open shelving → "supports as required" (the spec has no fixed/
+adjustable field, so no pin count is invented). The elevation gains the
+standard dash-dot SECTION cut-line with "A" bubbles and the section pane is
+titled "SECTION A-A". Blocks render below the drawings, no overlap
+(screenshot-verified). 88 tests + extended scenario.
+
 ## v0.22.2.56 — H3: elevation AFFL mount heights
 
 Wall elevations now dimension every wall-hung item's mount height ("1100

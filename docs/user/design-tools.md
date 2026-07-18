@@ -338,12 +338,25 @@ Print or save as PDF for
   (carpentry/joinery is always mm) and is real — overall width/height/depth,
   bay widths, panel thickness, plinth/toe-kick height, worktop thickness, and
   every shelf/rail/drawer height above floor — nothing is invented; a hidden
-  shelf/rail behind a closed door draws as a dashed line. Placing the SAME piece
-  more than once doesn't repeat the sheet — it gets one sheet noted **"(×3)"**
-  for three placements. No custom-size pieces placed → no carpentry sheets, and
-  the cover's sheet index simply omits them. Same **"Verify all dimensions on
-  site before fabrication"** caveat as the rest of the set. Toggle it off in the
-  **Include sheets** checklist if you don't need it in a given export.
+  shelf/rail behind a closed door draws as a dashed line. The front elevation
+  also marks the section cut with a dash-dot **"A" cut-line**, and the section
+  itself is titled **"SECTION A-A"** (standard drafting convention). Below the
+  two views, a **Materials & finish** note states the piece's finish + tint
+  (honestly hedged — "confirm exact board/laminate code with fabricator", never
+  an invented brand/laminate code), board and back-panel thickness read straight
+  off the piece, and an edge-banding line; a **Hardware** note lists what the
+  fabricator needs to order — sliding track + rollers for a sliding wardrobe
+  front, hinge counts (2 per door up to 1.2 m tall, 3 above) + handles for
+  hinged doors, runner pairs + handles for every drawer bank — every count read
+  straight off the piece's own parts, never estimated. An open-shelving piece
+  (a bookshelf, or any open bay) instead notes shelf supports "as required by
+  fabricator" rather than guessing a fixed-vs-adjustable pin count the app
+  doesn't track. Placing the SAME piece more than once doesn't repeat the
+  sheet — it gets one sheet noted **"(×3)"** for three placements. No
+  custom-size pieces placed → no carpentry sheets, and the cover's sheet index
+  simply omits them. Same **"Verify all dimensions on site before fabrication"**
+  caveat as the rest of the set. Toggle it off in the **Include sheets**
+  checklist if you don't need it in a given export.
 - **Sheet callouts** (Pro) — **Tools → Sheet callouts** opens the callout panel.
   Add free-text annotations that appear on a specific sheet when the drawing set
   is exported: type your note (e.g. "GL = 0.00", "Contractor to verify on site"),

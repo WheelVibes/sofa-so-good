@@ -252,7 +252,19 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   cut parts — never inventing a number the spec/parts don't already encode. `ui/carpentrySheets.ts`
   resolves + dedupes placed instances via each def's persisted `parametricSpec` (see the bullet
   above); `ui/carpentrySheetSvg.ts` renders the dimensioned SVG (mm-only labels, dashed hidden
-  lines, a `declutterLabelY` collision pass for closely-stacked AFF heights). Scoped to the 5
+  lines, a `declutterLabelY` collision pass for closely-stacked AFF heights). **Buildability
+  callouts (TODO H2):** `buildCarpentryPiece` also returns `sectionTitle` ("SECTION A-A") +
+  `elevationCutX` (drawn by `carpentrySheetSvg.ts`'s `cutX` opt as a dash-dot cut-line + "A"
+  bubbles on the elevation only) and `materialNotes`/`hardwareCallouts` (both exported, pure,
+  unit-tested) — an honest finish/board/edge-banding note (hedged "confirm … with fabricator",
+  never an invented laminate code; `"TBC by fabricator"` when a thickness can't be read off the
+  parts) and a hardware note whose counts are read straight off the piece's real
+  `door`/`handle`/`drawer-front`/`drawer-handle` parts — never estimated from the spec alone.
+  `role:'door'` doesn't distinguish a wardrobe's sliding vs hinged front, so `hardwareCallouts`
+  is the one place that reads `spec.wardrobeFront` (sliding → track+rollers; hinged → a hinge
+  count via the standard 2-per-door-≤1200mm/3-above rule); every other type/bay is generic over
+  the shared role vocabulary. Zero doors + zero drawers → "shelf supports as required by
+  fabricator" (the spec has no fixed-vs-adjustable field to report). Scoped to the 5
   `ParametricType`s only — a standalone kitchen-cabinet catalog item (`cabinet/cabinetModel.ts`
   `buildCabinet`, placed via `primitives/CabinetModule.tsx`) keeps its spec live on the item's own
   `props` (no GLB-export/spec-loss step to begin with) rather than a persisted `parametricSpec`

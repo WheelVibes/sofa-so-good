@@ -69,6 +69,19 @@ export interface CarpentryPiece {
   elevation: CarpentryView
   section: CarpentryView
   sectionLabel: string
+  /** Standard section-marker title ("SECTION A-A") — `sectionLabel` above
+   *  stays the descriptive sub-caption ("Section through bay 1"). */
+  sectionTitle: string
+  /** Local-frame X (m) of the section cut, same coordinate space as the
+   *  elevation's rects — the elevation SVG draws a dash-dot cut-line + "A"
+   *  bubbles here (TODO H2, standard SECTION A-A convention). */
+  elevationCutX: number
+  /** Materials & finish note lines — honest per-spec (never an invented
+   *  laminate code), for the sheet's buildability note block (TODO H2). */
+  materialNotes: string[]
+  /** Hardware callout lines derived from the piece's own part list — never
+   *  invented counts (TODO H2). */
+  hardwareNotes: string[]
   overallMm: { w: number; h: number; d: number }
 }
 
@@ -355,6 +368,119 @@ function sectionDims(cutParts: ParametricPart[], d: number, h: number): Carpentr
   return dims
 }
 
+// ============================================================================
+// Buildability callouts (TODO H2) — materials/finish + hardware, derived
+// HONESTLY from the spec's own fields and the piece's real part list. Never
+// a second, invented product catalog: a laminate CODE or a brand name is
+// never fabricated, only what the spec actually carries (finish kind + tint)
+// plus an explicit "confirm with fabricator" hedge; hardware counts come
+// straight off `role: 'door' | 'handle' | 'drawer-front' | 'drawer-handle'`
+// parts, never a separate estimate.
+// ============================================================================
+
+/** A finish that points at a catalog/DLC material is encoded `mat:<id>`
+ *  (`FURNITURE_MAT_PREFIX` in `materials/furnitureMaterials.ts` — duplicated
+ *  here as a plain string check so this module stays free of the materials
+ *  module's `three`/canvas dependencies). */
+const MAT_FINISH_PREFIX = 'mat:'
+
+/** Human-readable label for a spec's `finish` field — never invents a board/
+ *  laminate code, just names the finish KIND the spec actually carries. */
+function finishDisplayLabel(finish: string): string {
+  if (finish.startsWith(MAT_FINISH_PREFIX)) {
+    return `catalog material "${finish.slice(MAT_FINISH_PREFIX.length)}"`
+  }
+  switch (finish) {
+    case 'wood':
+      return 'wood-grain laminate'
+    case 'painted':
+      return 'painted matte finish'
+    case 'gloss':
+      return 'high-gloss lacquer finish'
+    default:
+      return `"${finish}" finish`
+  }
+}
+
+/** Materials & finish note lines: finish (honest, hedged — never an invented
+ *  laminate code), board/back panel thickness restated from the piece's OWN
+ *  panel parts (never `buildParts`'s internal constants), edge-banding. */
+export function materialNotes(spec: ParametricSpec, parts: ParametricPart[]): string[] {
+  const side = parts.find((p) => p.role === 'side')
+  const back = parts.find((p) => p.role === 'back')
+  const panelMm = side ? mm(side.size[0]) : null
+  const backMm = back ? mm(back.size[2]) : null
+
+  const lines: string[] = [
+    `Finish: ${finishDisplayLabel(spec.finish)}, tint ${spec.color} — or equivalent, ` +
+      'confirm exact board/laminate code with fabricator.',
+    panelMm != null
+      ? `Board: ${panelMm} mm carcass panel` +
+        (backMm != null ? `, ${backMm} mm back panel` : '') +
+        '.'
+      : 'Board & panel thickness: TBC by fabricator.',
+    'Edge-banding: all exposed panel edges banded to match the face finish.',
+  ]
+  return lines
+}
+
+/** Door height (mm) at/above which a leaf needs a 3rd hinge (standard
+ *  cabinet-hinge spacing rule: 2 hinges up to ~1200 mm tall, 3 above). */
+const HINGE_TALL_THRESHOLD_MM = 1200
+
+/** Hinges required for a set of door-leaf parts, per `HINGE_TALL_THRESHOLD_MM`. */
+function hingesFor(doorParts: ParametricPart[]): number {
+  return doorParts.reduce((sum, p) => sum + (mm(p.size[1]) >= HINGE_TALL_THRESHOLD_MM ? 3 : 2), 0)
+}
+
+const plural = (n: number, noun: string): string => `${n} ${noun}${n === 1 ? '' : 's'}`
+
+/**
+ * Hardware callout lines derived from the piece's REAL part list — counts
+ * are read straight off the parts `buildParametric` actually emitted (door /
+ * handle / drawer-front / drawer-handle roles), never invented or estimated
+ * from the spec alone. `sliding` vs `hinged` wardrobe fronts both emit
+ * `role: 'door'` parts (the builder doesn't distinguish the role), so only
+ * that one case reads `spec.wardrobeFront` to pick the right hardware family;
+ * everything else (doors/drawers/open shelving on any type) is generic over
+ * the shared part-role vocabulary.
+ */
+export function hardwareCallouts(spec: ParametricSpec, parts: ParametricPart[]): string[] {
+  const lines: string[] = []
+  const doors = parts.filter((p) => p.role === 'door')
+  const doorHandles = parts.filter((p) => p.role === 'handle')
+  const drawerFronts = parts.filter((p) => p.role === 'drawer-front')
+  const drawerHandles = parts.filter((p) => p.role === 'drawer-handle')
+
+  if (doors.length > 0 && spec.type === 'wardrobe' && spec.wardrobeFront === 'sliding') {
+    lines.push(
+      `Sliding track + rollers, soft-close, top-hung — ${plural(doors.length, 'door panel')}.`,
+    )
+  } else if (doors.length > 0) {
+    const hinges = hingesFor(doors)
+    lines.push(
+      `Hinges — ${hinges} total for ${plural(doors.length, 'door')} ` +
+        `(2 hinges/door up to ${HINGE_TALL_THRESHOLD_MM} mm tall, 3 above).`,
+    )
+  }
+  if (doorHandles.length > 0) {
+    lines.push(`Door handles/pulls — ×${doorHandles.length}.`)
+  }
+  if (drawerFronts.length > 0) {
+    lines.push(`Drawer runners (soft-close) — ${plural(drawerFronts.length, 'pair')}.`)
+  }
+  if (drawerHandles.length > 0) {
+    lines.push(`Drawer handles/pulls — ×${drawerHandles.length}.`)
+  }
+  if (doors.length === 0 && drawerFronts.length === 0) {
+    // Open shelving (bookshelf, or any open-front bay/wardrobe fit-out): the
+    // spec doesn't distinguish fixed vs adjustable shelves, so — per the
+    // honesty rule — this reads "as required", not an invented pin count.
+    lines.push('Open shelving — shelf supports as required by fabricator.')
+  }
+  return lines
+}
+
 /** Build the front elevation + one representative section for a placed
  *  parametric piece, purely from `buildParametric`'s part list. */
 export function buildCarpentryPiece(spec: ParametricSpec): CarpentryPiece {
@@ -379,6 +505,10 @@ export function buildCarpentryPiece(spec: ParametricSpec): CarpentryPiece {
     elevation: { rects: elevationRects, dims: elevationDims(parts, w, h) },
     section: { rects: sectionRects, dims: sectionDims(cutParts, d, h) },
     sectionLabel: cut.label,
+    sectionTitle: 'SECTION A-A',
+    elevationCutX: cut.x,
+    materialNotes: materialNotes(spec, parts),
+    hardwareNotes: hardwareCallouts(spec, parts),
     overallMm: { w: mm(w), h: mm(h), d: mm(d) },
   }
 }

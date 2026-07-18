@@ -30,7 +30,7 @@
     },
     {
       "name": "assert-carpentry-sheet-content",
-      "eval": "(() => { const html = window.__capturedHtml; const need = (re, label) => { if (!re.test(html)) throw new Error('missing: ' + label) }; need(/Carpentry — Custom wardrobe 120 x 220 cm/, 'carpentry sheet title'); need(/FRONT ELEVATION/, 'front elevation label'); need(/SECTION/, 'section label'); need(/Verify all dimensions on site before fabrication\\./, 'fabrication note'); need(/Overall width.{0,20}1200 mm/, 'overall width dimension in mm'); need(/Shelf 1 height AFF.{0,20}1862 mm/, 'shelf-height dimension in mm (hand-computed for this spec)'); window.__carpentryOk = true; })()"
+      "eval": "(() => { const html = window.__capturedHtml; const need = (re, label) => { if (!re.test(html)) throw new Error('missing: ' + label) }; need(/Carpentry — Custom wardrobe 120 x 220 cm/, 'carpentry sheet title'); need(/FRONT ELEVATION/, 'front elevation label'); need(/SECTION A-A/, 'section A-A title (TODO H2 cut-line convention)'); need(/Verify all dimensions on site before fabrication\\./, 'fabrication note'); need(/Overall width.{0,20}1200 mm/, 'overall width dimension in mm'); need(/Shelf 1 height AFF.{0,20}1862 mm/, 'shelf-height dimension in mm (hand-computed for this spec)'); need(/MATERIALS &amp; FINISH/, 'materials/finish note block (TODO H2)'); need(/confirm exact board\\/laminate code with fabricator/, 'honest materials hedge (TODO H2)'); need(/HARDWARE/, 'hardware note block (TODO H2)'); need(/Sliding track \\+ rollers.{0,40}door panels/, 'sliding-wardrobe hardware callout (TODO H2)'); need(/class=\"section-cut\"/, 'section cut-line marker on the elevation (TODO H2)'); window.__carpentryOk = true; })()"
     },
     {
       "name": "stash-single-placement-html",

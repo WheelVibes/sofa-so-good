@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildCarpentryPiece } from './carpentryElevation'
+import { buildCarpentryPiece, hardwareCallouts, materialNotes } from './carpentryElevation'
+import { buildParametric } from './parametric/buildParts'
 import { defaultSpec } from './parametric/spec'
 
 describe('buildCarpentryPiece', () => {
@@ -111,5 +112,119 @@ describe('buildCarpentryPiece', () => {
       expect(piece.sectionLabel).toBe('Section through bay 1')
       expect(piece.overallMm.h).toBe(650)
     })
+  })
+
+  describe('SECTION A-A cut-line marker + title (TODO H2)', () => {
+    it('every piece carries the standard section title + a cut X inside its elevation width', () => {
+      for (const type of ['bookshelf', 'wardrobe', 'sideboard', 'desk', 'kitchen-run'] as const) {
+        const piece = buildCarpentryPiece(defaultSpec(type))
+        expect(piece.sectionTitle).toBe('SECTION A-A')
+        const halfW = piece.overallMm.w / 1000 / 2
+        expect(piece.elevationCutX).toBeGreaterThanOrEqual(-halfW - 1e-6)
+        expect(piece.elevationCutX).toBeLessThanOrEqual(halfW + 1e-6)
+      }
+    })
+  })
+})
+
+describe('materialNotes (TODO H2 — honest materials/finish note)', () => {
+  it('states the finish kind + tint, hedged, never inventing a laminate code', () => {
+    const spec = defaultSpec('bookshelf') // finish: 'wood', color: '#9a7b50'
+    const { parts } = buildParametric(spec)
+    const lines = materialNotes(spec, parts)
+    expect(lines.join(' ')).toMatch(/wood-grain laminate/)
+    expect(lines.join(' ')).toContain('#9a7b50')
+    expect(lines.join(' ')).toContain('confirm exact board/laminate code with fabricator')
+    // No invented brand/laminate code token anywhere in the notes.
+    expect(lines.join(' ')).not.toMatch(/EGGER|Kronospan|H\d{4}|U\d{3}/)
+  })
+
+  it('restates board/back-panel thickness straight off the piece’s own panel parts', () => {
+    const spec = defaultSpec('wardrobe')
+    const { parts } = buildParametric(spec)
+    const lines = materialNotes(spec, parts)
+    // PANEL_T = 18mm, BACK_T = 12mm in buildParts.ts.
+    expect(lines.some((l) => l.includes('18 mm carcass panel'))).toBe(true)
+    expect(lines.some((l) => l.includes('12 mm back panel'))).toBe(true)
+  })
+
+  it('names a catalog/DLC material honestly, still hedged', () => {
+    const spec = { ...defaultSpec('sideboard'), finish: 'mat:oak-natural' }
+    const { parts } = buildParametric(spec)
+    const lines = materialNotes(spec, parts)
+    expect(lines.join(' ')).toContain('catalog material "oak-natural"')
+  })
+
+  it('falls back to an honest TBC when the piece has no side panel to read a thickness from', () => {
+    const spec = { ...defaultSpec('desk'), deskLegs: 'legs' as const } // four-leg desk: no 'side' parts
+    const { parts } = buildParametric(spec)
+    const lines = materialNotes(spec, parts)
+    expect(lines).toContain('Board & panel thickness: TBC by fabricator.')
+  })
+})
+
+describe('hardwareCallouts (TODO H2 — counts derived from the real part list)', () => {
+  it('sliding wardrobe front: always 2 door panels + track/roller hardware, regardless of bay count', () => {
+    const spec = defaultSpec('wardrobe') // wardrobeFront: 'sliding', 2 bays
+    const { parts } = buildParametric(spec)
+    const lines = hardwareCallouts(spec, parts)
+    expect(lines.some((l) => /Sliding track \+ rollers.*2 door panels/.test(l))).toBe(true)
+    // No hinge line for a sliding front.
+    expect(lines.some((l) => l.startsWith('Hinges'))).toBe(false)
+  })
+
+  it('hinged wardrobe front: hinge count follows the door-height rule (2/door ≤ 1200mm, 3 above)', () => {
+    const spec = { ...defaultSpec('wardrobe'), wardrobeFront: 'hinged' as const }
+    const { parts } = buildParametric(spec)
+    const doorParts = parts.filter((p) => p.role === 'door')
+    // Default wardrobe (2.2m tall) → door leaves are well over 1200mm tall → 3 hinges/leaf.
+    expect(doorParts.every((p) => p.size[1] * 1000 >= 1200)).toBe(true)
+    const lines = hardwareCallouts(spec, parts)
+    const hingeLine = lines.find((l) => l.startsWith('Hinges'))
+    expect(hingeLine).toBeDefined()
+    expect(hingeLine).toContain(`${doorParts.length * 3} total`)
+    expect(hingeLine).toContain(`for ${doorParts.length} doors`)
+    expect(hingeLine).toContain('2 hinges/door up to 1200 mm tall, 3 above')
+    expect(lines.some((l) => l.startsWith('Door handles/pulls'))).toBe(true)
+  })
+
+  it('desk with 3 pedestal drawers → 3 runner pairs + 3 drawer handles', () => {
+    const spec = { ...defaultSpec('desk'), deskLegs: 'pedestal' as const, height: 0.68 }
+    const { parts } = buildParametric(spec)
+    const drawerFronts = parts.filter((p) => p.role === 'drawer-front')
+    expect(drawerFronts).toHaveLength(3)
+    const lines = hardwareCallouts(spec, parts)
+    expect(lines).toContain('Drawer runners (soft-close) — 3 pairs.')
+    expect(lines).toContain(`Drawer handles/pulls — ×${drawerFronts.length}.`)
+  })
+
+  it('four-leg desk (no drawers, no doors) reads as open — no invented hardware', () => {
+    const spec = { ...defaultSpec('desk'), deskLegs: 'legs' as const }
+    const { parts } = buildParametric(spec)
+    const lines = hardwareCallouts(spec, parts)
+    expect(lines).toEqual(['Open shelving — shelf supports as required by fabricator.'])
+  })
+
+  it('bookshelf (always open, no doors/drawers ever) — shelf-supports fallback, no fixed/adjustable claim', () => {
+    const spec = defaultSpec('bookshelf')
+    const { parts } = buildParametric(spec)
+    const lines = hardwareCallouts(spec, parts)
+    expect(lines).toEqual(['Open shelving — shelf supports as required by fabricator.'])
+  })
+
+  it('sideboard with a door bay + a drawer bay reports both hinges and runners', () => {
+    const spec = {
+      ...defaultSpec('sideboard'),
+      bays: 2,
+      compartments: [{ style: 'door' as const }, { style: 'drawer' as const }],
+    }
+    const { parts } = buildParametric(spec)
+    const doorCount = parts.filter((p) => p.role === 'door').length
+    const drawerCount = parts.filter((p) => p.role === 'drawer-front').length
+    expect(doorCount).toBeGreaterThan(0)
+    expect(drawerCount).toBeGreaterThan(0)
+    const lines = hardwareCallouts(spec, parts)
+    expect(lines.some((l) => l.startsWith('Hinges'))).toBe(true)
+    expect(lines.some((l) => l.startsWith('Drawer runners'))).toBe(true)
   })
 })

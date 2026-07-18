@@ -1239,7 +1239,38 @@ same change that reshapes a system.
   standard "verify all dimensions on site before fabrication" note; no placed
   parametric pieces → no carpentry sheets (and the cover's sheet index omits
   them). New `carpentry` `DrawingLayer` + `CalloutSheet` entry follow the
-  existing toggle/callout plumbing.
+  existing toggle/callout plumbing. **Buildability callouts (TODO H2 — "a
+  carpenter can cut the carcass but can't order hardware or select finish"):**
+  `buildCarpentryPiece` also returns `sectionTitle` (always `"SECTION A-A"`,
+  standard drafting convention) + `elevationCutX` (the section's cut X, same
+  local frame as the elevation rects) and two note-line arrays,
+  `materialNotes(spec, parts)` and `hardwareCallouts(spec, parts)` — both pure,
+  exported, unit-tested. Materials: the finish kind + tint stated HONESTLY
+  (`"or equivalent, confirm exact board/laminate code with fabricator"` — a
+  `mat:<id>` DLC finish names the catalog id, never a fabricated brand/code),
+  board + back-panel thickness read straight off the piece's own `side`/`back`
+  parts (`"TBC by fabricator"` when there's no side panel to read, e.g. a
+  four-leg desk), and a fixed edge-banding line. Hardware: counts are read
+  straight off the piece's REAL part list (`role: 'door'|'handle'|
+  'drawer-front'|'drawer-handle'`) — never invented. `role:'door'` doesn't
+  distinguish sliding vs hinged wardrobe fronts, so that's the one case
+  `hardwareCallouts` reads `spec.wardrobeFront` for: `sliding` → "sliding track
+  + rollers, soft-close" for however many door panels the builder emitted
+  (always 2, any bay count); `hinged` → a hinge count per the standard rule (2
+  hinges/door ≤1200mm tall, 3 above, stated inline) + a handle count. Every
+  other type/bay (sideboard/kitchen-run doors, any drawer bank on any type,
+  wardrobe interior drawers) is generic over the same role vocabulary — no
+  per-type branching needed. Zero doors + zero drawers (bookshelf, any
+  open-front bay) → "shelf supports as required by fabricator" (the spec
+  doesn't track fixed-vs-adjustable, so a pin count is never invented).
+  `ui/carpentrySheetSvg.ts:carpentrySvg`'s `cutX` opt draws the dash-dot
+  section-cut line + "A" bubbles top/bottom on the elevation only (its Y-extent
+  is the piece's own geometry bbox ± a small margin, clear of the dimension
+  rows). `ui/drawingSet.ts` retitles the section pane `piece.sectionTitle`,
+  passes `cutX: piece.elevationCutX` to the elevation's `carpentrySvg` call,
+  and renders the two note arrays as a "MATERIALS & FINISH" / "HARDWARE" pair
+  BELOW the elevation+section row (not overlaid — the sheet's declutter
+  precedent), each a bulleted list.
 - **CAD plan exports**: `ui/openDxf.ts` (`export/dxf.ts` `planToDxf`) downloads the plan as an ASCII
   DXF R12 document for a contractor/fabricator CAD handoff (TODO G6): `WALLS`/`ROOMS`/`DOORS`/
   `WINDOWS`/`LABELS` (base geometry) plus `FURNITURE` (each placed item's rotated footprint — the

@@ -846,10 +846,18 @@ describe('buildDrawingSetHtml — carpentry sheets (TODO G8)', () => {
     )
     expect(on).toContain('Carpentry — Custom wardrobe 120 × 220 cm')
     expect(on).toContain('FRONT ELEVATION')
-    expect(on).toContain('SECTION')
+    expect(on).toContain('SECTION A-A')
     expect(on).toContain('Verify all dimensions on site before fabrication.')
     expect(on).toContain('1200 mm') // overall width dimension
     expect(on).toMatch(/Shelf 1 height AFF.*1862 mm/)
+    // H2 buildability callouts: materials/finish + hardware note blocks + a
+    // section cut-line marker ("A" bubbles) on the front elevation.
+    expect(on).toContain('MATERIALS &amp; FINISH')
+    expect(on).toContain('HARDWARE')
+    expect(on).toMatch(/Sliding track \+ rollers.*2 door panels/)
+    expect(on).toContain('confirm exact board/laminate code with fabricator')
+    expect(on).toContain('class="section-cut"')
+    expect(on.match(/>A<\/text>/g)?.length).toBe(2)
 
     // Flag off (default false) → no sheet at all.
     const off = buildDrawingSetHtml(plan, [wardrobeItem], catalog)

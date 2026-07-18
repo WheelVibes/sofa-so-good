@@ -732,11 +732,21 @@ export function buildDrawingSetHtml(
           `<div style="display:flex;gap:16px;flex:1;min-height:0">` +
           `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">` +
           `<div style="font-size:10px;font-weight:600;color:#4b5563">FRONT ELEVATION</div>` +
-          `<div class="draw">${carpentrySvg(piece.elevation, { palette: carpentryPalette, printMmPerM: scale.mmPerM })}</div>` +
+          `<div class="draw">${carpentrySvg(piece.elevation, { palette: carpentryPalette, printMmPerM: scale.mmPerM, cutX: piece.elevationCutX })}</div>` +
           `</div>` +
           `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">` +
-          `<div style="font-size:10px;font-weight:600;color:#4b5563">SECTION</div>` +
+          `<div style="font-size:10px;font-weight:600;color:#4b5563">${esc(piece.sectionTitle)}</div>` +
           `<div class="draw">${carpentrySvg(piece.section, { palette: carpentryPalette, printMmPerM: scale.mmPerM })}</div>` +
+          `</div>` +
+          `</div>` +
+          `<div style="display:flex;gap:16px;font-size:9px;color:#374151;line-height:1.4;flex:none">` +
+          `<div style="flex:1;min-width:0">` +
+          `<div style="font-weight:600;margin-bottom:2px">MATERIALS &amp; FINISH</div>` +
+          piece.materialNotes.map((t) => `<div>• ${esc(t)}</div>`).join('') +
+          `</div>` +
+          `<div style="flex:1;min-width:0">` +
+          `<div style="font-weight:600;margin-bottom:2px">HARDWARE</div>` +
+          piece.hardwareNotes.map((t) => `<div>• ${esc(t)}</div>`).join('') +
           `</div>` +
           `</div>` +
           `<div style="font-size:10px;color:#b45309;font-weight:600">Verify all dimensions on site before fabrication.</div>` +
