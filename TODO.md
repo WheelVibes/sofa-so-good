@@ -4,6 +4,25 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## Active — SG catalog expansion (user request 2026-07-19; research-ranked)
+> Research verdict: most SG staples already covered (shoe cabinet, ceiling fan, vinyl floor,
+> terrazzo/checker, fluted panels, rattan, storage beds, WFH desks, bar pieces — verified, don't
+> re-propose). Genuine gaps, cited (Qanvast/LemonFridge/RCS/Livspace 2026 trend sources):
+- [ ] **CAT-A materials round** (mostly S): Peranakan/Nyonya majolica tile pattern (new
+  `pattern: 'peranakan'` in procedural patterns + colourway entries in builtinCatalog — the
+  named 2026 heritage trend; M), bouclé fabric variant (getFabricMaterial nubby loop texture +
+  seating pattern options; the "quiet luxury" staple), sintered-stone worktop option
+  (kitchen.ts worktopFinish enum), brushed gold/brass hardware finish (metal preset mirroring
+  matte black), heritage checkerboard colourways (jade/cobalt — near-zero code), limewash wall
+  finish (verify microcement wall variant exists first).
+- [ ] **CAT-B furniture round** (S/M): extendable dining table (leaf visual on DiningTable),
+  altar/prayer cabinet (new primitive — common SG household fitting, absent), banquette/built-in
+  bench (condo dining nooks), hydraulic-lift storage bed variant (beds.ts option), wall-mounted
+  water heater (SG-universal bathroom fitting, absent), fluted glass partition (fluted pattern +
+  translucent glass).
+- Skip rulings: undermount sink (prop variant not worth a primitive), KompacPlus branding
+  (generic laminate covers it), brand ceiling fans, aircon (exists as MEP).
+
 ## Active — contractor-handover accuracy & documentation (2026-07-18, user goal)
 > The app's purpose: homeowners design/plan/customize themselves, then hand over DIRECTLY to
 > contractors — so output must be dimensioned, to-scale, accurate, precise, detailed enough to
@@ -13,17 +32,6 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 > ~70-80% there; gaps concentrated below, ranked by contractor credibility impact.
 - *(Precision substrate, ride-along: mm display precision option in `measurement.ts`; bbox
   footprint caveat already tracked under Risks.)*
-- **Handover polish (low)** — recorded by the SG-contractor re-review (v0.22.2.53→60) alongside
-  the H-D1 circle-nudge + G3 tile-mark-omission fixes; deliberately NOT fixed in that pass:
-  - Whole-plan **Section A-A** can render merged item labels (no stagger/declutter pass over the
-    section's own callouts — only the MEP sheets + RCP fixture labels got the `mepLabelLayout.ts`
-    treatment).
-  - The **dimensioned-plan sheet** can print two close datum/running labels with no gap
-    ("4.854.95 m" — two distances concatenated) when two faces land within a font-width of each
-    other along the same baseline row.
-  - The **elevation renderer** has no defensive handling for a corrupt/overlapping legacy
-    placement (an opening or item whose stored geometry no longer makes sense against its wall) —
-    it will still attempt to draw it rather than skip + flag.
 > Direction (user, 2026-07-01): prioritise the **core interior-design loop + its UX,
 > discoverability, customizability** (furnish, arrange, finish, view) on desktop **and** mobile,
 > researching `REFERENCES.md`; then reliability/edge-cases, a11y, and test-coverage hardening.

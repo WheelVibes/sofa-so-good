@@ -87,6 +87,23 @@ describe('sectionSvg', () => {
     expect(svg).toContain('width="1200"')
   })
 
+  it('collapses two adjacent identical labels into one "Label ×2" instead of concatenating', () => {
+    const twoChairs: Section = {
+      ...sampleSection(),
+      items: [
+        { id: 'chair-1', label: 'Dining chair', start: 1, end: 1.4, height: 0.9 },
+        { id: 'chair-2', label: 'Dining chair', start: 1.4, end: 1.8, height: 0.9 },
+      ],
+    }
+    const svg = sectionSvg(twoChairs, { palette: PALETTE })
+    // Both silhouette rects are still drawn (2 walls + 1 opening + 2 items).
+    expect((svg.match(/<rect /g) ?? []).length).toBe(5)
+    // Only ONE merged text node for the pair — never the raw concatenation.
+    expect((svg.match(/<text[^>]*>Dining chair/g) ?? []).length).toBe(1)
+    expect(svg).toContain('Dining chair ×2')
+    expect(svg).not.toContain('Dining chairDining chair')
+  })
+
   it('handles an empty section without throwing', () => {
     const empty: Section = {
       axis: 'x',

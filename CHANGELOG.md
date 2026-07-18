@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.62 — Handover polish: Section A-A labels, datum stagger, elevation hardening
+
+RCP tray success path confirmed already-covered (Bedroom 2 is rectangular;
+scenario re-run green with the "(Tray)" note + dashed inset). Three polish
+fixes: (1) whole-plan Section A-A collapses adjacent identical item labels
+into "Dining chair ×2" instead of concatenating; (2) the dimensioned plan's
+setting-out rows two-row bin-pack close datum labels (a 3-way cluster
+verified numerically — the colliding middle label gets its own row, no more
+"4.854.95 m"); (3) elevations render an item overlapping an opening >60% at
+0.3 opacity so the door/window stays readable (defensive for corrupt/legacy
+placements). 51 targeted tests.
+
 ## v0.22.2.61 — Re-review follow-ups: MEP circle declutter + shallow-room tile marks
 
 SG-contractor re-review verdict on v0.22.2.54-60: "ship it with two

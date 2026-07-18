@@ -137,6 +137,7 @@ export function sectionSvg(section: Section, opts: SectionSvgOpts): string {
   if (section.items.length > 0) {
     const itemFill = palette.item ?? palette.wall
     parts.push('<g class="items">')
+    const labelCandidates: { label: string; cx: number; cy: number; halfW: number }[] = []
     for (const it of section.items) {
       const ix = x(it.start)
       const iw = Math.max((it.end - it.start) * scale, 1)
@@ -149,13 +150,49 @@ export function sectionSvg(section: Section, opts: SectionSvgOpts): string {
         )}" fill-opacity="0.55" stroke="${esc(palette.ink)}" stroke-width="0.75" />`,
       )
       if (it.label && it.end - it.start > 0.35) {
-        parts.push(
-          `<text x="${n(ix + iw / 2)}" y="${n(iy + ihPx / 2)}" font-size="${FONT - 1}" ` +
-            `text-anchor="middle" dominant-baseline="middle" fill="${esc(palette.ink)}">${esc(
-              it.label,
-            )}</text>`,
-        )
+        labelCandidates.push({
+          label: it.label,
+          cx: ix + iw / 2,
+          cy: iy + ihPx / 2,
+          // Rough text half-width estimate (avg glyph ~0.55×font-size wide) —
+          // just enough to detect "these two labels would overlap/concatenate",
+          // not a real text-metrics measurement.
+          halfW: (it.label.length * (FONT - 1) * 0.55) / 2,
+        })
       }
+    }
+    // Adjacent identical labels whose estimated text boxes overlap collapse
+    // into one "Label ×N" at the cluster's mean position (e.g. two identical
+    // dining chairs standing side by side in the cut's room band) rather than
+    // printing both labels concatenated/illegibly on top of each other.
+    labelCandidates.sort((a, b) => a.cx - b.cx)
+    let i = 0
+    while (i < labelCandidates.length) {
+      let j = i + 1
+      let sumCx = labelCandidates[i]!.cx
+      let sumCy = labelCandidates[i]!.cy
+      let maxHalfW = labelCandidates[i]!.halfW
+      while (
+        j < labelCandidates.length &&
+        labelCandidates[j]!.label === labelCandidates[i]!.label &&
+        labelCandidates[j]!.cx - labelCandidates[j - 1]!.cx < maxHalfW + labelCandidates[j]!.halfW
+      ) {
+        sumCx += labelCandidates[j]!.cx
+        sumCy += labelCandidates[j]!.cy
+        maxHalfW = Math.max(maxHalfW, labelCandidates[j]!.halfW)
+        j += 1
+      }
+      const count = j - i
+      const cx = sumCx / count
+      const cy = sumCy / count
+      const text = count > 1 ? `${labelCandidates[i]!.label} ×${count}` : labelCandidates[i]!.label
+      parts.push(
+        `<text x="${n(cx)}" y="${n(cy)}" font-size="${FONT - 1}" ` +
+          `text-anchor="middle" dominant-baseline="middle" fill="${esc(palette.ink)}">${esc(
+            text,
+          )}</text>`,
+      )
+      i = j
     }
     parts.push('</g>')
   }

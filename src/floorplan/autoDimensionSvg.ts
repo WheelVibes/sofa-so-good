@@ -210,37 +210,95 @@ function settingOutRow(
     parts.push(
       `<line x1="${n(Math.min(...xs))}" y1="${n(rowY)}" x2="${n(Math.max(...xs))}" y2="${n(rowY)}" stroke="${esc(color)}" stroke-width="1" stroke-dasharray="4 3"/>`,
     )
-    parts.push(vTickLabel(px(datum[0]), rowY, '0', color))
-    for (const f of faces) {
-      parts.push(vTickLabel(px(f.point[0]), rowY, formatLength(f.distance, units), color))
-    }
+    const labels = ['0', ...faces.map((f) => formatLength(f.distance, units))]
+    const rows = staggerLabelRows(xs, labels)
+    xs.forEach((cx, i) => {
+      parts.push(vTickLabel(cx, rowY, labels[i]!, color, rows[i]!))
+    })
   } else {
     const rowX = px(datum[0] - ROW_OFFSET_M)
     const ys = [py(datum[1]), ...faces.map((f) => py(f.point[1]))]
     parts.push(
       `<line x1="${n(rowX)}" y1="${n(Math.min(...ys))}" x2="${n(rowX)}" y2="${n(Math.max(...ys))}" stroke="${esc(color)}" stroke-width="1" stroke-dasharray="4 3"/>`,
     )
-    parts.push(hTickLabel(rowX, py(datum[1]), '0', color))
-    for (const f of faces) {
-      parts.push(hTickLabel(rowX, py(f.point[1]), formatLength(f.distance, units), color))
-    }
+    const labels = ['0', ...faces.map((f) => formatLength(f.distance, units))]
+    const rows = staggerLabelRows(ys, labels)
+    ys.forEach((cy, i) => {
+      parts.push(hTickLabel(rowX, cy, labels[i]!, color, rows[i]!))
+    })
   }
   return parts.join('\n')
 }
 
-/** A short vertical tick on a horizontal baseline, with its label above it. */
-function vTickLabel(cx: number, cy: number, label: string, color: string): string {
+/** Estimated glyph width (px) for the small setting-out label font — rough
+ *  text-metrics stand-in (real-metric measurement needs a DOM/canvas this
+ *  module deliberately stays free of), just enough to detect "these two
+ *  labels would visually collide/concatenate". */
+const LABEL_CHAR_W = (FONT - 2) * 0.58
+
+/**
+ * Two datum/running labels along the SAME baseline row can land within a
+ * font-width of each other (e.g. two wall faces 0.1 m apart) and print
+ * concatenated ("4.854.95 m") with no gap. Assigns each label a row index
+ * (0 or 1, two-row alternation, same convention as `dimensionChain`'s running
+ * rows) — a label overlapping the nearest still-open row-0 slot escalates to
+ * row 1, leapfrogging back to row 0 once clear again — so close labels stack
+ * onto alternating offsets instead of colliding. Positions need not be sorted;
+ * pairs are compared by estimated label bounding-box overlap regardless of
+ * input order.
+ */
+function staggerLabelRows(positions: number[], labels: string[]): number[] {
+  const order = positions.map((_, i) => i).sort((a, b) => positions[a]! - positions[b]!)
+  // Each row's rightmost occupied edge so far — checked against BOTH rows
+  // (not just "does row 0 fit, else row 1"), so a cluster of 3+ close labels
+  // doesn't dump two colliding labels into row 1 together.
+  const rowRight: [number, number] = [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY]
+  const rows = new Array<number>(positions.length).fill(0)
+  for (const i of order) {
+    const halfW = (labels[i]!.length * LABEL_CHAR_W) / 2
+    const left = positions[i]! - halfW
+    const right = positions[i]! + halfW
+    const fits0 = left >= rowRight[0]
+    const fits1 = left >= rowRight[1]
+    let row: number
+    if (fits0 && fits1) {
+      // Both clear — pack tightest (the row whose edge sits closer behind).
+      row = rowRight[0] >= rowRight[1] ? 0 : 1
+    } else if (fits0) {
+      row = 0
+    } else if (fits1) {
+      row = 1
+    } else {
+      // Neither clears (a 3rd+ label crowded into an already-tight cluster) —
+      // fall back to whichever row has the least residual overlap.
+      row = rowRight[0] <= rowRight[1] ? 0 : 1
+    }
+    rows[i] = row
+    rowRight[row] = right
+  }
+  return rows
+}
+
+/** Extra offset (px) applied per stagger row so a row-1 label clears row 0. */
+const LABEL_ROW_GAP = 11
+
+/** A short vertical tick on a horizontal baseline, with its label above it —
+ *  `row` (0 or 1, see `staggerLabelRows`) pushes the label further out to
+ *  clear a close neighbour still occupying row 0. */
+function vTickLabel(cx: number, cy: number, label: string, color: string, row = 0): string {
   return (
     `<line x1="${n(cx)}" y1="${n(cy - TICK)}" x2="${n(cx)}" y2="${n(cy + TICK)}" stroke="${esc(color)}" stroke-width="1"/>` +
-    `<text x="${n(cx)}" y="${n(cy - TICK - 3)}" font-size="${FONT - 2}" text-anchor="middle" fill="${esc(color)}">${esc(label)}</text>`
+    `<text x="${n(cx)}" y="${n(cy - TICK - 3 - row * LABEL_ROW_GAP)}" font-size="${FONT - 2}" text-anchor="middle" fill="${esc(color)}">${esc(label)}</text>`
   )
 }
 
-/** A short horizontal tick on a vertical baseline, with its label to the left. */
-function hTickLabel(cx: number, cy: number, label: string, color: string): string {
+/** A short horizontal tick on a vertical baseline, with its label to the left
+ *  — `row` (0 or 1, see `staggerLabelRows`) pushes the label further out to
+ *  clear a close neighbour still occupying row 0. */
+function hTickLabel(cx: number, cy: number, label: string, color: string, row = 0): string {
   return (
     `<line x1="${n(cx - TICK)}" y1="${n(cy)}" x2="${n(cx + TICK)}" y2="${n(cy)}" stroke="${esc(color)}" stroke-width="1"/>` +
-    `<text x="${n(cx - TICK - 3)}" y="${n(cy)}" font-size="${FONT - 2}" text-anchor="end" dominant-baseline="middle" fill="${esc(color)}">${esc(label)}</text>`
+    `<text x="${n(cx - TICK - 3 - row * LABEL_ROW_GAP)}" y="${n(cy)}" font-size="${FONT - 2}" text-anchor="end" dominant-baseline="middle" fill="${esc(color)}">${esc(label)}</text>`
   )
 }
 

@@ -119,6 +119,28 @@ describe('elevationSvg', () => {
     expect(new Set(dimLineXs).size).toBeGreaterThan(1)
   })
 
+  it('renders an item semi-transparent when it substantially overlaps an opening (legacy overlap defense)', () => {
+    // A door opening spans floor to head (x=[0.5,1.4], sill=0, head=2.05) — a
+    // floor-standing item (drawn floor→height, same as the door) whose box
+    // sits almost entirely inside it is a corrupt/legacy placement (it now
+    // stands astride a door it predates) and must render semi-transparent so
+    // the door leaf/swing stays readable through it.
+    const overlapping: WallElevation = {
+      ...el,
+      openings: [{ kind: 'door', x0: 0.5, x1: 1.4, sill: 0, head: 2.05 }],
+      items: [{ id: 'x', label: 'Shelf', x0: 0.6, x1: 1.3, height: 1.9, depth: 0 }],
+    }
+    const svg = elevationSvg(overlapping, { palette, dimensions: false })
+    expect(svg).toContain('fill-opacity="0.3"')
+    expect(svg).not.toContain('fill-opacity="0.85"')
+  })
+
+  it('keeps a normal, non-overlapping item at full opacity', () => {
+    const svg = elevationSvg(el, { palette, dimensions: false })
+    expect(svg).toContain('fill-opacity="0.85"')
+    expect(svg).not.toContain('fill-opacity="0.3"')
+  })
+
   it('escapes a malicious item label (no markup injection)', () => {
     const evil: WallElevation = {
       ...el,

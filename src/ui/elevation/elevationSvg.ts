@@ -36,6 +36,25 @@ const esc = (s: string) =>
 
 const f = (n: number) => n.toFixed(3)
 
+/** Fraction of box A's area covered by its intersection with box B (0 when
+ *  they don't overlap at all). Used to detect a legacy item placement that
+ *  now sits substantially inside an opening's box. */
+function openingOverlapFraction(
+  ax0: number,
+  ax1: number,
+  ay0: number,
+  ay1: number,
+  bx0: number,
+  bx1: number,
+  by0: number,
+  by1: number,
+): number {
+  const iw = Math.max(0, Math.min(ax1, bx1) - Math.max(ax0, bx0))
+  const ih = Math.max(0, Math.min(ay1, by1) - Math.max(ay0, by0))
+  const areaA = Math.max(1e-9, (ax1 - ax0) * (ay1 - ay0))
+  return (iw * ih) / areaA
+}
+
 export interface ElevationSvgOptions {
   palette: ElevationPalette
   /** Draw furniture labels (off for tiny thumbnails). Default true. */
@@ -90,8 +109,18 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
   for (const it of el.items) {
     const w = it.x1 - it.x0
     const h = Math.min(it.height, H)
+    // Defensive handling for a corrupt/overlapping legacy placement (an item
+    // whose stored geometry no longer makes sense against its wall — e.g. it
+    // now sits astride a door/window it predates): when the item's own box
+    // overlaps an opening's box by more than 60% of the item's area, render
+    // it semi-transparent so the opening cut-out/pane stays readable through
+    // it, rather than the two silhouettes muddling into an illegible overlap.
+    const overlapsOpening = el.openings.some(
+      (o) => openingOverlapFraction(it.x0, it.x1, 0, h, o.x0, o.x1, o.sill, o.head) > 0.6,
+    )
+    const itemOpacity = overlapsOpening ? 0.3 : 0.85
     parts.push(
-      `<rect x="${f(it.x0)}" y="${f(y(h))}" width="${f(w)}" height="${f(h)}" fill="${p.item}" fill-opacity="0.85" stroke="${p.stroke}" stroke-width="${f(sw)}"/>`,
+      `<rect x="${f(it.x0)}" y="${f(y(h))}" width="${f(w)}" height="${f(h)}" fill="${p.item}" fill-opacity="${itemOpacity}" stroke="${p.stroke}" stroke-width="${f(sw)}"/>`,
     )
     if (labels && w > 0.35) {
       // Label centred in the silhouette, scaled to fit (and never upside down).
