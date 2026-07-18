@@ -1177,9 +1177,13 @@ same change that reshapes a system.
   + `FURNITURE_TEXT` (item name), `DIMENSIONS` (the `floorplan/autoDimension.ts` auto-dimension
   strings rendered as LINE + perpendicular tick + extension-stub + TEXT primitives — no native
   `DIMENSION` entity, since R12's needs a `DIMSTYLE` table lightweight readers render
-  inconsistently), and `OPENING_MARKS` (a D1/D2…/W1/W2… mark TEXT beside each door/window,
-  cross-referencing `analysis/openingSchedule.ts`). Every layer carries a distinct AutoCAD colour
-  index via the LAYER table. `ui/openPlanSvg.ts` downloads the bare plan as a vector `.svg`,
+  inconsistently), `OPENING_MARKS` (a D1/D2…/W1/W2… mark TEXT beside each door/window,
+  cross-referencing `analysis/openingSchedule.ts`), and `ELECTRICAL`/`PLUMBING` (TODO G6b — a
+  CIRCLE + symbol TEXT, `@<mm>` mount-height suffix when set, per PERSISTED
+  `plan.electricalPoints`/`plumbingPoints` — same `ELEC_SYM_TEXT`/`PLUMB_SYM_TEXT` glyphs the MEP
+  sheets use, never the furniture heuristic; ground-only, same single-storey convention as
+  walls/rooms). Every layer carries a distinct AutoCAD colour index via the LAYER table.
+  `ui/openPlanSvg.ts` downloads the bare plan as a vector `.svg`,
   reusing `reportPlanSvg` + pure `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog +
   injected `xmlns`). Both in Tools + mobile + ⌘K, `dxfExport` flag (pro).
 - **Sweet Home 3D import** (`importSh3d` flag, pro; PARITY-SH3D): pure parser core

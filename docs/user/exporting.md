@@ -37,8 +37,10 @@ drafting tool:
 - **Export DXF (CAD)** — a 2D DXF for AutoCAD or a contractor/fabricator hand‑off. Beyond the
   walls, rooms, doors/windows and room labels, it also carries your **placed furniture**
   (footprint + name label, on its own layer), the **auto-dimension lines** for every wall and
-  room, and a **D1/W1…-style mark** beside each door/window that lines up with the door/window
-  schedule — a genuinely editable, fully-annotated CAD file, not just an outline.
+  room, a **D1/W1…-style mark** beside each door/window that lines up with the door/window
+  schedule, and any **electrical/plumbing points you've placed** on the plan (a circle + symbol
+  per point, with its mount height when set) — a genuinely editable, fully-annotated CAD file,
+  not just an outline.
 - **Export SVG (plan)** — a vector 2D plan for any editor or for print (command
   palette: *Export 2D plan to SVG*).
 

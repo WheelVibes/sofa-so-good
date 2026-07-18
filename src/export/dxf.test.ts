@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FloorPlan } from '../floorplan/types'
 import type { BuiltinGltfDef, FurnitureDef, FurnitureItem } from '../furniture/types'
-import { dxfLine, dxfPolyline, dxfText, planToDxf } from './dxf'
+import { dxfCircle, dxfLine, dxfPolyline, dxfText, planToDxf } from './dxf'
 
 /** Count non-overlapping occurrences of `needle` in `hay`. */
 function count(hay: string, needle: string): number {
@@ -63,7 +63,7 @@ describe('planToDxf', () => {
     expect(dxf).toMatch(/\$INSUNITS\n70\n6/)
   })
 
-  it('defines all layers (walls/rooms/openings/labels + G6 enrichment) in the LAYER table', () => {
+  it('defines all layers (walls/rooms/openings/labels + G6/G6b enrichment) in the LAYER table', () => {
     for (const layer of [
       'WALLS',
       'ROOMS',
@@ -74,6 +74,8 @@ describe('planToDxf', () => {
       'FURNITURE_TEXT',
       'DIMENSIONS',
       'OPENING_MARKS',
+      'ELECTRICAL',
+      'PLUMBING',
     ]) {
       expect(dxf).toContain(layer)
     }
@@ -92,6 +94,8 @@ describe('planToDxf', () => {
       FURNITURE_TEXT: 2,
       DIMENSIONS: 1,
       OPENING_MARKS: 6,
+      ELECTRICAL: 3,
+      PLUMBING: 5,
     }
     for (const [layer, color] of Object.entries(expected)) {
       expect(dxf).toMatch(new RegExp(`LAYER\\n2\\n${layer}\\n70\\n0\\n62\\n${color}\\n`))
@@ -297,6 +301,74 @@ describe('planToDxf furniture (G6)', () => {
   })
 })
 
+describe('planToDxf MEP points (G6b)', () => {
+  const planWithMep: FloorPlan = {
+    ...smallPlan,
+    electricalPoints: [
+      { id: 'e1', x: 1, z: 2, kind: 'switch', mountHeightMm: 1200 },
+      { id: 'e2', x: 2, z: 2, kind: 'socket' },
+    ],
+    plumbingPoints: [{ id: 'p1', x: 3, z: 1, kind: 'water-point', mountHeightMm: 600 }],
+  }
+
+  it('emits a CIRCLE + symbol TEXT for each persisted electrical point on ELECTRICAL', () => {
+    const dxf = planToDxf(planWithMep)
+    expect(layerEntityCount(dxf, 'CIRCLE', 'ELECTRICAL')).toBe(2)
+    // Point (1,2) → DXF (1,-2), radius 0.06.
+    expect(dxf).toMatch(
+      /CIRCLE\n8\nELECTRICAL\n10\n1\.000000\n20\n-2\.000000\n30\n0\.000000\n40\n0\.060000/,
+    )
+    // "switch" (symbol "S") + mount-height suffix "@1200" beside the circle.
+    expect(dxf).toContain('1\nS @1200')
+  })
+
+  it('omits the mount-height suffix when unset', () => {
+    const dxf = planToDxf(planWithMep)
+    // "socket" has an empty symbol glyph and no mount height ⇒ no side TEXT
+    // at all for that point (only its CIRCLE marker).
+    expect(dxf).not.toContain('@undefined')
+    expect(dxf).not.toMatch(/1\nS\n/) // no bare "S" without the suffix present elsewhere
+  })
+
+  it('emits a CIRCLE + symbol TEXT for each persisted plumbing point on PLUMBING', () => {
+    const dxf = planToDxf(planWithMep)
+    expect(layerEntityCount(dxf, 'CIRCLE', 'PLUMBING')).toBe(1)
+    // Point (3,1) → DXF (3,-1).
+    expect(dxf).toMatch(
+      /CIRCLE\n8\nPLUMBING\n10\n3\.000000\n20\n-1\.000000\n30\n0\.000000\n40\n0\.060000/,
+    )
+    expect(dxf).toContain('1\nW @600')
+  })
+
+  it('filters out MEP points tagged to an upper storey (levelId set) — ground-only, matching walls/rooms', () => {
+    const upperOnly: FloorPlan = {
+      ...smallPlan,
+      electricalPoints: [{ id: 'e-up', x: 0, z: 0, kind: 'switch', levelId: 'level-1' }],
+      plumbingPoints: [{ id: 'p-up', x: 0, z: 0, kind: 'water-point', levelId: 'level-1' }],
+    }
+    const dxf = planToDxf(upperOnly)
+    expect(layerEntityCount(dxf, 'CIRCLE', 'ELECTRICAL')).toBe(0)
+    expect(layerEntityCount(dxf, 'CIRCLE', 'PLUMBING')).toBe(0)
+  })
+
+  it('emits no ELECTRICAL/PLUMBING entities when the arrays are empty/absent', () => {
+    const dxf = planToDxf(smallPlan)
+    expect(layerEntityCount(dxf, 'CIRCLE', 'ELECTRICAL')).toBe(0)
+    expect(layerEntityCount(dxf, 'CIRCLE', 'PLUMBING')).toBe(0)
+    expect(layerEntityCount(dxf, 'TEXT', 'ELECTRICAL')).toBe(0)
+    expect(layerEntityCount(dxf, 'TEXT', 'PLUMBING')).toBe(0)
+    // The layer table entries still exist (same style as an empty FURNITURE layer).
+    expect(dxf).toMatch(/LAYER\n2\nELECTRICAL\n70\n0\n62\n3\n/)
+    expect(dxf).toMatch(/LAYER\n2\nPLUMBING\n70\n0\n62\n5\n/)
+  })
+
+  it('is deterministic — same MEP input yields byte-identical output', () => {
+    const a = planToDxf(planWithMep)
+    const b = planToDxf(planWithMep)
+    expect(a).toBe(b)
+  })
+})
+
 describe('dxf helpers', () => {
   it('dxfLine writes both endpoints with Z flipped', () => {
     const s = dxfLine('WALLS', 1, 2, 3, 4)
@@ -316,6 +388,14 @@ describe('dxf helpers', () => {
     expect(s).toMatch(/POLYLINE\n8\nROOMS\n66\n1\n70\n1/)
     expect(count(s, '\n0\nVERTEX\n')).toBe(3)
     expect(s).toContain('SEQEND')
+  })
+
+  it('dxfCircle writes a centred CIRCLE with Z flipped and the given radius', () => {
+    const s = dxfCircle('ELECTRICAL', 1, 2, 0.06)
+    expect(s).toContain('CIRCLE')
+    expect(s).toMatch(/10\n1\.000000/)
+    expect(s).toMatch(/20\n-2\.000000/)
+    expect(s).toMatch(/40\n0\.060000/)
   })
 
   it('dxfText sanitises newlines in the label', () => {

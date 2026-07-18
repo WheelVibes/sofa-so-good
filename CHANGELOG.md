@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.49 — G6b: designed MEP points on DXF ELECTRICAL/PLUMBING layers
+
+`planToDxf` emits each persisted point as a CIRCLE (r 0.06 m) + one combined
+"glyph @mm" TEXT (sheet symbol vocabulary imported, not duplicated; no TEXT
+at all when both parts are empty — avoiding sanitizeText's 'Room' fallback
+mislabeling), on ELECTRICAL (ACI 3) / PLUMBING (ACI 5) layers. Designed
+points only — the furniture heuristic is deliberately NOT baked into CAD
+output. Ground-storey filtering matches the exporter's existing single-storey
+convention (tested). 31/31 dxf tests. Closes G6b — the DXF now carries every
+handover layer: walls/rooms/openings/labels/furniture/dimensions/marks/MEP.
+
 ## v0.22.2.48 — G1 complete (PR 4+5): Suggest MEP points + as-designed sheets
 
 "Suggest MEP points" (Plan ▾ menu + mobile, mepEditor-gated) seeds a starting

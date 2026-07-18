@@ -15,8 +15,6 @@ when an item ships it is **removed from this file entirely**. Maintainability re
   concept. Add face-of-wall dimension option + a per-plan datum (default: a structural/external
   wall corner) with chain dimensions from the datum (not cumulative) on the floor-plan sheet;
   tile setting-out marks on the finishes sheet (start point + joint direction per room).
-- [ ] **G6b — DXF ELECTRICAL/PLUMBING layers** (unblocked — G1 shipped persisted MEP points; the
-  FURNITURE/DIMENSIONS/OPENING_MARKS layers shipped v0.22.2.39).
 - [ ] **G7 — Demolition/hacking plan hardening (SG).** Wall-classification field
   (load-bearing / RC partition / brick infill / drywall — user-declared with an "unknown,
   verify with HDB/PE" default), hatched removals per convention, permit-note block (HDB permit

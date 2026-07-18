@@ -27,6 +27,19 @@
  *  - `OPENING_MARKS`  — a D1/D2…/W1/W2… mark TEXT beside each door/window,
  *                       cross-referencing the door/window schedule
  *                       (`analysis/openingSchedule.ts`).
+ *  - `ELECTRICAL`     — each PERSISTED electrical point (`FloorPlan.electricalPoints`,
+ *                       MEP layer G1) as a small CIRCLE + a symbol TEXT (the
+ *                       same short glyph vocabulary the electrical sheet uses,
+ *                       `electricalPlanSvg.ts`'s `ELEC_SYM_TEXT`), with an
+ *                       `@<mm>` mount-height suffix appended when the point
+ *                       carries one. Deliberately NOT the furniture-heuristic
+ *                       fallback (`furniture/mepSuggest.ts`) — only points the
+ *                       user actually designed, matching the sheets' "points
+ *                       as designed" provenance note (G1 PR5). Empty/absent
+ *                       array ⇒ no entities (the layer table entry still
+ *                       exists, same as an empty FURNITURE layer).
+ *  - `PLUMBING`       — same treatment for `FloorPlan.plumbingPoints`
+ *                       (`plumbingPlanSvg.ts`'s `PLUMB_SYM_TEXT`).
  *
  * Units: DXF is unitless; `$INSUNITS = 6` declares metres, and all coordinates
  * are written in plan metres.
@@ -40,9 +53,13 @@
 import { obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
 import { buildDimensions, type Dimension } from '../floorplan/autoDimension'
+import { ELEC_SYM_TEXT } from '../floorplan/electricalPlanSvg'
+import { PLUMB_SYM_TEXT } from '../floorplan/plumbingPlanSvg'
 import {
   type FloorPlan,
+  type PlanElectricalPoint,
   type PlanOpening,
+  type PlanPlumbingPoint,
   type PlanVec2,
   type PlanWall,
   roomPolygon,
@@ -102,6 +119,19 @@ export function dxfPolyline(layer: string, pts: PlanVec2[]): string {
     .join('')
   const end = block(pair(0, 'SEQEND'), pair(8, layer))
   return header + verts + end
+}
+
+/** A CIRCLE entity of radius `r` centred at (x,z) on `layer` (plan coords; Z
+ *  flipped). Used for MEP point markers (ELECTRICAL/PLUMBING layers). */
+export function dxfCircle(layer: string, x: number, z: number, r: number): string {
+  return block(
+    pair(0, 'CIRCLE'),
+    pair(8, layer),
+    pair(10, num(x)),
+    pair(20, num(dxfY(z))),
+    pair(30, num(0)),
+    pair(40, num(r)),
+  )
 }
 
 /** Strip newlines/control chars from a TEXT value so the DXF stays well-formed. */
@@ -300,6 +330,64 @@ function furnitureSection(items: FurnitureItem[], catalog: Record<string, Furnit
   return out
 }
 
+/** Radius (m) of the small marker CIRCLE drawn at each MEP point. */
+const MEP_POINT_RADIUS = 0.06
+/** Gap (m) between the marker circle's edge and its symbol/height TEXT. */
+const MEP_LABEL_GAP = 0.06
+
+/**
+ * One MEP point's CIRCLE marker + an optional symbol/mount-height TEXT, both
+ * on `layer`. `symbol` is the short glyph vocabulary the sheets use (empty
+ * string for e.g. a plain `socket`, which the sheet instead draws as prongs
+ * inside the circle — no glyph text to skip an empty/placeholder TEXT
+ * entity). `mountHeightMm` appends an `@<mm>` suffix (same combined-string
+ * layout `electricalPlanSvg.ts`/`plumbingPlanSvg.ts` use for their side
+ * label) rather than a second TEXT entity, keeping one primitive per point.
+ */
+function mepPointEntities(
+  layer: string,
+  x: number,
+  z: number,
+  symbol: string,
+  mountHeightMm: number | undefined,
+): string {
+  let out = dxfCircle(layer, x, z, MEP_POINT_RADIUS)
+  const heightSuffix = typeof mountHeightMm === 'number' ? `@${Math.round(mountHeightMm)}` : ''
+  const sideText = [symbol, heightSuffix].filter(Boolean).join(' ')
+  if (sideText) {
+    out += dxfText(layer, x + MEP_POINT_RADIUS + MEP_LABEL_GAP, z, sideText, 0.12)
+  }
+  return out
+}
+
+/**
+ * ELECTRICAL/PLUMBING layers: one CIRCLE + symbol TEXT per PERSISTED MEP
+ * point (`plan.electricalPoints`/`plumbingPoints`), never the furniture
+ * heuristic (`furniture/mepSuggest.ts`) — designed points only, matching the
+ * sheets' as-designed provenance note. Filtered to `levelId === undefined`
+ * (ground) — the same single-storey convention `entitiesSection` follows for
+ * walls/rooms/openings (this exporter never fans out over `upperLevels`).
+ * Missing/non-array fields fall back to empty (no entities), same guard
+ * style as `entitiesSection`'s `Array.isArray` checks.
+ */
+function mepSection(plan: FloorPlan): string {
+  const electrical: PlanElectricalPoint[] = Array.isArray(plan.electricalPoints)
+    ? plan.electricalPoints.filter((p) => p.levelId === undefined)
+    : []
+  const plumbing: PlanPlumbingPoint[] = Array.isArray(plan.plumbingPoints)
+    ? plan.plumbingPoints.filter((p) => p.levelId === undefined)
+    : []
+
+  let out = ''
+  for (const p of electrical) {
+    out += mepPointEntities('ELECTRICAL', p.x, p.z, ELEC_SYM_TEXT[p.kind], p.mountHeightMm)
+  }
+  for (const p of plumbing) {
+    out += mepPointEntities('PLUMBING', p.x, p.z, PLUMB_SYM_TEXT[p.kind], p.mountHeightMm)
+  }
+  return out
+}
+
 /** A LAYER table entry. */
 function layerEntry(name: string, color: number): string {
   return block(pair(0, 'LAYER'), pair(2, name), pair(70, 0), pair(62, color), pair(6, 'CONTINUOUS'))
@@ -310,7 +398,9 @@ function layerEntry(name: string, color: number): string {
  *  yellow/2, dimensions red/1, furniture cyan/4 (footprints, a different
  *  layer from WINDOWS so it can be toggled independently even though the ACI
  *  repeats — DXF allows two layers to share a colour), furniture text
- *  yellow/2, opening marks magenta/6. */
+ *  yellow/2, opening marks magenta/6, electrical green/3 (repeats DOORS —
+ *  same "independently toggleable, shared ACI" rationale), plumbing
+ *  blue/5 (repeats ROOMS). */
 const LAYERS: ReadonlyArray<readonly [string, number]> = [
   ['WALLS', 7],
   ['ROOMS', 5],
@@ -321,6 +411,8 @@ const LAYERS: ReadonlyArray<readonly [string, number]> = [
   ['FURNITURE_TEXT', 2],
   ['DIMENSIONS', 1],
   ['OPENING_MARKS', 6],
+  ['ELECTRICAL', 3],
+  ['PLUMBING', 5],
 ]
 
 /** Minimal HEADER section: declare metres via $INSUNITS = 6. */
@@ -347,10 +439,10 @@ function tablesSection(): string {
 
 /**
  * ENTITIES section: walls, rooms, openings + their schedule marks, labels,
- * placed furniture footprints + name labels, and auto-dimension strings.
- * `items`/`catalog` default to empty so a caller exporting bare geometry
- * (or an older call site) still gets a valid document with no FURNITURE
- * entities.
+ * placed furniture footprints + name labels, persisted MEP points
+ * (electrical/plumbing), and auto-dimension strings. `items`/`catalog`
+ * default to empty so a caller exporting bare geometry (or an older call
+ * site) still gets a valid document with no FURNITURE entities.
  */
 function entitiesSection(
   plan: FloorPlan,
@@ -398,6 +490,7 @@ function entitiesSection(
   }
 
   out += furnitureSection(items, catalog)
+  out += mepSection(plan)
 
   const dims = buildDimensions(plan, units)
   for (const d of [...dims.overall, ...dims.rooms]) out += dxfDimension(d)
