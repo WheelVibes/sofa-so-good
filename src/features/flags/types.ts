@@ -104,6 +104,7 @@ export type FeatureFlag =
   | 'triplanarWalls'
   | 'hdriEnvironment'
   | 'wallThickness'
+  | 'wallStructure'
   | 'unroomedFlag'
   | 'planIntegrity'
   | 'planScale'

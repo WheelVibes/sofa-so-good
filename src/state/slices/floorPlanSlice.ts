@@ -181,6 +181,9 @@ export interface FloorPlanSlice {
   removeWalls: (ids: string[], levelId?: string) => void
   /** Bulk lock/unlock walls; one history step. */
   setWallsLocked: (ids: string[], locked: boolean, levelId?: string) => void
+  /** Bulk-set a structural classification (TODO G7, `wallStructure`) across every
+   *  selected wall; one history step. `undefined` resets to the 'unknown' default. */
+  setWallsStructure: (ids: string[], structure: PlanWall['structure'], levelId?: string) => void
   /** Saved named floor plans (the apartment library). */
   savedPlans: FloorPlan[]
   /** Save the active plan into the library (new entry; returns its id). */
@@ -583,6 +586,16 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     set((s) => ({
       floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (gg) => ({
         walls: gg.walls.map((w) => (set0.has(w.id) ? { ...w, locked: locked || undefined } : w)),
+      })),
+    }))
+  },
+  setWallsStructure: (ids, structure, levelId) => {
+    const set0 = new Set(ids)
+    if (set0.size === 0) return
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (gg) => ({
+        walls: gg.walls.map((w) => (set0.has(w.id) ? { ...w, structure } : w)),
       })),
     }))
   },

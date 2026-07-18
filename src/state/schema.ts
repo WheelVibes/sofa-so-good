@@ -268,6 +268,11 @@ const PlanWallZ = z.object({
     .optional(),
   // Optional per-wall paint colour override (elementColors) — additive, back-compat.
   color: z.string().optional(),
+  // Optional user-declared structural classification (TODO G7, wallStructure) —
+  // additive, back-compat. Absent = 'unknown'.
+  structure: z
+    .enum(['load-bearing', 'rc-partition', 'brick-partition', 'drywall', 'unknown'])
+    .optional(),
 })
 const PlanOpeningZ = z.object({
   id: z.string(),

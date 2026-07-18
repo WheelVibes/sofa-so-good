@@ -874,6 +874,35 @@ describe('schema', () => {
     }
   })
 
+  it('round-trips a per-wall structural classification (TODO G7)', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        ...useStore.getState().floorPlan,
+        id: 'custom-structure',
+        walls: [
+          {
+            id: 'w1',
+            start: [0, 0],
+            end: [4, 0],
+            thickness: 'external',
+            structure: 'load-bearing',
+          },
+          { id: 'w2', start: [4, 0], end: [4, 3], thickness: 'internal' },
+        ],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const patch = applySerialized(round.data, new Set())
+      expect(patch.floorPlan?.walls.find((w) => w.id === 'w1')?.structure).toBe('load-bearing')
+      // Absent structure survives as absent (defaults to 'unknown' at read sites).
+      expect(patch.floorPlan?.walls.find((w) => w.id === 'w2')?.structure).toBeUndefined()
+    }
+  })
+
   it('round-trips a custom plan’s per-room finishes (keyed by custom room ids)', () => {
     useStore.getState().__resetForTest()
     // A custom plan whose room id is NOT in the fixed ROOMS table.

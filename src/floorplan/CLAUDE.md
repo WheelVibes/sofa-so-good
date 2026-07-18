@@ -51,6 +51,27 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   (`panel`/`flush`/`glazed`) or window type (`plain`/`grille`/`louvre`), rendered as pure procedural
   geometry by `PlanDoorLeaf` (panel/glaze branches) and `PlanShell`'s `FadeWindow` (grille/louvre bars);
   same additive schema shape as `color`.
+- **Wall structural classification (TODO G7, `wallStructure` pro flag):**
+  `PlanWall.structure?: 'load-bearing'|'rc-partition'|'brick-partition'|'drywall'|'unknown'`
+  (absent = `'unknown'`) is **user-declared, never verified** — the app cannot tell a
+  load-bearing beam-and-column wall from a non-structural precast/Ferrolite partition from
+  plan geometry alone (a documented HDB hacking-plan failure mode; see
+  `docs/research/2026-07-18-contractor-handover-research.md`). Same additive schema shape as
+  `color`/`style` above. Edited per-wall in `WallInspector` (a `Select`, with an inline
+  "confirm against HDB/BCA records" hint) or in bulk across a multi-wall selection via
+  `floorPlanSlice.setWallsStructure` (`PlanInspector`'s multi-wall panel — "Mixed" placeholder
+  when the selection disagrees). `diffWalls`/`diffWallsByLevel` (`demolitionPlan.ts`) never
+  clone wall objects — they just bucket references into `kept`/`demolished`/`added` — so
+  `structure` rides straight through into `WallDiff` with no extra plumbing.
+  `demolitionPlanSvg.ts` reads it directly: a `'load-bearing'` wall always renders
+  heavy/solid (+ a legend row); a load-bearing wall marked for demolition escalates to a
+  hard danger treatment + an inline "NOT PERMITTED" label (load-bearing demolition is
+  absolute off-limits under SG rules, never just "needs a permit"); an `'unknown'`
+  (or unset) wall being demolished gets an inline "⚠" + a "confirm with HDB/PE" legend note.
+  Demolished walls also get a real diagonal-hatch tick pattern (not just a dashed colour) per
+  drafting convention. The sheet prints a concise SG permit-note block alongside the legend
+  (HDB permit required for any demolition, PE endorsement when RC is touched, load-bearing
+  off-limits, classification is user-declared, weekday-only working hours).
 - Geometry stays **pure + unit-tested** here (no three/React imports beyond types).
 - **Ruler guides (PARITY-PLAN-GUIDES): `plan.guides: {axis:'x'|'z',pos}[]`** are plan-wide reference
   lines (not level-tagged) the 2D editor snaps points to. Pure `snapToGuides.ts`

@@ -661,6 +661,9 @@ export function buildReportHtml(
     demolished: '#dc2626',
     added: '#16a34a',
     ink: '#374151',
+    // Hard-stop danger treatment (G7) for a load-bearing wall marked for
+    // demolition — darker/more alarming than the ordinary "demolished" red.
+    danger: '#7f1d1d',
   }
   const hackingMulti = baselinePlan != null && (multi || isMultiLevel(baselinePlan))
   const levelDiffs: LevelWallDiff[] = hackingMulti

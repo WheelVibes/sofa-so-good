@@ -270,7 +270,26 @@ URL shown as a shortened link for print). Print or save as PDF for
     PE endorsement when RC elements are touched, EMA-licensed electrician (LEW) for
     electrical work, PUB-licensed plumber for plumbing, and verify all dimensions
     on site.
-  - **Electrical/plumbing sheet provenance.** Once you've placed points with the
+  - **Demolition/hacking plan — wall classification (Pro).** When walls changed vs. the
+  as-loaded baseline, the set includes a **"Demolition & new walls"** sheet: kept walls
+  solid, new walls bold, and removed walls dashed **with a diagonal hatch** (the
+  drafting "to be removed" convention) instead of just a colour. Give any wall a
+  **Structure** tag in its Properties panel — **Unknown / not verified**,
+  **Load-bearing**, **RC partition**, **Brick partition** or **Drywall** — with an
+  inline reminder that this is **user-declared, not verified**: an older HDB block can
+  hide a load-bearing beam-and-column wall behind what looks like a partition on plan,
+  so confirm against HDB/BCA as-built records (or a PE) before hacking. Select several
+  walls at once to set the same tag on all of them from the multi-wall action panel.
+  On the sheet: a **load-bearing** wall always draws heavy/solid (with a "Load-bearing
+  (heavy line)" legend row); if it's ALSO marked for demolition it escalates to a hard
+  **danger** treatment with an inline **"NOT PERMITTED"** label and a matching legend
+  row — SG rules make load-bearing demolition absolutely off-limits, not just
+  "needs a permit". An **unverified** wall being demolished gets an inline **⚠** marker
+  and a "Structure unverified — confirm with HDB/PE before hacking" legend note. The
+  sheet also prints a concise SG permit-note block (HDB permit required for any
+  demolition, PE endorsement when RC is touched, load-bearing elements off-limits,
+  classification is user-declared, weekday-only permitted working hours).
+- **Electrical/plumbing sheet provenance.** Once you've placed points with the
     floor-plan editor's **MEP** tool (see *Electrical & plumbing points* in the
     Floor plan editor guide), the electrical/plumbing sheets note **"Points as
     designed — heights in mm AFFL"** and print your chosen mount height beside

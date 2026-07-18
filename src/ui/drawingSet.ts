@@ -536,7 +536,13 @@ export function buildDrawingSetHtml(
         sheets.push({
           name: `Demolition & new walls — ${row.levelName}`,
           body: `${note}<div class="draw">${demolitionSvg(row.diff, {
-            palette: { kept: '#9ca3af', demolished: '#dc2626', added: '#16a34a', ink: '#374151' },
+            palette: {
+              kept: '#9ca3af',
+              demolished: '#dc2626',
+              added: '#16a34a',
+              ink: '#374151',
+              danger: '#7f1d1d',
+            },
             widthPx: 900,
             printMmPerM: scale.mmPerM,
           })}</div>${northIndicatorSvg(orientationDeg)}`,
@@ -553,7 +559,13 @@ export function buildDrawingSetHtml(
         sheets.push({
           name: 'Demolition & new walls',
           body: `<div class="draw">${demolitionSvg(wallDiff, {
-            palette: { kept: '#9ca3af', demolished: '#dc2626', added: '#16a34a', ink: '#374151' },
+            palette: {
+              kept: '#9ca3af',
+              demolished: '#dc2626',
+              added: '#16a34a',
+              ink: '#374151',
+              danger: '#7f1d1d',
+            },
             widthPx: 900,
             printMmPerM: scale.mmPerM,
           })}</div>${northIndicatorSvg(orientationDeg)}`,

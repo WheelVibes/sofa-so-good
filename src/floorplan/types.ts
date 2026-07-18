@@ -72,6 +72,19 @@ export interface PlanWall {
    *  for THIS wall only. Absent = use the plan default. Edited in the 2D plan
    *  inspector (`elementColors`). */
   color?: string
+  /** Optional user-declared structural classification (TODO G7 — SG hacking-plan
+   *  hardening). Absent = `'unknown'`. **User-declared, not verified** — the app
+   *  cannot tell a load-bearing beam-and-column wall from a non-structural
+   *  precast/Ferrolite partition from plan geometry alone (both look identical on
+   *  plan; this is a documented HDB hacking-plan failure mode). Classification
+   *  must be confirmed against HDB/BCA as-built records or a PE before hacking —
+   *  the inspector + demolition sheet both carry that caveat inline. Drives the
+   *  demolition sheet's classification rendering (`demolitionPlanSvg.ts`):
+   *  `'load-bearing'` walls get a heavy/solid treatment (and a hard "NOT
+   *  PERMITTED" danger callout if marked for demolition); `'unknown'` walls
+   *  being demolished get a ⚠ warning marker. Edited in the 2D plan inspector
+   *  (`wallStructure`). */
+  structure?: 'load-bearing' | 'rc-partition' | 'brick-partition' | 'drywall' | 'unknown'
 }
 
 export interface PlanOpening {

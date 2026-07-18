@@ -17,7 +17,7 @@ import { useIsMobile } from '../useIsMobile'
 import { OpeningInspector } from './editor/inspector/OpeningInspector'
 import { RoomInspector } from './editor/inspector/RoomInspector'
 import { ActBtn, DeleteBtn, Num } from './editor/inspector/shared'
-import { WallInspector } from './editor/inspector/WallInspector'
+import { STRUCTURE_OPTIONS, WallInspector } from './editor/inspector/WallInspector'
 import { ELECTRICAL_MEP_KINDS, PLUMBING_MEP_KINDS } from './editor/mepToolKinds'
 import { PlanFurnitureInspector } from './PlanFurnitureInspector'
 import { PlanMultiSelectActions } from './PlanMultiSelectActions'
@@ -70,6 +70,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const a = useStore.getState()
   const isMobile = useIsMobile()
   const wallThicknessOn = useFeature('wallThickness')
+  const wallStructureOn = useFeature('wallStructure')
   // The active storey's geometry — selection ids come from the editor canvas,
   // which only ever shows (so only ever selects) active-level elements.
   const level = levelById(plan, levelId)
@@ -216,6 +217,10 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
     const selWalls = level.walls.filter((w) => wallSelIds.includes(w.id))
     const allLocked = selWalls.every((w) => w.locked)
     const lockedCount = selWalls.filter((w) => w.locked).length
+    // Bulk structural classification (TODO G7) — shows the shared value when
+    // every selected wall agrees, else a "Mixed" placeholder (no value forced).
+    const structureValues = new Set(selWalls.map((w) => w.structure ?? 'unknown'))
+    const commonStructure = structureValues.size === 1 ? [...structureValues][0] : undefined
     body = (
       <div className="space-y-2">
         <div className="sec-h">
@@ -247,6 +252,22 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
             onClick={() => a.removeWalls(wallSelIds, levelId)}
           />
         </div>
+        {wallStructureOn ? (
+          <div className="row" style={{ padding: '6px 0', alignItems: 'center' }}>
+            <span className="label">Structure (all)</span>
+            <Select
+              className="input"
+              style={{ marginLeft: 'auto', maxWidth: '56%' }}
+              value={commonStructure ?? ''}
+              placeholder="Mixed"
+              onChange={(v) =>
+                a.setWallsStructure(wallSelIds, v as (typeof STRUCTURE_OPTIONS)[number][0], levelId)
+              }
+              ariaLabel="Structure (all selected walls)"
+              options={STRUCTURE_OPTIONS.map(([value, label]) => ({ value, label }))}
+            />
+          </div>
+        ) : null}
         <button
           type="button"
           className="btn btn-soft btn-block"

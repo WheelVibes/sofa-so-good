@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.50 — G7: SG hacking-plan hardening (wall classification + permit notes)
+
+`PlanWall.structure` (load-bearing / RC partition / brick partition / drywall
+/ unknown; `wallStructure` pro flag): declared per wall in the WallInspector
+(with an honest "user-declared — confirm against HDB/BCA records" hint) or
+bulk-applied to a multi-wall selection (new `setWallsStructure`, "Mixed"
+shown when the selection disagrees). The demolition sheet gains real 45°
+hatch ticks on removed walls, a heavy treatment for load-bearing walls that
+escalates to a danger colour + inline "NOT PERMITTED" label when one is
+marked for demolition (SG absolute rule), a ⚠ + "Structure unverified —
+confirm with HDB/PE before hacking" row for unclassified demolitions, and a
+6-line SG permit-note block (HDB permit always required; PE when RC touched;
+off-limits list; working-hours conditions). Classification rides the
+baseline-vs-current wall diff with zero extra plumbing (diffWalls buckets
+references). 11 svg tests + schema/flag/inspector/bulk tests + an 18-step
+scenario asserting the rendered legend + permit block.
+
 ## v0.22.2.49 — G6b: designed MEP points on DXF ELECTRICAL/PLUMBING layers
 
 `planToDxf` emits each persisted point as a CIRCLE (r 0.06 m) + one combined

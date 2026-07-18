@@ -97,3 +97,55 @@ describe('PlanInspector — mep case', () => {
     expect(screen.getByText('Electrical point')).toBeTruthy()
   })
 })
+
+/** TODO G7 — bulk structural classification on the multi-wall selection panel. */
+describe('PlanInspector — multi-wall selection: bulk Structure', () => {
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+    useStore.getState().setUiMode('pro')
+    useStore.getState().reresolveFeatureFlags()
+  })
+
+  function selectTwoWalls() {
+    const s = useStore.getState()
+    s.newFloorPlan('G7 bulk demo')
+    s.setFloorPlan({
+      ...useStore.getState().floorPlan,
+      walls: [
+        { id: 'w1', start: [0, 0], end: [4, 0], thickness: 'internal' },
+        { id: 'w2', start: [4, 0], end: [4, 3], thickness: 'internal' },
+      ],
+      openings: [],
+      rooms: [],
+    })
+    s.setPlanMarqueeSelection([], ['w1', 'w2'])
+  }
+
+  it('shows the bulk Structure select for 2+ selected walls (Pro mode)', () => {
+    selectTwoWalls()
+    render(<PlanInspector />)
+    expect(screen.getByText('2 walls selected')).toBeTruthy()
+    expect(screen.getByLabelText('Structure (all selected walls)')).toBeTruthy()
+  })
+
+  it('bulk-applies a classification to every selected wall via setWallsStructure', () => {
+    selectTwoWalls()
+    render(<PlanInspector />)
+    const trigger = screen.getByLabelText('Structure (all selected walls)')
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' }) // open
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' }) // move to load-bearing (index 1)
+    fireEvent.keyDown(trigger, { key: 'Enter' }) // commit
+    const walls = useStore.getState().floorPlan.walls
+    expect(walls.find((w) => w.id === 'w1')?.structure).toBe('load-bearing')
+    expect(walls.find((w) => w.id === 'w2')?.structure).toBe('load-bearing')
+  })
+
+  it('hides the bulk Structure select in Simple mode (pro-tier flag)', () => {
+    useStore.getState().setUiMode('simple')
+    useStore.getState().reresolveFeatureFlags()
+    selectTwoWalls()
+    render(<PlanInspector />)
+    expect(screen.getByText('2 walls selected')).toBeTruthy()
+    expect(screen.queryByLabelText('Structure (all selected walls)')).toBeNull()
+  })
+})

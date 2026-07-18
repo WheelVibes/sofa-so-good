@@ -929,6 +929,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Wall structural classification (TODO G7 — SG hacking-plan hardening): a
+  // user-declared load-bearing / RC partition / brick partition / drywall /
+  // unknown tag per wall, feeding the demolition sheet's classification
+  // rendering + "NOT PERMITTED" hard-stop for a load-bearing wall marked for
+  // demolition. Analytical/pro-only (like the `drawings` sheet it feeds) — a
+  // casual Simple-mode user furnishing a move-in default has no hacking plan
+  // to classify.
+  wallStructure: {
+    label: 'Wall structure',
+    description: 'Classify a wall load-bearing / RC / brick / drywall for the demolition sheet',
+    default: true,
+    tier: 'pro',
+  },
   // Flags walled-in floor with no room (red) in the 2D plan editor so the gap is
   // obvious to fix. Shown in both modes (a casual user should see it too) → simple
   // tier. The 3D fallback ground that fills the void is unconditional (not this).
