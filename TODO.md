@@ -4,6 +4,49 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## Active — contractor-handover accuracy & documentation (2026-07-18, user goal)
+> The app's purpose: homeowners design/plan/customize themselves, then hand over DIRECTLY to
+> contractors — so output must be dimensioned, to-scale, accurate, precise, detailed enough to
+> build from, following professional designer→contractor practice. Research:
+> `docs/research/2026-07-18-contractor-handover-research.md` (canonical drawing set, conventions,
+> SG/HDB specifics). Audit verdict (2026-07-18): geometry engine + drawing-set scaffolding are
+> ~70-80% there; gaps concentrated below, ranked by contractor credibility impact.
+- [ ] **G1 — First-class MEP layer (largest gap).** Electrical/plumbing points today are
+  heuristically derived at export time from furniture (`openDrawingSet.ts:deriveElectricalPoints`)
+  — not persisted, placeable, or editable, labeled "indicative". Build: persist
+  `electricalPoints`/`plumbingPoints` in the plan model (serialize + migration), a plan-editor
+  placement tool (socket/switch/data/TV/aircon; water/drain/floor-trap) with per-point **mount
+  height AFFL** (SG conventions: switches ~1200mm, counter sockets +150mm above top), drag/edit/
+  delete, auto-populate seeded from the existing heuristic as a starting point, industry-symbol
+  rendering + legend on the electrical/plumbing sheets (points plans feed LEW SLD / PUB LP work).
+- [ ] **G2 — Locked drawing scale.** Sheets are fit-to-page with only a graphic scale bar. Add a
+  declared, locked ratio per sheet (1:50 general / 1:25 wet areas @ A4/A3 landscape — auto-pick
+  the largest standard ratio that fits, state it in the title block "1:50 @ A3"), print-true
+  (mm-accurate CSS sizing so a printed sheet measures correctly with a scale rule).
+- [ ] **G3 — Setting-out & datum dimensioning.** Walls are centerline-modeled with no datum
+  concept. Add face-of-wall dimension option + a per-plan datum (default: a structural/external
+  wall corner) with chain dimensions from the datum (not cumulative) on the floor-plan sheet;
+  tile setting-out marks on the finishes sheet (start point + joint direction per room).
+- [ ] **G4 — Finish schedule depth.** Today: floor+wall names per room only. Add ceiling finish,
+  accent-wall callouts, **areas/quantities** (floor m², wall m² net of openings, ceiling m²),
+  tile size/`floorTexScale` spec, keyed material codes (FL-01/WL-01/CL-01) referenced on plan.
+- [ ] **G5 — Title-block handover metadata.** Add client/project address, drawn-by, date,
+  revision table (+ revision tagging on change), drawing numbers, general-notes block, and the
+  standard disclaimers (indicative vs construction dims; HDB permit/PE/LEW/LP responsibility
+  notes from the research doc).
+- [ ] **G6 — DXF enrichment.** R12 export has WALLS/ROOMS/DOORS/WINDOWS/LABELS only. Add
+  DIMENSION entities (or dimension lines+text), FURNITURE, ELECTRICAL/PLUMBING (after G1),
+  per-sheet layer parity so a fabricator can edit in CAD.
+- [ ] **G7 — Demolition/hacking plan hardening (SG).** Wall-classification field
+  (load-bearing / RC partition / brick infill / drywall — user-declared with an "unknown,
+  verify with HDB/PE" default), hatched removals per convention, permit-note block (HDB permit
+  required; PE endorsement when RC touched; off-limits elements list).
+- [ ] **G8 — Carpentry/joinery elevations+sections.** Most-cited DIY gap: per built-in piece
+  (wardrobe/kitchen run/parametric items), generate a dimensioned front elevation + one section
+  at 1:20 with internal dimensions (shelf heights, carcass depths) from the parametric spec.
+- *(Precision substrate, ride-along: mm display precision option in `measurement.ts`; bbox
+  footprint caveat already tracked under Risks.)*
+
 > Direction (user, 2026-07-01): prioritise the **core interior-design loop + its UX,
 > discoverability, customizability** (furnish, arrange, finish, view) on desktop **and** mobile,
 > researching `REFERENCES.md`; then reliability/edge-cases, a11y, and test-coverage hardening.
@@ -117,9 +160,6 @@ Ranked by value÷effort; each verified absent against registry + source. Near-mi
 already-shipped/ruled-out this round (don't re-propose): align/distribute, dollhouse view,
 wardrobe configurator (generic parametric), 2D+3D split view (contradicts plan-stays-structural
 ruling), AI photo→plan (= aiWalls), shelf-lift gesture (= surfaceDrop).
-- [ ] **Native share sheet for the hero card** (S, simple) — `navigator.canShare/share({files})`
-  on the Post/Square/Story export so mobile shares straight to WhatsApp/IG/Telegram; download
-  stays the fallback. Share-sheet itself not headless-verifiable — unit-test detection/fallback.
 - [ ] **Lighting mood presets** (M, simple) — one-tap Reading/Movie/Entertaining/Romantic row
   adjusting placed fixtures' intensity + colour temperature (Coohom precedent); distinct from
   sun-only sunStudy. Preset table over `itemAsLight`-tagged fixtures in `src/lighting/`.

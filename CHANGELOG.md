@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.38 — Contractor-handover goal: research + gap analysis + roadmap
+
+New goal (user): output must be contractor-buildable — dimensioned, to-scale,
+following professional designer→contractor handover practice. Research doc
+(`docs/research/2026-07-18-contractor-handover-research.md`): the canonical
+13-drawing set ranked by contractor essentiality, dimensioning/scale
+conventions (1:50 plans, mm units, datum chains, FFL heights, title blocks,
+revision clouds), format norms (to-scale PDF A3/A1 + DXF), SG/HDB specifics
+(hacking permits, wall-classification failure mode, PE/LEW/PUB-LP roles), and
+the key distinction: furniture-layout plans are design-intent — contractors
+build from setting-out plans, elevations, sections, and points plans. Codebase
+audit: metre-native model + multi-sheet drawing set + DXF are ~70-80% there;
+gaps ranked G1-G8 in TODO (first-class MEP layer, locked print scale, datum
+setting-out, quantified finish schedule, title-block metadata, DXF dims,
+hacking-plan classification, carpentry sections).
+
 ## v0.22.2.37 — Native share sheet for the hero card
 
 `shareCardNative` flag (simple, default on): on browsers supporting Web Share
