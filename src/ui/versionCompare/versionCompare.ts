@@ -17,6 +17,13 @@
  * takes — no race with the debounce), and restores byte-for-byte (same
  * references) even if the capture throws.
  *
+ * `captureVersionComparePair` also guards against a second, OVERLAPPING call
+ * (the modal stays mounted all session, so closing it doesn't cancel an
+ * in-flight capture) — see its own docstring + the module-level `inFlight`
+ * guard below. `pauseAutosave`/`resumeAutosave` (storage/autosave.ts) are
+ * themselves a nesting counter for the same reason: two overlapping
+ * `withTemporaryDesign` windows must both resume before autosave re-enables.
+ *
  * All side effects (store read/write, canvas capture, the settle delay) are
  * injected, so both helpers are unit-testable without mounting a component,
  * a real renderer, or a real Zustand store.
@@ -97,29 +104,57 @@ export interface VersionCompareCaptureDeps {
 /** Matches the render-compare / staging-reveal settle cadence. */
 const VERSION_COMPARE_SETTLE_MS = 380
 
+/** Module-level in-flight guard: the modal stays mounted all session and
+ *  closing it doesn't cancel an in-flight capture, so a second call (e.g. the
+ *  modal reopened against another version, or a fast double-click) could
+ *  otherwise start a second `withTemporaryDesign` swap while the first's
+ *  ~1s settle/capture window is still open — the "current" shot of the second
+ *  call would be taken while the FIRST call's saved-version swap is still
+ *  live, and the two calls' restores could interleave. Centralizing the guard
+ *  here (rather than in the component) makes it apply to every caller and
+ *  keeps it unit-testable without mounting React. */
+let inFlight: Promise<VersionComparePair> | null = null
+
 /**
  * Capture the current design, then temporarily swap in the saved version
  * (via {@link withTemporaryDesign}) to capture it too — always restoring the
- * live design exactly, even if a capture throws.
+ * live design exactly, even if a capture throws. If a capture is already in
+ * flight, this is a no-op that resolves to `null` instead of starting a
+ * second overlapping swap — callers should treat `null` as "try again once
+ * the current capture finishes", not as an error.
  */
 export async function captureVersionComparePair(
   deps: VersionCompareCaptureDeps,
-): Promise<VersionComparePair> {
-  const settle = deps.settleMs ?? VERSION_COMPARE_SETTLE_MS
+): Promise<VersionComparePair | null> {
+  if (inFlight) return null
 
-  // "current" = the live design, as the user currently sees it.
-  await deps.wait(settle)
-  const current = deps.capture()
-  if (!current) throw new Error('Open the 3D view first, then compare.')
+  const run = async (): Promise<VersionComparePair> => {
+    const settle = deps.settleMs ?? VERSION_COMPARE_SETTLE_MS
 
-  // "saved" = the chosen version, temporarily applied then restored.
-  const patch = deps.getSavedPatch()
-  const saved = await withTemporaryDesign(patch, deps.temporary, async () => {
+    // "current" = the live design, as the user currently sees it.
     await deps.wait(settle)
-    const png = deps.capture()
-    if (!png) throw new Error('Could not capture the saved version.')
-    return png
-  })
+    const current = deps.capture()
+    if (!current) throw new Error('Open the 3D view first, then compare.')
 
-  return { current, saved }
+    // "saved" = the chosen version, temporarily applied then restored.
+    const patch = deps.getSavedPatch()
+    const saved = await withTemporaryDesign(patch, deps.temporary, async () => {
+      await deps.wait(settle)
+      const png = deps.capture()
+      if (!png) throw new Error('Could not capture the saved version.')
+      return png
+    })
+
+    return { current, saved }
+  }
+
+  const promise = run()
+  inFlight = promise
+  try {
+    return await promise
+  } finally {
+    // Only clear the guard if we're still the current in-flight call (a defensive
+    // check — `inFlight` is only ever reassigned here, so this is always true).
+    if (inFlight === promise) inFlight = null
+  }
 }

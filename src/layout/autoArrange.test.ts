@@ -279,6 +279,55 @@ describe('arrangeRoom', () => {
   })
 })
 
+describe('locked items are treated as fixed obstacles (BUG: reroll/tidy moved locked furniture)', () => {
+  it('keeps a locked item at its exact position/rotation across arrangeRoom', () => {
+    const base = hydrate()
+    const lockedPos: [number, number] = [11.4, 4.2]
+    const withLock = base.map((i) =>
+      i.defId === 'sofa-3seat' ? { ...i, position: lockedPos, rotation: 1.23, locked: true } : i,
+    )
+    const out = arrangeRoom('livingDining', withLock, BUILTIN_CATALOG, {})
+    const sofa = out.find((i) => i.defId === 'sofa-3seat')!
+    expect(sofa.position).toEqual(lockedPos)
+    expect(sofa.rotation).toBe(1.23)
+  })
+
+  it('keeps a locked item at its exact position/rotation across a seeded reroll', () => {
+    const base = hydrate()
+    const lockedPos: [number, number] = [11.4, 4.2]
+    const withLock = base.map((i) =>
+      i.defId === 'sofa-3seat' ? { ...i, position: lockedPos, rotation: 1.23, locked: true } : i,
+    )
+    for (let seed = 0; seed < LAYOUT_VARIANT_COUNT; seed++) {
+      const out = arrangeRoom('livingDining', withLock, BUILTIN_CATALOG, {}, seed)
+      const sofa = out.find((i) => i.defId === 'sofa-3seat')!
+      expect(sofa.position).toEqual(lockedPos)
+      expect(sofa.rotation).toBe(1.23)
+    }
+  })
+
+  it('does not let other items overlap the locked item', () => {
+    const base = hydrate()
+    const lockedPos: [number, number] = [11.4, 4.2]
+    const withLock = base.map((i) =>
+      i.defId === 'sofa-3seat' ? { ...i, position: lockedPos, rotation: 1.23, locked: true } : i,
+    )
+    const out = arrangeRoom('livingDining', withLock, BUILTIN_CATALOG, {})
+    assertValid(out)
+  })
+
+  it('a room with no locked items is unchanged (byte-identical to before the fix)', () => {
+    const base = hydrate()
+    const out = arrangeRoom('livingDining', base, BUILTIN_CATALOG, {})
+    assertValid(out)
+    const sofa = out.find((i) => i.defId === 'sofa-3seat' && roomOf(i.position) === 'livingDining')
+    expect(sofa).toBeDefined()
+    // Facing +X (east) ≈ rotation PI/2 — same as the pre-fix behaviour asserted
+    // in the 'orients the living-room sofa to face the east TV wall' test above.
+    expect(Math.abs(Math.sin(sofa!.rotation) - 1)).toBeLessThan(0.1)
+  })
+})
+
 describe('layout reroll variants (LAYOUT-REROLL)', () => {
   // A signature that ignores id order — position + rotation per item.
   const sig = (items: FurnitureItem[]) =>

@@ -139,8 +139,9 @@ describe('captureVersionComparePair', () => {
       wait: async () => {},
     })
 
-    expect(pair.current).toBe('png:{"items":["sofa"]}')
-    expect(pair.saved).toBe('png:{"items":["bed","desk"]}')
+    expect(pair).not.toBeNull()
+    expect(pair!.current).toBe('png:{"items":["sofa"]}')
+    expect(pair!.saved).toBe('png:{"items":["bed","desk"]}')
     // The live store is back to the original design after capture.
     expect(store.getState()).toEqual({ items: ['sofa'] })
     expect(store.getAutosavePauses()).toBe(1)
@@ -177,5 +178,108 @@ describe('captureVersionComparePair', () => {
     ).rejects.toThrow('Could not capture the saved version.')
     expect(store.getState()).toEqual({ items: ['sofa'] })
     expect(store.getAutosaveResumes()).toBe(1)
+  })
+
+  // BUG: overlapping version-compare captures corrupt restore + risk an
+  // autosave leak. A second concurrent call must be rejected/no-oped rather
+  // than starting a second swap while one is already open.
+  it('no-ops a second concurrent call instead of running a second swap', async () => {
+    const store = makeFakeStore({ items: ['sofa'] })
+    // A ref object (rather than a plain `let`) so a later read isn't narrowed
+    // by TS's control-flow analysis to the initializer's literal `null` type.
+    const gate: { resolve: (() => void) | null } = { resolve: null }
+    const gatedWait = () =>
+      new Promise<void>((resolve) => {
+        gate.resolve = resolve
+      })
+
+    // First call: gate its "settle" wait so it stays in flight until we
+    // manually resolve it (simulating the ~1s settle/capture window).
+    const firstPromise = captureVersionComparePair({
+      getSavedPatch: () => ({ items: ['bed'] }),
+      temporary: store.deps,
+      capture: () => `png:${JSON.stringify(store.getState())}`,
+      wait: gatedWait,
+    })
+
+    // Let the first call's microtasks run up to the point where it's awaiting
+    // the gated wait for "current".
+    await Promise.resolve()
+    await Promise.resolve()
+
+    // Second call while the first is still in flight — must no-op (null),
+    // never touching the store or starting its own swap.
+    const secondResult = await captureVersionComparePair({
+      getSavedPatch: () => ({ items: ['desk'] }),
+      temporary: store.deps,
+      capture: () => 'should-not-be-called',
+      wait: async () => {},
+    })
+    expect(secondResult).toBeNull()
+    // The second call never paused/resumed autosave — only the first did (and
+    // hasn't resumed yet, since it's still mid-flight).
+    expect(store.getAutosavePauses()).toBe(0)
+    expect(store.getAutosaveResumes()).toBe(0)
+
+    // Release the first call's gated waits (called twice: "current" settle,
+    // then "saved" settle inside withTemporaryDesign).
+    gate.resolve?.()
+    await Promise.resolve()
+    gate.resolve?.()
+
+    const firstResult = await firstPromise
+    expect(firstResult).not.toBeNull()
+    // First call completed its own swap+restore exactly once.
+    expect(store.getState()).toEqual({ items: ['sofa'] })
+    expect(store.getAutosavePauses()).toBe(1)
+    expect(store.getAutosaveResumes()).toBe(1)
+
+    // The guard clears once the first call finishes — a third call now runs.
+    const thirdResult = await captureVersionComparePair({
+      getSavedPatch: () => ({ items: ['chair'] }),
+      temporary: store.deps,
+      capture: () => `png:${JSON.stringify(store.getState())}`,
+      wait: async () => {},
+    })
+    expect(thirdResult).not.toBeNull()
+    expect(store.getAutosavePauses()).toBe(2)
+    expect(store.getAutosaveResumes()).toBe(2)
+  })
+
+  it('the exception-mid-swap path still restores + resumes exactly once even with a concurrent no-op call', async () => {
+    const store = makeFakeStore({ items: ['sofa'] })
+    const gate: { resolve: (() => void) | null } = { resolve: null }
+    const gatedWait = () =>
+      new Promise<void>((resolve) => {
+        gate.resolve = resolve
+      })
+
+    const firstPromise = captureVersionComparePair({
+      getSavedPatch: () => ({ items: ['bed'] }),
+      temporary: store.deps,
+      capture: () => null, // "saved" capture always fails once swapped in
+      wait: gatedWait,
+    }).catch((e) => e as Error)
+
+    await Promise.resolve()
+    await Promise.resolve()
+
+    const secondResult = await captureVersionComparePair({
+      getSavedPatch: () => ({ items: ['desk'] }),
+      temporary: store.deps,
+      capture: () => 'should-not-be-called',
+      wait: async () => {},
+    })
+    expect(secondResult).toBeNull()
+
+    gate.resolve?.() // "current" settle resolves — capture returns null → throws
+    const err = await firstPromise
+    expect(err).toBeInstanceOf(Error)
+    expect((err as Error).message).toBe('Open the 3D view first, then compare.')
+
+    // Restored + resumed exactly once, no leaked pause.
+    expect(store.getState()).toEqual({ items: ['sofa'] })
+    expect(store.getAutosavePauses()).toBe(0)
+    expect(store.getAutosaveResumes()).toBe(0)
   })
 })

@@ -355,10 +355,11 @@ function arrangeCore(opts: {
   const ctx: Ctx = { catalog, doors, keepOut, walls, seed }
   const isFixed = (i: FurnitureItem) => {
     const r = roleOf(i.defId, catalog)
-    return r === 'mounted' || r === 'ceiling'
+    return r === 'mounted' || r === 'ceiling' || i.locked === true
   }
   // `world` starts with the OTHER rooms' items + this room's FIXED pieces
-  // (wall/ceiling mounts — aircon, range hood, sconces…), all kept at their
+  // (wall/ceiling mounts — aircon, range hood, sconces… — AND any user-LOCKED
+  // item, which must stay exactly where the user left it), all kept at their
   // current transform as obstacles so floor furniture isn't parked under them.
   const world: FurnitureItem[] = allItems
     .filter((i) => !inRoom(i) || isFixed(i))

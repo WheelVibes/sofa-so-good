@@ -25,7 +25,11 @@ import { captureVersionComparePair } from './versionCompare/versionCompare'
  * `captureVersionComparePair`), which suppresses undo history for both the
  * swap-in and the restore and pauses autosave for the whole window, so a
  * saved version's design can never leak into the undo stack or the autosave
- * slot — however long the capture takes.
+ * slot — however long the capture takes. Because this modal stays mounted
+ * for the whole session, `captureVersionComparePair` also no-ops (resolves
+ * `null`) if a capture is already in flight, so reopening it against another
+ * version can't start a second overlapping swap; `capture()` treats `null` as
+ * "no-op", not an error, and unwedges `phase` back to `'idle'`.
  */
 export function VersionCompareModal() {
   const open = useStore((s) => s.versionCompareOpen)
@@ -117,6 +121,12 @@ export function VersionCompareModal() {
         capture: captureCanvasPng,
         wait: (ms) => new Promise((r) => setTimeout(r, ms)),
       })
+      if (!pair) {
+        // Another capture was already in flight (VERSION-COMPARE-VIEW overlap
+        // guard) — no-op rather than wedging `phase` at 'capturing' forever.
+        setPhase((p) => (p === 'capturing' ? 'idle' : p))
+        return
+      }
       setCurrent(pair.current)
       setSaved(pair.saved)
       setPhase('done')

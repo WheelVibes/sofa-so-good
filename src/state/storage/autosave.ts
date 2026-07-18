@@ -140,16 +140,26 @@ export interface AutosaveOptions {
   onRecover?: () => void
 }
 
-/** Module-level pause switch (VERSION-COMPARE-VIEW): lets a caller that
+/** Module-level pause COUNTER (VERSION-COMPARE-VIEW): lets a caller that
  *  temporarily swaps a DIFFERENT design into the live store (e.g. the version
  *  split-view's capture-then-restore) guarantee the debounced write can never
  *  fire mid-swap and persist that scratch state over the real autosave slot —
  *  regardless of how long the swap holds the store (no race with `DEBOUNCE_MS`).
  *  There's only ever one `startAutosave()` instance app-wide (wired once in
- *  `bootstrap.ts`), so a module-level flag (rather than a per-instance one
+ *  `bootstrap.ts`), so a module-level counter (rather than a per-instance one
  *  threaded through closures) is sufficient and lets any caller reach it
- *  without a store reference. */
-let autosavePaused = false
+ *  without a store reference.
+ *
+ *  It's a NESTING counter, not a boolean (overlapping-capture hazard): two
+ *  overlapping `withTemporaryDesign` windows (e.g. a second version-compare
+ *  capture starting before the first's restore has finished) each call
+ *  `pauseAutosave()`/`resumeAutosave()` once. With a plain boolean, whichever
+ *  `resumeAutosave()` ran first would flip autosave back on while the OTHER
+ *  swap still had a different design live in the store, letting the debounced
+ *  write persist that scratch state. Counting pauses/resumes means autosave
+ *  only actually resumes once the count drops back to 0 — i.e. once every
+ *  overlapping swap has finished restoring. */
+let autosavePauseCount = 0
 /** Pending debounce timer, hoisted to module scope so `pauseAutosave` can
  *  cancel a write that's already scheduled when the pause begins. */
 let pendingTimer: ReturnType<typeof setTimeout> | null = null
@@ -158,21 +168,26 @@ let pendingTimer: ReturnType<typeof setTimeout> | null = null
 let lastPersistent: Persistent | null = null
 
 /** Suspend autosave scheduling: cancels any pending debounced write and
- *  ignores further store changes until {@link resumeAutosave}. */
+ *  ignores further store changes until every matching {@link resumeAutosave}
+ *  call has run (nesting counter — see `autosavePauseCount` above). */
 export function pauseAutosave(): void {
-  autosavePaused = true
+  autosavePauseCount++
   if (pendingTimer) {
     clearTimeout(pendingTimer)
     pendingTimer = null
   }
 }
 
-/** Resume autosave scheduling and resync the watched snapshot to the CURRENT
- *  state (called right after the caller has restored the store to its
- *  pre-swap values), so the restore itself is never mistaken for a change
- *  needing a write. */
+/** Resume autosave scheduling ONE nesting level; only actually re-enables
+ *  scheduling once every {@link pauseAutosave} call has been matched (count
+ *  back to 0) — so an inner/overlapping resume can't prematurely re-enable
+ *  autosave while an outer pause is still in effect. On the FINAL resume,
+ *  resyncs the watched snapshot to the CURRENT state (called right after the
+ *  caller has restored the store to its pre-swap values), so the restore
+ *  itself is never mistaken for a change needing a write. */
 export function resumeAutosave(): void {
-  autosavePaused = false
+  autosavePauseCount = Math.max(0, autosavePauseCount - 1)
+  if (autosavePauseCount > 0) return
   lastPersistent = pickPersistent()
 }
 
@@ -208,9 +223,10 @@ export function startAutosave({
   const unsubscribe = useStore.subscribe(() => {
     // Ignore store changes entirely while a temporary-design swap (VERSION-
     // COMPARE-VIEW) is in progress — `resumeAutosave()` resyncs `lastPersistent`
-    // once the swap restores the real state, so no write is ever scheduled for
-    // the scratch state and none is missed for the restore either.
-    if (autosavePaused) return
+    // once the LAST overlapping swap restores the real state (nesting counter
+    // back to 0), so no write is ever scheduled for the scratch state and none
+    // is missed for the restore either.
+    if (autosavePauseCount > 0) return
     const next = pickPersistent()
     if (lastPersistent && shallowEqual(next, lastPersistent)) return
     lastPersistent = next

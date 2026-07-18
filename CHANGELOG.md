@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.24 — Two fixes: version-compare capture race + arrange moving locked items
+
+Bug-hunt round 4 (focused on this session's new code) found and fixed:
+- **[High] Overlapping "Compare in 3D" captures could interleave swaps and
+  resume autosave while a temporarily-swapped design was still live** —
+  risking the wrong design being persisted. `pauseAutosave`/`resumeAutosave`
+  are now a NESTING COUNTER (resume only re-enables + resyncs at count 0), and
+  `captureVersionComparePair` gained a module-level in-flight guard (a
+  concurrent call no-ops to null; the modal un-wedges its phase). Covered by
+  new concurrency tests incl. exception-mid-swap.
+- **[Medium] "Try another layout" / Tidy moved LOCKED furniture** —
+  `arrangeCore.isFixed` never checked `item.locked` (unlike mirror/selection
+  ops). Locked items now stay at their exact transform AND act as world
+  obstacles (nothing placed on top); no-locked-items layouts are byte-identical
+  to before. 4 new arranger tests.
+Full suite green (7427).
+
 ## v0.22.2.23 — IXT-SUITES back-fill batch 7: 4 more ladders (~34 uncovered)
 
 Green, screenshot-verified simple rungs for `elementColors` (per-wall
