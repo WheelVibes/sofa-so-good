@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.34 — Test hygiene: kill the suite's real-network escape + a load flake
+
+Full-suite gate caught a flake: `bulkImport`'s hopeless-GLB test (allocates a
+75 MB File) blew the 5 s default timeout under suite memory pressure → bumped
+to 20 s. Root-caused the mysterious `ECONNREFUSED 127.0.0.1:3000` noise in the
+run: `swUpdate.test.ts`'s unmocked `showUpdatePrompt()` calls fire the
+background `fetchDeployedVersion()` fetch, which happy-dom resolves against
+its DEFAULT origin `http://localhost:3000` — the suite was making real TCP
+connects, with the unhandled-error logs misattributed to whichever test file
+was reporting. Stubbed fetch in that file's beforeEach (unstubbed after). Both
+files green; 0 ECONNREFUSED.
+
 ## v0.22.2.33 — IXT-SUITES batch 12 (final): coverage complete + thumbnail-leak probe
 
 Six ladders close out the uncovered-flag pool: `sunStudy` (Tools time-lapse),

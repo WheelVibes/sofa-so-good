@@ -5,6 +5,11 @@ import * as sw from './swUpdate'
 
 beforeEach(() => {
   useStore.setState({ notifications: [] })
+  // showUpdatePrompt fires a background fetchDeployedVersion(); without a stub,
+  // happy-dom resolves the relative URL against its default origin
+  // (http://localhost:3000) and the suite makes REAL network connects — noisy
+  // ECONNREFUSED logs misattributed to whichever test file is reporting.
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false } as Response))
 })
 
 /** Minimal event-capable stand-in for a ServiceWorker mid-install. */
@@ -31,6 +36,7 @@ function clearServiceWorker() {
 
 afterEach(() => {
   clearServiceWorker()
+  vi.unstubAllGlobals()
 })
 
 describe('showUpdatePrompt', () => {
