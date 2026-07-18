@@ -54,6 +54,19 @@ interface CatalogCardProps {
    *  pet, so it gets an "Essentials" corner badge. Off unless the pets profile
    *  surfaces it. */
   essential?: boolean
+  /**
+   * CATALOG-COMPARE — while the catalog's "Compare" toggle is armed, a card
+   * click selects-for-compare instead of placing (a checkmark overlay badge
+   * shows the state — NOT a new per-card button, per the no-card-buttons
+   * rule). `undefined`/`false` is the normal click-to-place behaviour.
+   */
+  compareMode?: boolean
+  /** Whether this card is currently in the compare selection (only meaningful
+   *  when `compareMode` is on). */
+  compareSelected?: boolean
+  /** Toggle this def into/out of the compare selection. Only called when
+   *  `compareMode` is on. */
+  onToggleCompare?: () => void
 }
 
 export function CatalogCard({
@@ -64,6 +77,9 @@ export function CatalogCard({
   staggerIndex,
   roomRects,
   essential,
+  compareMode,
+  compareSelected,
+  onToggleCompare,
 }: CatalogCardProps) {
   const isUser = isUserDef(def)
   const isIkea = isIkeaDef(def)
@@ -98,14 +114,24 @@ export function CatalogCard({
     <div
       role="button"
       tabIndex={0}
-      aria-label={`Place ${def.name}`}
+      aria-label={
+        compareMode
+          ? `${compareSelected ? 'Remove' : 'Add'} ${def.name} to compare`
+          : `Place ${def.name}`
+      }
+      aria-pressed={compareMode ? !!compareSelected : undefined}
       title={modelInfo ? `${def.name} — ${modelInfo}` : undefined}
-      onClick={handleClick}
-      {...touch}
+      // CATALOG-COMPARE: while compare mode is armed, a click/tap/Enter selects
+      // this card for the comparison tray instead of placing it — the card
+      // itself stays the single click target (no new per-card button), a
+      // checkmark overlay below is the only visual addition.
+      onClick={compareMode ? onToggleCompare : handleClick}
+      {...(compareMode ? {} : touch)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
-          onClick()
+          if (compareMode) onToggleCompare?.()
+          else onClick()
         }
       }}
       // Desktop drag-and-drop placement: dragging arms placement (the ghost then
@@ -113,8 +139,9 @@ export function CatalogCard({
       // stays as the touch/fallback path. NON-mobile only: a `draggable` element
       // on iOS hijacks the touch-drag and blocks the catalog list from scrolling
       // (the gesture escapes to the page instead) — mobile places via tap/long-
-      // press, so it never needs native drag.
-      draggable={!isMobile}
+      // press, so it never needs native drag. Compare mode never drags — a
+      // click there selects for comparison, not placement.
+      draggable={!isMobile && !compareMode}
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = 'copy'
         e.dataTransfer.setData('text/plain', def.id)
@@ -130,7 +157,7 @@ export function CatalogCard({
         // If the drop didn't land on the canvas (still armed), disarm.
         if (useStore.getState().activeDefId === def.id) useStore.getState().cancelPlacement()
       }}
-      className={`cat-card group liftable${wontFit ? ' no-fit' : ''}`}
+      className={`cat-card group liftable${wontFit ? ' no-fit' : ''}${compareMode ? ' compare-armed' : ''}${compareSelected ? ' compare-selected' : ''}`}
       style={staggerIndex != null ? ({ '--i': staggerIndex } as CSSProperties) : undefined}
     >
       {/* Corner action stack (top-right): ♥ favourite, then ↻ refresh, then ×
@@ -215,7 +242,13 @@ export function CatalogCard({
           </>
         ) : null}
       </span>
-      {isUser ? (
+      {compareMode ? (
+        // Selection cue, not a control — the card itself is the click target
+        // (see the no-card-buttons rule note on the outer onClick above).
+        <span className={`cmp-badge${compareSelected ? ' on' : ''}`} aria-hidden="true">
+          {compareSelected ? <Icon.Check width={13} height={13} /> : null}
+        </span>
+      ) : isUser ? (
         <span className="badge neutral" style={{ position: 'absolute', top: 6, left: 6 }}>
           Uploaded
         </span>

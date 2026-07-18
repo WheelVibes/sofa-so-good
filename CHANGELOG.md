@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.18 — Catalog comparison tray (CATALOG-COMPARE)
+
+Pick 2–3 same-category items and compare them side-by-side (`catalogCompare`
+flag, simple tier): a Compare toggle in the catalog header arms a select mode
+(card clicks select-with-checkmark-badge instead of placing — complies with
+the no-per-card-action-buttons rule), a status row tracks the 2–3 cap
+(different category restarts the pick; 4th same-category tap no-ops), and the
+Modal tray shows thumbnail · W×D · footprint area · price (when `budget` is
+on) · fits-this-room verdict per column with a Place button reusing the shared
+`useCatalogPlacement` grammar. Pure selection/row logic in
+`catalogCompareData.ts`. GPU-verified (two-sofa tray renders sizes/areas/fit +
+Place arms placement); 52 targeted tests + guards green.
+
 ## v0.22.2.17 — Share-card format picker (Post · Square · Story)
 
 The hero share card gains 1080×1080 Square and 1080×1920 Story formats

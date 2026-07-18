@@ -1030,6 +1030,23 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Side-by-side catalog item comparison tray (CATALOG-COMPARE, UX-research round
+  // 2 pick #3). A "Compare" toggle in the catalog header arms select-for-compare:
+  // tapping 2-3 same-category cards (a checkmark overlay, NOT a new per-card
+  // button — the src/ui/CLAUDE.md no-card-buttons rule) opens a modal tray with
+  // one column per item — thumbnail, W×D×H, footprint area, price (when the def
+  // carries one), and a "fits this room" verdict via the existing
+  // `itemFitsRoom`/`useActiveRoomFreeRects` machinery — each column's Place
+  // button reuses `useCatalogPlacement` so placement matches everywhere. Pure
+  // client-side (reuses existing footprint/price/fit data, no new geometry) →
+  // prod-safe. An HDB-scale core "which sofa actually fits" furnish-loop
+  // decision aid → simple tier, present in both modes.
+  catalogCompare: {
+    label: 'Compare items',
+    description: 'Select 2-3 same-category catalog items to compare size, price & room fit',
+    default: true,
+    tier: 'simple',
+  },
   // Room-starter "essentials" chips (roomStarters, UX-research pick #5). When a
   // user enters an EMPTY room, the empty-state offers a row of tap-to-add chips
   // for that room-kind's key anchor pieces (bedroom → bed/wardrobe/nightstand,

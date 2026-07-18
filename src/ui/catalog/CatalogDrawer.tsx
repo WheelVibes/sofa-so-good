@@ -5,6 +5,7 @@ import { roomKindFromName } from '../../analysis/suggestions'
 import { hasBackend } from '../../features/api/client'
 import { isAdminUser } from '../../features/auth/types'
 import { useFeature } from '../../features/useFeature'
+import type { FurnitureDef } from '../../furniture/types'
 import { FURNITURE_CATEGORIES } from '../../furniture/types'
 import { roomDisplayName } from '../../state/rooms'
 import { useStore } from '../../state/store'
@@ -18,6 +19,7 @@ import { useAmbientFx } from '../useAmbientFx'
 import { useCollapseTransition } from '../useCollapseTransition'
 import { useIsMobile } from '../useIsMobile'
 import { CatalogCard } from './CatalogCard'
+import { CatalogCompareTray } from './CatalogCompareTray'
 import { CatalogFilterButton } from './CatalogFilterButton'
 import { CatalogResizeHandle } from './CatalogResizeHandle'
 import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
@@ -32,6 +34,7 @@ import {
   type SortKey,
   sortCards,
 } from './catalogBrowse'
+import { COMPARE_MAX, toggleCompareSelection } from './catalogCompareData'
 import { LayersPanel } from './LayersPanel'
 import { RecentStrip } from './RecentStrip'
 import { RemoteCard } from './RemoteCard'
@@ -167,6 +170,7 @@ export function CatalogDrawer() {
   const bootstrapShared = useStore((s) => s.bootstrapSharedLibrary)
   // Price displays/filters are gated behind the budget/price feature (off by default).
   const priceOn = useFeature('budget')
+  const units = useStore((s) => s.units)
   // "Fits this room" size cue (CATALOG-FITS) — free-space rects of the room
   // being edited (null when no room is active), the passive per-card badge
   // flag, and the pro-tier "Fits only" browse filter built on top of it.
@@ -198,6 +202,21 @@ export function CatalogDrawer() {
   const favouriteDefIds = useStore(useShallow((s) => s.favouriteDefIds))
   const favIds = useMemo(() => new Set(favouriteDefIds), [favouriteDefIds])
   const [fitsOnly, setFitsOnly] = useState(false)
+  // CATALOG-COMPARE: "Compare" toggle armed from the header (beside the filter
+  // funnel) — while on, card clicks select-for-compare instead of placing.
+  // Ephemeral (component-local, never persisted); resets whenever the tray
+  // closes or the drawer unmounts.
+  const fCompare = useFeature('catalogCompare')
+  const [compareMode, setCompareMode] = useState(false)
+  const [compareSelection, setCompareSelection] = useState<FurnitureDef[]>([])
+  const [compareTrayOpen, setCompareTrayOpen] = useState(false)
+  const toggleCompareItem = (def: FurnitureDef) =>
+    setCompareSelection((sel) => toggleCompareSelection(sel, def, COMPARE_MAX))
+  const exitCompareMode = () => {
+    setCompareMode(false)
+    setCompareSelection([])
+    setCompareTrayOpen(false)
+  }
   const ambientFx = useAmbientFx()
   const unified = useUnifiedCatalog(fRemoteFurniture, sharedOn, fPetFittings)
   // The real category to land on from a "Browse furniture" CTA (favourites/
@@ -427,6 +446,9 @@ export function CatalogDrawer() {
           onRefresh={refreshSlug ? () => void handleRefresh(refreshSlug, it.def.name) : undefined}
           refreshing={refreshSlug ? sharedResolving[refreshSlug] === 'adding' : undefined}
           roomRects={fFits ? roomFreeRects : null}
+          compareMode={fCompare && compareMode}
+          compareSelected={compareSelection.some((d) => d.id === it.def.id)}
+          onToggleCompare={fCompare && compareMode ? () => toggleCompareItem(it.def) : undefined}
         />
       )
     }
@@ -507,6 +529,22 @@ export function CatalogDrawer() {
               iconTrigger={<Icon.Sort width={16} height={16} />}
               options={sortOptions}
             />
+          ) : null}
+          {/* CATALOG-COMPARE: arms select-for-compare — a card click then
+              selects it (checkmark overlay) instead of placing. Not a new
+              per-card button (src/ui/CLAUDE.md rule): the affordance lives
+              here in the header, beside the filter funnel. */}
+          {view === 'catalog' && fCompare && !minimized ? (
+            <button
+              type="button"
+              onClick={() => (compareMode ? exitCompareMode() : setCompareMode(true))}
+              className={`icon-btn${compareMode ? ' on' : ''}`}
+              aria-pressed={compareMode}
+              aria-label={compareMode ? 'Exit compare mode' : 'Compare items'}
+              title={compareMode ? 'Exit compare' : 'Compare items'}
+            >
+              <Icon.Compare width={16} height={16} />
+            </button>
           ) : null}
           {view === 'catalog' && fCatalogFilters && !minimized ? (
             <CatalogFilterButton
@@ -728,6 +766,29 @@ export function CatalogDrawer() {
                     </label>
                   </div>
                 ) : null}
+                {/* CATALOG-COMPARE status bar: shows the running selection
+                    count + "Compare"/"Cancel" once the mode is armed. Opens
+                    the tray once 2-3 same-category items are picked. */}
+                {fCompare && compareMode ? (
+                  <div className="cat-sort cmp-status">
+                    <span className="cat-sort-label">
+                      {compareSelection.length === 0
+                        ? `Select 2-${COMPARE_MAX} items to compare`
+                        : `${compareSelection.length} selected`}
+                    </span>
+                    <Button
+                      variant="accent"
+                      size="sm"
+                      disabled={compareSelection.length < 2}
+                      onClick={() => setCompareTrayOpen(true)}
+                    >
+                      Compare
+                    </Button>
+                    <Button variant="soft" size="sm" onClick={exitCompareMode}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : null}
                 {q && cards.length > 0 && matchedIntents(query).length > 0 ? (
                   <div className="catalog-search-hint">
                     Showing {matchedIntents(query).join(' & ')} furniture
@@ -904,6 +965,17 @@ export function CatalogDrawer() {
           <UploadModelDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
         </Suspense>
       )}
+      {fCompare ? (
+        <CatalogCompareTray
+          open={compareTrayOpen}
+          onClose={() => setCompareTrayOpen(false)}
+          onPlaced={exitCompareMode}
+          defs={compareSelection}
+          roomRects={fFits ? roomFreeRects : null}
+          priceOn={priceOn}
+          units={units}
+        />
+      ) : null}
       {/* ThumbnailHost is mounted app-wide (App.tsx) so the inspector's own
           thumbnail (bug #3) resolves even when the catalog is closed/minimized —
           a single host drains the shared render queue for both surfaces. */}

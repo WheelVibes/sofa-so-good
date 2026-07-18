@@ -88,9 +88,6 @@ See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full d
 
 ## Open — UX research round 2 queue (2026-07-18)
 Ranked by value÷effort; verified absent against registry + source this pass.
-- [ ] **Catalog comparison tray** (S–M) — pick 2-3 same-category items → side-by-side
-  footprint/dimension compare modal (reuses card thumbnails + `defaultFootprint`). New
-  `catalogCompare` flag, simple tier.
 - [ ] **Version split-view** (M) — compare two saved slots in the live 3D via the existing
   reveal-divider mechanism (`stagingReveal`/`timeCompare` pattern); today's diff is text-only.
   New `versionCompareView` flag, pro. Care: scratch state must not leak into undo/autosave.

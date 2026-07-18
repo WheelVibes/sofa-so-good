@@ -54,6 +54,12 @@ a piece that only just squeezes in shows a plainer **"Tight fit"** note instead
 — both are just a heads‑up, you can still place it. (Pro) Tick **Fits only** at
 the top of the grid to hide the pieces flagged "Won't fit" while you browse.
 
+**Can't decide between two sofas?** Tap the **compare** button in the catalog
+header (next to the filter), then tap 2–3 similar pieces — each gets a checkmark
+— and hit **Compare**: a side‑by‑side tray shows their sizes, footprint areas,
+and whether each fits the open room, with a **Place** button under whichever
+wins. Tap the compare button again (or **Cancel**) to browse normally.
+
 ### Choosing a finish before you place it
 
 Some cards show a small **palette button** in the corner — tap it to open a

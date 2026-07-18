@@ -564,6 +564,14 @@ export const Icon = {
       <path d="M18 7l3-3M18 12h4M18 17l3 3" />
     </Svg>
   ),
+  // Two side-by-side columns — catalog item comparison tray toggle.
+  Compare: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <rect x="3.5" y="4" width="7" height="16" rx="1.4" />
+      <rect x="13.5" y="4" width="7" height="16" rx="1.4" />
+      <path d="M7 9v6M17 9v6" />
+    </Svg>
+  ),
   // Paw — pet program (a large main pad + four toe beans), mirroring the pets
   // CategoryIcon glyph.
   Pets: (p: SVGProps<SVGSVGElement>) => (
