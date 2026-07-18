@@ -19,6 +19,12 @@ placement stays consistent. Keep this doc and that module in sync.
   opposite walls. A coffee table sits centred between them.
 - **Keep circulation clear.** Maintain walkways and never block a door's or
   window's swing/operation.
+- **Never block a window.** No piece **taller than the sill**
+  (`CLEARANCE.windowSillTall = 0.95` when the opening has no explicit sill)
+  may stand in the 0.65 m zone in front of a window
+  (`clearance.ts:windowFrontRects`); a **near-zero sill** (full-height window
+  or balcony sliding door) is a hard keep-out for *every* floor-standing
+  piece. Short pieces (a low console, a bench) may sit under a normal sill.
 - **Minimise clutter / maximise space.** Push pieces to the perimeter, leave
   the centre open, group by function (lounge zone vs. dining zone).
 
@@ -49,6 +55,17 @@ placement stays consistent. Keep this doc and that module in sync.
 - **Bedroom:** bed **headboard centred & flush to a wall**, with nightstands
   flanking it; wardrobe/storage on a *different* wall (keeping door-swing
   clearance); optional bench at the foot if it fits; lamps/plants in corners.
+  Headboard-wall choice follows SG norms (scored in `arrangeBedroom`):
+  **never under a window** (hard-reject a windowed span), **avoid
+  foot-to-door** (the door's centreline crossing the bed foot — the classic
+  feng-shui "coffin position"), prefer a wall that leaves `bedSurround`
+  walk-around on both long sides.
+- **Living seating groups.** Armchairs join the sofa's conversation group —
+  placed at 90° beside the sofa facing the coffee-table centre (wall
+  placement is the fallback), not scattered to random walls.
+- **Dining near the kitchen.** The dining set is biased toward the room edge
+  adjoining the kitchen (service path — food travels one short hop), falling
+  back to the classic secondary-zone fraction when no shared edge exists.
 - **Kitchen / bath / utility:** counters, appliances and fixtures run flush
   along the walls; nothing floats; circulation kept clear.
 

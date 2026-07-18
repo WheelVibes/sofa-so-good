@@ -6,14 +6,22 @@
  */
 import { doorSwingClearRect } from '../floorplan/doorSwing'
 import type { FloorPlan } from '../floorplan/types'
-import { wallLength } from '../floorplan/types'
+import { pointInRoom, wallLength } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
+import { CLEARANCE } from './designRules'
 
 export interface Rect {
   x0: number
   z0: number
   x1: number
   z1: number
+}
+
+/** A window's keep-out rect (see `windowFrontRects`) plus the sill height
+ *  (metres AFL) it was derived from, so a caller can decide whether a given
+ *  item is short enough to sit in it. */
+export interface WindowFrontRect extends Rect {
+  sill: number
 }
 
 /**
@@ -30,6 +38,61 @@ export function doorSwingRects(plan: FloorPlan): Rect[] {
     if (!wall) continue
     const r = doorSwingClearRect(wall, o)
     if (r) rects.push(r)
+  }
+  return rects
+}
+
+/**
+ * Keep-clear rectangle projecting `depth` metres INTO the room in front of
+ * each window opening — the zone a tall piece (wardrobe, bookcase, tall
+ * cabinet) would block if pushed against that wall. The room-side of the wall
+ * is resolved the same way `defaultDoorSwing` picks a door's swing side: probe
+ * a short distance to each side of the opening's centre and pick whichever
+ * side actually lands inside a room (falls back to the wall's right-hand
+ * normal when neither/both sides resolve, e.g. an opening with no room data
+ * yet). Each rect carries the opening's own `sill` so the caller (the
+ * auto-arranger's `tryPlace`) can allow a SHORT item to sit there while
+ * rejecting a tall one, and treat a near-zero sill (a full-height window or
+ * balcony sliding door) as a hard keep-out for every floor item.
+ */
+export function windowFrontRects(plan: FloorPlan, depth = 0.65): WindowFrontRect[] {
+  const rects: WindowFrontRect[] = []
+  for (const o of plan.openings) {
+    if (o.kind !== 'window') continue
+    const wall = plan.walls.find((w) => w.id === o.wallId)
+    if (!wall) continue
+    const len = wallLength(wall)
+    if (len === 0) continue
+    const ux = (wall.end[0] - wall.start[0]) / len
+    const uz = (wall.end[1] - wall.start[1]) / len
+    const sPt: [number, number] = [wall.start[0] + ux * o.offset, wall.start[1] + uz * o.offset]
+    const ePt: [number, number] = [
+      wall.start[0] + ux * (o.offset + o.width),
+      wall.start[1] + uz * (o.offset + o.width),
+    ]
+    const cx = (sPt[0] + ePt[0]) / 2
+    const cz = (sPt[1] + ePt[1]) / 2
+    const rawNx = -uz
+    const rawNz = ux
+    const probe = 0.5
+    const rightInside = plan.rooms.some((r) =>
+      pointInRoom(r, cx + rawNx * probe, cz + rawNz * probe),
+    )
+    const leftInside = plan.rooms.some((r) =>
+      pointInRoom(r, cx - rawNx * probe, cz - rawNz * probe),
+    )
+    const [nx, nz] = leftInside && !rightInside ? [-rawNx, -rawNz] : [rawNx, rawNz]
+    const farS: [number, number] = [sPt[0] + nx * depth, sPt[1] + nz * depth]
+    const farE: [number, number] = [ePt[0] + nx * depth, ePt[1] + nz * depth]
+    const xs = [sPt[0], ePt[0], farS[0], farE[0]]
+    const zs = [sPt[1], ePt[1], farS[1], farE[1]]
+    rects.push({
+      x0: Math.min(...xs),
+      z0: Math.min(...zs),
+      x1: Math.max(...xs),
+      z1: Math.max(...zs),
+      sill: o.sill ?? CLEARANCE.windowSillTall,
+    })
   }
   return rects
 }

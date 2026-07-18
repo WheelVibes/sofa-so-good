@@ -22,6 +22,17 @@ export const CLEARANCE = {
   wallGap: 0.05,
   /** Clear floor in front of storage so it can be opened and passed. */
   storageFront: 0.75,
+  /**
+   * Window sill height (metres AFL) below which an item is short enough to
+   * sit in front of a window without blocking it. Matches the SG norm for a
+   * standard bedroom/living casement or sliding window sill (900–1000 mm AFL —
+   * see docs/interior-design-guidelines.md); a wardrobe, bookcase, or tall
+   * cabinet taller than this shouldn't be pushed against a windowed wall. A
+   * near-zero sill (a balcony sliding door / full-height window) is a hard
+   * keep-out for every floor item regardless of height (see
+   * `clearance.ts:windowFrontRects`).
+   */
+  windowSillTall: 0.95,
 } as const
 
 /** Fallback support-surface heights (metres) for stacking a compatible model

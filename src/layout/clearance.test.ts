@@ -3,7 +3,7 @@ import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import type { FurnitureItem } from '../furniture/types'
 import { defaultParamProps } from '../furniture/types'
-import { blockedDoorItems, doorSwingRects } from './clearance'
+import { blockedDoorItems, doorSwingRects, windowFrontRects } from './clearance'
 
 const plan = buildDefaultPlan()
 
@@ -24,6 +24,29 @@ describe('clearance', () => {
     const rects = doorSwingRects(plan)
     const doors = plan.openings.filter((o) => o.kind === 'door').length
     expect(rects.length).toBe(doors)
+  })
+
+  it('derives one front rect per window, carrying its sill', () => {
+    const rects = windowFrontRects(plan)
+    const windows = plan.openings.filter((o) => o.kind === 'window')
+    expect(rects.length).toBe(windows.length)
+    for (const r of rects) expect(r.sill).toBeGreaterThan(0)
+  })
+
+  it("projects a window's front rect into the room it serves, not out the wall", () => {
+    const win = plan.openings.find((o) => o.kind === 'window')!
+    const wall = plan.walls.find((w) => w.id === win.wallId)!
+    const len = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1])
+    const ux = (wall.end[0] - wall.start[0]) / len
+    const uz = (wall.end[1] - wall.start[1]) / len
+    const cx = wall.start[0] + ux * (win.offset + win.width / 2)
+    const cz = wall.start[1] + uz * (win.offset + win.width / 2)
+    const rect = windowFrontRects(plan).find(
+      (r) => cx >= r.x0 - 0.01 && cx <= r.x1 + 0.01 && cz >= r.z0 - 0.01 && cz <= r.z1 + 0.01,
+    )
+    expect(rect).toBeDefined()
+    expect(rect!.x1 - rect!.x0).toBeGreaterThan(0)
+    expect(rect!.z1 - rect!.z0).toBeGreaterThan(0)
   })
 
   it('flags an item parked in a door swing, not one well clear', () => {

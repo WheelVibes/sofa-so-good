@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.66 — RM3 part 1: window keep-outs, SG bed rules, seating groups, dining-kitchen bias
+
+Placement soundness upgrades in the ONE shared arranger path.
+`clearance.ts:windowFrontRects` projects a 0.65 m keep-out into the room in
+front of every window (room side resolved by probing, same as door swings),
+carrying the opening's sill; `tryPlace` rejects any floor item taller than
+the sill in that zone, and treats a near-zero sill (full-height window /
+balcony slider) as a hard keep-out for everything
+(`CLEARANCE.windowSillTall = 0.95` default). `arrangeBedroom` scores
+headboard edges per SG norms: hard-reject windowed spans, penalise
+foot-to-door (door centreline crossing the bed), prefer both-sides
+`bedSurround`. Armchairs now join the sofa's conversation group (90° beside
+the sofa, facing the coffee-table centre; wall fallback). The dining band is
+biased toward the kitchen-adjacent room edge (room-rect adjacency, legacy
+fraction fallback). interior-design-guidelines.md synced. Follow-up in
+flight: door APPROACH strips (both sides, not just the swing quarter) — a
+new all-templates property test exposes 12 templates with furniture in door
+paths; fix + test land next.
+
 ## v0.22.2.65 — RM2: 2025-26 SG theme gallery + per-category preset styling
 
 Preset system upgrade for modern SG homes. `LayoutPreset` gains

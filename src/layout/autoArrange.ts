@@ -2,9 +2,10 @@ import { ROOMS } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
 import { broadphaseNeighbours, canPlace } from '../collision/placement'
 import type { CollisionWall } from '../collision/walls'
+import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import { GROUND_LEVEL_ID, levelAsPlan, levelOfRoom, planLevels } from '../floorplan/levels'
 import { planCollisionWalls } from '../floorplan/planGeometry'
-import { toArrangeKind } from '../floorplan/roomCategory'
+import { roomCategory, toArrangeKind } from '../floorplan/roomCategory'
 import { type FloorPlan, type PlanRoom, pointInRoom, wallLength } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import {
@@ -19,7 +20,7 @@ import {
   rectsOverlap,
 } from './arrangeGeometry'
 import { type ArrangeRole, roleForCategory, roleOf } from './arrangeRoles'
-import { doorSwingRects } from './clearance'
+import { doorSwingRects, type WindowFrontRect, windowFrontRects } from './clearance'
 import { CLEARANCE } from './designRules'
 
 // Re-export the arrange-role classification (extracted to ./arrangeRoles) so
@@ -78,6 +79,16 @@ interface Ctx {
   doors: Record<string, { open: boolean }>
   /** Keep-clear rects (door swings + room openings) no item may overlap. */
   keepOut: Rect[]
+  /** Window front-clearance rects (RM3): a floor item taller than a rect's
+   *  `sill` — or ANY floor item when the sill is near-zero (a full-height
+   *  window / balcony sliding door) — may not overlap it. */
+  windowKeepOut?: WindowFrontRect[]
+  /** World [x,z] centre of every window opening in the plan (bedroom
+   *  headboard-edge scoring + the living arranger's focal-wall inference). */
+  windows?: Array<[number, number]>
+  /** World [x,z] centre of every door opening in the plan (bedroom
+   *  foot-to-door scoring). */
+  doorPoints?: Array<[number, number]>
   /** Collision walls override for a user-authored plan. When omitted, the
    *  fixed flat's door-aware walls are used (default flat). */
   walls?: CollisionWall[]
@@ -135,6 +146,18 @@ function tryPlace(
     const box = aabbOf(item, def, pos, rot)
     if (ctx.keepOut.some((k) => rectsOverlap(box, k))) return item
   }
+  // Never block a window (RM3): a full-height/balcony-slider opening (sill
+  // ≤ 0.05 m) is a hard keep-out for every floor item; a normal window only
+  // rejects an item TALLER than its sill (a low console can sit under it, a
+  // wardrobe/bookcase can't). Mounted/ceiling items are exempt — same as the
+  // door-swing check above.
+  if (!def.mounted && ctx.windowKeepOut && ctx.windowKeepOut.length > 0) {
+    const box = aabbOf(item, def, pos, rot)
+    const blocked = ctx.windowKeepOut.some(
+      (w) => (w.sill <= 0.05 || def.defaultFootprint.h > w.sill) && rectsOverlap(box, w),
+    )
+    if (blocked) return item
+  }
   const candidate = { ...item, position: pos, rotation: rot }
   // `world` holds only obstacles: other-room items + already-placed items in
   // this room. Items still pending placement are NOT in `world`, so a messy
@@ -186,6 +209,17 @@ function usableRect(roomId: RoomId): Rect {
 
 /** Rooms whose seating should face a focal (TV) wall, and which edge it is. */
 const FOCAL: Partial<Record<RoomId, Edge>> = { livingDining: 'E' }
+
+/** The fixed default flat as a `FloorPlan` (RM3) — same coordinate system as
+ *  `ROOMS`/`WINDOWS`/`DOORS` in apartment/constants.ts (`buildDefaultPlan`
+ *  derives it directly from those tables), computed once so the fixed-flat
+ *  arranger (`arrangeRoom`/`arrangeAllRooms`) gets the SAME window keep-out +
+ *  door/window-position rules as a user-authored plan, instead of a second,
+ *  hand-maintained copy. */
+const DEFAULT_FLOOR_PLAN = buildDefaultPlan()
+const DEFAULT_WINDOW_KEEPOUT = windowFrontRects(DEFAULT_FLOOR_PLAN)
+const DEFAULT_WINDOWS = windowCentres(DEFAULT_FLOOR_PLAN)
+const DEFAULT_DOOR_POINTS = doorCentres(DEFAULT_FLOOR_PLAN)
 
 /** Lounge-cluster bands (fraction of the room depth) a living-room reroll
  *  cycles the sofa/console/coffee zone through (LAYOUT-REROLL). Index 0 is the
@@ -312,6 +346,9 @@ export function arrangeRoom(
   return arrangeCore({
     rect: usableRect(roomId),
     keepOut: KEEPOUT[roomId] ?? [],
+    windowKeepOut: DEFAULT_WINDOW_KEEPOUT,
+    windows: DEFAULT_WINDOWS,
+    doorPoints: DEFAULT_DOOR_POINTS,
     inRoom: (i) => roomOf(i.position) === roomId,
     kind: roomKind(roomId),
     focal: FOCAL[roomId],
@@ -327,11 +364,20 @@ export function arrangeRoom(
 function arrangeCore(opts: {
   rect: Rect
   keepOut: Rect[]
+  /** Window front-clearance rects (RM3) — see `Ctx.windowKeepOut`. */
+  windowKeepOut?: WindowFrontRect[]
+  /** World window centres (RM3 bedroom scoring + living focal inference). */
+  windows?: Array<[number, number]>
+  /** World door centres (RM3 bedroom foot-to-door scoring). */
+  doorPoints?: Array<[number, number]>
   inRoom: (i: FurnitureItem) => boolean
   kind: RoomKind
   focal: Edge | undefined
   /** Use the edge-generic living arranger (custom plans) vs the tuned default. */
   genericLiving?: boolean
+  /** Edge of `rect` a kitchen room adjoins (RM3 dining-adjacency bias, plan
+   *  rooms only — undefined for the fixed default flat / no adjoining kitchen). */
+  kitchenEdge?: Edge
   allItems: FurnitureItem[]
   catalog: Record<string, FurnitureDef>
   doors: Record<string, { open: boolean }>
@@ -343,17 +389,21 @@ function arrangeCore(opts: {
   const {
     rect,
     keepOut,
+    windowKeepOut,
+    windows,
+    doorPoints,
     inRoom,
     kind,
     focal,
     genericLiving,
+    kitchenEdge,
     allItems,
     catalog,
     doors,
     walls,
     seed = 0,
   } = opts
-  const ctx: Ctx = { catalog, doors, keepOut, walls, seed }
+  const ctx: Ctx = { catalog, doors, keepOut, windowKeepOut, windows, doorPoints, walls, seed }
   const isFixed = (i: FurnitureItem) => {
     const r = roleOf(i.defId, catalog)
     return r === 'mounted' || r === 'ceiling' || i.locked === true
@@ -370,7 +420,7 @@ function arrangeCore(opts: {
   const get: Getter = (roles) => roomItems.filter((i) => roles.includes(roleOf(i.defId, catalog)))
 
   if (kind === 'living') {
-    if (genericLiving) arrangeLivingAnyEdge(rect, focal, get, world, ctx, catalog)
+    if (genericLiving) arrangeLivingAnyEdge(rect, focal, get, world, ctx, catalog, kitchenEdge)
     else arrangeLiving(rect, focal, get, world, ctx, catalog)
   } else if (kind === 'bedroom') arrangeBedroom(rect, get, world, ctx, catalog)
   else if (kind === 'kitchen') arrangeKitchen(rect, get, world, ctx, catalog)
@@ -394,6 +444,53 @@ function arrangeCore(opts: {
 }
 
 /**
+ * Place armchairs (RM3): group them with the sofa/coffee-table cluster —
+ * flanking the sofa's placed position, angled at ~90° to it and facing the
+ * coffee table's centre — so they read as a conversation nook instead of a
+ * stray chair pushed against a wall. Falls back to the nearest free wall when
+ * the grouped slot doesn't fit (`tryPlace` validates every candidate either
+ * way, so this can never emit a colliding placement).
+ */
+function placeArmchairs(
+  armchairs: FurnitureItem[],
+  sofa: FurnitureItem | undefined,
+  coffeeTable: FurnitureItem | undefined,
+  rect: Rect,
+  world: FurnitureItem[],
+  ctx: Ctx,
+  catalog: Record<string, FurnitureDef>,
+) {
+  if (armchairs.length === 0) return
+  // Use the sofa/table's PLACED transform (already snapped in `world`), not
+  // the original pre-arrange one.
+  const sofaPlaced = sofa ? (world.find((w) => w.id === sofa.id) ?? sofa) : undefined
+  const tablePlaced = coffeeTable
+    ? (world.find((w) => w.id === coffeeTable.id) ?? coffeeTable)
+    : undefined
+  armchairs.forEach((ch, i) => {
+    if (sofaPlaced && tablePlaced) {
+      const sofaDef = catalog[sofaPlaced.defId]
+      const sofaFp = sofaDef ? baseFootprint(sofaPlaced, sofaDef) : { w: 1.8, d: 0.9 }
+      const chDef = catalog[ch.defId]
+      const chFp = chDef ? baseFootprint(ch, chDef) : { w: 0.75, d: 0.8 }
+      // Sofa's local +X ("right") in world (x,z): (cos, -sin).
+      const rx = Math.cos(sofaPlaced.rotation)
+      const rz = -Math.sin(sofaPlaced.rotation)
+      // Alternate sides for a 2nd/3rd armchair; just past the sofa's own end,
+      // room for the chair's own half-width.
+      const side = i % 2 === 0 ? 1 : -1
+      const off = sofaFp.w / 2 + chFp.w / 2 + 0.15
+      const px = sofaPlaced.position[0] + rx * off * side
+      const pz = sofaPlaced.position[1] + rz * off * side
+      // Face the coffee table's centre (local +Z forward = (sin θ, cos θ)).
+      const rot = Math.atan2(tablePlaced.position[0] - px, tablePlaced.position[1] - pz)
+      if (tryPlace(ch, [px, pz], rot, world, ctx) !== ch) return
+    }
+    snapToWall(ch, rect, [nearestEdge(ch.position, rect)], world, ctx)
+  })
+}
+
+/**
  * Edge-generic living/dining arranger (any focal wall, not just east). Used for
  * user-authored plans whose TV wall can face any direction. Places media flush
  * to the focal wall, seating flush to the opposite wall facing it, rug+coffee
@@ -406,6 +503,7 @@ function arrangeLivingAnyEdge(
   world: FurnitureItem[],
   ctx: Ctx,
   catalog: Record<string, FurnitureDef>,
+  kitchenEdge?: Edge,
 ) {
   const cx = (rect.x0 + rect.x1) / 2
   const cz = (rect.z0 + rect.z1) / 2
@@ -468,7 +566,24 @@ function arrangeLivingAnyEdge(
   if (dining) {
     const mid = (alongMin + alongMax) / 2
     const span = alongMax - alongMin
-    const diningAlong = alongCenter < mid ? alongMax - span * 0.26 : alongMin + span * 0.26
+    // RM3: a dining set flows from the kitchen (SG norm — food comes straight
+    // from the kitchen to the table). When this room adjoins a kitchen along
+    // one of the two "along-axis end" walls (the ones perpendicular to the
+    // focal wall — N/S when the focal wall runs along Z, else W/E), bias the
+    // dining band toward THAT end. Otherwise fall back to the pre-existing
+    // heuristic: opposite the lounge band.
+    const alongMinEdge: Edge = vertical ? 'N' : 'W'
+    const alongMaxEdge: Edge = vertical ? 'S' : 'E'
+    const kitchenAlong =
+      kitchenEdge === alongMinEdge ? alongMin : kitchenEdge === alongMaxEdge ? alongMax : null
+    const diningAlong =
+      kitchenAlong != null
+        ? kitchenAlong === alongMin
+          ? alongMin + span * 0.26
+          : alongMax - span * 0.26
+        : alongCenter < mid
+          ? alongMax - span * 0.26
+          : alongMin + span * 0.26
     const diningDepth = clamp((depthMin + depthMax) / 2, depthMin + 1, depthMax - 1)
     const fp0 = fpOf(dining)
     const tableRot = vertical ? (fp0.w > fp0.d ? Math.PI / 2 : 0) : fp0.w > fp0.d ? 0 : Math.PI / 2
@@ -510,8 +625,7 @@ function arrangeLivingAnyEdge(
   placeDeskChairs(get(['desk']), get(['deskChair']), rect, world, ctx)
   for (const it of get(['shoe'])) snapToWall(it, rect, [nearestEdge(it.position, rect)], world, ctx)
   tuckCorners(get(['plant', 'floorLamp', 'barCart']), rect, world, ctx)
-  for (const it of get(['armchair']))
-    snapToWall(it, rect, [nearestEdge(it.position, rect)], world, ctx)
+  placeArmchairs(get(['armchair']), sofa, get(['lowTable'])[0], rect, world, ctx, catalog)
   void cx
   void cz
 }
@@ -640,9 +754,72 @@ function arrangeLiving(
 
   // 6. Plants + floor lamps + armchairs → corners / nearest wall.
   tuckCorners(get(['plant', 'floorLamp', 'barCart']), rect, world, ctx)
-  for (const it of get(['armchair']))
-    snapToWall(it, rect, [nearestEdge(it.position, rect)], world, ctx)
+  placeArmchairs(get(['armchair']), sofa, get(['lowTable'])[0], rect, world, ctx, catalog)
   void cx
+}
+
+/**
+ * Score each wall edge of `rect` as a headboard candidate for a bed of width
+ * `bedW`, best (lowest score) first (RM3 — SG bedroom placement norms):
+ *  - HARD-reject an edge whose span holds a window — a headboard shouldn't
+ *    sit under/against a window when a windowless wall is available —
+ *    UNLESS every edge has one, in which case the reject is dropped so a bed
+ *    is never left without a candidate.
+ *  - Penalise "foot-to-door": a door on the OPPOSITE wall whose along-span
+ *    lines up with the bed's own width — the "bed foot points straight at
+ *    the door" placement Singaporean placement guides (feng shui + plain
+ *    practicality) advise against.
+ *  - Penalise a cross-dimension too tight for `CLEARANCE.bedSurround` walking
+ *    clearance on both long sides of the bed.
+ * Ties fall back to the point-nearest edge (today's pre-RM3 behaviour), so a
+ * bed with no distinguishing factor keeps its original wall. Deterministic:
+ * the same room + bed position always sorts the same way.
+ */
+function scoreBedroomEdges(bed: FurnitureItem, rect: Rect, bedW: number, ctx: Ctx): Edge[] {
+  const ALL: Edge[] = ['N', 'E', 'S', 'W']
+  const alongFor = (e: Edge): number =>
+    e === 'N' || e === 'S' ? (rect.x0 + rect.x1) / 2 : (rect.z0 + rect.z1) / 2
+  const windows = ctx.windows ?? []
+  const doors = ctx.doorPoints ?? []
+  const windowed = (e: Edge) => edgeHasOpening(rect, windows, e)
+  // A door on the OPPOSITE wall whose along-position lines up with the bed's
+  // own width span (narrower than `edgeHasOpening`'s whole-wall tolerance —
+  // this only cares about a door directly ahead of the bed's foot).
+  const footToDoor = (e: Edge): boolean => {
+    const opp = opposite(e)
+    const along = alongFor(e)
+    const halfW = bedW / 2 + 0.2
+    const wallTol = 0.5
+    return doors.some(([dx, dz]) => {
+      if (opp === 'N') return Math.abs(dz - rect.z0) < wallTol && Math.abs(dx - along) < halfW
+      if (opp === 'S') return Math.abs(dz - rect.z1) < wallTol && Math.abs(dx - along) < halfW
+      if (opp === 'W') return Math.abs(dx - rect.x0) < wallTol && Math.abs(dz - along) < halfW
+      return Math.abs(dx - rect.x1) < wallTol && Math.abs(dz - along) < halfW
+    })
+  }
+  const sideClearance = (e: Edge): number => {
+    const crossSpan = e === 'N' || e === 'S' ? rect.x1 - rect.x0 : rect.z1 - rect.z0
+    return (crossSpan - bedW) / 2
+  }
+  const distToEdge = (e: Edge): number => {
+    if (e === 'N') return bed.position[1] - rect.z0
+    if (e === 'S') return rect.z1 - bed.position[1]
+    if (e === 'W') return bed.position[0] - rect.x0
+    return rect.x1 - bed.position[0]
+  }
+  const allWindowed = ALL.every(windowed)
+  const score = (e: Edge): number => {
+    let s = 0
+    if (!allWindowed && windowed(e)) s += 1000 // hard reject unless it's every edge
+    if (footToDoor(e)) s += 10
+    const clearance = sideClearance(e)
+    if (clearance < CLEARANCE.bedSurround) s += (CLEARANCE.bedSurround - clearance) * 5
+    return s
+  }
+  return [...ALL].sort((a, b) => {
+    const d = score(a) - score(b)
+    return Math.abs(d) > 1e-9 ? d : distToEdge(a) - distToEdge(b)
+  })
 }
 
 /** Bedroom: bed centred & headboard flush to a wall, nightstands flanking,
@@ -664,23 +841,19 @@ function arrangeBedroom(
     const def = catalog[bed.defId]
     const fp = def ? baseFootprint(bed, def) : { w: 1.4, d: 2.0 }
     bedW = fp.w
-    // Headboard wall: seed 0 keeps today's exact behaviour — the bed's nearest
-    // wall, centred along it, placed once. A reroll (seed > 0) tries a ROTATED
-    // set of walls and anchors the headboard to the first that fits, moving the
-    // whole room's furniture with it — a different but still collision-valid
-    // layout (placeFlush validates each candidate).
-    const nearest = nearestEdge(bed.position, rect)
+    // Headboard wall (RM3): candidate edges are SCORED — hard-reject a
+    // windowed span, penalise foot-to-door + tight bedSurround clearance —
+    // best first. Seed 0 tries the best-scoring edge first (a deterministic
+    // improvement over the old "just the nearest wall"); a reroll (seed > 0)
+    // rotates the SAME scored order so later seeds still prefer a better edge
+    // over a worse one, cycling to a genuinely different (still valid —
+    // `placeFlush` validates every candidate) headboard wall.
     const alongFor = (e: Edge): number =>
       e === 'N' || e === 'S' ? (rect.x0 + rect.x1) / 2 : (rect.z0 + rect.z1) / 2
-    const candidates: Edge[] =
-      ctx.seed > 0
-        ? rotateEdges(
-            [nearest, ...(['N', 'E', 'S', 'W'] as Edge[]).filter((e) => e !== nearest)],
-            ctx.seed,
-          )
-        : [nearest]
-    bedEdge = nearest
-    bedAlong = alongFor(nearest)
+    const scored = scoreBedroomEdges(bed, rect, bedW, ctx)
+    const candidates = rotateEdges(scored, ctx.seed)
+    bedEdge = scored[0]
+    bedAlong = alongFor(scored[0])
     let placed = bed
     for (const e of candidates) {
       const p = placeFlush(bed, rect, e, alongFor(e), world, ctx)
@@ -921,6 +1094,35 @@ function pointInPlanRoom(r: PlanRoom, x: number, z: number): boolean {
   return pointInRoom(r, x, z)
 }
 
+/** A plan room's raw origin/width/depth rect (main rectangle only — no
+ *  polygon/extension; adjacency only needs to know which perimeter WALL a
+ *  neighbour shares, and every room has a rectangular main body). */
+function rawRoomRect(r: PlanRoom): Rect {
+  return { x0: r.origin[0], z0: r.origin[1], x1: r.origin[0] + r.width, z1: r.origin[1] + r.depth }
+}
+
+/** Which edge of `room`'s rect a KITCHEN room among `siblingRooms` shares a
+ *  boundary with (RM3 dining-adjacency bias) — the two rects overlap on the
+ *  cross axis and their edges sit within a wall-thickness tolerance of each
+ *  other. Returns null when no kitchen adjoins (a kitchen elsewhere in the
+ *  plan, an open-kitchen layout, or a plan with no kitchen at all). */
+function kitchenAdjacentEdge(room: PlanRoom, siblingRooms: PlanRoom[]): Edge | undefined {
+  const a = rawRoomRect(room)
+  const tol = 0.4 // generous enough to span a partition wall's thickness
+  for (const other of siblingRooms) {
+    if (other.id === room.id) continue
+    if (roomCategory(other) !== 'kitchen') continue
+    const b = rawRoomRect(other)
+    const overlapX = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)
+    const overlapZ = Math.min(a.z1, b.z1) - Math.max(a.z0, b.z0)
+    if (overlapX > 0.3 && Math.abs(a.z0 - b.z1) < tol) return 'N'
+    if (overlapX > 0.3 && Math.abs(a.z1 - b.z0) < tol) return 'S'
+    if (overlapZ > 0.3 && Math.abs(a.x0 - b.x1) < tol) return 'W'
+    if (overlapZ > 0.3 && Math.abs(a.x1 - b.x0) < tol) return 'E'
+  }
+  return undefined
+}
+
 /** Classify a custom room from the items currently in it. */
 /**
  * Classify a custom-plan room from its **name** (a strong, explicit signal the
@@ -957,11 +1159,11 @@ function roomKindFromItems(
   return 'generic'
 }
 
-/** World centre of a window opening (for focal-wall inference). */
-function windowCentres(plan: FloorPlan): Array<[number, number]> {
+/** World centre of every opening of `kind` in the plan. */
+function openingCentres(plan: FloorPlan, kind: 'window' | 'door'): Array<[number, number]> {
   const pts: Array<[number, number]> = []
   for (const o of plan.openings) {
-    if (o.kind !== 'window') continue
+    if (o.kind !== kind) continue
     const wall = plan.walls.find((w) => w.id === o.wallId)
     if (!wall) continue
     const len = wallLength(wall)
@@ -976,25 +1178,47 @@ function windowCentres(plan: FloorPlan): Array<[number, number]> {
   return pts
 }
 
+/** World centre of a window opening (for focal-wall inference + bedroom
+ *  headboard scoring). */
+function windowCentres(plan: FloorPlan): Array<[number, number]> {
+  return openingCentres(plan, 'window')
+}
+
+/** World centre of a door opening (for bedroom foot-to-door scoring). */
+function doorCentres(plan: FloorPlan): Array<[number, number]> {
+  return openingCentres(plan, 'door')
+}
+
 /** Pick a windowless edge of `rect` for a TV/media wall (prefer E, N, S, W).
  *  A reroll (`seed > 0`) picks the seed-th windowless edge instead of always
  *  the first, so a custom-plan lounge faces a different wall each variant;
  *  seed 0 returns the first windowless edge (identical to before). */
 function inferFocal(rect: Rect, windows: Array<[number, number]>, seed = 0): Edge | undefined {
-  const tol = 0.5
-  const hasWindow = (edge: Edge): boolean =>
-    windows.some(([wx, wz]) => {
-      if (edge === 'N')
-        return Math.abs(wz - rect.z0) < tol && wx > rect.x0 - tol && wx < rect.x1 + tol
-      if (edge === 'S')
-        return Math.abs(wz - rect.z1) < tol && wx > rect.x0 - tol && wx < rect.x1 + tol
-      if (edge === 'W')
-        return Math.abs(wx - rect.x0) < tol && wz > rect.z0 - tol && wz < rect.z1 + tol
-      return Math.abs(wx - rect.x1) < tol && wz > rect.z0 - tol && wz < rect.z1 + tol
-    })
-  const windowless = (['E', 'N', 'S', 'W'] as Edge[]).filter((e) => !hasWindow(e))
+  const windowless = (['E', 'N', 'S', 'W'] as Edge[]).filter(
+    (e) => !edgeHasOpening(rect, windows, e),
+  )
   if (windowless.length === 0) return undefined
   return windowless[seed % windowless.length]
+}
+
+/** Does an edge of `rect` have an opening (window/door) point on it, within a
+ *  tolerance? Shared by the living-room focal-wall inference above and the
+ *  bedroom headboard-edge scoring below. */
+function edgeHasOpening(
+  rect: Rect,
+  points: Array<[number, number]>,
+  edge: Edge,
+  tol = 0.5,
+): boolean {
+  return points.some(([px, pz]) => {
+    if (edge === 'N')
+      return Math.abs(pz - rect.z0) < tol && px > rect.x0 - tol && px < rect.x1 + tol
+    if (edge === 'S')
+      return Math.abs(pz - rect.z1) < tol && px > rect.x0 - tol && px < rect.x1 + tol
+    if (edge === 'W')
+      return Math.abs(px - rect.x0) < tol && pz > rect.z0 - tol && pz < rect.z1 + tol
+    return Math.abs(px - rect.x1) < tol && pz > rect.z0 - tol && pz < rect.z1 + tol
+  })
 }
 
 /** Arrange a single custom-plan room (shared by the per-room "Tidy" + the
@@ -1013,6 +1237,9 @@ function arrangeOnePlanRoom(
   walls: CollisionWall[],
   levelId: string = GROUND_LEVEL_ID,
   seed = 0,
+  windowKeepOut: WindowFrontRect[] = [],
+  doorPoints: Array<[number, number]> = [],
+  siblingRooms: PlanRoom[] = [],
 ): FurnitureItem[] {
   const inRoom = (i: FurnitureItem) =>
     (i.levelId ?? GROUND_LEVEL_ID) === levelId &&
@@ -1023,12 +1250,17 @@ function arrangeOnePlanRoom(
   return arrangeCore({
     rect,
     keepOut,
+    windowKeepOut,
+    windows,
+    doorPoints,
     inRoom,
     kind,
     // Custom living rooms use the edge-generic arranger, facing seating to a
     // windowless wall in whatever direction it lies.
     focal: kind === 'living' ? inferFocal(rect, windows, seed) : undefined,
     genericLiving: true,
+    // Dining-band bias toward a kitchen adjoining this room (RM3).
+    kitchenEdge: kind === 'living' ? kitchenAdjacentEdge(room, siblingRooms) : undefined,
     allItems: items,
     catalog,
     doors,
@@ -1069,6 +1301,9 @@ export function arrangePlanRoom(
     planCollisionWalls(lp, doors),
     level.id,
     seed,
+    windowFrontRects(lp),
+    doorCentres(lp),
+    level.rooms,
   )
 }
 
@@ -1092,10 +1327,25 @@ export function arrangeAllRoomsForPlan(
     const lp = levelAsPlan(plan, level)
     const keepOut = doorSwingRects(lp)
     const windows = windowCentres(lp)
+    const windowKeepOut = windowFrontRects(lp)
+    const doorPoints = doorCentres(lp)
     // Collide against this level's own walls, not the fixed flat's or ground's.
     const walls = planCollisionWalls(lp, doors)
     for (const room of level.rooms) {
-      items = arrangeOnePlanRoom(room, items, catalog, doors, keepOut, windows, walls, level.id)
+      items = arrangeOnePlanRoom(
+        room,
+        items,
+        catalog,
+        doors,
+        keepOut,
+        windows,
+        walls,
+        level.id,
+        0,
+        windowKeepOut,
+        doorPoints,
+        level.rooms,
+      )
     }
   }
   return items
