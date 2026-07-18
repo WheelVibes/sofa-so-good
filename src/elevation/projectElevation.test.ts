@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FloorPlan } from '../floorplan/types'
-import type { BuiltinGltfDef, FurnitureItem } from '../furniture/types'
-import { projectAllElevations, projectWallElevation } from './projectElevation'
+import type { BuiltinGltfDef, FurnitureItem, ParametricDef } from '../furniture/types'
+import { itemMountHeight, projectAllElevations, projectWallElevation } from './projectElevation'
 
 const wallPlan = (overrides: Partial<FloorPlan> = {}): FloorPlan => ({
   id: 't',
@@ -98,6 +98,135 @@ describe('projectWallElevation', () => {
     const plan = wallPlan()
     const ghost = { ...place(2, 0.25), defId: 'missing' }
     expect(projectWallElevation(plan, plan.walls[0]!, [ghost], defs).items).toHaveLength(0)
+  })
+})
+
+// Mirrors the REAL 'flatscreen-tv' def shape: `mounted` is NOT set at the def
+// level (a TV can go either way), so "is it mounted right now" is decided by
+// the live `mount` enum prop (`'stand'`/`'wall'`) — the conditional-mount
+// case `isWallMounted` has to handle.
+const tv: ParametricDef = {
+  id: 'flatscreen-tv',
+  name: 'TV',
+  category: 'electronics',
+  kind: 'parametric',
+  primitive: 'FlatscreenTV',
+  defaultFootprint: { w: 1.2, d: 0.08, h: 0.7 },
+  paramSchema: [
+    {
+      kind: 'enum',
+      key: 'mount',
+      label: 'Mount',
+      default: 'stand',
+      options: [
+        { value: 'stand', label: 'On stand' },
+        { value: 'wall', label: 'Wall' },
+      ],
+    },
+    {
+      kind: 'number',
+      key: 'mountHeight',
+      label: 'Mount',
+      min: 0.8,
+      max: 1.6,
+      step: 0.05,
+      default: 1.35,
+    },
+  ],
+}
+const sconce: ParametricDef = {
+  id: 'wall-sconce',
+  name: 'Sconce',
+  category: 'lighting',
+  kind: 'parametric',
+  primitive: 'WallSconce',
+  defaultFootprint: { w: 0.2, d: 0.1, h: 0.3 },
+  mounted: true,
+  paramSchema: [
+    {
+      kind: 'number',
+      key: 'mountHeight',
+      label: 'Mount',
+      min: 1.0,
+      max: 2.0,
+      step: 0.05,
+      default: 1.7,
+    },
+  ],
+}
+const sofa: ParametricDef = {
+  id: 'sofa-3',
+  name: 'Sofa',
+  category: 'seating',
+  kind: 'parametric',
+  primitive: 'Sofa',
+  defaultFootprint: { w: 2.0, d: 0.9, h: 0.85 },
+  paramSchema: [],
+}
+const mountDefs = { ...defs, [tv.id]: tv, [sconce.id]: sconce, [sofa.id]: sofa }
+const placeDef = (
+  defId: string,
+  cx: number,
+  cz: number,
+  props: Record<string, number | string> = {},
+): FurnitureItem => ({
+  id: `${defId}-${cx}-${cz}`,
+  defId,
+  position: [cx, cz],
+  rotation: 0,
+  props,
+})
+
+describe('itemMountHeight (H3)', () => {
+  it('returns the live mountHeight prop for a wall-mounted TV', () => {
+    expect(
+      itemMountHeight(placeDef('flatscreen-tv', 0, 0, { mount: 'wall', mountHeight: 1.1 }), tv),
+    ).toBe(1.1)
+  })
+
+  it('falls back to the paramSchema default height when the item has not customised it', () => {
+    expect(itemMountHeight(placeDef('flatscreen-tv', 0, 0, { mount: 'wall' }), tv)).toBe(1.35)
+  })
+
+  it('returns null for a TV on its stand (conditional mount, not wall-mounted)', () => {
+    expect(itemMountHeight(placeDef('flatscreen-tv', 0, 0, { mount: 'stand' }), tv)).toBeNull()
+    // Default `mount` (no live prop) is 'stand' too.
+    expect(itemMountHeight(placeDef('flatscreen-tv', 0, 0), tv)).toBeNull()
+  })
+
+  it('returns null for a floor-standing (non-mounted) item', () => {
+    expect(itemMountHeight(placeDef('sofa-3', 0, 0), sofa)).toBeNull()
+  })
+})
+
+describe('projectWallElevation — mount heights (H3)', () => {
+  it('annotates a wall-mounted TV with its AFFL mount height', () => {
+    const plan = wallPlan()
+    const item = placeDef('flatscreen-tv', 2, 0.1, { mount: 'wall', mountHeight: 1.1 })
+    const el = projectWallElevation(plan, plan.walls[0]!, [item], mountDefs)
+    expect(el.items).toHaveLength(1)
+    expect(el.items[0]!.mountHeight).toBeCloseTo(1.1)
+  })
+
+  it('leaves a stand-mounted TV with no mountHeight (conditional mount off)', () => {
+    const plan = wallPlan()
+    const item = placeDef('flatscreen-tv', 2, 0.1, { mount: 'stand' })
+    const el = projectWallElevation(plan, plan.walls[0]!, [item], mountDefs)
+    expect(el.items[0]!.mountHeight).toBeUndefined()
+  })
+
+  it('annotates a mounted sconce with its own mount height', () => {
+    const plan = wallPlan()
+    const item = placeDef('wall-sconce', 2, 0.1, { mountHeight: 1.45 })
+    const el = projectWallElevation(plan, plan.walls[0]!, [item], mountDefs)
+    expect(el.items[0]!.mountHeight).toBeCloseTo(1.45)
+  })
+
+  it('leaves a floor-standing item with no mountHeight (no clutter)', () => {
+    const plan = wallPlan()
+    const item = placeDef('sofa-3', 2, 0.5)
+    const el = projectWallElevation(plan, plan.walls[0]!, [item], mountDefs)
+    expect(el.items[0]!.mountHeight).toBeUndefined()
   })
 })
 

@@ -120,7 +120,12 @@ at the top:
   windows (pane + mullions) and doors, and the furniture standing against that
   wall as labelled silhouettes at their real positions and heights. It's the view
   kitchen/bath designers and installers use for cabinet, fixture and backsplash
-  heights.
+  heights. Every wall‑mounted piece — a wall TV, sconce, wall art, cove light,
+  wall cabinet — carries its own mount‑height dimension (e.g. "1100 AFFL", in
+  millimetres above the finished floor level), so the contractor knows exactly
+  how high to fix it, not just how wide it is; floor‑standing furniture keeps
+  only its width dimension. Two mounted pieces close together on the same wall
+  automatically fan their height dimensions apart so neither label is obscured.
 - **Lighting** plots every light fixture over the walls with its coverage circle —
   a reflected‑ceiling‑style plan showing where the light falls. Below the plan,
   **Estimated light levels** lists each room's estimated average brightness in

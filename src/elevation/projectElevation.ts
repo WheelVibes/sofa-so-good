@@ -42,6 +42,9 @@ interface ElevationItem {
   x1: number
   height: number
   depth: number
+  /** AFFL mount height (m) for a wall/ceiling-mounted item (H3) — `undefined`
+   *  for a floor-standing piece (no height annotation; see {@link itemMountHeight}). */
+  mountHeight?: number
 }
 
 export interface WallElevation {
@@ -74,6 +77,53 @@ export function itemHeight(item: FurnitureItem, def: FurnitureDef): number {
   const defScale = def.kind === 'parametric' ? undefined : def.scale
   const scale = (typeof item.props['scale'] === 'number' ? item.props['scale'] : defScale) ?? 1
   return h * scale
+}
+
+/**
+ * True when an item is genuinely wall/ceiling-mounted right now — either
+ * always-mounted (`def.mounted`, e.g. a sconce, cove light, wall cabinet) OR
+ * a def that can go EITHER way via its own `mount` enum param (a TV/aircon
+ * that's `'stand'` on the floor or `'wall'` on the wall — `def.mounted` stays
+ * `false`/absent for these since it's conditional, so `def.mounted` alone
+ * would miss them). The live `mount` prop wins; falls back to the param's own
+ * schema default when the item hasn't customised it (matching how every
+ * other param resolves).
+ */
+function isWallMounted(item: FurnitureItem, def: FurnitureDef): boolean {
+  if (def.mounted) return true
+  if (def.kind !== 'parametric') return false
+  const field = def.paramSchema.find((f) => f.kind === 'enum' && f.key === 'mount')
+  if (!field) return false
+  const live = item.props['mount']
+  const value = typeof live === 'string' ? live : field.default
+  return value === 'wall'
+}
+
+/**
+ * AFFL mount height (metres) an elevation should dimension for a wall/ceiling-
+ * mounted item (H3 — TVs, sconces, art, cove lights, wall cabinets), so
+ * contractors get the "how high" number a plain silhouette can't convey.
+ * `null` for a floor-standing item ({@link isWallMounted} false) — those get
+ * no height annotation, matching the existing width-only dimension for
+ * regular furniture (avoids clutter).
+ *
+ * Resolution order: the item's own live `mountHeight` prop (the value the
+ * matching primitive actually renders against — centre for art/mirrors,
+ * underside for cabinets/hoods, panel-centre for TVs; see
+ * `furniture/mountHeightPresets.ts`) → the def's parametric default for that
+ * param → a non-parametric (GLB) mounted def's `verticalSpan.base` → `null`
+ * when none of those resolve to a real number (never guess).
+ */
+export function itemMountHeight(item: FurnitureItem, def: FurnitureDef): number | null {
+  if (!isWallMounted(item, def)) return null
+  const live = item.props['mountHeight']
+  if (typeof live === 'number') return live
+  if (def.kind === 'parametric') {
+    const field = def.paramSchema.find((f) => f.key === 'mountHeight')
+    if (field && field.kind === 'number') return field.default
+  }
+  if (def.verticalSpan && def.verticalSpan.base > 0) return def.verticalSpan.base
+  return null
 }
 
 /**
@@ -133,6 +183,7 @@ export function projectWallElevation(
     x0 = clamp(x0, 0, len)
     x1 = clamp(x1, 0, len)
     if (x1 - x0 < 1e-3) continue
+    const mountHeight = itemMountHeight(item, def)
     result.items.push({
       id: item.id,
       label: item.label ?? def.name,
@@ -140,6 +191,7 @@ export function projectWallElevation(
       x1,
       height: itemHeight(item, def),
       depth: minPerp,
+      ...(mountHeight != null ? { mountHeight } : {}),
     })
   }
   // Farthest-first so a renderer paints back-to-front (nearer pieces on top).

@@ -1,0 +1,45 @@
+{
+  "name": "elevation-mount-heights",
+  "url": "http://localhost:5211/",
+  "description": "H3 — wall elevations annotate the AFFL mount height of every wall-mounted item. Places a wall-mounted TV (1.1 m) + a wall sconce (1.45 m) flush against the same wall, opens the Drawings → Elevations panel, and asserts both '1100 AFFL'/'1450 AFFL' dimension labels render in the elevation SVG (not just the item width). A floor-standing sofa on the same wall gets no mount-height dimension (no clutter).",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour(13)" },
+    {
+      "name": "place-mounted-items",
+      "eval": "(() => { const s = window.__store.getState(); const wall = s.floorPlan.walls.find((w) => Math.hypot(w.end[0]-w.start[0], w.end[1]-w.start[1]) > 3); if (!wall) throw new Error('no long wall found in the default plan'); window.__mountWallId = wall.id; const len = Math.hypot(wall.end[0]-wall.start[0], wall.end[1]-wall.start[1]); const ux = (wall.end[0]-wall.start[0])/len, uz = (wall.end[1]-wall.start[1])/len; const nx = -uz, nz = ux; const along = (t) => [wall.start[0] + ux*len*t + nx*0.08, wall.start[1] + uz*len*t + nz*0.08]; const tvPos = along(0.25); const sconcePos = along(0.6); const sofaPos = along(0.85); s.setItems([ { id: 'mount-tv', defId: 'flatscreen-tv', position: tvPos, rotation: 0, props: { mount: 'wall', mountHeight: 1.1 } }, { id: 'mount-sconce', defId: 'wall-sconce', position: sconcePos, rotation: 0, props: { mountHeight: 1.45 } }, { id: 'mount-sofa', defId: 'sofa-3seat', position: sofaPos, rotation: 0, props: {} }, ]); })()"
+    },
+    { "name": "wait-place", "wait": 500 },
+    {
+      "name": "verify-items-placed",
+      "eval": "(() => { const items = window.__store.getState().items; for (const id of ['mount-tv','mount-sconce']) { if (!items.find((i) => i.id === id)) throw new Error(id + ' failed to place (bad defId?)'); } })()"
+    },
+    { "name": "open-drawings-panel", "store": { "action": "setElevationsOpen", "args": [true] } },
+    { "name": "wait-drawings-panel", "waitFor": { "css": "#elevationPanel" }, "timeout": 10000 },
+    {
+      "name": "select-target-wall",
+      "eval": "(() => { const s = window.__store.getState(); const idx = s.floorPlan.walls.findIndex((w) => w.id === window.__mountWallId); const buttons = document.querySelectorAll('#elevationPanel .seg:not(.accent) button'); const btn = buttons[idx]; if (!btn) throw new Error('no Wall button at index ' + idx); btn.click(); })()"
+    },
+    { "name": "wait-elevation-render", "wait": 400 },
+    {
+      "name": "assert-both-mount-heights-drawn",
+      "eval": "(() => { const html = document.querySelector('#elevationPanel .elev-canvas')?.innerHTML ?? ''; if (!html.includes('1100 AFFL')) throw new Error('TV mount height (1100 AFFL) missing from elevation SVG: ' + html.slice(0, 400)); if (!html.includes('1450 AFFL')) throw new Error('Sconce mount height (1450 AFFL) missing from elevation SVG'); if (/AFFL/.test(html) === false) throw new Error('no AFFL dimension at all'); window.__mountHeightsOk = true; })()"
+    },
+    {
+      "name": "assert-sofa-not-annotated",
+      "eval": "(() => { const html = document.querySelector('#elevationPanel .elev-canvas')?.innerHTML ?? ''; const affls = (html.match(/\\d+ AFFL/g) || []); if (affls.length !== 2) throw new Error('expected exactly 2 AFFL dims (TV + sconce), got ' + affls.length + ': ' + affls.join(',')); })()"
+    },
+    { "name": "shot-elevation-mount-heights", "screenshot": "01-elevation-mount-heights" },
+    {
+      "name": "zoom-crop-check",
+      "eval": "document.querySelector('#elevationPanel .elev-canvas svg')?.setAttribute('style', 'width:100%;transform:scale(1.6);transform-origin:top left')"
+    },
+    { "name": "shot-elevation-zoomed", "screenshot": "02-elevation-mount-heights-zoomed" }
+  ]
+}

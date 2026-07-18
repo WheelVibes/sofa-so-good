@@ -1070,6 +1070,18 @@ same change that reshapes a system.
 - **Wall elevations** (`elevation/projectElevation.ts` pure → `WallElevation` per plan wall, reusing
   the collision OBB helpers; `ui/elevation/elevationSvg.ts` renders to a palette-injected SVG string
   shared by the `ElevationPanel` (token colours) + the report). The vertical counterpart to the plan.
+  **Mount-height dimensions (H3):** every projected item that's actually wall/ceiling-mounted right
+  now carries an AFFL height in mm — `projectElevation.ts:itemMountHeight` resolves it (live
+  `mountHeight` prop → the def's parametric default → a non-parametric mounted def's
+  `verticalSpan.base`), where "mounted right now" (`isWallMounted`) is `def.mounted` (sconces, cove
+  lights, wall cabinets, always-mounted GLBs) **or** a def whose own `mount` enum param (TVs,
+  aircon — floor-or-wall) currently reads `'wall'`; a floor-standing item resolves to `null` and gets
+  no height dim (no clutter). `elevationSvg.ts` draws it as a vertical dimension (`"1100 AFFL"`)
+  tucked inside the item's own footprint, opposite the below-floor width-dimension row; two mounted
+  items close together on one wall fan into separate columns via
+  `dimensionLayout.ts:staggerMountHeightColumns` (mirrors `staggerDimensionRows`'s greedy collision
+  assignment, but 2D — close in BOTH x and height — since a height dim is a vertical line, not a
+  horizontal span).
 - **Cross-section** (`floorplan/section.ts` pure → a `Section` cut along a mid-plan line: cut wall
   columns w/ heights, floor/ceiling runs, room spans, opening gaps, + furniture silhouettes beyond the
   cut supplied via `ui/elevation/sectionFigure.ts` `sectionSilhouettes` so the core stays footprint-

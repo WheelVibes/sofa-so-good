@@ -15,13 +15,6 @@ when an item ships it is **removed from this file entirely**. Maintainability re
   schedule back to a specific opening on plan. Needs a mark callout (`D1`/`W1`…) near each
   opening on the plan sheet, keyed against `buildOpeningSchedule`'s grouping so labels never
   drift from the schedule. Out of scope here (`reportPlanSvg.ts` territory).
-- [ ] **H2 — Carpentry material/finish/hardware callouts.** Add to the carpentry sheet: board/
-  laminate note (from the piece's material props where they exist — honest "TBC by fabricator"
-  otherwise), edge-banding note, hardware callout per type (sliding track/rollers for sliding
-  wardrobe fronts, hinges/handles otherwise), and a SECTION cut-line marker on the elevation.
-- [ ] **H3 — Elevation mount heights.** Wall-elevation sheets label item widths but not AFFL
-  heights for wall-hung items (TV, sconces, art) — add height annotations (the model has
-  mountHeight).
 - [ ] **H4 — Reflected Ceiling Plan sheet (larger).** Canonical drawing #4: false-ceiling/
   bulkhead zones with drop heights, ceiling-fixture positions dimensioned off walls, aircon.
   The model has ceiling treatments per room + ceiling-mounted fixtures — enough for v1.

@@ -64,6 +64,61 @@ describe('elevationSvg', () => {
     expect(svg).toContain('viewBox="-0.950 -0.350 5.300 4.100"')
   })
 
+  it('annotates a mounted TV with its AFFL mount height (H3)', () => {
+    const withTv: WallElevation = {
+      ...el,
+      items: [{ id: 'tv', label: 'TV', x0: 1.5, x1: 2.7, height: 0.7, depth: 0, mountHeight: 1.1 }],
+    }
+    const svg = elevationSvg(withTv, { palette, units: 'metric', dimensions: true })
+    expect(svg).toContain('1100 AFFL')
+  })
+
+  it('annotates a mounted sconce with its own mount height', () => {
+    const withSconce: WallElevation = {
+      ...el,
+      items: [
+        { id: 'sc', label: 'Sconce', x0: 3.0, x1: 3.2, height: 0.3, depth: 0, mountHeight: 1.45 },
+      ],
+    }
+    const svg = elevationSvg(withSconce, { palette, units: 'metric', dimensions: true })
+    expect(svg).toContain('1450 AFFL')
+  })
+
+  it('does not annotate a floor-standing item (no mountHeight — no clutter)', () => {
+    const floorSofa: WallElevation = {
+      ...el,
+      items: [{ id: 'sofa', label: 'Sofa', x0: 0.5, x1: 2.5, height: 0.85, depth: 0 }],
+    }
+    const svg = elevationSvg(floorSofa, { palette, units: 'metric', dimensions: true })
+    expect(svg).not.toMatch(/AFFL/)
+  })
+
+  it('declutters two mounted items sharing a wall closely (both heights still legible)', () => {
+    const twoMounted: WallElevation = {
+      ...el,
+      items: [
+        { id: 'a', label: 'TV', x0: 1.0, x1: 2.2, height: 0.7, depth: 0, mountHeight: 1.1 },
+        {
+          id: 'b',
+          label: 'Soundbar',
+          x0: 1.05,
+          x1: 1.95,
+          height: 0.1,
+          depth: 0,
+          mountHeight: 1.05,
+        },
+      ],
+    }
+    const svg = elevationSvg(twoMounted, { palette, units: 'metric', dimensions: true })
+    // Both AFFL heights are present in the markup — neither dim was dropped.
+    expect(svg).toContain('1100 AFFL')
+    expect(svg).toContain('1050 AFFL')
+    // Two distinct <line> x1 anchors for the colliding pair (fanned to
+    // different columns) rather than both drawn at the identical x.
+    const dimLineXs = [...svg.matchAll(/<line x1="([\d.]+)" y1="[\d.]+" x2="\1"/g)].map((m) => m[1])
+    expect(new Set(dimLineXs).size).toBeGreaterThan(1)
+  })
+
   it('escapes a malicious item label (no markup injection)', () => {
     const evil: WallElevation = {
       ...el,

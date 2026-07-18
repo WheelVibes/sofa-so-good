@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.56 — H3: elevation AFFL mount heights
+
+Wall elevations now dimension every wall-hung item's mount height ("1100
+AFFL", mm always) as a floor-to-underside vertical line tucked inside the
+item's footprint — opposite axis from the width row so they can't collide,
+with a 2D stagger pass (`staggerMountHeightColumns`) for items close in both
+x and height. Mounted detection: `def.mounted`, OR a conditional `mount`
+enum param reading 'wall' — a real gap found en route (TVs never set
+def.mounted, so the headline TV case would have silently not annotated).
+Height resolution: live prop → schema default → GLB verticalSpan.base →
+never guessed. Floor-standing items stay clean. 46 tests + 17-step scenario
+(TV 1100 + sconce 1450 annotated, sofa not; screenshots legible).
+
 ## v0.22.2.55 — H-D1/D2/D3: acceptance-review defects fixed
 
 (1) MEP label declutter: pure `mepLabelLayout.ts` single-linkage-clusters

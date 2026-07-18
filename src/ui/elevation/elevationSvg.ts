@@ -4,7 +4,11 @@
  * (CSS-token colours) and the printable report (print hexes) share one renderer.
  * Used by both `ElevationPanel` and the report's "Wall elevations" section.
  */
-import { approxTextWidth, staggerDimensionRows } from '../../elevation/dimensionLayout'
+import {
+  approxTextWidth,
+  staggerDimensionRows,
+  staggerMountHeightColumns,
+} from '../../elevation/dimensionLayout'
 import type { WallElevation } from '../../elevation/projectElevation'
 import { formatLength, type UnitSystem } from '../../utils/measurement'
 
@@ -40,7 +44,8 @@ export interface ElevationSvgOptions {
   units?: UnitSystem
   /** Outer margin in metres around the wall rectangle. Default 0.35. */
   margin?: number
-  /** Draw dimension lines (overall width/height + opening sill heights). Default true. */
+  /** Draw dimension lines (overall width/height, opening sill heights, and
+   *  mounted-item AFFL heights — H3). Default true. */
   dimensions?: boolean
   /** When set (mm printed per metre of real-world extent, from
    *  `floorplan/drawingScale.ts:pickDrawingScale`), sizes the returned `<svg>`
@@ -142,7 +147,8 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
   }
 
   // Dimension lines (architectural read): overall width below, overall height at
-  // the left, and each opening's sill height — the key "how high" elevation info.
+  // the left, each opening's sill height, and each mounted item's AFFL mount
+  // height (H3) — the key "how high" elevation info.
   // Extra room is reserved on the left + bottom for the dim lines + labels.
   const pad = dimensions ? 0.95 : margin
   // Grows with however many extra label rows the stagger needed (set below).
@@ -203,6 +209,25 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
       const x = Math.max(0.04, o.x0 - 0.18)
       dimLine(x, y(o.sill), x, y(0), formatLength(o.sill, units), true)
     }
+    // Mount heights for wall/ceiling-mounted items (H3) — a plain silhouette
+    // can't convey "how high", so every mounted item (TV, sconce, art, cove
+    // light, wall cabinet…) gets an AFFL height dimension, floor to mount
+    // height, tucked just inside its own footprint's left edge — the
+    // opposite side/convention from the per-item WIDTH row below the floor,
+    // so the two never collide. Floor-standing items carry no `mountHeight`
+    // (projectElevation.ts) and get nothing here (H3 point 2 — no clutter).
+    // Millimetres always (contractor AFFL convention), independent of the
+    // panel's metric/imperial `units` toggle — matches the carpentry sheets.
+    const mounted = el.items.filter((it) => it.mountHeight != null)
+    const cols = staggerMountHeightColumns(
+      mounted.map((it) => ({ x: it.x0, height: it.mountHeight! })),
+    )
+    mounted.forEach((it, i) => {
+      const h = it.mountHeight!
+      const x = Math.max(0.04, it.x0 - 0.12 - cols[i]! * 0.22)
+      const mm = Math.round(h * 1000)
+      dimLine(x, y(h), x, y(0), `${mm} AFFL`, true)
+    })
   }
 
   const fullW = L + pad + margin
