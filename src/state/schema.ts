@@ -392,6 +392,46 @@ export const FloorPlanZ = z.object({
       }),
     )
     .optional(),
+  // Persisted electrical points (MEP layer, G1). Optional + additive — no
+  // schema-version bump; absent → []. `kind` is a closed enum (matches
+  // `ElectricalKind` in `floorplan/types.ts`) so an unknown/corrupt kind
+  // rejects that one point record rather than silently accepting garbage.
+  electricalPoints: z
+    .array(
+      z.object({
+        id: z.string(),
+        x: z.number(),
+        z: z.number(),
+        kind: z.enum([
+          'socket',
+          'socket-double',
+          'switch',
+          'data',
+          'tv-point',
+          'aircon',
+          'water-heater',
+        ]),
+        mountHeightMm: z.number().optional(),
+        label: z.string().optional(),
+        levelId: z.string().optional(),
+      }),
+    )
+    .optional(),
+  // Persisted plumbing points (MEP layer, G1). Same shape/rules as
+  // `electricalPoints` above.
+  plumbingPoints: z
+    .array(
+      z.object({
+        id: z.string(),
+        x: z.number(),
+        z: z.number(),
+        kind: z.enum(['water-point', 'drainage', 'floor-trap', 'soil-pipe', 'water-heater']),
+        mountHeightMm: z.number().optional(),
+        label: z.string().optional(),
+        levelId: z.string().optional(),
+      }),
+    )
+    .optional(),
 })
 
 /** Serialised quote template — all fields optional for backward compatibility.

@@ -10,10 +10,12 @@
  * Self-contained: imports only `./types`. No furniture / store types.
  */
 
-import type { FloorPlan } from './types'
+import type { FloorPlan, PlumbingKind } from './types'
 
-/** Standard SG plumbing point kinds. */
-export type PlumbingKind = 'water-point' | 'drainage' | 'floor-trap' | 'soil-pipe' | 'water-heater'
+/** Standard SG plumbing point kinds — moved to `floorplan/types.ts` (MEP layer
+ *  plan, G1), same rationale as `electricalPlan.ts`'s `ElectricalKind`.
+ *  Re-exported here type-only so existing importers are unaffected. */
+export type { PlumbingKind }
 
 /** A single plumbing point placed in the plan (world metres). */
 export interface PlumbingPoint {

@@ -182,6 +182,7 @@ export type FeatureFlag =
   | 'aiDesignChat'
   | 'shareCardNative'
   | 'itemMeta'
+  | 'mepEditor'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

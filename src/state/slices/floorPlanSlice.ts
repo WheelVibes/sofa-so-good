@@ -31,9 +31,11 @@ import {
   clampOpeningWidth,
   type FloorPlan,
   type PlanDimension,
+  type PlanElectricalPoint,
   type PlanGuide,
   type PlanNote,
   type PlanOpening,
+  type PlanPlumbingPoint,
   type PlanPolyline,
   type PlanRoom,
   type PlanUpperLevel,
@@ -59,6 +61,7 @@ export type PlanSelection =
   | { type: 'note'; id: string }
   | { type: 'dim'; id: string }
   | { type: 'polyline'; id: string }
+  | { type: 'mep'; family: 'electrical' | 'plumbing'; id: string }
   | null
 
 let idCounter = 0
@@ -306,6 +309,24 @@ export interface FloorPlanSlice {
   updatePolyline: (id: string, patch: Partial<Omit<PlanPolyline, 'id'>>) => void
   /** Remove a polyline; clears the selection if it was selected. */
   removePolyline: (id: string) => void
+
+  /** Add a persisted electrical point (MEP layer, G1); returns its id. Forks
+   *  the default plan (risk #1 — a non-forking add on the seeded default plan
+   *  would be dropped by `serialize()`). */
+  addElectricalPoint: (point: Omit<PlanElectricalPoint, 'id'>) => string
+  /** Patch an electrical point (kind/position/mountHeightMm/label/levelId).
+   *  Coalesced per-id so a drag or a stream of typed edits is one undo step. */
+  updateElectricalPoint: (id: string, patch: Partial<Omit<PlanElectricalPoint, 'id'>>) => void
+  /** Remove an electrical point; clears the selection if it was selected. */
+  removeElectricalPoint: (id: string) => void
+
+  /** Add a persisted plumbing point (MEP layer, G1); returns its id. Same
+   *  fork-on-default rule as `addElectricalPoint`. */
+  addPlumbingPoint: (point: Omit<PlanPlumbingPoint, 'id'>) => string
+  /** Patch a plumbing point. Coalesced per-id (drags / typed edits = one step). */
+  updatePlumbingPoint: (id: string, patch: Partial<Omit<PlanPlumbingPoint, 'id'>>) => void
+  /** Remove a plumbing point; clears the selection if it was selected. */
+  removePlumbingPoint: (id: string) => void
 
   /** Add a persistent ruler guide (PARITY-PLAN-GUIDES); de-duped per-axis. */
   addPlanGuide: (guide: PlanGuide) => void
@@ -1177,6 +1198,91 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       },
       planSelection:
         s.planSelection?.type === 'polyline' && s.planSelection.id === id ? null : s.planSelection,
+    }))
+  },
+
+  // Electrical/plumbing points are top-level plan arrays (level-tagged via
+  // `levelId`), the same notes/dimensions/polylines annotation-class shape
+  // (MEP layer, G1). Unlike `addNote`/`addDimension`/`addPolyline` above, every
+  // mutation here runs through `forkIfDefault` — those three actions patch the
+  // plan WITHOUT forking (a pre-existing quirk this deliberately does not
+  // copy): `serialize()` drops the whole `floorPlan` while it's still the
+  // seeded default (`isDefaultPlan`), so a non-forking add on the untouched
+  // default plan would silently lose its points on the next save/share-link
+  // (plan-doc risk #1).
+  addElectricalPoint: (point) => {
+    const id = planId('ep')
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...forkIfDefault(s.floorPlan),
+        electricalPoints: [...(s.floorPlan.electricalPoints ?? []), { ...point, id }],
+      },
+    }))
+    return id
+  },
+  updateElectricalPoint: (id, patch) => {
+    get().pushHistoryCoalesced(`plan-ep-${id}`)
+    set((s) => ({
+      floorPlan: {
+        ...forkIfDefault(s.floorPlan),
+        electricalPoints: (s.floorPlan.electricalPoints ?? []).map((p) =>
+          p.id === id ? { ...p, ...patch } : p,
+        ),
+      },
+    }))
+  },
+  removeElectricalPoint: (id) => {
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...forkIfDefault(s.floorPlan),
+        electricalPoints: (s.floorPlan.electricalPoints ?? []).filter((p) => p.id !== id),
+      },
+      planSelection:
+        s.planSelection?.type === 'mep' &&
+        s.planSelection.family === 'electrical' &&
+        s.planSelection.id === id
+          ? null
+          : s.planSelection,
+    }))
+  },
+
+  addPlumbingPoint: (point) => {
+    const id = planId('pp')
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...forkIfDefault(s.floorPlan),
+        plumbingPoints: [...(s.floorPlan.plumbingPoints ?? []), { ...point, id }],
+      },
+    }))
+    return id
+  },
+  updatePlumbingPoint: (id, patch) => {
+    get().pushHistoryCoalesced(`plan-pp-${id}`)
+    set((s) => ({
+      floorPlan: {
+        ...forkIfDefault(s.floorPlan),
+        plumbingPoints: (s.floorPlan.plumbingPoints ?? []).map((p) =>
+          p.id === id ? { ...p, ...patch } : p,
+        ),
+      },
+    }))
+  },
+  removePlumbingPoint: (id) => {
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...forkIfDefault(s.floorPlan),
+        plumbingPoints: (s.floorPlan.plumbingPoints ?? []).filter((p) => p.id !== id),
+      },
+      planSelection:
+        s.planSelection?.type === 'mep' &&
+        s.planSelection.family === 'plumbing' &&
+        s.planSelection.id === id
+          ? null
+          : s.planSelection,
     }))
   },
 

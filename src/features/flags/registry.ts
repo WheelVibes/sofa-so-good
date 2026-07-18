@@ -1659,6 +1659,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // First-class MEP layer (G1): persisted, editable electrical/plumbing points
+  // (the 'mep' Tool, MepLayer, PlanInspector case and Suggest land in later
+  // PRs — this flag is the single gate for all of it). Pure geometry + no
+  // sidecar/licensing → prod-safe; an analytical contractor-handover authoring
+  // surface beyond the core furnish loop → pro tier (hidden in Simple).
+  mepEditor: {
+    label: 'MEP point editor',
+    description: 'Place and edit persisted electrical/plumbing points on the 2D plan',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

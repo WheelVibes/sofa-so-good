@@ -10,17 +10,12 @@
  * Self-contained: imports only `./types`. No furniture / store types.
  */
 
-import type { FloorPlan } from './types'
+import type { ElectricalKind, FloorPlan } from './types'
 
-/** Standard SG electrical point kinds. */
-export type ElectricalKind =
-  | 'socket'
-  | 'socket-double'
-  | 'switch'
-  | 'data'
-  | 'tv-point'
-  | 'aircon'
-  | 'water-heater'
+/** Standard SG electrical point kinds — moved to `floorplan/types.ts` (MEP
+ *  layer plan, G1) so `PlanElectricalPoint` can live there without an import
+ *  cycle; re-exported here type-only so existing importers are unaffected. */
+export type { ElectricalKind }
 
 /** A single electrical point placed in the plan (world metres). */
 export interface ElectricalPoint {

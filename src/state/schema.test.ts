@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import { resolvePlanRoomFloor, resolvePlanRoomWall } from '../floorplan/roomFinishes'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
-import { applySerialized, preserveUnresolvedItems, SerializedStateZ, serialize } from './schema'
+import {
+  applySerialized,
+  FloorPlanZ,
+  preserveUnresolvedItems,
+  SerializedStateZ,
+  serialize,
+} from './schema'
 import { useStore } from './store'
 
 describe('schema', () => {
@@ -385,6 +391,80 @@ describe('schema', () => {
     const saved = serialize(useStore.getState())
     const patch = applySerialized(saved, new Set<string>())
     expect(patch.floorPlan?.polylines).toEqual([polyline])
+  })
+
+  it('round-trips electrical + plumbing points (MEP layer, G1) on a custom plan', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        id: 'mep-plan',
+        name: 'MEP',
+        ceilingHeight: 2.6,
+        extent: [4.2, 4.2],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [4.1, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [{ id: 'R', name: 'Room', origin: [0.2, 0.2], width: 3.8, depth: 3.8 }],
+        electricalPoints: [
+          { id: 'ep1', x: 1, z: 1, kind: 'socket', mountHeightMm: 300, label: 'Fridge' },
+          { id: 'ep2', x: 2, z: 2, kind: 'switch', levelId: 'lvl-2' },
+        ],
+        plumbingPoints: [
+          { id: 'pp1', x: 1.5, z: 1.5, kind: 'water-point', mountHeightMm: 600 },
+          { id: 'pp2', x: 2.5, z: 0.5, kind: 'floor-trap', levelId: 'lvl-2' },
+        ],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.floorPlan?.electricalPoints).toEqual([
+      { id: 'ep1', x: 1, z: 1, kind: 'socket', mountHeightMm: 300, label: 'Fridge' },
+      { id: 'ep2', x: 2, z: 2, kind: 'switch', levelId: 'lvl-2' },
+    ])
+    expect(patch.floorPlan?.plumbingPoints).toEqual([
+      { id: 'pp1', x: 1.5, z: 1.5, kind: 'water-point', mountHeightMm: 600 },
+      { id: 'pp2', x: 2.5, z: 0.5, kind: 'floor-trap', levelId: 'lvl-2' },
+    ])
+  })
+
+  it('MEP points are absent on a plan that predates them (back-compat)', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        id: 'legacy-plan',
+        name: 'Legacy',
+        ceilingHeight: 2.6,
+        extent: [4.2, 4.2],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [4.1, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [{ id: 'R', name: 'Room', origin: [0.2, 0.2], width: 3.8, depth: 3.8 }],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.floorPlan?.electricalPoints).toBeUndefined()
+    expect(patch.floorPlan?.plumbingPoints).toBeUndefined()
+  })
+
+  it('rejects an unknown electrical/plumbing kind on a point record', () => {
+    const base = {
+      id: 'mep-bad-plan',
+      name: 'Bad MEP',
+      ceilingHeight: 2.6,
+      extent: [4.2, 4.2] as [number, number],
+      walls: [],
+      openings: [],
+      rooms: [],
+    }
+    const badElectrical = FloorPlanZ.safeParse({
+      ...base,
+      electricalPoints: [{ id: 'ep1', x: 1, z: 1, kind: 'not-a-kind' }],
+    })
+    expect(badElectrical.success).toBe(false)
+    const badPlumbing = FloorPlanZ.safeParse({
+      ...base,
+      plumbingPoints: [{ id: 'pp1', x: 1, z: 1, kind: 'not-a-kind' }],
+    })
+    expect(badPlumbing.success).toBe(false)
   })
 
   it('round-trips per-room floor + wall finishes on a custom plan', () => {

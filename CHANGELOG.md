@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.43 — G1 (PR 1+2): persisted MEP point model + store actions
+
+First two steps of the MEP-layer plan: `PlanElectricalPoint`/`PlanPlumbingPoint`
+persisted on FloorPlan (free XZ + `mountHeightMm` AFFL + label + levelId; kind
+unions relocated to types.ts with type-only re-exports), SG-convention mount
+defaults + `isDuplicateMepPoint` in pure `mepPoints.ts`, additive zod arrays
+(closed kind enums, no version bump), `mepEditor` flag (pro), PlanSelection
+'mep' member, and six slice actions (add/update/remove × both families,
+coalesced updates, selection-clearing removes) — every mutation forks the
+default plan so points survive `serialize()` (the addNote non-forking quirk
+deliberately NOT copied). 145 targeted tests. Editor UI (PR 3), Suggest
+(PR 4), sheet consumption (PR 5) next.
+
 ## v0.22.2.42 — Per-item metadata: URL/price/brand/model/supplier + custom fields
 
 `itemMeta` flag (pro): every placed item gets a "Notes & link" inspector

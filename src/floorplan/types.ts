@@ -11,6 +11,25 @@
 
 export type PlanVec2 = [number, number]
 
+/** Standard SG electrical point kinds (moved from `electricalPlan.ts` — MEP
+ *  layer plan (G1) — so `types.ts` can host the persisted `PlanElectricalPoint`
+ *  without `electricalPlan.ts` importing back from `floorplan/types.ts`, which
+ *  would create an import cycle. `electricalPlan.ts` re-exports this
+ *  type-only so existing importers are unaffected. */
+export type ElectricalKind =
+  | 'socket'
+  | 'socket-double'
+  | 'switch'
+  | 'data'
+  | 'tv-point'
+  | 'aircon'
+  | 'water-heater'
+
+/** Standard SG plumbing point kinds (moved from `plumbingPlan.ts` — see
+ *  `ElectricalKind` above for the rationale). `plumbingPlan.ts` re-exports this
+ *  type-only. */
+export type PlumbingKind = 'water-point' | 'drainage' | 'floor-trap' | 'soil-pipe' | 'water-heater'
+
 export interface PlanWall {
   id: string
   start: PlanVec2
@@ -234,6 +253,13 @@ export interface FloorPlan {
    *  the editor snaps points to (Figma/Coohom-style ruler guides), distinct from
    *  transient smart guides. Plan-wide (not level-tagged). Additive + optional. */
   guides?: PlanGuide[]
+  /** Persisted electrical points (MEP layer, G1) — replaces the export-time
+   *  furniture heuristic once authored. Free XZ (not wall-anchored — see
+   *  `mepPoints.ts` header), level-tagged. Additive + optional. */
+  electricalPoints?: PlanElectricalPoint[]
+  /** Persisted plumbing points (MEP layer, G1). Same shape/rules as
+   *  `electricalPoints`. Additive + optional. */
+  plumbingPoints?: PlanPlumbingPoint[]
 }
 
 /** A persistent axis-aligned reference guide: a vertical line at `x = pos`
@@ -276,6 +302,39 @@ export interface PlanPolyline {
   /** Arrowhead at the final point (open polylines only); absent = none. */
   arrow?: boolean
   /** Storey the polyline sits on; absent = ground (F13). */
+  levelId?: string
+}
+
+/** A persisted electrical point (MEP layer, G1) — free XZ world position (not
+ *  wall-anchored; wall attachment is a placement-time snap, not a persisted
+ *  binding — see `mepPoints.ts`). */
+export interface PlanElectricalPoint {
+  id: string
+  x: number
+  z: number
+  kind: ElectricalKind
+  /** Mount height above finished floor level (mm, AFFL). Absent = the
+   *  per-kind default from `mepPoints.ts`'s `ELECTRICAL_MOUNT_DEFAULTS_MM`. */
+  mountHeightMm?: number
+  /** Optional free-text annotation (e.g. "fridge", "study desk"). */
+  label?: string
+  /** Storey the point sits on; absent = ground (F13). */
+  levelId?: string
+}
+
+/** A persisted plumbing point (MEP layer, G1). Same shape/rules as
+ *  `PlanElectricalPoint`. */
+export interface PlanPlumbingPoint {
+  id: string
+  x: number
+  z: number
+  kind: PlumbingKind
+  /** Mount height above finished floor level (mm, AFFL). Absent = the
+   *  per-kind default from `mepPoints.ts`'s `PLUMBING_MOUNT_DEFAULTS_MM`. */
+  mountHeightMm?: number
+  /** Optional free-text annotation (e.g. "kitchen sink", "WC"). */
+  label?: string
+  /** Storey the point sits on; absent = ground (F13). */
   levelId?: string
 }
 

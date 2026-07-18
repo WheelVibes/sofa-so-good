@@ -2464,9 +2464,12 @@ export function FloorPlanEditor() {
               if (st.selectedItemIds.length > 0) {
                 const id = st.selectedItemId ?? st.selectedItemIds[st.selectedItemIds.length - 1]
                 menuTarget = { kind: 'item', id }
-              } else if (st.planSelection) {
+              } else if (st.planSelection && st.planSelection.type !== 'mep') {
                 menuTarget = { kind: st.planSelection.type, id: st.planSelection.id }
               }
+              // MEP point selections (G1) get no right-click menu yet — a
+              // `ContextTarget` 'mep' kind + its menu entries land in PR3
+              // alongside the editor tool/layer/inspector.
               if (!menuTarget) return
               st.openContextMenu({
                 x: e.clientX,
