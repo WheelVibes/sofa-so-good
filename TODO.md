@@ -94,11 +94,26 @@ Ranked by value÷effort; verified absent against registry + source this pass.
 - [ ] **WebXR AR hit-test on Android Chrome** (M) — real `immersive-ar` with the in-memory scene
   (no hosted URL needed), closing the iOS-vs-rest asymmetry `viewInAr.ts` documents. **Blocked on
   real-device QA** — cannot be verified in this sandbox; keep the GLB-download fallback.
-- [ ] **Voice dictation for the text brief** (S) — Web Speech mic on the `textBrief` input;
-  REQUIRES the repo's platform-quirk WebSearch first (Safari/iOS support inconsistencies), and
-  `textBrief` itself ships default-false ("not production-ready") — revisit together.
-- [ ] **AI design chat (BYO-key, read-only advice)** (L, low confidence) — needs a live
-  web-research pass to confirm differentiation before scoping.
+- [ ] **Voice dictation for the text brief** (S) — platform research DONE (2026-07-18, sourced:
+  MDN/caniuse/WebKit/community): **GO, narrowly scoped**, but **DEFERRED until `textBrief` itself
+  ships** (it's default-false "not production-ready" — a mic on a hidden feature is dead UI).
+  When built: feature-detect `window.SpeechRecognition || webkitSpeechRecognition`, and
+  **suppress on iOS standalone/PWA** (`navigator.standalone || matchMedia('(display-mode:
+  standalone)')` — the API consistently fails there per multiple sources); Firefox effectively 0%
+  (default-off pref); iOS Safari tabs: `continuous` is broken — use `interimResults` +
+  silence-gap end detection, expect ~2-3 s post-permission warmup; Chrome/Android is server-based
+  (needs network — disable offline; Chrome 139+ has an on-device path via
+  `SpeechRecognition.available()`); locale: try `en-SG`, retry `en-GB` on
+  `language-not-supported`. Privacy copy must say audio may go to the browser vendor's cloud.
+  WASM Whisper fallback rejected for now (40-76 MB + mobile perf). Rides the `textBrief` flag.
+- [ ] **AI design chat (BYO-key, read-only advice)** — web research DONE (2026-07-18, sourced):
+  **BUILD, narrowly.** Generic decor chat is commoditized (Coohom AIHom, Homestyler AI Agent,
+  Havenly AI, Planner 5D "Bernard", Decor8/RoomGPT all ship a flavour), but NO competitor grounds
+  chat in the user's ACTUAL design model — v1 = read-only pro-tier panel, BYO-key (reuse the
+  vision-key infra), context = serialized room dims + furniture list/positions + the app's OWN
+  computed scores/clearances (the model narrates real numbers, never estimates distances — kills
+  the hallucination risk); NO write access in v1. Risks: cost/latency (BYO-key = user's bill),
+  scope creep toward edit actions (resist).
 - *(Flagged, needs product decision: `budget`/`clearanceChecks`/`textBrief` are simple-TIER but
   default-false "not production-ready" — ship or demote eventually.)*
 

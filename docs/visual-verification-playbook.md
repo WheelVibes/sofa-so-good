@@ -1235,6 +1235,46 @@ back to orbit (config persists). Gotchas learned here:
   `curl -sf <url>` returning `200` again confirms the server is back; simply re-run the exact same
   scenario once it does — no scenario/harness change was at fault in either case observed here.
 
+### Gotchas from the IXT-SUITES back-fill batch 8 (palettePresets / walkCameraControls / electricalPlan / plumbingPlan)
+
+- **Don't trust a flag's tier from memory or from a sibling feature's doc comment — re-read the
+  registry entry itself.** `WalkCameraControls.tsx`'s own docblock says "Gated by the
+  `walkCameraControls` flag (pro tier)", but the actual `FEATURE_FLAGS` registry entry is
+  `tier: 'simple'` (a stale comment, not a bug — the gating code reads the real tier via
+  `useFeature`, so behaviour is correct). A first draft of `electricalplan-simple.json` similarly
+  assumed `electricalPlan`/`plumbingPlan` were simple-tier (they read like core-loop drawing
+  content) and asserted the flag was ON by default in Simple mode — the registry says `tier: 'pro'`
+  for both, so the assertion failed immediately at boot. Always grep the registry entry itself
+  before writing the ladder's first assertion.
+- **A `simple`-tier flag whose only UI surface lives inside a native `<details>`/`Disclosure`
+  (`MasterPaletteEditor`'s "Palette presets" gallery, nested in `FinishPicker`'s "Apartment colour
+  palette…" `Disclosure`) needs the disclosure OPENED for a meaningful screenshot, even though the
+  presence/absence assertions themselves are correct either way** (per the batch-6 gotcha, a
+  collapsed `<details>` still has its children in the DOM). Open it the same viewport-independent
+  way as a below-the-fold `<summary>`: `[...document.querySelectorAll('summary')].find(s =>
+  s.textContent.includes('Apartment colour palette')).closest('details')` and check/set `.open`
+  directly, or `.click()` the summary if closed — don't rely on `clickByText` scrolling to it.
+- **A pro-tier flag whose only reachable UI entry point is ITSELF gated behind a *different*
+  pro-tier flag can't be proven with a bare Simple→Pro mode switch alone — the switch flips both
+  flags at once.** `electricalPlan`/`plumbingPlan` only affect the multi-sheet "Drawing set" export
+  (`openDrawingSet.ts`), and the "Drawing set" File-menu row itself is gated on the separate
+  `report` flag (`FileMenu.tsx`'s `fReport`), not on `electricalPlan`/`plumbingPlan` directly.
+  Switching Simple→Pro turns both `report` (which reveals the menu row) and `electricalPlan` (which
+  adds the sheet) on together, so a mode-switch-only ladder can't isolate which flag did what. Prove
+  the SPECIFIC flag's effect with a same-mode round-trip: stay in Pro (menu row stays reachable via
+  `report`) and drive `electricalPlan`/`plumbingPlan` directly via `setFeatureFlag`, re-triggering
+  the export each time — the sheet disappears/reappears while the menu row itself never moves.
+- **`openDrawingSet()` opens a real `window.open('', '_blank')` popup and calls `document.write` on
+  it** — instead of letting a second tab spawn (untracked by the harness's puppeteer `page` handle,
+  and printed via a delayed `win.print()`), intercept `window.open` in an `eval` step BEFORE
+  clicking "Drawing set": replace it with a function returning a stub `{ document: { write(html){
+  window.__capturedHtml = html }, close(){} }, close(){}, focus(){}, print(){} }`. The dynamic
+  `import('./drawingSet')` + HTML build still runs for real (nothing about the sheet-selection
+  logic is mocked) — only the popup window itself is swapped for a capture sink, so the produced
+  HTML string is asserted directly (`__capturedHtml.includes('Electrical plan')`) instead of trying
+  to screenshot a second, harness-invisible tab. Restore `window.open` from a saved
+  `window.__origWindowOpen` at the end if later steps in the same session need real popups.
+
 ---
 
 ## Packaged targets (Docker / Electron)

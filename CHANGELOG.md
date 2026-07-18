@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.25 — Batch 8 ladders + two sourced research rulings
+
+IXT-SUITES batch 8 (uncovered → 30): green rungs for `palettePresets`
+(Scandinavian-calm preset applies 5 exact hexes in Pro, hidden in Simple),
+`walkCameraControls` (walk-only FOV/eye-height sliders, simple-tier
+setFeatureFlag proof), `electricalPlan` + `plumbingPlan` (same-mode flag
+round-trips asserted against the captured Drawing-set export HTML via a
+window.open intercept). New playbook gotchas (registry-over-stale-comment,
+Disclosure screenshots, nested-flag proof pattern, export-HTML capture); a
+stale "pro tier" doc comment in WalkCameraControls corrected. Plus two web
+research rulings recorded in TODO.md: **voice dictation = GO but deferred**
+until `textBrief` ships (full platform spec captured: iOS-PWA suppression,
+continuous-mode workaround, en-SG→en-GB retry, privacy copy); **AI design
+chat = BUILD narrowly** (grounded-in-live-model advice is unclaimed by any
+competitor — Coohom AIHom/Homestyler Agent/Havenly AI/Bernard are all
+generative, sourced); REFERENCES.md Havenly line extended with Havenly AI.
+
 ## v0.22.2.24 — Two fixes: version-compare capture race + arrange moving locked items
 
 Bug-hunt round 4 (focused on this session's new code) found and fixed:

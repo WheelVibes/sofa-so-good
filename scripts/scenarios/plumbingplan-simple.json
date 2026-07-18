@@ -1,0 +1,131 @@
+{
+  "name": "plumbingplan-simple",
+  "description": "IXT-SUITES simple rung for the `plumbingPlan` flag (pro tier — off in Simple like its host `report`/'Drawing set' File-menu entry). openDrawingSet() opens a new window and calls document.write with the multi-sheet HTML; window.open is intercepted (returns a stub capturing the written HTML) so the real popup never spawns. Asserts the flag is OFF in Simple mode, an 'Plumbing plan' sheet is present by default once in Pro, and absent after a direct setFeatureFlag override turns it off while STAYING in Pro (report/Drawing set entry unaffected) — proving plumbingPlan itself, not just the pro-tier switch, gates the sheet's CONTENT (restoring it brings the sheet back).",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "App did not boot in Simple mode"
+    },
+    {
+      "name": "boot-settled",
+      "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" },
+      "timeout": 60000
+    },
+    { "name": "settle-post-boot", "wait": 800 },
+    {
+      "name": "verify-flag-off-in-simple",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.plumbingPlan === false" },
+      "timeout": 5000,
+      "failMessage": "plumbingPlan should be OFF in Simple mode (it is pro-tier)"
+    },
+    {
+      "name": "open-file-simple",
+      "click": { "text": "File" }
+    },
+    { "name": "file-panel-open-simple", "waitFor": { "css": ".pop-panel" }, "timeout": 10000 },
+    { "name": "settle-simple", "wait": 400 },
+    {
+      "name": "assert-drawing-set-hidden-simple",
+      "eval": "(function(){ const t = document.querySelector('.pop-panel')?.textContent || ''; if (t.includes('Drawing set')) throw new Error('Drawing set row visible in Simple mode File menu (should be Pro-only, gated by the report flag)'); })()"
+    },
+    { "name": "shot-file-simple", "screenshot": "01-file-menu-simple-no-drawing-set" },
+    { "name": "close-file-simple", "key": "Escape" },
+    { "name": "close-settle", "wait": 300 },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "mode-settle", "wait": 600 },
+    {
+      "name": "patch-window-open",
+      "eval": "window.__capturedHtml = null; window.__origWindowOpen = window.open; window.open = function () { return { document: { write: function (html) { window.__capturedHtml = html }, close: function () {} }, close: function () {}, focus: function () {}, print: function () {} }; };"
+    },
+    { "name": "open-file-pro", "click": { "text": "File" } },
+    { "name": "file-panel-open-pro", "waitFor": { "css": ".pop-panel" }, "timeout": 10000 },
+    { "name": "settle-pro", "wait": 400 },
+    {
+      "name": "assert-drawing-set-visible-pro",
+      "eval": "(function(){ const t = document.querySelector('.pop-panel')?.textContent || ''; if (!t.includes('Drawing set')) throw new Error('Drawing set row missing in Pro mode File menu'); })()"
+    },
+    { "name": "shot-file-pro", "screenshot": "02-file-menu-pro-drawing-set-visible" },
+    {
+      "name": "click-drawing-set",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.pop-panel button')].find(b => b.textContent.includes('Drawing set')); if (!btn) throw new Error('Drawing set button not found'); btn.click(); })()"
+    },
+    {
+      "name": "wait-html-captured",
+      "waitFor": { "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 0" },
+      "timeout": 15000,
+      "failMessage": "openDrawingSet() never wrote HTML via the intercepted window.open (dynamic import/build likely failed)"
+    },
+    {
+      "name": "assert-plumbing-sheet-present",
+      "eval": "(function(){ if (!window.__capturedHtml.includes('Plumbing plan')) throw new Error('Drawing set HTML has no Plumbing plan sheet while plumbingPlan flag is ON'); })()"
+    },
+    { "name": "shot-drawing-set-triggered", "screenshot": "03-drawing-set-with-plumbing-sheet" },
+    { "name": "close-file-pro", "key": "Escape" },
+    { "name": "close-settle-2", "wait": 300 },
+    {
+      "name": "override-flag-off",
+      "store": { "action": "setFeatureFlag", "args": ["plumbingPlan", false] }
+    },
+    { "name": "flag-off-settle", "wait": 300 },
+    {
+      "name": "reset-captured-html",
+      "eval": "window.__capturedHtml = null"
+    },
+    { "name": "open-file-flag-off", "click": { "text": "File" } },
+    { "name": "file-panel-open-flag-off", "waitFor": { "css": ".pop-panel" }, "timeout": 10000 },
+    { "name": "settle-flag-off", "wait": 400 },
+    {
+      "name": "click-drawing-set-flag-off",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.pop-panel button')].find(b => b.textContent.includes('Drawing set')); if (!btn) throw new Error('Drawing set button not found'); btn.click(); })()"
+    },
+    {
+      "name": "wait-html-captured-flag-off",
+      "waitFor": { "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 0" },
+      "timeout": 15000,
+      "failMessage": "openDrawingSet() never wrote HTML on the flag-off run"
+    },
+    {
+      "name": "assert-plumbing-sheet-absent",
+      "eval": "(function(){ if (window.__capturedHtml.includes('Plumbing plan')) throw new Error('Drawing set HTML still has an Plumbing plan sheet after setFeatureFlag(plumbingPlan, false)'); })()"
+    },
+    { "name": "shot-drawing-set-no-plumbing", "screenshot": "04-drawing-set-plumbing-sheet-suppressed" },
+    { "name": "close-file-flag-off", "key": "Escape" },
+    { "name": "close-settle-3", "wait": 300 },
+    {
+      "name": "restore-flag-on",
+      "store": { "action": "setFeatureFlag", "args": ["plumbingPlan", true] }
+    },
+    { "name": "flag-restore-settle", "wait": 300 },
+    {
+      "name": "reset-captured-html-2",
+      "eval": "window.__capturedHtml = null"
+    },
+    { "name": "open-file-restored", "click": { "text": "File" } },
+    { "name": "file-panel-open-restored", "waitFor": { "css": ".pop-panel" }, "timeout": 10000 },
+    { "name": "settle-restored", "wait": 400 },
+    {
+      "name": "click-drawing-set-restored",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.pop-panel button')].find(b => b.textContent.includes('Drawing set')); if (!btn) throw new Error('Drawing set button not found'); btn.click(); })()"
+    },
+    {
+      "name": "wait-html-captured-restored",
+      "waitFor": { "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 0" },
+      "timeout": 15000,
+      "failMessage": "openDrawingSet() never wrote HTML on the restored run"
+    },
+    {
+      "name": "assert-plumbing-sheet-restored",
+      "eval": "(function(){ if (!window.__capturedHtml.includes('Plumbing plan')) throw new Error('Plumbing plan sheet did not reappear after restoring plumbingPlan to true'); window.open = window.__origWindowOpen; })()"
+    },
+    { "name": "shot-drawing-set-restored", "screenshot": "05-drawing-set-plumbing-sheet-restored" }
+  ]
+}

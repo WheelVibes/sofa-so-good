@@ -1,0 +1,155 @@
+{
+  "name": "walkcameracontrols-simple",
+  "description": "IXT-SUITES simple rung for the `walkCameraControls` flag (tier:simple — present in BOTH modes per CLAUDE.md, so the ladder proves the flag itself controls the UI via a direct setFeatureFlag override rather than a Simple/Pro switch): the 'Walk settings' FOV/eye-height sliders in the Appearance popover only render in firstPerson camera mode, are absent in orbit, present by default in both Simple and Pro while in walk mode, a real drag-free slider change round-trips to the store, and a direct setFeatureFlag('walkCameraControls', false) hides the section (restoring it brings it back).",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "App did not boot in Simple mode"
+    },
+    {
+      "name": "boot-settled",
+      "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" },
+      "timeout": 60000
+    },
+    { "name": "settle-post-boot", "wait": 800 },
+    {
+      "name": "verify-flag-on-in-simple",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.walkCameraControls === true" },
+      "timeout": 5000,
+      "failMessage": "walkCameraControls should be ON in Simple mode (it is simple-tier)"
+    },
+    {
+      "name": "open-appearance-orbit",
+      "eval": "document.querySelector('button[aria-label=\"Appearance\"]').click()"
+    },
+    { "name": "appearance-open-orbit", "waitFor": { "css": ".popover.appearance" }, "timeout": 10000 },
+    { "name": "settle-orbit-popover", "wait": 400 },
+    { "name": "shot-orbit-no-walk-settings", "screenshot": "01-orbit-no-walk-settings" },
+    {
+      "name": "assert-walk-settings-absent-in-orbit",
+      "eval": "(function(){ const t = document.querySelector('.popover.appearance')?.textContent || ''; if (t.includes('Walk settings')) throw new Error('Walk settings section visible while in orbit mode (should only show in firstPerson)'); })()"
+    },
+    { "name": "close-appearance-orbit", "key": "Escape" },
+    { "name": "close-settle", "wait": 300 },
+    {
+      "name": "switch-to-walk",
+      "store": { "action": "setCameraMode", "args": ["firstPerson"] }
+    },
+    {
+      "name": "walk-mode-active",
+      "waitFor": { "store": "state.cameraMode === 'firstPerson'" },
+      "timeout": 5000
+    },
+    { "name": "wait-walk-render", "wait": 1000 },
+    {
+      "name": "open-appearance-walk",
+      "eval": "document.querySelector('button[aria-label=\"Appearance\"]').click()"
+    },
+    { "name": "appearance-open-walk", "waitFor": { "css": ".popover.appearance" }, "timeout": 10000 },
+    { "name": "settle-walk-popover", "wait": 400 },
+    {
+      "name": "assert-walk-settings-present-simple",
+      "waitFor": { "text": "Walk settings" },
+      "timeout": 5000,
+      "failMessage": "Walk settings section missing in walk mode, Simple mode (walkCameraControls is simple-tier, should show in both modes)"
+    },
+    { "name": "shot-walk-settings-simple", "screenshot": "02-walk-settings-simple" },
+    {
+      "name": "capture-baseline-fov",
+      "eval": "window.__fovBefore = window.__store.getState().walkFov"
+    },
+    {
+      "name": "set-fov-via-store",
+      "store": { "action": "setWalkFov", "args": [85] }
+    },
+    {
+      "name": "assert-fov-updated",
+      "waitFor": { "store": "state.walkFov === 85" },
+      "timeout": 5000,
+      "failMessage": "walkFov did not update to 85 after setWalkFov(85)"
+    },
+    { "name": "settle-fov-render", "wait": 300 },
+    { "name": "shot-fov-applied", "screenshot": "03-fov-85-applied" },
+    {
+      "name": "assert-fov-slider-reflects-value",
+      "eval": "(function(){ const sliders = [...document.querySelectorAll('.popover.appearance input[type=range]')]; const fovSlider = sliders.find(s => s.getAttribute('aria-label') === 'Field of view (degrees)'); if (!fovSlider) throw new Error('FOV slider input not found'); if (Number(fovSlider.value) !== 85) throw new Error('FOV slider value is ' + fovSlider.value + ', expected 85'); })()"
+    },
+    {
+      "name": "set-eye-height-via-store",
+      "store": { "action": "setWalkEyeHeight", "args": [1.7] }
+    },
+    {
+      "name": "assert-eye-height-updated",
+      "waitFor": { "store": "Math.abs(state.walkEyeHeight - 1.7) < 0.001" },
+      "timeout": 5000,
+      "failMessage": "walkEyeHeight did not update to 1.7 after setWalkEyeHeight(1.7)"
+    },
+    { "name": "close-appearance-walk", "key": "Escape" },
+    { "name": "close-settle-2", "wait": 300 },
+    {
+      "name": "switch-to-pro",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    { "name": "mode-settle", "wait": 600 },
+    {
+      "name": "open-appearance-pro",
+      "eval": "document.querySelector('button[aria-label=\"Appearance\"]').click()"
+    },
+    { "name": "appearance-open-pro", "waitFor": { "css": ".popover.appearance" }, "timeout": 10000 },
+    { "name": "settle-pro-popover", "wait": 400 },
+    {
+      "name": "assert-walk-settings-present-pro",
+      "waitFor": { "text": "Walk settings" },
+      "timeout": 5000,
+      "failMessage": "Walk settings section missing in walk mode, Pro mode"
+    },
+    { "name": "shot-walk-settings-pro", "screenshot": "04-walk-settings-pro" },
+    { "name": "close-appearance-pro", "key": "Escape" },
+    { "name": "close-settle-3", "wait": 300 },
+    {
+      "name": "override-flag-off",
+      "store": { "action": "setFeatureFlag", "args": ["walkCameraControls", false] }
+    },
+    { "name": "flag-off-settle", "wait": 400 },
+    {
+      "name": "open-appearance-flag-off",
+      "eval": "document.querySelector('button[aria-label=\"Appearance\"]').click()"
+    },
+    { "name": "appearance-open-flag-off", "waitFor": { "css": ".popover.appearance" }, "timeout": 10000 },
+    { "name": "settle-flag-off-popover", "wait": 400 },
+    {
+      "name": "assert-walk-settings-absent-with-override",
+      "eval": "(function(){ const t = document.querySelector('.popover.appearance')?.textContent || ''; if (t.includes('Walk settings')) throw new Error('Walk settings section still visible after setFeatureFlag(walkCameraControls, false) — flag override did not hide it'); })()"
+    },
+    { "name": "shot-flag-off", "screenshot": "05-flag-off-walk-settings-hidden" },
+    { "name": "close-appearance-flag-off", "key": "Escape" },
+    { "name": "close-settle-4", "wait": 300 },
+    {
+      "name": "restore-flag-on",
+      "store": { "action": "setFeatureFlag", "args": ["walkCameraControls", true] }
+    },
+    { "name": "flag-restore-settle", "wait": 400 },
+    {
+      "name": "open-appearance-flag-restored",
+      "eval": "document.querySelector('button[aria-label=\"Appearance\"]').click()"
+    },
+    { "name": "appearance-open-flag-restored", "waitFor": { "css": ".popover.appearance" }, "timeout": 10000 },
+    { "name": "settle-flag-restored-popover", "wait": 400 },
+    {
+      "name": "assert-walk-settings-present-restored",
+      "waitFor": { "text": "Walk settings" },
+      "timeout": 5000,
+      "failMessage": "Walk settings section did not reappear after restoring the flag to true"
+    },
+    { "name": "shot-flag-restored", "screenshot": "06-flag-restored-walk-settings-visible" }
+  ]
+}
