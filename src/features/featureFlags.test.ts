@@ -396,6 +396,13 @@ describe('renderPresets flag (F4)', () => {
   })
 })
 
+describe('lightMoodPresets flag (UX round-3 #3)', () => {
+  it('is simple-tier: enabled in both Simple and Pro by default', () => {
+    expect(resolveFlags(false, {}, false, 'simple').lightMoodPresets).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').lightMoodPresets).toBe(true)
+  })
+})
+
 describe('contactShadows flag (RZ1)', () => {
   it('is simple-tier: grounding shadows stay on in both Simple and Pro by default', () => {
     expect(resolveFlags(false, {}, false, 'simple').contactShadows).toBe(true)

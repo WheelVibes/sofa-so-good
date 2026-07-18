@@ -1,4 +1,5 @@
 import { DEFAULT_WALL_REVEAL_STRENGTH } from '../../apartment/walls/wallRevealMath'
+import type { LightMood } from '../../lighting/moodPresets'
 import { clampExposure, DEFAULT_EXPOSURE } from '../../scene/look'
 import type { AssetTier, QualitySettings, RenderTier } from '../../scene/quality'
 import { QUALITY_LABEL, RENDER_TIERS } from '../../scene/quality'
@@ -61,6 +62,12 @@ export interface UiSlice {
   exposure: number
   /** Fixture lights mode (auto / forced on / forced off). */
   lightsMode: LightsMode
+  /** Lighting mood preset (UX round-3 #3): one-tap brightness + colour-temperature
+   *  adjustment layered on top of `lightsMode` (`lighting/moodPresets.ts`).
+   *  `'none'` = Normal (no adjustment). Persisted with the design, like
+   *  `lightsMode` (a saved lighting mood should round-trip). */
+  lightMood: LightMood
+  setLightMood: (m: LightMood) => void
   /** Whether ceiling light fixture geometry is shown (illumination is independent).
    *  Default false = fixtures hidden; point lights still emit when lights are on. */
   showCeilingFixtures: boolean
@@ -229,6 +236,7 @@ export const UI_INITIAL: Pick<
   | 'toneMapping'
   | 'exposure'
   | 'lightsMode'
+  | 'lightMood'
   | 'showCeilingFixtures'
   | 'wallRevealStrength'
   | 'wallRevealScope'
@@ -267,6 +275,7 @@ export const UI_INITIAL: Pick<
   toneMapping: DEFAULT_TONE_MAPPING_SETTING,
   exposure: DEFAULT_EXPOSURE,
   lightsMode: 'auto',
+  lightMood: 'none' as LightMood,
   showCeilingFixtures: false,
   wallRevealStrength: DEFAULT_WALL_REVEAL_STRENGTH,
   wallRevealScope: 'exterior' as const,
@@ -377,6 +386,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   setToneMapping: (toneMapping) => set({ toneMapping }),
   setExposure: (e) => set({ exposure: clampExposure(e) }),
   setLightsMode: (m) => set({ lightsMode: m }),
+  setLightMood: (m) => set({ lightMood: m }),
   setShowCeilingFixtures: (v) => set({ showCeilingFixtures: v }),
   setWallRevealStrength: (v) => set({ wallRevealStrength: Math.min(1, Math.max(0, v)) }),
   setWallRevealScope: (s) => set({ wallRevealScope: s }),

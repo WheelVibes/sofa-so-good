@@ -569,6 +569,13 @@ body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
 .scene-field { display: block; padding: 0 6px 4px; }
 .scene-field > span { display: block; font-size: var(--t-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); padding: 2px 0 4px; }
 .scene-select { width: 100%; }
+/* Lighting mood preset row (UX round-3 #3) — 5 chips (Normal/Reading/Movie
+   night/Entertaining/Romantic) are too wide to fit one line in the Scene
+   menu's fixed 264px panel; wrap onto a second row instead of overflowing it
+   (the mobile sheet is wide enough for one line via the `.m-detail .seg`
+   full-width-flex rule, so this only matters on desktop). */
+.mood-seg { width: 100%; flex-wrap: wrap; row-gap: 2px; }
+.mood-seg button { flex: 0 1 auto; }
 /* Pet-profile multi-select (P6) — a wrap of toggle chips, shared by the Scene
    menu, mobile Scene sheet, and the Pet-compliance panel empty state. */
 .pet-chip-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 6px 4px; }

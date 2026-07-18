@@ -40,6 +40,21 @@ out in daylight. You control this with the **Lights** toggle in the toolbar:
 - **On** — force fixtures on (useful for a windowless room in daylight).
 - **Off** — keep them dark.
 
+## Lighting mood presets
+
+Right below Lights, the Scene menu's **Mood** row sets a scene-wide brightness +
+colour-temperature mood for every lit fixture in one tap:
+
+- **Normal** — no adjustment (the reset).
+- **Reading** — bright, crisp task light.
+- **Movie night** — dim and warm; ceiling lights dim harder than lamps, for a
+  cinema-like room.
+- **Entertaining** — bright and warm, a sociable wash for guests.
+- **Romantic** — low and warm, with the ceiling fixtures nearly off.
+
+A mood layers on top of the Lights toggle above (it never turns a light on or
+off by itself) and never re-lights a fixture you've switched off yourself.
+
 > **Example — a cosy evening**
 > 1. Press <kbd>T</kbd> until the scene reads as dusk / night.
 > 2. Set the Lights toggle to **On**.

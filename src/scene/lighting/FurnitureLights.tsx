@@ -6,6 +6,7 @@ import { useFeature } from '../../features/useFeature'
 import { type EmitterSpec, resolveEmitterSpec } from '../../furniture/lightEmitters'
 import type { FurnitureItem } from '../../furniture/types'
 import { resolveIesSpot } from '../../lighting/ies/iesStore'
+import { applyMoodPreset } from '../../lighting/moodPresets'
 import { useStore } from '../../state/store'
 import { useQuality } from '../useQuality'
 import { chooseEmitters } from './chooseEmitters'
@@ -24,6 +25,10 @@ interface ActiveLight {
   color: string
   baseIntensity: number
   distance: number
+  /** Lighting-mood brightness multiplier (`moodPresets.ts`), composed on top of
+   *  the shared `lightsMode` level at render time — `1` when the feature is off
+   *  or the mood is `'none'`. */
+  moodMultiplier: number
   /** IES photometric spot params, when the fixture uses an IES profile (else a
    *  plain omni point light is rendered). */
   spot?: { angle: number; penumbra: number }
@@ -48,6 +53,13 @@ export function FurnitureLights() {
   const cameraMode = useStore((s) => s.cameraMode)
   const maxLights = useQuality().maxFixtureLights
   const iesEnabled = useFeature('iesLights')
+  // Lighting mood presets (UX round-3 #3): composed on top of `lightsMode`,
+  // never in place of it — see `lighting/moodPresets.ts` composition doc.
+  // Forced to 'none' when the feature is off, so a stale persisted mood from
+  // before the flag was disabled has no visual effect.
+  const moodEnabled = useFeature('lightMoodPresets')
+  const lightMoodRaw = useStore((s) => s.lightMood)
+  const lightMood = moodEnabled ? lightMoodRaw : 'none'
   const sun = useSunPosition()
   const { camera } = useThree()
   const levelRef = useRef(0)
@@ -59,6 +71,9 @@ export function FurnitureLights() {
   // The budget differs by mode, so a mode switch (orbit↔walk) must re-pick even if
   // the camera barely moved between the two poses.
   const lastModeRef = useRef(cameraMode)
+  // A mood change re-tints/re-scales the SAME active set without moving the
+  // camera or touching `items` — needs its own change check.
+  const lastMoodRef = useRef(lightMood)
 
   // Auto: lights only turn on after sunset (altitude < 0). Ramp from 0 at horizon
   // to fully on at -6 degrees civil twilight. On/off modes override completely.
@@ -83,12 +98,20 @@ export function FurnitureLights() {
     const movedSq = (cx - lastCamRef.current.x) ** 2 + (cz - lastCamRef.current.z) ** 2
     const itemsChanged = lastItemsRef.current !== items
     const modeChanged = lastModeRef.current !== cameraMode
-    if (!itemsChanged && !modeChanged && movedSq < CAM_RECOMPUTE_SQ && lastKeyRef.current !== '')
+    const moodChanged = lastMoodRef.current !== lightMood
+    if (
+      !itemsChanged &&
+      !modeChanged &&
+      !moodChanged &&
+      movedSq < CAM_RECOMPUTE_SQ &&
+      lastKeyRef.current !== ''
+    )
       return
     lastCamRef.current.x = cx
     lastCamRef.current.z = cz
     lastItemsRef.current = items
     lastModeRef.current = cameraMode
+    lastMoodRef.current = lightMood
     const emitters: { item: FurnitureItem; spec: EmitterSpec; d2: number }[] = []
     for (const item of items) {
       const spec = resolveEmitterSpec(item.defId, item.props)
@@ -105,15 +128,27 @@ export function FurnitureLights() {
     // are the farthest from the camera; ambient/fill + emissive materials remain, so
     // the scene never goes dark.
     const chosen = chooseEmitters(emitters, cameraMode, maxLights)
-    // Key includes the IES profile prop so re-picking a profile on the same set
-    // of lit items still triggers a rebuild.
-    const key = chosen.map((e) => `${e.item.id}:${e.item.props.iesProfile ?? ''}`).join(',')
+    // Key includes the IES profile prop (re-picking a profile on the same set
+    // of lit items still triggers a rebuild) and the mood (re-tints/re-scales
+    // the same set without an items/mode/camera change).
+    const key = chosen
+      .map((e) => `${e.item.id}:${e.item.props.iesProfile ?? ''}:${lightMood}`)
+      .join(',')
     if (key === lastKeyRef.current) return // set unchanged → no re-render
     lastKeyRef.current = key
     setActive(
       chosen.map(({ item, spec }) => {
         // Per-item bulb colour (warm/neutral/cool) overrides the emitter default.
-        const bulb = typeof item.props.lightColor === 'string' ? item.props.lightColor : spec.color
+        const rawBulb =
+          typeof item.props.lightColor === 'string' ? item.props.lightColor : spec.color
+        // Lighting mood preset (UX round-3 #3): tints the bulb colour + supplies
+        // a brightness multiplier applied on top of the shared `lightsMode`
+        // level at render time — composes with, never replaces, that level.
+        const { color: bulb, intensityMultiplier: moodMultiplier } = applyMoodPreset(
+          lightMood,
+          item.defId,
+          rawBulb,
+        )
         // Local bulb offset (e.g. an arc lamp's reach) → world, via rotation.
         const [ox, oz] = spec.offset?.(item.props) ?? [0, 0]
         const r = item.rotation
@@ -134,6 +169,7 @@ export function FurnitureLights() {
           color: bulb,
           baseIntensity: iesSpot ? iesSpot.intensity : baseIntensity,
           distance: spec.distance,
+          moodMultiplier,
           spot: iesSpot ? { angle: iesSpot.angle, penumbra: iesSpot.penumbra } : undefined,
         }
       }),
@@ -151,7 +187,7 @@ export function FurnitureLights() {
             key={l.id}
             position={l.position}
             color={l.color}
-            intensity={l.baseIntensity * level}
+            intensity={l.baseIntensity * level * l.moodMultiplier}
             distance={l.distance}
             decay={2}
           />
@@ -178,7 +214,7 @@ function IesSpotLight({ light, level }: { light: ActiveLight; level: number }) {
         position={light.position}
         target={target}
         color={light.color}
-        intensity={light.baseIntensity * level}
+        intensity={light.baseIntensity * level * light.moodMultiplier}
         distance={light.distance}
         angle={light.spot!.angle}
         penumbra={light.spot!.penumbra}
