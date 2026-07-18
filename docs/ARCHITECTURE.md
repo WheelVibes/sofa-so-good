@@ -1116,9 +1116,21 @@ same change that reshapes a system.
 - **Drawing set** (`ui/drawingSet.ts` + `openDrawingSet.ts`): a paginated multi-sheet "plan set"
   (cover + plan + per-wall elevations + cross-section + lighting + electrical (`floorplan/electricalPlan*`,
   `electricalPlan` flag) + plumbing (`floorplan/plumbingPlan*`, `plumbingPlan` flag — points auto-derived
-  from fixtures) + a per-room finishes schedule (`floorplan/finishSchedule.ts` — floor/wall material
-  callouts) + FF&E, title blocks, a user-customizable `@page` size/orientation) reusing all the pure
-  renderers — the formal counterpart to the one-page `report.ts`. **Sheet/layer toggles**
+  from fixtures) + a contractor-grade finishes schedule + FF&E, title blocks, a user-customizable `@page`
+  size/orientation) reusing all the pure renderers — the formal counterpart to the one-page `report.ts`.
+  **Finish schedule (G4)**: the pure `floorplan/finishSchedule.ts:buildFinishSchedule(plan, finishes,
+  nameOf)` returns a `FinishSchedule` — per-room floor/wall/ceiling `FinishCell`s (each with a stable,
+  first-seen-order material **code** `FL-01`/`WL-01`/`CL-01` that never renumbers on a later addition,
+  a display name, and an area quantity: floor = room area, wall = perimeter × ceiling height **net of
+  door/window openings** — deducted per bordering room via `openingProbePoints`, ceiling = the flat
+  footprint with a tray/coffered/dropped/sloped treatment flagged as a verify-on-site note rather than
+  silently under-counted), a separate `accentWalls` list (`PlanWall.color` overrides, keyed `AW-0N` by
+  distinct colour, with orientation + net-of-openings face area), and a per-code `totals` array (what a
+  contractor prices from) plus a standing "verify on site" caveat. `ui/finishScheduleHtml.ts` is the ONE
+  HTML renderer both `report.ts`'s "Finishes schedule" section and `drawingSet.ts`'s sheet consume, so
+  the two documents can't drift. `floorTexScale` is surfaced honestly as a tiling-scale factor (no base
+  tile mm size is stored in the model, so none is invented). No new flag — rides the existing
+  `report`/drawing-set gating. **Sheet/layer toggles**
   (PARITY-DRAWLAYERS): `ui/drawingLayers.ts` (dependency-light list + `DrawingLayerVisibility` so the
   heavy builder stays dynamically imported) + `buildDrawingSetHtml`'s optional `layers` arg gate each
   group on/off (floor plan always included); the Tools-menu "Include sheets" checklist writes

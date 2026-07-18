@@ -19,7 +19,6 @@ import { buildStairAdvisories } from '../analysis/stairConnectivity'
 import { buildSuggestions } from '../analysis/suggestions'
 import { buildThermalReport, thermalKindLabel } from '../analysis/thermalAnalysis'
 import { ceilingStyleLabel } from '../apartment/ceiling/ceilingModel'
-import { ROOMS } from '../apartment/constants'
 import { findWallClipsByLevel } from '../collision/levelWallClips'
 import { obbCorners } from '../collision/obb'
 import { findItemOverlaps, itemFootprint } from '../collision/placement'
@@ -30,6 +29,7 @@ import { buildFfeSchedule } from '../ffe/ffeSchedule'
 import { dimensionSvg } from '../floorplan/autoDimensionSvg'
 import { diffWalls, diffWallsByLevel, type LevelWallDiff } from '../floorplan/demolitionPlan'
 import { demolitionSvg } from '../floorplan/demolitionPlanSvg'
+import { buildFinishSchedule } from '../floorplan/finishSchedule'
 import {
   allPlanRooms,
   isMultiLevel,
@@ -56,6 +56,7 @@ import { formatArea, formatDims, formatLength, type UnitSystem } from '../utils/
 import { safeUrl } from '../utils/safeUrl'
 import { elevationCaption, elevationSvg } from './elevation/elevationSvg'
 import { sectionSilhouettes } from './elevation/sectionFigure'
+import { finishScheduleHtml } from './finishScheduleHtml'
 import { lightingPlanSvg, roomLuxTableHtml } from './lighting2d/lightingPlanSvg'
 import {
   CAT_LABEL,
@@ -121,40 +122,21 @@ export function buildReportHtml(
     const chip = sw ? `<span class="msw" style="background:${esc(sw)}"></span>` : ''
     return `${chip}${esc(matName(id))}`
   }
-  // Iterate the ACTIVE plan's rooms (not the default ROOMS constant) so custom
-  // floor plans show their own rooms + finishes; skip only the default plan's
-  // external (non-finishable) ledges. Finishes are keyed by room id.
   const floorOf = finishes?.floor as Record<string, string> | undefined
   const wallOf = finishes?.walls as Record<string, string> | undefined
-  const finishRows = finishes
-    ? plan.rooms
-        .filter((r) => !ROOMS[r.id as keyof typeof ROOMS]?.external)
-        .map(
-          (r) =>
-            `<tr><td>${esc(r.name)}</td><td>${matCell(floorOf?.[r.id])}</td><td>${matCell(wallOf?.[r.id])}</td></tr>`,
-        )
-        .join('')
-    : ''
-  // Per-finish floor + wall areas — shared by the flooring/wall schedules AND the
-  // renovation estimate below (computed once).
+  // Contractor-grade finish schedule (G4): per-room floor/wall/ceiling finish,
+  // each with a stable material code (FL-01/WL-01/CL-01) + area quantity (wall
+  // net of door/window openings), accent-wall callouts, and per-code totals —
+  // ONE pure builder shared with the drawing set's "Finishes schedule" sheet.
+  const finishSchedule = finishes
+    ? buildFinishSchedule(plan, finishes, (id) => BUILTIN_MATERIALS[id]?.name ?? id)
+    : null
+  const finishScheduleBody = finishSchedule ? finishScheduleHtml(finishSchedule, units) : ''
+  // Per-finish floor + wall areas (GROSS — the safe over-order estimate) —
+  // feeds the renovation cost estimate below (computed once). Distinct from
+  // the finish schedule's NET-of-openings quantities above.
   const floorAreas = finishes ? floorAreaByFinish(plan, floorOf) : []
   const wallAreas = finishes ? wallAreaByFinish(plan, wallOf, plan.ceilingHeight) : []
-  // Flooring schedule: total floor area per finish — the "how much to order"
-  // procurement view (only when finishes are supplied + at least one finish set).
-  const flooringRows = floorAreas
-    .map(
-      (f) =>
-        `<tr><td>${matCell(f.id)}</td><td class="num">${esc(formatArea(f.area, units))}</td></tr>`,
-    )
-    .join('')
-  // Wall-finish schedule: gross wall area per finish (perimeter × ceiling height),
-  // the paint/tile procurement counterpart to the flooring schedule.
-  const wallRows = wallAreas
-    .map(
-      (f) =>
-        `<tr><td>${matCell(f.id)}</td><td class="num">${esc(formatArea(f.area, units))}</td></tr>`,
-    )
-    .join('')
   // Rooms (skip external ledges with ~0 interior use are still listed). Plain
   // rectangular rooms show their W×D dimensions (a room schedule detail); L-shape
   // / polygon rooms omit them (a bounding box would mislead) — area only.
@@ -1008,26 +990,10 @@ export function buildReportHtml(
       : ''
   }
   ${
-    finishRows
-      ? `<div class="room-cost">
-      <h2>Finishes by room</h2>
-      <table><tr class="cat"><td>Room</td><td>Floor</td><td>Walls</td></tr>${finishRows}</table>
-    </div>`
-      : ''
-  }
-  ${
-    flooringRows
-      ? `<div class="room-cost">
-      <h2>Flooring schedule</h2>
-      <table><tr class="cat"><td>Finish</td><td class="num">Floor area</td></tr>${flooringRows}</table>
-    </div>`
-      : ''
-  }
-  ${
-    wallRows
-      ? `<div class="room-cost">
-      <h2>Wall finish schedule</h2>
-      <table><tr class="cat"><td>Finish</td><td class="num">Wall area</td></tr>${wallRows}</table>
+    finishScheduleBody
+      ? `<div class="fin-wrap">
+      <h2>Finishes schedule</h2>
+      ${finishScheduleBody}
     </div>`
       : ''
   }

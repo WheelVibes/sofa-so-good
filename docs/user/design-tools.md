@@ -197,8 +197,8 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
 - **Report** — a printable (save-as-PDF) summary: a hero render, a colour-keyed
   **furnished floor plan** drawn like a real architectural plan — door **swing
   arcs** and window breaks, a category legend — plus **furniture by room**
-  (itemized with quantities, prices, and each room's area), finishes per room, a
-  material palette, a **clearance & fit** check (furniture blocking a doorway,
+  (itemized with quantities, prices, and each room's area), a **finish schedule**
+  (below), a material palette, a **clearance & fit** check (furniture blocking a doorway,
   overlapping pieces, or anything embedded in a wall), the **design score** (the
   same 0–100 grade + per-category breakdown as the panel), an **accessibility**
   check (doorway clear widths + a 1.5 m wheelchair turning circle per room),
@@ -217,13 +217,25 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   design notes — a handoff-ready document. The Report also shows a **renovation
   timeline** — an indicative phase schedule (protection & hacking → … → cleaning
   & handover) estimated from your floor area and room count.
+- **Finish schedule** — a contractor-grade material callout table, in both the Report
+  and the Drawing set (same table, so the two never disagree): every room's floor,
+  wall, and ceiling finish, each with a stable **material code** (`FL-01`, `WL-01`,
+  `CL-01` — a new finish always gets the next number, existing codes never renumber)
+  and its **area** (floor = room area, wall = perimeter × ceiling height **net of
+  that room's doors/windows**, ceiling = the flat footprint — a tray/coffered/
+  dropped/sloped ceiling is flagged "verify on site" rather than guessed at). Any
+  **accent wall** (a single wall painted a different colour) gets its own callout row
+  — which wall, its colour, which room(s) it faces, and its area (`AW-01`…). A
+  **totals row per material code** sums every room/wall using it — the quantity a
+  contractor prices from. Every number carries the same caveat: **approximate —
+  verify on site** before ordering material.
 - **Reno timeline (.ics)** — exports that renovation timeline as a calendar file
   you can import into Google / Apple / Outlook Calendar, with one all-day event per
   phase starting today. Find it in **File** (desktop and the mobile sheet) or via
   ⌘K — it shares the Report toggle, so it's available whenever the Report is.
 - **Drawing set** — a formal, paginated **plan set** (A4 landscape by default, one
   drawing per sheet with title blocks): cover + sheet index, floor plan, each wall
-  elevation, the lighting plan, and the FF&E schedule. Print or save as PDF for
+  elevation, the lighting plan, the finish schedule (above), and the FF&E schedule. Print or save as PDF for
   builders and permits — the multi-sheet counterpart to the one-page Report. Use the
   **Include sheets** checklist under it to pick exactly which sheets go in — e.g. a
   clean client copy with no electrical/plumbing/demolition, or a full builder copy

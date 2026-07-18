@@ -254,13 +254,11 @@ describe('buildReportHtml', () => {
       walls: { livingDining: 'wall-paint-white' },
     }
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null, 'metric', finishes)
-    expect(html).toContain('Finishes by room')
+    expect(html).toContain('Finishes schedule')
     expect(html).toMatch(/Oak|oak/) // the resolved floor material name
-    expect(html).toContain('class="msw"') // colour swatch chip next to the finish
-    // Flooring schedule: total area per floor finish.
-    expect(html).toContain('Flooring schedule')
-    // Wall finish schedule: gross wall area per wall finish (perimeter × height).
-    expect(html).toContain('Wall finish schedule')
+    // Material codes + verify-on-site caveat (G4 — finish schedule depth).
+    expect(html).toMatch(/FL-01/)
+    expect(html).toMatch(/verify on site/i)
     // Renovation estimate: finishes subtotal + a combined furniture+finishes line.
     expect(html).toContain('Renovation estimate')
     expect(html).toContain('Finishes subtotal')
@@ -275,7 +273,7 @@ describe('buildReportHtml', () => {
 
   it('omits the Finishes section when no finishes are supplied', () => {
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
-    expect(html).not.toContain('Finishes by room')
+    expect(html).not.toContain('Finishes schedule')
   })
 
   it('includes + escapes a project note when supplied', () => {

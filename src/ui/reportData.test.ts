@@ -167,7 +167,7 @@ describe('designPalette', () => {
       floor: { a: 'wall-paint-white' },
       walls: { b: '#abcdef' },
     })
-    expect(html).toContain('Finishes by room')
+    expect(html).toContain('Finishes schedule')
     expect(html).toContain('Room A')
     expect(html).toContain('Room B')
     expect(html).toContain('White paint')

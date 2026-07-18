@@ -49,6 +49,7 @@ import { formatArea, formatLength, type UnitSystem } from '../utils/measurement'
 import { type DrawingLayerVisibility, drawingLayerOn as layerOn } from './drawingLayers'
 import { type ElevationPalette, elevationCaption, elevationSvg } from './elevation/elevationSvg'
 import { sectionSilhouettes } from './elevation/sectionFigure'
+import { finishScheduleHtml } from './finishScheduleHtml'
 import {
   type LightingPalette,
   lightingPlanSvg,
@@ -441,20 +442,19 @@ export function buildDrawingSetHtml(
     })
   }
 
-  // Finishes schedule — per-room floor + wall material callouts (whole home),
-  // the spec a builder needs alongside the plan (Coohom material callouts).
+  // Finishes schedule — per-room floor + wall + ceiling material callouts
+  // (whole home), with quantities (floor/wall-net-of-openings/ceiling area),
+  // keyed material codes, accent-wall callouts, and per-code totals — the
+  // contractor-grade spec a builder prices from (G4). Shared HTML renderer
+  // with `report.ts`'s "Finishes by room" section so the two never drift.
   if (layerOn(layers, 'finishes') && finishes) {
     const nameOf = (id: string) => BUILTIN_MATERIALS[id]?.name ?? id
-    const rows = buildFinishSchedule(plan, finishes, nameOf)
-    if (rows.length > 0) {
-      const table = `<table class="sched"><tr class="h"><td>Room</td><td>Floor</td><td>Wall</td></tr>${rows
-        .map(
-          (r) => `<tr><td>${esc(r.room)}</td><td>${esc(r.floor)}</td><td>${esc(r.wall)}</td></tr>`,
-        )
-        .join('')}</table>`
+    const schedule = buildFinishSchedule(plan, finishes, nameOf)
+    const body = finishScheduleHtml(schedule, units)
+    if (body) {
       sheets.push({
         name: 'Finishes schedule',
-        body: table,
+        body,
         calloutGroup: 'finishes',
         scaleLabel: NTS,
       })
@@ -670,8 +670,16 @@ export function buildDrawingSetHtml(
   .notes ol { margin: 6px 0 0; padding-left: 18px; font-size: 10px; line-height: 1.6; color: #374151; }
   h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; }
   table.sched { width: 100%; border-collapse: collapse; font-size: 11px; }
-  table.sched td { padding: 3px 8px 3px 0; border-bottom: 1px solid #f1f5f9; }
+  table.sched td { padding: 3px 8px 3px 0; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
   table.sched td.n { text-align: right; font-variant-numeric: tabular-nums; }
   table.sched tr.h td { font-weight: 600; border-bottom: 1px solid #e5e7eb; }
+  /* Contractor-grade finish schedule (G4) — shared renderer with the report window. */
+  .mcode { display: inline-block; font-family: ui-monospace, monospace; font-size: 9px; font-weight: 700; color: #4b5563; background: #f3f4f6; border-radius: 3px; padding: 0 4px; margin-right: 4px; }
+  .mnum, .mnum-td { font-variant-numeric: tabular-nums; color: #374151; font-size: 10px; }
+  .mnum-td { text-align: right; }
+  .mnote { font-size: 9px; color: #b45309; margin-top: 1px; }
+  .mchip { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: middle; border: 1px solid rgba(0,0,0,.12); }
+  .fin-h3 { margin: 10px 0 4px; }
+  .fin-caveat { font-size: 10px; color: #9ca3af; margin-top: 6px; }
 </style></head><body>${sheetHtml}</body></html>`
 }

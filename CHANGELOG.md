@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.44 — G4: contractor-grade finish schedule (codes, net areas, totals)
+
+`buildFinishSchedule` rewritten: per-room floor/wall/ceiling rows with stable
+material codes (FL-/WL-/CL-, first-seen order, never renumbered; AW- per
+accent colour), quantities — floor m² (shoelace), **wall m² net of openings**
+(perimeter × ceiling − each bordering opening's width×(head−sill), the
+openingSchedule probe geometry; hand-verified 35−1.8−1.44=31.76), ceiling
+(flat footprint; tray/coffered noted honestly), accent-wall rows (net of
+that wall's openings), and per-code totals — what a contractor prices from.
+One renderer (`finishScheduleHtml.ts`) feeds BOTH the report and the drawing
+set so they can't drift; "verify on site" caveat. floorTexScale shown as a
+scale factor (base tile size isn't modelled — no invented mm). 120 tests +
+25-step scenario capturing both documents. Rides the `report` flag.
+Also dropped the stale cross-session git stash both agents kept tripping on
+(archived to scratchpad).
+
 ## v0.22.2.43 — G1 (PR 1+2): persisted MEP point model + store actions
 
 First two steps of the MEP-layer plan: `PlanElectricalPoint`/`PlanPlumbingPoint`

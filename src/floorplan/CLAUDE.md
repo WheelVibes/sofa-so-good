@@ -110,3 +110,18 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   re-flows the room's auto wall/opening names, pushes ONE undo step, and rejects a `null` result
   with an error toast (no fork / no history). Boundary WALLS are not re-traced, so openings keep
   their wall offsets — a known limitation for large insets. `roomInset` Pro flag.
+- **Contractor-grade finish schedule (G4): `finishSchedule.ts:buildFinishSchedule`** is the ONE pure
+  builder for both the report's "Finishes schedule" section and the drawing set's sheet
+  (`ui/finishScheduleHtml.ts` is the shared HTML renderer both consume — never fork the table markup).
+  Wall area is perimeter × ceiling height **net of door/window openings**: an opening's area
+  (`width × (head−sill)`) is deducted from EVERY room a probe (`openingProbe.ts:openingProbePoints`,
+  both sides of its host wall) lands in — each bordering room independently loses that much of its OWN
+  wall face (not halved/shared between the two rooms a door connects). Ceiling area is always the flat
+  footprint; a non-flat `room.ceiling` treatment is flagged as a verify-on-site note rather than adding
+  an invented surface number. Material codes (`FL-`/`WL-`/`CL-`/`AW-` + 2-digit index) are assigned in
+  **first-seen order** over the room/wall iteration — same input always yields the same codes, and a
+  finish introduced later is appended after every code already assigned rather than renumbering them
+  (`assignCodes`). Accent walls (`PlanWall.color`) are a separate `AccentWallRow` list keyed by
+  distinct colour (two walls sharing a colour share one `AW-0N`). `floorTexScale` is surfaced as an
+  honest tiling-scale factor in the floor cell's `spec` — there is no base tile mm size stored
+  anywhere in the model, so none is invented.

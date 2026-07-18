@@ -14,6 +14,17 @@ export const REPORT_CSS = `
   td.num { text-align: right; font-variant-numeric: tabular-nums; color: #374151; }
   td.dim { color: #9ca3af; font-variant-numeric: tabular-nums; font-size: 12px; padding-left: 12px; }
   .msw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; border: 1px solid rgba(0,0,0,.12); }
+  /* Contractor-grade finish schedule (G4) — shared with the drawing set's Finishes sheet. */
+  .mcode { display: inline-block; font-family: ui-monospace, monospace; font-size: 10px; font-weight: 700; color: #4b5563; background: #f3f4f6; border-radius: 3px; padding: 0 4px; margin-right: 4px; }
+  .mnum, .mnum-td { font-variant-numeric: tabular-nums; color: #374151; font-size: 11px; }
+  .mnum-td { text-align: right; }
+  .mnote { font-size: 10px; color: #b45309; margin-top: 1px; }
+  .mchip { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; border: 1px solid rgba(0,0,0,.12); }
+  .fin-h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; margin: 14px 0 4px; }
+  .fin-wrap { margin-top: 24px; break-inside: avoid; }
+  .fin-sched td, .fin-accent td, .fin-totals td { padding: 3px 8px 3px 0; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+  .fin-sched tr.h td, .fin-accent tr.h td, .fin-totals tr.h td { font-weight: 600; border-bottom: 1px solid #e5e7eb; }
+  .fin-caveat { font-size: 11px; color: #9ca3af; margin-top: 6px; }
   tr.cat td { font-weight: 600; padding-top: 8px; }
   td.indent { padding-left: 12px; color: #4b5563; }
   .total { display: flex; justify-content: space-between; font-weight: 700; font-size: 15px; border-top: 2px solid #1f2937; margin-top: 8px; padding-top: 6px; }
