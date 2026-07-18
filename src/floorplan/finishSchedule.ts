@@ -104,43 +104,60 @@ export interface FinishSchedule {
   caveat: string
 }
 
-/** Area (m²) of a door/window opening (width × (head − sill), floored at 0). */
-function openingArea(o: PlanOpening): number {
-  return o.width * Math.max(0, o.head - o.sill)
+/** Area (m²) of a door/window opening: width × (head − sill), floored at 0.
+ *  `maxHeightM` clamps the vertical span to the bordering room's ceiling —
+ *  the inspector doesn't upper-bound `head` (only the SH3D import clamps it),
+ *  so a head typed above the real ceiling would otherwise over-deduct and
+ *  could silently zero the room's whole net wall area on the printed
+ *  schedule (bug-hunt 2026-07-18 finding #2). */
+function openingArea(o: PlanOpening, maxHeightM: number): number {
+  const head = Math.min(o.head, maxHeightM)
+  const sill = Math.min(o.sill, maxHeightM)
+  return o.width * Math.max(0, head - sill)
 }
 
 /** Per-room deduction (m²) for openings that border it, on ONE level. An
  *  opening probes both sides of its wall (`openingProbePoints`) and its area
  *  is deducted from every room a probe point lands in (each bordering room
- *  independently loses that much of its OWN wall face — not halved/shared). */
+ *  independently loses that much of its OWN wall face — not halved/shared).
+ *  The deducted area is clamped per room to THAT room's ceiling height. */
 function wallOpeningDeductionsByRoom(
   rooms: readonly PlanRoom[],
   walls: readonly PlanWall[],
   openings: readonly PlanOpening[],
+  heightOfRoom: (room: PlanRoom) => number,
 ): Map<string, number> {
   const wallsById = new Map(walls.map((w) => [w.id, w]))
   const deductions = new Map<string, number>()
   for (const o of openings) {
     const wall = wallsById.get(o.wallId)
     if (!wall) continue
-    const area = openingArea(o)
-    if (area <= 0) continue
     const probe = openingProbePoints(wall, o, PROBE_OFFSET, true)
     if (!probe) continue
-    const touched = new Set<string>()
+    const touched = new Map<string, PlanRoom>()
     for (const [px, pz] of [probe.plus, probe.minus]) {
       for (const r of rooms) {
-        if (pointInRoom(r, px, pz)) touched.add(r.id)
+        if (pointInRoom(r, px, pz)) touched.set(r.id, r)
       }
     }
-    for (const id of touched) deductions.set(id, (deductions.get(id) ?? 0) + area)
+    for (const [id, room] of touched) {
+      const area = openingArea(o, heightOfRoom(room))
+      if (area > 0) deductions.set(id, (deductions.get(id) ?? 0) + area)
+    }
   }
   return deductions
 }
 
-/** Openings whose area is deducted from a SPECIFIC wall's own face (not a room). */
-function openingsAreaOnWall(wallId: string, openings: readonly PlanOpening[]): number {
-  return openings.filter((o) => o.wallId === wallId).reduce((sum, o) => sum + openingArea(o), 0)
+/** Openings whose area is deducted from a SPECIFIC wall's own face (not a
+ *  room), clamped to that wall's height. */
+function openingsAreaOnWall(
+  wallId: string,
+  openings: readonly PlanOpening[],
+  wallHeightM: number,
+): number {
+  return openings
+    .filter((o) => o.wallId === wallId)
+    .reduce((sum, o) => sum + openingArea(o, wallHeightM), 0)
 }
 
 /** Rooms a wall borders — probes both sides at every opening it hosts, plus its
@@ -266,7 +283,12 @@ export function buildFinishSchedule(
 
   for (const level of levels) {
     const ceilingHeightDefault = level.ceilingHeight ?? plan.ceilingHeight
-    const deductions = wallOpeningDeductionsByRoom(level.rooms, level.walls, level.openings)
+    const deductions = wallOpeningDeductionsByRoom(
+      level.rooms,
+      level.walls,
+      level.openings,
+      (room) => room.ceilingHeight ?? ceilingHeightDefault,
+    )
 
     for (const room of level.rooms) {
       const floorId = resolvePlanRoomFloor(finishes, room)
@@ -306,7 +328,7 @@ export function buildFinishSchedule(
       if (!w.color) continue
       const height = w.topHeight ?? ceilingHeightDefault
       const gross = wallLength(w) * height
-      const net = Math.max(0, gross - openingsAreaOnWall(w.id, level.openings))
+      const net = Math.max(0, gross - openingsAreaOnWall(w.id, level.openings, height))
       const rooms2 = roomsAlongWall(w, level.rooms, level.openings)
       accentWalls.push({
         wallId: w.id,

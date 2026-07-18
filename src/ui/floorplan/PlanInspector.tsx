@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useFeature } from '../../features/useFeature'
-import { levelById, levelOfItem } from '../../floorplan/levels'
+import { GROUND_LEVEL_ID, levelById, levelOfItem } from '../../floorplan/levels'
 import { electricalMountDefaultMm, plumbingMountDefaultMm } from '../../floorplan/mepPoints'
 import { polylineLength } from '../../floorplan/polyline'
 import {
@@ -295,10 +295,20 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
     }
   } else if (sel?.type === 'mep' && fMep) {
     const { family } = sel
+    // Level-scope the lookup like the room/wall/opening branches above — the
+    // canvas MepLayer is level-filtered, so a stale cross-storey selection
+    // must go blank here too, not silently edit/delete an off-screen point
+    // on another storey (bug-hunt 2026-07-18 finding #1).
+    const onLevel = (x: { levelId?: string }) =>
+      (x.levelId ?? GROUND_LEVEL_ID) === (levelId ?? GROUND_LEVEL_ID)
     const elecPoint =
-      family === 'electrical' ? (plan.electricalPoints ?? []).find((x) => x.id === sel.id) : null
+      family === 'electrical'
+        ? (plan.electricalPoints ?? []).find((x) => x.id === sel.id && onLevel(x))
+        : null
     const plumbPoint =
-      family === 'plumbing' ? (plan.plumbingPoints ?? []).find((x) => x.id === sel.id) : null
+      family === 'plumbing'
+        ? (plan.plumbingPoints ?? []).find((x) => x.id === sel.id && onLevel(x))
+        : null
     const p = elecPoint ?? plumbPoint
     if (p) {
       const kindOptions = (family === 'electrical' ? ELECTRICAL_MEP_KINDS : PLUMBING_MEP_KINDS).map(

@@ -134,6 +134,29 @@ describe('buildFinishSchedule', () => {
     expect(rows[0]!.wall.area).toBeCloseTo(35 - 1.8 - 1.44, 5)
   })
 
+  it("clamps an opening's head/sill to the room ceiling — a head typed above the ceiling cannot over-deduct (bug-hunt 2026-07-18 #2)", () => {
+    const r = room('r1', 'Room', { origin: [0, 0], width: 4, depth: 3 })
+    const w1: PlanWall = wall('w1', [0, 0], [4, 0])
+    // head 25m (typo for 2.5?) on a 2.5m ceiling: deduction must clamp to
+    // 0.9 x (2.5 - 0) = 2.25, not 0.9 x 25 = 22.5 (which would zero the room).
+    const door: PlanOpening = {
+      id: 'd1',
+      kind: 'door',
+      wallId: 'w1',
+      offset: 1,
+      width: 0.9,
+      sill: 0,
+      head: 25,
+    }
+    const p = plan([r], { ceilingHeight: 2.5, walls: [w1], openings: [door] })
+    const { rows } = buildFinishSchedule(p, noFinishes, nameOf)
+    expect(rows[0]!.wall.area).toBeCloseTo(35 - 0.9 * 2.5, 5)
+    // A sill also above the ceiling degenerates to zero deduction, not negative.
+    const highSill = { ...door, sill: 26, head: 27 }
+    const p2 = plan([r], { ceilingHeight: 2.5, walls: [w1], openings: [highSill] })
+    expect(buildFinishSchedule(p2, noFinishes, nameOf).rows[0]!.wall.area).toBeCloseTo(35, 5)
+  })
+
   it('flags a non-flat ceiling with a verify-on-site note (area still the flat footprint)', () => {
     const r = room('r1', 'Room', { ceiling: { style: 'tray', drop: 0.1 } })
     const { rows } = buildFinishSchedule(plan([r]), noFinishes, nameOf)

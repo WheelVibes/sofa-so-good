@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.47 — Fix: two handover-accuracy bugs (bug-hunt findings)
+
+Adversarial review of v0.22.2.39-46 found two real defects, both fixed with
+regression tests: (1) CONFIRMED — a selected MEP point survived a storey
+switch: the canvas layer is level-filtered but the inspector resolved the
+selection from the whole-plan arrays, so it could silently edit/delete an
+off-screen point on another storey; the mep lookup is now level-scoped like
+the room/wall/opening branches. (2) PLAUSIBLE→fixed — the finish schedule's
+opening deduction used raw width×(head−sill) with no ceiling clamp; a head
+typed above the real ceiling (no upper bound in the inspector) could zero a
+room's whole net wall area on the printed schedule; deductions now clamp
+per bordering room's ceiling height (accent-wall deductions clamp to wall
+height). The sweep verified clean: scale mm-math across all 8 SVG builders
+(algebraically), all 24 itemPrice call sites ($0 override handled), DXF
+corner math (shared itemFootprint by construction), MEP no-op updates.
+
 ## v0.22.2.46 — G1 (PR 3): MEP point editor in the 2D plan
 
 `mepEditor` (pro): a 4th "MEP" tool group (12 kinds, Electrical/Plumbing

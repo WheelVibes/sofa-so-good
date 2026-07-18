@@ -16,7 +16,7 @@ describe('PlanInspector — mep case', () => {
   })
 
   function selectElectricalPoint(
-    overrides: Partial<{ mountHeightMm: number; label: string }> = {},
+    overrides: Partial<{ mountHeightMm: number; label: string; levelId: string }> = {},
   ) {
     const id = useStore.getState().addElectricalPoint({ x: 1, z: 2, kind: 'socket', ...overrides })
     useStore.getState().setPlanSelection({ type: 'mep', family: 'electrical', id })
@@ -82,5 +82,18 @@ describe('PlanInspector — mep case', () => {
     render(<PlanInspector />)
     expect(screen.queryByText('Electrical point')).toBeNull()
     expect(screen.queryByLabelText('Mount height (mm AFFL)')).toBeNull()
+  })
+
+  it("a selection from ANOTHER storey goes blank — the inspector can't edit an off-screen point (bug-hunt 2026-07-18 #1)", () => {
+    // Point lives on an upper storey; the inspector is viewing ground (no
+    // levelId prop). The canvas layer is level-filtered, so a stale
+    // cross-level selection must not resolve to an editable panel here.
+    selectElectricalPoint({ levelId: 'upper-1' })
+    render(<PlanInspector />)
+    expect(screen.queryByText('Electrical point')).toBeNull()
+    expect(screen.queryByLabelText('Mount height (mm AFFL)')).toBeNull()
+    // Same id inspected ON its own storey still resolves.
+    render(<PlanInspector levelId="upper-1" />)
+    expect(screen.getByText('Electrical point')).toBeTruthy()
   })
 })
