@@ -131,6 +131,18 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Lighting mood presets (UX round-3 #3, Coohom parity): a one-tap chip row
+  // (Reading / Movie night / Entertaining / Romantic + Normal reset) that
+  // adjusts placed fixtures' brightness + colour temperature scene-wide, on
+  // top of the existing `lightsMode` multiplier (`lighting/moodPresets.ts`,
+  // pure). Pure client-side code, no external assets → prod-safe; a core
+  // furnish/view delight like `renderPresets` above → simple tier.
+  lightMoodPresets: {
+    label: 'Lighting mood presets',
+    description: 'One-tap Reading / Movie night / Entertaining / Romantic lighting moods',
+    default: true,
+    tier: 'simple',
+  },
   hqRender: {
     label: 'HQ render',
     description: 'Progressive path-traced photoreal still (three-gpu-pathtracer)',
@@ -1620,6 +1632,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     devOnly: true,
     tier: 'pro',
+  },
+  // Native share sheet for the hero card (UX round-3 #1): on devices supporting
+  // the Web Share API Level 2 file-sharing (`navigator.canShare({ files })`),
+  // sharing the rendered hero-card PNG goes through `navigator.share({ files })`
+  // so mobile users get the OS share sheet (WhatsApp/Telegram/IG) instead of only
+  // a silent download. Pure client-side API, no sidecar → prod-safe; extends the
+  // core "share" stage of the loop → simple tier. The existing download stays as
+  // the fallback (unsupported/failed) and remains available alongside it.
+  shareCardNative: {
+    label: 'Native share sheet',
+    description: 'Share the hero card via the OS share sheet on supported devices',
+    default: true,
+    tier: 'simple',
   },
 }
 

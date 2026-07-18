@@ -1,0 +1,89 @@
+{
+  "name": "share-native-simple",
+  "url": "http://localhost:5211/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 90000
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": { "store": "state.sceneReady === true || state.bootPhase === 'ready'" },
+      "timeout": 90000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(14); })()"
+    },
+    {
+      "name": "warm-render",
+      "wait": 3000
+    },
+    {
+      "name": "stub-share",
+      "eval": "(() => { window.__shareCalls = []; navigator.canShare = (data) => !!(data && data.files && data.files.length > 0); navigator.share = (data) => { window.__shareCalls.push({ name: data.files?.[0]?.name, type: data.files?.[0]?.type, title: data.title }); return Promise.resolve(); }; })()"
+    },
+    {
+      "name": "open-share",
+      "eval": "window.__store.getState().setShareOpen(true)"
+    },
+    {
+      "name": "modal-open",
+      "waitFor": { "css": ".modal-overlay" },
+      "timeout": 20000
+    },
+    {
+      "name": "share-btn-visible",
+      "waitFor": { "text": "Share…" },
+      "timeout": 10000
+    },
+    {
+      "name": "shot-modal-with-share",
+      "screenshot": "share-and-save-buttons"
+    },
+    {
+      "name": "click-share",
+      "click": { "text": "Share…" }
+    },
+    {
+      "name": "share-called",
+      "waitFor": { "store": "Array.isArray(window.__shareCalls) && window.__shareCalls.length > 0" },
+      "timeout": 15000
+    },
+    {
+      "name": "assert-file-shared",
+      "eval": "(() => { const call = window.__shareCalls[0]; if (!call) throw new Error('no share call recorded'); if (!call.name || !/^sofa-hero-.*\\.png$/.test(call.name)) throw new Error('unexpected shared filename: ' + call.name); if (call.type !== 'image/png') throw new Error('unexpected shared file type: ' + call.type); return true; })()"
+    },
+    {
+      "name": "close-modal-1",
+      "key": "Escape"
+    },
+    {
+      "name": "remove-share-stub",
+      "eval": "(() => { delete navigator.canShare; delete navigator.share; })()"
+    },
+    {
+      "name": "reopen-share",
+      "eval": "window.__store.getState().setShareOpen(true)"
+    },
+    {
+      "name": "modal-open-2",
+      "waitFor": { "css": ".modal-overlay" },
+      "timeout": 20000
+    },
+    {
+      "name": "save-only-visible",
+      "waitFor": { "text": "Save hero image" },
+      "timeout": 10000
+    },
+    {
+      "name": "assert-no-share-button",
+      "eval": "(() => { const buttons = Array.from(document.querySelectorAll('button')); const hasShare = buttons.some((b) => b.textContent && b.textContent.trim().startsWith('Share…')); if (hasShare) throw new Error('Share… button present without navigator.share support'); return true; })()"
+    },
+    {
+      "name": "shot-modal-fallback",
+      "screenshot": "save-only-fallback"
+    }
+  ]
+}

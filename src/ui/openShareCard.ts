@@ -26,6 +26,7 @@ import {
   shareCardFilename,
   shareCardLayout,
 } from './shareCard'
+import { canNativeShareFiles, shareCardFile } from './shareNative'
 
 // --- fixed card design -------------------------------------------------------
 // Per-format pixel dims/layout live in the pure `shareCardLayout` (shareCard.ts);
@@ -229,6 +230,79 @@ export async function buildShareCardDataUrl(
     return canvas.toDataURL('image/png')
   } catch {
     return null
+  }
+}
+
+/** Build the hero-card `<canvas>` for `format` (shared by download + native-share paths). */
+async function buildShareCardCanvas(format: ShareCardFormat): Promise<HTMLCanvasElement> {
+  const { heroDataUrl, ...rest } = collectShareCardInput()
+  const hero = await loadImage(heroDataUrl)
+  return renderShareCardCanvas({ ...rest, hero }, format)
+}
+
+/** `<canvas>.toBlob` wrapped as a Promise (rejects to null instead of throwing). */
+function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    try {
+      canvas.toBlob((b) => resolve(b), 'image/png')
+    } catch {
+      resolve(null)
+    }
+  })
+}
+
+/**
+ * True when the platform can share a PNG file via the native OS share sheet
+ * (Web Share API Level 2 `canShare({ files })`). Gates the ShareModal's
+ * "Share…" button — call synchronously from render, not from inside the
+ * click handler, so the button only ever appears where it can actually work.
+ */
+export function canShareHeroCardNative(): boolean {
+  return canNativeShareFiles(typeof navigator === 'undefined' ? null : navigator)
+}
+
+/**
+ * Compose the hero card and hand it to the native OS share sheet
+ * (`navigator.share({ files })`) instead of downloading it — entry point for
+ * the ShareModal "Share…" button (feature `shareCardNative`). Per the
+ * documented Web Share API pattern (see `shareNative.ts`'s header comment for
+ * sources), this must run as directly as possible inside the click handler:
+ * the canvas→blob conversion below is the only async work between the click
+ * and `navigator.share()`, keeping the call within the browser's transient-
+ * activation window. Returns the {@link ShareFileResult} so the caller can
+ * decide whether to fall back to `openShareCard` (only on `'unsupported'` —
+ * `'aborted'` is a normal user cancel, not a fallback trigger).
+ */
+export async function shareHeroCardNative(
+  format: ShareCardFormat = 'post',
+): Promise<'shared' | 'aborted' | 'unsupported' | 'failed'> {
+  const s = useStore.getState()
+  try {
+    const canvas = await buildShareCardCanvas(format)
+    const blob = await canvasToPngBlob(canvas)
+    if (!blob) {
+      s.notify.start({
+        title: "Couldn't create the hero image",
+        kind: 'error',
+        message: 'The scene view was unavailable — try again from the 3D view.',
+      })
+      return 'failed'
+    }
+    const filename = shareCardFilename(s.floorPlan.name || 'design', new Date(), format)
+    const result = await shareCardFile(navigator, blob, filename, {
+      title: s.floorPlan.name || 'My design',
+    })
+    if (result === 'shared') {
+      s.notify.start({ title: 'Hero image shared', kind: 'success' })
+    } else if (result === 'failed') {
+      s.notify.start({ title: "Couldn't share the hero image", kind: 'error' })
+    }
+    // 'aborted' (user dismissed the sheet) and 'unsupported' are silent —
+    // the caller falls back to the download path on 'unsupported'.
+    return result
+  } catch {
+    s.notify.start({ title: "Couldn't share the hero image", kind: 'error' })
+    return 'failed'
   }
 }
 

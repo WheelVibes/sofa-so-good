@@ -299,6 +299,17 @@ come out near-black.
   `oklch`; (b) probing the *inputs* of its gate (flag + `qualityTier`) rather than the hook itself;
   (c) driving the CSS var yourself via `el.style.setProperty('--mx', …)` for the visual; and lean on
   the effect's unit suite for the handler→var wiring. Say which evidence you got.
+- **`navigator.canShare`/`navigator.share` are absent in headless Chromium — stub them with a plain
+  `eval` before opening the surface that gates on them** (`share-native-simple.json`). An `eval` step
+  assigning `navigator.canShare = (data) => …` / `navigator.share = (data) => { …; return
+  Promise.resolve() }` works fine (these are plain instance properties, no native-getter lock like
+  `navigator.geolocation`); record each call's args on `window.__shareCalls` so a later `waitFor
+  {store: "window.__shareCalls.length > 0"}` step can confirm the click actually reached
+  `navigator.share` (a synthetic `click` on a real DOM `<button>` does reach its React `onClick`,
+  unlike the R3F-canvas/pointermove cases above — this isn't a canvas or root-delegated-only
+  handler). To verify the ungated fallback, `delete navigator.canShare; delete navigator.share;` and
+  reassert the gated button is absent — don't just trust the flag-off case, the button's real gate is
+  `canShareHeroCardNative()`'s runtime probe, not only the feature flag.
 
 ### Scenario template
 

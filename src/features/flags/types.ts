@@ -22,6 +22,7 @@ export type FeatureFlag =
   | 'panorama'
   | 'panoTour'
   | 'renderPresets'
+  | 'lightMoodPresets'
   | 'hqRender'
   | 'hqAiDenoise'
   | 'vrWalkthrough'
@@ -179,6 +180,7 @@ export type FeatureFlag =
   | 'profiler'
   | 'walkMeasure'
   | 'aiDesignChat'
+  | 'shareCardNative'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

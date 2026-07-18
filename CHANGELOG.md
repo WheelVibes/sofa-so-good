@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.37 — Native share sheet for the hero card
+
+`shareCardNative` flag (simple, default on): on browsers supporting Web Share
+API Level 2 the Share modal's hero-card row shows "Share…" (OS share sheet via
+`navigator.share({files})` — straight to WhatsApp/Telegram/IG on mobile)
+beside "Save"; unsupported browsers keep the original full-width "Save hero
+image" (existing scenario unbroken). Pure `ui/shareNative.ts` helper
+(canShare-probe + AbortError = silent cancel, never an error toast; MDN/
+web.dev transient-activation pattern cited in-file), 12 unit tests +
+both-modes flag test; scenario share-native-simple.json (19/19) proves the
+stubbed share receives the PNG File and the button vanishes without support.
+User doc labels updated; playbook gains the navigator-stubbing gotcha.
+
 ## v0.22.2.36 — Asset pipeline: Kenney Furniture Kit fetcher (19 CC0 items)
 
 `scripts/asset-pipeline/fetch-kenney-models.mjs` + `kenney-select.mjs`:
