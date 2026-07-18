@@ -1,7 +1,7 @@
 import { assignOpeningMarks } from '../analysis/openingSchedule'
 import { doorSwingGeometry } from '../floorplan/doorSwing'
 import { roomLabelPosition } from '../floorplan/roomCentroid'
-import { tileSettingOutPoints } from '../floorplan/settingOut'
+import { anyTileMarksOmitted, tileSettingOutPoints } from '../floorplan/settingOut'
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, planRoomArea, wallLength } from '../floorplan/types'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
@@ -44,11 +44,19 @@ function tileSettingOutSvg(plan: FloorPlan): string {
     .join('')
 }
 
-/** The tile setting-out convention, printed once (not per-mark — see above). */
-function tileSettingOutCaption(capY: number): string {
+/** The tile setting-out convention, printed once (not per-mark — see above).
+ *  When `omitted` (some room on this storey had its mark skipped — see
+ *  `settingOut.ts:tileMarkPoint` — a room too small in every direction for
+ *  the mark to clear its own name/area label, e.g. an AC ledge), appends a
+ *  second line noting the omission ONCE for the whole sheet rather than
+ *  leaving a silently-missing mark unexplained. */
+function tileSettingOutCaption(capY: number, omitted = false): string {
+  const omittedLine = omitted
+    ? `<tspan x="0" dy="0.34">(marks omitted for small utility rooms)</tspan>`
+    : ''
   return (
     `<text x="0" y="${capY.toFixed(3)}" font-size="0.24" fill="${TILE}">` +
-    `+ Tile setting-out point — start laying here, verify joints on site</text>`
+    `+ Tile setting-out point — start laying here, verify joints on site${omittedLine}</text>`
   )
 }
 
@@ -267,8 +275,11 @@ export function reportPlanSvg(
     .join('')
 
   // Extra strip below the plan for a scale bar (standard on architectural
-  // plans) — taller when the tile setting-out caption also rides in it (G3).
-  const scaleStrip = showTileMarks ? 1.3 : 0.9
+  // plans) — taller when the tile setting-out caption also rides in it (G3),
+  // taller still when a second "marks omitted" line is needed (re-review
+  // follow-up to H-D2).
+  const tileMarksOmitted = showTileMarks && anyTileMarksOmitted(plan)
+  const scaleStrip = showTileMarks ? (tileMarksOmitted ? 1.64 : 1.3) : 0.9
   const barY = d + pad + 0.9 * 0.55
   const vbH = d + pad * 2 + scaleStrip
   const openings = openingsSvg(plan)
@@ -284,7 +295,7 @@ export function reportPlanSvg(
       ? ` style="width:${(fullW * printMmPerM).toFixed(3)}mm;height:${(vbH * printMmPerM).toFixed(3)}mm"`
       : ''
   const tileMarks = showTileMarks ? tileSettingOutSvg(plan) : ''
-  const tileCaption = showTileMarks ? tileSettingOutCaption(barY + 0.55) : ''
+  const tileCaption = showTileMarks ? tileSettingOutCaption(barY + 0.55, tileMarksOmitted) : ''
   const openingMarks = showOpeningMarks ? openingMarksSvg(plan) : ''
   return `<svg class="plan-svg"${sizeAttr} viewBox="${-pad} ${-pad} ${fullW.toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${furniture}${walls}${openings}${openingMarks}${labels}${notesSvg(plan)}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}${tileMarks}${tileCaption}</svg>`
 }

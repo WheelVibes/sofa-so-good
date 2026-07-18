@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { datumPoint, settingOutDimensions, tileSettingOutPoints } from './settingOut'
+import {
+  anyTileMarksOmitted,
+  datumPoint,
+  settingOutDimensions,
+  tileSettingOutPoints,
+} from './settingOut'
 import type { FloorPlan, PlanUpperLevel, PlanWall } from './types'
 
 function extWall(id: string, start: [number, number], end: [number, number]): PlanWall {
@@ -152,15 +157,51 @@ describe('tileSettingOutPoints', () => {
     expect(living?.point[1]).toBeCloseTo(2.5, 6)
   })
 
-  it('clamps the offset to stay inside a room too shallow for the full 0.5m', () => {
+  it('falls back to an EAST offset when a shallow room clamps the south mark back onto the label (re-review follow-up)', () => {
     const plan = rectPlan()
-    // A 2×0.5 sliver room (origin [0,0]) — centroid z=0.25; the offset would
-    // push the mark to z=0.75, outside the room (depth 0.5) — must clamp
-    // inside, never land on/past the far wall.
+    // A 2×0.5 sliver room (origin [0,0], like an AC ledge) — centroid
+    // [1, 0.25]. The south offset clamps to z=0.35 (depth 0.5, 0.15m
+    // margin), only 0.10m from the label point — still overlapping it, so
+    // the mark must fall back to an east/west offset instead (never land
+    // back on/past the far wall either way).
     plan.rooms = [{ id: 'thin', name: 'Thin', origin: [0, 0], width: 2, depth: 0.5 }]
     const [point] = tileSettingOutPoints(plan)
+    expect(point).toBeDefined()
     expect(point?.point[1]).toBeLessThanOrEqual(0.5)
     expect(point?.point[1]).toBeGreaterThanOrEqual(0)
+    // Must have moved along X (the east/west fallback), not stayed at the
+    // label's own X (1) — confirms it didn't just silently clamp back onto
+    // the label.
+    expect(Math.abs((point?.point[0] ?? 0) - 1)).toBeGreaterThanOrEqual(0.35)
+  })
+
+  it('omits the mark for the real-world AC ledge shape (2.55×0.85m) — the label block is wide relative to the room, so even the east/west fallback lands inside it', () => {
+    const plan = rectPlan()
+    // Matches `apartment/constants.ts`'s real AC ledge exactly (the shape
+    // that originally motivated this fix): 2.55m wide × 0.85m deep. The
+    // south offset clamps back near the label (as in the 'Thin' case
+    // above), but here the room ISN'T wide enough relative to its own
+    // ~8-character name for the east/west fallback to clear the label
+    // block either — so the mark must be omitted rather than rendered on
+    // top of the text (the visual defect this fix targets).
+    plan.rooms = [
+      { id: 'acLedge', name: 'AC Ledge', origin: [1.35, 6.75], width: 2.55, depth: 0.85 },
+    ]
+    expect(tileSettingOutPoints(plan)).toHaveLength(0)
+    expect(anyTileMarksOmitted(plan)).toBe(true)
+  })
+
+  it('omits the mark entirely for a room too small in every direction (e.g. a tiny utility room) — no candidate clears the label', () => {
+    const plan = rectPlan()
+    // A 0.6×0.6 room — every offset (south/east/west) clamps to within
+    // ~0.15m of the label point, well inside the 0.35m exclusion radius.
+    plan.rooms = [{ id: 'tiny', name: 'Tiny', origin: [0, 0], width: 0.6, depth: 0.6 }]
+    expect(tileSettingOutPoints(plan)).toHaveLength(0)
+    expect(anyTileMarksOmitted(plan)).toBe(true)
+  })
+
+  it('does not flag any omission for normal-sized rooms', () => {
+    expect(anyTileMarksOmitted(rectPlan())).toBe(false)
   })
 
   it('filters to the given storey', () => {

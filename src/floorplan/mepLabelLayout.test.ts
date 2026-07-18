@@ -25,7 +25,7 @@ describe('layoutMepLabels', () => {
     expect(b.labelY).toBe(300)
   })
 
-  it('fans two coincident points into distinct label positions with leaders', () => {
+  it('fans two coincident points into distinct label positions with leaders, ALSO nudging the colliding circles apart (with true-position ticks)', () => {
     const out = layoutMepLabels(
       [
         { id: 'soil-pipe', cx: 100, cy: 100 },
@@ -38,13 +38,42 @@ describe('layoutMepLabels', () => {
     const ys = out.map((p) => p.labelY)
     expect(new Set(ys).size).toBe(2)
     expect(Math.abs(ys[0]! - ys[1]!)).toBeGreaterThanOrEqual(10)
-    // Circle centres (leader targets) stay at their TRUE positions.
+
     const soil = out.find((p) => p.id === 'soil-pipe')!
     const water = out.find((p) => p.id === 'water-point')!
-    expect(soil.cx).toBe(100)
-    expect(soil.cy).toBe(100)
-    expect(water.cx).toBe(102)
-    expect(water.cy).toBe(101)
+    // Both circles collided (< ~20px apart) → both nudged, each with a
+    // preserved true-position tick target.
+    expect(soil.hasCircleNudge).toBe(true)
+    expect(water.hasCircleNudge).toBe(true)
+    expect(soil.trueCx).toBe(100)
+    expect(soil.trueCy).toBe(100)
+    expect(water.trueCx).toBe(102)
+    expect(water.trueCy).toBe(101)
+    // The rendered (nudged) circle centres are now distinct AND clear of
+    // collision, unlike the true positions which were only ~2px apart.
+    expect(soil.cx).not.toBe(water.cx)
+    expect(soil.cy).not.toBe(water.cy)
+    const nudgedDist = Math.hypot(soil.cx - water.cx, soil.cy - water.cy)
+    const trueDist = Math.hypot(soil.trueCx - water.trueCx, soil.trueCy - water.trueCy)
+    expect(nudgedDist).toBeGreaterThan(trueDist)
+    expect(nudgedDist).toBeGreaterThanOrEqual(19)
+    // Each circle stays within its nudge budget (~1.5× the shared symbol
+    // radius, 9px in both SVG callers) of its own true position.
+    expect(Math.hypot(soil.cx - soil.trueCx, soil.cy - soil.trueCy)).toBeLessThanOrEqual(
+      13.5 + 1e-6,
+    )
+    expect(Math.hypot(water.cx - water.trueCx, water.cy - water.trueCy)).toBeLessThanOrEqual(
+      13.5 + 1e-6,
+    )
+  })
+
+  it("leaves a lone point's circle un-nudged (no collision)", () => {
+    const out = layoutMepLabels([{ id: 'a', cx: 100, cy: 100 }], 11)
+    expect(out[0]!.hasCircleNudge).toBe(false)
+    expect(out[0]!.cx).toBe(100)
+    expect(out[0]!.cy).toBe(100)
+    expect(out[0]!.trueCx).toBe(100)
+    expect(out[0]!.trueCy).toBe(100)
   })
 
   it('fans a three-point cluster into three distinct, evenly-spaced label rows', () => {

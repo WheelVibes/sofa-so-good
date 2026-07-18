@@ -13,6 +13,17 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 > ~70-80% there; gaps concentrated below, ranked by contractor credibility impact.
 - *(Precision substrate, ride-along: mm display precision option in `measurement.ts`; bbox
   footprint caveat already tracked under Risks.)*
+- **Handover polish (low)** — recorded by the SG-contractor re-review (v0.22.2.53→60) alongside
+  the H-D1 circle-nudge + G3 tile-mark-omission fixes; deliberately NOT fixed in that pass:
+  - Whole-plan **Section A-A** can render merged item labels (no stagger/declutter pass over the
+    section's own callouts — only the MEP sheets + RCP fixture labels got the `mepLabelLayout.ts`
+    treatment).
+  - The **dimensioned-plan sheet** can print two close datum/running labels with no gap
+    ("4.854.95 m" — two distances concatenated) when two faces land within a font-width of each
+    other along the same baseline row.
+  - The **elevation renderer** has no defensive handling for a corrupt/overlapping legacy
+    placement (an opening or item whose stored geometry no longer makes sense against its wall) —
+    it will still attempt to draw it rather than skip + flag.
 > Direction (user, 2026-07-01): prioritise the **core interior-design loop + its UX,
 > discoverability, customizability** (furnish, arrange, finish, view) on desktop **and** mobile,
 > researching `REFERENCES.md`; then reliability/edge-cases, a11y, and test-coverage hardening.

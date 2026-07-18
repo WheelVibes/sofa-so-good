@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.61 — Re-review follow-ups: MEP circle declutter + shallow-room tile marks
+
+SG-contractor re-review verdict on v0.22.2.54-60: "ship it with two
+follow-up tickets" — 6/9 prior findings verified fixed, numbers airtight
+across report/sheets/DXF, SG housing-type branching leak-free. Both tickets
+now closed: (1) clustered MEP symbol CIRCLES fan onto a capped n-gon around
+their true mean (deterministic), each displaced circle carrying a thin
+leader + × tick at its TRUE position (drafting convention); labels fan
+relative to the nudged circles; the RCP inherits automatically. (2) The
+tile mark tries south→east→west around a rectangle-shaped label exclusion
+(a radius check passed while still inside a WIDE label) and is honestly
+OMITTED — with a once-per-storey caption note — in rooms too shallow for
+any candidate (the default plan's 0.85 m AC Ledge, a common HDB shape).
+Both screenshot-verified. Low-priority polish list recorded in TODO
+(Section A-A label stagger, datum-label merging, defensive elevation
+rendering).
+
 ## v0.22.2.60 — SG1-3: Singapore-specific permit paths + vocabulary (user directive)
 
 Audit verdict: heights (SS 638/CP5), SGD, LEW/PUB-LP naming, BCA citations

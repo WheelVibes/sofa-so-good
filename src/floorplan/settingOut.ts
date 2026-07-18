@@ -200,43 +200,122 @@ export interface TileSettingOutPoint {
  *  under/over that text), so the mark is pushed clear of it while staying
  *  "centroid-ish" per the setting-out convention. */
 const TILE_MARK_OFFSET_Z = 0.5
+/** East/West fallback offset (metres) — tried when the south offset clamps
+ *  back onto the label in a room too SHALLOW (north-south) for 0.5m of
+ *  clearance, e.g. an ~0.85m-deep AC ledge (re-review follow-up to H-D2). */
+const TILE_MARK_OFFSET_X = 0.5
 /** Keep the offset mark at least this far inside the room's bounding edges —
  *  a small margin so the cross + its arms never touch a wall. */
 const TILE_MARK_MARGIN = 0.15
+/** A clamped candidate within this many metres of the label point ON THE Z
+ *  AXIS is considered "still overlapping the label block" and rejected —
+ *  roughly the two-line name+area label's half-height at the sheet's print
+ *  scale (`reportPlanSvg.ts`'s room label, ~0.32-unit font, two `tspan`
+ *  rows straddling the centroid). */
+const TILE_MARK_EXCLUSION_Z_M = 0.35
+/** Per-character horizontal exclusion (metres) approximating the room-NAME
+ *  line's rendered half-width (`text-anchor="middle"`, so it extends this
+ *  much either side of the centroid) — the label block isn't a small dot,
+ *  it's as wide as the room's own name, so a small room with an ordinary-
+ *  length name (e.g. "AC Ledge") can't just be shifted a fixed amount east/
+ *  west and call it clear; the exclusion has to scale with the actual text. */
+const TILE_MARK_EXCLUSION_X_PER_CHAR_M = 0.09
 
-/** Offset a room's raw centroid south by `TILE_MARK_OFFSET_Z`, clamped to stay
- *  inside the room (bounding-box clamp, then a polygon containment check for
- *  non-rectangular rooms) — falls back to the raw centroid when even the
- *  clamped point lands outside (a room too small/oddly-shaped for the offset
- *  to fit; the raw centroid is always inside by construction). */
-function tileMarkPoint(r: PlanRoom): PlanVec2 {
+/** The label block's approximate half-width on the X axis for `name` — floored
+ *  at `TILE_MARK_EXCLUSION_Z_M` so even a very short/empty name still demands
+ *  some real horizontal clearance. */
+function labelHalfWidth(name: string): number {
+  return Math.max(TILE_MARK_EXCLUSION_Z_M, name.length * TILE_MARK_EXCLUSION_X_PER_CHAR_M)
+}
+
+/** One candidate tile-mark position: the room's raw centroid offset along one
+ *  axis by `offset` (south/east/west), clamped to stay `TILE_MARK_MARGIN`
+ *  inside the room's bounding edges on that axis, then polygon-containment
+ *  checked (non-rectangular rooms). Returns `null` when even the clamped
+ *  point falls outside the room (too small/oddly-shaped for this offset). */
+function clampedOffsetCandidate(r: PlanRoom, axis: 'x' | 'z', offset: number): PlanVec2 | null {
   const [cx, cz] = roomLabelPoint(r)
   const poly = roomPolygon(r)
-  let minZ = Number.POSITIVE_INFINITY
-  let maxZ = Number.NEGATIVE_INFINITY
-  for (const [, z] of poly) {
-    if (z < minZ) minZ = z
-    if (z > maxZ) maxZ = z
+  let min = Number.POSITIVE_INFINITY
+  let max = Number.NEGATIVE_INFINITY
+  for (const [x, z] of poly) {
+    const v = axis === 'x' ? x : z
+    if (v < min) min = v
+    if (v > max) max = v
   }
-  let z = cz + TILE_MARK_OFFSET_Z
-  z = Math.min(z, maxZ - TILE_MARK_MARGIN)
-  z = Math.max(z, minZ + TILE_MARK_MARGIN)
-  if (pointInRoom(r, cx, z)) return [cx, z]
-  return [cx, cz]
+  const base = axis === 'x' ? cx : cz
+  let v = base + offset
+  v = Math.min(v, max - TILE_MARK_MARGIN)
+  v = Math.max(v, min + TILE_MARK_MARGIN)
+  const point: PlanVec2 = axis === 'x' ? [v, cz] : [cx, v]
+  return pointInRoom(r, point[0], point[1]) ? point : null
 }
 
 /**
- * Tile setting-out start points: one per room on the storey, offset below the
- * room's name/area label block (`tileMarkPoint`) — "start laying here, verify
- * joints on site". Every room in this model always resolves to SOME floor
- * finish (`roomFinishes.ts:resolvePlanRoomFloor` falls back to a default oak
- * when nothing's been picked), so there is no real "has no floor" state to
- * filter on here — the caller (the drawing set) is what decides whether this
- * content is relevant, by only drawing it alongside the finishes schedule
- * sheet. Deliberately v1-modest: no grid, no joint direction — a start-point
- * cross + note is the honest minimum this data model supports (there is no
- * tile size/pattern stored anywhere to derive a real grid from).
+ * A room's tile setting-out start point: the raw centroid offset SOUTH by
+ * `TILE_MARK_OFFSET_Z`, clamped to stay inside the room. When that clamped
+ * point still lands within the room's LABEL BLOCK — an axis-aligned box
+ * around the centroid, `labelHalfWidth(r.name)` wide (the name text's own
+ * rendered half-width) and `TILE_MARK_EXCLUSION_Z_M` tall (a room too
+ * SHALLOW north-south for the full south offset to clear it — e.g. an
+ * ~0.85m-deep AC ledge — clamps the mark back onto the label block,
+ * re-review follow-up to H-D2) — falls back to an EAST then a WEST offset
+ * candidate with the same clamp+exclusion check. Returns `null` (mark
+ * omitted for this room) when every candidate still lands within the label
+ * block — a room too small in every direction (both shallow AND narrow
+ * relative to its own name) for ANY offset to clear the label; the caller
+ * notes the omission once in the sheet caption rather than drawing a mark
+ * back on top of the text.
+ */
+function tileMarkPoint(r: PlanRoom): PlanVec2 | null {
+  const [cx, cz] = roomLabelPoint(r)
+  const halfW = labelHalfWidth(r.name)
+  // Clear of the label block once EITHER axis distance exceeds that axis's
+  // half-extent — a rectangle test, not a radius, since the label is as wide
+  // as its own name (a small room with a long name needs more X clearance
+  // than a small room with a short one).
+  const clearsLabel = (p: PlanVec2) =>
+    Math.abs(p[0] - cx) >= halfW || Math.abs(p[1] - cz) >= TILE_MARK_EXCLUSION_Z_M
+  const candidates = [
+    clampedOffsetCandidate(r, 'z', TILE_MARK_OFFSET_Z),
+    clampedOffsetCandidate(r, 'x', TILE_MARK_OFFSET_X),
+    clampedOffsetCandidate(r, 'x', -TILE_MARK_OFFSET_X),
+  ]
+  for (const c of candidates) {
+    if (c && clearsLabel(c)) return c
+  }
+  return null
+}
+
+/**
+ * Tile setting-out start points: one per room on the storey (rooms too small
+ * in every direction for the mark to clear the room's own label are omitted
+ * — see `tileMarkPoint`), offset below/beside the room's name/area label
+ * block — "start laying here, verify joints on site". Every room in this
+ * model always resolves to SOME floor finish (`roomFinishes.ts:
+ * resolvePlanRoomFloor` falls back to a default oak when nothing's been
+ * picked), so there is no real "has no floor" state to filter on here — the
+ * caller (the drawing set) is what decides whether this content is relevant,
+ * by only drawing it alongside the finishes schedule sheet. Deliberately
+ * v1-modest: no grid, no joint direction — a start-point cross + note is the
+ * honest minimum this data model supports (there is no tile size/pattern
+ * stored anywhere to derive a real grid from).
  */
 export function tileSettingOutPoints(plan: FloorPlan, levelId?: string): TileSettingOutPoint[] {
-  return levelRooms(plan, levelId).map((r) => ({ roomId: r.id, point: tileMarkPoint(r) }))
+  const out: TileSettingOutPoint[] = []
+  for (const r of levelRooms(plan, levelId)) {
+    const point = tileMarkPoint(r)
+    if (point) out.push({ roomId: r.id, point })
+  }
+  return out
+}
+
+/** True when at least one room on the storey had its tile mark OMITTED
+ *  (`tileMarkPoint` returned null) — the caller uses this to add the
+ *  "marks omitted for small utility rooms" note to the shared caption
+ *  exactly once, only when it's actually true for this storey. */
+export function anyTileMarksOmitted(plan: FloorPlan, levelId?: string): boolean {
+  const rooms = levelRooms(plan, levelId)
+  const marked = tileSettingOutPoints(plan, levelId).length
+  return marked < rooms.length
 }

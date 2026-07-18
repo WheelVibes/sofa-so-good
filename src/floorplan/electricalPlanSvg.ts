@@ -164,9 +164,11 @@ export function electricalSvg(
   }
 
   // Symbols (drawn even when outside the wall bounds). Points whose circles
-  // collide (e.g. a WC's soil-pipe + water-point a few cm apart) have their
-  // LABELS fanned out with a leader line back to the true circle — see
-  // `mepLabelLayout.ts` (H-D1 declutter fix); circle positions are unchanged.
+  // collide (e.g. a WC's soil-pipe + water-point a few cm apart) have BOTH
+  // their circle centres nudged apart (with a tick + leader back to the true
+  // spot) AND their labels fanned out relative to the nudged circles — see
+  // `mepLabelLayout.ts` (H-D1 + the SG-contractor re-review's circle-overlap
+  // follow-up).
   const labelLayout = layoutMepLabels(
     points.map((p, i) => ({ id: String(i), cx: px(p.x), cy: py(p.z) })),
     SYM_R + 2,
@@ -174,7 +176,11 @@ export function electricalSvg(
   points.forEach((p, i) => {
     const placement = labelLayout.find((l) => l.id === String(i))!
     parts.push(
-      symbol(p.kind, placement.cx, placement.cy, palette, p.label, p.mountHeightMm, placement),
+      symbol(p.kind, placement.cx, placement.cy, palette, p.label, p.mountHeightMm, placement, {
+        trueCx: placement.trueCx,
+        trueCy: placement.trueCy,
+        hasCircleNudge: placement.hasCircleNudge,
+      }),
     )
   })
 
@@ -186,11 +192,16 @@ export function electricalSvg(
   return parts.join('\n')
 }
 
-/** A single electrical symbol glyph centred at (cx,cy). When `labelPlacement`
- *  carries a nudged position (`hasLeader`, from `layoutMepLabels` decluttering
- *  a colliding cluster — H-D1), the side label is drawn there instead of the
- *  default `(cx + SYM_R + 2, cy)`, with a short leader line back to the true
- *  circle centre. */
+/** A single electrical symbol glyph centred at (cx,cy) — the circle's
+ *  RENDERED position, already nudged off `truePos` when it collided with
+ *  another circle in its cluster (`layoutMepLabels`'s circle-nudge pass, SG-
+ *  contractor re-review follow-up to H-D1). When `truePos` is given, a small
+ *  × tick is drawn at the true position + a thin solid leader from it to the
+ *  rendered circle, so the actual location stays readable (drafting
+ *  convention: symbol displaced for clarity, tick marks the real spot). When
+ *  `labelPlacement` carries a nudged label position (`hasLeader`), the side
+ *  label is drawn there instead of the default `(cx + SYM_R + 2, cy)`, with a
+ *  short dashed leader back to the (possibly nudged) circle centre. */
 function symbol(
   kind: ElectricalKind,
   cx: number,
@@ -199,8 +210,21 @@ function symbol(
   label: string | undefined,
   mountHeightMm?: number,
   labelPlacement?: { labelX: number; labelY: number; hasLeader: boolean },
+  truePos?: { trueCx: number; trueCy: number; hasCircleNudge: boolean },
 ): string {
   const out: string[] = [`<g class="elec-symbol" data-kind="${esc(kind)}">`]
+  if (truePos?.hasCircleNudge) {
+    const { trueCx, trueCy } = truePos
+    const tick = SYM_R * 0.3
+    out.push(
+      `<line x1="${n(trueCx)}" y1="${n(trueCy)}" x2="${n(cx)}" y2="${n(cy)}" ` +
+        `stroke="${esc(palette.symbol)}" stroke-width="0.75" />`,
+      `<line x1="${n(trueCx - tick)}" y1="${n(trueCy - tick)}" x2="${n(trueCx + tick)}" y2="${n(trueCy + tick)}" ` +
+        `stroke="${esc(palette.symbol)}" stroke-width="1" />`,
+      `<line x1="${n(trueCx - tick)}" y1="${n(trueCy + tick)}" x2="${n(trueCx + tick)}" y2="${n(trueCy - tick)}" ` +
+        `stroke="${esc(palette.symbol)}" stroke-width="1" />`,
+    )
+  }
   out.push(
     `<circle cx="${n(cx)}" cy="${n(cy)}" r="${SYM_R}" fill="none" ` +
       `stroke="${esc(palette.symbol)}" stroke-width="1.5" />`,
