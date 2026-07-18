@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.63 — RM1: user-settable room categories (foundation)
+
+`PlanRoom.category` (13 values: living/dining/bedroom/masterBedroom/kitchen/
+bath/powder/study/serviceYard/storeroom/balcony/foyer/other) with a "Room
+type" Select in the room inspector ("Auto — <inferred>" default) — replaces
+pure name-inference, so a room named anything ("Ella's room") can still get
+the right starter chips, catalog landing, furnish kit, and arranger
+behaviour. One resolver (`roomCategory.ts`: explicit wins → extended name
+regexes → 'other') with downmaps keeping every legacy consumer byte-identical
+when unset; CatalogDrawer/EmptyRoomHint/furnishPlan/autoArrange migrated;
+all 155 HDB+condo template rooms seeded. Regexes deliberately NOT delegated
+to suggestions.ts (a coarser classifier can't recover distinctions it
+collapsed — documented). 296 targeted tests + 20-step scenario. Also checks
+in the RM1-4 design doc (docs/research/2026-07-19-sg-presets-room-
+categories-plan.md).
+
 ## v0.22.2.62 — Handover polish: Section A-A labels, datum stagger, elevation hardening
 
 RCP tray success path confirmed already-covered (Bedroom 2 is rectangular;

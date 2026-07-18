@@ -1,6 +1,6 @@
-import { roomKindFromName } from '../analysis/suggestions'
 import { placementWalls } from '../collision/placementWalls'
 import { useFeature } from '../features/useFeature'
+import { roomCategory, toRoomKind } from '../floorplan/roomCategory'
 import { pointInRoom } from '../floorplan/types'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import { defaultItemProps } from '../furniture/placement/defaultItemProps'
@@ -49,7 +49,9 @@ export function EmptyRoomHint() {
 
   // Starter anchor chips for this room kind (built-in defs only). Empty when the
   // flag is off, or for a kind with no starter set (service/utility/other).
-  const anchorDefs = (startersEnabled ? starterAnchorsForRoomKind(roomKindFromName(room.name)) : [])
+  const anchorDefs = (
+    startersEnabled ? starterAnchorsForRoomKind(toRoomKind(roomCategory(room))) : []
+  )
     .map((id) => BUILTIN_CATALOG[id])
     .filter((def): def is NonNullable<typeof def> => Boolean(def))
 

@@ -107,9 +107,14 @@ furniture inspector — a **Name** field on top, then a grid of quick actions:
   beam-and-column wall behind what looks like a plain partition on plan.
 - **Doors / windows** — *Flip hinge* and *Flip swing* (doors), *Duplicate*,
   *Lock* and *Delete*, plus the offset / width / sill / head fields. A **Style**
-  picker sets a **door** style (**Panelled**, **Flush** or **Glazed**) or a
-  **window** style (**Plain glass**, **Safety grille** or **Louvre**), and a colour
-  picker sets the door's **Leaf colour** or the window's **Glass tint**.
+  picker sets a **door** style (**Panelled**, **Flush**, **Glazed** or
+  **Bifold** — the standard toilet/utility door, folding into two half-width
+  leaves) or a **window** style (**Plain glass**, **Safety grille**,
+  **Invisible grille** — hair-thin near-invisible cables instead of visible
+  bars — or **Louvre**); a colour picker sets the door's **Leaf colour** or the
+  window's **Glass tint**; and a door also gets a **Material** picker
+  (**Painted**, **Timber / wood grain** or **Vinyl / PVC laminate** — Bifold
+  defaults to vinyl, the standard finish for an SG toilet/utility door).
 - **Lock** — a locked wall or opening can still be selected but won't move,
   reshape or delete by accident (its drag handles disappear) — unlock it to edit
   again.
@@ -375,6 +380,17 @@ or finer round‑off.
 Floor and wall **finishes** are set in the **per‑room (3D) editor**, not here — the
 floor‑plan editor is for the shell (walls, rooms, openings) and layout, so the room
 inspector keeps you focused on shape and naming.
+
+Right under **Name**, a **Room type** dropdown lets you tell the app what a room
+actually is — useful once you've renamed it to something personal (e.g. "Ella's
+room") that the app can no longer guess from the name alone. The first option is
+always **"Auto — ‹guess›"**, showing what the app would infer from the current
+name; pick it again any time to clear your override and go back to automatic
+guessing. Below it are the 13 room types: Living room, Dining room, Bedroom,
+Master bedroom, Kitchen, Bathroom, Powder room / WC, Study, Service yard,
+Storeroom, Balcony, Foyer / entrance, and Other. Your pick drives the "fits this
+room" catalog defaults and starter suggestions the same way the name would have
+— it's just more reliable once you've renamed the room.
 
 You can **drag a room's name** on the plan to nudge it clear of furniture or a tight
 room — it prints in the new spot on the Report and Drawing set too. The inspector's

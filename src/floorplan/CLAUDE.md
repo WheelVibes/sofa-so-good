@@ -48,9 +48,17 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   it reads from below and stays culled from above. Applies to the **flat** ceiling only; a designed
   (tray/coffered/dropped/sloped) treatment keeps its plain planes. Same additive schema shape.
 - **Door/window styles (`openingStyles`):** `PlanOpening.style` selects a door type
-  (`panel`/`flush`/`glazed`) or window type (`plain`/`grille`/`louvre`), rendered as pure procedural
-  geometry by `PlanDoorLeaf` (panel/glaze branches) and `PlanShell`'s `FadeWindow` (grille/louvre bars);
-  same additive schema shape as `color`.
+  (`panel`/`flush`/`glazed`/`bifold`) or window type (`plain`/`grille`/`invisible-grille`/`louvre`),
+  rendered as pure procedural geometry by `PlanDoorLeaf` (panel/glaze/bifold branches — bifold is two
+  half-width leaves that fold at a mid-hinge, a simple visual not true accordion kinematics; the 2D
+  swing arc keeps the standard full-width envelope for it) and `PlanShell`'s `FadeWindow`
+  (grille/invisible-grille/louvre bars — invisible-grille is hair-thin near-transparent cables vs.
+  grille's chunky visible bars; the vertical-bar/louvre-slat layout maths lives in
+  `windowGrilleLayout.ts`, pure + unit-tested); same additive schema shape as `color`. A door ALSO
+  carries `PlanOpening.material` (`painted`/`wood`/`vinyl`, `doorMaterial.ts:
+  resolveDoorLeafMaterialKind` — defaults to `vinyl` for `bifold`, `painted` otherwise) selecting its
+  leaf's real finish via `materials/furnitureMaterials.ts` (`getPaintedMaterial`/`getWoodMaterial`/
+  `getVinylMaterial`); windows ignore it. Same additive schema shape as `style`.
 - **Wall structural classification (TODO G7, `wallStructure` pro flag):**
   `PlanWall.structure?: 'load-bearing'|'rc-partition'|'brick-partition'|'drywall'|'unknown'`
   (absent = `'unknown'`) is **user-declared, never verified** — the app cannot tell a
@@ -236,3 +244,18 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   by a concurrent change when this was extracted and was deliberately left untouched; `TASKS.md`
   tracks migrating it to import this shared export on next touch rather than maintaining two
   copies of the same grouping key.
+- **Room categories (RM1, `PlanRoom.category?`, additive/optional — no version bump):** the
+  persisted, USER-declared room type (13 values — see `types.ts`'s `RoomCategory`/
+  `ROOM_CATEGORIES`). `roomCategory.ts` is the ONE resolver — `roomCategory(room)` (explicit
+  `category` wins, else `roomCategoryFromName` infers from the name, else `'other'`) plus
+  `toRoomKind`/`toArrangeKind` downmaps to the pre-existing coarser classifiers
+  (`analysis/suggestions.ts` `RoomKind`, `layout/autoArrange.ts`'s internal arranger kind) so
+  every existing name-inference consumer keeps working unchanged when a room has no explicit
+  category. This module owns its own regex set (documented in its module doc) rather than
+  delegating to `roomKindFromName` — `RoomCategory` is a strict refinement of the coarser
+  buckets (`bath`→`bath`/`powder`, `bedroom`→`bedroom`/`masterBedroom`, the catch-all
+  `balcony` bucket→`serviceYard`/`storeroom`/`foyer`/`balcony`) those regexes can't recover
+  once already collapsed. Edited via `RoomInspector`'s "Room type" `Select` (undoable,
+  `updateRoom`). `templates/shared.ts`'s `room()` builder takes an optional trailing `category`
+  param — seeded across the HDB + condo starter templates. See `docs/ARCHITECTURE.md` for the
+  full list of RM1-migrated consumers.

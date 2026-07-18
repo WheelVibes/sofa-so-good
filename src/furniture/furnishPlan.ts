@@ -14,9 +14,10 @@
  */
 import { findItemOverlaps } from '../collision/placement'
 import { GROUND_LEVEL_ID, planLevels } from '../floorplan/levels'
+import { roomCategory } from '../floorplan/roomCategory'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
 import { planRoomArea } from '../floorplan/types'
-import { arrangeAllRoomsForPlan, roomKindFromName } from '../layout/autoArrange'
+import { arrangeAllRoomsForPlan } from '../layout/autoArrange'
 import { mergeGeneratedCatalog } from './generatedCatalog'
 import { applyDecorStylingForPlan } from './layout/decorStyling'
 import type { LayoutPreset } from './layoutPresets'
@@ -114,27 +115,43 @@ function isMasterName(name: string): boolean {
 }
 
 /** Choose the kit list for a room, or null to leave it unfurnished (utility /
- *  balcony / shelter / store / yard rooms stay empty — that's realistic). */
+ *  balcony / shelter / store / yard rooms stay empty — that's realistic).
+ *  Resolved via `roomCategory(room)` (RM1) — the explicit, user-set
+ *  `category` wins over name inference, so a renamed room ("Ella's room")
+ *  with a set category still gets the right kit. `serviceYard`/`storeroom`/
+ *  `foyer`/`other` have no kit yet (their dedicated kits are RM2 — out of
+ *  scope here), matching the old name-classifier's behaviour of leaving
+ *  those rooms unfurnished. */
 function kitForRoom(room: PlanRoom): KitPiece[] | null {
   const name = room.name.toLowerCase()
-  // Specials the name-kind classifier misses or over-furnishes — check first.
-  if (/balcon|patio/.test(name)) return KITS.balcony
-  if (/powder|\bwc\b/.test(name)) return KITS.powder
-  if (/stud(y|io\b)|home\s?office|\boffice\b/.test(name)) return KITS.study
-  const kind = roomKindFromName(room.name)
-  if (kind === 'kitchen') return KITS.kitchen
-  if (kind === 'bath') return KITS.bath
-  if (kind === 'bedroom') {
-    return isMasterName(room.name) || planRoomArea(room) >= 11 ? KITS.bedroomMaster : KITS.bedroom
+  const category = roomCategory(room)
+  switch (category) {
+    case 'balcony':
+      return KITS.balcony
+    case 'powder':
+      return KITS.powder
+    case 'study':
+      return KITS.study
+    case 'kitchen':
+      return KITS.kitchen
+    case 'bath':
+      return KITS.bath
+    case 'masterBedroom':
+      return KITS.bedroomMaster
+    case 'bedroom':
+      return isMasterName(room.name) || planRoomArea(room) >= 11 ? KITS.bedroomMaster : KITS.bedroom
+    case 'dining':
+      return KITS.diningRoom
+    case 'living': {
+      const isDining = /dining|dine/.test(name)
+      const isLounge = /living|lounge|family|great/.test(name)
+      // Standalone dining → dining set only; combined living/dining → both; else living.
+      if (isDining && !isLounge) return KITS.diningRoom
+      return isDining ? [...KITS.living, ...KITS.dining] : KITS.living
+    }
+    default:
+      return null
   }
-  if (kind === 'living') {
-    const isDining = /dining|dine/.test(name)
-    const isLounge = /living|lounge|family|great/.test(name)
-    // Standalone dining → dining set only; combined living/dining → both; else living.
-    if (isDining && !isLounge) return KITS.diningRoom
-    return isDining ? [...KITS.living, ...KITS.dining] : KITS.living
-  }
-  return null
 }
 
 /** Expand a kit + the preset's cosmetic style into seeded items at the room

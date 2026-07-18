@@ -121,15 +121,55 @@ export interface PlanOpening {
    *  (`elementColors`). */
   color?: string
   /** Optional style/type (`openingStyles`). Doors: `panel` (default, recessed
-   *  panels) / `flush` (plain slab) / `glazed` (upper vision panel). Windows:
-   *  `plain` (default glass) / `grille` (vertical safety bars) / `louvre`
-   *  (horizontal slats). Absent = the default for the kind. */
+   *  panels) / `flush` (plain slab) / `glazed` (upper vision panel) / `bifold`
+   *  (two half-width leaves that fold at a centre hinge — the standard SG
+   *  toilet/utility door). Windows: `plain` (default glass) / `grille`
+   *  (vertical safety bars) / `louvre` (horizontal slats) / `invisible-grille`
+   *  (hair-thin steel cables in place of visible bars — the modern
+   *  near-invisible safety-grille convention). Absent = the default for the
+   *  kind. */
   style?: string
+  /** Doors only: leaf surface finish (`openingStyles`) — `painted` (default for
+   *  `panel`/`flush`/`glazed`, flat colour via `color`), `wood` (procedural
+   *  wood grain tinted by `color`), or `vinyl` (smooth PVC laminate — the
+   *  standard SG toilet/utility door finish; the default for `style: 'bifold'`
+   *  when unset). Absent on a window has no effect. */
+  material?: string
 }
+
+/** Explicit, user-settable room category (RM1 — SG-presets room categories).
+ *  Distinct from `analysis/suggestions.ts`'s `RoomKind` (a coarser, inferred-
+ *  only classifier consumed by suggestions/handover/electrical reports):
+ *  `RoomCategory` is the persisted, USER-declared source of truth a room's
+ *  `category` field carries; `roomCategory.ts` downmaps it to `RoomKind` (and
+ *  to the auto-arrange kind) for every consumer that still speaks the
+ *  coarser vocabulary. Additive — a room with no `category` falls back to
+ *  name-based inference exactly as before. */
+export const ROOM_CATEGORIES = [
+  'living',
+  'dining',
+  'bedroom',
+  'masterBedroom',
+  'kitchen',
+  'bath',
+  'powder',
+  'study',
+  'serviceYard',
+  'storeroom',
+  'balcony',
+  'foyer',
+  'other',
+] as const
+
+export type RoomCategory = (typeof ROOM_CATEGORIES)[number]
 
 export interface PlanRoom {
   id: string
   name: string
+  /** Explicit user-set room category (RM1). Absent → inferred from `name`
+   *  via `roomCategory.ts`'s `roomCategoryFromName`. Set/cleared from the
+   *  floor-plan editor's `RoomInspector` "Room type" control. */
+  category?: RoomCategory
   /** NW corner of the room's interior rectangle. */
   origin: PlanVec2
   width: number

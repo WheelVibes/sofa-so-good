@@ -947,6 +947,36 @@ describe('schema', () => {
     }
   })
 
+  it('round-trips a per-room explicit category (RM1)', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        ...useStore.getState().floorPlan,
+        id: 'custom-category',
+        rooms: [
+          {
+            id: 'r1',
+            name: "Ella's room",
+            origin: [0, 0],
+            width: 3,
+            depth: 3,
+            category: 'bedroom',
+          },
+          { id: 'r2', name: 'Kitchen', origin: [3, 0], width: 2, depth: 2 },
+        ],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const patch = applySerialized(round.data, new Set())
+      expect(patch.floorPlan?.rooms.find((r) => r.id === 'r1')?.category).toBe('bedroom')
+      // Absent category survives as absent (falls back to name inference).
+      expect(patch.floorPlan?.rooms.find((r) => r.id === 'r2')?.category).toBeUndefined()
+    }
+  })
+
   it('round-trips a custom plan’s per-room finishes (keyed by custom room ids)', () => {
     useStore.getState().__resetForTest()
     // A custom plan whose room id is NOT in the fixed ROOMS table.

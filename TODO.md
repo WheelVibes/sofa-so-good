@@ -4,6 +4,27 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## Active — SG-authentic presets, defaults & room categories (user request 2026-07-19)
+> User directive: (1) default layouts + presets must truly reflect modern SG homes;
+> (2) placement must be sound — orientation, grouping, never obstructing doors/windows/
+> fittings; (3) room-appropriate furniture types, styles, colours, customizations per preset
+> theme; (4) rooms get explicit CATEGORIES (living/dining, bedroom, toilet, kitchen, …),
+> USER-SETTABLE per room in the floor-plan editor, consumed by presets for furniture +
+> placement suggestions. Plan: `docs/research/2026-07-19-sg-presets-room-categories-plan.md`
+> — implement in rounds: RM1 room-category model + editor UI; RM2 preset refresh (SG themes,
+> per-room sets); RM3 placement soundness hardening; RM4 default-layout refresh.
+- [x] **RM1 — room categories (foundation).** `PlanRoom.category?`/`RoomCategory` (13 values) +
+  `floorplan/roomCategory.ts` resolver (`roomCategory`/`roomCategoryFromName`/`toRoomKind`/
+  `toArrangeKind`) + `RoomInspector` "Room type" Select + migrated consumers (CatalogDrawer
+  room-aware landing, EmptyRoomHint starters, `furnishPlan.kitForRoom`, `autoArrange`
+  room-kind resolution) + seeded HDB/condo templates. See `docs/ARCHITECTURE.md`.
+- [ ] **RM2 — preset refresh** (SG 2025-26 theme gallery incl. Modern Luxe/Quiet Luxury +
+  Peranakan Accent, per-category kits incl. serviceYard/foyer/storeroom/masterBedroom,
+  `LayoutPreset.categoryStyle`/`kits`/`paletteId`).
+- [ ] **RM3 — placement soundness** (window-sill keep-out, bed headboard/foot-to-door rules,
+  armchair grouping, dining↔kitchen adjacency).
+- [ ] **RM4 — default layout refresh** (modern SG 4-room BTO move-in default).
+
 ## Active — SG catalog expansion (user request 2026-07-19; research-ranked)
 > Research verdict: most SG staples already covered (shoe cabinet, ceiling fan, vinyl floor,
 > terrazzo/checker, fluted panels, rattan, storage beds, WFH desks, bar pieces — verified, don't

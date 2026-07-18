@@ -1,10 +1,10 @@
 import { Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { essentialDefIdsForPetTypes } from '../../analysis/petCompliance'
-import { roomKindFromName } from '../../analysis/suggestions'
 import { hasBackend } from '../../features/api/client'
 import { isAdminUser } from '../../features/auth/types'
 import { useFeature } from '../../features/useFeature'
+import { roomCategory, toRoomKind } from '../../floorplan/roomCategory'
 import type { FurnitureDef } from '../../furniture/types'
 import { FURNITURE_CATEGORIES } from '../../furniture/types'
 import { roomDisplayName } from '../../state/rooms'
@@ -322,7 +322,12 @@ export function CatalogDrawer() {
     if (key === roomEntryKeyRef.current) return
     roomEntryKeyRef.current = key
     if (!key) return
-    const kind = roomKindFromName(roomDisplayName(key, floorPlan))
+    // Explicit `category` (RM1) wins over name inference — a renamed room
+    // ("Ella's room") with a set category still lands on the right category.
+    const planRoom = floorPlan.rooms.find((r) => r.id === key)
+    const kind = toRoomKind(
+      roomCategory({ name: roomDisplayName(key, floorPlan), category: planRoom?.category }),
+    )
     if (relevantCategoriesForRoomKind(kind).length === 0) return
     setActive(defaultCategoryForRoomKind(kind, unified.counts, firstBrowsableCategory))
     setPage(0)

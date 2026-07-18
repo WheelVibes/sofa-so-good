@@ -1,8 +1,10 @@
 import { useFeature } from '../../../../features/useFeature'
+import { ROOM_CATEGORY_LABELS, roomCategoryFromName } from '../../../../floorplan/roomCategory'
 import type { PlanRoom } from '../../../../floorplan/types'
-import { planRoomArea } from '../../../../floorplan/types'
+import { planRoomArea, ROOM_CATEGORIES } from '../../../../floorplan/types'
 import { useStore } from '../../../../state/store'
 import { formatArea, formatLength } from '../../../../utils/measurement'
+import { Select } from '../../../controls/Select'
 import { Icon } from '../../../toolbar/icons'
 import { ActBtn, CeilingControls, DeleteBtn, Num } from './shared'
 
@@ -28,6 +30,27 @@ export function RoomInspector({ room: r, levelId }: { room: PlanRoom; levelId?: 
           Drag the name on the plan to reposition it.
         </span>
       </label>
+      <div className="row" style={{ padding: 'var(--s-2) 0', alignItems: 'center' }}>
+        <span className="label">Room type</span>
+        <Select
+          className="input"
+          style={{ marginLeft: 'auto', maxWidth: '60%' }}
+          value={r.category ?? '__auto__'}
+          onChange={(v) =>
+            a.updateRoom(r.id, {
+              category: v === '__auto__' ? undefined : (v as PlanRoom['category']),
+            })
+          }
+          ariaLabel="Room type"
+          options={[
+            {
+              value: '__auto__',
+              label: `Auto — ${ROOM_CATEGORY_LABELS[roomCategoryFromName(r.name)]}`,
+            },
+            ...ROOM_CATEGORIES.map((c) => ({ value: c, label: ROOM_CATEGORY_LABELS[c] })),
+          ]}
+        />
+      </div>
       {r.labelOffset ? (
         <button
           type="button"

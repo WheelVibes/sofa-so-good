@@ -1,6 +1,6 @@
 /** Shared geometry + builder helpers for the starter floor-plan templates
  *  (`./hdb`, `./condo`). Pure functions over the plan model. */
-import type { FloorPlan, HousingType, PlanOpening, PlanWall } from '../types'
+import type { FloorPlan, HousingType, PlanOpening, PlanWall, RoomCategory } from '../types'
 
 export const T = 0.1 // inset of walls from the nominal footprint edge
 
@@ -38,8 +38,9 @@ export function room(
   w: number,
   d: number,
   floor: string,
+  category?: RoomCategory,
 ): FloorPlan['rooms'][number] {
-  return { id, name, origin: [x, z], width: w, depth: d, floor }
+  return { id, name, origin: [x, z], width: w, depth: d, floor, category }
 }
 
 const PARAPET = 1.0 // balcony parapet height (m)

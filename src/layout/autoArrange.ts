@@ -4,6 +4,7 @@ import { broadphaseNeighbours, canPlace } from '../collision/placement'
 import type { CollisionWall } from '../collision/walls'
 import { GROUND_LEVEL_ID, levelAsPlan, levelOfRoom, planLevels } from '../floorplan/levels'
 import { planCollisionWalls } from '../floorplan/planGeometry'
+import { toArrangeKind } from '../floorplan/roomCategory'
 import { type FloorPlan, type PlanRoom, pointInRoom, wallLength } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import {
@@ -942,8 +943,12 @@ function roomKindFromItems(
   items: FurnitureItem[],
   catalog: Record<string, FurnitureDef>,
   name?: string,
+  category?: PlanRoom['category'],
 ): RoomKind {
-  // An explicit room name wins over content inference (the user labelled it).
+  // Explicit room category (RM1) wins over name, which wins over content
+  // inference — a renamed room ("Ella's room") with an explicit category
+  // still arranges with the right strategy.
+  if (category) return toArrangeKind(category)
   const byName = roomKindFromName(name)
   if (byName) return byName
   const roles = new Set(items.map((i) => roleOf(i.defId, catalog)))
@@ -1014,7 +1019,7 @@ function arrangeOnePlanRoom(
     pointInPlanRoom(room, i.position[0], i.position[1])
   if (!items.some(inRoom)) return items
   const rect = planRoomRect(room)
-  const kind = roomKindFromItems(items.filter(inRoom), catalog, room.name)
+  const kind = roomKindFromItems(items.filter(inRoom), catalog, room.name, room.category)
   return arrangeCore({
     rect,
     keepOut,

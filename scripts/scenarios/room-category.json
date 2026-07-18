@@ -1,0 +1,26 @@
+{
+  "name": "room-category",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); localStorage.setItem('hdb_onboarded','1')" },
+    { "name": "pro-mode", "eval": "window.__store.getState().setUiMode('pro')" },
+    { "name": "open-plan-editor", "eval": "window.__store.getState().setFloorPlanEditing(true)" },
+    { "name": "plan-screen-up", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "pick-a-room", "eval": "(() => { const s = window.__store.getState(); const r = s.floorPlan.rooms.find(rm => rm.name.toLowerCase().includes('bed')) || s.floorPlan.rooms[0]; window.__roomId = r.id; window.__roomName = r.name; s.setPlanSelection({ type: 'room', id: r.id }); return r.id })()" },
+    { "name": "expand-panel", "eval": "(() => { const b = document.querySelector('button[aria-label=\"Expand properties\"]'); if (b) b.click(); return !!b })()" },
+    { "name": "inspector-up", "waitFor": { "text": "Room type" }, "timeout": 10000 },
+    { "name": "shot-inspector-before", "screenshot": "room-category-inspector-before" },
+    { "name": "open-room-type-select", "eval": "(() => { const t = document.querySelector('[aria-label=\"Room type\"]'); if (!t) throw new Error('Room type select not found'); t.click(); return true })()" },
+    { "name": "options-open", "waitFor": { "css": "[role=\"listbox\"]" }, "timeout": 5000 },
+    { "name": "pick-master-bedroom", "eval": "(() => { const opt = [...document.querySelectorAll('[role=\"option\"]')].find(o => o.textContent.trim() === 'Master bedroom'); if (!opt) throw new Error('Master bedroom option not found'); opt.click(); return true })()" },
+    { "name": "assert-category-set", "eval": "(() => { const s = window.__store.getState(); const r = s.floorPlan.rooms.find(rm => rm.id === window.__roomId); if (r.category !== 'masterBedroom') throw new Error('expected masterBedroom, got ' + r.category); return r.category })()" },
+    { "name": "shot-inspector-after", "screenshot": "room-category-inspector-after" },
+    { "name": "rename-to-gibberish", "eval": "window.__store.getState().updateRoom(window.__roomId, { name: \"Ella's room\" })" },
+    { "name": "assert-category-survives-rename", "eval": "(() => { const s = window.__store.getState(); const r = s.floorPlan.rooms.find(rm => rm.id === window.__roomId); if (r.category !== 'masterBedroom') throw new Error('category lost on rename: ' + r.category); if (r.name !== \"Ella's room\") throw new Error('name not renamed'); return { name: r.name, category: r.category } })()" },
+    { "name": "reset-to-auto", "eval": "(() => { const t = document.querySelector('[aria-label=\"Room type\"]'); t.click(); return true })()" },
+    { "name": "options-open-2", "waitFor": { "css": "[role=\"listbox\"]" }, "timeout": 5000 },
+    { "name": "pick-auto", "eval": "(() => { const opt = [...document.querySelectorAll('[role=\"option\"]')].find(o => o.textContent.trim().startsWith('Auto')); if (!opt) throw new Error('Auto option not found'); opt.click(); return true })()" },
+    { "name": "assert-category-cleared", "eval": "(() => { const s = window.__store.getState(); const r = s.floorPlan.rooms.find(rm => rm.id === window.__roomId); if (r.category !== undefined) throw new Error('expected category cleared, got ' + r.category); return true })()" }
+  ]
+}

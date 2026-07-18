@@ -295,10 +295,32 @@ const PlanOpeningZ = z.object({
   color: z.string().optional(),
   // Optional door/window style/type (openingStyles) — additive, back-compat.
   style: z.string().optional(),
+  // Optional door-leaf material/finish (`painted`/`wood`/`vinyl`) — additive,
+  // back-compat; ignored for windows.
+  material: z.string().optional(),
 })
 const PlanRoomZ = z.object({
   id: z.string(),
   name: z.string(),
+  // Explicit user-set room category (RM1) — optional + additive; absent falls
+  // back to name-based inference (`floorplan/roomCategory.ts`).
+  category: z
+    .enum([
+      'living',
+      'dining',
+      'bedroom',
+      'masterBedroom',
+      'kitchen',
+      'bath',
+      'powder',
+      'study',
+      'serviceYard',
+      'storeroom',
+      'balcony',
+      'foyer',
+      'other',
+    ])
+    .optional(),
   origin: Vec2Z,
   width: z.number(),
   depth: z.number(),

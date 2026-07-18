@@ -341,6 +341,28 @@ same change that reshapes a system.
   unmapped/whole-flat view leaves today's persisted default untouched. This only changes the
   DEFAULT landing tab — the CategoryTabs order, search, filters, and favourites/recent are
   unchanged. Flag off → today's behaviour exactly.
+  **Room categories (RM1, 2026-07-19 SG-presets plan):** `PlanRoom.category?: RoomCategory`
+  (`floorplan/types.ts` — 13 values: living/dining/bedroom/masterBedroom/kitchen/bath/powder/
+  study/serviceYard/storeroom/balcony/foyer/other; `PlanRoomZ` additive enum) is the persisted,
+  USER-declared room type, edited via the `RoomInspector`'s "Room type" `Select` right under Name
+  (first option "Auto — ‹inferred›" clears it back to undefined; `updateRoom` persists, undoable).
+  `floorplan/roomCategory.ts` is the ONE resolver: `roomCategory(room)` (explicit `category` wins,
+  else `roomCategoryFromName` infers from the name, else `'other'` — total, never null) +
+  `toRoomKind`/`toArrangeKind` downmaps to the two coarser PRE-EXISTING classifiers
+  (`analysis/suggestions.ts`'s `RoomKind` and `autoArrange.ts`'s internal 5-kind arranger union)
+  so every existing coarse consumer keeps working unchanged when a room has no explicit category.
+  This module owns its OWN regex set rather than delegating to `roomKindFromName` — `RoomCategory`
+  is a strict refinement (splits `bath`→`bath`/`powder`, `bedroom`→`bedroom`/`masterBedroom`, the
+  catch-all `balcony` bucket→`serviceYard`/`storeroom`/`foyer`/`balcony`) that the coarser
+  classifiers' regexes can't recover once collapsed. RM1 migrated: `CatalogDrawer`'s room-aware
+  landing (explicit category resolved from `floorPlan.rooms` before falling back to
+  `roomDisplayName`), `EmptyRoomHint`'s starter chips, `furnishPlan.ts`'s `kitForRoom` (switches on
+  `roomCategory(room)` — `serviceYard`/`storeroom`/`foyer`/`other` still get no kit; those kits are
+  RM2), and `autoArrange.ts`'s `roomKindFromItems` (explicit category → name → item-inference,
+  in that priority order). `templates/shared.ts`'s `room()` builder takes an optional trailing
+  `category` param, seeded across every HDB + condo starter template. Other consumers
+  (suggestions, handover checklist, plan statistics, electrical schedule) keep their plain
+  name-inference fallback for now — out of RM1 scope, unaffected either way.
   **Pet fittings** (Pet program P1, `petFittings` flag, tier: **simple**, default on): the `pets`
   `FurnitureCategory` (16th value) collects pet beds, safety fittings and pet furniture. The flag
   gates the tab via `useUnifiedCatalog(includeRemote, includeShared, includePets)` — off zeroes the
