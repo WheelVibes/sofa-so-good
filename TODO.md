@@ -107,6 +107,26 @@ Ranked by value÷effort; verified absent against registry + source this pass.
 - *(Flagged, needs product decision: `budget`/`clearanceChecks`/`textBrief` are simple-TIER but
   default-false "not production-ready" — ship or demote eventually.)*
 
+## Open — UX research round 3 queue (2026-07-18)
+Ranked by value÷effort; each verified absent against registry + source. Near-misses confirmed
+already-shipped/ruled-out this round (don't re-propose): align/distribute, dollhouse view,
+wardrobe configurator (generic parametric), 2D+3D split view (contradicts plan-stays-structural
+ruling), AI photo→plan (= aiWalls), shelf-lift gesture (= surfaceDrop).
+- [ ] **Native share sheet for the hero card** (S, simple) — `navigator.canShare/share({files})`
+  on the Post/Square/Story export so mobile shares straight to WhatsApp/IG/Telegram; download
+  stays the fallback. Share-sheet itself not headless-verifiable — unit-test detection/fallback.
+- [ ] **Lighting mood presets** (M, simple) — one-tap Reading/Movie/Entertaining/Romantic row
+  adjusting placed fixtures' intensity + colour temperature (Coohom precedent); distinct from
+  sun-only sunStudy. Preset table over `itemAsLight`-tagged fixtures in `src/lighting/`.
+- [ ] **Real-photo paint visualizer** (M, simple) — upload a wall photo, drag a polygon mask,
+  composite a finish swatch via canvas blend (no AI seg for v1; Behr/Dulux precedent). Pairs the
+  customBackdrop upload path with swatch data.
+- [ ] **Parametric staircase generator** (M/L, pro) — real adjustable stairs (width/rise-run/
+  landing/handrail; Homestyler v6 precedent) placed as furniture with a levelId span, feeding the
+  existing stairConnectivity advisory.
+- [ ] **Parametric roof + dormers** (L, pro) — roof slab from the outer wall polygon + pitch,
+  dormer cutouts; only offered on Maisonette/terrace templates (Homestyler v6 / Live Home 3D).
+
 ## Open — UI/UX polish follow-ups
 - [ ] **P37 List virtualization — DEFERRED (2026-07-03 ruling).** Not justified now: the
   catalog is already paginated (`PAGE_SIZE=12`, never renders >12 cards); history/layers

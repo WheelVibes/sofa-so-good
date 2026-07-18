@@ -42,6 +42,9 @@ docs are public. Proprietary ones are studied via their live apps + help docs.
 - **FEATURE_PARITY.md** — the living parity matrix (Coohom + Sweet Home 3D deep-dives) distilling this research into a prioritised, client-side-feasible roadmap.
 - **Mattoboard** — real-time 3D **materials & furniture moodboard** ("DesignStream") tool; directly relevant to our existing moodboard-export surface — study its material-forward board UX (2026-07-04 deep-audit pass). [app](https://mattoboard.com/)
 - **Home Planner** (homeplannerapp.com) — 2D/3D web+mobile planner with a very large multi-brand **shoppable catalog** (400k+ items / 30k+ brands) + AR. Backend/licensed-asset-led — informs the tracked catalog-expansion / F11 brand-importer work, not a client-doable feature (2026-07-04 round-2 audit).
+- **Dulux Visualizer** — real-time AR camera wall-colour paint preview; the AR paint-preview benchmark (2026-07-18 round-3 pass). [app](https://play.google.com/store/apps/details?id=com.akzonobel.uk.dulux)
+- **Behr Paint Color Visualizer** — manufacturer paint-on-your-photo web tool; precedent for our real-photo finish visualizer candidate (2026-07-18 round-3 pass). [app](https://www.behr.com/consumer/colors/paint/visualizer)
+- **DecorViz** — "room photo + product photo → realistic in-room composite" AI; relevant if product-visualization AI is ever revisited (2026-07-18 round-3 pass). [app](https://decorviz.ai)
 
 ## Furniture asset-building / 3D modeling tools (Asset Studio research, 2026-07-16)
 References for turning the GLB designer into a professional furniture asset builder —

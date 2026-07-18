@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.35 — UX research round 3: 5 vetted candidates queued
+
+Competitor sweep (Coohom/Homestyler/IKEA Kreativ/Behr/Dulux + 2026 changelogs)
+yielded 5 verified-absent, precedented core-loop candidates, ranked in TODO:
+native share sheet for the hero card (S), lighting mood presets (M),
+real-photo paint visualizer (M), parametric stairs (M/L), parametric
+roof+dormers (L). Near-misses recorded so they aren't re-proposed
+(align/distribute, dollhouse, wardrobe configurator, 2D+3D split view,
+photo→plan AI, shelf-lift gesture — all shipped or ruled out). REFERENCES.md
+gains Dulux Visualizer, Behr Visualizer, DecorViz.
+
 ## v0.22.2.34 — Test hygiene: kill the suite's real-network escape + a load flake
 
 Full-suite gate caught a flake: `bulkImport`'s hopeless-GLB test (allocates a
