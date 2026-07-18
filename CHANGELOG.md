@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.23 — IXT-SUITES back-fill batch 7: 4 more ladders (~34 uncovered)
+
+Green, screenshot-verified simple rungs for `elementColors` (per-wall
+ColorPicker drives `updateWall`; swatch backgroundColor as the oracle),
+`catalogModelInfo` (pro — CC0/Poly Haven card `title` tooltip present in Pro
+only), `assetCredits` (Appearance-popover button opens the real CreditsModal),
+and `densityMode` (pro — proves the flag gates the `data-density` DOM effect,
+not just the UI). No app bugs. New playbook gotchas (simple-tier ladder needs
+a direct `setFeatureFlag` proof not a hidden→shown transition; ColorPicker
+trigger backgroundColor as popover-free proof; flag-gates-the-effect via a DOM
+attribute oracle; the dev-server-restart-vs-HMR signature). Uncovered ~38 → ~34.
+
 ## v0.22.2.22 — Fix: bulk "Tint all" silently no-op'd on parametric furniture
 
 The multi-select **Tint all** wrote `props.tint` on every item, but `tint` is

@@ -1173,6 +1173,68 @@ back to orbit (config persists). Gotchas learned here:
   ElementHandle click, used for ordinary `<input>`/`<button>` selectors) auto-scrolls into view and
   is NOT affected — only the custom `clickByText` helper (`click:{text:...}`) has this blind spot.
 
+### Gotchas from the IXT-SUITES back-fill batch 7 (elementColors / catalogModelInfo / assetCredits / densityMode)
+
+- **A British/American spelling gap in a naive "grep every scenario for the flag name" sweep can
+  wrongly mark an already-visually-covered feature as uncovered.** `element-colours-verify.json`
+  exercises the `elementColors` feature's rendering but never references the literal flag string
+  (no `setFeatureFlag('elementColors', …)` call in it), so a filename/contents scan reports it
+  "uncovered" even though the visual behaviour is tested — what's actually missing is the
+  **flag-gating rung** (hidden/shown + `setFeatureFlag` round-trip), not the feature's first
+  scenario ever. Treat "already has a scenario" and "has a gating rung" as two separate questions;
+  it's fine (and was the right call here) to add a dedicated `elementcolors-simple.json` purely for
+  the gate, even with an existing non-gate scenario on the books.
+- **A `tier:'simple'` flag's "Simple/Pro ladder" is NOT a hidden→shown transition** — CLAUDE.md's
+  rule only force-hides `pro`-tier flags in Simple; a `simple`-tier flag (`elementColors`,
+  `assetCredits`) resolves the SAME in both modes (present in both, by default). The correct
+  three-part proof for a `tier:'simple'`, `default:true` flag is: (1) present in Simple, (2) present
+  in Pro, (3) a **direct** `setFeatureFlag(id, false)` override (dev build only) actually hides it
+  and restoring it brings it back — i.e. prove the flag *controls* the UI at all, since the
+  mode-switch alone can't demonstrate that for a simple-tier feature.
+- **`WallInspector`'s "Wall colour" `ColorPicker` trigger is a plain `<button aria-label="Wall
+  colour">` whose `backgroundColor` inline style IS the applied hex** — no need to drive the
+  popover's internal swatch grid to prove a colour round-trip; `a.updateWall(id, {color:'#3366cc'})`
+  + asserting `getComputedStyle(btn).backgroundColor === 'rgb(51, 102, 204)'` is a clean, popover-free
+  proof, and the button's own `onClick` toggles the popover open/closed on repeat clicks (so open +
+  close a `ColorPicker` with two identical `.click()` evals on the same trigger, no `Escape`/outside
+  -click needed — sidesteps the Escape-clears-selection class of bug documented in the batch-6
+  gotchas, which doesn't even apply here since plan-wall selection isn't `selectedItemIds`, but the
+  pattern is safer to default to regardless).
+- **`catalogModelInfo`'s tooltip needs a catalog item whose def actually HAS `license`/`attribution`/
+  `byteSize` set, or `modelInfoText()` returns `null` and the card's `title` attribute is absent
+  regardless of the flag** — most procedural/parametric primitives (sofa, table, …) carry none of
+  these fields. `GENERATED_FURNITURE` (`furniture/generatedCatalog.ts`, merged into the real catalog
+  by `catalog.ts`) is the reliable source of CC0/CC-BY bundled GLB decor props with `license` +
+  `attribution` set — e.g. `book-set` ("Book set", CC0, Poly Haven) — searchable in the catalog
+  drawer's real search box (`input[aria-label="Search the furniture catalog"]`) to isolate a single
+  card whose `title` attribute is asserted, rather than trying to prove a tooltip on a def that never
+  renders one.
+- **`assetCredits` gates only the "Asset credits" entry-point BUTTON in `AppearancePopover` — the
+  `CreditsModal` component itself has no `useFeature('assetCredits')` check of its own.** It mounts
+  unconditionally in `App.tsx` and opens purely on `creditsOpen` (a plain store boolean), so once
+  open (however it got there) the modal renders regardless of the flag; the flag's entire effect is
+  "can the user reach `setCreditsOpen(true)` through the UI at all." Drive/assert the gate at the
+  BUTTON, and drive the open/close of the modal itself via the `setCreditsOpen` store action directly
+  (or the button click) — a `setFeatureFlag('assetCredits', false)` after the modal is already open
+  correctly does NOT close it (matches the code: no gate inside `CreditsModal`), so don't write an
+  assertion expecting the open modal to auto-close when the flag flips.
+- **`densityMode` gates the *effect*, not just a preference field — a great pattern for asserting
+  a pro-tier flag's REAL DOM consequence instead of only a button's presence.** `editorPrefs.ts`
+  writes `document.documentElement.setAttribute('data-density', flagOn ? density : 'comfortable')`
+  on every relevant change, so `document.documentElement.getAttribute('data-density')` is a clean,
+  UI-independent oracle: setting `density:'compact'` while in Simple mode (`densityMode` forced off)
+  provably leaves the DOM attribute at `'comfortable'` (the preference persists in the store, only the
+  *effect* is suppressed), and switching to Pro flips the attribute to `'compact'` immediately with no
+  further action — a stronger, more direct proof than checking whether a "Density" label merely
+  exists in the popover DOM.
+- **A concurrent agent's dev-server restart (not just an HMR module swap) can kill an in-flight
+  scenario with `Protocol error: Target closed` or a `waitFor` timeout, distinguishable from a real
+  bug by the console log's `[vite] server connection lost. Polling for restart...` line** — this is
+  a full process restart (e.g. another agent's source edit triggering a Vite full reload / crash-
+  recovery), not the ordinary HMR module-hot-swap the existing playbook guidance already covers.
+  `curl -sf <url>` returning `200` again confirms the server is back; simply re-run the exact same
+  scenario once it does — no scenario/harness change was at fault in either case observed here.
+
 ---
 
 ## Packaged targets (Docker / Electron)

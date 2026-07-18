@@ -1,0 +1,88 @@
+{
+  "name": "elementcolors-simple",
+  "description": "Simple ladder for the elementColors flag (tier:'simple' — shown in both Simple and Pro by default): select a wall in the 2D plan editor, verify the 'Wall colour' picker renders in WallInspector, drive a real colour change through the store, confirm the swatch trigger reflects it, then prove the flag directly gates the row (setFeatureFlag false hides it, true restores it).",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "verify-simple-mode", "waitFor": { "store": "state.uiMode === 'simple'" }, "timeout": 5000 },
+    { "name": "open-plan-editor", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-visible", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "wait-plan-settle", "wait": 800 },
+    {
+      "name": "select-first-wall",
+      "eval": "(function(){ const w = window.__store.getState().floorPlan.walls[0]; if (!w) throw new Error('no walls in default plan'); window.__wallId = w.id; window.__store.getState().setPlanSelection({ type: 'wall', id: w.id }); })()"
+    },
+    { "name": "wall-props-visible", "waitFor": { "css": ".plan-props" }, "timeout": 5000 },
+    { "name": "shot-01-wall-selected-simple", "screenshot": "01-wall-selected-simple" },
+    {
+      "name": "verify-wall-colour-row-present-simple",
+      "eval": "(function(){ const btn = document.querySelector('button[aria-label=\"Wall colour\"]'); if (!btn) throw new Error('Wall colour picker not found in .plan-props — elementColors row missing even though flag is tier:simple (default on)'); })()"
+    },
+    {
+      "name": "open-colour-picker",
+      "eval": "document.querySelector('button[aria-label=\"Wall colour\"]').click()"
+    },
+    { "name": "colour-panel-open", "waitFor": { "css": ".color-panel" }, "timeout": 5000 },
+    { "name": "shot-02-colour-picker-open", "screenshot": "02-colour-picker-open" },
+    {
+      "name": "close-colour-picker",
+      "eval": "document.querySelector('button[aria-label=\"Wall colour\"]').click()"
+    },
+    { "name": "wait-close-settle", "wait": 300 },
+    {
+      "name": "apply-wall-colour-via-store",
+      "eval": "window.__store.getState().updateWall(window.__wallId, { color: '#3366cc' })"
+    },
+    {
+      "name": "wait-colour-applied",
+      "waitFor": { "store": "(state.floorPlan.walls.find(w => w.id === window.__wallId)||{}).color === '#3366cc'" },
+      "timeout": 5000
+    },
+    {
+      "name": "verify-swatch-reflects-colour",
+      "eval": "(function(){ const btn = document.querySelector('button[aria-label=\"Wall colour\"]'); const bg = getComputedStyle(btn).backgroundColor; if (bg !== 'rgb(51, 102, 204)') throw new Error('Wall colour trigger did not reflect the applied colour, got: ' + bg); })()"
+    },
+    { "name": "shot-03-wall-recoloured", "screenshot": "03-wall-recoloured" },
+    {
+      "name": "verify-reset-button-present",
+      "eval": "(function(){ const btns = [...document.querySelectorAll('.plan-props button')]; const reset = btns.find(b => b.textContent.trim() === 'reset'); if (!reset) throw new Error('reset link missing after a colour override was set'); })()"
+    },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "wait-pro", "wait": 500 },
+    {
+      "name": "verify-wall-colour-row-present-pro",
+      "eval": "(function(){ const btn = document.querySelector('button[aria-label=\"Wall colour\"]'); if (!btn) throw new Error('Wall colour row missing in Pro mode'); })()"
+    },
+    { "name": "shot-04-pro-mode", "screenshot": "04-pro-mode-wall-colour" },
+    {
+      "name": "force-flag-off",
+      "eval": "window.__store.getState().setFeatureFlag('elementColors', false)"
+    },
+    { "name": "wait-flag-off", "wait": 300 },
+    {
+      "name": "verify-wall-colour-row-hidden",
+      "eval": "(function(){ const btn = document.querySelector('button[aria-label=\"Wall colour\"]'); if (btn) throw new Error('Wall colour row still present after setFeatureFlag(elementColors,false)'); })()"
+    },
+    { "name": "shot-05-flag-forced-off", "screenshot": "05-flag-forced-off" },
+    {
+      "name": "restore-flag",
+      "eval": "window.__store.getState().setFeatureFlag('elementColors', true)"
+    },
+    { "name": "wait-flag-restore", "wait": 300 },
+    {
+      "name": "verify-wall-colour-row-restored",
+      "eval": "(function(){ const btn = document.querySelector('button[aria-label=\"Wall colour\"]'); if (!btn) throw new Error('Wall colour row did not come back after restoring the flag'); })()"
+    },
+    {
+      "name": "reset-wall-colour",
+      "eval": "window.__store.getState().updateWall(window.__wallId, { color: undefined })"
+    },
+    { "name": "back-to-simple", "store": { "action": "setUiMode", "args": ["simple"] } },
+    { "name": "shot-06-done", "screenshot": "06-back-to-simple" }
+  ]
+}

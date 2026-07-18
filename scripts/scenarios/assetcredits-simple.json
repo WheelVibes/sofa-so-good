@@ -1,0 +1,88 @@
+{
+  "name": "assetcredits-simple",
+  "description": "Simple ladder for the assetCredits flag (tier:'simple', default true — universal, shown in both modes): the 'Asset credits' entry in the Appearance popover gates on this flag (CreditsModal itself has no flag check of its own). Verifies the button's presence in Simple + Pro, a real open round-trip (popover -> click -> CreditsModal shows 'Asset credits' title + fetched CREDITS.json sections), and that setFeatureFlag(false) hides only the entry point.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "verify-simple-mode", "waitFor": { "store": "state.uiMode === 'simple'" }, "timeout": 5000 },
+    { "name": "open-appearance-popover", "store": { "action": "setAppearanceOpen", "args": [true] } },
+    {
+      "name": "popover-visible",
+      "waitFor": { "text": "Theme" },
+      "timeout": 10000,
+      "failMessage": "Appearance popover did not open"
+    },
+    { "name": "shot-01-appearance-simple", "screenshot": "01-appearance-popover-simple" },
+    {
+      "name": "verify-credits-button-present-simple",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Asset credits'); if (!btn) throw new Error('Asset credits button not found in Simple mode (assetCredits is tier:simple, default true)'); })()"
+    },
+    {
+      "name": "click-asset-credits",
+      "eval": "[...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Asset credits').click()"
+    },
+    {
+      "name": "credits-modal-visible",
+      "waitFor": { "css": ".modal-overlay" },
+      "timeout": 10000,
+      "failMessage": "Credits modal did not open"
+    },
+    {
+      "name": "credits-title-visible",
+      "waitFor": { "text": "Asset credits" },
+      "timeout": 5000
+    },
+    { "name": "wait-credits-fetch", "wait": 800 },
+    { "name": "shot-02-credits-modal-open", "screenshot": "02-credits-modal-open" },
+    {
+      "name": "verify-store-flag-open",
+      "waitFor": { "store": "state.creditsOpen === true" },
+      "timeout": 3000
+    },
+    {
+      "name": "close-credits-modal",
+      "eval": "window.__store.getState().setCreditsOpen(false)"
+    },
+    { "name": "wait-close", "wait": 300 },
+    {
+      "name": "verify-modal-closed",
+      "waitFor": { "css": ".modal-overlay", "visible": false },
+      "timeout": 5000
+    },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "open-appearance-popover-pro", "store": { "action": "setAppearanceOpen", "args": [true] } },
+    { "name": "popover-visible-pro", "waitFor": { "text": "Theme" }, "timeout": 10000 },
+    {
+      "name": "verify-credits-button-present-pro",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Asset credits'); if (!btn) throw new Error('Asset credits button not found in Pro mode'); })()"
+    },
+    { "name": "shot-03-appearance-pro", "screenshot": "03-appearance-popover-pro" },
+    {
+      "name": "force-flag-off",
+      "eval": "window.__store.getState().setFeatureFlag('assetCredits', false)"
+    },
+    { "name": "wait-flag-off", "wait": 300 },
+    {
+      "name": "verify-credits-button-hidden",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Asset credits'); if (btn) throw new Error('Asset credits button still present after setFeatureFlag(assetCredits,false)'); })()"
+    },
+    { "name": "shot-04-flag-forced-off", "screenshot": "04-flag-forced-off" },
+    {
+      "name": "restore-flag",
+      "eval": "window.__store.getState().setFeatureFlag('assetCredits', true)"
+    },
+    { "name": "wait-restore", "wait": 300 },
+    {
+      "name": "verify-credits-button-restored",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Asset credits'); if (!btn) throw new Error('Asset credits button did not come back after restoring the flag'); })()"
+    },
+    { "name": "close-popover", "store": { "action": "setAppearanceOpen", "args": [false] } },
+    { "name": "back-to-simple", "store": { "action": "setUiMode", "args": ["simple"] } },
+    { "name": "shot-05-done", "screenshot": "05-back-to-simple" }
+  ]
+}
