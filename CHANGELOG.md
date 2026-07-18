@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.59 — H4+H1-F+H6: RCP sheet, on-plan D/W marks, elevation grouping
+
+The H punch list is complete. **RCP** (`rcpSheet` pro flag): per-storey
+Reflected Ceiling Plan built on the SAME pure `ceilingModel.buildCeiling`
+the 3D render uses (zone notes "FFL to false ceiling: 2450mm (Tray)" +
+dashed inset/beam-grid per treatment can never drift; fallback rooms print
+"verify on site" honestly), ceiling fixtures from the lighting plan's own
+derivation dimensioned off nearest walls with the shared MEP declutter,
+aircon points cross-referenced. **On-plan marks**: D1/W1 callouts near each
+opening on the floor-plan sheet via `assignOpeningMarks` extracted into
+openingSchedule.ts (single grouping source; dxf.ts migration debt noted in
+TASKS). **Elevation grouping**: empty walls omitted (counted on the cover),
+short low-content walls grouped 2×2, content walls keep full sheets —
+constants stated in the general notes. 255 targeted tests (2266 sweep) +
+17-step RCP scenario, screenshot-verified.
+
 ## v0.22.2.58 — H5: DXF demolition + new-works layers
 
 `planToDxf` takes the baseline plan (same source as the printed demolition

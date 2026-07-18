@@ -205,3 +205,34 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   Finishes schedule sheet is ALSO included) as a small cross per room + ONE shared
   caption in the scale-bar strip (not repeated per mark — a full sentence at every
   centroid overlapped illegibly in a compact multi-room HDB layout).
+- **Reflected ceiling plan (TODO H4, `rcpSheet` Pro flag): `rcp.ts` + `rcpSvg.ts`.** `rcp.ts`'s
+  `buildReflectedCeilingPlan(plan, fixtures, electricalPoints)` is the ONE pure core for the
+  drawing set's RCP sheet — it reuses `apartment/ceiling/ceilingModel.ts:buildCeiling` (pure, no
+  three/React — safe to import here) directly rather than re-deriving zone/treatment geometry, so
+  a printed "FFL to false ceiling: …mm" note + its inset dashed rect/beam grid can never drift from
+  what the 3D ceiling render actually builds; a room the geometry engine falls back on
+  (non-rectangular, or too shallow for the drop — `CeilingModel.fallback`) prints "treatment not
+  applied — verify room shape/height on site" instead of claiming a treatment that isn't real.
+  `CEILING_FIXTURE_TYPES` (`ceiling-light`/`ceiling-fan`/`cove-light`, matching
+  `furniture/lightEmitters.ts`'s `LIGHT_EMITTERS` registry) filters the SAME `PlanLight[]` the
+  lighting plan derives down to ceiling-mounted fixtures only; each is dimensioned off the nearest
+  wall on each axis by CENTRELINE distance (`nearestAxisWall` — deliberately not
+  `settingOut.ts`'s face-offset precision; a ceiling point only needs "roughly here off that
+  wall", the same convention the electrical/lighting plans already use). Aircon marking reuses
+  whatever electrical points the caller already has (persisted or heuristic) filtered to
+  `kind==='aircon'` — for cross-reference only, the full schedule stays on the Electrical plan.
+  `rcpSvg.ts` mirrors `electricalPlanSvg.ts`'s shape (wall context + circle/marking symbols +
+  legend, `printMmPerM` sizing) and reuses `mepLabelLayout.ts:layoutMepLabels` to declutter
+  fixture distance labels exactly like the MEP sheets (H-D1) — don't re-derive a second declutter
+  scheme. `ui/drawingSet.ts` fans this out per storey (every storey with rooms, not just ones with
+  fixtures — a flat-ceiling room's zone note is still useful on its own).
+- **On-plan D/W mark callouts (H1-F): `analysis/openingSchedule.ts:assignOpeningMarks`.** A
+  per-opening (not aggregated) variant of `buildOpeningSchedule`'s (kind, width, head−sill)
+  grouping, reusing the SAME `markKey`/`openingHeight` helpers so the two can never assign
+  different marks to the same plan. Consumed by `ui/reportPlanSvg.ts`'s FLOOR-PLAN sheet
+  (`showOpeningMarks` param, gated in `drawingSet.ts` to the `openingSchedule` `DrawingLayer` being
+  on — same "don't reference a hidden sheet" rule the G3 tile marks follow). `export/dxf.ts` keeps
+  its own pre-existing identical local copy (`assignOpeningMarks`/`openingMarkKey`) — it was owned
+  by a concurrent change when this was extracted and was deliberately left untouched; `TASKS.md`
+  tracks migrating it to import this shared export on next touch rather than maintaining two
+  copies of the same grouping key.

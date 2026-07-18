@@ -1,0 +1,53 @@
+{
+  "name": "rcp-sheet",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "tall-viewport", "viewport": { "width": 1200, "height": 1400 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    {
+      "name": "setup-ceiling-fixture-aircon",
+      "eval": "(() => { const s = window.__store.getState(); s.setRoomCeiling('bedroom2', { style: 'tray', drop: 0.15, margin: 0.3 }); s.addItem({ defId: 'ceiling-light', position: [4.5, 1.0], rotation: 0, props: {} }); s.addElectricalPoint({ x: 5.8, z: 0.4, kind: 'aircon' }); })()"
+    },
+    {
+      "name": "intercept-window-open",
+      "eval": "window.open = () => ({ document: { write(h) { window.__capturedHtml = h }, close() {} }, close() {}, focus() {}, print() {} })"
+    },
+    { "name": "open-file-menu", "click": "button[aria-label=\"File\"]" },
+    { "name": "file-menu-open", "waitFor": { "css": ".menu-item" }, "timeout": 8000 },
+    { "name": "click-drawing-set", "click": { "text": "Drawing set" } },
+    {
+      "name": "drawing-set-captured",
+      "waitFor": {
+        "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 1000"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "assert-rcp-sheet-content",
+      "eval": "(() => { const html = window.__capturedHtml; const need = (re, label) => { if (!re.test(html)) throw new Error('missing: ' + label) }; need(/Reflected ceiling plan/, 'RCP sheet title'); need(/FFL to false ceiling: 2450mm \\(Tray\\)/, 'tray zone note (hand-computed: 2.6m ceiling - 0.15m drop)'); need(/stroke-dasharray=\"4 3\"/, 'tray inset dashed rect'); need(/class=\"rcp-fixture\"/, 'ceiling-fixture symbol'); need(/>CL</, 'ceiling-light glyph marking'); need(/class=\"rcp-aircon\"/, 'aircon symbol'); need(/>AC</, 'aircon glyph marking'); need(/200mm/, 'fixture X wall-offset dimension (hand-computed)'); need(/300mm/, 'fixture Z wall-offset dimension (hand-computed)'); need(/class=\"legend\"/, 'legend/schedule block'); window.__rcpOk = true; })()"
+    },
+    {
+      "name": "assert-onplan-marks",
+      "eval": "(() => { const html = window.__capturedHtml; if (!/font-weight=\"700\" fill=\"#be123c\"[^>]*>D1</.test(html)) throw new Error('missing on-plan D1 mark callout'); window.__marksOk = true; })()"
+    },
+    {
+      "name": "restore-window-open",
+      "eval": "window.open = window.__origWindowOpen || window.open"
+    },
+    {
+      "name": "render-html-for-screenshot",
+      "eval": "document.open(); document.write(window.__capturedHtml); document.close();"
+    },
+    {
+      "name": "scroll-to-rcp-sheet",
+      "eval": "(() => { const names = [...document.querySelectorAll('.tb-name')]; const nameEl = names.find((el) => el.textContent.trim().startsWith('Reflected ceiling plan')); const target = nameEl && nameEl.closest('.sheet'); if (!target) throw new Error('RCP sheet not found in rendered document'); target.scrollIntoView(); })()"
+    },
+    { "name": "shot-rcp-sheet", "screenshot": "rcp-sheet" }
+  ]
+}

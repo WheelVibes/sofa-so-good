@@ -1010,3 +1010,215 @@ describe('buildDrawingSetHtml — door & window schedule (H1)', () => {
     expect(html).not.toContain('Door &amp; window schedule — Upper storey')
   })
 })
+
+describe('buildDrawingSetHtml — reflected ceiling plan (TODO H4)', () => {
+  const basePlan = buildDefaultPlan()
+
+  it('is omitted unless showRcp is true, even when the rcp layer is on', () => {
+    const withoutFlag = buildDrawingSetHtml(
+      basePlan,
+      [],
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      false,
+      false,
+      false,
+    )
+    expect(withoutFlag).not.toContain('Reflected ceiling plan')
+  })
+
+  it('includes a Reflected ceiling plan sheet (with a zone note + legend) when showRcp is true', () => {
+    // A simple rectangular (no L-extension) room — the default plan's own
+    // rooms mostly carry an L-extension, which the ceiling geometry engine
+    // correctly treats as non-rectangular (falls back to flat).
+    const room = {
+      id: 'plain',
+      name: 'Plain room',
+      origin: [0, 0] as [number, number],
+      width: 4,
+      depth: 4,
+      ceiling: { style: 'tray' as const, drop: 0.15, margin: 0.3 },
+    }
+    const withCeiling = { ...basePlan, rooms: [room, ...basePlan.rooms.slice(1)] }
+    const html = buildDrawingSetHtml(
+      withCeiling,
+      [],
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      false,
+      false,
+      true,
+    )
+    expect(html).toContain('Reflected ceiling plan')
+    expect(html).toContain('FFL to false ceiling:')
+    expect(html).toContain('class="legend"')
+  })
+
+  it('marks ceiling-mounted fixtures + aircon points, dimensioned off the nearest wall', () => {
+    const fixture = {
+      id: 'cl-1',
+      defId: 'ceiling-light' as const,
+      position: [1, 1] as [number, number],
+      rotation: 0,
+      props: {},
+    }
+    const html = buildDrawingSetHtml(
+      basePlan,
+      [fixture],
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      { points: [{ x: 0.5, z: 0.5, kind: 'aircon' as const }], source: 'heuristic' },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      false,
+      false,
+      true,
+    )
+    expect(html).toContain('class="rcp-fixture"')
+    expect(html).toContain('class="rcp-aircon"')
+    expect(html).toContain('>CL<')
+    expect(html).toContain('>AC<')
+  })
+
+  it('rides the "rcp" layer visibility toggle (hidden when explicitly off)', () => {
+    const html = buildDrawingSetHtml(
+      basePlan,
+      [],
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { rcp: false },
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      false,
+      false,
+      true,
+    )
+    expect(html).not.toContain('Reflected ceiling plan')
+  })
+})
+
+describe('buildDrawingSetHtml — elevation sheet grouping (TODO H6)', () => {
+  const basePlan = buildDefaultPlan()
+
+  // Wall A: has a door opening → full sheet regardless of length/items.
+  const wallA = {
+    id: 'wA',
+    start: [0, 0] as [number, number],
+    end: [6, 0] as [number, number],
+    thickness: 'external' as const,
+  }
+  // Wall B: long (>= threshold), exactly 1 item, no opening → full sheet
+  // (kept full because it's NOT short, even with only 1 item).
+  const wallB = {
+    id: 'wB',
+    start: [0, 10] as [number, number],
+    end: [6, 10] as [number, number],
+    thickness: 'external' as const,
+  }
+  // Wall C: short (< 1.2 m), exactly 1 item, no opening → grouped (minor).
+  const wallC = {
+    id: 'wC',
+    start: [10, 20] as [number, number],
+    end: [10, 20.8] as [number, number],
+    thickness: 'external' as const,
+  }
+  // Wall D: short, no items, no opening → omitted entirely.
+  const wallD = {
+    id: 'wD',
+    start: [10, 10] as [number, number],
+    end: [10, 10.5] as [number, number],
+    thickness: 'external' as const,
+  }
+  const testPlan = {
+    ...basePlan,
+    extent: [30, 30] as [number, number],
+    walls: [wallA, wallB, wallC, wallD],
+    openings: [
+      {
+        id: 'door-a',
+        kind: 'door' as const,
+        wallId: 'wA',
+        offset: 1,
+        width: 0.9,
+        sill: 0,
+        head: 2.1,
+      },
+    ],
+    rooms: [],
+  }
+  const itemNearB = {
+    id: 'item-b',
+    defId: 'table-lamp' as const,
+    position: [3, 10.3] as [number, number],
+    rotation: 0,
+    props: {},
+  }
+  const itemNearC = {
+    id: 'item-c',
+    defId: 'table-lamp' as const,
+    position: [10.3, 20.4] as [number, number],
+    rotation: 0,
+    props: {},
+  }
+  const testItems = [itemNearB, itemNearC]
+
+  it('omits an empty wall (0 items, 0 openings) entirely and notes the count', () => {
+    const html = buildDrawingSetHtml(testPlan, testItems, BUILTIN_CATALOG)
+    // 4 walls in, only A/B/C have content → 1 omitted (wall D).
+    expect(html).toContain('1 minor wall omitted (no items or openings)')
+  })
+
+  it('gives a wall with an opening its own full sheet regardless of length/items', () => {
+    const html = buildDrawingSetHtml(testPlan, testItems, BUILTIN_CATALOG)
+    // Wall A is the first content-bearing wall → "Wall 1" caption, its own sheet.
+    expect(html).toMatch(/Wall 1 · [\d.]+ m × [\d.]+ m · 1 door/)
+  })
+
+  it('gives a long wall (>= threshold) its own full sheet even with only 1 item', () => {
+    const html = buildDrawingSetHtml(testPlan, testItems, BUILTIN_CATALOG)
+    expect(html).toMatch(/Wall 2 · [\d.]+ m × [\d.]+ m · 1 item/)
+    // Its caption sits in an ordinary (non-grid) sheet body.
+    expect(html).not.toMatch(/class="minor-grid">[\s\S]*Wall 2 ·/)
+  })
+
+  it('groups a short (< 1.2 m), ≤1-item, opening-free wall into a minor-wall sheet', () => {
+    const html = buildDrawingSetHtml(testPlan, testItems, BUILTIN_CATALOG)
+    expect(html).toContain('Minor wall elevations (1)')
+    expect(html).toContain('class="minor-grid"')
+    expect(html).toContain('class="minor-cell"')
+    // Wall C is the 3rd content-bearing wall → caption "Wall 3" inside the grid.
+    expect(html).toMatch(/Wall 3 · [\d.]+ m × [\d.]+ m · 1 item/)
+  })
+
+  it('notes the grouping thresholds on the cover general notes', () => {
+    const html = buildDrawingSetHtml(testPlan, testItems, BUILTIN_CATALOG)
+    expect(html).toContain('Elevation sheets (TODO H6)')
+    expect(html).toContain('1.2 m')
+  })
+})

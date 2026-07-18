@@ -37,6 +37,8 @@ import {
 } from '../floorplan/levels'
 import { buildPlumbingPlan, type PlumbingPoint } from '../floorplan/plumbingPlan'
 import { plumbingSvg } from '../floorplan/plumbingPlanSvg'
+import { buildReflectedCeilingPlan } from '../floorplan/rcp'
+import { rcpSvg } from '../floorplan/rcpSvg'
 import type { RoomFinishMaps } from '../floorplan/roomFinishes'
 import { buildSection } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
@@ -71,6 +73,13 @@ const ELEV_PRINT: ElevationPalette = {
   text: '#4b5563',
 }
 const LIGHTING_PRINT: LightingPalette = { wall: '#9ca3af', ink: '#374151', coverage: '#f59e0b' }
+const RCP_PRINT = {
+  wall: '#9ca3af',
+  ink: '#374151',
+  symbol: '#7c3aed',
+  zone: '#0d9488',
+  dim: '#2563eb',
+}
 
 const esc = (s: string) =>
   s.replace(
@@ -178,6 +187,39 @@ function carpentryScale(
     { w: Math.max(wM, dM) + CARPENTRY_BUFFER_M, d: hM + CARPENTRY_BUFFER_M },
     halfWidth,
   )
+  return {
+    label: `${s.label} @ ${paperSize.toUpperCase()} ${orientation.toUpperCase()}`,
+    mmPerM: s.mmPerM,
+  }
+}
+
+/** Elevation sheet grouping thresholds (TODO H6 — a 4-room HDB flat produces
+ *  ~20 one-per-wall elevation sheets, most of them a bare wall with nothing to
+ *  build from; group the low-content ones per professional practice). A wall
+ *  with 0 items AND 0 openings is dropped entirely (noted on the sheet index
+ *  + the cover's general notes, never silently); a SHORT wall (below this
+ *  length) with at most this many items — and no openings, which always earn
+ *  their own full sheet — is grouped several-per-sheet instead of one-per-
+ *  sheet. A wall with cabinetry (>1 item) or any opening always keeps its own
+ *  full sheet. */
+const MINOR_WALL_MAX_LENGTH_M = 1.2
+const MINOR_WALL_MAX_ITEMS = 1
+/** 2×2 grid — up to this many minor walls share one sheet. */
+const MINOR_WALL_GROUP_SIZE = 4
+
+/** Pick + label the locked scale for a GROUPED minor-wall elevation cell
+ *  (TODO H6) — several elevations share one sheet in a 2×2 grid, so each
+ *  cell's budget is a QUARTER of the printable area (half width, half
+ *  height), sized to the largest wall in that particular group. */
+function minorElevationScale(
+  wM: number,
+  hM: number,
+  paperSize: DrawingSetTemplate['paperSize'],
+  orientation: DrawingSetTemplate['orientation'],
+): { label: string; mmPerM: number } {
+  const printableMm = PAPER_PRINTABLE_MM[`${paperSize}-${orientation}`]
+  const quarter = { width: printableMm.width / 2, height: printableMm.height / 2 }
+  const s = pickDrawingScale({ w: wM + CARPENTRY_BUFFER_M, d: hM + CARPENTRY_BUFFER_M }, quarter)
   return {
     label: `${s.label} @ ${paperSize.toUpperCase()} ${orientation.toUpperCase()}`,
     mmPerM: s.mmPerM,
@@ -322,6 +364,9 @@ export function buildDrawingSetHtml(
    *  section) per distinct placed parametric piece (`carpentrySheets` flag,
    *  TODO G8). Default false — existing callers are unaffected. */
   showCarpentry = false,
+  /** Append the reflected ceiling plan sheet(s) (`rcpSheet` flag, TODO H4).
+   *  Default false — existing callers are unaffected. */
+  showRcp = false,
 ): string {
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
@@ -351,6 +396,10 @@ export function buildDrawingSetHtml(
   // they refer to — a note pointing at "the floor finish" with no finishes
   // sheet on the set would be a dangling reference.
   const showTileMarks = showSettingOut && layerOn(layers, 'finishes') && !!finishes
+  // On-plan D/W mark callouts (H1-F) only make sense alongside the schedule
+  // they cross-reference — same "don't show a dangling reference" rule as
+  // the tile marks above.
+  const showOpeningMarks = layerOn(layers, 'openingSchedule')
   for (const level of levels) {
     const levelPlan = levelAsPlan(plan, level)
     const [pw, pd] = planBounds(levelPlan)
@@ -362,6 +411,7 @@ export function buildDrawingSetHtml(
       footprintsOf(itemsOnLevel(items, level.id)),
       scale.mmPerM,
       showTileMarks,
+      showOpeningMarks,
     )
     sheets.push({
       name: cap('Floor plan', level),
@@ -372,12 +422,31 @@ export function buildDrawingSetHtml(
     })
   }
 
-  // One elevation per wall that carries furniture or openings.
+  // Wall elevations (TODO H6 grouping): a wall with 0 items AND 0 openings is
+  // dropped entirely (never printed as a bare-wall sheet — noted below the
+  // sheet index instead); a SHORT low-content wall (no openings, ≤1 item) is
+  // grouped several-per-sheet (2×2 grid) rather than one-per-sheet; every
+  // other wall (cabinetry, i.e. >1 item, or any opening) keeps its own full
+  // sheet. Wall numbering ("Wall N") is assigned over ALL content-bearing
+  // walls in their original order, whether they end up full or grouped, so a
+  // number never repeats across the two kinds of sheet.
+  let minorWallsOmitted = 0
   if (layerOn(layers, 'elevations')) {
-    const elevations = projectAllElevations(plan, items, catalog).filter(
-      (e) => e.length > 0 && e.height > 0 && (e.items.length > 0 || e.openings.length > 0),
-    )
-    elevations.forEach((e, i) => {
+    const allElevations = projectAllElevations(plan, items, catalog)
+    const withContent = allElevations
+      .map((e, i) => ({ e, i }))
+      .filter(
+        ({ e }) => e.length > 0 && e.height > 0 && (e.items.length > 0 || e.openings.length > 0),
+      )
+    minorWallsOmitted = allElevations.length - withContent.length
+    const isMinor = (e: (typeof withContent)[number]['e']) =>
+      e.length < MINOR_WALL_MAX_LENGTH_M &&
+      e.openings.length === 0 &&
+      e.items.length <= MINOR_WALL_MAX_ITEMS
+    const full = withContent.filter(({ e }) => !isMinor(e))
+    const minor = withContent.filter(({ e }) => isMinor(e))
+
+    full.forEach(({ e, i }) => {
       const scale = planScale(e.length, e.height, template.paperSize, template.orientation)
       sheets.push({
         name: elevationCaption(e, i, units),
@@ -386,6 +455,29 @@ export function buildDrawingSetHtml(
         scaleLabel: scale.label,
       })
     })
+
+    // Grouped minor-wall sheets — up to `MINOR_WALL_GROUP_SIZE` (2×2) per
+    // sheet, one shared scale per sheet (sized to the largest wall in THAT
+    // group so nothing overflows its grid cell).
+    for (let g = 0; g < minor.length; g += MINOR_WALL_GROUP_SIZE) {
+      const group = minor.slice(g, g + MINOR_WALL_GROUP_SIZE)
+      const maxLen = Math.max(...group.map(({ e }) => e.length))
+      const maxH = Math.max(...group.map(({ e }) => e.height))
+      const scale = minorElevationScale(maxLen, maxH, template.paperSize, template.orientation)
+      const cells = group
+        .map(
+          ({ e, i }) =>
+            `<div class="minor-cell"><div class="minor-cap">${esc(elevationCaption(e, i, units))}</div>` +
+            `<div class="draw">${elevationSvg(e, { palette: ELEV_PRINT, units, printMmPerM: scale.mmPerM })}</div></div>`,
+        )
+        .join('')
+      sheets.push({
+        name: `Minor wall elevations (${g / MINOR_WALL_GROUP_SIZE + 1})`,
+        body: `<div class="minor-grid">${cells}</div>`,
+        calloutGroup: 'elevations',
+        scaleLabel: scale.label,
+      })
+    }
   }
 
   // Lighting plan (+ per-room lux estimate vs recommended residential bands) —
@@ -414,6 +506,39 @@ export function buildDrawingSetHtml(
         body: `<div class="draw">${svg}</div>${northIndicatorSvg(orientationDeg)}
         ${i === lit.length - 1 ? lightSched : ''}`,
         calloutGroup: 'lighting',
+        scaleLabel: scale.label,
+        topDown: true,
+      })
+    })
+  }
+
+  // Reflected ceiling plan (TODO H4, `rcpSheet` flag) — canonical drawing #4:
+  // per-room false-ceiling/bulkhead zones with drop heights, ceiling-mounted
+  // fixture positions dimensioned off the nearest walls, aircon points marked
+  // for cross-reference. Reuses the SAME lighting-plan fixture data (filtered
+  // to the ceiling-mounted subset) and the SAME electrical points the
+  // electrical plan draws. Unlike the lighting/electrical sheets (which only
+  // print for a storey that actually has fixtures/points), the RCP prints for
+  // every storey that has rooms — every room carries a ceiling-zone note
+  // (even a plain flat one) that's useful regardless of whether it also has
+  // fixtures.
+  if (layerOn(layers, 'rcp') && showRcp) {
+    const rcpLevels = levels.filter((level) => levelAsPlan(plan, level).rooms.length > 0)
+    rcpLevels.forEach((level) => {
+      const levelPlan = levelAsPlan(plan, level)
+      const levelFixtures = itemsOnLevel(lighting.lights, level.id)
+      const levelElectrical = itemsOnLevel(electrical?.points ?? [], level.id)
+      const rcp = buildReflectedCeilingPlan(levelPlan, levelFixtures, levelElectrical)
+      const [pw, pd] = planBounds(levelPlan)
+      const scale = planScale(pw, pd, template.paperSize, template.orientation)
+      sheets.push({
+        name: cap('Reflected ceiling plan', level),
+        body: `<div class="draw">${rcpSvg(levelPlan, rcp, {
+          palette: RCP_PRINT,
+          widthPx: 900,
+          printMmPerM: scale.mmPerM,
+        })}</div>${northIndicatorSvg(orientationDeg)}`,
+        calloutGroup: 'rcp',
         scaleLabel: scale.label,
         topDown: true,
       })
@@ -794,6 +919,9 @@ export function buildDrawingSetHtml(
     'Electrical works must be carried out and certified by an EMA-Licensed Electrical Worker (LEW) before SP Group energises any circuit.',
     'Plumbing works connecting to the public network require a PUB Licensed Plumber.',
     'Verify all dimensions on site before fabrication, ordering materials, or starting work.',
+    `Elevation sheets (TODO H6): walls with no items or openings are omitted from the set; ` +
+      `walls under ${MINOR_WALL_MAX_LENGTH_M} m with at most ${MINOR_WALL_MAX_ITEMS} item and no ` +
+      'openings are grouped several-per-sheet — see the sheet index.',
   ]
   const cover: Sheet = {
     num: 'A-0',
@@ -813,7 +941,11 @@ export function buildDrawingSetHtml(
         .join(' &nbsp;·&nbsp; ')}</div>
       <div class="cover-cols">
         <div><h3>Rooms &amp; areas</h3><table class="sched"><tr class="h"><td>Room</td><td class="n">Area</td></tr>${roomRows}<tr class="h"><td>Total</td><td class="n">${esc(formatArea(totalArea, units))}</td></tr></table></div>
-        <div><h3>Sheet index</h3><table class="sched"><tr class="h"><td>No.</td><td>Sheet</td></tr><tr><td>A-0</td><td>Cover</td></tr>${indexRows}</table></div>
+        <div><h3>Sheet index</h3><table class="sched"><tr class="h"><td>No.</td><td>Sheet</td></tr><tr><td>A-0</td><td>Cover</td></tr>${indexRows}</table>${
+          minorWallsOmitted > 0
+            ? `<div style="font-size:10px;color:#6b7280;margin-top:4px">— ${minorWallsOmitted} minor wall${minorWallsOmitted === 1 ? '' : 's'} omitted (no items or openings)</div>`
+            : ''
+        }</div>
         <div><h3>Revisions</h3><table class="sched"><tr class="h"><td>Rev</td><td>Date</td><td>Description</td></tr><tr><td>${esc(revision)}</td><td>${esc(date)}</td><td>${esc(template.revisionNote.trim() || 'Initial issue')}</td></tr></table></div>
       </div>
       <div class="notes">
@@ -886,6 +1018,10 @@ export function buildDrawingSetHtml(
   .sheet-area { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
   .draw { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
   .draw svg { width: 100%; height: 100%; max-height: ${drawMaxHeightMm}mm; }
+  /* Grouped minor-wall elevations (TODO H6) — up to 4 low-content walls share one sheet. */
+  .minor-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; }
+  .minor-cell { min-height: 0; display: flex; flex-direction: column; gap: 4px; }
+  .minor-cap { font-size: 9px; color: #6b7280; flex: none; }
   .title-block { border-top: 2px solid #1f2937; margin-top: 8px; padding-top: 6px; font-size: 11px; }
   .tb-row1 { display: flex; justify-content: space-between; align-items: baseline; }
   .tb-row2 { margin-top: 2px; color: #6b7280; font-size: 9px; font-family: ui-monospace, monospace; }

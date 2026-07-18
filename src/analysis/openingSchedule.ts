@@ -212,3 +212,44 @@ export function buildOpeningSchedule(plan: FloorPlan): OpeningSchedule {
 function markKeyOf(a: MarkAcc): string {
   return markKey(a.kind, a.width, a.height)
 }
+
+/**
+ * Assigns each door/window opening a schedule mark (`D1`, `D2`… / `W1`,
+ * `W2`…), grouping openings with identical (kind, width, head − sill) — a
+ * SINGLE-STOREY variant of the grouping `buildOpeningSchedule` above uses
+ * (this returns a per-opening label, not aggregated marks), so any on-plan
+ * mark callout keyed off this always matches the schedule sheet.
+ *
+ * H1-F (contractor-handover punch list): extracted here from
+ * `export/dxf.ts`, which had grown its own identical local copy
+ * (`assignOpeningMarks`/`openingMarkKey`) predating this export — that
+ * module is owned by a concurrent change in this pass and is deliberately
+ * left untouched; migrate its local copy to import this one on next touch
+ * rather than letting the two drift. `ui/reportPlanSvg.ts`'s on-plan D/W
+ * mark callouts (H1-F) use this directly.
+ */
+export function assignOpeningMarks(openings: PlanOpening[]): Map<string, string> {
+  const order: string[] = []
+  const seen = new Set<string>()
+  for (const o of openings) {
+    if (o.kind !== 'door' && o.kind !== 'window') continue
+    const key = markKey(o.kind, o.width, openingHeight(o))
+    if (!seen.has(key)) {
+      seen.add(key)
+      order.push(key)
+    }
+  }
+  const labelByKey = new Map<string, string>()
+  let dN = 0
+  let wN = 0
+  for (const key of order) {
+    labelByKey.set(key, key.startsWith('door:') ? `D${++dN}` : `W${++wN}`)
+  }
+  const labelByOpening = new Map<string, string>()
+  for (const o of openings) {
+    if (o.kind !== 'door' && o.kind !== 'window') continue
+    const label = labelByKey.get(markKey(o.kind, o.width, openingHeight(o)))
+    if (label) labelByOpening.set(o.id, label)
+  }
+  return labelByOpening
+}

@@ -4,22 +4,19 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
-## Active — contractor-handover round 2: acceptance-review punch list (2026-07-18)
-> The G1-G9 roadmap shipped (v0.22.2.39-52). An adversarial contractor's-eye review of the
-> full generated package (75-step scenario; every hand-verified number matched) returned
-> "close, but not yet" with this punch list. Defects first, then buildability gaps.
-- [ ] **H1-F — Floor-plan sheet has no D1/W1 opening-mark callouts (follow-up).** The new
-  door & window schedule sheet (H1, shipped) types every opening D1/D2…/W1/W2…, and the DXF
-  export already tags openings with the same marks, but `reportPlanSvg.ts`'s FLOOR-PLAN sheet
-  draws openings as plain gaps with no mark label — a contractor can't cross-reference the
-  schedule back to a specific opening on plan. Needs a mark callout (`D1`/`W1`…) near each
-  opening on the plan sheet, keyed against `buildOpeningSchedule`'s grouping so labels never
-  drift from the schedule. Out of scope here (`reportPlanSvg.ts` territory).
-- [ ] **H4 — Reflected Ceiling Plan sheet (larger).** Canonical drawing #4: false-ceiling/
-  bulkhead zones with drop heights, ceiling-fixture positions dimensioned off walls, aircon.
-  The model has ceiling treatments per room + ceiling-mounted fixtures — enough for v1.
-- [ ] **H6 — Elevation sheet grouping (polish).** 20 one-per-wall elevation sheets for a 4-room
-  flat; group short/low-content walls per professional practice.
+## Active — SG-specificity fixes (user directive 2026-07-18; audit findings)
+> Audit verdict: heights/currency/roles/codes already SG-correct. Three fixes:
+- [ ] **SG1 — Housing-type-conditional permit language.** `plan.category.housingType` exists
+  ('HDB'|'Condominium'; landed terraces mis-filed under Condominium) but demolition
+  PERMIT_NOTES, drawing-set GENERAL_NOTES, and the report's HDB-compliance section render the
+  HDB/PE path unconditionally. Add `'Landed'` housing type (templates: terrace → Landed;
+  additive schema); branch the notes: HDB → current text; Condominium → MCST/management-council
+  renovation approval (+ LEW/PUB still apply); Landed → BCA-direct path. Gate the report's HDB
+  compliance section to HDB plans (condo/landed get their own line, not silence).
+- [ ] **SG2 — "Drywall" → SG wall vocabulary.** WallInspector STRUCTURE_OPTIONS display label
+  'Drywall' → 'Dry partition (Ferrolite/steel-stud)' (schema key `drywall` stays, back-compat);
+  echo in floor-plan-editor.md/design-tools.md.
+- [ ] **SG3 — "Baseboard" → "skirting" in user-visible copy** (schema/prop names stay).
 
 ## Active — contractor-handover accuracy & documentation (2026-07-18, user goal)
 > The app's purpose: homeowners design/plan/customize themselves, then hand over DIRECTLY to

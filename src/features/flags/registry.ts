@@ -1703,6 +1703,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Reflected ceiling plan (TODO H4 — SG contractor handover, canonical
+  // drawing #4): per-room false-ceiling/bulkhead zones with drop heights,
+  // ceiling-fixture positions dimensioned off the nearest walls, aircon
+  // points marked. Pure code, reuses the existing ceiling-geometry engine +
+  // lighting/electrical data — no new asset dependency, prod-safe. Analytical
+  // drawing-set content → pro tier, matching `settingOutDims`/`carpentrySheets`
+  // (the other sheet-level flags added for this same handover goal).
+  rcpSheet: {
+    label: 'Reflected ceiling plan',
+    description:
+      'False-ceiling zones, ceiling-fixture dimensions, and aircon points on the drawing set',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

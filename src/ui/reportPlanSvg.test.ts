@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { assignOpeningMarks } from '../analysis/openingSchedule'
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import type { FloorPlan } from '../floorplan/types'
 import { reportPlanSvg, scaleBarChoice } from './reportPlanSvg'
@@ -119,6 +120,33 @@ describe('reportPlanSvg', () => {
     expect(withoutMarks).not.toContain('Tile setting-out point')
     const withMarks = reportPlanSvg(plan, [], 'metric', [], undefined, true)
     expect(withMarks).toContain('Tile setting-out point — start laying here, verify joints on site')
+  })
+
+  it('draws D1/W1… opening mark callouts only when showOpeningMarks is true (H1-F)', () => {
+    const plan = buildDefaultPlan()
+    const without = reportPlanSvg(plan, [], 'metric', [], undefined, false, false)
+    expect(without).not.toContain('>D1<')
+    const withMarks = reportPlanSvg(plan, [], 'metric', [], undefined, false, true)
+    expect(withMarks).toContain('>D1<')
+    expect(withMarks).toContain('>W1<')
+  })
+
+  it("the on-plan marks are IDENTICAL to the door & window schedule's own assignment", () => {
+    // Same plan, same `assignOpeningMarks` grouping run standalone — the
+    // on-plan callouts must never drift from what the schedule sheet types.
+    const plan = buildDefaultPlan()
+    const expected = assignOpeningMarks(plan.openings)
+    const svg = reportPlanSvg(plan, [], 'metric', [], undefined, false, true)
+    for (const label of new Set(expected.values())) {
+      expect(svg).toContain(`>${label}<`)
+    }
+    // And no OTHER mark labels appear (e.g. a stray "D3" from a differently-
+    // keyed grouping would show up here).
+    const distinctLabels = new Set(expected.values())
+    const rendered = [...svg.matchAll(/font-weight="700" fill="#be123c"[^>]*>([DW]\d+)</g)].map(
+      (m) => m[1],
+    )
+    expect(new Set(rendered)).toEqual(distinctLabels)
   })
 })
 

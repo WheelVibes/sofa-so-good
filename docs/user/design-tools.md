@@ -250,6 +250,13 @@ Print or save as PDF for
   **Include sheets** checklist under it to pick exactly which sheets go in — e.g. a
   clean client copy with no electrical/plumbing/demolition, or a full builder copy
   (the floor plan is always included).
+  - **Elevation sheets are grouped.** A wall with nothing against it (no furniture,
+    no door/window) is dropped entirely rather than printing a bare-wall sheet — the
+    sheet index notes how many were omitted. A short wall (under **1.2 m**) with at
+    most **one item** and no opening is grouped several-per-sheet in a **2×2 grid**
+    ("Minor wall elevations") instead of getting its own page; any wall with
+    cabinetry (more than one item) or an opening always keeps its own full sheet.
+    The thresholds are noted on the cover's general notes.
   - **Paper size + orientation are yours to choose.** Under **File → Drawing set →
     Title block details**, pick a paper size (A4/A3/A2/A1) and orientation
     (Landscape/Portrait) — e.g. A1 landscape for a site set, A3 portrait for a
@@ -318,7 +325,26 @@ Print or save as PDF for
   whole-set sheet even on a multi-storey plan (it already resolves each
   opening's room across every storey). No openings on the plan → no sheet, and
   the cover's sheet index simply omits it. Toggle it off in the **Include
-  sheets** checklist if you don't need it in a given export.
+  sheets** checklist if you don't need it in a given export. Every door/window
+  ALSO gets its small rose **mark label** (**D1**/**W1**…) printed right next to
+  it on the **Floor plan** sheet, keyed to the exact same grouping as this
+  schedule — so you can always trace a mark on plan back to its row here.
+- **Reflected ceiling plan (Pro).** A dedicated **"Reflected ceiling plan"**
+  sheet (drawing #4 in a professional set) — one per storey — showing, per
+  room, its ceiling height off finished floor level (e.g. **"FFL to clg:
+  2600mm"**), and, where you've set a **tray/coffered/dropped** treatment in
+  the Ceiling panel, the drop height instead (**"FFL to false ceiling:
+  2450mm (Tray)"**) plus a dashed inset rectangle (tray/dropped's raised or
+  recessed panel) or beam grid (coffered) — the exact same geometry the 3D
+  ceiling render builds, so the sheet can never show a treatment your design
+  doesn't actually have. A non-rectangular room, or one too shallow for the
+  drop, notes "treatment not applied — verify room shape/height on site"
+  rather than drawing a treatment that isn't really there. Every ceiling light,
+  ceiling fan, and cove light is marked with a symbol + its distance (in mm)
+  off the two nearest walls — the standard "how far off that wall" a
+  contractor checks a fixture against on install. Aircon points are marked too
+  (for cross-reference; their full schedule lives on the Electrical plan).
+  Toggle it off in the **Include sheets** checklist if you don't need it.
 - **Electrical/plumbing sheet provenance.** Once you've placed points with the
     floor-plan editor's **MEP** tool (see *Electrical & plumbing points* in the
     Floor plan editor guide), the electrical/plumbing sheets note **"Points as

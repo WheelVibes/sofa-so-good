@@ -77,6 +77,7 @@ export async function openDrawingSet(): Promise<void> {
       s.orientationDeg,
       isFeatureEnabled('settingOutDims'),
       isFeatureEnabled('carpentrySheets'),
+      isFeatureEnabled('rcpSheet'),
     )
   } catch {
     win.close()

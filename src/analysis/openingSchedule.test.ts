@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from '../floorplan/types'
-import { buildOpeningSchedule } from './openingSchedule'
+import { assignOpeningMarks, buildOpeningSchedule } from './openingSchedule'
 
 /**
  * Synthetic plans: a room is a square in the XZ plane; a horizontal wall along
@@ -224,5 +224,44 @@ describe('buildOpeningSchedule — edge cases', () => {
     expect(sched.marks[0].count).toBe(2)
     expect(sched.windowCount).toBe(2)
     expect(sched.marks[0].rooms).toEqual(['Bedroom', 'Living'])
+  })
+})
+
+describe('assignOpeningMarks — single-storey per-opening labels', () => {
+  const wall = hWall('w-n', 0, 0, 8)
+
+  it('assigns D1/D2… then W1/W2… in discovery order, matching buildOpeningSchedule', () => {
+    const openings: PlanOpening[] = [
+      door('d1', 'w-n', 0, 0.8, 2.1), // D1
+      win('win1', 'w-n', 1, 1.2, 0.9, 2.1), // W1
+      door('d2', 'w-n', 2, 0.9, 2.1), // D2 (different width)
+      door('d3', 'w-n', 3, 0.8, 2.1), // same size as d1 → D1
+    ]
+    const marks = assignOpeningMarks(openings)
+    expect(marks.get('d1')).toBe('D1')
+    expect(marks.get('d3')).toBe('D1')
+    expect(marks.get('d2')).toBe('D2')
+    expect(marks.get('win1')).toBe('W1')
+
+    // Cross-check: the SAME plan run through `buildOpeningSchedule` groups d1/d3
+    // into one D-mark with count 2, and assigns marks in the same D-before-W,
+    // discovery order — so the two never drift for a single-storey plan.
+    const room = rectRoom('living', 'Living', 0, 0, 8)
+    const sched = buildOpeningSchedule(plan([room], [wall], openings))
+    const doorMarks = sched.marks.filter((m) => m.kind === 'door')
+    expect(doorMarks.map((m) => m.mark)).toEqual(['D1', 'D2'])
+    expect(doorMarks.find((m) => m.mark === 'D1')!.count).toBe(2)
+    expect(sched.marks.find((m) => m.mark === 'W1')).toBeDefined()
+  })
+
+  it('non-door/window openings are skipped and unaffected windows/doors still get marks', () => {
+    const openings: PlanOpening[] = [win('w1', 'w-n', 0, 1, 0.9, 2.1)]
+    const marks = assignOpeningMarks(openings)
+    expect(marks.size).toBe(1)
+    expect(marks.get('w1')).toBe('W1')
+  })
+
+  it('an empty opening list yields an empty map', () => {
+    expect(assignOpeningMarks([]).size).toBe(0)
   })
 })

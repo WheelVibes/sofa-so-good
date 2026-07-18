@@ -1271,6 +1271,55 @@ same change that reshapes a system.
   and renders the two note arrays as a "MATERIALS & FINISH" / "HARDWARE" pair
   BELOW the elevation+section row (not overlaid — the sheet's declutter
   precedent), each a bulleted list.
+  **On-plan D/W mark callouts (H1-F):** `reportPlanSvg.ts`'s FLOOR-PLAN sheet draws a small rose
+  (`#be123c`) `D1`/`W1`… label near each opening (nudged off the wall centreline like the DXF
+  export's own marks, `openingMarksSvg`'s `MARK_LABEL_OFFSET`), keyed off
+  `analysis/openingSchedule.ts:assignOpeningMarks(openings)` — a per-opening (not aggregated)
+  variant of `buildOpeningSchedule`'s grouping, extracted here from `export/dxf.ts`'s own
+  identical local copy (that module was owned by a concurrent change in this pass and left
+  untouched; `TASKS.md` tracks migrating its copy to this shared export on next touch). `showOpeningMarks` is a new optional `reportPlanSvg` param, gated in `drawingSet.ts` to
+  `layerOn(layers, 'openingSchedule')` (same "don't reference a hidden sheet" rule as the G3 tile
+  marks) — no new feature flag, since it's presentation over data the schedule sheet already
+  carries.
+  **Reflected ceiling plan (TODO H4, `rcpSheet` flag, pro):** canonical drawing #4 — per-storey
+  false-ceiling/bulkhead zones with drop heights, ceiling-fixture positions dimensioned off the
+  nearest walls, aircon points marked. Pure core `floorplan/rcp.ts:buildReflectedCeilingPlan(plan,
+  fixtures, electricalPoints)` reuses existing systems wholesale rather than inventing a parallel
+  model: each room's zone note + treatment rect/beam-grid come straight from the SAME geometry
+  engine the 3D scene renders from (`apartment/ceiling/ceilingModel.ts:buildCeiling` — pure, no
+  three/React, safe to import from `floorplan/`), so a printed "FFL to false ceiling: 2450mm" and
+  its inset dashed rect can never drift from what the room actually shows in 3D; a non-rectangular
+  room or too-low ceiling that the geometry engine falls back on (`CeilingModel.fallback`) prints
+  "treatment not applied — verify room shape/height on site" rather than a treatment that isn't
+  really built. Ceiling-mounted fixtures are the SAME `PlanLight[]` the lighting plan already
+  derives (`lighting2d/lightingPlan.ts:buildLightingPlan`), filtered to `CEILING_FIXTURE_TYPES`
+  (`ceiling-light`/`ceiling-fan`/`cove-light` — matches `furniture/lightEmitters.ts`'s
+  `LIGHT_EMITTERS` registry; floor/table lamps, sconces, and the vanity's mirror bulbs are NOT
+  ceiling fixtures and are excluded), each dimensioned off the nearest wall on each axis
+  (`nearestAxisWall` — centreline distance, not the setting-out sheet's face-offset precision; a
+  ceiling point only needs "roughly here off that wall", matching the electrical/lighting plans'
+  own convention). Aircon points are the SAME persisted/heuristic electrical points the electrical
+  plan draws (`kind === 'aircon'`), marked here for cross-reference only — their full schedule
+  stays on the Electrical plan. SVG renderer `floorplan/rcpSvg.ts:rcpSvg` mirrors
+  `electricalPlanSvg.ts`'s shape (wall context, circle+marking symbols, legend/schedule below,
+  `printMmPerM` sizing) and reuses `mepLabelLayout.ts:layoutMepLabels` to declutter fixture
+  distance labels exactly like the MEP sheets (H-D1). `ui/drawingSet.ts` appends one "Reflected
+  ceiling plan" sheet per storey that has rooms (unlike the lighting/electrical sheets, which only
+  print for a storey with fixtures/points — every room carries a useful zone note even when flat);
+  new `rcp` `DrawingLayer` + `CalloutSheet` entry (`state/slices/drawingCalloutsSlice.ts` +
+  `DrawingCalloutsPanel.tsx`) follow the existing toggle/callout plumbing. New `rcpSheet` flag
+  (pro, default true) gates it — analytical drawing-set content, same category as
+  `settingOutDims`/`carpentrySheets` (NOT the pre-existing `drawings` flag, which gates the
+  separate live in-app Drawings panel — elevations + lighting — an unrelated feature).
+  **Elevation sheet grouping (TODO H6):** a 4-room HDB flat produced ~20 one-per-wall elevation
+  sheets, most bare. `ui/drawingSet.ts`'s elevation loop now partitions `projectAllElevations`'
+  output (tagged with its ORIGINAL index so "Wall N" captions never repeat across the two kinds
+  of sheet) into: dropped entirely (0 items AND 0 openings — noted under the cover's sheet index,
+  "N minor walls omitted"), grouped (`MINOR_WALL_MAX_LENGTH_M` = 1.2m, `MINOR_WALL_MAX_ITEMS` = 1,
+  no openings — up to `MINOR_WALL_GROUP_SIZE` = 4 per sheet in a CSS 2×2 `.minor-grid`, one shared
+  scale via `minorElevationScale` sized to the largest wall in that group, quarter-page budget),
+  or full (everything else — any opening, or >1 item, always gets its own page). Thresholds are
+  constants, noted on the cover's general notes.
 - **CAD plan exports**: `ui/openDxf.ts` (`export/dxf.ts` `planToDxf`) downloads the plan as an ASCII
   DXF R12 document for a contractor/fabricator CAD handoff (TODO G6): `WALLS`/`ROOMS`/`DOORS`/
   `WINDOWS`/`LABELS` (base geometry) plus `FURNITURE` (each placed item's rotated footprint — the

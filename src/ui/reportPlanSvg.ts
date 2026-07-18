@@ -1,3 +1,4 @@
+import { assignOpeningMarks } from '../analysis/openingSchedule'
 import { doorSwingGeometry } from '../floorplan/doorSwing'
 import { roomLabelPosition } from '../floorplan/roomCentroid'
 import { tileSettingOutPoints } from '../floorplan/settingOut'
@@ -17,6 +18,7 @@ const esc = (s: string) =>
 const ANN = '#0d9488' // teal — dimension callouts, distinct from the wall strokes
 const NOTE = '#b45309' // amber — free text callouts (matches the drawing-set storey notes)
 const TILE = '#7c3aed' // violet — tile setting-out marks, distinct from both of the above
+const MARK = '#be123c' // rose — opening D/W mark callouts (H1-F), distinct from all of the above
 
 /** Tile setting-out start-point crosses (TODO G3) — one per room, at its
  *  centroid (`settingOut.ts:tileSettingOutPoints`). v1-modest: a small cross,
@@ -122,6 +124,47 @@ function openingsSvg(plan: FloorPlan): string {
     .join('')
 }
 
+/** Distance (m) an opening mark label sits off the wall centreline, clear of
+ *  the wall stroke and the door-swing arc — matches `export/dxf.ts`'s own
+ *  `MARK_OFFSET` (independent constant; that module is out of scope here —
+ *  see `analysis/openingSchedule.ts:assignOpeningMarks`'s header). */
+const MARK_LABEL_OFFSET = 0.3
+
+/**
+ * On-plan D1/W1… mark callouts (H1-F, contractor-handover punch list): a
+ * small rose label near each door/window, keyed off the SAME
+ * `assignOpeningMarks` grouping the door & window schedule sheet uses, so a
+ * mark on this plan can never drift from the schedule that types it. Nudged
+ * off the wall centreline (perpendicular offset) so it clears the opening's
+ * gap + door-swing arc.
+ */
+function openingMarksSvg(plan: FloorPlan): string {
+  const marks = assignOpeningMarks(plan.openings)
+  if (marks.size === 0) return ''
+  return plan.openings
+    .map((o) => {
+      const label = marks.get(o.id)
+      if (!label) return ''
+      const wall = plan.walls.find((wl) => wl.id === o.wallId)
+      if (!wall) return ''
+      const len = wallLength(wall)
+      if (len === 0) return ''
+      const ux = (wall.end[0] - wall.start[0]) / len
+      const uz = (wall.end[1] - wall.start[1]) / len
+      const mx = wall.start[0] + ux * (o.offset + o.width / 2)
+      const mz = wall.start[1] + uz * (o.offset + o.width / 2)
+      // Perpendicular (rotate the wall direction 90°) — nudges the label off
+      // the wall line, toward whichever side keeps it inside the plan extent.
+      const px = -uz
+      const pz = ux
+      const sign = mz + pz * MARK_LABEL_OFFSET < plan.extent[1] ? 1 : -1
+      const lx = mx + px * MARK_LABEL_OFFSET * sign
+      const lz = mz + pz * MARK_LABEL_OFFSET * sign
+      return `<text x="${lx.toFixed(3)}" y="${lz.toFixed(3)}" font-size="0.24" font-weight="700" fill="${MARK}" text-anchor="middle" dominant-baseline="middle">${esc(label)}</text>`
+    })
+    .join('')
+}
+
 /** Pick a "nice" round scale-bar length that fits ~a quarter of the plan width.
  *  Metric → 0.5/1/2/5/10 m; imperial → 1/2/5/10/20 ft (drawn at its true metre
  *  length). Returns the bar length in METRES plus its label. */
@@ -179,6 +222,11 @@ export function reportPlanSvg(
    *  flag) — gated by the caller to when the finishes sheet is ALSO on the
    *  drawing set. Default false (existing callers are unaffected). */
   showTileMarks = false,
+  /** Draw each door/window's D1/W1… schedule mark near it on the plan (H1-F)
+   *  — gated by the caller to when the door & window schedule sheet is ALSO
+   *  on the drawing set, so a mark never appears with nothing to cross-
+   *  reference against. Default false (existing callers are unaffected). */
+  showOpeningMarks = false,
 ): string {
   // Defensive: a malformed/partial plan (no extent or no walls) yields no
   // diagram rather than throwing.
@@ -237,5 +285,6 @@ export function reportPlanSvg(
       : ''
   const tileMarks = showTileMarks ? tileSettingOutSvg(plan) : ''
   const tileCaption = showTileMarks ? tileSettingOutCaption(barY + 0.55) : ''
-  return `<svg class="plan-svg"${sizeAttr} viewBox="${-pad} ${-pad} ${fullW.toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${furniture}${walls}${openings}${labels}${notesSvg(plan)}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}${tileMarks}${tileCaption}</svg>`
+  const openingMarks = showOpeningMarks ? openingMarksSvg(plan) : ''
+  return `<svg class="plan-svg"${sizeAttr} viewBox="${-pad} ${-pad} ${fullW.toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${furniture}${walls}${openings}${openingMarks}${labels}${notesSvg(plan)}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}${tileMarks}${tileCaption}</svg>`
 }
