@@ -1,22 +1,40 @@
+import type { ElectricalKind, PlumbingKind } from '../../../floorplan/types'
 import { Icon } from '../../toolbar/icons'
+import { MenuLabel } from '../../toolbar/ToolbarMenu'
+import { ELECTRICAL_MEP_KINDS, PLUMBING_MEP_KINDS } from './mepToolKinds'
 import { PlanMenu } from './PlanMenu'
 import type { Tool } from './planConstants'
 
+export interface MepSelection {
+  family: 'electrical' | 'plumbing'
+  kind: ElectricalKind | PlumbingKind
+}
+
 /**
  * Desktop drawing-tool palette: Select/Wall/Split as direct buttons, plus the
- * Room / Opening / Markup tool groups collapsed into labelled `PlanMenu`
+ * Room / Opening / Markup / MEP tool groups collapsed into labelled `PlanMenu`
  * dropdowns so the toolbar stays a single row. Extracted from `FloorPlanEditor`
  * (REFAC-2) — purely presentational, driven by the active `tool` + a `onPick`
- * callback the caller wires to its own tool-switch side effects.
+ * callback the caller wires to its own tool-switch side effects. The MEP group
+ * (electrical/plumbing points, MEP layer G1 PR3) is flag-gated separately
+ * (`fMep`) since it's Pro-tier and its buttons arm BOTH the `'mep'` tool AND a
+ * specific kind in one click (`onPickMep`), unlike the other groups which only
+ * pick a `Tool`.
  */
 export function DrawToolPalette({
   tool,
   onPick,
   fPolyline,
+  fMep,
+  mep,
+  onPickMep,
 }: {
   tool: Tool
   onPick: (t: Tool) => void
   fPolyline: boolean
+  fMep: boolean
+  mep: MepSelection
+  onPickMep: (sel: MepSelection) => void
 }) {
   const toolGroups: { label: string; tools: { t: Tool; label: string; title: string }[] }[] = [
     {
@@ -119,6 +137,40 @@ export function DrawToolPalette({
           </div>
         </PlanMenu>
       ))}
+      {fMep && (
+        <PlanMenu label="MEP" width={220} active={tool === 'mep'}>
+          <MenuLabel>Electrical</MenuLabel>
+          <div className="action-grid two">
+            {ELECTRICAL_MEP_KINDS.map((x) => (
+              <button
+                key={`e-${x.kind}`}
+                type="button"
+                className={`act${tool === 'mep' && mep.family === 'electrical' && mep.kind === x.kind ? ' on' : ''}`}
+                aria-current={tool === 'mep' && mep.family === 'electrical' && mep.kind === x.kind}
+                title={x.title}
+                onClick={() => onPickMep({ family: 'electrical', kind: x.kind })}
+              >
+                {x.label}
+              </button>
+            ))}
+          </div>
+          <MenuLabel>Plumbing</MenuLabel>
+          <div className="action-grid two">
+            {PLUMBING_MEP_KINDS.map((x) => (
+              <button
+                key={`p-${x.kind}`}
+                type="button"
+                className={`act${tool === 'mep' && mep.family === 'plumbing' && mep.kind === x.kind ? ' on' : ''}`}
+                aria-current={tool === 'mep' && mep.family === 'plumbing' && mep.kind === x.kind}
+                title={x.title}
+                onClick={() => onPickMep({ family: 'plumbing', kind: x.kind })}
+              >
+                {x.label}
+              </button>
+            ))}
+          </div>
+        </PlanMenu>
+      )}
     </div>
   )
 }

@@ -208,6 +208,36 @@ All three are saved with your design and are tagged to the storey you drew them 
 Your **text notes** also print onto the floor-plan sheet of the **Report** and the
 **Drawing set**, so on-plan callouts reach the documents you hand to a builder.
 
+## Electrical & plumbing points *(Pro)*
+
+For a contractor-ready plan, place the exact **electrical and plumbing points**
+you want wired/plumbed, instead of relying on the furniture-based estimate on
+the exported sheets:
+
+- Open the **MEP** tool group in the toolbar (desktop: a dropdown next to
+  Markup; on a phone: the **MEP** section of the Plan-tools menu). Pick a kind
+  under **Electrical** (Socket, Double socket, Switch, Data point, TV point,
+  Aircon point, Water heater) or **Plumbing** (Water point, Drainage, Floor
+  trap, Soil pipe, Water heater) — this arms the tool with that kind.
+- Click on the plan to place a point. A click near a wall **snaps onto that
+  wall's face** (so a socket/switch reads as mounted ON the wall it serves);
+  elsewhere it drops at the click. The tool stays armed, so you can place
+  several of the same kind in a row.
+- Switch to **Select** to click a point (selecting it) and drag to reposition
+  it. The inspector shows its **Kind** (swap it within its own family — an
+  electrical point can't become a plumbing one), its **Mount height (mm
+  AFFL)** — above finished floor level, with standard-height quick-pick chips
+  for electrical points (300 / 1050 / 1200 / 2400 mm) — an optional **Label**
+  (e.g. "fridge", "WC"), and **Delete**.
+- The **MEP** toggle in the **View ▾** menu shows/hides the points layer
+  (shown by default); <kbd>Delete</kbd>/<kbd>Backspace</kbd> removes the
+  selected point.
+
+*(Pro tools are hidden in Simple mode — switch to Pro from the mode toggle to
+use them. The exported Electrical/Plumbing plan sheets still use the
+furniture-based estimate for now — points authored here feeding those sheets
+is planned.)*
+
 ## Levels (storeys)
 
 Designing a maisonette, loft or landed home? The **floor dropdown** at the

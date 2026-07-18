@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.46 — G1 (PR 3): MEP point editor in the 2D plan
+
+`mepEditor` (pro): a 4th "MEP" tool group (12 kinds, Electrical/Plumbing
+sub-headers; mobile rail parity at 44px) places points with grid/guide +
+0.25 m wall-face snap (pure `mepPlacement.ts`), tool stays armed; points
+render as circle+glyph symbols sharing the SHEETS' exact symbol vocabulary
+(exported `ELEC_SYM_TEXT`/`PLUMB_SYM_TEXT`); drag to move (coalesced undo),
+Delete key + right-click delete, inspector case (within-family kind Select,
+mount-height mm AFFL with per-kind placeholder + 300/1050/1200/2400 preset
+chips, label), `showMep` view toggle. Editor state carries {family, kind}
+(water-heater exists in both unions). Scenario caught a real gating bug —
+the inspector case ignored the flag — fixed + Simple/Pro test added. 186
+targeted tests + 17-step scenario. PR 4 (Suggest) + PR 5 (sheets) next.
+
 ## v0.22.2.45 — G9: drawing-set FF&E sheet gains item-metadata columns
 
 The FF&E schedule sheet now shows Unit/Total prices (previously missing —

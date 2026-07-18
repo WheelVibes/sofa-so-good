@@ -94,8 +94,10 @@ function wallBounds(walls: PlanWall[]): Bounds {
   return { minX, minZ, maxX, maxZ }
 }
 
-/** Short marking text drawn inside a symbol circle (empty for plain socket). */
-const SYM_TEXT: Record<ElectricalKind, string> = {
+/** Short marking text drawn inside a symbol circle (empty for plain socket).
+ *  Exported (MEP layer, G1 PR3) so the 2D editor's `MepLayer` renders the same
+ *  glyph vocabulary as the exported sheet — one symbol set, not two. */
+export const ELEC_SYM_TEXT: Record<ElectricalKind, string> = {
   socket: '',
   'socket-double': '2',
   switch: 'S',
@@ -198,7 +200,7 @@ function symbol(
   } else {
     out.push(
       `<text x="${n(cx)}" y="${n(cy)}" font-size="${SYM_FONT}" text-anchor="middle" ` +
-        `dominant-baseline="central" fill="${esc(palette.ink)}">${esc(SYM_TEXT[kind])}</text>`,
+        `dominant-baseline="central" fill="${esc(palette.ink)}">${esc(ELEC_SYM_TEXT[kind])}</text>`,
     )
   }
   if (label) {

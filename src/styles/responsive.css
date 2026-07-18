@@ -266,6 +266,10 @@ body.mobile {
   .m-detail .plan-tools-group .btn,
   .m-detail .plan-tools-group .input { min-height: 44px; }
   .m-detail .plan-tools-group .seg button { min-height: 44px; }
+  /* MEP kind chips (MEP layer, G1 PR3 — the mobile Plan-tools sheet's MEP
+     section) reuse the `.action-grid`/`.act` popover-chip look, which has no
+     min-height of its own outside a desktop popover — meet 44px here too. */
+  .m-detail .plan-tools-group .act { min-height: 44px; }
   /* Persistent sign-in / account footer at the bottom of the sheet. */
   .m-sheet-foot { flex: none; border-top: 1px solid var(--border); padding: 6px; }
   .m-foot-btn {

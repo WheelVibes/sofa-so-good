@@ -35,6 +35,7 @@ export type Tool =
   | 'text'
   | 'dimension'
   | 'polyline'
+  | 'mep'
 
 /** A reference photo/scan traced over to draw walls. Session-scoped (the object
  *  URL lives only this session); `mPerPx` is the calibrated real-world scale. */

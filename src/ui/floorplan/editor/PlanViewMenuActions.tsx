@@ -20,6 +20,9 @@ export function PlanViewMenuActions({
   onToggleWallDims,
   showFurniture,
   onToggleFurniture,
+  fMep,
+  showMep,
+  onToggleMep,
   skeleton,
   onToggleSkeleton,
   isMultiLevel,
@@ -37,6 +40,9 @@ export function PlanViewMenuActions({
   onToggleWallDims: () => void
   showFurniture: boolean
   onToggleFurniture: () => void
+  fMep: boolean
+  showMep: boolean
+  onToggleMep: () => void
   skeleton: boolean
   onToggleSkeleton: () => void
   isMultiLevel: boolean
@@ -84,6 +90,17 @@ export function PlanViewMenuActions({
       >
         Furniture
       </button>
+      {fMep && (
+        <button
+          type="button"
+          onClick={onToggleMep}
+          className={`btn btn-sm${showMep ? ' btn-accent' : ''}`}
+          title="Toggle the electrical/plumbing points layer"
+          aria-pressed={showMep}
+        >
+          MEP
+        </button>
+      )}
       <button
         type="button"
         onClick={onToggleSkeleton}

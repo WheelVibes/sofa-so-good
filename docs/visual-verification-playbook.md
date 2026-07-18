@@ -1510,6 +1510,17 @@ PNG**.
 
 ## Gotchas & fixes (the actual time-sinks)
 
+### A store-level flag-off must be re-verified against EVERY consumer, not just the obvious one
+Flipping a pro-tier flag off mid-scenario (`setFeatureFlag('mepEditor', false)`) is a good way to
+catch a consumer that forgot its own `useFeature` gate — it caught exactly that in the MEP-points
+work (G1 PR3): the toolbar group and the plan layer were correctly gated, but the `PlanInspector`
+`'mep'` selection case wasn't — flipping the flag off with a MEP point still selected left the
+"Electrical point" panel (kind/mount-height/delete) fully rendered and usable in Simple mode. The
+screenshot looked identical whether the flag was on or off — only cross-checking against the
+toolbar (which correctly lost its "MEP ▾" group) revealed the mismatch. When a feature has several
+render sites (tool palette + canvas layer + inspector case + mobile sheet), flip its flag off with
+something already selected/armed and diff EVERY site, not just the one you're actively screenshotting.
+
 ### First-run overlays cover the scene (location modal, onboarding, tour)
 Three first-run overlays will obscure your screenshot, and they're gated on
 **store state**, not localStorage, so the harness's localStorage seeding does NOT

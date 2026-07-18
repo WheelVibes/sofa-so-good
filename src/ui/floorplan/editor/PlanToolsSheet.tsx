@@ -1,7 +1,10 @@
 import { type ReactNode, useState } from 'react'
+import type { ElectricalKind, PlumbingKind } from '../../../floorplan/types'
 import { Button } from '../../controls/Button'
 import { MobileSheet, type SheetRailItem } from '../../toolbar/mobile/MobileSheet'
 import { Section, SubHeader } from '../../toolbar/mobile/parts'
+import type { MepSelection } from './DrawToolPalette'
+import { ELECTRICAL_MEP_KINDS, PLUMBING_MEP_KINDS } from './mepToolKinds'
 
 /**
  * Mobile plan-editor menu: the desktop toolbar's Plan/View/Edit/Defaults
@@ -12,6 +15,10 @@ import { Section, SubHeader } from '../../toolbar/mobile/parts'
  * focus-trap/Escape/swipe-dismiss behaviours; the plan controls are the same
  * already-built fragments as before (REFAC-2 layout-shell rationale), grouped
  * into rail sections with `SubHeader` clusters mirroring the main sheet's look.
+ * The MEP rail section (MEP layer, G1 PR3) is the mobile parity surface for
+ * the desktop `DrawToolPalette` MEP group — same 12 kinds, same one-tap
+ * arm-tool-and-kind behaviour, just laid out as 44px rows instead of a
+ * popover grid.
  */
 export function PlanToolsSheet({
   open,
@@ -27,6 +34,9 @@ export function PlanToolsSheet({
   planDefaults,
   totalLabel,
   onHelp,
+  fMep,
+  mep,
+  onPickMep,
 }: {
   open: boolean
   onClose: () => void
@@ -41,6 +51,9 @@ export function PlanToolsSheet({
   planDefaults: ReactNode
   totalLabel: ReactNode
   onHelp: () => void
+  fMep: boolean
+  mep: MepSelection
+  onPickMep: (sel: MepSelection) => void
 }) {
   const [activeId, setActiveId] = useState('plan')
   // The Edit section only exists while its controls do (wall thickness is
@@ -50,6 +63,7 @@ export function PlanToolsSheet({
     { id: 'plan', icon: 'FloorPlan', title: 'Plan' },
     { id: 'view', icon: 'Eye', title: 'View' },
     ...(hasEdit ? ([{ id: 'edit', icon: 'Select', title: 'Edit' }] as SheetRailItem[]) : []),
+    ...(fMep ? ([{ id: 'mep', icon: 'Lights', title: 'MEP' }] as SheetRailItem[]) : []),
     { id: 'defaults', icon: 'Settings', title: 'Defaults' },
   ]
   // Keep the user's pick while it exists (Edit can vanish when its controls
@@ -103,6 +117,47 @@ export function PlanToolsSheet({
               <div className="flex flex-wrap items-center gap-2">{wallTypeSeg}</div>
             ) : null}
             {multiSelectToggle}
+          </div>
+        </Section>
+      ) : null}
+
+      {fMep ? (
+        <Section id="mep" title="MEP" icon="Lights" activeId={shownId}>
+          <SubHeader>Electrical</SubHeader>
+          <div className="plan-tools-group">
+            <div className="action-grid two">
+              {ELECTRICAL_MEP_KINDS.map((x) => (
+                <button
+                  key={`e-${x.kind}`}
+                  type="button"
+                  className={`act${mep.family === 'electrical' && mep.kind === x.kind ? ' on' : ''}`}
+                  aria-current={mep.family === 'electrical' && mep.kind === x.kind}
+                  title={x.title}
+                  onClick={() =>
+                    onPickMep({ family: 'electrical', kind: x.kind as ElectricalKind })
+                  }
+                >
+                  {x.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <SubHeader>Plumbing</SubHeader>
+          <div className="plan-tools-group">
+            <div className="action-grid two">
+              {PLUMBING_MEP_KINDS.map((x) => (
+                <button
+                  key={`p-${x.kind}`}
+                  type="button"
+                  className={`act${mep.family === 'plumbing' && mep.kind === x.kind ? ' on' : ''}`}
+                  aria-current={mep.family === 'plumbing' && mep.kind === x.kind}
+                  title={x.title}
+                  onClick={() => onPickMep({ family: 'plumbing', kind: x.kind as PlumbingKind })}
+                >
+                  {x.label}
+                </button>
+              ))}
+            </div>
           </div>
         </Section>
       ) : null}

@@ -125,3 +125,19 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   distinct colour (two walls sharing a colour share one `AW-0N`). `floorTexScale` is surfaced as an
   honest tiling-scale factor in the floor cell's `spec` — there is no base tile mm size stored
   anywhere in the model, so none is invented.
+- **MEP points (G1, contractor-handover goal): `electricalPoints?`/`plumbingPoints?` on
+  `FloorPlan`** (`PlanElectricalPoint`/`PlanPlumbingPoint`) — free XZ (not wall-anchored; a
+  `{wallId, offset}` binding would need re-homing on `splitWall`/`removeWall`/`filletCorner` like
+  openings do), level-tagged, mount height in mm AFFL (per-kind default in `mepPoints.ts`) +
+  optional label. `ElectricalKind`/`PlumbingKind` live HERE (moved from `electricalPlan.ts`/
+  `plumbingPlan.ts`, which re-export them type-only) so this file can host the point interfaces
+  without an import cycle. Editor: the `'mep'` tool (`ui/floorplan/editor/DrawToolPalette.tsx`'s
+  4th group + mobile `PlanToolsSheet` MEP section) snaps a placement onto the nearest wall FACE
+  within 0.25 m (`editor/mepPlacement.ts`, pure, given an already-computed `nearestWall()` hit);
+  `layers/MepLayer.tsx` renders the same glyph vocabulary the exported sheets use
+  (`electricalPlanSvg.ts`/`plumbingPlanSvg.ts` export `ELEC_SYM_TEXT`/`PLUMB_SYM_TEXT`). All six
+  store actions (`add`/`update`/`remove` × electrical/plumbing) fork the default plan + push
+  history — unlike `addNote`'s pre-existing non-forking quirk (don't copy it here). `mepEditor` Pro
+  flag (default on) gates the tool/layer/inspector; `electricalPlan`/`plumbingPlan` still gate the
+  exported sheets separately, which don't yet prefer these persisted points over the
+  furniture-derived heuristic (planned follow-up).

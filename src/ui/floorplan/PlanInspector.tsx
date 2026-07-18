@@ -1,17 +1,24 @@
 import { useState } from 'react'
 import { useFeature } from '../../features/useFeature'
 import { levelById, levelOfItem } from '../../floorplan/levels'
+import { electricalMountDefaultMm, plumbingMountDefaultMm } from '../../floorplan/mepPoints'
 import { polylineLength } from '../../floorplan/polyline'
-import { DEFAULT_PLAN_WALL_COLOR } from '../../floorplan/types'
+import {
+  DEFAULT_PLAN_WALL_COLOR,
+  type ElectricalKind,
+  type PlumbingKind,
+} from '../../floorplan/types'
 import { useStore } from '../../state/store'
 import { formatLength } from '../../utils/measurement'
 import { ColorPicker } from '../controls/ColorPicker'
+import { Select } from '../controls/Select'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 import { OpeningInspector } from './editor/inspector/OpeningInspector'
 import { RoomInspector } from './editor/inspector/RoomInspector'
 import { ActBtn, DeleteBtn, Num } from './editor/inspector/shared'
 import { WallInspector } from './editor/inspector/WallInspector'
+import { ELECTRICAL_MEP_KINDS, PLUMBING_MEP_KINDS } from './editor/mepToolKinds'
 import { PlanFurnitureInspector } from './PlanFurnitureInspector'
 import { PlanMultiSelectActions } from './PlanMultiSelectActions'
 
@@ -59,6 +66,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const furnSelCount = useStore((s) => s.selectedItemIds.length)
   const plan = useStore((s) => s.floorPlan)
   const units = useStore((s) => s.units)
+  const fMep = useFeature('mepEditor')
   const a = useStore.getState()
   const isMobile = useIsMobile()
   const wallThicknessOn = useFeature('wallThickness')
@@ -282,6 +290,110 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
             />
           </label>
           <DeleteBtn onClick={() => a.removeNote(note.id)} label="Delete note" />
+        </div>
+      )
+    }
+  } else if (sel?.type === 'mep' && fMep) {
+    const { family } = sel
+    const elecPoint =
+      family === 'electrical' ? (plan.electricalPoints ?? []).find((x) => x.id === sel.id) : null
+    const plumbPoint =
+      family === 'plumbing' ? (plan.plumbingPoints ?? []).find((x) => x.id === sel.id) : null
+    const p = elecPoint ?? plumbPoint
+    if (p) {
+      const kindOptions = (family === 'electrical' ? ELECTRICAL_MEP_KINDS : PLUMBING_MEP_KINDS).map(
+        (x) => ({ value: x.kind, label: x.title }),
+      )
+      const defaultMm =
+        family === 'electrical'
+          ? electricalMountDefaultMm(p.kind as ElectricalKind)
+          : plumbingMountDefaultMm(p.kind as PlumbingKind)
+      const setMountHeight = (mm: number) =>
+        family === 'electrical'
+          ? a.updateElectricalPoint(p.id, { mountHeightMm: mm })
+          : a.updatePlumbingPoint(p.id, { mountHeightMm: mm })
+      // Preset chips are electrical-only (skirting/switch/aircon/screen
+      // heights the plan doc names) — plumbing mount heights are per-kind
+      // fixed conventions (floor-level traps, 600mm water points) with no
+      // equivalent "pick one of a few common heights" spread.
+      const presets = family === 'electrical' ? [300, 1050, 1200, 2400] : []
+      body = (
+        <div className="space-y-2">
+          <div className="sec-h">
+            <span>{family === 'electrical' ? 'Electrical point' : 'Plumbing point'}</span>
+          </div>
+          <div className="row" style={{ padding: '6px 0', alignItems: 'center' }}>
+            <span className="label">Kind</span>
+            <Select
+              className="input"
+              style={{ marginLeft: 'auto', maxWidth: '65%' }}
+              value={p.kind}
+              onChange={(v) =>
+                family === 'electrical'
+                  ? a.updateElectricalPoint(p.id, { kind: v as ElectricalKind })
+                  : a.updatePlumbingPoint(p.id, { kind: v as PlumbingKind })
+              }
+              ariaLabel="MEP point kind"
+              options={kindOptions}
+            />
+          </div>
+          <Num
+            label="Mount height (mm AFFL)"
+            value={p.mountHeightMm}
+            step={50}
+            min={0}
+            placeholder={String(defaultMm)}
+            onChange={setMountHeight}
+          />
+          {presets.length > 0 && (
+            <div className="quick-finish">
+              <span className="quick-finish-h">Standard heights</span>
+              {/* biome-ignore lint/a11y/useSemanticElements: a <fieldset> needs a
+                  <legend> and adds default browser border/padding — role="group"
+                  + aria-label is the non-visual equivalent (mirrors
+                  MountHeightPresets). */}
+              <div className="quick-finish-row" role="group" aria-label="Standard heights">
+                {presets.map((mm) => {
+                  const isActive = (p.mountHeightMm ?? defaultMm) === mm
+                  return (
+                    <button
+                      key={mm}
+                      type="button"
+                      className={`chip${isActive ? ' on' : ''}`}
+                      title={`Set mount height to ${mm}mm AFFL`}
+                      aria-pressed={isActive}
+                      onClick={() => setMountHeight(mm)}
+                    >
+                      {mm}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          <label className="flex items-center gap-2 text-xs">
+            <span className="label" style={{ whiteSpace: 'nowrap' }}>
+              Label
+            </span>
+            <input
+              type="text"
+              value={p.label ?? ''}
+              aria-label="Point label"
+              placeholder="e.g. fridge, WC"
+              onChange={(e) =>
+                family === 'electrical'
+                  ? a.updateElectricalPoint(p.id, { label: e.target.value || undefined })
+                  : a.updatePlumbingPoint(p.id, { label: e.target.value || undefined })
+              }
+              className="input"
+            />
+          </label>
+          <DeleteBtn
+            onClick={() =>
+              family === 'electrical' ? a.removeElectricalPoint(p.id) : a.removePlumbingPoint(p.id)
+            }
+            label={family === 'electrical' ? 'Delete electrical point' : 'Delete plumbing point'}
+          />
         </div>
       )
     }

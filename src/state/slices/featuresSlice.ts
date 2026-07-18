@@ -23,6 +23,7 @@ export type ContextTarget =
   | { kind: 'dim'; id: string }
   | { kind: 'note'; id: string }
   | { kind: 'polyline'; id: string }
+  | { kind: 'mep'; family: 'electrical' | 'plumbing'; id: string }
   | { kind: 'canvas' }
 
 /** Position of the right-click context menu, in viewport px, + its target. */

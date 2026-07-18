@@ -1596,7 +1596,39 @@ same change that reshapes a system.
   PARITY-PLANTEXT) + **dimension
   lines** (Dimension tool → `plan.dimensions`, measured-length labels) — both persisted (PARITY-DIMTEXT).
   **Polyline markup** (Polyline tool → `plan.polylines`, open/closed + dashed + end-arrow; pure
-  `floorplan/polyline.ts`; `planPolyline` flag, pro — PARITY-POLYLINE). **Draggable room-name labels**
+  `floorplan/polyline.ts`; `planPolyline` flag, pro — PARITY-POLYLINE).
+  **MEP points** (G1 — persisted, editable electrical/plumbing points, contractor-handover goal):
+  `FloorPlan.electricalPoints`/`plumbingPoints` (`PlanElectricalPoint`/`PlanPlumbingPoint`,
+  `floorplan/types.ts` — `ElectricalKind`/`PlumbingKind` moved there so `electricalPlan.ts`/
+  `plumbingPlan.ts` re-export type-only, avoiding an import cycle), free XZ (not wall-anchored —
+  wall attachment is a placement-time snap, not a persisted binding) + a level tag, mount height
+  in mm AFFL (per-kind default in `floorplan/mepPoints.ts`'s `ELECTRICAL_MOUNT_DEFAULTS_MM`/
+  `PLUMBING_MOUNT_DEFAULTS_MM`) + optional label. The `'mep'` editor tool (+ an editor-local armed
+  `family`/`kind`, default electrical socket) is a 4th `DrawToolPalette` `PlanMenu` group ("MEP",
+  Electrical/Plumbing sub-headers, 12 kinds total) that arms tool+kind in one click (mirrored on
+  mobile by a `PlanToolsSheet` "MEP" rail section, 44px chips) — `FloorPlanEditor`'s `onDown` snaps
+  the grid/guide-snapped click onto the nearest wall FACE when within 0.25 m (pure decision in
+  `ui/floorplan/editor/mepPlacement.ts`, given an already-computed `nearestWall()` hit — an MEP
+  point conventionally sits ON the wall it serves) and adds to the family the kind belongs to; the
+  tool stays armed (door/window convention) so several points place in a row. `layers/MepLayer.tsx`
+  (a `NotesLayer` clone) renders each point as a circle + glyph, reusing the exported sheets' exact
+  symbol vocabulary (`electricalPlanSvg.ts`/`plumbingPlanSvg.ts` export `ELEC_SYM_TEXT`/
+  `PLUMB_SYM_TEXT` — one symbol set, not two) — electrical in `--accent`, plumbing in the distinct
+  `--accent-2` token, selected always `--accent`; click (select tool) selects, drag repositions via
+  `beginElementDrag` + coalesced `updateElectricalPoint`/`updatePlumbingPoint`. `PlanInspector`'s
+  `'mep'` case is a within-family kind `Select`, a mount-height `Num` (step 50 mm, placeholder = the
+  per-kind default) + quick-pick preset chips for electrical (300/1050/1200/2400 mm — `Num` grew an
+  optional `undefined`-value + `placeholder` mode for this), a label input, delete. A `showMep`
+  session toggle in `PlanViewMenuActions` (shown by default — unlike furniture footprints, MEP
+  points are plan elements authored here, not a duplicate of the 3D scene); `Delete`/`Backspace`
+  removes the selection; a right-click gets the same minimal delete-only menu as notes/dimensions/
+  polylines (`ContextTarget`'s `'mep'` kind). All six store actions (`add`/`update`/`remove` × 2
+  families) fork the default plan + push history (unlike `addNote`'s pre-existing non-forking
+  quirk, deliberately not copied — a non-forking add on the untouched default plan would lose its
+  points on the next save/share-link). Gated end-to-end by the `mepEditor` flag (pro, default on) —
+  the pre-existing `electricalPlan`/`plumbingPlan` flags still gate the exported SHEETS separately;
+  the sheets don't yet prefer these persisted points over the furniture-derived heuristic (planned
+  follow-up). **Draggable room-name labels**
   (`room.labelOffset`; `roomLabelPosition` = centroid + offset, shared by editor + report/drawing set —
   PARITY-ROOMLABEL). Each room's label shows name + live floor **area** (`planRoomArea`) + wall
   **perimeter** (`planRoomPerimeter` — shared with the report) on the full-detail tier, unit-aware
