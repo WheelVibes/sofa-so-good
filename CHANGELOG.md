@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.17 — Share-card format picker (Post · Square · Story)
+
+The hero share card gains 1080×1080 Square and 1080×1920 Story formats
+alongside the default 4:5 Post, via a `Segmented` next to "Save hero image"
+(component-local state, matching the catalog-filter ephemeral precedent).
+Pure `shareCardLayout(format)` table: PAD/RADIUS fixed, the 394 px chrome
+block (name/stats/strip/wordmark) anchors to the bottom, the hero fills the
+rest — default 'post' is byte-identical to the old constants (tested).
+Filename gains a format suffix (default unsuffixed); `__buildShareCard`
+takes an optional format. GPU-verified (Story card renders tall hero +
+bottom chrome correctly); 31 shareCard tests.
+
 ## v0.22.2.16 — SH3D import: exact window sills from `elevation`
 
 `.sh3d` windows now import at their true height: the parser reads each

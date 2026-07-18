@@ -385,10 +385,14 @@ async function exposeDevHelpers(): Promise<void> {
   }
   // Expose the one-tap hero-card builder so the scenario harness can verify the
   // composed PNG headlessly (the canvas raster needs a real browser). Returns the
-  // card's PNG data URL and records it on `__buildShareCardResult`.
+  // card's PNG data URL and records it on `__buildShareCardResult`. Optional
+  // `format` ('post' | 'square' | 'story', defaults to 'post') selects the
+  // aspect preset — e.g. `window.__buildShareCard('story')`.
   const { buildShareCardDataUrl } = await import('../../ui/openShareCard')
-  ;(window as unknown as { __buildShareCard?: unknown }).__buildShareCard = async () => {
-    const url = await buildShareCardDataUrl()
+  ;(window as unknown as { __buildShareCard?: unknown }).__buildShareCard = async (
+    format?: 'post' | 'square' | 'story',
+  ) => {
+    const url = await buildShareCardDataUrl(format)
     ;(window as unknown as { __buildShareCardResult?: unknown }).__buildShareCardResult = url
     return url
   }

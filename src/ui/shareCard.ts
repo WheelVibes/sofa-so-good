@@ -110,17 +110,125 @@ export function paletteStripLayout(opts: {
 }
 
 /**
- * Build the download filename for the hero card: `sofa-hero-<slug>-<date>.png`.
+ * Build the download filename for the hero card: `sofa-hero-<slug>-<date>.png`
+ * for the default `post` format, `sofa-hero-<slug>-<date>-<format>.png` for
+ * `square`/`story` (back-compat: the default format's filename is unchanged).
  * The design name is slugified (lowercase, non-alphanumerics → single dashes,
  * trimmed); a blank/emoji-only name degrades to `design`. `date` defaults to
  * today (ISO `YYYY-MM-DD`) — passed in for deterministic tests.
  */
-export function shareCardFilename(name: string, date: Date = new Date()): string {
+export function shareCardFilename(
+  name: string,
+  date: Date = new Date(),
+  format: ShareCardFormat = 'post',
+): string {
   const slug = String(name ?? '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 48)
   const stamp = date.toISOString().slice(0, 10)
-  return `sofa-hero-${slug || 'design'}-${stamp}.png`
+  const suffix = format === 'post' ? '' : `-${format}`
+  return `sofa-hero-${slug || 'design'}-${stamp}${suffix}.png`
+}
+
+// --- format / layout table --------------------------------------------------
+
+/**
+ * The three share-card aspect presets: `post` (4:5, the original default —
+ * Instagram/Facebook feed post), `square` (1:1), `story` (9:16 — Instagram/
+ * WhatsApp Story). Picked via a `Segmented` at the "Save hero image" entry
+ * point (`ShareModal`); `post` is the default and byte-identical to the
+ * original hardcoded card.
+ */
+export type ShareCardFormat = 'post' | 'square' | 'story'
+
+/** Pixel dimensions for each format (all 1080 px wide — social-standard sizes). */
+export const SHARE_CARD_DIMS: Record<ShareCardFormat, { width: number; height: number }> = {
+  post: { width: 1080, height: 1350 },
+  square: { width: 1080, height: 1080 },
+  story: { width: 1080, height: 1920 },
+}
+
+/** Outer margin (px) on every side, and the hero panel's corner radius. */
+const SHARE_CARD_PAD = 56
+const SHARE_CARD_RADIUS = 28
+
+/**
+ * Fixed height (px) of the "chrome" block below the hero image — name line +
+ * stat line + swatch strip + wordmark, with their internal gaps — measured
+ * from the ORIGINAL 1080×1350 `post` card so the default format stays
+ * byte-identical. Kept constant across formats so the hero simply fills
+ * whatever top area remains above this fixed-height footer, per format.
+ */
+const SHARE_CARD_CHROME_H = 394
+/** Gap (px) from the hero's bottom edge to the design-name baseline. */
+const SHARE_CARD_NAME_OFFSET = 84
+/** Gap (px) from the name baseline to the stat-line baseline. */
+const SHARE_CARD_STATS_OFFSET = 46
+/** Gap (px) from the stat-line baseline to the swatch strip's top edge. */
+const SHARE_CARD_STRIP_OFFSET = 40
+
+/** Rect for the hero image panel within the card. */
+export interface ShareCardRect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** Full pixel layout for one format: hero rect + the chrome block's anchors. */
+export interface ShareCardLayout {
+  width: number
+  height: number
+  pad: number
+  radius: number
+  hero: ShareCardRect
+  /** Baseline y for the design-name line. */
+  nameY: number
+  /** Baseline y for the stat line. */
+  statsY: number
+  /** Top y for the swatch strip. */
+  stripTop: number
+  /** Baseline y for the wordmark. */
+  wordY: number
+  /** Max text/strip width (card width minus both margins). */
+  maxTextW: number
+}
+
+/**
+ * Compute the full pixel layout for a format: the hero panel fills the top of
+ * the card (same {@link SHARE_CARD_PAD} margin on every side) down to a
+ * fixed-height chrome footer (name/stats/strip/wordmark) anchored to the
+ * bottom — so a taller format (`story`) just grows the hero, never the
+ * footer. `post`'s numbers match the original hardcoded constants exactly
+ * (`hero.height` = 900, `nameY` = 1040, `statsY` = 1086, `stripTop` = 1126,
+ * `wordY` = 1294).
+ */
+export function shareCardLayout(format: ShareCardFormat): ShareCardLayout {
+  const { width, height } = SHARE_CARD_DIMS[format]
+  const pad = SHARE_CARD_PAD
+  const heroBottom = height - SHARE_CARD_CHROME_H
+  const hero: ShareCardRect = {
+    x: pad,
+    y: pad,
+    width: width - pad * 2,
+    height: heroBottom - pad,
+  }
+  const nameY = heroBottom + SHARE_CARD_NAME_OFFSET
+  const statsY = nameY + SHARE_CARD_STATS_OFFSET
+  const stripTop = statsY + SHARE_CARD_STRIP_OFFSET
+  const wordY = height - pad
+  return {
+    width,
+    height,
+    pad,
+    radius: SHARE_CARD_RADIUS,
+    hero,
+    nameY,
+    statsY,
+    stripTop,
+    wordY,
+    maxTextW: width - pad * 2,
+  }
 }

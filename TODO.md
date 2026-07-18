@@ -86,6 +86,25 @@ See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full d
   `local-assets/`, then surface Poly Haven models in prod (`remoteFurniture` flag — needs a
   runtime fetch/repack path or pre-bundled assets, see the production-infra section).
 
+## Open — UX research round 2 queue (2026-07-18)
+Ranked by value÷effort; verified absent against registry + source this pass.
+- [ ] **Catalog comparison tray** (S–M) — pick 2-3 same-category items → side-by-side
+  footprint/dimension compare modal (reuses card thumbnails + `defaultFootprint`). New
+  `catalogCompare` flag, simple tier.
+- [ ] **Version split-view** (M) — compare two saved slots in the live 3D via the existing
+  reveal-divider mechanism (`stagingReveal`/`timeCompare` pattern); today's diff is text-only.
+  New `versionCompareView` flag, pro. Care: scratch state must not leak into undo/autosave.
+- [ ] **WebXR AR hit-test on Android Chrome** (M) — real `immersive-ar` with the in-memory scene
+  (no hosted URL needed), closing the iOS-vs-rest asymmetry `viewInAr.ts` documents. **Blocked on
+  real-device QA** — cannot be verified in this sandbox; keep the GLB-download fallback.
+- [ ] **Voice dictation for the text brief** (S) — Web Speech mic on the `textBrief` input;
+  REQUIRES the repo's platform-quirk WebSearch first (Safari/iOS support inconsistencies), and
+  `textBrief` itself ships default-false ("not production-ready") — revisit together.
+- [ ] **AI design chat (BYO-key, read-only advice)** (L, low confidence) — needs a live
+  web-research pass to confirm differentiation before scoping.
+- *(Flagged, needs product decision: `budget`/`clearanceChecks`/`textBrief` are simple-TIER but
+  default-false "not production-ready" — ship or demote eventually.)*
+
 ## Open — UI/UX polish follow-ups
 - [ ] **P37 List virtualization — DEFERRED (2026-07-03 ruling).** Not justified now: the
   catalog is already paginated (`PAGE_SIZE=12`, never renders >12 cards); history/layers

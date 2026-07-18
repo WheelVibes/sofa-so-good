@@ -12,8 +12,11 @@ import {
   buildShareCardStats,
   paletteStripLayout,
   pickShareCardSwatches,
+  SHARE_CARD_DIMS,
   SHARE_CARD_MAX_SWATCHES,
+  type ShareCardFormat,
   shareCardFilename,
+  shareCardLayout,
 } from './shareCard'
 
 const item = (id: string): FurnitureItem => ({
@@ -128,6 +131,82 @@ describe('shareCardFilename', () => {
 
   it('trims leading/trailing dashes', () => {
     expect(shareCardFilename('  Studio!  ', date)).toBe('sofa-hero-studio-2026-07-18.png')
+  })
+
+  it('defaults to the post format (no suffix)', () => {
+    expect(shareCardFilename('Studio', date, 'post')).toBe('sofa-hero-studio-2026-07-18.png')
+  })
+
+  it('suffixes non-default formats', () => {
+    expect(shareCardFilename('Studio', date, 'square')).toBe(
+      'sofa-hero-studio-2026-07-18-square.png',
+    )
+    expect(shareCardFilename('Studio', date, 'story')).toBe('sofa-hero-studio-2026-07-18-story.png')
+  })
+})
+
+describe('shareCardLayout', () => {
+  const formats: ShareCardFormat[] = ['post', 'square', 'story']
+
+  it("matches the original hardcoded 'post' card exactly (byte-identical default)", () => {
+    const l = shareCardLayout('post')
+    expect(l.width).toBe(1080)
+    expect(l.height).toBe(1350)
+    expect(l.pad).toBe(56)
+    expect(l.radius).toBe(28)
+    expect(l.hero).toEqual({ x: 56, y: 56, width: 968, height: 900 })
+    expect(l.nameY).toBe(1040)
+    expect(l.statsY).toBe(1086)
+    expect(l.stripTop).toBe(1126)
+    expect(l.wordY).toBe(1294)
+    expect(l.maxTextW).toBe(968)
+  })
+
+  it('matches the documented dims for each format', () => {
+    expect(SHARE_CARD_DIMS.post).toEqual({ width: 1080, height: 1350 })
+    expect(SHARE_CARD_DIMS.square).toEqual({ width: 1080, height: 1080 })
+    expect(SHARE_CARD_DIMS.story).toEqual({ width: 1080, height: 1920 })
+  })
+
+  it.each(formats)('keeps the hero rect within the card bounds for %s', (format) => {
+    const l = shareCardLayout(format)
+    expect(l.hero.x).toBeGreaterThanOrEqual(0)
+    expect(l.hero.y).toBeGreaterThanOrEqual(0)
+    expect(l.hero.x + l.hero.width).toBeLessThanOrEqual(l.width)
+    expect(l.hero.y + l.hero.height).toBeLessThanOrEqual(l.height)
+    expect(l.hero.height).toBeGreaterThan(0)
+  })
+
+  it.each(
+    formats,
+  )('anchors the chrome block (name → strip → wordmark) below the hero for %s', (format) => {
+    const l = shareCardLayout(format)
+    expect(l.nameY).toBeGreaterThan(l.hero.y + l.hero.height)
+    expect(l.statsY).toBeGreaterThan(l.nameY)
+    expect(l.stripTop).toBeGreaterThan(l.statsY)
+    expect(l.wordY).toBeLessThanOrEqual(l.height)
+    expect(l.wordY).toBeGreaterThan(l.stripTop)
+  })
+
+  it.each(formats)('fits the max-swatch strip within maxTextW for %s', (format) => {
+    const l = shareCardLayout(format)
+    const strip = paletteStripLayout({
+      count: SHARE_CARD_MAX_SWATCHES,
+      width: l.maxTextW,
+      gap: 16,
+      min: 48,
+      max: 120,
+    })
+    expect(strip.totalWidth).toBeLessThanOrEqual(l.maxTextW + 1e-6)
+  })
+
+  it('grows only the hero (not the chrome footer) for a taller format', () => {
+    const post = shareCardLayout('post')
+    const story = shareCardLayout('story')
+    // Same fixed distance from stripTop to wordY on every format (the chrome
+    // footer's own internal layout never changes size, only its position).
+    expect(story.wordY - story.stripTop).toBe(post.wordY - post.stripTop)
+    expect(story.hero.height).toBeGreaterThan(post.hero.height)
   })
 })
 

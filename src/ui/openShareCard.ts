@@ -22,16 +22,14 @@ import {
   buildShareCardStats,
   paletteStripLayout,
   pickShareCardSwatches,
+  type ShareCardFormat,
   shareCardFilename,
+  shareCardLayout,
 } from './shareCard'
 
-// --- fixed card design ------------------------------------------------------
-
-const CARD_W = 1080
-const CARD_H = 1350
-const PAD = 56
-const HERO_H = 900
-const RADIUS = 28
+// --- fixed card design -------------------------------------------------------
+// Per-format pixel dims/layout live in the pure `shareCardLayout` (shareCard.ts);
+// this module keeps only the colours + font sizes, which are format-independent.
 
 // On-brand fixed dark palette (theme-independent export surface).
 const BG = '#14161b'
@@ -88,40 +86,44 @@ export interface ShareCardRenderInput {
 
 /**
  * Render the hero card to a fresh `<canvas>`. Browser-only (creates a canvas +
- * 2D context). The layout math it relies on is the pure `paletteStripLayout`.
+ * 2D context). The layout math it relies on is the pure `shareCardLayout` +
+ * `paletteStripLayout`. `format` defaults to `post` (the original 1080×1350
+ * card) — its geometry is byte-identical to the pre-multi-format constants.
  */
-export function renderShareCardCanvas(input: ShareCardRenderInput): HTMLCanvasElement {
+export function renderShareCardCanvas(
+  input: ShareCardRenderInput,
+  format: ShareCardFormat = 'post',
+): HTMLCanvasElement {
+  const layout = shareCardLayout(format)
   const canvas = document.createElement('canvas')
-  canvas.width = CARD_W
-  canvas.height = CARD_H
+  canvas.width = layout.width
+  canvas.height = layout.height
   const ctx = canvas.getContext('2d')
   if (!ctx) return canvas
 
   // Background.
   ctx.fillStyle = BG
-  ctx.fillRect(0, 0, CARD_W, CARD_H)
+  ctx.fillRect(0, 0, layout.width, layout.height)
 
   // Hero panel (rounded, clipped cover-fit render or placeholder).
-  const hx = PAD
-  const hy = PAD
-  const hw = CARD_W - PAD * 2
+  const { x: hx, y: hy, width: hw, height: hh } = layout.hero
   ctx.save()
   ctx.beginPath()
-  ctx.roundRect(hx, hy, hw, HERO_H, RADIUS)
+  ctx.roundRect(hx, hy, hw, hh, layout.radius)
   ctx.closePath()
   ctx.fillStyle = HERO_BG
   ctx.fill()
   ctx.clip()
   if (input.hero && input.hero.width > 0 && input.hero.height > 0) {
-    const scale = Math.max(hw / input.hero.width, HERO_H / input.hero.height)
+    const scale = Math.max(hw / input.hero.width, hh / input.hero.height)
     const dw = input.hero.width * scale
     const dh = input.hero.height * scale
-    ctx.drawImage(input.hero, hx + (hw - dw) / 2, hy + (HERO_H - dh) / 2, dw, dh)
+    ctx.drawImage(input.hero, hx + (hw - dw) / 2, hy + (hh - dh) / 2, dw, dh)
   } else {
     // Placeholder: a subtle accent wash so a card without a capture still reads.
     ctx.fillStyle = input.accent
     ctx.globalAlpha = 0.12
-    ctx.fillRect(hx, hy, hw, HERO_H)
+    ctx.fillRect(hx, hy, hw, hh)
     ctx.globalAlpha = 1
   }
   ctx.restore()
@@ -129,29 +131,26 @@ export function renderShareCardCanvas(input: ShareCardRenderInput): HTMLCanvasEl
   ctx.strokeStyle = HAIRLINE
   ctx.lineWidth = 2
   ctx.beginPath()
-  ctx.roundRect(hx, hy, hw, HERO_H, RADIUS)
+  ctx.roundRect(hx, hy, hw, hh, layout.radius)
   ctx.stroke()
 
-  const textX = PAD
-  const maxTextW = CARD_W - PAD * 2
+  const textX = layout.pad
+  const maxTextW = layout.maxTextW
 
   // Design name.
-  const nameY = hy + HERO_H + 84
   ctx.fillStyle = TEXT
   ctx.textBaseline = 'alphabetic'
   ctx.font = '800 60px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
-  fillTextEllipsis(ctx, input.name || 'My design', textX, nameY, maxTextW)
+  fillTextEllipsis(ctx, input.name || 'My design', textX, layout.nameY, maxTextW)
 
   // Stat line.
-  const statsY = nameY + 46
   ctx.fillStyle = TEXT_MUTED
   ctx.font = '600 30px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
-  fillTextEllipsis(ctx, input.statLine, textX, statsY, maxTextW)
+  fillTextEllipsis(ctx, input.statLine, textX, layout.statsY, maxTextW)
 
   // Palette swatch strip.
-  const stripTop = statsY + 40
   if (input.swatches.length > 0) {
-    const layout = paletteStripLayout({
+    const strip = paletteStripLayout({
       count: input.swatches.length,
       width: maxTextW,
       gap: SWATCH_GAP,
@@ -159,10 +158,10 @@ export function renderShareCardCanvas(input: ShareCardRenderInput): HTMLCanvasEl
       max: SWATCH_MAX,
     })
     for (let i = 0; i < input.swatches.length; i++) {
-      const r = layout.rects[i]
+      const r = strip.rects[i]
       ctx.save()
       ctx.beginPath()
-      ctx.roundRect(textX + r.x, stripTop, r.width, layout.size, 14)
+      ctx.roundRect(textX + r.x, layout.stripTop, r.width, strip.size, 14)
       ctx.closePath()
       ctx.fillStyle = input.swatches[i]
       ctx.fill()
@@ -174,10 +173,9 @@ export function renderShareCardCanvas(input: ShareCardRenderInput): HTMLCanvasEl
   }
 
   // Wordmark, bottom-left.
-  const wordY = CARD_H - PAD
   ctx.fillStyle = input.accent
   ctx.font = '800 30px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
-  ctx.fillText('Sofa So Good', textX, wordY)
+  ctx.fillText('Sofa So Good', textX, layout.wordY)
 
   return canvas
 }
@@ -217,11 +215,16 @@ function loadImage(dataUrl: string | null): Promise<HTMLImageElement | null> {
   })
 }
 
-/** Build the hero card and return its PNG data URL (dev hook / headless verify). */
-export async function buildShareCardDataUrl(): Promise<string | null> {
+/**
+ * Build the hero card and return its PNG data URL (dev hook / headless
+ * verify). `format` defaults to `post` (the original 4:5 card).
+ */
+export async function buildShareCardDataUrl(
+  format: ShareCardFormat = 'post',
+): Promise<string | null> {
   const { heroDataUrl, ...rest } = collectShareCardInput()
   const hero = await loadImage(heroDataUrl)
-  const canvas = renderShareCardCanvas({ ...rest, hero })
+  const canvas = renderShareCardCanvas({ ...rest, hero }, format)
   try {
     return canvas.toDataURL('image/png')
   } catch {
@@ -231,12 +234,13 @@ export async function buildShareCardDataUrl(): Promise<string | null> {
 
 /**
  * Compose + download the one-tap hero card as a PNG. Entry point for the
- * ShareModal "Save hero image" button.
+ * ShareModal "Save hero image" button; `format` comes from the modal's
+ * format `Segmented` (defaults to `post`).
  */
-export async function openShareCard(): Promise<void> {
+export async function openShareCard(format: ShareCardFormat = 'post'): Promise<void> {
   const s = useStore.getState()
   try {
-    const url = await buildShareCardDataUrl()
+    const url = await buildShareCardDataUrl(format)
     if (!url) {
       s.notify.start({
         title: "Couldn't create the hero image",
@@ -247,7 +251,7 @@ export async function openShareCard(): Promise<void> {
     }
     const a = document.createElement('a')
     a.href = url
-    a.download = shareCardFilename(s.floorPlan.name || 'design')
+    a.download = shareCardFilename(s.floorPlan.name || 'design', new Date(), format)
     document.body.appendChild(a)
     a.click()
     a.remove()

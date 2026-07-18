@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   buildDesignShareUrl,
   DesignShareError,
@@ -10,12 +11,20 @@ import { EXPORT_EVENT } from '../scene/ScreenshotController'
 import { exportDesignToFile } from '../state/storage/designFile'
 import { useStore } from '../state/store'
 import { AiPhotorealSection } from './ai/AiPhotorealSection'
+import { Segmented } from './controls/Segmented'
 import { Modal } from './Modal'
 import { openDesignReport } from './openReport'
 import { exportScene3d } from './openSceneExport'
 import { openShareCard } from './openShareCard'
+import type { ShareCardFormat } from './shareCard'
 import { buildShareSummary } from './shareSummary'
 import { Icon } from './toolbar/icons'
+
+const SHARE_CARD_FORMAT_OPTIONS: { value: ShareCardFormat; label: string; title: string }[] = [
+  { value: 'post', label: 'Post', title: 'Post — 4:5 (1080×1350)' },
+  { value: 'square', label: 'Square', title: 'Square — 1:1 (1080×1080)' },
+  { value: 'story', label: 'Story', title: 'Story — 9:16 (1080×1920)' },
+]
 
 /** Share & export modal: a shareable link, project notes, and PNG / PDF export.
  *  The PNG export fires the canvas screenshot event; the PDF opens the real
@@ -29,6 +38,10 @@ export function ShareModal() {
   const aiPhotoreal = useFeature('aiPhotoreal')
   const sceneExport = useFeature('sceneExport3d')
   const shareCard = useFeature('shareCard')
+  // Component-local + ephemeral (like the catalog's Max$/Fits-only controls) —
+  // no existing per-device pref plumbing for a single modal-local choice, and
+  // it's low-stakes enough not to warrant one.
+  const [shareCardFormat, setShareCardFormat] = useState<ShareCardFormat>('post')
 
   const toast = (title: string) => useStore.getState().notify.start({ title, kind: 'success' })
 
@@ -151,11 +164,19 @@ export function ShareModal() {
         </div>
         {shareCard && (
           <>
+            <div style={{ marginBottom: 'var(--s-2)' }}>
+              <Segmented
+                value={shareCardFormat}
+                onChange={(v) => setShareCardFormat(v as ShareCardFormat)}
+                options={SHARE_CARD_FORMAT_OPTIONS}
+                ariaLabel="Hero image format"
+              />
+            </div>
             <button
               type="button"
               className="btn btn-accent btn-block"
               onClick={() => {
-                void openShareCard()
+                void openShareCard(shareCardFormat)
               }}
             >
               <Icon.Frame width={14} height={14} />
