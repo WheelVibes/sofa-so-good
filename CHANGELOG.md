@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.20 — IXT-SUITES back-fill batch 6: 4 more ladders (37 uncovered)
+
+Green rungs for `catalogCompare` (arm → select 2 same-category → tray → Place),
+`bulkAppearance` (Tint-all section gating + bulk tint + clear), `renderPresets`
+(Scene-menu preset select applies time/tone/exposure/lights), and
+`saveMaterials` (compose → name → Save → `SavedMaterial` lands, independent of
+the parent `materialComposer` flag). 4 new playbook gotchas (collapsed
+`<details>` keeps children in DOM → presence waitFor is a false "open"; shared
+Select trigger classNames → target aria-label; Escape clears global selection).
+Uncovered drivable flags 41 → 37. Surfaced a real `bulkAppearance` bug (fixed
+next, v0.22.2.21).
+
 ## v0.22.2.19 — Version compare in 3D (split-view reveal)
 
 Compare a saved version against the current design in the live 3D view

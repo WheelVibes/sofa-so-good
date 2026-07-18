@@ -1,0 +1,62 @@
+{
+  "name": "renderpresets-simple",
+  "description": "Simple rung for the renderPresets flag (IXT-SUITES batch 6): tier:'simple', default-on 'Render preset' select in the toolbar Scene menu. Opens the real Scene menu, asserts the select mounts (hides when force-disabled, reappears when re-enabled), then applies the 'Bright day' preset's underlying store actions (the same 4 setters SceneMenu's onChange calls) and asserts time/tone/exposure/lights all land.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000
+    },
+    {
+      "name": "open-scene-menu",
+      "click": { "selector": "button[aria-label='Scene']" }
+    },
+    {
+      "name": "scene-menu-open",
+      "waitFor": { "css": "button[aria-label='Render preset']" },
+      "failMessage": "'Render preset' select should be present in Simple mode (renderPresets is tier:simple, default:true)"
+    },
+    { "name": "shot-scene-menu-open", "screenshot": "01-scene-menu-render-preset-visible" },
+    {
+      "name": "force-flag-off",
+      "eval": "window.__store.getState().setFeatureFlag('renderPresets', false)"
+    },
+    {
+      "name": "assert-select-hidden",
+      "waitFor": { "css": "button[aria-label='Render preset']", "visible": false },
+      "failMessage": "'Render preset' select should disappear once renderPresets is force-disabled"
+    },
+    { "name": "shot-select-hidden", "screenshot": "02-render-preset-hidden" },
+    {
+      "name": "restore-flag-on",
+      "eval": "window.__store.getState().setFeatureFlag('renderPresets', true)"
+    },
+    {
+      "name": "assert-select-restored",
+      "waitFor": { "css": "button[aria-label='Render preset']" },
+      "failMessage": "'Render preset' select should reappear once renderPresets is re-enabled"
+    },
+    {
+      "name": "baseline-not-bright-day",
+      "eval": "(() => { const s = window.__store.getState(); if (s.manualHour === 12 && s.toneMapping === 'neutral' && s.exposure === 1.1 && s.lightsMode === 'off') throw new Error('Store already matches Bright day preset before applying it — baseline check is meaningless'); })()"
+    },
+    {
+      "name": "apply-bright-day-preset",
+      "eval": "(() => { const s = window.__store.getState(); s.setPresetTime('noon'); s.setToneMapping('neutral'); s.setExposure(1.1); s.setLightsMode('off'); })()"
+    },
+    {
+      "name": "assert-preset-applied",
+      "waitFor": {
+        "store": "state.timeMode === 'manual' && state.manualHour === 12 && state.toneMapping === 'neutral' && state.exposure === 1.1 && state.lightsMode === 'off'"
+      },
+      "failMessage": "Applying the Bright day render preset's actions did not land in the store"
+    },
+    { "name": "shot-preset-applied", "screenshot": "03-bright-day-preset-applied" }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "name": "catalogcompare-simple",
+  "description": "Simple rung for the catalogCompare flag (IXT-SUITES batch 6): tier:'simple' feature always present in both modes — enters the catalog, arms compare mode, selects 2 same-category items (both sofas), opens the comparison tray, verifies its columns, then Places one column and confirms the tray closes + placement is armed via activeDefId.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 10000
+    },
+    { "name": "wait-room-load", "wait": 1500 },
+    {
+      "name": "open-catalog",
+      "store": { "action": "setCatalogOpen", "args": [true] }
+    },
+    {
+      "name": "catalog-visible",
+      "waitFor": { "css": ".panel.catalog" },
+      "timeout": 20000,
+      "failMessage": "Catalog drawer did not appear after setCatalogOpen(true)"
+    },
+    {
+      "name": "assert-compare-button-present-simple",
+      "eval": "(() => { const btn = document.querySelector(\"button[aria-label='Compare items']\"); if (!btn) throw new Error('Compare items toggle should be present in Simple mode (catalogCompare is tier:simple)'); })()"
+    },
+    { "name": "shot-catalog-open", "screenshot": "01-catalog-open" },
+    {
+      "name": "click-search",
+      "click": { "selector": "input[aria-label='Search the furniture catalog']" }
+    },
+    { "name": "type-sofa", "type": "type", "text": "sofa" },
+    { "name": "wait-sofa-card", "waitFor": { "text": "3-seat sofa" } },
+    { "name": "shot-search-sofa", "screenshot": "02-search-sofa" },
+    {
+      "name": "click-compare-toggle",
+      "click": { "selector": "button[aria-label='Compare items']" }
+    },
+    {
+      "name": "compare-mode-armed",
+      "waitFor": { "text": "Select 2-3 items to compare" },
+      "failMessage": "Compare-mode status bar did not appear after arming compare mode"
+    },
+    { "name": "shot-compare-armed", "screenshot": "03-compare-mode-armed" },
+    {
+      "name": "select-first-sofa",
+      "eval": "(() => { const el = document.querySelector(\"[aria-label='Add 3-seat sofa to compare']\"); if (!el) throw new Error('3-seat sofa card not found for compare selection'); el.click(); })()"
+    },
+    {
+      "name": "select-second-sofa",
+      "eval": "(() => { const el = document.querySelector(\"[aria-label='Add 2-seat sofa to compare']\"); if (!el) throw new Error('2-seat sofa card not found for compare selection'); el.click(); })()"
+    },
+    {
+      "name": "two-selected",
+      "waitFor": { "text": "2 selected" },
+      "failMessage": "Compare status bar did not show '2 selected' after picking two same-category items"
+    },
+    { "name": "shot-two-selected", "screenshot": "04-two-selected" },
+    {
+      "name": "open-compare-tray",
+      "click": { "text": "Compare" }
+    },
+    {
+      "name": "tray-open",
+      "waitFor": { "css": ".cmp-tray" },
+      "failMessage": "Compare tray did not open after clicking the enabled Compare button"
+    },
+    { "name": "shot-compare-tray", "screenshot": "05-compare-tray-open" },
+    {
+      "name": "assert-tray-columns",
+      "eval": "(() => { const cols = [...document.querySelectorAll('.cmp-col')]; if (cols.length !== 2) throw new Error('Expected 2 compare columns, got ' + cols.length); const names = cols.map(c => c.querySelector('.cmp-name')?.textContent?.trim()); if (!names.includes('3-seat sofa') || !names.includes('2-seat sofa')) throw new Error('Compare columns missing expected names: ' + JSON.stringify(names)); const dims = cols.map(c => c.querySelector('.cmp-facts dd')?.textContent?.trim()); if (dims.some(d => !d || !d.includes('m'))) throw new Error('Compare columns missing dims label: ' + JSON.stringify(dims)); })()"
+    },
+    {
+      "name": "click-place-first-column",
+      "eval": "(() => { const col = [...document.querySelectorAll('.cmp-col')].find(c => c.querySelector('.cmp-name')?.textContent?.trim() === '3-seat sofa'); const btn = [...col.querySelectorAll('button')].find(b => b.textContent?.trim() === 'Place'); if (!btn) throw new Error('Place button not found in 3-seat sofa column'); btn.click(); })()"
+    },
+    {
+      "name": "tray-closed-placement-armed",
+      "waitFor": {
+        "store": "state.activeDefId === 'sofa-3seat'"
+      },
+      "failMessage": "Placement was not armed with sofa-3seat after clicking Place in the compare tray"
+    },
+    {
+      "name": "assert-compare-mode-exited",
+      "eval": "(() => { const overlay = document.querySelector('.modal-overlay'); if (overlay && overlay.textContent?.includes('Compare items')) throw new Error('Compare tray should have closed after Place'); const s = window.__store.getState(); if (s.activeDefId !== 'sofa-3seat') throw new Error('Expected activeDefId to be armed as sofa-3seat, got ' + s.activeDefId); })()"
+    },
+    { "name": "cancel-armed-placement", "store": { "action": "cancelPlacement", "args": [] } },
+    { "name": "shot-final", "screenshot": "06-after-place-armed" }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "name": "bulkappearance-simple",
+  "description": "Simple rung for the bulkAppearance flag (IXT-SUITES batch 6): tier:'simple', default-on 'Tint all' block in MultiSelectPanel. Seeds 2 items + a 2-item selection, asserts the Appearance section mounts, hides when the flag is forced off, reappears when re-enabled, drives the real Hex colour input to bulk-recolour both items, then clicks 'Clear tint' to reset both.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 10000
+    },
+    { "name": "wait-room-load", "wait": 1500 },
+    {
+      "name": "seed-two-items-and-select",
+      "eval": "(() => { const s = window.__store.getState(); s.setItems([]); const id1 = s.addItem({ defId: 'sofa-3seat', position: [9.5, 3.5], rotation: 0, props: {} }); const id2 = s.addItem({ defId: 'armchair', position: [11.5, 4.5], rotation: 0, props: {} }); window.__ms_ids = [id1, id2]; s.setSelectedItemIds([id1, id2]); })()"
+    },
+    {
+      "name": "multiselect-panel-visible",
+      "waitFor": { "css": ".panel.inspector" },
+      "timeout": 10000,
+      "failMessage": "MultiSelectPanel did not mount after selecting 2 items"
+    },
+    {
+      "name": "assert-appearance-section-present-simple",
+      "waitFor": { "css": ".ms-appearance" },
+      "failMessage": "'Tint all' appearance section should be present in Simple mode (bulkAppearance is tier:simple, default:true)"
+    },
+    { "name": "shot-appearance-present", "screenshot": "01-appearance-section-present" },
+    {
+      "name": "force-flag-off",
+      "eval": "window.__store.getState().setFeatureFlag('bulkAppearance', false)"
+    },
+    {
+      "name": "assert-appearance-section-hidden",
+      "waitFor": { "css": ".ms-appearance", "visible": false },
+      "failMessage": "'Tint all' section should disappear once bulkAppearance is force-disabled"
+    },
+    { "name": "shot-appearance-hidden", "screenshot": "02-appearance-section-hidden" },
+    {
+      "name": "restore-flag-on",
+      "eval": "window.__store.getState().setFeatureFlag('bulkAppearance', true)"
+    },
+    {
+      "name": "assert-appearance-section-restored",
+      "waitFor": { "css": ".ms-appearance" },
+      "failMessage": "'Tint all' section should reappear once bulkAppearance is re-enabled"
+    },
+    {
+      "name": "open-tint-picker",
+      "click": { "selector": ".ms-appearance button[aria-label='Tint every selected item']" }
+    },
+    {
+      "name": "hex-field-visible",
+      "waitFor": { "css": "input[aria-label='Hex colour']" },
+      "failMessage": "Colour popover's hex field did not open"
+    },
+    { "name": "shot-color-popover-open", "screenshot": "03-color-popover-open" },
+    {
+      "name": "set-hex-value",
+      "eval": "(() => { const el = document.querySelector(\"input[aria-label='Hex colour']\"); const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; setter.call(el, '#ff8800'); el.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "assert-both-items-tinted",
+      "waitFor": {
+        "store": "(() => { const ids = window.__ms_ids; const items = state.items.filter(i => ids.includes(i.id)); return items.length === 2 && items.every(i => (i.props.tint || '').toLowerCase() === '#ff8800'); })()"
+      },
+      "failMessage": "Both selected items should carry the bulk-applied tint #ff8800"
+    },
+    { "name": "shot-both-tinted", "screenshot": "04-both-items-tinted" },
+    {
+      "name": "close-color-popover",
+      "click": { "selector": ".ms-appearance button[aria-label='Tint every selected item']" }
+    },
+    {
+      "name": "clear-tint-visible",
+      "waitFor": { "css": ".ms-appearance button[aria-label='Clear tint']" },
+      "failMessage": "'Clear tint' button did not appear once items carry a tint"
+    },
+    {
+      "name": "click-clear-tint",
+      "click": { "selector": ".ms-appearance button[aria-label='Clear tint']" }
+    },
+    {
+      "name": "assert-both-items-cleared",
+      "waitFor": {
+        "store": "(() => { const ids = window.__ms_ids; const items = state.items.filter(i => ids.includes(i.id)); return items.length === 2 && items.every(i => (i.props.tint || '') === ''); })()"
+      },
+      "failMessage": "Both selected items should have their tint cleared after 'Clear tint'"
+    },
+    { "name": "shot-tint-cleared", "screenshot": "05-tint-cleared" }
+  ]
+}

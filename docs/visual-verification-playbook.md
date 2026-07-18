@@ -1090,6 +1090,89 @@ back to orbit (config persists). Gotchas learned here:
   that fallback (not a render bug) is why — `livingDining` works because the default plan keeps
   its main rect and `extension` as separate rectangles.
 
+### Gotchas from the IXT-SUITES back-fill batch 6 (catalogCompare / bulkAppearance / renderPresets / saveMaterials)
+
+- **`catalogCompare`'s cards are plain `role="button"` `<div>`s identified only by `aria-label`
+  (`"Add <name> to compare"` / `"Place <name>"`), not by visible text** — `clickByText` can't find
+  them reliably (their visible text is the def name, not the aria-label), so drive them with an
+  `eval` querying `[aria-label='Add <name> to compare']` directly. Pick two SAME-CATEGORY defs by
+  name (e.g. "3-seat sofa" + "2-seat sofa", both `category: 'seating'`) — `toggleCompareSelection`
+  resets the whole selection to just the new pick the moment a different-category item is tapped,
+  so a naive "click the first two catalog cards" approach silently ends up with only 1 item
+  selected. Arming a placement from the tray's "Place" button (`useCatalogPlacement.arm`) is
+  provable via `state.activeDefId` (no scene click needed) — the tray closes and compare mode
+  exits in the same `onPlaced` callback.
+- **A custom `Select` (`ui/controls/Select.tsx`) shares its trigger `className` with SIBLING
+  selects on the same panel — don't assume a component class is unique.** `SceneMenu.tsx` gives
+  FOUR different selects (Render preset, Window view, Reveal walls, pets) the identical
+  `className="input scene-select"`; a `waitFor {css:'.scene-select'}`/`visible:false` assertion
+  meant to gate on the render-preset control alone will falsely pass at "present" (any of the 4
+  matches) and falsely FAIL at "hidden" (the other 3 keep the class alive after force-disabling
+  just `renderPresets`). Target the Select's own `ariaLabel` prop instead — it renders as
+  `aria-label` on the trigger `<button>` (`button[aria-label='Render preset']`), which IS unique
+  per control.
+- **`SceneMenu`'s render-preset apply logic (`applyRenderPreset`) isn't reachable via a real click
+  in a scenario without risking the parent-menu-closes-first bug** (documented in the
+  backdrop-upload gotchas: a `Select` nested inside a `ToolbarMenu`/`Popover`-based menu portals
+  its options to a DOM sibling, so the parent menu's outside-pointerdown listener closes the WHOLE
+  menu before the option's own click fires). Mirror the same work-around: drive the identical 4
+  setters `applyRenderPreset` calls (`setPresetTime`/`setToneMapping`/`setExposure`/
+  `setLightsMode`) directly via `store`/`eval` steps, and assert on `timeMode==='manual' &&
+  manualHour===12` (not a nonexistent `timePreset` field — `setPresetTime` writes `manualHour`
+  via `PRESET_HOURS[preset]`, there's no separate preset-name field in the store).
+- **`bulkAppearance`'s "Tint all" bulk-recolour is a CONFIRMED REAL BUG for the vast majority of
+  the built-in catalog: it writes `props.tint` unconditionally on every selected item
+  (`MultiSelectPanel.tsx`'s `setTintAll`), but `tint` is a GLTF-only appearance key
+  (`GLTF_APPEARANCE_KEYS` in `furniture/appearanceProps.ts`) — a parametric/procedural primitive
+  (e.g. `sofa-3seat`, `armchair`) reads its own colour from `props.color` (or `seatColor`/
+  `legColor`/…, per its `paramSchema`), never `props.tint`, so the primitive component (e.g.
+  `furniture/primitives/Sofa.tsx`'s `readStr(props, 'color', …)`) never looks at the newly-written
+  `tint` at all.** The bug is silent and misleading: the swatch trigger visibly shows the applied
+  colour (`sharedTint` also reads `props.tint`, so the UI "looks" like it worked), the store
+  round-trips the write correctly, but the 3D render is provably byte-identical before/after (a
+  pixel probe at the same screen point on both a sofa and an armchair returned the exact same RGB
+  after tinting two stock procedural items #ff8800) — bulk recolour only has any visual effect on
+  GLTF/IKEA-backed items, which is a small minority of the catalog. Not fixed here per the
+  Implementer-agent scope (report, don't silently work around) — flag for a real fix: either write
+  `props.color` (+ any other colour-kind paramSchema keys) for parametric items alongside `tint`
+  for GLTF ones, or gate the whole "Tint all" section on the selection actually containing at
+  least one GLTF item.
+- **`Escape` is a GLOBAL "clear selection" shortcut, not just "close the open popover."** Closing
+  the bulk `ColorPicker`'s popover via a `key: "Escape"` step also cleared `selectedItemIds`
+  (unmounting the whole `MultiSelectPanel`, including the very `.ms-appearance` block whose
+  post-state you're trying to assert) — the popover's own trigger swatch button toggles
+  open/closed via a plain re-click (`onClick={() => (open ? close() : openEditor())}`), so close it
+  by clicking the SAME trigger button again, never `Escape`, when a selection must survive the
+  close.
+- **A native `<details>`/`<summary>` (`ui/controls/Disclosure.tsx`, backing "Compose your own…" and
+  "Apartment colour palette…") being COLLAPSED (closed) does NOT remove its children from the DOM —
+  only CSS hides them.** This makes `waitFor {css: <selector inside the details>}` and
+  `clickByText`'s deepest-match a FALSE POSITIVE for "is it open/visible": the child input/button
+  is still `document.querySelector`-able (and even reports a real, if off-screen, bounding rect)
+  whether the `<details>` is expanded or not. Don't use plain DOM-presence `waitFor{css}` to prove a
+  Disclosure is open — check the `<details>` element's own `.open` boolean instead
+  (`document.querySelector('details.compose').open === true`), or (simpler) just gate on a control
+  that's ONLY ever rendered while a sibling flag is on (React-conditional gating, e.g. the
+  `saveMaterials`-gated Save row's own presence/absence, still valid since THAT unmount really is a
+  React conditional `{onSave ? (...) : null}`, not the native details collapse).
+- **This is the SAME root cause as the earlier documented "`clickByText` does NOT scroll the target
+  into view" gotcha, but manifesting differently: a below-the-fold `<summary>` click doesn't error,
+  it silently no-ops.** `clickByText`'s own coordinate math is correct (it finds the `<summary>`,
+  computes its centre), but `page.mouse.click(x,y)` dispatches at a y-coordinate that can be
+  WELL BELOW the viewport height when the target row lives far down a long scrollable panel (e.g.
+  FinishPicker's "Compose your own…" sits under a tall swatch grid) — `document.elementFromPoint`
+  at that same (x,y) returns `null` (nothing is there; the coordinate is outside the viewport), so
+  the click is a genuine no-op with NO thrown error and NO visible symptom other than the
+  `<details>` staying closed forever after. Confirmed via a MutationObserver on the `open` attribute
+  (zero mutations recorded) + a `document.body.contains()` check (the exact same DOM node, never
+  replaced) — ruling out a remount/rerender theory before finding the real cause. Fix identically
+  to the established GLB-designer pattern: toggle it via a viewport-independent DOM `.click()` in
+  an `eval` — `[...document.querySelectorAll('summary.compose-summary')].find(s =>
+  s.textContent.trim() === 'Compose your own…').click()` — never `click:{text:...}` for a
+  `<summary>` that might be scrolled out of view. `page.click(selector)` (Puppeteer's built-in
+  ElementHandle click, used for ordinary `<input>`/`<button>` selectors) auto-scrolls into view and
+  is NOT affected — only the custom `clickByText` helper (`click:{text:...}`) has this blind spot.
+
 ---
 
 ## Packaged targets (Docker / Electron)
