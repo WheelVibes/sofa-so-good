@@ -2,10 +2,12 @@ import type { LayoutPreset } from './types'
 
 export const scandiCalm: LayoutPreset = {
   id: 'scandi-calm',
+  group: 'theme',
   name: 'Scandi Calm',
   description: 'Pale ash woods, soft-white walls, light textiles.',
   dryFloor: 'floor-wood-ash',
   wall: 'wall-paint-soft-white',
+  paletteId: 'scandi-calm',
   style: {
     'sofa-3seat': {
       color: '#d6d4cc',

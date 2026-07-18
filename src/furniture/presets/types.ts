@@ -1,6 +1,8 @@
 import type { RoomId } from '../../apartment/types'
+import type { RoomCategory } from '../../floorplan/types'
 import type { MaterialId } from '../../materials/types'
 import type { LayoutEntry } from '../defaults/types'
+import type { KitPiece } from '../furnishPlan'
 import type { ParamProps } from '../types'
 
 /**
@@ -21,6 +23,26 @@ export interface LayoutPreset {
   wall: MaterialId
   /** Per-defId cosmetic prop overrides merged onto the default items. */
   style: Record<string, ParamProps>
+  /** Optional per-room-CATEGORY cosmetic overrides (RM2), applied AFTER `style`
+   *  so a bedroom can read calmer than the living room under the same theme —
+   *  merge order is schema defaults < kit-fixed props < `style[defId]` <
+   *  `categoryStyle[category][defId]`. Resolved via `roomCategory(room)` for a
+   *  custom plan/template (`furnishPlanItems`) or the fixed default flat's
+   *  per-room-id category mapping (`buildPresetItems`). */
+  categoryStyle?: Partial<Record<RoomCategory, Record<string, ParamProps>>>
+  /** Optional extra furniture kit pieces ADDED (appended) to the room-category
+   *  kit a custom plan/template room would otherwise get (RM2) — lets a theme
+   *  furnish rooms the base kit vocabulary doesn't cover well (e.g. a themed
+   *  foyer bench) without redefining the whole kit. Keyed by `RoomCategory`. */
+  kits?: Partial<Record<RoomCategory, KitPiece[]>>
+  /** Optional linked palette preset id (`ui/color/palettePresets.ts`) applied
+   *  to the apartment master palette alongside the preset (RM2). */
+  paletteId?: string
+  /** Gallery grouping (RM2): `'theme'` = the curated 2025-26 SG style gallery
+   *  (SmartStart's primary grid); `'layout'` = a re-modelled-arrangement
+   *  variant demoted to a secondary "Layouts" section. Omitted = hidden from
+   *  both gallery sections (still resolvable by id for old saved designs). */
+  group?: 'theme' | 'layout'
   /** Optional re-modelled living/dining arrangement (a researched real-world
    *  layout). When present these REPLACE the default `default-ld-*` items;
    *  other rooms keep their default placements (restyled by `style`).

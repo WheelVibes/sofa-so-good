@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useFeature } from '../../features/useFeature'
 import { type BriefMatch, parseBrief } from '../../furniture/briefParser'
+import type { LayoutPreset } from '../../furniture/layoutPresets'
 import { LAYOUT_PRESETS } from '../../furniture/layoutPresets'
 import { BUILTIN_MATERIALS } from '../../materials/builtinCatalog'
 import type { ThemeName } from '../../state/slices/appearanceSlice'
@@ -30,8 +31,47 @@ const PRESET_THEME: Record<string, ThemeName> = {
   'warm-industrial': 'estate',
   'cozy-tropical': 'kampong',
   japandi: 'clay',
+  'modern-luxe': 'estate',
+  minimalist: 'porcelain',
+  'peranakan-accent': 'kampong',
   coastal: 'porcelain',
   'open-lounge': 'estate',
+}
+
+/** The curated 2025-26 SG theme gallery (RM2 `group: 'theme'`) — SmartStart's
+ *  primary grid. */
+const themePresets = LAYOUT_PRESETS.filter((p) => p.group === 'theme')
+/** Re-modelled living/dining layout variants (RM2 `group: 'layout'`) —
+ *  demoted to a secondary section (a layout tweak, not a full cosmetic
+ *  theme). Presets with no `group` (fading coastal/modernMono) show in
+ *  neither section but stay resolvable by id + the text-brief matcher. */
+const layoutPresets = LAYOUT_PRESETS.filter((p) => p.group === 'layout')
+
+function PresetCard({
+  preset,
+  picked,
+  onPick,
+}: {
+  preset: LayoutPreset
+  picked: string
+  onPick: (id: string) => void
+}) {
+  const on = picked === preset.id
+  return (
+    <button
+      type="button"
+      className={`ss-card${on ? ' on' : ''}`}
+      onClick={() => onPick(preset.id)}
+      aria-pressed={on}
+    >
+      <span className="ss-card-name">{preset.name}</span>
+      <span className="ss-card-desc">{preset.description}</span>
+      <span className="ss-card-swatches">
+        <i style={{ background: swatchColor(preset.dryFloor, 'var(--surface-2)') }} />
+        <i style={{ background: swatchColor(preset.wall, 'var(--surface)') }} />
+      </span>
+    </button>
+  )
 }
 
 export function SmartStartWizard() {
@@ -145,27 +185,29 @@ export function SmartStartWizard() {
           </div>
         </div>
       ) : null}
+      <p className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0, marginTop: 4 }}>
+        Styles
+      </p>
       <div className="ss-grid">
-        {LAYOUT_PRESETS.map((p) => {
-          const on = picked === p.id
-          return (
-            <button
-              key={p.id}
-              type="button"
-              className={`ss-card${on ? ' on' : ''}`}
-              onClick={() => setPicked(p.id)}
-              aria-pressed={on}
-            >
-              <span className="ss-card-name">{p.name}</span>
-              <span className="ss-card-desc">{p.description}</span>
-              <span className="ss-card-swatches">
-                <i style={{ background: swatchColor(p.dryFloor, 'var(--surface-2)') }} />
-                <i style={{ background: swatchColor(p.wall, 'var(--surface)') }} />
-              </span>
-            </button>
-          )
-        })}
+        {themePresets.map((p) => (
+          <PresetCard key={p.id} preset={p} picked={picked} onPick={setPicked} />
+        ))}
       </div>
+      {layoutPresets.length > 0 ? (
+        <>
+          <p
+            className="panel-sub"
+            style={{ textTransform: 'none', letterSpacing: 0, marginTop: 12 }}
+          >
+            Layouts (re-modelled living/dining arrangements)
+          </p>
+          <div className="ss-grid">
+            {layoutPresets.map((p) => (
+              <PresetCard key={p.id} preset={p} picked={picked} onPick={setPicked} />
+            ))}
+          </div>
+        </>
+      ) : null}
       <p
         className="panel-sub"
         style={{ textTransform: 'none', letterSpacing: 0, marginTop: 10, opacity: 0.7 }}

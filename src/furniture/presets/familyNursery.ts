@@ -2,6 +2,7 @@ import type { LayoutPreset } from './types'
 
 export const familyNursery: LayoutPreset = {
   id: 'family-nursery',
+  group: 'layout',
   name: 'Family Nursery',
   description:
     'Soft warm flat; Bedroom 3 re-modelled as a nursery (crib + changing + nursing nook).',

@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.65 — RM2: 2025-26 SG theme gallery + per-category preset styling
+
+Preset system upgrade for modern SG homes. `LayoutPreset` gains
+`categoryStyle` (per-`RoomCategory` param overlays applied after `style`, so
+a theme's bedrooms read calmer than its living room), `kits` (per-category
+ADDITIVE kit pieces), and `paletteId` (linking `PALETTE_PRESETS` so applying
+a theme also sets the working colour palette). Base kits gain serviceYard
+(washer + drying rack + tall cabinet), storeroom (shelving), foyer (shoe
+cabinet + bench + mirror) — a shelter/storeroom is no longer left bare. The
+theme gallery is curated to eight 2025-26 SG looks: **Modern Luxe / Quiet
+Luxury (NEW)** and **Peranakan Accent (NEW)** join Japandi, Scandi Calm,
+Warm Minimalist (retuned Muji), Modern Contemporary (retuned default),
+Modern Industrial, and Tropical Biophilic (retuned); coastal + layout
+variants demoted out of the theme grid (still applyable). Default-flat
+preset hydration resolves room categories from item id prefixes so
+categoryStyle works on the fixed default layout too. Visual scenario
+(sg-presets-r11) reviewed on GPU; both new themes verified distinct.
+
 ## v0.22.2.64 — Opening variants round 1: zebra/roman blinds, invisible grille, bifold + door materials
 
 SG-staple opening variants with real hi-fi materials. Blinds: **zebra/combi**

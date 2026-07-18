@@ -64,12 +64,18 @@ describe('furnishPlanItems', () => {
     expect(inRoom('bath', 'toilet')).toBe(true)
   })
 
-  it('leaves utility rooms (household shelter) unfurnished', () => {
+  it('furnishes a household shelter / storeroom with shelving only (RM2)', () => {
     const plan = makePlan()
     const items = furnishPlanItems(plan, movein, BUILTIN_CATALOG, {})
     const shelter = plan.rooms.find((r) => r.id === 'shelter')!
     const inShelter = items.filter((it) => pointInRoom(shelter, it.position[0], it.position[1]))
-    expect(inShelter).toHaveLength(0)
+    // RM2: a storeroom/shelter now gets the `KITS.storeroom` shelving kit —
+    // only open storage (+ decor styling props hosted on it), no
+    // seating/appliances/bed.
+    expect(inShelter.length).toBeGreaterThan(0)
+    expect(inShelter.some((it) => it.defId === 'cube-shelf')).toBe(true)
+    const NON_STORAGE = ['sofa-3seat', 'bed-queen', 'bed-single', 'toilet', 'stove', 'refrigerator']
+    expect(inShelter.some((it) => NON_STORAGE.includes(it.defId))).toBe(false)
   })
 
   it('keeps every placed piece inside the plan footprint', () => {
@@ -122,6 +128,25 @@ describe('furnishPlanItems', () => {
     expect(none('powder', 'shower')).toBe(true)
     // Balcony gets outdoor furniture.
     expect(has('balcony', 'outdoor-table')).toBe(true)
+    expect(findItemOverlaps(items, BUILTIN_CATALOG)).toHaveLength(0)
+  })
+
+  it('furnishes a renamed room correctly when it carries an explicit category (RM1)', () => {
+    // "Ella's room" gives no name-based signal at all — without the explicit
+    // `category` this room would get NO kit (kitForRoom falls through to null).
+    const plan = makePlan()
+    const renamed: FloorPlan = {
+      ...plan,
+      rooms: plan.rooms.map((r) =>
+        r.id === 'master' ? { ...r, name: "Ella's room", category: 'masterBedroom' as const } : r,
+      ),
+    }
+    const items = furnishPlanItems(renamed, movein, BUILTIN_CATALOG, {})
+    const room = renamed.rooms.find((r) => r.id === 'master')!
+    const hasBed = items.some(
+      (it) => it.defId === 'bed-queen' && pointInRoom(room, it.position[0], it.position[1]),
+    )
+    expect(hasBed).toBe(true)
     expect(findItemOverlaps(items, BUILTIN_CATALOG)).toHaveLength(0)
   })
 

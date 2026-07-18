@@ -83,3 +83,37 @@ describe('CatalogDrawer empty states', () => {
     expect(screen.queryByText('No items here yet')).toBeNull()
   })
 })
+
+describe('CatalogDrawer room-aware landing (CATALOG-ROOMAWARE + RM1)', () => {
+  it('is unaffected by RM1 when the entered room has no explicit category (name-inference fallback)', () => {
+    // No `floorPlan.rooms` entry for 'r1' at all — resolves via `roomDisplayName`'s
+    // raw-id fallback, an unmapped kind, so `active` stays at its persisted default
+    // exactly as before the RM1 migration.
+    setBrowsePrefs('seating')
+    render(<CatalogDrawer />)
+    expect(screen.getByText('No items here yet')).toBeInTheDocument()
+  })
+
+  it("lands on the category for a room's EXPLICIT category even when its name is renamed to gibberish", () => {
+    setBrowsePrefs('seating')
+    useStore.setState({
+      floorPlan: {
+        ...useStore.getState().floorPlan,
+        rooms: [
+          {
+            id: 'r1',
+            name: "Ella's room",
+            origin: [0, 0],
+            width: 3,
+            depth: 3,
+            category: 'kitchen',
+          },
+        ],
+      },
+    })
+    render(<CatalogDrawer />)
+    // Kitchen's most-relevant category ('appliances') has real cards in the
+    // unmocked catalog, so the empty 'seating' landing is overridden.
+    expect(screen.queryByText('No items here yet')).toBeNull()
+  })
+})

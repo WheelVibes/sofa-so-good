@@ -2,10 +2,12 @@ import type { LayoutPreset } from './types'
 
 export const japandi: LayoutPreset = {
   id: 'japandi',
+  group: 'theme',
   name: 'Japandi',
   description: 'Oak + warm white, low-contrast natural calm with black accents.',
   dryFloor: 'floor-wood-oak',
   wall: 'wall-paint-warm',
+  paletteId: 'japandi',
   style: {
     'sofa-3seat': {
       color: '#b8ab97',

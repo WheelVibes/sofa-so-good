@@ -25,7 +25,7 @@ import type { FurnitureDef, FurnitureItem, ParamProps } from './types'
 import { defaultParamProps } from './types'
 
 /** One entry in a room kit: a catalog def + how many + optional fixed props. */
-interface KitPiece {
+export interface KitPiece {
   defId: string
   count?: number
   props?: ParamProps
@@ -52,6 +52,7 @@ const KITS = {
     { defId: 'bed-queen' },
     { defId: 'nightstand', count: 2 },
     { defId: 'wardrobe-3door' },
+    { defId: 'dresser' },
     { defId: 'rug' },
     { defId: 'ceiling-light' },
   ],
@@ -101,6 +102,17 @@ const KITS = {
     { defId: 'outdoor-chair', count: 2 },
     { defId: 'planter-trough' },
   ],
+  // Service yard / utility (RM2): washer + drying rack + a tall utility
+  // cabinet for cleaning supplies.
+  serviceYard: [
+    { defId: 'washing-machine' },
+    { defId: 'drying-rack' },
+    { defId: 'utility-cabinet' },
+  ],
+  // Storeroom / bomb shelter (RM2): open shelving for bulk storage.
+  storeroom: [{ defId: 'cube-shelf' }],
+  // Foyer / entrance (RM2): shoe storage, a landing bench, and a mirror.
+  foyer: [{ defId: 'shoe-cabinet' }, { defId: 'bench' }, { defId: 'wall-mirror' }],
 } satisfies Record<string, KitPiece[]>
 
 /** Bounding-box centre of a room (origin/width/depth are kept as the bbox even
@@ -136,6 +148,12 @@ function kitForRoom(room: PlanRoom): KitPiece[] | null {
       return KITS.kitchen
     case 'bath':
       return KITS.bath
+    case 'serviceYard':
+      return KITS.serviceYard
+    case 'storeroom':
+      return KITS.storeroom
+    case 'foyer':
+      return KITS.foyer
     case 'masterBedroom':
       return KITS.bedroomMaster
     case 'bedroom':
@@ -156,12 +174,15 @@ function kitForRoom(room: PlanRoom): KitPiece[] | null {
 
 /** Expand a kit + the preset's cosmetic style into seeded items at the room
  *  centre. Each piece's props = schema defaults < kit-fixed props < preset
- *  style override (so a furnished template still reads in the chosen look). */
+ *  style override < the preset's per-room-CATEGORY `categoryStyle` override
+ *  (RM2 — the highest-precedence layer, so a theme's bedroom can read calmer
+ *  than its living room under the same style bucket). */
 function seedRoom(
   room: PlanRoom,
   kit: KitPiece[],
   defs: Record<string, FurnitureDef>,
   style: Record<string, ParamProps>,
+  categoryStyle: Record<string, ParamProps> | undefined,
   levelId: string = GROUND_LEVEL_ID,
 ): FurnitureItem[] {
   const [cx, cz] = roomCentre(room)
@@ -170,7 +191,12 @@ function seedRoom(
     const def = defs[piece.defId]
     if (!def) continue
     const base = def.kind === 'parametric' ? defaultParamProps(def) : {}
-    const props = { ...base, ...(piece.props ?? {}), ...(style[piece.defId] ?? {}) }
+    const props = {
+      ...base,
+      ...(piece.props ?? {}),
+      ...(style[piece.defId] ?? {}),
+      ...(categoryStyle?.[piece.defId] ?? {}),
+    }
     const n = piece.count ?? 1
     for (let i = 0; i < n; i++) {
       out.push({
@@ -235,8 +261,17 @@ export function furnishPlanItems(
   // only the ground level (no levelId tag) → identical to the old loop.
   for (const level of planLevels(plan)) {
     for (const room of level.rooms) {
-      const kit = kitForRoom(room)
-      if (kit) seeded.push(...seedRoom(room, kit, defs, preset.style, level.id))
+      const category = roomCategory(room)
+      const base = kitForRoom(room)
+      // A preset's own `kits[category]` pieces are ADDED to the base kit for
+      // that room category (RM2) — lets a theme cover rooms the base kit
+      // vocabulary doesn't (e.g. a themed foyer bench) without redefining it.
+      const extra = preset.kits?.[category]
+      const kit = base || extra ? [...(base ?? []), ...(extra ?? [])] : null
+      if (kit)
+        seeded.push(
+          ...seedRoom(room, kit, defs, preset.style, preset.categoryStyle?.[category], level.id),
+        )
     }
   }
   if (seeded.length === 0) return []

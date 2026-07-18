@@ -2,10 +2,12 @@ import type { LayoutPreset } from './types'
 
 export const warmIndustrial: LayoutPreset = {
   id: 'warm-industrial',
+  group: 'theme',
   name: 'Warm Industrial',
   description: 'Charcoal tile, greige walls, leather and dark timber.',
   dryFloor: 'floor-tile-charcoal',
   wall: 'wall-paint-greige',
+  paletteId: 'terracotta',
   style: {
     'sofa-3seat': { color: '#6b4a3a', material: 'leather', sheen: 0.4, pillowColor: '#3a352c' },
     armchair: { color: '#5a3f33', material: 'leather', style: 'tub', sheen: 0.4 },

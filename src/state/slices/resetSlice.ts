@@ -6,8 +6,19 @@ import { buildPresetItems, LAYOUT_PRESETS, PRESET_ROOMS } from '../../furniture/
 import { defaultParamProps } from '../../furniture/types'
 import { roomKindFromName } from '../../layout/autoArrange'
 import { BUILTIN_MATERIALS } from '../../materials/builtinCatalog'
+import { PALETTE_PRESETS } from '../../ui/color/palettePresets'
 import type { RootState } from '../store'
+import { cleanPalette } from './colorPaletteSlice'
 import type { SliceCreator } from './types'
+
+/** Resolve a preset's linked palette (RM2 `paletteId`) to its sanitised
+ *  colour list, or `undefined` when unset/unknown (leaves `masterPalette`
+ *  untouched). */
+function paletteForPreset(preset: { paletteId?: string }): string[] | undefined {
+  if (!preset.paletteId) return undefined
+  const found = PALETTE_PRESETS.find((p) => p.id === preset.paletteId)
+  return found ? cleanPalette(found.colors) : undefined
+}
 
 /** Catalog-driven layout resets. Kept in their own slice so they can
  *  call into items + selection without those slices needing to know
@@ -54,6 +65,11 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
     // wall colour follows the preset wall swatch; wet/utility rooms keep their
     // own hard-wearing floors. Items + plan change in one `set` = one undo step
     // (the history snapshot includes `floorPlan`).
+    // A preset's linked palette (RM2 `paletteId`) applies alongside its
+    // furniture/finishes — folded into the SAME `set` below so it stays part
+    // of the one undo step (`setMasterPalette` pushes its own history, which
+    // would otherwise split the preset into two undoable actions).
+    const palette = paletteForPreset(preset)
     const plan = get().floorPlan
     if (!isDefaultPlan(plan)) {
       const wallHex = BUILTIN_MATERIALS[preset.wall]?.swatch ?? plan.wallColor
@@ -67,6 +83,7 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
         selectedItemId: null,
         selectedItemIds: [],
         hiddenItemIds: [],
+        ...(palette ? { masterPalette: palette } : {}),
       })
       return
     }
@@ -83,6 +100,7 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
       selectedItemId: null,
       selectedItemIds: [],
       hiddenItemIds: [],
+      ...(palette ? { masterPalette: palette } : {}),
     })
   },
 })

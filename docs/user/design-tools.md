@@ -19,8 +19,10 @@ suitable furniture set for each room and arranges it to that plan's walls.
 
 - **Sets** — drop a pre‑arranged vignette (e.g. a lounge grouping) onto the floor,
   including any imported IKEA set recipes.
-- **Presets** — apply a full‑flat furnished layout (Scandi Calm, Japandi,
-  Coastal, …) with coordinated finishes.
+- **Presets** — apply a full‑flat furnished layout with coordinated finishes.
+  The theme gallery covers eight looks popular in Singapore homes: Japandi,
+  Scandi Calm, Modern Luxe, Warm Minimalist, Modern Contemporary, Modern
+  Industrial, Tropical Biophilic, and Peranakan Accent.
 - **Style** — restyle the existing pieces' colours and materials.
 
 ## Budget & shopping list

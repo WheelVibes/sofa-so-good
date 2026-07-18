@@ -1,12 +1,39 @@
 import type { LayoutPreset } from './types'
 
+/**
+ * RM2 retune (2026-07-19): "Minimalist" becomes "Warm Minimalist / Muji" —
+ * oat/cream tones throughout, no harsh contrast (the living/dining
+ * re-model + its low-furniture positions are unchanged).
+ */
 export const minimalist: LayoutPreset = {
   id: 'minimalist',
-  name: 'Minimalist',
-  description: 'Re-modelled L/D: pared-back, low furniture, lots of open floor.',
+  group: 'theme',
+  name: 'Warm Minimalist / Muji',
+  description: 'Re-modelled L/D: oat & cream, low furniture, no harsh contrast.',
   dryFloor: 'floor-wood-ash',
   wall: 'wall-paint-soft-white',
-  style: {},
+  paletteId: 'scandi-calm',
+  style: {
+    'bed-queen': { frameColor: '#cdb696', beddingColor: '#f0ece2', headboardStyle: 'upholstered' },
+    'bed-single': { frameColor: '#cdb696', beddingColor: '#f0ece2' },
+    'bed-double': { frameColor: '#cdb696', beddingColor: '#f0ece2' },
+    nightstand: { color: '#cdb696' },
+    dresser: { color: '#cdb696' },
+    bookshelf: { color: '#cdb696' },
+    desk: { color: '#cdb696' },
+    'wardrobe-3door': { color: '#e8e2d6' },
+    curtains: { color: '#e6e0d2' },
+  },
+  // Bedrooms drop even the muted pillow accent the living rug/curtains carry —
+  // an all-oat, no-pattern read (RM2 categoryStyle > style).
+  categoryStyle: {
+    bedroom: {
+      'bed-queen': { pillowColor: '#f0ece2' },
+    },
+    masterBedroom: {
+      'bed-queen': { pillowColor: '#f0ece2' },
+    },
+  },
   // Subset of the proven default positions (omits clutter) → always valid.
   livingDining: [
     {
