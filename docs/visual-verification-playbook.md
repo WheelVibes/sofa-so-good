@@ -1275,6 +1275,60 @@ back to orbit (config persists). Gotchas learned here:
   to screenshot a second, harness-invisible tab. Restore `window.open` from a saved
   `window.__origWindowOpen` at the end if later steps in the same session need real popups.
 
+### Gotchas from the IXT-SUITES back-fill batch 9 (shortcutsHelp / infoCallouts / proUpsell / planScale)
+
+- **A trigger button whose visible label is `{variable} ▾`** (`PlanMenu.tsx`'s `{label} ▾`,
+  matching the existing `View ▾`/`Plan ▾` menus) renders as **two sibling DOM Text nodes**
+  (`"Plan"` from the JSX expression, `" ▾"` from the adjacent literal) — JSX does not merge
+  adjacent text children into one DOM Text node, and browsers only merge them via an explicit
+  `.normalize()` call, which nothing here does. The generic `{"click": {"text": "Plan ▾"}}` step
+  walks `NodeFilter.SHOW_TEXT` and checks EACH node's own `textContent` individually (never the
+  parent element's combined text), so a two-word label split across nodes can never match as one
+  string and the step times out with "could not find visible element" even though the button is
+  plainly visible on screen (confirmed via the on-failure screenshot). This was already why
+  `plan-labels-cycle-simple.json`'s batch-3 rung open the "View ▾" menu via a bespoke polling
+  `eval` (`[...document.querySelectorAll('button')].find(x => x.textContent.trim() === 'Plan ▾')`)
+  instead of the `click:{text:...}` step — reuse that exact pattern for ANY menu trigger whose
+  label is built from an interpolated variable + a literal suffix, not just `View ▾`.
+- **REAL BUG found, not worked around in source:** `ScalePlanModal.tsx`'s factor `<input
+  type="number" min={0.01} step={0.1} .../>` defaults to `factorStr = '2'` — but `2` fails the
+  input's own native HTML5 `stepMismatch` constraint against `min=0.01`/`step=0.1` (valid values
+  are `0.01 + n×0.1`; `2` isn't one of them). Clicking the "Scale" submit button with the
+  untouched default silently no-ops in any browser enforcing native constraint validation (a
+  native tooltip reads "Please enter a valid value. The two nearest valid values are 1.91 and
+  2.01." and the `<form onSubmit>` never fires) — the single most common action in the dialog
+  (doubling a wrong-scale plan) is broken out of the box. `planscale-simple.json` documents this
+  by asserting `input.validity.stepMismatch === true` for the untouched default, then drives the
+  apply path with a step-aligned `'2.01'` (set via the native
+  `HTMLInputElement.prototype.value` setter + a dispatched `input` event, the standard way to make
+  React see a programmatic value change) so the rung still proves the real apply/undo behaviour.
+  Report this upstream rather than "fixing" it by changing the test's expectations only — the fix
+  belongs in `ScalePlanModal.tsx` (e.g. `step={0.01}` or seeding `factorStr` from a value that
+  satisfies the existing step), not in the scenario.
+- **Verifying a `?`-triggered pro-tier overlay (`shortcutsHelp`) needs a real `KeyboardEvent`
+  dispatch, not a `key` step.** `page.keyboard.press('?')` has no reliable Puppeteer key mapping
+  for a shifted symbol; `window.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles:
+  true, cancelable: true }))` matches exactly what `useAppHotkeys.ts`'s `window.addEventListener
+  ('keydown', ...)` listener reads (`e.key === '?'`) and reliably triggers the flag-gated
+  branch (open the shortcuts modal) vs. its off-flag fallback (toggle the Appearance panel) —
+  proving the SAME keypress routes to two different targets depending on the flag is a clean way
+  to isolate the flag's effect without touching any other control.
+- **Two screens can each mount their OWN `InfoCallout` with a different `id` while both stay
+  "active" in the store simultaneously** — `setFloorPlanEditing(true)` does NOT clear
+  `roomEditor.active` (no cross-clearing between the room editor and the floor-plan editor
+  screens), so a bare `document.querySelector('.info-callout')` after entering the plan editor
+  can still resolve to the ROOM editor's off-screen instance instead of the new floor-plan one
+  if the room-editor container happens to render first in DOM order. Call `exitRoomEditor()`
+  explicitly before entering the floor-plan editor (or scope the selector to
+  `.plan-screen .info-callout`) rather than assuming the two screens are mutually exclusive in
+  the DOM.
+- **A dev-server HMR hiccup mid-run** (`[vite] server connection lost. Polling for
+  restart...` + a `502 Bad Gateway` resource load, seen once while another agent was
+  concurrently editing unrelated `*.test.*` files) can reload the page mid-step and kill the
+  Puppeteer `Target` (`Protocol error (Runtime.evaluate): Target closed`), aborting the run with
+  ~90s of hung `browser.close()` afterwards. Not a scenario bug — just re-run once the dev
+  server's `curl -s -o /dev/null -w '%{http_code}' <url>` reports `200` again.
+
 ---
 
 ## Packaged targets (Docker / Electron)

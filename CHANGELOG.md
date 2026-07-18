@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.28 — Fix: ScalePlanModal default no-op'd (stepMismatch) + batch 9 ladders
+
+Bug (found by the batch-9 scenario back-fill): the Scale-plan dialog's number
+inputs used `step={0.1}`/`step={0.05}` while their seeded defaults (`'2'`;
+a wall length like `3.47`) don't sit on that step grid — so the untouched
+default failed the input's native HTML5 `stepMismatch` validation and the
+`<form>` submit silently no-op'd in standards-compliant browsers (the dialog's
+most common action). Both inputs now use `step="any"`. Browser-verified: the
+default factor 2 validates, scales the plan 4× (area = 2²), and undo reverts.
+Plus IXT-SUITES batch 9 — green rungs for `shortcutsHelp`, `infoCallouts`,
+`proUpsell`, `planScale` (uncovered 30→26); playbook gotchas ({label}▾
+two-text-node trap, the stepMismatch writeup, ?-key overlay dispatch,
+room↔plan dual-mount InfoCallout).
+
 ## v0.22.2.27 — Test-coverage hardening: 72 tests over 5 untested hot modules
 
 Gap analysis (196 test-less files → pure modules × real caller counts) found

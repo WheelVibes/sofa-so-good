@@ -1,0 +1,127 @@
+{
+  "name": "proupsell-simple",
+  "url": "http://localhost:5211/",
+  "description": "IXT-SUITES batch 9 simple rung for the `proUpsell` flag (simple tier — the single ⌘K-footer discoverability hint pointing Simple-mode users at Pro). Opens the command palette in Simple mode and asserts the `.cmdk-upsell` row is present with its 'More tools in Pro' copy, clicks it and asserts it opens the Appearance popover (where the Simple<->Pro toggle lives) instead of silently flipping the mode itself, then re-opens the palette after switching to Pro mode and asserts the row is GONE (renders null outside Simple, nothing to upsell), and finally proves the flag itself (not just the mode) gates it by staying in Simple and toggling `proUpsell` off/on directly.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "Expected uiMode=simple at boot"
+    },
+    {
+      "name": "boot-settled",
+      "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" },
+      "timeout": 60000
+    },
+    { "name": "settle-post-boot", "wait": 600 },
+    {
+      "name": "verify-flag-on-in-simple",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.proUpsell === true" },
+      "timeout": 10000,
+      "failMessage": "proUpsell should be ON in Simple mode (it is simple-tier)"
+    },
+    {
+      "name": "open-cmdk",
+      "store": { "action": "setCmdkOpen", "args": [true] }
+    },
+    {
+      "name": "cmdk-open",
+      "waitFor": { "css": ".cmdk-foot" },
+      "timeout": 5000
+    },
+    {
+      "name": "assert-upsell-row-present",
+      "eval": "(function(){ const el = document.querySelector('.cmdk-upsell'); if (!el) throw new Error('Expected .cmdk-upsell row in the command-palette footer while proUpsell is on in Simple mode'); if (!/More tools in/.test(el.textContent||'')) throw new Error('Wrong upsell copy: ' + (el.textContent||'')); })()"
+    },
+    { "name": "shot-cmdk-upsell-simple", "screenshot": "01-cmdk-upsell-visible-simple" },
+    {
+      "name": "click-upsell-row",
+      "eval": "(function(){ const el = document.querySelector('.cmdk-upsell'); if (!el) throw new Error('.cmdk-upsell not found to click'); el.click(); })()"
+    },
+    {
+      "name": "assert-appearance-opened",
+      "waitFor": { "store": "state.appearanceOpen === true" },
+      "timeout": 5000,
+      "failMessage": "Clicking the upsell row should open the Appearance popover (where the Simple<->Pro toggle lives), not flip the mode itself"
+    },
+    {
+      "name": "assert-mode-unchanged",
+      "eval": "(function(){ if (window.__store.getState().uiMode !== 'simple') throw new Error('Clicking the upsell row should NOT itself change uiMode'); })()"
+    },
+    { "name": "shot-appearance-opened", "screenshot": "02-appearance-opened-by-upsell-click" },
+    {
+      "name": "close-appearance",
+      "store": { "action": "setAppearanceOpen", "args": [false] }
+    },
+    {
+      "name": "close-cmdk",
+      "store": { "action": "setCmdkOpen", "args": [false] }
+    },
+    { "name": "close-settle", "wait": 300 },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "reresolve-flags-pro",
+      "eval": "window.__store.getState().reresolveFeatureFlags?.()"
+    },
+    { "name": "mode-settle", "wait": 500 },
+    {
+      "name": "reopen-cmdk-pro",
+      "store": { "action": "setCmdkOpen", "args": [true] }
+    },
+    {
+      "name": "cmdk-open-pro",
+      "waitFor": { "css": ".cmdk-foot" },
+      "timeout": 5000
+    },
+    {
+      "name": "assert-upsell-row-absent-in-pro",
+      "eval": "(function(){ if (document.querySelector('.cmdk-upsell')) throw new Error('Expected .cmdk-upsell to render null in Pro mode (nothing to upsell)'); })()"
+    },
+    { "name": "shot-cmdk-no-upsell-pro", "screenshot": "03-cmdk-no-upsell-pro" },
+    {
+      "name": "close-cmdk-pro",
+      "store": { "action": "setCmdkOpen", "args": [false] }
+    },
+    { "name": "switch-back-to-simple", "store": { "action": "setUiMode", "args": ["simple"] } },
+    {
+      "name": "reresolve-flags-simple",
+      "eval": "window.__store.getState().reresolveFeatureFlags?.()"
+    },
+    { "name": "mode-settle-2", "wait": 500 },
+    {
+      "name": "turn-flag-off-in-simple",
+      "store": { "action": "setFeatureFlag", "args": ["proUpsell", false] }
+    },
+    { "name": "flag-off-settle", "wait": 300 },
+    {
+      "name": "reopen-cmdk-flag-off",
+      "store": { "action": "setCmdkOpen", "args": [true] }
+    },
+    {
+      "name": "cmdk-open-flag-off",
+      "waitFor": { "css": ".cmdk-foot" },
+      "timeout": 5000
+    },
+    {
+      "name": "assert-upsell-hidden-by-flag",
+      "eval": "(function(){ if (document.querySelector('.cmdk-upsell')) throw new Error('Expected .cmdk-upsell hidden once proUpsell is turned off directly, even while still in Simple mode'); })()"
+    },
+    { "name": "shot-flag-off-simple", "screenshot": "04-flag-off-no-upsell-still-simple" },
+    {
+      "name": "restore-flag-on",
+      "store": { "action": "setFeatureFlag", "args": ["proUpsell", true] }
+    },
+    { "name": "flag-restore-settle", "wait": 300 },
+    {
+      "name": "assert-upsell-reappears",
+      "eval": "(function(){ if (!document.querySelector('.cmdk-upsell')) throw new Error('Expected .cmdk-upsell to reappear once proUpsell is restored'); })()"
+    },
+    { "name": "shot-flag-restored", "screenshot": "05-flag-restored-upsell-visible" }
+  ]
+}

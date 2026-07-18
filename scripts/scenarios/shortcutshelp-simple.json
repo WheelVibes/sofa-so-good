@@ -1,0 +1,94 @@
+{
+  "name": "shortcutshelp-simple",
+  "url": "http://localhost:5211/",
+  "description": "IXT-SUITES batch 9 simple rung for the `shortcutsHelp` flag (pro tier — off in Simple). `?` opens the keyboard-shortcuts overlay (`useAppHotkeys.ts`) ONLY when the flag is on; with it off the same key falls back to toggling the Appearance panel (the old pre-flag behaviour), so the ladder proves the flag by observing which target reacts to the identical keypress in each mode: verifies shortcutsHelp is OFF in Simple, presses `?` and asserts the Appearance panel opens (NOT the shortcuts modal), closes it, switches to Pro + reresolves flags, verifies shortcutsHelp is ON, presses `?` again and asserts the `#shortcuts-help` modal opens with a populated `.kbd-grid`, then closes it with Escape and confirms it unmounts.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "Expected uiMode=simple at boot"
+    },
+    {
+      "name": "boot-settled",
+      "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" },
+      "timeout": 60000
+    },
+    { "name": "settle-post-boot", "wait": 600 },
+    {
+      "name": "verify-flag-off-in-simple",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.shortcutsHelp === false" },
+      "timeout": 5000,
+      "failMessage": "shortcutsHelp should be OFF in Simple mode (it is pro-tier)"
+    },
+    {
+      "name": "assert-appearance-closed-baseline",
+      "eval": "(function(){ if (window.__store.getState().appearanceOpen) throw new Error('Expected appearanceOpen=false at baseline'); if (window.__store.getState().shortcutsHelpOpen) throw new Error('Expected shortcutsHelpOpen=false at baseline'); })()"
+    },
+    {
+      "name": "press-question-mark-simple",
+      "eval": "document.dispatchEvent && window.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles: true, cancelable: true }))"
+    },
+    {
+      "name": "assert-appearance-opened-fallback",
+      "waitFor": { "store": "state.appearanceOpen === true" },
+      "timeout": 5000,
+      "failMessage": "With shortcutsHelp OFF, `?` should fall back to toggling the Appearance panel"
+    },
+    {
+      "name": "assert-shortcuts-modal-still-closed",
+      "eval": "(function(){ if (window.__store.getState().shortcutsHelpOpen) throw new Error('shortcutsHelpOpen should stay false while the flag is off'); if (document.getElementById('shortcuts-help')) throw new Error('#shortcuts-help modal should not be mounted while the flag is off'); })()"
+    },
+    { "name": "shot-appearance-fallback-simple", "screenshot": "01-question-mark-opens-appearance-simple" },
+    {
+      "name": "close-appearance",
+      "store": { "action": "setAppearanceOpen", "args": [false] }
+    },
+    { "name": "close-settle", "wait": 300 },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "reresolve-flags-pro",
+      "eval": "window.__store.getState().reresolveFeatureFlags?.()"
+    },
+    { "name": "mode-settle", "wait": 500 },
+    {
+      "name": "verify-flag-on-in-pro",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.shortcutsHelp === true" },
+      "timeout": 10000,
+      "failMessage": "shortcutsHelp should be ON once switched to Pro mode"
+    },
+    {
+      "name": "press-question-mark-pro",
+      "eval": "window.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles: true, cancelable: true }))"
+    },
+    {
+      "name": "assert-shortcuts-modal-open",
+      "waitFor": { "store": "state.shortcutsHelpOpen === true" },
+      "timeout": 5000,
+      "failMessage": "With shortcutsHelp ON in Pro, `?` should open the shortcuts overlay"
+    },
+    {
+      "name": "wait-modal-mounted",
+      "waitFor": { "css": "#shortcuts-help" },
+      "timeout": 5000
+    },
+    {
+      "name": "assert-kbd-grid-populated",
+      "eval": "(function(){ const rows = document.querySelectorAll('#shortcuts-help .kbd-row'); if (rows.length === 0) throw new Error('Expected populated .kbd-row entries inside the shortcuts modal'); })()"
+    },
+    { "name": "shot-shortcuts-modal-pro", "screenshot": "02-shortcuts-modal-open-pro" },
+    { "name": "close-with-escape", "key": "Escape" },
+    {
+      "name": "assert-modal-closed",
+      "waitFor": { "store": "state.shortcutsHelpOpen === false" },
+      "timeout": 5000,
+      "failMessage": "Escape should close the shortcuts modal"
+    },
+    { "name": "shot-shortcuts-modal-closed", "screenshot": "03-shortcuts-modal-closed" }
+  ]
+}
