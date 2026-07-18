@@ -141,13 +141,26 @@ describe('settingOutDimensions', () => {
 })
 
 describe('tileSettingOutPoints', () => {
-  it('returns one point per room, at its centroid', () => {
+  it('returns one point per room, offset south of the room label centroid (H-D2)', () => {
     const points = tileSettingOutPoints(rectPlan())
     expect(points).toHaveLength(2)
     const living = points.find((p) => p.roomId === 'r1')
-    // Living: origin [0,0], 2×4 → centroid at [1, 2].
+    // Living: origin [0,0], 2×4 → label centroid [1, 2] → mark offset 0.5m
+    // south (+z) to clear the room-name/area label block (H-D2 fix), still
+    // well inside the room's z-bounds [0, 4].
     expect(living?.point[0]).toBeCloseTo(1, 6)
-    expect(living?.point[1]).toBeCloseTo(2, 6)
+    expect(living?.point[1]).toBeCloseTo(2.5, 6)
+  })
+
+  it('clamps the offset to stay inside a room too shallow for the full 0.5m', () => {
+    const plan = rectPlan()
+    // A 2×0.5 sliver room (origin [0,0]) — centroid z=0.25; the offset would
+    // push the mark to z=0.75, outside the room (depth 0.5) — must clamp
+    // inside, never land on/past the far wall.
+    plan.rooms = [{ id: 'thin', name: 'Thin', origin: [0, 0], width: 2, depth: 0.5 }]
+    const [point] = tileSettingOutPoints(plan)
+    expect(point?.point[1]).toBeLessThanOrEqual(0.5)
+    expect(point?.point[1]).toBeGreaterThanOrEqual(0)
   })
 
   it('filters to the given storey', () => {

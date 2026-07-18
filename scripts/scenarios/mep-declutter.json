@@ -1,0 +1,47 @@
+{
+  "name": "mep-declutter",
+  "description": "H-D1 fix — a WC-like cluster (soil-pipe + water-point ~0.1m apart) no longer renders overlapping symbol/label text on the plumbing sheet: labels fan out to distinct Y positions with leader lines back to their true circle, via `mepLabelLayout.ts`. Captures the drawing set's plumbing sheet SVG (window.open intercepted) and asserts two distinct label Y coordinates + at least one leader line.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "boot-settled", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 60000 },
+    { "name": "settle-post-boot", "wait": 600 },
+
+    {
+      "name": "add-wc-cluster",
+      "eval": "(() => { const s = window.__store.getState(); s.addPlumbingPoint({ x: 2.0, z: 2.0, kind: 'soil-pipe', label: 'WC' }); s.addPlumbingPoint({ x: 2.1, z: 2.0, kind: 'water-point', label: 'WC' }); })()"
+    },
+    {
+      "name": "patch-window-open",
+      "eval": "window.__capturedHtml = null; window.__origWindowOpen = window.open; window.open = function () { return { document: { write: function (html) { window.__capturedHtml = html }, close: function () {} }, close: function () {}, focus: function () {}, print: function () {} }; };"
+    },
+    { "name": "open-file", "click": { "text": "File" } },
+    { "name": "file-panel-open", "waitFor": { "css": ".pop-panel" }, "timeout": 10000 },
+    { "name": "settle-file", "wait": 400 },
+    {
+      "name": "click-drawing-set",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.pop-panel button')].find(b => b.textContent.includes('Drawing set')); if (!btn) throw new Error('Drawing set button not found'); btn.click(); })()"
+    },
+    {
+      "name": "wait-html-captured",
+      "waitFor": { "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 0" },
+      "timeout": 15000,
+      "failMessage": "openDrawingSet() never wrote HTML via the intercepted window.open"
+    },
+    {
+      "name": "assert-declutter",
+      "eval": "(function(){ window.open = window.__origWindowOpen; const html = window.__capturedHtml; const parser = new DOMParser(); const doc = parser.parseFromString(html, 'text/html'); const plumbSymbols = doc.querySelectorAll('.plumb-symbol'); if (plumbSymbols.length < 2) throw new Error('Expected at least 2 plumbing symbols in the captured HTML, got ' + plumbSymbols.length); const ys = [...plumbSymbols].map((g) => { const texts = g.querySelectorAll('text'); const last = texts[texts.length - 1]; return last ? last.getAttribute('y') : null; }).filter(Boolean); const distinctYs = new Set(ys); if (distinctYs.size < 2) throw new Error('Expected 2+ distinct label Y positions after decluttering, got: ' + JSON.stringify(ys)); const leaders = [...plumbSymbols].filter((g) => [...g.querySelectorAll('line')].some((l) => l.getAttribute('stroke-dasharray') === '2 1.5')); if (leaders.length < 1) throw new Error('Expected at least one leader line (stroke-dasharray 2 1.5) in the decluttered cluster'); window.__declutterYs = ys; window.__declutterLeaderCount = leaders.length; })()"
+    },
+    {
+      "name": "render-plumbing-sheet-inline",
+      "eval": "(function(){ const html = window.__capturedHtml; const parser = new DOMParser(); const doc = parser.parseFromString(html, 'text/html'); const plumbSvg = [...doc.querySelectorAll('svg')].find((s) => s.querySelector('.plumb-symbol')); if (!plumbSvg) throw new Error('No plumbing SVG found in the captured drawing-set HTML'); const overlay = document.createElement('div'); overlay.id = '__mep_overlay'; overlay.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;'; overlay.innerHTML = plumbSvg.outerHTML; overlay.querySelector('svg').style.width = '900px'; overlay.querySelector('svg').style.height = 'auto'; document.body.appendChild(overlay); })()"
+    },
+    { "name": "wait-overlay", "wait": 200 },
+    { "name": "shot-plumbing-sheet", "screenshot": "mep-declutter-plumbing-sheet" },
+    { "name": "remove-overlay", "eval": "document.getElementById('__mep_overlay')?.remove()" },
+    { "name": "shot-declutter", "screenshot": "mep-declutter" }
+  ]
+}

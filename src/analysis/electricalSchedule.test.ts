@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type { FloorPlan, PlanRoom } from '../floorplan/types'
+import type { FloorPlan, PlanElectricalPoint, PlanRoom } from '../floorplan/types'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
 import {
+  buildDesignedElectricalSchedule,
   buildElectricalSchedule,
   isLightingPoint,
   MIN_SOCKETS_BY_KIND,
@@ -238,5 +239,62 @@ describe('buildElectricalSchedule', () => {
     const a = buildElectricalSchedule(p, items, defs)
     const b = buildElectricalSchedule(p, items, defs)
     expect(a).toEqual(b)
+  })
+})
+
+describe('buildDesignedElectricalSchedule (H-D3)', () => {
+  const pt = (over: Partial<PlanElectricalPoint>): PlanElectricalPoint => ({
+    id: 'p',
+    x: 2,
+    z: 2,
+    kind: 'socket',
+    ...over,
+  })
+
+  it('counts designed points per room, not lighting/power', () => {
+    const lr = room('lr', 'Living Room', [0, 0])
+    const p = plan([lr])
+    const sched = buildDesignedElectricalSchedule(p, [
+      pt({ id: 'a', x: 1, z: 1, kind: 'socket', mountHeightMm: 300 }),
+      pt({ id: 'b', x: 2, z: 2, kind: 'switch', mountHeightMm: 1200 }),
+    ])
+    expect(sched.total).toBe(2)
+    expect(sched.rooms).toEqual([{ roomId: 'lr', roomName: 'Living Room', count: 2 }])
+  })
+
+  it('summarizes distinct mount heights with counts, ascending', () => {
+    const lr = room('lr', 'Living Room', [0, 0])
+    const p = plan([lr])
+    const sched = buildDesignedElectricalSchedule(p, [
+      pt({ id: 'a', x: 1, z: 1, kind: 'socket', mountHeightMm: 300 }),
+      pt({ id: 'b', x: 1.2, z: 1, kind: 'socket', mountHeightMm: 300 }),
+      pt({ id: 'c', x: 2, z: 2, kind: 'switch', mountHeightMm: 1200 }),
+    ])
+    expect(sched.heights).toEqual([
+      { heightMm: 300, count: 2 },
+      { heightMm: 1200, count: 1 },
+    ])
+  })
+
+  it('falls back to the per-kind default mount height when a point has none', () => {
+    const lr = room('lr', 'Living Room', [0, 0])
+    const p = plan([lr])
+    const sched = buildDesignedElectricalSchedule(p, [pt({ id: 'a', x: 1, z: 1, kind: 'switch' })])
+    // Switch default AFFL is 1200mm (mepPoints.ts's ELECTRICAL_MOUNT_DEFAULTS_MM).
+    expect(sched.heights).toEqual([{ heightMm: 1200, count: 1 }])
+  })
+
+  it('collects out-of-room points into an Unassigned row', () => {
+    const lr = room('lr', 'Living Room', [0, 0])
+    const p = plan([lr])
+    const sched = buildDesignedElectricalSchedule(p, [pt({ id: 'a', x: 50, z: 50 })])
+    expect(sched.rooms).toEqual([{ roomId: '', roomName: 'Unassigned', count: 1 }])
+    expect(sched.total).toBe(1)
+  })
+
+  it('is empty for no designed points', () => {
+    const lr = room('lr', 'Living Room', [0, 0])
+    const sched = buildDesignedElectricalSchedule(plan([lr]), [])
+    expect(sched).toEqual({ rooms: [], total: 0, heights: [] })
   })
 })

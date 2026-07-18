@@ -50,6 +50,7 @@ import { projectToBaseline } from './dimensionChain'
 import { planWallThickness } from './planGeometry'
 import { roomLabelPoint } from './roomCentroid'
 import type { FloorPlan, PlanRoom, PlanVec2, PlanWall } from './types'
+import { pointInRoom, roomPolygon } from './types'
 
 const EPS = 1e-6
 
@@ -185,7 +186,7 @@ export function settingOutDimensions(plan: FloorPlan, levelId?: string): Setting
   return { datum, x: dedupeSort(xFaces), z: dedupeSort(zFaces) }
 }
 
-/** One room's tile setting-out start point (v1: the room centroid — the
+/** One room's tile setting-out start point (v1: near the room centroid — the
  *  common convention — via the shared `roomLabelPoint`, so this stays in
  *  lockstep with wherever else a room's representative point is used). */
 export interface TileSettingOutPoint {
@@ -193,18 +194,49 @@ export interface TileSettingOutPoint {
   point: PlanVec2
 }
 
+/** How far (metres) the tile mark is offset SOUTH (+z) of the room's raw
+ *  centroid — `reportPlanSvg.ts` draws the room's name+area label block
+ *  centred on that same centroid (H-D2 defect: the mark used to sit directly
+ *  under/over that text), so the mark is pushed clear of it while staying
+ *  "centroid-ish" per the setting-out convention. */
+const TILE_MARK_OFFSET_Z = 0.5
+/** Keep the offset mark at least this far inside the room's bounding edges —
+ *  a small margin so the cross + its arms never touch a wall. */
+const TILE_MARK_MARGIN = 0.15
+
+/** Offset a room's raw centroid south by `TILE_MARK_OFFSET_Z`, clamped to stay
+ *  inside the room (bounding-box clamp, then a polygon containment check for
+ *  non-rectangular rooms) — falls back to the raw centroid when even the
+ *  clamped point lands outside (a room too small/oddly-shaped for the offset
+ *  to fit; the raw centroid is always inside by construction). */
+function tileMarkPoint(r: PlanRoom): PlanVec2 {
+  const [cx, cz] = roomLabelPoint(r)
+  const poly = roomPolygon(r)
+  let minZ = Number.POSITIVE_INFINITY
+  let maxZ = Number.NEGATIVE_INFINITY
+  for (const [, z] of poly) {
+    if (z < minZ) minZ = z
+    if (z > maxZ) maxZ = z
+  }
+  let z = cz + TILE_MARK_OFFSET_Z
+  z = Math.min(z, maxZ - TILE_MARK_MARGIN)
+  z = Math.max(z, minZ + TILE_MARK_MARGIN)
+  if (pointInRoom(r, cx, z)) return [cx, z]
+  return [cx, cz]
+}
+
 /**
- * Tile setting-out start points: one per room on the storey, at its centroid
- * — "start laying here, verify joints on site". Every room in this model
- * always resolves to SOME floor finish (`roomFinishes.ts:resolvePlanRoomFloor`
- * falls back to a default oak when nothing's been picked), so there is no
- * real "has no floor" state to filter on here — the caller (the drawing set)
- * is what decides whether this content is relevant, by only drawing it
- * alongside the finishes schedule sheet. Deliberately v1-modest: no grid, no
- * joint direction — a start-point cross + note is the honest minimum this
- * data model supports (there is no tile size/pattern stored anywhere to
- * derive a real grid from).
+ * Tile setting-out start points: one per room on the storey, offset below the
+ * room's name/area label block (`tileMarkPoint`) — "start laying here, verify
+ * joints on site". Every room in this model always resolves to SOME floor
+ * finish (`roomFinishes.ts:resolvePlanRoomFloor` falls back to a default oak
+ * when nothing's been picked), so there is no real "has no floor" state to
+ * filter on here — the caller (the drawing set) is what decides whether this
+ * content is relevant, by only drawing it alongside the finishes schedule
+ * sheet. Deliberately v1-modest: no grid, no joint direction — a start-point
+ * cross + note is the honest minimum this data model supports (there is no
+ * tile size/pattern stored anywhere to derive a real grid from).
  */
 export function tileSettingOutPoints(plan: FloorPlan, levelId?: string): TileSettingOutPoint[] {
-  return levelRooms(plan, levelId).map((r) => ({ roomId: r.id, point: roomLabelPoint(r) }))
+  return levelRooms(plan, levelId).map((r) => ({ roomId: r.id, point: tileMarkPoint(r) }))
 }

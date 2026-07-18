@@ -7,7 +7,10 @@
 import { buildAccessibilityReport } from '../analysis/accessibility'
 import { buildDaylightReport, DAYLIGHT_MIN_RATIO, VENT_MIN_RATIO } from '../analysis/daylight'
 import { buildDesignScore } from '../analysis/designScore'
-import { buildElectricalSchedule } from '../analysis/electricalSchedule'
+import {
+  buildDesignedElectricalSchedule,
+  buildElectricalSchedule,
+} from '../analysis/electricalSchedule'
 import { buildHandoverChecklist } from '../analysis/handoverChecklist'
 import { buildComplianceReport } from '../analysis/hdbCompliance'
 import { buildOpeningSchedule } from '../analysis/openingSchedule'
@@ -873,19 +876,43 @@ export function buildReportHtml(
         ${roomLux.length ? `<div class="foot" style="margin-top:6px">Estimated average illuminance per room (lumen method, utilisation factor 0.45) vs recommended residential levels.</div>` : ''}</div>`
     : ''
 
-  // Electrical points (PARITY-ELECTRICAL-SCHED) — a consolidated, room-by-room
-  // count of lighting points (the same light emitters the lighting plan plots)
-  // and indicative power points / sockets (inferred from the powered furniture
-  // categories present + a per-room-kind floor), with a grand total. The rough
-  // socket/point tally an electrician quotes against early on; distinct from the
-  // lighting plan + fixture schedule above. Pure (analysis/electricalSchedule);
-  // rides the existing `report` flag (additive section). Omitted when empty (a
-  // bare shell with no rooms / no fixtures) so an all-zero table never shows.
-  const electrical = buildElectricalSchedule(plan, items, catalog)
+  // Electrical points (PARITY-ELECTRICAL-SCHED, fixed H-D3) — prefer the
+  // user's own PERSISTED MEP points (`plan.electricalPoints`, MEP layer G1)
+  // when any exist, the SAME routing `openDrawingSet.ts` uses for the drawing
+  // set's electrical sheet — otherwise the two documents contradicted each
+  // other with two different point counts/derivations. Only when nothing's
+  // been authored yet does this fall back to the furniture-derived heuristic
+  // (a consolidated, room-by-room count of lighting points + indicative power
+  // points inferred from powered furniture categories + a per-room-kind
+  // floor), kept labelled "(indicative)" since it's a rough planning estimate.
+  // Pure (analysis/electricalSchedule); rides the existing `report` flag
+  // (additive section). Omitted when empty (a bare shell with no rooms/no
+  // fixtures/no designed points) so an all-zero table never shows.
+  const designedElectricalPoints = plan.electricalPoints ?? []
   const electricalSection =
-    electrical.rooms.length === 0
-      ? ''
-      : `<div class="room-cost">
+    designedElectricalPoints.length > 0
+      ? (() => {
+          const designed = buildDesignedElectricalSchedule(plan, designedElectricalPoints)
+          if (designed.rooms.length === 0) return ''
+          const heightsSummary = designed.heights
+            .map((h) => `${h.heightMm}mm × ${h.count}`)
+            .join(', ')
+          return `<div class="room-cost">
+      <h2>Electrical points (as designed)</h2>
+      <div class="foot" style="margin-bottom:6px">${designed.total} point${designed.total === 1 ? '' : 's'} as placed in the plan.${heightsSummary ? ` Heights (mm AFFL): ${heightsSummary}.` : ''}</div>
+      <table>
+        <tr class="cat"><td>Room</td><td class="num">Points</td></tr>
+        ${designed.rooms
+          .map((r) => `<tr><td>${esc(r.roomName)}</td><td class="num">${r.count}</td></tr>`)
+          .join('')}
+        <tr class="cat"><td>Total</td><td class="num">${designed.total}</td></tr>
+      </table>
+    </div>`
+        })()
+      : (() => {
+          const electrical = buildElectricalSchedule(plan, items, catalog)
+          if (electrical.rooms.length === 0) return ''
+          return `<div class="room-cost">
       <h2>Electrical points (indicative)</h2>
       <div class="foot" style="margin-bottom:6px">${electrical.total} point${electrical.total === 1 ? '' : 's'} — ${electrical.totalLighting} lighting · ${electrical.totalPower} power. A rough planning aid for an electrician to quote against, not a certified electrical layout (no circuits, loads or cable runs).</div>
       <table>
@@ -899,6 +926,7 @@ export function buildReportHtml(
         <tr class="cat"><td>Total</td><td class="num">${electrical.totalLighting}</td><td class="num">${electrical.totalPower}</td><td class="num">${electrical.total}</td></tr>
       </table>
     </div>`
+        })()
 
   // FF&E schedule — the item-level procurement table (room · item · source · SKU
   // · size · qty · pricing), the central designer hand-off. Full width. "Unit"

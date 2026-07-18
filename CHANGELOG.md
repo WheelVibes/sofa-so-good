@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.55 — H-D1/D2/D3: acceptance-review defects fixed
+
+(1) MEP label declutter: pure `mepLabelLayout.ts` single-linkage-clusters
+points within a 24px collision radius and fans their labels into a vertical
+stack with dashed leaders (circles stay at true positions) — WC soil-pipe/
+water-point pairs and kitchen socket+data clusters are now legible; the 2D
+editor's MepLayer noted for the same treatment later. (2) Tile setting-out
+cross offset 0.5 m below the room label (clamped inside the room) — no
+longer obscures the area text. (3) The report's electrical section now
+prefers designed MEP points ("as designed", per-room counts + AFFL height
+summary via new `buildDesignedElectricalSchedule`) and only falls back to
+the furniture heuristic ("indicative") when none exist — the 40-vs-24
+report/drawing-set contradiction is gone. Also: H1's 'opening-schedule'
+callout target added to the schema enum (cross-agent tsc gap). 126 tests +
+declutter scenario with visual confirmation.
+
 ## v0.22.2.54 — H1: door & window schedule sheet
 
 The drawing set gains a "Door & window schedule" NTS sheet from the same

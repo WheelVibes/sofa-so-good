@@ -623,3 +623,46 @@ describe('buildReportHtml — electrical points (PARITY-ELECTRICAL-SCHED)', () =
     expect(html).not.toContain('Electrical points (indicative)')
   })
 })
+
+describe('buildReportHtml — electrical points, persisted design overrides the heuristic (H-D3)', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+
+  it('uses the designed points ("as designed") instead of the heuristic when any exist', () => {
+    const room = plan.rooms[0]!
+    const designed = {
+      ...plan,
+      electricalPoints: [
+        {
+          id: 'e1',
+          x: room.origin[0] + room.width / 2,
+          z: room.origin[1] + room.depth / 2,
+          kind: 'socket' as const,
+          mountHeightMm: 300,
+        },
+        {
+          id: 'e2',
+          x: room.origin[0] + room.width / 2 + 0.2,
+          z: room.origin[1] + room.depth / 2,
+          kind: 'switch' as const,
+          mountHeightMm: 1200,
+        },
+      ],
+    }
+    const html = buildReportHtml(designed, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('Electrical points (as designed)')
+    expect(html).not.toContain('Electrical points (indicative)')
+    expect(html).toContain('2 points as placed in the plan')
+    expect(html).toContain('300mm × 1')
+    expect(html).toContain('1200mm × 1')
+  })
+
+  it('falls back to the heuristic "(indicative)" section when no points are designed yet', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('Electrical points (indicative)')
+    expect(html).not.toContain('Electrical points (as designed)')
+  })
+})

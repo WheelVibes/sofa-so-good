@@ -587,6 +587,7 @@ const RawSerializedStateZ = z.object({
           'demolition',
           'ffe',
           'carpentry',
+          'opening-schedule',
         ]),
         text: z.string(),
         x: z.number().min(0).max(1),

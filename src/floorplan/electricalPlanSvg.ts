@@ -21,6 +21,7 @@
 
 import type { ElectricalKind, ElectricalPlan } from './electricalPlan'
 import { electricalKindLabel } from './electricalPlan'
+import { layoutMepLabels } from './mepLabelLayout'
 import type { FloorPlan, PlanWall } from './types'
 import { wallLength } from './types'
 
@@ -162,10 +163,20 @@ export function electricalSvg(
     )
   }
 
-  // Symbols (drawn even when outside the wall bounds).
-  for (const p of points) {
-    parts.push(symbol(p.kind, px(p.x), py(p.z), palette, p.label, p.mountHeightMm))
-  }
+  // Symbols (drawn even when outside the wall bounds). Points whose circles
+  // collide (e.g. a WC's soil-pipe + water-point a few cm apart) have their
+  // LABELS fanned out with a leader line back to the true circle — see
+  // `mepLabelLayout.ts` (H-D1 declutter fix); circle positions are unchanged.
+  const labelLayout = layoutMepLabels(
+    points.map((p, i) => ({ id: String(i), cx: px(p.x), cy: py(p.z) })),
+    SYM_R + 2,
+  )
+  points.forEach((p, i) => {
+    const placement = labelLayout.find((l) => l.id === String(i))!
+    parts.push(
+      symbol(p.kind, placement.cx, placement.cy, palette, p.label, p.mountHeightMm, placement),
+    )
+  })
 
   // Legend / schedule — an extra "heights in mm AFFL" line when any point on
   // this sheet carries a persisted mount height (MEP layer, G1 PR5).
@@ -175,7 +186,11 @@ export function electricalSvg(
   return parts.join('\n')
 }
 
-/** A single electrical symbol glyph centred at (cx,cy). */
+/** A single electrical symbol glyph centred at (cx,cy). When `labelPlacement`
+ *  carries a nudged position (`hasLeader`, from `layoutMepLabels` decluttering
+ *  a colliding cluster — H-D1), the side label is drawn there instead of the
+ *  default `(cx + SYM_R + 2, cy)`, with a short leader line back to the true
+ *  circle centre. */
 function symbol(
   kind: ElectricalKind,
   cx: number,
@@ -183,6 +198,7 @@ function symbol(
   palette: ElectricalPalette,
   label: string | undefined,
   mountHeightMm?: number,
+  labelPlacement?: { labelX: number; labelY: number; hasLeader: boolean },
 ): string {
   const out: string[] = [`<g class="elec-symbol" data-kind="${esc(kind)}">`]
   out.push(
@@ -211,8 +227,16 @@ function symbol(
   const heightSuffix = typeof mountHeightMm === 'number' ? `@${Math.round(mountHeightMm)}` : ''
   const sideText = [label, heightSuffix].filter(Boolean).join(' ')
   if (sideText) {
+    const labelX = labelPlacement?.labelX ?? cx + SYM_R + 2
+    const labelY = labelPlacement?.labelY ?? cy
+    if (labelPlacement?.hasLeader) {
+      out.push(
+        `<line x1="${n(cx)}" y1="${n(cy)}" x2="${n(labelX)}" y2="${n(labelY)}" ` +
+          `stroke="${esc(palette.symbol)}" stroke-width="0.5" stroke-dasharray="2 1.5" />`,
+      )
+    }
     out.push(
-      `<text x="${n(cx + SYM_R + 2)}" y="${n(cy)}" font-size="${SYM_FONT}" ` +
+      `<text x="${n(labelX)}" y="${n(labelY)}" font-size="${SYM_FONT}" ` +
         `dominant-baseline="central" fill="${esc(palette.ink)}">${esc(sideText)}</text>`,
     )
   }
