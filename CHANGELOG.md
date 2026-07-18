@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.60 — SG1-3: Singapore-specific permit paths + vocabulary (user directive)
+
+Audit verdict: heights (SS 638/CP5), SGD, LEW/PUB-LP naming, BCA citations
+already correct. Fixed the three real findings: (1) permit/compliance
+language now branches on `housingType` via pure `permitNotes.ts` — HDB keeps
+the permit/PE text; **Condominium** gets the MCST/management-approval path
+(house rules on hacking/hours/hoarding, BCA+PE for structural, LEW/PUB
+still); new **Landed** type (terrace template re-filed — it was under
+Condominium) goes BCA-direct; the report's HDB-compliance section is
+HDB-gated with a "Renovation compliance notes" pointer for the others,
+never silence. (2) Wall structure label "Drywall" → "Dry partition
+(Ferrolite / steel-stud)" (schema key unchanged). (3) User-visible
+"baseboard" → "skirting". 215 tests + a 25-step scenario proving a condo
+plan prints MCST and never "written HDB permit".
+
 ## v0.22.2.59 — H4+H1-F+H6: RCP sheet, on-plan D/W marks, elevation grouping
 
 The H punch list is complete. **RCP** (`rcpSheet` pro flag): per-storey

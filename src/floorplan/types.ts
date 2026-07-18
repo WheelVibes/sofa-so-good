@@ -210,8 +210,11 @@ export interface PlanUpperLevel {
   rooms: PlanRoom[]
 }
 
-/** Top-level housing category for the template picker. */
-export type HousingType = 'HDB' | 'Condominium'
+/** Top-level housing category for the template picker. `'Landed'` covers
+ *  terraces/semi-Ds/bungalows — a distinct approval path from HDB (no HDB
+ *  permit, straight to BCA) and from Condominium (no MCST). Additive: older
+ *  saved plans/templates predate it and simply carry 'HDB'|'Condominium'. */
+export type HousingType = 'HDB' | 'Condominium' | 'Landed'
 
 /** Three-level template categorisation: housing type → project → apartment type
  *  (e.g. HDB › Serangoon North Vista › 4-Room). Every built-in template carries

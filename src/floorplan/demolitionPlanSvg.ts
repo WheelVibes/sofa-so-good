@@ -27,7 +27,8 @@
  */
 
 import type { WallDiff } from './demolitionPlan'
-import type { PlanWall } from './types'
+import { permitNotes } from './permitNotes'
+import type { HousingType, PlanWall } from './types'
 
 interface DemolitionPalette {
   /** Kept walls (unchanged). */
@@ -52,6 +53,10 @@ export interface DemolitionSvgOpts {
    *  `drawingScale.ts:pickDrawingScale`), sizes the returned `<svg>` with
    *  explicit `width`/`height` in mm instead of pixels — print-true (TODO G2). */
   printMmPerM?: number
+  /** Plan's housing type (SG1) — branches the permit-note block between the
+   *  HDB permit path, the Condominium MCST path, and the Landed BCA-direct
+   *  path. Defaults to the HDB text (prior universal behaviour) when unset. */
+  housingType?: HousingType
 }
 
 /** Padding (metres) around the wall bounds. */
@@ -64,17 +69,6 @@ const FONT = 12
 /** Permit-note block layout, in pixels. */
 const NOTE_ROW = 15
 const NOTE_FONT = 10.5
-
-/** Concise SG hacking-permit conditions (contractor-handover research, G7) —
- *  kept to the essentials that belong on the sheet a contractor/HDB reviews. */
-const PERMIT_NOTES = [
-  'SG demolition/hacking notes:',
-  '• A written HDB permit is required before ANY wall demolition (even non-load-bearing).',
-  '• Load-bearing walls, columns, beams and slabs must NOT be hacked — off-limits by rule.',
-  '• A Professional Engineer (PE) endorsement is required whenever an RC element is touched.',
-  '• Wall classification here is user-declared — verify against HDB/BCA as-built records before work.',
-  '• Permitted working hours are weekdays only, per the HDB permit conditions.',
-]
 
 /** Minimal XML-attribute escaping for injected strings. */
 function esc(s: string): string {
@@ -148,7 +142,8 @@ export function demolitionSvg(diff: WallDiff, opts: DemolitionSvgOpts): string {
     (unverifiedDemolished.length > 0 ? 1 : 0)
 
   const legendH = LEGEND_PAD * 2 + LEGEND_ROW * (3 + extraLegendRows)
-  const noteH = LEGEND_PAD + NOTE_ROW * PERMIT_NOTES.length
+  const notes = permitNotes(opts.housingType)
+  const noteH = LEGEND_PAD + NOTE_ROW * notes.length
   const heightPx = planH + legendH + noteH
 
   const parts: string[] = []
@@ -202,7 +197,7 @@ export function demolitionSvg(diff: WallDiff, opts: DemolitionSvgOpts): string {
       dangerColor,
     }),
   )
-  parts.push(permitNotes(planH + legendH, palette))
+  parts.push(permitNoteBlock(notes, planH + legendH, palette))
 
   parts.push('</svg>')
   return parts.join('\n')
@@ -355,14 +350,17 @@ function legend(
   return out.join('\n')
 }
 
-/** Concise SG permit-note block (G7), rendered below the legend. */
-function permitNotes(topY: number, palette: DemolitionPalette): string {
+/** Concise SG permit-note block (G7/SG1), rendered below the legend. `lines`
+ *  is the housing-type-branched note text from `permitNotes()` — line 0 is
+ *  the bold title, the rest render as bullets. */
+function permitNoteBlock(lines: string[], topY: number, palette: DemolitionPalette): string {
   const out: string[] = ['<g class="permit-notes">']
   let y = topY + LEGEND_PAD + NOTE_ROW / 2
-  PERMIT_NOTES.forEach((line, i) => {
+  lines.forEach((line, i) => {
+    const text = i === 0 ? line : `• ${line}`
     out.push(
       `<text x="${LEGEND_PAD}" y="${n(y)}" font-size="${NOTE_FONT}"${i === 0 ? ' font-weight="700"' : ''} ` +
-        `dominant-baseline="middle" fill="${esc(palette.ink)}">${esc(line)}</text>`,
+        `dominant-baseline="middle" fill="${esc(palette.ink)}">${esc(text)}</text>`,
     )
     y += NOTE_ROW
   })

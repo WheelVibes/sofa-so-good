@@ -4,20 +4,6 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
-## Active — SG-specificity fixes (user directive 2026-07-18; audit findings)
-> Audit verdict: heights/currency/roles/codes already SG-correct. Three fixes:
-- [ ] **SG1 — Housing-type-conditional permit language.** `plan.category.housingType` exists
-  ('HDB'|'Condominium'; landed terraces mis-filed under Condominium) but demolition
-  PERMIT_NOTES, drawing-set GENERAL_NOTES, and the report's HDB-compliance section render the
-  HDB/PE path unconditionally. Add `'Landed'` housing type (templates: terrace → Landed;
-  additive schema); branch the notes: HDB → current text; Condominium → MCST/management-council
-  renovation approval (+ LEW/PUB still apply); Landed → BCA-direct path. Gate the report's HDB
-  compliance section to HDB plans (condo/landed get their own line, not silence).
-- [ ] **SG2 — "Drywall" → SG wall vocabulary.** WallInspector STRUCTURE_OPTIONS display label
-  'Drywall' → 'Dry partition (Ferrolite/steel-stud)' (schema key `drywall` stays, back-compat);
-  echo in floor-plan-editor.md/design-tools.md.
-- [ ] **SG3 — "Baseboard" → "skirting" in user-visible copy** (schema/prop names stay).
-
 ## Active — contractor-handover accuracy & documentation (2026-07-18, user goal)
 > The app's purpose: homeowners design/plan/customize themselves, then hand over DIRECTLY to
 > contractors — so output must be dimensioned, to-scale, accurate, precise, detailed enough to

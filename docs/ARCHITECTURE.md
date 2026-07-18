@@ -132,7 +132,9 @@ same change that reshapes a system.
   19 starter `PLAN_TEMPLATES`: HDB 2/3/4/5-room + Exec/3Gen/Jumbo +
   two-storey Executive Maisonette, condo studio/1-bed/1+study/2/3/4-bed/penthouse, two-storey
   terrace + mezzanine loft (real `upperLevels`, ML6a) — `docs/research/{hdb,condo}-floor-plans.md`;
-  each carries a `category` {housingType › projectName › apartmentType} and `templateCategoryTree`
+  each carries a `category` {housingType › projectName › apartmentType} — housingType is
+  `'HDB'|'Condominium'|'Landed'` (SG1; the terrace template is filed under `'Landed'`, its own
+  BCA-direct approval path — see `floorplan/permitNotes.ts`) — and `templateCategoryTree`
   groups them for the cascading `ui/floorplan/TemplatePicker.tsx`; default = HDB › Serangoon North
   Vista › 4-Room; `ui/floorplan/SaveTemplateModal.tsx` prompts for the category on save),
   `roomDetect.ts`, `planIntegrity.ts` (stray-element checks — walls joined to no other wall,
@@ -1577,7 +1579,12 @@ same change that reshapes a system.
   facade windows, floor loading, ceiling heights). `analysis/stairConnectivity.ts` (ML6b) follows
   the same pattern for multi-storey plans: `buildStairAdvisories(plan, items, getDef)` flags any
   upper storey no staircase reaches (a `staircase`-family item on the storey below whose footprint
-  lands in rooms of BOTH storeys). Both surface in the report's "HDB compliance hints" section.
+  lands in rooms of BOTH storeys). Both surface in the report's "HDB compliance hints" section —
+  gated to `housingType==='HDB'` (or absent, back-compat); a Condominium/Landed plan gets a
+  "Renovation compliance notes" section instead with a one-line pointer to its own approval path
+  (MCST/BCA) plus any stair advisories (SG1). `floorplan/permitNotes.ts:permitNotes(housingType)`
+  is the single source of the HDB-permit / Condominium-MCST / Landed-BCA note text, read by the
+  demolition-plan sheet (`demolitionPlanSvg.ts`) and the drawing-set cover sheet's general notes.
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
   walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
   rule across the whole design (frame-scoped memo: same items/defs identities within

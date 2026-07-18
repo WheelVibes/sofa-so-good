@@ -190,6 +190,39 @@ describe('buildDrawingSetHtml', () => {
     )
   })
 
+  it('branches the general-notes + demolition permit text on housing type (SG1)', () => {
+    const baseline = plan
+    const hacked = { ...plan, walls: plan.walls.slice(0, -1) }
+
+    const hdb = buildDrawingSetHtml(hacked, items, BUILTIN_CATALOG, 'metric', baseline)
+    expect(hdb).toContain('written HDB permit')
+    expect(hdb).not.toContain('MCST')
+
+    const condo = buildDrawingSetHtml(
+      { ...hacked, category: { housingType: 'Condominium', projectName: 'p', apartmentType: 'a' } },
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      {
+        ...baseline,
+        category: { housingType: 'Condominium', projectName: 'p', apartmentType: 'a' },
+      },
+    )
+    expect(condo).toContain('MCST')
+    expect(condo).not.toContain('written HDB permit')
+
+    const landed = buildDrawingSetHtml(
+      { ...hacked, category: { housingType: 'Landed', projectName: 'p', apartmentType: 'a' } },
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      { ...baseline, category: { housingType: 'Landed', projectName: 'p', apartmentType: 'a' } },
+    )
+    expect(landed).toContain('BCA')
+    expect(landed).not.toContain('written HDB permit')
+    expect(landed).not.toContain('MCST / building management')
+  })
+
   it('still produces a valid cover-only set with no furniture', () => {
     const html = buildDrawingSetHtml(plan, [], BUILTIN_CATALOG)
     expect(html).toContain('Sheet index')

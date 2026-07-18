@@ -2,7 +2,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useStore } from '../../../../state/store'
-import { WallInspector } from './WallInspector'
+import { STRUCTURE_OPTIONS, WallInspector } from './WallInspector'
 
 /** A single wall on a blank custom plan, selected for the inspector. */
 function placeWall(): string {
@@ -75,5 +75,28 @@ describe('WallInspector — Structure select (TODO G7, wallStructure flag)', () 
     const wall = useStore.getState().floorPlan.walls.find((w) => w.id === id)!
     render(<WallInspector wall={wall} />)
     expect(screen.queryByLabelText('Structure')).toBeTruthy()
+  })
+})
+
+describe('WallInspector — SG-specificity copy (SG2/SG3)', () => {
+  beforeEach(() => useStore.getState().__resetForTest())
+
+  it('labels the drywall structure option "Dry partition (Ferrolite / steel-stud)" (SG2)', () => {
+    act(() => useStore.getState().setUiMode('pro'))
+    const id = placeWall()
+    const wall = useStore.getState().floorPlan.walls.find((w) => w.id === id)!
+    render(<WallInspector wall={wall} />)
+    expect(screen.queryByText('Drywall')).toBeNull()
+    expect(STRUCTURE_OPTIONS).toContainEqual(['drywall', 'Dry partition (Ferrolite / steel-stud)'])
+  })
+
+  it('labels the baseboard section "Skirting" and its actions accordingly (SG3)', () => {
+    const id = placeWall()
+    const wall = useStore.getState().floorPlan.walls.find((w) => w.id === id)!
+    render(<WallInspector wall={wall} />)
+    expect(screen.getByText('Skirting')).toBeTruthy()
+    expect(screen.getByText('Show skirting')).toBeTruthy()
+    expect(screen.queryByText('Baseboard / skirting')).toBeNull()
+    expect(screen.queryByText('Show baseboard')).toBeNull()
   })
 })

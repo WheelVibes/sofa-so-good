@@ -279,16 +279,22 @@ Print or save as PDF for
     Title block details**.
   - **General notes.** The cover sheet lists the standard SG handover disclaimers:
     dimensions in mm/m, don't scale from screen, furniture is indicative (build
-    from the setting-out plan + elevations), HDB permit required for any hacking,
-    PE endorsement when RC elements are touched, EMA-licensed electrician (LEW) for
+    from the setting-out plan + elevations), EMA-licensed electrician (LEW) for
     electrical work, PUB-licensed plumber for plumbing, and verify all dimensions
-    on site.
+    on site. The renovation-approval line follows your plan's **housing type**
+    (set on the template picker / Save-to-library): an **HDB** plan reads written
+    HDB permit + PE endorsement for RC elements; a **Condominium** plan reads MCST
+    / building-management approval (+ BCA/PE for structural work); a **Landed**
+    plan reads BCA-direct approval (with a PE) for structural work — no HDB/MCST
+    involved. The demolition/hacking sheet's permit-note block follows the same
+    branching.
   - **Demolition/hacking plan — wall classification (Pro).** When walls changed vs. the
   as-loaded baseline, the set includes a **"Demolition & new walls"** sheet: kept walls
   solid, new walls bold, and removed walls dashed **with a diagonal hatch** (the
   drafting "to be removed" convention) instead of just a colour. Give any wall a
   **Structure** tag in its Properties panel — **Unknown / not verified**,
-  **Load-bearing**, **RC partition**, **Brick partition** or **Drywall** — with an
+  **Load-bearing**, **RC partition**, **Brick partition** or **Dry partition
+  (Ferrolite / steel-stud)** — with an
   inline reminder that this is **user-declared, not verified**: an older HDB block can
   hide a load-bearing beam-and-column wall behind what looks like a partition on plan,
   so confirm against HDB/BCA as-built records (or a PE) before hacking. Select several

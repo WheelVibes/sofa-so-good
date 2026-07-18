@@ -847,6 +847,50 @@ describe('schema', () => {
     }
   })
 
+  it('round-trips the additive Landed housing type (SG1)', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        ...useStore.getState().floorPlan,
+        id: 'custom-landed',
+        category: {
+          housingType: 'Landed',
+          projectName: 'My Terrace',
+          apartmentType: 'Terrace House',
+        },
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const patch = applySerialized(round.data, new Set())
+      expect(patch.floorPlan?.category).toEqual({
+        housingType: 'Landed',
+        projectName: 'My Terrace',
+        apartmentType: 'Terrace House',
+      })
+    }
+  })
+
+  it('back-compat: a serialized plan with no category still parses + keeps housingType absent', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        ...useStore.getState().floorPlan,
+        id: 'no-category',
+        category: undefined,
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const patch = applySerialized(round.data, new Set())
+      expect(patch.floorPlan?.category).toBeUndefined()
+    }
+  })
+
   it('round-trips a per-wall baseboard override (PARITY-BASEBOARD)', () => {
     useStore.getState().__resetForTest()
     useStore.setState({

@@ -35,6 +35,7 @@ import {
   type PlanLevel,
   planLevels,
 } from '../floorplan/levels'
+import { permitNotes } from '../floorplan/permitNotes'
 import { buildPlumbingPlan, type PlumbingPoint } from '../floorplan/plumbingPlan'
 import { plumbingSvg } from '../floorplan/plumbingPlanSvg'
 import { buildReflectedCeilingPlan } from '../floorplan/rcp'
@@ -719,6 +720,7 @@ export function buildDrawingSetHtml(
             },
             widthPx: 900,
             printMmPerM: scale.mmPerM,
+            housingType: plan.category?.housingType,
           })}</div>${northIndicatorSvg(orientationDeg)}`,
           calloutGroup: 'demolition',
           scaleLabel: scale.label,
@@ -742,6 +744,7 @@ export function buildDrawingSetHtml(
             },
             widthPx: 900,
             printMmPerM: scale.mmPerM,
+            housingType: plan.category?.housingType,
           })}</div>${northIndicatorSvg(orientationDeg)}`,
           calloutGroup: 'demolition',
           scaleLabel: scale.label,
@@ -909,15 +912,16 @@ export function buildDrawingSetHtml(
   const totalSheets = sheets.length + 1 // + cover
 
   // Standard SG handover disclaimers (contractor-handover research, TODO G5) —
-  // carried on the cover sheet only, once per set.
+  // carried on the cover sheet only, once per set. The approval-path lines
+  // (permit/renovation-approval + PE) branch on the plan's housing type (SG1)
+  // via the shared `permitNotes()` helper — the same source the demolition
+  // sheet reads — so a condo/landed plan's cover sheet doesn't read "HDB".
+  const [, ...approvalNotes] = permitNotes(plan.category?.housingType)
   const GENERAL_NOTES = [
     'All dimensions are in millimetres (mm) unless noted in metres (m).',
     'Do NOT scale drawings from screen or PDF — print at 100% and measure against the stated scale with a scale rule.',
     'The furniture layout is indicative only. Build from the setting-out plan and elevations, not the furnished view.',
-    'Any HDB wall demolition (including non-load-bearing walls) requires a written HDB permit before work begins.',
-    'A Professional Engineer (PE) endorsement is required when any reinforced-concrete (RC) element is touched — verify wall classification with HDB/PE before hacking.',
-    'Electrical works must be carried out and certified by an EMA-Licensed Electrical Worker (LEW) before SP Group energises any circuit.',
-    'Plumbing works connecting to the public network require a PUB Licensed Plumber.',
+    ...approvalNotes,
     'Verify all dimensions on site before fabrication, ordering materials, or starting work.',
     `Elevation sheets (TODO H6): walls with no items or openings are omitted from the set; ` +
       `walls under ${MINOR_WALL_MAX_LENGTH_M} m with at most ${MINOR_WALL_MAX_ITEMS} item and no ` +

@@ -352,7 +352,7 @@ export const FloorPlanZ = z.object({
   // + additive — older saved plans simply have none.
   category: z
     .object({
-      housingType: z.enum(['HDB', 'Condominium']),
+      housingType: z.enum(['HDB', 'Condominium', 'Landed']),
       projectName: z.string(),
       apartmentType: z.string(),
     })

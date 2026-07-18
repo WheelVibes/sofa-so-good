@@ -697,7 +697,7 @@ export function buildReportHtml(
                       : 'Entire storey removed — it existed only in the original layout.'
                   }</div>`
                 : ''
-            }${demolitionSvg(r.diff, { palette: DEMO_PALETTE, widthPx: 700 })}</div>`,
+            }${demolitionSvg(r.diff, { palette: DEMO_PALETTE, widthPx: 700, housingType: plan.category?.housingType })}</div>`,
         )
         .join('')}</div>`
       : ''
@@ -707,6 +707,7 @@ export function buildReportHtml(
       <div class="plan-wrap">${demolitionSvg(wallDiff, {
         palette: DEMO_PALETTE,
         widthPx: 700,
+        housingType: plan.category?.housingType,
       })}</div></div>`
       : ''
 
@@ -735,21 +736,46 @@ export function buildReportHtml(
   // HDB renovation compliance hints — rule-based advisories (permit / caution /
   // info) over the plan; a trust feature for the SG renovation workflow. On
   // multi-storey plans the stair-connectivity advisory (ML6b) joins the list:
-  // any upper storey no staircase reaches gets a caution.
-  const compliance = buildComplianceReport(plan)
+  // any upper storey no staircase reaches gets a caution. `buildComplianceReport`
+  // encodes HDB-specific rules (HDB Renovation Guidelines cites) — a
+  // Condominium/Landed plan gets a one-line pointer to its own approval path
+  // instead (SG1; never silence), while the housing-type-agnostic stair
+  // advisory still applies to any multi-storey plan. Absent `category`
+  // (older saved plans/templates) keeps the prior default HDB behaviour.
+  const housingType = plan.category?.housingType
+  const isHdbPlan = housingType == null || housingType === 'HDB'
+  const compliance = isHdbPlan
+    ? buildComplianceReport(plan)
+    : { advisories: [], permitCount: 0, cautionCount: 0 }
   const stairAdvisories = buildStairAdvisories(plan, items, (id) => catalog[id])
   const allAdvisories = [...compliance.advisories, ...stairAdvisories]
   const cautionCount = compliance.cautionCount + stairAdvisories.length
   const compBadge = (sev: string) =>
     sev === 'permit' ? '#b91c1c' : sev === 'caution' ? '#b45309' : '#6b7280'
-  const complianceSection =
-    allAdvisories.length === 0
+  const otherPathNote =
+    housingType === 'Condominium'
+      ? 'This is a Condominium plan — renovation approval comes from the MCST / building management (not HDB); structural work additionally needs BCA/PE involvement.'
+      : housingType === 'Landed'
+        ? 'This is a Landed-property plan — there is no HDB/MCST approval step; structural work goes direct to BCA with a Professional Engineer (PE).'
+        : ''
+  const complianceSection = isHdbPlan
+    ? allAdvisories.length === 0
       ? ''
       : `<div class="room-cost">
       <h2>HDB compliance hints</h2>
       <div class="${compliance.permitCount > 0 ? 'warn' : 'ok'}">
         ${compliance.permitCount} permit-sensitive · ${cautionCount} caution — guidance only, confirm with HDB / your contractor.
       </div>
+      ${allAdvisories
+        .map(
+          (a) =>
+            `<div class="ci-detail" style="margin-top:6px"><span class="badge" style="background:${compBadge(a.severity)};color:#fff">${esc(a.severity)}</span> <strong>${esc(a.title)}</strong><br>${esc(a.detail)} <span style="color:#9ca3af">(${esc(a.cite)})</span></div>`,
+        )
+        .join('')}
+    </div>`
+    : `<div class="room-cost">
+      <h2>Renovation compliance notes</h2>
+      <div class="ok">${esc(otherPathNote)}</div>
       ${allAdvisories
         .map(
           (a) =>

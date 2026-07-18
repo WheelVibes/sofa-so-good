@@ -15,7 +15,7 @@ export const STRUCTURE_OPTIONS = [
   ['load-bearing', 'Load-bearing'],
   ['rc-partition', 'RC partition'],
   ['brick-partition', 'Brick partition'],
-  ['drywall', 'Drywall'],
+  ['drywall', 'Dry partition (Ferrolite / steel-stud)'],
 ] as const
 
 /** Inspector body for a selected wall. Reads edits/state from the store exactly
@@ -212,7 +212,7 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
       {wallBaseboardOn ? (
         <div className="space-y-1" style={{ marginTop: 'var(--s-1)' }}>
           <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
-            Baseboard / skirting
+            Skirting
           </div>
           <label className="flex items-center gap-2 text-xs">
             <input
@@ -226,7 +226,7 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
                 )
               }
             />
-            <span>Show baseboard</span>
+            <span>Show skirting</span>
           </label>
           {!w.baseboard?.hidden ? (
             <>
@@ -251,7 +251,7 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
               <div className="flex items-center justify-between gap-2 text-xs">
                 <span className="label">Colour</span>
                 <ColorPicker
-                  ariaLabel="Baseboard colour"
+                  ariaLabel="Skirting colour"
                   value={w.baseboard?.color ?? '#eceae4'}
                   onChange={(hex) =>
                     a.updateWall(w.id, { baseboard: { ...w.baseboard, color: hex } }, levelId)
@@ -266,7 +266,7 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
               className="btn btn-soft btn-sm btn-block"
               onClick={() => a.updateWall(w.id, { baseboard: undefined }, levelId)}
             >
-              Reset baseboard
+              Reset skirting
             </button>
           ) : null}
         </div>

@@ -95,16 +95,16 @@ furniture inspector — a **Name** field on top, then a grid of quick actions:
   is never overwritten.
 - **Walls** — *Reverse*, *Split* (cut in two at the midpoint), *Join* (merge a
   collinear neighbour), *Duplicate*, *Lock* and *Delete*, with the exact
-  thickness / start / end / length / angle fields underneath. A **Baseboard /
-  skirting** section sets this wall's skirting **height** and **colour** (or hides
+  thickness / start / end / length / angle fields underneath. A **Skirting**
+  section sets this wall's skirting **height** and **colour** (or hides
   it), and a **Wall colour** picker recolours just this one wall (with a *reset*).
   A **Structure** picker (Pro) classifies this wall — **Unknown / not verified**
   (the default), **Load-bearing**, **RC partition**, **Brick partition** or
-  **Drywall** — for the Drawing set's demolition/hacking sheet; a note underneath
-  reminds you this is **user-declared, not verified** — confirm against HDB/BCA
-  as-built records (or a PE) before hacking, since an older HDB block can hide a
-  load-bearing beam-and-column wall behind what looks like a plain partition on
-  plan.
+  **Dry partition (Ferrolite / steel-stud)** — for the Drawing set's
+  demolition/hacking sheet; a note underneath reminds you this is
+  **user-declared, not verified** — confirm against HDB/BCA as-built records (or
+  a PE) before hacking, since an older HDB block can hide a load-bearing
+  beam-and-column wall behind what looks like a plain partition on plan.
 - **Doors / windows** — *Flip hinge* and *Flip swing* (doors), *Duplicate*,
   *Lock* and *Delete*, plus the offset / width / sill / head fields. A **Style**
   picker sets a **door** style (**Panelled**, **Flush** or **Glazed**) or a

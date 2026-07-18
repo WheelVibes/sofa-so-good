@@ -136,6 +136,29 @@ describe('buildReportHtml', () => {
     expect(html).toMatch(/permit-sensitive/)
   })
 
+  it('gates the HDB-compliance section to housingType==="HDB" (SG1)', () => {
+    // No category (back-compat) keeps the prior default: full HDB section.
+    expect(buildReportHtml(plan, items, BUILTIN_CATALOG, null)).toContain('HDB compliance hints')
+
+    const condo = {
+      ...plan,
+      category: { housingType: 'Condominium' as const, projectName: 'p', apartmentType: 'a' },
+    }
+    const condoHtml = buildReportHtml(condo, items, BUILTIN_CATALOG, null)
+    expect(condoHtml).not.toContain('HDB compliance hints')
+    expect(condoHtml).toContain('Renovation compliance notes')
+    expect(condoHtml).toContain('MCST')
+
+    const landed = {
+      ...plan,
+      category: { housingType: 'Landed' as const, projectName: 'p', apartmentType: 'a' },
+    }
+    const landedHtml = buildReportHtml(landed, items, BUILTIN_CATALOG, null)
+    expect(landedHtml).not.toContain('HDB compliance hints')
+    expect(landedHtml).toContain('Renovation compliance notes')
+    expect(landedHtml).toContain('BCA')
+  })
+
   it('surfaces the stair-connectivity advisory for a stair-less multi-storey plan', () => {
     const multi = {
       ...plan,

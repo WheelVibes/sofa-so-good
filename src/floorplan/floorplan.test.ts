@@ -298,7 +298,7 @@ describe('plan templates', () => {
   it('every template (and the default plan) carries a full category', () => {
     for (const tpl of PLAN_TEMPLATES) {
       expect(tpl.category, `${tpl.id} missing category`).toBeDefined()
-      expect(['HDB', 'Condominium']).toContain(tpl.category?.housingType)
+      expect(['HDB', 'Condominium', 'Landed']).toContain(tpl.category?.housingType)
       expect(tpl.category?.projectName?.length, `${tpl.id} project`).toBeGreaterThan(0)
       expect(tpl.category?.apartmentType?.length, `${tpl.id} apt`).toBeGreaterThan(0)
     }
@@ -312,7 +312,7 @@ describe('plan templates', () => {
 
   it('templateCategoryTree groups by housing type → project → apartment, preserving order', () => {
     const tree = templateCategoryTree(PLAN_TEMPLATES)
-    expect([...tree.keys()]).toEqual(['HDB', 'Condominium'])
+    expect([...tree.keys()]).toEqual(['HDB', 'Condominium', 'Landed'])
     // The default 4-Room lives under HDB › Serangoon North Vista.
     const serangoon = tree.get('HDB')?.get('Serangoon North Vista') ?? []
     expect(serangoon.map((t) => t.category?.apartmentType)).toEqual(['4-Room', '5-Room'])
@@ -374,6 +374,19 @@ describe('plan templates', () => {
     ]) {
       expect(ids.has(id), `missing template ${id}`).toBe(true)
     }
+  })
+
+  it('files the landed-terrace template under the Landed housing type (SG1)', () => {
+    const terrace = PLAN_TEMPLATES.find((t) => t.id === 'tpl-terrace-ground')
+    expect(terrace?.category?.housingType).toBe('Landed')
+    // No template is left mis-filed as Condominium under a "Landed Terraces" project name.
+    expect(
+      PLAN_TEMPLATES.some(
+        (t) =>
+          t.category?.housingType === 'Condominium' &&
+          t.category?.projectName === 'Landed Terraces',
+      ),
+    ).toBe(false)
   })
 
   // ML6a: the two-storey templates carry REAL upper storeys — bedrooms + baths
