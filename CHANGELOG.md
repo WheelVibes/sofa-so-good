@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.27 — Test-coverage hardening: 72 tests over 5 untested hot modules
+
+Gap analysis (196 test-less files → pure modules × real caller counts) found
+and covered the 5 highest-value holes: `features/flags/resolve.ts` (the
+override/persist/isFeatureEnabled runtime plumbing every gated feature rides —
+zero coverage before), `furniture/footprintDims.ts` (the consolidated
+footprint resolver used by 6 call sites), `glbEdit/transformMath.ts` (shared
+TRS math under pivot/groupTransform), `ui/elevation/sectionFigure.ts` (the
+drawing-set section bridge), and the configurator's `offeredOptions`/`accepts`
+filter + `selectedOption`/`productLabel`. 72 new tests, no bugs exposed (all
+behavior matched intent). Remaining flagged gaps (store-coupled
+selectionActions/itemTransforms/arrangeActions) recorded for a future pass —
+they'd need a store harness or arg-injection refactor, a design call.
+
 ## v0.22.2.26 — AI design chat v1 (grounded, read-only, BYO-key)
 
 The research-verified unclaimed differentiator: **Tools → Design chat**
