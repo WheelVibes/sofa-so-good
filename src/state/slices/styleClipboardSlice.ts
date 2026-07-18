@@ -1,4 +1,9 @@
-import { extractAppearance, mergeAppearance } from '../../furniture/appearanceProps'
+import {
+  clearRecolorPatch,
+  extractAppearance,
+  mergeAppearance,
+  recolorPatch,
+} from '../../furniture/appearanceProps'
 import { buildMergedCatalog } from '../../furniture/catalog'
 import type { FurnitureType, ParamProps } from '../../furniture/types'
 import type { RootState } from '../store'
@@ -28,6 +33,13 @@ export interface StyleClipboardSlice {
   /** Apply one item's appearance to every other (unlocked) item in its category.
    *  Returns how many items changed. */
   applyAppearanceToCategory: (id: string) => number
+  /** Bulk-recolour every given (unlocked) item to `hex` — targets whichever
+   *  prop key(s) each item's OWN def understands (gltf/ikea `tint`; parametric
+   *  every `color`-kind paramSchema field), so the recolour actually renders on
+   *  both GLB items and stock parametric furniture. `hex === null` clears the
+   *  recolour instead (gltf → drop `tint`; parametric → reset each color field
+   *  to its schema default). One undo step. Returns how many items changed. */
+  recolorItems: (ids: string[], hex: string | null) => number
 }
 
 export const STYLE_CLIPBOARD_INITIAL: Pick<StyleClipboardSlice, 'appearanceClipboard'> = {
@@ -100,6 +112,35 @@ export const createStyleClipboardSlice: SliceCreator<StyleClipboardSlice, RootSt
       if (next === it.props) return it
       changed += 1
       return { ...it, props: next }
+    })
+    if (changed === 0) return 0
+    s.pushHistory()
+    set({ items })
+    return changed
+  },
+  recolorItems: (ids, hex) => {
+    const s = get()
+    if (ids.length === 0) return 0
+    const catalog = catalogOf(s)
+    const target = new Set(ids)
+    let changed = 0
+    const items = s.items.map((it) => {
+      if (!target.has(it.id) || it.locked) return it
+      const def = catalog[it.defId]
+      if (!def) return it
+      const patch = hex === null ? clearRecolorPatch(def) : recolorPatch(def, hex)
+      if (Object.keys(patch).length === 0) return it
+      let touched = false
+      const nextProps = { ...it.props }
+      for (const [key, value] of Object.entries(patch)) {
+        if (nextProps[key] === value) continue
+        if (value === undefined) delete nextProps[key]
+        else nextProps[key] = value
+        touched = true
+      }
+      if (!touched) return it
+      changed += 1
+      return { ...it, props: nextProps }
     })
     if (changed === 0) return 0
     s.pushHistory()

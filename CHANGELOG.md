@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.22 — Fix: bulk "Tint all" silently no-op'd on parametric furniture
+
+The multi-select **Tint all** wrote `props.tint` on every item, but `tint` is
+consumed only by the GLB render path (`gltfRender.ts`) — parametric primitives
+(most of the builtin catalog: sofas, chairs…) read their `color` params and
+ignored it, so bulk-recolouring stock furniture changed nothing on screen
+(caught by the batch-6 scenario's pixel probe). Now per-def: new pure
+`recolorPatch`/`clearRecolorPatch`/`currentRecolorValue` (`appearanceProps.ts`)
+map a recolour to `{tint}` for GLB/IKEA and to every `color` `paramSchema`
+field for parametric (clear resets each to its schema default); a new
+catalog-aware `recolorItems(ids, hex|null)` store action
+(`styleClipboardSlice`, one undo) applies it, and `MultiSelectPanel`'s swatch +
+"Clear tint" selectors now read `currentRecolorValue` so they reflect a
+parametric item's real colour. GLB/IKEA path byte-identical. Browser-verified
+(two armchairs recolour to #ff8800 with color params, no tint; clear reverts);
+33 targeted + 651-test sweep green; scenario `bulk-recolor-parametric.json`.
+
 ## v0.22.2.20 — IXT-SUITES back-fill batch 6: 4 more ladders (37 uncovered)
 
 Green rungs for `catalogCompare` (arm → select 2 same-category → tray → Place),
