@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.67 — RM3 part 2: door approach keep-outs + all-templates soundness property test
+
+Closes the door-path gap the new property test exposed (12 templates had
+beds/appliances in door approach paths). Two arranger fixes: (1) `tryPlace`'s
+door keep-out only fired for parametric defs — fixed-kind (GLB) items like a
+bathroom sink skipped it entirely; now applies to all non-mounted, non-noClip
+floor defs. (2) `ctx.keepOut` covered only the swing-side quarter
+(`doorSwingRects`) while the "Checks" overlay probes BOTH sides — new
+`clearance.ts:doorApproachRects` (0.45 m opening-width strip, both sides, a
+superset of `blockedDoorItems`' probes) merged in everywhere via
+`doorKeepOutRects`. `arrangeBedroom` gains `placeBedHeadboard` (nudges the
+bed along its headboard wall in 0.15 m steps to clear a keep-out instead of
+assuming centred), `settle()` a 0.05 m last-resort grid pass for narrow real
+gaps, and `furnishPlan` a `dropDoorBlockers` safety net per storey. New
+`src/layout/placementSoundness.test.ts` furnishes EVERY template and asserts
+zero window and door violations — 19/19. The net exposed two mis-authored
+template rooms too shallow for their beds (c3-master 3.7×1.6 m, g3-bed3
+3.0×2.0 m — bed dropped rather than blocking the door); queued under RM4.
+
 ## v0.22.2.66 — RM3 part 1: window keep-outs, SG bed rules, seating groups, dining-kitchen bias
 
 Placement soundness upgrades in the ONE shared arranger path.

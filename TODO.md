@@ -18,12 +18,18 @@ when an item ships it is **removed from this file entirely**. Maintainability re
   `toArrangeKind`) + `RoomInspector` "Room type" Select + migrated consumers (CatalogDrawer
   room-aware landing, EmptyRoomHint starters, `furnishPlan.kitForRoom`, `autoArrange`
   room-kind resolution) + seeded HDB/condo templates. See `docs/ARCHITECTURE.md`.
-- [ ] **RM2 — preset refresh** (SG 2025-26 theme gallery incl. Modern Luxe/Quiet Luxury +
-  Peranakan Accent, per-category kits incl. serviceYard/foyer/storeroom/masterBedroom,
-  `LayoutPreset.categoryStyle`/`kits`/`paletteId`).
-- [ ] **RM3 — placement soundness** (window-sill keep-out, bed headboard/foot-to-door rules,
-  armchair grouping, dining↔kitchen adjacency).
-- [ ] **RM4 — default layout refresh** (modern SG 4-room BTO move-in default).
+- [x] **RM2 — preset refresh** (v0.22.2.65: SG 2025-26 theme gallery incl. Modern Luxe/Quiet
+  Luxury + Peranakan Accent, per-category kits incl. serviceYard/foyer/storeroom,
+  `LayoutPreset.categoryStyle`/`kits`/`paletteId`, palette linking on apply).
+- [x] **RM3 — placement soundness** (v0.22.2.66-67: window-sill keep-out + balcony-slider hard
+  keep-out, bed headboard/foot-to-door scoring, armchair grouping, dining↔kitchen adjacency,
+  door APPROACH strips both sides + keep-outs for fixed-kind defs, all-templates
+  `placementSoundness.test.ts` property test 19/19).
+- [ ] **RM4 — default layout refresh** (modern SG 4-room BTO move-in default). Include the two
+  template rooms exposed by the RM3 property test as too shallow for their beds (bed dropped by
+  `dropDoorBlockers` rather than blocking the door): `c3-master` (3.7×1.6 m "Master Bedroom" —
+  can't hold a queen legally) and `g3-bed3` (3.0×2.0 m) — rework the room geometry/door
+  placement so the beds fit.
 
 ## Active — SG catalog expansion (user request 2026-07-19; research-ranked)
 > Research verdict: most SG staples already covered (shoe cabinet, ceiling fan, vinyl floor,

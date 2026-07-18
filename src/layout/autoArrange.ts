@@ -20,7 +20,12 @@ import {
   rectsOverlap,
 } from './arrangeGeometry'
 import { type ArrangeRole, roleForCategory, roleOf } from './arrangeRoles'
-import { doorSwingRects, type WindowFrontRect, windowFrontRects } from './clearance'
+import {
+  doorApproachRects,
+  doorSwingRects,
+  type WindowFrontRect,
+  windowFrontRects,
+} from './clearance'
 import { CLEARANCE } from './designRules'
 
 // Re-export the arrange-role classification (extracted to ./arrangeRoles) so
@@ -140,9 +145,14 @@ function tryPlace(
 ): FurnitureItem {
   const def = ctx.catalog[item.defId]
   if (!def) return item
-  // Never place into a door swing / room opening (mounted/ceiling items are
-  // exempt — they're on walls/ceiling, not the floor path).
-  if (def.kind === 'parametric' && !def.mounted) {
+  // Never place into a door swing / room opening, or a door's straight-line
+  // approach on EITHER side of the wall (RM3 — previously gated to
+  // `def.kind === 'parametric'`, which let a GLB/fixed-kind item — e.g. a
+  // bathroom sink — skip the check entirely and park in a doorway;
+  // `blockedDoorItems`'s "Checks" overlay would then flag it). Applies to
+  // every floor item now; mounted (wall/ceiling) and noClip (rugs) items are
+  // still exempt — they don't block foot traffic.
+  if (!def.mounted && !def.noClip) {
     const box = aabbOf(item, def, pos, rot)
     if (ctx.keepOut.some((k) => rectsOverlap(box, k))) return item
   }
@@ -220,6 +230,10 @@ const DEFAULT_FLOOR_PLAN = buildDefaultPlan()
 const DEFAULT_WINDOW_KEEPOUT = windowFrontRects(DEFAULT_FLOOR_PLAN)
 const DEFAULT_WINDOWS = windowCentres(DEFAULT_FLOOR_PLAN)
 const DEFAULT_DOOR_POINTS = doorCentres(DEFAULT_FLOOR_PLAN)
+/** Door approach keep-outs (RM3 pt.2) — a superset of `blockedDoorItems`'s
+ *  probe points on BOTH sides of every door, so the arranger never produces a
+ *  layout the "Checks" overlay would flag as blocking a doorway. */
+const DEFAULT_DOOR_APPROACH = doorApproachRects(DEFAULT_FLOOR_PLAN)
 
 /** Lounge-cluster bands (fraction of the room depth) a living-room reroll
  *  cycles the sofa/console/coffee zone through (LAYOUT-REROLL). Index 0 is the
@@ -310,10 +324,24 @@ function placeFlush(
 function settle(item: FurnitureItem, rect: Rect, world: FurnitureItem[], ctx: Ctx) {
   if (tryPlace(item, item.position, item.rotation, world, ctx) !== item) return
   for (const c of cornersOf(rect)) if (tryPlace(item, c, item.rotation, world, ctx) !== item) return
-  const step = 0.3
-  for (const rot of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+  const rots = [0, Math.PI / 2, Math.PI, -Math.PI / 2]
+  for (const rot of rots) {
+    const step = 0.3
     for (let x = rect.x0 + 0.3; x <= rect.x1 - 0.3; x += step) {
       for (let z = rect.z0 + 0.3; z <= rect.z1 - 0.3; z += step) {
+        if (tryPlace(item, [x, z], rot, world, ctx) !== item) return
+      }
+    }
+  }
+  // Finer last-resort pass (RM3): the coarse 0.3 m grid can straddle a real
+  // but NARROW gap between two obstacles (e.g. a corner accent squeezed
+  // between a rerolled bed and an already-placed plant) without ever
+  // sampling a point actually inside it. Only reached when everything above
+  // fails — rare — so the extra density is worth the cost.
+  const fineStep = 0.05
+  for (const rot of rots) {
+    for (let x = rect.x0 + 0.3; x <= rect.x1 - 0.3; x += fineStep) {
+      for (let z = rect.z0 + 0.3; z <= rect.z1 - 0.3; z += fineStep) {
         if (tryPlace(item, [x, z], rot, world, ctx) !== item) return
       }
     }
@@ -345,7 +373,7 @@ export function arrangeRoom(
 ): FurnitureItem[] {
   return arrangeCore({
     rect: usableRect(roomId),
-    keepOut: KEEPOUT[roomId] ?? [],
+    keepOut: [...(KEEPOUT[roomId] ?? []), ...DEFAULT_DOOR_APPROACH],
     windowKeepOut: DEFAULT_WINDOW_KEEPOUT,
     windows: DEFAULT_WINDOWS,
     doorPoints: DEFAULT_DOOR_POINTS,
@@ -822,6 +850,40 @@ function scoreBedroomEdges(bed: FurnitureItem, rect: Rect, bedW: number, ctx: Ct
   })
 }
 
+/**
+ * Try to flush-place the bed's headboard along `edge`, centred at `along`
+ * first; if that collides (most often a door's approach strip bleeding into
+ * a short room — the door itself may be nowhere near the CENTRE of the wall)
+ * nudge sideways along the same wall in increasing steps, alternating
+ * direction, until a clear along-position is found or the wall's full run is
+ * exhausted. `placeFlush` still validates every candidate, so this can only
+ * ever return a collision-valid placement or the bed unchanged.
+ */
+function placeBedHeadboard(
+  bed: FurnitureItem,
+  rect: Rect,
+  edge: Edge,
+  along: number,
+  bedW: number,
+  world: FurnitureItem[],
+  ctx: Ctx,
+): FurnitureItem {
+  const direct = placeFlush(bed, rect, edge, along, world, ctx)
+  if (direct !== bed) return direct
+  const alongMin = edge === 'N' || edge === 'S' ? rect.x0 : rect.z0
+  const alongMax = edge === 'N' || edge === 'S' ? rect.x1 : rect.z1
+  const reach = (alongMax - alongMin) / 2
+  const step = 0.15
+  for (let d = step; d <= reach; d += step) {
+    for (const sign of [1, -1]) {
+      const a = clamp(along + sign * d, alongMin + bedW / 2, alongMax - bedW / 2)
+      const p = placeFlush(bed, rect, edge, a, world, ctx)
+      if (p !== bed) return p
+    }
+  }
+  return bed
+}
+
 /** Bedroom: bed centred & headboard flush to a wall, nightstands flanking,
  *  wardrobe/storage on another wall (door-swing clearance via collision),
  *  a foot-of-bed bench if it fits, accents in corners. */
@@ -856,10 +918,14 @@ function arrangeBedroom(
     bedAlong = alongFor(scored[0])
     let placed = bed
     for (const e of candidates) {
-      const p = placeFlush(bed, rect, e, alongFor(e), world, ctx)
+      const p = placeBedHeadboard(bed, rect, e, alongFor(e), bedW, world, ctx)
       if (p !== bed) {
         bedEdge = e
-        bedAlong = alongFor(e)
+        // The nudge fallback may have shifted the along-position off-centre —
+        // read it back from where the bed actually landed, not the (possibly
+        // blocked) centred candidate, so nightstands/rug/bench key off the
+        // REAL headboard position.
+        bedAlong = e === 'N' || e === 'S' ? p.position[0] : p.position[1]
         placed = p
         break
       }
@@ -1296,7 +1362,7 @@ export function arrangePlanRoom(
     allItems,
     catalog,
     doors,
-    doorSwingRects(lp),
+    [...doorSwingRects(lp), ...doorApproachRects(lp)],
     windowCentres(lp),
     planCollisionWalls(lp, doors),
     level.id,
@@ -1325,7 +1391,7 @@ export function arrangeAllRoomsForPlan(
   // (common case) → identical output to the old ground-only loop.
   for (const level of planLevels(plan)) {
     const lp = levelAsPlan(plan, level)
-    const keepOut = doorSwingRects(lp)
+    const keepOut = [...doorSwingRects(lp), ...doorApproachRects(lp)]
     const windows = windowCentres(lp)
     const windowKeepOut = windowFrontRects(lp)
     const doorPoints = doorCentres(lp)

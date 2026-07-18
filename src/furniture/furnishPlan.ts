@@ -13,11 +13,13 @@
  * Pure + deterministic (no store, no GPU) → unit-testable.
  */
 import { findItemOverlaps } from '../collision/placement'
-import { GROUND_LEVEL_ID, planLevels } from '../floorplan/levels'
+import { GROUND_LEVEL_ID, levelAsPlan, planLevels } from '../floorplan/levels'
 import { roomCategory } from '../floorplan/roomCategory'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
 import { planRoomArea } from '../floorplan/types'
+import { rectsOverlap } from '../layout/arrangeGeometry'
 import { arrangeAllRoomsForPlan } from '../layout/autoArrange'
+import { doorKeepOutRects, footprintAabb } from '../layout/clearance'
 import { mergeGeneratedCatalog } from './generatedCatalog'
 import { applyDecorStylingForPlan } from './layout/decorStyling'
 import type { LayoutPreset } from './layoutPresets'
@@ -236,6 +238,39 @@ function dropOverlaps(items: FurnitureItem[], defs: Record<string, FurnitureDef>
 }
 
 /**
+ * Drop any floor item still sitting in a door's keep-out (swing arc + the
+ * two-sided approach strip, `doorKeepOutRects`) after arranging (RM3 pt.2) —
+ * an over-tight room where the shared arranger (`tryPlace`'s candidate loop +
+ * its `settle` fallback) genuinely couldn't find ANY legal spot for a seeded
+ * kit piece falls back to that piece's un-arranged seed position, which can
+ * land in a doorway. Rather than ship a layout that blocks an entrance, drop
+ * the piece — the same "an over-tight room can't fit the whole kit" trade-off
+ * `dropOverlaps` already makes for a pure item/item overlap. Mounted/ceiling
+ * and noClip items are exempt (they don't block foot traffic); scoped per
+ * storey, mirroring the arranger's own level-aware geometry.
+ */
+function dropDoorBlockers(
+  items: FurnitureItem[],
+  defs: Record<string, FurnitureDef>,
+  plan: FloorPlan,
+): FurnitureItem[] {
+  const dropIds = new Set<string>()
+  for (const level of planLevels(plan)) {
+    const lp = levelAsPlan(plan, level)
+    const keepOut = doorKeepOutRects(lp)
+    if (keepOut.length === 0) continue
+    for (const it of items) {
+      if ((it.levelId ?? GROUND_LEVEL_ID) !== level.id) continue
+      const def = defs[it.defId]
+      if (!def || def.mounted || def.noClip) continue
+      const box = footprintAabb(it, def)
+      if (keepOut.some((k) => rectsOverlap(box, k))) dropIds.add(it.id)
+    }
+  }
+  return dropIds.size === 0 ? items : items.filter((it) => !dropIds.has(it.id))
+}
+
+/**
  * Furnish every room of `plan` with a kind-appropriate kit, arranged to the
  * plan's walls + openings, restyled by the preset's palette. Returns a clean,
  * collision-valid item list ready to drop into the store. Existing `items` are
@@ -276,7 +311,7 @@ export function furnishPlanItems(
   }
   if (seeded.length === 0) return []
   const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors)
-  const furniture = dropOverlaps(arranged, defs)
+  const furniture = dropDoorBlockers(dropOverlaps(arranged, defs), defs, plan)
   if (!withDecor) return furniture
   // Styling pass: add set-dressing props on host surfaces. The pass may reach for
   // bundled CC0 GLB set-dressing props (vases, books, plants, a tea set) that

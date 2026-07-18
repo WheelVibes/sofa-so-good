@@ -253,14 +253,20 @@ describe('arrangeRoom', () => {
     ) => b.x0 < k.x1 && b.x1 > k.x0 && b.z0 < k.z1 && b.z1 > k.z0
     for (const it of out) {
       const def = BUILTIN_CATALOG[it.defId]
-      if (def?.kind !== 'parametric' || def.mounted) continue
+      // A rug (noClip) is a flat floor covering people walk OVER, not a real
+      // door-path blocker — `blockedDoorItems`/the arranger's own keep-out
+      // check exempt it the same way (RM3 pt.2), so this hand-rolled probe
+      // matches that semantics too.
+      if (!def || def.mounted || def.noClip) continue
       if (roomOf(it.position) !== 'livingDining') continue
       let w = def.defaultFootprint.w
       let d = def.defaultFootprint.d
-      const wv = it.props[def.footprintParams?.w ?? 'width']
-      const dv = it.props[def.footprintParams?.d ?? 'depth']
-      if (typeof wv === 'number') w = wv
-      if (typeof dv === 'number') d = dv
+      if (def.kind === 'parametric') {
+        const wv = it.props[def.footprintParams?.w ?? 'width']
+        const dv = it.props[def.footprintParams?.d ?? 'depth']
+        if (typeof wv === 'number') w = wv
+        if (typeof dv === 'number') d = dv
+      }
       const c = Math.abs(Math.cos(it.rotation))
       const s = Math.abs(Math.sin(it.rotation))
       const hx = (c * w + s * d) / 2
