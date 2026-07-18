@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.53 — Contractor acceptance review: verdict + H punch list
+
+An adversarial contractor's-eye review generated the full package on a
+realistic design (75-step scenario: classified+demolished walls, wardrobe,
+23 suggested + 1 custom MEP point, item meta, A3 template; 31 sheets +
+report + DXF captured) and hand-verified the numbers independently — ALL
+matched (setting-out distances, net wall areas, demolition counts, MEP
+counts across store→sheets→DXF, custom heights, meta columns, title blocks).
+Verdict: "close, but not yet" — 3 defects (clustered MEP labels illegible
+exactly where real designs cluster; tile mark overlapping room labels; the
+report's legacy 40-point indicative electrical section contradicting the
+drawing set's 24 designed points) + buildability gaps (no door/window
+schedule SHEET despite the data existing; carpentry lacks material/hardware
+callouts + section cut-line; elevations lack AFFL mount heights; no RCP; DXF
+demolition layer) recorded as H-D1..H6 in TODO.
+
 ## v0.22.2.52 — G8: carpentry elevations + sections — the G-roadmap is complete
 
 `carpentrySheets` (pro): one "Carpentry — <name>" drawing-set sheet per

@@ -4,6 +4,39 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## Active — contractor-handover round 2: acceptance-review punch list (2026-07-18)
+> The G1-G9 roadmap shipped (v0.22.2.39-52). An adversarial contractor's-eye review of the
+> full generated package (75-step scenario; every hand-verified number matched) returned
+> "close, but not yet" with this punch list. Defects first, then buildability gaps.
+- [ ] **H-D1 — MEP symbol/label declutter (defect).** Clustered points (every WC's soil-pipe +
+  water-point; kitchen socket+data pairs) render overlapping circles with concatenated height
+  text ("@300@300") — illegible on print, and clustering is the COMMON case. Port the carpentry
+  sheet's declutter/leader pass to electricalPlanSvg/plumbingPlanSvg.
+- [ ] **H-D2 — Tile mark overlaps room label (defect).** tileSettingOutPoints reuses
+  roomLabelPoint so the "+" sits on the room's area text. Offset the mark (or the label).
+- [ ] **H-D3 — Report's stale "Electrical points (indicative)" (defect).** report.ts's legacy
+  buildElectricalSchedule reports 40 heuristic points while the drawing set correctly shows the
+  24 designed ones — two documents disagree. Make the report prefer designed points (same
+  routing as openDrawingSet) with the same as-designed/indicative provenance.
+- [ ] **H1 — Door/window schedule SHEET.** The tag data (D1/W1, qty, size, sill, swing) already
+  exists (report section + DXF marks) — render it as an A-series sheet in the drawing set.
+  Cheapest canonical-set gap.
+- [ ] **H2 — Carpentry material/finish/hardware callouts.** Add to the carpentry sheet: board/
+  laminate note (from the piece's material props where they exist — honest "TBC by fabricator"
+  otherwise), edge-banding note, hardware callout per type (sliding track/rollers for sliding
+  wardrobe fronts, hinges/handles otherwise), and a SECTION cut-line marker on the elevation.
+- [ ] **H3 — Elevation mount heights.** Wall-elevation sheets label item widths but not AFFL
+  heights for wall-hung items (TV, sconces, art) — add height annotations (the model has
+  mountHeight).
+- [ ] **H4 — Reflected Ceiling Plan sheet (larger).** Canonical drawing #4: false-ceiling/
+  bulkhead zones with drop heights, ceiling-fixture positions dimensioned off walls, aircon.
+  The model has ceiling treatments per room + ceiling-mounted fixtures — enough for v1.
+- [ ] **H5 — DXF demolition layer (or documented limitation).** The DXF carries only the live
+  plan; a CAD-editing hacking contractor loses kept-vs-removed. Decide: DEMOLITION layer from
+  the baseline diff, or an explicit doc note.
+- [ ] **H6 — Elevation sheet grouping (polish).** 20 one-per-wall elevation sheets for a 4-room
+  flat; group short/low-content walls per professional practice.
+
 ## Active — contractor-handover accuracy & documentation (2026-07-18, user goal)
 > The app's purpose: homeowners design/plan/customize themselves, then hand over DIRECTLY to
 > contractors — so output must be dimensioned, to-scale, accurate, precise, detailed enough to
