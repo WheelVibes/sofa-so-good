@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_PRICE_RULES } from '../analysis/renovationCost'
+import { DEFAULT_DRAWING_SET_TEMPLATE } from '../export/drawingSetTemplate'
 import { DEFAULT_QUOTE_TEMPLATE } from '../export/quoteTemplate'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import type { HistorySnapshot } from '../state/slices/historySlice'
@@ -19,6 +20,7 @@ function snap(over: Partial<HistorySnapshot> = {}): HistorySnapshot {
     comments: [],
     drawingCallouts: [],
     quoteTemplate: DEFAULT_QUOTE_TEMPLATE,
+    drawingSetTemplate: DEFAULT_DRAWING_SET_TEMPLATE,
     priceRules: DEFAULT_PRICE_RULES,
     masterPalette: [],
     roomPalettes: {},

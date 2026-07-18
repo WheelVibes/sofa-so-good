@@ -36,6 +36,11 @@ import {
   type DrawingCalloutsSlice,
 } from './slices/drawingCalloutsSlice'
 import {
+  createDrawingSetTemplateSlice,
+  DRAWING_SET_TEMPLATE_INITIAL,
+  type DrawingSetTemplateSlice,
+} from './slices/drawingSetTemplateSlice'
+import {
   createEyedropperSlice,
   EYEDROPPER_INITIAL,
   type EyedropperSlice,
@@ -193,6 +198,7 @@ export interface RootState
     MeasurementsSlice,
     CommentsSlice,
     DrawingCalloutsSlice,
+    DrawingSetTemplateSlice,
     DoorsSlice,
     WindowFixtureSlice,
     ScreenInteractSlice,
@@ -250,6 +256,7 @@ const INITIAL = {
   ...MEASUREMENTS_INITIAL,
   ...COMMENTS_INITIAL,
   ...DRAWING_CALLOUTS_INITIAL,
+  ...DRAWING_SET_TEMPLATE_INITIAL,
   ...DOORS_INITIAL,
   ...WINDOW_FIXTURE_INITIAL,
   ...SCREEN_INTERACT_INITIAL,
@@ -304,6 +311,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createMeasurementsSlice(set, get, api),
   ...createCommentsSlice(set, get, api),
   ...createDrawingCalloutsSlice(set, get, api),
+  ...createDrawingSetTemplateSlice(set, get, api),
   ...createDoorsSlice(set, get, api),
   ...createWindowFixtureSlice(set, get, api),
   ...createScreenInteractSlice(set, get, api),

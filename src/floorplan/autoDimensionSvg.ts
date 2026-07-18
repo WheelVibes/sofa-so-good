@@ -26,6 +26,10 @@ export interface DimensionSvgOpts {
   widthPx?: number
   /** Display unit system for dimension labels. Default 'metric'. */
   units?: UnitSystem
+  /** When set (mm printed per metre of real-world extent, from
+   *  `drawingScale.ts:pickDrawingScale`), sizes the returned `<svg>` with
+   *  explicit `width`/`height` in mm instead of pixels — print-true (TODO G2). */
+  printMmPerM?: number
 }
 
 /** Padding (metres) around the plan bounds so offset dimension lines fit. */
@@ -80,10 +84,18 @@ export function dimensionSvg(plan: FloorPlan, opts: DimensionSvgOpts): string {
   const walls = Array.isArray(plan?.walls) ? plan.walls : []
 
   const parts: string[] = []
+  // Print-true sizing (TODO G2): 1 viewBox unit already equals `1/scale`
+  // metres, so `width/height px × (mmPerM / scale)` mm is the sheet's exact
+  // printed size at the locked scale. An inline `style` (not the plain
+  // `width`/`height` attribute) is required: presentational attributes have
+  // the LOWEST CSS priority, so a plain attribute would be silently
+  // overridden by the drawing-set's `.draw svg { width:100% }` rule.
+  const sizeStyle =
+    opts.printMmPerM != null
+      ? ` style="width:${n(widthPx * (opts.printMmPerM / scale))}mm;height:${n(heightPx * (opts.printMmPerM / scale))}mm"`
+      : ''
   parts.push(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${n(widthPx)}" height="${n(
-      heightPx,
-    )}" viewBox="0 0 ${n(widthPx)} ${n(heightPx)}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${n(widthPx)}" height="${n(heightPx)}"${sizeStyle} viewBox="0 0 ${n(widthPx)} ${n(heightPx)}">`,
   )
 
   // Plan walls (thin, faint).

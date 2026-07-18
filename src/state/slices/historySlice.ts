@@ -1,4 +1,5 @@
 import type { PriceRules } from '../../analysis/renovationCost'
+import type { DrawingSetTemplate } from '../../export/drawingSetTemplate'
 import type { QuoteTemplate } from '../../export/quoteTemplate'
 import type { FloorPlan } from '../../floorplan/types'
 import type { FurnitureItem } from '../../furniture/types'
@@ -48,6 +49,8 @@ export interface HistorySnapshot {
   drawingCallouts: DrawingCallout[]
   /** Quote template settings — branding/tax/section changes are undoable. */
   quoteTemplate: QuoteTemplate
+  /** Drawing-set handover template — project/client/revision changes are undoable. */
+  drawingSetTemplate: DrawingSetTemplate
   /** Price-rule library — finish + carpentry rate changes are undoable. */
   priceRules: PriceRules
   /** Apartment master colour palette — explicitly documented as undoable design
@@ -118,6 +121,7 @@ function snapshot(s: RootState): HistorySnapshot {
     comments: s.comments,
     drawingCallouts: s.drawingCallouts,
     quoteTemplate: s.quoteTemplate,
+    drawingSetTemplate: s.drawingSetTemplate,
     priceRules: s.priceRules,
     masterPalette: s.masterPalette,
     roomPalettes: s.roomPalettes,
@@ -137,6 +141,7 @@ function snapshotMatchesState(snap: HistorySnapshot, s: RootState): boolean {
     snap.comments === s.comments &&
     snap.drawingCallouts === s.drawingCallouts &&
     snap.quoteTemplate === s.quoteTemplate &&
+    snap.drawingSetTemplate === s.drawingSetTemplate &&
     snap.priceRules === s.priceRules &&
     snap.masterPalette === s.masterPalette &&
     snap.roomPalettes === s.roomPalettes

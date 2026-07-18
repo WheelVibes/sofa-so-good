@@ -221,13 +221,39 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   you can import into Google / Apple / Outlook Calendar, with one all-day event per
   phase starting today. Find it in **File** (desktop and the mobile sheet) or via
   ⌘K — it shares the Report toggle, so it's available whenever the Report is.
-- **Drawing set** — a formal, paginated **plan set** (A4 landscape, one drawing per
-  sheet with title blocks): cover + sheet index, floor plan, each wall elevation,
-  the lighting plan, and the FF&E schedule. Print or save as PDF for builders and
-  permits — the multi-sheet counterpart to the one-page Report. Use the **Include
-  sheets** checklist under it to pick exactly which sheets go in — e.g. a clean
-  client copy with no electrical/plumbing/demolition, or a full builder copy (the
-  floor plan is always included).
+- **Drawing set** — a formal, paginated **plan set** (A4 landscape by default, one
+  drawing per sheet with title blocks): cover + sheet index, floor plan, each wall
+  elevation, the lighting plan, and the FF&E schedule. Print or save as PDF for
+  builders and permits — the multi-sheet counterpart to the one-page Report. Use the
+  **Include sheets** checklist under it to pick exactly which sheets go in — e.g. a
+  clean client copy with no electrical/plumbing/demolition, or a full builder copy
+  (the floor plan is always included).
+  - **Paper size + orientation are yours to choose.** Under **File → Drawing set →
+    Title block details**, pick a paper size (A4/A3/A2/A1) and orientation
+    (Landscape/Portrait) — e.g. A1 landscape for a site set, A3 portrait for a
+    compact carpentry detail. Every sheet's `@page` size and dimensions follow your
+    choice, and the locked scale re-picks itself against the new printable area
+    (bigger paper → the same plan can print at a finer, more detailed ratio).
+  - **Locked, print-true scale.** Every plan/elevation/section sheet auto-picks the
+    largest standard architectural ratio (1:20 → 1:200) that fits your chosen paper
+    and states it in the title block, e.g. **"Scale 1:50 @ A4 LANDSCAPE"**. Schedules
+    and the cover carry **"Scale NTS"** (not to scale). The drawing is sized in real
+    millimetres to that ratio — **print at 100% (no "fit to page")** and measure
+    directly with a scale rule; the graphic scale bar on plan sheets is a second,
+    PDF-viewer-proof check (it still reads correctly even if a viewer rescales the
+    page for on-screen display).
+  - **Title block.** Each sheet's title block carries the project name + address,
+    client, drawn-by, a blank checked-by line, the date, sheet number ("A-3 of 9"),
+    revision letter, and the locked scale; plan-view sheets also show a small north
+    arrow (matching your set North orientation). Edit the project/client/drawn-by/
+    checked-by/revision/paper/orientation fields under **File → Drawing set →
+    Title block details**.
+  - **General notes.** The cover sheet lists the standard SG handover disclaimers:
+    dimensions in mm/m, don't scale from screen, furniture is indicative (build
+    from the setting-out plan + elevations), HDB permit required for any hacking,
+    PE endorsement when RC elements are touched, EMA-licensed electrician (LEW) for
+    electrical work, PUB-licensed plumber for plumbing, and verify all dimensions
+    on site.
 - **Sheet callouts** (Pro) — **Tools → Sheet callouts** opens the callout panel.
   Add free-text annotations that appear on a specific sheet when the drawing set
   is exported: type your note (e.g. "GL = 0.00", "Contractor to verify on site"),

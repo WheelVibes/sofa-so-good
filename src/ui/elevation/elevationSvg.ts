@@ -42,6 +42,11 @@ export interface ElevationSvgOptions {
   margin?: number
   /** Draw dimension lines (overall width/height + opening sill heights). Default true. */
   dimensions?: boolean
+  /** When set (mm printed per metre of real-world extent, from
+   *  `floorplan/drawingScale.ts:pickDrawingScale`), sizes the returned `<svg>`
+   *  with explicit `width`/`height` in mm — print-true (TODO G2) — instead of
+   *  leaving it unsized to stretch to its container. */
+  printMmPerM?: number
 }
 
 /**
@@ -51,7 +56,14 @@ export interface ElevationSvgOptions {
  * width/height or letting it scale to its container via the viewBox.
  */
 export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): string {
-  const { palette: p, labels = true, margin = 0.35, units = 'metric', dimensions = true } = opts
+  const {
+    palette: p,
+    labels = true,
+    margin = 0.35,
+    units = 'metric',
+    dimensions = true,
+    printMmPerM,
+  } = opts
   const { length: L, height: H } = el
   if (L <= 0 || H <= 0) {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" role="img" aria-label="empty elevation"></svg>`
@@ -193,8 +205,20 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
     }
   }
 
-  const vb = `${f(-pad)} ${f(-margin)} ${f(L + pad + margin)} ${f(H + margin + pad + extraDimPad)}`
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="wall elevation, ${f(L)} by ${f(H)} metres">${parts.join('')}</svg>`
+  const fullW = L + pad + margin
+  const fullH = H + margin + pad + extraDimPad
+  const vb = `${f(-pad)} ${f(-margin)} ${f(fullW)} ${f(fullH)}`
+  // Print-true sizing (TODO G2): the viewBox is already 1 unit = 1 metre, so
+  // `fullW`/`fullH` (metres) × `printMmPerM` (mm per metre) is the sheet's
+  // exact printed size at the locked scale.
+  // An inline `style` (not a bare `width`/`height` attribute) is required:
+  // presentational attributes have the LOWEST CSS priority, so a plain
+  // attribute would be silently overridden by `.draw svg { width:100% }`.
+  const sizeAttr =
+    printMmPerM != null
+      ? ` style="width:${(fullW * printMmPerM).toFixed(3)}mm;height:${(fullH * printMmPerM).toFixed(3)}mm"`
+      : ''
+  return `<svg xmlns="http://www.w3.org/2000/svg"${sizeAttr} viewBox="${vb}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="wall elevation, ${f(L)} by ${f(H)} metres">${parts.join('')}</svg>`
 }
 
 /** Short human caption for a wall elevation (panel + report headings). */

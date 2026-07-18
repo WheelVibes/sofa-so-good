@@ -29,6 +29,7 @@ export function HistoryPanel() {
   const comments = useStore((s) => s.comments)
   const drawingCallouts = useStore((s) => s.drawingCallouts)
   const quoteTemplate = useStore((s) => s.quoteTemplate)
+  const drawingSetTemplate = useStore((s) => s.drawingSetTemplate)
   const priceRules = useStore((s) => s.priceRules)
   const masterPalette = useStore((s) => s.masterPalette)
   const roomPalettes = useStore((s) => s.roomPalettes)
@@ -50,6 +51,7 @@ export function HistoryPanel() {
         comments,
         drawingCallouts,
         quoteTemplate,
+        drawingSetTemplate,
         priceRules,
         masterPalette,
         roomPalettes,
@@ -69,6 +71,7 @@ export function HistoryPanel() {
     comments,
     drawingCallouts,
     quoteTemplate,
+    drawingSetTemplate,
     priceRules,
     masterPalette,
     roomPalettes,

@@ -10,10 +10,17 @@
 import { obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
 import { projectAllElevations } from '../elevation/projectElevation'
+import { DEFAULT_DRAWING_SET_TEMPLATE, type DrawingSetTemplate } from '../export/drawingSetTemplate'
 import { buildFfeSchedule } from '../ffe/ffeSchedule'
 import { dimensionSvg } from '../floorplan/autoDimensionSvg'
 import { diffWalls, diffWallsByLevel } from '../floorplan/demolitionPlan'
 import { demolitionSvg } from '../floorplan/demolitionPlanSvg'
+import {
+  PAGE_MARGIN_MM,
+  PAPER_PRINTABLE_MM,
+  paperDimensionsMm,
+  pickDrawingScale,
+} from '../floorplan/drawingScale'
 import { buildElectricalPlan, type ElectricalPoint } from '../floorplan/electricalPlan'
 import { electricalSvg } from '../floorplan/electricalPlanSvg'
 import { buildFinishSchedule } from '../floorplan/finishSchedule'
@@ -31,7 +38,7 @@ import type { RoomFinishMaps } from '../floorplan/roomFinishes'
 import { buildSection } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
 import type { FloorPlan } from '../floorplan/types'
-import { planRoomArea } from '../floorplan/types'
+import { planBounds, planRoomArea } from '../floorplan/types'
 import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
@@ -72,6 +79,59 @@ interface Sheet {
   body: string
   /** Which callout group targets this sheet (used to inject callout SVG). */
   calloutGroup?: CalloutSheet
+  /** Title-block scale label, e.g. "1:50" (locked, print-true — TODO G2) or
+   *  "NTS" (not-to-scale: schedules, cover). Every sheet gets one. */
+  scaleLabel: string
+  /** True for a top-down plan-view sheet (floor plan / dimensioned / demolition /
+   *  electrical / plumbing / lighting) — these get the north indicator (TODO G5). */
+  topDown?: boolean
+}
+
+/** Buffer (metres) added on both axes before picking a nominal scale ratio, to
+ *  absorb each SVG builder's own internal padding/legend/dimension-strip
+ *  margins (which vary per sheet type, ~0.4–2m) without under-shooting the
+ *  page budget. The buffer only affects WHICH ratio is picked — the actual
+ *  print-true mm sizing always uses each builder's own exact internal
+ *  geometry (`printMmPerM`), never this buffer. */
+const SCALE_PICK_BUFFER_M = 2.5
+
+/** Pick + label the nominal scale ratio for a plan-bearing sheet of the given
+ *  real-world extent (metres), against the chosen paper size + orientation
+ *  (user-customizable — TODO G2 follow-up; defaults 'a4'/'landscape'). */
+function planScale(
+  w: number,
+  d: number,
+  paperSize: DrawingSetTemplate['paperSize'],
+  orientation: DrawingSetTemplate['orientation'],
+): { label: string; mmPerM: number } {
+  const printableMm = PAPER_PRINTABLE_MM[`${paperSize}-${orientation}`]
+  const s = pickDrawingScale(
+    { w: w + SCALE_PICK_BUFFER_M, d: d + SCALE_PICK_BUFFER_M },
+    printableMm,
+  )
+  return {
+    label: `${s.label} @ ${paperSize.toUpperCase()} ${orientation.toUpperCase()}`,
+    mmPerM: s.mmPerM,
+  }
+}
+
+/** "Not to scale" — for schedules/cover, which carry no scaled projection. */
+const NTS = 'NTS'
+
+/** A small top-down north-arrow glyph for plan-view sheets, rotated to match
+ *  the app's global North orientation (`orientationDeg` — the same value the
+ *  2D plan compass and 3D nav compass read, `compassHeading.ts`). Absolutely
+ *  positioned in the sheet's top-right corner. */
+function northIndicatorSvg(orientationDeg: number): string {
+  return (
+    `<div style="position:absolute;top:2mm;right:2mm;width:9mm;height:9mm;` +
+    `transform:rotate(${(-orientationDeg).toFixed(1)}deg);pointer-events:none">` +
+    `<svg viewBox="0 0 24 24" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">` +
+    `<circle cx="12" cy="12" r="11" fill="#ffffff" fill-opacity="0.85" stroke="#374151" stroke-width="1"/>` +
+    `<path d="M12 3 L16 14 L12 11 L8 14 Z" fill="#374151"/>` +
+    `<text x="12" y="21" font-size="7" font-weight="700" fill="#374151" text-anchor="middle" font-family="-apple-system,Segoe UI,Roboto,sans-serif">N</text>` +
+    `</svg></div>`
+  )
 }
 
 /** Small storey note rendered above a sheet's drawing (print inks). */
@@ -170,6 +230,12 @@ export function buildDrawingSetHtml(
   finishes?: RoomFinishMaps,
   layers?: DrawingLayerVisibility,
   callouts?: DrawingCallout[],
+  /** User-editable handover metadata (TODO G5) — project/client identity,
+   *  drawn-by/checked-by, revision. Defaults to the generic empty template. */
+  template: DrawingSetTemplate = DEFAULT_DRAWING_SET_TEMPLATE,
+  /** Global North orientation in degrees (`orientationDeg`, same value the 2D
+   *  plan compass reads) — drives the north indicator on plan-view sheets. */
+  orientationDeg = 0,
 ): string {
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
@@ -196,16 +262,22 @@ export function buildDrawingSetHtml(
       })
       .filter((f): f is { corners: [number, number][]; fill: string } => f != null)
   for (const level of levels) {
+    const levelPlan = levelAsPlan(plan, level)
+    const [pw, pd] = planBounds(levelPlan)
+    const scale = planScale(pw, pd, template.paperSize, template.orientation)
     const planSvg = reportPlanSvg(
-      levelAsPlan(plan, level),
+      levelPlan,
       [],
       units,
       footprintsOf(itemsOnLevel(items, level.id)),
+      scale.mmPerM,
     )
     sheets.push({
       name: cap('Floor plan', level),
-      body: `<div class="draw">${planSvg}</div>`,
+      body: `<div class="draw">${planSvg}</div>${northIndicatorSvg(orientationDeg)}`,
       calloutGroup: 'floor-plan',
+      scaleLabel: scale.label,
+      topDown: true,
     })
   }
 
@@ -215,10 +287,12 @@ export function buildDrawingSetHtml(
       (e) => e.length > 0 && e.height > 0 && (e.items.length > 0 || e.openings.length > 0),
     )
     elevations.forEach((e, i) => {
+      const scale = planScale(e.length, e.height, template.paperSize, template.orientation)
       sheets.push({
         name: elevationCaption(e, i, units),
-        body: `<div class="draw">${elevationSvg(e, { palette: ELEV_PRINT, units })}</div>`,
+        body: `<div class="draw">${elevationSvg(e, { palette: ELEV_PRINT, units, printMmPerM: scale.mmPerM })}</div>`,
         calloutGroup: 'elevations',
+        scaleLabel: scale.label,
       })
     })
   }
@@ -237,18 +311,20 @@ export function buildDrawingSetHtml(
         ${roomLuxTableHtml(estimateRoomLux(plan, lighting.lights), units, { header: 'h', num: 'n', table: 'sched' })}`
     const lit = levels.filter((l) => itemsOnLevel(lighting.lights, l.id).length > 0)
     lit.forEach((level, i) => {
-      const svg = lightingPlanSvg(
-        levelAsPlan(plan, level),
-        itemsOnLevel(lighting.lights, level.id),
-        {
-          palette: LIGHTING_PRINT,
-        },
-      )
+      const levelPlan = levelAsPlan(plan, level)
+      const [pw, pd] = planBounds(levelPlan)
+      const scale = planScale(pw, pd, template.paperSize, template.orientation)
+      const svg = lightingPlanSvg(levelPlan, itemsOnLevel(lighting.lights, level.id), {
+        palette: LIGHTING_PRINT,
+        printMmPerM: scale.mmPerM,
+      })
       sheets.push({
         name: cap('Lighting plan', level),
-        body: `<div class="draw">${svg}</div>
+        body: `<div class="draw">${svg}</div>${northIndicatorSvg(orientationDeg)}
         ${i === lit.length - 1 ? lightSched : ''}`,
         calloutGroup: 'lighting',
+        scaleLabel: scale.label,
+        topDown: true,
       })
     })
   }
@@ -257,14 +333,20 @@ export function buildDrawingSetHtml(
   if (layerOn(layers, 'dimensions')) {
     for (const level of levels) {
       if (!Array.isArray(level.walls) || level.walls.length === 0) continue
+      const levelPlan = levelAsPlan(plan, level)
+      const [pw, pd] = planBounds(levelPlan)
+      const scale = planScale(pw, pd, template.paperSize, template.orientation)
       sheets.push({
         name: cap('Dimensioned plan', level),
-        body: `<div class="draw">${dimensionSvg(levelAsPlan(plan, level), {
+        body: `<div class="draw">${dimensionSvg(levelPlan, {
           palette: { ink: '#374151', faint: '#cbd5e1' },
           widthPx: 900,
           units,
-        })}</div>`,
+          printMmPerM: scale.mmPerM,
+        })}</div>${northIndicatorSvg(orientationDeg)}`,
         calloutGroup: 'dimensions',
+        scaleLabel: scale.label,
+        topDown: true,
       })
     }
   }
@@ -277,6 +359,12 @@ export function buildDrawingSetHtml(
     sectionSilhouettes(itemsOnLevel(items, levels[0]!.id), catalog),
   )
   if (layerOn(layers, 'section') && section.walls.length > 0) {
+    const scale = planScale(
+      section.length,
+      section.height,
+      template.paperSize,
+      template.orientation,
+    )
     sheets.push({
       name: 'Section A–A',
       body: `<div class="draw">${sectionSvg(section, {
@@ -289,8 +377,10 @@ export function buildDrawingSetHtml(
           item: '#d8c8b0',
         },
         widthPx: 900,
+        printMmPerM: scale.mmPerM,
       })}</div>`,
       calloutGroup: 'section',
+      scaleLabel: scale.label,
     })
   }
 
@@ -306,14 +396,19 @@ export function buildDrawingSetHtml(
     wired.forEach((level, i) => {
       const levelPlan = levelAsPlan(plan, level)
       const levelElec = buildElectricalPlan(levelPlan, itemsOnLevel(elec.points, level.id))
+      const [pw, pd] = planBounds(levelPlan)
+      const scale = planScale(pw, pd, template.paperSize, template.orientation)
       sheets.push({
         name: cap('Electrical plan', level),
         body: `<div class="draw">${electricalSvg(levelPlan, levelElec, {
           palette: { wall: '#9ca3af', ink: '#374151', symbol: '#2563eb' },
           widthPx: 900,
-        })}</div>
+          printMmPerM: scale.mmPerM,
+        })}</div>${northIndicatorSvg(orientationDeg)}
         ${i === wired.length - 1 ? elecSched : ''}`,
         calloutGroup: 'electrical',
+        scaleLabel: scale.label,
+        topDown: true,
       })
     })
   }
@@ -329,14 +424,19 @@ export function buildDrawingSetHtml(
     plumbed.forEach((level, i) => {
       const levelPlan = levelAsPlan(plan, level)
       const levelPlumb = buildPlumbingPlan(levelPlan, itemsOnLevel(plumb.points, level.id))
+      const [pw, pd] = planBounds(levelPlan)
+      const scale = planScale(pw, pd, template.paperSize, template.orientation)
       sheets.push({
         name: cap('Plumbing plan', level),
         body: `<div class="draw">${plumbingSvg(levelPlan, levelPlumb, {
           palette: { wall: '#9ca3af', ink: '#374151', symbol: '#0891b2' },
           widthPx: 900,
-        })}</div>
+          printMmPerM: scale.mmPerM,
+        })}</div>${northIndicatorSvg(orientationDeg)}
         ${i === plumbed.length - 1 ? plumbSched : ''}`,
         calloutGroup: 'plumbing',
+        scaleLabel: scale.label,
+        topDown: true,
       })
     })
   }
@@ -352,7 +452,12 @@ export function buildDrawingSetHtml(
           (r) => `<tr><td>${esc(r.room)}</td><td>${esc(r.floor)}</td><td>${esc(r.wall)}</td></tr>`,
         )
         .join('')}</table>`
-      sheets.push({ name: 'Finishes schedule', body: table, calloutGroup: 'finishes' })
+      sheets.push({
+        name: 'Finishes schedule',
+        body: table,
+        calloutGroup: 'finishes',
+        scaleLabel: NTS,
+      })
     }
   }
 
@@ -370,25 +475,36 @@ export function buildDrawingSetHtml(
                 : `Entire storey removed — ${row.levelName} existed only in the original layout.`,
             )
           : ''
+        const rowLevel = levels.find((l) => l.name === row.levelName)
+        const [pw, pd] = rowLevel ? planBounds(levelAsPlan(plan, rowLevel)) : planBounds(plan)
+        const scale = planScale(pw, pd, template.paperSize, template.orientation)
         sheets.push({
           name: `Demolition & new walls — ${row.levelName}`,
           body: `${note}<div class="draw">${demolitionSvg(row.diff, {
             palette: { kept: '#9ca3af', demolished: '#dc2626', added: '#16a34a', ink: '#374151' },
             widthPx: 900,
-          })}</div>`,
+            printMmPerM: scale.mmPerM,
+          })}</div>${northIndicatorSvg(orientationDeg)}`,
           calloutGroup: 'demolition',
+          scaleLabel: scale.label,
+          topDown: true,
         })
       }
     } else {
       const wallDiff = diffWalls(baselinePlan, plan)
       if (wallDiff.demolished.length > 0 || wallDiff.added.length > 0) {
+        const [pw, pd] = planBounds(plan)
+        const scale = planScale(pw, pd, template.paperSize, template.orientation)
         sheets.push({
           name: 'Demolition & new walls',
           body: `<div class="draw">${demolitionSvg(wallDiff, {
             palette: { kept: '#9ca3af', demolished: '#dc2626', added: '#16a34a', ink: '#374151' },
             widthPx: 900,
-          })}</div>`,
+            printMmPerM: scale.mmPerM,
+          })}</div>${northIndicatorSvg(orientationDeg)}`,
           calloutGroup: 'demolition',
+          scaleLabel: scale.label,
+          topDown: true,
         })
       }
     }
@@ -407,6 +523,7 @@ export function buildDrawingSetHtml(
         )
         .join('')}</table>`,
       calloutGroup: 'ffe',
+      scaleLabel: NTS,
     })
   }
 
@@ -429,22 +546,70 @@ export function buildDrawingSetHtml(
     : plan.rooms.map(roomRow).join('')
   const totalArea = allPlanRooms(plan).reduce((s, r) => s + planRoomArea(r), 0)
   const indexRows = sheets.map((s) => `<tr><td>${s.num}</td><td>${esc(s.name)}</td></tr>`).join('')
+
+  // Project/client identity (TODO G5) — user-editable via `drawingSetTemplate`,
+  // falling back to the plan's own name so behaviour is unchanged until edited.
+  const projectName = template.projectName.trim() || plan.name
+  const revision = template.revision.trim() || 'A'
+  const totalSheets = sheets.length + 1 // + cover
+
+  // Standard SG handover disclaimers (contractor-handover research, TODO G5) —
+  // carried on the cover sheet only, once per set.
+  const GENERAL_NOTES = [
+    'All dimensions are in millimetres (mm) unless noted in metres (m).',
+    'Do NOT scale drawings from screen or PDF — print at 100% and measure against the stated scale with a scale rule.',
+    'The furniture layout is indicative only. Build from the setting-out plan and elevations, not the furnished view.',
+    'Any HDB wall demolition (including non-load-bearing walls) requires a written HDB permit before work begins.',
+    'A Professional Engineer (PE) endorsement is required when any reinforced-concrete (RC) element is touched — verify wall classification with HDB/PE before hacking.',
+    'Electrical works must be carried out and certified by an EMA-Licensed Electrical Worker (LEW) before SP Group energises any circuit.',
+    'Plumbing works connecting to the public network require a PUB Licensed Plumber.',
+    'Verify all dimensions on site before fabrication, ordering materials, or starting work.',
+  ]
   const cover: Sheet = {
     num: 'A-0',
     name: 'Cover',
     calloutGroup: 'cover',
+    scaleLabel: NTS,
     body: `<div class="cover">
-      <h1>${esc(plan.name)}</h1>
-      <div class="cover-sub">Interior design drawing set · ${date}</div>
+      <h1>${esc(projectName)}</h1>
+      <div class="cover-sub">Interior design drawing set · ${esc(date)}</div>
+      <div class="cover-meta">${[
+        template.projectAddress && `Address: ${esc(template.projectAddress)}`,
+        template.client && `Client: ${esc(template.client)}`,
+        `Drawn by: ${template.drawnBy ? esc(template.drawnBy) : '—'}`,
+        `Checked by: ${template.checkedBy ? esc(template.checkedBy) : '________________'}`,
+      ]
+        .filter(Boolean)
+        .join(' &nbsp;·&nbsp; ')}</div>
       <div class="cover-cols">
         <div><h3>Rooms &amp; areas</h3><table class="sched"><tr class="h"><td>Room</td><td class="n">Area</td></tr>${roomRows}<tr class="h"><td>Total</td><td class="n">${esc(formatArea(totalArea, units))}</td></tr></table></div>
         <div><h3>Sheet index</h3><table class="sched"><tr class="h"><td>No.</td><td>Sheet</td></tr><tr><td>A-0</td><td>Cover</td></tr>${indexRows}</table></div>
+        <div><h3>Revisions</h3><table class="sched"><tr class="h"><td>Rev</td><td>Date</td><td>Description</td></tr><tr><td>${esc(revision)}</td><td>${esc(date)}</td><td>${esc(template.revisionNote.trim() || 'Initial issue')}</td></tr></table></div>
+      </div>
+      <div class="notes">
+        <h3>General notes</h3>
+        <ol>${GENERAL_NOTES.map((note) => `<li>${esc(note)}</li>`).join('')}</ol>
       </div>
     </div>`,
   }
   const ordered = [cover, ...sheets]
   // Normalise callout array (empty when none provided).
   const activeCallouts = callouts ?? []
+
+  // Per-sheet title-block second row: client/drawn-by/checked-by/date/scale/
+  // sheet-of-total/revision (TODO G5).
+  const titleBlockMeta = (s: Sheet): string =>
+    [
+      template.client && `Client: ${esc(template.client)}`,
+      `Drawn: ${template.drawnBy ? esc(template.drawnBy) : '—'}`,
+      `Checked: ${template.checkedBy ? esc(template.checkedBy) : '________'}`,
+      esc(date),
+      `Scale ${esc(s.scaleLabel)}`,
+      `${s.num} of ${totalSheets}`,
+      `Rev ${esc(revision)}`,
+    ]
+      .filter(Boolean)
+      .join(' &nbsp;·&nbsp; ')
 
   const sheetHtml = ordered
     .map((s) => {
@@ -455,36 +620,54 @@ export function buildDrawingSetHtml(
         s.calloutGroup && activeCallouts.length
           ? buildCalloutsSvg(activeCallouts, s.calloutGroup)
           : ''
-      const sheetAreaStyle = calloutsHtml ? ' style="position:relative"' : ''
+      const sheetAreaStyle = calloutsHtml || s.topDown ? ' style="position:relative"' : ''
       return (
         `<section class="sheet"><div class="sheet-area"${sheetAreaStyle}>${s.body}${calloutsHtml}</div>` +
-        `\n        <div class="title-block"><span class="tb-proj">${esc(plan.name)}</span>` +
-        `<span class="tb-name">${esc(s.name)}</span>` +
-        `<span class="tb-meta">${esc(date)} · ${s.num}</span></div>\n      </section>`
+        `\n        <div class="title-block">` +
+        `<div class="tb-row1"><span class="tb-proj">${esc(projectName)}</span>` +
+        `<span class="tb-name">${esc(s.name)}</span></div>` +
+        `<div class="tb-row2">${titleBlockMeta(s)}</div>` +
+        `</div>\n      </section>`
       )
     })
     .join('')
 
+  // Paper/orientation-parameterized sheet CSS (user-customizable — TODO G2
+  // follow-up): `@page` + the sheet box + the drawing-area height budget all
+  // derive from ONE source of truth (`floorplan/drawingScale.ts`) so they
+  // never drift from `pickDrawingScale`'s own printable-area math.
+  const { widthMm: pageWidthMm, heightMm: pageHeightMm } = paperDimensionsMm(
+    template.paperSize,
+    template.orientation,
+  )
+  const sheetWidthMm = pageWidthMm - PAGE_MARGIN_MM * 2
+  const sheetMinHeightMm = pageHeightMm - PAGE_MARGIN_MM * 2
+  const drawMaxHeightMm = PAPER_PRINTABLE_MM[`${template.paperSize}-${template.orientation}`].height
+  const pageSizeCss = `${template.paperSize.toUpperCase()} ${template.orientation}`
+
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(plan.name)} — Drawing set</title>
 <style>
-  @page { size: A4 landscape; margin: 10mm; }
+  @page { size: ${pageSizeCss}; margin: ${PAGE_MARGIN_MM}mm; }
   * { box-sizing: border-box; }
   body { font: 12px/1.5 -apple-system, Segoe UI, Roboto, sans-serif; color: #1f2937; margin: 0; }
-  .sheet { width: 277mm; min-height: 190mm; margin: 0 auto 10mm; padding: 8mm; border: 1px solid #e5e7eb;
+  .sheet { width: ${sheetWidthMm}mm; min-height: ${sheetMinHeightMm}mm; margin: 0 auto 10mm; padding: 8mm; border: 1px solid #e5e7eb;
     display: flex; flex-direction: column; page-break-after: always; background: #fff; }
   .sheet:last-child { page-break-after: auto; }
   .sheet-area { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
   .draw { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
-  .draw svg { width: 100%; height: 100%; max-height: 150mm; }
-  .title-block { display: flex; justify-content: space-between; align-items: baseline; border-top: 2px solid #1f2937;
-    margin-top: 8px; padding-top: 6px; font-size: 11px; }
+  .draw svg { width: 100%; height: 100%; max-height: ${drawMaxHeightMm}mm; }
+  .title-block { border-top: 2px solid #1f2937; margin-top: 8px; padding-top: 6px; font-size: 11px; }
+  .tb-row1 { display: flex; justify-content: space-between; align-items: baseline; }
+  .tb-row2 { margin-top: 2px; color: #6b7280; font-size: 9px; font-family: ui-monospace, monospace; }
   .tb-proj { font-weight: 700; }
   .tb-name { color: #4b5563; }
-  .tb-meta { font-family: ui-monospace, monospace; color: #6b7280; }
   h1 { font-size: 30px; margin: 0 0 2px; }
   .cover { padding: 6mm 0; }
-  .cover-sub { color: #6b7280; margin-bottom: 24px; }
+  .cover-sub { color: #6b7280; margin-bottom: 8px; }
+  .cover-meta { color: #4b5563; font-size: 11px; margin-bottom: 24px; }
   .cover-cols { display: flex; gap: 40px; }
+  .notes { margin-top: 24px; }
+  .notes ol { margin: 6px 0 0; padding-left: 18px; font-size: 10px; line-height: 1.6; color: #374151; }
   h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; }
   table.sched { width: 100%; border-collapse: collapse; font-size: 11px; }
   table.sched td { padding: 3px 8px 3px 0; border-bottom: 1px solid #f1f5f9; }

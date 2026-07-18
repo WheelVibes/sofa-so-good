@@ -451,6 +451,7 @@ describe('HistorySnapshot completeness guard (TEST-4)', () => {
     'comments',
     'drawingCallouts',
     'quoteTemplate',
+    'drawingSetTemplate',
     'priceRules',
     'masterPalette',
     'roomPalettes',

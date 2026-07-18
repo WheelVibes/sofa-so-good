@@ -37,6 +37,10 @@ export interface LightingPlanSvgOptions {
   coverage?: boolean
   /** Outer margin (m). Default 0.4. */
   margin?: number
+  /** When set (mm printed per metre of real-world extent, from
+   *  `floorplan/drawingScale.ts:pickDrawingScale`), sizes the returned `<svg>`
+   *  with explicit `width`/`height` in mm — print-true (TODO G2). */
+  printMmPerM?: number
 }
 
 /** Build `<svg>…</svg>` for a lighting plan: walls + coverage circles + fixture
@@ -46,7 +50,7 @@ export function lightingPlanSvg(
   lights: PlanLight[],
   opts: LightingPlanSvgOptions,
 ): string {
-  const { palette: p, coverage = true, margin = 0.4 } = opts
+  const { palette: p, coverage = true, margin = 0.4, printMmPerM } = opts
   const [mx, mz] = planBounds(plan)
   if (mx <= 0 || mz <= 0) {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" role="img" aria-label="empty lighting plan"></svg>`
@@ -92,8 +96,18 @@ export function lightingPlanSvg(
     )
   }
 
-  const vb = `${f(-margin)} ${f(-margin)} ${f(mx + 2 * margin)} ${f(mz + 2 * margin)}`
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="lighting plan, ${lights.length} fixtures">${parts.join('')}</svg>`
+  const fullW = mx + 2 * margin
+  const fullH = mz + 2 * margin
+  const vb = `${f(-margin)} ${f(-margin)} ${f(fullW)} ${f(fullH)}`
+  // Print-true sizing (TODO G2): viewBox is already 1 unit = 1 metre. An
+  // inline `style` (not a bare `width`/`height` attribute) is required:
+  // presentational attributes have the LOWEST CSS priority, so a plain
+  // attribute would be silently overridden by `.draw svg { width:100% }`.
+  const sizeAttr =
+    printMmPerM != null
+      ? ` style="width:${(fullW * printMmPerM).toFixed(3)}mm;height:${(fullH * printMmPerM).toFixed(3)}mm"`
+      : ''
+  return `<svg xmlns="http://www.w3.org/2000/svg"${sizeAttr} viewBox="${vb}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="lighting plan, ${lights.length} fixtures">${parts.join('')}</svg>`
 }
 
 /** Print inks for the per-room lux status (report + drawing set are fixed-ink

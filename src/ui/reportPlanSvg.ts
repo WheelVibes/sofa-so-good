@@ -136,6 +136,11 @@ export function reportPlanSvg(
    *  tint) drawn under the walls, so the report plan reads as a furnished
    *  layout — "where things go", colour-keyed by furniture type. */
   footprints: { corners: [number, number][]; fill: string }[] = [],
+  /** When set (mm printed per metre of real-world extent, from
+   *  `floorplan/drawingScale.ts:pickDrawingScale`), sizes the returned
+   *  `<svg>` with explicit `width`/`height` in mm instead of leaving it
+   *  unsized to stretch to its container — print-true (TODO G2). */
+  printMmPerM?: number,
 ): string {
   // Defensive: a malformed/partial plan (no extent or no walls) yields no
   // diagram rather than throwing.
@@ -180,5 +185,16 @@ export function reportPlanSvg(
   const barY = d + pad + scaleStrip * 0.55
   const vbH = d + pad * 2 + scaleStrip
   const openings = openingsSvg(plan)
-  return `<svg class="plan-svg" viewBox="${-pad} ${-pad} ${(w + pad * 2).toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${furniture}${walls}${openings}${labels}${notesSvg(plan)}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}</svg>`
+  const fullW = w + pad * 2
+  // Print-true sizing (TODO G2): the viewBox is already 1 unit = 1 metre, so
+  // the full viewBox extent (metres) × mmPerM (mm per metre) is the sheet's
+  // exact printed size at the locked scale. An inline `style` (not a bare
+  // `width`/`height` attribute) is required: presentational attributes have
+  // the LOWEST CSS priority, so a plain attribute would be silently
+  // overridden by the drawing-set's `.draw svg { width:100% }` rule.
+  const sizeAttr =
+    printMmPerM != null
+      ? ` style="width:${(fullW * printMmPerM).toFixed(3)}mm;height:${(vbH * printMmPerM).toFixed(3)}mm"`
+      : ''
+  return `<svg class="plan-svg"${sizeAttr} viewBox="${-pad} ${-pad} ${fullW.toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${furniture}${walls}${openings}${labels}${notesSvg(plan)}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}</svg>`
 }

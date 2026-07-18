@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { DrawingSetTemplate } from '../../../export/drawingSetTemplate'
 import { useFeature } from '../../../features/useFeature'
 import { BUILTIN_CATALOG } from '../../../furniture/builtinCatalog'
 import { runUpdateCheck } from '../../../pwa/swUpdate'
@@ -10,6 +11,8 @@ import type { SlotMeta } from '../../../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, getThumb, saveThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
 import { resolveToolLabel, toolAction } from '../../actions/toolActions'
+import { Disclosure } from '../../controls/Disclosure'
+import { Select, type SelectOption } from '../../controls/Select'
 import { downloadBoqXlsx } from '../../downloadBoqXlsx'
 import { DRAWING_LAYERS } from '../../drawingLayers'
 import { openBoq } from '../../openBoq'
@@ -223,6 +226,7 @@ export function FileMenu() {
             onClick={() => openDrawingSet()}
           />
           <DrawingLayersPicker />
+          <DrawingSetInfoEditor />
         </>
       ) : null}
       {fReport ? (
@@ -504,6 +508,96 @@ function DrawingLayersPicker() {
           <span>{l.label}</span>
         </label>
       ))}
+    </div>
+  )
+}
+
+/** Fields shown in `DrawingSetInfoEditor`, each mapped to a `DrawingSetTemplate` key. */
+const DRAWING_SET_FIELDS: {
+  key: keyof DrawingSetTemplate
+  label: string
+  placeholder?: string
+}[] = [
+  { key: 'projectName', label: 'Project name', placeholder: 'Falls back to the plan name' },
+  { key: 'projectAddress', label: 'Address' },
+  { key: 'client', label: 'Client' },
+  { key: 'drawnBy', label: 'Drawn by' },
+  { key: 'checkedBy', label: 'Checked by' },
+  { key: 'revision', label: 'Revision', placeholder: 'A' },
+  { key: 'revisionNote', label: 'Revision note', placeholder: 'Initial issue' },
+]
+
+const PAPER_SIZE_OPTIONS: SelectOption[] = [
+  { value: 'a4', label: 'A4' },
+  { value: 'a3', label: 'A3' },
+  { value: 'a2', label: 'A2' },
+  { value: 'a1', label: 'A1' },
+]
+
+const ORIENTATION_OPTIONS: SelectOption[] = [
+  { value: 'landscape', label: 'Landscape' },
+  { value: 'portrait', label: 'Portrait' },
+]
+
+/** Minimal handover-metadata editor (TODO G5) — project/client identity,
+ *  drawn-by/checked-by, revision, paper size + orientation (user-
+ *  customizable — TODO G2 follow-up), shown in every sheet's title block.
+ *  Lives under the "Drawing set" entry, collapsed by default so it doesn't
+ *  crowd the menu; edits are pushed to undo history like the quote template. */
+function DrawingSetInfoEditor() {
+  const template = useStore((s) => s.drawingSetTemplate)
+  const setDrawingSetTemplate = useStore((s) => s.setDrawingSetTemplate)
+  return (
+    <div className="px-3 py-1" onClick={(e) => e.stopPropagation()}>
+      <Disclosure summary="Title block details">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-2)' }}>
+          <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-1)', flex: 1 }}>
+              <span style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>Paper size</span>
+              <Select
+                ariaLabel="Drawing set paper size"
+                value={template.paperSize}
+                options={PAPER_SIZE_OPTIONS}
+                onChange={(v) =>
+                  setDrawingSetTemplate({
+                    ...template,
+                    paperSize: v as DrawingSetTemplate['paperSize'],
+                  })
+                }
+              />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-1)', flex: 1 }}>
+              <span style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>Orientation</span>
+              <Select
+                ariaLabel="Drawing set orientation"
+                value={template.orientation}
+                options={ORIENTATION_OPTIONS}
+                onChange={(v) =>
+                  setDrawingSetTemplate({
+                    ...template,
+                    orientation: v as DrawingSetTemplate['orientation'],
+                  })
+                }
+              />
+            </label>
+          </div>
+          {DRAWING_SET_FIELDS.map((f) => (
+            <label
+              key={f.key}
+              style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-1)' }}
+            >
+              <span style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>{f.label}</span>
+              <input
+                className="input"
+                type="text"
+                value={template[f.key]}
+                placeholder={f.placeholder}
+                onChange={(e) => setDrawingSetTemplate({ ...template, [f.key]: e.target.value })}
+              />
+            </label>
+          ))}
+        </div>
+      </Disclosure>
     </div>
   )
 }

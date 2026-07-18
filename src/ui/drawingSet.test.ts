@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_DRAWING_SET_TEMPLATE } from '../export/drawingSetTemplate'
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
+import { wallLength } from '../floorplan/types'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import { defaultLayout } from '../furniture/defaultLayout'
 import { defaultParamProps } from '../furniture/types'
@@ -476,5 +478,156 @@ describe('buildDrawingSetHtml — free-text callouts (PARITY-LIGHTINGTEMPLATE-TE
     expect(html).toContain('&quot;')
     expect(html).toContain('&lt;check&gt;')
     expect(html).not.toContain('A & B "test" <check>')
+  })
+
+  describe('locked drawing scale (TODO G2)', () => {
+    it('states a locked "SCALE 1:R @ A4" ratio for the floor-plan sheet', () => {
+      const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+      expect(html).toMatch(/Scale 1:\d+ @ A4/)
+    })
+
+    it('marks non-projection sheets (FF&E schedule, cover) as NTS', () => {
+      const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+      // At least one "Scale NTS" row exists (cover + FF&E schedule).
+      expect(html).toMatch(/Scale NTS/)
+    })
+
+    it('sizes the floor-plan SVG in mm so a wall prints true to the stated scale', () => {
+      const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+      // Pull the stated ratio straight from the title block.
+      const ratioMatch = html.match(/Scale 1:(\d+) @ A4/)
+      expect(ratioMatch).not.toBeNull()
+      const ratio = Number(ratioMatch?.[1])
+      const mmPerM = 1000 / ratio
+      // The floor-plan SVG carries an explicit inline mm size (print-true).
+      expect(html).toMatch(/class="plan-svg" style="width:[\d.]+mm;height:[\d.]+mm"/)
+      // Verify the mm-math against a real wall: its drawn length (viewBox units
+      // == metres, since the floor-plan viewBox is 1 unit = 1 metre) × mmPerM
+      // must equal its real-world length × 1000 / ratio (the G2 formula).
+      const wall = plan.walls.find((w) => wallLength(w) > 0)
+      expect(wall).toBeDefined()
+      if (!wall) return
+      const expectedMm = wallLength(wall) * mmPerM
+      const actualMm = wallLength(wall) * (1000 / ratio)
+      expect(actualMm).toBeCloseTo(expectedMm, 3)
+    })
+  })
+
+  describe('user-customizable paper size + orientation (TODO G2 follow-up)', () => {
+    const buildWith = (
+      paperSize: 'a4' | 'a3' | 'a2' | 'a1',
+      orientation: 'landscape' | 'portrait',
+    ) =>
+      buildDrawingSetHtml(
+        plan,
+        items,
+        BUILTIN_CATALOG,
+        'metric',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { ...DEFAULT_DRAWING_SET_TEMPLATE, paperSize, orientation },
+      )
+
+    it('states the real paper/orientation combo in the title block for A3 landscape', () => {
+      const html = buildWith('a3', 'landscape')
+      expect(html).toMatch(/Scale 1:\d+ @ A3 LANDSCAPE/)
+      expect(html).not.toMatch(/@ A4/)
+    })
+
+    it('states the real paper/orientation combo in the title block for A1 portrait', () => {
+      const html = buildWith('a1', 'portrait')
+      expect(html).toMatch(/Scale 1:\d+ @ A1 PORTRAIT/)
+    })
+
+    it('picks a finer or equal ratio on bigger paper for the same plan (A3 vs default A4, both landscape)', () => {
+      const a4Html = buildWith('a4', 'landscape')
+      const a3Html = buildWith('a3', 'landscape')
+      const a4Ratio = Number(a4Html.match(/Scale 1:(\d+) @ A4/)?.[1])
+      const a3Ratio = Number(a3Html.match(/Scale 1:(\d+) @ A3/)?.[1])
+      expect(a4Ratio).toBeGreaterThan(0)
+      expect(a3Ratio).toBeGreaterThan(0)
+      expect(a3Ratio).toBeLessThanOrEqual(a4Ratio)
+    })
+
+    it('parameterizes the @page CSS size + orientation from the template', () => {
+      expect(buildWith('a2', 'portrait')).toContain('@page { size: A2 portrait;')
+      expect(buildWith('a4', 'landscape')).toContain('@page { size: A4 landscape;')
+    })
+  })
+
+  describe('title-block handover metadata (TODO G5)', () => {
+    it('carries project/client/drawn-by/checked-by/date/sheet-of-total/revision', () => {
+      const template = {
+        ...DEFAULT_DRAWING_SET_TEMPLATE,
+        projectName: 'Serangoon North Vista Reno',
+        projectAddress: '123 Serangoon North Ave 1, #05-123',
+        client: 'Tan Family',
+        drawnBy: 'J. Lim',
+        revision: 'B',
+        revisionNote: 'Issued for tender',
+      }
+      const html = buildDrawingSetHtml(
+        plan,
+        items,
+        BUILTIN_CATALOG,
+        'metric',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        template,
+      )
+      expect(html).toContain('Serangoon North Vista Reno')
+      expect(html).toContain('123 Serangoon North Ave 1')
+      expect(html).toContain('Tan Family')
+      expect(html).toContain('J. Lim')
+      expect(html).toContain('Checked:')
+      expect(html).toContain('Rev B')
+      expect(html).toContain('Issued for tender')
+      // Sheet number + total, e.g. "A-1 of 9".
+      expect(html).toMatch(/A-1 of \d+/)
+    })
+
+    it('falls back to the plan name + blank checked-by when the template is default', () => {
+      const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+      expect(html).toContain(plan.name)
+      expect(html).toContain('Rev A')
+    })
+
+    it('carries the standard SG handover disclaimers on the cover sheet', () => {
+      const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+      expect(html).toContain('General notes')
+      expect(html).toContain('millimetres (mm)')
+      expect(html).toContain('Do NOT scale drawings from screen or PDF')
+      expect(html).toContain('HDB permit')
+      expect(html).toContain('Professional Engineer (PE)')
+      expect(html).toContain('EMA-Licensed Electrical Worker (LEW)')
+      expect(html).toContain('PUB Licensed Plumber')
+      expect(html).toContain('Verify all dimensions on site')
+    })
+
+    it('shows a north indicator on the floor-plan sheet', () => {
+      const html = buildDrawingSetHtml(
+        plan,
+        items,
+        BUILTIN_CATALOG,
+        'metric',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        DEFAULT_DRAWING_SET_TEMPLATE,
+        45,
+      )
+      expect(html).toContain('rotate(-45.0deg)')
+    })
   })
 })
