@@ -27,10 +27,12 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   width increase alone used to leave a stale offset that pushed the opening past
   the wall's far end (BUG-7); clamping in the slice action (rather than only in
   the `OpeningInspector` control) covers every entry point, including
-  `duplicateOpening`'s nudge-along-wall math. `gridSnap.ts`'s `snapOpening` and
-  `sh3dPlacement.ts`'s import placement predate this helper and re-implement the
+  `duplicateOpening`'s nudge-along-wall math. `gridSnap.ts`'s `snapOpening` predates this helper and re-implements the
   same `margin=0` formula inline — reuse `clampOpeningOffset`/`clampOpeningWidth`
-  there on next touch rather than hand-rolling a third copy.
+  there on next touch rather than hand-rolling another copy. (`sh3dPlacement.ts`
+  was migrated to the shared helpers in the SH3D exact-sill work, v0.22.2.16 —
+  it also maps a window's SH3D `elevation` to `sill`/`head`, clamped to the
+  ceiling, with the old defaults as the missing/corrupt fallback.)
 - **Per-element colour (`elementColors`):** `PlanWall.color` overrides the plan-wide `wallColor` for
   one wall; `PlanOpening.color` paints a door leaf (panels derive a darker shade) or tints window glass.
   Both are optional hex strings, edited in `PlanInspector`, round-tripped via `schema.ts`

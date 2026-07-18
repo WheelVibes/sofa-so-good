@@ -36,6 +36,7 @@ const FURNISHED_XML = `<?xml version="1.0" encoding="UTF-8"?>
   <pieceOfFurniture id="p-bed" name="Double Bed" x="300" y="120" angle="1.5708" width="160" depth="200" height="50"/>
   <pieceOfFurniture id="p-mystery" name="Mysterious Object" x="50" y="50" angle="0" width="40" depth="40" height="40"/>
   <doorOrWindow id="d-front" name="Front Door" x="200" y="0" angle="0" width="90" depth="20" height="205"/>
+  <doorOrWindow id="w-side" name="Side window" x="400" y="200" angle="0" width="120" depth="20" height="80" elevation="120"/>
 </home>`
 
 describe('applySh3dResult — places parsed furniture into the store (PARITY-SH3D-FURN)', () => {
@@ -85,6 +86,17 @@ describe('applySh3dResult — places parsed furniture into the store (PARITY-SH3
     const door = s.floorPlan.openings.find((o) => o.kind === 'door')
     expect(door).toBeDefined()
     expect(door?.wallId).toBe('w-top')
+  })
+
+  it('honours a window elevation from the source file as its sill', () => {
+    const result = parseHomeXml(FURNISHED_XML, 'Furnished plan')
+    applySh3dResult(result, 'Furnished plan')
+
+    const s = useStore.getState()
+    const win = s.floorPlan.openings.find((o) => o.kind === 'window')
+    expect(win).toBeDefined()
+    expect(win?.sill).toBeCloseTo(1.2, 3)
+    expect(win?.head).toBeCloseTo(2.0, 3)
   })
 
   it('applies the geometry (walls + rooms) alongside the furniture', () => {

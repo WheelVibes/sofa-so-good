@@ -60,7 +60,7 @@ polylines), and its iconic **video flythrough** export.
 
 | Feature | Have | Feasible | Gap & approach (reference our modules) | Effort |
 |---|---|---|---|---|
-| Import SH3D legacy archives + exact sill | ◑ | ✅ | `.sh3d` (Home.xml) walls/rooms/furniture/openings AND `.sh3f` furniture libraries now import; remaining: legacy serialized (non-`Home.xml`) archives, exact sill from SH3D `elevation`. | L |
+| Import SH3D legacy serialized archives | ◑ | ✅ | `.sh3d` (Home.xml) walls/rooms/furniture/openings (incl. exact window sills from `elevation`) AND `.sh3f` furniture libraries now import; remaining: legacy serialized (non-`Home.xml`) archives only. | L |
 | Multi-language UI (20+) | ❌ | ✅ | i18n framework + translations; large, pure-client, low near-term value for HDB focus. | L |
 | Plugin/extension API | ❌ | ✅ | Define a JS extension surface; large architectural effort, low near-term value. | L |
 

@@ -25,8 +25,8 @@ import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../../furni
 import { placeNonOverlapping } from '../../layout/aiLayoutApply'
 import { alongWall, nearestWall } from '../../ui/floorplan/editor/floorPlanGeometry'
 import type { PlanOpening, PlanWall } from '../types'
-import { wallLength } from '../types'
-import type { Sh3dImportItem } from './sh3d'
+import { clampOpeningOffset, clampOpeningWidth, wallLength } from '../types'
+import { DEFAULT_CEILING_M, type Sh3dImportItem } from './sh3d'
 
 /** Max perpendicular distance (m) from an opening's centre to a wall for it to be
  *  associated with that wall. SH3D doors/windows sit centred on the wall line, so
@@ -123,13 +123,17 @@ export function resolveFurniture(
  * Associate door/window pieces with the nearest wall and convert each to a
  * `PlanOpening` (wall id + along-wall offset + width + kind). The opening's start
  * offset is its centre's along-wall position minus half its width, clamped to the
- * wall span. A piece with no wall within `OPENING_WALL_MAX_DIST` is reported as a
- * warning (and produces no opening). Pure.
+ * wall span via the shared `clampOpeningWidth`/`clampOpeningOffset` helpers (the
+ * same margin=0 formula every other offset/width-affecting edit routes through —
+ * see `src/floorplan/CLAUDE.md`). A piece with no wall within `OPENING_WALL_MAX_DIST`
+ * is reported as a warning (and produces no opening). `ceilingHeight` (m) bounds a
+ * window's derived head so an imported sill never modelled above the ceiling. Pure.
  */
 export function associateOpenings(
   items: readonly Sh3dImportItem[],
   walls: readonly PlanWall[],
   genId: (prefix: string) => string,
+  ceilingHeight = DEFAULT_CEILING_M,
 ): { openings: PlanOpening[]; warnings: string[] } {
   const openings: PlanOpening[] = []
   const warnings: string[] = []
@@ -142,13 +146,13 @@ export function associateOpenings(
     }
     const wall = hit.wall
     const span = wallLength(wall)
-    const width = Math.max(MIN_OPENING_WIDTH, Math.min(it.width, span))
+    const width = clampOpeningWidth(Math.max(MIN_OPENING_WIDTH, it.width), span)
     // Centre-based: the piece's centre sits at `centreOffset` along the wall;
     // the opening's start offset is half a width before that, clamped so the
     // whole opening stays on the wall.
     const centreOffset = alongWall(wall, it.position[0], it.position[1])
-    const offset = Math.max(0, Math.min(centreOffset - width / 2, Math.max(0, span - width)))
-    const { sill, head } = openingHeights(it)
+    const offset = clampOpeningOffset(centreOffset - width / 2, width, span)
+    const { sill, head } = openingHeights(it, ceilingHeight)
     openings.push({
       id: genId(it.opening),
       kind: it.opening,
@@ -162,11 +166,31 @@ export function associateOpenings(
   return { openings, warnings }
 }
 
-/** Sill + head (m) for an opening piece, from its height when usable, else
- *  category defaults. Doors sit on the floor; windows get a default sill. */
-function openingHeights(it: Sh3dImportItem): { sill: number; head: number } {
+/**
+ * Sill + head (m) for an opening piece. Doors always sit on the floor (`sill:
+ * 0`) — SH3D doors report `elevation: 0` in the common case, and a raised
+ * elevation on a door-tagged piece (e.g. a transom) is not modelled here to
+ * avoid regressing the well-understood floor-hung door path; the door's head
+ * still honours its own `height` when usable, else the category default.
+ *
+ * Windows honour the source file's `elevation` (SH3D's "bottom above floor"
+ * attribute) as the sill when it's usable (finite, > 0, and below the
+ * ceiling) — `head = min(sill + height, ceilingHeight)`, using the
+ * sill-to-head default span when the piece carries no height. A missing/zero
+ * elevation (or one at/above the ceiling — corrupt data) falls back to the
+ * previous fixed default sill/head, preserving back-compat for files that
+ * don't report elevation.
+ */
+function openingHeights(it: Sh3dImportItem, ceilingHeight: number): { sill: number; head: number } {
   const h = Number.isFinite(it.height) && it.height > 0 ? it.height : 0
   if (it.opening === 'window') {
+    const elevation = it.elevation
+    if (Number.isFinite(elevation) && elevation > 0 && elevation < ceilingHeight) {
+      const sill = Math.round(elevation * 1000) / 1000
+      const openingSpan = h > 0 ? h : DEFAULT_WINDOW_HEAD - DEFAULT_WINDOW_SILL
+      const head = Math.round(Math.min(sill + openingSpan, ceilingHeight) * 1000) / 1000
+      return { sill, head }
+    }
     const sill = DEFAULT_WINDOW_SILL
     const head = h > 0 ? Math.round((sill + h) * 1000) / 1000 : DEFAULT_WINDOW_HEAD
     return { sill, head }
@@ -185,9 +209,10 @@ export function resolveSh3dImport(
   catalog: Record<string, FurnitureDef>,
   existing: readonly FurnitureItem[],
   genId: (prefix: string) => string,
+  ceilingHeight = DEFAULT_CEILING_M,
 ): Sh3dPlacementResult {
   const furniture = resolveFurniture(items, catalog, existing, genId)
-  const openingsRes = associateOpenings(items, walls, genId)
+  const openingsRes = associateOpenings(items, walls, genId, ceilingHeight)
   return {
     openings: openingsRes.openings,
     placedFurniture: furniture.placedFurniture,

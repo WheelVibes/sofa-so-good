@@ -51,6 +51,7 @@ function item(over: Partial<Sh3dImportItem>): Sh3dImportItem {
     width: 2,
     depth: 0.9,
     height: 0.8,
+    elevation: 0,
     ...over,
   }
 }
@@ -195,6 +196,70 @@ describe('associateOpenings — door/window → nearest wall', () => {
     expect(openings[0]!.kind).toBe('window')
     expect(openings[0]!.sill).toBeGreaterThan(0)
     expect(openings[0]!.head).toBeGreaterThan(openings[0]!.sill)
+  })
+
+  it('honours the source elevation as the sill (SH3D `elevation` attribute)', () => {
+    const win = item({
+      id: 'wn2',
+      name: 'Raised window',
+      opening: 'window',
+      category: null,
+      position: [4, 2],
+      width: 1.2,
+      height: 0.8,
+      elevation: 1.2,
+    })
+    const { openings } = associateOpenings([win], walls, makeGenId())
+    expect(openings).toHaveLength(1)
+    expect(openings[0]!.sill).toBeCloseTo(1.2, 3)
+    expect(openings[0]!.head).toBeCloseTo(2.0, 3)
+  })
+
+  it('falls back to the default sill when a window has no elevation', () => {
+    const win = item({
+      id: 'wn3',
+      name: 'Plain window',
+      opening: 'window',
+      category: null,
+      position: [4, 2],
+      width: 1.2,
+      height: 1.2,
+      elevation: 0,
+    })
+    const { openings } = associateOpenings([win], walls, makeGenId())
+    expect(openings[0]!.sill).toBeCloseTo(0.9, 3)
+    expect(openings[0]!.head).toBeCloseTo(2.1, 3)
+  })
+
+  it('clamps a window elevation at/above the ceiling back to the default sill', () => {
+    const win = item({
+      id: 'wn4',
+      name: 'Corrupt window',
+      opening: 'window',
+      category: null,
+      position: [4, 2],
+      width: 1.2,
+      height: 0.8,
+      elevation: 2.6, // at the default ceiling — never a valid sill
+    })
+    const { openings } = associateOpenings([win], walls, makeGenId(), 2.6)
+    expect(openings[0]!.sill).toBeCloseTo(0.9, 3)
+  })
+
+  it('leaves a normal (elevation 0) door on the floor', () => {
+    const door = item({
+      id: 'd5',
+      name: 'Front door',
+      opening: 'door',
+      category: null,
+      position: [2, 0],
+      width: 0.9,
+      height: 2.05,
+      elevation: 0,
+    })
+    const { openings } = associateOpenings([door], walls, makeGenId())
+    expect(openings[0]!.sill).toBe(0)
+    expect(openings[0]!.head).toBeCloseTo(2.05, 3)
   })
 
   it('warns (no opening) when a piece is not near any wall', () => {

@@ -30,7 +30,7 @@ import type { FloorPlan, PlanOpening, PlanRoom, PlanVec2, PlanWall } from '../ty
 /** SH3D centimetres → our metres. */
 const CM_TO_M = 0.01
 /** Default ceiling height (m) when the file declares none. */
-const DEFAULT_CEILING_M = 2.6
+export const DEFAULT_CEILING_M = 2.6
 /** A wall is treated as `external` (thicker) at/above this thickness (m). */
 const EXTERNAL_WALL_THICKNESS_M = 0.16
 /** Reject coordinates beyond this (m) as corrupt — a 10 km plan is not a home. */
@@ -52,6 +52,12 @@ export interface Sh3dImportItem {
   width: number
   depth: number
   height: number
+  /** SH3D `elevation` (m): the piece's bottom above the floor. For a
+   *  `doorOrWindow` piece this is the sill height (`head = elevation + height`);
+   *  0 (the common case for a door) or absent means "no elevation data" — the
+   *  placement pass falls back to its category default. Always present + finite
+   *  (defaults to 0 when the file omits the attribute), never negative. */
+  elevation: number
   /** When set, SH3D modelled this piece as a door/window (a wall-hosted opening,
    *  not free furniture). The placement pass (`sh3dPlacement.ts`) associates it to
    *  the nearest wall and converts it to a `PlanOpening`. Absent = ordinary
@@ -229,6 +235,7 @@ export function parseHomeXml(xml: string, planName = 'Imported plan'): Sh3dImpor
     width: number
     depth: number
     height: number
+    elevation: number
     opening?: 'door' | 'window'
   }
   const rawItems: RawItem[] = []
@@ -245,6 +252,7 @@ export function parseHomeXml(xml: string, planName = 'Imported plan'): Sh3dImpor
     const width = num(el.getAttribute('width'))
     const depth = num(el.getAttribute('depth'))
     const height = num(el.getAttribute('height'))
+    const elevation = num(el.getAttribute('elevation'))
     const name = el.getAttribute('name') || el.getAttribute('catalogId') || 'Furniture'
     if (x == null || y == null || width == null || depth == null) {
       warnings.push(`Skipped furniture "${name}" with incomplete geometry`)
@@ -267,6 +275,7 @@ export function parseHomeXml(xml: string, planName = 'Imported plan'): Sh3dImpor
       width,
       depth,
       height: height ?? 0,
+      elevation: elevation != null && finiteAndSane(elevation) && elevation > 0 ? elevation : 0,
       opening: isOpening ? openingKindForName(name) : undefined,
     })
     itemIdx++
@@ -359,6 +368,7 @@ export function parseHomeXml(xml: string, planName = 'Imported plan'): Sh3dImpor
       width: clampCoord(it.width * CM_TO_M),
       depth: clampCoord(it.depth * CM_TO_M),
       height: clampCoord(it.height * CM_TO_M),
+      elevation: clampCoord(it.elevation * CM_TO_M),
       ...(it.opening ? { opening: it.opening } : {}),
     }
   })

@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.16 — SH3D import: exact window sills from `elevation`
+
+`.sh3d` windows now import at their true height: the parser reads each
+doorOrWindow's `elevation` (cm→m) and `sh3dPlacement.openingHeights` maps
+window sill = elevation, head = min(elevation + height, ceiling) — with the
+old fixed defaults as the fallback for missing/zero/at-ceiling (corrupt)
+values, and doors deliberately unchanged (always floor-hung). The real import
+path threads `plan.ceilingHeight` through. Also completes the CLAUDE.md-
+flagged cleanup: `sh3dPlacement` now reuses the shared
+`clampOpeningWidth`/`clampOpeningOffset` instead of its inline copy.
+Browser-verified via `__importSh3dBytes` (window renders raised at 1.2 m
+sill; door on the floor); 57 targeted tests + 633-test floorplan sweep green.
+FEATURE_PARITY SH3D row narrowed to legacy serialized archives only.
+
 ## v0.22.2.15 — IXT-SUITES back-fill batch 5: 3 more ladders (39 uncovered left)
 
 Green rungs for `dxfExport` (Pro File-menu row → real `downloadPlanDxf` blob
