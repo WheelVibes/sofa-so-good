@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.29 — Fix: numeric PromptModal rejected decimals (same stepMismatch class)
+
+Bug-hunt round 5 found the shared `PromptModal`'s numeric mode
+(`promptText({numeric:true})`) rendered a bare `type=number` with no `step`,
+which defaults to `step=1` — so any decimal answer failed native
+`stepMismatch` and the `<form>` submit silently no-op'd. This broke real
+flows: floor-plan **scale calibration** ("Real length of the line you drew
+(metres)" — e.g. 3.05) and **record walkthrough** ("Total video length in
+seconds" — e.g. 12.5). Added `step="any"` for the numeric variant. New
+`PromptModal.test.tsx` (the component had none — same coverage gap that hid
+the ScalePlanModal bug) asserts a decimal is valid + submits. Everything else
+round 5 checked came back clean (other number inputs are live-update, not
+form-gated; new batch actions push exactly one history entry; new panels have
+no colour-literal violations).
+
 ## v0.22.2.28 — Fix: ScalePlanModal default no-op'd (stepMismatch) + batch 9 ladders
 
 Bug (found by the batch-9 scenario back-fill): the Scale-plan dialog's number

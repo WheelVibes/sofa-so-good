@@ -49,6 +49,11 @@ export function PromptModal() {
           ref={inputRef}
           type={req.numeric ? 'number' : 'text'}
           inputMode={req.numeric ? 'decimal' : undefined}
+          // step="any": a bare number input defaults to step=1, so a decimal
+          // answer (e.g. "3.05" metres for scale calibration, "12.5" seconds
+          // for a clip length) fails native stepMismatch validation and the
+          // form's submit silently no-ops (same bug class as ScalePlanModal).
+          step={req.numeric ? 'any' : undefined}
           value={text}
           placeholder={req.placeholder}
           onChange={(e) => setText(e.target.value)}
