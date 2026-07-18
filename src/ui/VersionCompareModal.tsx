@@ -233,7 +233,7 @@ export function VersionCompareModal() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 pointerEvents: 'none',
-                fontSize: 14,
+                fontSize: 'var(--t-sm)',
                 color: 'var(--surface-solid)',
               }}
               aria-hidden
@@ -248,11 +248,11 @@ export function VersionCompareModal() {
                 left: 10,
                 background: 'var(--accent)',
                 color: 'var(--on-accent)',
-                padding: '2px 7px',
+                padding: 'var(--s-1) var(--s-2)',
                 borderRadius: 4,
                 textTransform: 'none',
                 letterSpacing: 0,
-                fontSize: 11,
+                fontSize: 'var(--t-xs)',
                 fontWeight: 700,
                 pointerEvents: 'none',
               }}
@@ -267,11 +267,11 @@ export function VersionCompareModal() {
                 right: 10,
                 background: 'rgba(0,0,0,0.45)',
                 color: '#fff',
-                padding: '2px 7px',
+                padding: 'var(--s-1) var(--s-2)',
                 borderRadius: 4,
                 textTransform: 'none',
                 letterSpacing: 0,
-                fontSize: 11,
+                fontSize: 'var(--t-xs)',
                 fontWeight: 700,
                 pointerEvents: 'none',
               }}
@@ -290,11 +290,11 @@ export function VersionCompareModal() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 6,
+              gap: 'var(--s-2)',
               textTransform: 'none',
               letterSpacing: 0,
               textAlign: 'center',
-              padding: 24,
+              padding: 'var(--s-6)',
             }}
           >
             {errorMsg ? (
@@ -310,7 +310,7 @@ export function VersionCompareModal() {
 
       <div
         className="panel-sub"
-        style={{ textTransform: 'none', letterSpacing: 0, marginTop: 8, minHeight: 16 }}
+        style={{ textTransform: 'none', letterSpacing: 0, marginTop: 'var(--s-3)', minHeight: 16 }}
         aria-live="polite"
       >
         {phase === 'capturing'
