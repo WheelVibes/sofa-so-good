@@ -1,0 +1,77 @@
+{
+  "name": "new-badges-simple",
+  "description": "IXT-SUITES simple rung for the `newBadges` flag (simple tier — resolves the same in both modes). The only live wiring is the 'Style quiz' row in the Tools menu (ToolsMenu.tsx, newFlag=\"styleQuiz\"), gated by useNewBadge (src/ui/newBadges.ts): show = newBadges && targetFlag && NEW_BADGES[target] is recent && not yet seen. Both real NEW_BADGES entries (styleQuiz, parallelProjection) have long aged out of the recency window (their APP_VERSION has since moved a minor line past them), so this scenario monkeypatches NEW_BADGES.styleQuiz to the LIVE APP_VERSION via a page-context dynamic import (the same 'private module-level signal, driven via dynamic import' technique from the batch-5 gotchas) to make the badge 'recently introduced' again for the duration of the run — the wiring itself (useNewBadge → .new-dot render) is untouched. Since the Tools menu itself only mounts in Pro mode (proMode && <ToolsMenu/> in Toolbar.tsx), the ladder is: (1) no Tools button at all in Simple, (2) in Pro, the dot IS present once styleQuiz + newBadges + a patched-recent entry all line up, (3) a direct setFeatureFlag(newBadges,false) override removes the dot while the row itself stays visible (targetFlag still on), (4) restoring newBadges brings the dot back — isolating newBadges' own effect from styleQuiz's.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "App did not boot in Simple mode"
+    },
+    {
+      "name": "boot-settled",
+      "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" },
+      "timeout": 60000
+    },
+    { "name": "settle-post-boot", "wait": 800 },
+    {
+      "name": "verify-newbadges-flag-on-simple",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.newBadges === true" },
+      "timeout": 5000,
+      "failMessage": "newBadges should default ON (simple tier, default:true)"
+    },
+    {
+      "name": "assert-no-tools-button-simple",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Tools'); if (btn) throw new Error('Tools menu button unexpectedly present in Simple mode (ToolsMenu is Pro-only)'); })()"
+    },
+    { "name": "shot-simple-no-tools", "screenshot": "01-simple-no-tools-menu" },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "mode-settle", "wait": 500 },
+    {
+      "name": "patch-new-badges-recency",
+      "eval": "(async function(){ const [nb, ver] = await Promise.all([import('/src/ui/newBadges.ts'), import('/src/version.ts')]); nb.NEW_BADGES.styleQuiz = ver.APP_VERSION; window.__patchedNewBadges = nb; })()"
+    },
+    {
+      "name": "verify-stylequiz-flag-on-pro",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.styleQuiz === true" },
+      "timeout": 5000,
+      "failMessage": "styleQuiz should be ON in Pro mode"
+    },
+    { "name": "open-tools-pro", "click": { "text": "Tools" } },
+    { "name": "tools-panel-open", "waitFor": { "css": ".pop-panel" }, "timeout": 10000 },
+    { "name": "settle-tools-open", "wait": 400 },
+    {
+      "name": "assert-dot-present-pro",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.pop-panel button')].find(b => b.textContent.includes('Style quiz')); if (!btn) throw new Error('Style quiz row not found in Tools menu'); const dot = btn.querySelector('.new-dot'); if (!dot) throw new Error('No .new-dot on Style quiz row with newBadges ON + a freshly-patched-recent NEW_BADGES entry'); })()"
+    },
+    { "name": "shot-pro-dot-visible", "screenshot": "02-tools-menu-style-quiz-dot-visible" },
+    {
+      "name": "override-newbadges-off",
+      "store": { "action": "setFeatureFlag", "args": ["newBadges", false] }
+    },
+    { "name": "flag-off-settle", "wait": 400 },
+    {
+      "name": "assert-row-stays-dot-gone",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.pop-panel button')].find(b => b.textContent.includes('Style quiz')); if (!btn) throw new Error('Style quiz row disappeared entirely (should stay — only its badge is newBadges-gated, the row itself is styleQuiz-gated)'); const dot = btn.querySelector('.new-dot'); if (dot) throw new Error('.new-dot still present after setFeatureFlag(newBadges, false)'); })()"
+    },
+    { "name": "shot-newbadges-off", "screenshot": "03-tools-menu-newbadges-off-dot-gone" },
+    {
+      "name": "restore-newbadges-on",
+      "store": { "action": "setFeatureFlag", "args": ["newBadges", true] }
+    },
+    { "name": "flag-on-settle", "wait": 400 },
+    {
+      "name": "assert-dot-restored",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.pop-panel button')].find(b => b.textContent.includes('Style quiz')); if (!btn) throw new Error('Style quiz row not found after restoring newBadges'); const dot = btn.querySelector('.new-dot'); if (!dot) throw new Error('.new-dot did not return after restoring newBadges to true'); })()"
+    },
+    { "name": "shot-newbadges-restored", "screenshot": "04-tools-menu-newbadges-restored-dot-visible" },
+    { "name": "close-tools", "key": "Escape" }
+  ]
+}

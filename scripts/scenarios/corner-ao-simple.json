@@ -1,0 +1,91 @@
+{
+  "name": "corner-ao-simple",
+  "description": "IXT-SUITES simple rung for the `cornerAo` flag (simple tier — present in both Simple and Pro by default). WallSegment.tsx gates a baked wall/floor AO strip mesh (WallFloorAO, scene/CornerAO.tsx) on `cornerAoFlag && cornerAoQuality`; the default `performance` quality tier has `cornerAo: true`, so the strips render out of the box. Since a tier:'simple' flag resolves the SAME in both modes, the three-part proof from the batch-7 gotcha applies: (1) present in Simple, (2) present in Pro, (3) a direct setFeatureFlag override actually removes the meshes and restoring it brings them back — proving the flag controls the effect, not just a mode switch. Probed via the scene graph (window.__three.scene, dev-only) rather than pixels: WallFloorAO renders a `meshBasicMaterial` with `opacity === CORNER_AO_OPACITY` (0.42) and a `PlaneGeometry` on a shared gradient texture, a stable oracle independent of camera framing.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "App did not boot in Simple mode"
+    },
+    {
+      "name": "boot-settled",
+      "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" },
+      "timeout": 60000
+    },
+    { "name": "settle-post-boot", "wait": 1000 },
+    {
+      "name": "verify-flag-on-in-simple",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.cornerAo === true" },
+      "timeout": 5000,
+      "failMessage": "cornerAo should be ON by default in Simple mode (tier: simple, default: true)"
+    },
+    {
+      "name": "verify-quality-tier",
+      "waitFor": { "store": "state.qualityTier === 'performance'" },
+      "timeout": 5000,
+      "failMessage": "Default quality tier is not 'performance' (cornerAo strips only render on performance/medium)"
+    },
+    {
+      "name": "count-ao-strips-simple",
+      "eval": "(function(){ let n = 0; window.__three.scene.traverse(o => { if (o.isMesh && o.geometry && o.geometry.type === 'PlaneGeometry' && o.material && Math.abs((o.material.opacity||0) - 0.42) < 0.001 && o.material.transparent) n++; }); window.__aoSimple = n; return n; })()"
+    },
+    {
+      "name": "assert-ao-strips-present-simple",
+      "eval": "(function(){ if (!(window.__aoSimple > 0)) throw new Error('No corner-AO strip meshes found in Simple mode with cornerAo ON (found ' + window.__aoSimple + ')'); })()"
+    },
+    { "name": "shot-simple-mode", "screenshot": "01-corner-ao-simple-on" },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "mode-settle", "wait": 500 },
+    {
+      "name": "verify-flag-on-in-pro",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.cornerAo === true" },
+      "timeout": 5000,
+      "failMessage": "cornerAo should still be ON in Pro mode (tier:'simple' resolves the same in both modes)"
+    },
+    {
+      "name": "count-ao-strips-pro",
+      "eval": "(function(){ let n = 0; window.__three.scene.traverse(o => { if (o.isMesh && o.geometry && o.geometry.type === 'PlaneGeometry' && o.material && Math.abs((o.material.opacity||0) - 0.42) < 0.001 && o.material.transparent) n++; }); window.__aoPro = n; return n; })()"
+    },
+    {
+      "name": "assert-ao-strips-present-pro",
+      "eval": "(function(){ if (!(window.__aoPro > 0)) throw new Error('No corner-AO strip meshes found in Pro mode'); if (window.__aoPro !== window.__aoSimple) throw new Error('Strip count changed between Simple (' + window.__aoSimple + ') and Pro (' + window.__aoPro + ') just from a mode switch — cornerAo should be unaffected by uiMode'); })()"
+    },
+    { "name": "shot-pro-mode", "screenshot": "02-corner-ao-pro-on" },
+    {
+      "name": "override-flag-off",
+      "store": { "action": "setFeatureFlag", "args": ["cornerAo", false] }
+    },
+    { "name": "flag-off-settle", "wait": 700 },
+    {
+      "name": "count-ao-strips-off",
+      "eval": "(function(){ let n = 0; window.__three.scene.traverse(o => { if (o.isMesh && o.geometry && o.geometry.type === 'PlaneGeometry' && o.material && Math.abs((o.material.opacity||0) - 0.42) < 0.001 && o.material.transparent) n++; }); window.__aoOff = n; return n; })()"
+    },
+    {
+      "name": "assert-ao-strips-gone",
+      "eval": "(function(){ if (window.__aoOff !== 0) throw new Error('Corner-AO strips still present (' + window.__aoOff + ') after setFeatureFlag(cornerAo, false)'); })()"
+    },
+    { "name": "shot-flag-off", "screenshot": "03-corner-ao-flag-off" },
+    {
+      "name": "restore-flag-on",
+      "store": { "action": "setFeatureFlag", "args": ["cornerAo", true] }
+    },
+    { "name": "flag-on-settle", "wait": 700 },
+    {
+      "name": "count-ao-strips-restored",
+      "eval": "(function(){ let n = 0; window.__three.scene.traverse(o => { if (o.isMesh && o.geometry && o.geometry.type === 'PlaneGeometry' && o.material && Math.abs((o.material.opacity||0) - 0.42) < 0.001 && o.material.transparent) n++; }); window.__aoRestored = n; return n; })()"
+    },
+    {
+      "name": "assert-ao-strips-restored",
+      "eval": "(function(){ if (!(window.__aoRestored > 0)) throw new Error('Corner-AO strips did not return after restoring the flag to true'); })()"
+    },
+    { "name": "shot-flag-restored", "screenshot": "04-corner-ao-flag-restored" }
+  ]
+}

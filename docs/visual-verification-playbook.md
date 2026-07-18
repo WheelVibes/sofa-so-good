@@ -1329,6 +1329,75 @@ back to orbit (config persists). Gotchas learned here:
   ~90s of hung `browser.close()` afterwards. Not a scenario bug — just re-run once the dev
   server's `curl -s -o /dev/null -w '%{http_code}' <url>` reports `200` again.
 
+### Gotchas from the IXT-SUITES back-fill batch 10 (moodboard / cornerAo / planIntegrity / newBadges)
+
+- **Two near-identical flag names can gate genuinely different behaviour — always re-check the
+  registry entry, not just the name.** `catalogFits` (simple tier, "badge/dim items that won't
+  fit") already has visual coverage (`catalog-fits-simple.json`/`-journey.json`), but
+  `catalogFitsFilter` (pro tier, the separate "Fits only" browse-filter toggle) does not — a
+  substring/filename sweep that stops at the first `catalog-fits*` hit would wrongly mark
+  `catalogFitsFilter` as covered. Same trap almost bit `pbrSurfaces` against the pre-existing
+  `pbr-maps-verify.json` (that scenario applies finishes and never touches the flag) and `cornerAo`
+  against `photo-gtao-ab-ao.json` (that's the unrelated real-time N8AO/SSAO debug rig, not the
+  baked-strip fallback). Open the candidate file and check what it actually asserts before
+  crossing a flag off the uncovered list.
+- **A `mesh`/`material` pair with a stable, distinctive numeric property is a clean scene-graph
+  oracle for an otherwise-invisible-from-orbit render toggle.** `cornerAo`'s baked wall/floor AO
+  strips (`scene/CornerAO.tsx`) are subtle (a soft dark gradient hugging the skirting) and easy to
+  miss in a whole-flat orbit screenshot, but `WallFloorAO` renders a `meshBasicMaterial` with
+  `opacity === CORNER_AO_OPACITY` (0.42) on a `PlaneGeometry` — traversing `window.__three.scene`
+  and counting meshes matching that exact opacity is a reliable presence/absence proof
+  (present at default `performance` quality tier, count drops to exactly 0 on
+  `setFeatureFlag('cornerAo', false)`, returns on restore) independent of camera framing or
+  pixel-diffing. Since `cornerAo` is `tier: 'simple'` (resolves the same in both Simple and Pro),
+  the three-part proof from the batch-7 gotcha applies verbatim: present in Simple, present in
+  Pro (and the mesh COUNT must be identical across the mode switch — a differing count would mean
+  something else moved, not just narrated as "still on"), then a direct override hides/restores it.
+- **A stray-element warning badge needs a genuine defect, not just the flag on.** `planIntegrity`'s
+  `PlanTotalLabel` only shows `⚠ N stray` when `planIntegrityFlags()` actually finds something
+  disconnected — the default apartment plan is fully connected, so flipping the flag alone on a
+  pristine plan proves nothing. Manufacture a real stray element first with the plain store action
+  (`addWall({start:[50,50], end:[52,50], thickness:'internal'})` — a 2 m segment far outside the
+  footprint, joined to nothing) before toggling the flag; the badge (and, visually, that one wall
+  segment rendered in red on the plan canvas while stray) then genuinely responds to the flag.
+- **`.panel-sub` is not a unique class — the floor-plan editor has at least four unrelated elements
+  wearing it** (`PlanTotalLabel`'s "Total … · N rooms", `GridZoomControls`, and two labels inside
+  `WallNumericEntry`). A bare `document.querySelector('.panel-sub')` grabs whichever one happens to
+  be first in DOM order (observed: it grabbed the grid-size control's "Grid" label instead of the
+  total readout, an assertion failure that reads exactly like the feature being broken). Filter by
+  content instead: `[...document.querySelectorAll('.panel-sub')].map(e=>e.textContent).find(t =>
+  t.startsWith('Total'))`. General lesson: a component-scoped `className` shared across a panel
+  family (see also the batch-6 `.scene-select` gotcha) is common in this codebase — never assume a
+  single `querySelector` hit is *the* element without checking how many share the class.
+  `console.log`ging the *actual* matched text in the thrown Error message (not just "assertion
+  failed") is what made this one-line diagnosis instead of a re-read of the whole component.
+- **A stale/aged-out `NEW_BADGES` registry entry can be revived for a scenario via the same
+  dynamic-import "drive a private module-level signal" technique from batch 5** — `newBadges`'s
+  only two live wirings (`styleQuiz`, `parallelProjection`) are both long past their recency window
+  (their `APP_VERSION` has since moved a minor line on), so a scenario that doesn't touch this
+  would see `useNewBadge` correctly return `show:false` regardless of the `newBadges` flag and
+  wrongly conclude the wiring is broken. `await import('/src/ui/newBadges.ts')` resolves in-page
+  and returns the real, mutable `NEW_BADGES` object — `nb.NEW_BADGES.styleQuiz =
+  (await import('/src/version.ts')).APP_VERSION` makes the entry "recently introduced" again for
+  the run's lifetime, exercising the exact same `isRecentlyIntroduced` → `.new-dot` render path a
+  genuinely-new entry would, without touching source. (Mirrors `MenuItem.badge.test.tsx`'s own
+  technique of `vi.mock`-ing `APP_VERSION` to pin recency — this is the browser-scenario
+  equivalent when you can't mock a module import.)
+- **The Tools menu itself is Pro-only at the mount level, not just flag-gated content inside it** —
+  `Toolbar.tsx` renders `{proMode && <ToolsMenu />}`, so in Simple mode there's no "Tools" button in
+  the DOM at all (not a hidden/disabled one). A `newBadges`-in-Simple-mode assertion should check
+  for the trigger button's ABSENCE, not try to open a menu that structurally can't exist yet — this
+  is actually a *stronger*, simpler proof than a hidden-row check would be.
+- **The "Style quiz" row can be below the fold in a screenshot even when the DOM assertion on its
+  `.new-dot` passes** — the Tools menu's Analyse group is long (10 rows) and the Style row is
+  further down under a Style label past Review & Tour; a 1600×1000 screenshot after opening the
+  menu shows Walkthrough at the bottom, not Style quiz. The DOM query (`querySelectorAll('.pop-panel
+  button')` + `.find`) still finds and asserts the real off-screen node correctly — same class of
+  limitation as the batch-6 "below-the-fold `<summary>`" gotcha, but for *reading* the DOM rather
+  than *clicking* it (reading has no scroll dependency; only synthetic *clicks* by screen
+  coordinate do). Note this honestly as "DOM-proven, not pixel-visible in this shot" rather than
+  scrolling to force a screenshot that adds no additional proof.
+
 ---
 
 ## Packaged targets (Docker / Electron)

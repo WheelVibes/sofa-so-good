@@ -1,0 +1,76 @@
+{
+  "name": "plan-integrity-simple",
+  "description": "IXT-SUITES simple rung for the `planIntegrity` flag (pro tier). FloorPlanEditor.tsx computes `planIntegrityFlags(walls, rooms, openings)` only when the flag is on, and PlanTotalLabel renders a red '⚠ N stray' badge next to the 'Total … · N rooms' readout when there are stray elements. A stray wall is added via the real `addWall` store action (an isolated 2 m segment far outside the apartment footprint, joined to nothing) so the badge has a genuine defect to report. Asserts: (1) the badge is absent in Simple mode even though the stray wall exists (flag off suppresses the whole check), (2) present once switched to Pro, (3) a direct setFeatureFlag override back to false hides it again while staying in Pro, (4) restoring the flag brings it back — isolating the flag's own effect from the mode switch.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "App did not boot in Simple mode"
+    },
+    {
+      "name": "boot-settled",
+      "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" },
+      "timeout": 60000
+    },
+    { "name": "settle-post-boot", "wait": 800 },
+    {
+      "name": "verify-flag-off-in-simple",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.planIntegrity === false" },
+      "timeout": 5000,
+      "failMessage": "planIntegrity should be OFF in Simple mode (it is pro-tier)"
+    },
+    {
+      "name": "add-stray-wall",
+      "eval": "window.__strayId = window.__store.getState().addWall({ start: [50, 50], end: [52, 50], thickness: 'internal' })"
+    },
+    { "name": "open-plan-editor", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen-open", "waitFor": { "css": ".plan-screen" }, "timeout": 15000 },
+    { "name": "settle-plan-open", "wait": 500 },
+    {
+      "name": "assert-badge-hidden-simple",
+      "eval": "(function(){ const t = [...document.querySelectorAll('.panel-sub')].map(e => e.textContent || '').find(x => x.startsWith('Total')) || ''; if (t.includes('stray') || t.includes('\\u26a0')) throw new Error('Stray-element badge visible in Simple mode (planIntegrity should be off): ' + t); })()"
+    },
+    { "name": "shot-simple-no-badge", "screenshot": "01-plan-simple-no-stray-badge" },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "mode-settle", "wait": 500 },
+    {
+      "name": "verify-flag-on-in-pro",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.planIntegrity === true" },
+      "timeout": 5000,
+      "failMessage": "planIntegrity should be ON in Pro mode"
+    },
+    {
+      "name": "assert-badge-visible-pro",
+      "eval": "(function(){ const t = [...document.querySelectorAll('.panel-sub')].map(e => e.textContent || '').find(x => x.startsWith('Total')) || ''; if (!t.includes('stray')) throw new Error('Stray-element badge missing in Pro mode with a genuine stray wall present: ' + t); })()"
+    },
+    { "name": "shot-pro-badge-visible", "screenshot": "02-plan-pro-stray-badge-visible" },
+    {
+      "name": "override-flag-off",
+      "store": { "action": "setFeatureFlag", "args": ["planIntegrity", false] }
+    },
+    { "name": "flag-off-settle", "wait": 400 },
+    {
+      "name": "assert-badge-hidden-after-override",
+      "eval": "(function(){ const t = [...document.querySelectorAll('.panel-sub')].map(e => e.textContent || '').find(x => x.startsWith('Total')) || ''; if (t.includes('stray')) throw new Error('Stray-element badge still visible after setFeatureFlag(planIntegrity, false) while staying in Pro: ' + t); })()"
+    },
+    { "name": "shot-flag-off", "screenshot": "03-plan-pro-flag-off-badge-hidden" },
+    {
+      "name": "restore-flag-on",
+      "store": { "action": "setFeatureFlag", "args": ["planIntegrity", true] }
+    },
+    { "name": "flag-on-settle", "wait": 400 },
+    {
+      "name": "assert-badge-restored",
+      "eval": "(function(){ const t = [...document.querySelectorAll('.panel-sub')].map(e => e.textContent || '').find(x => x.startsWith('Total')) || ''; if (!t.includes('stray')) throw new Error('Stray-element badge did not return after restoring planIntegrity to true: ' + t); })()"
+    },
+    { "name": "shot-flag-restored", "screenshot": "04-plan-pro-flag-restored-badge-visible" }
+  ]
+}

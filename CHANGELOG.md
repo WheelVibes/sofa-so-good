@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.30 — IXT-SUITES back-fill batch 10: 4 more ladders (~22 uncovered)
+
+Green rungs for `moodboard` (File-menu row + window.open-captured board HTML),
+`cornerAo` (scene-graph opacity=0.42 plane-count oracle — simple-tier, equal
+in both modes), `planIntegrity` (manufactured stray wall → "⚠1 stray" badge
+Pro-only), `newBadges` (revive an aged-out NEW_BADGES entry via dynamic import
+→ .new-dot Pro-only). Two-pass derivation caught near-miss name collisions
+(catalogFitsFilter≠catalogFits; the cornerAo/pbrSurfaces lookalike scenarios
+don't touch the flags). No app bugs. New playbook gotchas (opacity scene-graph
+oracle, "manufacture a defect before toggling a warning flag", non-unique
+.panel-sub trap, reviving stale NEW_BADGES).
+
 ## v0.22.2.29 — Fix: numeric PromptModal rejected decimals (same stepMismatch class)
 
 Bug-hunt round 5 found the shared `PromptModal`'s numeric mode

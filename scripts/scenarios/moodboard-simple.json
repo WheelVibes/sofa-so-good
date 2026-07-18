@@ -1,0 +1,90 @@
+{
+  "name": "moodboard-simple",
+  "description": "IXT-SUITES simple rung for the `moodboard` flag (pro tier). The 'Moodboard' File-menu row is gated directly by useFeature('moodboard') (FileMenu.tsx) and calls openMoodboard(), which opens a new window and document.write()s a style-board HTML (palette + finishes + a furniture tile grid + hero snapshot). window.open is intercepted (returns a stub capturing the written HTML) so the real popup never spawns. Asserts: (1) the row is absent in Simple mode, (2) present after switching to Pro, (3) clicking it produces real moodboard HTML (title + palette section), (4) a direct setFeatureFlag override back to false hides the row again while staying in Pro (proving the flag itself, not just the mode switch, gates it).",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "App did not boot in Simple mode"
+    },
+    {
+      "name": "boot-settled",
+      "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" },
+      "timeout": 60000
+    },
+    { "name": "settle-post-boot", "wait": 800 },
+    {
+      "name": "verify-flag-off-in-simple",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.moodboard === false" },
+      "timeout": 5000,
+      "failMessage": "moodboard should be OFF in Simple mode (it is pro-tier)"
+    },
+    { "name": "open-file-simple", "click": { "text": "File" } },
+    { "name": "file-panel-open-simple", "waitFor": { "css": ".pop-panel" }, "timeout": 10000 },
+    { "name": "settle-simple", "wait": 400 },
+    {
+      "name": "assert-moodboard-hidden-simple",
+      "eval": "(function(){ const t = document.querySelector('.pop-panel')?.textContent || ''; if (t.includes('Moodboard')) throw new Error('Moodboard row visible in Simple mode File menu (should be Pro-only)'); })()"
+    },
+    { "name": "shot-file-simple", "screenshot": "01-file-menu-simple-no-moodboard" },
+    { "name": "close-file-simple", "key": "Escape" },
+    { "name": "close-settle", "wait": 300 },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "mode-settle", "wait": 600 },
+    {
+      "name": "patch-window-open",
+      "eval": "window.__capturedHtml = null; window.__origWindowOpen = window.open; window.open = function () { return { document: { write: function (html) { window.__capturedHtml = html }, close: function () {} }, close: function () {}, focus: function () {}, print: function () {} }; };"
+    },
+    { "name": "open-file-pro", "click": { "text": "File" } },
+    { "name": "file-panel-open-pro", "waitFor": { "css": ".pop-panel" }, "timeout": 10000 },
+    { "name": "settle-pro", "wait": 400 },
+    {
+      "name": "assert-moodboard-visible-pro",
+      "eval": "(function(){ const t = document.querySelector('.pop-panel')?.textContent || ''; if (!t.includes('Moodboard')) throw new Error('Moodboard row missing in Pro mode File menu'); })()"
+    },
+    { "name": "shot-file-pro", "screenshot": "02-file-menu-pro-moodboard-visible" },
+    {
+      "name": "click-moodboard",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.pop-panel button')].find(b => b.textContent.includes('Moodboard')); if (!btn) throw new Error('Moodboard button not found'); btn.click(); })()"
+    },
+    {
+      "name": "wait-html-captured",
+      "waitFor": { "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 0" },
+      "timeout": 15000,
+      "failMessage": "openMoodboard() never wrote HTML via the intercepted window.open (dynamic import/build likely failed)"
+    },
+    {
+      "name": "assert-moodboard-content",
+      "eval": "(function(){ if (!/moodboard|style board/i.test(window.__capturedHtml)) throw new Error('Moodboard HTML missing expected title/section text'); })()"
+    },
+    { "name": "shot-moodboard-triggered", "screenshot": "03-moodboard-html-captured" },
+    { "name": "close-file-pro", "key": "Escape" },
+    { "name": "close-settle-2", "wait": 300 },
+    {
+      "name": "override-flag-off",
+      "store": { "action": "setFeatureFlag", "args": ["moodboard", false] }
+    },
+    { "name": "flag-off-settle", "wait": 300 },
+    { "name": "open-file-flag-off", "click": { "text": "File" } },
+    { "name": "file-panel-open-flag-off", "waitFor": { "css": ".pop-panel" }, "timeout": 10000 },
+    { "name": "settle-flag-off", "wait": 400 },
+    {
+      "name": "assert-moodboard-hidden-again",
+      "eval": "(function(){ const t = document.querySelector('.pop-panel')?.textContent || ''; if (t.includes('Moodboard')) throw new Error('Moodboard row still visible after direct setFeatureFlag(moodboard, false) while staying in Pro'); })()"
+    },
+    { "name": "shot-file-flag-off", "screenshot": "04-file-menu-pro-moodboard-flag-off" },
+    { "name": "close-file-flag-off", "key": "Escape" },
+    {
+      "name": "restore-window-open",
+      "eval": "window.open = window.__origWindowOpen"
+    }
+  ]
+}
