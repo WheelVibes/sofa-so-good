@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.31 — IXT-SUITES batch 11: 4 ladders (6 drivable flags left)
+
+Green rungs for `wallNumericEntry` (type "3"+Enter → a 3.00 m wall commits),
+`catalogFitsFilter` ("Fits only" hides the too-big bed, leaves tight-fit
+visible), `gapSuggest` ("Nudge apart" widens a tight side-table pair),
+`triplanarWalls` (scene-graph oracle — a sloped wall's prism mesh gains/loses
+its `uv` BufferAttribute as the flag toggles). No app bugs. Playbook gotchas
+(`.plan-screen svg` resolving to a toolbar icon; `waitFor.visible` is css-only).
+Remaining uncovered drivable flags: `sunStudy`, `cameraDof`, `smartRotateSnap`,
+`assetSets`, `pbrSurfaces`, `paletteFromPhoto` (needs an image-upload hook).
+Also records a perf investigation lead (thumbnail-clone disposal under the
+busier compare-tray queue — verify with a memory probe before acting).
+
 ## v0.22.2.30 — IXT-SUITES back-fill batch 10: 4 more ladders (~22 uncovered)
 
 Green rungs for `moodboard` (File-menu row + window.open-captured board HTML),

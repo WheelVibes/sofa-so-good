@@ -2067,3 +2067,70 @@ Living/Dining room at High tier (the money shot). It's the Stage-11b integration
   Locating and clicking the row via a DOM `.click()` inside an `eval` (`[...document.querySelectorAll
   ('.pop-panel button')].find(b => b.textContent.includes('Export DXF'))`) sidesteps the harness's
   `clickByText` viewport-visibility requirement entirely — don't bother scrolling the popover first.
+
+### Gotchas from the IXT-SUITES back-fill batch 11 (wallNumericEntry / catalogFitsFilter / gapSuggest / triplanarWalls)
+
+- **`document.querySelector('.plan-screen svg')` can silently grab an unrelated ICON `<svg>`, not the
+  plan canvas.** The 2D editor's toolbar/inspector render several small `<svg>` icons (`.icn`/`.ic`
+  classes, 14–18px) as DOM siblings *inside* `.plan-screen`, and they appear EARLIER in document order
+  than the actual drawing surface — `querySelector` returns the FIRST match, so a selector meant to grab
+  the canvas silently returns a 16×16 icon instead. Dispatching a synthetic `PointerEvent('pointerdown',
+  …)` on that icon is a complete, silent no-op (no error, no state change) — exactly the shape of bug
+  that burns a whole scenario draft chasing a "flag/gate isn't working" theory. Symptom: a `waitFor` for
+  whatever the click should have produced times out with no console error at all. Fix: target the
+  canvas's own specific class, `.plan-paper` (unique, always the actual drawing `<svg>`), never the
+  generic `.plan-screen svg` — this is *narrower* than the wildcard used successfully in
+  `plan-furniture-rotate.json`'s `pointermove` step, which worked there only because it fired on a
+  window-level listener already primed by a real pointer-capture, not because `.plan-screen svg`
+  reliably resolves to the canvas. Confirmed the fix by getting `.plan-paper`'s `getBoundingClientRect()`
+  (a large canvas, e.g. 3632×3552, offset far outside the viewport since it's scrollable/zoomable — its
+  *centre* still lands inside the visible viewport and is a safe empty click point for starting a
+  wall-tool draft) and verifying a debug probe (`document.querySelector('.plan-paper circle')`, the
+  wall-draft anchor dot) appeared only after switching to this selector.
+- **`waitFor: {"text": "...", "visible": false}` is NOT a supported combination — `visible` only applies
+  to the `css` variant.** `interact.mjs`'s `waitForCondition` implements `text` as a bare
+  `document.body.textContent.includes(txt)` existence check; it never reads `step.visible` for that
+  branch, so writing `{"text": "X", "visible": false}` to assert "X disappeared" silently waits for X to
+  *appear* (which may never happen) and times out with a message that looks like a feature-not-working
+  failure. To assert text absence, use an `eval`/`store` predicate instead:
+  `!document.body.textContent.includes('X')` (or scope it to a specific container query). Caught
+  authoring `catalogfitsfilter-simple.json`'s "Fits only" checkbox hide-assertion.
+- **The catalog "Fits only" checkbox (`catalogFitsFilter`) only renders while NOT searching** — its
+  mount guard is `{!q && fFitsFilter && roomFreeRects ? …}` (`CatalogDrawer.tsx`), so a scenario that
+  types into the search box first (the pattern the existing `catalogFits`-badge scenario uses) will
+  never see the checkbox at all. Drive it by clicking a category tab (e.g. "Beds") instead of searching
+  — `CategoryTabs`' `LABELS` map gives the exact clickable button text per `FurnitureCategory`.
+- **`catalogFits` (the passive per-card badge, simple tier) and `catalogFitsFilter` (the pro-tier "Fits
+  only" browse checkbox) are two separate flags layered on the same `roomFit.ts` check** — don't
+  conflate them. The Queen bed in a small bathroom (`bath1`) is flagged `'wont-fit'` (badge text "Won't
+  fit") regardless of which flag is on; only `catalogFitsFilter`'s checkbox controls whether a
+  `'wont-fit'` card is filtered OUT of the grid. Other oversized-for-the-room items can be `'tight-fit'`
+  (badge "Tight fit") instead of `'wont-fit'` — the filter does NOT hide those, only genuine `wont-fit`
+  cards, so don't assume every badged card disappears once the checkbox is on.
+- **`gapSuggest`'s "Nudge apart" button needs a real narrow ITEM↔ITEM gap, not a wall gap** — the
+  button is explicitly suppressed for wall-participant gaps (`!g.wall`, `ClearancePanel.tsx`). Seed two
+  small items (e.g. two `side-table` defs, 0.45×0.45 m footprint) via `setItems` at a centre-to-centre
+  distance in (footprint + `CLEARANCE.sofaToCoffee` 0.4 m, footprint + `CLEARANCE.walkwayIdeal` 0.9 m)
+  to land a real classified gap (`tight` < 0.6 m clear, else `sub-ideal` up to 0.9 m clear) — e.g. 0.95 m
+  centre-to-centre for two 0.45 m tables gives a 0.5 m clear gap (`tight`). Assert the widen by comparing
+  the pair's centre-to-centre distance before/after the click, not an absolute position (the fix splits
+  the move across both items).
+- **An "invisible from orbit" render-only effect (a UV/tangent/attribute-readiness flag with a
+  solid-colour fallback material that ignores it) needs a scene-graph oracle, not pixels — and the
+  live scene IS reachable via the same `HqRenderController` singleton used for the HQ-render modal,
+  even when that modal is never opened.** `triplanarWalls` only adds a `uv` `BufferAttribute` to a
+  sloped-wall prism's geometry (`PlanShell.tsx`'s `SlopedWallMesh`); the meshes render with a flat
+  `meshStandardMaterial` that never reads UV, so a screenshot is pixel-for-pixel identical with the flag
+  on/off. `HqRenderController` (mounted unconditionally inside `Scene.tsx`, not gated on the HQ-render
+  modal being open) publishes `{scene, camera}` to the module-level `hqRenderSource.ts` singleton
+  the instant the main Canvas mounts — `await import('/src/scene/pathtrace/hqRenderSource.ts')` then
+  `.getHqRenderSource()` from a page-context `eval` gives a real live `THREE.Scene` to `traverse()`.
+  The sloped-wall prism is uniquely identifiable without any dev hook or id plumbing: its geometry is
+  ALWAYS a fixed 36-vertex (12-triangle) non-indexed triangle soup when the wall has no openings
+  (`slopedWallTriangles`'s `baseY=0` full-height case) — `geometry.attributes.position.count === 36`
+  singles it out from every other mesh in a default/template flat. Toggling the flag and re-probing in
+  the SAME session (no reload) works because the flag change is a plain store update; React re-renders
+  `SlopedWallMesh`, and its `useMemo` (keyed on `triplanar`) rebuilds the `BufferGeometry` with or
+  without the `uv` attribute — the live scene graph reflects the new geometry object immediately, no
+  extra settle wait needed beyond letting the store's re-render commit (~800 ms was generous, not
+  required to be that long).

@@ -1,0 +1,48 @@
+{
+  "name": "catalogfitsfilter-simple",
+  "description": "IXT-SUITES: catalogFitsFilter (pro) flag gate + a real interaction. The checkbox only renders while NOT searching (hidden by the drawer's `!q && fFitsFilter` guard) — so this browses the 'Beds' category instead of using search. Simple/Pro gate on the catalog 'Fits only' checkbox; browsing the too-big Queen bed in a small bathroom shows it with the filter off, and the checkbox hides it once turned on.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    { "name": "enter-bath1-editor", "store": { "action": "enterRoomEditor", "args": ["bath1"] } },
+    { "name": "wait-bath1-active", "waitFor": { "store": "state.roomEditor.active === true && state.roomEditor.roomId === 'bath1'" } },
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "wait-catalog", "waitFor": { "css": ".panel.catalog" } },
+    { "name": "click-beds-tab", "click": { "text": "Beds" } },
+    { "name": "wait-queen-bed-card", "waitFor": { "text": "Queen bed" }, "timeout": 8000 },
+    { "name": "assert-simple-hidden", "waitFor": { "store": "state.uiMode === 'simple' && state.featureFlags.catalogFitsFilter === false" }, "timeout": 5000, "failMessage": "catalogFitsFilter should be OFF in Simple mode" },
+    {
+      "name": "assert-no-fits-only-checkbox-simple",
+      "eval": "(() => { const el = document.querySelector('.cat-fits-only'); if (el) throw new Error('Fits only checkbox should not render in Simple mode'); })()"
+    },
+    { "name": "assert-queen-bed-flagged", "waitFor": { "text": "Won’t fit" }, "timeout": 5000 },
+    { "name": "shot-simple-no-filter", "screenshot": "simple-no-fits-filter" },
+    { "name": "to-pro", "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()" },
+    { "name": "assert-pro-on", "waitFor": { "store": "state.featureFlags.catalogFitsFilter === true" }, "timeout": 5000, "failMessage": "catalogFitsFilter should be ON in Pro mode" },
+    { "name": "fits-only-checkbox-visible", "waitFor": { "css": ".cat-fits-only input[type=checkbox]" }, "timeout": 8000, "failMessage": "'Fits only' checkbox did not appear in Pro mode while browsing (not searching)" },
+    { "name": "assert-queen-bed-present-before-filter", "waitFor": { "text": "Won’t fit" }, "timeout": 5000, "failMessage": "Queen bed card should still show its 'Won't fit' badge (unfiltered) before turning Fits-only on" },
+    { "name": "shot-pro-filter-off", "screenshot": "pro-fits-filter-off" },
+    {
+      "name": "toggle-fits-only-on",
+      "eval": "(() => { const cb = document.querySelector('.cat-fits-only input[type=checkbox]'); if (!cb) throw new Error('checkbox not found'); if (cb.checked) throw new Error('expected unchecked before toggling'); cb.click(); })()"
+    },
+    {
+      "name": "assert-queen-bed-hidden",
+      "waitFor": { "store": "!document.body.textContent.includes('Queen bed')" },
+      "timeout": 5000,
+      "failMessage": "'Fits only' did not hide the too-big Queen bed card"
+    },
+    { "name": "shot-pro-filter-on", "screenshot": "pro-fits-filter-on" },
+    {
+      "name": "toggle-fits-only-off",
+      "eval": "(() => { const cb = document.querySelector('.cat-fits-only input[type=checkbox]'); if (!cb) throw new Error('checkbox not found'); if (!cb.checked) throw new Error('expected checked before toggling off'); cb.click(); })()"
+    },
+    { "name": "assert-queen-bed-back", "waitFor": { "text": "Queen bed" }, "timeout": 5000, "failMessage": "Turning Fits-only back off should re-show the too-big Queen bed card" },
+    { "name": "back-to-simple", "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('simple'); s.reresolveFeatureFlags();})()" },
+    { "name": "assert-simple-again", "waitFor": { "store": "state.featureFlags.catalogFitsFilter === false" }, "timeout": 5000 }
+  ]
+}
