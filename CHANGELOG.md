@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.32 — Docs-currency pass (audit of the 43-commit session)
+
+Read-only docs audit found the user guide already current for every big new
+feature (design chat, version compare, catalog compare, walk measure, share
+card — exact labels matched). Fixed the gaps: root CLAUDE.md's path-scoped
+list now includes `src/lighting/` + `src/floorplan/` (both existed, never
+listed); `docs/ARCHITECTURE.md` gains the six systems that had zero mentions
+(catalogCompare, roomStarters, walkMeasure, suggestedViews, aiDesignChat,
+aiPlanGenerate); README highlights add "Try another layout"/item-compare and
+the hero share card. No hardcoded feature/flag count exists to go stale
+(registry has 173 entries; no doc cites a number).
+
 ## v0.22.2.31 — IXT-SUITES batch 11: 4 ladders (6 drivable flags left)
 
 Green rungs for `wallNumericEntry` (type "3"+Enter → a 3.00 m wall commits),

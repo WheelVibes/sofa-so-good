@@ -17,7 +17,7 @@ start designing immediately.
 
 | | |
 |---|---|
-| 🛋️ **Furnish** | A unified ~95-item catalog across 15 categories — parametric (resize / recolour / configure), searchable + filterable (availability / source / favourites), with your uploads, packs and a CC0 library in one grid. One-click **Sets**, full-flat **Presets**, and a **Tidy up** auto-arranger. → [Placing furniture](docs/user/placing-furniture.md) |
+| 🛋️ **Furnish** | A unified ~95-item catalog across 15 categories — parametric (resize / recolour / configure), searchable + filterable (availability / source / favourites), with your uploads, packs and a CC0 library in one grid. One-click **Sets**, full-flat **Presets**, a **Tidy up** auto-arranger + **Try another layout** reroll, and side-by-side **item compare**. → [Placing furniture](docs/user/placing-furniture.md) |
 | 🎨 **Finish** | Procedural PBR floors, walls & ceilings (oak/walnut/parquet, marble, terrazzo, paints, brick, microcement) plus downloadable CC0 materials, per-room with “apply to all” and per-wall **accent walls**. **Recolour any finish**: a custom colour repaints the current texture (pattern kept — even Poly Haven photos and your uploads), and swapping textures keeps your colour. → [Finishes & materials](docs/user/finishes-and-materials.md) |
 | ☀️ **Light** | A real sun simulation for your location with day/night fixtures, glass tint, and one-tap lighting moods. → [Lighting & time](docs/user/lighting-and-time.md) |
 | 👀 **View** | Orbit dollhouse, top-down plan, and a first-person walkthrough (WASD / on-screen joystick) with a live minimap. → [Navigating](docs/user/navigating.md) |
@@ -26,7 +26,7 @@ start designing immediately.
 | 📊 **Design tools** | Budget & shopping list, clearance checks, measuring, a design score, and a printable design report. → [Design tools](docs/user/design-tools.md) |
 | 📦 **Your own models** | Import `.glb/.gltf/.obj/.fbx/.stl/.ply/.dae/.3mf/.usdz` — converted & optimized in-browser. Import a whole **Sweet Home 3D** `.sh3f` furniture library at once *(Pro)*. → [Importing models](docs/user/importing-models.md) |
 | ✨ **Smart Start** | Pick a style and the whole home is furnished + finished in one click — on any plan. |
-| 🔗 **Share & export** | Shareable design links, a PNG snapshot, a portable `.sofa.json`, and a glTF/GLB/OBJ export *(Pro)*. |
+| 🔗 **Share & export** | Shareable design links, a PNG snapshot, a one-tap **hero share card** (Post / Square / Story), a portable `.sofa.json`, and a glTF/GLB/OBJ export *(Pro)*. |
 | 🌗 **Themes** | Five Singapore-rooted themes × light/dark, plus a **Simple/Pro** mode toggle. → [Themes & appearance](docs/user/themes-and-appearance.md) |
 | 📴 **Offline** | Self-hosted fonts + decoders and a PWA service worker — design with the network off. |
 

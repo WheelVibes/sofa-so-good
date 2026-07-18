@@ -379,6 +379,15 @@ same change that reshapes a system.
   and an all-filtered-out grid shows the shared `EmptyState` with distinct copy. Unit-tested in
   `catalogBrowse.test.ts` + `CatalogDrawer.filter.test.tsx` + `features/flags/catalogFilters.test.ts`
   (both modes); scenario `scripts/scenarios/catalog-filter-simple.json`.
+  **Compare items** (CATALOG-COMPARE, `catalogCompare` flag, simple): a header "Compare" toggle
+  arms select-for-compare (a checkmark overlay on `CatalogCard`, NOT a new per-card button — per
+  the `src/ui/CLAUDE.md` no-card-buttons rule); 2–3 same-category picks open the
+  `catalog/CatalogCompareTray.tsx` modal with one column per item (thumbnail, W×D×H, footprint
+  area, price, room-fit verdict via `itemFitsRoom`), each Place button reusing
+  `useCatalogPlacement`; pure selection/row logic in `catalog/catalogCompareData.ts`.
+  **Room-starter chips** (`roomStarters` flag, simple): `ui/EmptyRoomHint.tsx` offers tap-to-add
+  anchor pieces per room kind (pure `catalog/roomStarters.ts` map) placed one-at-a-time,
+  wall-anchored + `canPlace`-validated via pure `layout/placeStarterItem.ts`.
   Layers (`LayersPanel.tsx`, `leftMode`) = Objects tree, select/hide/lock/delete + name
   filter + per-row finish drop target. Packs = downloadable content. Plus InspectorPanel
   (`inspector/InspectorPanel.tsx` is now a thin ~180-line composition shell — REFAC-1 extracted
@@ -1595,6 +1604,10 @@ same change that reshapes a system.
   parseVisionResponse` → pure `ai/floorPlanAiPlacement.ts` nearest-wall snap →
   `usePlanAiWalls.applyAiPlanDraft`; AI scale never overwrites a manual Set-scale calibration
   (`backdrop.scaleCalibrated`); dev hook `window.__applyAiVisionResponse` for no-network testing).
+  **AI plan generation** ("Generate plan with AI…" in the Plan menu + ⌘K `ai-plan-generate`,
+  `aiPlanGenerate` flag, pro, BYO-key): a text brief → wall/opening/room JSON via
+  `ai/floorPlanGenerate.ts` reusing the same parse/apply path + `usePlanAiGenerate`; dev hook
+  `window.__applyAiGeneratedPlan`.
   **Snap to grid** (Plan menu "Snap to grid", `planGridSnap` flag, pro; PARITY-GRID-SNAP): a
   whole-plan transform that rounds every wall endpoint / room polygon vertex / opening offset /
   note·dim·polyline coordinate (and every upper storey + the `extent`) to the editor's current
@@ -1626,10 +1639,17 @@ same change that reshapes a system.
   `batchRender` flag, pro; plus the **day→night clip sweep** — `DayNightClipSetup` checkbox +
   From/To sliders under Record walkthrough video (`dayNightClip` flag, pro): the saved-views
   tour drives `manualHour` from tour progress via `timeSlice.begin/apply/endTimeSweep` +
-  `scene/cameras/dayNightSweep.ts:sweepHourAt`, restoring the pre-tour time on stop),
+  `scene/cameras/dayNightSweep.ts:sweepHourAt`, restoring the pre-tour time on stop; plus
+  **Suggest views** — `SavedViewsSection`/`ViewSection` action calling
+  `scene/cameras/suggestViews.ts:suggestViews` (`suggestedViews` flag, pro) to auto-save a
+  corner three-quarter view per largest furnished room + a whole-home overview via the
+  pose-based `cameraViewsSlice.saveView`, deduped by name),
   **Scene** (time slider + Lighting + Backdrop + sun `CompassModal`), **Edit** (step into
   room / floor-plan), **Arrange** (Tidy + Sets/Presets/Styles pick→Apply `PickApply`),
-  **Tools** (Budget/Checks/Sun study/Walkthrough/Report), **File**, **Graphics**. Three
+  **Tools** (Budget/Checks/Sun study/Walkthrough/Report + **Design chat** — the read-only
+  BYO-key `ui/DesignChatPanel.tsx` advisor grounded in `ai/designChatContext.ts`'s digest of
+  the app's own numbers, prompt/call in `ai/designChat.ts`, `aiDesignChat` flag, pro), **File**,
+  **Graphics**. Three
   states: overview/room-editor/walk. Tooltips+menus via `Popover`; shortcut chips from
   `controls/keybindings.ts`. Mobile: minimal bar → bottom action-sheet with a master-detail
   layout — an icon-only left rail of sections (`data-tour-section`) opens each section's items in
@@ -1644,7 +1664,13 @@ same change that reshapes a system.
   hotkeys can't fire behind a dialog; Escape stays per-modal, ⌘K/undo are suppressed).
 - **Walk-mode** (`scene/cameras/FirstPersonCamera.tsx`, `walkInput.ts`, `ui/walk/`): fine
   = Pointer Lock (WASD+mouse, Esc; native banner unstyleable), coarse = `WalkJoystick` +
-  drag-look; `WalkHud`, `Crosshair`. **Observer camera controls** (PARITY-WALKCAM,
+  drag-look; `WalkHud`, `Crosshair`. **Point-to-point measure** (WALK-MEASURE, `walkMeasure`
+  flag, simple): aim + `G` (`keybindings.ts:walkMeasurePoint`) / the WalkHud "Measure" pill sets
+  two points; `FirstPersonCamera`'s throttled aim raycast (filtered by pure
+  `collision/walkMeasureHit.ts`) drives `state/slices/walkMeasureSlice.ts` and
+  `scene/WalkMeasureOverlay.tsx` renders the segment + live distance; the button↔frame-loop
+  handoff is the `scene/cameras/walkMeasureRequest.ts` module signal (walkTeleport pattern).
+  **Observer camera controls** (PARITY-WALKCAM,
   `walkCameraControls` flag, pro): FOV (50–100°, default 70) + eye-height (1.2–1.9 m, default
   1.6) sliders in `ui/walk/WalkCameraControls.tsx`, persisted in `editorPrefs`; pure clamp
   helpers + ranges in `scene/cameras/walkCameraSettings.ts`; FOV applies reactively to the live

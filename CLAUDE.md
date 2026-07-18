@@ -11,7 +11,8 @@ Zustand (sliced store), Vite, Vitest, Biome.
 > It is loaded on *every* turn, so it must stay short: do **not** grow it with system
 > detail. The full code map is **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**. Area-specific
 > rules live in path-scoped `CLAUDE.md` files that load only when you work in that folder:
-> `src/state/`, `src/furniture/`, `src/scene/`, `src/ui/`, `src/materials/`. Other reference
+> `src/state/`, `src/furniture/`, `src/scene/`, `src/ui/`, `src/materials/`, `src/lighting/`,
+> `src/floorplan/`. Other reference
 > docs: `docs/visual-verification-playbook.md`, `docs/interior-design-guidelines.md`,
 > `REFERENCES.md` (competitor apps to study), `CHANGELOG.md`/`TASKS.md`/`TODO.md`.
 
