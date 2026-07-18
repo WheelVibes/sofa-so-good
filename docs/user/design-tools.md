@@ -237,9 +237,10 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   ⌘K — it shares the Report toggle, so it's available whenever the Report is.
 - **Drawing set** — a formal, paginated **plan set** (A4 landscape by default, one
   drawing per sheet with title blocks): cover + sheet index, floor plan, each wall
-  elevation, the lighting plan, the finish schedule (above), and the FF&E schedule (the
+  elevation, the lighting plan, the finish schedule (above), the FF&E schedule (the
 same Brand/Model/Supplier/URL/Remarks + custom-field columns as the Report, with the
-URL shown as a shortened link for print). Print or save as PDF for
+URL shown as a shortened link for print), and the door & window schedule (below).
+Print or save as PDF for
   builders and permits — the multi-sheet counterpart to the one-page Report. Use the
   **Include sheets** checklist under it to pick exactly which sheets go in — e.g. a
   clean client copy with no electrical/plumbing/demolition, or a full builder copy
@@ -302,6 +303,17 @@ URL shown as a shortened link for print). Print or save as PDF for
   Finishes schedule is also included), a small violet **+** marks each room's tile
   setting-out start point (its centre), with a one-line note explaining the
   convention: **"start laying here, verify joints on site"**.
+- **Door & window schedule.** A typed-marks table (**D1, D2…** for doors, **W1,
+  W2…** for windows — every opening of the same kind/width/height sharing one
+  mark) with quantity, size **W×H in millimetres** (doors/windows are always
+  specced in mm, matching the carpentry sheets' own convention regardless of
+  your metric/imperial display preference), sill height, door hinge/swing
+  side, and which room(s) each mark borders. Reuses the same grouping as the
+  Report's *Openings schedule* section, so the two never disagree. One
+  whole-set sheet even on a multi-storey plan (it already resolves each
+  opening's room across every storey). No openings on the plan → no sheet, and
+  the cover's sheet index simply omits it. Toggle it off in the **Include
+  sheets** checklist if you don't need it in a given export.
 - **Electrical/plumbing sheet provenance.** Once you've placed points with the
     floor-plan editor's **MEP** tool (see *Electrical & plumbing points* in the
     Floor plan editor guide), the electrical/plumbing sheets note **"Points as

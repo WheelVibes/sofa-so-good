@@ -31,6 +31,7 @@ const SHEET_LABELS: Record<CalloutSheet, string> = {
   demolition: 'Demolition plan',
   ffe: 'FF&E schedule',
   carpentry: 'Carpentry sheets',
+  'opening-schedule': 'Door & window schedule',
 }
 
 const SHEET_KEYS: CalloutSheet[] = [
@@ -45,6 +46,7 @@ const SHEET_KEYS: CalloutSheet[] = [
   'finishes',
   'demolition',
   'ffe',
+  'opening-schedule',
   'carpentry',
 ]
 

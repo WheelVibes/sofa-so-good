@@ -1121,8 +1121,19 @@ same change that reshapes a system.
 - **Drawing set** (`ui/drawingSet.ts` + `openDrawingSet.ts`): a paginated multi-sheet "plan set"
   (cover + plan + per-wall elevations + cross-section + lighting + electrical (`floorplan/electricalPlan*`,
   `electricalPlan` flag) + plumbing (`floorplan/plumbingPlan*`, `plumbingPlan` flag — points auto-derived
-  from fixtures) + a contractor-grade finishes schedule + FF&E, title blocks, a user-customizable `@page`
-  size/orientation) reusing all the pure renderers — the formal counterpart to the one-page `report.ts`.
+  from fixtures) + a contractor-grade finishes schedule + FF&E + a door & window schedule, title blocks,
+  a user-customizable `@page` size/orientation) reusing all the pure renderers — the formal counterpart
+  to the one-page `report.ts`.
+  **Door & window schedule (H1):** `layerOn(layers, 'openingSchedule')` gate — one whole-set `NTS` sheet
+  (like Finishes/FF&E, not per-storey: `analysis/openingSchedule.ts:buildOpeningSchedule` already walks
+  every storey internally) rendering the same `D1/D2…`/`W1/W2…` mark rows as `report.ts`'s "Openings
+  schedule" section, so the two stay in lock-step. Sizes/sill print in **millimetres always** (not
+  `formatLength(units)`) — door/window schedules are a carpentry-adjacent trade deliverable, matching
+  the carpentry sheets' own `overallMm` convention regardless of the app's metric/imperial display
+  preference. `CalloutSheet` gained `'opening-schedule'` (`state/slices/drawingCalloutsSlice.ts` +
+  `DrawingCalloutsPanel.tsx`); `DrawingLayer` gained `'openingSchedule'` (`ui/drawingLayers.ts`,
+  auto-picked up by the generic `DRAWING_LAYERS`-driven "Include sheets" checklist). No new feature
+  flag — rides the existing `drawings` flag like every other sheet group.
   **Finish schedule (G4)**: the pure `floorplan/finishSchedule.ts:buildFinishSchedule(plan, finishes,
   nameOf)` returns a `FinishSchedule` — per-room floor/wall/ceiling `FinishCell`s (each with a stable,
   first-seen-order material **code** `FL-01`/`WL-01`/`CL-01` that never renumbers on a later addition,

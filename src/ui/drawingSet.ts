@@ -1,12 +1,14 @@
 /**
  * Construction "drawing set" (a.k.a. plan set) — a paginated, title-blocked
  * document with one drawing per sheet: cover, floor plan, each wall elevation,
- * the lighting plan and the FF&E schedule. Distinct from the one-page summary
+ * the lighting plan, the FF&E schedule and the door & window schedule.
+ * Distinct from the one-page summary
  * `report.ts`: this is the formal multi-sheet submission designers print/PDF for
  * builders + clients (RoomSketcher / Chief Architect "plan sets"). Reuses every
  * pure renderer built for the report so the two stay in lock-step. Opened in a
  * new window by `openDrawingSet.ts`.
  */
+import { buildOpeningSchedule } from '../analysis/openingSchedule'
 import { obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
 import { projectAllElevations } from '../elevation/projectElevation'
@@ -667,6 +669,42 @@ export function buildDrawingSetHtml(
       calloutGroup: 'ffe',
       scaleLabel: NTS,
     })
+  }
+
+  // Door & window schedule (H1) — the typed-marks table an architectural
+  // drawing set carries (D1/D2…/W1/W2… with qty, size, sill, hinge/swing,
+  // rooms served). Reuses the same pure `buildOpeningSchedule` grouping as the
+  // report's "Openings schedule" section (`report.ts`) so the two stay in
+  // lock-step, but — unlike the report (a metric/imperial-aware summary) —
+  // this sheet always prints sizes in millimetres: door/window schedules are a
+  // carpentry-adjacent trade deliverable (glaziers/carpenters spec openings in
+  // mm regardless of the app's display-unit preference), matching the
+  // carpentry sheets' own `overallMm` convention and the cover's general note
+  // ("All dimensions are in millimetres (mm) unless noted in metres (m)").
+  // `buildOpeningSchedule` already walks every storey internally (it resolves
+  // each opening's bordering room via a wall-midpoint probe across all
+  // levels), so — like Finishes/FF&E — this is ONE whole-set sheet, not a
+  // per-storey fan-out. Omitted when the plan has no openings.
+  if (layerOn(layers, 'openingSchedule')) {
+    const openSched = buildOpeningSchedule(plan)
+    if (openSched.marks.length > 0) {
+      const mm = (metres: number) => `${Math.round(metres * 1000)} mm`
+      const swingLabel = (m: { swing?: string; hinge?: string }) =>
+        m.swing || m.hinge ? `${m.hinge ?? 'start'} / ${m.swing ?? 'right'}` : '—'
+      sheets.push({
+        name: 'Door & window schedule',
+        body:
+          `<div style="font-size:11px;color:#6b7280;margin-bottom:4px">${openSched.doorCount} door${openSched.doorCount === 1 ? '' : 's'} · ${openSched.windowCount} window${openSched.windowCount === 1 ? '' : 's'} — sizes in millimetres (mm)</div>` +
+          `<table class="sched"><tr class="h"><td>Mark</td><td>Type</td><td class="n">Qty</td><td class="n">Size (W×H)</td><td class="n">Sill</td><td>Hinge / swing</td><td>Rooms</td></tr>${openSched.marks
+            .map(
+              (m) =>
+                `<tr><td>${esc(m.mark)}</td><td>${m.kind === 'door' ? 'Door' : 'Window'}</td><td class="n">×${m.count}</td><td class="n">${mm(m.width)} × ${mm(m.height)}</td><td class="n">${mm(m.sill)}</td><td>${m.kind === 'door' ? esc(swingLabel(m)) : '—'}</td><td>${esc(m.rooms.join(', '))}</td></tr>`,
+            )
+            .join('')}</table>`,
+        calloutGroup: 'opening-schedule',
+        scaleLabel: NTS,
+      })
+    }
   }
 
   // Carpentry/joinery elevations + sections (TODO G8) — one sheet per

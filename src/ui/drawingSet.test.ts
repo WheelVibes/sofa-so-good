@@ -906,3 +906,99 @@ describe('buildDrawingSetHtml — carpentry sheets (TODO G8)', () => {
     expect(html).not.toContain('Carpentry —')
   })
 })
+
+describe('buildDrawingSetHtml — door & window schedule (H1)', () => {
+  const plan = buildDefaultPlan()
+
+  it('adds a "Door & window schedule" sheet with a D1 mark row + mm sizes when the plan has openings', () => {
+    const html = buildDrawingSetHtml(plan, [], BUILTIN_CATALOG)
+    expect(html).toContain('Door &amp; window schedule')
+    expect(html).toContain('>D1<')
+    expect(html).toMatch(/\d+ mm × \d+ mm/)
+    expect(html).toContain('mm')
+    // The sheet appears in the cover index and is not-to-scale (a table).
+    expect(html).toContain('Scale NTS')
+  })
+
+  it('omits the sheet when the plan has no openings', () => {
+    const bare = { ...plan, openings: [] }
+    const html = buildDrawingSetHtml(bare, [], BUILTIN_CATALOG)
+    expect(html).not.toContain('Door &amp; window schedule')
+  })
+
+  it('respects the openingSchedule layer toggle', () => {
+    const off = buildDrawingSetHtml(
+      plan,
+      [],
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { openingSchedule: false },
+    )
+    expect(off).not.toContain('Door &amp; window schedule')
+
+    const on = buildDrawingSetHtml(
+      plan,
+      [],
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { openingSchedule: true },
+    )
+    expect(on).toContain('Door &amp; window schedule')
+  })
+
+  it('renders one whole-set schedule (not per-storey) on a multi-storey plan', () => {
+    const upper = {
+      id: 'up',
+      name: 'Upper storey',
+      elevation: 2.9,
+      walls: [
+        {
+          id: 'uw1',
+          start: [0.1, 0.1] as [number, number],
+          end: [6, 0.1] as [number, number],
+          thickness: 'external' as const,
+        },
+        {
+          id: 'uw2',
+          start: [0.1, 0.1] as [number, number],
+          end: [0.1, 6] as [number, number],
+          thickness: 'external' as const,
+        },
+      ],
+      openings: [
+        {
+          id: 'up-d1',
+          wallId: 'uw1',
+          kind: 'door' as const,
+          offset: 1,
+          width: 0.9,
+          sill: 0,
+          head: 2.1,
+        },
+      ],
+      rooms: [
+        {
+          id: 'up-bed',
+          name: 'Bedroom (up)',
+          origin: [0.2, 0.2] as [number, number],
+          width: 5,
+          depth: 5,
+        },
+      ],
+    }
+    const multi = { ...plan, upperLevels: [upper] }
+    const html = buildDrawingSetHtml(multi, [], BUILTIN_CATALOG)
+    // Exactly one sheet — no per-storey suffix on the schedule's own name.
+    expect(html.match(/Door &amp; window schedule/g)?.length).toBe(2) // sheet + cover index row
+    expect(html).not.toContain('Door &amp; window schedule — Ground floor')
+    expect(html).not.toContain('Door &amp; window schedule — Upper storey')
+  })
+})

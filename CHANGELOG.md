@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.54 — H1: door & window schedule sheet
+
+The drawing set gains a "Door & window schedule" NTS sheet from the same
+`buildOpeningSchedule` grouping the report uses (Mark/Type/Qty/Size W×H in
+mm — the carpentry-trade convention, deliberately unlike the report's
+unit-preference display/Sill/Hinge-swing/Rooms), one whole-set sheet (the
+builder already walks storeys), omitted when the plan has no openings, with
+its own drawing-layer toggle + callout target. 139 tests + 15-step scenario
+(screenshot shows D1/D2 + W1-W3 rows styled with the FF&E sheet). Follow-up
+recorded (H1-F): the floor-plan sheet still lacks D1/W1 callouts near the
+openings themselves.
+
 ## v0.22.2.53 — Contractor acceptance review: verdict + H punch list
 
 An adversarial contractor's-eye review generated the full package on a

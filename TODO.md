@@ -8,19 +8,13 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 > The G1-G9 roadmap shipped (v0.22.2.39-52). An adversarial contractor's-eye review of the
 > full generated package (75-step scenario; every hand-verified number matched) returned
 > "close, but not yet" with this punch list. Defects first, then buildability gaps.
-- [ ] **H-D1 — MEP symbol/label declutter (defect).** Clustered points (every WC's soil-pipe +
-  water-point; kitchen socket+data pairs) render overlapping circles with concatenated height
-  text ("@300@300") — illegible on print, and clustering is the COMMON case. Port the carpentry
-  sheet's declutter/leader pass to electricalPlanSvg/plumbingPlanSvg.
-- [ ] **H-D2 — Tile mark overlaps room label (defect).** tileSettingOutPoints reuses
-  roomLabelPoint so the "+" sits on the room's area text. Offset the mark (or the label).
-- [ ] **H-D3 — Report's stale "Electrical points (indicative)" (defect).** report.ts's legacy
-  buildElectricalSchedule reports 40 heuristic points while the drawing set correctly shows the
-  24 designed ones — two documents disagree. Make the report prefer designed points (same
-  routing as openDrawingSet) with the same as-designed/indicative provenance.
-- [ ] **H1 — Door/window schedule SHEET.** The tag data (D1/W1, qty, size, sill, swing) already
-  exists (report section + DXF marks) — render it as an A-series sheet in the drawing set.
-  Cheapest canonical-set gap.
+- [ ] **H1-F — Floor-plan sheet has no D1/W1 opening-mark callouts (follow-up).** The new
+  door & window schedule sheet (H1, shipped) types every opening D1/D2…/W1/W2…, and the DXF
+  export already tags openings with the same marks, but `reportPlanSvg.ts`'s FLOOR-PLAN sheet
+  draws openings as plain gaps with no mark label — a contractor can't cross-reference the
+  schedule back to a specific opening on plan. Needs a mark callout (`D1`/`W1`…) near each
+  opening on the plan sheet, keyed against `buildOpeningSchedule`'s grouping so labels never
+  drift from the schedule. Out of scope here (`reportPlanSvg.ts` territory).
 - [ ] **H2 — Carpentry material/finish/hardware callouts.** Add to the carpentry sheet: board/
   laminate note (from the piece's material props where they exist — honest "TBC by fabricator"
   otherwise), edge-banding note, hardware callout per type (sliding track/rollers for sliding

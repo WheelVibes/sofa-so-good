@@ -29,6 +29,7 @@ import type { SliceCreator } from './types'
  *  `'demolition'` = demolition plan sheet(s).
  *  `'ffe'` = FF&E schedule sheet.
  *  `'carpentry'` = carpentry elevation + section sheet(s) (TODO G8).
+ *  `'opening-schedule'` = door & window schedule sheet (H1).
  *  A callout is rendered on all sheets whose name matches the target group;
  *  if that sheet group is layer-hidden, the callout is also omitted. */
 export type CalloutSheet =
@@ -44,6 +45,7 @@ export type CalloutSheet =
   | 'demolition'
   | 'ffe'
   | 'carpentry'
+  | 'opening-schedule'
 
 /** A free-text callout on a drawing-set sheet.
  *  `x`/`y` are normalised [0,1] within the sheet's drawing area (0,0 = top-left
