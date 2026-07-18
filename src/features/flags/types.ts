@@ -185,6 +185,7 @@ export type FeatureFlag =
   | 'itemMeta'
   | 'mepEditor'
   | 'settingOutDims'
+  | 'carpentrySheets'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

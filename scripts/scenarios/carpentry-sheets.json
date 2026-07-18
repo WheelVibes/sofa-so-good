@@ -1,0 +1,73 @@
+{
+  "name": "carpentry-sheets",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "tall-viewport", "viewport": { "width": 1200, "height": 1400 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    {
+      "name": "place-a-known-wardrobe",
+      "eval": "(() => { const s = window.__store.getState(); const spec = { type: 'wardrobe', width: 1.2, height: 2.2, depth: 0.6, shelves: 'auto', doors: true, base: 'plinth', finish: 'painted', color: '#e8e4dc', compartments: [], deskLegs: 'legs', pedestalDrawers: 2, bays: 2, hasUppers: false, wardrobeFront: 'sliding', wardrobeFitOuts: [] }; const def = { id: 'user-carpentry-test-wardrobe', name: 'Custom wardrobe 120 x 220 cm', category: 'storage', kind: 'gltf', source: 'user', assetId: 'carpentry-test-wardrobe', uploadedAt: new Date().toISOString(), defaultFootprint: { w: 1.2, d: 0.6, h: 2.2 }, parametricSpec: JSON.stringify(spec) }; s.addUserFurniture(def); const room = s.floorPlan.rooms[0]; const pos = room ? [room.origin[0] + 0.8, room.origin[1] + 0.8] : [1, 1]; s.addItem({ defId: def.id, position: pos, rotation: 0, props: {} }); window.__wardrobeSpec = spec; })()"
+    },
+    {
+      "name": "intercept-window-open",
+      "eval": "window.open = () => ({ document: { write(h) { window.__capturedHtml = h }, close() {} }, close() {}, focus() {}, print() {} })"
+    },
+    { "name": "open-file-menu", "click": "button[aria-label=\"File\"]" },
+    { "name": "file-menu-open", "waitFor": { "css": ".menu-item" }, "timeout": 8000 },
+    { "name": "click-drawing-set", "click": { "text": "Drawing set" } },
+    {
+      "name": "drawing-set-captured",
+      "waitFor": {
+        "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 1000"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "assert-carpentry-sheet-content",
+      "eval": "(() => { const html = window.__capturedHtml; const need = (re, label) => { if (!re.test(html)) throw new Error('missing: ' + label) }; need(/Carpentry — Custom wardrobe 120 x 220 cm/, 'carpentry sheet title'); need(/FRONT ELEVATION/, 'front elevation label'); need(/SECTION/, 'section label'); need(/Verify all dimensions on site before fabrication\\./, 'fabrication note'); need(/Overall width.{0,20}1200 mm/, 'overall width dimension in mm'); need(/Shelf 1 height AFF.{0,20}1862 mm/, 'shelf-height dimension in mm (hand-computed for this spec)'); window.__carpentryOk = true; })()"
+    },
+    {
+      "name": "stash-single-placement-html",
+      "eval": "window.__singleHtml = window.__capturedHtml; window.__capturedHtml = undefined"
+    },
+
+    {
+      "name": "duplicate-placement-two-more-times",
+      "eval": "(() => { const s = window.__store.getState(); const room = s.floorPlan.rooms[0]; const p2 = room ? [room.origin[0] + 1.6, room.origin[1] + 0.8] : [2, 1]; const p3 = room ? [room.origin[0] + 2.4, room.origin[1] + 0.8] : [3, 1]; s.addItem({ defId: 'user-carpentry-test-wardrobe', position: p2, rotation: 0, props: {} }); s.addItem({ defId: 'user-carpentry-test-wardrobe', position: p3, rotation: 0, props: {} }); })()"
+    },
+    { "name": "open-file-menu-again", "click": "button[aria-label=\"File\"]" },
+    { "name": "file-menu-open-again", "waitFor": { "css": ".menu-item" }, "timeout": 8000 },
+    { "name": "click-drawing-set-again", "click": { "text": "Drawing set" } },
+    {
+      "name": "drawing-set-captured-again",
+      "waitFor": {
+        "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 1000"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "assert-dedupe-note",
+      "eval": "(() => { const html = window.__capturedHtml; const count = (html.match(/FRONT ELEVATION/g) || []).length; if (count !== 1) throw new Error('expected exactly ONE carpentry sheet for 3 placements of the same piece, got ' + count); if (!/\\(×3\\)/.test(html)) throw new Error('missing ×3 dedupe note'); window.__dedupeOk = true; })()"
+    },
+
+    {
+      "name": "restore-window-open",
+      "eval": "window.open = window.__origWindowOpen || window.open"
+    },
+    {
+      "name": "render-dedupe-html-for-screenshot",
+      "eval": "document.open(); document.write(window.__capturedHtml); document.close();"
+    },
+    {
+      "name": "scroll-to-carpentry-sheet",
+      "eval": "(() => { const names = [...document.querySelectorAll('.tb-name')]; const nameEl = names.find((el) => el.textContent.trim().startsWith('Carpentry — Custom wardrobe')); const target = nameEl && nameEl.closest('.sheet'); if (!target) throw new Error('carpentry sheet not found in rendered document'); target.scrollIntoView(); })()"
+    },
+    { "name": "shot-carpentry-sheet", "screenshot": "carpentry-sheet" }
+  ]
+}

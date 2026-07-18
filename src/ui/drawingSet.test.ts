@@ -6,6 +6,7 @@ import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import { wallLength } from '../floorplan/types'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import { defaultLayout } from '../furniture/defaultLayout'
+import { defaultSpec } from '../furniture/parametric/spec'
 import { defaultParamProps } from '../furniture/types'
 import { buildDrawingSetHtml } from './drawingSet'
 
@@ -773,5 +774,135 @@ describe('buildDrawingSetHtml — free-text callouts (PARITY-LIGHTINGTEMPLATE-TE
       )
       expect(html).toContain('rotate(-45.0deg)')
     })
+  })
+})
+
+describe('buildDrawingSetHtml — carpentry sheets (TODO G8)', () => {
+  const plan = buildDefaultPlan()
+
+  function carpentryCatalog() {
+    const wardrobeSpec = JSON.stringify(defaultSpec('wardrobe'))
+    return {
+      ...BUILTIN_CATALOG,
+      'user-wardrobe-1': {
+        id: 'user-wardrobe-1',
+        name: 'Custom wardrobe 120 × 220 cm',
+        category: 'storage',
+        kind: 'gltf',
+        source: 'user',
+        assetId: 'asset-wardrobe-1',
+        uploadedAt: new Date().toISOString(),
+        defaultFootprint: { w: 1.2, d: 0.65, h: 2.2 },
+        parametricSpec: wardrobeSpec,
+      },
+    } as unknown as typeof BUILTIN_CATALOG
+  }
+
+  const wardrobeItem = {
+    id: 'placed-wardrobe-1',
+    defId: 'user-wardrobe-1',
+    position: [1, 1] as [number, number],
+    rotation: 0,
+    props: {},
+  }
+
+  it('adds no carpentry sheet when no parametric piece is placed', () => {
+    const html = buildDrawingSetHtml(
+      plan,
+      [],
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      false,
+      true,
+    )
+    expect(html).not.toContain('Carpentry —')
+  })
+
+  it('adds a carpentry sheet (elevation + section + fabrication note) for a placed piece, gated on the flag', () => {
+    const catalog = carpentryCatalog()
+    const on = buildDrawingSetHtml(
+      plan,
+      [wardrobeItem],
+      catalog,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      false,
+      true,
+    )
+    expect(on).toContain('Carpentry — Custom wardrobe 120 × 220 cm')
+    expect(on).toContain('FRONT ELEVATION')
+    expect(on).toContain('SECTION')
+    expect(on).toContain('Verify all dimensions on site before fabrication.')
+    expect(on).toContain('1200 mm') // overall width dimension
+    expect(on).toMatch(/Shelf 1 height AFF.*1862 mm/)
+
+    // Flag off (default false) → no sheet at all.
+    const off = buildDrawingSetHtml(plan, [wardrobeItem], catalog)
+    expect(off).not.toContain('Carpentry —')
+  })
+
+  it('dedupes 3 placements of the same piece into one sheet noted ×3', () => {
+    const catalog = carpentryCatalog()
+    const items = [
+      wardrobeItem,
+      { ...wardrobeItem, id: 'placed-wardrobe-2', position: [2, 1] as [number, number] },
+      { ...wardrobeItem, id: 'placed-wardrobe-3', position: [3, 1] as [number, number] },
+    ]
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      catalog,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      false,
+      true,
+    )
+    // The sheet name appears twice (its own title block + the cover's sheet
+    // index) but the drawing body itself (elevation/section pair) is ONE sheet.
+    expect(html.match(/FRONT ELEVATION/g)).toHaveLength(1)
+    expect(html).toContain('(×3)')
+  })
+
+  it('respects the carpentry layer toggle even when the flag is on', () => {
+    const catalog = carpentryCatalog()
+    const html = buildDrawingSetHtml(
+      plan,
+      [wardrobeItem],
+      catalog,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { carpentry: false },
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      false,
+      true,
+    )
+    expect(html).not.toContain('Carpentry —')
   })
 })

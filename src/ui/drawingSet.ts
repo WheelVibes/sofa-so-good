@@ -47,6 +47,8 @@ import { estimateRoomLux } from '../lighting2d/roomLux'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { CalloutSheet, DrawingCallout } from '../state/slices/drawingCalloutsSlice'
 import { formatArea, formatLength, type UnitSystem } from '../utils/measurement'
+import { carpentrySvg } from './carpentrySheetSvg'
+import { collectCarpentrySheets } from './carpentrySheets'
 import { type DrawingLayerVisibility, drawingLayerOn as layerOn } from './drawingLayers'
 import { type ElevationPalette, elevationCaption, elevationSvg } from './elevation/elevationSvg'
 import { sectionSilhouettes } from './elevation/sectionFigure'
@@ -143,6 +145,36 @@ function planScale(
   const s = pickDrawingScale(
     { w: w + SCALE_PICK_BUFFER_M, d: d + SCALE_PICK_BUFFER_M },
     printableMm,
+  )
+  return {
+    label: `${s.label} @ ${paperSize.toUpperCase()} ${orientation.toUpperCase()}`,
+    mmPerM: s.mmPerM,
+  }
+}
+
+/** Buffer (metres) added around a carpentry piece before picking its scale —
+ *  much smaller than `SCALE_PICK_BUFFER_M` (that one budgets a whole floor
+ *  plan's legend/margin strips; a joinery piece only needs room for its own
+ *  nested dimension rows, ~0.3–0.5 m). */
+const CARPENTRY_BUFFER_M = 0.4
+
+/** Pick + label the locked scale for a carpentry sheet (TODO G8) — finer than
+ *  the whole-plan sheets since a single piece is far smaller than a floor
+ *  plan. The elevation + section sit side-by-side on one sheet, so the width
+ *  budget is HALF the printable width (each view gets its own half); the
+ *  height budget is the full printable height (one row). */
+function carpentryScale(
+  wM: number,
+  hM: number,
+  dM: number,
+  paperSize: DrawingSetTemplate['paperSize'],
+  orientation: DrawingSetTemplate['orientation'],
+): { label: string; mmPerM: number } {
+  const printableMm = PAPER_PRINTABLE_MM[`${paperSize}-${orientation}`]
+  const halfWidth = { width: printableMm.width / 2, height: printableMm.height }
+  const s = pickDrawingScale(
+    { w: Math.max(wM, dM) + CARPENTRY_BUFFER_M, d: hM + CARPENTRY_BUFFER_M },
+    halfWidth,
   )
   return {
     label: `${s.label} @ ${paperSize.toUpperCase()} ${orientation.toUpperCase()}`,
@@ -284,6 +316,10 @@ export function buildDrawingSetHtml(
    *  (`settingOutDims` flag, TODO G3). Default false — existing callers are
    *  unaffected. */
   showSettingOut = false,
+  /** Append a "Carpentry — <item>" sheet (dimensioned front elevation + one
+   *  section) per distinct placed parametric piece (`carpentrySheets` flag,
+   *  TODO G8). Default false — existing callers are unaffected. */
+  showCarpentry = false,
 ): string {
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
@@ -631,6 +667,46 @@ export function buildDrawingSetHtml(
       calloutGroup: 'ffe',
       scaleLabel: NTS,
     })
+  }
+
+  // Carpentry/joinery elevations + sections (TODO G8) — one sheet per
+  // distinct placed parametric piece (bookshelf/wardrobe/sideboard/desk/
+  // kitchen-run), dimensioned in mm at a finer locked scale than the plan
+  // sheets. Dedupe: a piece placed N× still gets ONE sheet, noted "×N".
+  if (layerOn(layers, 'carpentry') && showCarpentry) {
+    const carpentryPalette = { ink: '#374151', fill: '#e5e7eb', hidden: '#9ca3af' }
+    for (const entry of collectCarpentrySheets(items, catalog)) {
+      const { piece, count, name } = entry
+      const wM = piece.overallMm.w / 1000
+      const hM = piece.overallMm.h / 1000
+      const dM = piece.overallMm.d / 1000
+      // ONE locked scale drives both views on the sheet — sized against the
+      // larger of the elevation's width and the section's depth against a
+      // HALF-page width budget (the two views sit side by side), so neither
+      // view overflows its half at that ratio.
+      const scale = carpentryScale(wM, hM, dM, template.paperSize, template.orientation)
+      const countNote = count > 1 ? ` <span style="color:#6b7280">(×${count})</span>` : ''
+      sheets.push({
+        name: `Carpentry — ${name}`,
+        body:
+          `<div style="display:flex;flex-direction:column;gap:8px;height:100%">` +
+          `<div style="font-size:11px;color:#6b7280">${esc(piece.sectionLabel)}${countNote}</div>` +
+          `<div style="display:flex;gap:16px;flex:1;min-height:0">` +
+          `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">` +
+          `<div style="font-size:10px;font-weight:600;color:#4b5563">FRONT ELEVATION</div>` +
+          `<div class="draw">${carpentrySvg(piece.elevation, { palette: carpentryPalette, printMmPerM: scale.mmPerM })}</div>` +
+          `</div>` +
+          `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">` +
+          `<div style="font-size:10px;font-weight:600;color:#4b5563">SECTION</div>` +
+          `<div class="draw">${carpentrySvg(piece.section, { palette: carpentryPalette, printMmPerM: scale.mmPerM })}</div>` +
+          `</div>` +
+          `</div>` +
+          `<div style="font-size:10px;color:#b45309;font-weight:600">Verify all dimensions on site before fabrication.</div>` +
+          `</div>`,
+        calloutGroup: 'carpentry',
+        scaleLabel: scale.label,
+      })
+    }
   }
 
   // Sheet numbers are sequential over the final sheet list (A-1, A-2, …).

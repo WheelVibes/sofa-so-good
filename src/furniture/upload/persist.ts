@@ -49,6 +49,11 @@ export interface PersistOptions {
   /** GLB-designer edit spec (versioned JSON) so a designer-built asset re-opens
    *  editable in the designer instead of a frozen source mesh (Asset Studio S0). */
   assetSpec?: string
+  /** Parametric-generator recipe (JSON `ParametricSpec` string, `parametric/spec.ts`)
+   *  so the drawing set can rebuild the piece's exact part list for a carpentry
+   *  elevation + section (TODO G8) — the same "store the recipe alongside the
+   *  baked GLB" pattern as `slotSpec`/`assetSpec`. */
+  parametricSpec?: string
 }
 
 export type PersistResult =
@@ -110,6 +115,9 @@ export async function persistUserGlb(file: File, opts: PersistOptions): Promise<
       // GLB-designer edit spec (versioned JSON string) → stored verbatim so a
       // designer-built asset re-opens editable (Asset Studio S0).
       ...(opts.assetSpec ? { assetSpec: opts.assetSpec } : {}),
+      // Parametric-generator recipe (JSON string) → stored verbatim so the
+      // drawing set can rebuild the exact part list for a carpentry sheet (G8).
+      ...(opts.parametricSpec ? { parametricSpec: opts.parametricSpec } : {}),
       // Footprint (when measured up front) JSON-encodes into the primitive
       // meta store so hydration restores exact dims before the GLB loads.
       ...(opts.footprint ? { footprint: JSON.stringify(opts.footprint) } : {}),
@@ -175,6 +183,7 @@ export async function persistUserGlb(file: File, opts: PersistOptions): Promise<
       ...(typeof opts.price === 'number' ? { price: opts.price } : {}),
       ...(opts.slotSpec ? { slotSpec: opts.slotSpec } : {}),
       ...(opts.assetSpec ? { assetSpec: opts.assetSpec } : {}),
+      ...(opts.parametricSpec ? { parametricSpec: opts.parametricSpec } : {}),
     }
     if (opts.commit ?? true) useStore.getState().addUserFurniture(def)
     return { ok: true, def }

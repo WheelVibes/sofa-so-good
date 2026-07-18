@@ -143,6 +143,9 @@ const UserGltfDefZ = z.object({
   slotSpec: z.string().optional(),
   // Optional GLB-designer edit spec (JSON) for re-editing (Asset Studio S0) — additive.
   assetSpec: z.string().optional(),
+  // Optional parametric-generator recipe (JSON `ParametricSpec`) so the drawing
+  // set can rebuild a carpentry elevation/section (TODO G8) — additive.
+  parametricSpec: z.string().optional(),
 })
 
 const IkeaVariantZ = z.object({
@@ -583,6 +586,7 @@ const RawSerializedStateZ = z.object({
           'finishes',
           'demolition',
           'ffe',
+          'carpentry',
         ]),
         text: z.string(),
         x: z.number().min(0).max(1),
@@ -720,6 +724,7 @@ export function serialize(state: RootState): SerializedState {
               price: d.price,
               slotSpec: d.slotSpec,
               assetSpec: d.assetSpec,
+              parametricSpec: d.parametricSpec,
             },
       ),
     userMaterials: state.userMaterials.map((d) => ({

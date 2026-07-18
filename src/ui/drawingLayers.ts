@@ -19,6 +19,7 @@ export type DrawingLayer =
   | 'finishes'
   | 'demolition'
   | 'ffe'
+  | 'carpentry'
 
 /** Display order + labels for the layer picker. */
 export const DRAWING_LAYERS: { key: DrawingLayer; label: string }[] = [
@@ -31,6 +32,7 @@ export const DRAWING_LAYERS: { key: DrawingLayer; label: string }[] = [
   { key: 'finishes', label: 'Finishes schedule' },
   { key: 'demolition', label: 'Demolition plan' },
   { key: 'ffe', label: 'FF&E schedule' },
+  { key: 'carpentry', label: 'Carpentry sheets' },
 ]
 
 /** Per-layer visibility: a layer is included unless explicitly set to `false`

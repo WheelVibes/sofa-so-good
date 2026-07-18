@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.52 — G8: carpentry elevations + sections — the G-roadmap is complete
+
+`carpentrySheets` (pro): one "Carpentry — <name>" drawing-set sheet per
+distinct placed parametric piece (bookshelf/wardrobe/sideboard/desk/
+kitchen-run; repeats deduped with ×N) — a dimensioned front elevation + one
+representative section at its own locked ~1:20 scale, every dimension in mm
+read straight off the piece's real part list (overall W/H/D, bay widths,
+panel/plinth/worktop thickness, shelf/rail/drawer heights AFF — nothing
+invented). Required new persistence: `UserGltfDef.parametricSpec` round-trips
+the generator spec (was baked into the GLB and lost). Section cut per type
+reconstructed from the parts' own bay boundaries. Three visual bugs caught
+via screenshots and fixed: whole-plan scale buffer swamping small pieces to
+1:50 (dedicated `carpentryScale` against HALF the printable width —
+elevation+section sit side by side), right-side labels reading back over
+geometry, and stacked AFF labels colliding (declutter pass + leaders).
+364 targeted tests + 23-step scenario. **All eight contractor-handover
+roadmap gaps (G1-G9) are now shipped.**
+
 ## v0.22.2.51 — G3: setting-out datum + running dimensions + tile marks
 
 `settingOutDims` (pro): the Dimensioned-plan sheet gains a datum marker

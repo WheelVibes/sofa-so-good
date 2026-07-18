@@ -97,7 +97,7 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
       </div>
       {wallStructureOn ? (
         <div className="flex flex-col gap-1" style={{ marginTop: 'var(--s-1)' }}>
-          <div className="row" style={{ padding: '6px 0', alignItems: 'center' }}>
+          <div className="row" style={{ padding: 'var(--s-2) 0', alignItems: 'center' }}>
             <span className="label">Structure</span>
             <Select
               className="input"

@@ -1693,6 +1693,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Carpentry/joinery elevations + sections (TODO G8 — the single most-cited
+  // DIY handover gap): a dimensioned front elevation + one section per
+  // distinct placed parametric piece, at a finer locked scale. Analytical
+  // drawing-set content → pro tier, like the sheet flags above it.
+  carpentrySheets: {
+    label: 'Carpentry sheets',
+    description: 'Dimensioned elevation + section per placed custom-size piece on the drawing set',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

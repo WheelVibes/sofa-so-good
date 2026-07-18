@@ -375,6 +375,14 @@ export interface UserGltfDef extends FurnitureDefBase {
    *  with its full editable part list instead of a frozen source mesh. Persisted
    *  (IDB meta + save schema). Absent for other defs. */
   assetSpec?: string
+  /** Parametric-furniture generator recipe (JSON `ParametricSpec`,
+   *  `parametric/spec.ts`) when this def was baked by the parametric generator
+   *  (PF2, `saveParametricAsset`) — lets the drawing set rebuild the piece's
+   *  exact part list (`buildParametric`) to draw a carpentry elevation +
+   *  section (TODO G8) without a parallel geometry model. Persisted (IDB meta
+   *  + save schema), same pattern as `slotSpec`/`assetSpec`. Absent for other
+   *  defs (incl. GLB uploads that merely resemble a parametric shape). */
+  parametricSpec?: string
 }
 
 export interface RemoteGltfDef extends FurnitureDefBase {

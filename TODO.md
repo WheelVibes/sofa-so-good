@@ -11,9 +11,6 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 > `docs/research/2026-07-18-contractor-handover-research.md` (canonical drawing set, conventions,
 > SG/HDB specifics). Audit verdict (2026-07-18): geometry engine + drawing-set scaffolding are
 > ~70-80% there; gaps concentrated below, ranked by contractor credibility impact.
-- [ ] **G8 — Carpentry/joinery elevations+sections.** Most-cited DIY gap: per built-in piece
-  (wardrobe/kitchen run/parametric items), generate a dimensioned front elevation + one section
-  at 1:20 with internal dimensions (shelf heights, carcass depths) from the parametric spec.
 - *(Precision substrate, ride-along: mm display precision option in `measurement.ts`; bbox
   footprint caveat already tracked under Risks.)*
 > Direction (user, 2026-07-01): prioritise the **core interior-design loop + its UX,

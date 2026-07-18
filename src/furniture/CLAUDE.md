@@ -234,7 +234,31 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   `ui/parametric/ParametricControls.tsx`; add a feature flag if the type needs its own gate;
   add unit tests in `parametric/__tests__/<type>.test.ts`; add a scenario ladder
   (`scripts/scenarios/parametric-<type>-simple.json` + journey). Kitchen-run specifics:
-  `kitchenCabinets` flag (tier: `simple`), `TYPE_CATEGORY` maps to `'kitchen'`.
+  `kitchenCabinets` flag (tier: `simple`), `TYPE_CATEGORY` maps to `'kitchen'`. Every
+  generated piece's `ParametricSpec` round-trips onto its saved def as
+  `UserGltfDef.parametricSpec` (JSON string, set by `saveParametricAsset` → `persistUserGlb` →
+  `hydrateAssets.ts`/`schema.ts`, the same pattern as `slotSpec`/`assetSpec`) — this is what
+  lets `carpentryElevation.ts` (below) rebuild a placed piece's exact geometry for its drawing-
+  set sheet without a parallel model; adding a new `build<Type>` here is what a new type's
+  carpentry cut/dims are derived from, so no extra wiring is needed there beyond
+  `pickSectionCut`'s per-type branch.
+- **Carpentry/joinery elevations + sections (TODO G8, `carpentrySheets` flag, pro).**
+  `carpentryElevation.ts:buildCarpentryPiece(spec)` is the pure geometry step for the drawing
+  set's per-piece "Carpentry — `<name>`" sheet (see `docs/ARCHITECTURE.md` for the full design):
+  it reuses `buildParametric`'s part list unchanged, projects it to a front elevation (drop Z)
+  + one representative section (a per-type cut X reconstructed from the parts' own bay-boundary
+  positions, never a second bay-math formula), and reads every dimension (overall W/H/D, bay
+  widths, panel/plinth/worktop thickness, shelf/rail/drawer-front heights AFF) straight off the
+  cut parts — never inventing a number the spec/parts don't already encode. `ui/carpentrySheets.ts`
+  resolves + dedupes placed instances via each def's persisted `parametricSpec` (see the bullet
+  above); `ui/carpentrySheetSvg.ts` renders the dimensioned SVG (mm-only labels, dashed hidden
+  lines, a `declutterLabelY` collision pass for closely-stacked AFF heights). Scoped to the 5
+  `ParametricType`s only — a standalone kitchen-cabinet catalog item (`cabinet/cabinetModel.ts`
+  `buildCabinet`, placed via `primitives/CabinetModule.tsx`) keeps its spec live on the item's own
+  `props` (no GLB-export/spec-loss step to begin with) rather than a persisted `parametricSpec`
+  JSON string, so it doesn't share this exact resolution path yet — a future extension would add
+  a `CabinetSpec`-based sheet builder alongside this one, not fold it into
+  `collectCarpentrySheets`.
 - **Array helpers** — pure geometry, render-agnostic, unit-tested, no store imports:
   - `arrayPlacement.ts` — linear/grid array:
     - `arrayOffsets(src, count, spacing, axis)` — N evenly-spaced positions along the item's

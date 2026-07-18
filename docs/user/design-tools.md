@@ -309,6 +309,24 @@ URL shown as a shortened link for print). Print or save as PDF for
     each symbol (e.g. **"@1200"**), plus a "Heights in mm AFFL" legend line. A plan
     with no authored points yet falls back to the furniture-based estimate, noted
     **"Indicative — derived from the furniture layout; verify on site"**.
+- **Carpentry sheets (Pro).** The most-cited gap in a DIY handover is missing
+  carpentry detail — exact internal shelf heights, carcass depths, what the
+  carpenter actually cuts to. Every **custom-size piece you generate + place**
+  (Bookshelf/Wardrobe/Sideboard/Desk/Kitchen run — see *Custom-size furniture*
+  above) gets its own **"Carpentry — (item name)"** sheet: a dimensioned
+  **front elevation** alongside **one section** cut through a representative
+  part of the piece (a shelf bay for a wardrobe, a base cabinet for a kitchen
+  run, the pedestal or a leg for a desk), at a finer locked scale than the plan
+  sheets since there's more detail to show. Every dimension is in **millimetres**
+  (carpentry/joinery is always mm) and is real — overall width/height/depth,
+  bay widths, panel thickness, plinth/toe-kick height, worktop thickness, and
+  every shelf/rail/drawer height above floor — nothing is invented; a hidden
+  shelf/rail behind a closed door draws as a dashed line. Placing the SAME piece
+  more than once doesn't repeat the sheet — it gets one sheet noted **"(×3)"**
+  for three placements. No custom-size pieces placed → no carpentry sheets, and
+  the cover's sheet index simply omits them. Same **"Verify all dimensions on
+  site before fabrication"** caveat as the rest of the set. Toggle it off in the
+  **Include sheets** checklist if you don't need it in a given export.
 - **Sheet callouts** (Pro) — **Tools → Sheet callouts** opens the callout panel.
   Add free-text annotations that appear on a specific sheet when the drawing set
   is exported: type your note (e.g. "GL = 0.00", "Contractor to verify on site"),

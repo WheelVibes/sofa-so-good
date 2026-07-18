@@ -1182,6 +1182,41 @@ same change that reshapes a system.
   (`reportPlanSvg.ts`'s `showTileMarks`, gated to when the finishes sheet is also
   included). `FloorPlan.datum?: {x,z}` is an additive optional override reserved for
   a future placement UI (unused by any editor in this pass).
+  **Carpentry/joinery elevations + sections (TODO G8, `carpentrySheets` flag, pro):**
+  the single most-cited DIY-handover gap — a dimensioned front elevation + one
+  representative section per distinct PLACED parametric piece (bookshelf/wardrobe/
+  sideboard/desk/kitchen-run — the 5 `parametric/spec.ts` `ParametricType`s; a
+  standalone kitchen-cabinet catalog item does NOT share this path yet, see
+  `furniture/CLAUDE.md`). Geometry is pure + reused, never re-derived:
+  `furniture/carpentryElevation.ts:buildCarpentryPiece(spec)` runs the piece's OWN
+  `buildParametric(spec)` part list through two projections — front elevation (drop
+  Z) and a vertical section at a per-type cut X reconstructed FROM the part
+  positions themselves (bay boundaries from `side`/`divider` parts, never a second
+  bay-math formula): bookshelf/sideboard/kitchen-run cut through the first bay,
+  wardrobe through whichever bay carries the most `shelf` parts, desk through its
+  pedestal's `side` panels (or the first `leg` on a 4-leg desk). Every dimension
+  (overall W/H/D, bay widths, panel thickness, plinth/toe-kick height, worktop
+  thickness, and — the actual gap this closes — every shelf/rail/drawer-front
+  height above floor, AFF) is read straight off the cut parts' real positions/
+  sizes, always in **mm** (carpentry is mm-throughout, unlike the plan sheets'
+  `UnitSystem` toggle); a shelf/rail hidden behind a closed door/drawer renders
+  dashed. `ui/carpentrySheetSvg.ts` renders each view (tick+label dims mirroring
+  `autoDimensionSvg.ts`'s convention) and runs a `declutterLabelY` pass per
+  `labelSide` column so two close-together AFF heights (e.g. a wardrobe's top
+  shelf + the rail just under it) never overlap — a nudged label gets a short
+  dashed leader back to its tick's true height. `ui/carpentrySheets.ts:
+  collectCarpentrySheets(items, catalog)` resolves distinct placed pieces from
+  each def's persisted `parametricSpec` (JSON, `UserGltfDef.parametricSpec` —
+  the same "recipe alongside the baked GLB" pattern as `slotSpec`/`assetSpec`,
+  written by `saveParametricAsset`), deduping repeats of the SAME def to one
+  sheet noted `"(×N)"`. `ui/drawingSet.ts` appends one "Carpentry — `<name>`"
+  sheet per entry (own locked scale via `carpentryScale`, sized against HALF the
+  printable width since the elevation + section sit side by side on one sheet —
+  finer than a whole-plan sheet since a joinery piece is far smaller) with the
+  standard "verify all dimensions on site before fabrication" note; no placed
+  parametric pieces → no carpentry sheets (and the cover's sheet index omits
+  them). New `carpentry` `DrawingLayer` + `CalloutSheet` entry follow the
+  existing toggle/callout plumbing.
 - **CAD plan exports**: `ui/openDxf.ts` (`export/dxf.ts` `planToDxf`) downloads the plan as an ASCII
   DXF R12 document for a contractor/fabricator CAD handoff (TODO G6): `WALLS`/`ROOMS`/`DOORS`/
   `WINDOWS`/`LABELS` (base geometry) plus `FURNITURE` (each placed item's rotated footprint — the

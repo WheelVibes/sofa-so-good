@@ -30,6 +30,7 @@ const SHEET_LABELS: Record<CalloutSheet, string> = {
   finishes: 'Finishes schedule',
   demolition: 'Demolition plan',
   ffe: 'FF&E schedule',
+  carpentry: 'Carpentry sheets',
 }
 
 const SHEET_KEYS: CalloutSheet[] = [
@@ -44,6 +45,7 @@ const SHEET_KEYS: CalloutSheet[] = [
   'finishes',
   'demolition',
   'ffe',
+  'carpentry',
 ]
 
 /** Format a normalised position as a human-readable string (percentage). */
