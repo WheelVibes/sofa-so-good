@@ -18,9 +18,6 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 - [ ] **H4 — Reflected Ceiling Plan sheet (larger).** Canonical drawing #4: false-ceiling/
   bulkhead zones with drop heights, ceiling-fixture positions dimensioned off walls, aircon.
   The model has ceiling treatments per room + ceiling-mounted fixtures — enough for v1.
-- [ ] **H5 — DXF demolition layer (or documented limitation).** The DXF carries only the live
-  plan; a CAD-editing hacking contractor loses kept-vs-removed. Decide: DEMOLITION layer from
-  the baseline diff, or an explicit doc note.
 - [ ] **H6 — Elevation sheet grouping (polish).** 20 one-per-wall elevation sheets for a 4-room
   flat; group short/low-content walls per professional practice.
 

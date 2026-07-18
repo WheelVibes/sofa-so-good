@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.58 — H5: DXF demolition + new-works layers
+
+`planToDxf` takes the baseline plan (same source as the printed demolition
+sheet, same implicit empty-diff guard): demolished walls emit LINE +
+"(DEMOLISH)" midpoint labels on a DEMOLITION layer (ACI 1 red — CAD
+convention, matching the sheet legend), a load-bearing demolished wall's
+label appends "NOT PERMITTED - LOAD-BEARING" (the printed hard rule carried
+into CAD), and added walls get "(NEW)" markers on NEW_WORKS (ACI 3) without
+redundant geometry (they already live on WALLS). Deterministic; 39 dxf
+tests. A CAD-editing hacking contractor no longer loses kept-vs-removed.
+
 ## v0.22.2.57 — H2: carpentry sheets gain buildability callouts
 
 Each carpentry sheet now carries a MATERIALS & FINISH block (spec finish +

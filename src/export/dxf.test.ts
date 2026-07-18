@@ -369,6 +369,98 @@ describe('planToDxf MEP points (G6b)', () => {
   })
 })
 
+describe('planToDxf demolition (H5)', () => {
+  // Baseline has an extra internal wall (w-mid) that `current` removed, and
+  // `current` adds a new wall (w-new) the baseline never had. `w-mid` runs
+  // z=0..3 at x=2 → midpoint (2, 1.5) → DXF (2, -1.5).
+  const baseline: FloorPlan = {
+    ...smallPlan,
+    walls: [...smallPlan.walls, { id: 'w-mid', start: [2, 0], end: [2, 3], thickness: 'internal' }],
+  }
+  // `current` (smallPlan) already lacks w-mid (demolished) and adds w-new:
+  // x=1..1 (vertical), z=0..1 → midpoint (1, 0.5) → DXF (1, -0.5).
+  const current: FloorPlan = {
+    ...smallPlan,
+    walls: [...smallPlan.walls, { id: 'w-new', start: [1, 0], end: [1, 1], thickness: 'internal' }],
+  }
+
+  it('defines DEMOLITION/NEW_WORKS in the LAYER table with a distinct colour', () => {
+    const dxf = planToDxf(current, [], {}, 'metric', baseline)
+    expect(dxf).toMatch(/LAYER\n2\nDEMOLITION\n70\n0\n62\n1\n/)
+    expect(dxf).toMatch(/LAYER\n2\nNEW_WORKS\n70\n0\n62\n3\n/)
+  })
+
+  it('emits a demolished wall as a LINE + "(DEMOLISH)" TEXT at its midpoint on DEMOLITION', () => {
+    const dxf = planToDxf(current, [], {}, 'metric', baseline)
+    // Hand-computed: w-mid (2,0)→(2,3) in plan, DXF Z flips: (2,0)→(2,-3).
+    expect(dxf).toMatch(
+      /LINE\n8\nDEMOLITION\n10\n2\.000000\n20\n0\.000000\n30\n0\.000000\n11\n2\.000000\n21\n-3\.000000\n31\n0\.000000/,
+    )
+    expect(dxf).toMatch(/TEXT\n8\nDEMOLITION\n10\n2\.000000\n20\n-1\.500000/)
+    expect(dxf).toContain('(DEMOLISH)')
+    expect(dxf).not.toContain('NOT PERMITTED')
+  })
+
+  it('escalates a load-bearing demolished wall to the NOT PERMITTED label', () => {
+    const lbBaseline: FloorPlan = {
+      ...smallPlan,
+      walls: [
+        ...smallPlan.walls,
+        {
+          id: 'w-mid',
+          start: [2, 0],
+          end: [2, 3],
+          thickness: 'internal',
+          structure: 'load-bearing',
+        },
+      ],
+    }
+    const dxf = planToDxf(current, [], {}, 'metric', lbBaseline)
+    expect(dxf).toContain('(DEMOLISH) NOT PERMITTED - LOAD-BEARING')
+  })
+
+  it('labels an added wall "(NEW)" on NEW_WORKS but keeps it drawn on WALLS (no DEMOLITION line for it)', () => {
+    const dxf = planToDxf(current, [], {}, 'metric', baseline)
+    expect(dxf).toMatch(/TEXT\n8\nNEW_WORKS\n10\n1\.000000\n20\n-0\.500000/)
+    expect(dxf).toContain('(NEW)')
+    // w-new is drawn once on WALLS (the new-works reality), never re-drawn on DEMOLITION.
+    expect(dxf).toMatch(
+      /LINE\n8\nWALLS\n10\n1\.000000\n20\n0\.000000\n30\n0\.000000\n11\n1\.000000\n21\n-1\.000000\n31\n0\.000000/,
+    )
+    expect(layerEntityCount(dxf, 'LINE', 'DEMOLITION')).toBe(1) // only w-mid, not w-new
+  })
+
+  it('keeps a kept wall on WALLS only — no DEMOLITION/NEW_WORKS entity for it', () => {
+    const dxf = planToDxf(current, [], {}, 'metric', baseline)
+    // w-n (0,0)-(4,0) is kept — present in both plans.
+    expect(layerEntityCount(dxf, 'TEXT', 'DEMOLITION')).toBe(1) // only w-mid's label
+    expect(layerEntityCount(dxf, 'TEXT', 'NEW_WORKS')).toBe(1) // only w-new's label
+  })
+
+  it('omits DEMOLITION/NEW_WORKS entities entirely with no baseline', () => {
+    const dxf = planToDxf(current)
+    expect(layerEntityCount(dxf, 'LINE', 'DEMOLITION')).toBe(0)
+    expect(layerEntityCount(dxf, 'TEXT', 'DEMOLITION')).toBe(0)
+    expect(layerEntityCount(dxf, 'TEXT', 'NEW_WORKS')).toBe(0)
+    // Layer table entries still exist (same empty-layer convention as ELECTRICAL/PLUMBING).
+    expect(dxf).toMatch(/LAYER\n2\nDEMOLITION\n70\n0\n62\n1\n/)
+    expect(dxf).toMatch(/LAYER\n2\nNEW_WORKS\n70\n0\n62\n3\n/)
+  })
+
+  it('omits DEMOLITION/NEW_WORKS entities when the baseline equals the current plan (no wall changes)', () => {
+    const dxf = planToDxf(smallPlan, [], {}, 'metric', smallPlan)
+    expect(layerEntityCount(dxf, 'LINE', 'DEMOLITION')).toBe(0)
+    expect(layerEntityCount(dxf, 'TEXT', 'DEMOLITION')).toBe(0)
+    expect(layerEntityCount(dxf, 'TEXT', 'NEW_WORKS')).toBe(0)
+  })
+
+  it('is deterministic — same input yields byte-identical output', () => {
+    const a = planToDxf(current, [], {}, 'metric', baseline)
+    const b = planToDxf(current, [], {}, 'metric', baseline)
+    expect(a).toBe(b)
+  })
+})
+
 describe('dxf helpers', () => {
   it('dxfLine writes both endpoints with Z flipped', () => {
     const s = dxfLine('WALLS', 1, 2, 3, 4)

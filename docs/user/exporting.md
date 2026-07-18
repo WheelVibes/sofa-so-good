@@ -39,8 +39,10 @@ drafting tool:
   (footprint + name label, on its own layer), the **auto-dimension lines** for every wall and
   room, a **D1/W1…-style mark** beside each door/window that lines up with the door/window
   schedule, and any **electrical/plumbing points you've placed** on the plan (a circle + symbol
-  per point, with its mount height when set) — a genuinely editable, fully-annotated CAD file,
-  not just an outline.
+  per point, with its mount height when set), and — if you've edited walls since the plan was
+  loaded — a **DEMOLITION layer** marking every removed wall "(DEMOLISH)" (escalated to a
+  load-bearing warning where relevant) so a hacking contractor never loses kept-vs-removed —
+  a genuinely editable, fully-annotated CAD file, not just an outline.
 - **Export SVG (plan)** — a vector 2D plan for any editor or for print (command
   palette: *Export 2D plan to SVG*).
 

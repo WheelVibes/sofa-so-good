@@ -40,6 +40,27 @@
  *                       exists, same as an empty FURNITURE layer).
  *  - `PLUMBING`       — same treatment for `FloorPlan.plumbingPoints`
  *                       (`plumbingPlanSvg.ts`'s `PLUMB_SYM_TEXT`).
+ *  - `DEMOLITION`     — TODO H5: when `planToDxf` is given an optional
+ *                       `baseline` plan, each wall `diffWalls(baseline, plan)`
+ *                       (`floorplan/demolitionPlan.ts`) classifies as
+ *                       demolished is redrawn here as a LINE + a "(DEMOLISH)"
+ *                       TEXT at its midpoint — a hacking contractor otherwise
+ *                       has no way to tell kept-vs-removed from the DXF alone.
+ *                       A demolished wall with `PlanWall.structure ===
+ *                       'load-bearing'` gets the label
+ *                       "(DEMOLISH) NOT PERMITTED - LOAD-BEARING", mirroring
+ *                       the printed demolition sheet's hard rule
+ *                       (`demolitionPlanSvg.ts`). Kept walls stay on `WALLS`
+ *                       only — they're unchanged. No `baseline` (or a
+ *                       baseline diffing to zero demolished walls) ⇒ no
+ *                       `DEMOLITION` entities (same empty-layer convention as
+ *                       ELECTRICAL/PLUMBING).
+ *  - `NEW_WORKS`      — added walls (in `plan` but not `baseline`) stay drawn
+ *                       on `WALLS` (they're the new-works reality, not a
+ *                       marked-up overlay) but also get a "(NEW)" TEXT at
+ *                       their midpoint here — the same diff is already
+ *                       computed for `DEMOLITION`, so labelling adds are a
+ *                       few lines, not a second pass.
  *
  * Units: DXF is unitless; `$INSUNITS = 6` declares metres, and all coordinates
  * are written in plan metres.
@@ -53,6 +74,7 @@
 import { obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
 import { buildDimensions, type Dimension } from '../floorplan/autoDimension'
+import { diffWalls } from '../floorplan/demolitionPlan'
 import { ELEC_SYM_TEXT } from '../floorplan/electricalPlanSvg'
 import { PLUMB_SYM_TEXT } from '../floorplan/plumbingPlanSvg'
 import {
@@ -388,6 +410,43 @@ function mepSection(plan: FloorPlan): string {
   return out
 }
 
+/** Suffix appended to a demolished load-bearing wall's label, mirroring the
+ *  printed demolition sheet's hard rule (`demolitionPlanSvg.ts`) — load-bearing
+ *  demolition is absolute off-limits under SG rules, never just "needs a permit". */
+const LOAD_BEARING_SUFFIX = ' NOT PERMITTED - LOAD-BEARING'
+
+/**
+ * `DEMOLITION`/`NEW_WORKS` layers (TODO H5): given an optional `baseline`
+ * (the as-loaded plan), diffs it against `plan` (`diffWalls`,
+ * `floorplan/demolitionPlan.ts`) and, for each DEMOLISHED wall, emits its
+ * LINE + a "(DEMOLISH)" TEXT at its midpoint on `DEMOLITION` (escalated to
+ * "(DEMOLISH) NOT PERMITTED - LOAD-BEARING" when `PlanWall.structure ===
+ * 'load-bearing'`). ADDED walls are NOT redrawn here — they're already on
+ * `WALLS` as the new-works reality — but get a lightweight "(NEW)" TEXT
+ * marker at their midpoint on `NEW_WORKS`, reusing the same diff (kept
+ * deliberately label-only: a full re-render of added walls on their own
+ * layer would double the geometry work here for no reader benefit over the
+ * existing WALLS line). No `baseline` ⇒ no entities on either layer.
+ */
+function demolitionSection(plan: FloorPlan, baseline: FloorPlan | undefined): string {
+  if (!baseline) return ''
+  const diff = diffWalls(baseline, plan)
+  let out = ''
+  for (const w of diff.demolished) {
+    if (wallLength(w) === 0) continue
+    out += dxfLine('DEMOLITION', w.start[0], w.start[1], w.end[0], w.end[1])
+    const [mx, mz] = wallPointAt(w, wallLength(w) / 2)
+    const label = w.structure === 'load-bearing' ? `(DEMOLISH)${LOAD_BEARING_SUFFIX}` : '(DEMOLISH)'
+    out += dxfText('DEMOLITION', mx, mz, label, 0.15)
+  }
+  for (const w of diff.added) {
+    if (wallLength(w) === 0) continue
+    const [mx, mz] = wallPointAt(w, wallLength(w) / 2)
+    out += dxfText('NEW_WORKS', mx, mz, '(NEW)', 0.15)
+  }
+  return out
+}
+
 /** A LAYER table entry. */
 function layerEntry(name: string, color: number): string {
   return block(pair(0, 'LAYER'), pair(2, name), pair(70, 0), pair(62, color), pair(6, 'CONTINUOUS'))
@@ -400,7 +459,15 @@ function layerEntry(name: string, color: number): string {
  *  repeats — DXF allows two layers to share a colour), furniture text
  *  yellow/2, opening marks magenta/6, electrical green/3 (repeats DOORS —
  *  same "independently toggleable, shared ACI" rationale), plumbing
- *  blue/5 (repeats ROOMS). */
+ *  blue/5 (repeats ROOMS). Demolition red/1 (TODO H5) — red is the
+ *  conventional CAD demolition colour; it repeats DIMENSIONS' ACI, which is
+ *  the same accepted "independently toggleable, shared colour" precedent
+ *  already used above (all 7 basic ACI colours are already spoken for by the
+ *  time DEMOLITION is added, so SOME repeat is unavoidable — red is the one
+ *  worth keeping for its drafting-convention meaning). New-works green/3
+ *  (repeats DOORS/ELECTRICAL) matches this app's own demolition-sheet legend
+ *  (`demolitionPlanSvg.ts`'s kept/demolished/added palette already uses red
+ *  for demolished, green for added), so the DXF and the printed sheet agree. */
 const LAYERS: ReadonlyArray<readonly [string, number]> = [
   ['WALLS', 7],
   ['ROOMS', 5],
@@ -413,6 +480,8 @@ const LAYERS: ReadonlyArray<readonly [string, number]> = [
   ['OPENING_MARKS', 6],
   ['ELECTRICAL', 3],
   ['PLUMBING', 5],
+  ['DEMOLITION', 1],
+  ['NEW_WORKS', 3],
 ]
 
 /** Minimal HEADER section: declare metres via $INSUNITS = 6. */
@@ -449,6 +518,7 @@ function entitiesSection(
   items: FurnitureItem[],
   catalog: Record<string, FurnitureDef>,
   units: UnitSystem,
+  baseline: FloorPlan | undefined,
 ): string {
   const walls = Array.isArray(plan.walls) ? plan.walls : []
   const rooms = Array.isArray(plan.rooms) ? plan.rooms : []
@@ -495,6 +565,8 @@ function entitiesSection(
   const dims = buildDimensions(plan, units)
   for (const d of [...dims.overall, ...dims.rooms]) out += dxfDimension(d)
 
+  out += demolitionSection(plan, baseline)
+
   out += block(pair(0, 'ENDSEC'))
   return out
 }
@@ -504,18 +576,23 @@ function entitiesSection(
  * ASCII DXF R12 document string. `items`/`catalog` are optional — omitting
  * them exports bare plan geometry with an empty FURNITURE layer (the
  * pre-G6 behaviour); `units` only affects the DIMENSIONS text labels
- * (coordinates are always plan metres regardless).
+ * (coordinates are always plan metres regardless). `baseline` (TODO H5) is
+ * the as-loaded plan the demolition/hacking sheet already diffs against
+ * (`floorplan/demolitionPlan.ts:diffWalls`) — pass it to also emit the
+ * DEMOLITION/NEW_WORKS layers; omitting it (or a baseline identical to
+ * `plan`, e.g. a never-edited default plan) leaves both layers empty.
  */
 export function planToDxf(
   plan: FloorPlan,
   items: FurnitureItem[] = [],
   catalog: Record<string, FurnitureDef> = {},
   units: UnitSystem = 'metric',
+  baseline?: FloorPlan,
 ): string {
   return (
     headerSection() +
     tablesSection() +
-    entitiesSection(plan, items, catalog, units) +
+    entitiesSection(plan, items, catalog, units, baseline) +
     block(pair(0, 'EOF'))
   )
 }
