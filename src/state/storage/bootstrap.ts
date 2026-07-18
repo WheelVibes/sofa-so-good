@@ -396,4 +396,20 @@ async function exposeDevHelpers(): Promise<void> {
     ;(window as unknown as { __buildShareCardResult?: unknown }).__buildShareCardResult = url
     return url
   }
+  // Expose the AI design-chat GROUNDING context builder so the scenario
+  // harness can inspect what the model would be told, headlessly — no network
+  // call (this hook never fakes a chat reply; the live `askDesignChat` call
+  // still needs a real BYO key + browser fetch). Mirrors the live design at
+  // call time via the store, exactly like the panel's own `useMemo`.
+  const { buildDesignChatContext } = await import('../../ai/designChatContext')
+  const { buildMergedCatalog } = await import('../../furniture/catalog')
+  ;(window as unknown as { __designChatContext?: unknown }).__designChatContext = () => {
+    const s = useStore.getState()
+    const defs = buildMergedCatalog({
+      userFurniture: s.userFurniture,
+      resolvedRemoteFurniture: s.resolvedRemoteFurniture,
+      packFurniture: s.packFurniture,
+    })
+    return buildDesignChatContext({ items: s.items, defs, plan: s.floorPlan, doors: s.doors })
+  }
 }

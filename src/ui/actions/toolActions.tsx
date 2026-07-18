@@ -241,6 +241,21 @@ export const TOOL_ACTIONS: readonly ToolAction[] = [
       (store) => store.getState().setCommentsOpen(true),
     ),
   },
+  {
+    id: 'ai-design-chat',
+    label: 'Design chat',
+    paletteLabel: 'AI design chat (BYO key)',
+    sub: 'Ask an LLM about your design — grounded in its live numbers',
+    icon: 'Style',
+    category: 'analyze',
+    flag: 'aiDesignChat',
+    surfaces: ['desktop', 'mobile', 'palette'],
+    isActive: (s) => s.designChatOpen,
+    run: auxToggle(
+      (s) => s.designChatOpen,
+      (store) => store.getState().setDesignChatOpen(true),
+    ),
+  },
   // ── Review & tour ───────────────────────────────────────────────────────────
   {
     id: 'history',

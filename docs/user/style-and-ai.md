@@ -26,6 +26,16 @@ the style and who lives there, add your **vision‑model API key** (OpenAI‑com
 kept in this browser), and it proposes a layout. It's experimental, so review and
 tweak the result. *(Pro mode.)*
 
+## Design chat
+
+**Tools → Design chat** *(Pro)* opens a small advisor panel where you can ask
+questions about **your actual design** — "Is my living room too crowded?",
+"Which room has the least daylight?" — and the answers are grounded in this
+design's real numbers (room sizes, furniture positions, the design-score
+checks), not guesses. It's **advice only**: the chat never edits your design.
+Uses your own API key (the same one as the other AI tools), so your questions
+go to your chosen provider, not our servers.
+
 ## Palette from photo
 
 Also from the command palette, **Palette from photo** extracts a **colour palette

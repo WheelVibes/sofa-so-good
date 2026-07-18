@@ -21,4 +21,5 @@ export function closeAllAuxPanels(s: StoreState): void {
   s.setHistoryOpen(false)
   s.setCommentsOpen(false)
   s.setDrawingCalloutsOpen(false)
+  s.setDesignChatOpen(false)
 }

@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.26 — AI design chat v1 (grounded, read-only, BYO-key)
+
+The research-verified unclaimed differentiator: **Tools → Design chat**
+(`aiDesignChat` flag, pro) answers questions about the user's ACTUAL design.
+Pure `ai/designChatContext.ts` builds a deterministic, capped context from
+the app's own numbers (plan digest via `buildPlanStatistics`, design score +
+per-category issues via `buildDesignScore`, per-room furniture with positions
++ footprints; explicit NOT-AVAILABLE footer for what a pure builder can't
+know); `ai/designChat.ts` hard-constrains the model to cite only supplied
+numbers ("I can't measure that from here" otherwise), read-only, ≤10-turn
+history, same BYO key + endpoint security gate as the other AI surfaces. One
+shared ToolAction wires desktop Tools menu + mobile sheet + ⌘K; panel mirrors
+the aux-panel pattern (lazy + idle-preloaded, session-only history). Dev hook
+`__designChatContext`; browser-verified (panel renders, grounding contains
+real rooms/score/areas, hidden in Simple); 20 new tests (802 targeted green).
+
 ## v0.22.2.25 — Batch 8 ladders + two sourced research rulings
 
 IXT-SUITES batch 8 (uncovered → 30): green rungs for `palettePresets`

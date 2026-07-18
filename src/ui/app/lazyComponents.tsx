@@ -93,6 +93,9 @@ export const DesignScorePanel = lazyWithRetry(() =>
 export const CommentsPanel = lazyWithRetry(() =>
   import('../CommentsPanel').then((m) => ({ default: m.CommentsPanel })),
 )
+export const DesignChatPanel = lazyWithRetry(() =>
+  import('../DesignChatPanel').then((m) => ({ default: m.DesignChatPanel })),
+)
 export const DrawingCalloutsPanel = lazyWithRetry(() =>
   import('../DrawingCalloutsPanel').then((m) => ({ default: m.DrawingCalloutsPanel })),
 )

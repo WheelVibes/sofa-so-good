@@ -20,6 +20,7 @@ import {
   CommentsPanel,
   ConfiguratorDialog,
   DaylightPanel,
+  DesignChatPanel,
   DesignScorePanel,
   DrawingCalloutsPanel,
   ElevationPanel,
@@ -129,6 +130,7 @@ export default function App() {
     daylightOpen: useStore((s) => s.daylightOpen),
     designScoreOpen: useStore((s) => s.designScoreOpen),
     commentsOpen: useStore((s) => s.commentsOpen),
+    designChatOpen: useStore((s) => s.designChatOpen),
     drawingCalloutsOpen: useStore((s) => s.drawingCalloutsOpen),
     accessibilityOpen: useStore((s) => s.accessibilityOpen),
     petComplianceOpen: useStore((s) => s.petComplianceOpen),
@@ -403,6 +405,11 @@ export default function App() {
         {lazyPanels.commentsOpen ? (
           <Suspense fallback={null}>
             <CommentsPanel />
+          </Suspense>
+        ) : null}
+        {lazyPanels.designChatOpen ? (
+          <Suspense fallback={null}>
+            <DesignChatPanel />
           </Suspense>
         ) : null}
         {lazyPanels.drawingCalloutsOpen ? (

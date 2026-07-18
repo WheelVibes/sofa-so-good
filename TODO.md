@@ -88,9 +88,6 @@ See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full d
 
 ## Open — UX research round 2 queue (2026-07-18)
 Ranked by value÷effort; verified absent against registry + source this pass.
-- [ ] **Version split-view** (M) — compare two saved slots in the live 3D via the existing
-  reveal-divider mechanism (`stagingReveal`/`timeCompare` pattern); today's diff is text-only.
-  New `versionCompareView` flag, pro. Care: scratch state must not leak into undo/autosave.
 - [ ] **WebXR AR hit-test on Android Chrome** (M) — real `immersive-ar` with the in-memory scene
   (no hosted URL needed), closing the iOS-vs-rest asymmetry `viewInAr.ts` documents. **Blocked on
   real-device QA** — cannot be verified in this sandbox; keep the GLB-download fallback.
@@ -106,14 +103,7 @@ Ranked by value÷effort; verified absent against registry + source this pass.
   `SpeechRecognition.available()`); locale: try `en-SG`, retry `en-GB` on
   `language-not-supported`. Privacy copy must say audio may go to the browser vendor's cloud.
   WASM Whisper fallback rejected for now (40-76 MB + mobile perf). Rides the `textBrief` flag.
-- [ ] **AI design chat (BYO-key, read-only advice)** — web research DONE (2026-07-18, sourced):
-  **BUILD, narrowly.** Generic decor chat is commoditized (Coohom AIHom, Homestyler AI Agent,
-  Havenly AI, Planner 5D "Bernard", Decor8/RoomGPT all ship a flavour), but NO competitor grounds
-  chat in the user's ACTUAL design model — v1 = read-only pro-tier panel, BYO-key (reuse the
-  vision-key infra), context = serialized room dims + furniture list/positions + the app's OWN
-  computed scores/clearances (the model narrates real numbers, never estimates distances — kills
-  the hallucination risk); NO write access in v1. Risks: cost/latency (BYO-key = user's bill),
-  scope creep toward edit actions (resist).
+
 - *(Flagged, needs product decision: `budget`/`clearanceChecks`/`textBrief` are simple-TIER but
   default-false "not production-ready" — ship or demote eventually.)*
 

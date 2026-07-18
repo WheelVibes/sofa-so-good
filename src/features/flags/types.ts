@@ -178,6 +178,7 @@ export type FeatureFlag =
   | 'suggestedViews'
   | 'profiler'
   | 'walkMeasure'
+  | 'aiDesignChat'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

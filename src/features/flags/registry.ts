@@ -212,6 +212,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Read-only, BYO-key advisor chat grounded in the live design's own computed
+  // numbers (design score / plan statistics) — mirrors aiWalls/aiPlanGenerate's
+  // BYO-key precedent (prod-safe: pure code + graceful no-key error, no bundled
+  // model/key). Pro tier — an analytical/advisory surface, not core-loop.
+  aiDesignChat: {
+    label: 'AI design chat',
+    description: 'Ask an LLM about your design, grounded in its live numbers (BYO key)',
+    default: true,
+    tier: 'pro',
+  },
   ikeaLive: {
     label: 'IKEA live scrape',
     description: 'Local scraper pack (needs a sidecar)',

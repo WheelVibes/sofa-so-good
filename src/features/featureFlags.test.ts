@@ -607,13 +607,19 @@ describe('furnitureMotion flag (bug #15 — animate fan blades toggle)', () => {
   })
 })
 
-describe('AI surfaces (aiPhotoreal / aiWalls / aiLayout / aiPlanGenerate — IXT-SUITES AI-surfaces rung)', () => {
-  // All three are experimental BYO-key AI features (no bundled key, no
+describe('AI surfaces (aiPhotoreal / aiWalls / aiLayout / aiPlanGenerate / aiDesignChat — IXT-SUITES AI-surfaces rung)', () => {
+  // All are experimental BYO-key AI features (no bundled key, no
   // sidecar): pure client code that fails soft with no key, so — unlike
   // ikeaLive/livePrices — they are NOT devOnly and ship in prod, but are
   // pro-tier (hidden in Simple, where the UI stays the minimal core loop).
   it('are pro-tier, ship in prod (no devOnly gate), default on', () => {
-    for (const key of ['aiPhotoreal', 'aiWalls', 'aiLayout', 'aiPlanGenerate'] as const) {
+    for (const key of [
+      'aiPhotoreal',
+      'aiWalls',
+      'aiLayout',
+      'aiPlanGenerate',
+      'aiDesignChat',
+    ] as const) {
       expect(FEATURE_FLAGS[key].tier).toBe('pro')
       expect(FEATURE_FLAGS[key].devOnly).toBeUndefined()
       expect(FEATURE_FLAGS[key].default).toBe(true)
@@ -621,7 +627,13 @@ describe('AI surfaces (aiPhotoreal / aiWalls / aiLayout / aiPlanGenerate — IXT
   })
 
   it('are hidden in Simple mode and present in Pro mode (both build kinds)', () => {
-    for (const key of ['aiPhotoreal', 'aiWalls', 'aiLayout', 'aiPlanGenerate'] as const) {
+    for (const key of [
+      'aiPhotoreal',
+      'aiWalls',
+      'aiLayout',
+      'aiPlanGenerate',
+      'aiDesignChat',
+    ] as const) {
       expect(resolveFlags(false, {}, false, 'simple')[key]).toBe(false)
       expect(resolveFlags(false, {}, false, 'pro')[key]).toBe(true)
       expect(resolveFlags(true, {}, false, 'simple')[key]).toBe(false)

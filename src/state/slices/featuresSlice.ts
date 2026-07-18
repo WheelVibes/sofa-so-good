@@ -118,6 +118,9 @@ export interface FeaturesSlice {
   historyOpen: boolean
   /** Pinned design comments (F24) panel visibility. */
   commentsOpen: boolean
+  /** AI design chat (read-only, BYO-key advisor grounded in the live design)
+   *  panel visibility. */
+  designChatOpen: boolean
   /** Smart Start wizard (pick a style → furnished flat) visibility. */
   smartStartOpen: boolean
   /** GLB Asset Designer (compose/edit a custom asset → catalog) visibility. */
@@ -188,6 +191,7 @@ export interface FeaturesSlice {
   setVersionsOpen: (open: boolean) => void
   setHistoryOpen: (open: boolean) => void
   setCommentsOpen: (open: boolean) => void
+  setDesignChatOpen: (open: boolean) => void
   setSmartStartOpen: (open: boolean) => void
   setGlbDesignerOpen: (open: boolean) => void
   setParametricOpen: (open: boolean) => void
@@ -236,6 +240,7 @@ export const FEATURES_INITIAL = {
   versionsOpen: false,
   historyOpen: false,
   commentsOpen: false,
+  designChatOpen: false,
   smartStartOpen: false,
   glbDesignerOpen: false,
   parametricOpen: false,
@@ -306,6 +311,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setVersionsOpen: (versionsOpen) => set({ versionsOpen }),
   setHistoryOpen: (historyOpen) => set({ historyOpen }),
   setCommentsOpen: (commentsOpen) => set({ commentsOpen }),
+  setDesignChatOpen: (designChatOpen) => set({ designChatOpen }),
   setSmartStartOpen: (smartStartOpen) => set({ smartStartOpen }),
   setGlbDesignerOpen: (glbDesignerOpen) => set({ glbDesignerOpen }),
   setParametricOpen: (parametricOpen) => set({ parametricOpen }),
