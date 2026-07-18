@@ -1170,6 +1170,18 @@ same change that reshapes a system.
   `orientationDeg`); the cover sheet carries a revision-table row + a General notes block with the
   standard SG disclaimers (mm units, don't scale from screen, HDB permit/PE/LEW/LP responsibilities,
   verify on site).
+  **Setting-out & datum dimensioning (TODO G3, `settingOutDims` flag, pro):**
+  `floorplan/settingOut.ts` is the pure core (`datumPoint`/`settingOutDimensions`/
+  `tileSettingOutPoints` — see `floorplan/CLAUDE.md` for the full design rationale:
+  why a fixed datum instead of cumulative chains, the face-offset convention, and why
+  `dimensionChain.ts`'s `projectToBaseline` is reused but `runningDimensions` is not).
+  The dimensioned-plan sheet gets a datum-referenced setting-out row
+  (`autoDimensionSvg.ts`'s `dimensionSvg({settingOut:true})`, same sheet as the
+  existing auto-dims, drawn dashed/further-out so the two never overlap); the
+  floor-plan sheet gets a tile setting-out cross per room + one shared caption
+  (`reportPlanSvg.ts`'s `showTileMarks`, gated to when the finishes sheet is also
+  included). `FloorPlan.datum?: {x,z}` is an additive optional override reserved for
+  a future placement UI (unused by any editor in this pass).
 - **CAD plan exports**: `ui/openDxf.ts` (`export/dxf.ts` `planToDxf`) downloads the plan as an ASCII
   DXF R12 document for a contractor/fabricator CAD handoff (TODO G6): `WALLS`/`ROOMS`/`DOORS`/
   `WINDOWS`/`LABELS` (base geometry) plus `FURNITURE` (each placed item's rotated footprint — the

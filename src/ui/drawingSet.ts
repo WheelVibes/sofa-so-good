@@ -279,6 +279,11 @@ export function buildDrawingSetHtml(
   /** Global North orientation in degrees (`orientationDeg`, same value the 2D
    *  plan compass reads) — drives the north indicator on plan-view sheets. */
   orientationDeg = 0,
+  /** Draw the setting-out datum + running dimensions on the dimensioned-plan
+   *  sheet, plus tile setting-out crosses on the floor-plan sheet
+   *  (`settingOutDims` flag, TODO G3). Default false — existing callers are
+   *  unaffected. */
+  showSettingOut = false,
 ): string {
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
@@ -304,6 +309,10 @@ export function buildDrawingSetHtml(
         return { corners: obbCorners(itemFootprint(it, def)), fill: CATEGORY_COLORS[def.category] }
       })
       .filter((f): f is { corners: [number, number][]; fill: string } => f != null)
+  // Tile setting-out crosses (G3) only make sense alongside the finishes
+  // they refer to — a note pointing at "the floor finish" with no finishes
+  // sheet on the set would be a dangling reference.
+  const showTileMarks = showSettingOut && layerOn(layers, 'finishes') && !!finishes
   for (const level of levels) {
     const levelPlan = levelAsPlan(plan, level)
     const [pw, pd] = planBounds(levelPlan)
@@ -314,6 +323,7 @@ export function buildDrawingSetHtml(
       units,
       footprintsOf(itemsOnLevel(items, level.id)),
       scale.mmPerM,
+      showTileMarks,
     )
     sheets.push({
       name: cap('Floor plan', level),
@@ -382,10 +392,11 @@ export function buildDrawingSetHtml(
       sheets.push({
         name: cap('Dimensioned plan', level),
         body: `<div class="draw">${dimensionSvg(levelPlan, {
-          palette: { ink: '#374151', faint: '#cbd5e1' },
+          palette: { ink: '#374151', faint: '#cbd5e1', datum: '#b91c1c' },
           widthPx: 900,
           units,
           printMmPerM: scale.mmPerM,
+          settingOut: showSettingOut,
         })}</div>${northIndicatorSvg(orientationDeg)}`,
         calloutGroup: 'dimensions',
         scaleLabel: scale.label,

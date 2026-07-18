@@ -1,5 +1,6 @@
 import { doorSwingGeometry } from '../floorplan/doorSwing'
 import { roomLabelPosition } from '../floorplan/roomCentroid'
+import { tileSettingOutPoints } from '../floorplan/settingOut'
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, planRoomArea, wallLength } from '../floorplan/types'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
@@ -15,6 +16,39 @@ const esc = (s: string) =>
 
 const ANN = '#0d9488' // teal — dimension callouts, distinct from the wall strokes
 const NOTE = '#b45309' // amber — free text callouts (matches the drawing-set storey notes)
+const TILE = '#7c3aed' // violet — tile setting-out marks, distinct from both of the above
+
+/** Tile setting-out start-point crosses (TODO G3) — one per room, at its
+ *  centroid (`settingOut.ts:tileSettingOutPoints`). v1-modest: a small cross,
+ *  no grid (there is no tile size/pattern in the model to derive a real grid
+ *  from). The convention note is printed ONCE (`tileSettingOutCaption`, in the
+ *  scale-bar strip) rather than repeated per mark — a small flat can have 8+
+ *  rooms, and a full sentence at every centroid overlapped illegibly with
+ *  neighbouring room labels/furniture in a compact HDB layout. Only drawn when
+ *  the caller opts in (`showTileMarks` — gated to when the finishes sheet is
+ *  ALSO on the drawing set, so the note doesn't appear detached from the
+ *  finishes it refers to). */
+function tileSettingOutSvg(plan: FloorPlan): string {
+  const R = 0.09
+  return tileSettingOutPoints(plan)
+    .map(({ point: [x, z] }) => {
+      const cx = x.toFixed(3)
+      const cz = z.toFixed(3)
+      return (
+        `<line x1="${(x - R).toFixed(3)}" y1="${cz}" x2="${(x + R).toFixed(3)}" y2="${cz}" stroke="${TILE}" stroke-width="0.045"/>` +
+        `<line x1="${cx}" y1="${(z - R).toFixed(3)}" x2="${cx}" y2="${(z + R).toFixed(3)}" stroke="${TILE}" stroke-width="0.045"/>`
+      )
+    })
+    .join('')
+}
+
+/** The tile setting-out convention, printed once (not per-mark — see above). */
+function tileSettingOutCaption(capY: number): string {
+  return (
+    `<text x="0" y="${capY.toFixed(3)}" font-size="0.24" fill="${TILE}">` +
+    `+ Tile setting-out point — start laying here, verify joints on site</text>`
+  )
+}
 
 /** Render the plan's free-text notes (the editor's Text tool, PARITY-DIMTEXT) as
  *  amber text callouts with a small locator dot — so the user's on-plan
@@ -141,6 +175,10 @@ export function reportPlanSvg(
    *  `<svg>` with explicit `width`/`height` in mm instead of leaving it
    *  unsized to stretch to its container — print-true (TODO G2). */
   printMmPerM?: number,
+  /** Draw tile setting-out start-point crosses (TODO G3, `settingOutDims`
+   *  flag) — gated by the caller to when the finishes sheet is ALSO on the
+   *  drawing set. Default false (existing callers are unaffected). */
+  showTileMarks = false,
 ): string {
   // Defensive: a malformed/partial plan (no extent or no walls) yields no
   // diagram rather than throwing.
@@ -180,9 +218,10 @@ export function reportPlanSvg(
     })
     .join('')
 
-  // Extra strip below the plan for a scale bar (standard on architectural plans).
-  const scaleStrip = 0.9
-  const barY = d + pad + scaleStrip * 0.55
+  // Extra strip below the plan for a scale bar (standard on architectural
+  // plans) — taller when the tile setting-out caption also rides in it (G3).
+  const scaleStrip = showTileMarks ? 1.3 : 0.9
+  const barY = d + pad + 0.9 * 0.55
   const vbH = d + pad * 2 + scaleStrip
   const openings = openingsSvg(plan)
   const fullW = w + pad * 2
@@ -196,5 +235,7 @@ export function reportPlanSvg(
     printMmPerM != null
       ? ` style="width:${(fullW * printMmPerM).toFixed(3)}mm;height:${(vbH * printMmPerM).toFixed(3)}mm"`
       : ''
-  return `<svg class="plan-svg"${sizeAttr} viewBox="${-pad} ${-pad} ${fullW.toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${furniture}${walls}${openings}${labels}${notesSvg(plan)}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}</svg>`
+  const tileMarks = showTileMarks ? tileSettingOutSvg(plan) : ''
+  const tileCaption = showTileMarks ? tileSettingOutCaption(barY + 0.55) : ''
+  return `<svg class="plan-svg"${sizeAttr} viewBox="${-pad} ${-pad} ${fullW.toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${furniture}${walls}${openings}${labels}${notesSvg(plan)}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}${tileMarks}${tileCaption}</svg>`
 }

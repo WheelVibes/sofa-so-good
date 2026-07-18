@@ -289,6 +289,19 @@ URL shown as a shortened link for print). Print or save as PDF for
   sheet also prints a concise SG permit-note block (HDB permit required for any
   demolition, PE endorsement when RC is touched, load-bearing elements off-limits,
   classification is user-declared, weekday-only permitted working hours).
+- **Setting-out & datum dimensioning (Pro).** Furniture-plan dimensions are wall-to-
+  wall and fine for design intent, but a contractor sets out partitions from ONE
+  fixed reference point (a structural corner), not cumulative wall-to-wall chains
+  (small errors compound down a chain; a fixed datum doesn't). The **Dimensioned
+  plan** sheet adds a **setting-out row**: a red crosshair-and-triangle
+  **"SETTING-OUT DATUM"** marker at the plan's structural corner (its min-x/min-z
+  external wall corner — the SG-practical default; there's no way to relocate it
+  yet), plus two dashed running-dimension rows (above and to the left of the
+  auto-dims) giving every wall FACE's distance straight from that datum — not the
+  centreline, and not chained wall-to-wall. On the **Floor plan** sheet (when the
+  Finishes schedule is also included), a small violet **+** marks each room's tile
+  setting-out start point (its centre), with a one-line note explaining the
+  convention: **"start laying here, verify joints on site"**.
 - **Electrical/plumbing sheet provenance.** Once you've placed points with the
     floor-plan editor's **MEP** tool (see *Electrical & plumbing points* in the
     Floor plan editor guide), the electrical/plumbing sheets note **"Points as

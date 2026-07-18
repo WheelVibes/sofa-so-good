@@ -273,6 +273,13 @@ export interface FloorPlan {
   /** Persisted plumbing points (MEP layer, G1). Same shape/rules as
    *  `electricalPoints`. Additive + optional. */
   plumbingPoints?: PlanPlumbingPoint[]
+  /** Optional explicit setting-out datum (TODO G3 — SG contractor
+   *  handover), ground storey only. Reserved for a future editor placement
+   *  affordance (not wired to any UI in this pass — see `settingOut.ts`'s
+   *  header for why); absent = the computed min-x/min-z external wall corner
+   *  (`settingOut.ts:datumPoint`), which is what every setting-out plan uses
+   *  in practice. Additive + optional. */
+  datum?: { x: number; z: number }
 }
 
 /** A persistent axis-aligned reference guide: a vertical line at `x = pos`

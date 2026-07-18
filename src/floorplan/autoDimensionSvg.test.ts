@@ -92,3 +92,42 @@ describe('dimensionSvg', () => {
     expect(svg).toContain('</svg>')
   })
 })
+
+describe('dimensionSvg — setting-out row (G3)', () => {
+  it('draws nothing extra when settingOut is unset (default false)', () => {
+    const svg = dimensionSvg(rectPlan(), { palette })
+    expect(svg).not.toContain('SETTING-OUT DATUM')
+  })
+
+  it('draws the datum label + a hand-computed face distance when settingOut is on', () => {
+    const svg = dimensionSvg(rectPlan(), { palette, settingOut: true })
+    expect(svg).toContain('SETTING-OUT DATUM')
+    // The east external wall (x=5, thickness 0.2) faces the datum (x=0) at
+    // 5 − 0.1 = 4.90 m, a running distance FROM the datum.
+    expect(svg).toContain('4.90 m')
+  })
+
+  it('uses the datum palette colour, falling back to ink when absent', () => {
+    const withDatum = dimensionSvg(rectPlan(), {
+      palette: { ...palette, datum: '#ff0011' },
+      settingOut: true,
+    })
+    expect(withDatum).toContain('#ff0011')
+    const withoutDatum = dimensionSvg(rectPlan(), { palette, settingOut: true })
+    expect(withoutDatum).toContain(palette.ink)
+  })
+
+  it('does not throw on an empty (wall-less) plan with settingOut on', () => {
+    const empty: FloorPlan = {
+      id: 'e',
+      name: 'empty',
+      ceilingHeight: 2.8,
+      extent: [0, 0],
+      walls: [],
+      openings: [],
+      rooms: [],
+    }
+    expect(() => dimensionSvg(empty, { palette, settingOut: true })).not.toThrow()
+    expect(dimensionSvg(empty, { palette, settingOut: true })).toContain('SETTING-OUT DATUM')
+  })
+})

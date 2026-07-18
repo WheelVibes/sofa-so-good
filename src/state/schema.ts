@@ -437,6 +437,9 @@ export const FloorPlanZ = z.object({
       }),
     )
     .optional(),
+  // Optional explicit setting-out datum (TODO G3). Optional + additive — no
+  // schema-version bump; absent → the computed default corner.
+  datum: z.object({ x: z.number(), z: z.number() }).optional(),
 })
 
 /** Serialised quote template — all fields optional for backward compatibility.

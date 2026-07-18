@@ -1,16 +1,30 @@
 /**
- * Auto-dimension SVG renderer (feature F15).
+ * Auto-dimension SVG renderer (feature F15) — also hosts the setting-out
+ * dimension row (TODO G3, `settingOutDims` flag) on the SAME sheet.
  *
  * Pure `core → SVG string` step: takes a FloorPlan, builds dimensions via the
  * self-contained core, and emits an SVG that draws the plan walls (thin) plus
  * dimension lines with tick marks and centred labels. All colours are injected
  * by the caller (palette) — nothing theme-specific is hardcoded.
  *
- * Self-contained: imports only `./autoDimension` and `./types`.
+ * **Setting-out row (G3):** the dimensioned-plan sheet is the natural host —
+ * it already draws the auto-dims + the plan walls at the exact scale/padding
+ * a datum-referenced row needs to align with; a brand-new sheet would just
+ * duplicate that wall drawing and scale-picking for one extra row. When
+ * `opts.settingOut` is set this module additionally draws (via
+ * `./settingOut`'s pure `datumPoint`/`settingOutDimensions`): a datum marker
+ * (crosshair + triangle) with a "SETTING-OUT DATUM" label, and two running-
+ * dimension rows (one along the top for X-axis wall faces, one along the left
+ * for Z-axis wall faces) — visually distinct from the existing auto-dims
+ * (dashed, in `palette.datum`) and drawn further outside the plan so the two
+ * layers don't overlap.
+ *
+ * Self-contained: imports only `./autoDimension`, `./settingOut` and `./types`.
  */
 
-import type { UnitSystem } from '../utils/measurement'
+import { formatLength, type UnitSystem } from '../utils/measurement'
 import { buildDimensions, type Dimension } from './autoDimension'
+import { type SettingOutFace, settingOutDimensions } from './settingOut'
 import { type FloorPlan, planBounds } from './types'
 
 interface DimensionSvgPalette {
@@ -18,6 +32,9 @@ interface DimensionSvgPalette {
   ink: string
   /** Muted foreground (plan walls). */
   faint: string
+  /** Setting-out row + datum marker colour (G3). Falls back to `ink` when
+   *  absent, so an existing palette stays valid without opting in. */
+  datum?: string
 }
 
 export interface DimensionSvgOpts {
@@ -30,14 +47,26 @@ export interface DimensionSvgOpts {
    *  `drawingScale.ts:pickDrawingScale`), sizes the returned `<svg>` with
    *  explicit `width`/`height` in mm instead of pixels — print-true (TODO G2). */
   printMmPerM?: number
+  /** Draw the setting-out datum + running dimension rows (`settingOutDims`
+   *  flag, TODO G3). Default false (existing callers are unaffected). */
+  settingOut?: boolean
 }
 
 /** Padding (metres) around the plan bounds so offset dimension lines fit. */
 const PAD = 1.0
+/** Extra padding (metres) when the setting-out row is drawn — it sits further
+ *  outside the plan than the existing auto-dims (`ROW_OFFSET_M` below). */
+const PAD_SETTING_OUT = 1.8
+/** How far outside the plan (metres, world space) the setting-out rows sit —
+ *  further out than the auto-dims' own `DIMENSION_OFFSET` (0.6 m) so the two
+ *  layers never overlap. */
+const ROW_OFFSET_M = 1.3
 /** Tick mark half-length, in pixels. */
 const TICK = 5
 /** Label font size, in pixels. */
 const FONT = 12
+/** Setting-out datum marker radius, in pixels. */
+const DATUM_R = 8
 
 /** Minimal XML-attribute escaping for injected strings/labels. */
 function esc(s: string): string {
@@ -59,7 +88,10 @@ function n(v: number): string {
 export function dimensionSvg(plan: FloorPlan, opts: DimensionSvgOpts): string {
   const { palette } = opts
   const widthPx = opts.widthPx && opts.widthPx > 0 ? opts.widthPx : 800
-  const dims = buildDimensions(plan, opts.units ?? 'metric')
+  const units = opts.units ?? 'metric'
+  const dims = buildDimensions(plan, units)
+  const showSettingOut = opts.settingOut === true
+  const pad = showSettingOut ? PAD_SETTING_OUT : PAD
 
   const [maxX, maxZ] = planBounds(
     plan && typeof plan === 'object'
@@ -72,14 +104,14 @@ export function dimensionSvg(plan: FloorPlan, opts: DimensionSvgOpts): string {
   )
 
   // World extent including padding for the outside dimension lines.
-  const worldW = Math.max(maxX + PAD * 2, 1)
-  const worldH = Math.max(maxZ + PAD * 2, 1)
+  const worldW = Math.max(maxX + pad * 2, 1)
+  const worldH = Math.max(maxZ + pad * 2, 1)
   const scale = widthPx / worldW
   const heightPx = worldH * scale
 
-  // Metre→pixel transform (shift by PAD so the negative-offset lines stay in view).
-  const px = (x: number) => (x + PAD) * scale
-  const py = (z: number) => (z + PAD) * scale
+  // Metre→pixel transform (shift by `pad` so the negative-offset lines stay in view).
+  const px = (x: number) => (x + pad) * scale
+  const py = (z: number) => (z + pad) * scale
 
   const walls = Array.isArray(plan?.walls) ? plan.walls : []
 
@@ -112,8 +144,104 @@ export function dimensionSvg(plan: FloorPlan, opts: DimensionSvgOpts): string {
     parts.push(dimensionMarkup(d, px, py, palette))
   }
 
+  // Setting-out datum + running dimension rows (G3) — a distinct row outside
+  // the auto-dims above, sharing this sheet's exact scale/transform.
+  if (showSettingOut) {
+    parts.push(settingOutMarkup(plan, px, py, palette, units))
+  }
+
   parts.push('</svg>')
   return parts.join('\n')
+}
+
+/** Datum marker + the two running-dimension rows (G3). Drawn in
+ *  `palette.datum` (falls back to `palette.ink`), dashed, further outside the
+ *  plan than the auto-dims so the two layers read distinctly. */
+function settingOutMarkup(
+  plan: FloorPlan,
+  px: (x: number) => number,
+  py: (z: number) => number,
+  palette: DimensionSvgPalette,
+  units: UnitSystem,
+): string {
+  const color = palette.datum ?? palette.ink
+  const set = settingOutDimensions(plan)
+  const parts: string[] = []
+
+  const dx = px(set.datum[0])
+  const dy = py(set.datum[1])
+  parts.push(
+    `<g class="setting-out-datum">` +
+      `<line x1="${n(dx - DATUM_R)}" y1="${n(dy)}" x2="${n(dx + DATUM_R)}" y2="${n(dy)}" stroke="${esc(color)}" stroke-width="1.5"/>` +
+      `<line x1="${n(dx)}" y1="${n(dy - DATUM_R)}" x2="${n(dx)}" y2="${n(dy + DATUM_R)}" stroke="${esc(color)}" stroke-width="1.5"/>` +
+      `<path d="M ${n(dx)} ${n(dy + DATUM_R + 2)} L ${n(dx - 5)} ${n(dy + DATUM_R + 10)} L ${n(dx + 5)} ${n(dy + DATUM_R + 10)} Z" fill="${esc(color)}"/>` +
+      `<text x="${n(dx)}" y="${n(dy + DATUM_R + 24)}" font-size="${FONT}" font-weight="700" text-anchor="middle" fill="${esc(color)}">SETTING-OUT DATUM</text>` +
+      `</g>`,
+  )
+
+  // X-axis row: horizontal running row above the plan (world z = datum.z − ROW_OFFSET_M).
+  if (set.x.length > 0) {
+    parts.push(settingOutRow(set.x, 'x', set.datum, px, py, color, units))
+  }
+  // Z-axis row: vertical running row left of the plan (world x = datum.x − ROW_OFFSET_M).
+  if (set.z.length > 0) {
+    parts.push(settingOutRow(set.z, 'z', set.datum, px, py, color, units))
+  }
+
+  return parts.join('\n')
+}
+
+/** One running-dimension row (all faces along a single axis): a dashed
+ *  baseline spanning the datum → furthest face, a tick + running-distance
+ *  label at the datum ("0") and at every face. */
+function settingOutRow(
+  faces: SettingOutFace[],
+  axis: 'x' | 'z',
+  datum: readonly [number, number],
+  px: (x: number) => number,
+  py: (z: number) => number,
+  color: string,
+  units: UnitSystem,
+): string {
+  const parts: string[] = []
+  if (axis === 'x') {
+    const rowY = py(datum[1] - ROW_OFFSET_M)
+    const xs = [px(datum[0]), ...faces.map((f) => px(f.point[0]))]
+    parts.push(
+      `<line x1="${n(Math.min(...xs))}" y1="${n(rowY)}" x2="${n(Math.max(...xs))}" y2="${n(rowY)}" stroke="${esc(color)}" stroke-width="1" stroke-dasharray="4 3"/>`,
+    )
+    parts.push(vTickLabel(px(datum[0]), rowY, '0', color))
+    for (const f of faces) {
+      parts.push(vTickLabel(px(f.point[0]), rowY, formatLength(f.distance, units), color))
+    }
+  } else {
+    const rowX = px(datum[0] - ROW_OFFSET_M)
+    const ys = [py(datum[1]), ...faces.map((f) => py(f.point[1]))]
+    parts.push(
+      `<line x1="${n(rowX)}" y1="${n(Math.min(...ys))}" x2="${n(rowX)}" y2="${n(Math.max(...ys))}" stroke="${esc(color)}" stroke-width="1" stroke-dasharray="4 3"/>`,
+    )
+    parts.push(hTickLabel(rowX, py(datum[1]), '0', color))
+    for (const f of faces) {
+      parts.push(hTickLabel(rowX, py(f.point[1]), formatLength(f.distance, units), color))
+    }
+  }
+  return parts.join('\n')
+}
+
+/** A short vertical tick on a horizontal baseline, with its label above it. */
+function vTickLabel(cx: number, cy: number, label: string, color: string): string {
+  return (
+    `<line x1="${n(cx)}" y1="${n(cy - TICK)}" x2="${n(cx)}" y2="${n(cy + TICK)}" stroke="${esc(color)}" stroke-width="1"/>` +
+    `<text x="${n(cx)}" y="${n(cy - TICK - 3)}" font-size="${FONT - 2}" text-anchor="middle" fill="${esc(color)}">${esc(label)}</text>`
+  )
+}
+
+/** A short horizontal tick on a vertical baseline, with its label to the left. */
+function hTickLabel(cx: number, cy: number, label: string, color: string): string {
+  return (
+    `<line x1="${n(cx - TICK)}" y1="${n(cy)}" x2="${n(cx + TICK)}" y2="${n(cy)}" stroke="${esc(color)}" stroke-width="1"/>` +
+    `<text x="${n(cx - TICK - 3)}" y="${n(cy)}" font-size="${FONT - 2}" text-anchor="end" dominant-baseline="middle" fill="${esc(color)}">${esc(label)}</text>`
+  )
 }
 
 /** SVG for a single dimension: the line, two end ticks, and a centred label. */

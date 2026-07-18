@@ -1,0 +1,55 @@
+{
+  "name": "setting-out",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "tall-viewport", "viewport": { "width": 1200, "height": 1400 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    {
+      "name": "confirm-flag-on",
+      "eval": "(() => { if (!window.__store.getState().featureFlags.settingOutDims) throw new Error('settingOutDims should default ON in Pro mode') })()"
+    },
+    {
+      "name": "intercept-window-open",
+      "eval": "window.open = () => ({ document: { write(h) { window.__capturedHtml = h }, close() {} }, close() {}, focus() {}, print() {} })"
+    },
+    { "name": "open-file-menu", "click": "button[aria-label=\"File\"]" },
+    { "name": "file-menu-open", "waitFor": { "css": ".menu-item" }, "timeout": 8000 },
+    { "name": "click-drawing-set", "click": { "text": "Drawing set" } },
+    {
+      "name": "drawing-set-captured",
+      "waitFor": {
+        "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 1000"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "assert-setting-out-datum-and-tile-marks",
+      "eval": "(() => { const html = window.__capturedHtml; const need = (re, label) => { if (!re.test(html)) throw new Error('missing: ' + label) }; need(/SETTING-OUT DATUM/, 'setting-out datum label'); need(/Tile setting-out point — start laying here, verify joints on site/, 'tile setting-out note'); window.__scenarioOk = true; })()"
+    },
+    {
+      "name": "verify-a-known-face-distance",
+      "eval": "(() => { const html = window.__capturedHtml; const plan = window.__store.getState().floorPlan; const ext = plan.walls.filter((w) => w.thickness === 'external'); if (!ext.length) throw new Error('no external walls'); let minX = Infinity, minZ = Infinity; for (const w of ext) for (const p of [w.start, w.end]) { if (p[0] < minX) minX = p[0]; if (p[1] < minZ) minZ = p[1] } const datum = [minX, minZ]; const half = (w) => (w.thicknessM ?? (w.thickness === 'external' ? 0.2 : 0.1)) / 2; const wall = ext.find((w) => Math.abs(w.end[1]-w.start[1]) < 1e-6 && Math.abs(w.end[0]-w.start[0]) > 1e-6); if (!wall) throw new Error('no horizontal external wall found'); const centreZ = wall.start[1]; const h = half(wall); const sign = (centreZ - datum[1]) < 0 ? 1 : -1; const faceZ = centreZ + sign * h; const distance = faceZ - datum[1]; const label = distance.toFixed(2) + ' m'; if (!html.includes(label)) throw new Error('expected face distance label not found: ' + label); window.__faceDistanceOk = label; })()"
+    },
+    {
+      "name": "render-captured-for-screenshot",
+      "eval": "document.open(); document.write(window.__capturedHtml); document.close();"
+    },
+    { "name": "shot-cover-sheet", "screenshot": "setting-out-cover-sheet" },
+    {
+      "name": "scroll-to-dimensioned-plan-sheet",
+      "eval": "(() => { const h = [...document.querySelectorAll('.tb-name')].find((e) => e.textContent && e.textContent.includes('Dimensioned plan')); (h ? h.closest('.sheet') || h : document.body).scrollIntoView({ block: 'start' }) })()"
+    },
+    { "name": "shot-dimensioned-plan-sheet", "screenshot": "setting-out-dimensioned-plan-sheet" },
+    {
+      "name": "scroll-to-floor-plan-sheet",
+      "eval": "(() => { const h = [...document.querySelectorAll('.tb-name')].find((e) => e.textContent && /^Floor plan/.test(e.textContent.trim())); (h ? h.closest('.sheet') || h : document.body).scrollIntoView({ block: 'start' }) })()"
+    },
+    { "name": "shot-floor-plan-sheet", "screenshot": "setting-out-floor-plan-sheet" }
+  ]
+}

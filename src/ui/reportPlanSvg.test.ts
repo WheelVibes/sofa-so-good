@@ -112,6 +112,14 @@ describe('reportPlanSvg', () => {
     }
     expect(reportPlanSvg(empty)).toBe('')
   })
+
+  it('draws tile setting-out crosses only when showTileMarks is true (G3)', () => {
+    const plan = buildDefaultPlan()
+    const withoutMarks = reportPlanSvg(plan, [], 'metric', [], undefined, false)
+    expect(withoutMarks).not.toContain('Tile setting-out point')
+    const withMarks = reportPlanSvg(plan, [], 'metric', [], undefined, true)
+    expect(withMarks).toContain('Tile setting-out point — start laying here, verify joints on site')
+  })
 })
 
 describe('scaleBarChoice', () => {

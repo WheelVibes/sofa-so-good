@@ -1683,6 +1683,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Setting-out & datum dimensioning (TODO G3 — SG contractor handover): a
+  // datum marker + running face dimensions from it on the dimensioned-plan
+  // sheet, plus tile setting-out start-point crosses on the floor-plan sheet.
+  // Analytical drawing-set content → pro tier, like the sheet it extends.
+  settingOutDims: {
+    label: 'Setting-out dimensions',
+    description: 'Datum-referenced setting-out dimensions + tile start points on the drawing set',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

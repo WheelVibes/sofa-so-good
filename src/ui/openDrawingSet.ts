@@ -75,6 +75,7 @@ export async function openDrawingSet(): Promise<void> {
       s.drawingCallouts.length ? s.drawingCallouts : undefined,
       s.drawingSetTemplate,
       s.orientationDeg,
+      isFeatureEnabled('settingOutDims'),
     )
   } catch {
     win.close()

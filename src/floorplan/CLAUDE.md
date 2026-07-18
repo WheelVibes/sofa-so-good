@@ -175,3 +175,33 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   provenance note ("Points as designed — heights in mm AFFL" vs the pre-existing indicative
   caveat) and the right `@mm` mount-height suffix beside each symbol (only for points that carry
   one — heuristic-derived points never do).
+- **Setting-out & datum dimensioning (TODO G3, `settingOutDims` Pro flag):
+  `settingOut.ts`** is the ONE pure builder (`datumPoint`/`settingOutDimensions`/
+  `tileSettingOutPoints`) for both the dimensioned-plan sheet's setting-out row and
+  the floor-plan sheet's tile marks — contractors set out from a FIXED datum (a
+  structural/external wall corner), not cumulative wall-to-wall chains (per
+  `docs/research/2026-07-18-contractor-handover-research.md`). `datumPoint` defaults
+  to the plan's min-x/min-z EXTERNAL wall corner (`plan.datum?: {x,z}` is reserved on
+  the schema for a future user-placement UI, unused by any editor in this pass — the
+  computed corner is already the SG-practical answer, so v1 ships it without that
+  extra surface). `settingOutDimensions` offsets each axis-aligned wall's centreline
+  by half its resolved thickness (`planGeometry.ts:planWallThickness` — reused, never
+  re-derived) TOWARD the datum (the face a tape from the datum reaches first), then
+  measures each face's distance directly from the datum via `dimensionChain.ts`'s
+  `projectToBaseline` — **not** that file's `runningDimensions` (which anchors at the
+  smallest INPUT position, not an arbitrary origin; a datum-forming wall's own face
+  can land fractionally before the true datum via the tie-break, so reusing it would
+  silently shift every distance). Curved (`arc`) and diagonal walls are skipped (no
+  single planar face). Rendered on the SAME dimensioned-plan sheet as the existing
+  auto-dims (`autoDimensionSvg.ts`'s `dimensionSvg({settingOut:true})` — chosen over a
+  new sheet because it already draws the plan walls at the exact scale/padding this
+  row needs; a new sheet would just duplicate that), as a dashed datum-coloured row
+  further outside the plan than the auto-dims so the two never overlap.
+  `tileSettingOutPoints` returns one point per room (its centroid, via the shared
+  `roomCentroid.ts:roomLabelPoint` — every room in this model always resolves to SOME
+  floor finish via `roomFinishes.ts`'s default-oak fallback, so there's no real
+  "has no floor" state to filter on) — rendered on the **floor-plan** sheet
+  (`reportPlanSvg.ts`'s `showTileMarks` param, gated by the caller to when the
+  Finishes schedule sheet is ALSO included) as a small cross per room + ONE shared
+  caption in the scale-bar strip (not repeated per mark — a full sentence at every
+  centroid overlapped illegibly in a compact multi-room HDB layout).

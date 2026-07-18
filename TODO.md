@@ -11,10 +11,6 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 > `docs/research/2026-07-18-contractor-handover-research.md` (canonical drawing set, conventions,
 > SG/HDB specifics). Audit verdict (2026-07-18): geometry engine + drawing-set scaffolding are
 > ~70-80% there; gaps concentrated below, ranked by contractor credibility impact.
-- [ ] **G3 — Setting-out & datum dimensioning.** Walls are centerline-modeled with no datum
-  concept. Add face-of-wall dimension option + a per-plan datum (default: a structural/external
-  wall corner) with chain dimensions from the datum (not cumulative) on the floor-plan sheet;
-  tile setting-out marks on the finishes sheet (start point + joint direction per room).
 - [ ] **G8 — Carpentry/joinery elevations+sections.** Most-cited DIY gap: per built-in piece
   (wardrobe/kitchen run/parametric items), generate a dimensioned front elevation + one section
   at 1:20 with internal dimensions (shelf heights, carcass depths) from the parametric spec.

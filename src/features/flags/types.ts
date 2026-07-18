@@ -184,6 +184,7 @@ export type FeatureFlag =
   | 'shareCardNative'
   | 'itemMeta'
   | 'mepEditor'
+  | 'settingOutDims'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

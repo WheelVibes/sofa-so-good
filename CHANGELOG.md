@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.51 — G3: setting-out datum + running dimensions + tile marks
+
+`settingOutDims` (pro): the Dimensioned-plan sheet gains a datum marker
+(crosshair + "SETTING-OUT DATUM", default = the plan's min external wall
+corner, `plan.datum` override persisted) and two dashed running-dimension
+rows — each axis-aligned wall FACE's distance measured directly from the
+datum (half-thickness offset toward the datum side; running dims, not
+cumulative chains, so on-site marking-out can't compound errors; via
+`projectToBaseline`, deliberately not `runningDimensions` whose anchor can
+drift off the true datum). Floor-plan sheet gains a tile setting-out cross
+per textured room (centroid convention) + ONE shared caption — the per-mark
+note repeated illegibly on a compact HDB plan, caught and fixed via the
+scenario. Pure `settingOut.ts`; 823 targeted tests + 19-step scenario with
+a live hand-computed face-distance check.
+
 ## v0.22.2.50 — G7: SG hacking-plan hardening (wall classification + permit notes)
 
 `PlanWall.structure` (load-bearing / RC partition / brick partition / drywall

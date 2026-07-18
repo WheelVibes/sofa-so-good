@@ -120,6 +120,65 @@ describe('buildDrawingSetHtml', () => {
     expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)).not.toContain('Finishes schedule')
   })
 
+  it('draws the setting-out datum + tile marks only when showSettingOut is on AND finishes are supplied (G3)', () => {
+    const finishes = {
+      floor: { livingDining: 'floor-wood-oak' },
+      walls: { livingDining: 'wall-paint-white' },
+    }
+    const withFlag = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      finishes,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      true,
+    )
+    expect(withFlag).toContain('SETTING-OUT DATUM')
+    expect(withFlag).toContain('Tile setting-out point — start laying here, verify joints on site')
+
+    // Flag off (default) → neither.
+    const withoutFlag = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      finishes,
+    )
+    expect(withoutFlag).not.toContain('SETTING-OUT DATUM')
+    expect(withoutFlag).not.toContain('Tile setting-out point')
+
+    // Flag on but no finishes sheet on the set → the datum row still draws
+    // (it lives on the dimensioned-plan sheet, unrelated to finishes), but
+    // the tile marks (which reference the finishes sheet) don't.
+    const noFinishes = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      true,
+    )
+    expect(noFinishes).toContain('SETTING-OUT DATUM')
+    expect(noFinishes).not.toContain('Tile setting-out point')
+  })
+
   it('includes a demolition sheet only when the plan diverged from its baseline', () => {
     const baseline = plan
     const hacked = { ...plan, walls: plan.walls.slice(0, -1) }
