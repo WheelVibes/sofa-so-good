@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.45 — G9: drawing-set FF&E sheet gains item-metadata columns
+
+The FF&E schedule sheet now shows Unit/Total prices (previously missing —
+report parity) plus the conditional Brand/Model/Supplier/URL/Remarks and
+per-custom-key columns, all from the shared `buildFfeSchedule` rows +
+`customMetaColumns` (imported from ffeCsv — one source of truth, no
+re-derivation). URLs print as a shortened host+path (34-char cap; the CSV
+keeps the full URL) so a query string can't blow out the fixed-width sheet.
+Price override verified through the shared `itemPrice()` path by test, not
+re-implemented. 53 tests + 16-step scenario (captured HTML shows Brand/
+Warranty headers, values, shortened URL; raw query string proven absent).
+
 ## v0.22.2.44 — G4: contractor-grade finish schedule (codes, net areas, totals)
 
 `buildFinishSchedule` rewritten: per-room floor/wall/ceiling rows with stable

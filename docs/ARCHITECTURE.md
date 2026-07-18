@@ -1098,15 +1098,20 @@ same change that reshapes a system.
   URL validated http/https on blur via `itemMetaValidation.ts`). `meta.price` is the one field read by
   `furniture/furniturePrices.ts:itemPrice` (the single price-resolution choke-point — every consumer
   passes it through) as a per-instance override, ahead of the IKEA-variant/user-def/category fallback.
-  `ffeSchedule.ts`/`ffeCsv.ts`/`report.ts`'s FF&E table gain Brand/Model/Supplier/URL/Remarks columns
-  (and `ui/shoplist.ts`'s line URL) only when any item carries them; two instances with differing
-  meta/price never silently aggregate into one line. `meta.custom?: {key,value}[]` (arbitrary
-  user-defined fields, ordered, ≤20 entries/key≤40/value≤500 chars — clamped not rejected on
-  import + in the setter, `furniture/itemMetaLimits.ts:clampCustomMetaEntries`, shared by
-  `schema.ts` and `itemsSlice.ts`) adds a "Custom fields" add/remove-row sub-list to
-  `ItemMetaSection.tsx`; each DISTINCT key across the FF&E schedule becomes its own alphabetical
-  CSV/report column (`ffeCsv.ts:customMetaColumns`) — shoplist/the report's other tables are
-  untouched by `custom`.
+  `ffeSchedule.ts`/`ffeCsv.ts`/`report.ts`'s FF&E table AND `drawingSet.ts`'s FF&E sheet (G9 — the
+  latter renders the SAME `FfeRow[]` from `buildFfeSchedule`, no metadata re-derived) gain
+  Brand/Model/Supplier/URL/Remarks columns (and `ui/shoplist.ts`'s line URL) only when any item
+  carries them; two instances with differing meta/price never silently aggregate into one line.
+  `meta.custom?: {key,value}[]` (arbitrary user-defined fields, ordered, ≤20 entries/key≤40/
+  value≤500 chars — clamped not rejected on import + in the setter,
+  `furniture/itemMetaLimits.ts:clampCustomMetaEntries`, shared by `schema.ts` and
+  `itemsSlice.ts`) adds a "Custom fields" add/remove-row sub-list to `ItemMetaSection.tsx`; each
+  DISTINCT key across the FF&E schedule becomes its own alphabetical CSV/report/drawing-set column
+  (`ffeCsv.ts:customMetaColumns`, reused by `drawingSet.ts` — never a second key-collection pass) —
+  shoplist/the report's other tables are untouched by `custom`. `drawingSet.ts`'s sheet is a
+  fixed-width printed page (not a scrollable table), so its URL column shows a shortened
+  host+path display string (`drawingSet.ts:shortUrl`) instead of the full link — the CSV export
+  is the reference copy of the untouched URL.
   **Cost breakdown CSV** (`export/costBreakdownCsv.ts` pure `buildCostBreakdown`/`buildCostBreakdownCsv` →
   one sectioned RFC-4180 CSV reconciling Furniture-by-category (qty + subtotal via `itemPrice`) +
   Renovation/finishes lines (floor/wall area × the `renovationCost` rate table via `estimateRenovation`

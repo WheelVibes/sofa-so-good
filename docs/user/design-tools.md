@@ -208,7 +208,9 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   a schedule of type/quantity/height/intensity and a per-room **estimated light
   level** table — lux vs the recommended range, statused OK/Low/High), an **FF&E schedule** (the
   item-level procurement table — room, item, source, SKU, size W×D×H, quantity,
-  unit + line price), a **renovation estimate** (indicative flooring + painting
+  unit + line price, plus Brand/Model/Supplier/URL/Remarks and any custom fields
+  you've added to a piece, each shown only once at least one item carries it),
+  a **renovation estimate** (indicative flooring + painting
   supply‑and‑install cost per finish, with a combined furniture + finishes
   total), **HDB compliance hints** (non‑binding renovation advisories — likely
   structural walls, wet‑area waterproofing, facade windows; on a multi‑storey
@@ -235,7 +237,9 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   ⌘K — it shares the Report toggle, so it's available whenever the Report is.
 - **Drawing set** — a formal, paginated **plan set** (A4 landscape by default, one
   drawing per sheet with title blocks): cover + sheet index, floor plan, each wall
-  elevation, the lighting plan, the finish schedule (above), and the FF&E schedule. Print or save as PDF for
+  elevation, the lighting plan, the finish schedule (above), and the FF&E schedule (the
+same Brand/Model/Supplier/URL/Remarks + custom-field columns as the Report, with the
+URL shown as a shortened link for print). Print or save as PDF for
   builders and permits — the multi-sheet counterpart to the one-page Report. Use the
   **Include sheets** checklist under it to pick exactly which sheets go in — e.g. a
   clean client copy with no electrical/plumbing/demolition, or a full builder copy

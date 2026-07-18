@@ -11,6 +11,7 @@ import { obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
 import { projectAllElevations } from '../elevation/projectElevation'
 import { DEFAULT_DRAWING_SET_TEMPLATE, type DrawingSetTemplate } from '../export/drawingSetTemplate'
+import { customMetaColumns } from '../export/ffeCsv'
 import { buildFfeSchedule } from '../ffe/ffeSchedule'
 import { dimensionSvg } from '../floorplan/autoDimensionSvg'
 import { diffWalls, diffWallsByLevel } from '../floorplan/demolitionPlan'
@@ -55,6 +56,7 @@ import {
   lightingPlanSvg,
   roomLuxTableHtml,
 } from './lighting2d/lightingPlanSvg'
+import { sgd } from './report/reportShared'
 import { reportPlanSvg } from './reportPlanSvg'
 
 const ELEV_PRINT: ElevationPalette = {
@@ -71,6 +73,26 @@ const esc = (s: string) =>
     /[&<>"']/g,
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c,
   )
+
+/**
+ * Print-oriented display string for a possibly-long ITEM-META product URL
+ * (host + path, no protocol/query) — the drawing set's FF&E sheet is a
+ * fixed-width printed page (not a scrollable table like the report/CSV), so a
+ * full URL would blow out the column and wrap awkwardly on paper. The CSV
+ * export (`export/ffeCsv.ts`) remains the reference copy of the untouched
+ * URL; this is display-only.
+ */
+function shortUrl(raw: string, max = 34): string {
+  if (!raw) return ''
+  let display = raw
+  try {
+    const u = new URL(raw)
+    display = `${u.hostname.replace(/^www\./, '')}${u.pathname}`.replace(/\/$/, '')
+  } catch {
+    // Not a valid absolute URL — fall back to truncating the raw string.
+  }
+  return display.length > max ? `${display.slice(0, max - 1)}…` : display
+}
 
 interface Sheet {
   /** Sheet number, e.g. "A-1" — assigned sequentially once all sheets exist. */
@@ -510,18 +532,46 @@ export function buildDrawingSetHtml(
     }
   }
 
-  // FF&E schedule.
+  // FF&E schedule — reuses the exact `FfeRow[]` the report + CSV export build
+  // from (`buildFfeSchedule`; no metadata re-derived here so the three
+  // outputs can't drift). Unit/Total already reflect a per-instance price
+  // override (ITEM-META `meta.price`, resolved by `itemPrice()`) transparently.
+  // Brand/Model/Supplier/URL/Remarks are appended as ONE conditional block —
+  // only when at least one row carries any of them (mirrors
+  // `report.ts`'s ffeMetaHead/ffeMetaCell) — and each distinct user-defined
+  // custom-field key becomes one more trailing column, in the SAME
+  // alphabetical order as the CSV (`export/ffeCsv.ts`'s `customMetaColumns`).
+  // Print-width guard: the sheet is a fixed-width printed page, not a
+  // scrollable table, so the URL column shows a shortened host+path display
+  // string (`shortUrl`) rather than the full link — the CSV keeps the
+  // untouched URL.
   const ffe = layerOn(layers, 'ffe') ? buildFfeSchedule(plan, items, catalog) : []
   if (ffe.length) {
     const dim = (n: number) => esc(formatLength(n, units))
+    const ffeWithMeta = ffe.some((r) => r.url || r.remarks || r.brand || r.model || r.supplier)
+    const ffeMetaHead = ffeWithMeta
+      ? '<td>Brand</td><td>Model</td><td>Supplier</td><td>URL</td><td>Remarks</td>'
+      : ''
+    const ffeMetaCell = (r: (typeof ffe)[number]) =>
+      ffeWithMeta
+        ? `<td>${esc(r.brand)}</td><td>${esc(r.model)}</td><td>${esc(r.supplier)}</td><td>${esc(shortUrl(r.url))}</td><td>${esc(r.remarks)}</td>`
+        : ''
+    const customCols = customMetaColumns(ffe)
+    const customHead = customCols.map((k) => `<td>${esc(k)}</td>`).join('')
+    const customCell = (r: (typeof ffe)[number]) =>
+      customCols.map((k) => `<td>${esc(r.custom[k] ?? '')}</td>`).join('')
     sheets.push({
       name: 'FF&E schedule',
-      body: `<table class="sched"><tr class="h"><td>Room</td><td>Item</td><td>Source</td><td>SKU</td><td>Size (W×D×H)</td><td class="n">Qty</td></tr>${ffe
+      body: `<table class="sched"><tr class="h"><td>Room</td><td>Item</td><td>Source</td><td>SKU</td><td>Size (W×D×H)</td><td class="n">Qty</td><td class="n">Unit</td><td class="n">Total</td>${ffeMetaHead}${customHead}</tr>${ffe
         .map(
           (r) =>
-            `<tr><td>${esc(r.room)}</td><td>${esc(r.name)}</td><td>${esc(r.source)}</td><td>${esc(r.sku || '—')}</td><td>${dim(r.w)} × ${dim(r.d)} × ${dim(r.h)}</td><td class="n">${r.qty}</td></tr>`,
+            `<tr><td>${esc(r.room)}</td><td>${esc(r.name)}</td><td>${esc(r.source)}</td><td>${esc(r.sku || '—')}</td><td>${dim(r.w)} × ${dim(r.d)} × ${dim(r.h)}</td><td class="n">${r.qty}</td><td class="n">${sgd(r.unit)}</td><td class="n">${sgd(r.total)}</td>${ffeMetaCell(r)}${customCell(r)}</tr>`,
         )
-        .join('')}</table>`,
+        .join('')}<tr class="h"><td colspan="7">Total</td><td class="n">${sgd(
+        ffe.reduce((s, r) => s + r.total, 0),
+      )}</td>${ffeWithMeta ? '<td></td><td></td><td></td><td></td><td></td>' : ''}${customCols
+        .map(() => '<td></td>')
+        .join('')}</tr></table>`,
       calloutGroup: 'ffe',
       scaleLabel: NTS,
     })

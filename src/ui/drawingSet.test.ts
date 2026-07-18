@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_DRAWING_SET_TEMPLATE } from '../export/drawingSetTemplate'
+import { customMetaColumns } from '../export/ffeCsv'
+import { buildFfeSchedule } from '../ffe/ffeSchedule'
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import { wallLength } from '../floorplan/types'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
@@ -116,6 +118,69 @@ describe('buildDrawingSetHtml', () => {
     expect(html).toContain('Sheet index')
     expect(html).toContain('Floor plan') // the plan sheet always renders
     expect(html).not.toContain('FF&amp;E schedule') // no furniture → no FF&E sheet
+  })
+
+  describe('FF&E schedule ITEM-META columns (G9)', () => {
+    it('omits the Brand/Model/Supplier/URL/Remarks + custom-key columns when no item carries meta', () => {
+      const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+      expect(html).toContain('FF&amp;E schedule')
+      expect(html).not.toContain('<td>Brand</td>')
+      expect(html).not.toContain('<td>Supplier</td>')
+    })
+
+    it('adds the conditional meta columns + values once an item carries ITEM-META', () => {
+      const withMeta = [
+        {
+          ...items[0],
+          meta: {
+            brand: 'Acme Co',
+            model: 'AC-100',
+            supplier: 'Acme Distribution',
+            url: 'https://www.example.com/products/ac-100?ref=spec',
+            remarks: 'client to purchase',
+            custom: [
+              { key: 'Warranty', value: '5 years' },
+              { key: 'Finish code', value: 'RAL 9010' },
+            ],
+          },
+        },
+        ...items.slice(1),
+      ]
+      const html = buildDrawingSetHtml(plan, withMeta, BUILTIN_CATALOG)
+      expect(html).toContain('<td>Brand</td>')
+      expect(html).toContain('<td>Model</td>')
+      expect(html).toContain('<td>Supplier</td>')
+      expect(html).toContain('<td>URL</td>')
+      expect(html).toContain('<td>Remarks</td>')
+      expect(html).toContain('Acme Co')
+      expect(html).toContain('AC-100')
+      expect(html).toContain('Acme Distribution')
+      expect(html).toContain('client to purchase')
+      // Custom-key column headers appear, alphabetically ordered — the same
+      // rule + order as the CSV export's `customMetaColumns`.
+      const rows = buildFfeSchedule(plan, withMeta, BUILTIN_CATALOG)
+      const cols = customMetaColumns(rows)
+      expect(cols).toEqual(['Finish code', 'Warranty'])
+      const findColIdx = html.indexOf('<td>Finish code</td>')
+      const warrantyIdx = html.indexOf('<td>Warranty</td>')
+      expect(findColIdx).toBeGreaterThan(-1)
+      expect(warrantyIdx).toBeGreaterThan(findColIdx) // alphabetical: Finish code before Warranty
+      expect(html).toContain('5 years')
+      expect(html).toContain('RAL 9010')
+      // Print-width guard: the sheet shows a shortened host+path display, not
+      // the full URL with its query string.
+      expect(html).toContain('example.com/products/ac-100')
+      expect(html).not.toContain('ref=spec')
+    })
+
+    it('reflects a per-instance price override (shared pricing path, not re-implemented)', () => {
+      const overridden = [{ ...items[0], meta: { price: 987 } }, ...items.slice(1)]
+      const html = buildDrawingSetHtml(plan, overridden, BUILTIN_CATALOG)
+      const rows = buildFfeSchedule(plan, overridden, BUILTIN_CATALOG)
+      const row = rows.find((r) => r.unit === 987)
+      expect(row).toBeTruthy()
+      expect(html).toContain('$987')
+    })
   })
 
   it('escapes the plan name (no markup injection)', () => {

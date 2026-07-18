@@ -34,14 +34,6 @@ when an item ships it is **removed from this file entirely**. Maintainability re
   at 1:20 with internal dimensions (shelf heights, carcass depths) from the parametric spec.
 - *(Precision substrate, ride-along: mm display precision option in `measurement.ts`; bbox
   footprint caveat already tracked under Risks.)*
-- [ ] **G9 — Drawing-set FF&E sheet gains ITEM-META columns.** The report/CSV FF&E tables
-  (`ffeSchedule.ts`/`ffeCsv.ts`/`report.ts`) and the shopping list (`ui/shoplist.ts`) already
-  surface a placed item's custom URL/price/brand/model/supplier/remarks (`meta`, `itemMeta`
-  flag). `ui/drawingSet.ts`/`openDrawingSet.ts`'s own FF&E sheet was intentionally left untouched
-  (another agent was editing it concurrently) — it should pick up the same conditional Brand/
-  Model/Supplier/URL/Remarks columns (mirroring `report.ts`'s `ffeMetaHead`/`ffeMetaCell` pattern)
-  as a follow-up.
-
 > Direction (user, 2026-07-01): prioritise the **core interior-design loop + its UX,
 > discoverability, customizability** (furnish, arrange, finish, view) on desktop **and** mobile,
 > researching `REFERENCES.md`; then reliability/edge-cases, a11y, and test-coverage hardening.
