@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.48 — G1 complete (PR 4+5): Suggest MEP points + as-designed sheets
+
+"Suggest MEP points" (Plan ▾ menu + mobile, mepEditor-gated) seeds a starting
+layout from furniture+doors via ONE shared heuristic (`furniture/mepSuggest.ts`
+— moved verbatim from openDrawingSet, which imports it for the fallback so the
+two can never drift), dedupes against existing points, assigns default AFFL
+heights, one undo step. The electrical/plumbing sheets now PREFER persisted
+points (heuristic only when a family is empty), print "@1200"-style mount
+heights + a "Heights in mm AFFL" legend, and carry a provenance note: "Points
+as designed" vs the amber indicative caveat (params bundled as {points,
+source}). 964 tests across the touched sweep + two scenarios (suggest rerun
+adds 0; captured drawing-set HTML shows the provenance + height suffix).
+**G1 shipped end-to-end** — the largest contractor-handover gap closed:
+points are designed, edited, and printed, no longer export-time fakes.
+
 ## v0.22.2.47 — Fix: two handover-accuracy bugs (bug-hunt findings)
 
 Adversarial review of v0.22.2.39-46 found two real defects, both fixed with

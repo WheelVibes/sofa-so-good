@@ -41,6 +41,24 @@ describe('plumbingSvg', () => {
     expect(svg).not.toContain('<WC>')
   })
 
+  it('renders an "@mm" mount-height suffix + a legend line when a point carries one (MEP layer, G1 PR5)', () => {
+    const svg = plumbingSvg(
+      plan,
+      buildPlumbingPlan(plan, [{ x: 1, z: 1, kind: 'water-point', mountHeightMm: 600 }]),
+      { palette },
+    )
+    expect(svg).toContain('@600')
+    expect(svg).toContain('Heights in mm AFFL')
+  })
+
+  it('omits the height legend line when no point carries a mount height', () => {
+    const svg = plumbingSvg(plan, buildPlumbingPlan(plan, [{ x: 1, z: 1, kind: 'water-point' }]), {
+      palette,
+    })
+    expect(svg).not.toContain('Heights in mm AFFL')
+    expect(svg).not.toMatch(/@\d/)
+  })
+
   it('shows an empty-state legend when there are no points', () => {
     const svg = plumbingSvg(plan, buildPlumbingPlan(plan, []), { palette })
     expect(svg).toContain('No plumbing points')

@@ -57,7 +57,10 @@ describe('buildDrawingSetHtml', () => {
       { x: 1, z: 1, kind: 'socket' as const },
       { x: 2, z: 1, kind: 'switch' as const },
     ]
-    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG, 'metric', undefined, points)
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG, 'metric', undefined, {
+      points,
+      source: 'heuristic',
+    })
     expect(html).toContain('Electrical plan')
     // No points → no electrical sheet.
     expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)).not.toContain('Electrical plan')
@@ -68,19 +71,33 @@ describe('buildDrawingSetHtml', () => {
       { x: 1, z: 1, kind: 'water-point' as const },
       { x: 2, z: 1, kind: 'floor-trap' as const },
     ]
-    const html = buildDrawingSetHtml(
-      plan,
-      items,
-      BUILTIN_CATALOG,
-      'metric',
-      undefined,
-      undefined,
-      plumbing,
-    )
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG, 'metric', undefined, undefined, {
+      points: plumbing,
+      source: 'heuristic',
+    })
     expect(html).toContain('Plumbing plan')
     expect(html).toContain('Floor trap')
     // No points → no plumbing sheet.
     expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)).not.toContain('Plumbing plan')
+  })
+
+  it('shows the "as designed" provenance note for persisted points and the indicative caveat for the heuristic fallback', () => {
+    const points = [{ x: 1, z: 1, kind: 'socket' as const, mountHeightMm: 1200 }]
+    const persisted = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG, 'metric', undefined, {
+      points,
+      source: 'persisted',
+    })
+    expect(persisted).toContain('Points as designed')
+    expect(persisted).toContain('@1200')
+    expect(persisted).toContain('Heights in mm AFFL')
+    expect(persisted).not.toContain('Indicative — derived from the furniture layout')
+
+    const heuristic = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG, 'metric', undefined, {
+      points,
+      source: 'heuristic',
+    })
+    expect(heuristic).toContain('Indicative — derived from the furniture layout')
+    expect(heuristic).not.toContain('Points as designed')
   })
 
   it('includes a finishes schedule when finishes are supplied', () => {
@@ -260,7 +277,10 @@ describe('buildDrawingSetHtml — multi-storey fan-out (F13)', () => {
       { x: 1, z: 1, kind: 'socket' as const },
       { x: 2, z: 2, kind: 'aircon' as const, levelId: 'up' },
     ]
-    const html = buildDrawingSetHtml(multi, [], BUILTIN_CATALOG, 'metric', undefined, points)
+    const html = buildDrawingSetHtml(multi, [], BUILTIN_CATALOG, 'metric', undefined, {
+      points,
+      source: 'heuristic',
+    })
     expect(html).toContain('Electrical plan — Ground floor')
     expect(html).toContain('Electrical plan — Upper storey')
   })

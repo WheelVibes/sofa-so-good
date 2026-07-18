@@ -1,0 +1,21 @@
+{
+  "name": "plan-mep-suggest",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+
+    { "name": "place-furniture", "eval": "(() => { const s=window.__store.getState(); s.setItems([{ id:'suggest-desk', defId:'desk', position:[3.5,1.2], rotation:0, props:{} }, { id:'suggest-wc', defId:'toilet', position:[7.5,4.2], rotation:0, props:{} }]); })()" },
+
+    { "name": "suggest-points", "eval": "window.__store.getState().suggestMepPoints()" },
+    { "name": "points-present", "waitFor": { "store": "(state.floorPlan.electricalPoints||[]).length > 0 && (state.floorPlan.plumbingPoints||[]).length > 0" } },
+    { "name": "shot-symbols", "screenshot": "mep-suggest-symbols" },
+
+    { "name": "rerun-suggest", "eval": "window.__rerunSuggestCounts = window.__store.getState().suggestMepPoints()" },
+    { "name": "rerun-adds-nothing", "waitFor": { "store": "window.__rerunSuggestCounts.electrical === 0 && window.__rerunSuggestCounts.plumbing === 0" } }
+  ]
+}

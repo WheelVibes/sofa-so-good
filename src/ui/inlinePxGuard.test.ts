@@ -54,6 +54,9 @@ const GRANDFATHERED = new Set<string>([
   'floorplan/editor/layers/AnnotationsLayer.tsx',
   'floorplan/editor/layers/DimensionsLayer.tsx',
   'floorplan/editor/layers/FurnitureLayer.tsx',
+  // MEP glyph text sizes are SVG user units inside the zooming plan canvas
+  // (same class as the sibling layers above), not CSS px.
+  'floorplan/editor/layers/MepLayer.tsx',
   'floorplan/editor/layers/NotesLayer.tsx',
   'floorplan/editor/layers/TourStopsLayer.tsx',
   'glbEditor/GlbDesignerDialog.tsx',

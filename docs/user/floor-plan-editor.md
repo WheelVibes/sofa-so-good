@@ -232,11 +232,19 @@ the exported sheets:
 - The **MEP** toggle in the **View ▾** menu shows/hides the points layer
   (shown by default); <kbd>Delete</kbd>/<kbd>Backspace</kbd> removes the
   selected point.
+- Don't want to place every point by hand? **Plan ▾ → Suggest MEP points**
+  (also in the phone Plan-tools sheet) looks at your placed furniture and
+  doors and adds a starting layout — a socket by every appliance, a switch
+  just inside each door, a soil pipe + water point at the WC, and so on —
+  then tells you how many electrical + plumbing points it added. Run it again
+  any time you add more furniture; it skips anything it's already suggested.
+  Drag any point afterwards to fine-tune its exact position.
 
 *(Pro tools are hidden in Simple mode — switch to Pro from the mode toggle to
-use them. The exported Electrical/Plumbing plan sheets still use the
-furniture-based estimate for now — points authored here feeding those sheets
-is planned.)*
+use them. The exported Electrical/Plumbing plan sheets now use the points you
+place here once you've authored any — printing your chosen mount height
+beside each symbol as an "@1200"-style suffix, with a plan that has none yet
+falling back to the furniture-based estimate, marked "indicative".)*
 
 ## Levels (storeys)
 

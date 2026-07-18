@@ -2126,6 +2126,34 @@ export function FloorPlanEditor() {
           </button>
         </>
       ) : null}
+      {/* Derive a starting electrical + plumbing layout from the current
+          furniture + doors (MEP layer, G1 PR4), gated by `mepEditor` (pro,
+          hidden in Simple). One undoable action; the drawing-set export uses
+          the same heuristic as its fallback until points are authored. */}
+      {fMep ? (
+        <button
+          type="button"
+          onClick={() => {
+            const { electrical, plumbing } = a.suggestMepPoints()
+            if (electrical === 0 && plumbing === 0) {
+              a.notify.start({
+                title: 'No new MEP points to suggest',
+                kind: 'info',
+                message: 'Everything the current layout implies has already been added.',
+              })
+            } else {
+              a.notify.start({
+                title: `Added ${electrical} electrical + ${plumbing} plumbing points`,
+                message: 'Drag to refine.',
+              })
+            }
+          }}
+          title="Derive a starting electrical + plumbing layout from the current furniture and doors"
+          className="btn btn-sm"
+        >
+          Suggest MEP points
+        </button>
+      ) : null}
       {/* Reference photo — trace walls over a floor-plan image / room scan.
           Gated by the `planTraceBackdrop` pro flag (hidden in Simple mode). */}
       {fTraceBackdrop && (

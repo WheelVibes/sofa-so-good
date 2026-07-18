@@ -270,6 +270,13 @@ URL shown as a shortened link for print). Print or save as PDF for
     PE endorsement when RC elements are touched, EMA-licensed electrician (LEW) for
     electrical work, PUB-licensed plumber for plumbing, and verify all dimensions
     on site.
+  - **Electrical/plumbing sheet provenance.** Once you've placed points with the
+    floor-plan editor's **MEP** tool (see *Electrical & plumbing points* in the
+    Floor plan editor guide), the electrical/plumbing sheets note **"Points as
+    designed — heights in mm AFFL"** and print your chosen mount height beside
+    each symbol (e.g. **"@1200"**), plus a "Heights in mm AFFL" legend line. A plan
+    with no authored points yet falls back to the furniture-based estimate, noted
+    **"Indicative — derived from the furniture layout; verify on site"**.
 - **Sheet callouts** (Pro) — **Tools → Sheet callouts** opens the callout panel.
   Add free-text annotations that appear on a specific sheet when the drawing set
   is exported: type your note (e.g. "GL = 0.00", "Contractor to verify on site"),

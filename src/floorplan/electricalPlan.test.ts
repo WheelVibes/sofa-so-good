@@ -99,6 +99,17 @@ describe('buildElectricalPlan', () => {
     expect(out.points[0].label).toBe('fridge')
     expect(electricalKindLabel('tv-point')).toBe('TV point')
   })
+
+  it('carries a persisted mountHeightMm through the clean-copy build loop (MEP layer, G1 PR5)', () => {
+    const out = buildElectricalPlan(plan(box), [
+      { x: 1, z: 1, kind: 'socket', mountHeightMm: 1200 },
+      { x: 2, z: 1, kind: 'switch' },
+      { x: 3, z: 1, kind: 'data', mountHeightMm: Number.NaN },
+    ])
+    expect(out.points[0].mountHeightMm).toBe(1200)
+    expect(out.points[1].mountHeightMm).toBeUndefined()
+    expect(out.points[2].mountHeightMm).toBeUndefined()
+  })
 })
 
 describe('buildElectricalPlan — level tags (F13)', () => {

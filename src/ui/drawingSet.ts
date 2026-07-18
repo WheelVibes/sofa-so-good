@@ -94,6 +94,18 @@ function shortUrl(raw: string, max = 34): string {
   return display.length > max ? `${display.slice(0, max - 1)}…` : display
 }
 
+/** Provenance of a MEP sheet's points (MEP layer, G1 PR5): `'persisted'` when
+ *  drawn from the user's own authored `electricalPoints`/`plumbingPoints`
+ *  (heights are real — the sheet carries "as designed" wording), `'heuristic'`
+ *  when derived from the furniture-layout fallback (`mepSuggest.ts`, no
+ *  authored heights — the sheet carries the existing "indicative, verify on
+ *  site" caveat). Bundled with the points array (rather than a 13th/14th
+ *  positional `buildDrawingSetHtml` param) per the MEP layer plan. */
+interface MepPointsInput<T> {
+  points: T[]
+  source: 'persisted' | 'heuristic'
+}
+
 interface Sheet {
   /** Sheet number, e.g. "A-1" — assigned sequentially once all sheets exist. */
   num?: string
@@ -160,6 +172,14 @@ function northIndicatorSvg(orientationDeg: number): string {
 /** Small storey note rendered above a sheet's drawing (print inks). */
 const storeyNote = (text: string) =>
   `<div style="color:#b45309;font-weight:600;font-size:12px">${esc(text)}</div>`
+
+/** Provenance note rendered above an electrical/plumbing sheet's drawing (MEP
+ *  layer, G1 PR5): a neutral grey "as designed" note for persisted points, or
+ *  the pre-existing amber "indicative, verify on site" caveat (`warn=true`)
+ *  for the furniture-layout heuristic fallback — same visual language as the
+ *  demolition sheet's `storeyNote` (amber = "pay attention on site"). */
+const mepProvenanceNote = (text: string, warn = false) =>
+  `<div style="color:${warn ? '#b45309' : '#6b7280'};font-weight:600;font-size:12px">${esc(text)}</div>`
 
 /**
  * Build an SVG overlay `<div>` that renders the callouts targeting a specific
@@ -248,8 +268,8 @@ export function buildDrawingSetHtml(
   catalog: Record<string, FurnitureDef>,
   units: UnitSystem = 'metric',
   baselinePlan?: FloorPlan,
-  electricalPoints?: ElectricalPoint[],
-  plumbingPoints?: PlumbingPoint[],
+  electrical?: MepPointsInput<ElectricalPoint>,
+  plumbing?: MepPointsInput<PlumbingPoint>,
   finishes?: RoomFinishMaps,
   layers?: DrawingLayerVisibility,
   callouts?: DrawingCallout[],
@@ -407,15 +427,23 @@ export function buildDrawingSetHtml(
     })
   }
 
-  // Electrical / power & data plan (points derived from appliances + doors) —
-  // one diagram sheet per wired storey; the unified point schedule rides on the
-  // last electrical sheet.
-  if (layerOn(layers, 'electrical') && electricalPoints && electricalPoints.length > 0) {
-    const elec = buildElectricalPlan(plan, electricalPoints)
+  // Electrical / power & data plan — one diagram sheet per wired storey; the
+  // unified point schedule rides on the last electrical sheet. Prefers the
+  // user's own persisted `electricalPoints` (MEP layer, G1 PR5 — "as
+  // designed", real authored mount heights) over the furniture-layout
+  // heuristic fallback (`electrical.source` tells the caller which it got —
+  // `openDrawingSet.ts` only falls back to the heuristic when the persisted
+  // array is empty).
+  if (layerOn(layers, 'electrical') && electrical && electrical.points.length > 0) {
+    const elec = buildElectricalPlan(plan, electrical.points)
     const elecSched = `<table class="sched"><tr class="h"><td>Point</td><td class="n">Qty</td></tr>${elec.schedule
       .map((r) => `<tr><td>${esc(r.label)}</td><td class="n">×${r.count}</td></tr>`)
       .join('')}</table>`
     const wired = levels.filter((l) => itemsOnLevel(elec.points, l.id).length > 0)
+    const note =
+      electrical.source === 'persisted'
+        ? mepProvenanceNote('Points as designed — heights in mm AFFL.')
+        : mepProvenanceNote('Indicative — derived from the furniture layout; verify on site.', true)
     wired.forEach((level, i) => {
       const levelPlan = levelAsPlan(plan, level)
       const levelElec = buildElectricalPlan(levelPlan, itemsOnLevel(elec.points, level.id))
@@ -423,7 +451,7 @@ export function buildDrawingSetHtml(
       const scale = planScale(pw, pd, template.paperSize, template.orientation)
       sheets.push({
         name: cap('Electrical plan', level),
-        body: `<div class="draw">${electricalSvg(levelPlan, levelElec, {
+        body: `${note}<div class="draw">${electricalSvg(levelPlan, levelElec, {
           palette: { wall: '#9ca3af', ink: '#374151', symbol: '#2563eb' },
           widthPx: 900,
           printMmPerM: scale.mmPerM,
@@ -436,14 +464,19 @@ export function buildDrawingSetHtml(
     })
   }
 
-  // Plumbing plan (points derived from bathroom / kitchen fixtures) — one
-  // diagram sheet per plumbed storey; the unified schedule rides on the last.
-  if (layerOn(layers, 'plumbing') && plumbingPoints && plumbingPoints.length > 0) {
-    const plumb = buildPlumbingPlan(plan, plumbingPoints)
+  // Plumbing plan — one diagram sheet per plumbed storey; the unified
+  // schedule rides on the last. Same persisted-preferred / heuristic-fallback
+  // routing as the electrical plan above.
+  if (layerOn(layers, 'plumbing') && plumbing && plumbing.points.length > 0) {
+    const plumb = buildPlumbingPlan(plan, plumbing.points)
     const plumbSched = `<table class="sched"><tr class="h"><td>Point</td><td class="n">Qty</td></tr>${plumb.schedule
       .map((r) => `<tr><td>${esc(r.label)}</td><td class="n">×${r.count}</td></tr>`)
       .join('')}</table>`
     const plumbed = levels.filter((l) => itemsOnLevel(plumb.points, l.id).length > 0)
+    const note =
+      plumbing.source === 'persisted'
+        ? mepProvenanceNote('Points as designed — heights in mm AFFL.')
+        : mepProvenanceNote('Indicative — derived from the furniture layout; verify on site.', true)
     plumbed.forEach((level, i) => {
       const levelPlan = levelAsPlan(plan, level)
       const levelPlumb = buildPlumbingPlan(levelPlan, itemsOnLevel(plumb.points, level.id))
@@ -451,7 +484,7 @@ export function buildDrawingSetHtml(
       const scale = planScale(pw, pd, template.paperSize, template.orientation)
       sheets.push({
         name: cap('Plumbing plan', level),
-        body: `<div class="draw">${plumbingSvg(levelPlan, levelPlumb, {
+        body: `${note}<div class="draw">${plumbingSvg(levelPlan, levelPlumb, {
           palette: { wall: '#9ca3af', ink: '#374151', symbol: '#0891b2' },
           widthPx: 900,
           printMmPerM: scale.mmPerM,

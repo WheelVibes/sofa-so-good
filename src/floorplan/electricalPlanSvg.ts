@@ -133,7 +133,8 @@ export function electricalSvg(
   const px = (x: number) => (x - b.minX + PAD) * scale
   const py = (z: number) => (z - b.minZ + PAD) * scale
 
-  const legendRows = Math.max(schedule.length, 1)
+  const anyHeights = points.some((p) => typeof p.mountHeightMm === 'number')
+  const legendRows = Math.max(schedule.length, 1) + (anyHeights ? 1 : 0)
   const legendH = LEGEND_PAD * 2 + LEGEND_ROW * legendRows
   const heightPx = planH + legendH
 
@@ -163,11 +164,12 @@ export function electricalSvg(
 
   // Symbols (drawn even when outside the wall bounds).
   for (const p of points) {
-    parts.push(symbol(p.kind, px(p.x), py(p.z), palette, p.label))
+    parts.push(symbol(p.kind, px(p.x), py(p.z), palette, p.label, p.mountHeightMm))
   }
 
-  // Legend / schedule.
-  parts.push(legend(schedule, planH, palette))
+  // Legend / schedule — an extra "heights in mm AFFL" line when any point on
+  // this sheet carries a persisted mount height (MEP layer, G1 PR5).
+  parts.push(legend(schedule, planH, palette, anyHeights))
 
   parts.push('</svg>')
   return parts.join('\n')
@@ -180,6 +182,7 @@ function symbol(
   cy: number,
   palette: ElectricalPalette,
   label: string | undefined,
+  mountHeightMm?: number,
 ): string {
   const out: string[] = [`<g class="elec-symbol" data-kind="${esc(kind)}">`]
   out.push(
@@ -203,21 +206,28 @@ function symbol(
         `dominant-baseline="central" fill="${esc(palette.ink)}">${esc(ELEC_SYM_TEXT[kind])}</text>`,
     )
   }
-  if (label) {
+  // "@1200" mount-height suffix beside the label (MEP layer, G1 PR5) — omitted
+  // for heuristic-derived points (no persisted `mountHeightMm`).
+  const heightSuffix = typeof mountHeightMm === 'number' ? `@${Math.round(mountHeightMm)}` : ''
+  const sideText = [label, heightSuffix].filter(Boolean).join(' ')
+  if (sideText) {
     out.push(
       `<text x="${n(cx + SYM_R + 2)}" y="${n(cy)}" font-size="${SYM_FONT}" ` +
-        `dominant-baseline="central" fill="${esc(palette.ink)}">${esc(label)}</text>`,
+        `dominant-baseline="central" fill="${esc(palette.ink)}">${esc(sideText)}</text>`,
     )
   }
   out.push('</g>')
   return out.join('\n')
 }
 
-/** Schedule legend: one row per kind, with a miniature symbol + count + label. */
+/** Schedule legend: one row per kind, with a miniature symbol + count + label,
+ *  plus (when any point on the sheet carries a persisted mount height) a
+ *  trailing "Heights in mm AFFL" line explaining the `@mm` suffix. */
 function legend(
   schedule: ElectricalPlan['schedule'],
   planH: number,
   palette: ElectricalPalette,
+  anyHeights = false,
 ): string {
   const out: string[] = ['<g class="legend">']
   let y = planH + LEGEND_PAD + LEGEND_ROW / 2
@@ -236,6 +246,12 @@ function legend(
         `dominant-baseline="middle" fill="${esc(palette.ink)}">${esc(text)}</text>`,
     )
     y += LEGEND_ROW
+  }
+  if (anyHeights) {
+    out.push(
+      `<text x="${LEGEND_PAD}" y="${n(y)}" font-size="${SYM_FONT}" font-style="italic" ` +
+        `dominant-baseline="middle" fill="${esc(palette.ink)}">Heights in mm AFFL</text>`,
+    )
   }
   out.push('</g>')
   return out.join('\n')

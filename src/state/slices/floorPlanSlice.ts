@@ -15,6 +15,11 @@ import {
   restackLevelElevations,
   withLevelGeometry,
 } from '../../floorplan/levels'
+import {
+  electricalMountDefaultMm,
+  isDuplicateMepPoint,
+  plumbingMountDefaultMm,
+} from '../../floorplan/mepPoints'
 import { mirrorPlanRegion } from '../../floorplan/mirrorPlanRegion'
 import { DEFAULT_PLAN_ID } from '../../floorplan/planGeometry'
 import { type RescaleOptions, type RescaleSpec, rescalePlan } from '../../floorplan/rescalePlan'
@@ -46,6 +51,8 @@ import {
   wallLength,
 } from '../../floorplan/types'
 import { joinAdjacentWalls, reverseWallGeometry } from '../../floorplan/wallOps'
+import { buildMergedCatalog } from '../../furniture/catalog'
+import { deriveElectricalPoints, derivePlumbingPoints } from '../../furniture/mepSuggest'
 import type { PlanLabelMode } from '../../ui/floorplan/planLabels'
 import { nextPlanLabelMode } from '../../ui/floorplan/planLabels'
 import type { RootState } from '../store'
@@ -327,6 +334,18 @@ export interface FloorPlanSlice {
   updatePlumbingPoint: (id: string, patch: Partial<Omit<PlanPlumbingPoint, 'id'>>) => void
   /** Remove a plumbing point; clears the selection if it was selected. */
   removePlumbingPoint: (id: string) => void
+
+  /** Derive a starting electrical + plumbing layout from the current
+   *  furniture + doors (MEP layer, G1 PR4) — the same heuristic
+   *  (`furniture/mepSuggest.ts`) the drawing-set export falls back to when no
+   *  points have been authored yet (ONE derivation source — plan-doc risk #4).
+   *  Drops any candidate that duplicates an already-persisted point (same
+   *  kind + storey within 0.3 m, `isDuplicateMepPoint`), assigns ids +
+   *  per-kind default mount heights, and appends both families under ONE
+   *  undo step. Forks the default plan (same rule as `addElectricalPoint`).
+   *  Returns how many of each were actually added (0 on a re-run once
+   *  everything's already suggested). */
+  suggestMepPoints: () => { electrical: number; plumbing: number }
 
   /** Add a persistent ruler guide (PARITY-PLAN-GUIDES); de-duped per-axis. */
   addPlanGuide: (guide: PlanGuide) => void
@@ -1284,6 +1303,45 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
           ? null
           : s.planSelection,
     }))
+  },
+
+  suggestMepPoints: () => {
+    const s = get()
+    const catalog = buildMergedCatalog(s)
+    const existingElectrical = s.floorPlan.electricalPoints ?? []
+    const existingPlumbing = s.floorPlan.plumbingPoints ?? []
+
+    const electricalCandidates = deriveElectricalPoints(s.floorPlan, s.items, catalog)
+    const plumbingCandidates = derivePlumbingPoints(s.items, catalog)
+
+    const newElectrical: PlanElectricalPoint[] = []
+    for (const c of electricalCandidates) {
+      if (isDuplicateMepPoint(existingElectrical, c) || isDuplicateMepPoint(newElectrical, c))
+        continue
+      newElectrical.push({
+        ...c,
+        id: planId('ep'),
+        mountHeightMm: electricalMountDefaultMm(c.kind),
+      })
+    }
+    const newPlumbing: PlanPlumbingPoint[] = []
+    for (const c of plumbingCandidates) {
+      if (isDuplicateMepPoint(existingPlumbing, c) || isDuplicateMepPoint(newPlumbing, c)) continue
+      newPlumbing.push({ ...c, id: planId('pp'), mountHeightMm: plumbingMountDefaultMm(c.kind) })
+    }
+
+    if (newElectrical.length === 0 && newPlumbing.length === 0)
+      return { electrical: 0, plumbing: 0 }
+
+    get().pushHistory()
+    set((state) => ({
+      floorPlan: {
+        ...forkIfDefault(state.floorPlan),
+        electricalPoints: [...(state.floorPlan.electricalPoints ?? []), ...newElectrical],
+        plumbingPoints: [...(state.floorPlan.plumbingPoints ?? []), ...newPlumbing],
+      },
+    }))
+    return { electrical: newElectrical.length, plumbing: newPlumbing.length }
   },
 
   // Ruler guides are a plan-wide array (not level-tagged) — pure reference lines

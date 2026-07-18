@@ -58,4 +58,13 @@ describe('buildPlumbingPlan', () => {
     expect(plumbingKindLabel('floor-trap')).toMatch(/trap/i)
     expect(plumbingKindLabel('soil-pipe')).toMatch(/soil/i)
   })
+
+  it('carries a persisted mountHeightMm through the clean-copy build loop (MEP layer, G1 PR5)', () => {
+    const out = buildPlumbingPlan(plan, [
+      { x: 0, z: 0, kind: 'water-point', mountHeightMm: 600 },
+      { x: 1, z: 1, kind: 'floor-trap' },
+    ] as PlumbingPoint[])
+    expect(out.points[0].mountHeightMm).toBe(600)
+    expect(out.points[1].mountHeightMm).toBeUndefined()
+  })
 })

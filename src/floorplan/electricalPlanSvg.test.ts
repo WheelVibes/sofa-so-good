@@ -110,6 +110,22 @@ describe('electricalSvg', () => {
     expect((svg.match(/class="elec-symbol"/g) ?? []).length).toBeGreaterThan(0)
   })
 
+  it('renders an "@mm" mount-height suffix + a legend line when a point carries one (MEP layer, G1 PR5)', () => {
+    const elec = buildElectricalPlan(plan(box), [
+      { x: 1, z: 1, kind: 'socket', mountHeightMm: 1200 },
+    ])
+    const svg = electricalSvg(plan(box), elec, { palette })
+    expect(svg).toContain('@1200')
+    expect(svg).toContain('Heights in mm AFFL')
+  })
+
+  it('omits the height legend line when no point carries a mount height', () => {
+    const elec = buildElectricalPlan(plan(box), [{ x: 1, z: 1, kind: 'socket' }])
+    const svg = electricalSvg(plan(box), elec, { palette })
+    expect(svg).not.toContain('Heights in mm AFFL')
+    expect(svg).not.toMatch(/@\d/)
+  })
+
   it('escapes a malicious label with no breakout', () => {
     const evil = '"><script>alert(1)</script>'
     const elec = buildElectricalPlan(plan(box), [{ x: 1, z: 1, kind: 'socket', label: evil }])

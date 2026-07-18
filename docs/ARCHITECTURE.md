@@ -1626,9 +1626,28 @@ same change that reshapes a system.
   families) fork the default plan + push history (unlike `addNote`'s pre-existing non-forking
   quirk, deliberately not copied — a non-forking add on the untouched default plan would lose its
   points on the next save/share-link). Gated end-to-end by the `mepEditor` flag (pro, default on) —
-  the pre-existing `electricalPlan`/`plumbingPlan` flags still gate the exported SHEETS separately;
-  the sheets don't yet prefer these persisted points over the furniture-derived heuristic (planned
-  follow-up). **Draggable room-name labels**
+  the pre-existing `electricalPlan`/`plumbingPlan` flags still gate the exported SHEETS separately.
+  **Suggest MEP points** (G1 PR4): the Plan ▾ menu's (+ mobile Plan-tools sheet's) "Suggest MEP
+  points" entry (`mepEditor`-gated) derives a starting layout from the current furniture + doors
+  via `floorPlanSlice.suggestMepPoints()` — the SAME heuristic the drawing-set export falls back to
+  (`furniture/mepSuggest.ts:deriveElectricalPoints`/`derivePlumbingPoints`, moved verbatim out of
+  `openDrawingSet.ts` so there is exactly ONE derivation source, never two that could drift), drops
+  any candidate duplicating an already-persisted point (`floorplan/mepPoints.ts:isDuplicateMepPoint`
+  — same kind + storey within 0.3 m), assigns ids + per-kind default mount heights, and appends both
+  families under ONE undo step + fork-if-default. A toast reports "Added N electrical + M plumbing
+  points — drag to refine" (or an info toast when a re-run finds nothing new). **Sheets prefer
+  persisted points (G1 PR5):** `openDrawingSet.ts` now reads `floorPlan.electricalPoints`/
+  `plumbingPoints` first and only falls back to the heuristic when that family's array is empty —
+  `buildDrawingSetHtml`'s electrical/plumbing params are bundled `{points, source: 'persisted' |
+  'heuristic'}` objects (rather than a 13th/14th positional param) so each sheet knows its own
+  provenance: a `'persisted'` sheet carries a neutral "Points as designed — heights in mm AFFL" note
+  + prints an `@1200`-style mount-height suffix beside each symbol (a "Heights in mm AFFL" legend
+  line appears whenever any point on the sheet carries one — `electricalPlanSvg.ts`/
+  `plumbingPlanSvg.ts`), a `'heuristic'` sheet keeps the pre-existing amber "Indicative — derived
+  from the furniture layout; verify on site" caveat. `ElectricalPoint`/`PlumbingPoint` (the sheet-
+  builder's transient shape, distinct from the persisted `PlanElectricalPoint`/`PlanPlumbingPoint`)
+  both grew an optional `mountHeightMm` carried through `buildElectricalPlan`/`buildPlumbingPlan`'s
+  clean-copy validation loop. **Draggable room-name labels**
   (`room.labelOffset`; `roomLabelPosition` = centroid + offset, shared by editor + report/drawing set —
   PARITY-ROOMLABEL). Each room's label shows name + live floor **area** (`planRoomArea`) + wall
   **perimeter** (`planRoomPerimeter` — shared with the report) on the full-detail tier, unit-aware

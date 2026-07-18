@@ -26,6 +26,11 @@ export interface ElectricalPoint {
   label?: string
   /** Storey the point sits on; absent = ground (F13). */
   levelId?: string
+  /** Mount height above finished floor level (mm, AFFL) — carried through from
+   *  a persisted `PlanElectricalPoint` (MEP layer, G1 PR5) so the exported
+   *  sheet can print it beside the symbol. Absent for heuristic-derived
+   *  points (the furniture-layout fallback has no authored height). */
+  mountHeightMm?: number
 }
 
 /** One schedule row: how many of a given kind, with a friendly label. */
@@ -90,6 +95,8 @@ export function buildElectricalPlan(plan: FloorPlan, points: ElectricalPoint[]):
     const out: ElectricalPoint = { x: num(p.x), z: num(p.z), kind }
     if (typeof p.label === 'string' && p.label.length > 0) out.label = p.label
     if (typeof p.levelId === 'string' && p.levelId.length > 0) out.levelId = p.levelId
+    if (typeof p.mountHeightMm === 'number' && Number.isFinite(p.mountHeightMm))
+      out.mountHeightMm = p.mountHeightMm
     clean.push(out)
   }
 

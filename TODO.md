@@ -11,19 +11,11 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 > `docs/research/2026-07-18-contractor-handover-research.md` (canonical drawing set, conventions,
 > SG/HDB specifics). Audit verdict (2026-07-18): geometry engine + drawing-set scaffolding are
 > ~70-80% there; gaps concentrated below, ranked by contractor credibility impact.
-- [ ] **G1 — First-class MEP layer (largest gap).** Electrical/plumbing points today are
-  heuristically derived at export time from furniture (`openDrawingSet.ts:deriveElectricalPoints`)
-  — not persisted, placeable, or editable, labeled "indicative". Build: persist
-  `electricalPoints`/`plumbingPoints` in the plan model (serialize + migration), a plan-editor
-  placement tool (socket/switch/data/TV/aircon; water/drain/floor-trap) with per-point **mount
-  height AFFL** (SG conventions: switches ~1200mm, counter sockets +150mm above top), drag/edit/
-  delete, auto-populate seeded from the existing heuristic as a starting point, industry-symbol
-  rendering + legend on the electrical/plumbing sheets (points plans feed LEW SLD / PUB LP work).
 - [ ] **G3 — Setting-out & datum dimensioning.** Walls are centerline-modeled with no datum
   concept. Add face-of-wall dimension option + a per-plan datum (default: a structural/external
   wall corner) with chain dimensions from the datum (not cumulative) on the floor-plan sheet;
   tile setting-out marks on the finishes sheet (start point + joint direction per room).
-- [ ] **G6b — DXF ELECTRICAL/PLUMBING layers** (after G1 ships persisted MEP points; the
+- [ ] **G6b — DXF ELECTRICAL/PLUMBING layers** (unblocked — G1 shipped persisted MEP points; the
   FURNITURE/DIMENSIONS/OPENING_MARKS layers shipped v0.22.2.39).
 - [ ] **G7 — Demolition/hacking plan hardening (SG).** Wall-classification field
   (load-bearing / RC partition / brick infill / drywall — user-declared with an "unknown,

@@ -139,5 +139,18 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   store actions (`add`/`update`/`remove` × electrical/plumbing) fork the default plan + push
   history — unlike `addNote`'s pre-existing non-forking quirk (don't copy it here). `mepEditor` Pro
   flag (default on) gates the tool/layer/inspector; `electricalPlan`/`plumbingPlan` still gate the
-  exported sheets separately, which don't yet prefer these persisted points over the
-  furniture-derived heuristic (planned follow-up).
+  exported sheets separately. **Suggest MEP points (G1 PR4):** `floorPlanSlice.suggestMepPoints()`
+  derives a starting layout from the current furniture + doors via the ONE shared heuristic
+  (`furniture/mepSuggest.ts:deriveElectricalPoints`/`derivePlumbingPoints` — moved verbatim out of
+  `ui/openDrawingSet.ts`, which now imports from there too, so the export fallback and the editor
+  Suggest action can never drift apart), drops any candidate duplicating an existing point
+  (`isDuplicateMepPoint`, 0.3 m/same-kind/same-storey), assigns ids + per-kind default mount
+  heights, and appends both families under ONE undo step + fork-if-default (the `mepEditor`-gated
+  "Suggest MEP points" entry in the Plan ▾ menu / mobile Plan-tools sheet). **Sheets prefer
+  persisted points (G1 PR5):** `ui/openDrawingSet.ts` reads `floorPlan.electricalPoints`/
+  `plumbingPoints` first, falling back to the heuristic only when a family's array is empty;
+  `ui/drawingSet.ts:buildDrawingSetHtml` takes each family as a bundled `{points, source:
+  'persisted'|'heuristic'}` object (not a positional array) so the sheet can print the right
+  provenance note ("Points as designed — heights in mm AFFL" vs the pre-existing indicative
+  caveat) and the right `@mm` mount-height suffix beside each symbol (only for points that carry
+  one — heuristic-derived points never do).
