@@ -1705,3 +1705,57 @@ Living/Dining room at High tier (the money shot). It's the Stage-11b integration
   template tags cushions AND arms/backrest with the same grey `#8a8f98` FABRIC look, but only the
   cushions carry the velvet `sheen` bundle; filtering on `sheen>0` recolours the cushions and leaves
   the arms grey (a half-finished sofa). Key on the FABRIC colour tag to upholster the whole piece.
+
+### Gotchas from the IXT-SUITES back-fill batch 5 (dxfExport / mountHeights / itemDimensionReadout)
+
+- **Filename-substring search across `scripts/scenarios/*.json` finds FAR more real coverage than a
+  content-grep for the literal flag name** — this batch's re-derivation first ran a content-only
+  `grep -rl "<flagName>"` (batch-1-4's method) and got 55 "uncovered" hits; re-running with the
+  flag name **dash-cased and matched against filenames** (`layoutReroll` → `layout-reroll`) dropped it
+  to 42, revealing that `scatterFill`, `proceduralSky`, `planMirrorRegion`, `planPolyline`,
+  `catalogFits`, `catalogResize`, `finishEyedropper`, `floorTexture`, `iesLights`, `openingStyles`,
+  `roomReorder`, `catalogRecents`, and `roomStarters` all already have a scenario whose steps drive
+  the feature (often visual/render-verification style, not composed as an explicit flag-gate ladder)
+  but simply never mention the camelCase flag identifier as a literal substring. **Always run BOTH
+  passes** (content-grep AND filename dash-match) before concluding a flag is uncovered, and open the
+  top candidate file to judge whether it already substitutes for a ladder rung (a pure visual-verify
+  scenario with no flag toggle is weaker coverage than a real ladder, but still means the feature
+  itself is drivable/exercised — don't blindly re-author a duplicate).
+- **A private (non-exported-to-`window`) module-level signal can be driven directly via a page-context
+  dynamic `import()` of its source file, and this DOES work reliably** (confirmed here, extending the
+  "scene-graph probe" gotcha two sections up from a read-only traversal to a genuine read-WRITE
+  drive): `await import('/src/scene/selection/resizeReadoutSignal.ts')` resolves in-page and returns
+  the real module namespace (`setResizeReadout`/`clearResizeReadout`/`getResizeReadout`), which lets a
+  scenario exercise `ResizeHud`'s actual consumer contract (mount-on-live-signal, format the pill text,
+  unmount-on-clear, stay hidden with the flag off even while the signal is live) without needing to
+  reproduce the real 3D `ResizeGizmo` pointer-drag gesture at all — genuinely equivalent to what the
+  gizmo would publish on each resize tick, not a workaround. Store the returned module namespace on
+  `window` (`window.__resizeSignal = m`) so later steps in the same scenario can call it again without
+  re-importing (dynamic `import()` of the same URL is cached anyway, but stashing it also sidesteps the
+  "no top-level `const` across eval steps" scoping gotcha). General lesson: before reaching for a
+  "can't be exercised headless" writeup on a module-level (not-on-`window`) signal or store, try the
+  dynamic-import drive first — it is NOT the same limitation as "`React.lazy` modals never resolve
+  headlessly" (that's an unresolved dynamic **component chunk** fetch stalling on `Suspense`; a plain
+  `.ts` module's `import()` is a normal, fast Vite dev-server fetch that resolves immediately).
+- **A Simple-mode inspector "Properties" section starts COLLAPSED** (`InspectorSection`'s
+  `defaultOpen={proMode}` — Pro starts expanded, Simple starts collapsed) — any scenario that selects
+  an item and expects to find a parametric field (e.g. `wall-mirror`'s "Hang height" / the
+  `MountHeightPresets` "Standard heights" chip row) inside `.panel.inspector` must first click the
+  section's own toggle button (`button.insp-sec-toggle` whose text starts with `"Properties"`) or every
+  later `waitFor`/`eval` query against that section's contents times out looking for DOM that is simply
+  unmounted (`{open ? children : null}`), not absent from the feature. The **`Size`** section has the
+  identical collapsed-by-default-in-Simple gotcha (`defaultOpen={proMode}` again) — expand it the same
+  way if a scenario needs the W/D/H `DimField`s.
+- **A download-triggering action (`<a>` + `URL.createObjectURL` + `.click()` + `.remove()`, no real
+  navigation) is fully verifiable headless by patching `HTMLAnchorElement.prototype.click` BEFORE the
+  triggering click**, then reading back the captured `{href, download}` pairs — `href` will be a
+  `blob:` URL (proves the export function actually built + Blobbed real content) and `download` carries
+  the intended filename/extension. No real file ever hits disk in headless Chromium, so this is the
+  only way to assert an export "worked" beyond "the button exists": see `dxf-export-simple.json`
+  (`downloadPlanDxf()` → `planToDxf` → Blob → anchor click). Restore the original `.click` after
+  asserting if a later step in the same scenario needs a real anchor click for something else.
+- **`FileMenu`'s "CAD, 3D & data" section (Export DXF/SVG/glTF/AR) sits well below the fold** in the
+  desktop `.pop-panel` — same family as the GLB-designer "Save asset" scroll gotcha two sections up.
+  Locating and clicking the row via a DOM `.click()` inside an `eval` (`[...document.querySelectorAll
+  ('.pop-panel button')].find(b => b.textContent.includes('Export DXF'))`) sidesteps the harness's
+  `clickByText` viewport-visibility requirement entirely — don't bother scrolling the popover first.

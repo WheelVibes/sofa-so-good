@@ -1,0 +1,85 @@
+{
+  "name": "item-dimension-readout-simple",
+  "description": "IXT-SUITES simple rung for the `itemDimensionReadout` flag (simple tier): drives the real `resizeReadoutSignal` module (the exact signal `ResizeGizmo` writes on every group-resize pointermove tick) to publish a live width x depth, verifies `ResizeHud` renders the formatted readout pill while the signal is live and unmounts it when cleared, then verifies the pill never mounts at all with the flag forced off even while the signal is live.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 5000
+    },
+    { "name": "wait-room-load", "wait": 1500 },
+    { "name": "shot-before", "screenshot": "01-room-editor-no-readout" },
+    {
+      "name": "assert-no-readout-at-rest",
+      "eval": "(function(){ if (document.querySelector('.drag-readout')) throw new Error('drag-readout pill visible with no resize in progress'); })()"
+    },
+    {
+      "name": "publish-resize-signal",
+      "eval": "(async () => { const m = await import('/src/scene/selection/resizeReadoutSignal.ts'); window.__resizeSignal = m; m.setResizeReadout({ w: 2.4, d: 1.6 }); })()"
+    },
+    {
+      "name": "readout-pill-visible",
+      "waitFor": { "css": ".drag-readout" },
+      "timeout": 5000,
+      "failMessage": "ResizeHud pill did not mount after publishing a live resize readout (flag on, default)"
+    },
+    {
+      "name": "assert-readout-text",
+      "eval": "(function(){ const t = document.querySelector('.drag-readout')?.textContent || ''; if (!t.includes('2.40') || !t.includes('1.60')) throw new Error('Readout pill text did not match published dims 2.40 x 1.60: ' + t); })()"
+    },
+    { "name": "shot-readout-live", "screenshot": "02-readout-pill-live" },
+    {
+      "name": "clear-resize-signal",
+      "eval": "window.__resizeSignal.clearResizeReadout()"
+    },
+    {
+      "name": "readout-pill-cleared",
+      "waitFor": { "css": ".drag-readout", "visible": false },
+      "timeout": 5000,
+      "failMessage": "ResizeHud pill did not unmount after clearResizeReadout()"
+    },
+    { "name": "shot-readout-cleared", "screenshot": "03-readout-pill-cleared" },
+    {
+      "name": "disable-flag",
+      "store": { "action": "setFeatureFlag", "args": ["itemDimensionReadout", false] }
+    },
+    { "name": "settle-flag-off", "wait": 400 },
+    {
+      "name": "publish-resize-signal-flag-off",
+      "eval": "window.__resizeSignal.setResizeReadout({ w: 3.1, d: 2.2 })"
+    },
+    { "name": "settle-publish", "wait": 600 },
+    {
+      "name": "assert-readout-hidden-flag-off",
+      "eval": "(function(){ if (document.querySelector('.drag-readout')) throw new Error('drag-readout pill rendered with itemDimensionReadout flag OFF, even though the signal is live'); })()"
+    },
+    { "name": "shot-flag-off", "screenshot": "04-flag-off-no-pill" },
+    {
+      "name": "re-enable-flag",
+      "store": { "action": "setFeatureFlag", "args": ["itemDimensionReadout", true] }
+    },
+    { "name": "settle-flag-on", "wait": 400 },
+    {
+      "name": "readout-pill-visible-again",
+      "waitFor": { "css": ".drag-readout" },
+      "timeout": 5000,
+      "failMessage": "ResizeHud pill did not reappear after re-enabling the flag with a still-live signal"
+    },
+    { "name": "shot-flag-back-on", "screenshot": "05-flag-back-on-pill-visible" },
+    {
+      "name": "cleanup-signal",
+      "eval": "window.__resizeSignal.clearResizeReadout()"
+    }
+  ]
+}

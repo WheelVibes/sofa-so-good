@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.15 — IXT-SUITES back-fill batch 5: 3 more ladders (39 uncovered left)
+
+Green rungs for `dxfExport` (Pro File-menu row → real `downloadPlanDxf` blob
+intercepted via an anchor-click patch, `.dxf` filename asserted),
+`mountHeights` (preset chip commits `mountHeight` 1.35; chips flag-gated,
+numeric field persists), `itemDimensionReadout` (drives the real
+`resizeReadoutSignal` module in-page → `.drag-readout` pill mounts/unmounts,
+stays hidden flag-off). Three initial picks dropped as ALREADY covered once
+a filename-dash-match pass was added to the content grep — the two-pass
+re-derivation method is now a documented playbook gotcha (true uncovered
+count was 42, not 55). No app bugs. Uncovered: 42 → 39.
+
 ## v0.22.2.14 — IXT-SUITES back-fill batch 4: 4 more ladders (~40 uncovered left)
 
 Green, visually-confirmed simple rungs for `layerOrder` (context-menu bring

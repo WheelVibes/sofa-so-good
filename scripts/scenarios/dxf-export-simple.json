@@ -1,0 +1,82 @@
+{
+  "name": "dxf-export-simple",
+  "description": "IXT-SUITES simple rung for the `dxfExport` flag (pro tier): hidden in Simple mode's File menu, visible in Pro, and a real click on \"Export DXF (CAD)\" drives the actual downloadPlanDxf() blob-download path (intercepted via a patched HTMLAnchorElement.click so the harness can assert the produced filename/blob without a real file download).",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "App did not boot in Simple mode — expected uiMode=simple"
+    },
+    { "name": "open-file-simple", "click": { "text": "File" } },
+    {
+      "name": "file-panel-open-simple",
+      "waitFor": { "css": ".pop-panel" },
+      "timeout": 10000
+    },
+    { "name": "settle-simple", "wait": 400 },
+    { "name": "shot-file-simple", "screenshot": "01-file-menu-simple" },
+    {
+      "name": "assert-dxf-hidden-simple",
+      "eval": "(function(){ const t = document.querySelector('.pop-panel')?.textContent || ''; if (t.includes('Export DXF')) throw new Error('Export DXF row visible in Simple mode File menu (should be Pro-only)'); })()"
+    },
+    { "name": "close-file-simple", "key": "Escape" },
+    { "name": "close-settle", "wait": 300 },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "mode-settle", "wait": 500 },
+    { "name": "open-file-pro", "click": { "text": "File" } },
+    {
+      "name": "file-panel-open-pro",
+      "waitFor": { "css": ".pop-panel" },
+      "timeout": 10000
+    },
+    { "name": "settle-pro", "wait": 400 },
+    {
+      "name": "assert-dxf-visible-pro",
+      "eval": "(function(){ const t = document.querySelector('.pop-panel')?.textContent || ''; if (!t.includes('Export DXF')) throw new Error('Export DXF row missing in Pro mode File menu: ' + t); })()"
+    },
+    { "name": "shot-file-pro", "screenshot": "02-file-menu-pro-dxf-visible" },
+    {
+      "name": "patch-anchor-click",
+      "eval": "window.__dxfClicks = []; window.__origAnchorClick = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () { window.__dxfClicks.push({ href: this.href, download: this.download }); };"
+    },
+    {
+      "name": "click-export-dxf",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.pop-panel button')].find(b => b.textContent.includes('Export DXF')); if (!btn) throw new Error('Export DXF button not found'); btn.click(); })()"
+    },
+    {
+      "name": "wait-dxf-download",
+      "waitFor": { "store": "window.__dxfClicks && window.__dxfClicks.length > 0" },
+      "timeout": 10000,
+      "failMessage": "downloadPlanDxf() never produced an anchor click (blob build/import likely failed)"
+    },
+    {
+      "name": "assert-dxf-output",
+      "eval": "(function(){ const c = window.__dxfClicks[0]; if (!c.href.startsWith('blob:')) throw new Error('DXF anchor href is not a blob URL: ' + c.href); if (!c.download.endsWith('.dxf')) throw new Error('DXF anchor download name missing .dxf extension: ' + c.download); HTMLAnchorElement.prototype.click = window.__origAnchorClick; })()"
+    },
+    { "name": "shot-dxf-done", "screenshot": "03-dxf-export-triggered" },
+    { "name": "close-file-pro", "key": "Escape" },
+    { "name": "close-settle-2", "wait": 300 },
+    { "name": "back-to-simple", "store": { "action": "setUiMode", "args": ["simple"] } },
+    { "name": "mode-settle-2", "wait": 500 },
+    { "name": "open-file-simple-again", "click": { "text": "File" } },
+    {
+      "name": "file-panel-open-simple-again",
+      "waitFor": { "css": ".pop-panel" },
+      "timeout": 10000
+    },
+    { "name": "settle-simple-2", "wait": 400 },
+    {
+      "name": "assert-dxf-hidden-simple-again",
+      "eval": "(function(){ const t = document.querySelector('.pop-panel')?.textContent || ''; if (t.includes('Export DXF')) throw new Error('Export DXF row visible after switching back to Simple mode'); })()"
+    },
+    { "name": "shot-back-to-simple", "screenshot": "04-back-to-simple-dxf-hidden" }
+  ]
+}
