@@ -1646,6 +1646,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Per-instance notes & link (ITEM-META, 2026-07-18): an optional custom URL
+  // (product page/spec sheet), description, and special remarks ("existing —
+  // retain", "client to purchase", install notes) on EVERY placed item. Feeds
+  // personal annotation + the contractor handover FF&E schedule/spec book — a
+  // documentation/handover surface, not part of the core furnish/finish/view/
+  // share loop → pro tier (forced off in Simple). Pure text fields, no
+  // sidecar/licensing dependency → prod-safe.
+  itemMeta: {
+    label: 'Item notes & link',
+    description: 'Custom URL, description and remarks per placed item (for handover docs)',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

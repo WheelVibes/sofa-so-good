@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FfeRow } from '../ffe/ffeSchedule'
-import { buildFfeCsv } from './ffeCsv'
+import { buildFfeCsv, customMetaColumns } from './ffeCsv'
 
 const row = (over: Partial<FfeRow> = {}): FfeRow => ({
   room: 'Living',
@@ -14,6 +14,12 @@ const row = (over: Partial<FfeRow> = {}): FfeRow => ({
   qty: 1,
   unit: 1200,
   total: 1200,
+  url: '',
+  remarks: '',
+  brand: '',
+  model: '',
+  supplier: '',
+  custom: {},
   ...over,
 })
 
@@ -118,5 +124,80 @@ describe('buildFfeCsv', () => {
     expect(rows).toHaveLength(2)
     expect(rows[1][0]).toBe('Total (0 items)')
     expect(rows[1][7]).toBe('0')
+  })
+
+  it('omits the Brand/Model/Supplier/URL/Remarks columns entirely when no row carries any (ITEM-META)', () => {
+    const csv = buildFfeCsv([row(), row()], 'metric')
+    const rows = parse(csv)
+    expect(rows[0]).toHaveLength(8)
+    expect(rows[0]).not.toContain('URL')
+    expect(rows[0]).not.toContain('Brand')
+    expect(rows[1]).toHaveLength(8)
+  })
+
+  it('appends the ITEM-META block for every row once any row carries any of it', () => {
+    const csv = buildFfeCsv(
+      [
+        row({
+          url: 'https://example.com/sofa',
+          remarks: 'existing — retain',
+          brand: 'Acme',
+          model: 'X-100',
+          supplier: 'Acme Direct',
+        }),
+        row({ name: 'Chair' }), // no metadata of its own — still gets blank cells
+      ],
+      'metric',
+    )
+    const rows = parse(csv)
+    expect(rows[0].slice(-5)).toEqual(['Brand', 'Model', 'Supplier', 'URL', 'Remarks'])
+    expect(rows[1].slice(-5)).toEqual([
+      'Acme',
+      'X-100',
+      'Acme Direct',
+      'https://example.com/sofa',
+      'existing — retain',
+    ])
+    expect(rows[2].slice(-5)).toEqual(['', '', '', '', ''])
+    // Footer row keeps the trailing cells blank too.
+    expect(rows[3].slice(-5)).toEqual(['', '', '', '', ''])
+  })
+
+  describe('custom fields (ITEM-META `meta.custom`)', () => {
+    it('customMetaColumns returns every distinct key, alphabetical, across overlapping + disjoint items', () => {
+      const cols = customMetaColumns([
+        row({ custom: { Fabric: 'Linen', Warranty: '2 years' } }),
+        row({ custom: { Fabric: 'Velvet', Origin: 'Italy' } }), // overlapping (Fabric) + disjoint (Origin)
+      ])
+      expect(cols).toEqual(['Fabric', 'Origin', 'Warranty'])
+    })
+
+    it('customMetaColumns is [] when no row carries any custom field', () => {
+      expect(customMetaColumns([row(), row()])).toEqual([])
+    })
+
+    it('appends one column per distinct custom key, blank where an item lacks it', () => {
+      const csv = buildFfeCsv(
+        [
+          row({ name: 'Sofa', custom: { Fabric: 'Linen', Warranty: '2 years' } }),
+          row({ name: 'Chair', custom: { Fabric: 'Velvet' } }), // no Warranty
+          row({ name: 'Lamp' }), // no custom fields at all
+        ],
+        'metric',
+      )
+      const rows = parse(csv)
+      expect(rows[0].slice(-2)).toEqual(['Fabric', 'Warranty'])
+      expect(rows[1].slice(-2)).toEqual(['Linen', '2 years'])
+      expect(rows[2].slice(-2)).toEqual(['Velvet', ''])
+      expect(rows[3].slice(-2)).toEqual(['', ''])
+      // Footer row keeps the trailing cells blank too.
+      expect(rows[4].slice(-2)).toEqual(['', ''])
+    })
+
+    it('custom columns follow the fixed Brand/Model/Supplier/URL/Remarks block when both are present', () => {
+      const csv = buildFfeCsv([row({ brand: 'Acme', custom: { Fabric: 'Linen' } })], 'metric')
+      const rows = parse(csv)
+      expect(rows[0].slice(-6)).toEqual(['Brand', 'Model', 'Supplier', 'URL', 'Remarks', 'Fabric'])
+    })
   })
 })

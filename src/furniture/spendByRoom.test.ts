@@ -40,4 +40,11 @@ describe('spendByRoom', () => {
     expect(rows).toHaveLength(1)
     expect(rows[0].name).toBe('Outside rooms')
   })
+
+  it('a per-instance price override (ITEM-META) is reflected in the room total', () => {
+    const overridden = { ...at('sofa-3seat', 1, 1), meta: { price: 1 } }
+    const { rows, sum } = spendByRoom([overridden], BUILTIN_CATALOG, rooms)
+    expect(sum).toBe(1)
+    expect(rows[0].amt).toBe(1)
+  })
 })

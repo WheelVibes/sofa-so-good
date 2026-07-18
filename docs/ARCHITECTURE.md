@@ -956,8 +956,14 @@ same change that reshapes a system.
   ~19:10). The shared **`ui/scene/TimeOfDaySlider`** (desktop Scene menu + mobile sheet) is a
   free-scrub 24h slider + a "System time" toggle (always shows the real clock, never the
   selected time). **Lights** (`lightsMode` off/on/auto) is an independent fixture toggle — not
-  tied to the sun (lights can be on in daytime). Fixtures emit capped night point lights; shades
-  glow via `fixtureGlow`. **Orbit and the room editor run this exact same graded simulation**
+  tied to the sun (lights can be on in daytime). **Lighting mood presets** (UX round-3 #3,
+  `lightMoodPresets` flag, simple tier): a one-tap Scene-menu chip row (Normal/Reading/Movie
+  night/Entertaining/Romantic, `lighting/moodPresets.ts`, pure) layers a brightness multiplier +
+  warm/cool tint on top of the `lightsMode` level (`FurnitureLights.tsx`: `baseIntensity *
+  lightsModeLevel * moodMultiplier`) — ceiling-mounted kinds dim harder for Movie
+  night/Romantic. It can only scale an already-lit fixture, never re-light one switched off via
+  `lightOn === 'no'`; the mood persists with the design like `lightsMode`. Fixtures emit capped
+  night point lights; shades glow via `fixtureGlow`. **Orbit and the room editor run this exact same graded simulation**
   (ORBIT-CEILING) rather than a flat daytime fill — since orbit culls the real ceiling to see
   inside, an invisible shadow-casting virtual ceiling occluder (`apartment/ceiling/
   CeilingOccluder.tsx`, mounted in both `Scene.tsx` and `RoomEditorScene.tsx`) blocks the sun
@@ -1085,6 +1091,22 @@ same change that reshapes a system.
   schedule: Room/Item/Source/SKU/Size (W×D×H, unit-aware)/Qty/Unit price/Line total + grand-total
   footer; prices blanked when `budget` is off; `ui/openFfeCsv.ts` = Blob download `<plan>-ffe.csv`).
   File menu + mobile + ⌘K, `shopExport` flag (simple) — the machine-readable third FF&E export.
+  **Per-instance handover metadata (ITEM-META, `itemMeta` flag, pro)**: an optional `FurnitureItem.meta`
+  (`furniture/types.ts`) — `url`/`price`/`brand`/`model`/`supplier`/`description`/`remarks`, all trimmed,
+  empty→omitted, set via the dedicated `setItemMeta` store action (coalesced undo, `state/slices/
+  itemsSlice.ts`) from the inspector's **Notes & link** section (`ui/inspector/ItemMetaSection.tsx`,
+  URL validated http/https on blur via `itemMetaValidation.ts`). `meta.price` is the one field read by
+  `furniture/furniturePrices.ts:itemPrice` (the single price-resolution choke-point — every consumer
+  passes it through) as a per-instance override, ahead of the IKEA-variant/user-def/category fallback.
+  `ffeSchedule.ts`/`ffeCsv.ts`/`report.ts`'s FF&E table gain Brand/Model/Supplier/URL/Remarks columns
+  (and `ui/shoplist.ts`'s line URL) only when any item carries them; two instances with differing
+  meta/price never silently aggregate into one line. `meta.custom?: {key,value}[]` (arbitrary
+  user-defined fields, ordered, ≤20 entries/key≤40/value≤500 chars — clamped not rejected on
+  import + in the setter, `furniture/itemMetaLimits.ts:clampCustomMetaEntries`, shared by
+  `schema.ts` and `itemsSlice.ts`) adds a "Custom fields" add/remove-row sub-list to
+  `ItemMetaSection.tsx`; each DISTINCT key across the FF&E schedule becomes its own alphabetical
+  CSV/report column (`ffeCsv.ts:customMetaColumns`) — shoplist/the report's other tables are
+  untouched by `custom`.
   **Cost breakdown CSV** (`export/costBreakdownCsv.ts` pure `buildCostBreakdown`/`buildCostBreakdownCsv` →
   one sectioned RFC-4180 CSV reconciling Furniture-by-category (qty + subtotal via `itemPrice`) +
   Renovation/finishes lines (floor/wall area × the `renovationCost` rate table via `estimateRenovation`
@@ -1095,15 +1117,54 @@ same change that reshapes a system.
   (cover + plan + per-wall elevations + cross-section + lighting + electrical (`floorplan/electricalPlan*`,
   `electricalPlan` flag) + plumbing (`floorplan/plumbingPlan*`, `plumbingPlan` flag — points auto-derived
   from fixtures) + a per-room finishes schedule (`floorplan/finishSchedule.ts` — floor/wall material
-  callouts) + FF&E, title blocks, `@page` A4) reusing all the pure renderers — the formal counterpart
-  to the one-page `report.ts`. **Sheet/layer toggles** (PARITY-DRAWLAYERS): `ui/drawingLayers.ts`
-  (dependency-light list + `DrawingLayerVisibility` so the heavy builder stays dynamically imported) +
-  `buildDrawingSetHtml`'s optional `layers` arg gate each group on/off (floor plan always included);
-  the Tools-menu "Include sheets" checklist writes `uiSlice.drawingLayers` (session-only).
-- **CAD plan exports**: `ui/openDxf.ts` (`export/dxf.ts` `planToDxf`) downloads the plan as DXF;
-  `ui/openPlanSvg.ts` downloads it as a vector `.svg`, reusing `reportPlanSvg` + pure
-  `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog + injected `xmlns`). Both in Tools +
-  mobile + ⌘K, `dxfExport` flag (pro).
+  callouts) + FF&E, title blocks, a user-customizable `@page` size/orientation) reusing all the pure
+  renderers — the formal counterpart to the one-page `report.ts`. **Sheet/layer toggles**
+  (PARITY-DRAWLAYERS): `ui/drawingLayers.ts` (dependency-light list + `DrawingLayerVisibility` so the
+  heavy builder stays dynamically imported) + `buildDrawingSetHtml`'s optional `layers` arg gate each
+  group on/off (floor plan always included); the Tools-menu "Include sheets" checklist writes
+  `uiSlice.drawingLayers` (session-only).
+  **Locked, print-true scale** (TODO G2): `floorplan/drawingScale.ts`'s pure `pickDrawingScale(extentM,
+  printableMm)` walks the standard ladder `[1:20…1:200]` and picks the largest-detail ratio whose
+  printed extent fits the printable area; `drawingSet.ts` computes one per plan-bearing sheet (floor
+  plan/elevations/lighting/dimensioned/demolition/electrical/plumbing/section — schedules + cover show
+  "NTS") and threads the resulting `mmPerM` into every SVG builder's optional `printMmPerM` param, which
+  sizes the `<svg>` via an inline `style="width:…mm;height:…mm"` (a bare `width`/`height` **attribute**
+  would be silently overridden by the `.draw svg{width:100%}` rule — presentational attributes have the
+  lowest CSS priority; see the playbook gotcha). The graphic scale bar (`reportPlanSvg.ts`
+  `scaleBarSvg`) stays as a second, PDF-viewer-rescale-proof check.
+  **User-customizable paper (G2 follow-up):** `drawingScale.ts`'s `PAPER_SIZE_MM` (ISO 216 A4/A3/A2/A1,
+  portrait `[width,height]` mm — the single source of truth) + `paperDimensionsMm(size, orientation)` +
+  `printableAreaMm`/`PAPER_PRINTABLE_MM` (every size × orientation combo, precomputed) generalise the
+  printable-area math beyond the original hardcoded A4-landscape constant (kept as
+  `A4_LANDSCAPE_PRINTABLE_MM` for callers that don't care). `drawingSet.ts` reads `template.paperSize`/
+  `template.orientation` to pick each sheet's scale AND to parameterize the `@page { size: … }` rule +
+  `.sheet`/`.draw svg{max-height}` CSS dimensions from the SAME table (never a second hardcoded
+  A4 number) — so the `@page` size, the sheet box, and the scale-picker's printable area can never
+  drift apart. The title block states the real combo, e.g. `"1:50 @ A3 LANDSCAPE"`.
+  **Title-block handover metadata** (TODO G5): `export/drawingSetTemplate.ts` (`DrawingSetTemplate` —
+  project name/address, client, drawn-by, checked-by, revision + note, `paperSize`/`orientation`)
+  mirrors `quoteTemplate.ts`'s shape/persistence pattern exactly, via `drawingSetTemplateSlice.ts`
+  (persisted in `serialize()`/autosave/history like `quoteTemplate`; `paperSize`/`orientation` are
+  additive optional Zod fields defaulting to `'a4'`/`'landscape'` on load, no version bump); a minimal
+  editor (`FileMenu.tsx`'s `DrawingSetInfoEditor`, a collapsed `Disclosure` with two `controls/Select`
+  drop-downs for paper size + orientation alongside the text fields) sits under the "Drawing set" row.
+  Every sheet's title block now shows client/drawn/checked/date/locked-scale/sheet-of-total/revision;
+  plan-view sheets add a small north-arrow glyph (`northIndicatorSvg`, rotated by the live
+  `orientationDeg`); the cover sheet carries a revision-table row + a General notes block with the
+  standard SG disclaimers (mm units, don't scale from screen, HDB permit/PE/LEW/LP responsibilities,
+  verify on site).
+- **CAD plan exports**: `ui/openDxf.ts` (`export/dxf.ts` `planToDxf`) downloads the plan as an ASCII
+  DXF R12 document for a contractor/fabricator CAD handoff (TODO G6): `WALLS`/`ROOMS`/`DOORS`/
+  `WINDOWS`/`LABELS` (base geometry) plus `FURNITURE` (each placed item's rotated footprint — the
+  same `collision/placement.ts:itemFootprint` OBB collision/selection use — as a closed POLYLINE)
+  + `FURNITURE_TEXT` (item name), `DIMENSIONS` (the `floorplan/autoDimension.ts` auto-dimension
+  strings rendered as LINE + perpendicular tick + extension-stub + TEXT primitives — no native
+  `DIMENSION` entity, since R12's needs a `DIMSTYLE` table lightweight readers render
+  inconsistently), and `OPENING_MARKS` (a D1/D2…/W1/W2… mark TEXT beside each door/window,
+  cross-referencing `analysis/openingSchedule.ts`). Every layer carries a distinct AutoCAD colour
+  index via the LAYER table. `ui/openPlanSvg.ts` downloads the bare plan as a vector `.svg`,
+  reusing `reportPlanSvg` + pure `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog +
+  injected `xmlns`). Both in Tools + mobile + ⌘K, `dxfExport` flag (pro).
 - **Sweet Home 3D import** (`importSh3d` flag, pro; PARITY-SH3D): pure parser core
   `floorplan/import/sh3d.ts` `parseSh3d(bytes)` unzips a `.sh3d` (fflate `unzipSync`), reads
   `Home.xml` (DOMParser), and maps it into our plan model — cm→m (÷100), origin-anchored bbox,

@@ -137,6 +137,8 @@ export async function openDrawingSet(): Promise<void> {
       s.finishes,
       s.drawingLayers,
       s.drawingCallouts.length ? s.drawingCallouts : undefined,
+      s.drawingSetTemplate,
+      s.orientationDeg,
     )
   } catch {
     win.close()

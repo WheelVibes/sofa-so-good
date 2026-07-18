@@ -19,10 +19,6 @@ when an item ships it is **removed from this file entirely**. Maintainability re
   height AFFL** (SG conventions: switches ~1200mm, counter sockets +150mm above top), drag/edit/
   delete, auto-populate seeded from the existing heuristic as a starting point, industry-symbol
   rendering + legend on the electrical/plumbing sheets (points plans feed LEW SLD / PUB LP work).
-- [ ] **G2 — Locked drawing scale.** Sheets are fit-to-page with only a graphic scale bar. Add a
-  declared, locked ratio per sheet (1:50 general / 1:25 wet areas @ A4/A3 landscape — auto-pick
-  the largest standard ratio that fits, state it in the title block "1:50 @ A3"), print-true
-  (mm-accurate CSS sizing so a printed sheet measures correctly with a scale rule).
 - [ ] **G3 — Setting-out & datum dimensioning.** Walls are centerline-modeled with no datum
   concept. Add face-of-wall dimension option + a per-plan datum (default: a structural/external
   wall corner) with chain dimensions from the datum (not cumulative) on the floor-plan sheet;
@@ -30,13 +26,8 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 - [ ] **G4 — Finish schedule depth.** Today: floor+wall names per room only. Add ceiling finish,
   accent-wall callouts, **areas/quantities** (floor m², wall m² net of openings, ceiling m²),
   tile size/`floorTexScale` spec, keyed material codes (FL-01/WL-01/CL-01) referenced on plan.
-- [ ] **G5 — Title-block handover metadata.** Add client/project address, drawn-by, date,
-  revision table (+ revision tagging on change), drawing numbers, general-notes block, and the
-  standard disclaimers (indicative vs construction dims; HDB permit/PE/LEW/LP responsibility
-  notes from the research doc).
-- [ ] **G6 — DXF enrichment.** R12 export has WALLS/ROOMS/DOORS/WINDOWS/LABELS only. Add
-  DIMENSION entities (or dimension lines+text), FURNITURE, ELECTRICAL/PLUMBING (after G1),
-  per-sheet layer parity so a fabricator can edit in CAD.
+- [ ] **G6b — DXF ELECTRICAL/PLUMBING layers** (after G1 ships persisted MEP points; the
+  FURNITURE/DIMENSIONS/OPENING_MARKS layers shipped v0.22.2.39).
 - [ ] **G7 — Demolition/hacking plan hardening (SG).** Wall-classification field
   (load-bearing / RC partition / brick infill / drywall — user-declared with an "unknown,
   verify with HDB/PE" default), hatched removals per convention, permit-note block (HDB permit
@@ -46,6 +37,13 @@ when an item ships it is **removed from this file entirely**. Maintainability re
   at 1:20 with internal dimensions (shelf heights, carcass depths) from the parametric spec.
 - *(Precision substrate, ride-along: mm display precision option in `measurement.ts`; bbox
   footprint caveat already tracked under Risks.)*
+- [ ] **G9 — Drawing-set FF&E sheet gains ITEM-META columns.** The report/CSV FF&E tables
+  (`ffeSchedule.ts`/`ffeCsv.ts`/`report.ts`) and the shopping list (`ui/shoplist.ts`) already
+  surface a placed item's custom URL/price/brand/model/supplier/remarks (`meta`, `itemMeta`
+  flag). `ui/drawingSet.ts`/`openDrawingSet.ts`'s own FF&E sheet was intentionally left untouched
+  (another agent was editing it concurrently) — it should pick up the same conditional Brand/
+  Model/Supplier/URL/Remarks columns (mirroring `report.ts`'s `ffeMetaHead`/`ffeMetaCell` pattern)
+  as a follow-up.
 
 > Direction (user, 2026-07-01): prioritise the **core interior-design loop + its UX,
 > discoverability, customizability** (furnish, arrange, finish, view) on desktop **and** mobile,

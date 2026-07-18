@@ -1,0 +1,86 @@
+{
+  "name": "item-meta-simple",
+  "description": "ITEM-META simple rung (2026-07-18, extended for the custom-field delta): per-instance handover metadata (URL/price/brand/model/supplier/description/remarks + user-defined custom key/value fields) on a placed item. Switches to Pro mode, selects the default move-in layout's first item, expands the inspector's 'Notes & link' section, fills the URL/description/remarks inputs, adds a custom field via 'Add field', asserts the store + serialize() output carry the meta (incl. the custom entry), screenshots the filled section, then asserts the section disappears in Simple mode (itemMeta is a pro-tier flag).",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "wait-boot-ready",
+      "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" },
+      "timeout": 30000,
+      "failMessage": "Boot never reached bootPhase='ready' + sceneReady — the async move-in furnishing may still be pending"
+    },
+    { "name": "boot-hold", "wait": 800 },
+    { "name": "set-pro-mode", "eval": "window.__store.getState().setUiMode('pro')" },
+    {
+      "name": "pick-first-item",
+      "eval": "(function(){ const s = window.__store.getState(); const it = s.items[0]; if (!it) throw new Error('No placed items in the default move-in layout'); window.__itemId = it.id; s.selectItem(it.id); return it.id + ' / ' + it.defId; })()"
+    },
+    {
+      "name": "inspector-visible",
+      "waitFor": { "css": ".panel.inspector" },
+      "timeout": 8000,
+      "failMessage": "Inspector panel did not mount after selecting an item"
+    },
+    {
+      "name": "expand-notes-section",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.panel.inspector .insp-sec-toggle')].find((b) => b.textContent?.includes('Notes & link')); if (!btn) throw new Error('Notes & link section header not found — is the itemMeta flag on in Pro mode?'); if (btn.getAttribute('aria-expanded') !== 'true') btn.click(); })()"
+    },
+    { "name": "wait-expand", "wait": 300 },
+    {
+      "name": "fill-url",
+      "eval": "(function(){ const el = document.querySelector('.panel.inspector input[aria-label=\"Custom item URL\"]'); if (!el) throw new Error('URL input not found'); const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; setter.call(el, 'https://example.com/product'); el.dispatchEvent(new Event('input', { bubbles: true })); el.focus(); el.blur(); })()"
+    },
+    {
+      "name": "fill-description",
+      "eval": "(function(){ const el = document.querySelector('.panel.inspector textarea[aria-label=\"Item description\"]'); if (!el) throw new Error('Description textarea not found'); const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set; setter.call(el, 'A comfortable piece'); el.dispatchEvent(new Event('input', { bubbles: true })); el.focus(); el.blur(); })()"
+    },
+    {
+      "name": "fill-remarks",
+      "eval": "(function(){ const el = document.querySelector('.panel.inspector textarea[aria-label=\"Special remarks\"]'); if (!el) throw new Error('Remarks textarea not found'); const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set; setter.call(el, 'existing — retain'); el.dispatchEvent(new Event('input', { bubbles: true })); el.focus(); el.blur(); })()"
+    },
+    {
+      "name": "verify-store-meta",
+      "waitFor": { "store": "(state.items.find((i) => i.id === window.__itemId) || {}).meta?.url === 'https://example.com/product'" },
+      "timeout": 5000,
+      "failMessage": "Item meta.url was not committed to the store after filling + blurring the URL field"
+    },
+    {
+      "name": "verify-serialize-carries-meta",
+      "eval": "(async () => { const { serialize } = await import('/src/state/schema.ts'); const saved = serialize(window.__store.getState()); const it = saved.items.find((i) => i.id === window.__itemId); if (!it || !it.meta || it.meta.url !== 'https://example.com/product' || it.meta.description !== 'A comfortable piece' || it.meta.remarks !== 'existing — retain') throw new Error('serialize() output missing/incomplete meta: ' + JSON.stringify(it && it.meta)); })()"
+    },
+    {
+      "name": "add-custom-field",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.panel.inspector button')].find((b) => b.getAttribute('aria-label') === 'Add custom field'); if (!btn) throw new Error('Add custom field button not found'); btn.click(); })()"
+    },
+    { "name": "wait-row-added", "wait": 200 },
+    {
+      "name": "fill-custom-key",
+      "eval": "(function(){ const el = document.querySelector('.panel.inspector input[aria-label=\"Custom field name\"]'); if (!el) throw new Error('Custom field name input not found'); const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; setter.call(el, 'Fabric'); el.dispatchEvent(new Event('input', { bubbles: true })); el.focus(); el.blur(); })()"
+    },
+    {
+      "name": "fill-custom-value",
+      "eval": "(function(){ const el = document.querySelector('.panel.inspector input[aria-label=\"Custom field value\"]'); if (!el) throw new Error('Custom field value input not found'); const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; setter.call(el, 'Linen'); el.dispatchEvent(new Event('input', { bubbles: true })); el.focus(); el.blur(); })()"
+    },
+    {
+      "name": "verify-store-custom-field",
+      "waitFor": { "store": "((state.items.find((i) => i.id === window.__itemId) || {}).meta?.custom || []).some((e) => e.key === 'Fabric' && e.value === 'Linen')" },
+      "timeout": 5000,
+      "failMessage": "Custom field (Fabric/Linen) was not committed to the store after filling + blurring both inputs"
+    },
+    { "name": "wait-settle", "wait": 300 },
+    { "name": "shot-filled-pro", "screenshot": "01-notes-link-filled-pro" },
+    { "name": "set-simple-mode", "eval": "window.__store.getState().setUiMode('simple')" },
+    { "name": "wait-rerender", "wait": 400 },
+    {
+      "name": "verify-section-hidden-in-simple",
+      "eval": "(function(){ const t = document.querySelector('.panel.inspector')?.textContent || ''; if (t.includes('Notes & link')) throw new Error('Notes & link section still present in Simple mode: ' + t.slice(0,200)); })()"
+    },
+    { "name": "shot-hidden-simple", "screenshot": "02-notes-link-hidden-simple" }
+  ]
+}

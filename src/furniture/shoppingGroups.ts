@@ -39,12 +39,17 @@ export function buildShoppingGroups(
     if (!def) continue
     const cat = def.category
     const variant = typeof it.props.variant === 'string' ? it.props.variant : undefined
-    const each = itemPrice(def, cat, variant)
+    const each = itemPrice(def, cat, variant, it.meta?.price)
     total += each
     count += 1
     if (!byCat.has(cat)) byCat.set(cat, new Map())
     const lines = byCat.get(cat)!
-    const lineKey = variant ? `${it.defId}::${variant}` : it.defId
+    // A custom price override (ITEM-META) joins the grouping key too — two
+    // instances of the same def/variant with different overridden prices must
+    // stay separate lines rather than one line's `each` silently masking the
+    // other's real price.
+    let lineKey = variant ? `${it.defId}::${variant}` : it.defId
+    if (it.meta?.price !== undefined) lineKey += `::price:${it.meta.price}`
     const existing = lines.get(lineKey)
     if (existing) existing.count += 1
     else lines.set(lineKey, { defId: it.defId, name: def.name, count: 1, each })

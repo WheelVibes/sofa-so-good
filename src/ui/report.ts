@@ -53,6 +53,7 @@ import { estimateRoomLux } from '../lighting2d/roomLux'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
 import { formatArea, formatDims, formatLength, type UnitSystem } from '../utils/measurement'
+import { safeUrl } from '../utils/safeUrl'
 import { elevationCaption, elevationSvg } from './elevation/elevationSvg'
 import { sectionSilhouettes } from './elevation/sectionFigure'
 import { lightingPlanSvg, roomLuxTableHtml } from './lighting2d/lightingPlanSvg'
@@ -237,11 +238,15 @@ export function buildReportHtml(
     const def = catalog[it.defId]
     if (!def) continue
     const variant = typeof it.props['variant'] === 'string' ? it.props['variant'] : undefined
-    const each = itemPrice(def, def.category, variant)
+    const each = itemPrice(def, def.category, variant, it.meta?.price)
     budget += each
     if (!byCat.has(def.category)) byCat.set(def.category, new Map())
     const m = byCat.get(def.category)!
-    const lineKey = variant ? `${it.defId}::${variant}` : it.defId
+    // A custom price override (ITEM-META) joins the grouping key — two
+    // instances of the same def/variant with different overridden prices
+    // must stay separate lines (see `shoppingGroups.ts` for the same fix).
+    let lineKey = variant ? `${it.defId}::${variant}` : it.defId
+    if (it.meta?.price !== undefined) lineKey += `::price:${it.meta.price}`
     const ex = m.get(lineKey)
     if (ex) ex.count += 1
     else m.set(lineKey, { name: def.name, count: 1, each })
@@ -911,19 +916,37 @@ export function buildReportHtml(
     </div>`
 
   // FF&E schedule — the item-level procurement table (room · item · source · SKU
-  // · size · qty · pricing), the central designer hand-off. Full width.
+  // · size · qty · pricing), the central designer hand-off. Full width. "Unit"
+  // already reflects a per-instance custom price override (ITEM-META, resolved
+  // by `itemPrice()`) transparently. The rest of ITEM-META (Brand/Model/
+  // Supplier/URL/Remarks) is appended as ONE block ONLY when at least one row
+  // carries any of it, so a design with no per-instance metadata keeps the
+  // plain, narrower table.
   const ffe = hasItems ? buildFfeSchedule(plan, items, catalog) : []
   const dim = (n: number) => esc(formatLength(n, units))
+  const ffeWithMeta = ffe.some((r) => r.url || r.remarks || r.brand || r.model || r.supplier)
+  const ffeMetaHead = ffeWithMeta
+    ? '<td>Brand</td><td>Model</td><td>Supplier</td><td>URL</td><td>Remarks</td>'
+    : ''
+  const ffeMetaFoot = ffeWithMeta ? '<td></td><td></td><td></td><td></td><td></td>' : ''
+  const ffeMetaCell = (r: (typeof ffe)[number]) => {
+    if (!ffeWithMeta) return ''
+    const safeHref = safeUrl(r.url)
+    const link = safeHref
+      ? `<a href="${esc(safeHref)}" target="_blank" rel="noopener noreferrer">${esc(r.url)}</a>`
+      : esc(r.url)
+    return `<td>${esc(r.brand)}</td><td>${esc(r.model)}</td><td>${esc(r.supplier)}</td><td>${link}</td><td>${esc(r.remarks)}</td>`
+  }
   const ffeSection = ffe.length
     ? `<div class="elev-section"><h2>FF&amp;E schedule</h2>
-        <table class="ffe"><tr class="cat"><td>Room</td><td>Item</td><td>Source</td><td>SKU</td><td>Size (W×D×H)</td><td class="num">Qty</td><td class="num">Unit</td><td class="num">Total</td></tr>${ffe
+        <table class="ffe"><tr class="cat"><td>Room</td><td>Item</td><td>Source</td><td>SKU</td><td>Size (W×D×H)</td><td class="num">Qty</td><td class="num">Unit</td><td class="num">Total</td>${ffeMetaHead}</tr>${ffe
           .map(
             (r) =>
-              `<tr><td>${esc(r.room)}</td><td>${esc(r.name)}</td><td>${esc(r.source)}</td><td>${esc(r.sku || '—')}</td><td>${dim(r.w)} × ${dim(r.d)} × ${dim(r.h)}</td><td class="num">${r.qty}</td><td class="num">${sgd(r.unit)}</td><td class="num">${sgd(r.total)}</td></tr>`,
+              `<tr><td>${esc(r.room)}</td><td>${esc(r.name)}</td><td>${esc(r.source)}</td><td>${esc(r.sku || '—')}</td><td>${dim(r.w)} × ${dim(r.d)} × ${dim(r.h)}</td><td class="num">${r.qty}</td><td class="num">${sgd(r.unit)}</td><td class="num">${sgd(r.total)}</td>${ffeMetaCell(r)}</tr>`,
           )
           .join('')}<tr class="cat"><td colspan="7">Total</td><td class="num">${sgd(
           ffe.reduce((s, r) => s + r.total, 0),
-        )}</td></tr></table></div>`
+        )}</td>${ffeMetaFoot}</tr></table></div>`
     : ''
 
   // Only embed a validated data-image URL (defence-in-depth: matches

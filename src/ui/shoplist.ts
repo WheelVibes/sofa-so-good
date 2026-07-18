@@ -98,7 +98,14 @@ export function buildShopList(
     const isIkea = def.kind === 'gltf' && def.source === 'ikea'
     const retailer = isIkea ? 'IKEA' : GENERIC_RETAILER
     const room = plan.rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
-    const key = `${it.defId}::${variant ?? ''}::${room?.id ?? ''}`
+    // A custom URL (ITEM-META) is part of the grouping key too — two placed
+    // copies of the same def with different custom links must stay separate
+    // lines rather than silently collapsing into one (losing one of the links).
+    const customUrl = sanitizeUrl(it.meta?.url) ?? undefined
+    // A custom price override (ITEM-META) is part of the key too, for the
+    // same reason — two instances priced differently can't share one line.
+    const customPrice = it.meta?.price
+    const key = `${it.defId}::${variant ?? ''}::${room?.id ?? ''}::${customUrl ?? ''}::${customPrice ?? ''}`
 
     let lines = buckets.get(retailer)
     if (!lines) {
@@ -112,7 +119,7 @@ export function buildShopList(
       continue
     }
 
-    const unit = itemPrice(def, def.category, variant)
+    const unit = itemPrice(def, def.category, variant, customPrice)
     let sku = ''
     let url: string | undefined
     if (isIkea) {
@@ -120,6 +127,11 @@ export function buildShopList(
       sku = v?.articleNumber ?? ''
       if (opts.includeRetailerLinks) url = sanitizeUrl(v?.url) ?? undefined
     }
+    // A per-instance custom URL (ITEM-META) overrides the retailer link when
+    // present — the user's own product/spec page is more authoritative than
+    // the generic retailer link, and it's the only link at all for a
+    // non-retailer (generic) line.
+    if (customUrl) url = customUrl
     lines.set(key, {
       name: variant ? `${def.name} (${variant})` : def.name,
       room: room?.name ?? 'Unassigned',

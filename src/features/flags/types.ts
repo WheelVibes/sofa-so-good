@@ -181,6 +181,7 @@ export type FeatureFlag =
   | 'walkMeasure'
   | 'aiDesignChat'
   | 'shareCardNative'
+  | 'itemMeta'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

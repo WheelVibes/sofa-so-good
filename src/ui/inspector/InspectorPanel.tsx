@@ -11,6 +11,7 @@ import { InspectorSection } from './InspectorSection'
 import { ItemBasicActions, ItemOrientActions } from './ItemActionButtons'
 import { ItemBulkActions } from './ItemBulkActions'
 import { ItemLightControls } from './ItemLightControls'
+import { ItemMetaSection } from './ItemMetaSection'
 import { ElevationControl, IsolateControl, OpacityControl } from './ItemPhysicalControls'
 import { tryMoveItem, trySetRotItem } from './itemTransforms'
 import { LinearArraySection } from './LinearArraySection'
@@ -57,6 +58,9 @@ export function InspectorPanel() {
   const itemOpacityOn = useFeature('itemOpacity')
   // Isolate/solo focus mode (FEAT-C): dim everything else to focus on this item.
   const isolateOn = useFeature('isolateSelection')
+  // Per-instance notes & link (ITEM-META): custom URL/description/remarks
+  // for personal annotation + the contractor handover FF&E schedule.
+  const itemMetaOn = useFeature('itemMeta')
   const renameItem = useStore((s) => s.renameItem)
   const { minimized, toggle } = useInspectorMinimize(item?.id)
   const swipe = useSwipeToCollapse(minimized, toggle)
@@ -150,6 +154,7 @@ export function InspectorPanel() {
                   sourceUrl={def.sourceUrl}
                 />
               )}
+              {itemMetaOn ? <ItemMetaSection key={item.id} item={item} /> : null}
               <div className="sec">
                 <ItemBasicActions item={item} def={def} catalog={catalog} />
                 {proMode ? <LinearArraySection item={item} def={def} catalog={catalog} /> : null}

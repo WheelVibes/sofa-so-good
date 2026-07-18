@@ -31,6 +31,23 @@ export interface FfeRow {
   unit: number
   /** Line total (SGD) = unit × qty. */
   total: number
+  /** Custom product/spec URL (ITEM-META), when the instance(s) in this row
+   *  carry one — else ''. */
+  url: string
+  /** Special remarks (ITEM-META, e.g. "existing — retain"), when the
+   *  instance(s) in this row carry one — else ''. */
+  remarks: string
+  /** Manufacturer/brand (ITEM-META spec-book field), else ''. */
+  brand: string
+  /** Model name/number (ITEM-META spec-book field), else ''. */
+  model: string
+  /** Supplier/vendor (ITEM-META spec-book field), else ''. */
+  supplier: string
+  /** User-defined custom key→value fields (ITEM-META `meta.custom`), else {}.
+   *  Duplicate keys on the source item are last-one-wins. Each distinct key
+   *  across the whole schedule becomes its own conditional CSV/report column
+   *  (`export/ffeCsv.ts`'s `customMetaColumns`, alphabetical). */
+  custom: Record<string, string>
 }
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -82,6 +99,12 @@ function skuOf(def: FurnitureDef): string {
  * quantity. Rows are ordered by the plan's room order (Unassigned last), then by
  * descending line value, then name — the way a schedule reads. Items whose def
  * is unresolvable are skipped.
+ *
+ * An instance carrying handover metadata (ITEM-META: a custom URL/remarks —
+ * `description` is personal-annotation only and doesn't surface here) gets its
+ * own row rather than merging into the plain-quantity aggregate: two placed
+ * copies of the same def can be "existing — retain" vs. "client to purchase",
+ * and collapsing them into one qty-2 row would lose that distinction.
  */
 export function buildFfeSchedule(
   plan: FloorPlan,
@@ -99,7 +122,33 @@ export function buildFfeSchedule(
     const room = plan.rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
     const roomId = room?.id ?? ''
     if (room) roomName.set(roomId, room.name)
-    const key = variant ? `${it.defId}::${variant}` : it.defId
+    const url = it.meta?.url?.trim() ?? ''
+    const remarks = it.meta?.remarks?.trim() ?? ''
+    const brand = it.meta?.brand?.trim() ?? ''
+    const model = it.meta?.model?.trim() ?? ''
+    const supplier = it.meta?.supplier?.trim() ?? ''
+    const price = it.meta?.price
+    // Duplicate keys in the source array are last-one-wins (matches the CSV
+    // column merge rule below).
+    const custom: Record<string, string> = {}
+    for (const entry of it.meta?.custom ?? []) custom[entry.key] = entry.value
+    let key = variant ? `${it.defId}::${variant}` : it.defId
+    if (
+      url ||
+      remarks ||
+      brand ||
+      model ||
+      supplier ||
+      price !== undefined ||
+      it.meta?.custom?.length
+    ) {
+      // Sort custom keys so the signature is stable regardless of entry order.
+      const customSig = Object.keys(custom)
+        .sort()
+        .map((k) => `${k}=${custom[k]}`)
+        .join('|')
+      key += `::meta:${url}::${remarks}::${brand}::${model}::${supplier}::${price ?? ''}::${customSig}`
+    }
     let rows = byRoom.get(roomId)
     if (!rows) {
       rows = new Map()
@@ -112,7 +161,7 @@ export function buildFfeSchedule(
       continue
     }
     const dims = itemDims(it, def)
-    const unit = itemPrice(def, def.category, variant)
+    const unit = itemPrice(def, def.category, variant, price)
     rows.set(key, {
       room: room?.name ?? 'Unassigned',
       category: def.category,
@@ -125,6 +174,12 @@ export function buildFfeSchedule(
       qty: 1,
       unit,
       total: unit,
+      url,
+      remarks,
+      brand,
+      model,
+      supplier,
+      custom,
     })
   }
 

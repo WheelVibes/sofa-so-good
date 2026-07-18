@@ -20,6 +20,273 @@ describe('schema', () => {
     }
   })
 
+  it('round-trips per-item handover metadata (ITEM-META: url/price/brand/model/supplier/description/remarks/custom)', () => {
+    useStore.getState().__resetForTest()
+    const id = useStore
+      .getState()
+      .addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    useStore.getState().setItemMeta(id, {
+      url: 'https://example.com/product',
+      price: 249,
+      brand: 'Acme',
+      model: 'X-100',
+      supplier: 'Acme Direct',
+      description: 'A description',
+      remarks: 'existing — retain',
+      custom: [
+        { key: 'Fabric', value: 'Linen' },
+        { key: 'Warranty', value: '2 years' },
+      ],
+    })
+    const saved = serialize(useStore.getState())
+    const parsed = SerializedStateZ.safeParse(saved)
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) return
+    const knownDefIds = new Set(Object.keys(BUILTIN_CATALOG))
+    const patch = applySerialized(parsed.data, knownDefIds)
+    const item = patch.items?.find((i) => i.id === id)
+    expect(item?.meta).toEqual({
+      url: 'https://example.com/product',
+      price: 249,
+      brand: 'Acme',
+      model: 'X-100',
+      supplier: 'Acme Direct',
+      description: 'A description',
+      remarks: 'existing — retain',
+      custom: [
+        { key: 'Fabric', value: 'Linen' },
+        { key: 'Warranty', value: '2 years' },
+      ],
+    })
+  })
+
+  it('clamps item-meta custom entries on import: caps count, truncates length, drops malformed entries (SEC-001-style neutralize)', () => {
+    const base = {
+      version: 2,
+      apartmentId: 'serangoon-north-vista-4r',
+      doors: {},
+      finishes: { floor: {}, walls: {} },
+      userFurniture: [],
+      userMaterials: [],
+      timeMode: 'system',
+      manualHour: 12,
+      cameraMode: 'orbit',
+      savedAt: new Date().toISOString(),
+    } as const
+    // Over the 20-entry cap, plus over-long key/value, plus malformed shapes.
+    const many = Array.from({ length: 25 }, (_, i) => ({ key: `k${i}`, value: `v${i}` }))
+    const parsed = SerializedStateZ.safeParse({
+      ...base,
+      items: [
+        {
+          id: 'a',
+          defId: 'dining-chair',
+          position: [0, 0],
+          rotation: 0,
+          props: {},
+          meta: {
+            custom: [...many, { key: 'k'.repeat(60), value: 'v'.repeat(600) }, 'not-an-object', 42],
+          },
+        },
+      ],
+    })
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) return
+    const custom = parsed.data.items[0].meta?.custom
+    expect(custom).toBeDefined()
+    // Malformed trailing entries ('not-an-object', 42) and the 26th
+    // well-formed one are dropped by the 20-entry cap.
+    expect(custom).toHaveLength(20)
+    expect(custom?.[0]).toEqual({ key: 'k0', value: 'v0' })
+  })
+
+  it('drops a fully-malformed item-meta `custom` (non-array) rather than rejecting the record', () => {
+    const parsed = SerializedStateZ.safeParse({
+      version: 2,
+      apartmentId: 'serangoon-north-vista-4r',
+      items: [
+        {
+          id: 'a',
+          defId: 'dining-chair',
+          position: [0, 0],
+          rotation: 0,
+          props: {},
+          meta: { custom: 'not-an-array', remarks: 'kept' },
+        },
+      ],
+      doors: {},
+      finishes: { floor: {}, walls: {} },
+      userFurniture: [],
+      userMaterials: [],
+      timeMode: 'system',
+      manualHour: 12,
+      cameraMode: 'orbit',
+      savedAt: new Date().toISOString(),
+    })
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) return
+    expect(parsed.data.items[0].meta?.custom).toBeUndefined()
+    expect(parsed.data.items[0].meta?.remarks).toBe('kept')
+  })
+
+  it('loads an old save with no `meta` field on its items fine (back-compat)', () => {
+    useStore.getState().__resetForTest()
+    const id = useStore
+      .getState()
+      .addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    const saved = serialize(useStore.getState())
+    // Simulate a legacy save: items never carried a `meta` key.
+    const legacy = { ...saved, items: saved.items.map(({ meta: _drop, ...rest }) => rest) }
+    const parsed = SerializedStateZ.safeParse(legacy)
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) return
+    const knownDefIds = new Set(Object.keys(BUILTIN_CATALOG))
+    const patch = applySerialized(parsed.data, knownDefIds)
+    const item = patch.items?.find((i) => i.id === id)
+    expect(item?.meta).toBeUndefined()
+  })
+
+  it('round-trips the drawing-set handover template, incl. paper size + orientation (TODO G2/G5)', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().setDrawingSetTemplate({
+      projectName: 'Reno Project',
+      projectAddress: '1 Example Ave',
+      client: 'The Tans',
+      drawnBy: 'A. Designer',
+      checkedBy: 'B. Reviewer',
+      revision: 'C',
+      revisionNote: 'For construction',
+      paperSize: 'a3',
+      orientation: 'portrait',
+    })
+    const saved = serialize(useStore.getState())
+    const parsed = SerializedStateZ.safeParse(saved)
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) return
+    const knownDefIds = new Set(Object.keys(BUILTIN_CATALOG))
+    const patch = applySerialized(parsed.data, knownDefIds)
+    expect(patch.drawingSetTemplate).toEqual({
+      projectName: 'Reno Project',
+      projectAddress: '1 Example Ave',
+      client: 'The Tans',
+      drawnBy: 'A. Designer',
+      checkedBy: 'B. Reviewer',
+      revision: 'C',
+      revisionNote: 'For construction',
+      paperSize: 'a3',
+      orientation: 'portrait',
+    })
+  })
+
+  it('defaults an old save with no paperSize/orientation to a4/landscape (back-compat)', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().setDrawingSetTemplate({
+      projectName: 'Legacy Project',
+      projectAddress: '',
+      client: '',
+      drawnBy: '',
+      checkedBy: '',
+      revision: 'A',
+      revisionNote: '',
+      paperSize: 'a4',
+      orientation: 'landscape',
+    })
+    const saved = serialize(useStore.getState())
+    // Simulate a legacy save predating paperSize/orientation.
+    const legacy = {
+      ...saved,
+      drawingSetTemplate: saved.drawingSetTemplate
+        ? (({ paperSize: _p, orientation: _o, ...rest }) => rest)(saved.drawingSetTemplate)
+        : undefined,
+    }
+    const parsed = SerializedStateZ.safeParse(legacy)
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) return
+    const knownDefIds = new Set(Object.keys(BUILTIN_CATALOG))
+    const patch = applySerialized(parsed.data, knownDefIds)
+    expect(patch.drawingSetTemplate?.paperSize).toBe('a4')
+    expect(patch.drawingSetTemplate?.orientation).toBe('landscape')
+  })
+
+  it('neutralizes an invalid item-meta price (negative/NaN/wrong-type) on import', () => {
+    const base = {
+      version: 2,
+      apartmentId: 'serangoon-north-vista-4r',
+      doors: {},
+      finishes: { floor: {}, walls: {} },
+      userFurniture: [],
+      userMaterials: [],
+      timeMode: 'system',
+      manualHour: 12,
+      cameraMode: 'orbit',
+      savedAt: new Date().toISOString(),
+    } as const
+    for (const badPrice of [-5, Number.NaN, 'free', null]) {
+      const parsed = SerializedStateZ.safeParse({
+        ...base,
+        items: [
+          {
+            id: 'a',
+            defId: 'dining-chair',
+            position: [0, 0],
+            rotation: 0,
+            props: {},
+            meta: { price: badPrice, remarks: 'kept' },
+          },
+        ],
+      })
+      expect(parsed.success).toBe(true)
+      if (!parsed.success) continue
+      expect(parsed.data.items[0].meta?.price).toBeUndefined()
+      expect(parsed.data.items[0].meta?.remarks).toBe('kept')
+    }
+    // A valid, non-negative price passes through untouched.
+    const good = SerializedStateZ.safeParse({
+      ...base,
+      items: [
+        {
+          id: 'a',
+          defId: 'dining-chair',
+          position: [0, 0],
+          rotation: 0,
+          props: {},
+          meta: { price: 0 },
+        },
+      ],
+    })
+    expect(good.success).toBe(true)
+    if (good.success) expect(good.data.items[0].meta?.price).toBe(0)
+  })
+
+  it('drops a javascript: URL from item meta on import (SEC-001 trust boundary)', () => {
+    const parsed = SerializedStateZ.safeParse({
+      version: 2,
+      apartmentId: 'serangoon-north-vista-4r',
+      items: [
+        {
+          id: 'a',
+          defId: 'dining-chair',
+          position: [0, 0],
+          rotation: 0,
+          props: {},
+          meta: { url: 'javascript:alert(1)', remarks: 'kept' },
+        },
+      ],
+      doors: {},
+      finishes: { floor: {}, walls: {} },
+      userFurniture: [],
+      userMaterials: [],
+      timeMode: 'system',
+      manualHour: 12,
+      cameraMode: 'orbit',
+      savedAt: new Date().toISOString(),
+    })
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) return
+    expect(parsed.data.items[0].meta?.url).toBeUndefined()
+    expect(parsed.data.items[0].meta?.remarks).toBe('kept')
+  })
+
   it('round-trips a polygon (free-form / Auto-room) room shape on a custom plan', () => {
     useStore.getState().__resetForTest()
     const polygon: [number, number][] = [
@@ -623,6 +890,23 @@ describe('schema', () => {
       new Set(['bed-double']),
     )
     expect((patch as { lightsMode?: string }).lightsMode).toBe('auto')
+  })
+
+  it('round-trips lightMood and defaults to none when absent', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().setLightMood('movie')
+    const out = serialize(useStore.getState())
+    expect(out.lightMood).toBe('movie')
+    const parsed = SerializedStateZ.safeParse(out)
+    expect(parsed.success).toBe(true)
+    // Absent (legacy, pre-mood-presets) → applySerialized defaults to 'none'.
+    const legacy = { ...out } as Record<string, unknown>
+    delete legacy.lightMood
+    const patch = applySerialized(
+      legacy as unknown as Parameters<typeof applySerialized>[0],
+      new Set(['bed-double']),
+    )
+    expect((patch as { lightMood?: string }).lightMood).toBe('none')
   })
 
   it('round-trips pinned measurement annotations', () => {

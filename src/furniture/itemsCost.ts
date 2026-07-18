@@ -13,7 +13,7 @@ export function itemsCost(items: FurnitureItem[], catalog: Record<string, Furnit
     const def = catalog[it.defId]
     if (!def) continue
     const variant = typeof it.props.variant === 'string' ? it.props.variant : undefined
-    sum += itemPrice(def, def.category, variant)
+    sum += itemPrice(def, def.category, variant, it.meta?.price)
   }
   return sum
 }

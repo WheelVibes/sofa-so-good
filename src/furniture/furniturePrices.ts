@@ -200,12 +200,24 @@ export const ITEM_PRICE: Record<string, number> = {
  *  (`variant` — the finish the user selected on that placed item) wins, so two
  *  instances on different finishes are priced independently; it falls back to
  *  the def's active variant, then any priced variant, then a per-item table
- *  entry, then the per-category base, then 100. */
+ *  entry, then the per-category base, then 100.
+ *
+ *  `priceOverride` (ITEM-META `meta.price`) is the **single choke-point** for a
+ *  user-entered custom per-instance price: when it's a finite, non-negative
+ *  number it wins over everything else (IKEA variant / user-def estimate /
+ *  static table) — every consumer (budget totals, shopping list, FF&E
+ *  schedule/CSV, BOQ, inspector) MUST route a placed item's price through this
+ *  parameter rather than re-deriving/overriding it downstream, so a custom
+ *  price can never drift between surfaces. */
 export function itemPrice(
   def: Pick<FurnitureDef, 'id' | 'category'> & Partial<FurnitureDef>,
   category: FurnitureCategory,
   variant?: string,
+  priceOverride?: number,
 ): number {
+  if (typeof priceOverride === 'number' && Number.isFinite(priceOverride) && priceOverride >= 0) {
+    return priceOverride
+  }
   if (def.kind === 'gltf' && def.source === 'ikea' && def.variants) {
     const wanted = variant ?? def.activeVariant
     const chosen =

@@ -1,5 +1,6 @@
 import { GROUND_LEVEL_ID, levelOfRoom } from '../../floorplan/levels'
 import { buildMergedCatalog } from '../../furniture/catalog'
+import { clampCustomMetaEntries } from '../../furniture/itemMetaLimits'
 import {
   defaultParamProps,
   type FurnitureItem,
@@ -64,6 +65,30 @@ export interface ItemsSlice {
   /** Set (or clear, with an empty/blank string) an item's custom display name.
    *  Falls back to the catalog def name when absent. */
   renameItem: (id: string, label: string) => void
+  /** Set (or clear) an item's handover metadata (ITEM-META: custom URL, price
+   *  override, brand/model/supplier, description, remarks, plus arbitrary
+   *  user-defined `custom` key/value fields). Text fields are trimmed;
+   *  `price` must be finite and ≥0; `custom` entries are trimmed/length-
+   *  capped and capped in count (`itemMetaLimits.ts`, blank key/value
+   *  dropped). Any empty/invalid field is omitted, and the whole `meta`
+   *  object is dropped once every field is empty (keeps saves lean, mirrors
+   *  `renameItem`'s label handling). A dedicated setter (not
+   *  `updateItemProps`) since metadata is annotative (except `price`, the
+   *  one `itemPrice()`-consumed field) — it never touches `props`/geometry/
+   *  render caches. One undo step (coalesced). */
+  setItemMeta: (
+    id: string,
+    meta: {
+      url?: string
+      price?: number
+      brand?: string
+      model?: string
+      supplier?: string
+      description?: string
+      remarks?: string
+      custom?: { key: string; value: string }[]
+    },
+  ) => void
   /** Copy one item's props (finish/colour/material/form) to every other
    *  placed item sharing its defId. Returns how many items were restyled. */
   applyStyleToAll: (id: string) => number
@@ -313,6 +338,49 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
     get().pushHistory()
     set((s) => ({
       items: s.items.map((it) => (it.id === id ? { ...it, label: next } : it)),
+    }))
+  },
+  setItemMeta: (id, meta) => {
+    const url = meta.url?.trim() || undefined
+    const price =
+      typeof meta.price === 'number' && Number.isFinite(meta.price) && meta.price >= 0
+        ? meta.price
+        : undefined
+    const brand = meta.brand?.trim() || undefined
+    const model = meta.model?.trim() || undefined
+    const supplier = meta.supplier?.trim() || undefined
+    const description = meta.description?.trim() || undefined
+    const remarks = meta.remarks?.trim() || undefined
+    const custom = clampCustomMetaEntries(meta.custom)
+    const next =
+      url || price !== undefined || brand || model || supplier || description || remarks || custom
+        ? { url, price, brand, model, supplier, description, remarks, custom }
+        : undefined
+    const cur = get().items.find((it) => it.id === id)
+    if (!cur) return
+    const curMeta = cur.meta
+    const sameCustom = (
+      a?: { key: string; value: string }[],
+      b?: { key: string; value: string }[],
+    ) =>
+      (a?.length ?? 0) === (b?.length ?? 0) &&
+      (a ?? []).every((e, i) => e.key === (b ?? [])[i]?.key && e.value === (b ?? [])[i]?.value)
+    const sameAsBefore =
+      (curMeta?.url ?? undefined) === url &&
+      (curMeta?.price ?? undefined) === price &&
+      (curMeta?.brand ?? undefined) === brand &&
+      (curMeta?.model ?? undefined) === model &&
+      (curMeta?.supplier ?? undefined) === supplier &&
+      (curMeta?.description ?? undefined) === description &&
+      (curMeta?.remarks ?? undefined) === remarks &&
+      sameCustom(curMeta?.custom, custom)
+    if (sameAsBefore) return
+    // Coalesced per-item (like `updateItemProps`) so a burst of keystrokes in
+    // the description/remarks textarea collapses into one undo step instead
+    // of one per character.
+    get().pushHistoryCoalesced(`meta:${id}`)
+    set((s) => ({
+      items: s.items.map((it) => (it.id === id ? { ...it, meta: next } : it)),
     }))
   },
   applyStyleToAll: (id) => {

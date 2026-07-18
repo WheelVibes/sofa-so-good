@@ -70,13 +70,20 @@ const billy: IkeaGltfDef = {
 
 const defs = { 'sofa-3seat': sofa, 'ikea-billy': billy }
 
-const at = (defId: string, x: number, z: number, props: FurnitureItem['props'] = {}) =>
+const at = (
+  defId: string,
+  x: number,
+  z: number,
+  props: FurnitureItem['props'] = {},
+  meta?: FurnitureItem['meta'],
+) =>
   ({
-    id: `${defId}-${x}-${z}-${JSON.stringify(props)}`,
+    id: `${defId}-${x}-${z}-${JSON.stringify(props)}-${JSON.stringify(meta ?? {})}`,
     defId,
     position: [x, z],
     rotation: 0,
     props,
+    ...(meta ? { meta } : {}),
   }) as FurnitureItem
 
 describe('buildShopList', () => {
@@ -157,6 +164,42 @@ describe('buildShopList', () => {
     )
     expect(list.groups[0]!.lines.map((l) => l.room)).toEqual(['Living', 'Unassigned'])
     expect(list.itemCount).toBe(2)
+  })
+
+  it('a per-instance price override (ITEM-META) replaces the derived price in the line + totals', () => {
+    const list = buildShopList(plan, [at('sofa-3seat', 1, 1, {}, { price: 1 })], defs)
+    const line = list.groups[0]!.lines[0]!
+    expect(line.unit).toBe(1)
+    expect(line.total).toBe(1)
+    expect(list.grandTotal).toBe(1)
+  })
+
+  it('a custom URL (ITEM-META) overrides the retailer link, even without includeRetailerLinks', () => {
+    const list = buildShopList(
+      plan,
+      [at('ikea-billy', 1, 1, { variant: 'white' }, { url: 'https://example.com/my-billy' })],
+      defs,
+      // No includeRetailerLinks — the custom URL should still surface.
+    )
+    const line = list.groups.find((g) => g.retailer === 'IKEA')!.lines[0]!
+    expect(line.url).toBe('https://example.com/my-billy')
+  })
+
+  it('keeps two instances of the same def with different custom URLs as separate lines', () => {
+    const list = buildShopList(
+      plan,
+      [
+        at('sofa-3seat', 1, 1, {}, { url: 'https://a.example.com' }),
+        at('sofa-3seat', 1.2, 1, {}, { url: 'https://b.example.com' }),
+      ],
+      defs,
+    )
+    const lines = list.groups[0]!.lines
+    expect(lines).toHaveLength(2)
+    expect(lines.map((l) => l.url).sort()).toEqual([
+      'https://a.example.com',
+      'https://b.example.com',
+    ])
   })
 })
 

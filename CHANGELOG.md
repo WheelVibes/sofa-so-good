@@ -5,6 +5,52 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.42 — Per-item metadata: URL/price/brand/model/supplier + custom fields
+
+`itemMeta` flag (pro): every placed item gets a "Notes & link" inspector
+section — custom URL (sanitized, Open button), price override (injected at
+the single `itemPrice()` choke-point so budget/shoplist/FF&E/report all
+follow, "custom" tag shown), brand/model/SKU/supplier, description, remarks,
+plus USER-DEFINED custom key/value fields (≤20, clamped not rejected, shared
+pure `itemMetaLimits.ts`). Serializes additively (zod neutralize-not-reject,
+type-only `.optional()` after `.transform()` gotcha documented), coalesced
+undo, FF&E schedule/CSV grow conditional columns (one per distinct custom
+key, alphabetical; rows split rather than silently merging differing meta),
+shoplist custom URL overrides retailer link. 175 tests + 26-step scenario
+(Pro visible/Simple hidden). Real bugs found+fixed en route: blur-commit
+clobbering (live-store read), `.icon-btn` misuse for a text button. TODO
+gains G9 (drawing-set FF&E columns follow-up).
+
+## v0.22.2.41 — Drawing set: locked print-true scale + pro title block + paper options
+
+G2+G5 + user extension. Every plan-bearing sheet auto-picks the largest
+standard ratio (1:20…1:200) fitting the chosen paper and renders mm-TRUE
+(inline mm width/height style — presentational width/height attributes lose
+to the `.draw svg{width:100%}` CSS rule, a trap now in the playbook), stated
+in the title block ("1:50 @ A3 LANDSCAPE"); schedules/cover say NTS. Paper
+size A4/A3/A2/A1 × landscape/portrait user-selectable (ISO-216 printable-mm
+table, one margins source of truth; bigger paper → finer ratio, tested),
+`@page` CSS parameterized. Title blocks gain client/drawn-by/checked-by/date/
+sheet-number/revision + north arrow (live `orientationDeg`); cover gains a
+revision row + General-notes block with the SG disclaimers (print 100%; build
+from setting-out/elevations not the furniture plan; HDB permit/PE/LEW/LP).
+New `drawingSetTemplate` store slice (quoteTemplate pattern: persisted,
+undoable) + editor UI under File → Drawing set. Pure `drawingScale.ts`
+(16 tests); 244 targeted tests + live scenario incl. A3 assertion.
+
+## v0.22.2.40 — Lighting mood presets (one-tap Reading/Movie/Entertaining/Romantic)
+
+`lightMoodPresets` flag (simple): a "Mood" chip row under Scene → Lights
+(desktop + mobile) layers per-mood intensity ×tint on top of `lightsMode` —
+ceiling fixtures dim harder for Movie night (×0.12) / Romantic; Reading
+brightens lamps ×1.25; a `lightOn='no'` fixture is NEVER re-lit (invariant
+tested live). Pure `lighting/moodPresets.ts`; mood persists with the design
+like `lightsMode` (schema+autosave, 'none' back-compat). Pixel-verified:
+Movie night lum 160→80 with red:blue 2.9 vs 1.4 (visibly dimmer + warmer);
+scene-graph probe matched the exact composed multipliers. Fixed a real
+overflow bug (5 chips vs the 264px menu → wrapped .mood-seg row). 174 tests
++ 44-step scenario.
+
 ## v0.22.2.39 — G6: DXF export enriched for CAD handoff
 
 `planToDxf` gains FURNITURE (each item's rotated OBB footprint — the same

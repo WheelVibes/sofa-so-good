@@ -14,6 +14,11 @@ import { isNonDefaultPriceRules, mergePriceRules } from '../analysis/renovationC
 import { ROOMS } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
 import {
+  DEFAULT_DRAWING_SET_TEMPLATE,
+  isNonDefaultDrawingSetTemplate,
+  mergeDrawingSetTemplate,
+} from '../export/drawingSetTemplate'
+import {
   DEFAULT_QUOTE_TEMPLATE,
   isNonDefaultTemplate,
   mergeTemplate,
@@ -21,13 +26,21 @@ import {
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import { allPlanRooms } from '../floorplan/levels'
 import { isDefaultPlan } from '../floorplan/planGeometry'
+import { clampCustomMetaEntries } from '../furniture/itemMetaLimits'
 import { safeUrl } from '../utils/safeUrl'
 import type { RootState } from './store'
 
 /** Zod transform: neutralize an unsafe-scheme URL (javascript:/data:/…) into
  *  `undefined` at the import trust boundary so it never enters state.
  *  Back-compatible — only the URL field is dropped, the record is preserved. */
-const sanitizedUrl = (schema: z.ZodOptional<z.ZodString>) => schema.transform((u) => safeUrl(u))
+/** The trailing `.optional()` is type-level only (re-marks the field as a true
+ *  optional KEY in zod's inferred output, not just "possibly undefined") —
+ *  without it, TS infers `{ url: string | undefined }` (a REQUIRED key), which
+ *  rejects assigning the app's `{ url?: string }` shape wholesale (as
+ *  `serialize()` does for `items`/`meta`). Runtime behaviour is unchanged
+ *  (an absent key already parses to `undefined` either way). */
+const sanitizedUrl = (schema: z.ZodOptional<z.ZodString>) =>
+  schema.transform((u) => safeUrl(u)).optional()
 
 const FurnitureItemZ = z.object({
   id: z.string(),
@@ -51,6 +64,41 @@ const FurnitureItemZ = z.object({
   label: z.string().optional(),
   // Optional plan level (storey); absent = ground floor (F13, additive).
   levelId: z.string().optional(),
+  // Optional per-instance handover metadata (ITEM-META, additive) — a custom
+  // product/spec URL, description, and remarks. The URL is an import trust
+  // boundary (rendered into an <a href>), so it's sanitized the same way as
+  // other imported URL fields (see the module-level `sanitizedUrl` note).
+  meta: z
+    .object({
+      url: sanitizedUrl(z.string().optional()),
+      // Custom price override — neutralized to `undefined` (never rejects the
+      // whole record) when non-finite/negative, so corrupt/hand-edited price
+      // data can't reach `itemPrice()` and can't break an otherwise-valid load
+      // (mirrors the `sanitizedUrl` neutralize-not-reject pattern above).
+      // Trailing `.optional()` is type-level only — see `sanitizedUrl`'s note.
+      price: z
+        .unknown()
+        .optional()
+        .transform((n) => (typeof n === 'number' && Number.isFinite(n) && n >= 0 ? n : undefined))
+        .optional(),
+      brand: z.string().optional(),
+      model: z.string().optional(),
+      supplier: z.string().optional(),
+      description: z.string().optional(),
+      remarks: z.string().optional(),
+      // User-defined custom key/value fields (additive) — an ordered list so
+      // display/CSV order is stable. Clamped (never rejects the record) the
+      // same way as `price` above: entries beyond CUSTOM_META_MAX_ENTRIES are
+      // dropped, keys/values beyond their length caps are truncated, blank
+      // key/value entries are dropped, and a malformed (non-array/non-object)
+      // input degrades to `undefined` rather than failing the whole load.
+      custom: z
+        .unknown()
+        .optional()
+        .transform((v) => clampCustomMetaEntries(v))
+        .optional(),
+    })
+    .optional(),
   props: z.record(z.string(), z.union([z.number(), z.string()])),
 })
 
@@ -365,6 +413,25 @@ const QuoteTemplateZ = z
   })
   .optional()
 
+/** Serialised drawing-set handover template — all fields optional for
+ *  backward compatibility. Missing fields are filled in from
+ *  `DEFAULT_DRAWING_SET_TEMPLATE` on load. */
+const DrawingSetTemplateZ = z
+  .object({
+    projectName: z.string().optional(),
+    projectAddress: z.string().optional(),
+    client: z.string().optional(),
+    drawnBy: z.string().optional(),
+    checkedBy: z.string().optional(),
+    revision: z.string().optional(),
+    revisionNote: z.string().optional(),
+    // User-customizable paper (additive follow-up to TODO G2) — absent →
+    // 'a4'/'landscape' via `mergeDrawingSetTemplate` on load.
+    paperSize: z.enum(['a4', 'a3', 'a2', 'a1']).optional(),
+    orientation: z.enum(['landscape', 'portrait']).optional(),
+  })
+  .optional()
+
 // Configurable price-rule library — every field optional + lenient; `mergePriceRules`
 // sanitises (clamps negatives/NaN) and back-fills defaults on deserialise.
 const PriceRulesZ = z
@@ -401,6 +468,10 @@ const RawSerializedStateZ = z.object({
   // Optional (added later): fixture-lights mode, so a saved lighting mood's
   // on/off state round-trips. Absent → 'auto' on load.
   lightsMode: z.enum(['auto', 'on', 'off']).optional(),
+  // Optional (added later): the one-tap lighting mood preset (UX round-3 #3),
+  // so a saved reading/movie/entertaining/romantic mood round-trips. Absent →
+  // 'none' (Normal) on load.
+  lightMood: z.enum(['none', 'reading', 'movie', 'entertaining', 'romantic']).optional(),
   // Optional pinned dimension callouts (persist with the design). Absent → [].
   annotations: z
     .array(
@@ -489,6 +560,9 @@ const RawSerializedStateZ = z.object({
   // Optional user-editable quote template (PARITY-QUOTE-XLSX tail).
   // Optional + additive — no schema-version bump; absent → DEFAULT_QUOTE_TEMPLATE on load.
   quoteTemplate: QuoteTemplateZ,
+  // Optional user-editable drawing-set handover template (TODO G5).
+  // Optional + additive — no schema-version bump; absent → DEFAULT_DRAWING_SET_TEMPLATE on load.
+  drawingSetTemplate: DrawingSetTemplateZ,
   // Optional + additive — absent → DEFAULT_PRICE_RULES on load.
   priceRules: PriceRulesZ,
   savedAt: z.string(),
@@ -613,6 +687,7 @@ export function serialize(state: RootState): SerializedState {
     timeMode: state.timeMode,
     manualHour: state.manualHour,
     lightsMode: state.lightsMode,
+    lightMood: state.lightMood,
     ...(state.annotations.length ? { annotations: state.annotations } : {}),
     ...(state.comments.length ? { comments: state.comments } : {}),
     ...(state.drawingCallouts.length ? { drawingCallouts: state.drawingCallouts } : {}),
@@ -628,6 +703,10 @@ export function serialize(state: RootState): SerializedState {
     ...(state.panoTourStops.length ? { panoTourStops: state.panoTourStops } : {}),
     // Persist the quote template only when the user has changed it (saves space).
     ...(isNonDefaultTemplate(state.quoteTemplate) ? { quoteTemplate: state.quoteTemplate } : {}),
+    // Persist the drawing-set template only when the user has changed it.
+    ...(isNonDefaultDrawingSetTemplate(state.drawingSetTemplate)
+      ? { drawingSetTemplate: state.drawingSetTemplate }
+      : {}),
     // Persist the price-rule library only when the user has changed a rate.
     ...(isNonDefaultPriceRules(state.priceRules) ? { priceRules: state.priceRules } : {}),
     savedAt: new Date().toISOString(),
@@ -717,6 +796,7 @@ export function applySerialized(
     timeMode: state.timeMode,
     manualHour: state.manualHour,
     lightsMode: state.lightsMode ?? 'auto',
+    lightMood: state.lightMood ?? 'none',
     annotations: state.annotations ?? [],
     comments: state.comments ?? [],
     drawingCallouts: state.drawingCallouts ?? [],
@@ -732,6 +812,10 @@ export function applySerialized(
     quoteTemplate: state.quoteTemplate
       ? mergeTemplate(state.quoteTemplate)
       : DEFAULT_QUOTE_TEMPLATE,
+    // Restore the drawing-set template (absent in older saves → default).
+    drawingSetTemplate: state.drawingSetTemplate
+      ? mergeDrawingSetTemplate(state.drawingSetTemplate)
+      : DEFAULT_DRAWING_SET_TEMPLATE,
     // Restore the price-rule library (absent / partial → sanitised defaults).
     priceRules: mergePriceRules(state.priceRules),
   }

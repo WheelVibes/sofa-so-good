@@ -78,6 +78,7 @@ describe('startAutosave error handling', () => {
   // change was lost on reload unless an unrelated tracked field also changed.
   it.each([
     ['lightsMode', (s: ReturnType<typeof useStore.getState>) => s.setLightsMode?.('on')],
+    ['lightMood', (s: ReturnType<typeof useStore.getState>) => s.setLightMood?.('movie')],
     ['orientationDeg', () => useStore.setState({ orientationDeg: 90 })],
     ['designNote', (s: ReturnType<typeof useStore.getState>) => s.setDesignNote('client brief')],
     [

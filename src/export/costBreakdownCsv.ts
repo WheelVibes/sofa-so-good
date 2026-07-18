@@ -98,7 +98,7 @@ export interface CostBreakdown {
  *  surface). */
 function lineEach(item: FurnitureItem, def: FurnitureDef): number {
   const variant = typeof item.props['variant'] === 'string' ? item.props['variant'] : undefined
-  return itemPrice(def, def.category, variant)
+  return itemPrice(def, def.category, variant, item.meta?.price)
 }
 
 /**

@@ -2239,3 +2239,50 @@ flag, `palettePresets`, by reading both `registry.ts` entries side by side)).
   by its wrapper class). Reviving full coverage would need a dev-only lever like
   `window.__pickPaletteFromPhotoBytes(base64, mimeType)` mirroring `__importSh3dBytes` — flagged,
   not built (out of scope for a coverage back-fill).
+
+### `drawingSet.ts` print-true SVG sizing must use inline `style`, never a bare `width`/`height` attribute (TODO G2)
+The drawing set's `.draw svg { width: 100%; height: 100%; max-height: 150mm }` CSS rule
+exists so every sheet's diagram fit-to-page fills its box. Adding real, mm-accurate
+sizing per the locked scale ratio (`floorplan/drawingScale.ts:pickDrawingScale`) by
+setting a plain SVG `width`/`height` **attribute** (e.g. `width="185.3mm"`) does
+**nothing** — SVG/HTML presentational attributes have the LOWEST CSS priority (lower
+than any matching selector, even a simple type selector), so the `.draw svg` class
+rule silently wins and stretches the element back to 100%, discarding the print-true
+size with no visible error. The fix is an inline `style="width:…mm;height:…mm"` on the
+`<svg>` element — inline style always wins over an external stylesheet rule (short of
+`!important`, which `.draw svg` doesn't use) — verified by screenshotting the captured
+export: with the bare-attribute version the floor plan filled the whole sheet
+regardless of the stated scale (visually identical at "Scale 1:20" and "Scale 1:200");
+with the inline-style fix the same plan renders visibly smaller-than-the-sheet at a
+coarser ratio and fills more of the sheet at a finer one, matching the stated scale.
+Reuse this pattern for any future per-element mm-true sizing added to a generated
+print document (report/BOQ/drawing set) — never rely on a raw `width`/`height` attribute
+when a class rule could match the same element.
+
+### Verifying a locked print scale + title-block metadata via a captured export (extends the `window.open` intercept above)
+Combine the `window.open` capture-sink intercept (above, "Verifying a new-window
+exporter") with plain string assertions on the captured HTML — no need to actually
+render/measure the popup for a scale or title-block-content check: parse the
+"Scale 1:R @ A4" text straight out of the string with a regex, then verify the G2 mm-math
+purely in `page.evaluate` against the live `floorPlan` (`wallLength`-equivalent
+`Math.hypot`) rather than trying to read a rendered element's `getBoundingClientRect()`
+(brittle under a scrolled/interrupted headless page). Only render the captured HTML
+into the main document (`document.open(); document.write(html); document.close()`) for
+the FINAL visual-confirmation screenshot, after the string assertions already passed —
+this keeps the fast assertions decoupled from the one thing that actually needs a
+screenshot. See `scripts/scenarios/drawing-scale-simple.json`.
+
+**Follow-up (user-customizable paper):** `document.open()`/`document.write()` on the
+SAME document does NOT navigate — it's still the same JS realm, so `window.__store`
+and anything else you stashed on `window` (e.g. `window.__a4Html`/`window.__a4Ratio`)
+survive a rewrite; you can safely capture TWO exports in one session (switch
+`drawingSetTemplate.paperSize`/`orientation` via `s.setDrawingSetTemplate({...s.
+drawingSetTemplate, paperSize:'a3'})` between captures, since the store action replaces
+the whole object) and only pay for `document.write` + a screenshot once at the very
+end for each variant you want a picture of — do the store-dependent switch-and-capture
+work FIRST, stash every captured HTML string, THEN do all the `document.write`+
+screenshot pairs back to back. One observed flake: two `document.write` rewrites in
+quick succession in the same headless session occasionally hit a Puppeteer "Target
+closed" `Page.captureScreenshot` error on the second screenshot (all prior assertion
+steps still passed) — if this happens, re-run just the failing variant's capture
++screenshot as its own short scenario rather than re-running the whole thing.

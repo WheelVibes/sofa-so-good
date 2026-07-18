@@ -32,6 +32,7 @@ type Persistent = {
   timeMode: unknown
   manualHour: unknown
   lightsMode: unknown
+  lightMood: unknown
   annotations: unknown
   comments: unknown
   drawingCallouts: unknown
@@ -43,6 +44,7 @@ type Persistent = {
   designNote: unknown
   panoTourStops: unknown
   quoteTemplate: unknown
+  drawingSetTemplate: unknown
   priceRules: unknown
 }
 
@@ -61,6 +63,7 @@ export const PERSISTENT_WATCH_KEYS = [
   'timeMode',
   'manualHour',
   'lightsMode',
+  'lightMood',
   'annotations',
   'comments',
   'drawingCallouts',
@@ -72,6 +75,7 @@ export const PERSISTENT_WATCH_KEYS = [
   'designNote',
   'panoTourStops',
   'quoteTemplate',
+  'drawingSetTemplate',
   'priceRules',
 ] as const satisfies readonly (keyof Persistent)[]
 
@@ -89,6 +93,7 @@ function pickPersistent(): Persistent {
     timeMode: s.timeMode,
     manualHour: s.manualHour,
     lightsMode: s.lightsMode,
+    lightMood: s.lightMood,
     annotations: s.annotations,
     comments: s.comments,
     drawingCallouts: s.drawingCallouts,
@@ -100,6 +105,7 @@ function pickPersistent(): Persistent {
     designNote: s.designNote,
     panoTourStops: s.panoTourStops,
     quoteTemplate: s.quoteTemplate,
+    drawingSetTemplate: s.drawingSetTemplate,
     priceRules: s.priceRules,
   }
 }
@@ -117,6 +123,7 @@ function shallowEqual(a: Persistent, b: Persistent): boolean {
     a.timeMode === b.timeMode &&
     a.manualHour === b.manualHour &&
     a.lightsMode === b.lightsMode &&
+    a.lightMood === b.lightMood &&
     a.annotations === b.annotations &&
     a.comments === b.comments &&
     a.drawingCallouts === b.drawingCallouts &&
@@ -128,6 +135,7 @@ function shallowEqual(a: Persistent, b: Persistent): boolean {
     a.designNote === b.designNote &&
     a.panoTourStops === b.panoTourStops &&
     a.quoteTemplate === b.quoteTemplate &&
+    a.drawingSetTemplate === b.drawingSetTemplate &&
     a.priceRules === b.priceRules
   )
 }

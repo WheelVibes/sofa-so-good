@@ -30,4 +30,20 @@ describe('itemsCost', () => {
       itemPrice(sofa, sofa.category),
     )
   })
+
+  it('a per-instance price override (ITEM-META) replaces the derived price in the total', () => {
+    const sofa = BUILTIN_CATALOG['sofa-3seat']
+    const stool = BUILTIN_CATALOG['bar-stool']
+    const overridden = { ...mk('sofa-3seat'), meta: { price: 1 } }
+    const total = itemsCost([overridden, mk('bar-stool')], BUILTIN_CATALOG)
+    expect(total).toBe(1 + itemPrice(stool, stool.category))
+    expect(total).not.toBe(itemPrice(sofa, sofa.category) + itemPrice(stool, stool.category))
+  })
+
+  it('removing the price override (meta undefined) restores the derived price', () => {
+    const sofa = BUILTIN_CATALOG['sofa-3seat']
+    const overridden = { ...mk('sofa-3seat'), meta: { price: 1 } }
+    const restored = { ...overridden, meta: undefined }
+    expect(itemsCost([restored], BUILTIN_CATALOG)).toBe(itemPrice(sofa, sofa.category))
+  })
 })
