@@ -81,6 +81,14 @@ describe('buildDesignChatContext', () => {
     expect(ctx).toContain('NOT AVAILABLE')
   })
 
+  it('honours an explicit room category over the name (RM1)', () => {
+    const plan = makePlan()
+    // Rename + set an explicit category: the label must follow the category.
+    plan.rooms[0] = { ...plan.rooms[0]!, name: "Ella's room", category: 'bedroom' }
+    const ctx = buildDesignChatContext({ items: [], defs, plan })
+    expect(ctx).toContain("Ella's room (Bedroom)")
+  })
+
   it('is deterministic for identical inputs', () => {
     const plan = makePlan()
     const items = [mk('sofa', 1.5, 1.5)]

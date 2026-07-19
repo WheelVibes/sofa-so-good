@@ -5,12 +5,13 @@ import { buildHandoverChecklist } from './handoverChecklist'
 
 // --- Minimal fixtures -------------------------------------------------------
 
-const room = (id: string, name: string): PlanRoom => ({
+const room = (id: string, name: string, extra: Partial<PlanRoom> = {}): PlanRoom => ({
   id,
   name,
   origin: [0, 0],
   width: 3,
   depth: 3,
+  ...extra,
 })
 
 const planWith = (rooms: PlanRoom[]): FloorPlan =>
@@ -87,6 +88,24 @@ describe('buildHandoverChecklist', () => {
     // Only the 4 common rules — no kind-specific extras.
     expect(roomGroup.items).toHaveLength(4)
     expect(labels([roomGroup]).some((l) => /Walls & ceiling/i.test(l))).toBe(true)
+  })
+
+  it('honours an explicit room category over the name (RM1)', () => {
+    // "Ella's room" infers to 'other' (common rules only); an explicit bedroom
+    // category pulls the bedroom snag rules (aircon + wardrobe).
+    const withCat = buildHandoverChecklist(
+      planWith([{ ...room('kr', "Ella's room"), category: 'bedroom' }]),
+      [],
+      {},
+    )
+    const kids = withCat.groups.find((g) => g.title === "Ella's room")!
+    expect(labels([kids]).some((l) => /wardrobe/i.test(l))).toBe(true)
+    expect(labels([kids]).some((l) => /aircon/i.test(l))).toBe(true)
+
+    // Without the category the same name gets only the common rules (unchanged).
+    const plain = buildHandoverChecklist(planWith([room('kr', "Ella's room")]), [], {})
+    const plainGrp = plain.groups.find((g) => g.title === "Ella's room")!
+    expect(plainGrp.items).toHaveLength(4)
   })
 
   it('adds appliance-activation items for the appliance categories actually present', () => {

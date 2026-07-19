@@ -168,6 +168,19 @@ describe('buildElectricalSchedule', () => {
     expect(f.powerPoints).toBe(1)
   })
 
+  it('honours an explicit room category over the name (RM1)', () => {
+    // "Ella's room" infers to 'other' (floor 1); an explicit bedroom category
+    // downmaps to bedroom (floor 2).
+    const kids: PlanRoom = { ...room('kr', "Ella's room"), category: 'bedroom' }
+    const defs = catalog([def('bed', 'beds')])
+    const items = [item('a', 'bed', kids)]
+    const sched = buildElectricalSchedule(plan([kids]), items, defs)
+    const kr = sched.rooms.find((r) => r.roomId === 'kr')!
+    expect(kr.kind).toBe('bedroom')
+    expect(kr.powerPoints).toBe(MIN_SOCKETS_BY_KIND.bedroom)
+    expect(kr.powerPoints).toBe(2)
+  })
+
   it('handles an empty plan with no NaN — zeroed totals, no rows', () => {
     const sched = buildElectricalSchedule(plan([]), [], {})
     expect(sched.rooms).toEqual([])

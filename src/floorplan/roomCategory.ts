@@ -25,10 +25,14 @@
  * consumer keeps working unchanged when a room has no explicit category
  * (verified byte-identical against `roomKindFromName` in
  * `roomCategory.test.ts`). The pre-existing `roomKindFromName` copies in
- * `suggestions.ts`/`autoArrange.ts` are left untouched — only the RM1
- * migration call sites listed in the plan doc switch to this module; other
- * consumers (handover checklist, plan statistics, electrical schedule,
- * general suggestions) keep their inference fallback for now (RM1 scope).
+ * `suggestions.ts`/`autoArrange.ts` are left untouched — every consumer now
+ * resolves through this module (RM1 migration COMPLETE, incl. the RM1-tail
+ * consumers: suggestions, roomLux, planStatistics, handoverChecklist,
+ * electricalSchedule, designChatContext, resetSlice). Each honours an explicit
+ * `category` and keeps its legacy name inference byte-identical; the one
+ * intentional output change is that `suggestions.ts` maps serviceYard/storeroom
+ * to a local non-habitable `'utility'` kind (not `'balcony'`), so a household
+ * shelter no longer gets a bogus outdoor-seating suggestion.
  *
  * Pure + total, no React/store/three imports.
  */

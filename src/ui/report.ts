@@ -452,7 +452,13 @@ export function buildReportHtml(
       const def = catalog[it.defId]
       if (def && pointInRoom(r, it.position[0], it.position[1])) cats.add(def.category)
     }
-    return { id: r.id, name: r.name, areaSqm: planRoomArea(r), itemCategories: [...cats] }
+    return {
+      id: r.id,
+      name: r.name,
+      areaSqm: planRoomArea(r),
+      itemCategories: [...cats],
+      ...(r.category ? { category: r.category } : {}),
+    }
   })
   const suggestions = buildSuggestions({ rooms: suggestionRooms })
   // Group the flat suggestion list by room, preserving plan room order, so each room

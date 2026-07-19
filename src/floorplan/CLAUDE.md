@@ -331,8 +331,14 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   `balcony` bucket→`serviceYard`/`storeroom`/`foyer`/`balcony`) those regexes can't recover
   once already collapsed. Edited via `RoomInspector`'s "Room type" `Select` (undoable,
   `updateRoom`). `templates/shared.ts`'s `room()` builder takes an optional trailing `category`
-  param — seeded across the HDB + condo starter templates. See `docs/ARCHITECTURE.md` for the
-  full list of RM1-migrated consumers.
+  param — seeded across the HDB + condo starter templates. **RM1 migration is COMPLETE** — every
+  name-inference consumer now resolves through `roomCategory` (explicit category wins): the coarse
+  arranger/catalog/furnishPlan set plus the RM1-tail consumers (suggestions, roomLux,
+  planStatistics, handoverChecklist, electricalSchedule, designChatContext, resetSlice). All keep
+  byte-identical name-inference output when a room has no explicit category; the ONE intentional
+  change is that `suggestions` maps `serviceYard`/`storeroom` to a local non-habitable `'utility'`
+  kind instead of `'balcony'` (no more bogus "add outdoor seating" for a household shelter). See
+  `docs/ARCHITECTURE.md` for the full consumer list.
 - **Waterproofing zones (BSJ-7, `waterproofing` pro flag): `waterproofing.ts`** (pure) is the ONE
   builder — `buildWaterproofingZones(plan, items)` → one zone per wet/hard-service room
   (`WATERPROOF_CATEGORIES` = bath/powder/kitchen/serviceYard/balcony) = floor area + wall upturn

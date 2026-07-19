@@ -366,9 +366,18 @@ same change that reshapes a system.
   `roomCategory(room)` — `serviceYard`/`storeroom`/`foyer`/`other` still get no kit; those kits are
   RM2), and `autoArrange.ts`'s `roomKindFromItems` (explicit category → name → item-inference,
   in that priority order). `templates/shared.ts`'s `room()` builder takes an optional trailing
-  `category` param, seeded across every HDB + condo starter template. Other consumers
-  (suggestions, handover checklist, plan statistics, electrical schedule) keep their plain
-  name-inference fallback for now — out of RM1 scope, unaffected either way.
+  `category` param, seeded across every HDB + condo starter template. **RM1-tail migration
+  complete:** the five deferred consumers now resolve through `roomCategory` too —
+  `analysis/suggestions.ts`, `lighting2d/roomLux.ts`, `analysis/planStatistics.ts`,
+  `analysis/handoverChecklist.ts`, `analysis/electricalSchedule.ts` (plus `ai/designChatContext.ts`
+  and `state/slices/resetSlice.ts`'s dry-floor pass). Each honours an explicit `category` (via
+  `toRoomKind`, or `toArrangeKind` in resetSlice) and keeps the legacy name classifier
+  byte-identical when a room has none. **One deliberate output change:** suggestions no longer
+  treats a `serviceYard`/`storeroom` (household shelter, service yard) as `'balcony'` — it maps them
+  to a suggester-local non-habitable `'utility'` kind so they stop getting the bogus "add outdoor
+  seating or planters" idea (flagged by the quality round); genuine balconies/ledges keep it. The
+  `'utility'` kind is local to `suggestions.ts` so it doesn't ripple into `RoomKind`'s other
+  consumers.
   **Pet fittings** (Pet program P1, `petFittings` flag, tier: **simple**, default on): the `pets`
   `FurnitureCategory` (16th value) collects pet beds, safety fittings and pet furniture. The flag
   gates the tab via `useUnifiedCatalog(includeRemote, includeShared, includePets)` — off zeroes the

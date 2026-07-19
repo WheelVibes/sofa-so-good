@@ -1,6 +1,7 @@
 import { planAirconPlacements } from '../../analysis/airconPlacement'
 import { buildAirconSystemPlan } from '../../analysis/airconSystem'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
+import { toArrangeKind } from '../../floorplan/roomCategory'
 import type { FloorPlan } from '../../floorplan/types'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import { buildMergedCatalog } from '../../furniture/catalog'
@@ -157,7 +158,9 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
     if (!isDefaultPlan(plan)) {
       const wallHex = BUILTIN_MATERIALS[preset.wall]?.swatch ?? plan.wallColor
       const rooms = plan.rooms.map((r) => {
-        const kind = roomKindFromName(r.name)
+        // RM1: an explicit, user-set category wins; else the legacy name
+        // classifier — living/bedroom rooms get the preset's dry floor.
+        const kind = r.category ? toArrangeKind(r.category) : roomKindFromName(r.name)
         return kind === 'living' || kind === 'bedroom' ? { ...r, floor: preset.dryFloor } : r
       })
       set({

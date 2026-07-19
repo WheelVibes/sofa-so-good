@@ -59,7 +59,12 @@ when an item ships it is **removed from this file entirely**. Maintainability re
   `floorplan/roomCategory.ts` resolver (`roomCategory`/`roomCategoryFromName`/`toRoomKind`/
   `toArrangeKind`) + `RoomInspector` "Room type" Select + migrated consumers (CatalogDrawer
   room-aware landing, EmptyRoomHint starters, `furnishPlan.kitForRoom`, `autoArrange`
-  room-kind resolution) + seeded HDB/condo templates. See `docs/ARCHITECTURE.md`.
+  room-kind resolution) + seeded HDB/condo templates. See `docs/ARCHITECTURE.md`. **RM1-tail
+  DONE:** the five deferred consumers (suggestions, roomLux, planStatistics, handoverChecklist,
+  electricalSchedule) + designChatContext + resetSlice now resolve through `roomCategory` too —
+  byte-identical name inference, explicit category honoured, and suggestions maps
+  serviceYard/storeroom to a local `'utility'` kind (no more bogus "add outdoor seating" for a
+  household shelter).
 - [x] **RM2 — preset refresh** (v0.22.2.65: SG 2025-26 theme gallery incl. Modern Luxe/Quiet
   Luxury + Peranakan Accent, per-category kits incl. serviceYard/foyer/storeroom,
   `LayoutPreset.categoryStyle`/`kits`/`paletteId`, palette linking on apply).

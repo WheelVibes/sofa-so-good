@@ -18,6 +18,7 @@
  */
 
 import { allPlanRooms, planLevels } from '../floorplan/levels'
+import { toRoomKind } from '../floorplan/roomCategory'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
 import { planRoomArea, planRoomPerimeter, wallLength } from '../floorplan/types'
 import { type RoomKind, roomKindFromName } from './suggestions'
@@ -114,7 +115,9 @@ export function buildPlanStatistics(plan: FloorPlan): PlanStatistics {
     totalAreaSqm += area
     totalPerimeterM += planRoomPerimeter(r)
     if (isCirculationRoom(r)) circulationSqm += area
-    const kind = roomKindFromName(r.name)
+    // RM1: an explicit, user-set category wins; a room without one keeps the
+    // legacy name classifier so the by-kind tally is byte-identical.
+    const kind = r.category ? toRoomKind(r.category) : roomKindFromName(r.name)
     const acc = byKindMap.get(kind) ?? { count: 0, areaSqm: 0 }
     acc.count += 1
     acc.areaSqm += area

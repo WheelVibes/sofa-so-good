@@ -89,6 +89,15 @@ describe('estimateRoomLux', () => {
     expect(living.status).toBe('high')
   })
 
+  it('honours an explicit room category over the name (RM1)', () => {
+    // "Ella's room" infers to 'other'; an explicit bedroom category wins.
+    const kids: PlanRoom = { ...room('kr', "Ella's room", 3, 4), category: 'bedroom' }
+    const rows = estimateRoomLux(makePlan([kids]), [])
+    const kr = rows.find((r) => r.roomId === 'kr')!
+    expect(kr.kind).toBe('bedroom')
+    expect(kr.recommended).toEqual(RECOMMENDED_LUX.bedroom)
+  })
+
   it('handles a custom-plan polygon room: polygon area + containment, degenerate rooms skipped', () => {
     const tri: PlanRoom = {
       id: 'tri',

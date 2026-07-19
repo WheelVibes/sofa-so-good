@@ -28,6 +28,7 @@ import { buildPlanStatistics, roomKindLabel } from '../analysis/planStatistics'
 import { roomKindFromName } from '../analysis/suggestions'
 import { itemFootprint } from '../collision/placement'
 import { allPlanRooms, levelOfRoom } from '../floorplan/levels'
+import { toRoomKind } from '../floorplan/roomCategory'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
 import { planRoomArea, pointInRoom } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem, FurnitureType } from '../furniture/types'
@@ -92,7 +93,10 @@ function buildRoomSections(
   const lines: string[] = []
   for (const room of shown) {
     const area = planRoomArea(room)
-    const kind = roomKindLabel(roomKindFromName(room.name))
+    // RM1: an explicit, user-set category wins; else the legacy name classifier.
+    const kind = roomKindLabel(
+      room.category ? toRoomKind(room.category) : roomKindFromName(room.name),
+    )
     const roomItems = items.filter((it) => itemInRoom(room, levelOf, it))
     lines.push(`- ${room.name} (${kind}), ${fmtM2(area)}, ${roomItems.length} item(s):`)
     const cap = Math.max(0, maxItemsPerRoom)

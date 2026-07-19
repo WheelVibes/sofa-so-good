@@ -138,4 +138,49 @@ describe('buildSuggestions', () => {
     const input: SuggestionInput = { rooms: [room('lr', 'Living Room', 18, ['seating'])] }
     expect(buildSuggestions(input)).toEqual(buildSuggestions(input))
   })
+
+  // --- RM1: explicit room category flows into suggestions -------------------
+  it('an explicit category wins over the room name (a renamed bedroom is still a bedroom)', () => {
+    const out = buildSuggestions({
+      rooms: [{ ...room('br', "Ella's room", 12, []), category: 'bedroom' }],
+    })
+    // Empty + category bedroom => the bedroom furnish tip, not the generic
+    // "furnish to bring it to life" an inferred 'other' room would get.
+    const furnish = out.find((s) => s.roomId === 'br')
+    expect(furnish?.message).toMatch(/start with a bed/i)
+    expect(furnish?.addCategory).toBe('beds')
+  })
+
+  it('an explicit master bedroom downmaps to bedroom suggestions', () => {
+    const out = buildSuggestions({
+      rooms: [{ ...room('mb', 'Suite', 16, ['beds', 'lighting']), category: 'masterBedroom' }],
+    })
+    expect(out.some((s) => /wardrobe/i.test(s.message))).toBe(true)
+  })
+
+  // --- RM1-tail fix: utility rooms must NOT get the outdoor-seating idea -----
+  it('a Household Shelter (name-inferred storeroom) gets NO outdoor-seating suggestion', () => {
+    const out = buildSuggestions({ rooms: [room('hs', 'Household Shelter', 3, [])] })
+    expect(out.some((s) => /outdoor seating|planters/i.test(s.message))).toBe(false)
+    // A utility room is non-habitable — no furnishing nag at all.
+    expect(out.filter((s) => s.roomId === 'hs')).toHaveLength(0)
+  })
+
+  it('a Service Yard gets no outdoor-seating suggestion (explicit or name)', () => {
+    const byName = buildSuggestions({ rooms: [room('y', 'Service Yard', 5, [])] })
+    expect(byName.some((s) => /outdoor seating|planters/i.test(s.message))).toBe(false)
+    const byCategory = buildSuggestions({
+      rooms: [{ ...room('y2', 'Utility', 5, []), category: 'serviceYard' }],
+    })
+    expect(byCategory.some((s) => /outdoor seating|planters/i.test(s.message))).toBe(false)
+  })
+
+  it('a genuine Balcony STILL gets the outdoor-seating idea (unchanged)', () => {
+    // The outdoor idea fires for a non-empty balcony without outdoor/seating.
+    const out = buildSuggestions({ rooms: [room('b', 'Balcony', 6, ['lighting'])] })
+    const outdoor = out.find((s) => s.roomId === 'b')
+    expect(outdoor?.message).toMatch(/outdoor seating|planters/i)
+    expect(outdoor?.severity).toBe('idea')
+    expect(outdoor?.addCategory).toBe('outdoor')
+  })
 })

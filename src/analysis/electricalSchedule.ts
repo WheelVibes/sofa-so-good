@@ -24,6 +24,7 @@
  */
 import { allPlanRooms } from '../floorplan/levels'
 import { electricalMountDefaultMm } from '../floorplan/mepPoints'
+import { toRoomKind } from '../floorplan/roomCategory'
 import { type FloorPlan, type PlanElectricalPoint, pointInRoom } from '../floorplan/types'
 import { isItemEmitter } from '../furniture/lightEmitters'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
@@ -146,7 +147,9 @@ export function buildElectricalSchedule(
 
   for (const r of rooms) {
     const t = tally.get(r.id) ?? { lighting: 0, power: 0 }
-    const kind = roomKindFromName(r.name)
+    // RM1: an explicit, user-set category wins; a room without one keeps the
+    // legacy name classifier so the socket floor is byte-identical.
+    const kind = r.category ? toRoomKind(r.category) : roomKindFromName(r.name)
     // Floor habitable rooms to a baseline socket count; never below the inferred.
     const power = Math.max(t.power, MIN_SOCKETS_BY_KIND[kind] ?? 0)
     const row: ElectricalRoomRow = {

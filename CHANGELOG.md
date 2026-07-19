@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.104 — RM1 migration complete: every room classifier honors the explicit category
+
+The five deferred RM1 consumers (suggestions, roomLux, planStatistics,
+handoverChecklist, electricalSchedule) plus two more found by sweep
+(designChatContext, resetSlice dry-floor pass) now resolve through
+`roomCategory(room)` — a user-set Room type flows everywhere. One
+intentional output change: suggestions no longer folds serviceYard/
+storeroom into 'balcony', killing the "Household Shelter — Add outdoor
+seating or planters" class (genuine balconies keep it; everything else
+byte-identical, pinned per consumer). 1,348 targeted tests; suggestions
+panel GPU-verified.
+
 ## v0.22.2.103 — Journey residuals: utility ceiling lights + wall-clip sweep
 
 Every room now has a light: the default flat's fixed tables gained flush

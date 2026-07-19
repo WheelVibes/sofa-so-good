@@ -21,6 +21,7 @@
  * of `accessibility.ts` / `daylight.ts`.
  */
 
+import { toRoomKind } from '../floorplan/roomCategory'
 import type { FloorPlan } from '../floorplan/types'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildHandoverDates, formatHandoverDate } from './handoverDates'
@@ -157,7 +158,9 @@ export function buildHandoverChecklist(
   // --- Per-room snag groups -------------------------------------------------
   for (const room of rooms) {
     if (!room) continue
-    const kind = roomKindFromName(room.name)
+    // RM1: an explicit, user-set category wins; a room without one keeps the
+    // legacy name classifier so its snag rules are byte-identical.
+    const kind = room.category ? toRoomKind(room.category) : roomKindFromName(room.name)
     const extra = ROOM_RULES_BY_KIND[kind] ?? []
     const rules = [...COMMON_ROOM_RULES, ...extra]
     groups.push({

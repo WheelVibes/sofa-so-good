@@ -83,6 +83,42 @@ describe('applyLayoutPreset', () => {
     expect(useStore.getState().floorPlan.rooms.find((r) => r.id === 'liv')!.floor).toBe('floor-x')
   })
 
+  it('honours an explicit room category when applying the dry floor (RM1)', () => {
+    const ext: FloorPlan['walls'][number]['thickness'] = 'external'
+    const plan: FloorPlan = {
+      id: 'custom-reset-cat-test',
+      name: 'Custom',
+      ceilingHeight: 2.6,
+      extent: [9, 7],
+      walls: [
+        { id: 'n', start: [0.1, 0.1], end: [8.9, 0.1], thickness: ext },
+        { id: 'e', start: [8.9, 0.1], end: [8.9, 6.9], thickness: ext },
+        { id: 's', start: [8.9, 6.9], end: [0.1, 6.9], thickness: ext },
+        { id: 'w', start: [0.1, 6.9], end: [0.1, 0.1], thickness: ext },
+      ],
+      openings: [{ id: 'd', kind: 'door', wallId: 's', offset: 4, width: 0.9, sill: 0, head: 2.1 }],
+      rooms: [
+        // Name infers to 'other' (no dry floor); explicit bedroom category wins.
+        {
+          id: 'kids',
+          name: "Ella's room",
+          origin: [0.2, 0.2],
+          width: 4.4,
+          depth: 6.6,
+          floor: 'floor-x',
+          category: 'bedroom',
+        },
+      ],
+    }
+    useStore.getState().setFloorPlan(plan)
+    useStore.setState({ past: [], future: [] } as never)
+    const preset = LAYOUT_PRESETS.find((p) => p.id === 'scandi-calm')!
+    useStore.getState().applyLayoutPreset(preset.id)
+    expect(useStore.getState().floorPlan.rooms.find((r) => r.id === 'kids')!.floor).toBe(
+      preset.dryFloor,
+    )
+  })
+
   it('is a no-op for an unknown preset id', () => {
     useStore.getState().applyLayoutPreset('does-not-exist')
     expect(useStore.getState().past.length).toBe(0)
