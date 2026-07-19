@@ -4,6 +4,41 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## Mobile audit round (2026-07-19)
+> Mobile-depth UX audit at 390×844 + `SHOT_TOUCH`. Full report + shots:
+> `docs/research/2026-07-19-mobile-audit.md`. P1=0, P2=3 (1 fixed inline), P3=4.
+> No breakage; no horizontal scroll leak anywhere. RM3/RM4 confirmed fixed the
+> desktop audit's P2-3 (default now scores 76/100, Clearance 100, 0 BLOCKING).
+- [ ] **MOB-P2-1 — mobile tap-target pass 2 for editing bottom-sheets.** The menu
+  sheet (`.m-detail`) lifts segments/selects/sliders to 44px, but the catalog
+  (`.catalog`) and finish picker (`.finish-picker`) sheets don't: category chips 32px,
+  tabs 36px, **pagination 25px**, footer buttons 27px, search 36px (catalog);
+  Floor/Walls/Ceiling tabs 27px (finish); Post/Square/Story 27px (share); Wall chips +
+  Elevations/Lighting tabs 27px (drawings). One coordinated change — extend the
+  `.m-detail`-style 44px lift to these sheets. Left unfixed to avoid shared-CSS/theme
+  regression (same reasoning as the desktop audit's P3-2). Shots: `01-50-sweep-catalog-
+  corrected.png`, `13-13-sweep-finish.png`, `18-18-sweep-share.png`, `12-41-sweep-drawings.png`.
+- [ ] **MOB-P2-2 — 2D plan-editor toolbar sub-44px on mobile.** View/Edit/Done ~27px,
+  Undo/Redo 36×26, Floors selector 27px, Return-to-orbit 32×32 — the plan header isn't
+  `.panel-head`-scoped so it gets no hit-expander. Lift to 44px on `body.mobile` (mind
+  Undo/Redo adjacency — cap adjacent `::after` expanders like the GLB-designer pass).
+  Shot: `05-54-sweep-plan-corrected.png`.
+- [x] **MOB-P2-3 — Handover/DLP checklist tap targets (FIXED INLINE).** `body.mobile
+  .ho-check` → 44px rows + 22px checkbox (`responsive.css`). Was ~20px rows / 15px native
+  checkbox for a 79-item tick-off-on-collection-day list. Verified `60-handover-checklist-44px.png`.
+- [ ] **MOB-P3-1 — Scene MOOD row clips "Romantic"→"Roman…"** at 390px (5 equal-flex
+  segments). Scroll the mood `.seg` horizontally or wrap to 2 rows. (= desktop P3-3,
+  confirmed on mobile.) Shot: `03-52-lighting-moods.png`.
+- [ ] **MOB-P3-2 — MEP socket marker overlaps room label** at phone zoom (= desktop P2-1,
+  MepLayer `+16` vs RoomsLayer 3-line block; needs the coordinated two-layer fix). Socket
+  captions themselves ARE legible on mobile. Shot: `06-25-plan-mep-point.png`.
+- [ ] **MOB-P3-3 — check mobile discoverability of the hackability overlay toggle.** Not in
+  the Plan tools sheet; likely under the plan sheet's eye/visibility rail (not confirmed).
+  Verify a Pro phone user can reach it. Shot: `06-55-plan-tools-menu.png`.
+- [ ] **MOB-P3-4 — Handover "Key collection / TOP date" still native `<input type=date>`**
+  (US mm/dd/yyyy in US-locale browser; mitigated by a "Format:" caption). Move to the custom
+  control per ui/CLAUDE.md. (= desktop P3-6, partially addressed.) Shot: `08-37-handover-dlp.png`.
+
 ## Active — SG-authentic presets, defaults & room categories (user request 2026-07-19)
 > User directive: (1) default layouts + presets must truly reflect modern SG homes;
 > (2) placement must be sound — orientation, grouping, never obstructing doors/windows/

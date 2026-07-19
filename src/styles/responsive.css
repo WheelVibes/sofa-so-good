@@ -445,6 +445,15 @@ body.mobile {
      cramping the text column to 4+ lines next to the action button. */
   .toast { width: calc(100vw - 2 * var(--s-4)); max-width: none; }
 
+  /* Handover/DLP move-in checklist: the whole row is a <label> (the tappable
+     target), but at desktop density each row is only ~20px tall with ~4px gaps —
+     too tight to tick off with a thumb on collection day (its literal use case),
+     and adjacent rows are easily mis-hit. Lift each row to a 44px tap target and
+     enlarge the checkbox on phones (MOBILE-TAP-TARGETS; the repo's lift-to-44px
+     mobile pattern). Alignment stays top so 2-line items read cleanly. */
+  .ho-check { min-height: 44px; padding: 5px 0; }
+  .ho-check input { width: 22px; height: 22px; margin-top: 1px; }
+
   /* Progressive-disclosure hints (InfoCallout) default to a readable 40ch, which
      is only ~half a phone's width → the copy wraps to 4+ lines and eats vertical
      space. Widen to near-full width on mobile so it wraps to ~2 lines. */

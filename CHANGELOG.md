@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.89 — Mobile-depth UX audit (P1=0 / P2=3 / P3=4) + handover tap-target fix
+
+Full phone-width (390×844, emulated touch) audit across cold start, core
+loop, 2D plan editor, and all Pro panels, with a reusable effective-hit-
+target sweep (scripts/scenarios/lib/touchSweep.mjs — credits the repo's
+inset:-9px hit-expander pattern, killing false positives). No breakage, no
+horizontal-scroll leaks. Fixed inline: the 79-row handover checklist was
+~20 px/row — now 44 px rows + 22 px checkboxes under body.mobile. Filed:
+editing bottom-sheets (catalog/finish/share/drawings) keep ~27 px
+tabs/chips/pagination and the 2D plan toolbar is all sub-44 px — queued as
+a coordinated tap-target pass; MOOD "Romantic" label clips at 390 px; MEP
+socket marker/label overlap at phone zoom; hackability-overlay mobile
+discoverability. Also confirms the desktop audit's fixes hold on mobile
+(score 76/Clearance 100/0 blocking; tickable checklist). Report:
+docs/research/2026-07-19-mobile-audit.md.
+
 ## v0.22.2.88 — Contractor punch list cleared: entry doors, storey-grouped rooms, halos, elevation swings, A4 symbols
 
 All five re-review punch items. Entry doors no longer read "Unassigned":

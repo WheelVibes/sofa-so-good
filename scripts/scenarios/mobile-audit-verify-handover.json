@@ -1,0 +1,17 @@
+{
+  "name": "mobile-audit-verify-handover",
+  "description": "Verify the .ho-check 44px mobile tap-target fix: handover DLP checklist rows + checkbox at 390x844.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; (function(){ const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setUiMode?.('pro'); s.reresolveFeatureFlags?.(); })()" },
+    { "name": "mobile", "viewport": { "width": 390, "height": 844 } },
+    { "name": "settle-mobile", "wait": 800 },
+    { "name": "open-handover", "store": { "action": "setHandoverOpen", "args": [true] } },
+    { "name": "handover-visible", "waitFor": { "css": "#handoverPanel" }, "timeout": 25000 },
+    { "name": "settle-handover", "wait": 1500 },
+    { "name": "shot-handover-fixed", "screenshot": "60-handover-checklist-44px" },
+    { "name": "sweep-ho", "eval": { "file": "scripts/scenarios/lib/touchSweep.mjs" } },
+    { "name": "shot-sweep-ho", "screenshot": "61-sweep-handover-fixed" }
+  ]
+}
