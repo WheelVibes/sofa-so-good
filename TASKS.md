@@ -36,12 +36,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
   many independent feature-flagged pieces) were also left inline — bundling them needs a 40+ prop
   surface (passing the whole store-action snapshot), which would hurt readability more than the
   current named-fragment const. Revisit only if either grows further.
-- [ ] H1-F tail: `export/dxf.ts`'s `assignOpeningMarks`/`openingMarkKey` is a local copy of the
-  logic now shared at `analysis/openingSchedule.ts:assignOpeningMarks` (extracted for
-  `reportPlanSvg.ts`'s on-plan D/W mark callouts, so the plan sheet and the schedule sheet can
-  never disagree). `dxf.ts` predates the extraction and was left untouched (owned by a
-  concurrent change) — migrate it to import the shared helper on next touch instead of keeping
-  two copies of the same grouping key.
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).
 - [ ] F26 [DEV] Photo-to-3D room replica (vision/photogrammetry, BYO-key cloud).
 - [ ] X-SHOP tail [DEV]: HipVan price adapter is blocked — its public

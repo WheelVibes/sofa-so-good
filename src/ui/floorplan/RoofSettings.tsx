@@ -204,7 +204,7 @@ function DormerEditor({
           <div
             key={`dormer-${i}`}
             className="flex flex-col gap-1"
-            style={{ borderTop: '1px solid var(--border)', paddingTop: 6 }}
+            style={{ borderTop: '1px solid var(--border)', paddingTop: 'var(--s-2)' }}
           >
             <div className="row" style={{ alignItems: 'center' }}>
               <span className="label">Side</span>
@@ -222,7 +222,7 @@ function DormerEditor({
                 aria-label={`Remove dormer ${i + 1}`}
                 title="Remove dormer"
                 onClick={() => remove(i)}
-                style={{ marginLeft: 6 }}
+                style={{ marginLeft: 'var(--s-2)' }}
               >
                 <Icon.Trash width={16} height={16} />
               </button>

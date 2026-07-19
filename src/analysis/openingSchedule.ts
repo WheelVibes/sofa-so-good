@@ -221,12 +221,10 @@ function markKeyOf(a: MarkAcc): string {
  * mark callout keyed off this always matches the schedule sheet.
  *
  * H1-F (contractor-handover punch list): extracted here from
- * `export/dxf.ts`, which had grown its own identical local copy
- * (`assignOpeningMarks`/`openingMarkKey`) predating this export — that
- * module is owned by a concurrent change in this pass and is deliberately
- * left untouched; migrate its local copy to import this one on next touch
- * rather than letting the two drift. `ui/reportPlanSvg.ts`'s on-plan D/W
- * mark callouts (H1-F) use this directly.
+ * `export/dxf.ts`, whose local copy has since been migrated to import this
+ * one (H1-F tail) — `export/dxf.ts` and `ui/reportPlanSvg.ts`'s on-plan D/W
+ * mark callouts both use this directly, so the three surfaces (DXF, plan
+ * sheet, schedule sheet) share one grouping.
  */
 export function assignOpeningMarks(openings: PlanOpening[]): Map<string, string> {
   const order: string[] = []

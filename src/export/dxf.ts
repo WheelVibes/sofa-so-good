@@ -71,6 +71,7 @@
  * looks on screen instead of being mirrored top-to-bottom.
  */
 
+import { assignOpeningMarks } from '../analysis/openingSchedule'
 import { obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
 import { buildDimensions, type Dimension } from '../floorplan/autoDimension'
@@ -80,7 +81,6 @@ import { PLUMB_SYM_TEXT } from '../floorplan/plumbingPlanSvg'
 import {
   type FloorPlan,
   type PlanElectricalPoint,
-  type PlanOpening,
   type PlanPlumbingPoint,
   type PlanVec2,
   type PlanWall,
@@ -210,49 +210,12 @@ function wallPerp(w: PlanWall): PlanVec2 {
  *  the DOORS/WINDOWS line and the wall thickness. */
 const MARK_OFFSET = 0.3
 
-/** Quantised (kind, width, height) group key for an opening — mirrors
- *  `analysis/openingSchedule.ts`'s grouping (identical size ⇒ one mark). */
-function openingMarkKey(o: PlanOpening): string {
-  const height = Math.max(0, o.head - o.sill)
-  const q = (n: number) => Math.round(n / 1e-3)
-  return `${o.kind}:${q(o.width)}:${q(height)}`
-}
-
-/**
- * Assigns each door/window opening a schedule mark (`D1`, `D2`… / `W1`,
- * `W2`…), grouping openings with identical (kind, width, height) — the same
- * grouping `analysis/openingSchedule.ts:buildOpeningSchedule` uses, so the
- * DXF's marks line up with the door/window schedule a contractor reads
- * alongside it. Re-implemented locally (rather than imported) because that
- * module only returns aggregated marks, not a per-opening label, and this
- * export — like the rest of `entitiesSection` — treats `plan` as a single
- * storey (no `levelId` fan-out).
- */
-function assignOpeningMarks(openings: PlanOpening[]): Map<string, string> {
-  const order: string[] = []
-  const seen = new Set<string>()
-  for (const o of openings) {
-    if (o.kind !== 'door' && o.kind !== 'window') continue
-    const key = openingMarkKey(o)
-    if (!seen.has(key)) {
-      seen.add(key)
-      order.push(key)
-    }
-  }
-  const labelByKey = new Map<string, string>()
-  let dN = 0
-  let wN = 0
-  for (const key of order) {
-    labelByKey.set(key, key.startsWith('door:') ? `D${++dN}` : `W${++wN}`)
-  }
-  const labelByOpening = new Map<string, string>()
-  for (const o of openings) {
-    if (o.kind !== 'door' && o.kind !== 'window') continue
-    const label = labelByKey.get(openingMarkKey(o))
-    if (label) labelByOpening.set(o.id, label)
-  }
-  return labelByOpening
-}
+// Opening marks (`D1`/`W1`…) come from the SHARED
+// `analysis/openingSchedule.ts:assignOpeningMarks` (H1-F tail) — the same
+// per-opening labelling `reportPlanSvg.ts`'s on-plan callouts use, so the
+// DXF, the plan sheet, and the door/window schedule can never disagree.
+// (This module previously carried an identical local copy predating the
+// extraction.)
 
 /** Unit perpendicular of a dimension line (rotate its direction 90°); falls
  *  back to a vertical perpendicular for a degenerate/zero-length line. */

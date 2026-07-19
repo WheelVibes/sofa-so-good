@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.77 — H1-F tail: DXF opening marks share the schedule's grouping; roof px-guard fix
+
+`export/dxf.ts`'s local `assignOpeningMarks`/`openingMarkKey` copy (predating
+the H1-F extraction) is gone — the DXF now imports
+`analysis/openingSchedule.ts:assignOpeningMarks`, so DXF, plan sheet, and
+door/window schedule share ONE grouping that can never drift (TASKS.md item
+closed). Also fixes the full-gate `inlinePxGuard` failure the roof round
+introduced: RoofSettings' literal `paddingTop/marginLeft: 6` → `var(--s-2)`
+tokens.
+
 ## v0.22.2.76 — Parametric roof + dormers (pro): gable/hip/flat-parapet over landed templates
 
 Additive `FloorPlan.roof` (style gable/hip/flat-parapet, pitch 15-45°,
