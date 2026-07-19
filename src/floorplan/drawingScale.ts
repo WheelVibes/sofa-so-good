@@ -98,6 +98,29 @@ export const PAPER_PRINTABLE_MM: Record<string, PrintableAreaMm> = Object.fromEn
 export const A4_LANDSCAPE_PRINTABLE_MM: PrintableAreaMm = printableAreaMm('a4', 'landscape')
 
 /**
+ * Minimum printed radius (mm) for a fixed-pixel MEP/RCP plan symbol. At the
+ * smallest paper formats (A4 at 1:100/1:125) the locked scale shrinks the
+ * fixed-px symbols below comfortable on-screen/print legibility (contractor
+ * re-review P3); this is the floor the symbol size is bumped up to hit.
+ */
+export const MIN_SYMBOL_PRINT_MM = 1.7
+
+/**
+ * Scale factor (≥ 1) to apply to a fixed-pixel symbol so it prints at least
+ * {@link MIN_SYMBOL_PRINT_MM}. A symbol of `basePx` radius in an SVG whose
+ * internal px→metre scale is `pxPerM` prints at `basePx × printMmPerM / pxPerM`
+ * mm; when that falls below the floor the factor scales it up, otherwise it's
+ * exactly 1 (never shrinks a symbol, and always 1 in screen/non-print mode
+ * where `printMmPerM` is undefined). Larger paper picks a bigger `printMmPerM`
+ * so the floor only ever bites on the small (A4) formats. Pure.
+ */
+export function symbolPrintScale(basePx: number, pxPerM: number, printMmPerM?: number): number {
+  if (printMmPerM == null || !(pxPerM > 0) || !(basePx > 0)) return 1
+  const printedMm = (basePx * printMmPerM) / pxPerM
+  return printedMm >= MIN_SYMBOL_PRINT_MM ? 1 : MIN_SYMBOL_PRINT_MM / printedMm
+}
+
+/**
  * Pick the largest-detail standard ratio (smallest number) from
  * {@link STANDARD_SCALE_RATIOS} whose printed extent — `extentM` scaled by
  * `1000 / ratio` mm-per-metre — still fits within `printableMm` on both

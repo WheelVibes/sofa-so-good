@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.88 — Contractor punch list cleared: entry doors, storey-grouped rooms, halos, elevation swings, A4 symbols
+
+All five re-review punch items. Entry doors no longer read "Unassigned":
+a door onto the outside labels "<Room> (entry)" (or "External (entry)" on
+a perimeter wall with no interior room), via the new probeOpeningRooms
+that reports side resolution + wall externality. Multi-storey grouped
+marks show storey-grouped Rooms cells ("Ground floor: … · Upper storey:
+…") through one shared openingRoomsLabel used by report + drawing set.
+GA-plan room labels ride deterministic near-white halos so they read over
+furniture. Elevations draw the conventional dashed hinge-apex swing
+triangle (two for double doors, none for sliding). MEP/RCP symbols get a
+1.7 mm printed floor at small paper via drawingScale.symbolPrintScale.
+1,229 targeted tests; schedule/plan/elevation/electrical captures reviewed.
+
 ## v0.22.2.87 — Contractor re-review: SHIP IT verdict + rc-partition demolition safety fix
 
 Second adversarial SG-contractor review of the full handover package

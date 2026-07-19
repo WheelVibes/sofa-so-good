@@ -13,6 +13,7 @@
  * Self-contained: imports only `./plumbingPlan` and `./types`.
  */
 
+import { symbolPrintScale } from './drawingScale'
 import { layoutMepLabels } from './mepLabelLayout'
 import type { PlumbingKind, PlumbingPlan } from './plumbingPlan'
 import { plumbingKindLabel } from './plumbingPlan'
@@ -40,11 +41,15 @@ export interface PlumbingSvgOpts {
 }
 
 const PAD = 0.5
-const SYM_R = 9
+/** Base symbol radius/font, pixels; `SYM_R`/`SYM_FONT` are bumped per-call at
+ *  small paper formats for print legibility (P3), reset each `plumbingSvg`. */
+const BASE_SYM_R = 9
+const BASE_SYM_FONT = 8
+let SYM_R = BASE_SYM_R
+let SYM_FONT = BASE_SYM_FONT
 const LEGEND_PAD = 12
 const LEGEND_ROW = 22
 const FONT = 12
-const SYM_FONT = 8
 
 function esc(s: string): string {
   return s
@@ -116,6 +121,10 @@ export function plumbingSvg(
   const worldW = Math.max(b.maxX - b.minX + PAD * 2, 1)
   const worldH = Math.max(b.maxZ - b.minZ + PAD * 2, 1)
   const scale = widthPx / worldW
+  // Small-format legibility bump (P3) — see electricalPlanSvg for the rationale.
+  const symScale = symbolPrintScale(BASE_SYM_R, scale, opts.printMmPerM)
+  SYM_R = BASE_SYM_R * symScale
+  SYM_FONT = BASE_SYM_FONT * symScale
   const planH = worldH * scale
 
   const px = (x: number) => (x - b.minX + PAD) * scale

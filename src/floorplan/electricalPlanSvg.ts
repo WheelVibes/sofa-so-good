@@ -20,6 +20,7 @@
  */
 
 import { buildSocketAdvisory, type SocketAdvisory } from '../analysis/socketAdvisory'
+import { symbolPrintScale } from './drawingScale'
 import type { ElectricalKind, ElectricalPlan } from './electricalPlan'
 import { electricalKindLabel } from './electricalPlan'
 import { layoutMepLabels } from './mepLabelLayout'
@@ -49,13 +50,18 @@ export interface ElectricalSvgOpts {
 
 /** Padding (metres) around the wall bounds. */
 const PAD = 0.5
-/** Symbol circle radius, pixels. */
-const SYM_R = 9
+/** Base symbol circle radius, pixels (before the small-format print bump). */
+const BASE_SYM_R = 9
+const BASE_SYM_FONT = 8
+/** Current symbol radius/font, pixels — bumped up per-call at small paper
+ *  formats so print-scaled symbols stay legible (see `symbolPrintScale`); reset
+ *  at the top of every `electricalSvg` call, so a screen render is unaffected. */
+let SYM_R = BASE_SYM_R
+let SYM_FONT = BASE_SYM_FONT
 /** Legend layout, pixels. */
 const LEGEND_PAD = 12
 const LEGEND_ROW = 22
 const FONT = 12
-const SYM_FONT = 8
 /** Socket-advisory NOTES block layout, pixels. */
 const NOTES_PAD = 12
 const NOTES_ROW = 16
@@ -135,6 +141,12 @@ export function electricalSvg(
   const worldW = Math.max(b.maxX - b.minX + PAD * 2, 1)
   const worldH = Math.max(b.maxZ - b.minZ + PAD * 2, 1)
   const scale = widthPx / worldW
+  // Small-format legibility bump (P3): grow the fixed-px symbols so they print
+  // at least MIN_SYMBOL_PRINT_MM at the locked scale. No-op (factor 1) on
+  // screen (no printMmPerM) or when symbols already print large enough.
+  const symScale = symbolPrintScale(BASE_SYM_R, scale, opts.printMmPerM)
+  SYM_R = BASE_SYM_R * symScale
+  SYM_FONT = BASE_SYM_FONT * symScale
   const planH = worldH * scale
 
   const px = (x: number) => (x - b.minX + PAD) * scale
@@ -304,14 +316,16 @@ function symbol(
       `stroke="${esc(palette.symbol)}" stroke-width="1.5" />`,
   )
   if (kind === 'socket') {
-    // Two short prongs (vertical lines) inside the circle.
+    // Two short prongs (vertical lines) inside the circle (offset scales with
+    // the symbol so the prongs stay centred when the radius is bumped).
     const half = SYM_R * 0.45
+    const prong = SYM_R / 3
     out.push(
-      `<line x1="${n(cx - 3)}" y1="${n(cy - half)}" x2="${n(cx - 3)}" y2="${n(cy + half)}" ` +
+      `<line x1="${n(cx - prong)}" y1="${n(cy - half)}" x2="${n(cx - prong)}" y2="${n(cy + half)}" ` +
         `stroke="${esc(palette.ink)}" stroke-width="1.5" stroke-linecap="round" />`,
     )
     out.push(
-      `<line x1="${n(cx + 3)}" y1="${n(cy - half)}" x2="${n(cx + 3)}" y2="${n(cy + half)}" ` +
+      `<line x1="${n(cx + prong)}" y1="${n(cy - half)}" x2="${n(cx + prong)}" y2="${n(cy + half)}" ` +
         `stroke="${esc(palette.ink)}" stroke-width="1.5" stroke-linecap="round" />`,
     )
   } else {

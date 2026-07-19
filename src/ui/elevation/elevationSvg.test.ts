@@ -19,23 +19,58 @@ const el: WallElevation = {
 }
 
 describe('elevationSvg', () => {
-  it('draws a door as a framed leaf with a handle (not a dashed cut-out)', () => {
+  it('draws a door as a framed leaf with a handle + a conventional swing triangle (not the plan arc)', () => {
     const withDoor: WallElevation = {
       ...el,
-      openings: [{ kind: 'door', x0: 0.5, x1: 1.4, sill: 0, head: 2.05 }],
+      openings: [{ kind: 'door', x0: 0.5, x1: 1.4, sill: 0, head: 2.05, style: 'panel' }],
       items: [],
     }
     const svg = elevationSvg(withDoor, { palette, dimensions: false })
     // No legacy dashed cut-out; has a handle dot (a small filled circle).
-    // The only dashed stroke is the door swing ARC (drafting symbol) — the
-    // legacy dashed cut-out <rect> must not return.
     expect(svg).not.toMatch(/<rect[^>]*stroke-dasharray/)
-    // Leaf line on the hinge jamb + dashed quarter swing arc (EL5).
-    expect(svg).toMatch(/<path[^>]*stroke-dasharray/)
-    expect(svg).toContain(' A ') // quarter-arc command
+    // Swing shown as the ELEVATION triangle marker, dashed — NOT the plan
+    // quarter-arc (no ' A ' arc command any more, re-review P3).
+    expect(svg).toMatch(
+      /<path[^>]*data-swing="1"[^>]*stroke-dasharray|<path[^>]*stroke-dasharray[^>]*data-swing="1"/,
+    )
+    expect(svg).not.toContain(' A ') // plan quarter-arc removed
     expect(svg).toContain('<circle')
     // The door panel rect spans the opening (0.9 wide).
     expect(svg).toContain('width="0.900"')
+  })
+
+  it('draws the swing marker for a swinging (panel) door but NOT for a sliding door', () => {
+    const base: WallElevation = { ...el, items: [] }
+    const panel = elevationSvg(
+      {
+        ...base,
+        openings: [{ kind: 'door', x0: 0.5, x1: 1.4, sill: 0, head: 2.05, style: 'panel' }],
+      },
+      { palette, dimensions: false },
+    )
+    const sliding = elevationSvg(
+      {
+        ...base,
+        openings: [{ kind: 'door', x0: 0.5, x1: 1.4, sill: 0, head: 2.05, style: 'sliding' }],
+      },
+      { palette, dimensions: false },
+    )
+    expect(panel).toContain('data-swing="1"')
+    expect(sliding).not.toContain('data-swing="1"')
+    // Both still draw the leaf panel (0.9 wide) — only the swing symbol differs.
+    expect(sliding).toContain('width="0.900"')
+  })
+
+  it('draws two swing triangles for a double door (apex at each jamb)', () => {
+    const dbl = elevationSvg(
+      {
+        ...el,
+        items: [],
+        openings: [{ kind: 'door', x0: 0.5, x1: 2.1, sill: 0, head: 2.05, style: 'double' }],
+      },
+      { palette, dimensions: false },
+    )
+    expect(dbl.match(/data-swing="1"/g)?.length).toBe(2)
   })
 
   it('emits an svg sized to the wall with a floor-anchored item + window pane', () => {

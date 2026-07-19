@@ -161,17 +161,28 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
         // Handle: a knob dot on the latch edge at ~1 m above the floor.
         `<circle cx="${f(xHandle)}" cy="${f(y(Math.min(1.0, oh * 0.45)))}" r="${f(Math.max(0.015, sw * 1.5))}" fill="${p.stroke}"/>`,
       )
-      // Standard drafting door symbol: the leaf line on the hinge jamb plus a
-      // thin dashed quarter swing arc (radius = leaf width) from the free jamb
-      // to the open leaf tip — so the drawing shows which side the door hangs
-      // on and where it sweeps.
-      const r = Math.min(w, oh)
+      // Swing indication — an ELEVATION concept, not the plan quarter-arc a
+      // contractor flagged as unconventional here (re-review P3). The standard
+      // elevation symbol is a thin dashed triangle whose APEX sits on the hinge
+      // jamb (mid-height) and whose open mouth spans the free (latch) jamb top→
+      // bottom — the point marks the hinge, the mouth the swing side. Drawn
+      // ONLY for swinging leaves; a SLIDING door translates (no hinge) so it
+      // gets none. A DOUBLE door apexes at BOTH jambs, meeting mid-leaf.
+      const yTop = y(o.head)
       const yBottom = y(o.sill)
-      const yTip = yBottom - r
-      parts.push(
-        `<line x1="${f(xHinge)}" y1="${f(yBottom)}" x2="${f(xHinge)}" y2="${f(yTip)}" stroke="${p.stroke}" stroke-width="${f(sw)}"/>`,
-        `<path d="M ${f(xFree)} ${f(yBottom)} A ${f(r)} ${f(r)} 0 0 ${hingeAtStart ? 0 : 1} ${f(xHinge)} ${f(yTip)}" fill="none" stroke="${p.stroke}" stroke-width="${f(sw * 0.6)}" stroke-dasharray="${f(sw * 4)} ${f(sw * 3)}"/>`,
-      )
+      const swing = `stroke="${p.stroke}" stroke-width="${f(sw * 0.6)}" stroke-dasharray="${f(sw * 4)} ${f(sw * 3)}" fill="none"`
+      const swingTriangle = (xApex: number, xMouth: number, yMid: number) =>
+        `<path d="M ${f(xMouth)} ${f(yTop)} L ${f(xApex)} ${f(yMid)} L ${f(xMouth)} ${f(yBottom)}" ${swing} data-swing="1"/>`
+      if (o.style === 'sliding') {
+        // Slider: no swing symbol (a horizontal slide arrow belongs on plan).
+      } else if (o.style === 'double') {
+        const xMid = (o.x0 + o.x1) / 2
+        const yMid = (yTop + yBottom) / 2
+        parts.push(swingTriangle(o.x0, xMid, yMid), swingTriangle(o.x1, xMid, yMid))
+      } else {
+        // Single swinging leaf (panel/flush/glazed/bifold): apex on the hinge.
+        parts.push(swingTriangle(xHinge, xFree, (yTop + yBottom) / 2))
+      }
     }
   }
 

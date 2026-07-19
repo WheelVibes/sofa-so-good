@@ -287,12 +287,30 @@ export function reportPlanSvg(
     .join('')
 
   // Each room labelled with its name + area (standard architectural practice —
-  // the plan reads on its own without cross-referencing the rooms table).
+  // the plan reads on its own without cross-referencing the rooms table). On
+  // the FURNISHED (GA) plan the label sits over indicative furniture
+  // footprints; without a mask, the room name/area collides illegibly with the
+  // silhouettes in dense zones (contractor re-review P3). So each label rides a
+  // deterministic near-white backing plate (a text halo — the same "mask the
+  // background" convention the opening white-gap cut already uses here), sized
+  // from the label's own text, drawn UNDER the ink. Purely a function of the
+  // text + anchor, so the output stays deterministic.
   const labels = plan.rooms
     .map((r) => {
       const [lx, lz] = roomLabelPosition(r)
       const x = lx.toFixed(3)
-      return `<text x="${x}" y="${lz.toFixed(3)}" font-size="0.32" fill="#6b7280" text-anchor="middle"><tspan x="${x}" dy="-0.14">${esc(r.name)}</tspan><tspan x="${x}" dy="0.42" font-size="0.26" fill="#9ca3af">${esc(formatArea(planRoomArea(r), units))}</tspan></text>`
+      const area = formatArea(planRoomArea(r), units)
+      // Estimate each line's printed width (avg glyph advance ≈ 0.55 × font
+      // size) to size the halo; the wider of name (0.32) / area (0.26) wins.
+      const nameW = r.name.length * 0.32 * 0.55
+      const areaW = area.length * 0.26 * 0.55
+      const plateW = Math.max(nameW, areaW) + 0.2
+      // The two baselines span lz−0.14 (name) → lz+0.28 (area); pad above/below
+      // for the cap/descender so the plate fully backs both lines.
+      const plateX = (lx - plateW / 2).toFixed(3)
+      const plate = `<rect x="${plateX}" y="${(lz - 0.52).toFixed(3)}" width="${plateW.toFixed(3)}" height="0.92" rx="0.08" fill="#ffffff" fill-opacity="0.82"/>`
+      const text = `<text x="${x}" y="${lz.toFixed(3)}" font-size="0.32" fill="#6b7280" text-anchor="middle"><tspan x="${x}" dy="-0.14">${esc(r.name)}</tspan><tspan x="${x}" dy="0.42" font-size="0.26" fill="#9ca3af">${esc(area)}</tspan></text>`
+      return plate + text
     })
     .join('')
 

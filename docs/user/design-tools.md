@@ -401,10 +401,15 @@ Print or save as PDF for
   windows), quantity, size **W×H in millimetres** (doors/windows are always
   specced in mm, matching the carpentry sheets' own convention regardless of
   your metric/imperial display preference), sill height, door hinge/swing
-  side, and which room(s) each mark borders. Reuses the same grouping as the
-  Report's *Openings schedule* section, so the two never disagree. One
-  whole-set sheet even on a multi-storey plan (it already resolves each
-  opening's room across every storey). No openings on the plan → no sheet, and
+  side, and which room(s) each mark borders. A door onto the outside reads as
+  an entrance — *Kitchen (entry)* when it borders one room, or *External
+  (entry)* for a front door opening straight into an un-roomed foyer/circulation
+  gap — rather than a bare *Unassigned*. On a **multi-storey** plan a mark
+  repeated across floors groups its rooms by storey (*Ground floor: Powder ·
+  Upper storey: Bedroom 1, Bedroom 2*) so a high-count mark stays scannable.
+  Reuses the same grouping as the Report's *Openings schedule* section, so the
+  two never disagree. One whole-set sheet even on a multi-storey plan (it
+  already resolves each opening's room across every storey). No openings on the plan → no sheet, and
   the cover's sheet index simply omits it. Toggle it off in the **Include
   sheets** checklist if you don't need it in a given export. Every door/window
   ALSO gets its small rose **mark label** (**D1**/**W1**…) printed right next to

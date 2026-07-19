@@ -9,6 +9,7 @@
  *
  * Self-contained: imports only `./rcp`, `./mepLabelLayout`, and `./types`.
  */
+import { symbolPrintScale } from './drawingScale'
 import { layoutMepLabels } from './mepLabelLayout'
 import type { RcpFixture, RcpRect, ReflectedCeilingPlan } from './rcp'
 import type { FloorPlan, PlanWall } from './types'
@@ -40,10 +41,14 @@ export interface RcpSvgOptions {
 
 /** Padding (metres) around the wall bounds. */
 const PAD = 0.5
-/** Fixture/aircon symbol circle radius, pixels. */
-const SYM_R = 9
+/** Base fixture/aircon symbol radius/font, pixels; `SYM_R`/`SYM_FONT` are
+ *  bumped per-call at small paper formats for print legibility (P3), reset each
+ *  `rcpSvg` call. */
+const BASE_SYM_R = 9
+const BASE_SYM_FONT = 8
+let SYM_R = BASE_SYM_R
+let SYM_FONT = BASE_SYM_FONT
 const FONT = 12
-const SYM_FONT = 8
 const ZONE_FONT = 9
 const DIM_FONT = 7.5
 const LEGEND_PAD = 12
@@ -121,6 +126,10 @@ export function rcpSvg(plan: FloorPlan, rcp: ReflectedCeilingPlan, opts: RcpSvgO
   const worldW = Math.max(b.maxX - b.minX + PAD * 2, 1)
   const worldH = Math.max(b.maxZ - b.minZ + PAD * 2, 1)
   const scale = widthPx / worldW
+  // Small-format legibility bump (P3) — see electricalPlanSvg for the rationale.
+  const symScale = symbolPrintScale(BASE_SYM_R, scale, opts.printMmPerM)
+  SYM_R = BASE_SYM_R * symScale
+  SYM_FONT = BASE_SYM_FONT * symScale
   const planH = worldH * scale
 
   const px = (x: number) => (x - b.minX + PAD) * scale

@@ -112,18 +112,32 @@ when an item ships it is **removed from this file entirely**. Maintainability re
   as a routine partition removal, contradicting the hackability overlay + wall-delete guard.
   Fixed: `demolitionPlanSvg.ts` now reuses `wallHackability.isDemolitionRestricted` so all three
   surfaces share one classifier; wording → "structural (load-bearing / RC)"; +regression test.
-- **[P2] Main-entrance door resolves to "Unassigned" / single room.** 5-Room main door opens into
-  an un-roomed circulation gap (Rooms → "Unassigned"); Terrace "ct-main" borders only the Service
-  Yard (rear-wall placement). Template-data artefacts, not schedule bugs. Fix options: add a
-  foyer/entry room to those templates, OR a schedule fallback label ("External / entry") when a
-  door borders exactly one interior room + the outside.
-- **[P2] Grouped door mark spans many rooms across storeys.** Terrace D2 ×4 lists 6 rooms
-  (ground + upper). Correct by construction; location relies on the on-plan callouts. Consider a
-  per-instance mark suffix or a compact "see plan" cue for high-count marks. Non-blocking.
-- **[P3] GA floor-plan label/furniture overlap** in dense zones (room name/area over indicative
-  furniture). A label-collision nudge would read cleaner. **[P3] MEP/RCP symbols small at A4
-  1:100/1:125** (fine at true print scale). **[P3] Door swing arc drawn on wall elevations**
-  (swing is a plan concept) — minor convention nit.
+- **[P2 — DONE 2026-07-19] Main-entrance door resolves to "Unassigned" / single room.** Fixed in
+  `analysis/openingSchedule.ts`: the room probe now reports how many sides resolved + whether the
+  host wall is external, so a DOOR onto the outside reads as an entrance — "<Room> (entry)" when
+  one interior room resolves (Terrace "ct-main" → "Service Yard (entry)"), "External (entry)" when
+  no interior room resolves on a perimeter wall (5-Room main door, previously "Unassigned").
+  Windows keep their existing single-room / "Unassigned" behaviour. Shared `openingRoomsLabel`
+  renders the schedule sheet + report identically. +Regression tests (perimeter entry door,
+  internal door, exterior window, fully-unresolvable opening).
+- **[P2 — DONE 2026-07-19] Grouped door mark spans many rooms across storeys.** Fixed
+  (presentation only — grouping/marks unchanged): `OpeningMark.roomsByLevel` records the rooms
+  per storey ground-first, and `openingRoomsLabel` groups a multi-storey mark's Rooms cell by
+  storey ("Ground floor: … · Upper storey: …") on both the schedule sheet + report. Verified on
+  the Terrace (D2 ×4 → "Ground floor: Living, Powder Room · Upper storey: Bedroom 2, Bedroom 3,
+  Master Bedroom, Stair Landing"). +Regression test.
+- **[P3 — DONE 2026-07-19] GA floor-plan label/furniture overlap.** `ui/reportPlanSvg.ts` room
+  labels now ride a deterministic near-white backing plate (a text halo sized from the label's own
+  text, drawn under the ink) so name/area read cleanly over indicative furniture footprints.
+- **[P3 — DONE 2026-07-19] MEP/RCP symbols small at A4 1:100/1:125.** `drawingScale.ts`
+  `symbolPrintScale` bumps the fixed-px electrical/plumbing/RCP symbols up to a
+  `MIN_SYMBOL_PRINT_MM` printed floor at small formats (no-op on screen / larger paper). No
+  `mepLabelLayout` declutter regression (targeted tests green).
+- **[P3 — DONE 2026-07-19] Door swing on wall elevations.** `ui/elevation/elevationSvg.ts` now
+  draws the conventional ELEVATION swing symbol — a dashed hinge-apex triangle (two, meeting
+  mid-leaf, for a double door) — instead of the unconventional plan quarter-arc, and ONLY for
+  swinging leaves (a slider gets none). +Regression test (marker present for panel, absent for
+  sliding, ×2 for double).
 
 ## Active — graphics-tier performance optimization (2026-07-08, user goal)
 Systematically speed up frame processing/rendering **without sacrificing visual quality**, focused

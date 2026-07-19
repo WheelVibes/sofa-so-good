@@ -3,8 +3,14 @@ import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from '../floorplan/ty
 import {
   assignOpeningMarks,
   buildOpeningSchedule,
+  openingRoomsLabel,
   openingStyleMaterialLabel,
 } from './openingSchedule'
+
+/** An internal (non-perimeter) wall running west→east. */
+function iWall(id: string, x: number, z: number, len: number): PlanWall {
+  return { id, start: [x, z], end: [x + len, z], thickness: 'internal' }
+}
 
 /**
  * Synthetic plans: a room is a square in the XZ plane; a horizontal wall along
@@ -183,6 +189,109 @@ describe('buildOpeningSchedule — room attribution', () => {
     expect(sched.marks).toHaveLength(1)
     expect(sched.marks[0].count).toBe(2)
     expect(sched.marks[0].rooms).toEqual(['Living', 'Unassigned'])
+  })
+})
+
+describe('buildOpeningSchedule — entrance-door room labels (P2 punch-list)', () => {
+  it('labels a perimeter entry door bordering one room as "<Room> (entry)"', () => {
+    // A single room; the door sits on its south external wall (interior probe
+    // → the room, exterior probe → outside). Reads as an entrance, not just
+    // the room name and never "Unassigned".
+    const room = rectRoom('yard', 'Service Yard', 0, 0, 4)
+    const sched = buildOpeningSchedule(
+      plan([room], [hWall('w-s', 0, 0, 4)], [door('d1', 'w-s', 1, 1.6, 2.1)]),
+    )
+    expect(sched.marks[0].rooms).toEqual(['Service Yard (entry)'])
+  })
+
+  it('labels a perimeter door bordering NO room as "External (entry)", not "Unassigned"', () => {
+    // The HDB main-door case: the door is on the perimeter but opens into an
+    // un-roomed circulation gap, so neither probe lands in a room. The
+    // exterior-wall flag turns "Unassigned" into "External (entry)".
+    const room = rectRoom('living', 'Living', 10, 10, 4) // far from the door
+    const sched = buildOpeningSchedule(
+      plan([room], [hWall('w-entry', 0, 0, 2)], [door('main', 'w-entry', 0.5, 0.9, 2.1)]),
+    )
+    expect(sched.marks[0].rooms).toEqual(['External (entry)'])
+  })
+
+  it('keeps an internal door bordering one room + an un-roomed gap as just the room (no "(entry)")', () => {
+    // Internal wall → not an entrance; one side resolves, the other is an
+    // un-roomed interior gap. Reads as the room, no entry suffix, no External.
+    const room = rectRoom('hall', 'Hall', 0, 0, 4)
+    const sched = buildOpeningSchedule(
+      plan([room], [iWall('w-i', 0, 0, 4)], [door('d1', 'w-i', 1, 0.9, 2.1)]),
+    )
+    expect(sched.marks[0].rooms).toEqual(['Hall'])
+  })
+
+  it('an internal door bordering no room stays "Unassigned"', () => {
+    const room = rectRoom('r', 'Room', 0, 0, 4)
+    const sched = buildOpeningSchedule(
+      plan([room], [iWall('far', 50, 50, 4)], [door('d1', 'far', 1, 0.9, 2.1)]),
+    )
+    expect(sched.marks[0].rooms).toEqual(['Unassigned'])
+  })
+
+  it('an internal two-room door lists both rooms unchanged', () => {
+    const a = rectRoom('a', 'Bedroom', 0, 0, 4)
+    const b = rectRoom('b', 'Hall', 0, 4, 4)
+    const sched = buildOpeningSchedule(
+      plan([a, b], [iWall('mid', 0, 4, 4)], [door('d1', 'mid', 1, 0.9, 2.1)]),
+    )
+    expect(sched.marks[0].rooms).toEqual(['Bedroom', 'Hall'])
+  })
+
+  it('a window on an exterior wall reads as just its room (not "External")', () => {
+    const room = rectRoom('living', 'Living', 0, 0, 4)
+    const sched = buildOpeningSchedule(
+      plan([room], [hWall('w-n', 0, 0, 4)], [win('w1', 'w-n', 1, 1.2, 0.95, 2.1)]),
+    )
+    expect(sched.marks[0].rooms).toEqual(['Living'])
+  })
+})
+
+describe('openingRoomsLabel — multi-storey rooms grouped by storey (P2 punch-list)', () => {
+  it('groups a repeated mark’s rooms by storey, ground-first', () => {
+    // One 0.9×2.1 panel door repeated on the ground (a powder room) and on two
+    // upper bedrooms — collapses to a single mark whose Rooms cell is grouped
+    // "Ground floor: … · L2: …".
+    const ground = plan(
+      [rectRoom('pw', 'Powder', 0, 0, 4)],
+      [iWall('gw', 0, 4, 4)], // internal → one room resolves, no "(entry)"
+      [door('gd', 'gw', 1, 0.9, 2.1)],
+    )
+    const multi: FloorPlan = {
+      ...ground,
+      groundName: 'Ground floor',
+      upperLevels: [
+        {
+          id: 'l2',
+          name: 'L2',
+          elevation: 2.9,
+          walls: [iWall('uw1', 0, 4, 4), iWall('uw2', 0, 8, 4)],
+          openings: [door('ud1', 'uw1', 1, 0.9, 2.1), door('ud2', 'uw2', 1, 0.9, 2.1)],
+          rooms: [rectRoom('b1', 'Bedroom 1', 0, 0, 4), rectRoom('b2', 'Bedroom 2', 0, 4, 4)],
+        },
+      ],
+    }
+    const sched = buildOpeningSchedule(multi)
+    const d = sched.marks.find((m) => m.mark === 'D1')!
+    expect(d.count).toBe(3)
+    expect(d.roomsByLevel).toEqual([
+      { level: 'Ground floor', rooms: ['Powder'] },
+      { level: 'L2', rooms: ['Bedroom 1', 'Bedroom 2'] },
+    ])
+    expect(openingRoomsLabel(d)).toBe('Ground floor: Powder · L2: Bedroom 1, Bedroom 2')
+  })
+
+  it('a single-storey mark has an empty roomsByLevel and falls back to the flat list', () => {
+    const room = rectRoom('living', 'Living', 0, 0, 4)
+    const sched = buildOpeningSchedule(
+      plan([room], [hWall('w-n', 0, 0, 4)], [win('w1', 'w-n', 1, 1.2, 0.95, 2.1)]),
+    )
+    expect(sched.marks[0].roomsByLevel).toEqual([])
+    expect(openingRoomsLabel(sched.marks[0])).toBe('Living')
   })
 })
 

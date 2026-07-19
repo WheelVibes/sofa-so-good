@@ -13,7 +13,11 @@ import {
 } from '../analysis/electricalSchedule'
 import { buildHandoverChecklist } from '../analysis/handoverChecklist'
 import { buildComplianceReport } from '../analysis/hdbCompliance'
-import { buildOpeningSchedule, openingStyleMaterialLabel } from '../analysis/openingSchedule'
+import {
+  buildOpeningSchedule,
+  openingRoomsLabel,
+  openingStyleMaterialLabel,
+} from '../analysis/openingSchedule'
 import { buildPetCompliance, PET_TYPE_LABEL, type PetType } from '../analysis/petCompliance'
 import { buildPlanStatistics, roomKindLabel } from '../analysis/planStatistics'
 import { buildRenoTimeline } from '../analysis/renoTimeline'
@@ -570,7 +574,7 @@ export function buildReportHtml(
         ${openSched.marks
           .map(
             (m) =>
-              `<tr><td>${esc(m.mark)}</td><td>${m.kind === 'door' ? 'Door' : 'Window'}</td><td>${esc(openingStyleMaterialLabel(m))}</td><td class="num">×${m.count}</td><td class="num">${esc(formatLength(m.width, units))} × ${esc(formatLength(m.height, units))}</td><td class="num">${esc(formatLength(m.sill, units))}</td><td>${m.kind === 'door' ? esc(swingLabel(m)) : '—'}</td><td>${esc(m.rooms.join(', '))}</td></tr>`,
+              `<tr><td>${esc(m.mark)}</td><td>${m.kind === 'door' ? 'Door' : 'Window'}</td><td>${esc(openingStyleMaterialLabel(m))}</td><td class="num">×${m.count}</td><td class="num">${esc(formatLength(m.width, units))} × ${esc(formatLength(m.height, units))}</td><td class="num">${esc(formatLength(m.sill, units))}</td><td>${m.kind === 'door' ? esc(swingLabel(m)) : '—'}</td><td>${esc(openingRoomsLabel(m))}</td></tr>`,
           )
           .join('')}
       </table>

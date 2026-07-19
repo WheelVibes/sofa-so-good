@@ -30,6 +30,11 @@ interface ElevationOpening {
    *  (the wall-start side), matching `PlanOpening.hinge` (defaulted). Drives
    *  the leaf + swing-arc symbol in the renderer. */
   hinge?: 'start' | 'end'
+  /** Doors only: normalised leaf style (`panel`/`flush`/`glazed`/`bifold`/
+   *  `double` = swinging, `sliding` = translating). Drives which swing symbol
+   *  the elevation renderer draws — swinging leaves get the conventional
+   *  dashed hinge-apex triangle, a slider gets none. Defaults to `panel`. */
+  style?: string
 }
 
 /** A furniture piece projected onto the wall plane, in metres: `x0..x1` along
@@ -148,8 +153,11 @@ export function projectWallElevation(
       x1: o.offset + o.width,
       sill: o.sill,
       head: o.head,
-      // Carry the hinge side for the door leaf/swing symbol ('start' = x0 side).
-      ...(o.kind === 'door' ? { hinge: o.hinge ?? ('start' as const) } : {}),
+      // Carry the hinge side + style for the door leaf/swing symbol ('start' =
+      // x0 side; style picks swing-triangle vs slider — see the renderer).
+      ...(o.kind === 'door'
+        ? { hinge: o.hinge ?? ('start' as const), style: o.style ?? 'panel' }
+        : {}),
     }))
 
   const result: WallElevation = { wallId: wall.id, length: len, height, openings, items: [] }
