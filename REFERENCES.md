@@ -58,6 +58,12 @@ reno rules). See `docs/research/2026-07-19-ux-research-round-4.md`.
 - **HDB reno rules** — wall hacking, wet-area 3-yr tile rule, grille compliance, working hours, DRC permits (R4-6/R4-7). [ElementsID](https://elementsid.com.sg/can-you-hack-hdb-walls/) · [DeGrille](https://degrille.com.sg/article/are-invisible-grilles-approved-by-the-hdb/) · [RCS](https://renovationcontractorsingapore.com/blogs/news/hdb-renovation-noise-rules-working-hours-2026) · [HDB official](https://www.hdb.gov.sg/residential/living-in-an-hdb-flat/renovation/important-information)
 - **BTO defect / DLP** — 1-yr DLP, 5-yr ceiling-leak / 10-yr spalling warranty windows (R4-8). [HomeMatch](https://homematch.sg/renovation-guides/bto-defect-checklist-defect-liability-period) · [HDB official](https://www.hdb.gov.sg/residential/living-in-an-hdb-flat/moving-in/rectification-work-for-new-flats)
 
+### Singapore renovation-domain sources (blank-slate gap analysis, 2026-07-19)
+The cited knowledge base for the blank-slate journey queue (whole-reno budget by trade,
+aircon system planning, bare/resale intake). See `docs/research/2026-07-19-blank-slate-gap-analysis.md`.
+- **HDB/BTO renovation cost breakdown by trade (2025-26)** — carpentry 25-40%, tiling/wet works ~25%, M&E ~15%, fixtures ~20%; hacking/wiring/plumbing lines for resale (BSJ-1). [HDB Group Reno](https://hdbgroupreno.sg/services/hdb-bto-renovation-cost-timeline-in-singapore-2025-guide/) · [9creation](https://9creation.com.sg/hdb-bto-renovation-cost-breakdown/) · [Qanvast 3/4/5-room 2025](https://qanvast.com/sg/articles/how-much-is-a-3-4-and-5-room-hdb-flat-renovation-in-2025-3384) · [RCS 2026](https://renovationcontractorsingapore.com/blogs/news/hdb-renovation-budget-2026-complete-cost-guide-real-pricing)
+- **Aircon SYSTEM planning (SG)** — System N = N indoor units on one condenser (System 3 = 4-room norm, System 4 = 5-room/condo); ~110 kg/panel ledge weight limit (BSJ-2). [VD Aircon](https://www.vdairconservices.com/aircon-system-2-3-4-singapore-guide/) · [aircons.sg](https://aircons.sg/blog/system-3-vs-system-4-vs-system-5-which-aircon-system-fits-your-hdb) · [FC Aircon](https://fcairconservicing.com/guide/aircon-system-1-2-3-4-5/)
+
 ## Furniture asset-building / 3D modeling tools (Asset Studio research, 2026-07-16)
 References for turning the GLB designer into a professional furniture asset builder —
 see `docs/asset-studio-plan.md` for the staged program this research seeds.

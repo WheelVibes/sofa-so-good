@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.93 — Blank-slate journey gap analysis: 8 ranked gaps (new session goal)
+
+Research round for the new goal (SG new-home buyers designing a blank
+slate end-to-end without an ID). Walked the 10-stage bare-unit→ordered
+journey against 2025-26 SG sources with per-stage codebase verification.
+Verdicts: carpentry, appliances/soft furnishing COVERED; electrical MOSTLY
+(only switching missing); intake/wet-works/ceiling-lighting/cooling/
+decision-support/per-trade-output PARTIAL. Ranked queue (BSJ-1..8):
+whole-reno trade budget allocator, aircon SYSTEM planner
+(System-2/3/4 + condenser ledge), lighting/switching schematic,
+bare-BTO + resale starting states, per-trade handover packs, wet-area
+catalog gaps (shower screen/bidet spray/mixer tap), waterproofing-zone
+model, floor build-up/transitions. Full analysis:
+docs/research/2026-07-19-blank-slate-gap-analysis.md.
+
 ## v0.22.2.92 — Staircase + window-grille instancing (both filed wins landed)
 
 Staircase risers/posts/rails/newels collapse to 2 InstancedBoxes buckets

@@ -436,6 +436,63 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
   "Warranty & defect dates" group, `HandoverPanel` (Tools → Handover & DLP) with a persisted
   `keyCollectionDate` input + countdowns (additive zod + autosave). Rides the `report` flag.
 
+## Blank-slate journey queue (2026-07-19 goal)
+> Goal (product owner): serve new SG HDB/condo buyers designing their home fully from a
+> blank slate WITHOUT an interior designer. Full walk of bare-handover → fully-designed
+> journey + per-stage coverage verdicts + near-misses cleared:
+> `docs/research/2026-07-19-blank-slate-gap-analysis.md`. Ranked by how badly each blocks
+> the "no ID needed" promise. Each verified absent against the flag registry +
+> `analysis/`/`floorplan/`/`furniture/defs/` this pass. NOT yet started.
+- [ ] **BSJ-1 — Whole-reno budget allocator (by trade/stage)** (M, simple) — extend the
+  finishes-only `renovationCost.ts` (floors+walls $/m²) into a full SG trade breakdown
+  derived from the design's OWN quantities: hacking, masonry/tiling & wet works, carpentry
+  (linear-m from placed parametric pieces), ceiling & partition (RCP zones), plumbing/
+  electrical (MEP point counts), painting (wall area), glass & aluminium, fixtures &
+  appliances. Cite the ~40% carpentry / 25% tiling / 15% M&E / 20% fixtures allocation
+  (9creation/Qanvast/RCS). The owner's #1 anxiety; currently unaddressed. Pure client.
+- [ ] **BSJ-2 — Aircon SYSTEM planner** (M, pro) — extend `airconSizing.ts` past per-room
+  BTU: group habitable rooms into System-2/3/4 sets, sum FCU load per condenser, recommend
+  condenser count + check the ~110 kg/panel HDB ledge limit, place condenser(s) on the ledge/
+  service yard + FCUs per room. `SYSTEM_SIZES` today are single-unit sizes only. Second-
+  biggest reno decision after carpentry. Pure client.
+- [ ] **BSJ-3 — Lighting & switching schematic** (M, pro) — link a `switch` MEP point to the
+  fixtures it controls (one-way/two-way), emit a lighting-control schedule + schematic for the
+  electrician. `mepPoints.ts` has a `switch` kind but no switch→fixture link;
+  `socketAdvisory`/`electricalSchedule` state they have "no notion of circuits". The missing
+  electrician deliverable. Pure client.
+- [ ] **BSJ-4 — Bare-BTO & resale starting states** (M, simple) — add "New BTO (bare — screed,
+  no finishes/doors)" and "Resale (as-is / strip to bare)" intake states in `SmartStartWizard`
+  beside the existing OCS state (`ocsStarter.ts`), so the non-OCS majority + resale buyers model
+  their real starting point (bare screed / previous-owner finishes to keep-or-hack). Pure client.
+- [ ] **BSJ-5 — Per-trade handover packs** (M, pro) — re-bundle the existing drawing set /
+  schedules / BOQ (organised by drawing TYPE today) into per-RECIPIENT packs: Tiler (finish
+  schedule + setting-out + wet-area), Electrician (electrical plan + socket advisory + switching
+  schematic + DB note), Carpenter (carpentry sheets + FF&E), Aircon installer (BTU + system
+  plan), Curtain/blind vendor (window schedule + curtain specs + qty). The designed→ordered
+  bridge. Pure client (re-composition of computed output).
+- [ ] **BSJ-6 — Wet-area & kitchen fit-out catalog gaps** (S, simple) — three near-universal SG
+  fittings still missing: a shower screen / glass enclosure (the `fluted-partition` is decor,
+  not a screen), a bidet spray, and a standalone kitchen mixer tap (only baked into the island
+  faucet today). Small primitive additions. Pure client.
+- [ ] **BSJ-7 — Waterproofing-zone model** (S/M, pro) — turn the wet-area waterproofing
+  ADVISORY (`hdbCompliance.ts` + `renoTimeline` + `renoRulesPack`) into a modeled zone per wet
+  room (floor extent + wall upturn height) feeding the finish schedule + the tiler pack (BSJ-5).
+  Pure client.
+- [ ] **BSJ-8 — Floor build-up / level & transition-strip model** (S/M, pro) — per-room floor
+  finish thickness/level so finish transitions, door undercut, and the bathroom kerb/step-down
+  are representable; emit a transitions schedule (also refines floor-loading). No floor-level
+  model exists today. Pure client.
+- Near-misses CLEARED (verified covered, don't re-propose): full appliance catalog (fridge/
+  washer/dishwasher/oven/microwave/hood/hob/wine-cooler/water-heater/aircon FCU); TV 43-75"
+  sizes; curtains/roller/roman/zebra/drapery; carpentry (kitchen/wardrobe/feature-wall/study/
+  shelter built-ins + dimensioned carpentry sheets); per-room aircon BTU (only SYSTEM grouping
+  is the gap); MEP placement + socket/DB advisory + data points (only SWITCHING is the gap);
+  false ceiling/cove/clearance/RCP; OCS intake (only bare/resale is the gap); reno sequencing +
+  ICS (only trade BUDGET is the gap); finish/opening/electrical/plumbing schedules + setting-out
+  + DXF + BOQ + FF&E + shop export (only per-TRADE re-bundling is the gap); skirting/accent walls/
+  floor-texture transform (only floor build-up/transitions is the gap); floor loading, reno
+  rules, hackability, DLP dates, permit paths.
+
 ## UX walkthrough audit round (2026-07-19)
 First-time-user end-to-end walkthrough on the GPU harness. Full write-up + screenshot refs:
 `docs/research/2026-07-19-ux-walkthrough-audit.md` (P1=0, P2=3, P3=7; one P3 already fixed inline).
