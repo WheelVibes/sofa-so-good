@@ -65,7 +65,7 @@ interface OpeningMark {
 }
 
 /** Human-readable door style labels (schedule column / plan legend). */
-export const DOOR_STYLE_LABELS: Record<string, string> = {
+const DOOR_STYLE_LABELS: Record<string, string> = {
   panel: 'Panel',
   flush: 'Flush',
   glazed: 'Glazed',
@@ -75,7 +75,7 @@ export const DOOR_STYLE_LABELS: Record<string, string> = {
 }
 
 /** Human-readable window style labels. */
-export const WINDOW_STYLE_LABELS: Record<string, string> = {
+const WINDOW_STYLE_LABELS: Record<string, string> = {
   plain: 'Plain',
   grille: 'Grille',
   'invisible-grille': 'Invisible grille',
@@ -83,7 +83,7 @@ export const WINDOW_STYLE_LABELS: Record<string, string> = {
 }
 
 /** Human-readable door leaf-material labels. */
-export const DOOR_MATERIAL_LABELS: Record<string, string> = {
+const DOOR_MATERIAL_LABELS: Record<string, string> = {
   painted: 'Painted',
   wood: 'Wood',
   vinyl: 'Vinyl',
@@ -95,13 +95,13 @@ function titleCase(s: string): string {
 }
 
 /** Human-readable style label for a mark's `kind`/`style` (defaults resolved). */
-export function openingStyleLabel(kind: 'door' | 'window', style: string | undefined): string {
+function openingStyleLabel(kind: 'door' | 'window', style: string | undefined): string {
   if (kind === 'door') return DOOR_STYLE_LABELS[style ?? 'panel'] ?? titleCase(style ?? 'panel')
   return WINDOW_STYLE_LABELS[style ?? 'plain'] ?? titleCase(style ?? 'plain')
 }
 
 /** Human-readable label for a door's resolved leaf material. */
-export function doorMaterialLabel(material: string | undefined): string {
+function doorMaterialLabel(material: string | undefined): string {
   return DOOR_MATERIAL_LABELS[material ?? 'painted'] ?? titleCase(material ?? 'painted')
 }
 

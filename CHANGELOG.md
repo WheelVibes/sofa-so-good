@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.83 — Simplify pass over v0.22.2.64-82: minimal findings (healthy batch)
+
+Quality pass over the session's 20-commit diff. One fix: five schedule-label
+symbols in `openingSchedule.ts` were exported with zero external consumers —
+now module-private (only `openingStyleMaterialLabel` is public). Four other
+duplication candidates evaluated and deliberately skipped with recorded
+reasons (wall-bearing helper purity constraint, advisory-row markup that
+diverges per panel, renoRules vs permitNotes being different content banks,
+test-consumed exports). The parallel-agent batch held up well.
+
 ## v0.22.2.82 — R4 batch 2: OCS starter, floor-loading advisory, reno-rules pack, DLP tracker (round 4 complete)
 
 The last four round-4 items. R4-3 `ocsStarter` (simple): "New BTO (with
