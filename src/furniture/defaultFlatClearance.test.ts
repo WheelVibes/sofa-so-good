@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { buildDesignScore } from '../analysis/designScore'
+import { findWallClips } from '../collision/placement'
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
+import { planCollisionWalls } from '../floorplan/planGeometry'
 import { blockedDoorItems } from '../layout/clearance'
 import { BUILTIN_CATALOG } from './builtinCatalog'
 import { defaultLayout } from './defaultLayout'
@@ -32,6 +34,7 @@ function hydrateDefault() {
 
 describe('UXW-P2-3 default flat clearance + score', () => {
   const plan = buildDefaultPlan()
+  const walls = planCollisionWalls(plan, {})
 
   it('the move-in default flat blocks NO door swing', () => {
     const blocked = blockedDoorItems(hydrateDefault(), BUILTIN_CATALOG, plan)
@@ -43,6 +46,37 @@ describe('UXW-P2-3 default flat clearance + score', () => {
       const items = buildPresetItems(preset)
       const blocked = blockedDoorItems(items, BUILTIN_CATALOG, plan)
       expect(blocked, `${preset.id}: ${blocked.join(', ')}`).toEqual([])
+    }
+  })
+
+  // The in-wall analog of the blocked-door guard above: no floor item on the
+  // shipped default flat OR any preset may sit embedded in a wall body (the
+  // Checks overlay's "inside a wall" flag / the score's wall-clip penalty).
+  it('the move-in default flat has ZERO in-wall items', () => {
+    const clips = findWallClips(hydrateDefault(), BUILTIN_CATALOG, walls)
+    expect(clips, clips.join(', ')).toEqual([])
+  })
+
+  it('every Smart Start preset has ZERO in-wall items on the default flat', () => {
+    for (const preset of LAYOUT_PRESETS) {
+      const items = buildPresetItems(preset)
+      const clips = findWallClips(items, BUILTIN_CATALOG, walls)
+      expect(clips, `${preset.id}: ${clips.join(', ')}`).toEqual([])
+    }
+  })
+
+  // Every real SG home lights its corridor, household shelter and service yard;
+  // the default flat + every preset must score full Lighting coverage (no dark
+  // room), so the utility-room ceiling lights can't silently regress.
+  it('the default flat + every preset lights every room (Lighting coverage = 100)', () => {
+    const defScore = buildDesignScore(hydrateDefault(), BUILTIN_CATALOG, plan)
+    expect(defScore.categories.find((c) => c.id === 'lighting')!.score).toBe(100)
+    for (const preset of LAYOUT_PRESETS) {
+      const score = buildDesignScore(buildPresetItems(preset), BUILTIN_CATALOG, plan)
+      expect(
+        score.categories.find((c) => c.id === 'lighting')!.score,
+        `${preset.id} lighting`,
+      ).toBe(100)
     }
   })
 

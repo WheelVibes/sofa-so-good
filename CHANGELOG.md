@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.103 — Journey residuals: utility ceiling lights + wall-clip sweep
+
+Every room now has a light: the default flat's fixed tables gained flush
+ceiling lights in the Corridor, Household Shelter, and Service Yard (new
+defaults/utility.ts), and the auto-furnish kits gained one in kitchen/bath/
+powder/serviceYard/storeroom/foyer — Lighting coverage 70 → 100, overall
+score 76 → 80, all 18 presets at lighting 100. And the "in-wall" class is
+dead: new `dropWallClippers` sweep in furnishPlan (the wall-clip analog of
+dropDoorBlockers) drops any floor item still embedded in a wall — fixes
+the default flat's AC-ledge outdoor table plus wall-clipped pieces on
+three condo templates; zero in-wall across the default + all 20 templates,
+pinned by new regression suites. 2,604 dir tests green; score + checks
+panels GPU-verified (BLOCKING 0 · OVERLAPS 0 · IN WALL 0).
+
 ## v0.22.2.102 — E2E fix round: circuits bridge, condenser collision, theme guard, aircon panel truth
 
 All four validation findings closed. P1: `suggestCircuitLinks` resolves a

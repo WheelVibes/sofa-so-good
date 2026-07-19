@@ -8,7 +8,10 @@
  * fails loudly.
  */
 import { describe, expect, it } from 'vitest'
+import { findWallClipsByLevel } from '../collision/levelWallClips'
+import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import { allPlanRooms, GROUND_LEVEL_ID, planLevels } from '../floorplan/levels'
+import { planCollisionWalls } from '../floorplan/planGeometry'
 import { PLAN_TEMPLATES } from '../floorplan/templates'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import { furnishPlanItems } from '../furniture/furnishPlan'
@@ -74,6 +77,28 @@ describe('placement soundness across every built-in template (RM3)', () => {
           `${template.name} windows (level ${level.id ?? 'ground'})`,
         ).toEqual([])
       }
+    })
+  }
+})
+
+/**
+ * Auto-furnish (`furnishPlanItems`) must never leave a piece embedded in a wall
+ * — the in-wall analog of the door-blocking guard above. A shallow "AC ledge"
+ * balcony that couldn't hold the outdoor table, or a too-narrow room seeded a
+ * sofa/counter, used to fall back to a wall-clipping position that the Checks
+ * overlay flagged "inside a wall"; `dropWallClippers` now drops those, so every
+ * built-in plan furnishes wall-clip-clean. Pins the class like blocked doors.
+ */
+describe('furnishing leaves ZERO in-wall items (dropWallClippers)', () => {
+  const plans = [buildDefaultPlan(), ...PLAN_TEMPLATES]
+  for (const plan of plans) {
+    it(`${plan.name}: no furniture embedded in a wall`, () => {
+      const items = furnishPlanItems(plan, moveIn, BUILTIN_CATALOG, {})
+      expect(items.length).toBeGreaterThan(0)
+      const groundWalls = planCollisionWalls(plan, {})
+      const clips = findWallClipsByLevel(items, BUILTIN_CATALOG, plan, {}, groundWalls)
+      const named = clips.map((id) => `${items.find((it) => it.id === id)?.defId}(${id})`)
+      expect(named, `${plan.name}: ${named.join(', ')}`).toEqual([])
     })
   }
 })

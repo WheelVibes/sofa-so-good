@@ -12,8 +12,9 @@
  *
  * Pure + deterministic (no store, no GPU) → unit-testable.
  */
-import { findItemOverlaps } from '../collision/placement'
+import { findItemOverlaps, findWallClips } from '../collision/placement'
 import { GROUND_LEVEL_ID, levelAsPlan, planLevels } from '../floorplan/levels'
+import { planCollisionWalls } from '../floorplan/planGeometry'
 import { roomCategory } from '../floorplan/roomCategory'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
 import { planRoomArea } from '../floorplan/types'
@@ -32,6 +33,12 @@ export interface KitPiece {
   count?: number
   props?: ParamProps
 }
+
+/** A flush-mount ceiling light — the utility/wet-room default fixture. Typed as
+ *  `KitPiece` (its `props` widens to `ParamProps`) so mixing it into a kit that
+ *  already carries a differently-shaped `props` (e.g. a `{ mountHeight }` range
+ *  hood) doesn't trip the array-literal cross-key widening under `satisfies`. */
+const flushCeilingLight: KitPiece = { defId: 'ceiling-light', props: { style: 'flush' } }
 
 /** Furniture kits per inferred room kind, in priority order (most essential
  *  first — the overlap sweep drops from the end if a room is too small). */
@@ -70,6 +77,7 @@ const KITS = {
     { defId: 'refrigerator' },
     { defId: 'stove' },
     { defId: 'range-hood', props: { mountHeight: 1.5 } },
+    flushCeilingLight,
   ],
   bath: [
     { defId: 'toilet' },
@@ -77,12 +85,14 @@ const KITS = {
     { defId: 'shower' },
     { defId: 'bathroom-mirror', props: { mountHeight: 1.4 } },
     { defId: 'towel-rail', props: { mountHeight: 1.1 } },
+    flushCeilingLight,
   ],
   // A powder room / WC is a half-bath: no shower.
   powder: [
     { defId: 'toilet' },
     { defId: 'bathroom-sink' },
     { defId: 'bathroom-mirror', props: { mountHeight: 1.4 } },
+    flushCeilingLight,
   ],
   // Study / home office.
   study: [
@@ -110,11 +120,17 @@ const KITS = {
     { defId: 'washing-machine' },
     { defId: 'drying-rack' },
     { defId: 'utility-cabinet' },
+    flushCeilingLight,
   ],
   // Storeroom / bomb shelter (RM2): open shelving for bulk storage.
-  storeroom: [{ defId: 'cube-shelf' }],
+  storeroom: [{ defId: 'cube-shelf' }, flushCeilingLight],
   // Foyer / entrance (RM2): shoe storage, a landing bench, and a mirror.
-  foyer: [{ defId: 'shoe-cabinet' }, { defId: 'bench' }, { defId: 'wall-mirror' }],
+  foyer: [
+    { defId: 'shoe-cabinet' },
+    { defId: 'bench' },
+    { defId: 'wall-mirror' },
+    flushCeilingLight,
+  ],
 } satisfies Record<string, KitPiece[]>
 
 /** Bounding-box centre of a room (origin/width/depth are kept as the bbox even
@@ -271,6 +287,36 @@ function dropDoorBlockers(
 }
 
 /**
+ * Drop any floor item whose footprint still pokes INTO a wall body after
+ * arranging — the wall-clip analog of `dropDoorBlockers`. A room too small /
+ * oddly-shaped for a seeded piece (a shallow "AC ledge" balcony that can't hold
+ * an outdoor table; a corridor too narrow for a seeded sofa) leaves that piece
+ * on its un-arranged seed position or a wall-embedded fallback, which the Checks
+ * overlay + Design score flag as "inside a wall". Rather than ship furniture
+ * clipping through a wall, drop it — the same "an over-tight room can't fit the
+ * whole kit" trade-off `dropOverlaps`/`dropDoorBlockers` already make, completing
+ * this module's "always collision-clean" contract. Mounted (wall/ceiling) and
+ * noClip items are exempt (they never clip — `findWallClips` skips them); scoped
+ * per storey against that storey's own resolved collision walls.
+ */
+function dropWallClippers(
+  items: FurnitureItem[],
+  defs: Record<string, FurnitureDef>,
+  plan: FloorPlan,
+  doors: Record<string, { open: boolean }>,
+): FurnitureItem[] {
+  const dropIds = new Set<string>()
+  for (const level of planLevels(plan)) {
+    const lp = levelAsPlan(plan, level)
+    const walls = planCollisionWalls(lp, doors)
+    if (walls.length === 0) continue
+    const levelItems = items.filter((it) => (it.levelId ?? GROUND_LEVEL_ID) === level.id)
+    for (const id of findWallClips(levelItems, defs, walls)) dropIds.add(id)
+  }
+  return dropIds.size === 0 ? items : items.filter((it) => !dropIds.has(it.id))
+}
+
+/**
  * Furnish every room of `plan` with a kind-appropriate kit, arranged to the
  * plan's walls + openings, restyled by the preset's palette. Returns a clean,
  * collision-valid item list ready to drop into the store. Existing `items` are
@@ -311,7 +357,12 @@ export function furnishPlanItems(
   }
   if (seeded.length === 0) return []
   const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors)
-  const furniture = dropDoorBlockers(dropOverlaps(arranged, defs), defs, plan)
+  const furniture = dropWallClippers(
+    dropDoorBlockers(dropOverlaps(arranged, defs), defs, plan),
+    defs,
+    plan,
+    doors,
+  )
   if (!withDecor) return furniture
   // Styling pass: add set-dressing props on host surfaces. The pass may reach for
   // bundled CC0 GLB set-dressing props (vases, books, plants, a tea set) that
@@ -349,5 +400,10 @@ export function furnishOcsItems(
   }
   if (seeded.length === 0) return []
   const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors)
-  return dropDoorBlockers(dropOverlaps(arranged, defs), defs, plan)
+  return dropWallClippers(
+    dropDoorBlockers(dropOverlaps(arranged, defs), defs, plan),
+    defs,
+    plan,
+    doors,
+  )
 }
