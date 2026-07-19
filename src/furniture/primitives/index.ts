@@ -20,6 +20,7 @@ import { Bathtub } from './Bathtub'
 import { BayDaybed } from './BayDaybed'
 import { Bed } from './Bed'
 import { Bench } from './Bench'
+import { BidetSpray } from './BidetSpray'
 import { BirdCage } from './BirdCage'
 import { BirdPlayGym } from './BirdPlayGym'
 import { BistroTable } from './BistroTable'
@@ -81,6 +82,7 @@ import { LoftBed } from './LoftBed'
 import { MagazineStack } from './MagazineStack'
 import { Microwave } from './Microwave'
 import { Mirror } from './Mirror'
+import { MixerTap } from './MixerTap'
 import { Monitor } from './Monitor'
 import { Nightstand } from './Nightstand'
 import { OfficeChair } from './OfficeChair'
@@ -111,6 +113,7 @@ import { ScratchingPost } from './ScratchingPost'
 import { ShoeBench } from './ShoeBench'
 import { ShoeCabinet } from './ShoeCabinet'
 import { Shower } from './Shower'
+import { ShowerScreen } from './ShowerScreen'
 import { Sideboard } from './Sideboard'
 import { SideTable } from './SideTable'
 import { SmallPetPen } from './SmallPetPen'
@@ -303,4 +306,7 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Banquette,
   WaterHeater,
   FlutedPartition,
+  ShowerScreen,
+  BidetSpray,
+  MixerTap,
 }

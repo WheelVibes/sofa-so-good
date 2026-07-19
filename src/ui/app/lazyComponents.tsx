@@ -81,6 +81,9 @@ export const SmartStartWizard = lazyWithRetry(() =>
 export const BudgetPanel = lazyWithRetry(() =>
   import('../BudgetPanel').then((m) => ({ default: m.BudgetPanel })),
 )
+export const RenovationBudgetPanel = lazyWithRetry(() =>
+  import('../RenovationBudgetPanel').then((m) => ({ default: m.RenovationBudgetPanel })),
+)
 export const ClearancePanel = lazyWithRetry(() =>
   import('../ClearancePanel').then((m) => ({ default: m.ClearancePanel })),
 )

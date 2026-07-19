@@ -1587,6 +1587,18 @@ same change that reshapes a system.
   (`buildReportHtml`) and the cost CSV (`buildCostBreakdown`) so all three price identically. Editor:
   the "Price rules (rates)" section of `QuoteTemplateModal` (`priceRules` flag, pro). The report's
   Renovation estimate section shows the finishes subtotal + combined furniture+finishes total.
+- **Whole-reno budget allocator** (`analysis/renovationAllocator.ts` pure → `buildRenovationAllocation(input)`:
+  a full SG **trade** breakdown — hacking (from `demolitionPlan.diffWalls` vs. the baseline), masonry/wet
+  works (wet-room tiling area), flooring (dry floors), carpentry (placed cabinet/wardrobe/counter lin.m),
+  ceiling works (non-flat ceiling area), painting (dry wall area net of openings), M&E (electrical +
+  plumbing point count), aircon (habitable-room FCU count from `airconSizing`), glass & aluminium
+  (shower-screen/partition area), plumbing fixtures (count), + a contingency line and indicative SG
+  reference bands. Reuses ONE rate card: tiling/flooring/painting/carpentry from `PriceRules`
+  `floor`/`wall`/`carpentryPerM`, the trades with no prior rate from the additive `PriceRules.trades`
+  (`TradeRates` — hacking/ceiling/M&E/aircon/glass/fixture/contingency, editable in the same
+  `QuoteTemplateModal` price-rules section; `estimateRenovation`/BOQ ignore `trades`, so their output is
+  unchanged). Surfaced as the `RenovationBudgetPanel` aux panel (`ui/renovationBudget.ts` assembles from
+  the store + a CSV export), in the File "Budget & costs" group, `renoBudget` flag (simple, default on).
 - **Plan statistics** (`analysis/planStatistics.ts` pure → `buildPlanStatistics(plan)`: GFA summed
   across ALL storeys, room count + per-kind mix (`roomKindFromName` buckets, unknown→`other`),
   average room size, total room perimeter + total wall length, and the net-vs-circulation split

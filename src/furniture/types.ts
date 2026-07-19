@@ -207,6 +207,9 @@ export type PrimitiveKind =
   | 'Banquette'
   | 'WaterHeater'
   | 'FlutedPartition'
+  | 'ShowerScreen'
+  | 'BidetSpray'
+  | 'MixerTap'
 
 export type ParamField =
   | {

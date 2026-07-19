@@ -267,4 +267,49 @@ export const KITCHEN_DEFS = {
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
+  // Standalone mixer tap (BSJ-6) — the selectable counter/basin mixer, previously
+  // only baked into the kitchen-island faucet. Sits on a counter/basin surface.
+  'mixer-tap': {
+    kind: 'parametric',
+    id: 'mixer-tap',
+    name: 'Mixer tap',
+    category: 'kitchen',
+    keywords: [
+      'mixer tap',
+      'kitchen tap',
+      'faucet',
+      'pull-out tap',
+      'gooseneck',
+      'basin mixer',
+      'kitchen faucet',
+    ],
+    primitive: 'MixerTap',
+    defaultFootprint: { w: 0.1, d: 0.2, h: 0.3 },
+    verticalSpan: { base: 0, top: 0.32 },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'height',
+        label: 'Height',
+        min: 0.22,
+        max: 0.42,
+        step: 0.02,
+        default: 0.3,
+        unit: 'm',
+      },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'stainless',
+        options: [
+          { value: 'stainless', label: 'Chrome' },
+          { value: 'satin', label: 'Brushed steel' },
+          { value: 'black-steel', label: 'Matte black' },
+          { value: 'brushed-brass', label: 'Brushed brass' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#cfd2d6' },
+    ],
+  },
 } satisfies Record<string, FurnitureDef>

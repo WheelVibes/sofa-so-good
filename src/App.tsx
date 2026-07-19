@@ -37,6 +37,7 @@ import {
   ProductTour,
   RenderCompareModal,
   RenoRulesPanel,
+  RenovationBudgetPanel,
   ShareModal,
   ShortcutsModal,
   SmartStartWizard,
@@ -128,6 +129,7 @@ export default function App() {
     // Pro/analysis panels — lazy-loaded + gated so their chunks stay out of the
     // Simple-tier boot bundle (PERF-004). Each self-gated on the same flag before.
     budgetOpen: useStore((s) => s.budgetOpen),
+    renoBudgetOpen: useStore((s) => s.renoBudgetOpen),
     clearanceOpen: useStore((s) => s.clearancePanelOpen),
     daylightOpen: useStore((s) => s.daylightOpen),
     designScoreOpen: useStore((s) => s.designScoreOpen),
@@ -389,6 +391,11 @@ export default function App() {
         {lazyPanels.budgetOpen ? (
           <Suspense fallback={null}>
             <BudgetPanel />
+          </Suspense>
+        ) : null}
+        {lazyPanels.renoBudgetOpen ? (
+          <Suspense fallback={null}>
+            <RenovationBudgetPanel />
           </Suspense>
         ) : null}
         {lazyPanels.clearanceOpen ? (

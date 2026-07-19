@@ -537,6 +537,7 @@ const PriceRulesZ = z
     floor: z.record(z.string(), z.number()).optional(),
     wall: z.record(z.string(), z.number()).optional(),
     carpentryPerM: z.number().optional(),
+    trades: z.record(z.string(), z.number()).optional(),
   })
   .optional()
 

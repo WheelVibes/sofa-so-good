@@ -43,6 +43,7 @@ export function FileSection({
   const s = useStore
   const recording = useStore((st) => st.recording)
   const budgetOpen = useStore((st) => st.budgetOpen)
+  const renoBudgetOpen = useStore((st) => st.renoBudgetOpen)
 
   const fPanorama = useFeature('panorama')
   const fPanoTour = useFeature('panoTour')
@@ -53,6 +54,7 @@ export function FileSection({
   const fShare = useFeature('shareExport')
   const fReport = useFeature('report')
   const fBudget = useFeature('budget')
+  const fRenoBudget = useFeature('renoBudget')
   const fShopExport = useFeature('shopExport')
   const fBoq = useFeature('boq')
   const fQuoteTemplate = useFeature('quoteTemplate')
@@ -104,6 +106,7 @@ export function FileSection({
   // Budget renders from the shared tool-action registry (same behaviour +
   // active state as ⌘K / the desktop File menu's "Budget & costs" row, TB-5).
   const budget = toolAction('budget')
+  const renoBudget = toolAction('renoBudget')
 
   return (
     <Section id="file" title="File" icon="Save" activeId={activeId}>
@@ -202,7 +205,9 @@ export function FileSection({
         />
       ) : null}
 
-      {fBudget || fShopExport || fBoq ? <SubHeader>Budget &amp; costs</SubHeader> : null}
+      {fBudget || fRenoBudget || fShopExport || fBoq ? (
+        <SubHeader>Budget &amp; costs</SubHeader>
+      ) : null}
       {fBudget ? (
         <Item
           icon={budget.icon}
@@ -211,6 +216,16 @@ export function FileSection({
           on={budgetOpen}
           docs={budget.docs}
           onClick={act(() => budget.run(s))}
+        />
+      ) : null}
+      {fRenoBudget ? (
+        <Item
+          icon={renoBudget.icon}
+          label={resolveToolLabel(renoBudget, s.getState())}
+          sub={renoBudget.sub}
+          on={renoBudgetOpen}
+          docs={renoBudget.docs}
+          onClick={act(() => renoBudget.run(s))}
         />
       ) : null}
       {fShopExport ? (

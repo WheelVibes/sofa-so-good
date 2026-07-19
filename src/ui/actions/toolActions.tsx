@@ -112,6 +112,23 @@ export const TOOL_ACTIONS: readonly ToolAction[] = [
     ),
   },
   {
+    id: 'renoBudget',
+    label: 'Renovation budget',
+    paletteLabel: 'Renovation budget (by trade)',
+    sub: 'Whole-reno cost by trade & stage (SGD)',
+    icon: 'Budget',
+    category: 'analyze',
+    flag: 'renoBudget',
+    docs: 'renoBudget',
+    // Rendered manually in the File menus' "Budget & costs" group (like budget).
+    surfaces: ['palette'],
+    isActive: (s) => s.renoBudgetOpen,
+    run: auxToggle(
+      (s) => s.renoBudgetOpen,
+      (store) => store.getState().toggleRenoBudget(),
+    ),
+  },
+  {
     id: 'clearance',
     label: 'Checks',
     paletteLabel: 'Clearance & fit checks',

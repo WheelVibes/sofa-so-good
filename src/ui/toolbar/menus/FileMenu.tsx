@@ -57,6 +57,7 @@ export function FileMenu() {
   const fMoodboard = useFeature('moodboard')
   const fReport = useFeature('report')
   const fBudget = useFeature('budget')
+  const fRenoBudget = useFeature('renoBudget')
   const fShopExport = useFeature('shopExport')
   const fBoq = useFeature('boq')
   const fQuoteTemplate = useFeature('quoteTemplate')
@@ -117,6 +118,7 @@ export function FileMenu() {
   // behaviour (close sibling aux panels → toggle) and ⌘K/kbd stay in lockstep
   // (TB-5: it anchors the "Budget & costs" group here instead of Tools).
   const budget = toolAction('budget')
+  const renoBudget = toolAction('renoBudget')
 
   return (
     <ToolbarMenu icon="Save" label="File" active={recording || budgetOpen} width={256}>
@@ -238,7 +240,7 @@ export function FileMenu() {
         />
       ) : null}
 
-      {(fBudget || fShopExport || fBoq) && <MenuLabel>Budget & costs</MenuLabel>}
+      {(fBudget || fRenoBudget || fShopExport || fBoq) && <MenuLabel>Budget & costs</MenuLabel>}
       {fBudget ? (
         <MenuItem
           icon={budget.icon}
@@ -248,6 +250,16 @@ export function FileMenu() {
           kbd={budget.kbd ? shortcutLabel(budget.kbd) : undefined}
           active={budget.isActive(useStore.getState())}
           onClick={() => budget.run(useStore)}
+        />
+      ) : null}
+      {fRenoBudget ? (
+        <MenuItem
+          icon={renoBudget.icon}
+          label={resolveToolLabel(renoBudget, useStore.getState())}
+          sub={renoBudget.sub}
+          docs={renoBudget.docs}
+          active={renoBudget.isActive(useStore.getState())}
+          onClick={() => renoBudget.run(useStore)}
         />
       ) : null}
       {fShopExport ? (

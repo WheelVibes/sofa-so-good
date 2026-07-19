@@ -41,6 +41,13 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: false,
     tier: 'simple',
   },
+  renoBudget: {
+    label: 'Renovation budget',
+    description: 'Whole-reno cost by trade/stage (BSJ-1)',
+    // Core decision support for the blank-slate owner — pure client, prod-safe.
+    default: true,
+    tier: 'simple',
+  },
   clearanceChecks: {
     label: 'Clearance checks',
     description: 'Door-swing / fit checks',

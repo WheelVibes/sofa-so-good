@@ -196,6 +196,7 @@ export type FeatureFlag =
   | 'ocsStarter'
   | 'floorLoading'
   | 'renoRulesPack'
+  | 'renoBudget'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

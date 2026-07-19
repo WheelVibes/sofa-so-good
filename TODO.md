@@ -443,13 +443,13 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
 > `docs/research/2026-07-19-blank-slate-gap-analysis.md`. Ranked by how badly each blocks
 > the "no ID needed" promise. Each verified absent against the flag registry +
 > `analysis/`/`floorplan/`/`furniture/defs/` this pass. NOT yet started.
-- [ ] **BSJ-1 — Whole-reno budget allocator (by trade/stage)** (M, simple) — extend the
-  finishes-only `renovationCost.ts` (floors+walls $/m²) into a full SG trade breakdown
-  derived from the design's OWN quantities: hacking, masonry/tiling & wet works, carpentry
-  (linear-m from placed parametric pieces), ceiling & partition (RCP zones), plumbing/
-  electrical (MEP point counts), painting (wall area), glass & aluminium, fixtures &
-  appliances. Cite the ~40% carpentry / 25% tiling / 15% M&E / 20% fixtures allocation
-  (9creation/Qanvast/RCS). The owner's #1 anxiety; currently unaddressed. Pure client.
+- [x] **BSJ-1 — Whole-reno budget allocator (by trade/stage)** (M, simple) — DONE (v0.22.2.x):
+  pure `analysis/renovationAllocator.ts` derives a full SG trade breakdown (hacking/tiling/flooring/
+  carpentry/ceiling/painting/M&E/aircon/glass/fixtures + contingency + SG benchmark band) from the
+  design's own quantities, reusing ONE `PriceRules` card (finish buckets + additive `trades`; BOQ/
+  `estimateRenovation` unchanged). Surfaced as `RenovationBudgetPanel` in File → Budget & costs
+  (`renoBudget` flag, simple, default on) with CSV export + budget-target compare; rates editable in
+  the Quote-template price-rules section. Tests: `renovationAllocator.test.ts` + `renoBudget.test.ts`.
 - [ ] **BSJ-2 — Aircon SYSTEM planner** (M, pro) — extend `airconSizing.ts` past per-room
   BTU: group habitable rooms into System-2/3/4 sets, sum FCU load per condenser, recommend
   condenser count + check the ~110 kg/panel HDB ledge limit, place condenser(s) on the ledge/
@@ -470,10 +470,12 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
   schematic + DB note), Carpenter (carpentry sheets + FF&E), Aircon installer (BTU + system
   plan), Curtain/blind vendor (window schedule + curtain specs + qty). The designed→ordered
   bridge. Pure client (re-composition of computed output).
-- [ ] **BSJ-6 — Wet-area & kitchen fit-out catalog gaps** (S, simple) — three near-universal SG
-  fittings still missing: a shower screen / glass enclosure (the `fluted-partition` is decor,
-  not a screen), a bidet spray, and a standalone kitchen mixer tap (only baked into the island
-  faucet today). Small primitive additions. Pure client.
+- [x] **BSJ-6 — Wet-area & kitchen fit-out catalog gaps** (S, simple) — DONE (v0.22.2.x): three
+  new procedural primitives + defs — `ShowerScreen` (framed clear/fluted glass panel + optional
+  return wing, wall-flush, `shower-screen`), `BidetSpray` (wall-mounted health faucet, `bidet-spray`),
+  `MixerTap` (standalone counter/basin mixer, `mixer-tap`) — following the floor-anchored/+Z/real-
+  Material conventions; picked up by the structural-soundness sweep. Prices/keywords added; verified
+  in `wet-area-catalog-bsj6.json`.
 - [ ] **BSJ-7 — Waterproofing-zone model** (S/M, pro) — turn the wet-area waterproofing
   ADVISORY (`hdbCompliance.ts` + `renoTimeline` + `renoRulesPack`) into a modeled zone per wet
   room (floor extent + wall upturn height) feeding the finish schedule + the tiler pack (BSJ-5).

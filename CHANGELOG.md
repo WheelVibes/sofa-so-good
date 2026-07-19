@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.94 — BSJ batch 1: whole-reno budget allocator + wet-area fittings
+
+BSJ-1 (the blank-slate queue's #1): File → Budget & costs → "Renovation
+budget" — a full SG trade breakdown derived from the design's own
+quantities: hacking (demolition diff lm), wet-works tiling (wet-room
+floor+wall m²), dry flooring by finish, carpentry lm, ceiling works,
+painting (net of openings), M&E per point, aircon per habitable-room FCU,
+glass/aluminium, plumbing fixtures — each line showing quantity basis,
+rate, stage (renoTimeline-aligned) and share; editable ~10% contingency;
+budget-target over/under; indicative SG bands (BTO $40-60k / resale
+$60-90k, labelled indicative); CSV export. One PriceRules card stays the
+single rate source (additive `trades` rates editable in the Pro
+quote-template dialog); BOQ/estimateRenovation outputs pinned
+byte-unchanged. `renoBudget` simple flag. BSJ-6: shower screen (framed
+glass + return wing, instanced ribs pattern), bidet spray, and kitchen
+mixer tap join the catalog with structural-soundness coverage. 650
+targeted tests; panel + all three fittings GPU-verified.
+
 ## v0.22.2.93 — Blank-slate journey gap analysis: 8 ranked gaps (new session goal)
 
 Research round for the new goal (SG new-home buyers designing a blank

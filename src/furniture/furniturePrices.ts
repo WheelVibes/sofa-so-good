@@ -97,6 +97,9 @@ export const ITEM_PRICE: Record<string, number> = {
   toilet: 400,
   'bathroom-sink': 280,
   shower: 600,
+  'shower-screen': 700,
+  'bidet-spray': 80,
+  'mixer-tap': 220,
   'floor-mirror': 180,
   'water-heater': 350,
   // Lighting

@@ -18,6 +18,7 @@ import {
   ParametricDialog,
   ProductTour,
   RenderCompareModal,
+  RenovationBudgetPanel,
   ShareModal,
   SmartStartWizard,
   VersionCompareModal,
@@ -62,6 +63,7 @@ const PRELOAD_ORDER: Preloadable[] = [
   // Pro/analysis panels (PERF-004): out of the boot bundle, idle-warmed so they
   // open instantly + are offline-ready, like every other on-demand chunk.
   BudgetPanel,
+  RenovationBudgetPanel,
   ClearancePanel,
   DaylightPanel,
   DesignScorePanel,

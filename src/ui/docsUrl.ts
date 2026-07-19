@@ -76,6 +76,7 @@ export const FEATURE_DOCS: Partial<Record<DocKey, DocEntry>> = {
   // ── design-tools page ───────────────────────────────────────────────────
   smartStart: { page: 'design-tools', anchor: 'smart-start' },
   budget: { page: 'design-tools', anchor: 'budget-shopping-list' },
+  renoBudget: { page: 'design-tools', anchor: 'renovation-budget' },
   shopExport: { page: 'design-tools', anchor: 'budget-shopping-list' },
   boq: { page: 'design-tools', anchor: 'budget-shopping-list' },
   clearanceChecks: { page: 'design-tools', anchor: 'clearance-fit-checks' },

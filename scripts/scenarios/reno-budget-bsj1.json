@@ -1,0 +1,39 @@
+{
+  "name": "reno-budget-bsj1",
+  "description": "BSJ-1 verification: open the whole-renovation budget allocator on the default furnished 4-room flat with a budget target set, and screenshot the trade-line breakdown.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "wait-boot-ready",
+      "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" },
+      "timeout": 30000,
+      "failMessage": "Boot never reached ready + sceneReady"
+    },
+    { "name": "boot-hold", "wait": 800 },
+    { "name": "set-budget-target", "eval": "window.__store.getState().setBudgetTarget(60000)" },
+    { "name": "open-reno-budget", "store": { "action": "toggleRenoBudget", "args": [] } },
+    {
+      "name": "panel-visible",
+      "waitFor": { "store": "state.renoBudgetOpen === true" },
+      "timeout": 8000
+    },
+    {
+      "name": "wait-panel-mount",
+      "waitFor": { "css": ".panel.mini.aux" },
+      "timeout": 8000,
+      "failMessage": "Renovation budget aux panel did not mount"
+    },
+    {
+      "name": "verify-panel-content",
+      "eval": "(function(){ const t = document.querySelector('.panel.mini.aux')?.textContent || ''; if (!t.includes('Renovation budget')) throw new Error('panel is not the renovation budget: ' + t.slice(0,120)); if (/NaN/.test(t)) throw new Error('NaN in panel: ' + t.slice(0,200)); return t.slice(0,400); })()"
+    },
+    { "name": "wait-settle", "wait": 500 },
+    { "name": "shot-reno-budget", "screenshot": "01-reno-budget-panel" }
+  ]
+}

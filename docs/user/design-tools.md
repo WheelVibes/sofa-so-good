@@ -84,6 +84,36 @@ shows that room's running cost. Set a **budget target** and an always‑on pill
 over — and opens the full list when tapped. The target + over/under also print in
 the design report.
 
+## Renovation budget
+
+The **Renovation budget** (**File → Budget & costs → Renovation budget**) answers
+a first‑time owner's biggest question — *what will the whole renovation cost, by
+trade?* Where the shopping list prices furniture and the finishes estimate covers
+flooring + paint, this builds a full Singapore renovation **trade breakdown**
+straight from your design's own quantities — nothing to type in:
+
+- **Hacking & demolition** — demolished‑wall length (when you've reshaped a
+  starting plan), by linear metre.
+- **Masonry & wet works (tiling)** — bathroom + kitchen floor and wall tiling area.
+- **Flooring (dry areas)** — the rest of the floors, priced by finish.
+- **Carpentry** — linear metres of your placed cabinets, wardrobes and counters.
+- **Ceiling & partition works** — floor area of any false‑ceiling treatments.
+- **Painting** — dry‑room wall area, net of doors and windows.
+- **M&E** — your placed electrical + plumbing points.
+- **Air‑conditioning** — one indoor unit per habitable room (from the cooling‑load
+  sizing).
+- **Glass & aluminium** — shower‑screen / glass‑partition panel area.
+- **Plumbing fixtures** — your placed sanitary and kitchen fittings.
+
+Each line shows its **quantity basis** (m² / linear metre / points / units), the
+**rate** applied and a **subtotal**, followed by a **contingency** line (~10%) and
+the **grand total**. If you've set a budget target it shows how far **under/over**
+you are, and an **indicative SG reference band** (4‑room BTO ≈ S$40–60k, resale ≈
+S$60–90k) puts the number in context — all clearly labelled an estimate. **Export
+CSV** downloads the breakdown as a spreadsheet. Every rate comes from the same
+**Price rules** the quote uses, so editing a rate there (**Quote template**, Pro)
+re‑prices the renovation budget too.
+
 ## Clearance & fit checks
 
 **Checks** validates door‑swing clearance and flags any piece blocking a door,
