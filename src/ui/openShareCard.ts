@@ -76,7 +76,7 @@ function fillTextEllipsis(
   ctx.fillText(text.slice(0, lo) + ell, x, y)
 }
 
-export interface ShareCardRenderInput {
+interface ShareCardRenderInput {
   name: string
   statLine: string
   swatches: string[]
@@ -91,7 +91,7 @@ export interface ShareCardRenderInput {
  * `paletteStripLayout`. `format` defaults to `post` (the original 1080×1350
  * card) — its geometry is byte-identical to the pre-multi-format constants.
  */
-export function renderShareCardCanvas(
+function renderShareCardCanvas(
   input: ShareCardRenderInput,
   format: ShareCardFormat = 'post',
 ): HTMLCanvasElement {

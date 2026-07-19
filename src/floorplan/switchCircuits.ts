@@ -55,7 +55,7 @@ export interface CircuitLightInput {
 
 /** One lighting circuit — a single switch, or a two-way PAIR of switches, plus
  *  the light group they operate. Rendered as one legend row. */
-export interface SwitchCircuit {
+interface SwitchCircuit {
   /** 1-based circuit number (stable). */
   circuitNo: number
   /** Base tag for the legend, e.g. `"S1"`. */

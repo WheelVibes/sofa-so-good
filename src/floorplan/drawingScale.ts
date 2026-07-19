@@ -103,7 +103,7 @@ export const A4_LANDSCAPE_PRINTABLE_MM: PrintableAreaMm = printableAreaMm('a4', 
  * fixed-px symbols below comfortable on-screen/print legibility (contractor
  * re-review P3); this is the floor the symbol size is bumped up to hit.
  */
-export const MIN_SYMBOL_PRINT_MM = 1.7
+const MIN_SYMBOL_PRINT_MM = 1.7
 
 /**
  * Scale factor (≥ 1) to apply to a fixed-pixel symbol so it prints at least

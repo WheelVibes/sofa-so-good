@@ -85,7 +85,7 @@ export const CONDENSER_NOMINAL_BTU: Record<number, number> = {
  * hedged in the advisory copy (confirm the actual model's weight with the
  * installer).
  */
-export const CONDENSER_WEIGHT_KG: Record<number, number> = {
+const CONDENSER_WEIGHT_KG: Record<number, number> = {
   1: 30,
   2: 38,
   3: 48,
@@ -103,18 +103,18 @@ export const LEDGE_MAX_KG = 110
 /** Nominal condenser capacity (BTU/hr) for a system driving `count` FCUs whose
  *  total connected load is `connectedBtu`. Count 1 is a single split sized to
  *  the one FCU; 2–5 use the standard tier table (capped at System-5). */
-export function condenserNominalBtu(count: number, connectedBtu: number): number {
+function condenserNominalBtu(count: number, connectedBtu: number): number {
   if (count <= 1) return connectedBtu
   return CONDENSER_NOMINAL_BTU[Math.min(count, 5)] ?? CONDENSER_NOMINAL_BTU[5]!
 }
 
 /** Condenser weight (kg) for a system driving `count` FCUs (capped at 5). */
-export function condenserWeightKg(count: number): number {
+function condenserWeightKg(count: number): number {
   return CONDENSER_WEIGHT_KG[Math.min(Math.max(count, 1), 5)] ?? CONDENSER_WEIGHT_KG[5]!
 }
 
 /** One indoor fan-coil unit in the plan — the FCU serving a single room. */
-export interface AirconFcu {
+interface AirconFcu {
   roomId: string
   roomName: string
   /** FCU capacity chosen for the room, BTU/hr (from `airconSizing.systemBtu`). */
@@ -124,7 +124,7 @@ export interface AirconFcu {
 }
 
 /** One proposed multi-split system = one outdoor condenser + its FCUs. */
-export interface AirconSystem {
+interface AirconSystem {
   /** 1-based system number within the plan. */
   index: number
   /** Human label — "System-3" (or "Single split" for one FCU). */

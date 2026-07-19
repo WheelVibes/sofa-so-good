@@ -54,10 +54,10 @@ export interface RoofBounds {
   maxZ: number
 }
 
-export type RoofPlaneRole = 'slope' | 'gable' | 'hip' | 'flat'
+type RoofPlaneRole = 'slope' | 'gable' | 'hip' | 'flat'
 
 /** A convex roof polygon (ordered vertices) the renderer fan-triangulates. */
-export interface RoofPlane {
+interface RoofPlane {
   role: RoofPlaneRole
   /** Which main side this plane faces (slopes/hips only) — used to attach
    *  dormers to the correct plane. */
@@ -66,7 +66,7 @@ export interface RoofPlane {
 }
 
 /** A low parapet wall segment (flat-parapet only), as a box the renderer draws. */
-export interface ParapetBox {
+interface ParapetBox {
   cx: number
   cz: number
   /** Box size along world X / world Z. */

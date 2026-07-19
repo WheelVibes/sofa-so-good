@@ -67,7 +67,7 @@ export function pickShareCardSwatches(master: string[], designSwatches: string[]
 }
 
 /** Geometry for one swatch chip in the palette strip. */
-export interface SwatchRect {
+interface SwatchRect {
   x: number
   width: number
 }
@@ -170,7 +170,7 @@ const SHARE_CARD_STATS_OFFSET = 46
 const SHARE_CARD_STRIP_OFFSET = 40
 
 /** Rect for the hero image panel within the card. */
-export interface ShareCardRect {
+interface ShareCardRect {
   x: number
   y: number
   width: number

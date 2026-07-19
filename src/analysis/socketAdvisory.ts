@@ -83,7 +83,7 @@ const OUTLETS_PER_KIND: Partial<Record<PlanElectricalPoint['kind'], number>> = {
 const DATA_KINDS = new Set<PlanElectricalPoint['kind']>(['data', 'tv-point'])
 
 /** One room's socket advisory line. */
-export interface SocketRow {
+interface SocketRow {
   roomId: string
   roomName: string
   category: RoomCategory

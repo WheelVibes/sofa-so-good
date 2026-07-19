@@ -65,7 +65,7 @@ export interface FinishCell {
 
 /** One row of the finish schedule: a room's floor + wall + ceiling finish,
  *  each with its stable code and area quantity. */
-export interface FinishRow {
+interface FinishRow {
   /** Room name. */
   room: string
   floor: FinishCell
@@ -75,7 +75,7 @@ export interface FinishRow {
 
 /** An accent wall (a `PlanWall.color` override) — a separate callout row: the
  *  specific wall face, its colour, orientation, and NET-of-openings area. */
-export interface AccentWallRow {
+interface AccentWallRow {
   wallId: string
   /** Stable material code (`AW-01`), keyed by distinct colour. */
   code: string

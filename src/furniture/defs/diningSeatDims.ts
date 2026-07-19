@@ -21,7 +21,7 @@ export function diningSeatDim(props: ParamProps): { w: number; d: number } {
 }
 
 /** Extra width (m) added by the drop-in centre leaf of an extendable table. */
-export const DINING_LEAF_WIDTH = 0.45
+const DINING_LEAF_WIDTH = 0.45
 
 /** Width (m) the leaf adds for the item's live props: `DINING_LEAF_WIDTH` when
  *  `leaf: 'extended'` on a rectangular top, else 0. The extension is only

@@ -22,7 +22,7 @@ export function luminance(c: RGB): number {
 /** W3C `ClipColor`: pull any out-of-[0,255] channel back in while preserving the
  *  colour's luminance (so re-lighting a very light/dark base can't clip to a
  *  flat grey). Operates on the 0–255 domain used by canvas ImageData. */
-export function clipColor(c: RGB): RGB {
+function clipColor(c: RGB): RGB {
   const l = luminance(c)
   const n = Math.min(c[0], c[1], c[2])
   const x = Math.max(c[0], c[1], c[2])

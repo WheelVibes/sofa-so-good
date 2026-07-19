@@ -21,10 +21,3 @@ export function validateItemUrl(raw: string): string | null {
   }
   return null
 }
-
-/** The sanitized URL to store/open, or `undefined` when blank/invalid. */
-export function sanitizeItemUrl(raw: string): string | undefined {
-  const value = raw.trim()
-  if (value === '' || validateItemUrl(value)) return undefined
-  return value
-}

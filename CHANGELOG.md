@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.23.0.1 — CI fix: knip dead-code scan green
+
+The r11 PR's only red check. De-exported 51 symbols the round's parallel
+agents left public without external consumers (constants, helper fns, and
+result-shape interfaces across airconSizing/System/Placement,
+handoverDates, renovationCost/Allocator, roofModel, switchCircuits,
+tradePacks, shareCard, intakeStates, ocsStarter, and friends) and deleted
+two fully dead ones (OCS_INFO_NOTE, sanitizeItemUrl — both superseded).
+tsc, biome, knip, and 403 affected tests green.
+
 ## v0.23.0.0 — Round 11 ships: SG blank-slate journey, presets, variants, catalog, audits
 
 Minor bump for the r11 PR to staging (43 commits this round, v0.22.2.64+).

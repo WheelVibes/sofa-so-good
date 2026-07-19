@@ -37,7 +37,7 @@ const CONDENSER_SPACING = 1.0
 const CONDENSER_SLIDE_STEP = 0.2
 
 /** A furniture item the planner wants placed (id assigned by the caller). */
-export interface PlannedAirconItem {
+interface PlannedAirconItem {
   defId: 'aircon-unit' | 'aircon-condenser'
   position: [number, number]
   rotation: number

@@ -18,14 +18,14 @@
  */
 
 /** DLP length (years). */
-export const DLP_YEARS = 1
+const DLP_YEARS = 1
 /** HDB ceiling-leak / seepage goodwill-repair window (years). */
-export const CEILING_LEAK_YEARS = 5
+const CEILING_LEAK_YEARS = 5
 /** Structural spalling-concrete warranty window (years). */
-export const SPALLING_YEARS = 10
+const SPALLING_YEARS = 10
 
 /** One computed warranty / deadline date. */
-export interface HandoverDateEntry {
+interface HandoverDateEntry {
   id: string
   label: string
   /** The computed calendar date (UTC midnight). */

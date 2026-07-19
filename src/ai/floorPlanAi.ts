@@ -130,7 +130,7 @@ export interface AiOpening {
  *  (`parseGeneratedPlan`) emits rooms; vision recognition leaves it absent and
  *  the apply path derives nothing. Landed onto the plan as a `PlanRoom`
  *  (`origin=[x,z]`, `width`, `depth`) by `applyAiPlanDraft`. */
-export interface AiRoom {
+interface AiRoom {
   name: string
   /** NW corner of the room's interior rectangle (metres). */
   x: number

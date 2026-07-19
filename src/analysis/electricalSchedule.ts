@@ -191,7 +191,7 @@ export function buildElectricalSchedule(
 }
 
 /** Per-room line in the DESIGNED-points schedule (H-D3). */
-export interface DesignedElectricalRoomRow {
+interface DesignedElectricalRoomRow {
   roomId: string
   roomName: string
   count: number
@@ -200,7 +200,7 @@ export interface DesignedElectricalRoomRow {
 /** One distinct mount height among the designed points, with how many points
  *  sit at it — summarized ("300mm × 18, 1200mm × 4") rather than listing every
  *  point individually. */
-export interface DesignedElectricalHeightRow {
+interface DesignedElectricalHeightRow {
   heightMm: number
   count: number
 }

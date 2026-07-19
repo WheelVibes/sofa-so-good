@@ -45,7 +45,7 @@ export const ORIENTATION_UPLIFT = 0.15
  */
 export const CEILING_UPLIFT = 0.2
 /** Ceiling height (m) above which the high-ceiling uplift applies. */
-export const HIGH_CEILING_M = 3
+const HIGH_CEILING_M = 3
 
 /**
  * Flat BTU/hr added to the LIVING room when an OPEN kitchen vents into it — the
@@ -60,13 +60,13 @@ export const OPEN_KITCHEN_BTU = 4000
  * wide pass-through / no-door archway (≥ 1.8 m) does. This is the documented,
  * testable adjacency heuristic (see `isOpenKitchenAdjacency`).
  */
-export const OPEN_KITCHEN_MIN_OPENING = 1.8
+const OPEN_KITCHEN_MIN_OPENING = 1.8
 
 /** Standard SG residential split-unit capacities (BTU/hr), ascending. */
 export const SYSTEM_SIZES = [9000, 12000, 18000, 24000] as const
 
 /** Which modifiers were applied to a room's recommendation. */
-export interface AirconModifiers {
+interface AirconModifiers {
   /** Room has an exterior E/W-facing wall → +ORIENTATION_UPLIFT. */
   orientation: boolean
   /** Ceiling height > HIGH_CEILING_M → +CEILING_UPLIFT. */
@@ -78,7 +78,7 @@ export interface AirconModifiers {
 }
 
 /** One room's cooling-load result. */
-export interface AirconRow {
+interface AirconRow {
   roomId: string
   roomName: string
   /** Interior floor area, m². */

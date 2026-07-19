@@ -97,7 +97,7 @@ export function screedDryFloorFinishes(plan: FloorPlan): Record<string, Material
 /** Item def ids RETAINED in a resale strip-out — wet-area + kitchen FITTINGS the
  *  owner keeps (the plumbing fixtures + built-in appliances), while all loose
  *  furniture + bedroom wardrobes + kitchen/wardrobe carpentry are stripped. */
-export const STRIPOUT_KEEP_DEF_IDS: ReadonlySet<string> = new Set<string>([
+const STRIPOUT_KEEP_DEF_IDS: ReadonlySet<string> = new Set<string>([
   // Bathroom sanitary + fittings
   'toilet',
   'bathroom-sink',

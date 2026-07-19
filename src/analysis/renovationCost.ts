@@ -66,7 +66,7 @@ const DEFAULT_CARPENTRY_RATE = 320
  *
  * Indicative SG mid-market 2025-26 rates (9creation / Qanvast / RCS).
  */
-export type TradeRateKey =
+type TradeRateKey =
   /** Demolition / hacking, SGD per linear metre of demolished wall. */
   | 'hackingPerM'
   /** False ceiling / partition ceiling works, SGD per m². */
@@ -89,7 +89,7 @@ export type TradeRateKey =
 export type TradeRates = Record<TradeRateKey, number>
 
 /** Factory-default per-trade rates. */
-export const DEFAULT_TRADE_RATES: TradeRates = {
+const DEFAULT_TRADE_RATES: TradeRates = {
   hackingPerM: 55,
   ceilingPerM2: 32,
   mePerPoint: 120,

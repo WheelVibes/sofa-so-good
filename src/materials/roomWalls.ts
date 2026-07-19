@@ -29,7 +29,7 @@ import { formatLength, type UnitSystem } from '../utils/measurement'
  *  "up = −Z = North" convention the 2D plan editor uses at the default North
  *  orientation. Does NOT apply the user's North-orientation offset (labels stay
  *  deterministic; see helper caveats). */
-export type WallSide = 'N' | 'S' | 'E' | 'W'
+type WallSide = 'N' | 'S' | 'E' | 'W'
 
 export interface RoomWall {
   /** Source wall id — matches the `${wallId}:${roomId}` accent key. */

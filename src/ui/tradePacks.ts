@@ -201,7 +201,7 @@ export const TRADE_PACKS: readonly PackDef[] = [
 ]
 
 /** Look up a pack def by id. */
-export function tradePackDef(id: TradePackId): PackDef {
+function tradePackDef(id: TradePackId): PackDef {
   const def = TRADE_PACKS.find((p) => p.id === id)
   if (!def) throw new Error(`Unknown trade pack: ${id}`)
   return def

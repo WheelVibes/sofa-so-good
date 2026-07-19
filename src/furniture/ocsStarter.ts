@@ -46,7 +46,7 @@ export const OCS_PORCELAIN: MaterialId = 'floor-tile-grey'
  * bedrooms + living/dining/corridor. Kitchen / baths / utility keep their own
  * tiled or hard-wearing floors (always HDB-tiled regardless of OCS).
  */
-export const OCS_FLOOR_DEFAULT: Partial<Record<RoomId, MaterialId>> = {
+const OCS_FLOOR_DEFAULT: Partial<Record<RoomId, MaterialId>> = {
   mainBedroom: OCS_VINYL,
   bedroom2: OCS_VINYL,
   bedroom3: OCS_VINYL,
@@ -59,7 +59,7 @@ export const OCS_FLOOR_DEFAULT: Partial<Record<RoomId, MaterialId>> = {
  * as `OCS_FLOOR_DEFAULT`: vinyl in dry sleeping/study spaces, polished porcelain
  * across the dry living spaces. A category not listed keeps its current floor.
  */
-export const OCS_FLOOR_BY_CATEGORY: Partial<Record<RoomCategory, MaterialId>> = {
+const OCS_FLOOR_BY_CATEGORY: Partial<Record<RoomCategory, MaterialId>> = {
   bedroom: OCS_VINYL,
   masterBedroom: OCS_VINYL,
   study: OCS_VINYL,
@@ -91,11 +91,6 @@ export const OCS_BATH_KIT: readonly KitPiece[] = [
 /** The def ids OCS delivers (used to filter the fixed-flat default layout down to
  *  just the OCS-provided fittings). */
 export const OCS_FITTING_DEF_IDS: readonly string[] = OCS_BATH_KIT.map((p) => p.defId)
-
-/** OCS is chosen once at booking and cannot be added later — surfaced as the
- *  starting point's info note. */
-export const OCS_INFO_NOTE =
-  'OCS is chosen at flat booking and cannot be added later. This starting point pre-fills the finishes and fittings an HDB BTO owner who opted in receives.'
 
 /**
  * OCS floor-finish overrides for the built-in fixed flat, keyed by room id.

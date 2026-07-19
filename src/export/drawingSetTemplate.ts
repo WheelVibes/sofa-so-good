@@ -8,10 +8,10 @@
 
 /** Supported ISO 216 paper sizes for the drawing set (TODO G2 follow-up —
  *  user-customizable paper). */
-export type DrawingSetPaperSize = 'a4' | 'a3' | 'a2' | 'a1'
+type DrawingSetPaperSize = 'a4' | 'a3' | 'a2' | 'a1'
 
 /** Sheet orientation. */
-export type DrawingSetOrientation = 'landscape' | 'portrait'
+type DrawingSetOrientation = 'landscape' | 'portrait'
 
 /** User-editable identity fields shown in every sheet's title block. */
 export interface DrawingSetTemplate {

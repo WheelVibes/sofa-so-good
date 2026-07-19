@@ -601,7 +601,7 @@ export interface FurnitureItem {
 }
 
 /** Per-instance handover/annotation metadata. See {@link FurnitureItem.meta}. */
-export interface ItemMeta {
+interface ItemMeta {
   /** Product page / spec sheet URL (validated http/https at the UI edit boundary). */
   url?: string
   /** Custom unit price override (SGD, finite, ≥0) — wins over the derived/

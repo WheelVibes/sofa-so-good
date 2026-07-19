@@ -71,7 +71,7 @@ export interface RcpRect {
  *  treatment (only present when the geometry engine actually applied one —
  *  a non-rectangular room or too-low ceiling falls back to flat, same as the
  *  3D render), and a print-ready one-line note. */
-export interface RcpZone {
+interface RcpZone {
   roomId: string
   roomName: string
   outline: PlanVec2[]
@@ -131,7 +131,7 @@ export interface RcpFixture {
 
 /** One aircon MEP point, marked for cross-reference (full schedule lives on
  *  the electrical plan). */
-export interface RcpAircon {
+interface RcpAircon {
   x: number
   z: number
   mountHeightMm: number

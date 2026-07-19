@@ -26,7 +26,7 @@ import { type FloorPlan, planBounds } from '../../floorplan/types'
 import type { FurnitureItem } from '../../furniture/types'
 import { fitDistanceForFov } from './frameSelection'
 
-export type Vec3 = [number, number, number]
+type Vec3 = [number, number, number]
 
 /** One computed starter view: a name + a pose ready to hand to
  *  `saveView`/`SavedView`. */

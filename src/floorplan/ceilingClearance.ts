@@ -38,7 +38,7 @@ const CORNICE_MIN_MM = Math.round(CORNICE_MIN_M * 1000)
 const STANDARD_SLAB_MM = Math.round(STANDARD_SLAB_M * 1000)
 
 /** One room's false-ceiling clearance result. */
-export interface ClearanceZone {
+interface ClearanceZone {
   roomId: string
   roomName: string
   /** The designed treatment (never `'flat'` — flat rooms are skipped). */
@@ -53,7 +53,7 @@ export interface ClearanceZone {
   belowCornice: boolean
 }
 
-export interface CeilingClearanceThresholds {
+interface CeilingClearanceThresholds {
   standardSlabMm: number
   minFinishedClearanceMm: number
   corniceMinMm: number

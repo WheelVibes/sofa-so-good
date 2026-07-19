@@ -69,7 +69,7 @@ const PLATFORM_RE = /platform|dais|riser|podium|tatami/
 const RAISE_KEYS = ['raise', 'height', 'rise', 'platformHeight', 'thickness']
 
 /** One heavy item, with its estimated load density. */
-export interface FloorLoadItem {
+interface FloorLoadItem {
   itemId: string
   defId: string
   name: string
@@ -81,7 +81,7 @@ export interface FloorLoadItem {
 }
 
 /** One modelled raised platform that implies concrete loading. */
-export interface RaisedPlatform {
+interface RaisedPlatform {
   itemId: string
   name: string
   raiseMm: number

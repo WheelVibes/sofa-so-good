@@ -231,7 +231,7 @@ export function peranakanFields(base: [number, number, number], seed: number, S:
       const cd = Math.hypot(1 - Math.abs(nx), 1 - Math.abs(ny))
       let col = cream
       let height = 0.5
-      let rough = 0.62
+      const rough = 0.62
       if (cd < 0.42) {
         // Corner quarter-fan — accent field with a thin outline rim + a cream eye.
         col = cd < 0.14 ? cream : accent

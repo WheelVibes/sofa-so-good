@@ -178,7 +178,7 @@ function arcSweep(
 
 /** One swing leaf of a door's 2D architectural symbol: a leaf line
  *  `hinge → leafTip` plus a quarter-arc `freeJamb → leafTip` of `radius`. */
-export interface SwingLeaf {
+interface SwingLeaf {
   hinge: [number, number]
   freeJamb: [number, number]
   leafTip: [number, number]
