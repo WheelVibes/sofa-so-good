@@ -148,6 +148,17 @@ export function SmartStartWizard() {
         Pick a style — we’ll furnish every room and finish the walls &amp; floors to match. You can
         tweak anything afterwards.
       </p>
+      <p
+        className="panel-sub"
+        style={{
+          textTransform: 'none',
+          letterSpacing: 0,
+          marginBottom: 10,
+          color: 'var(--text-3)',
+        }}
+      >
+        Replaces any floors &amp; walls you’ve already set on the living spaces.
+      </p>
       {fOcs ? (
         <div className="ss-ocs" style={{ marginBottom: 12 }}>
           <div className="sec-h" style={{ marginBottom: 'var(--s-1)' }}>

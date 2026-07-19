@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { deriveElectricalPoints } from '../furniture/mepSuggest'
 import { FloorPlanZ } from '../state/schema'
+import { buildDefaultPlan } from './defaultPlan'
 import {
   buildSwitchCircuits,
   type CircuitLightInput,
@@ -146,6 +148,45 @@ describe('suggestCircuitLinks heuristic (BSJ-3)', () => {
     const map = suggestCircuitLinks(plan, switches, lights)
     expect(map.get('near')).toEqual(['lA'])
     expect(map.has('far')).toBe(false)
+  })
+
+  it('resolves an ON-WALL switch into the room it serves via a probe (P1)', () => {
+    // Room interior is INSET from the wall centrelines (real plans have thick
+    // walls), so a switch on the bottom external wall's centreline (z=0) is NOT
+    // strictly inside the room rect — the probe must still resolve it.
+    const plan: FloorPlan = {
+      id: 'p',
+      name: 'T',
+      ceilingHeight: 2.6,
+      extent: [6, 4],
+      walls: [{ id: 'w-bottom', start: [0, 0], end: [6, 0], thickness: 'external' }],
+      openings: [
+        { id: 'd1', kind: 'door', wallId: 'w-bottom', offset: 0.8, width: 0.9, sill: 0, head: 2.1 },
+      ],
+      rooms: [{ id: 'r1', name: 'Living', origin: [0.1, 0.1], width: 5.8, depth: 3.8 }],
+    }
+    // Switch just past the leaf, on the wall centreline (z=0) — the exact shape
+    // `deriveElectricalPoints` emits.
+    const switches = [sw('s-wall', 1.85, 0)]
+    const lights = [light('lA', 3, 2)]
+    const map = suggestCircuitLinks(plan, switches, lights)
+    expect(map.get('s-wall')).toEqual(['lA'])
+  })
+
+  it('links circuits from realistic on-wall suggested switches on the default flat (P1 regression)', () => {
+    const plan = buildDefaultPlan()
+    // Derive switches the SAME way the app does (on wall centrelines).
+    const switches = deriveElectricalPoints(plan, [], {})
+      .filter((p) => p.kind === 'switch')
+      .map((p, i) => sw(`s${i}`, p.x, p.z))
+    expect(switches.length).toBeGreaterThan(0)
+    // A ceiling light at each room's centre.
+    const lights = plan.rooms.map((r) =>
+      light(`li-${r.id}`, r.origin[0] + r.width / 2, r.origin[1] + r.depth / 2),
+    )
+    const map = suggestCircuitLinks(plan, switches, lights)
+    // Before the probe fix this was 0 (the P1 bug). Several rooms must now link.
+    expect(map.size).toBeGreaterThanOrEqual(3)
   })
 
   it('links a switch in every room that has a switch + a light (HDB 4-room template)', () => {

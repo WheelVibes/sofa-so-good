@@ -1,8 +1,9 @@
 import { planAirconPlacements } from '../../analysis/airconPlacement'
 import { buildAirconSystemPlan } from '../../analysis/airconSystem'
-import { isDefaultPlan } from '../../floorplan/planGeometry'
+import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import type { FloorPlan } from '../../floorplan/types'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
+import { buildMergedCatalog } from '../../furniture/catalog'
 import { defaultLayout } from '../../furniture/defaultLayout'
 import { furnishOcsItems, furnishPlanItems } from '../../furniture/furnishPlan'
 import {
@@ -71,7 +72,7 @@ export interface ResetSlice {
    *  service-yard room. Removes any existing aircon units first so re-running
    *  UPDATES rather than duplicating (the planner owns aircon placement). One
    *  undo step. Returns the counts placed. */
-  planAircon: () => { fcus: number; condensers: number }
+  planAircon: () => { fcus: number; condensers: number; advisories: string[] }
 }
 
 /** Fresh item id (mirrors `itemsSlice.newId`). */
@@ -299,21 +300,29 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
     })
   },
   planAircon: () => {
-    const plan = get().floorPlan
-    const systemPlan = buildAirconSystemPlan(plan, get().orientationDeg)
-    const placements = planAirconPlacements(plan, systemPlan)
-    // Suggest-then-apply, one undo step (mirrors suggestMepPoints): drop the
-    // existing planner-owned aircon items, then append the fresh set.
-    const kept = get().items.filter(
+    const s = get()
+    const plan = s.floorPlan
+    const systemPlan = buildAirconSystemPlan(plan, s.orientationDeg)
+    // Collision context so condensers slide clear of existing outdoor furniture /
+    // walls instead of dropping on top of them (P2-1). The condensers must avoid
+    // everything EXCEPT the planner-owned aircon items being replaced below.
+    const kept = s.items.filter(
       (it) => it.defId !== 'aircon-unit' && it.defId !== 'aircon-condenser',
     )
+    const { items: placements, advisories } = planAirconPlacements(plan, systemPlan, {
+      items: kept,
+      defs: buildMergedCatalog(s),
+      walls: isDefaultPlan(plan) ? undefined : planCollisionWalls(plan, s.doors),
+    })
+    // Suggest-then-apply, one undo step (mirrors suggestMepPoints): drop the
+    // existing planner-owned aircon items, then append the fresh set.
     if (placements.length === 0) {
       // Still remove stale aircon items if the plan now has none to place.
       if (kept.length !== get().items.length) {
         get().pushHistory()
         set({ items: kept, selectedItemId: null, selectedItemIds: [] })
       }
-      return { fcus: 0, condensers: 0 }
+      return { fcus: 0, condensers: 0, advisories }
     }
     const added = placements.map((p) => ({
       id: airconItemId(),
@@ -332,6 +341,7 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
     return {
       fcus: placements.filter((p) => p.defId === 'aircon-unit').length,
       condensers: placements.filter((p) => p.defId === 'aircon-condenser').length,
+      advisories,
     }
   },
 })

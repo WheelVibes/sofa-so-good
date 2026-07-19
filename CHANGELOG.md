@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.102 — E2E fix round: circuits bridge, condenser collision, theme guard, aircon panel truth
+
+All four validation findings closed. P1: `suggestCircuitLinks` resolves a
+switch's room by probing ~0.3 m perpendicular to its nearest wall (both
+sides, openingProbe-style, 4-cardinal fallback) — the on-wall rendering
+position stays pinned; the full cascade now chains (suggest → S1/S2/S3
+tags + L-marks on the electrical sheet → the electrician pack's exclusion
+replaced by the circuit list). P2: condenser placement slides along the
+ledge via canPlace until clear (3 overlaps → 0; e2e design score 42 → 54,
+Clearance 40 → 88), dropping with an installer advisory when the ledge
+can't fit. P2 theme investigation: every theme preset already scores ≥76
+standalone — the e2e's 42 was the condenser overlaps; a regression guard
+now pins every theme ≥65/0-blocked. P3s: wizard states the floors/walls
+replacement honestly, the aircon section flips to "Installed as planned" /
+"Re-plan aircon" once units exist, cooling list shows FCU-served rooms
+with a show-all toggle. 675 targeted tests; cascade screenshots verified.
+
 ## v0.22.2.101 — E2E blank-slate journey validation: promise HOLDS; P1+2 P2 filed
 
 One continuous 99-step GPU session drove bare-BTO intake → surfaces + floor

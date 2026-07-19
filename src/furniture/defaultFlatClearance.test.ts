@@ -46,6 +46,25 @@ describe('UXW-P2-3 default flat clearance + score', () => {
     }
   })
 
+  it('every THEME preset passes the app’s own checks on the default flat (P2-2)', () => {
+    // The e2e journey applies a gallery THEME to a blank BTO; the finished
+    // design must not fail the app's own Design score. Assert per theme: no
+    // blocked door, circulation materially above zero, and an overall score
+    // that isn't in the failing band. (Layout-group presets — wfh-studio etc.
+    // — are re-modelled arrangements judged separately.)
+    const themes = LAYOUT_PRESETS.filter((p) => p.group === 'theme')
+    expect(themes.length).toBeGreaterThan(0)
+    for (const preset of themes) {
+      const items = buildPresetItems(preset)
+      const blocked = blockedDoorItems(items, BUILTIN_CATALOG, plan)
+      expect(blocked, `${preset.id} blocked: ${blocked.join(', ')}`).toEqual([])
+      const score = buildDesignScore(items, BUILTIN_CATALOG, plan)
+      const circulation = score.categories.find((c) => c.id === 'circulation')!
+      expect(circulation.score, `${preset.id} circulation`).toBeGreaterThanOrEqual(40)
+      expect(score.overall, `${preset.id} overall`).toBeGreaterThanOrEqual(65)
+    }
+  })
+
   it('the default flat is not harshly failed by its own Design score', () => {
     const score = buildDesignScore(hydrateDefault(), BUILTIN_CATALOG, plan)
     const clearance = score.categories.find((c) => c.id === 'clearance')!

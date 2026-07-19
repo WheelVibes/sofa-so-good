@@ -15,12 +15,14 @@
  *    yard, else a balcony; multiple condensers are spaced along the ledge.
  */
 
+import { canPlace } from '../collision/placement'
+import type { CollisionWall } from '../collision/walls'
 import { allPlanRooms, GROUND_LEVEL_ID, levelOfRoom } from '../floorplan/levels'
 import type { PlanClippedWall } from '../floorplan/planRoomShell'
 import { planRoomShell } from '../floorplan/planRoomShell'
 import { roomCategory } from '../floorplan/roomCategory'
 import type { FloorPlan } from '../floorplan/types'
-import type { ParamProps } from '../furniture/types'
+import type { FurnitureDef, FurnitureItem, ParamProps } from '../furniture/types'
 import type { AirconSystemPlan } from './airconSystem'
 
 /** FCU body depth (m) — mirrors the `AirconUnit` primitive's `bodyD`. */
@@ -31,6 +33,8 @@ const FCU_WALL_OFFSET = FCU_BODY_DEPTH / 2 + 0.02
 const FCU_MOUNT_HEIGHT = 2.25
 /** Spacing between multiple condensers along the ledge (m). */
 const CONDENSER_SPACING = 1.0
+/** Increment when sliding a condenser along the ledge to dodge a collision (m). */
+const CONDENSER_SLIDE_STEP = 0.2
 
 /** A furniture item the planner wants placed (id assigned by the caller). */
 export interface PlannedAirconItem {
@@ -42,6 +46,24 @@ export interface PlannedAirconItem {
   levelId?: string
   /** Room the item serves / sits in (reference only). */
   roomId: string
+}
+
+/** Optional collision context so condenser spots avoid existing furniture / walls
+ *  (BSJ-2, P2-1). When absent, placement is the legacy geometry-only spread. */
+export interface AirconPlacementContext {
+  /** Existing furniture the condensers must not overlap. */
+  items?: FurnitureItem[]
+  /** Catalog to resolve footprints for the collision test. */
+  defs?: Record<string, FurnitureDef>
+  /** Plan collision walls (default flat → omit; `canPlace` falls back). */
+  walls?: CollisionWall[]
+}
+
+/** Result of a placement pass: the items to commit + any human advisories (e.g.
+ *  a condenser that couldn't be fitted on the ledge). */
+export interface AirconPlacementResult {
+  items: PlannedAirconItem[]
+  advisories: string[]
 }
 
 const midpoint = (w: PlanClippedWall): [number, number] => [
@@ -126,14 +148,90 @@ export function findLedgeRoom(plan: FloorPlan): string | null {
   return null
 }
 
+const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
+
+/** Build a candidate condenser item for a collision test at `pos`. */
+function condenserCandidate(
+  id: string,
+  pos: [number, number],
+  levelId: string | undefined,
+): FurnitureItem {
+  return {
+    id,
+    defId: 'aircon-condenser' as FurnitureItem['defId'],
+    position: pos,
+    rotation: 0,
+    props: {},
+    ...(levelId ? { levelId } : {}),
+  }
+}
+
+/**
+ * Find a collision-free spot for a condenser: start at the nominal position and
+ * slide along the ledge's long axis (both ways, in {@link CONDENSER_SLIDE_STEP}
+ * increments, clamped inside the room rect) until `canPlace` accepts it against
+ * the existing furniture + already-placed condensers + walls. Returns null when
+ * no free spot fits (the ledge is full). When no collision context is supplied,
+ * the nominal spot is accepted unchecked (legacy behaviour).
+ */
+function freeCondenserSpot(
+  nominal: [number, number],
+  alongX: boolean,
+  rect: { x0: number; z0: number; x1: number; z1: number } | undefined,
+  levelId: string | undefined,
+  ctx: AirconPlacementContext,
+  placed: FurnitureItem[],
+): [number, number] | null {
+  const def = ctx.defs?.['aircon-condenser']
+  if (!def || !ctx.items) return nominal // can't check → keep nominal (legacy)
+  const half = (alongX ? def.defaultFootprint.w : def.defaultFootprint.d) / 2
+  const [rMin, rMax] = rect
+    ? alongX
+      ? [Math.min(rect.x0, rect.x1) + half, Math.max(rect.x0, rect.x1) - half]
+      : [Math.min(rect.z0, rect.z1) + half, Math.max(rect.z0, rect.z1) - half]
+    : [Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY]
+  const perp = alongX ? nominal[1] : nominal[0]
+  const base = alongX ? nominal[0] : nominal[1]
+  const mk = (a: number): [number, number] => (alongX ? [a, perp] : [perp, a])
+  // Same-level obstacles only (collision is level-gated).
+  const others = [
+    ...ctx.items.filter((it) => (it.levelId ?? GROUND_LEVEL_ID) === (levelId ?? GROUND_LEVEL_ID)),
+    ...placed,
+  ]
+  const span = rMax - rMin
+  const test = (pos: [number, number]): boolean =>
+    canPlace(condenserCandidate('__aircon-cond-probe', pos, levelId), def, {
+      others,
+      defs: ctx.defs!,
+      doors: {},
+      walls: ctx.walls,
+    })
+  // Nominal first, then expand symmetrically outward, clamped into the rect.
+  for (let k = 0; k * CONDENSER_SLIDE_STEP <= (span > 0 ? span : 0) + CONDENSER_SLIDE_STEP; k++) {
+    for (const dir of k === 0 ? [0] : [1, -1]) {
+      const a = clamp(base + dir * k * CONDENSER_SLIDE_STEP, rMin, rMax)
+      const pos = mk(a)
+      if (test(pos)) return pos
+    }
+  }
+  return null
+}
+
 /** Condenser placements: `count` outdoor units spread along the ledge room's
- *  longer axis, on the floor. Returns [] when there's no ledge/yard/balcony. */
-function placeCondensers(plan: FloorPlan, count: number): PlannedAirconItem[] {
-  if (count <= 0) return []
+ *  longer axis, on the floor, sliding to dodge existing furniture / walls when a
+ *  collision context is given. Returns items + advisories (a condenser that
+ *  couldn't be fitted is dropped with a note rather than overlapped). Empty when
+ *  there's no ledge/yard/balcony. */
+function placeCondensers(
+  plan: FloorPlan,
+  count: number,
+  ctx: AirconPlacementContext,
+): AirconPlacementResult {
+  if (count <= 0) return { items: [], advisories: [] }
   const ledgeId = findLedgeRoom(plan)
-  if (!ledgeId) return []
+  if (!ledgeId) return { items: [], advisories: [] }
   const shell = planRoomShell(plan, ledgeId)
-  if (!shell) return []
+  if (!shell) return { items: [], advisories: [] }
   const [cx, cz] = shell.center
   const rect = shell.rects[0]
   // Spread along the room's longer plan axis, centred on the room.
@@ -143,30 +241,49 @@ function placeCondensers(plan: FloorPlan, count: number): PlannedAirconItem[] {
   const level = levelOfRoom(plan, ledgeId)
   const levelId = level && level.id !== GROUND_LEVEL_ID ? level.id : undefined
   const out: PlannedAirconItem[] = []
+  const advisories: string[] = []
+  const placedCandidates: FurnitureItem[] = []
+  let dropped = 0
   for (let i = 0; i < count; i++) {
     const off = (i - (count - 1) / 2) * CONDENSER_SPACING
-    const pos: [number, number] = alongX ? [cx + off, cz] : [cx, cz + off]
+    const nominal: [number, number] = alongX ? [cx + off, cz] : [cx, cz + off]
+    const spot = freeCondenserSpot(nominal, alongX, rect, levelId, ctx, placedCandidates)
+    if (!spot) {
+      dropped++
+      continue
+    }
+    placedCandidates.push(condenserCandidate(`__aircon-cond-${i}`, spot, levelId))
     out.push({
       defId: 'aircon-condenser',
-      position: pos,
+      position: spot,
       rotation: 0,
       props: {},
       roomId: ledgeId,
       ...(levelId ? { levelId } : {}),
     })
   }
-  return out
+  if (dropped > 0) {
+    advisories.push(
+      dropped === 1
+        ? 'Second condenser needs bracket space — the ledge is full, confirm mounting with your installer.'
+        : `${dropped} condensers couldn't be fitted on the ledge — confirm mounting / a second ledge with your installer.`,
+    )
+  }
+  return { items: out, advisories }
 }
 
 /**
  * Full placement set for a system plan: one FCU per served room (skipping rooms
  * with no usable geometry) plus one condenser per system on the ledge. Pure —
- * the caller assigns ids and commits in a single undo step.
+ * the caller assigns ids and commits in a single undo step. Pass a collision
+ * `ctx` (existing items + defs + walls) so condensers slide to a free spot on
+ * the ledge instead of dropping onto existing outdoor furniture (P2-1).
  */
 export function planAirconPlacements(
   plan: FloorPlan,
   systemPlan: AirconSystemPlan,
-): PlannedAirconItem[] {
+  ctx: AirconPlacementContext = {},
+): AirconPlacementResult {
   const fcuItems: PlannedAirconItem[] = []
   for (const system of systemPlan.systems) {
     for (const fcu of system.fcus) {
@@ -174,6 +291,6 @@ export function planAirconPlacements(
       if (item) fcuItems.push(item)
     }
   }
-  const condensers = placeCondensers(plan, systemPlan.condenserCount)
-  return [...fcuItems, ...condensers]
+  const condensers = placeCondensers(plan, systemPlan.condenserCount, ctx)
+  return { items: [...fcuItems, ...condensers.items], advisories: condensers.advisories }
 }

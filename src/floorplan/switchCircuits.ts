@@ -27,7 +27,8 @@
  */
 
 import { GROUND_LEVEL_ID, planLevels } from './levels'
-import { type FloorPlan, pointInRoom, wallLength } from './types'
+import { wallNormal } from './openingProbe'
+import { type FloorPlan, type PlanRoom, type PlanWall, pointInRoom, wallLength } from './types'
 
 /** A switch point, the shape this module needs (a subset of
  *  `PlanElectricalPoint`/`ElectricalPoint`). */
@@ -240,6 +241,75 @@ export function buildSwitchCircuits(
 
 const lvl = (id?: string): string => id ?? GROUND_LEVEL_ID
 
+/** How far (m) to probe off a switch's on-wall point to land inside the room it
+ *  serves. A `deriveElectricalPoints` switch sits ON its host wall's centreline
+ *  (just past the door leaf), so it is NOT strictly inside any interior room
+ *  rectangle — it must be nudged perpendicular past the wall face. 0.3 m clears
+ *  a typical HDB external wall (~0.2 m thick → 0.1 m half) and lands ~0.2 m
+ *  inside the room. */
+const SWITCH_ROOM_PROBE_M = 0.3
+
+/** Squared distance from point `(px,pz)` to wall segment `w` (for nearest-wall). */
+function pointToWallDist2(px: number, pz: number, w: PlanWall): number {
+  const ax = w.start[0]
+  const az = w.start[1]
+  const dx = w.end[0] - ax
+  const dz = w.end[1] - az
+  const l2 = dx * dx + dz * dz
+  if (l2 <= 0) return (px - ax) ** 2 + (pz - az) ** 2
+  let t = ((px - ax) * dx + (pz - az) * dz) / l2
+  t = Math.max(0, Math.min(1, t))
+  const cx = ax + t * dx
+  const cz = az + t * dz
+  return (px - cx) ** 2 + (pz - cz) ** 2
+}
+
+/**
+ * Which room(s) a switch belongs to. Mirrors the openingSchedule probe
+ * (`openingProbe.ts`): a direct `pointInRoom` hit wins, but a switch on a wall
+ * centreline (the realistic `deriveElectricalPoints` case) is resolved by
+ * probing ~0.3 m perpendicular to its NEAREST wall (both sides), landing just
+ * inside whichever room(s) that wall bounds. Cardinal-direction probes are a
+ * fallback for a degenerate / wall-less plan. Returns the set of room ids the
+ * switch could serve (a switch beside a door on an INTERNAL wall legitimately
+ * borders both rooms; the per-room nearest-door heuristic then picks it).
+ */
+function switchRoomIds(
+  rooms: readonly PlanRoom[],
+  walls: readonly PlanWall[],
+  sx: number,
+  sz: number,
+): Set<string> {
+  const ids = new Set<string>()
+  for (const r of rooms) if (pointInRoom(r, sx, sz)) ids.add(r.id)
+  if (ids.size > 0) return ids
+  const probes: [number, number][] = []
+  let best: PlanWall | undefined
+  let bestD = Number.POSITIVE_INFINITY
+  for (const w of walls) {
+    const d = pointToWallDist2(sx, sz, w)
+    if (d < bestD) {
+      bestD = d
+      best = w
+    }
+  }
+  const n = best ? wallNormal(best) : null
+  if (n)
+    probes.push(
+      [n[0] * SWITCH_ROOM_PROBE_M, n[1] * SWITCH_ROOM_PROBE_M],
+      [-n[0] * SWITCH_ROOM_PROBE_M, -n[1] * SWITCH_ROOM_PROBE_M],
+    )
+  probes.push(
+    [SWITCH_ROOM_PROBE_M, 0],
+    [-SWITCH_ROOM_PROBE_M, 0],
+    [0, SWITCH_ROOM_PROBE_M],
+    [0, -SWITCH_ROOM_PROBE_M],
+  )
+  for (const [dx, dz] of probes)
+    for (const r of rooms) if (pointInRoom(r, sx + dx, sz + dz)) ids.add(r.id)
+  return ids
+}
+
 /**
  * Suggest a switch→light linking for every room (BSJ-3 "Suggest circuits").
  *
@@ -275,9 +345,16 @@ export function suggestCircuitLinks(
       doorMids.push([wall.start[0] + ux * at, wall.start[1] + uz * at])
     }
     const rooms = Array.isArray(level.rooms) ? level.rooms : []
+    // Resolve each on-level switch's room membership ONCE (probe-based, so a
+    // switch on a wall centreline still lands in the room it serves).
+    const roomIdsBySwitch = new Map<string, Set<string>>()
+    for (const s of switches) {
+      if (lvl(s.levelId) !== levelId) continue
+      roomIdsBySwitch.set(s.id, switchRoomIds(rooms, walls, s.x, s.z))
+    }
     for (const room of rooms) {
       const roomSwitches = switches.filter(
-        (s) => lvl(s.levelId) === levelId && pointInRoom(room, s.x, s.z),
+        (s) => lvl(s.levelId) === levelId && roomIdsBySwitch.get(s.id)?.has(room.id),
       )
       const roomLights = lights.filter(
         (l) => lvl(l.levelId) === levelId && pointInRoom(room, l.x, l.z),

@@ -186,8 +186,11 @@ read off your plan's North orientation), **+20%** for a **ceiling above 3 m**,
 and **+4000 BTU** on a living/dining room that an **open (door‑less) kitchen**
 vents its cooking heat into. Each room shows a recommended standard split size
 (**9k / 12k / 18k / 24k BTU**) and the raw figure, and the panel totals a
-whole‑home installed capacity for a multi‑split system. It's sizing guidance to
-take to your aircon installer, not a substitute for a full heat‑load survey.
+whole‑home installed capacity for a multi‑split system. Only the **cooled
+(habitable)** rooms are listed by default; a **Show all rooms** toggle reveals
+the non‑cooled ones (household shelter, service yard, bathrooms). It's sizing
+guidance to take to your aircon installer, not a substitute for a full heat‑load
+survey.
 
 ## Aircon system planner (Pro)
 
@@ -207,9 +210,13 @@ weight against the **~110 kg HDB AC‑ledge panel guideline**.
 
 Tap **Plan aircon** to place it: a wall fan‑coil unit high on each served room's
 wall (2.25 m) and the outdoor condenser(s) on the **AC ledge** (or service yard /
-balcony). Re‑running it updates the placement rather than duplicating, and it's a
-single undo step. _(A 3D refrigerant‑trunking route is a documented future
-addition — for now the route is an advisory note.)_
+balcony). Condensers **slide clear of any furniture already on the ledge** — if a
+ledge genuinely can't fit them all, the extra one is left out with an advisory
+rather than dropped on top of your outdoor set. Once placed, the section reads
+**Installed as planned** and the button becomes **Re‑plan aircon** (re‑running
+updates the placement rather than duplicating, in a single undo step). _(A 3D
+refrigerant‑trunking route is a documented future addition — for now the route is
+an advisory note.)_
 
 ## SG renovation rules (Pro)
 

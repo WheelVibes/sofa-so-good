@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import { findItemOverlaps } from '../collision/placement'
+import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import type { FloorPlan, PlanRoom, PlanWall, RoomCategory } from '../floorplan/types'
+import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
+import { defaultLayout } from '../furniture/defaultLayout'
+import type { FurnitureItem } from '../furniture/types'
+import { defaultParamProps } from '../furniture/types'
 import { findLedgeRoom, planAirconPlacements } from './airconPlacement'
 import { buildAirconSystemPlan } from './airconSystem'
 
@@ -52,7 +58,7 @@ describe('planAirconPlacements', () => {
     ]
     const p = plan(rooms, walls)
     const systemPlan = buildAirconSystemPlan(p)
-    const items = planAirconPlacements(p, systemPlan)
+    const { items } = planAirconPlacements(p, systemPlan)
 
     const fcus = items.filter((i) => i.defId === 'aircon-unit')
     const condensers = items.filter((i) => i.defId === 'aircon-condenser')
@@ -90,16 +96,52 @@ describe('planAirconPlacements', () => {
     ]
     const walls = [...rectWalls('m', 0, 0, 3, 3), ...rectWalls('yard', 4, 0, 2, 1.5)]
     const p = plan(rooms, walls)
-    const items = planAirconPlacements(p, buildAirconSystemPlan(p))
+    const { items } = planAirconPlacements(p, buildAirconSystemPlan(p))
     const condensers = items.filter((i) => i.defId === 'aircon-condenser')
     expect(condensers.length).toBeGreaterThan(0)
     expect(condensers.every((c) => c.roomId === 'yard')).toBe(true)
   })
 
+  it('places condensers clear of existing outdoor furniture on the default flat (P2-1)', () => {
+    const plan = buildDefaultPlan()
+    // The shipped move-in layout (outdoor furniture on the yard/balcony/ledge).
+    const existing = defaultLayout().map((e) => {
+      const def = BUILTIN_CATALOG[e.defId]
+      return def?.kind === 'parametric'
+        ? { ...e, props: { ...defaultParamProps(def), ...e.props } }
+        : e
+    }) as unknown as FurnitureItem[]
+    const systemPlan = buildAirconSystemPlan(plan)
+    const { items, advisories } = planAirconPlacements(plan, systemPlan, {
+      items: existing,
+      defs: BUILTIN_CATALOG,
+    })
+    const condensers = items.filter((i) => i.defId === 'aircon-condenser')
+    // Whatever fits is placed; the rest is surfaced as an advisory, never overlapped.
+    expect(
+      condensers.length +
+        (advisories.length > 0 ? systemPlan.condenserCount - condensers.length : 0),
+    ).toBe(systemPlan.condenserCount)
+    const condItems: FurnitureItem[] = condensers.map((c, i) => ({
+      id: `__cond-${i}`,
+      defId: c.defId as FurnitureItem['defId'],
+      position: c.position,
+      rotation: c.rotation,
+      props: c.props,
+      ...(c.levelId ? { levelId: c.levelId } : {}),
+    }))
+    // No overlap in the combined design may involve a placed condenser.
+    const condIds = new Set(condItems.map((c) => c.id))
+    const overlaps = findItemOverlaps([...existing, ...condItems], BUILTIN_CATALOG).filter(
+      (o) => condIds.has(o.a) || condIds.has(o.b),
+    )
+    expect(overlaps, JSON.stringify(overlaps)).toEqual([])
+  })
+
   it('skips condensers when there is no ledge / yard / balcony', () => {
     const rooms = [rectRoom('m', 'Master', 0, 0, 3, 3, 'masterBedroom')]
     const p = plan(rooms, rectWalls('m', 0, 0, 3, 3))
-    const items = planAirconPlacements(p, buildAirconSystemPlan(p))
+    const { items } = planAirconPlacements(p, buildAirconSystemPlan(p))
     expect(items.filter((i) => i.defId === 'aircon-condenser')).toHaveLength(0)
     expect(items.filter((i) => i.defId === 'aircon-unit')).toHaveLength(1)
   })
