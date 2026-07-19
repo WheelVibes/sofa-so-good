@@ -240,7 +240,7 @@ ruling), AI photo→plan (= aiWalls), shelf-lift gesture (= surfaceDrop).
   Terrace + Maisonette seed a 30° gable. Scenario `scripts/scenarios/parametric-roof.json`. v1
   limitation: roofs the footprint bounding rectangle (documented in `roofModel.ts`).
 
-## Open — UX research round 4 queue (2026-07-19)
+## UX research round 4 queue (2026-07-19) — ✅ FULLY SHIPPED (R4-1…R4-8)
 Ranked by value÷effort; each verified absent against the ~190-flag registry + the SG source
 cited. Full write-up: `docs/research/2026-07-19-ux-research-round-4.md`. **Headline: the
 competitor sweep found ZERO net-new client-doable features (near-total parity — see below);
@@ -265,33 +265,36 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
   false-ceiling/bulkhead drops (`ceilingDesign`/RCP zones) against SG norms (2.6 m standard,
   ≥2.4 m finished clearance, cornices to 2.1 m) and warns/reports per-zone headroom. Pure
   logic over existing ceiling data. Absent: no ceiling-clearance check.
-- [ ] **R4-3 — BTO Optional Component Scheme (OCS) starter state** (S/M, simple) — a "New BTO
-  (OCS)" start point pre-seeding the finishes/fittings HDB hands over (internal doors,
-  vinyl/porcelain floors, sanitary fittings) so a BTO owner designs from what they'll
-  receive. Pure data manifest seeding existing finish/opening state. Absent: no OCS reference.
+- [x] **R4-3 — BTO Optional Component Scheme (OCS) starter state** (S/M, simple) — SHIPPED:
+  `furniture/ocsStarter.ts` (pure manifest: OCS floor finishes by room id/category + `OCS_BATH_KIT`),
+  `resetSlice.applyOcsStarter` + `furnishPlan.furnishOcsItems`, "New BTO (with OCS)" in
+  `SmartStartWizard` with the "chosen at booking, can't be added later" note, `ocsStarter` simple
+  flag. Seeds the bare OCS handover state (vinyl bedrooms / porcelain living + bath fittings, no
+  furniture). Absent: no OCS reference.
 - [x] **R4-4 — Electrical points & DB-load advisory** (S, pro) — SHIPPED: `analysis/socketAdvisory.ts`
   + electrical-sheet notes block + MepLayer shortfall tags (reuses `electricalPlan`/`mepEditor`).
   Extends the existing MEP
   layer with per-room recommended socket/data counts (4-room ≈ 25-40) vs placed points +
   shortfall cue + DB 40 A/63 A note. Net-new advisory (placement already ships).
-- [ ] **R4-5 — Floor-loading / raised-platform advisory** (S, pro) — warns when a raised
-  platform / thick screed / heavy cluster risks the 150 kg/m² HDB slab limit; ≤50 mm
-  concrete-raise rule + timber-joist alternative. Cited advisory keyed to floor finish +
-  platforms. Absent.
-- [ ] **R4-6 — SG renovation-rules reference pack** (S, pro) — one cited advisory surface
-  bundling wet-area 3-year tile-hacking rule, window/grille compliance (BCA AWC, 304-grade
-  rivets, approved invisible-grille designs), reno working-hours/noise limits, and the static
-  HDB DRC contractor/permit paperwork checklist. Consolidates the small rules. Absent.
+- [x] **R4-5 — Floor-loading / raised-platform advisory** (S, pro) — SHIPPED:
+  `analysis/floorLoading.ts` (pure: static kg table for heavy suspects — bathtub/aquarium/stone
+  tables/piano/loaded bookcases — density vs 150 kg/m² + raised-platform >50 mm check) + "Floor
+  loading" advisory group in `ClearancePanel`, `floorLoading` pro flag. Absent.
+- [x] **R4-6 — SG renovation-rules reference pack** (S, pro) — SHIPPED: `floorplan/renoRules.ts`
+  (static cited data: 4 sections — wet-area 3-year tile rule, windows & grilles, working-hours/noise,
+  permits/DRC checklist) + `RenoRulesPanel` (Tools → Reno rules), `renoRulesPack` pro flag. Dated
+  "rules as of 2026". Absent.
 - [x] **R4-7 — Live hackability overlay in the 2D plan editor** (S, pro) — SHIPPED:
   `floorplan/wallHackability.ts` + `HackabilityLayer` + View-menu toggle + load-bearing delete
   warning, `hackabilityOverlay` flag. Red/green wall
   tint + inline "NOT PERMITTED / permit required" shown live as the user tags walls, driven
   by the existing `PlanWall.structure`. Net-new editor UX over existing data (currently only
   reaches the demolition sheet).
-- [ ] **R4-8 — DLP / warranty date tracker** (S, low-med, pro) — small extension to
-  `handoverChecklist.ts`: from a key-collection/TOP date, compute the 1-yr DLP end, 5-yr
-  ceiling-leak / 10-yr spalling windows, and report-before-reno cut-off as concrete dates
-  (currently prose-only).
+- [x] **R4-8 — DLP / warranty date tracker** (S, low-med, pro) — SHIPPED:
+  `analysis/handoverDates.ts` (pure date math: DLP +1yr, ceiling-leak +5yr, spalling +10yr,
+  leap-year-clamped `addYears` + `daysUntil` countdown), extends `buildHandoverChecklist` with a
+  "Warranty & defect dates" group, `HandoverPanel` (Tools → Handover & DLP) with a persisted
+  `keyCollectionDate` input + countdowns (additive zod + autosave). Rides the `report` flag.
 
 ## Open — UI/UX polish follow-ups
 - [ ] **P37 List virtualization — DEFERRED (2026-07-03 ruling).** Not justified now: the

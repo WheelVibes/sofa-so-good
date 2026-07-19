@@ -3,6 +3,7 @@ import { useFeature } from '../../features/useFeature'
 import { type BriefMatch, parseBrief } from '../../furniture/briefParser'
 import type { LayoutPreset } from '../../furniture/layoutPresets'
 import { LAYOUT_PRESETS } from '../../furniture/layoutPresets'
+import { OCS_INFO_NOTE } from '../../furniture/ocsStarter'
 import { BUILTIN_MATERIALS } from '../../materials/builtinCatalog'
 import type { ThemeName } from '../../state/slices/appearanceSlice'
 import { useStore } from '../../state/store'
@@ -79,6 +80,12 @@ export function SmartStartWizard() {
   const setOpen = useStore((s) => s.setSmartStartOpen)
   const current = useStore((s) => s.theme)
   const fTextBrief = useFeature('textBrief')
+  const fOcs = useFeature('ocsStarter')
+
+  const applyOcs = () => {
+    useStore.getState().applyOcsStarter()
+    setOpen(false)
+  }
   const [picked, setPicked] = useState<string>(LAYOUT_PRESETS[0]?.id ?? 'move-in')
   const [brief, setBrief] = useState('')
   // Last brief-match result: a match (highlight + budget chip), 'none'
@@ -136,6 +143,24 @@ export function SmartStartWizard() {
         Pick a style — we’ll furnish every room and finish the walls &amp; floors to match. You can
         tweak anything afterwards.
       </p>
+      {fOcs ? (
+        <div className="ss-ocs" style={{ marginBottom: 12 }}>
+          <button type="button" className="btn btn-block" onClick={applyOcs}>
+            New BTO (with OCS)
+          </button>
+          <p
+            className="panel-sub"
+            style={{
+              textTransform: 'none',
+              letterSpacing: 0,
+              marginTop: 6,
+              lineHeight: 'var(--lh-body)',
+            }}
+          >
+            {OCS_INFO_NOTE}
+          </p>
+        </div>
+      ) : null}
       {fTextBrief ? (
         <div style={{ marginBottom: 10 }}>
           <label className="label" htmlFor="ss-brief" style={{ display: 'block', marginBottom: 4 }}>

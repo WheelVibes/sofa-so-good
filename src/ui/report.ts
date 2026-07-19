@@ -94,6 +94,7 @@ export function buildReportHtml(
   baselinePlan?: FloorPlan,
   priceRules?: PriceRules,
   petTypes: readonly PetType[] = [],
+  keyCollectionDate?: string | null,
 ): string {
   // Multi-storey fan-out (F13): on a multi-level plan every plan-derived
   // diagram (floor plan, dimensioned plan, hacking plan, lighting plan) renders
@@ -790,7 +791,7 @@ export function buildReportHtml(
   // placed, plus the generic keys/meters/documents bucket. Pure
   // (analysis/handoverChecklist); rides the existing `report` flag (additive
   // section). Always renders — an empty plan still yields the generic group.
-  const handover = buildHandoverChecklist(plan, items, catalog)
+  const handover = buildHandoverChecklist(plan, items, catalog, keyCollectionDate)
   const handoverSection = `<div class="room-cost">
       <h2>Move-in checklist</h2>
       <div class="foot" style="margin-bottom:6px">${handover.totalItems} item${handover.totalItems === 1 ? '' : 's'} to walk through on collection / handover — tick each off on site.</div>

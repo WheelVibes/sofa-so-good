@@ -1,8 +1,14 @@
 import { isDefaultPlan } from '../../floorplan/planGeometry'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import { defaultLayout } from '../../furniture/defaultLayout'
-import { furnishPlanItems } from '../../furniture/furnishPlan'
+import { furnishOcsItems, furnishPlanItems } from '../../furniture/furnishPlan'
 import { buildPresetItems, LAYOUT_PRESETS, PRESET_ROOMS } from '../../furniture/layoutPresets'
+import {
+  buildOcsFloorFinishesForDefault,
+  buildOcsFloorFinishesForPlan,
+  OCS_BATH_KIT,
+  OCS_FITTING_DEF_IDS,
+} from '../../furniture/ocsStarter'
 import { defaultParamProps } from '../../furniture/types'
 import { roomKindFromName } from '../../layout/autoArrange'
 import { BUILTIN_MATERIALS } from '../../materials/builtinCatalog'
@@ -28,6 +34,11 @@ export interface ResetSlice {
   resetToDefault: () => void
   /** Apply a named full-flat layout preset (furniture restyle + finishes). */
   applyLayoutPreset: (presetId: string) => void
+  /** Seed the flat with HDB's Optional Component Scheme (OCS) handover state
+   *  (R4-3): OCS floor finishes (vinyl bedrooms / porcelain living) + the
+   *  bathroom sanitary fittings, replacing the current furniture with the bare
+   *  OCS deliverables. One undo step. */
+  applyOcsStarter: () => void
 }
 
 /** Layout entries store only overrides; merge schema defaults so primitives
@@ -101,6 +112,41 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
       selectedItemIds: [],
       hiddenItemIds: [],
       ...(palette ? { masterPalette: palette } : {}),
+    })
+  },
+  applyOcsStarter: () => {
+    get().pushHistory()
+    const plan = get().floorPlan
+    if (!isDefaultPlan(plan)) {
+      // Custom plan / template: seed the bath fittings + set the OCS floor
+      // finish on each room whose category OCS re-finishes. Items + plan in one
+      // `set` = one undo step (the snapshot includes `floorPlan`).
+      const floorByRoom = buildOcsFloorFinishesForPlan(plan)
+      const rooms = plan.rooms.map((r) =>
+        floorByRoom[r.id] ? { ...r, floor: floorByRoom[r.id] } : r,
+      )
+      set({
+        items: furnishOcsItems(plan, [...OCS_BATH_KIT], BUILTIN_CATALOG, get().doors),
+        floorPlan: { ...plan, rooms },
+        selectedItemId: null,
+        selectedItemIds: [],
+        hiddenItemIds: [],
+      })
+      return
+    }
+    // Built-in fixed flat: the OCS fittings are the sanitary pieces already in
+    // the curated default layout — keep only those (a bare OCS handover, not the
+    // fully-furnished move-in default) — and apply the OCS floor overrides.
+    const ocsSet = new Set<string>(OCS_FITTING_DEF_IDS)
+    const items = hydrateLayout().filter((e) => ocsSet.has(e.defId))
+    const cur = get().finishes
+    const floor = { ...cur.floor, ...buildOcsFloorFinishesForDefault() }
+    set({
+      items,
+      finishes: { ...cur, floor },
+      selectedItemId: null,
+      selectedItemIds: [],
+      hiddenItemIds: [],
     })
   },
 })

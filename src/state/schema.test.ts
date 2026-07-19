@@ -26,6 +26,23 @@ describe('schema', () => {
     }
   })
 
+  it('round-trips the key-collection date for the DLP tracker (R4-8)', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().setKeyCollectionDate('2026-07-19')
+    const saved = serialize(useStore.getState())
+    const parsed = SerializedStateZ.safeParse(saved)
+    expect(parsed.success).toBe(true)
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.keyCollectionDate).toBe('2026-07-19')
+  })
+
+  it('defaults the key-collection date to null when absent', () => {
+    useStore.getState().__resetForTest()
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.keyCollectionDate).toBeNull()
+  })
+
   it('round-trips per-item handover metadata (ITEM-META: url/price/brand/model/supplier/description/remarks/custom)', () => {
     useStore.getState().__resetForTest()
     const id = useStore

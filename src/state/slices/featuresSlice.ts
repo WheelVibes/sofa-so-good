@@ -145,6 +145,13 @@ export interface FeaturesSlice {
   /** Optional shopping budget target (SGD); drives the over/under indicator in
    *  the Budget panel. Persisted per-device. `null` = no target set. */
   budgetTarget: number | null
+  /** Handover / DLP tracker (R4-8) panel visibility. */
+  handoverOpen: boolean
+  /** SG renovation-rules reference pack (R4-6) panel visibility. */
+  renoRulesOpen: boolean
+  /** Optional key-collection / TOP date (`yyyy-mm-dd`) driving the DLP /
+   *  warranty date tracker (R4-8). Persisted with the design. `null` = unset. */
+  keyCollectionDate: string | null
   setCmdkOpen: (open: boolean) => void
   toggleCmdk: () => void
   setLeftMode: (mode: 'catalog' | 'layers') => void
@@ -203,6 +210,10 @@ export interface FeaturesSlice {
   setQuoteTemplateOpen: (open: boolean) => void
   setShopTab: (tab: 'list' | 'saved') => void
   setBudgetTarget: (target: number | null) => void
+  setHandoverOpen: (open: boolean) => void
+  setRenoRulesOpen: (open: boolean) => void
+  /** Set / clear the key-collection date (`yyyy-mm-dd`, or `null`). */
+  setKeyCollectionDate: (date: string | null) => void
 }
 
 export const FEATURES_INITIAL = {
@@ -252,6 +263,9 @@ export const FEATURES_INITIAL = {
   quoteTemplateOpen: false,
   shopTab: 'list' as 'list' | 'saved',
   budgetTarget: null as number | null,
+  handoverOpen: false,
+  renoRulesOpen: false,
+  keyCollectionDate: null as string | null,
 }
 
 export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set) => ({
@@ -324,4 +338,8 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setShopTab: (shopTab) => set({ shopTab }),
   setBudgetTarget: (budgetTarget) =>
     set({ budgetTarget: budgetTarget != null && budgetTarget > 0 ? budgetTarget : null }),
+  setHandoverOpen: (handoverOpen) => set({ handoverOpen }),
+  setRenoRulesOpen: (renoRulesOpen) => set({ renoRulesOpen }),
+  setKeyCollectionDate: (keyCollectionDate) =>
+    set({ keyCollectionDate: keyCollectionDate || null }),
 })

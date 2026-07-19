@@ -1,0 +1,110 @@
+{
+  "name": "r4b2",
+  "url": "http://localhost:5211/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "pro-mode",
+      "eval": "(() => { const s = window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags(); })()"
+    },
+    {
+      "name": "apply-ocs",
+      "eval": "window.__store.getState().applyOcsStarter()"
+    },
+    {
+      "name": "ocs-applied",
+      "waitFor": { "store": "state.finishes.floor.mainBedroom === 'floor-vinyl-light' && state.finishes.floor.livingDining === 'floor-tile-grey'" },
+      "timeout": 10000
+    },
+    {
+      "name": "settle-ocs",
+      "wait": 2500
+    },
+    {
+      "name": "shot-ocs-overview",
+      "screenshot": "a-ocs-overview"
+    },
+    {
+      "name": "place-aquarium",
+      "eval": "window.__store.getState().addItem({ defId: 'aquarium', position: [3, 3], rotation: 0, props: {} })"
+    },
+    {
+      "name": "open-checks",
+      "eval": "window.__store.getState().setClearancePanelOpen(true)"
+    },
+    {
+      "name": "checks-visible",
+      "waitFor": { "css": "#clearancePanel" },
+      "timeout": 15000
+    },
+    {
+      "name": "floor-loading-visible",
+      "waitFor": { "text": "Floor loading" },
+      "timeout": 8000
+    },
+    {
+      "name": "scroll-to-floor-loading",
+      "eval": "(() => { const t=[...document.querySelectorAll('.sec-h')].find(e=>/floor loading/i.test(e.textContent)); if (t) t.scrollIntoView({block:'start'}); return t?'found':'missing'; })()"
+    },
+    {
+      "name": "wait-scroll",
+      "wait": 700
+    },
+    {
+      "name": "shot-floor-loading",
+      "screenshot": "b-floor-loading"
+    },
+    {
+      "name": "open-reno-rules",
+      "eval": "(() => { const s = window.__store.getState(); s.setClearancePanelOpen(false); s.setRenoRulesOpen(true); })()"
+    },
+    {
+      "name": "reno-rules-visible",
+      "waitFor": { "css": "#renoRulesPanel" },
+      "timeout": 15000
+    },
+    {
+      "name": "reno-rules-content",
+      "waitFor": { "text": "Wet-area 3-year tile rule" },
+      "timeout": 8000
+    },
+    {
+      "name": "settle-reno",
+      "wait": 500
+    },
+    {
+      "name": "shot-reno-rules",
+      "screenshot": "c-reno-rules"
+    },
+    {
+      "name": "open-handover",
+      "eval": "(() => { const s = window.__store.getState(); s.setRenoRulesOpen(false); s.setKeyCollectionDate('2026-07-19'); s.setHandoverOpen(true); })()"
+    },
+    {
+      "name": "handover-visible",
+      "waitFor": { "css": "#handoverPanel" },
+      "timeout": 15000
+    },
+    {
+      "name": "dlp-visible",
+      "waitFor": { "text": "Defects Liability Period ends" },
+      "timeout": 8000
+    },
+    {
+      "name": "settle-handover",
+      "wait": 500
+    },
+    {
+      "name": "shot-handover",
+      "screenshot": "d-handover-dlp"
+    }
+  ]
+}

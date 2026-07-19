@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.82 — R4 batch 2: OCS starter, floor-loading advisory, reno-rules pack, DLP tracker (round 4 complete)
+
+The last four round-4 items. R4-3 `ocsStarter` (simple): "New BTO (with
+OCS)" Smart Start option seeds the exact HDB handover state — vinyl-strip
+bedroom / polished-porcelain living floors + wall-mounted basin/mixer/
+shower bath kits — so owners design from what HDB actually delivers
+("chosen at booking" note included). R4-5 `floorLoading` (pro): new Checks
+group flags heavy items vs the 150 kg/m² slab guideline (static kg table —
+a placed aquarium reads "≈320 kg over 0.38 m² ≈ 847 kg/m²") + the >50 mm
+concrete-raise rule. R4-6 `renoRulesPack` (pro): Tools → Reno rules — a
+cited, dated reference panel (wet-area 3-year tile rule, window/grille
+compliance, working-hours/noise, DRC permit checklist). R4-8 (rides the
+handover flag): persisted key-collection date on the handover checklist
+computing DLP end (+1 yr), Goodwill ceiling-leak window (+5 yr), spalling
+window (+10 yr) as live countdowns (leap-year-clamped). Full suite 8,225
+green; 4 GPU-verified screenshots. UX research round 4: FULLY SHIPPED.
+
 ## v0.22.2.81 — R4 batch 1: aircon BTU, ceiling clearance, socket advisory, hackability overlay
 
 Four SG advisories over data the app already has (sources cited in-module

@@ -1792,6 +1792,51 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // BTO Optional Component Scheme (OCS) starter state (UX research round 4 R4-3):
+  // a "New BTO (with OCS)" starting point that pre-seeds the finishes + fittings
+  // HDB actually hands a BTO owner who opted into OCS — internal door leaves,
+  // vinyl (bedrooms) + polished-porcelain (living/dining) floor finishes, and
+  // wall-mounted basin + mixer / shower set sanitary fittings in the baths — so
+  // the owner designs from what they'll receive, not a blank shell. Pure data
+  // manifest over existing finish + furnish state; a core onboarding/default-
+  // state choice → SIMPLE tier, default on. Prod-safe pure code.
+  // Refs: qanvast.com/sg/articles/hdb-optional-component-scheme-ocs-is-it-worth-opting-in-1873
+  //       dollarsandsense.sg/complete-guide-hdbs-optional-components-scheme-ocs/
+  ocsStarter: {
+    label: 'New BTO (with OCS)',
+    description: "Start from HDB's Optional Component Scheme finishes + fittings",
+    default: true,
+    tier: 'simple',
+  },
+  // Floor-loading / raised-platform advisory (UX research round 4 R4-5): flags
+  // placed heavy items (bathtub, aquarium, marble/stone tables, piano, loaded
+  // bookcases) whose static weight density plausibly exceeds the HDB 150 kg/m²
+  // imposed-load guideline, plus a raised-platform reminder (concrete raises
+  // >50 mm need permits; use lightweight timber-joist platforms). A cited
+  // advisory group in the Checks panel → analytical, pro tier. Prod-safe pure code.
+  // Refs: homeanddecor.com.sg/design/renovation-guidelines-hdb-singapore/
+  //       floorrich.com/an-easy-to-understand-guide-to-hdb-flooring-guidelines/
+  floorLoading: {
+    label: 'Floor-loading advisory',
+    description: 'Flags heavy items vs the HDB 150 kg/m² slab-loading guideline',
+    default: true,
+    tier: 'pro',
+  },
+  // SG renovation-rules reference pack (UX research round 4 R4-6): one cited
+  // reference panel bundling the wet-area 3-year tile-hacking rule, window &
+  // grille compliance points, reno working-hours / noise limits, and the HDB
+  // DRC permit / paperwork checklist. A static reference surface → pro tier.
+  // Prod-safe pure code (rules as of 2026).
+  // Refs: elementsid.com.sg/can-you-hack-hdb-walls/
+  //       degrille.com.sg/article/are-invisible-grilles-approved-by-the-hdb/
+  //       renovationcontractorsingapore.com/blogs/news/hdb-renovation-noise-rules-working-hours-2026
+  //       propertyguru.com.sg/property-guides/hdb-renovation-permits-in-singapore-16702
+  renoRulesPack: {
+    label: 'SG renovation rules',
+    description: 'Cited reference pack: tile rule, grilles, working hours, permits',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

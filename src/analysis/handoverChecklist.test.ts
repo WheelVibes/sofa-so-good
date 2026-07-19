@@ -163,4 +163,23 @@ describe('buildHandoverChecklist', () => {
     const ids = result.groups.flatMap((g) => g.items.map((i) => i.id))
     expect(new Set(ids).size).toBe(ids.length)
   })
+
+  it('adds a warranty-dates group only when a key-collection date is given (R4-8)', () => {
+    const plan = planWith([room('l', 'Living')])
+    const without = buildHandoverChecklist(plan, [], {})
+    expect(without.groups.some((g) => g.title === 'Warranty & defect dates')).toBe(false)
+
+    const withDate = buildHandoverChecklist(plan, [], {}, '2026-07-19')
+    const dates = withDate.groups.find((g) => g.title === 'Warranty & defect dates')
+    expect(dates).toBeDefined()
+    expect(dates?.items).toHaveLength(3)
+    // The computed DLP end (+1yr) appears in a line.
+    expect(dates?.items.some((i) => i.label.includes('19 Jul 2027'))).toBe(true)
+  })
+
+  it('ignores a malformed key-collection date', () => {
+    const plan = planWith([room('l', 'Living')])
+    const r = buildHandoverChecklist(plan, [], {}, 'not-a-date')
+    expect(r.groups.some((g) => g.title === 'Warranty & defect dates')).toBe(false)
+  })
 })

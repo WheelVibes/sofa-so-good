@@ -322,3 +322,32 @@ export function furnishPlanItems(
   const decor = applyDecorStylingForPlan(plan, furniture, styleDefs)
   return [...furniture, ...decor]
 }
+
+/**
+ * Furnish a plan with ONLY the OCS bathroom sanitary fittings (R4-3) — a bare
+ * BTO-with-OCS handover state, not a full furnish. Seeds the OCS bath kit into
+ * every bath/powder room and arranges it to the walls, so the owner starts from
+ * the WC / basin / shower / heater HDB actually installs. No decor pass (the
+ * shell is meant to read as an unfurnished-but-fitted handover). Pure +
+ * deterministic; returns [] when the plan has no bathrooms.
+ */
+export function furnishOcsItems(
+  plan: FloorPlan,
+  bathKit: KitPiece[],
+  defs: Record<string, FurnitureDef>,
+  doors: Record<string, { open: boolean }>,
+): FurnitureItem[] {
+  const seeded: FurnitureItem[] = []
+  for (const level of planLevels(plan)) {
+    for (const room of level.rooms) {
+      const category = roomCategory(room)
+      if (category !== 'bath' && category !== 'powder') continue
+      // A powder room / WC has no shower.
+      const kit = category === 'powder' ? bathKit.filter((p) => p.defId !== 'shower') : bathKit
+      seeded.push(...seedRoom(room, kit, defs, {}, undefined, level.id))
+    }
+  }
+  if (seeded.length === 0) return []
+  const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors)
+  return dropDoorBlockers(dropOverlaps(arranged, defs), defs, plan)
+}

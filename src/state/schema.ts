@@ -599,6 +599,8 @@ const RawSerializedStateZ = z.object({
     .optional(),
   cameraMode: z.enum(['orbit', 'firstPerson']),
   orientationDeg: z.number().optional(),
+  /** Key-collection / TOP date (`yyyy-mm-dd`) for the DLP tracker (R4-8). */
+  keyCollectionDate: z.string().optional(),
   location: z
     .object({
       lat: z.number().min(-90).max(90),
@@ -795,6 +797,7 @@ export function serialize(state: RootState): SerializedState {
     ...(state.drawingCallouts.length ? { drawingCallouts: state.drawingCallouts } : {}),
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg,
+    ...(state.keyCollectionDate ? { keyCollectionDate: state.keyCollectionDate } : {}),
     location: state.location,
     locationPromptDismissed: state.locationPromptDismissed,
     // Persist declared pet types only when the household has any (keeps saves lean).
@@ -904,6 +907,7 @@ export function applySerialized(
     drawingCallouts: state.drawingCallouts ?? [],
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg ?? 0,
+    keyCollectionDate: state.keyCollectionDate ?? null,
     location: state.location ?? null,
     locationPromptDismissed: state.locationPromptDismissed ?? false,
     petTypes: state.petTypes ?? [],

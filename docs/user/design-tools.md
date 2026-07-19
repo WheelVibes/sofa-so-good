@@ -15,6 +15,14 @@ point you then tweak. It works on **any floor plan** too — load one of the HDB
 condominium or landed templates (or draw your own) and Smart Start picks a
 suitable furniture set for each room and arranges it to that plan's walls.
 
+**New BTO (with OCS).** At the top of Smart Start, the **New BTO (with OCS)**
+button starts you from HDB's **Optional Component Scheme** handover state instead
+of a style: vinyl strip flooring in the bedrooms, polished porcelain tiles in the
+living/dining, and the bathroom **sanitary fittings** (wall‑mounted basin, shower
+set and WC) — so a BTO owner who opted into OCS designs from what they'll actually
+receive, not a blank shell. A note reminds you that OCS is chosen at flat booking
+and cannot be added later.
+
 ## Sets, presets & styles
 
 - **Sets** — drop a pre‑arranged vignette (e.g. a lounge grouping) onto the floor,
@@ -91,6 +99,18 @@ two pieces, a **Fix narrow gaps** action nudges the furniture apart to open the
 gap back up to a comfortable clearance — the quick fix for the **circulation**
 pinch‑points the [Design score](#design-score) marks down.
 
+**Floor loading (Pro).** The Checks panel also carries a **Floor loading**
+advisory group. HDB floor slabs are rated for about **150 kg/m²** of imposed
+load, so a very heavy item on a small footprint — a filled **bathtub** or
+**aquarium**, a **stone/marble‑topped** table, a **piano**, a loaded **bookcase**
+— can plausibly exceed that locally. Each flagged piece shows its estimated
+weight, footprint and load density with a "**Heavy** — may overload the slab"
+badge and a hint to spread the load or check with a PE. A modelled **raised
+platform** deeper than **50 mm** is flagged too, with a reminder that a concrete
+raise needs a permit and that lightweight **timber‑joist** platforms are the
+compliant alternative. The figures are conservative estimates for an advisory
+cue, not an engineering calculation.
+
 ## Design score
 
 **Design score** (Tools → *Design score*, or ⌘K) rates the whole design out of
@@ -124,6 +144,39 @@ vents its cooking heat into. Each room shows a recommended standard split size
 (**9k / 12k / 18k / 24k BTU**) and the raw figure, and the panel totals a
 whole‑home installed capacity for a multi‑split system. It's sizing guidance to
 take to your aircon installer, not a substitute for a full heat‑load survey.
+
+## SG renovation rules (Pro)
+
+**Tools → Reno rules** opens a compact **SG renovation rules** reference panel
+bundling the smaller HDB/BCA compliance rules homeowners ask about most, each
+with a cited source and dated "rules as of 2026":
+
+- **Wet‑area 3‑year tile rule** — don't hack bathroom/wet‑area floor tiles in the
+  first 3 years (protect the waterproofing membrane); overlay instead.
+- **Windows & grilles** — use a BCA‑approved window contractor, 304‑grade
+  stainless rivets, HDB‑approved invisible‑grille designs.
+- **Working hours & noise** — general reno Mon–Sat 9–6; noisy/demolition work
+  weekdays 9–5 only; not on Sundays/public holidays.
+- **Permits & DRC checklist** — engage an HDB‑registered DRC contractor, apply for
+  the renovation permit, get a PE endorsement for any structural work.
+
+It's an advisory reference — verify against the current HDB/BCA sources before any
+submission.
+
+## Handover & DLP (Pro)
+
+**Tools → Handover & DLP** opens the **move‑in checklist** live in‑app, plus a
+**DLP / warranty date tracker**. Enter your **key collection / TOP date** and the
+panel computes the concrete deadline dates with a countdown:
+
+- **Defects Liability Period ends** (+1 year) — report all defects before this
+  date, and before starting renovation.
+- **Ceiling leak / seepage window ends** (+5 years) — HDB's Goodwill Repair
+  Assistance for inter‑floor ceiling leaks.
+- **Spalling‑concrete window ends** (+10 years) — structural rectification support.
+
+Below the dates is the room‑by‑room move‑in snagging checklist (also included in
+the exported **report**). The key‑collection date is saved with your design.
 
 ## Drawings — elevations & lighting plan
 

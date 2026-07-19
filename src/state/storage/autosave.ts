@@ -38,6 +38,7 @@ type Persistent = {
   drawingCallouts: unknown
   cameraMode: unknown
   orientationDeg: unknown
+  keyCollectionDate: unknown
   location: unknown
   locationPromptDismissed: unknown
   petTypes: unknown
@@ -69,6 +70,7 @@ export const PERSISTENT_WATCH_KEYS = [
   'drawingCallouts',
   'cameraMode',
   'orientationDeg',
+  'keyCollectionDate',
   'location',
   'locationPromptDismissed',
   'petTypes',
@@ -99,6 +101,7 @@ function pickPersistent(): Persistent {
     drawingCallouts: s.drawingCallouts,
     cameraMode: s.cameraMode,
     orientationDeg: s.orientationDeg,
+    keyCollectionDate: s.keyCollectionDate,
     location: s.location,
     locationPromptDismissed: s.locationPromptDismissed,
     petTypes: s.petTypes,
@@ -129,6 +132,7 @@ function shallowEqual(a: Persistent, b: Persistent): boolean {
     a.drawingCallouts === b.drawingCallouts &&
     a.cameraMode === b.cameraMode &&
     a.orientationDeg === b.orientationDeg &&
+    a.keyCollectionDate === b.keyCollectionDate &&
     a.location === b.location &&
     a.locationPromptDismissed === b.locationPromptDismissed &&
     a.petTypes === b.petTypes &&

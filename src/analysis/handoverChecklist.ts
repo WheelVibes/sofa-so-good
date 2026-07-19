@@ -23,6 +23,7 @@
 
 import type { FloorPlan } from '../floorplan/types'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
+import { buildHandoverDates, formatHandoverDate } from './handoverDates'
 import { type RoomKind, roomKindFromName } from './suggestions'
 
 /** One actionable checklist line. */
@@ -148,6 +149,7 @@ export function buildHandoverChecklist(
   plan: FloorPlan,
   items: FurnitureItem[],
   catalog: Record<string, FurnitureDef>,
+  keyCollectionDate?: string | null,
 ): HandoverChecklist {
   const groups: ChecklistGroup[] = []
   const rooms = Array.isArray(plan?.rooms) ? plan.rooms : []
@@ -186,6 +188,21 @@ export function buildHandoverChecklist(
     title: 'Keys, meters & documents',
     items: GENERIC_RULES.map((r) => ({ id: `generic:${r.id}`, label: r.label })),
   })
+
+  // --- Warranty & defect dates group (R4-8) ---------------------------------
+  // Only when a key-collection date is set: turn the prose defect-liability line
+  // into concrete DLP + HDB warranty-window deadline dates.
+  const dates = buildHandoverDates(keyCollectionDate)
+  if (dates) {
+    groups.push({
+      kind: 'generic',
+      title: 'Warranty & defect dates',
+      items: dates.entries.map((e) => ({
+        id: `dates:${e.id}`,
+        label: `${e.label}: ${formatHandoverDate(e.date)}`,
+      })),
+    })
+  }
 
   const totalItems = groups.reduce((s, g) => s + g.items.length, 0)
   return { groups, totalItems }

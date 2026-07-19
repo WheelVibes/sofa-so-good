@@ -105,6 +105,12 @@ export const AccessibilityPanel = lazyWithRetry(() =>
 export const PetCompliancePanel = lazyWithRetry(() =>
   import('../PetCompliancePanel').then((m) => ({ default: m.PetCompliancePanel })),
 )
+export const RenoRulesPanel = lazyWithRetry(() =>
+  import('../RenoRulesPanel').then((m) => ({ default: m.RenoRulesPanel })),
+)
+export const HandoverPanel = lazyWithRetry(() =>
+  import('../HandoverPanel').then((m) => ({ default: m.HandoverPanel })),
+)
 export const FlagsPanel = lazyWithRetry(() =>
   import('../FlagsPanel').then((m) => ({ default: m.FlagsPanel })),
 )

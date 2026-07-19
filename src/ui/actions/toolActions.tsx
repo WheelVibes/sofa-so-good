@@ -207,6 +207,38 @@ export const TOOL_ACTIONS: readonly ToolAction[] = [
     ),
   },
   {
+    id: 'reno-rules',
+    label: 'Reno rules',
+    paletteLabel: 'SG renovation rules',
+    sub: 'Tile rule, grilles, working hours, permits',
+    icon: 'Book',
+    category: 'analyze',
+    flag: 'renoRulesPack',
+    docs: 'renoRules',
+    surfaces: ['desktop', 'mobile', 'palette'],
+    isActive: (s) => s.renoRulesOpen,
+    run: auxToggle(
+      (s) => s.renoRulesOpen,
+      (store) => store.getState().setRenoRulesOpen(true),
+    ),
+  },
+  {
+    id: 'handover',
+    label: 'Handover & DLP',
+    paletteLabel: 'Handover checklist & DLP dates',
+    sub: 'Move-in checklist + warranty date tracker',
+    icon: 'Check',
+    category: 'analyze',
+    flag: 'report',
+    docs: 'handover',
+    surfaces: ['desktop', 'mobile', 'palette'],
+    isActive: (s) => s.handoverOpen,
+    run: auxToggle(
+      (s) => s.handoverOpen,
+      (store) => store.getState().setHandoverOpen(true),
+    ),
+  },
+  {
     id: 'measure',
     // 'Measure distance' (not plain 'Measure') — the toolbar's 'Dimensions'
     // overlay toggle used to be called 'Measurements', and the two near-identical

@@ -193,6 +193,9 @@ export type FeatureFlag =
   | 'airconSizing'
   | 'ceilingClearance'
   | 'hackabilityOverlay'
+  | 'ocsStarter'
+  | 'floorLoading'
+  | 'renoRulesPack'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

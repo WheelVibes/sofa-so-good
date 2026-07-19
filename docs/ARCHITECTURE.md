@@ -1550,12 +1550,33 @@ same change that reshapes a system.
   suggestions** section (PARITY-SUGGESTIONS-SECTION) — same builder, categories derived via
   `pointInRoom`; rides the existing `report` flag, omitted when no suggestion fires.
 - **Move-in / handover checklist** (`analysis/handoverChecklist.ts` pure →
-  `buildHandoverChecklist(plan,items,catalog)`: a derived snagging + key-handover punch-list
-  grouped by room (per-`RoomKind` defect rules via `roomKindFromName`, generic bucket for an
+  `buildHandoverChecklist(plan,items,catalog,keyCollectionDate?)`: a derived snagging + key-handover
+  punch-list grouped by room (per-`RoomKind` defect rules via `roomKindFromName`, generic bucket for an
   unrecognised kind), plus appliance/utility activation items for the appliance categories
   actually placed, plus an always-present keys/meters/documents group). The report's **Move-in
   checklist** section (PARITY-MOVEIN-CHECKLIST); rides the existing `report` flag, always renders
   (an empty plan still yields the generic group).
+- **DLP / warranty date tracker (R4-8)** (`analysis/handoverDates.ts` pure →
+  `buildHandoverDates(iso)`: from a `keyCollectionDate` computes the DLP end (+1yr), ceiling-leak
+  (+5yr) and spalling (+10yr) deadline dates; `addYears` clamps 29 Feb, `daysUntil` drives the
+  countdown). When set, `buildHandoverChecklist` appends a "Warranty & defect dates" group; surfaced
+  live in `ui/HandoverPanel.tsx` (`handoverOpen`, Tools → Handover & DLP) with a date input +
+  countdowns, and in the report. `keyCollectionDate` persists (additive zod in `schema.ts` +
+  autosave watch-list).
+- **SG renovation-rules reference pack (R4-6)** (`floorplan/renoRules.ts` static data → `RENO_RULES`
+  4 cited sections: wet-area 3-year tile rule, windows & grilles, working hours/noise, permits/DRC).
+  Surfaced by `ui/RenoRulesPanel.tsx` (`renoRulesOpen`, Tools → Reno rules), gated by the
+  `renoRulesPack` pro flag.
+- **Floor-loading / raised-platform advisory (R4-5)** (`analysis/floorLoading.ts` pure →
+  `buildFloorLoadingReport(items,catalog)`: flags heavy suspects — bathtub/aquarium/stone tables/
+  piano/loaded bookcases from a static kg table + density = weight ÷ scaled footprint vs the 150 kg/m²
+  slab guideline — plus raised platforms >50 mm). A "Floor loading" advisory group in
+  `ui/ClearancePanel.tsx`, gated by the `floorLoading` pro flag.
+- **BTO OCS starter (R4-3)** (`furniture/ocsStarter.ts` pure manifest → OCS floor finishes by room
+  id/category + `OCS_BATH_KIT` sanitary fittings). `state/slices/resetSlice.ts:applyOcsStarter` seeds
+  the bare OCS handover state (vinyl bedrooms / porcelain living + bath fittings, furniture cleared);
+  `furnishPlan.ts:furnishOcsItems` places the bath fittings for a custom plan. Exposed as "New BTO
+  (with OCS)" in `ui/wizard/SmartStartWizard.tsx`, gated by the `ocsStarter` simple flag.
 - **Renovation estimate** (`analysis/renovationCost.ts` pure → `estimateRenovation(floorAreas,wallAreas,rules?)`:
   SG supply+install $/m² per finish category). The default rate table (`RENO_RATES`) is the factory
   default of a **configurable price-rule library** (`PriceRules`/`DEFAULT_PRICE_RULES`, with
