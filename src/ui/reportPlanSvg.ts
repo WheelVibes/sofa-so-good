@@ -162,8 +162,7 @@ const MARK_LABEL_OFFSET = 0.3
  * off the wall centreline (perpendicular offset) so it clears the opening's
  * gap + door-swing arc.
  */
-function openingMarksSvg(plan: FloorPlan): string {
-  const marks = assignOpeningMarks(plan.openings)
+function openingMarksSvg(plan: FloorPlan, marks: Map<string, string>): string {
   if (marks.size === 0) return ''
   return plan.openings
     .map((o) => {
@@ -251,6 +250,13 @@ export function reportPlanSvg(
    *  on the drawing set, so a mark never appears with nothing to cross-
    *  reference against. Default false (existing callers are unaffected). */
   showOpeningMarks = false,
+  /** Precomputed whole-plan opening→mark map (`assignOpeningMarks(fullPlan)`).
+   *  A multi-storey caller (the drawing set) MUST pass this so each per-level
+   *  sheet uses the plan-wide numbering the schedule uses — passing only the
+   *  stripped single level would restart marks (an upper door showing `D1`
+   *  while the schedule types it `D2`). Omitted ⇒ derived from `plan` itself
+   *  (correct for a single-storey plan). */
+  openingMarks?: Map<string, string>,
 ): string {
   // Defensive: a malformed/partial plan (no extent or no walls) yields no
   // diagram rather than throwing.
@@ -312,6 +318,8 @@ export function reportPlanSvg(
       : ''
   const tileMarks = showTileMarks ? tileSettingOutSvg(plan) : ''
   const tileCaption = showTileMarks ? tileSettingOutCaption(barY + 0.55, tileMarksOmitted) : ''
-  const openingMarks = showOpeningMarks ? openingMarksSvg(plan) : ''
-  return `<svg class="plan-svg"${sizeAttr} viewBox="${-pad} ${-pad} ${fullW.toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${furniture}${walls}${openings}${openingMarks}${labels}${notesSvg(plan)}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}${tileMarks}${tileCaption}</svg>`
+  const openingMarksStr = showOpeningMarks
+    ? openingMarksSvg(plan, openingMarks ?? assignOpeningMarks(plan))
+    : ''
+  return `<svg class="plan-svg"${sizeAttr} viewBox="${-pad} ${-pad} ${fullW.toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${furniture}${walls}${openings}${openingMarksStr}${labels}${notesSvg(plan)}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}${tileMarks}${tileCaption}</svg>`
 }

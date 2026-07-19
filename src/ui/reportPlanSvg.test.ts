@@ -135,7 +135,7 @@ describe('reportPlanSvg', () => {
     // Same plan, same `assignOpeningMarks` grouping run standalone — the
     // on-plan callouts must never drift from what the schedule sheet types.
     const plan = buildDefaultPlan()
-    const expected = assignOpeningMarks(plan.openings)
+    const expected = assignOpeningMarks(plan)
     const svg = reportPlanSvg(plan, [], 'metric', [], undefined, false, true)
     for (const label of new Set(expected.values())) {
       expect(svg).toContain(`>${label}<`)

@@ -8,7 +8,11 @@
  * pure renderer built for the report so the two stay in lock-step. Opened in a
  * new window by `openDrawingSet.ts`.
  */
-import { buildOpeningSchedule } from '../analysis/openingSchedule'
+import {
+  assignOpeningMarks,
+  buildOpeningSchedule,
+  openingStyleMaterialLabel,
+} from '../analysis/openingSchedule'
 import { obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
 import { projectAllElevations } from '../elevation/projectElevation'
@@ -401,6 +405,12 @@ export function buildDrawingSetHtml(
   // they cross-reference — same "don't show a dangling reference" rule as
   // the tile marks above.
   const showOpeningMarks = layerOn(layers, 'openingSchedule')
+  // Assign D/W marks ONCE over the whole plan (every storey, ground first) so
+  // each per-level FLOOR-PLAN sheet's on-plan callouts use the same continuous
+  // numbering the door/window schedule sheet does — otherwise an upper-storey
+  // opening (drawn from a stripped `levelAsPlan`) would restart at D1/W1 and
+  // disagree with the schedule that types it D2/W2 (multi-storey fix).
+  const openingMarkMap = assignOpeningMarks(plan)
   for (const level of levels) {
     const levelPlan = levelAsPlan(plan, level)
     const [pw, pd] = planBounds(levelPlan)
@@ -413,6 +423,7 @@ export function buildDrawingSetHtml(
       scale.mmPerM,
       showTileMarks,
       showOpeningMarks,
+      openingMarkMap,
     )
     sheets.push({
       name: cap('Floor plan', level),
@@ -823,10 +834,10 @@ export function buildDrawingSetHtml(
         name: 'Door & window schedule',
         body:
           `<div style="font-size:11px;color:#6b7280;margin-bottom:4px">${openSched.doorCount} door${openSched.doorCount === 1 ? '' : 's'} · ${openSched.windowCount} window${openSched.windowCount === 1 ? '' : 's'} — sizes in millimetres (mm)</div>` +
-          `<table class="sched"><tr class="h"><td>Mark</td><td>Type</td><td class="n">Qty</td><td class="n">Size (W×H)</td><td class="n">Sill</td><td>Hinge / swing</td><td>Rooms</td></tr>${openSched.marks
+          `<table class="sched"><tr class="h"><td>Mark</td><td>Type</td><td>Style / material</td><td class="n">Qty</td><td class="n">Size (W×H)</td><td class="n">Sill</td><td>Hinge / swing</td><td>Rooms</td></tr>${openSched.marks
             .map(
               (m) =>
-                `<tr><td>${esc(m.mark)}</td><td>${m.kind === 'door' ? 'Door' : 'Window'}</td><td class="n">×${m.count}</td><td class="n">${mm(m.width)} × ${mm(m.height)}</td><td class="n">${mm(m.sill)}</td><td>${m.kind === 'door' ? esc(swingLabel(m)) : '—'}</td><td>${esc(m.rooms.join(', '))}</td></tr>`,
+                `<tr><td>${esc(m.mark)}</td><td>${m.kind === 'door' ? 'Door' : 'Window'}</td><td>${esc(openingStyleMaterialLabel(m))}</td><td class="n">×${m.count}</td><td class="n">${mm(m.width)} × ${mm(m.height)}</td><td class="n">${mm(m.sill)}</td><td>${m.kind === 'door' ? esc(swingLabel(m)) : '—'}</td><td>${esc(m.rooms.join(', '))}</td></tr>`,
             )
             .join('')}</table>`,
         calloutGroup: 'opening-schedule',

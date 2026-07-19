@@ -496,3 +496,44 @@ describe('dxf helpers', () => {
     expect(s).not.toContain('Master\nBedroom')
   })
 })
+
+describe('planToDxf multi-storey opening marks (schedule agreement)', () => {
+  // Ground: a door + a window. Upper: a distinct-size door + window. The
+  // door/window schedule numbers these continuously (ground D1/W1, upper
+  // D2/W2). The DXF exports the GROUND storey only, but assigns marks
+  // plan-wide via the shared `assignOpeningMarks`, so its ground marks must
+  // match the schedule's ground marks — never restart or collide with the
+  // upper-storey numbering.
+  const multi: FloorPlan = {
+    ...smallPlan,
+    openings: [
+      { id: 'gd', kind: 'door', wallId: 'w-w', offset: 1, width: 0.9, sill: 0, head: 2.1 },
+      { id: 'gw', kind: 'window', wallId: 'w-n', offset: 1.5, width: 1.2, sill: 0.9, head: 2.1 },
+    ],
+    upperLevels: [
+      {
+        id: 'up',
+        name: 'Upper',
+        elevation: 2.9,
+        walls: [{ id: 'uw-n', start: [0, 0], end: [4, 0], thickness: 'external' }],
+        openings: [
+          { id: 'ud', kind: 'door', wallId: 'uw-n', offset: 0, width: 0.7, sill: 0, head: 2.1 },
+          { id: 'uw', kind: 'window', wallId: 'uw-n', offset: 2, width: 2.4, sill: 0.4, head: 2.4 },
+        ],
+        rooms: [{ id: 'bed', name: 'Bedroom', origin: [0, 0], width: 4, depth: 3 }],
+      },
+    ],
+  }
+  const dxf = planToDxf(multi)
+
+  it('marks ground openings D1/W1 (the schedule numbering for those openings)', () => {
+    expect(dxf).toContain('1\nD1')
+    expect(dxf).toContain('1\nW1')
+  })
+
+  it('does NOT emit the upper-storey marks (D2/W2) — it exports the ground storey only', () => {
+    // (Confirms the DXF is ground-only; the schedule still lists D2/W2.)
+    expect(dxf).not.toContain('1\nD2')
+    expect(dxf).not.toContain('1\nW2')
+  })
+})

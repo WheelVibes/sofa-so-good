@@ -13,7 +13,7 @@ import {
 } from '../analysis/electricalSchedule'
 import { buildHandoverChecklist } from '../analysis/handoverChecklist'
 import { buildComplianceReport } from '../analysis/hdbCompliance'
-import { buildOpeningSchedule } from '../analysis/openingSchedule'
+import { buildOpeningSchedule, openingStyleMaterialLabel } from '../analysis/openingSchedule'
 import { buildPetCompliance, PET_TYPE_LABEL, type PetType } from '../analysis/petCompliance'
 import { buildPlanStatistics, roomKindLabel } from '../analysis/planStatistics'
 import { buildRenoTimeline } from '../analysis/renoTimeline'
@@ -565,11 +565,11 @@ export function buildReportHtml(
       <h2>Openings schedule</h2>
       <div class="subtotal"><span>Doors &amp; windows</span><span>${openSched.doorCount} door${openSched.doorCount === 1 ? '' : 's'} · ${openSched.windowCount} window${openSched.windowCount === 1 ? '' : 's'}</span></div>
       <table style="margin-top:6px">
-        <tr class="cat"><td>Mark</td><td>Type</td><td class="num">Qty</td><td class="num">Size (W×H)</td><td class="num">Sill</td><td>Hinge / swing</td><td>Rooms</td></tr>
+        <tr class="cat"><td>Mark</td><td>Type</td><td>Style / material</td><td class="num">Qty</td><td class="num">Size (W×H)</td><td class="num">Sill</td><td>Hinge / swing</td><td>Rooms</td></tr>
         ${openSched.marks
           .map(
             (m) =>
-              `<tr><td>${esc(m.mark)}</td><td>${m.kind === 'door' ? 'Door' : 'Window'}</td><td class="num">×${m.count}</td><td class="num">${esc(formatLength(m.width, units))} × ${esc(formatLength(m.height, units))}</td><td class="num">${esc(formatLength(m.sill, units))}</td><td>${m.kind === 'door' ? esc(swingLabel(m)) : '—'}</td><td>${esc(m.rooms.join(', '))}</td></tr>`,
+              `<tr><td>${esc(m.mark)}</td><td>${m.kind === 'door' ? 'Door' : 'Window'}</td><td>${esc(openingStyleMaterialLabel(m))}</td><td class="num">×${m.count}</td><td class="num">${esc(formatLength(m.width, units))} × ${esc(formatLength(m.height, units))}</td><td class="num">${esc(formatLength(m.sill, units))}</td><td>${m.kind === 'door' ? esc(swingLabel(m)) : '—'}</td><td>${esc(m.rooms.join(', '))}</td></tr>`,
           )
           .join('')}
       </table>

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from '../floorplan/types'
-import { assignOpeningMarks, buildOpeningSchedule } from './openingSchedule'
+import {
+  assignOpeningMarks,
+  buildOpeningSchedule,
+  openingStyleMaterialLabel,
+} from './openingSchedule'
 
 /**
  * Synthetic plans: a room is a square in the XZ plane; a horizontal wall along
@@ -22,8 +26,9 @@ function win(
   width: number,
   sill: number,
   head: number,
+  extra: Partial<PlanOpening> = {},
 ): PlanOpening {
-  return { id, kind: 'window', wallId, offset, width, sill, head }
+  return { id, kind: 'window', wallId, offset, width, sill, head, ...extra }
 }
 
 function door(
@@ -229,6 +234,7 @@ describe('buildOpeningSchedule — edge cases', () => {
 
 describe('assignOpeningMarks — single-storey per-opening labels', () => {
   const wall = hWall('w-n', 0, 0, 8)
+  const room = rectRoom('living', 'Living', 0, 0, 8)
 
   it('assigns D1/D2… then W1/W2… in discovery order, matching buildOpeningSchedule', () => {
     const openings: PlanOpening[] = [
@@ -237,7 +243,7 @@ describe('assignOpeningMarks — single-storey per-opening labels', () => {
       door('d2', 'w-n', 2, 0.9, 2.1), // D2 (different width)
       door('d3', 'w-n', 3, 0.8, 2.1), // same size as d1 → D1
     ]
-    const marks = assignOpeningMarks(openings)
+    const marks = assignOpeningMarks(plan([room], [wall], openings))
     expect(marks.get('d1')).toBe('D1')
     expect(marks.get('d3')).toBe('D1')
     expect(marks.get('d2')).toBe('D2')
@@ -246,7 +252,6 @@ describe('assignOpeningMarks — single-storey per-opening labels', () => {
     // Cross-check: the SAME plan run through `buildOpeningSchedule` groups d1/d3
     // into one D-mark with count 2, and assigns marks in the same D-before-W,
     // discovery order — so the two never drift for a single-storey plan.
-    const room = rectRoom('living', 'Living', 0, 0, 8)
     const sched = buildOpeningSchedule(plan([room], [wall], openings))
     const doorMarks = sched.marks.filter((m) => m.kind === 'door')
     expect(doorMarks.map((m) => m.mark)).toEqual(['D1', 'D2'])
@@ -256,12 +261,148 @@ describe('assignOpeningMarks — single-storey per-opening labels', () => {
 
   it('non-door/window openings are skipped and unaffected windows/doors still get marks', () => {
     const openings: PlanOpening[] = [win('w1', 'w-n', 0, 1, 0.9, 2.1)]
-    const marks = assignOpeningMarks(openings)
+    const marks = assignOpeningMarks(plan([room], [wall], openings))
     expect(marks.size).toBe(1)
     expect(marks.get('w1')).toBe('W1')
   })
 
-  it('an empty opening list yields an empty map', () => {
-    expect(assignOpeningMarks([]).size).toBe(0)
+  it('an empty plan yields an empty map', () => {
+    expect(assignOpeningMarks(plan([], [], [])).size).toBe(0)
+  })
+})
+
+describe('opening style/material grouping (openingStyles axes)', () => {
+  const room = rectRoom('living', 'Living', 0, 0, 8)
+  const wall = hWall('w-n', 0, 0, 8)
+
+  it('LEGACY: same-size openings with no style/material still collapse to one mark', () => {
+    const sched = buildOpeningSchedule(
+      plan([room], [wall], [door('d1', 'w-n', 0, 0.9, 2.1), door('d2', 'w-n', 2, 0.9, 2.1)]),
+    )
+    expect(sched.marks).toHaveLength(1)
+    expect(sched.marks[0].mark).toBe('D1')
+    expect(sched.marks[0].count).toBe(2)
+    // Normalised defaults are surfaced on the mark.
+    expect(sched.marks[0].style).toBe('panel')
+    expect(sched.marks[0].material).toBe('painted')
+  })
+
+  it('an explicit default-style door groups with a legacy (unset) door of the same size', () => {
+    const sched = buildOpeningSchedule(
+      plan(
+        [room],
+        [wall],
+        [
+          door('legacy', 'w-n', 0, 0.9, 2.1),
+          door('explicit', 'w-n', 2, 0.9, 2.1, { style: 'panel', material: 'painted' }),
+        ],
+      ),
+    )
+    expect(sched.marks).toHaveLength(1)
+    expect(sched.marks[0].count).toBe(2)
+  })
+
+  it('splits a sliding door and a swing door of identical size into separate marks', () => {
+    const sched = buildOpeningSchedule(
+      plan(
+        [room],
+        [wall],
+        [
+          door('swing', 'w-n', 0, 0.9, 2.1), // default → panel/painted
+          door('slide', 'w-n', 2, 0.9, 2.1, { style: 'sliding' }),
+        ],
+      ),
+    )
+    expect(sched.marks.map((m) => m.mark)).toEqual(['D1', 'D2'])
+    expect(sched.marks.map((m) => m.style)).toEqual(['panel', 'sliding'])
+    expect(sched.marks.every((m) => m.count === 1)).toBe(true)
+  })
+
+  it('splits same-size doors of different leaf material into separate marks', () => {
+    const sched = buildOpeningSchedule(
+      plan(
+        [room],
+        [wall],
+        [
+          door('painted', 'w-n', 0, 0.9, 2.1, { material: 'painted' }),
+          door('wood', 'w-n', 2, 0.9, 2.1, { material: 'wood' }),
+        ],
+      ),
+    )
+    expect(sched.marks).toHaveLength(2)
+    expect(sched.marks.map((m) => m.material)).toEqual(['painted', 'wood'])
+  })
+
+  it('splits a grille window from a plain window of identical size (windows carry no material)', () => {
+    const sched = buildOpeningSchedule(
+      plan(
+        [room],
+        [wall],
+        [
+          win('plain', 'w-n', 0, 1.2, 0.9, 2.1),
+          win('grille', 'w-n', 2, 1.2, 0.9, 2.1, { style: 'grille' }),
+        ],
+      ),
+    )
+    expect(sched.marks.map((m) => m.mark)).toEqual(['W1', 'W2'])
+    expect(sched.marks.map((m) => m.style)).toEqual(['plain', 'grille'])
+    expect(sched.marks.every((m) => m.material === undefined)).toBe(true)
+  })
+
+  it('produces readable Style / material labels', () => {
+    const sched = buildOpeningSchedule(
+      plan(
+        [room],
+        [wall],
+        [
+          door('slide', 'w-n', 0, 0.9, 2.1, { style: 'sliding', material: 'wood' }),
+          win('grille', 'w-n', 2, 1.2, 0.9, 2.1, { style: 'invisible-grille' }),
+        ],
+      ),
+    )
+    expect(openingStyleMaterialLabel(sched.marks[0])).toBe('Sliding · Wood')
+    expect(openingStyleMaterialLabel(sched.marks[1])).toBe('Invisible grille')
+  })
+})
+
+describe('multi-storey mark agreement (schedule ↔ plan callouts ↔ DXF)', () => {
+  it('numbers upper-storey openings continuously, and assignOpeningMarks matches the schedule for every storey', () => {
+    // Ground: one window + one door. Upper: a different-size door + a
+    // different-size window — the schedule numbers them D2/W2, continuing the
+    // ground numbering.
+    const ground = plan(
+      [rectRoom('g', 'Living', 0, 0, 4)],
+      [hWall('gw', 0, 0, 4)],
+      [win('gwin', 'gw', 1, 1.2, 0.9, 2.1), door('gdoor', 'gw', 2.5, 0.9, 2.1)],
+    )
+    const multi: FloorPlan = {
+      ...ground,
+      upperLevels: [
+        {
+          id: 'up',
+          name: 'Upper',
+          elevation: 2.9,
+          walls: [hWall('uw', 0, 0, 4)],
+          openings: [door('udoor', 'uw', 0, 0.7, 2.1), win('uwin', 'uw', 1.5, 2.4, 0.4, 2.4)],
+          rooms: [rectRoom('u', 'Bedroom', 0, 0, 4)],
+        },
+      ],
+    }
+
+    const sched = buildOpeningSchedule(multi)
+    // Map each opening id → its aggregated schedule mark (via its group).
+    const marks = assignOpeningMarks(multi)
+
+    // Ground openings keep the lowest numbers…
+    expect(marks.get('gdoor')).toBe('D1')
+    expect(marks.get('gwin')).toBe('W1')
+    // …and the upper-storey openings CONTINUE the numbering (regression: they
+    // used to restart at D1/W1 on the per-level plan sheet).
+    expect(marks.get('udoor')).toBe('D2')
+    expect(marks.get('uwin')).toBe('W2')
+
+    // Every per-opening mark exists as an aggregated mark in the schedule.
+    const schedMarks = new Set(sched.marks.map((m) => m.mark))
+    for (const label of marks.values()) expect(schedMarks.has(label)).toBe(true)
   })
 })

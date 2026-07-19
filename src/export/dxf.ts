@@ -487,7 +487,13 @@ function entitiesSection(
   const rooms = Array.isArray(plan.rooms) ? plan.rooms : []
   const openings = Array.isArray(plan.openings) ? plan.openings : []
   const wallById = new Map<string, PlanWall>(walls.map((w) => [w.id, w]))
-  const markByOpening = assignOpeningMarks(openings)
+  // Marks are assigned PLAN-WIDE (every storey, ground first) by the shared
+  // `assignOpeningMarks` so they agree with the door/window schedule sheet,
+  // which numbers continuously across levels. This exporter draws the ground
+  // storey only (walls/rooms/openings are ground), so it simply looks up its
+  // ground openings in that whole-plan map — upper-storey marks in the map are
+  // never drawn here but keep the ground numbers identical to the schedule.
+  const markByOpening = assignOpeningMarks(plan)
 
   let out = block(pair(0, 'SECTION'), pair(2, 'ENTITIES'))
 

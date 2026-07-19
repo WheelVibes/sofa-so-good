@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.79 — Style-aware schedule marks + plan-wide mark numbering
+
+Two contractor-facing schedule fixes. (1) Door/window marks now group by
+(kind, size, STYLE, door MATERIAL) — a sliding and a swing door of identical
+size are separate marks (different products/installation), with a new
+"Style / material" column on the drawing-set schedule sheet and the report's
+Openings schedule ("Sliding · Wood" vs "Panel · Painted"); legacy plans
+normalise to defaults and group byte-identically. (2) The comb's "DXF mark
+divergence" was re-diagnosed empirically: the DXF (ground-only) already
+agreed with the schedule — the REAL conflict was per-level floor-plan sheet
+callouts restarting at D1/W1 on upper storeys while the schedule numbered
+plan-wide. `assignOpeningMarks` now takes the whole plan (planLevels,
+ground-first) and the drawing set threads one precomputed map through every
+level sheet, so callouts, schedule, and DXF all share one numbering. 489
+targeted tests incl. new style-split/multi-storey suites; schedule sheet
+screenshot verified.
+
 ## v0.22.2.78 — Bug comb over v0.22.2.64-77: five correctness fixes
 
 Adversarial review of the session's 15 commits confirmed and fixed five

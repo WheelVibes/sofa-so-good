@@ -327,8 +327,11 @@ Print or save as PDF for
   setting-out start point (its centre), with a one-line note explaining the
   convention: **"start laying here, verify joints on site"**.
 - **Door & window schedule.** A typed-marks table (**D1, D2…** for doors, **W1,
-  W2…** for windows — every opening of the same kind/width/height sharing one
-  mark) with quantity, size **W×H in millimetres** (doors/windows are always
+  W2…** for windows — every opening of the same kind/width/height **and style/
+  material** sharing one mark, so a sliding door and a swing door of the same
+  size, or a grille and a plain window, are listed as separate marks) with a
+  **Style / material** column (e.g. *Sliding · Wood* for doors, *Grille* for
+  windows), quantity, size **W×H in millimetres** (doors/windows are always
   specced in mm, matching the carpentry sheets' own convention regardless of
   your metric/imperial display preference), sill height, door hinge/swing
   side, and which room(s) each mark borders. Reuses the same grouping as the

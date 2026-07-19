@@ -64,9 +64,15 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   leaf's real finish via `materials/furnitureMaterials.ts` (`getPaintedMaterial`/`getWoodMaterial`/
   `getVinylMaterial`); windows ignore it. Same additive schema shape as `style`. The **2D plan
   symbol** is built ONCE by `doorSwing.ts:doorPlanSymbol(wall, o)` (world metres) and shared by every
-  consumer — `OpeningsLayer` (editor), `reportPlanSvg` (report/drawing set); DXF export and the
-  door/window schedule are style-agnostic (a door is a plain gap line / a `Door` row for ALL styles,
-  as before). It returns either swing `leaves` (one for panel/flush/glazed/bifold, TWO quarter-arcs
+  consumer — `OpeningsLayer` (editor), `reportPlanSvg` (report/drawing set); DXF export draws a door
+  as a plain gap LINE for ALL styles (the geometry is style-agnostic), **but** the door/window
+  **schedule is style-aware** (v0.22.2.72+): `analysis/openingSchedule.ts` folds the normalised
+  `style` + resolved leaf `material` into the mark grouping key, so a sliding door and a swing door
+  of identical size — or a grille vs plain window — are SEPARATE marks (D1/D2…), and the schedule
+  sheet + report print a "Style / material" column ("Sliding · Wood" for doors, the style alone for
+  windows). Legacy openings with no style/material normalise to the kind's default (`panel`/`plain`,
+  `painted`) so a plan predating those fields groups byte-identically. It returns either swing
+  `leaves` (one for panel/flush/glazed/bifold, TWO quarter-arcs
   for `double`) or a `sliding` `{bar, arrow}` (leaf bar beside the opening + a slide-direction arrow,
   NO arc). **Keep-out** (`doorSwingClearRect`, consumed by `layout/clearance.ts`): `sliding` returns
   **null** — a slider sweeps nothing, so it contributes NO quarter-circle keep-out, only the
@@ -269,16 +275,21 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   fixture distance labels exactly like the MEP sheets (H-D1) — don't re-derive a second declutter
   scheme. `ui/drawingSet.ts` fans this out per storey (every storey with rooms, not just ones with
   fixtures — a flat-ceiling room's zone note is still useful on its own).
-- **On-plan D/W mark callouts (H1-F): `analysis/openingSchedule.ts:assignOpeningMarks`.** A
-  per-opening (not aggregated) variant of `buildOpeningSchedule`'s (kind, width, head−sill)
-  grouping, reusing the SAME `markKey`/`openingHeight` helpers so the two can never assign
-  different marks to the same plan. Consumed by `ui/reportPlanSvg.ts`'s FLOOR-PLAN sheet
-  (`showOpeningMarks` param, gated in `drawingSet.ts` to the `openingSchedule` `DrawingLayer` being
-  on — same "don't reference a hidden sheet" rule the G3 tile marks follow). `export/dxf.ts` keeps
-  its own pre-existing identical local copy (`assignOpeningMarks`/`openingMarkKey`) — it was owned
-  by a concurrent change when this was extracted and was deliberately left untouched; `TASKS.md`
-  tracks migrating it to import this shared export on next touch rather than maintaining two
-  copies of the same grouping key.
+- **On-plan D/W mark callouts (H1-F): `analysis/openingSchedule.ts:assignOpeningMarks(plan)`.** A
+  per-opening (keyed by opening id, not aggregated) variant of `buildOpeningSchedule`'s
+  (kind, width, head−sill, style, material) grouping, reusing the SAME `markKey`/`openingHeight`
+  helpers so the two can never assign different marks to the same opening. **Plan-wide + level-ordered
+  (multi-storey fix, v0.22.2.72+):** it flattens `planLevels(plan)` ground-first and numbers ONCE
+  across every storey, so an upper-floor opening continues the ground numbering (D2/W2…) instead of
+  restarting. Consumers rendering one storey at a time MUST pass this whole-plan map, not a stripped
+  single level: `ui/drawingSet.ts` computes `assignOpeningMarks(plan)` once and threads it into each
+  per-level `reportPlanSvg(…, openingMarkMap)` call (the FLOOR-PLAN sheet's `showOpeningMarks` param,
+  gated to the `openingSchedule` `DrawingLayer` being on — same "don't reference a hidden sheet" rule
+  the G3 tile marks follow); a single-storey `reportPlanSvg` call with no map derives it from its own
+  plan. `export/dxf.ts` now imports the shared `assignOpeningMarks` (its old local copy is gone) and
+  calls it with the whole `plan`; the DXF draws the **ground storey only**, so it looks up its ground
+  openings in the plan-wide map — their marks match the schedule's ground marks, while the
+  upper-storey marks in the map are simply never drawn.
 - **Room categories (RM1, `PlanRoom.category?`, additive/optional — no version bump):** the
   persisted, USER-declared room type (13 values — see `types.ts`'s `RoomCategory`/
   `ROOM_CATEGORIES`). `roomCategory.ts` is the ONE resolver — `roomCategory(room)` (explicit
