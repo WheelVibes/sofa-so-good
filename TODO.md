@@ -581,6 +581,51 @@ First-time-user end-to-end walkthrough on the GPU harness. Full write-up + scree
   schema+autosave); Smart Start footer token humanised (see P2-2). (P3-1 tour copy + P3-5 elevation
   preview left as-is: P3-5 is the print thumbnail, out of this batch's scope.)
 
+## E2E blank-slate journey validation (2026-07-19)
+> New-owner end-to-end journey (bare shell → surfaces → theme/furnish → MEP/circuits/aircon →
+> score/checks/budget/handover → drawing set + trade packs) driven as ONE GPU-harness session.
+> Full write-up + 16 screenshot refs + root-cause probes:
+> `docs/research/2026-07-19-e2e-journey-validation.md`. Verdict: the no-designer promise HOLDS as
+> a connected flow (budget/waterproofing/FFL/handover all chain), with ONE broken bridge (circuits)
+> + one collision bug. P1=1, P2=2, P3=3, 0 BLOCKING. Scenario:
+> `scripts/scenarios/e2e-blank-slate-journey.json`.
+- [ ] **E2E-P1 — "Suggest circuits" links 0 switches → switching schematic never appears.**
+  `suggestSwitchCircuits()` returns `{linked:0}` in the realistic auto flow despite 8 switches +
+  16 lights present. Root cause (verified, `scratchpad/diag-circuits`): `suggestMepPoints`
+  (`furniture/mepSuggest.ts:57-72`) places each switch ON the wall centreline (no perpendicular
+  nudge into a room; `mepSuggest.test.ts:69` pins `{x:1.95,z:0}`), so `suggestCircuitLinks`
+  (`floorplan/switchCircuits.ts`) finds `pointInRoom` = 0 switches in EVERY room — no room has both
+  a switch and a light → nothing links. Cascade: master drawing electrical sheet has no S1/L1
+  circuit tags + prints "8 switches control no lights / 5 lights unlinked"; the **Electrician trade
+  pack still lists "No switching schematic — link switches … (5 lights unlinked)"** as a
+  to-complete exclusion (the exact exclusion the E2E brief expected to be gone after suggest). BSJ-3
+  auto-suggest is effectively dead on the default/auto flow (the seeded `switch-circuits-bsj3.json`
+  passes only because it hand-places its switch inside a room). Fix (design decision — filed, not
+  fixed inline): nudge the switch ~0.2 m into the room the door serves (prefer non-circulation
+  side) + update the test, OR relax `suggestCircuitLinks` to match a switch to a lit room within a
+  boundary margin. Shots `15`,`16`.
+- [ ] **E2E-P2-1 — Aircon planner places condensers onto existing outdoor furniture.** `planAircon`
+  (BSJ-2, `analysis/airconPlacement.ts`) dropped 2 condensers on the AC-ledge/service-yard where
+  outdoor furniture already sat → 3 overlaps ("Outdoor table/chair overlaps Aircon condenser") + 1
+  "Outdoor table is inside a wall" in Clearance checks (shot `10`); also the sole driver of the
+  design-score clearance penalty. Placement isn't collision-aware — clear/collision-check the
+  condenser footprint on the ledge.
+- [ ] **E2E-P2-2 — Smart-Start theme furnishing scores 42/100 (F) against the app's own checks.**
+  bare→japandi→systems: Clearance 40 (the P2-1 condenser overlaps), Circulation 0 (4 impassable
+  pinch-points <0.5 m), Daylight 40, Lighting 40 ("6 rooms without a light fixture"). Same class as
+  the already-fixed UXW-P2-3, which only hardened the `moveIn` default — other gallery presets
+  (japandi) still furnish below the bar and under-light most rooms. 0 BLOCKING. Recommend running
+  preset furnishings through the arranger's clearance/lighting pass or pinning each preset's score
+  in a test. Shot `09`.
+- [ ] **E2E-P3 batch.** (1) **Theme apply silently overwrites user-set surfaces** — surfaces (step
+  2) then a theme overwrites `finishes.floor`/`walls` for the 5 `PRESET_ROOMS` to the theme palette
+  (verified screed/vinyl → wood-oak) with no warning; arguably intended ("finish walls & floors to
+  match") but surprising for the surfaces-first order — add a note or non-destructive merge. (2)
+  **Aircon panel reads "Proposed" after placement** — no placed-state reflection once `planAircon`
+  runs (shot `06`); data IS connected (budget reads the 4 placed FCUs), only the label lags. (3)
+  **Cooling-load lists non-cooled rooms** (Household Shelter/Service Yard show a 9,000 BTU size)
+  inflating "Whole home ≈ 102,000 BTU installed capacity" — cosmetic.
+
 ## Open — UI/UX polish follow-ups
 - [ ] **P37 List virtualization — DEFERRED (2026-07-03 ruling).** Not justified now: the
   catalog is already paginated (`PAGE_SIZE=12`, never renders >12 cards); history/layers

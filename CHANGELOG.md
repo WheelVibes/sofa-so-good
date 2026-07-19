@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.101 — E2E blank-slate journey validation: promise HOLDS; P1+2 P2 filed
+
+One continuous 99-step GPU session drove bare-BTO intake → surfaces + floor
+levels → theme/furnish → MEP/circuits/aircon → score/checks/budget/handover
+→ master set + trade packs. Verdict: the "no interior designer needed"
+promise holds as a CONNECTED flow — budget quantities, waterproofing, FFL
+overlays, aircon units, and DLP dates all chain stage-to-stage. Filed: P1
+"Suggest circuits" links zero (suggestMepPoints places switches on the wall
+centreline, so pointInRoom assigns them to no room — cascades to a tagless
+electrical sheet and a stale electrician-pack exclusion); P2 condenser
+placement collides with outdoor furniture; P2 japandi Smart-Start furnish
+scores 42/100 against the app's own checks (moveIn was hardened, themes
+weren't); P3s: theme apply silently overwrites chosen surfaces, aircon
+panel says "Proposed" after applying, cooling list includes non-cooled
+rooms. Report: docs/research/2026-07-19-e2e-journey-validation.md +
+reusable e2e scenario.
+
 ## v0.22.2.100 — BSJ-7/8: waterproofing zones + floor levels (blank-slate queue COMPLETE)
 
 BSJ-7 `floorplan/waterproofing.ts`: derived membrane zones per wet room —
