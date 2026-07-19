@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.73 — Lighting moods: verification closeout (feature shipped v0.22.2.40)
+
+The UX-round-3 "Lighting mood presets" TODO item was stale — the feature
+(Normal/Reading/Movie night/Entertaining/Romantic Segmented row in the
+Scene menu + mobile Scene section, `lightMoodPresets` simple-tier flag,
+`moodPresets.ts` intensity×tint table composed over lightsMode) shipped in
+v0.22.2.40. This closeout audits it against all requirements (flag both-
+modes test, persisted uiSlice state, token classes, 198 tests green), adds
+the missing 5-mood visual scenario (light-moods-r11), reviews the shots
+(all five visibly distinct at 20:00), and ticks TODO. Design note kept:
+moods never force lights on (preserves the switched-off-fixture invariant).
+
 ## v0.22.2.72 — Test: explicit timeout on the whole-home Tidy IKEA regression guard
 
 The full-suite gate flaked once on `autoArrange.test.ts`'s IKEA-laden

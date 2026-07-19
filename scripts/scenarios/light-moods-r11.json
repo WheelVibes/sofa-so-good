@@ -1,0 +1,34 @@
+{
+  "name": "light-moods-r11",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "viewport", "viewport": { "width": 1280, "height": 900 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.setOnboardingOpen?.(false); s.endTour?.(); s.dismissLocationPrompt?.(); s.setLocation?.({ lat: 1.3521, lon: 103.8198, label: 'SG' }); s.setManualHour?.(20); s.setLightsMode?.('on'); s.setQualityTier?.('high'); })()"
+    },
+    { "name": "scene-ready", "store": { "action": "setSceneReady", "args": [true] } },
+    { "name": "settle-boot", "wait": 3000 },
+    { "name": "mood-normal", "store": { "action": "setLightMood", "args": ["none"] } },
+    { "name": "nudge-normal", "store": { "action": "setLightsMode", "args": ["on"] } },
+    { "name": "wait-normal", "wait": 1200 },
+    { "name": "shot-normal", "screenshot": "mood-1-normal" },
+    { "name": "mood-reading", "store": { "action": "setLightMood", "args": ["reading"] } },
+    { "name": "nudge-reading", "store": { "action": "setLightsMode", "args": ["on"] } },
+    { "name": "wait-reading", "wait": 1200 },
+    { "name": "shot-reading", "screenshot": "mood-2-reading" },
+    { "name": "mood-movie", "store": { "action": "setLightMood", "args": ["movie"] } },
+    { "name": "nudge-movie", "store": { "action": "setLightsMode", "args": ["on"] } },
+    { "name": "wait-movie", "wait": 1200 },
+    { "name": "shot-movie", "screenshot": "mood-3-movie" },
+    { "name": "mood-entertaining", "store": { "action": "setLightMood", "args": ["entertaining"] } },
+    { "name": "nudge-entertaining", "store": { "action": "setLightsMode", "args": ["on"] } },
+    { "name": "wait-entertaining", "wait": 1200 },
+    { "name": "shot-entertaining", "screenshot": "mood-4-entertaining" },
+    { "name": "mood-romantic", "store": { "action": "setLightMood", "args": ["romantic"] } },
+    { "name": "nudge-romantic", "store": { "action": "setLightsMode", "args": ["on"] } },
+    { "name": "wait-romantic", "wait": 1200 },
+    { "name": "shot-romantic", "screenshot": "mood-5-romantic" }
+  ]
+}

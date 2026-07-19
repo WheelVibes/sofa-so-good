@@ -210,9 +210,13 @@ Ranked by value÷effort; each verified absent against registry + source. Near-mi
 already-shipped/ruled-out this round (don't re-propose): align/distribute, dollhouse view,
 wardrobe configurator (generic parametric), 2D+3D split view (contradicts plan-stays-structural
 ruling), AI photo→plan (= aiWalls), shelf-lift gesture (= surfaceDrop).
-- [ ] **Lighting mood presets** (M, simple) — one-tap Reading/Movie/Entertaining/Romantic row
+- [x] **Lighting mood presets** (M, simple) — one-tap Reading/Movie/Entertaining/Romantic row
   adjusting placed fixtures' intensity + colour temperature (Coohom precedent); distinct from
   sun-only sunStudy. Preset table over `itemAsLight`-tagged fixtures in `src/lighting/`.
+  Shipped: `lighting/moodPresets.ts` (pure preset table + tint/multiplier), `lightMood` on
+  `uiSlice` (persisted via schema/autosave, mirrors `lightsMode`), Scene-menu + mobile Mood row
+  gated by the `lightMoodPresets` flag (simple tier), composed in `FurnitureLights.tsx` on top of
+  `lightsMode`. Scenario `scripts/scenarios/light-moods-r11.json`.
 - [ ] **Real-photo paint visualizer** (M, simple) — upload a wall photo, drag a polygon mask,
   composite a finish swatch via canvas blend (no AI seg for v1; Behr/Dulux precedent). Pairs the
   customBackdrop upload path with swatch data.
