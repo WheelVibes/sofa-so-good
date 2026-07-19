@@ -21,6 +21,8 @@ import { exportScene3d } from '../../openSceneExport'
 import { openSh3dImport } from '../../openSh3dImport'
 import { openSh3fImport } from '../../openSh3fImport'
 import { openShoppingList } from '../../openShoplist'
+import { openTradePack } from '../../openTradePack'
+import { TRADE_PACKS } from '../../tradePacks'
 import { Icon } from '../icons'
 import { Item, Section, SubHeader } from './parts'
 
@@ -53,6 +55,7 @@ export function FileSection({
   const fTimeCompare = useFeature('timeCompare')
   const fShare = useFeature('shareExport')
   const fReport = useFeature('report')
+  const fTradePacks = useFeature('tradePacks')
   const fBudget = useFeature('budget')
   const fRenoBudget = useFeature('renoBudget')
   const fShopExport = useFeature('shopExport')
@@ -204,6 +207,18 @@ export function FileSection({
           onClick={act(() => void downloadRenoIcs())}
         />
       ) : null}
+      {fTradePacks ? <SubHeader>Trade packs</SubHeader> : null}
+      {fTradePacks
+        ? TRADE_PACKS.map((p) => (
+            <Item
+              key={p.id}
+              icon="FloorPlan"
+              label={p.recipient}
+              sub={p.scope}
+              onClick={act(() => void openTradePack(p.id))}
+            />
+          ))
+        : null}
 
       {fBudget || fRenoBudget || fShopExport || fBoq ? (
         <SubHeader>Budget &amp; costs</SubHeader>

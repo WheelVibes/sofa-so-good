@@ -556,6 +556,27 @@ Print or save as PDF for
   specific detail. Callouts render as a crisp text box with an optional dashed
   leader line; they travel with `.sofa.json` exports and design links, and are
   fully undoable.
+- **Trade packs (Pro).** The drawing set above is organised by drawing TYPE (plan,
+  elevations, schedules…). When you're ready to hand work to individual trades, a
+  **trade pack** re-bundles those same sheets by *recipient*. Under **File → Drawing
+  set → Trade packs (per recipient)** (mobile: the **Trade packs** rows in the File
+  sheet), each pack opens in its own print window: **Tiler & wet works** (floor plan +
+  setting-out + a floors-and-walls finish schedule + wet-area notes + any demolition),
+  **Electrician** (electrical plan + reflected ceiling plan + socket advisory + a
+  mount-height conventions table + the DB note), **Plumber** (plumbing plan),
+  **Carpenter** (the carpentry sheets + wall elevations + a built-in joinery summary),
+  **Aircon installer** (the System-2/3/4 proposal with condenser weights + ledge and
+  trunking notes, on the floor + electrical plans), **Curtains & blinds vendor** (the
+  door & window schedule + a list of your placed curtains/blinds with sizes), and
+  **Painter** (a walls-only finish schedule + a paint-area basis). Each pack starts with
+  a **cover** naming the recipient, the scope, a contact/issued-to line, and your
+  title-block details. **Sheet numbers stay the master set's** (so a pack sheet reads
+  e.g. *A-29*, not *A-1*) — deliberately, so a contractor can cross-reference any pack
+  sheet against the full set you hold. When something's missing, the pack **says so**
+  rather than omitting it silently: e.g. "No switching schematic — link switches to the
+  lights they control first (16 lights unlinked)", or, before you've run the aircon
+  system planner, "FCU / condenser positions are NOT on the plan yet". Print or save
+  each as its own PDF to send to that trade.
 
 ## 360° panorama (Pro)
 

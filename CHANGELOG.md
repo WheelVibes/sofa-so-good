@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.99 — BSJ-5: per-trade handover packs (designed → ordered)
+
+File → Trade packs (pro, `tradePacks`): seven per-recipient bundles —
+Tiler/wet works, Electrician, Plumber, Carpenter, Aircon installer,
+Curtains & blinds, Painter — each a cover page (recipient, scope, contact
+line, trade-specific reference tables: socket targets by room, AFFL
+mount-height conventions, aircon system proposal, paint-area basis,
+wet-area notes) plus the relevant MASTER sheets re-used via the new
+buildDrawingSheets/renderDrawingDocument split (no builder forked; finish
+schedule gains an additive kinds filter). Sheet numbers stay the master
+set's (deliberately non-contiguous, noted on the cover) so contractors
+cross-reference one authoritative set. Honest exclusions when data is
+missing ("No switching schematic — 16 lights unlinked"). Desktop + mobile
+File menu. 444 targeted tests; electrician/tiler/aircon pack documents
+GPU-verified.
+
 ## v0.22.2.98 — BSJ-4: bare-BTO + resale starting states (intake family complete)
 
 The wizard's OCS entry grows into a 4-option "Starting state" group. Bare

@@ -189,6 +189,7 @@ export type FeatureFlag =
   | 'settingOutDims'
   | 'carpentrySheets'
   | 'rcpSheet'
+  | 'tradePacks'
   | 'parametricStairs'
   | 'parametricRoof'
   | 'airconSizing'

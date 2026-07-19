@@ -1746,6 +1746,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Per-trade handover packs (blank-slate BSJ-5, the designed→ordered bridge):
+  // re-bundles the EXISTING drawing-set sheets/schedules into per-recipient
+  // packs (Tiler / Electrician / Plumber / Carpenter / Aircon / Curtains /
+  // Painter) — each a pack cover + the master sheets that recipient needs,
+  // reusing the master set's sheet numbering. Pure client-side composition over
+  // sheets the app already builds → prod-safe; an analytical handover surface
+  // → pro tier, matching the drawing-set sheet flags above it.
+  tradePacks: {
+    label: 'Trade handover packs',
+    description:
+      'Per-recipient bundles (tiler / electrician / carpenter / aircon / …) of the drawing set',
+    default: true,
+    tier: 'pro',
+  },
   // Parametric staircase generator (TODO — UX research round 3, Homestyler v6
   // precedent): the adjustable `staircase` catalog item (straight / L / U /
   // spiral, width/rise-run/landing/handrail) that also feeds the multi-storey

@@ -30,6 +30,8 @@ import { exportScene3d } from '../../openSceneExport'
 import { openSh3dImport } from '../../openSh3dImport'
 import { openSh3fImport } from '../../openSh3fImport'
 import { openShoppingList } from '../../openShoplist'
+import { openTradePack } from '../../openTradePack'
+import { TRADE_PACKS } from '../../tradePacks'
 import { viewInAr } from '../../viewInAr'
 import { shortcutLabel } from '../shortcuts'
 import { MenuItem, MenuLabel, ToolbarMenu } from '../ToolbarMenu'
@@ -56,6 +58,7 @@ export function FileMenu() {
   const fShare = useFeature('shareExport')
   const fMoodboard = useFeature('moodboard')
   const fReport = useFeature('report')
+  const fTradePacks = useFeature('tradePacks')
   const fBudget = useFeature('budget')
   const fRenoBudget = useFeature('renoBudget')
   const fShopExport = useFeature('shopExport')
@@ -231,6 +234,7 @@ export function FileMenu() {
           <DrawingSetInfoEditor />
         </>
       ) : null}
+      {fTradePacks ? <TradePacksPicker /> : null}
       {fReport ? (
         <MenuItem
           icon="Export"
@@ -520,6 +524,39 @@ function DrawingLayersPicker() {
           <span>{l.label}</span>
         </label>
       ))}
+    </div>
+  )
+}
+
+/** Per-trade handover packs (BSJ-5): a compact list of recipient bundles, each
+ *  with an Open/Print button that opens the pack in a print window (same flow as
+ *  the drawing set). Collapsed in a Disclosure so it never crowds the menu; a
+ *  note explains that packs reuse the master set's sheet numbering. */
+function TradePacksPicker() {
+  return (
+    <div className="px-3 py-1" onClick={(e) => e.stopPropagation()}>
+      <Disclosure summary="Trade packs (per recipient)">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-1)' }}>
+          <span style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+            Each pack bundles the sheets one trade needs. Sheet numbers stay the master set's for
+            cross-reference.
+          </span>
+          {TRADE_PACKS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-left hover:bg-[var(--surface-2)]"
+              onClick={() => void openTradePack(p.id)}
+              title={p.scope}
+            >
+              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[var(--text)]">
+                {p.recipient}
+              </span>
+              <span className="shrink-0 text-[11px] text-[var(--accent)]">Open / Print</span>
+            </button>
+          ))}
+        </div>
+      </Disclosure>
     </div>
   )
 }

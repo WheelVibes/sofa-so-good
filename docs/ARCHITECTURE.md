@@ -1166,6 +1166,18 @@ same change that reshapes a system.
   from fixtures) + a contractor-grade finishes schedule + FF&E + a door & window schedule, title blocks,
   a user-customizable `@page` size/orientation) reusing all the pure renderers — the formal counterpart
   to the one-page `report.ts`.
+  **Per-trade handover packs (BSJ-5, `tradePacks` pro flag): `ui/tradePacks.ts` + `openTradePack.ts`.**
+  The designed→ordered bridge — re-bundles the master set (organised by drawing TYPE) into per-RECIPIENT
+  packs (Tiler / Electrician / Plumber / Carpenter / Aircon / Curtains / Painter). `drawingSet.ts` split
+  into `buildDrawingSheets` (numbered `Sheet[]`) + `renderDrawingDocument` (shared HTML wrapper); a pack
+  builds the master sheets ONCE, selects its recipient's subset by `calloutGroup` **keeping the master
+  A-N numbering** (`NUMBERING_NOTE` — a contractor cross-references), and prepends a pack cover (scope +
+  contact placeholder + title-block info + an included-sheet index + honest EXCLUSION notes for missing
+  data + advisory tables composed from the same pure builders the editor uses — `socketAdvisory` + MEP
+  mount-height defaults + `airconSystem` proposal + `switchCircuits` status + placed window-treatment /
+  built-in-joinery / paint-area summaries). The finish schedule is narrowed per pack via
+  `finishScheduleHtml`'s optional `kinds` param (tiler → floors+walls, painter → walls). No sheet builder
+  is forked. File menu: desktop `TradePacksPicker` Disclosure + mobile FileSection "Trade packs" section.
   **Door & window schedule (H1):** `layerOn(layers, 'openingSchedule')` gate — one whole-set `NTS` sheet
   (like Finishes/FF&E, not per-storey: `analysis/openingSchedule.ts:buildOpeningSchedule` already walks
   every storey internally) rendering the same `D1/D2…`/`W1/W2…` mark rows as `report.ts`'s "Openings

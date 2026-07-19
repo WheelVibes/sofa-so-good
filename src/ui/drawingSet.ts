@@ -126,7 +126,7 @@ interface MepPointsInput<T> {
   source: 'persisted' | 'heuristic'
 }
 
-interface Sheet {
+export interface Sheet {
   /** Sheet number, e.g. "A-1" — assigned sequentially once all sheets exist. */
   num?: string
   name: string
@@ -342,10 +342,15 @@ function buildCalloutsSvg(callouts: DrawingCallout[], sheet: CalloutSheet): stri
   )
 }
 
-/** Build the full drawing-set HTML document. `layers` hides individual sheet
- *  groups (default: all included). `callouts` are free-text annotations that
- *  render onto their target sheet as crisp SVG text (optional, default: none). */
-export function buildDrawingSetHtml(
+/** Build the numbered sheet list (cover A-0 + every content sheet A-1…A-N) from
+ *  the design. Split out of `buildDrawingSetHtml` (which now composes this with
+ *  `renderDrawingDocument`) so the per-trade handover packs (BSJ-5,
+ *  `tradePacks.ts`) can select a SUBSET of these already-numbered sheets and
+ *  re-render them under a pack cover WITHOUT re-running the sheet builders or
+ *  forking any of them — the master sheet numbers are preserved so a contractor
+ *  cross-references a pack sheet against the full set. `layers` hides individual
+ *  sheet groups (default: all included). */
+export function buildDrawingSheets(
   plan: FloorPlan,
   items: FurnitureItem[],
   catalog: Record<string, FurnitureDef>,
@@ -355,7 +360,10 @@ export function buildDrawingSetHtml(
   plumbing?: MepPointsInput<PlumbingPoint>,
   finishes?: RoomFinishMaps,
   layers?: DrawingLayerVisibility,
-  callouts?: DrawingCallout[],
+  /** Callouts are consumed by {@link renderDrawingDocument}, not the sheet
+   *  builder — kept in the positional signature so existing callers pass the
+   *  same argument order (the value is intentionally unused here). */
+  _callouts?: DrawingCallout[],
   /** User-editable handover metadata (TODO G5) — project/client identity,
    *  drawn-by/checked-by, revision. Defaults to the generic empty template. */
   template: DrawingSetTemplate = DEFAULT_DRAWING_SET_TEMPLATE,
@@ -374,7 +382,7 @@ export function buildDrawingSetHtml(
   /** Append the reflected ceiling plan sheet(s) (`rcpSheet` flag, TODO H4).
    *  Default false — existing callers are unaffected. */
   showRcp = false,
-): string {
+): { cover: Sheet; sheets: Sheet[] } {
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
     month: 'long',
@@ -928,7 +936,6 @@ export function buildDrawingSetHtml(
   // falling back to the plan's own name so behaviour is unchanged until edited.
   const projectName = template.projectName.trim() || plan.name
   const revision = template.revision.trim() || 'A'
-  const totalSheets = sheets.length + 1 // + cover
 
   // Standard SG handover disclaimers (contractor-handover research, TODO G5) —
   // carried on the cover sheet only, once per set. The approval-path lines
@@ -977,9 +984,42 @@ export function buildDrawingSetHtml(
       </div>
     </div>`,
   }
-  const ordered = [cover, ...sheets]
+  return { cover, sheets }
+}
+
+/** Options for {@link renderDrawingDocument}. */
+export interface RenderDrawingDocumentOpts {
+  plan: FloorPlan
+  template?: DrawingSetTemplate
+  /** Free-text callout annotations to inject onto their target sheets. */
+  callouts?: DrawingCallout[]
+  /** `<title>` for the print window / tab. */
+  docTitle: string
+  /** "N of TOTAL" denominator in every title block. Defaults to the number of
+   *  sheets passed — a per-trade pack overrides it with the MASTER set's total
+   *  so its sheet numbering reads against the full set the contractor holds. */
+  totalSheets?: number
+}
+
+/**
+ * Wrap an ordered sheet list (cover first) in the paginated, title-blocked print
+ * document — the shared presentation layer for both the full drawing set and the
+ * per-trade handover packs (BSJ-5), so their pages are byte-identical in styling.
+ * Pure: builds HTML only.
+ */
+export function renderDrawingDocument(ordered: Sheet[], opts: RenderDrawingDocumentOpts): string {
+  const template = opts.template ?? DEFAULT_DRAWING_SET_TEMPLATE
+  const plan = opts.plan
+  const date = new Date().toLocaleDateString('en-SG', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+  const projectName = template.projectName.trim() || plan.name
+  const revision = template.revision.trim() || 'A'
+  const totalSheets = opts.totalSheets ?? ordered.length
   // Normalise callout array (empty when none provided).
-  const activeCallouts = callouts ?? []
+  const activeCallouts = opts.callouts ?? []
 
   // Per-sheet title-block second row: client/drawn-by/checked-by/date/scale/
   // sheet-of-total/revision (TODO G5).
@@ -1030,7 +1070,7 @@ export function buildDrawingSetHtml(
   const drawMaxHeightMm = PAPER_PRINTABLE_MM[`${template.paperSize}-${template.orientation}`].height
   const pageSizeCss = `${template.paperSize.toUpperCase()} ${template.orientation}`
 
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(plan.name)} — Drawing set</title>
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(opts.docTitle)}</title>
 <style>
   @page { size: ${pageSizeCss}; margin: ${PAGE_MARGIN_MM}mm; }
   * { box-sizing: border-box; }
@@ -1071,4 +1111,49 @@ export function buildDrawingSetHtml(
   .fin-h3 { margin: 10px 0 4px; }
   .fin-caveat { font-size: 10px; color: #9ca3af; margin-top: 6px; }
 </style></head><body>${sheetHtml}</body></html>`
+}
+
+/** Build the full drawing-set HTML document — composes {@link buildDrawingSheets}
+ *  with {@link renderDrawingDocument}. `layers` hides individual sheet groups
+ *  (default: all included); `callouts` are optional free-text annotations. */
+export function buildDrawingSetHtml(
+  plan: FloorPlan,
+  items: FurnitureItem[],
+  catalog: Record<string, FurnitureDef>,
+  units: UnitSystem = 'metric',
+  baselinePlan?: FloorPlan,
+  electrical?: MepPointsInput<ElectricalPoint>,
+  plumbing?: MepPointsInput<PlumbingPoint>,
+  finishes?: RoomFinishMaps,
+  layers?: DrawingLayerVisibility,
+  callouts?: DrawingCallout[],
+  template: DrawingSetTemplate = DEFAULT_DRAWING_SET_TEMPLATE,
+  orientationDeg = 0,
+  showSettingOut = false,
+  showCarpentry = false,
+  showRcp = false,
+): string {
+  const { cover, sheets } = buildDrawingSheets(
+    plan,
+    items,
+    catalog,
+    units,
+    baselinePlan,
+    electrical,
+    plumbing,
+    finishes,
+    layers,
+    callouts,
+    template,
+    orientationDeg,
+    showSettingOut,
+    showCarpentry,
+    showRcp,
+  )
+  return renderDrawingDocument([cover, ...sheets], {
+    plan,
+    template,
+    callouts,
+    docTitle: `${plan.name} — Drawing set`,
+  })
 }

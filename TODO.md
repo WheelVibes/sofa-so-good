@@ -486,12 +486,20 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
   `renovationAllocator.intake.test.ts`, `features/flags/intakeStates.test.ts`, doors-leaf schema
   round-trip. Note: on the fixed default flat, seeded plumbing provisions are session-only (the
   default plan isn't serialized); screed floors + absent leaves persist.
-- [ ] **BSJ-5 — Per-trade handover packs** (M, pro) — re-bundle the existing drawing set /
-  schedules / BOQ (organised by drawing TYPE today) into per-RECIPIENT packs: Tiler (finish
-  schedule + setting-out + wet-area), Electrician (electrical plan + socket advisory + switching
-  schematic + DB note), Carpenter (carpentry sheets + FF&E), Aircon installer (BTU + system
-  plan), Curtain/blind vendor (window schedule + curtain specs + qty). The designed→ordered
-  bridge. Pure client (re-composition of computed output).
+- [x] **BSJ-5 — Per-trade handover packs** (M, pro) — DONE: `ui/tradePacks.ts` (pure) +
+  `openTradePack.ts` (window.open flow) + `tradePacks` flag (pro, default on). Re-bundles the
+  MASTER drawing set into 7 per-RECIPIENT packs (Tiler / Electrician / Plumber / Carpenter /
+  Aircon / Curtains / Painter) — each a pack cover (recipient, scope, contact placeholder,
+  title-block info, advisory tables) + the master sheets that recipient needs, selected by
+  `calloutGroup` and keeping the MASTER sheet numbering (a contractor cross-references). Reuses
+  the sheet builders via `drawingSet.ts`'s new `buildDrawingSheets`/`renderDrawingDocument` split
+  (no fork); the finish schedule is narrowed to floors+walls (tiler) / walls (painter) via
+  `finishScheduleHtml`'s new `kinds` param. Honest gaps: each pack lists what it EXCLUDES when
+  data is missing (no electrical plan, no switching schematic + unlinked-light count, unplaced
+  FCU/condenser positions, no window treatments, …). Advisory tables composed from the same pure
+  builders the editor uses (socket advisory + mount-height conventions + DB note, aircon system
+  proposal + ledge/trunking notes, window-treatment list, paint-area basis). File menu (desktop
+  Disclosure + mobile section). The designed→ordered bridge.
 - [x] **BSJ-6 — Wet-area & kitchen fit-out catalog gaps** (S, simple) — DONE (v0.22.2.x): three
   new procedural primitives + defs — `ShowerScreen` (framed clear/fluted glass panel + optional
   return wing, wall-flush, `shower-screen`), `BidetSpray` (wall-mounted health faucet, `bidet-spray`),
