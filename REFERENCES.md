@@ -46,6 +46,18 @@ docs are public. Proprietary ones are studied via their live apps + help docs.
 - **Behr Paint Color Visualizer** — manufacturer paint-on-your-photo web tool; precedent for our real-photo finish visualizer candidate (2026-07-18 round-3 pass). [app](https://www.behr.com/consumer/colors/paint/visualizer)
 - **DecorViz** — "room photo + product photo → realistic in-room composite" AI; relevant if product-visualization AI is ever revisited (2026-07-18 round-3 pass). [app](https://decorviz.ai)
 
+### Singapore renovation-domain sources (UX research round 4, 2026-07-19)
+Not planner apps — the cited knowledge base for the round-4 **SG-authentic advisory**
+features (aircon BTU, ceiling clearance, floor loading, OCS starter, socket/DB targets,
+reno rules). See `docs/research/2026-07-19-ux-research-round-4.md`.
+- **Aircon BTU sizing (SG)** — the ~50-60 BTU/ft² rule + sun/ceiling/open-kitchen modifiers behind R4-1. [silverback](https://silverbackaircon.sg/aircon-btu-calculation-guide/) · [skyblue](https://skyblueaircon.com/blog/what-size-btu-for-hdb-room)
+- **HDB ceiling heights** — 2.6 m standard, ≥2.4 m finished clearance, cornices to 2.1 m (R4-2). [Qanvast](https://qanvast.com/sg/articles/standard-hdb-ceiling-heights-what-you-cancannot-do-to-alter-them-3527) · [iFix](https://ifix.sg/hdb-ceiling-height-explained-standard-measurements-and-practical-insights/)
+- **HDB Optional Component Scheme (OCS)** — BTO handover finishes/fittings behind R4-3. [Qanvast](https://qanvast.com/sg/articles/hdb-optional-component-scheme-ocs-is-it-worth-opting-in-1873) · [DollarsAndSense](https://dollarsandsense.sg/complete-guide-hdbs-optional-components-scheme-ocs/)
+- **HDB electrical / DB planning** — per-room socket counts + DB load (R4-4). [Goldberg](https://goldberg-home.com/blogs/blogs/how-many-electrical-sockets-do-i-need-for-hdb-bto-singapore) · [HomeGenie](https://homegenie.com.sg/blogs/news/hdb-electrical-renovation-guide-singapore)
+- **HDB floor loading** — 150 kg/m² slab limit, ≤50 mm concrete raise (R4-5). [Home&Decor](https://www.homeanddecor.com.sg/design/renovation-guidelines-hdb-singapore/) · [FloorRich](https://floorrich.com/an-easy-to-understand-guide-to-hdb-flooring-guidelines/)
+- **HDB reno rules** — wall hacking, wet-area 3-yr tile rule, grille compliance, working hours, DRC permits (R4-6/R4-7). [ElementsID](https://elementsid.com.sg/can-you-hack-hdb-walls/) · [DeGrille](https://degrille.com.sg/article/are-invisible-grilles-approved-by-the-hdb/) · [RCS](https://renovationcontractorsingapore.com/blogs/news/hdb-renovation-noise-rules-working-hours-2026) · [HDB official](https://www.hdb.gov.sg/residential/living-in-an-hdb-flat/renovation/important-information)
+- **BTO defect / DLP** — 1-yr DLP, 5-yr ceiling-leak / 10-yr spalling warranty windows (R4-8). [HomeMatch](https://homematch.sg/renovation-guides/bto-defect-checklist-defect-liability-period) · [HDB official](https://www.hdb.gov.sg/residential/living-in-an-hdb-flat/moving-in/rectification-work-for-new-flats)
+
 ## Furniture asset-building / 3D modeling tools (Asset Studio research, 2026-07-16)
 References for turning the GLB designer into a professional furniture asset builder —
 see `docs/asset-studio-plan.md` for the staged program this research seeds.

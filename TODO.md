@@ -240,6 +240,53 @@ ruling), AI photo→plan (= aiWalls), shelf-lift gesture (= surfaceDrop).
   Terrace + Maisonette seed a 30° gable. Scenario `scripts/scenarios/parametric-roof.json`. v1
   limitation: roofs the footprint bounding rectangle (documented in `roofModel.ts`).
 
+## Open — UX research round 4 queue (2026-07-19)
+Ranked by value÷effort; each verified absent against the ~190-flag registry + the SG source
+cited. Full write-up: `docs/research/2026-07-19-ux-research-round-4.md`. **Headline: the
+competitor sweep found ZERO net-new client-doable features (near-total parity — see below);
+all real value is SG-authentic advisories over data the app already holds.** Near-misses
+confirmed already-shipped/covered this round (don't re-propose): reno timeline+ICS
+(`renoTimeline.ts`), defect/handover checklist (`handoverChecklist.ts` — only DLP *dates*
+net-new), wall structure classification + demolition sheet (`PlanWall.structure` +
+`demolitionPlan.ts` — only the *live editor overlay* net-new), MEP electrical/plumbing point
+placement (`mepEditor`/`electricalPlan`/`plumbingPlan` — only *count/DB advisory* net-new),
+HDB/MCST/BCA permit paths (v0.22.2.60), gallery/photo/feature-wall (`wall-art` "Gallery"
+variant + `photo-frame-cluster`), parametric K&B (`kitchenCabinets`), 720° tour (`panoTour`),
+custom-furniture module (`glbDesigner`), camera-path video (`walkthrough`/`recordViewTour`/
+`dayNightClip`), Smart Wizard (`smartStart`/`aiLayout`), 4K/16K render (local path tracer),
+imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window schedules.
+- [ ] **R4-1 — SG aircon BTU sizing per room** (S, pro) — per-room cooling-load badge from
+  area × ~50-60 BTU/ft² + modifiers (W/E sun via `orientationDeg`, ceiling >3 m, open
+  kitchen) → recommended system size + whole-flat total. Pure formula over existing area +
+  orientation, shaped like `daylight.ts`. Absent: no `btu` anywhere.
+- [ ] **R4-2 — Ceiling-height & false-ceiling clearance validator** (S, pro) — checks
+  false-ceiling/bulkhead drops (`ceilingDesign`/RCP zones) against SG norms (2.6 m standard,
+  ≥2.4 m finished clearance, cornices to 2.1 m) and warns/reports per-zone headroom. Pure
+  logic over existing ceiling data. Absent: no ceiling-clearance check.
+- [ ] **R4-3 — BTO Optional Component Scheme (OCS) starter state** (S/M, simple) — a "New BTO
+  (OCS)" start point pre-seeding the finishes/fittings HDB hands over (internal doors,
+  vinyl/porcelain floors, sanitary fittings) so a BTO owner designs from what they'll
+  receive. Pure data manifest seeding existing finish/opening state. Absent: no OCS reference.
+- [ ] **R4-4 — Electrical points & DB-load advisory** (S, pro) — extends the existing MEP
+  layer with per-room recommended socket/data counts (4-room ≈ 25-40) vs placed points +
+  shortfall cue + DB 40 A/63 A note. Net-new advisory (placement already ships).
+- [ ] **R4-5 — Floor-loading / raised-platform advisory** (S, pro) — warns when a raised
+  platform / thick screed / heavy cluster risks the 150 kg/m² HDB slab limit; ≤50 mm
+  concrete-raise rule + timber-joist alternative. Cited advisory keyed to floor finish +
+  platforms. Absent.
+- [ ] **R4-6 — SG renovation-rules reference pack** (S, pro) — one cited advisory surface
+  bundling wet-area 3-year tile-hacking rule, window/grille compliance (BCA AWC, 304-grade
+  rivets, approved invisible-grille designs), reno working-hours/noise limits, and the static
+  HDB DRC contractor/permit paperwork checklist. Consolidates the small rules. Absent.
+- [ ] **R4-7 — Live hackability overlay in the 2D plan editor** (S, pro) — red/green wall
+  tint + inline "NOT PERMITTED / permit required" shown live as the user tags walls, driven
+  by the existing `PlanWall.structure`. Net-new editor UX over existing data (currently only
+  reaches the demolition sheet).
+- [ ] **R4-8 — DLP / warranty date tracker** (S, low-med, pro) — small extension to
+  `handoverChecklist.ts`: from a key-collection/TOP date, compute the 1-yr DLP end, 5-yr
+  ceiling-leak / 10-yr spalling windows, and report-before-reno cut-off as concrete dates
+  (currently prose-only).
+
 ## Open — UI/UX polish follow-ups
 - [ ] **P37 List virtualization — DEFERRED (2026-07-03 ruling).** Not justified now: the
   catalog is already paginated (`PAGE_SIZE=12`, never renders >12 cards); history/layers

@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.80 — UX research round 4: 8 ranked SG proposals; competitor parity confirmed
+
+Research round (docs/research/2026-07-19-ux-research-round-4.md + TODO
+queue + REFERENCES.md SG-source group). Competitor sweep across
+Coohom/Planner 5D/Homestyler/Live Home 3D/RoomSketcher/Foyr + 2025-26 AI
+entrants found ZERO net-new client-doable gaps — every candidate (panorama
+tour, video fly-through, GLB import, custom textures, shopping list,
+parametric K&B, gallery wall, measure tools, mirroring, scaled PDF) is
+already shipped or backend-bound. The SG renovation-domain thrust yielded 8
+ranked, pure-client proposals: aircon BTU sizing (R4-1), false-ceiling
+clearance validator (R4-2), BTO OCS starter state (R4-3), electrical
+socket/DB-load advisory (R4-4), floor-loading advisory (R4-5), SG
+reno-rules reference pack (R4-6), live hackability overlay in the 2D editor
+(R4-7), DLP/warranty date tracker (R4-8).
+
 ## v0.22.2.79 — Style-aware schedule marks + plan-wide mark numbering
 
 Two contractor-facing schedule fixes. (1) Door/window marks now group by
