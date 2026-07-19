@@ -47,8 +47,9 @@ when an item ships it is **removed from this file entirely**. Maintainability re
   - [x] Sintered-stone worktop — `worktopFinish` enum option (kitchen island + counter) →
     `getSurfaceMaterial('sintered')` (satin stone).
   - [x] Brushed gold/brass — `brushed-brass` `MetalFinish` preset (mirrors `black-steel`) +
-    `getSurfaceMaterial('brass')` + side-table top-finish option. (Note: primitives were out of the
-    task's allowed scope, so existing hardcoded brass hardware wasn't re-routed to it — deferred.)
+    `getSurfaceMaterial('brass')` + side-table top-finish option. Hardcoded brass hardware in the
+    primitives (BarCart / TowelLadder / AltarCabinet / Vanity / Sideboard) re-routed through the
+    `brass` helper — same warm-brass tone (done 2026-07-19, opening-variants round 2 ride-along).
   - [x] Heritage checkerboard jade/cobalt colourways (reuse `checker` painter).
   - [x] Limewash wall finish — VERIFY VERDICT: a microcement variant existed (`concrete` pattern) but
     no true limewash, so a dedicated `pattern: 'limewash'` (`patterns/wall.ts:limewashFields`, cloudy
@@ -74,6 +75,18 @@ when an item ships it is **removed from this file entirely**. Maintainability re
     `scripts/scenarios/catb-furniture-r11.json` (product-shot ladder, visually reviewed).
 - Skip rulings: undermount sink (prop variant not worth a primitive), KompacPlus branding
   (generic laminate covers it), brand ceiling fans, aircon (exists as MEP).
+- [x] **Opening variants round 2** (DONE 2026-07-19) — two more SG door styles on `PlanOpening.style`:
+  - [x] **Sliding** door — 3D leaf TRANSLATES along the wall (barn-door style, proud of the wall on
+    the room side; parks over the roomier adjacent segment), no swing; 2D symbol = leaf bar + slide
+    arrow, NO arc; keep-out = none (only the both-sides approach strip).
+  - [x] **Double** door — two half-width leaves hinged at both jambs swinging the same side (mirror
+    rotations); 2D symbol = two quarter-arcs; keep-out = a conservative full-width swing rect.
+  - Shared 2D symbol builder `doorSwing.ts:doorPlanSymbol` consumed by `OpeningsLayer` + `reportPlanSvg`
+    (DXF + door schedule stay style-agnostic, as before). `style` kept a free string in `types.ts` +
+    `schema.ts` (documented value list in parity, no version bump). Inspector Style select + user doc +
+    `src/floorplan/CLAUDE.md` updated. Tests: `doorSwing.test.ts` (predicates/symbol/keep-out) +
+    `doorMaterial.test.ts` (sliding/double → painted). Scenarios: `opening-variants-r2-{sliding,double,
+    plan2d}.json` — closed+open 3D + 2D editor symbols, reviewed on GPU.
 
 ## Active — contractor-handover accuracy & documentation (2026-07-18, user goal)
 > The app's purpose: homeowners design/plan/customize themselves, then hand over DIRECTLY to

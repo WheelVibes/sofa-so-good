@@ -1,0 +1,34 @@
+{
+  "name": "opening-variants-r2-plan2d",
+  "description": "2D floor-plan editor showing the new sliding (leaf bar + slide arrow, no arc) and double (two quarter-arcs) door symbols.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "viewport", "viewport": { "width": 1280, "height": 900 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13);"
+    },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "set-door-styles",
+      "eval": "(() => { const st=window.__store.getState(); const fp=st.floorPlan; const doors=fp.openings.filter(o=>o.kind==='door'); const out=[]; if(doors[0]){ st.updateOpening(doors[0].id,{style:'sliding'}); out.push(['sliding',doors[0].id]); } if(doors[1]){ st.updateOpening(doors[1].id,{style:'double',width:Math.max(doors[1].width,1.2)}); out.push(['double',doors[1].id]); } else if(doors[0]){ /* only one door: also demo double on the same plan by re-styling nothing */ } return out; })()"
+    },
+    { "name": "open-plan-editor", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-visible", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "wait-plan-settle", "wait": 1200 },
+    { "name": "shot-plan-overview", "screenshot": "plan2d-overview" },
+    {
+      "name": "select-sliding-door",
+      "eval": "(() => { const st=window.__store.getState(); const d=st.floorPlan.openings.find(o=>o.style==='sliding'); if(d) st.setPlanSelection({type:'opening',id:d.id}); return d?d.id:null; })()"
+    },
+    { "name": "wait-sel", "wait": 600 },
+    { "name": "shot-plan-sliding-selected", "screenshot": "plan2d-sliding-selected" },
+    {
+      "name": "select-double-door",
+      "eval": "(() => { const st=window.__store.getState(); const d=st.floorPlan.openings.find(o=>o.style==='double'); if(d) st.setPlanSelection({type:'opening',id:d.id}); return d?d.id:null; })()"
+    },
+    { "name": "wait-sel2", "wait": 600 },
+    { "name": "shot-plan-double-selected", "screenshot": "plan2d-double-selected" }
+  ]
+}

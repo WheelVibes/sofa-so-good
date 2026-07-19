@@ -123,7 +123,10 @@ export interface PlanOpening {
   /** Optional style/type (`openingStyles`). Doors: `panel` (default, recessed
    *  panels) / `flush` (plain slab) / `glazed` (upper vision panel) / `bifold`
    *  (two half-width leaves that fold at a centre hinge — the standard SG
-   *  toilet/utility door). Windows: `plain` (default glass) / `grille`
+   *  toilet/utility door) / `sliding` (leaf slides along the wall, no swing —
+   *  the SG kitchen/service-yard/balcony norm) / `double` (two half-width leaves
+   *  hinged at both jambs swinging the same side — condo main doors, larger-unit
+   *  master bedrooms). Windows: `plain` (default glass) / `grille`
    *  (vertical safety bars) / `louvre` (horizontal slats) / `invisible-grille`
    *  (hair-thin steel cables in place of visible bars — the modern
    *  near-invisible safety-grille convention). Absent = the default for the

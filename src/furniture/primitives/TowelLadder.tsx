@@ -27,7 +27,7 @@ export function TowelLadder({ props }: { props: ParamProps }) {
   const FRAME: Record<string, { color: string; metal: MetalFinish }> = {
     chrome: { color: '#cfd3d6', metal: 'stainless' },
     black: { color: '#2b2d30', metal: 'black-steel' },
-    brass: { color: '#b8923f', metal: 'satin' },
+    brass: { color: '#b8923f', metal: 'brushed-brass' },
   }
   const frame = FRAME[finish]
   const mat = frame

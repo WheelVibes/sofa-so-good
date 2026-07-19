@@ -13,6 +13,13 @@ describe('resolveDoorLeafMaterialKind', () => {
     expect(resolveDoorLeafMaterialKind({ style: 'bifold' })).toBe('vinyl')
   })
 
+  it('defaults sliding + double doors to painted (only bifold is vinyl by default)', () => {
+    expect(resolveDoorLeafMaterialKind({ style: 'sliding' })).toBe('painted')
+    expect(resolveDoorLeafMaterialKind({ style: 'double' })).toBe('painted')
+    // Explicit material still wins.
+    expect(resolveDoorLeafMaterialKind({ style: 'sliding', material: 'vinyl' })).toBe('vinyl')
+  })
+
   it('an explicit material always wins over the style default', () => {
     expect(resolveDoorLeafMaterialKind({ style: 'bifold', material: 'wood' })).toBe('wood')
     expect(resolveDoorLeafMaterialKind({ style: 'bifold', material: 'painted' })).toBe('painted')

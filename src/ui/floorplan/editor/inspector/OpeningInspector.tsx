@@ -169,6 +169,8 @@ export function OpeningInspector({
                   ['flush', 'Flush'],
                   ['glazed', 'Glazed'],
                   ['bifold', 'Bifold'],
+                  ['sliding', 'Sliding'],
+                  ['double', 'Double'],
                 ]
               : [
                   ['plain', 'Plain glass'],

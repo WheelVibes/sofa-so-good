@@ -29,7 +29,7 @@ export function AltarCabinet({ props }: AltarCabinetProps) {
   const h = 1.5
 
   const wood = getSurfaceMaterial(finish, color, 1.2, sheen)
-  const brass = getSurfaceMaterial('gloss', '#b08d57', 1, 0.4)
+  const brass = getSurfaceMaterial('brass', '#b8923f')
 
   const plinthH = 0.09
   const counterY = 0.86 // top of the lower cabinet / underside of the display tier

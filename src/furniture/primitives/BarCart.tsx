@@ -27,7 +27,7 @@ export function BarCart({ props }: { props: ParamProps }) {
   // stainless, black → matte black-steel. Tint carries the brass/black colour.
   const frameMat =
     frame === 'brass'
-      ? metalLeg('#b08d57', 'satin')
+      ? metalLeg('#b8923f', 'brushed-brass')
       : frame === 'chrome'
         ? metalLeg('#cfd2d6', 'stainless')
         : metalLeg('#26262a', 'black-steel')

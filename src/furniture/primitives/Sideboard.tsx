@@ -31,7 +31,7 @@ export function Sideboard({ props }: { props: ParamProps }) {
   const wood = getSurfaceMaterial(finish, color, 1.6, sheen)
   const legMat = getWoodMaterial(legColor, 0.45)
   const metal = { color: '#2b2b2b', roughness: 0.35, metalness: 0.65 } as const
-  const brass = { color: '#b08d57', roughness: 0.4, metalness: 0.7 } as const
+  const brass = getSurfaceMaterial('brass', '#b8923f')
   // Hairpin legs route through the shared brushed-metal material (matte
   // black-steel); the small bar/knob/recessed pulls keep their plain hardware
   // props above.
@@ -50,9 +50,8 @@ export function Sideboard({ props }: { props: ParamProps }) {
     if (handle === 'none') return null
     if (handle === 'knob')
       return (
-        <mesh position={[x, y, faceZ + 0.022]}>
+        <mesh position={[x, y, faceZ + 0.022]} material={brass}>
           <sphereGeometry args={[0.018, 12, 10]} />
-          <meshStandardMaterial {...brass} />
         </mesh>
       )
     if (handle === 'recessed')

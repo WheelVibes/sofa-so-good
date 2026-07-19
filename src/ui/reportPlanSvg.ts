@@ -1,5 +1,5 @@
 import { assignOpeningMarks } from '../analysis/openingSchedule'
-import { doorSwingGeometry } from '../floorplan/doorSwing'
+import { doorPlanSymbol } from '../floorplan/doorSwing'
 import { roomLabelPosition } from '../floorplan/roomCentroid'
 import { anyTileMarksOmitted, tileSettingOutPoints } from '../floorplan/settingOut'
 import type { FloorPlan } from '../floorplan/types'
@@ -119,10 +119,26 @@ function openingsSvg(plan: FloorPlan): string {
       const maskW = (wall.thickness === 'external' ? 0.18 : 0.09) + 0.05
       let s = `<line x1="${sx.toFixed(3)}" y1="${sz.toFixed(3)}" x2="${ex.toFixed(3)}" y2="${ez.toFixed(3)}" stroke="#ffffff" stroke-width="${maskW.toFixed(3)}" stroke-linecap="butt"/>`
       if (o.kind === 'door') {
-        const g = doorSwingGeometry(wall, o)
-        if (g) {
-          s += `<line x1="${g.hinge[0].toFixed(3)}" y1="${g.hinge[1].toFixed(3)}" x2="${g.leafTip[0].toFixed(3)}" y2="${g.leafTip[1].toFixed(3)}" stroke="#6b7280" stroke-width="0.04"/>`
-          s += `<path d="M ${g.freeJamb[0].toFixed(3)} ${g.freeJamb[1].toFixed(3)} A ${o.width.toFixed(3)} ${o.width.toFixed(3)} 0 0 ${g.sweep} ${g.leafTip[0].toFixed(3)} ${g.leafTip[1].toFixed(3)}" fill="none" stroke="#9ca3af" stroke-width="0.025"/>`
+        const sym = doorPlanSymbol(wall, o)
+        if (sym?.kind === 'swing') {
+          for (const lf of sym.leaves) {
+            s += `<line x1="${lf.hinge[0].toFixed(3)}" y1="${lf.hinge[1].toFixed(3)}" x2="${lf.leafTip[0].toFixed(3)}" y2="${lf.leafTip[1].toFixed(3)}" stroke="#6b7280" stroke-width="0.04"/>`
+            s += `<path d="M ${lf.freeJamb[0].toFixed(3)} ${lf.freeJamb[1].toFixed(3)} A ${lf.radius.toFixed(3)} ${lf.radius.toFixed(3)} 0 0 ${lf.sweep} ${lf.leafTip[0].toFixed(3)} ${lf.leafTip[1].toFixed(3)}" fill="none" stroke="#9ca3af" stroke-width="0.025"/>`
+          }
+        } else if (sym?.kind === 'sliding') {
+          // Sliding: leaf bar + slide-direction arrow (no swing arc).
+          const [b0, b1] = sym.bar
+          const [a0, a1] = sym.arrow
+          s += `<line x1="${b0[0].toFixed(3)}" y1="${b0[1].toFixed(3)}" x2="${b1[0].toFixed(3)}" y2="${b1[1].toFixed(3)}" stroke="#6b7280" stroke-width="0.05"/>`
+          s += `<line x1="${a0[0].toFixed(3)}" y1="${a0[1].toFixed(3)}" x2="${a1[0].toFixed(3)}" y2="${a1[1].toFixed(3)}" stroke="#9ca3af" stroke-width="0.025"/>`
+          const adx = a1[0] - a0[0]
+          const adz = a1[1] - a0[1]
+          const alen = Math.hypot(adx, adz) || 1
+          const uax = adx / alen
+          const uaz = adz / alen
+          const hb = 0.09
+          s += `<line x1="${a1[0].toFixed(3)}" y1="${a1[1].toFixed(3)}" x2="${(a1[0] - (uax + uaz) * hb).toFixed(3)}" y2="${(a1[1] - (uaz - uax) * hb).toFixed(3)}" stroke="#9ca3af" stroke-width="0.025"/>`
+          s += `<line x1="${a1[0].toFixed(3)}" y1="${a1[1].toFixed(3)}" x2="${(a1[0] - (uax - uaz) * hb).toFixed(3)}" y2="${(a1[1] - (uaz + uax) * hb).toFixed(3)}" stroke="#9ca3af" stroke-width="0.025"/>`
         }
       } else {
         s += `<line x1="${sx.toFixed(3)}" y1="${sz.toFixed(3)}" x2="${ex.toFixed(3)}" y2="${ez.toFixed(3)}" stroke="#9ca3af" stroke-width="0.03"/>`

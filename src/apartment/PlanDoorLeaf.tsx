@@ -2,6 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { Color, type Group, Mesh, type MeshStandardMaterial, Vector3 } from 'three'
 import { resolveDoorLeafMaterialKind } from '../floorplan/doorMaterial'
+import { isDoubleDoor, isSlidingDoor } from '../floorplan/doorSwing'
 import type { PlanOpening, PlanWall } from '../floorplan/types'
 import { wallLength } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
@@ -60,6 +61,17 @@ function shade(hex: string, f: number): string {
  * folded leaves' actual sweep, not a literal trace of it — parameterising the
  * arc to the folded shape would need real per-leaf arc geometry the 2D layer
  * doesn't model for any door style yet).
+ *
+ * `style: 'sliding'` (the SG kitchen/service-yard/balcony norm) renders a
+ * single full-width slab that TRANSLATES along the wall axis (no swing) —
+ * driven by the same `angleRef` timing, `slideRef.position.x` moves the leaf
+ * from centred (closed) to fully parked over the roomier adjacent wall segment
+ * (open). `style: 'double'` (condo main doors / larger master bedrooms) renders
+ * two half-width leaves hinged at BOTH jambs and swinging the same side (mirror
+ * rotations about the two jamb pivots). Their 2D symbols live in
+ * `doorSwing.ts:doorPlanSymbol` (sliding → leaf bar + slide arrow, no arc;
+ * double → two quarter-arcs) and their keep-out in `doorSwingClearRect`
+ * (sliding → none; double → a conservative full-width rect).
  */
 export function PlanDoorLeaf({
   wall,
@@ -88,11 +100,18 @@ export function PlanDoorLeaf({
   // Bifold only: the second leaf's fold hinge, a child of `swingRef` anchored at
   // the outer leaf's far edge (see the `isBifold` render branch below).
   const foldRef = useRef<Group>(null)
+  // Double-leaf only: the two mirror-hinged leaves (one at each jamb).
+  const leafARef = useRef<Group>(null)
+  const leafBRef = useRef<Group>(null)
+  // Sliding only: the leaf group that translates along the wall axis.
+  const slideRef = useRef<Group>(null)
   const angleRef = useRef(0)
   const opacityRef = useRef(1)
   const transparentRef = useRef(false)
   const { camera } = useThree()
   const isBifold = (opening.style ?? 'panel') === 'bifold'
+  const isSliding = isSlidingDoor(opening)
+  const isDouble = isDoubleDoor(opening)
   // Real leaf-surface material (door `material` axis) — painted (flat colour,
   // today's default), procedural wood grain, or smooth vinyl/PVC laminate (the
   // SG toilet-door standard, defaulted for `bifold`). A real three `Material`
@@ -129,6 +148,11 @@ export function PlanDoorLeaf({
   let midX: number
   let midZ: number
   let hingeLocalX: number
+  // Local-X (along-wall, relative to the root group's origin) of the two jamb
+  // pivots + the opening centre — used by the double-leaf + sliding branches.
+  let startJambX: number
+  let endJambX: number
+  let centerLocalX: number
   let doorX: number // door world centre (fade test)
   let doorZ: number
   if (isCurvedWall(wall)) {
@@ -137,6 +161,9 @@ export function PlanDoorLeaf({
     midZ = p.z
     angle = Math.atan2(Math.cos(p.angle), Math.sin(p.angle)) // → atan2(dz, dx) convention
     hingeLocalX = hinge === 'start' ? -opening.width / 2 : opening.width / 2
+    startJambX = -opening.width / 2
+    endJambX = opening.width / 2
+    centerLocalX = 0
     doorX = p.x
     doorZ = p.z
   } else {
@@ -147,9 +174,18 @@ export function PlanDoorLeaf({
     midZ = (wall.start[1] + wall.end[1]) / 2
     hingeLocalX =
       hinge === 'start' ? opening.offset - len / 2 : opening.offset + opening.width - len / 2
+    startJambX = opening.offset - len / 2
+    endJambX = opening.offset + opening.width - len / 2
+    centerLocalX = opening.offset + opening.width / 2 - len / 2
     doorX = wall.start[0] + dx * sCentre
     doorZ = wall.start[1] + dz * sCentre
   }
+  // Sliding-door open direction along the wall: park the leaf over whichever
+  // adjacent wall segment has more room (so the open leaf always overlaps real
+  // wall, never floats past the end). −1 = toward the wall's start, +1 = end.
+  const spaceBefore = opening.offset
+  const spaceAfter = Math.max(0, len - (opening.offset + opening.width))
+  const slideDir = spaceBefore >= spaceAfter ? -1 : 1
 
   useFrame((_, dt) => {
     // Hide with the host wall when an EXTERNAL wall sits between the orbit camera
@@ -240,7 +276,19 @@ export function PlanDoorLeaf({
           : angleRef.current + Math.sign(target - angleRef.current) * step
     }
     const swingSign = swing === 'left' ? 1 : -1
-    if (isBifold) {
+    if (isSliding) {
+      // Slide the leaf along the wall axis (local X) — no rotation. Open = the
+      // leaf fully translated by its own width so it clears the opening and
+      // overlaps the adjacent wall segment.
+      const t = angleRef.current / SWING_RAD
+      if (slideRef.current)
+        slideRef.current.position.x = centerLocalX + slideDir * t * opening.width
+    } else if (isDouble) {
+      // Two half-width leaves hinged at BOTH jambs, swinging to the same side:
+      // mirror rotations (opposite signs) about the two jamb pivots.
+      if (leafARef.current) leafARef.current.rotation.y = swingSign * angleRef.current
+      if (leafBRef.current) leafBRef.current.rotation.y = -swingSign * angleRef.current
+    } else if (isBifold) {
       // Simple honest visual (not true accordion kinematics): the outer leaf
       // swings 0→45° at the jamb, the inner leaf folds a further 0→90° at the
       // mid-fold hinge — both in the SAME rotational sense — so a fully open
@@ -254,6 +302,65 @@ export function PlanDoorLeaf({
   })
 
   if (len === 0) return null
+
+  // Shared click handler (orbit mode is view-only — see Door.tsx).
+  const onLeafToggle = (e: { stopPropagation: () => void }) => {
+    if (!dispatchWalkInteract(useStore.getState(), opening.id, toggle)) return
+    e.stopPropagation()
+  }
+
+  if (isSliding) {
+    // Single full-width leaf that slides along the wall (no swing), mounted
+    // barn-door style just PROUD of the wall on the room (swing) side so the
+    // parked leaf stays visible against the adjacent wall instead of vanishing
+    // into the wall cavity. `slideRef` starts centred in the opening and
+    // translates by up to its own width (see the `useFrame` slide branch). Local
+    // +Z is the wall's 'right' normal, so the room side is +Z for a right swing.
+    const slideZ = (swing === 'right' ? 1 : -1) * (LEAF_THICK / 2 + 0.11)
+    return (
+      <group ref={rootRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
+        <group ref={slideRef} position={[centerLocalX, opening.sill, 0]}>
+          <mesh
+            position={[0, height / 2, slideZ]}
+            onClick={onLeafToggle}
+            material={leafMat}
+            castShadow
+          >
+            <boxGeometry args={[opening.width, height, LEAF_THICK]} />
+          </mesh>
+        </group>
+      </group>
+    )
+  }
+
+  if (isDouble) {
+    // Two half-width leaves hinged at BOTH jambs, swinging to the same side
+    // (mirror rotations in the `useFrame` double branch). Leaf A pivots at the
+    // start jamb and extends toward the centre (+X); leaf B pivots at the end
+    // jamb and extends toward the centre (−X).
+    const halfWidth = opening.width / 2
+    const dblLeaf = (key: string, dir: 1 | -1) => (
+      <mesh
+        key={key}
+        position={[(dir * halfWidth) / 2, height / 2, 0]}
+        onClick={onLeafToggle}
+        material={leafMat}
+        castShadow
+      >
+        <boxGeometry args={[halfWidth, height, LEAF_THICK]} />
+      </mesh>
+    )
+    return (
+      <group ref={rootRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
+        <group ref={leafARef} position={[startJambX, opening.sill, 0]}>
+          {dblLeaf('leafA', 1)}
+        </group>
+        <group ref={leafBRef} position={[endJambX, opening.sill, 0]}>
+          {dblLeaf('leafB', -1)}
+        </group>
+      </group>
+    )
+  }
 
   if (isBifold) {
     // Two half-width leaves: the outer leaf hinges at the jamb (`swingRef`,

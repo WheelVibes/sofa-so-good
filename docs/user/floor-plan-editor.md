@@ -107,9 +107,12 @@ furniture inspector — a **Name** field on top, then a grid of quick actions:
   beam-and-column wall behind what looks like a plain partition on plan.
 - **Doors / windows** — *Flip hinge* and *Flip swing* (doors), *Duplicate*,
   *Lock* and *Delete*, plus the offset / width / sill / head fields. A **Style**
-  picker sets a **door** style (**Panelled**, **Flush**, **Glazed** or
+  picker sets a **door** style (**Panelled**, **Flush**, **Glazed**,
   **Bifold** — the standard toilet/utility door, folding into two half-width
-  leaves) or a **window** style (**Plain glass**, **Safety grille**,
+  leaves — **Sliding** — the leaf slides along the wall instead of swinging, the
+  usual kitchen / service-yard / balcony door — or **Double** — two half-width
+  leaves swinging open together, for a condo main door or a large master
+  bedroom) or a **window** style (**Plain glass**, **Safety grille**,
   **Invisible grille** — hair-thin near-invisible cables instead of visible
   bars — or **Louvre**); a colour picker sets the door's **Leaf colour** or the
   window's **Glass tint**; and a door also gets a **Material** picker

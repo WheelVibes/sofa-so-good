@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.71 — Opening variants round 2: sliding + double doors, brass primitive re-route
+
+`style: 'sliding'` (the SG kitchen/service-yard/balcony norm): 3D leaf
+translates along the wall barn-door style off the shared open/close timing;
+2D plan symbol is a leaf bar + slide-direction arrow with NO swing arc, and
+`doorSwingClearRect` returns null so only the both-sides approach strip
+constrains placement. `style: 'double'` (condo main doors): two half-width
+mirror-hinged leaves, two quarter-arc 2D symbol, conservative full-width
+swing keep-out. New shared `doorSwing.ts:doorPlanSymbol` builder now feeds
+BOTH the 2D editor OpeningsLayer and reportPlanSvg (one source of truth);
+DXF + door schedule verified style-agnostic. Inspector gains Sliding/Double.
+Ride-along: 5 primitives (BarCart, TowelLadder, AltarCabinet, Vanity,
+Sideboard) re-routed from hardcoded brass hexes to the CAT-A brushed-brass
+helpers, same tone. 877 targeted tests incl. new doorSwing suite; GPU shots
+verify slide-not-swing, mirror swing, and both 2D symbols.
+
 ## v0.22.2.70 — CAT-B: SG furniture round (altar cabinet, banquette, lift bed, water heater, fluted partition, table leaf)
 
 Six research-ranked SG-home furniture gaps, all procedural. Extendable

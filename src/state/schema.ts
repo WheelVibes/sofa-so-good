@@ -294,6 +294,9 @@ const PlanOpeningZ = z.object({
   // Optional door-leaf / window-glass colour (elementColors) — additive, back-compat.
   color: z.string().optional(),
   // Optional door/window style/type (openingStyles) — additive, back-compat.
+  // Doors: panel/flush/glazed/bifold/sliding/double; windows:
+  // plain/grille/invisible-grille/louvre. Kept a free string (no closed enum)
+  // so a future style needs no schema/version bump.
   style: z.string().optional(),
   // Optional door-leaf material/finish (`painted`/`wood`/`vinyl`) — additive,
   // back-compat; ignored for windows.

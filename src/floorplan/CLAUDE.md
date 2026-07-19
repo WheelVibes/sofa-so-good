@@ -48,17 +48,32 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   it reads from below and stays culled from above. Applies to the **flat** ceiling only; a designed
   (tray/coffered/dropped/sloped) treatment keeps its plain planes. Same additive schema shape.
 - **Door/window styles (`openingStyles`):** `PlanOpening.style` selects a door type
-  (`panel`/`flush`/`glazed`/`bifold`) or window type (`plain`/`grille`/`invisible-grille`/`louvre`),
+  (`panel`/`flush`/`glazed`/`bifold`/`sliding`/`double`) or window type
+  (`plain`/`grille`/`invisible-grille`/`louvre`),
   rendered as pure procedural geometry by `PlanDoorLeaf` (panel/glaze/bifold branches — bifold is two
   half-width leaves that fold at a mid-hinge, a simple visual not true accordion kinematics; the 2D
-  swing arc keeps the standard full-width envelope for it) and `PlanShell`'s `FadeWindow`
+  swing arc keeps the standard full-width envelope for it; **`sliding`** is a single slab that
+  TRANSLATES along the wall — barn-door style, proud of the wall on the room side — driven by the same
+  open/close timing; **`double`** is two half-width leaves hinged at BOTH jambs swinging the same side,
+  mirror rotations, the SG condo main-door / large master-bedroom norm) and `PlanShell`'s `FadeWindow`
   (grille/invisible-grille/louvre bars — invisible-grille is hair-thin near-transparent cables vs.
   grille's chunky visible bars; the vertical-bar/louvre-slat layout maths lives in
   `windowGrilleLayout.ts`, pure + unit-tested); same additive schema shape as `color`. A door ALSO
   carries `PlanOpening.material` (`painted`/`wood`/`vinyl`, `doorMaterial.ts:
   resolveDoorLeafMaterialKind` — defaults to `vinyl` for `bifold`, `painted` otherwise) selecting its
   leaf's real finish via `materials/furnitureMaterials.ts` (`getPaintedMaterial`/`getWoodMaterial`/
-  `getVinylMaterial`); windows ignore it. Same additive schema shape as `style`.
+  `getVinylMaterial`); windows ignore it. Same additive schema shape as `style`. The **2D plan
+  symbol** is built ONCE by `doorSwing.ts:doorPlanSymbol(wall, o)` (world metres) and shared by every
+  consumer — `OpeningsLayer` (editor), `reportPlanSvg` (report/drawing set); DXF export and the
+  door/window schedule are style-agnostic (a door is a plain gap line / a `Door` row for ALL styles,
+  as before). It returns either swing `leaves` (one for panel/flush/glazed/bifold, TWO quarter-arcs
+  for `double`) or a `sliding` `{bar, arrow}` (leaf bar beside the opening + a slide-direction arrow,
+  NO arc). **Keep-out** (`doorSwingClearRect`, consumed by `layout/clearance.ts`): `sliding` returns
+  **null** — a slider sweeps nothing, so it contributes NO quarter-circle keep-out, only the
+  both-sides walk-through strip from `doorApproachRects`; `double` returns a **conservative full-width
+  rect** (both quarters + the gap between them, `width/2` deep) rather than a literal two-arc trace.
+  `style` stays a FREE string (no closed zod enum) in `types.ts` + `schema.ts` — adding a style needs
+  no version bump; keep the two files' documented value list in parity.
 - **Wall structural classification (TODO G7, `wallStructure` pro flag):**
   `PlanWall.structure?: 'load-bearing'|'rc-partition'|'brick-partition'|'drywall'|'unknown'`
   (absent = `'unknown'`) is **user-declared, never verified** — the app cannot tell a
