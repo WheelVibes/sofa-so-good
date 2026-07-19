@@ -85,6 +85,7 @@ export type PrimitiveKind =
   | 'PottedPlant'
   | 'FlatscreenTV'
   | 'AirconUnit'
+  | 'AirconCondenser'
   | 'Refrigerator'
   | 'FloorLamp'
   | 'Toilet'

@@ -93,6 +93,7 @@ export const ITEM_PRICE: Record<string, number> = {
   microwave: 180,
   'range-hood': 350,
   'aircon-unit': 1200,
+  'aircon-condenser': 900,
   // Bathroom
   toilet: 400,
   'bathroom-sink': 280,

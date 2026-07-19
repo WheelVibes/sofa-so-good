@@ -121,6 +121,23 @@ describe('buildRenovationAllocation', () => {
     }
   })
 
+  it('counts PLACED FCUs for the aircon line when present (BSJ-2 refinement)', () => {
+    // Add three placed aircon-unit FCUs (real quote basis) — the aircon line
+    // should count those (3), not the per-habitable-room proposal (2).
+    const catalog: Record<string, FurnitureDef> = {
+      ...CATALOG,
+      'aircon-unit': {
+        defaultFootprint: { w: 0.84, d: 0.22, h: 0.3 },
+        category: 'appliances',
+      } as FurnitureDef,
+    }
+    const items = [...ITEMS, item('aircon-unit'), item('aircon-unit'), item('aircon-unit')]
+    const a = buildRenovationAllocation({ ...baseInput(), catalog, items })
+    const aircon = a.lines.find((l) => l.id === 'aircon')!
+    expect(aircon.quantity).toBe(3)
+    expect(aircon.unit).toBe('units')
+  })
+
   it('has no ceiling / hacking line without a treatment or baseline', () => {
     const a = buildRenovationAllocation(baseInput())
     expect(a.lines.find((l) => l.id === 'ceiling')).toBeUndefined()

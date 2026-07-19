@@ -1,3 +1,5 @@
+import { planAirconPlacements } from '../../analysis/airconPlacement'
+import { buildAirconSystemPlan } from '../../analysis/airconSystem'
 import { isDefaultPlan } from '../../floorplan/planGeometry'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import { defaultLayout } from '../../furniture/defaultLayout'
@@ -39,6 +41,21 @@ export interface ResetSlice {
    *  bathroom sanitary fittings, replacing the current furniture with the bare
    *  OCS deliverables. One undo step. */
   applyOcsStarter: () => void
+  /** Plan the aircon SYSTEM (BSJ-2): compute the System-2/3/4 condenser
+   *  proposal for the current plan and place/refresh an FCU (`aircon-unit`) in
+   *  each served room + the condenser(s) (`aircon-condenser`) on the AC-ledge /
+   *  service-yard room. Removes any existing aircon units first so re-running
+   *  UPDATES rather than duplicating (the planner owns aircon placement). One
+   *  undo step. Returns the counts placed. */
+  planAircon: () => { fcus: number; condensers: number }
+}
+
+/** Fresh item id (mirrors `itemsSlice.newId`). */
+function airconItemId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `id-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`
 }
 
 /** Layout entries store only overrides; merge schema defaults so primitives
@@ -148,5 +165,41 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
       selectedItemIds: [],
       hiddenItemIds: [],
     })
+  },
+  planAircon: () => {
+    const plan = get().floorPlan
+    const systemPlan = buildAirconSystemPlan(plan, get().orientationDeg)
+    const placements = planAirconPlacements(plan, systemPlan)
+    // Suggest-then-apply, one undo step (mirrors suggestMepPoints): drop the
+    // existing planner-owned aircon items, then append the fresh set.
+    const kept = get().items.filter(
+      (it) => it.defId !== 'aircon-unit' && it.defId !== 'aircon-condenser',
+    )
+    if (placements.length === 0) {
+      // Still remove stale aircon items if the plan now has none to place.
+      if (kept.length !== get().items.length) {
+        get().pushHistory()
+        set({ items: kept, selectedItemId: null, selectedItemIds: [] })
+      }
+      return { fcus: 0, condensers: 0 }
+    }
+    const added = placements.map((p) => ({
+      id: airconItemId(),
+      defId: p.defId,
+      position: p.position,
+      rotation: p.rotation,
+      props: p.props,
+      ...(p.levelId ? { levelId: p.levelId } : {}),
+    }))
+    get().pushHistory()
+    set({
+      items: [...kept, ...added],
+      selectedItemId: null,
+      selectedItemIds: [],
+    })
+    return {
+      fcus: placements.filter((p) => p.defId === 'aircon-unit').length,
+      condensers: placements.filter((p) => p.defId === 'aircon-condenser').length,
+    }
   },
 })

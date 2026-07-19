@@ -175,6 +175,28 @@ vents its cooking heat into. Each room shows a recommended standard split size
 whole‑home installed capacity for a multi‑split system. It's sizing guidance to
 take to your aircon installer, not a substitute for a full heat‑load survey.
 
+## Aircon system planner (Pro)
+
+Below the per‑room BTU list, the **Aircon system** section turns the sizing into
+the actual purchase decision — which **multi‑split system** to buy and where the
+units go. It groups the habitable rooms into outdoor **condensers** the SG way:
+the day/common zone (living + dining) on one condenser, the bedrooms + study on
+another (so night bedroom cooling runs independently), giving you named
+**System‑2 / System‑3 / System‑4** proposals (one condenser + 2/3/4 indoor
+fan‑coil units). Each proposed system shows its indoor units, the total
+**connected load vs the condenser's nominal capacity** as a percentage + bar
+(flagged red if it exceeds the ~130% industry connection‑ratio cap), and a
+one‑line **trunking advisory** (pipe route from the AC ledge — confirm with your
+installer). A zone with more than four units splits onto a second condenser, and
+when two or more condensers land on one ledge the panel checks their combined
+weight against the **~110 kg HDB AC‑ledge panel guideline**.
+
+Tap **Plan aircon** to place it: a wall fan‑coil unit high on each served room's
+wall (2.25 m) and the outdoor condenser(s) on the **AC ledge** (or service yard /
+balcony). Re‑running it updates the placement rather than duplicating, and it's a
+single undo step. _(A 3D refrigerant‑trunking route is a documented future
+addition — for now the route is an advisory note.)_
+
 ## SG renovation rules (Pro)
 
 **Tools → Reno rules** opens a compact **SG renovation rules** reference panel

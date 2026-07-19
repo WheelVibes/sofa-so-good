@@ -191,6 +191,7 @@ export type FeatureFlag =
   | 'parametricStairs'
   | 'parametricRoof'
   | 'airconSizing'
+  | 'airconSystem'
   | 'ceilingClearance'
   | 'hackabilityOverlay'
   | 'ocsStarter'

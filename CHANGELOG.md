@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.96 — BSJ-2: aircon SYSTEM planner (multi-split grouping + placement)
+
+The purchase/installation decision the per-room BTU data stopped short of.
+`analysis/airconSystem.ts` groups habitable rooms into SG multi-split
+systems (capacity table cited to 2025-26 installer guides: System-2 24k /
+System-3 30k / System-4 38k BTU nominal; ≤130% connection ratio; ≤4 FCU
+per condenser; common vs private usage zones), flags over-capacity,
+two-condenser cases, and the ~110 kg HDB ledge guideline (default 4-room:
+single-split living + System-3 bedrooms, 2 condensers ≈78 kg). "Plan
+aircon" (suggest-then-apply, one undo step) places FCUs flush on exterior
+walls at 2.25 m and the new `aircon-condenser` def on the AC ledge.
+Renovation-budget aircon line now reads placed FCUs (else the proposal).
+`airconSystem` pro flag; trunking is a per-system advisory note with the
+3D route visual filed. 680 targeted tests; proposal + placed units
+GPU-verified.
+
 ## v0.22.2.95 — Guard fix: RenovationBudgetPanel margins tokenized
 
 The full gate caught literal px margins in the new budget panel

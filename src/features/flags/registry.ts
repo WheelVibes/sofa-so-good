@@ -1775,6 +1775,18 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Aircon SYSTEM planner (blank-slate BSJ-2): groups the per-room BTU sizing
+  // into System-2/3/4 condenser proposals (which rooms share a condenser, load
+  // %, over-provisioning cap, HDB ledge-weight check) and places FCUs + the
+  // condenser(s) on the ledge. Pure client-side over data the app already
+  // computes → prod-safe; an analytical/professional planning surface → pro
+  // tier (rides alongside `airconSizing` in the Cooling-load section).
+  airconSystem: {
+    label: 'Aircon system planner',
+    description: 'Group rooms into System-2/3/4 condensers + place FCUs and the outdoor unit',
+    default: true,
+    tier: 'pro',
+  },
   // False-ceiling clearance validator (UX research round 4 R4-2): warns when a
   // dropped/cove ceiling zone leaves under the SG comfort/statutory finished
   // clearance (≥2.4 m under a dropped ceiling; 2.6 m standard slab), and reports

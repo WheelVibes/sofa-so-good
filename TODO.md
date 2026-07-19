@@ -450,11 +450,18 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
   `estimateRenovation` unchanged). Surfaced as `RenovationBudgetPanel` in File → Budget & costs
   (`renoBudget` flag, simple, default on) with CSV export + budget-target compare; rates editable in
   the Quote-template price-rules section. Tests: `renovationAllocator.test.ts` + `renoBudget.test.ts`.
-- [ ] **BSJ-2 — Aircon SYSTEM planner** (M, pro) — extend `airconSizing.ts` past per-room
-  BTU: group habitable rooms into System-2/3/4 sets, sum FCU load per condenser, recommend
-  condenser count + check the ~110 kg/panel HDB ledge limit, place condenser(s) on the ledge/
-  service yard + FCUs per room. `SYSTEM_SIZES` today are single-unit sizes only. Second-
-  biggest reno decision after carpentry. Pure client.
+- [x] **BSJ-2 — Aircon SYSTEM planner** (M, pro) — DONE: pure `analysis/airconSystem.ts`
+  (`buildAirconSystemPlan`) groups habitable rooms into common/private usage zones → System-2/3/4
+  condenser proposals with connected-load %, cited nominal-capacity table + ~130% connection-ratio
+  cap, per-system trunking note, two-condenser split (>4 FCUs) and ~110 kg HDB ledge-weight advisory.
+  Pure `analysis/airconPlacement.ts` places a flush wall FCU (`aircon-unit`) per served room + the
+  condenser(s) (new `aircon-condenser` def/`AirconCondenser` primitive) on the AC-ledge/yard/balcony;
+  `resetSlice.planAircon` applies it suggest-then-apply (one undo step). "Aircon system" section +
+  "Plan aircon" action in `DaylightPanel`, `airconSystem` pro flag. `renovationAllocator` aircon line
+  reads placed FCUs when present, else the planner proposal. Tests: `airconSystem.test.ts`,
+  `airconPlacement.test.ts`, `resetSlice.aircon.test.ts`, `features/airconSystem.test.ts` +
+  allocator pin. Scenario `aircon-system-bsj2.json` (proposal panel + placed 3D, GPU-verified).
+  Follow-up filed below (3D trunking route).
 - [ ] **BSJ-3 — Lighting & switching schematic** (M, pro) — link a `switch` MEP point to the
   fixtures it controls (one-way/two-way), emit a lighting-control schedule + schematic for the
   electrician. `mepPoints.ts` has a `switch` kind but no switch→fixture link;
@@ -484,6 +491,15 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
   finish thickness/level so finish transitions, door undercut, and the bathroom kerb/step-down
   are representable; emit a transitions schedule (also refines floor-loading). No floor-level
   model exists today. Pure client.
+- [ ] **BSJ-2 follow-up — 3D refrigerant-trunking route** (S/M, pro) — the aircon system planner
+  (BSJ-2) currently emits a one-line trunking ADVISORY per system ("runs from the AC ledge along
+  the corridor ceiling — confirm with installer") rather than a modeled route. Approach when built:
+  a pure `analysis/airconTrunking.ts` that routes an orthogonal polyline from each served room's FCU
+  to its condenser on the ledge, hugging the corridor ceiling (reuse `planRoomShell` walls +
+  `roomCategory` to find the corridor spine + door thresholds to cross rooms), rendered as a thin
+  ducted-trunking run in the 3D scene (a mounted `noClip` polyline mesh at ceiling height) and marked
+  on the RCP/electrical sheet. Feeds a real pipe-length quantity into the aircon budget line. Pure
+  client. Keep the advisory note as the fallback when the route can't be resolved.
 - Near-misses CLEARED (verified covered, don't re-propose): full appliance catalog (fridge/
   washer/dishwasher/oven/microwave/hood/hob/wine-cooler/water-heater/aircon FCU); TV 43-75"
   sizes; curtains/roller/roman/zebra/drapery; carpentry (kitchen/wardrobe/feature-wall/study/

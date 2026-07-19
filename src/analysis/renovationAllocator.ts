@@ -33,7 +33,7 @@ import { diffWalls } from '../floorplan/demolitionPlan'
 import { roomCategory } from '../floorplan/roomCategory'
 import { type FloorPlan, type PlanRoom, planRoomArea, planRoomPerimeter } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
-import { buildAirconSizing } from './airconSizing'
+import { buildAirconSystemPlan } from './airconSystem'
 import type { PriceRules, TradeRates } from './renovationCost'
 import { floorRateKind } from './renovationCost'
 
@@ -99,9 +99,6 @@ export interface RenoAllocatorInput {
 
 /** Wet-work room categories: floors + walls are tiled + waterproofed. */
 const WET_CATEGORIES = new Set(['bath', 'powder', 'kitchen'])
-/** Rooms that get an aircon indoor unit (habitable/occupied) — SG homes don't
- *  air-condition wet areas, service yards, stores or foyers. */
-const AIRCON_CATEGORIES = new Set(['living', 'dining', 'bedroom', 'masterBedroom', 'study'])
 
 /** DefId patterns that price as built-in carpentry (linear-metre runs). */
 const CARPENTRY_RE = /cabinet|wardrobe|kitchen-counter|kitchen-island|vanity/
@@ -204,12 +201,18 @@ export function buildRenovationAllocation(input: RenoAllocatorInput): RenoAlloca
   const mepPoints =
     (Array.isArray(plan.electricalPoints) ? plan.electricalPoints.length : 0) +
     (Array.isArray(plan.plumbingPoints) ? plan.plumbingPoints.length : 0)
-  const airconRoomIds = new Set(
-    rooms.filter((r) => AIRCON_CATEGORIES.has(roomCategory(r))).map((r) => r.id),
-  )
-  const airconUnits = buildAirconSizing(plan, input.orientationDeg ?? 0).rooms.filter(
-    (r) => r.recommendedBtu > 0 && airconRoomIds.has(r.roomId),
+  // Aircon indoor-unit (FCU) count for the aircon trade line. Prefer the units
+  // the user has ACTUALLY placed (`aircon-unit`, e.g. after "Plan aircon") — the
+  // real quote basis; otherwise fall back to the system planner's proposal
+  // (BSJ-2), which counts one FCU per served habitable room (identical to the
+  // legacy per-room count, so no regression before any FCU is placed).
+  const placedFcuCount = items.filter(
+    (it) => it.defId === 'aircon-unit' && catalog[it.defId],
   ).length
+  const airconUnits =
+    placedFcuCount > 0
+      ? placedFcuCount
+      : buildAirconSystemPlan(plan, input.orientationDeg ?? 0).fcuCount
 
   // --- Hacking (baseline diff) ----------------------------------------------
   const hackedLm = input.baselinePlan ? diffWalls(input.baselinePlan, plan).hackedLengthM : 0

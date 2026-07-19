@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { buildAirconSizing } from '../analysis/airconSizing'
+import { buildAirconSystemPlan } from '../analysis/airconSystem'
 import { buildDaylightReport, DAYLIGHT_MIN_RATIO, VENT_MIN_RATIO } from '../analysis/daylight'
 import { useFeature } from '../features/useFeature'
 import { useStore } from '../state/store'
@@ -25,11 +26,20 @@ export function DaylightPanel() {
   // pro checks defaulting on. It renders ONLY while this Daylight panel is open
   // (an accepted coupling: there is no standalone cooling panel).
   const coolingOn = useFeature('airconSizing')
+  // Aircon SYSTEM planner (BSJ-2) — condenser grouping proposal + place action.
+  // Rides in the same Cooling-load area; its own pro flag gates the section.
+  const systemOn = useFeature('airconSystem')
+  const planAircon = useStore((s) => s.planAircon)
+  const notify = useStore((s) => s.notify)
 
   const report = useMemo(() => (open ? buildDaylightReport(plan) : null), [open, plan])
   const cooling = useMemo(
     () => (open && coolingOn ? buildAirconSizing(plan, orientationDeg) : null),
     [open, coolingOn, plan, orientationDeg],
+  )
+  const systemPlan = useMemo(
+    () => (open && systemOn ? buildAirconSystemPlan(plan, orientationDeg) : null),
+    [open, systemOn, plan, orientationDeg],
   )
 
   if (!open || !report) return null
@@ -181,6 +191,111 @@ export function DaylightPanel() {
               <Icon.Check width={14} height={14} />
               Whole home ≈ {fmtBtu(cooling.totalSystemBtu)} installed capacity.
             </div>
+          </>
+        )}
+
+        {systemPlan && systemPlan.systems.length > 0 && (
+          <>
+            <hr className="hr" />
+            <div className="sec-h">Aircon system</div>
+            <div
+              style={{
+                color: 'var(--text-3)',
+                fontSize: 'var(--t-2xs)',
+                marginBottom: 'var(--s-2)',
+              }}
+            >
+              Proposed multi-split systems — {systemPlan.condenserCount}{' '}
+              {systemPlan.condenserCount === 1 ? 'condenser' : 'condensers'} driving{' '}
+              {systemPlan.fcuCount} indoor units.
+            </div>
+            <div className="clr-list">
+              {systemPlan.systems.map((sys) => {
+                const pct = Math.round(sys.loadRatio * 100)
+                return (
+                  <div key={sys.index} className={`clr-item ${sys.overCapacity ? 'err' : ''}`}>
+                    <div className="ci-head">
+                      <span className={`badge ${sys.overCapacity ? 'err' : 'ok'}`}>{pct}%</span>
+                      <span className="ci-title">
+                        {sys.label} · {sys.fcus.length} FCU
+                      </span>
+                    </div>
+                    <div className="ci-detail">
+                      <div>{sys.fcus.map((f) => f.roomName).join(', ')}</div>
+                      <div
+                        style={{ marginTop: 4, color: 'var(--text-3)', fontSize: 'var(--t-2xs)' }}
+                      >
+                        {fmtBtu(sys.connectedBtu)} connected · {fmtBtu(sys.condenserNominalBtu)}{' '}
+                        condenser
+                      </div>
+                      {/* Connection-ratio load bar (100% = full, cap ~130%). */}
+                      <div
+                        style={{
+                          marginTop: 5,
+                          height: 6,
+                          borderRadius: 'var(--r-1)',
+                          background: 'var(--surface-3)',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <div
+                          style={{
+                            height: '100%',
+                            width: `${Math.min(100, (sys.loadRatio / 1.3) * 100)}%`,
+                            background: sys.overCapacity ? 'var(--danger)' : 'var(--accent)',
+                          }}
+                        />
+                      </div>
+                      {sys.overCapacity && (
+                        <div
+                          style={{ marginTop: 4, color: 'var(--text-3)', fontSize: 'var(--t-2xs)' }}
+                        >
+                          Over the ~130% connection-ratio cap — specify a higher-capacity condenser
+                          or split this system.
+                        </div>
+                      )}
+                      <div
+                        style={{ marginTop: 4, color: 'var(--text-3)', fontSize: 'var(--t-2xs)' }}
+                      >
+                        {sys.trunkingNote}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            {systemPlan.ledgeWeightNote && (
+              <div className="ci-fix" style={{ marginTop: 'var(--s-3)' }}>
+                <Icon.Check width={14} height={14} />
+                {systemPlan.ledgeWeightNote}
+              </div>
+            )}
+            <button
+              type="button"
+              className="btn btn-sm"
+              style={{ marginTop: 'var(--s-3)', width: '100%' }}
+              onClick={() => {
+                const { fcus, condensers } = planAircon()
+                if (fcus === 0 && condensers === 0) {
+                  notify.start({
+                    title: 'Nothing to place',
+                    kind: 'info',
+                    message: 'No habitable rooms to fit an aircon system.',
+                  })
+                } else {
+                  notify.start({
+                    title: `Placed ${fcus} FCU${fcus === 1 ? '' : 's'} + ${condensers} condenser${
+                      condensers === 1 ? '' : 's'
+                    }`,
+                    message:
+                      condensers > 0 ? 'Units on walls, condensers on the AC ledge.' : undefined,
+                  })
+                }
+              }}
+              title="Place a wall FCU in each served room + the condenser(s) on the AC ledge"
+            >
+              Plan aircon
+            </button>
           </>
         )}
       </div>

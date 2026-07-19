@@ -1591,7 +1591,8 @@ same change that reshapes a system.
   a full SG **trade** breakdown — hacking (from `demolitionPlan.diffWalls` vs. the baseline), masonry/wet
   works (wet-room tiling area), flooring (dry floors), carpentry (placed cabinet/wardrobe/counter lin.m),
   ceiling works (non-flat ceiling area), painting (dry wall area net of openings), M&E (electrical +
-  plumbing point count), aircon (habitable-room FCU count from `airconSizing`), glass & aluminium
+  plumbing point count), aircon (PLACED `aircon-unit` FCU count when present, else the `airconSystem`
+  planner's per-room proposal), glass & aluminium
   (shower-screen/partition area), plumbing fixtures (count), + a contingency line and indicative SG
   reference bands. Reuses ONE rate card: tiling/flooring/painting/carpentry from `PriceRules`
   `floor`/`wall`/`carpentryPerM`, the trades with no prior rate from the additive `PriceRules.trades`
@@ -1651,6 +1652,19 @@ same change that reshapes a system.
   rounded up to a standard split size `[9k,12k,18k,24k]`, external rooms skipped, whole-flat total).
   Rides the Daylight & ventilation panel (`ui/DaylightPanel.tsx` "Cooling load" section) gated by the
   `airconSizing` pro flag (R4-1).
+- **Aircon SYSTEM planner (BSJ-2)** (`analysis/airconSystem.ts` pure → `buildAirconSystemPlan(plan,
+  orientationDeg)`: groups the served (habitable) rooms from `buildAirconSizing` into common (living/
+  dining) vs private (bedroom/study) usage zones, packs each zone onto outdoor condensers of ≤4 FCUs
+  (`MAX_FCU_PER_CONDENSER`) → System-2/3/4 proposals with connected-load %, over-`MAX_CONNECTION_RATIO`
+  (130%) flag against a cited nominal-capacity table (`CONDENSER_NOMINAL_BTU`), per-system trunking
+  note, and a ~110 kg (`LEDGE_MAX_KG`) ledge-weight advisory when ≥2 condensers share a ledge).
+  Placement is pure `analysis/airconPlacement.ts:planAirconPlacements` — a wall FCU (`aircon-unit`)
+  flush on each served room's exterior wall at 2.25 m + condenser(s) (`aircon-condenser`, new
+  `AirconCondenser` primitive) on the AC-ledge / service-yard / balcony room (`findLedgeRoom`).
+  Applied by `resetSlice.planAircon` (suggest-then-apply: drops existing aircon items, appends the
+  fresh set, ONE undo step). Surfaced as the "Aircon system" section + "Plan aircon" action in
+  `DaylightPanel`, gated by the `airconSystem` pro flag. The `renovationAllocator` aircon line now
+  counts PLACED FCUs when present, else this planner's proposal.
 - **Door & window schedule** (`analysis/openingSchedule.ts` pure → `buildOpeningSchedule(plan)`:
   walks `plan.openings` across all storeys, resolves each opening's room(s) by a wall-midpoint probe
   (`PROBE_OFFSET`, as in `daylight.ts`), and groups openings with identical (kind, width, head−sill)
