@@ -1,0 +1,79 @@
+{
+  "name": "default-layout-rm4",
+  "url": "http://localhost:5211/",
+  "steps": [
+    {
+      "name": "viewport",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      }
+    },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.setOnboardingOpen?.(false); s.endTour?.(); s.dismissLocationPrompt?.(); s.setLocation?.({ lat: 1.3521, lon: 103.8198, label: 'SG' }); s.setManualHour?.(13); s.setQualityTier?.('high'); })()"
+    },
+    {
+      "name": "scene-ready",
+      "store": {
+        "action": "setSceneReady",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "reset-default",
+      "store": {
+        "action": "resetToDefault",
+        "args": []
+      }
+    },
+    {
+      "name": "home-view",
+      "store": {
+        "action": "requestHomeView",
+        "args": []
+      }
+    },
+    {
+      "name": "wait-overview",
+      "wait": 3000
+    },
+    {
+      "name": "shot-overview",
+      "screenshot": "default-flat-overview"
+    },
+    {
+      "name": "cam-ld",
+      "eval": "(() => { const c=window.__three.controls, cam=window.__three.camera; cam.position.set(8.6,2.6,7.6); c.target.set(11.0,0.8,4.0); c.update(); })()"
+    },
+    {
+      "name": "wait-ld",
+      "wait": 2500
+    },
+    {
+      "name": "shot-ld",
+      "screenshot": "living-dining"
+    },
+    {
+      "name": "cam-master",
+      "eval": "(() => { const st=window.__store.getState(); const room=st.floorPlan.rooms.find(r=>/master|main/i.test(r.name)||r.id==='mainBedroom'); const [x0,z0]=room.origin; const cx=x0+room.width/2, cz=z0+room.depth/2; const c=window.__three.controls, cam=window.__three.camera; cam.position.set(cx+0.3,5.2,cz+2.4); c.target.set(cx,0.4,cz); c.update(); })()"
+    },
+    {
+      "name": "wait-master",
+      "wait": 2500
+    },
+    {
+      "name": "shot-master",
+      "screenshot": "master-bedroom"
+    }
+  ]
+}

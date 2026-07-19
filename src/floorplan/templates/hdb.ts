@@ -228,7 +228,7 @@ export function hdb3Gen(): FloorPlan {
       iwall('g3-liv-w', [6.2, T], [6.2, D - T]),
       // West bedroom column.
       iwall('g3-b-corr', [3.4, 3.2], [3.4, D - T]),
-      iwall('g3-b3-s', [T, 6.4], [3.4, 6.4]),
+      iwall('g3-b3-s', [T, 6.0], [3.4, 6.0]),
       iwall('g3-m-n', [T, 8.8], [3.4, 8.8]),
       // Grandparent ensuite at the SE of the living column.
       iwall('g3-g-bath-w', [4.6, 3.2], [4.6, 5.0]),
@@ -251,8 +251,8 @@ export function hdb3Gen(): FloorPlan {
       room('g3-living', 'Living / Dining', 6.4, 0.2, 3.9, 8.6, 'floor-wood-oak', 'living'),
       room('g3-gen', 'Grandparent Suite', 6.4, 8.8, 3.9, 2.4, 'floor-wood-oak', 'masterBedroom'),
       room('g3-gbath', 'Grandparent Bath', 4.7, 3.2, 1.5, 1.7, 'floor-tile-marble', 'bath'),
-      room('g3-bed2', 'Bedroom 2', 0.2, 3.2, 3.0, 3.0, 'floor-wood-walnut', 'bedroom'),
-      room('g3-bed3', 'Bedroom 3', 0.2, 6.6, 3.0, 2.0, 'floor-wood-walnut', 'bedroom'),
+      room('g3-bed2', 'Bedroom 2', 0.2, 3.2, 3.0, 2.6, 'floor-wood-walnut', 'bedroom'),
+      room('g3-bed3', 'Bedroom 3', 0.2, 6.2, 3.0, 2.4, 'floor-wood-walnut', 'bedroom'),
       room('g3-cbath', 'Common Bath', 0.2, 8.8, 1.6, 2.4, 'floor-tile-white', 'bath'),
       room('g3-master', 'Master Bedroom', 1.9, 9.0, 4.2, 2.2, 'floor-wood-oak', 'masterBedroom'),
       room('g3-mbath', 'Master Bath', 3.6, 6.8, 2.4, 2.0, 'floor-tile-marble', 'bath'),

@@ -25,11 +25,15 @@ when an item ships it is **removed from this file entirely**. Maintainability re
   keep-out, bed headboard/foot-to-door scoring, armchair grouping, dining↔kitchen adjacency,
   door APPROACH strips both sides + keep-outs for fixed-kind defs, all-templates
   `placementSoundness.test.ts` property test 19/19).
-- [ ] **RM4 — default layout refresh** (modern SG 4-room BTO move-in default). Include the two
-  template rooms exposed by the RM3 property test as too shallow for their beds (bed dropped by
-  `dropDoorBlockers` rather than blocking the door): `c3-master` (3.7×1.6 m "Master Bedroom" —
-  can't hold a queen legally) and `g3-bed3` (3.0×2.0 m) — rework the room geometry/door
-  placement so the beds fit.
+- [x] **RM4 — default layout refresh** (modern SG 4-room BTO move-in default). Master =
+  centred queen + 2 matching nightstands + sliding wardrobe; bedroom 2 = kids/guest (bed +
+  nightstand + sliding wardrobe, no desk); bedroom 3 = study/flexi (daybed + desk + office
+  chair + monitor + bookshelf); living/dining = sofa+ottoman lounge + 1.8 m TV console + living
+  curtains, main-door→kitchen path kept clear; galley kitchen with washer already in the service
+  yard; Modern Contemporary styling via the retuned `moveIn` preset (RM2). Reshaped the two
+  template rooms the property test flagged as too shallow: `c3-master` → 3.7×2.7 m (fits a queen
+  clear of the ensuite door) and `g3-bed3` → 3.0×2.4 m; both now furnish WITH a bed, pinned by
+  new assertions in `placementSoundness.test.ts` (21/21).
 
 ## Active — SG catalog expansion (user request 2026-07-19; research-ranked)
 > Research verdict: most SG staples already covered (shoe cabinet, ceiling fan, vinyl floor,

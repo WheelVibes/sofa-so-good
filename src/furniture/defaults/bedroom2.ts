@@ -1,7 +1,9 @@
 import type { LayoutEntry } from './types'
 
 /** Bedroom 2 — interior origin (3.15, 0.20), 2.85 × 3.40 m.
- *  Single bed along the east-side wall, desk against the south wall. */
+ *  RM4 refresh: a KIDS / GUEST room — a single bed with a bedside nightstand
+ *  and a sliding wardrobe on the south wall (the study desk moved to bedroom 3,
+ *  the flexi room). Warm rug + wall art keep it inviting. */
 export const bedroom2: LayoutEntry[] = [
   {
     id: 'default-b2-bed-single',
@@ -11,26 +13,33 @@ export const bedroom2: LayoutEntry[] = [
     props: {},
   },
   {
-    id: 'default-b2-desk',
-    defId: 'desk',
-    position: [4.55, 3.2],
-    rotation: 0,
-    props: { width: 1.2, depth: 0.55 },
-  },
-  { id: 'default-b2-chair', defId: 'office-chair', position: [4.55, 2.55], rotation: 0, props: {} },
-  {
-    id: 'default-b2-monitor',
-    defId: 'monitor',
-    position: [4.55, 3.08],
-    rotation: Math.PI,
-    props: { screen: 'on' },
-  },
-  {
     id: 'default-b2-nightstand',
     defId: 'nightstand',
-    position: [5.55, 0.65],
+    position: [4.9, 0.6],
     rotation: 0,
     props: {},
+  },
+  {
+    id: 'default-b2-tablelamp',
+    defId: 'table-lamp',
+    position: [4.9, 0.6],
+    rotation: 0,
+    props: { surfaceHeight: 0.52 },
+  },
+  {
+    // Sliding wardrobe on the south wall, west of the door (no swing clearance).
+    id: 'default-b2-wardrobe',
+    defId: 'wardrobe-3door',
+    position: [4.2, 3.3],
+    rotation: Math.PI,
+    props: { width: 1.4, doorStyle: 'sliding' },
+  },
+  {
+    id: 'default-b2-rug',
+    defId: 'rug',
+    position: [4.5, 1.7],
+    rotation: 0,
+    props: { width: 1.5, depth: 1.0, color: '#8a8f86', borderColor: '#5a605a' },
   },
   {
     id: 'default-b2-art',
@@ -46,37 +55,21 @@ export const bedroom2: LayoutEntry[] = [
     rotation: 0,
     props: { style: 'flush' },
   },
-  // Floating shelf over the desk on the south wall (faces into the room).
-  {
-    id: 'default-b2-shelf',
-    defId: 'wall-shelf',
-    position: [4.55, 3.55],
-    rotation: Math.PI,
-    props: { width: 1.0, depth: 0.2, mountHeight: 1.45 },
-  },
   // ── Set-dressing decor props ─────────────────────────────────────────────
-  // Book stack on the desk surface (h=0.74 m) — study room vibe.
-  {
-    id: 'default-b2-decor-books',
-    defId: 'book-stack',
-    position: [4.95, 3.12],
-    rotation: 0.1,
-    props: { surfaceHeight: 0.74, spineColor: '#7a4028', accentColor: '#3b5a6b' },
-  },
-  // Small desk plant on the other side of the desk.
+  // Small desk plant on the nightstand surface (h=0.52 m).
   {
     id: 'default-b2-decor-plant',
     defId: 'desk-plant',
-    position: [4.18, 3.12],
+    position: [4.9, 0.6],
     rotation: 0,
-    props: { surfaceHeight: 0.74, type: 'trailing', potColor: '#b89070', leafColor: '#5a9a4a' },
+    props: { surfaceHeight: 0.52, type: 'succulent', potColor: '#b89070', leafColor: '#5a9a4a' },
   },
-  // Photo frames on the wall shelf (mountHeight=1.45, shelf surface at ≈1.60 m).
+  // Throw cushion on the bed.
   {
-    id: 'default-b2-decor-frames',
-    defId: 'photo-frame-cluster',
-    position: [4.55, 3.48],
-    rotation: Math.PI,
-    props: { surfaceHeight: 1.6, frameColor: '#2c2420', finish: 'wood' },
+    id: 'default-b2-decor-cushion',
+    defId: 'throw-cushion',
+    position: [4.1, 0.9],
+    rotation: 0,
+    props: { surfaceHeight: 0.46, color: '#9fb0c0', accentColor: '#5a6b7a', shape: 'rect' },
   },
 ]

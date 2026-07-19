@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.68 — RM4: modern SG 4-room BTO default layout + shallow-room template fixes
+
+The move-in default flat now reads like a 2025-26 SG BTO. Living/dining:
+sofa + ottoman lounge, 1.8 m TV console, living-window curtains, main-door→
+kitchen path kept clear. Master: centred queen flanked by TWO matching
+nightstands + table lamps (headboard on the north wall — the only non-door
+wall that fits a queen span; both alternatives are the west window wall and
+the door wall, the standard SG compromise), sliding 3-door wardrobe (no
+swing clearance) on the east wall. Bedroom 2: kids/guest (bed + nightstand +
+sliding wardrobe). Bedroom 3: study/flexi (daybed + desk + office chair +
+monitor + bookshelf). Washer lives in the service yard. Modern Contemporary
+styling via the retuned moveIn preset (RM2). Also reshaped the two template
+rooms the RM3 property test flagged as too shallow to hold their beds:
+c3-master 3.7×1.6 → 3.7×2.7 m (queen now clears the ensuite door) and
+g3-bed3 3.0×2.0 → 3.0×2.4 m; both now furnish WITH a bed, pinned by explicit
+assertions in placementSoundness.test.ts (21/21). Visual scenario
+(default-layout-rm4) reviewed on GPU: overview + living/dining + master.
+
 ## v0.22.2.67 — RM3 part 2: door approach keep-outs + all-templates soundness property test
 
 Closes the door-path gap the new property test exposed (12 templates had

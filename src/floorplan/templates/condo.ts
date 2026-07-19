@@ -344,12 +344,13 @@ export function condo3Bed(): FloorPlan {
       iwall('c3-kit-e', [3.0, 4.4], [3.0, D - T]),
       iwall('c3-kit-n', [T, 4.4], [3.0, 4.4]),
       iwall('c3-yard-n', [T, 7.6], [3.0, 7.6]),
-      // Bedroom column on the east.
+      // Bedroom column on the east. Bedrooms tightened toward the north so the
+      // master gets a full 2.7 m depth (a queen + walk-around, RM4 template fix).
       iwall('c3-bed-w', [7.0, T], [7.0, D - T]),
-      iwall('c3-b2-s', [7.0, 3.0], [W - T, 3.0]),
-      iwall('c3-b3-s', [7.0, 6.0], [W - T, 6.0]),
+      iwall('c3-b2-s', [7.0, 2.6], [W - T, 2.6]),
+      iwall('c3-b3-s', [7.0, 5.0], [W - T, 5.0]),
       // Master ensuite split + common bath off the corridor (south-centre).
-      iwall('c3-mbath-n', [7.0, 7.8], [W - T, 7.8]),
+      iwall('c3-mbath-n', [7.0, 7.9], [W - T, 7.9]),
       iwall('c3-cbath-w', [5.2, 6.0], [5.2, D - T]),
       iwall('c3-cbath-n', [5.2, 6.0], [7.0, 6.0]),
       // Balcony off the living's south.
@@ -360,9 +361,9 @@ export function condo3Bed(): FloorPlan {
       door('c3-b2', 'c3-b2-s', 0.9),
       door('c3-b3', 'c3-b3-s', 0.9),
       window('c3-kit-win', 'c3-w', 5.0, 1.4),
-      window('c3-b2-win', 'c3-e', 1.0, 1.6),
-      window('c3-b3-win', 'c3-e', 3.6, 1.6),
-      window('c3-m-win', 'c3-e', 6.6, 1.8),
+      window('c3-b2-win', 'c3-e', 0.8, 1.5),
+      window('c3-b3-win', 'c3-e', 3.0, 1.5),
+      window('c3-m-win', 'c3-e', 5.6, 1.8),
       window('c3-liv-win', 'c3-n', 3.4, 2.4),
     ],
     rooms: [
@@ -370,11 +371,11 @@ export function condo3Bed(): FloorPlan {
       room('c3-kit', 'Kitchen', 0.2, 4.5, 2.7, 3.0, 'floor-tile-grey', 'kitchen'),
       room('c3-yard', 'Service Yard', 0.2, 7.7, 2.7, 1.7, 'floor-tile-grey', 'serviceYard'),
       room('c3-balcony', 'Balcony', 3.1, 7.7, 2.0, 1.7, 'floor-terrazzo', 'balcony'),
-      room('c3-bed2', 'Bedroom 2', 7.1, 0.2, 3.7, 2.7, 'floor-wood-walnut', 'bedroom'),
-      room('c3-bed3', 'Bedroom 3', 7.1, 3.1, 3.7, 2.8, 'floor-wood-walnut', 'bedroom'),
+      room('c3-bed2', 'Bedroom 2', 7.1, 0.2, 3.7, 2.3, 'floor-wood-walnut', 'bedroom'),
+      room('c3-bed3', 'Bedroom 3', 7.1, 2.7, 3.7, 2.2, 'floor-wood-walnut', 'bedroom'),
       room('c3-cbath', 'Common Bath', 5.3, 6.1, 1.6, 3.3, 'floor-tile-white', 'bath'),
-      room('c3-master', 'Master Bedroom', 7.1, 6.1, 3.7, 1.6, 'floor-wood-oak', 'masterBedroom'),
-      room('c3-mbath', 'Master Bath', 7.1, 7.9, 3.7, 1.5, 'floor-tile-marble', 'bath'),
+      room('c3-master', 'Master Bedroom', 7.1, 5.1, 3.7, 2.7, 'floor-wood-oak', 'masterBedroom'),
+      room('c3-mbath', 'Master Bath', 7.1, 8.0, 3.7, 1.4, 'floor-tile-marble', 'bath'),
     ],
   }
 }

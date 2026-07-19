@@ -8,7 +8,7 @@
  * fails loudly.
  */
 import { describe, expect, it } from 'vitest'
-import { GROUND_LEVEL_ID, planLevels } from '../floorplan/levels'
+import { allPlanRooms, GROUND_LEVEL_ID, planLevels } from '../floorplan/levels'
 import { PLAN_TEMPLATES } from '../floorplan/templates'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import { furnishPlanItems } from '../furniture/furnishPlan'
@@ -76,4 +76,41 @@ describe('placement soundness across every built-in template (RM3)', () => {
       }
     })
   }
+})
+
+/**
+ * RM4 template fixes: two bedrooms that used to be too shallow to legally hold
+ * their bed (the bed was silently DROPPED by `dropDoorBlockers`/`dropOverlaps`
+ * after arranging) were reshaped — condo 3-bed `c3-master` (now 3.7 × 2.7 m,
+ * fits a queen clear of the ensuite door swing) and HDB 3Gen `g3-bed3` (now
+ * 3.0 × 2.4 m). Pin that furnishing now actually PLACES a bed in each, so a
+ * future geometry/rule regression that re-drops it fails loudly.
+ */
+describe('RM4 reshaped bedrooms furnish with a bed', () => {
+  const bedInRoom = (templateId: string, roomId: string) => {
+    const tpl = PLAN_TEMPLATES.find((t) => t.id === templateId)!
+    const room = allPlanRooms(tpl).find((r) => r.id === roomId)!
+    const [x0, z0] = room.origin
+    const x1 = x0 + room.width
+    const z1 = z0 + room.depth
+    const items = furnishPlanItems(tpl, moveIn, BUILTIN_CATALOG, {})
+    return items.filter(
+      (it) =>
+        it.defId.startsWith('bed-') &&
+        it.position[0] >= x0 - 0.3 &&
+        it.position[0] <= x1 + 0.3 &&
+        it.position[1] >= z0 - 0.3 &&
+        it.position[1] <= z1 + 0.3,
+    )
+  }
+
+  it('condo 3-bedroom master holds a queen bed', () => {
+    const beds = bedInRoom('tpl-condo-3bed', 'c3-master')
+    expect(beds.map((b) => b.defId)).toContain('bed-queen')
+  })
+
+  it('HDB 3Gen bedroom 3 holds a bed', () => {
+    const beds = bedInRoom('tpl-hdb-3gen', 'g3-bed3')
+    expect(beds.length).toBeGreaterThan(0)
+  })
 })
