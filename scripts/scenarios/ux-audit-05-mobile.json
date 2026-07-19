@@ -1,0 +1,37 @@
+{
+  "name": "ux-audit-05-mobile",
+  "description": "UX audit stage 5: mobile core loop at 390x844 — catalog bottom sheet, placement-confirm pill, mobile inspector sheet, mobile scene/mood sheet.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13)" },
+    { "name": "mobile", "viewport": { "width": 390, "height": 844 } },
+    { "name": "settle-mobile", "wait": 800 },
+    { "name": "shot-mobile-home", "screenshot": "mobile-home" },
+
+    { "name": "enter-room", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "settle-enter", "wait": 1000 },
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "catalog-visible", "waitFor": { "css": ".panel.catalog, .catalog" }, "timeout": 8000 },
+    { "name": "settle-catalog", "wait": 900 },
+    { "name": "shot-mobile-catalog", "screenshot": "mobile-catalog-sheet" },
+
+    { "name": "arm-place", "eval": "(() => { const s=window.__store.getState(); s.setCatalogOpen(false); s.setActiveDefId('sofa-3seat'); s.setPlaceConfirm(true); })()" },
+    { "name": "settle-arm", "wait": 900 },
+    { "name": "shot-mobile-placeconfirm", "screenshot": "mobile-place-confirm" },
+    { "name": "cancel-place", "eval": "(() => { const s=window.__store.getState(); s.setActiveDefId(null); s.setPlaceConfirm(false); })()" },
+
+    { "name": "select-item", "eval": "(() => { const s=window.__store.getState(); const rid=s.roomEditor?.roomId; const it=s.items.find(i=>true); if(it) s.selectItem(it.id); return it?.id })()" },
+    { "name": "settle-select", "wait": 900 },
+    { "name": "shot-mobile-inspector", "screenshot": "mobile-inspector-sheet" },
+
+    { "name": "exit-room", "eval": "(() => { const s=window.__store.getState(); s.selectItem(null); s.exitRoomEditor?.(); })()" },
+    { "name": "settle-exit", "wait": 900 },
+    { "name": "open-menu", "eval": "(() => { const b=[...document.querySelectorAll('button')].find(x=>x.className.includes('m-menu-btn')); if(b) b.click(); return !!b })()" },
+    { "name": "settle-menu", "wait": 700 },
+    { "name": "shot-mobile-menu", "screenshot": "mobile-menu" },
+    { "name": "open-scene-section", "eval": "(() => { const b=[...document.querySelectorAll('button, [role=button]')].find(x=>x.textContent.trim()==='Scene'); if(b) b.click(); return !!b })()" },
+    { "name": "settle-scene", "wait": 800 },
+    { "name": "shot-mobile-scene", "screenshot": "mobile-scene-moods" }
+  ]
+}

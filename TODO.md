@@ -296,6 +296,33 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
   "Warranty & defect dates" group, `HandoverPanel` (Tools → Handover & DLP) with a persisted
   `keyCollectionDate` input + countdowns (additive zod + autosave). Rides the `report` flag.
 
+## UX walkthrough audit round (2026-07-19)
+First-time-user end-to-end walkthrough on the GPU harness. Full write-up + screenshot refs:
+`docs/research/2026-07-19-ux-walkthrough-audit.md` (P1=0, P2=3, P3=7; one P3 already fixed inline).
+- [ ] **UXW-P2-1 — plan-editor room labels collide with the socket advisory.** `MepLayer.tsx`
+  draws each room's "N/M sockets" (R4-4) at `y = toPx(wz)+16`, which lands on `RoomsLayer`'s
+  perimeter "P xx m" line (3-line label block centred on the same anchor) → both unreadable.
+  On by default (`showMep` defaults true), so every Pro plan-editor open shows it. Fix: fold the
+  socket count into the `RoomsLayer` label block as a 4th line, OR offset the MepLayer text by the
+  measured block height instead of a fixed `+16`.
+- [ ] **UXW-P2-2 — Smart Start "Styles" mixes palette themes and room-layout remodels.** Whole-flat
+  palettes (Modern Contemporary, Scandi Calm, Japandi…) and room remodels (Work-From-Home,
+  Broken-Plan Living, Boutique Suite, Family Nursery — all "Re-modelled L/D: …") sit in one
+  ungrouped list; a newcomer can't tell a colour theme from a furniture layout. Split into two
+  labelled sub-sections, or badge palette-only vs layout-changing presets.
+- [ ] **UXW-P2-3 — the shipped default + Smart-Start furnishing fails the app's own advisories.**
+  Design score 59/100 with Circulation 0/100; Clearance checks flags 1 BLOCKING ("Basin blocks a
+  door swing") + dozens of narrow walkways on the move-in default. Reconcile the default layout /
+  `moveIn` preset with the clearance/score thresholds (clear the door-swing block; lift Circulation
+  off 0) — or confirm the thresholds are intentionally strict. Product decision.
+- [ ] **UXW-P3 batch (polish, see audit doc for shots):** clearance summary stat-tile labels clipped
+  ("OVERLAPP"/"WALKWAY", `ClearancePanel.tsx`); MOOD segmented row overflows its 5 labels (desktop
+  wraps "Romantic", mobile truncates); desktop Scene-menu "Ceiling fixtures: Hidden"/"Motion: On"
+  state labels ambiguous (mobile already adds subtext — port it); Elevation panel preview dimension
+  labels cramped; Handover date is a native US mm/dd/yyyy input (SG expects dd/mm/yyyy; violates the
+  custom-controls rule) and the move-in checklist has no tick affordance; Smart Start footer leaks the
+  raw palette token "Theme: clay". (P3-1 tour "7-step"→"9-step" copy already fixed.)
+
 ## Open — UI/UX polish follow-ups
 - [ ] **P37 List virtualization — DEFERRED (2026-07-03 ruling).** Not justified now: the
   catalog is already paginated (`PAGE_SIZE=12`, never renders >12 cards); history/layers

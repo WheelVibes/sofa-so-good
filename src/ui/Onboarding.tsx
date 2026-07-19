@@ -157,7 +157,7 @@ export function Onboarding() {
                   </span>
                   <div>
                     <b>Take the guided tour</b>
-                    <em>New here? A 7-step walkthrough of the essentials</em>
+                    <em>New here? A 9-step walkthrough of the essentials</em>
                   </div>
                   <Icon.ChevronRight width={18} height={18} />
                 </button>

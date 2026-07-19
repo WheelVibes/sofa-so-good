@@ -1,0 +1,26 @@
+{
+  "name": "ux-audit-05b-mobile-retry",
+  "description": "UX audit stage 5 retry: mobile catalog sheet (longer settle) + mobile Scene/mood section (click scene rail icon).",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13)" },
+    { "name": "mobile", "viewport": { "width": 390, "height": 844 } },
+    { "name": "enter-room", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "wait-loader-gone", "waitFor": { "text": "Entering room", "visible": false }, "timeout": 15000, "failMessage": "room-enter loader stuck" },
+    { "name": "settle-enter", "wait": 2000 },
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "catalog-visible", "waitFor": { "css": ".panel.catalog, .catalog" }, "timeout": 8000 },
+    { "name": "settle-catalog", "wait": 1500 },
+    { "name": "shot-mobile-catalog", "screenshot": "mobile-catalog-sheet2" },
+
+    { "name": "close-catalog", "store": { "action": "setCatalogOpen", "args": [false] } },
+    { "name": "exit-room", "eval": "(() => { const s=window.__store.getState(); s.selectItem(null); s.exitRoomEditor?.(); })()" },
+    { "name": "wait-exit", "wait": 2500 },
+    { "name": "open-menu", "eval": "(() => { const b=[...document.querySelectorAll('button')].find(x=>x.className.includes('m-menu-btn')); if(b) b.click(); return !!b })()" },
+    { "name": "settle-menu", "wait": 900 },
+    { "name": "click-scene-rail", "eval": "(() => { const items=[...document.querySelectorAll('button,[role=tab],[role=button]')]; const b=items.find(x=>/scene/i.test(x.getAttribute('aria-label')||'')||/scene/i.test(x.title||'')); if(b){b.click(); return b.getAttribute('aria-label')||b.title} return 'not-found' })()" },
+    { "name": "settle-scene", "wait": 900 },
+    { "name": "shot-mobile-scene", "screenshot": "mobile-scene-moods2" }
+  ]
+}

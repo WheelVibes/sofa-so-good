@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.84 — First-time-user UX walkthrough audit (0 P1 / 3 P2 / 7 P3)
+
+Adversarial end-to-end walkthrough on the GPU harness (cold start, Simple
+core loop, room categories, Pro surfaces, mobile spot-check; 6 re-runnable
+ux-audit scenarios). Nothing broken — every flow works. Filed (TODO UXW-*):
+P2 socket-advisory labels colliding with room perimeter labels in the plan
+editor; P2 Smart Start mixing palette themes with layout remodels in one
+list; P2 the default furnish failing the app's own clearance/circulation
+checks (a basin blocks a door swing; score 59/100). P3s incl. clipped
+check-tile labels, MOOD segment overflow, US-format date input, tour-count
+copy (fixed inline: "7-step" → "9-step"). Full findings:
+docs/research/2026-07-19-ux-walkthrough-audit.md.
+
 ## v0.22.2.83 — Simplify pass over v0.22.2.64-82: minimal findings (healthy batch)
 
 Quality pass over the session's 20-commit diff. One fix: five schedule-label
