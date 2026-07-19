@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.72 — Test: explicit timeout on the whole-home Tidy IKEA regression guard
+
+The full-suite gate flaked once on `autoArrange.test.ts`'s IKEA-laden
+whole-home pass — ~2 s standalone but past the 5 s default under full-suite
+CPU contention (heavier since RM3's fine settle fallback). Explicit 20 s
+timeout keeps the gate deterministic; everything else in the 8,046-test
+suite passed.
+
 ## v0.22.2.71 — Opening variants round 2: sliding + double doors, brass primitive re-route
 
 `style: 'sliding'` (the SG kitchen/service-yard/balcony norm): 3D leaf

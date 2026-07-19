@@ -549,7 +549,10 @@ describe('arrangeAllRooms with imported IKEA defs (whole-home Tidy regression gu
     expect(new Set(out.map((i) => i.id)).size).toBe(items.length)
     expect(out.find((i) => i.id === 's1')).toBeDefined()
     expect(out.find((i) => i.id === 'b1')).toBeDefined()
-  })
+    // Whole-home pass over a full catalog + fine settle fallback (RM3) runs
+    // ~2 s alone but can exceed the 5 s default under full-suite CPU
+    // contention — give it explicit headroom so the gate stays deterministic.
+  }, 20000)
 })
 
 describe('roomKindFromName', () => {
