@@ -9,32 +9,39 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 > `docs/research/2026-07-19-mobile-audit.md`. P1=0, P2=3 (1 fixed inline), P3=4.
 > No breakage; no horizontal scroll leak anywhere. RM3/RM4 confirmed fixed the
 > desktop audit's P2-3 (default now scores 76/100, Clearance 100, 0 BLOCKING).
-- [ ] **MOB-P2-1 — mobile tap-target pass 2 for editing bottom-sheets.** The menu
-  sheet (`.m-detail`) lifts segments/selects/sliders to 44px, but the catalog
-  (`.catalog`) and finish picker (`.finish-picker`) sheets don't: category chips 32px,
-  tabs 36px, **pagination 25px**, footer buttons 27px, search 36px (catalog);
-  Floor/Walls/Ceiling tabs 27px (finish); Post/Square/Story 27px (share); Wall chips +
-  Elevations/Lighting tabs 27px (drawings). One coordinated change — extend the
-  `.m-detail`-style 44px lift to these sheets. Left unfixed to avoid shared-CSS/theme
-  regression (same reasoning as the desktop audit's P3-2). Shots: `01-50-sweep-catalog-
-  corrected.png`, `13-13-sweep-finish.png`, `18-18-sweep-share.png`, `12-41-sweep-drawings.png`.
-- [ ] **MOB-P2-2 — 2D plan-editor toolbar sub-44px on mobile.** View/Edit/Done ~27px,
-  Undo/Redo 36×26, Floors selector 27px, Return-to-orbit 32×32 — the plan header isn't
-  `.panel-head`-scoped so it gets no hit-expander. Lift to 44px on `body.mobile` (mind
-  Undo/Redo adjacency — cap adjacent `::after` expanders like the GLB-designer pass).
-  Shot: `05-54-sweep-plan-corrected.png`.
+- [x] **MOB-P2-1 — mobile tap-target pass 2 for editing bottom-sheets (DONE).** Extended
+  the `.m-detail` 44px lift via shared token rules in `responsive.css` (all `body.mobile`-
+  scoped): `.seg button { min-height:44px }` covers finish Floor/Walls/Ceiling, share
+  Post/Square/Story, drawings Elevations/Lighting + the 26 wrapped Wall N chips; catalog
+  chrome (`.catalog .chip/.tab/.pager button/.cat-search .input/.cat-foot .btn`) lifted
+  too. Verified by touch sweeps (`tap-pass-verify.json`, SHOT_TOUCH, 390×844): catalog
+  chips/tabs/pager/search all gone from the sub-44px list; finish/share tabs gone;
+  drawings sweep clean ("all ≥44px"). Desktop unchanged (chip 32/tab 36/pager 25/search 36).
+- [x] **MOB-P2-2 — 2D plan-editor toolbar sub-44px on mobile (DONE).** `body.mobile`
+  rules: `.seg button` (View/Edit + Undo/Redo → 44px tall), `.plan-header .btn` (Done/
+  Furnish), `.level-menu > .btn` (Floors), and a `.plan-header .brand-dot::after`
+  inset:-6px hit-expander (Return-to-orbit 32→44). Undo/Redo lifted by HEIGHT only (no
+  overlapping horizontal expanders between the two adjacent icons, per the GLB-designer
+  caveat). Sweep after fix: only the one-time InfoCallout dismiss X remains sub-44.
 - [x] **MOB-P2-3 — Handover/DLP checklist tap targets (FIXED INLINE).** `body.mobile
   .ho-check` → 44px rows + 22px checkbox (`responsive.css`). Was ~20px rows / 15px native
   checkbox for a 79-item tick-off-on-collection-day list. Verified `60-handover-checklist-44px.png`.
-- [ ] **MOB-P3-1 — Scene MOOD row clips "Romantic"→"Roman…"** at 390px (5 equal-flex
-  segments). Scroll the mood `.seg` horizontally or wrap to 2 rows. (= desktop P3-3,
-  confirmed on mobile.) Shot: `03-52-lighting-moods.png`.
+- [x] **MOB-P3-1 — Scene MOOD row clips "Romantic"→"Roman…" (DONE).** Root cause: the
+  mobile `SceneSection` mood `Segmented` was missing the `mood-seg` class the desktop
+  Scene menu carries, so `.m-detail .seg button { flex:1 1 0 }` forced equal 1/5 widths +
+  `.seg.fit` ellipsis. Fix: added `className="mood-seg"` + a `body.mobile
+  .m-detail .mood-seg button { flex:1 1 auto }` rule (content-width basis, then grow, wraps
+  if needed). Full word "Romantic" now shows; all 5 chips ≥44px both dims. Desktop
+  unchanged (label kept as "Romantic", no shortLabel change).
 - [ ] **MOB-P3-2 — MEP socket marker overlaps room label** at phone zoom (= desktop P2-1,
   MepLayer `+16` vs RoomsLayer 3-line block; needs the coordinated two-layer fix). Socket
   captions themselves ARE legible on mobile. Shot: `06-25-plan-mep-point.png`.
-- [ ] **MOB-P3-3 — check mobile discoverability of the hackability overlay toggle.** Not in
-  the Plan tools sheet; likely under the plan sheet's eye/visibility rail (not confirmed).
-  Verify a Pro phone user can reach it. Shot: `06-55-plan-tools-menu.png`.
+- [x] **MOB-P3-3 — hackability overlay IS reachable on mobile (VERIFIED, no code change).**
+  It lives in Plan tools sheet → **View** (Eye rail) section, rendered by the same shared
+  `PlanViewMenuActions` fragment as the desktop "View ▾" menu (flag-gated `fHackability`,
+  Pro tier). The audit's `06-55-plan-tools-menu.png` only showed the Plan rail section; the
+  toggle is one rail tap away under Eye. Confirmed visually (`13-plan-tools-view-hackability.png`
+  shows the "Hackability" button beside Labels/Dims/Furniture/MEP/Skeleton/Export PNG).
 - [ ] **MOB-P3-4 — Handover "Key collection / TOP date" still native `<input type=date>`**
   (US mm/dd/yyyy in US-locale browser; mitigated by a "Format:" caption). Move to the custom
   control per ui/CLAUDE.md. (= desktop P3-6, partially addressed.) Shot: `08-37-handover-dlp.png`.

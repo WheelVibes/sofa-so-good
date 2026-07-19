@@ -184,8 +184,12 @@ body.mobile {
     box-shadow: var(--shadow-panel);
     row-gap: var(--s-2);
   }
-  /* Match the brand chip sizing used in the room-editor bar. */
-  .plan-header .brand-dot { width: 32px; height: 32px; font-size: 14px; flex: none; }
+  /* Match the brand chip sizing used in the room-editor bar. The plan-editor
+     brand mark doubles as the "Return to orbit" button — keep the 32px visual
+     but pad its hit area to ≥44px (32 + 2×6) with an inset ::after, exactly like
+     the hamburger below and the room-editor bar's brand-dot (MOB-P2-2). */
+  .plan-header .brand-dot { width: 32px; height: 32px; font-size: 14px; flex: none; position: relative; }
+  .plan-header .brand-dot::after { content: ''; position: absolute; inset: -6px; }
   /* Plan-editor hamburger mirrors the main mobile bar's (TB-6-tail: one menu
      affordance): 32px visual, ≥44px hit area via the inset ::after. */
   .plan-header .m-menu-btn { flex: none; width: 32px; height: 32px; min-width: 32px; min-height: 32px; position: relative; }
@@ -453,6 +457,53 @@ body.mobile {
      mobile pattern). Alignment stays top so 2-line items read cleanly. */
   .ho-check { min-height: 44px; padding: 5px 0; }
   .ho-check input { width: 22px; height: 22px; margin-top: 1px; }
+
+  /* ---- MOBILE-TAP-TARGETS pass 2 (MOB-P2-1 / MOB-P2-2) ------------------------
+     The menu sheet (`.m-detail`) already lifts its segments/selects/sliders to a
+     44px touch target, but the *editing* bottom-sheets — catalog, finish picker,
+     share modal, the drawings (elevations) panel — and the 2D plan-editor header
+     never got that lift (they're not `.m-detail`- nor `.panel-head`-scoped), so
+     their tabs/chips/pagination sat at desktop density (25–36px). Extend the same
+     lift here via the shared token classes. Whole block is nested under
+     `body.mobile`, so desktop sizing is untouched. */
+
+  /* Every segmented control that surfaces inside a sheet/modal on a phone —
+     finish picker Floor/Walls/Ceiling, share Post/Square/Story, the drawings
+     Elevations/Lighting tabs + the wrapped "Wall N" picker, and the plan
+     header's View/Edit toggle + Undo/Redo — matches the `.m-detail .seg` target.
+     (`.m-detail .seg button` already sets this; this is idempotent there.) */
+  .seg button { min-height: 44px; }
+
+  /* Catalog sheet chrome that isn't `.seg`-based: the category chip rail (single
+     horizontally-scrolling row, so growing is fine), the Catalog/Layers/Packs
+     tabs, the Prev/Next pager (buttons sit at opposite ends — no adjacency), the
+     search field, and the footer actions (Custom size / Upload / Design a 3D
+     asset). */
+  .catalog .chip { min-height: 44px; }
+  .catalog .tab { min-height: 44px; display: inline-flex; align-items: center; }
+  .catalog .pager button { min-height: 44px; }
+  .catalog .cat-search .input { min-height: 44px; }
+  .catalog .cat-foot .btn { min-height: 44px; }
+
+  /* Plan-editor header text buttons (Done, Furnish) + the bottom-left Floors
+     selector trigger. View/Edit + Undo/Redo are covered by `.seg button` above;
+     the hamburger already carries a `::after` hit-expander. Undo/Redo stay side
+     by side — we lift their HEIGHT (26→44) rather than add horizontal expanders
+     that would overlap between the two adjacent icons. */
+  .plan-header .btn { min-height: 44px; }
+  .level-menu > .btn { min-height: 44px; }
+
+  /* MOB-P3-1: the mobile Scene sheet's MOOD row is a `.mood-seg` (matching the
+     desktop Scene menu). The `.m-detail .seg button { flex: 1 1 0 }` rule above
+     forces equal 1/5 widths, which clipped "Romantic" → "Roman…" (its label is
+     pixel-wider than "Reading" thanks to the 'm'). Let the mood chips size to
+     their content instead so the row wraps cleanly to a 2nd line (the
+     `.mood-seg` flex-wrap + ellipsis-off already live in features.css) — the
+     full word "Romantic" now shows, and each chip keeps the 44px min-height.
+     `flex: 1 1 auto` (content-width BASIS, then grow) — not `1 1 0` (basis 0 →
+     equal widths → the clip) — so "Romantic" gets its natural width while the
+     shorter chips grow to fill the row for a wider tap target. */
+  .m-detail .mood-seg button { flex: 1 1 auto; }
 
   /* Progressive-disclosure hints (InfoCallout) default to a readable 40ch, which
      is only ~half a phone's width → the copy wraps to 4+ lines and eats vertical

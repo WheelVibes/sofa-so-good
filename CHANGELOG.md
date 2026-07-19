@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.90 — Mobile tap-target pass 2: every editing sheet + plan toolbar hits 44 px
+
+Coordinated body.mobile-scoped lift (desktop measured unchanged): shared
+.seg rules bring finish/share/drawings tabs and all wall chips 27→44 px;
+catalog chips 32→44, tabs 36→44, pagination 25→44, search 36→44; plan
+editor View/Edit/Undo/Redo/Done/Floors 26-36→44 (height-only on adjacent
+icons; Return-to-orbit gets an inset hit-expander to 44 effective). MOOD
+"Romantic" clip root-caused to a missing mood-seg class on the mobile
+Segmented — full word now fits, no lossy relabel. Hackability overlay
+confirmed already reachable on mobile (Plan tools → View rail — audit had
+looked in the wrong sheet). Touch-sweep re-measured on every surface;
+reusable tap-pass scenarios added; 132 targeted tests incl. inlinePxGuard.
+
 ## v0.22.2.89 — Mobile-depth UX audit (P1=0 / P2=3 / P3=4) + handover tap-target fix
 
 Full phone-width (390×844, emulated touch) audit across cold start, core

@@ -93,6 +93,7 @@ export function SceneSection({
           <Segmented
             ariaLabel="Lighting mood"
             fit
+            className="mood-seg"
             value={lightMood}
             onChange={(v) => s.getState().setLightMood(v as (typeof MOOD_OPTIONS)[number]['value'])}
             options={MOOD_OPTIONS}
