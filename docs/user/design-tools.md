@@ -222,7 +222,10 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   total), **HDB compliance hints** (non‑binding renovation advisories — likely
   structural walls, wet‑area waterproofing, facade windows; on a multi‑storey
   plan this also flags any **upper storey no staircase reaches**, until you
-  place a Staircase whose run lands on that storey's landing), areas, and your
+  place a Staircase whose run lands on that storey's landing — the adjustable
+  **Staircase** lives in the catalog's **Others** category in **Pro mode**
+  (choose Straight / L‑shaped / U‑shaped / Spiral and set the width, step count,
+  riser, tread and handrail)), areas, and your
   design notes — a handoff-ready document. The Report also shows a **renovation
   timeline** — an indicative phase schedule (protection & hacking → … → cleaning
   & handover) estimated from your floor area and room count.

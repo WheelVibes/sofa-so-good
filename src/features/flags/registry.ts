@@ -1728,6 +1728,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Parametric staircase generator (TODO — UX research round 3, Homestyler v6
+  // precedent): the adjustable `staircase` catalog item (straight / L / U /
+  // spiral, width/rise-run/landing/handrail) that also feeds the multi-storey
+  // stair-connectivity advisory. A structural authoring tool for multi-level
+  // plans (Maisonette / loft / terrace) rather than the casual furnish loop →
+  // pro tier, hidden in Simple mode. Pure procedural geometry, no external
+  // asset → prod-safe. When off, the Staircase card is hidden from the catalog.
+  parametricStairs: {
+    label: 'Parametric staircase',
+    description: 'Adjustable staircase (straight / L / U / spiral) for multi-level plans',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

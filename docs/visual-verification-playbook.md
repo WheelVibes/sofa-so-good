@@ -2297,3 +2297,31 @@ quick succession in the same headless session occasionally hit a Puppeteer "Targ
 closed" `Page.captureScreenshot` error on the second screenshot (all prior assertion
 steps still passed) — if this happens, re-run just the failing variant's capture
 +screenshot as its own short scenario rather than re-running the whole thing.
+
+### Worked example — parametric Staircase geometry (parametricStairs)
+
+Scenario `scripts/scenarios/staircase-r-verify.mjs` (an `.mjs` scenario so it can
+`readFileSync` a dumped loft-plan JSON and inject it via `setFloorPlan`): three
+shots — a straight flight close-up, an L-shape (landing + return) close-up, and the
+stair in a multi-level (loft) context feeding `stairConnectivity`. Camera close-ups
+use `window.__three.camera`/`controls` (copy the `aimCam` helper). Place stairs with
+`store.setItems([{ defId:'staircase', position:[x,z], rotation, props:{ style, steps,
+width, riserHeight, treadDepth, railing } }])`.
+
+**Key finding — a handrail must be ONE continuous sloped rail, not per-step caps.**
+The first render had a post + a *short horizontal* rail segment per tread; the caps
+sat at each post top but the 0.17 m riser jump left a visible vertical gap between
+consecutive caps (reads as a broken/gappy rail — a FAIL). Fix: emit a SINGLE rail box
+per flight spanning first→last post, tilted up the flight rake — pitch about X for a
+Z-running flight, roll about Z for the turned (X-running) flight of an L/U. The
+`Staircase` renderer applies `rotation={[pitch, rot, roll]}` (each rail sets exactly
+one of pitch/roll, so Euler order never composes ambiguously).
+
+**Gotcha — a flush rail z-fights the tread edge (structural-soundness harness).** With
+the rail's outer face at `width/2 - RAIL_T/2` it was *coplanar* with the tread edge at
+the same X; the short per-step caps stayed under the harness's coplanar-overlap
+threshold, but the long continuous rail exceeded it (104 cm²) and
+`structuralSoundness.test.tsx` failed with a "z-fighting coplanar face pair". Inset the
+balusters/rail to `width/2 - RAIL_T` (a ~2 cm gap from the tread edge) — also more
+realistic (a set-in guard). Re-shoot after ANY geometry tweak: the inset is 2 cm and
+invisible-looking but the harness is exact.

@@ -1601,7 +1601,12 @@ same change that reshapes a system.
   facade windows, floor loading, ceiling heights). `analysis/stairConnectivity.ts` (ML6b) follows
   the same pattern for multi-storey plans: `buildStairAdvisories(plan, items, getDef)` flags any
   upper storey no staircase reaches (a `staircase`-family item on the storey below whose footprint
-  lands in rooms of BOTH storeys). Both surface in the report's "HDB compliance hints" section —
+  lands in rooms of BOTH storeys — `isStaircaseItem` matches the `staircase` def id OR any def
+  rendering the `Staircase` primitive). The adjustable `staircase` catalog item (def in
+  `furniture/defs/others.ts`, geometry `furniture/primitives/staircaseModel.ts`) is gated by the
+  `parametricStairs` **pro** flag — hidden from the catalog in Simple mode via
+  `useUnifiedCatalog(…, includeStairs)`; its honest plan footprint (`staircaseFootprintParts`) traces
+  the L/U flights rather than the full bounding box. Both surface in the report's "HDB compliance hints" section —
   gated to `housingType==='HDB'` (or absent, back-compat); a Condominium/Landed plan gets a
   "Renovation compliance notes" section instead with a one-line pointer to its own approval path
   (MCST/BCA) plus any stair advisories (SG1). `floorplan/permitNotes.ts:permitNotes(housingType)`

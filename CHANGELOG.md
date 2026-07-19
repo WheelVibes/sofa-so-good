@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.75 — Staircase hardening: pro flag, honest L/U footprints, continuous handrail
+
+The UX-round-3 staircase item was mostly shipped (C171 primitive + C232
+stairConnectivity); this round closes the real gaps. (1) `parametricStairs`
+pro-tier flag — the staircase catalog card was UNGATED (hard-rule
+violation); `useUnifiedCatalog(…, includeStairs)` now drops it from grid/
+search/favourites/recents in Simple mode (pets-gate pattern), both-modes
+tested. (2) Honest footprints: `staircaseFootprintParts` traces the actual
+L/U flights + landing (an L occupies an L, not its bounding box) and a
+straight flight's depth tracks steps×treadDepth — wired as the def's
+footprintParts (sofa-lshape pattern). (3) Visual-verification FAIL fixed:
+the handrail was a short horizontal cap per tread (per-step gaps); now ONE
+continuous sloped rail per flight via new pitch/roll fields on
+StaircasePart, balusters inset so the rail face never z-fights the tread
+edge. 3,708 targeted tests; straight/L-shape/loft-context shots reviewed.
+
 ## v0.22.2.74 — Real-photo paint visualizer (simple tier)
 
 "Try on my wall photo" button on the FinishPicker Walls tab opens a lazy,

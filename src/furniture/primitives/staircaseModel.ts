@@ -23,6 +23,10 @@ export interface StaircasePart {
   size: [number, number, number]
   /** Y-axis rotation in radians (default 0). */
   rot?: number
+  /** X-axis rotation (pitch, default 0) — tilts a Z-running handrail up its rake. */
+  pitch?: number
+  /** Z-axis rotation (roll, default 0) — tilts an X-running handrail up its rake. */
+  roll?: number
 }
 
 export type StaircaseStyle = 'straight' | 'lshape' | 'ushape' | 'spiral'
@@ -119,10 +123,12 @@ function landing(topY: number, cx: number, cz: number, side: number): StaircaseP
   }
 }
 
-/** Posts + handrail segments for one side of a flight. Each post rises from a
- *  tread nosing to the handrail; the rail is approximated by a per-tread
- *  segment so it climbs with the stair using axis-aligned boxes only.
- *  `lateral` offsets the run to the chosen side of the climbing axis. */
+/** Posts + ONE continuous sloped handrail for one side of a flight. Each post
+ *  rises from a tread nosing to handrail height; a single rail box spans from
+ *  the first post to the last, tilted up the flight's rake (about X for a
+ *  Z-running flight, about Z for an X-running one) so it reads as a real
+ *  connected rail — not disjoint per-tread caps. `lateral` offsets the run to
+ *  the chosen side of the climbing axis. */
 function railRun(
   s: Required<StaircaseSpec>,
   count: number,
@@ -148,15 +154,28 @@ function railRun(
       size: [RAIL_T, RAIL_HEIGHT, RAIL_T],
       rot,
     })
-    const railW = axis === 'z' ? RAIL_T : along
-    const railD = axis === 'z' ? along : RAIL_T
-    parts.push({
-      kind: 'rail',
-      position: [px, topY + RAIL_HEIGHT, pz],
-      size: [railW, RAIL_T, railD],
-      rot,
-    })
   }
+  // One continuous rail spanning the flight. The flight is centred on its axis
+  // (post offsets sum to 0), so the rail centres on cx/cz laterally offset; its
+  // mid-height is the average of the first + last post tops. Length covers the
+  // full run plus a nosing overhang at each end.
+  const hyp = Math.hypot(along, s.riserHeight)
+  const rake = Math.atan2(s.riserHeight, along)
+  const railLen = count * hyp
+  const cy = baseY + RAIL_HEIGHT + (s.riserHeight * (count + 1)) / 2
+  const rx = axis === 'z' ? cx + lateral : cx
+  const rz = axis === 'z' ? cz : cz + lateral
+  parts.push({
+    kind: 'rail',
+    position: [rx, cy, rz],
+    size: axis === 'z' ? [RAIL_T, RAIL_T, railLen] : [railLen, RAIL_T, RAIL_T],
+    rot,
+    // Tilt up the rake: about X for a Z-flight, about Z for an X-flight. The
+    // sign flips with the climbing direction so a doubling-back flight (U-shape)
+    // still rises toward its own top.
+    pitch: axis === 'z' ? -dir * rake : 0,
+    roll: axis === 'x' ? dir * rake : 0,
+  })
   return parts
 }
 
@@ -172,7 +191,10 @@ function flightRailing(
   rot: number,
 ): StaircasePart[] {
   if (s.railing === 'none') return []
-  const half = s.width / 2 - RAIL_T / 2
+  // Inset the balusters/rail a hair inboard of the tread edge so the rail's
+  // outer face is NOT coplanar with the tread edge (which z-fights) and it reads
+  // as a real set-in guard rather than flush with the stringer.
+  const half = s.width / 2 - RAIL_T
   const parts = railRun(s, count, baseY, cx, cz, axis, dir, half, rot)
   if (s.railing === 'both') {
     parts.push(...railRun(s, count, baseY, cx, cz, axis, dir, -half, rot))
@@ -329,4 +351,61 @@ export function buildStaircase(spec: StaircaseSpec): StaircasePart[] {
  *  with the builder on the effective dimensions. */
 export function sanitizeStaircase(spec: StaircaseSpec): Required<StaircaseSpec> {
   return sanitize(spec)
+}
+
+/** One box of the plan-projected (XZ) footprint, in the SAME local frame the
+ *  builders use (origin = item position, first flight along +Z). Structurally a
+ *  `FurnitureDef` `FootprintPart`; the `staircase` def maps these straight in. */
+export interface StaircaseFootprintPart {
+  dx: number
+  dz: number
+  w: number
+  d: number
+}
+
+/**
+ * Honest plan (XZ) footprint of a staircase as a small set of axis-aligned
+ * boxes — the treads' + landing's ground projection, matching where
+ * `buildStaircase` actually places geometry (an L/U-shape occupies an L/U in
+ * plan, NOT the full enclosing box, so a piece can sit in the open corner and
+ * collision/clearance is honest). Pure + deterministic; unit-tested. The item's
+ * scale + rotation are applied on top by `collision/placement.ts`.
+ */
+export function staircaseFootprintParts(spec: StaircaseSpec): StaircaseFootprintPart[] {
+  const s = sanitize(spec)
+  const run = s.steps * s.treadDepth
+  if (s.style === 'lshape') {
+    const [n1, n2] = splitSteps(s.steps, 2)
+    const flight1Depth = n1! * s.treadDepth
+    const landZ = flight1Depth + s.width / 2
+    const flight2Run = n2! * s.treadDepth
+    return [
+      { dx: 0, dz: flight1Depth / 2, w: s.width, d: flight1Depth },
+      { dx: 0, dz: landZ, w: s.width, d: s.width },
+      { dx: s.width / 2 + flight2Run / 2, dz: landZ, w: flight2Run, d: s.width },
+    ]
+  }
+  if (s.style === 'ushape') {
+    const [n1, n2] = splitSteps(s.steps, 2)
+    const flight1Depth = n1! * s.treadDepth
+    const landSide = s.width * 2
+    const landZ = flight1Depth + landSide / 2
+    const flight2Depth = n2! * s.treadDepth
+    const cz2 = landZ - landSide / 2 - flight2Depth / 2
+    return [
+      { dx: 0, dz: flight1Depth / 2, w: s.width, d: flight1Depth },
+      { dx: s.width / 2, dz: landZ, w: landSide, d: landSide },
+      { dx: s.width, dz: cz2, w: s.width, d: flight2Depth },
+    ]
+  }
+  if (s.style === 'spiral') {
+    // Treads fan around the central newel out to `width` — a disc of radius
+    // (NEWEL_R + width). A centred square that encloses that disc is a safe,
+    // simple footprint (the sweep is often a partial arc, so this over-covers).
+    const side = 2 * (NEWEL_R + s.width)
+    return [{ dx: 0, dz: 0, w: side, d: side }]
+  }
+  // Straight: one centred box, depth = the true run (tracks the step count, so
+  // a 24-step flight is honestly longer than a 13-step one).
+  return [{ dx: 0, dz: 0, w: s.width, d: run }]
 }

@@ -89,6 +89,16 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'simple').importSh3f).toBe(false)
   })
 
+  it('parametricStairs (pro tier) is present in Pro and hidden in Simple', () => {
+    // The parametric staircase generator is a structural authoring tool for
+    // multi-level plans → pro; the catalog card gates on this flag so it
+    // disappears from Simple's minimal core loop. Pure-code → on in prod Pro.
+    expect(resolveFlags(true, {}, false, 'pro').parametricStairs).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').parametricStairs).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').parametricStairs).toBe(true)
+    expect(resolveFlags(false, {}, false, 'simple').parametricStairs).toBe(false)
+  })
+
   it('pathArray (pro tier) is present in Pro and hidden in Simple', () => {
     // Duplicate-along-path (PARITY-DUP-PATH) is advanced array tooling → pro; the
     // inspector section gates on this flag so it disappears from Simple's core loop.

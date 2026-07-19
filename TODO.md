@@ -224,9 +224,12 @@ ruling), AI photo→plan (= aiWalls), shelf-lift gesture (= surfaceDrop).
   luminance-preserving blend); entry via the FinishPicker Walls tab "Try on my wall photo"; fully
   client-side (photo never uploaded); reuses `groups.wall` swatches. Scenario
   `scripts/scenarios/paint-visualizer-simple.json`.
-- [ ] **Parametric staircase generator** (M/L, pro) — real adjustable stairs (width/rise-run/
+- [x] **Parametric staircase generator** (M/L, pro) — real adjustable stairs (width/rise-run/
   landing/handrail; Homestyler v6 precedent) placed as furniture with a levelId span, feeding the
-  existing stairConnectivity advisory.
+  existing stairConnectivity advisory. Straight / L / U / spiral `Staircase` primitive
+  (`primitives/staircaseModel.ts`), honest L/U `footprintParts`, continuous sloped handrail,
+  `parametricStairs` pro flag (hidden in Simple). `isStaircaseItem` recognises it by def id or
+  primitive. Scenario `scripts/scenarios/staircase-r-verify.mjs`.
 - [ ] **Parametric roof + dormers** (L, pro) — roof slab from the outer wall polygon + pitch,
   dormer cutouts; only offered on Maisonette/terrace templates (Homestyler v6 / Live Home 3D).
 

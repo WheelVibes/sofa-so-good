@@ -189,6 +189,10 @@ export function CatalogDrawer() {
   // tier). State is component-local + ephemeral (never persisted).
   const fCatalogFilters = useFeature('catalogFilters')
   const fPetFittings = useFeature('petFittings')
+  // Parametric staircase (pro tier): the adjustable Staircase catalog card is
+  // hidden in Simple mode. `useUnifiedCatalog` drops the single `staircase` def
+  // when this is off (grid / search / favourites / recents).
+  const fParametricStairs = useFeature('parametricStairs')
   // Pet essentials surfacing (P6): when the household has declared pets, the
   // items the checker marks REQUIRED for those types get an "Essentials" badge
   // and sort first within the pets tab. Gated by `petProfile`; empty when off.
@@ -218,7 +222,7 @@ export function CatalogDrawer() {
     setCompareTrayOpen(false)
   }
   const ambientFx = useAmbientFx()
-  const unified = useUnifiedCatalog(fRemoteFurniture, sharedOn, fPetFittings)
+  const unified = useUnifiedCatalog(fRemoteFurniture, sharedOn, fPetFittings, fParametricStairs)
   // The real category to land on from a "Browse furniture" CTA (favourites/
   // recent/empty-category empty states) — the first real category that
   // actually has cards, so the CTA never lands on another empty tab. Labelled

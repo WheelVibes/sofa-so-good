@@ -1,4 +1,25 @@
-import type { FurnitureDef } from '../types'
+import {
+  type StaircaseRailing,
+  type StaircaseStyle,
+  staircaseFootprintParts,
+} from '../primitives/staircaseModel'
+import type { FurnitureDef, ParamProps } from '../types'
+
+/** Read the live staircase spec off an item's props (with the schema defaults),
+ *  so the honest plan footprint tracks the current style/step/size params. */
+function stairSpecFromProps(props: ParamProps) {
+  const num = (k: string, d: number) => (typeof props[k] === 'number' ? (props[k] as number) : d)
+  const str = <T extends string>(k: string, d: T) =>
+    typeof props[k] === 'string' ? (props[k] as T) : d
+  return {
+    style: str<StaircaseStyle>('style', 'straight'),
+    steps: num('steps', 13),
+    width: num('width', 0.9),
+    riserHeight: num('riserHeight', 0.17),
+    treadDepth: num('treadDepth', 0.26),
+    railing: str<StaircaseRailing>('railing', 'side'),
+  }
+}
 
 /** others furniture definitions. Part of the built-in catalog (see ../builtinCatalog.ts). */
 export const OTHERS_DEFS = {
@@ -12,6 +33,9 @@ export const OTHERS_DEFS = {
     defaultFootprint: { w: 0.9, d: 3.4, h: 2.2 },
     verticalSpan: { base: 0, top: 2.2 },
     footprintParams: { w: 'width' },
+    // Honest plan footprint: an L/U-shape occupies an L/U (not the full box), and
+    // a straight flight's depth tracks its step count — see staircaseModel.ts.
+    footprintParts: (props) => staircaseFootprintParts(stairSpecFromProps(props)),
     paramSchema: [
       {
         kind: 'enum',

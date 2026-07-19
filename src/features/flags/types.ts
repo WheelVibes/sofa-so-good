@@ -188,6 +188,7 @@ export type FeatureFlag =
   | 'settingOutDims'
   | 'carpentrySheets'
   | 'rcpSheet'
+  | 'parametricStairs'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

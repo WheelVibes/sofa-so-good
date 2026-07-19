@@ -28,6 +28,21 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   Set `verticalSpan`/`mounted`/`noClip` for non-floor items; `lightEmitters.ts` to emit light
   at night; add to `defaults/` to ship in the move-in flat (collision-checked by
   `defaultLayout.test.ts`).
+- **Parametric `Staircase` (F8/C171, `parametricStairs` pro flag).** Pure geometry in
+  `primitives/staircaseModel.ts` (`buildStaircase` → treads/risers/landings/posts + rail/newel;
+  `Staircase.tsx` only maps parts → boxes), like `cabinetModel.ts`. Straight / L / U / spiral;
+  each step is a solid box stacked on the one below (closed stringer, grounded to the floor — no
+  floating). **Handrail is ONE continuous sloped rail per flight** (first→last post), tilted up the
+  rake via a `pitch` (X, for Z-running flights) or `roll` (Z, for the turned X-running flight) field
+  on `StaircasePart` — the renderer applies `rotation={[pitch, rot, roll]}`; NEVER a short
+  horizontal cap per tread (that leaves per-step vertical gaps — a visual FAIL). Balusters/rail are
+  inset to `width/2 - RAIL_T` so the rail's outer face isn't coplanar with the tread edge (the
+  structural-soundness harness z-fights a flush face). **Honest footprint:** `staircaseFootprintParts`
+  traces the L/U flights (an L occupies an L, not the full box) + a straight flight's depth tracks
+  `steps × treadDepth`; wired as the `staircase` def's `footprintParts` function (`defs/others.ts`).
+  The def is **hidden in Simple mode** — `useUnifiedCatalog(…, includeStairs)` drops it when
+  `parametricStairs` is off. `analysis/stairConnectivity.ts:isStaircaseItem` recognises it by def id
+  OR the `Staircase` primitive.
 - **Extendable-table leaf keeps render + footprint in lock-step (CAT-B).** A drop-in leaf that
   widens a piece must widen its collision box by the SAME amount, or the extended top clips through
   neighbours. `defs/diningSeatDims.ts:diningLeafExtension(props)` is the single shared source of the

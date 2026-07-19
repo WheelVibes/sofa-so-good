@@ -4,6 +4,7 @@ import {
   type StaircasePart,
   type StaircaseSpec,
   sanitizeStaircase,
+  staircaseFootprintParts,
 } from './staircaseModel'
 
 const base: StaircaseSpec = {
@@ -67,13 +68,33 @@ describe('buildStaircase', () => {
       expect(parts.some((p) => p.kind === 'post' || p.kind === 'rail')).toBe(false)
     })
 
-    it('side railing adds one post + rail per tread; both adds two', () => {
+    it('adds one post per tread + ONE continuous rail per flight side (both = two)', () => {
       const n = base.steps
       const side = buildStaircase({ ...base, railing: 'side' })
       expect(side.filter((p) => p.kind === 'post')).toHaveLength(n)
-      expect(side.filter((p) => p.kind === 'rail')).toHaveLength(n)
+      // A straight staircase is one flight → exactly one rail on the railed side.
+      expect(side.filter((p) => p.kind === 'rail')).toHaveLength(1)
       const both = buildStaircase({ ...base, railing: 'both' })
       expect(both.filter((p) => p.kind === 'post')).toHaveLength(2 * n)
+      expect(both.filter((p) => p.kind === 'rail')).toHaveLength(2)
+    })
+
+    it('the continuous rail is tilted up the flight rake (no per-step gaps)', () => {
+      const rail = buildStaircase({ ...base, railing: 'side' }).find((p) => p.kind === 'rail')!
+      // A Z-running straight flight tilts about X (pitch), not flat.
+      expect(Math.abs(rail.pitch ?? 0)).toBeGreaterThan(0)
+      expect(rail.roll ?? 0).toBe(0)
+      // The rail is long enough to span the whole run (its Z extent ≥ the run).
+      expect(rail.size[2]).toBeGreaterThanOrEqual(base.steps * base.treadDepth)
+    })
+
+    it("an L-shape's second (X-running) flight tilts its rail about Z (roll)", () => {
+      const rails = buildStaircase({ ...base, style: 'lshape', railing: 'side' }).filter(
+        (p) => p.kind === 'rail',
+      )
+      // Two flights → two continuous rails; the turned flight uses roll, not pitch.
+      expect(rails).toHaveLength(2)
+      expect(rails.some((r) => Math.abs(r.roll ?? 0) > 0)).toBe(true)
     })
 
     it('posts reach down to a tread top (no floating posts)', () => {
@@ -191,5 +212,64 @@ describe('buildStaircase', () => {
     it('rounds fractional step counts to a whole number', () => {
       expect(sanitizeStaircase({ ...base, steps: 5.7 }).steps).toBe(6)
     })
+  })
+})
+
+/** Is point (x, z) inside any footprint box (parts are axis-aligned)? */
+const inParts = (
+  parts: ReturnType<typeof staircaseFootprintParts>,
+  x: number,
+  z: number,
+  tol = 1e-6,
+) => parts.some((p) => Math.abs(x - p.dx) <= p.w / 2 + tol && Math.abs(z - p.dz) <= p.d / 2 + tol)
+
+describe('staircaseFootprintParts', () => {
+  it('straight: one centred box whose depth is the true run (tracks step count)', () => {
+    const p13 = staircaseFootprintParts({ ...base, steps: 13 })
+    expect(p13).toHaveLength(1)
+    expect(p13[0]!.dx).toBeCloseTo(0)
+    expect(p13[0]!.dz).toBeCloseTo(0)
+    expect(p13[0]!.w).toBeCloseTo(0.9)
+    expect(p13[0]!.d).toBeCloseTo(13 * 0.26)
+    // A longer flight is honestly deeper — not pinned to the default bbox.
+    const p24 = staircaseFootprintParts({ ...base, steps: 24 })
+    expect(p24[0]!.d).toBeGreaterThan(p13[0]!.d)
+    expect(p24[0]!.d).toBeCloseTo(24 * 0.26)
+  })
+
+  it('L-shape: three boxes with the second flight offset in +X (an L, not a full box)', () => {
+    const parts = staircaseFootprintParts({ ...base, style: 'lshape' })
+    expect(parts).toHaveLength(3)
+    // First flight centred on X, second flight pushed out into +X.
+    expect(parts[0]!.dx).toBeCloseTo(0)
+    expect(parts[2]!.dx).toBeGreaterThan(base.width / 2)
+    // The open corner (−X, far +Z) is NOT covered — a piece can sit in the L.
+    expect(inParts(parts, -1.5, 3)).toBe(false)
+  })
+
+  it('U-shape: three boxes (two parallel flights + a wide half-landing)', () => {
+    const parts = staircaseFootprintParts({ ...base, style: 'ushape' })
+    expect(parts).toHaveLength(3)
+    // The landing is the widest box (spans both flights).
+    const widest = parts.reduce((a, b) => (b.w > a.w ? b : a))
+    expect(widest.w).toBeCloseTo(base.width * 2)
+  })
+
+  it('spiral: one centred square enclosing the tread disc', () => {
+    const parts = staircaseFootprintParts({ ...base, style: 'spiral' })
+    expect(parts).toHaveLength(1)
+    expect(parts[0]!.dx).toBeCloseTo(0)
+    expect(parts[0]!.dz).toBeCloseTo(0)
+    expect(parts[0]!.w).toBeGreaterThanOrEqual(2 * base.width)
+  })
+
+  it('honesty: every rendered tread centre lies within the footprint (no float outside)', () => {
+    for (const style of ['straight', 'lshape', 'ushape'] as const) {
+      const spec = { ...base, style }
+      const parts = staircaseFootprintParts(spec)
+      for (const t of treads(buildStaircase(spec))) {
+        expect(inParts(parts, t.position[0], t.position[2], 1e-3)).toBe(true)
+      }
+    }
   })
 })
