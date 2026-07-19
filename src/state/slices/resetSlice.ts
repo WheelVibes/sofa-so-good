@@ -1,9 +1,16 @@
 import { planAirconPlacements } from '../../analysis/airconPlacement'
 import { buildAirconSystemPlan } from '../../analysis/airconSystem'
 import { isDefaultPlan } from '../../floorplan/planGeometry'
+import type { FloorPlan } from '../../floorplan/types'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import { defaultLayout } from '../../furniture/defaultLayout'
 import { furnishOcsItems, furnishPlanItems } from '../../furniture/furnishPlan'
+import {
+  absentLeafDoorIds,
+  bareSanitaryProvisions,
+  isStripoutKeep,
+  screedDryFloorFinishes,
+} from '../../furniture/intakeStates'
 import { buildPresetItems, LAYOUT_PRESETS, PRESET_ROOMS } from '../../furniture/layoutPresets'
 import {
   buildOcsFloorFinishesForDefault,
@@ -41,6 +48,23 @@ export interface ResetSlice {
    *  bathroom sanitary fittings, replacing the current furniture with the bare
    *  OCS deliverables. One undo step. */
   applyOcsStarter: () => void
+  /** Seed the **bare BTO (no OCS)** handover state (BSJ-4): cement-screed floors
+   *  in the dry rooms (wet/kitchen keep their HDB-tiled floors), NO internal door
+   *  leaves, bare WC/basin plumbing provisions in each bathroom, and NO furniture
+   *  or carpentry. Captures the demolition baseline as the seeded shell (a new
+   *  BTO has nothing to hack). One undo step. */
+  applyBareBto: () => void
+  /** Seed the **resale — as handed over** state (BSJ-4): keep the current (move-in
+   *  default) finished/furnished home as the previous owner's flat, restore any
+   *  removed door leaves, and capture it as the demolition baseline so later wall
+   *  edits diff against the real as-built shell. One undo step. */
+  applyResaleAsIs: () => void
+  /** Seed the **resale — after strip-out** state (BSJ-4): bare screed in the dry
+   *  rooms, retained wet-area + kitchen floors, retained wet/kitchen FITTINGS
+   *  (furniture + wardrobes + non-fitting carpentry stripped), internal door
+   *  leaves removed. Captures the retained shell as the demolition baseline. One
+   *  undo step. */
+  applyResaleStripout: () => void
   /** Plan the aircon SYSTEM (BSJ-2): compute the System-2/3/4 condenser
    *  proposal for the current plan and place/refresh an FCU (`aircon-unit`) in
    *  each served room + the condenser(s) (`aircon-condenser`) on the AC-ledge /
@@ -56,6 +80,36 @@ function airconItemId(): string {
     return crypto.randomUUID()
   }
   return `id-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`
+}
+
+type DoorRec = Record<string, { open: boolean; leaf?: 'none' }>
+
+/** A copy of the doors record with every ABSENT-leaf flag cleared — i.e. all
+ *  door leaves restored (open state preserved). */
+function withLeavesRestored(doors: DoorRec): DoorRec {
+  const out: DoorRec = {}
+  for (const [k, v] of Object.entries(doors)) out[k] = { open: v.open }
+  return out
+}
+
+/** A copy of the doors record marking `ids` leaves ABSENT (BSJ-4). An absent
+ *  leaf is a permanent opening, so it's set `open:true` too (keeps walk-mode
+ *  collision honest — `planCollisionWalls` only clears a gap for an open door).
+ *  Every other door has its leaf restored. */
+function withLeavesAbsent(doors: DoorRec, ids: string[]): DoorRec {
+  const out = withLeavesRestored(doors)
+  for (const id of ids) out[id] = { open: true, leaf: 'none' }
+  return out
+}
+
+/** The plan with bare WC/basin plumbing provisions appended (BSJ-4). Keeps the
+ *  plan id (so the default flat still renders as the curated apartment); the new
+ *  points persist for a custom plan and are session-only on the default flat
+ *  (whose plan isn't serialized). */
+function withSanitaryProvisions(plan: FloorPlan): FloorPlan {
+  const provisions = bareSanitaryProvisions(plan).map((p) => ({ id: airconItemId(), ...p }))
+  if (provisions.length === 0) return plan
+  return { ...plan, plumbingPoints: [...(plan.plumbingPoints ?? []), ...provisions] }
 }
 
 /** Layout entries store only overrides; merge schema defaults so primitives
@@ -161,6 +215,84 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
     set({
       items,
       finishes: { ...cur, floor },
+      selectedItemId: null,
+      selectedItemIds: [],
+      hiddenItemIds: [],
+    })
+  },
+  applyBareBto: () => {
+    get().pushHistory()
+    const plan = get().floorPlan
+    const seededPlan = withSanitaryProvisions(plan)
+    const doors = withLeavesAbsent(get().doors as DoorRec, absentLeafDoorIds(plan))
+    const screed = screedDryFloorFinishes(plan)
+    if (!isDefaultPlan(plan)) {
+      // Custom plan / template: write screed onto each dry room's own floor;
+      // wet/kitchen rooms keep their existing floor. No furniture / carpentry.
+      const rooms = plan.rooms.map((r) => (screed[r.id] ? { ...r, floor: screed[r.id] } : r))
+      const nextPlan = { ...seededPlan, rooms }
+      set({
+        items: [],
+        floorPlan: nextPlan,
+        baselinePlan: nextPlan,
+        doors,
+        selectedItemId: null,
+        selectedItemIds: [],
+        hiddenItemIds: [],
+      })
+      return
+    }
+    // Built-in fixed flat: screed the dry rooms via the finishes slice (keyed by
+    // room id), strip all furniture, seed provisions + remove internal leaves.
+    const cur = get().finishes
+    set({
+      items: [],
+      finishes: { ...cur, floor: { ...cur.floor, ...screed } },
+      floorPlan: seededPlan,
+      baselinePlan: seededPlan,
+      doors,
+      selectedItemId: null,
+      selectedItemIds: [],
+      hiddenItemIds: [],
+    })
+  },
+  applyResaleAsIs: () => {
+    // The move-in default IS the "previous owner's home". Keep the current design
+    // untouched; only restore any removed leaves and capture the baseline.
+    get().pushHistory()
+    const plan = get().floorPlan
+    set({
+      baselinePlan: plan,
+      doors: withLeavesRestored(get().doors as DoorRec),
+    })
+  },
+  applyResaleStripout: () => {
+    get().pushHistory()
+    const plan = get().floorPlan
+    const doors = withLeavesAbsent(get().doors as DoorRec, absentLeafDoorIds(plan))
+    const screed = screedDryFloorFinishes(plan)
+    // Keep only wet-area + kitchen FITTINGS; strip furniture + wardrobes + carpentry.
+    const items = get().items.filter((it) => isStripoutKeep(it.defId))
+    if (!isDefaultPlan(plan)) {
+      const rooms = plan.rooms.map((r) => (screed[r.id] ? { ...r, floor: screed[r.id] } : r))
+      const nextPlan = { ...plan, rooms }
+      set({
+        items,
+        floorPlan: nextPlan,
+        baselinePlan: nextPlan,
+        doors,
+        selectedItemId: null,
+        selectedItemIds: [],
+        hiddenItemIds: [],
+      })
+      return
+    }
+    const cur = get().finishes
+    set({
+      items,
+      finishes: { ...cur, floor: { ...cur.floor, ...screed } },
+      baselinePlan: plan,
+      doors,
       selectedItemId: null,
       selectedItemIds: [],
       hiddenItemIds: [],

@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.98 — BSJ-4: bare-BTO + resale starting states (intake family complete)
+
+The wizard's OCS entry grows into a 4-option "Starting state" group. Bare
+BTO: honest grey `floor-screed` on dry rooms (HDB-tiled wet/kitchen floors
+retained — HDB tiles those regardless of OCS), internal door LEAVES absent
+(openings stay; new `DoorState.leaf:'none'` unifies the fixed flat's
+DoorSpec path and plan doors with zero new plan fields), WC/basin plumbing
+provisions as MEP points, no carpentry/furniture. Resale as-is: the
+furnished flat, honestly named, with the baseline captured so later wall
+edits produce REAL hacking quantities. Resale strip-out: screed shell with
+wet-area fittings retained. Budget coherence tested per state (bare ⇒ no
+hacking line; strip-out ⇒ real hacking length). `ocsStarter` flag key kept
+(back-compat) relabelled "Starting states". Full suite 8,318 green; all
+four states GPU-verified.
+
 ## v0.22.2.97 — BSJ-3: lighting & switching schematic
 
 Switches now know what they control. Additive `controls`/`gang`/`way` on

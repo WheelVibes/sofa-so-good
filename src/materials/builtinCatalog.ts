@@ -49,6 +49,11 @@ function wallpaper(
 export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   // ── Floors (procedural PBR) ─────────────────────────────────────────────
   'floor-concrete': floor('floor-concrete', 'Concrete (bare)', '#bcb9b3', 'concrete', [2.2, 2.2]),
+  // Raw cement screed — the unfinished floor an HDB BTO is handed over with when
+  // the buyer does NOT opt into the Optional Component Scheme (BSJ-4). A flat,
+  // dusty grey cement topping over the structural slab; distinct from the smoother
+  // `floor-concrete` microcement look (HDB Group Reno / 9creation bare-handover).
+  'floor-screed': floor('floor-screed', 'Cement screed (bare)', '#a7a29a', 'concrete', [3.2, 3.2]),
   'floor-wood-oak': floor('floor-wood-oak', 'Oak planks', '#b88f5d', 'wood', [1.9, 1.2]),
   'floor-wood-walnut': floor('floor-wood-walnut', 'Walnut planks', '#6b4428', 'wood', [1.9, 1.2]),
   'floor-tile-white': floor('floor-tile-white', 'White tiles', '#e6e3dc', 'tile', [0.6, 0.6]),

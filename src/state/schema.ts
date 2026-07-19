@@ -553,7 +553,7 @@ const RawSerializedStateZ = z.object({
   items: z.array(FurnitureItemZ),
   // Optional custom apartment shell (omitted for the default flat).
   floorPlan: FloorPlanZ.optional(),
-  doors: z.record(z.string(), z.object({ open: z.boolean() })),
+  doors: z.record(z.string(), z.object({ open: z.boolean(), leaf: z.literal('none').optional() })),
   finishes: z.object({
     floor: z.record(z.string(), z.string()),
     walls: z.record(z.string(), z.string()),

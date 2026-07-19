@@ -1,0 +1,45 @@
+{
+  "name": "intake-states-bsj4",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setUiMode?.('simple'); s.reresolveFeatureFlags?.(); })()"
+    },
+    { "name": "settle-boot", "wait": 1500 },
+    {
+      "name": "open-wizard",
+      "eval": "window.__store.getState().setSmartStartOpen(true)"
+    },
+    { "name": "wizard-visible", "waitFor": { "text": "Starting state" }, "timeout": 15000 },
+    { "name": "wait-wizard", "wait": 500 },
+    { "name": "shot-wizard", "screenshot": "01-wizard-starting-state" },
+    {
+      "name": "apply-resale-asis",
+      "eval": "(() => { const s = window.__store.getState(); s.setSmartStartOpen(false); s.applyResaleAsIs(); return 'ok'; })()"
+    },
+    { "name": "settle-asis", "wait": 1800 },
+    { "name": "shot-asis", "screenshot": "02-resale-asis-furnished" },
+    {
+      "name": "apply-stripout",
+      "eval": "(() => { const s = window.__store.getState(); s.applyResaleStripout(); return JSON.stringify({ items: s.items ? undefined : 0 }); })()"
+    },
+    { "name": "settle-stripout", "wait": 1800 },
+    {
+      "name": "report-stripout",
+      "eval": "(() => { const s = window.__store.getState(); return JSON.stringify({ items: s.items.map(i=>i.defId), mainBedFloor: s.finishes.floor.mainBedroom, bath1Floor: s.finishes.floor.bath1, mainBedLeaf: s.doors['door-mainBedroom']?.leaf ?? null }); })()"
+    },
+    { "name": "shot-stripout", "screenshot": "03-resale-stripout-shell" },
+    {
+      "name": "apply-bare-bto",
+      "eval": "window.__store.getState().applyBareBto()"
+    },
+    { "name": "settle-bare", "wait": 1800 },
+    {
+      "name": "report-bare",
+      "eval": "(() => { const s = window.__store.getState(); return JSON.stringify({ items: s.items.length, plumbing: (s.floorPlan.plumbingPoints||[]).length, mainBedFloor: s.finishes.floor.mainBedroom, mainBedLeaf: s.doors['door-mainBedroom']?.leaf ?? null, mainDoorLeaf: s.doors['door-main']?.leaf ?? null }); })()"
+    },
+    { "name": "shot-bare", "screenshot": "04-bare-bto-screed-shell" }
+  ]
+}

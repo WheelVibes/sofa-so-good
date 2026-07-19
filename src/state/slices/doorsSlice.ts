@@ -3,6 +3,12 @@ import type { SliceCreator } from './types'
 
 export interface DoorState {
   open: boolean
+  /** `'none'` = the door leaf is ABSENT (bare BTO / resale strip-out handover —
+   *  the opening + frame exist, but no leaf is fitted). Absent field = a normal
+   *  leaf is present. Read by both the fixed-flat `DoorLeaf` and the custom-plan
+   *  `PlanDoorLeaf` (BSJ-4). Rides the existing `doors` persistence/history —
+   *  no new persisted field. */
+  leaf?: 'none'
 }
 
 export interface DoorsSlice {

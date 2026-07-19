@@ -94,6 +94,11 @@ export function PlanDoorLeaf({
   neighborIds?: readonly string[]
 }) {
   const isOpen = useStore((s) => s.doors[opening.id]?.open ?? false)
+  // BSJ-4: a bare-BTO / strip-out handover leaves the leaf ABSENT — the opening
+  // (wall gap) stays, only the leaf is gone. The 2D plan symbol still draws the
+  // opening (it reads `plan.openings`, not the doors state), so the doorway
+  // remains marked on the plan.
+  const leafAbsent = useStore((s) => s.doors[opening.id]?.leaf === 'none')
   const toggle = useStore((s) => s.toggleDoor)
   const rootRef = useRef<Group>(null)
   const swingRef = useRef<Group>(null!)
@@ -302,6 +307,7 @@ export function PlanDoorLeaf({
   })
 
   if (len === 0) return null
+  if (leafAbsent) return null
 
   // Shared click handler (orbit mode is view-only — see Door.tsx).
   const onLeafToggle = (e: { stopPropagation: () => void }) => {

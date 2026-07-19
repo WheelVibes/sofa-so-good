@@ -36,6 +36,20 @@ describe('schema', () => {
     expect(patch.keyCollectionDate).toBe('2026-07-19')
   })
 
+  it("round-trips a door's absent-leaf flag (BSJ-4 bare BTO / strip-out)", () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().applyBareBto()
+    const saved = serialize(useStore.getState())
+    const parsed = SerializedStateZ.safeParse(saved)
+    expect(parsed.success).toBe(true)
+    if (parsed.success) {
+      expect(parsed.data.doors['door-mainBedroom']?.leaf).toBe('none')
+      expect(parsed.data.doors['door-mainBedroom']?.open).toBe(true)
+      // A provided door has no leaf flag.
+      expect(parsed.data.doors['door-main']?.leaf).toBeUndefined()
+    }
+  })
+
   it('defaults the key-collection date to null when absent', () => {
     useStore.getState().__resetForTest()
     const saved = serialize(useStore.getState())

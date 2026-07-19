@@ -1577,6 +1577,15 @@ same change that reshapes a system.
   the bare OCS handover state (vinyl bedrooms / porcelain living + bath fittings, furniture cleared);
   `furnishPlan.ts:furnishOcsItems` places the bath fittings for a custom plan. Exposed as "New BTO
   (with OCS)" in `ui/wizard/SmartStartWizard.tsx`, gated by the `ocsStarter` simple flag.
+- **Bare-BTO & resale starting states (BSJ-4)** (`furniture/intakeStates.ts` pure: screed-dry floor
+  map + retained-wet rule, `absentLeafDoorIds`, bare WC/basin `bareSanitaryProvisions`, strip-out
+  fitting keep-set, `INTAKE_STATES` metadata → `floor-screed` material). Three `resetSlice` actions
+  (`applyBareBto`/`applyResaleAsIs`/`applyResaleStripout`) sit beside `applyOcsStarter`; each captures
+  `baselinePlan` so the hacking diff is honest (bare BTO → no hacking line). Absent door leaves =
+  `DoorState.leaf:'none'` (rides `doors` persistence/history; guarded in `Door.tsx` + `PlanDoorLeaf.tsx`,
+  2D symbol keeps the opening). Smart Start's OCS entry becomes a 4-option "Starting state" group gated
+  by the (relabelled) `ocsStarter` flag. Fixed-flat plumbing provisions are session-only (default plan
+  isn't serialized); screed floors + absent leaves persist.
 - **Renovation estimate** (`analysis/renovationCost.ts` pure → `estimateRenovation(floorAreas,wallAreas,rules?)`:
   SG supply+install $/m² per finish category). The default rate table (`RENO_RATES`) is the factory
   default of a **configurable price-rule library** (`PriceRules`/`DEFAULT_PRICE_RULES`, with

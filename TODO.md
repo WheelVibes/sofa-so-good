@@ -472,10 +472,20 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
   the electrical plan sheet (`electricalPlanSvg`) reusing `mepLabelLayout` declutter; DXF
   ELECTRICAL text suffixed with the same tag (sheet↔DXF consistent); "Suggest circuits" action
   (one undo step). All gated by `switchCircuits` (pro, default on, off in Simple).
-- [ ] **BSJ-4 — Bare-BTO & resale starting states** (M, simple) — add "New BTO (bare — screed,
-  no finishes/doors)" and "Resale (as-is / strip to bare)" intake states in `SmartStartWizard`
-  beside the existing OCS state (`ocsStarter.ts`), so the non-OCS majority + resale buyers model
-  their real starting point (bare screed / previous-owner finishes to keep-or-hack). Pure client.
+- [x] **BSJ-4 — Bare-BTO & resale starting states** (M, simple) — DONE: pure
+  `furniture/intakeStates.ts` (screed-dry floor map + retained-wet rule + absent internal-door-leaf
+  ids + bare WC/basin plumbing provisions + strip-out fitting keep-set + the 4 `INTAKE_STATES`
+  metadata) drives three new `resetSlice` actions (`applyBareBto`/`applyResaleAsIs`/
+  `applyResaleStripout`) beside `applyOcsStarter`. New `floor-screed` material (honest grey cement).
+  Absent door leaves are represented as `DoorState.leaf:'none'` (riding the existing `doors`
+  persistence/history — no new persisted field), guarded in BOTH `Door.tsx` (fixed flat) +
+  `PlanDoorLeaf.tsx` (custom plans); the 2D symbol keeps the opening. Each intake captures
+  `baselinePlan` so the demolition/hacking diff is real (bare BTO → baseline == shell → no hacking
+  line). Smart Start's OCS entry is now a 4-option "Starting state" group gated by the (relabelled)
+  `ocsStarter` flag. Tests: `intakeStates.test.ts`, `resetSlice.intake.test.ts`,
+  `renovationAllocator.intake.test.ts`, `features/flags/intakeStates.test.ts`, doors-leaf schema
+  round-trip. Note: on the fixed default flat, seeded plumbing provisions are session-only (the
+  default plan isn't serialized); screed floors + absent leaves persist.
 - [ ] **BSJ-5 — Per-trade handover packs** (M, pro) — re-bundle the existing drawing set /
   schedules / BOQ (organised by drawing TYPE today) into per-RECIPIENT packs: Tiler (finish
   schedule + setting-out + wet-area), Electrician (electrical plan + socket advisory + switching

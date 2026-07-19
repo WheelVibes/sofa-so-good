@@ -15,13 +15,27 @@ point you then tweak. It works on **any floor plan** too — load one of the HDB
 condominium or landed templates (or draw your own) and Smart Start picks a
 suitable furniture set for each room and arranges it to that plan's walls.
 
-**New BTO (with OCS).** At the top of Smart Start, the **New BTO (with OCS)**
-button starts you from HDB's **Optional Component Scheme** handover state instead
-of a style: vinyl strip flooring in the bedrooms, polished porcelain tiles in the
-living/dining, and the bathroom **sanitary fittings** (wall‑mounted basin, shower
-set and WC) — so a BTO owner who opted into OCS designs from what they'll actually
-receive, not a blank shell. A note reminds you that OCS is chosen at flat booking
-and cannot be added later.
+**Starting state.** At the top of Smart Start, the **Starting state** group starts
+you from a real HDB/condo handover instead of a style — pick the one that matches
+how you actually receive your home:
+
+- **New BTO — bare.** What HDB hands over **without** the Optional Component Scheme:
+  **cement‑screed floors**, **no internal door leaves** (the door openings stay —
+  you fit the leaves), **WC/basin pipe provisions only** (no bathroom fittings), and
+  **no wardrobes or kitchen cabinets**. The main entrance door and the household
+  shelter's blast door are provided. This is what the non‑OCS majority collects.
+- **New BTO — with OCS.** HDB's **Optional Component Scheme** handover: vinyl strip
+  flooring in the bedrooms, polished porcelain in the living/dining, and the bathroom
+  **sanitary fittings** (wall‑mounted basin, shower set and WC). OCS is chosen at flat
+  booking and cannot be added later.
+- **Resale — as handed over.** The previous owner's finished, furnished home (the
+  app's move‑in default). Keeps everything as‑is and records it as the baseline your
+  hacking/demolition costs are measured against.
+- **Resale — after strip‑out.** The shell after hacking: **bare screed** in the dry
+  rooms, **retained wet‑area + kitchen floors** (the waterproofing is kept) and their
+  **fittings**, with furniture, wardrobes and internal door leaves stripped out.
+
+You can tweak everything afterwards — these just set an honest starting point.
 
 ## Sets, presets & styles
 

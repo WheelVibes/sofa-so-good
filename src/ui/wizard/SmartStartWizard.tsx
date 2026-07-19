@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useFeature } from '../../features/useFeature'
 import { type BriefMatch, parseBrief } from '../../furniture/briefParser'
+import { INTAKE_STATES, type IntakeStateId } from '../../furniture/intakeStates'
 import type { LayoutPreset } from '../../furniture/layoutPresets'
 import { LAYOUT_PRESETS } from '../../furniture/layoutPresets'
-import { OCS_INFO_NOTE } from '../../furniture/ocsStarter'
 import { BUILTIN_MATERIALS } from '../../materials/builtinCatalog'
 import { THEME_META, type ThemeName } from '../../state/slices/appearanceSlice'
 import { useStore } from '../../state/store'
@@ -82,8 +82,13 @@ export function SmartStartWizard() {
   const fTextBrief = useFeature('textBrief')
   const fOcs = useFeature('ocsStarter')
 
-  const applyOcs = () => {
-    useStore.getState().applyOcsStarter()
+  // BSJ-4: apply one of the four buyer starting states, then close the wizard.
+  const applyIntake = (id: IntakeStateId) => {
+    const s = useStore.getState()
+    if (id === 'bto-bare') s.applyBareBto()
+    else if (id === 'bto-ocs') s.applyOcsStarter()
+    else if (id === 'resale-asis') s.applyResaleAsIs()
+    else s.applyResaleStripout()
     setOpen(false)
   }
   const [picked, setPicked] = useState<string>(LAYOUT_PRESETS[0]?.id ?? 'move-in')
@@ -145,20 +150,41 @@ export function SmartStartWizard() {
       </p>
       {fOcs ? (
         <div className="ss-ocs" style={{ marginBottom: 12 }}>
-          <button type="button" className="btn btn-block" onClick={applyOcs}>
-            New BTO (with OCS)
-          </button>
-          <p
-            className="panel-sub"
-            style={{
-              textTransform: 'none',
-              letterSpacing: 0,
-              marginTop: 6,
-              lineHeight: 'var(--lh-body)',
-            }}
-          >
-            {OCS_INFO_NOTE}
-          </p>
+          <div className="sec-h" style={{ marginBottom: 'var(--s-1)' }}>
+            Starting state
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-1)' }}>
+            {INTAKE_STATES.map((st) => (
+              <button
+                key={st.id}
+                type="button"
+                className="btn btn-block"
+                onClick={() => applyIntake(st.id)}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  gap: 2,
+                  height: 'auto',
+                  padding: 'var(--s-2)',
+                  textAlign: 'left',
+                }}
+              >
+                <span style={{ fontWeight: 700 }}>{st.name}</span>
+                <span
+                  className="panel-sub"
+                  style={{
+                    textTransform: 'none',
+                    letterSpacing: 0,
+                    lineHeight: 'var(--lh-body)',
+                    whiteSpace: 'normal',
+                  }}
+                >
+                  {st.blurb}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       ) : null}
       {fTextBrief ? (

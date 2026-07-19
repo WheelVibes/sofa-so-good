@@ -1832,9 +1832,14 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // state choice → SIMPLE tier, default on. Prod-safe pure code.
   // Refs: qanvast.com/sg/articles/hdb-optional-component-scheme-ocs-is-it-worth-opting-in-1873
   //       dollarsandsense.sg/complete-guide-hdbs-optional-components-scheme-ocs/
+  // BSJ-4: gates the whole "Starting state" group in Smart Start — bare BTO,
+  // BTO with OCS, resale as-is, and resale after strip-out. Keeps the historical
+  // `ocsStarter` flag id (back-compat: existing overrides / saved flag maps still
+  // resolve; no rename to migrate) now that it gates the broader intake family.
   ocsStarter: {
-    label: 'New BTO (with OCS)',
-    description: "Start from HDB's Optional Component Scheme finishes + fittings",
+    label: 'Starting states',
+    description:
+      'Seed a real HDB/condo handover state: bare BTO, BTO+OCS, resale as-is, or strip-out',
     default: true,
     tier: 'simple',
   },
