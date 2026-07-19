@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.87 — Contractor re-review: SHIP IT verdict + rc-partition demolition safety fix
+
+Second adversarial SG-contractor review of the full handover package
+(45 sheet captures across 5-Room + multi-storey Terrace; DXF + schedule +
+on-plan marks verified consistent end-to-end; 8 dimensions spot-checked
+against the plan model — all correct; DB note, MEP provenance, and permit
+paths judged accurate). Verdict: SHIP IT. One safety-relevant defect fixed:
+the demolition sheet escalated only `load-bearing` walls to "NOT PERMITTED"
+— a demolished `rc-partition` rendered as a routine removal, contradicting
+the hackability overlay and wall-delete guard. The sheet now shares
+`wallHackability.isDemolitionRestricted` (one classifier for overlay,
+delete guard, and sheet), legend reworded "structural (load-bearing / RC)",
+regression-tested. P2/P3 punch list (entry-door room attribution, grouped
+multi-storey mark spans, GA label overlap) filed in TODO. Full review:
+docs/research/2026-07-19-contractor-re-review.md.
+
 ## v0.22.2.86 — Test: report expectation updated for the now-clean default layout
 
 The full gate caught `report.test.ts` still asserting the default layout

@@ -12,11 +12,16 @@
  * **Structural classification (G7):** `PlanWall.structure` rides straight
  * through from the source plan into `WallDiff.kept/demolished/added` (the diff
  * only matches/buckets wall objects, never clones them), so this module reads
- * it directly off each wall with no extra plumbing. A `'load-bearing'` wall
- * always gets a heavy/solid treatment; if it's ALSO being demolished that
- * escalates to a hard danger treatment + an inline "NOT PERMITTED" label — SG
- * hacking rules make load-bearing demolition absolutely off-limits, never
- * just "needs a permit" like an ordinary partition. An `'unknown'` (or
+ * it directly off each wall with no extra plumbing. Whether a wall is
+ * demolition-restricted is decided by the ONE shared classifier
+ * (`wallHackability.ts:isDemolitionRestricted`) so this sheet can NEVER diverge
+ * from the live hackability overlay + wall-delete guard — a **structural** wall
+ * is either `'load-bearing'` OR `'rc-partition'` (a reinforced-concrete
+ * partition; the household-shelter/RC case). A structural wall always gets a
+ * heavy/solid treatment; if it's ALSO being demolished that escalates to a
+ * hard danger treatment + an inline "NOT PERMITTED" label — SG hacking rules
+ * make load-bearing/RC demolition absolutely off-limits, never just "needs a
+ * permit" like an ordinary brick/drywall partition. An `'unknown'` (or
  * unset — same thing) wall being demolished gets an inline "⚠" — the app has
  * no way to verify a user's classification, and wall type is a **documented SG
  * failure mode**: older HDB beam-and-column + brick infill and newer precast
@@ -29,6 +34,7 @@
 import type { WallDiff } from './demolitionPlan'
 import { permitNotes } from './permitNotes'
 import type { HousingType, PlanWall } from './types'
+import { isDemolitionRestricted } from './wallHackability'
 
 interface DemolitionPalette {
   /** Kept walls (unchanged). */
@@ -39,8 +45,8 @@ interface DemolitionPalette {
   added: string
   /** Strong foreground for the legend text + swatch outlines. */
   ink: string
-  /** Hard-stop danger treatment for a load-bearing wall marked for demolition
-   *  (G7). Optional — falls back to `demolished` for callers that haven't
+  /** Hard-stop danger treatment for a structural (load-bearing / RC) wall
+   *  marked for demolition (G7). Optional — falls back to `demolished` for callers that haven't
    *  opted into the extra colour (keeps existing palettes valid). */
   danger?: string
 }
@@ -108,7 +114,12 @@ function wallBounds(walls: PlanWall[]): Bounds {
   return { minX, minZ, maxX, maxZ }
 }
 
-const isLoadBearing = (w: PlanWall) => w.structure === 'load-bearing'
+/** Structural — demolition NOT permitted under SG rules. Reuses the ONE
+ *  classifier (`wallHackability`) so this sheet can never diverge from the
+ *  live hackability overlay + wall-delete guard: BOTH `'load-bearing'` AND
+ *  `'rc-partition'` (reinforced-concrete partition) are off-limits, not just
+ *  load-bearing. */
+const isStructural = (w: PlanWall) => isDemolitionRestricted(w.structure)
 /** Absent `structure` means the SAME thing as an explicit `'unknown'`. */
 const isUnverified = (w: PlanWall) => (w.structure ?? 'unknown') === 'unknown'
 
@@ -133,12 +144,12 @@ export function demolitionSvg(diff: WallDiff, opts: DemolitionSvgOpts): string {
   const py = (z: number) => (z - b.minZ + PAD) * scale
 
   // G7 classification tallies — drive both extra legend rows and the block height.
-  const loadBearingAny = all.some(isLoadBearing)
-  const loadBearingDemolished = diff.demolished.filter(isLoadBearing)
-  const unverifiedDemolished = diff.demolished.filter((w) => isUnverified(w) && !isLoadBearing(w))
+  const structuralAny = all.some(isStructural)
+  const structuralDemolished = diff.demolished.filter(isStructural)
+  const unverifiedDemolished = diff.demolished.filter((w) => isUnverified(w) && !isStructural(w))
   const extraLegendRows =
-    (loadBearingAny ? 1 : 0) +
-    (loadBearingDemolished.length > 0 ? 1 : 0) +
+    (structuralAny ? 1 : 0) +
+    (structuralDemolished.length > 0 ? 1 : 0) +
     (unverifiedDemolished.length > 0 ? 1 : 0)
 
   const legendH = LEGEND_PAD * 2 + LEGEND_ROW * (3 + extraLegendRows)
@@ -163,36 +174,37 @@ export function demolitionSvg(diff: WallDiff, opts: DemolitionSvgOpts): string {
 
   const dangerColor = palette.danger ?? palette.demolished
 
-  // Kept walls — solid, base weight; heavy when load-bearing (G7).
+  // Kept walls — solid, base weight; heavy when structural (G7).
   for (const w of diff.kept) {
-    parts.push(wallLine(w, px, py, palette.kept, isLoadBearing(w) ? 5 : 2, undefined))
+    parts.push(wallLine(w, px, py, palette.kept, isStructural(w) ? 5 : 2, undefined))
   }
   // Demolished walls — dashed + diagonally hatched (drafting "to be removed"
-  // convention). A load-bearing wall marked for demolition escalates to a
-  // hard danger treatment + an inline "NOT PERMITTED" label (G7 — this is
-  // never a normal hacking item); an unverified ('unknown'/absent)
-  // classification gets an inline "⚠" warning instead.
+  // convention). A STRUCTURAL wall (load-bearing OR reinforced-concrete
+  // partition) marked for demolition escalates to a hard danger treatment +
+  // an inline "NOT PERMITTED" label (G7 — this is never a normal hacking
+  // item); an unverified ('unknown'/absent) classification gets an inline "⚠"
+  // warning instead.
   for (const w of diff.demolished) {
-    const bearing = isLoadBearing(w)
-    const color = bearing ? dangerColor : palette.demolished
-    parts.push(wallLine(w, px, py, color, bearing ? 5 : 2, '6 4'))
+    const structural = isStructural(w)
+    const color = structural ? dangerColor : palette.demolished
+    parts.push(wallLine(w, px, py, color, structural ? 5 : 2, '6 4'))
     parts.push(hatchLines(w, px, py, color))
-    if (bearing) {
+    if (structural) {
       parts.push(wallLabel(w, px, py, 'NOT PERMITTED', color))
     } else if (isUnverified(w)) {
       parts.push(wallLabel(w, px, py, '⚠', palette.ink))
     }
   }
-  // Added walls — bold, the new colour; heavy when load-bearing (rare, but
+  // Added walls — bold, the new colour; heavy when structural (rare, but
   // classification can be set on a newly-drawn wall too).
   for (const w of diff.added) {
-    parts.push(wallLine(w, px, py, palette.added, isLoadBearing(w) ? 6 : 4, undefined))
+    parts.push(wallLine(w, px, py, palette.added, isStructural(w) ? 6 : 4, undefined))
   }
 
   parts.push(
     legend(diff, planH, palette, {
-      loadBearingAny,
-      loadBearingDemolished: loadBearingDemolished.length,
+      structuralAny,
+      structuralDemolished: structuralDemolished.length,
       unverifiedDemolished: unverifiedDemolished.length,
       dangerColor,
     }),
@@ -283,8 +295,8 @@ function wallLabel(
 }
 
 interface ClassificationTallies {
-  loadBearingAny: boolean
-  loadBearingDemolished: number
+  structuralAny: boolean
+  structuralDemolished: number
   unverifiedDemolished: number
   dangerColor: string
 }
@@ -312,15 +324,20 @@ function legend(
       label: `Added (${diff.added.length}) — ${n(diff.addedLengthM)} m`,
     },
   ]
-  if (tallies.loadBearingAny) {
-    rows.push({ color: palette.ink, dash: undefined, width: 5, label: 'Load-bearing (heavy line)' })
+  if (tallies.structuralAny) {
+    rows.push({
+      color: palette.ink,
+      dash: undefined,
+      width: 5,
+      label: 'Structural — load-bearing / RC (heavy line)',
+    })
   }
-  if (tallies.loadBearingDemolished > 0) {
+  if (tallies.structuralDemolished > 0) {
     rows.push({
       color: tallies.dangerColor,
       dash: '6 4',
       width: 5,
-      label: `NOT PERMITTED — load-bearing (${tallies.loadBearingDemolished})`,
+      label: `NOT PERMITTED — structural (load-bearing / RC) (${tallies.structuralDemolished})`,
     })
   }
   if (tallies.unverifiedDemolished > 0) {

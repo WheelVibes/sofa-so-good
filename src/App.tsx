@@ -27,6 +27,7 @@ import {
   FlagsPanel,
   FloorPlanEditor,
   GlbDesignerDialog,
+  HandoverPanel,
   HistoryPanel,
   HqRenderModal,
   PanoramaModal,
@@ -35,6 +36,7 @@ import {
   PetCompliancePanel,
   ProductTour,
   RenderCompareModal,
+  RenoRulesPanel,
   ShareModal,
   ShortcutsModal,
   SmartStartWizard,
@@ -134,6 +136,8 @@ export default function App() {
     drawingCalloutsOpen: useStore((s) => s.drawingCalloutsOpen),
     accessibilityOpen: useStore((s) => s.accessibilityOpen),
     petComplianceOpen: useStore((s) => s.petComplianceOpen),
+    renoRulesOpen: useStore((s) => s.renoRulesOpen),
+    handoverOpen: useStore((s) => s.handoverOpen),
     flagsOpen: useStore((s) => s.flagsPanelOpen),
   }
   usePlacementController()
@@ -420,6 +424,16 @@ export default function App() {
         {lazyPanels.accessibilityOpen ? (
           <Suspense fallback={null}>
             <AccessibilityPanel />
+          </Suspense>
+        ) : null}
+        {lazyPanels.renoRulesOpen ? (
+          <Suspense fallback={null}>
+            <RenoRulesPanel />
+          </Suspense>
+        ) : null}
+        {lazyPanels.handoverOpen ? (
+          <Suspense fallback={null}>
+            <HandoverPanel />
           </Suspense>
         ) : null}
         {lazyPanels.petComplianceOpen ? (

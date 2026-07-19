@@ -102,6 +102,29 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 > researching `REFERENCES.md`; then reliability/edge-cases, a11y, and test-coverage hardening.
 > Avoid pricing/quotes/analytics deliverables unless asked.
 
+### Contractor re-review (2026-07-19)
+> Full end-to-end re-review of the handover package (drawing set + DXF) on two non-default plans
+> (single-storey HDB 5-Room + multi-storey Landed Terrace). Verdict: **ship it**. Schedule ↔
+> on-plan marks ↔ DXF verified consistent single- AND multi-storey; 8 dimensions spot-checked
+> numerically. Full write-up + screenshot refs: `docs/research/2026-07-19-contractor-re-review.md`.
+- **[P1 — DONE 2026-07-19] Demolition sheet under-flagged rc-partition demolition.** Only
+  `load-bearing` escalated to "NOT PERMITTED"; an `rc-partition` (RC partition) demolition rendered
+  as a routine partition removal, contradicting the hackability overlay + wall-delete guard.
+  Fixed: `demolitionPlanSvg.ts` now reuses `wallHackability.isDemolitionRestricted` so all three
+  surfaces share one classifier; wording → "structural (load-bearing / RC)"; +regression test.
+- **[P2] Main-entrance door resolves to "Unassigned" / single room.** 5-Room main door opens into
+  an un-roomed circulation gap (Rooms → "Unassigned"); Terrace "ct-main" borders only the Service
+  Yard (rear-wall placement). Template-data artefacts, not schedule bugs. Fix options: add a
+  foyer/entry room to those templates, OR a schedule fallback label ("External / entry") when a
+  door borders exactly one interior room + the outside.
+- **[P2] Grouped door mark spans many rooms across storeys.** Terrace D2 ×4 lists 6 rooms
+  (ground + upper). Correct by construction; location relies on the on-plan callouts. Consider a
+  per-instance mark suffix or a compact "see plan" cue for high-count marks. Non-blocking.
+- **[P3] GA floor-plan label/furniture overlap** in dense zones (room name/area over indicative
+  furniture). A label-collision nudge would read cleaner. **[P3] MEP/RCP symbols small at A4
+  1:100/1:125** (fine at true print scale). **[P3] Door swing arc drawn on wall elevations**
+  (swing is a plan concept) — minor convention nit.
+
 ## Active — graphics-tier performance optimization (2026-07-08, user goal)
 Systematically speed up frame processing/rendering **without sacrificing visual quality**, focused
 on the heavy **Maximum** tier (also opportunistic wins on other tiers). Shipped work lives in

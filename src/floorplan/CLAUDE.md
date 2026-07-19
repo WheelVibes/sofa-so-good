@@ -92,10 +92,13 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   when the selection disagrees). `diffWalls`/`diffWallsByLevel` (`demolitionPlan.ts`) never
   clone wall objects — they just bucket references into `kept`/`demolished`/`added` — so
   `structure` rides straight through into `WallDiff` with no extra plumbing.
-  `demolitionPlanSvg.ts` reads it directly: a `'load-bearing'` wall always renders
-  heavy/solid (+ a legend row); a load-bearing wall marked for demolition escalates to a
-  hard danger treatment + an inline "NOT PERMITTED" label (load-bearing demolition is
-  absolute off-limits under SG rules, never just "needs a permit"); an `'unknown'`
+  `demolitionPlanSvg.ts` reads it directly, deciding "demolition-restricted?" via the ONE
+  shared classifier (`wallHackability.ts:isDemolitionRestricted`) so the sheet can NEVER diverge
+  from the live hackability overlay + wall-delete guard: a **structural** wall — `'load-bearing'`
+  **OR** `'rc-partition'` (reinforced-concrete partition) — always renders heavy/solid (+ a
+  "Structural — load-bearing / RC" legend row); a structural wall marked for demolition escalates
+  to a hard danger treatment + an inline "NOT PERMITTED" label ("structural (load-bearing / RC)"
+  — off-limits under SG rules, never just "needs a permit"); an `'unknown'`
   (or unset) wall being demolished gets an inline "⚠" + a "confirm with HDB/PE" legend note.
   Demolished walls also get a real diagonal-hatch tick pattern (not just a dashed colour) per
   drafting convention. The sheet prints a concise SG permit-note block alongside the legend
