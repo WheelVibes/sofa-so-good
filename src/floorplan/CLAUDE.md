@@ -232,6 +232,26 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   provenance note ("Points as designed — heights in mm AFFL" vs the pre-existing indicative
   caveat) and the right `@mm` mount-height suffix beside each symbol (only for points that carry
   one — heuristic-derived points never do).
+- **Lighting & switching schematic (BSJ-3, `switchCircuits` pro flag):** additive
+  `PlanElectricalPoint.controls?: string[]` (+ `gang?`/`way?`) links a `switch` point to the
+  light fixtures it drives (schema.ts ⇄ types.ts parity, no version bump). **ID vocabulary
+  (documented decision):** a controlled id is a placed light-fixture item id
+  (`PlanLight.id === item.id`) — there is NO lighting-kind electrical POINT (`ElectricalKind`
+  has none), so a raw id is unambiguous; a future point target would be `point:`-prefixed. Pure
+  `switchCircuits.ts` is the ONE builder: `buildSwitchCircuits(switches, lights, roomNameAt?)`
+  → deterministic tags (switches/lights ordered by (x,z,id) → S1/S2…, L1/L2…), **two-way** =
+  two switches with the same `controls` + `way:2` paired into one circuit number with `Sna`/`Snb`
+  tags; plus `unswitchedLightCount`/`emptySwitchCount` advisory + `suggestCircuitLinks(plan,
+  switches, lights)` (per room, the switch NEAREST any of the room's doors controls that room's
+  lights — SG entry-door convention). `floorPlanSlice.suggestSwitchCircuits` applies it (one undo,
+  fork-if-default). The electrical sheet (`electricalPlanSvg`, when the caller passes `opts.lights`
+  — gated by the flag in `drawingSet`) suffixes each linked switch's side label with its tag,
+  draws controlled-light crossed-circle markers (L-mark + tag) through the SAME `mepLabelLayout`
+  declutter pass as the electrical symbols, adds a "Lighting circuits" legend + the switching
+  advisory line; **DXF** (`export/dxf.ts:mepSection`, same flag) suffixes the ELECTRICAL layer's
+  switch text with the identical tag so sheet↔DXF never diverge. Editor: the selected switch's
+  inspector shows a room-grouped "Controls" list + two-way/gang (`SwitchControlsSection`, list-only
+  v1 — on-plan pick deferred), and `SwitchLinksLayer` dashes leader lines to its controlled lights.
 - **Setting-out & datum dimensioning (TODO G3, `settingOutDims` Pro flag):
   `settingOut.ts`** is the ONE pure builder (`datumPoint`/`settingOutDimensions`/
   `tileSettingOutPoints`) for both the dimensioned-plan sheet's setting-out row and

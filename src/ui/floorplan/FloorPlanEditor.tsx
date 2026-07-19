@@ -58,6 +58,7 @@ import { PlacementGhostLayer } from './editor/layers/PlacementGhostLayer'
 import { PlanGuidesLayer } from './editor/layers/PlanGuidesLayer'
 import { PolylinesLayer } from './editor/layers/PolylinesLayer'
 import { RoomsLayer } from './editor/layers/RoomsLayer'
+import { SwitchLinksLayer } from './editor/layers/SwitchLinksLayer'
 import { TourStopsLayer } from './editor/layers/TourStopsLayer'
 import { WallHandlesLayer } from './editor/layers/WallHandlesLayer'
 import { WallsLayer } from './editor/layers/WallsLayer'
@@ -328,6 +329,7 @@ export function FloorPlanEditor() {
     kind: ElectricalKind | PlumbingKind
   }>({ family: 'electrical', kind: 'socket' })
   const fMep = useFeature('mepEditor')
+  const fSwitchCircuits = useFeature('switchCircuits')
   const fHackability = useFeature('hackabilityOverlay')
   // Active room-name-label drag (select tool): grab offset from the label's
   // current world position (PARITY-ROOMLABEL).
@@ -2177,6 +2179,32 @@ export function FloorPlanEditor() {
           Suggest MEP points
         </button>
       ) : null}
+      {/* Auto-link each room's door-nearest switch to that room's lights
+          (BSJ-3), gated by `switchCircuits` (pro). One undoable action. */}
+      {fMep && fSwitchCircuits ? (
+        <button
+          type="button"
+          onClick={() => {
+            const { linked } = a.suggestSwitchCircuits()
+            if (linked === 0) {
+              a.notify.start({
+                title: 'No switch circuits to suggest',
+                kind: 'info',
+                message: 'Add switch points and light fixtures to each room first.',
+              })
+            } else {
+              a.notify.start({
+                title: `Linked ${linked} switch${linked === 1 ? '' : 'es'} to their room lights`,
+                message: 'Select a switch to review or refine its lights.',
+              })
+            }
+          }}
+          title="Link each room's switch (nearest its door) to that room's light fixtures"
+          className="btn btn-sm"
+        >
+          Suggest circuits
+        </button>
+      ) : null}
       {/* Reference photo — trace walls over a floor-plan image / room scan.
           Gated by the `planTraceBackdrop` pro flag (hidden in Simple mode). */}
       {fTraceBackdrop && (
@@ -2817,6 +2845,23 @@ export function FloorPlanEditor() {
                   beginElementDrag={beginElementDrag}
                   pointerWorld={pointerWorld}
                   setMovingMep={setMovingMep}
+                />
+              )}
+
+              {/* Switch→light circuit leader lines (BSJ-3): while a switch point
+                is selected in MEP mode, dash a line to each light it controls +
+                ring the fixture. Gated by `switchCircuits` (pro). */}
+              {fMep && fSwitchCircuits && showMep && (
+                <SwitchLinksLayer
+                  switchPoint={
+                    sel?.type === 'mep' && sel.family === 'electrical'
+                      ? ((plan.electricalPoints ?? []).find(
+                          (p) => p.id === sel.id && p.kind === 'switch',
+                        ) ?? null)
+                      : null
+                  }
+                  items={levelItems}
+                  toPx={toPx}
                 />
               )}
 

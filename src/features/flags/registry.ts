@@ -1701,6 +1701,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Lighting & switching schematic (BSJ-3): link each switch point to the light
+  // fixtures it controls (one/two-way) and emit the circuit tags + legend an
+  // electrician wires from, on the electrical plan sheet + DXF. Analytical
+  // handover content → pro tier, like the MEP editor it builds on.
+  switchCircuits: {
+    label: 'Switching schematic',
+    description:
+      'Link switches to the lights they control; circuit tags + legend on the electrical plan',
+    default: true,
+    tier: 'pro',
+  },
   // Setting-out & datum dimensioning (TODO G3 — SG contractor handover): a
   // datum marker + running face dimensions from it on the dimensioned-plan
   // sheet, plus tile setting-out start-point crosses on the floor-plan sheet.

@@ -1924,7 +1924,20 @@ same change that reshapes a system.
   from the furniture layout; verify on site" caveat. `ElectricalPoint`/`PlumbingPoint` (the sheet-
   builder's transient shape, distinct from the persisted `PlanElectricalPoint`/`PlanPlumbingPoint`)
   both grew an optional `mountHeightMm` carried through `buildElectricalPlan`/`buildPlumbingPlan`'s
-  clean-copy validation loop. **Draggable room-name labels**
+  clean-copy validation loop. **Lighting & switching schematic** (BSJ-3, `switchCircuits` pro flag):
+  additive `PlanElectricalPoint.controls?`/`gang?`/`way?` link a `switch` to the light fixtures it
+  drives (controlled id = light-fixture item id — no lighting-kind point exists; see
+  `floorplan/switchCircuits.ts` for the id-vocabulary decision). Pure `switchCircuits.ts`
+  (`buildSwitchCircuits`) assigns deterministic S/L tags (two-way pair = two `way:2` switches with the
+  same `controls` → one circuit, `Sna`/`Snb`) + unswitched-light/empty-switch advisory counts;
+  `suggestCircuitLinks` (door-nearest-switch heuristic) backs `floorPlanSlice.suggestSwitchCircuits`
+  (one undo). The electrical sheet (`electricalPlanSvg`, when `drawingSet` passes `opts.lights` under
+  the flag) tags each linked switch + draws controlled-light crossed-circle markers through the SAME
+  `mepLabelLayout` declutter as the symbols + a "Lighting circuits" legend; `export/dxf.ts:mepSection`
+  suffixes the ELECTRICAL text with the identical tag (sheet↔DXF consistent). Editor: the selected
+  switch's inspector "Controls" section (`SwitchControlsSection`, room-grouped light list + two-way +
+  gang, list-only v1) + `SwitchLinksLayer` dashed leader lines to controlled lights. **Draggable
+  room-name labels**
   (`room.labelOffset`; `roomLabelPosition` = centroid + offset, shared by editor + report/drawing set —
   PARITY-ROOMLABEL). Each room's label shows name + live floor **area** (`planRoomArea`) + wall
   **perimeter** (`planRoomPerimeter` — shared with the report) on the full-detail tier, unit-aware

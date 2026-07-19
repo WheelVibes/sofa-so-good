@@ -16,6 +16,7 @@ import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 import { OpeningInspector } from './editor/inspector/OpeningInspector'
 import { RoomInspector } from './editor/inspector/RoomInspector'
+import { SwitchControlsSection } from './editor/inspector/SwitchControlsSection'
 import { ActBtn, DeleteBtn, Num } from './editor/inspector/shared'
 import { STRUCTURE_OPTIONS, WallInspector } from './editor/inspector/WallInspector'
 import { ELECTRICAL_MEP_KINDS, PLUMBING_MEP_KINDS } from './editor/mepToolKinds'
@@ -68,6 +69,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const plan = useStore((s) => s.floorPlan)
   const units = useStore((s) => s.units)
   const fMep = useFeature('mepEditor')
+  const fSwitchCircuits = useFeature('switchCircuits')
   const a = useStore.getState()
   const isMobile = useIsMobile()
   const wallThicknessOn = useFeature('wallThickness')
@@ -422,6 +424,9 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
               className="input"
             />
           </label>
+          {family === 'electrical' && p.kind === 'switch' && fSwitchCircuits && elecPoint ? (
+            <SwitchControlsSection point={elecPoint} levelId={levelId} />
+          ) : null}
           <DeleteBtn
             onClick={() =>
               family === 'electrical' ? a.removeElectricalPoint(p.id) : a.removePlumbingPoint(p.id)

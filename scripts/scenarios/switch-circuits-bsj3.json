@@ -1,0 +1,40 @@
+{
+  "name": "switch-circuits-bsj3",
+  "description": "BSJ-3 lighting & switching schematic: a switch point selected in the plan editor's MEP mode draws dashed leader lines + highlight rings to the light fixtures it controls.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "to-pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "switchCircuits-flag-on",
+      "waitFor": { "store": "state.featureFlags.switchCircuits === true" },
+      "timeout": 5000
+    },
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-visible", "waitFor": { "css": ".plan-screen" }, "timeout": 30000 },
+    {
+      "name": "plan-svg-mounted",
+      "waitFor": { "css": ".plan-screen svg.plan-paper" },
+      "timeout": 30000
+    },
+    {
+      "name": "seed-lights-switch-and-link",
+      "eval": "(function(){ const s = window.__store.getState(); const r = s.floorPlan.rooms[0]; const cx = r.origin[0] + r.width/2, cz = r.origin[1] + r.depth/2; const lights = [ { id:'demo-l1', defId:'ceiling-light', position:[cx-0.9, cz-0.3], rotation:0, props:{} }, { id:'demo-l2', defId:'ceiling-light', position:[cx+0.9, cz-0.3], rotation:0, props:{} } ]; s.setItems(lights); const swId = s.addElectricalPoint({ x: cx, z: cz + 1.4, kind:'switch', mountHeightMm:1200 }); s.updateElectricalPoint(swId, { controls:['demo-l1','demo-l2'], gang:2 }); s.setPlanSelection({ type:'mep', family:'electrical', id: swId }); window.__demoSwitch = swId; })()"
+    },
+    {
+      "name": "switch-selected",
+      "waitFor": { "store": "state.planSelection && state.planSelection.type === 'mep' && state.planSelection.family === 'electrical'" },
+      "timeout": 5000
+    },
+    {
+      "name": "leader-lines-drawn",
+      "eval": "(function(){ const dashed = [...document.querySelectorAll('.plan-screen svg line')].filter(l => (l.getAttribute('stroke-dasharray')||'').includes('4')); if (dashed.length < 2) throw new Error('expected >=2 dashed leader lines from the selected switch, got ' + dashed.length); console.log('leader lines present:', dashed.length); })()"
+    },
+    { "name": "shot-mep-leaders", "screenshot": "a-mep-switch-leaders" }
+  ]
+}

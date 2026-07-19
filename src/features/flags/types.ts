@@ -185,6 +185,7 @@ export type FeatureFlag =
   | 'shareCardNative'
   | 'itemMeta'
   | 'mepEditor'
+  | 'switchCircuits'
   | 'settingOutDims'
   | 'carpentrySheets'
   | 'rcpSheet'

@@ -434,6 +434,21 @@ export interface PlanElectricalPoint {
   label?: string
   /** Storey the point sits on; absent = ground (F13). */
   levelId?: string
+  /** Lighting/switching schematic (BSJ-3, `switchCircuits` pro flag) — for a
+   *  `switch` point, the ids of the light fixtures it controls. An id is a
+   *  placed light fixture's item id (`PlanLight.id === item.id`); there is no
+   *  lighting-kind electrical POINT today, so a raw id is unambiguous (see
+   *  `switchCircuits.ts` for the id-vocabulary decision + how a future
+   *  point target would be `point:`-prefixed). Absent/empty = controls nothing.
+   *  Additive + optional — no version bump. */
+  controls?: string[]
+  /** Switch gang count (how many rockers on the plate) — informational, 1 or 2.
+   *  Absent = 1. */
+  gang?: number
+  /** One-way (`1`, absent) or two-way (`2`) switching. A two-way circuit is
+   *  modelled as TWO `switch` points listing the SAME `controls` with `way: 2`
+   *  on both — they share one circuit number and get `Sna`/`Snb` tags. */
+  way?: number
 }
 
 /** A persisted plumbing point (MEP layer, G1). Same shape/rules as

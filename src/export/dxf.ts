@@ -74,10 +74,12 @@
 import { assignOpeningMarks } from '../analysis/openingSchedule'
 import { obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
+import { isFeatureEnabled } from '../features/featureFlags'
 import { buildDimensions, type Dimension } from '../floorplan/autoDimension'
 import { diffWalls } from '../floorplan/demolitionPlan'
 import { ELEC_SYM_TEXT } from '../floorplan/electricalPlanSvg'
 import { PLUMB_SYM_TEXT } from '../floorplan/plumbingPlanSvg'
+import { buildSwitchCircuits } from '../floorplan/switchCircuits'
 import {
   type FloorPlan,
   type PlanElectricalPoint,
@@ -88,6 +90,7 @@ import {
   wallLength,
 } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
+import { buildLightingPlan } from '../lighting2d/lightingPlan'
 import type { UnitSystem } from '../utils/measurement'
 
 /** DXF Y for a plan Z (flip so +Z south reads downward, not mirrored). */
@@ -335,10 +338,14 @@ function mepPointEntities(
   z: number,
   symbol: string,
   mountHeightMm: number | undefined,
+  tagSuffix?: string,
 ): string {
   let out = dxfCircle(layer, x, z, MEP_POINT_RADIUS)
   const heightSuffix = typeof mountHeightMm === 'number' ? `@${Math.round(mountHeightMm)}` : ''
-  const sideText = [symbol, heightSuffix].filter(Boolean).join(' ')
+  // BSJ-3: a linked switch's circuit tag ("[S1]") suffixes the symbol text so
+  // the DXF ELECTRICAL layer matches the electrical sheet's tag exactly.
+  const tag = tagSuffix ? `[${tagSuffix}]` : ''
+  const sideText = [symbol, heightSuffix, tag].filter(Boolean).join(' ')
   if (sideText) {
     out += dxfText(layer, x + MEP_POINT_RADIUS + MEP_LABEL_GAP, z, sideText, 0.12)
   }
@@ -355,7 +362,11 @@ function mepPointEntities(
  * Missing/non-array fields fall back to empty (no entities), same guard
  * style as `entitiesSection`'s `Array.isArray` checks.
  */
-function mepSection(plan: FloorPlan): string {
+function mepSection(
+  plan: FloorPlan,
+  items: FurnitureItem[],
+  catalog: Record<string, FurnitureDef>,
+): string {
   const electrical: PlanElectricalPoint[] = Array.isArray(plan.electricalPoints)
     ? plan.electricalPoints.filter((p) => p.levelId === undefined)
     : []
@@ -363,9 +374,29 @@ function mepSection(plan: FloorPlan): string {
     ? plan.plumbingPoints.filter((p) => p.levelId === undefined)
     : []
 
+  // BSJ-3: switch→light circuits (ground storey only, matching the point
+  // filter above), gated by `switchCircuits`. Suffixes each linked switch's
+  // ELECTRICAL text with its circuit tag — keeping DXF ↔ sheet consistent.
+  const circuits = isFeatureEnabled('switchCircuits')
+    ? buildSwitchCircuits(
+        electrical
+          .filter((p) => p.kind === 'switch')
+          .map((p) => ({
+            id: p.id,
+            x: p.x,
+            z: p.z,
+            controls: p.controls,
+            gang: p.gang,
+            way: p.way,
+          })),
+        buildLightingPlan(items, catalog).lights.filter((l) => l.levelId === undefined),
+      )
+    : null
+
   let out = ''
   for (const p of electrical) {
-    out += mepPointEntities('ELECTRICAL', p.x, p.z, ELEC_SYM_TEXT[p.kind], p.mountHeightMm)
+    const tag = p.kind === 'switch' ? circuits?.tagBySwitchId.get(p.id) : undefined
+    out += mepPointEntities('ELECTRICAL', p.x, p.z, ELEC_SYM_TEXT[p.kind], p.mountHeightMm, tag)
   }
   for (const p of plumbing) {
     out += mepPointEntities('PLUMBING', p.x, p.z, PLUMB_SYM_TEXT[p.kind], p.mountHeightMm)
@@ -529,7 +560,7 @@ function entitiesSection(
   }
 
   out += furnitureSection(items, catalog)
-  out += mepSection(plan)
+  out += mepSection(plan, items, catalog)
 
   const dims = buildDimensions(plan, units)
   for (const d of [...dims.overall, ...dims.rooms]) out += dxfDimension(d)

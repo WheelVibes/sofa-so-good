@@ -447,6 +447,12 @@ export const FloorPlanZ = z.object({
         mountHeightMm: z.number().optional(),
         label: z.string().optional(),
         levelId: z.string().optional(),
+        // Lighting/switching schematic (BSJ-3, `switchCircuits`). Additive +
+        // back-compat — controlled light-fixture ids + gang/way. See
+        // `floorplan/types.ts`'s `PlanElectricalPoint` + `switchCircuits.ts`.
+        controls: z.array(z.string()).optional(),
+        gang: z.number().optional(),
+        way: z.number().optional(),
       }),
     )
     .optional(),

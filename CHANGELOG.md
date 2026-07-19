@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.97 — BSJ-3: lighting & switching schematic
+
+Switches now know what they control. Additive `controls`/`gang`/`way` on
+PlanElectricalPoint (zod parity + round-trip); a selected switch in the
+MEP editor gets a room-grouped "Controls" checklist plus dashed on-plan
+leader lines to its lights; deterministic circuit tags (S1, S1a/S1b
+two-way pairs sharing one circuit) annotate both the electrical sheet
+(with a "Lighting circuits" legend + unswitched/empty advisories, through
+the shared declutter) and the DXF ELECTRICAL layer. "Suggest circuits"
+auto-links each room's lights to its door-nearest switch (one undo step).
+All behind the `switchCircuits` pro flag. 1,377 targeted tests; editor +
+sheet scenarios GPU-verified. Guard fix: section padding tokenized.
+
 ## v0.22.2.96 — BSJ-2: aircon SYSTEM planner (multi-split grouping + placement)
 
 The purchase/installation decision the per-room BTU data stopped short of.

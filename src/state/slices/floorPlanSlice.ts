@@ -30,6 +30,7 @@ import {
   newWallName,
 } from '../../floorplan/roomWallNames'
 import { addGuide } from '../../floorplan/snapToGuides'
+import { suggestCircuitLinks } from '../../floorplan/switchCircuits'
 import {
   type CeilingConfig,
   clampOpeningOffset,
@@ -53,6 +54,7 @@ import {
 import { joinAdjacentWalls, reverseWallGeometry } from '../../floorplan/wallOps'
 import { buildMergedCatalog } from '../../furniture/catalog'
 import { deriveElectricalPoints, derivePlumbingPoints } from '../../furniture/mepSuggest'
+import { buildLightingPlan } from '../../lighting2d/lightingPlan'
 import type { PlanLabelMode } from '../../ui/floorplan/planLabels'
 import { nextPlanLabelMode } from '../../ui/floorplan/planLabels'
 import type { RootState } from '../store'
@@ -349,6 +351,13 @@ export interface FloorPlanSlice {
    *  Returns how many of each were actually added (0 on a re-run once
    *  everything's already suggested). */
   suggestMepPoints: () => { electrical: number; plumbing: number }
+
+  /** Suggest switch→light circuit links (BSJ-3, `switchCircuits` pro flag): per
+   *  room, link the switch nearest the room's door to that room's light
+   *  fixtures (`switchCircuits.ts:suggestCircuitLinks`). Overwrites the chosen
+   *  switch's `controls` under ONE undo step; forks the default plan. Returns
+   *  how many switches were linked (0 when there's nothing to link). */
+  suggestSwitchCircuits: () => { linked: number }
 
   /** Add a persistent ruler guide (PARITY-PLAN-GUIDES); de-duped per-axis. */
   addPlanGuide: (guide: PlanGuide) => void
@@ -1355,6 +1364,36 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       },
     }))
     return { electrical: newElectrical.length, plumbing: newPlumbing.length }
+  },
+
+  suggestSwitchCircuits: () => {
+    const s = get()
+    const catalog = buildMergedCatalog(s)
+    const lights = buildLightingPlan(s.items, catalog).lights
+    const switches = (s.floorPlan.electricalPoints ?? [])
+      .filter((p) => p.kind === 'switch')
+      .map((p) => ({
+        id: p.id,
+        x: p.x,
+        z: p.z,
+        controls: p.controls,
+        gang: p.gang,
+        way: p.way,
+        levelId: p.levelId,
+      }))
+    const linkMap = suggestCircuitLinks(s.floorPlan, switches, lights)
+    if (linkMap.size === 0) return { linked: 0 }
+
+    get().pushHistory()
+    set((state) => ({
+      floorPlan: {
+        ...forkIfDefault(state.floorPlan),
+        electricalPoints: (state.floorPlan.electricalPoints ?? []).map((p) =>
+          linkMap.has(p.id) ? { ...p, controls: linkMap.get(p.id)! } : p,
+        ),
+      },
+    }))
+    return { linked: linkMap.size }
   },
 
   // Ruler guides are a plan-wide array (not level-tagged) — pure reference lines

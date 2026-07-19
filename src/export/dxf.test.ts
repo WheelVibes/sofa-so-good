@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setResolvedFlags } from '../features/featureFlags'
+import { resolveFlags } from '../features/flags/resolve'
 import type { FloorPlan } from '../floorplan/types'
 import type { BuiltinGltfDef, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { dxfCircle, dxfLine, dxfPolyline, dxfText, planToDxf } from './dxf'
@@ -328,6 +330,45 @@ describe('planToDxf MEP points (G6b)', () => {
     // at all for that point (only its CIRCLE marker).
     expect(dxf).not.toContain('@undefined')
     expect(dxf).not.toMatch(/1\nS\n/) // no bare "S" without the suffix present elsewhere
+  })
+
+  // BSJ-3 circuit tags gate on the `switchCircuits` pro flag; the store defaults
+  // to Simple, so force the resolved snapshot per mode and restore it after.
+  const litItem: FurnitureItem = {
+    id: 'lite1',
+    defId: 'ceiling-light',
+    position: [2.5, 1.5],
+    rotation: 0,
+    props: {},
+  }
+  const planCtl: FloorPlan = {
+    ...smallPlan,
+    electricalPoints: [{ id: 'e1', x: 1, z: 2, kind: 'switch', controls: ['lite1'] }],
+  }
+  afterEach(() => setResolvedFlags(resolveFlags(false, {}, false, 'simple')))
+
+  it('suffixes a linked switch with its circuit tag in Pro mode (BSJ-3)', () => {
+    setResolvedFlags(resolveFlags(false, {}, false, 'pro'))
+    // A ceiling light + a switch controlling it. Lights derive from the placed
+    // items via `buildLightingPlan`, so an empty catalog still yields the light.
+    const dxf = planToDxf(planCtl, [litItem], {})
+    expect(dxf).toContain('S [S1]')
+  })
+
+  it('omits circuit tags in Simple mode (flag forced off) (BSJ-3)', () => {
+    setResolvedFlags(resolveFlags(false, {}, false, 'simple'))
+    const dxf = planToDxf(planCtl, [litItem], {})
+    expect(dxf).not.toContain('[S1]')
+  })
+
+  it('omits circuit tags when the switch controls nothing (BSJ-3)', () => {
+    setResolvedFlags(resolveFlags(false, {}, false, 'pro'))
+    const dxf = planToDxf(
+      { ...smallPlan, electricalPoints: [{ id: 'e1', x: 1, z: 2, kind: 'switch' }] },
+      [],
+      {},
+    )
+    expect(dxf).not.toContain('[S1]')
   })
 
   it('emits a CIRCLE + symbol TEXT for each persisted plumbing point on PLUMBING', () => {

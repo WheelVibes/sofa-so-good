@@ -462,11 +462,16 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
   `airconPlacement.test.ts`, `resetSlice.aircon.test.ts`, `features/airconSystem.test.ts` +
   allocator pin. Scenario `aircon-system-bsj2.json` (proposal panel + placed 3D, GPU-verified).
   Follow-up filed below (3D trunking route).
-- [ ] **BSJ-3 — Lighting & switching schematic** (M, pro) — link a `switch` MEP point to the
-  fixtures it controls (one-way/two-way), emit a lighting-control schedule + schematic for the
-  electrician. `mepPoints.ts` has a `switch` kind but no switch→fixture link;
-  `socketAdvisory`/`electricalSchedule` state they have "no notion of circuits". The missing
-  electrician deliverable. Pure client.
+- [x] **BSJ-3 — Lighting & switching schematic** (M, pro) — DONE (`switchCircuits` flag):
+  additive `PlanElectricalPoint.controls?`/`gang?`/`way?` (schema + types parity); pure
+  `floorplan/switchCircuits.ts` (`buildSwitchCircuits` → deterministic S1/L1 tags, two-way pairs
+  share a circuit → S1a/S1b; `suggestCircuitLinks` = door-nearest-switch heuristic; unswitched-
+  light / empty-switch advisory counts). Inspector "Controls" section (room-grouped light list +
+  two-way + gang) on a selected switch; on-plan dashed leader lines to controlled lights
+  (`SwitchLinksLayer`); circuit tags + controlled-light markers + "Lighting circuits" legend on
+  the electrical plan sheet (`electricalPlanSvg`) reusing `mepLabelLayout` declutter; DXF
+  ELECTRICAL text suffixed with the same tag (sheet↔DXF consistent); "Suggest circuits" action
+  (one undo step). All gated by `switchCircuits` (pro, default on, off in Simple).
 - [ ] **BSJ-4 — Bare-BTO & resale starting states** (M, simple) — add "New BTO (bare — screed,
   no finishes/doors)" and "Resale (as-is / strip to bare)" intake states in `SmartStartWizard`
   beside the existing OCS state (`ocsStarter.ts`), so the non-OCS majority + resale buyers model

@@ -19,6 +19,7 @@ import { itemFootprint } from '../collision/placement'
 import { projectAllElevations } from '../elevation/projectElevation'
 import { DEFAULT_DRAWING_SET_TEMPLATE, type DrawingSetTemplate } from '../export/drawingSetTemplate'
 import { customMetaColumns } from '../export/ffeCsv'
+import { isFeatureEnabled } from '../features/featureFlags'
 import { buildFfeSchedule } from '../ffe/ffeSchedule'
 import { dimensionSvg } from '../floorplan/autoDimensionSvg'
 import { diffWalls, diffWallsByLevel } from '../floorplan/demolitionPlan'
@@ -642,6 +643,12 @@ export function buildDrawingSetHtml(
           palette: { wall: '#9ca3af', ink: '#374151', symbol: '#2563eb' },
           widthPx: 900,
           printMmPerM: scale.mmPerM,
+          // BSJ-3: the lighting-switching schematic (circuit tags + legend +
+          // controlled-light markers) rides the electrical sheet only when the
+          // `switchCircuits` pro flag is on (forced off in Simple mode).
+          ...(isFeatureEnabled('switchCircuits')
+            ? { lights: itemsOnLevel(lighting.lights, level.id) }
+            : {}),
         })}</div>${northIndicatorSvg(orientationDeg)}
         ${i === wired.length - 1 ? elecSched : ''}`,
         calloutGroup: 'electrical',

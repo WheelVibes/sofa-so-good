@@ -268,6 +268,26 @@ the exported sheets:
   any time you add more furniture; it skips anything it's already suggested.
   Drag any point afterwards to fine-tune its exact position.
 
+### Switch → light circuits *(Pro)*
+
+Tell your electrician **which switch controls which light**. Select a **switch**
+point and use its inspector's **Controls** section to tick the light fixtures it
+operates (grouped by room). Tick **Two‑way** on two switches that share the same
+lights (a staircase or bedroom operated from both ends) and pick the same
+fixtures on each — they become one circuit, tagged **S1a / S1b**. Set the
+**Gang** (1‑ or 2‑gang) for the plate.
+
+- While a switch is selected, dashed **leader lines** run from it to every light
+  it controls, so you can confirm the links at a glance.
+- **Plan ▾ → Suggest circuits** auto‑links, in each room, the switch nearest the
+  room's door to that room's lights (the usual entry‑switch convention) — one
+  undo step; refine any switch afterwards.
+- The exported **Electrical plan** tags each switch and its lights with matching
+  circuit numbers (**S1**, **S2**, …; lights read **L1 [S1]**), lists every
+  circuit in a **Lighting circuits** legend ("S1 — Living downlights (2‑gang) —
+  controls L1, L2"), and flags any lights with no switch (or switches that
+  control nothing). The same tags carry into the DXF export.
+
 *(Pro tools are hidden in Simple mode — switch to Pro from the mode toggle to
 use them. The exported Electrical/Plumbing plan sheets now use the points you
 place here once you've authored any — printing your chosen mount height
