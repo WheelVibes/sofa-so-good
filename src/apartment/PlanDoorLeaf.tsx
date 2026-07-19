@@ -2,7 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { Color, type Group, Mesh, type MeshStandardMaterial, Vector3 } from 'three'
 import { resolveDoorLeafMaterialKind } from '../floorplan/doorMaterial'
-import { isDoubleDoor, isSlidingDoor } from '../floorplan/doorSwing'
+import { isDoubleDoor, isSlidingDoor, slidingParkDir } from '../floorplan/doorSwing'
 import type { PlanOpening, PlanWall } from '../floorplan/types'
 import { wallLength } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
@@ -183,9 +183,9 @@ export function PlanDoorLeaf({
   // Sliding-door open direction along the wall: park the leaf over whichever
   // adjacent wall segment has more room (so the open leaf always overlaps real
   // wall, never floats past the end). −1 = toward the wall's start, +1 = end.
-  const spaceBefore = opening.offset
-  const spaceAfter = Math.max(0, len - (opening.offset + opening.width))
-  const slideDir = spaceBefore >= spaceAfter ? -1 : 1
+  // Shared with the 2D slide-arrow (`doorSwing.ts:slidingParkDir`) so the plan
+  // and the 3D leaf always agree on which way the door opens.
+  const slideDir = slidingParkDir(opening.offset, opening.width, len)
 
   useFrame((_, dt) => {
     // Hide with the host wall when an EXTERNAL wall sits between the orbit camera

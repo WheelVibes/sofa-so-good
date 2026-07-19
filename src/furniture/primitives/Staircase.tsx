@@ -81,7 +81,7 @@ export function Staircase({ props }: { props: ParamProps }) {
             castShadow
             receiveShadow
             position={p.position}
-            rotation={[0, p.rot ?? 0, 0]}
+            rotation={[p.pitch ?? 0, p.rot ?? 0, p.roll ?? 0]}
             material={mat}
           >
             <boxGeometry args={p.size} />

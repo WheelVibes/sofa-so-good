@@ -67,8 +67,11 @@ export function PaintVizModal({ open, onClose, swatches }: PaintVizModalProps) {
       setError('That image is too large (max 25 MB).')
       return
     }
+    // Revoke the object URL on EVERY exit path (a decode failure or a null 2D
+    // context jumps to `catch` before the old success-path revoke ran, leaking
+    // one blob reference per failed upload) — `finally` covers both.
+    const url = URL.createObjectURL(file)
     try {
-      const url = URL.createObjectURL(file)
       const img = new Image()
       await new Promise<void>((res, rej) => {
         img.onload = () => res()
@@ -84,12 +87,13 @@ export function PaintVizModal({ open, onClose, swatches }: PaintVizModalProps) {
       const octx = off.getContext('2d')
       if (!octx) throw new Error('ctx')
       octx.drawImage(img, 0, 0, w, h)
-      URL.revokeObjectURL(url)
       setPhoto(octx.getImageData(0, 0, w, h))
       setDims({ w, h })
       setPoints([])
     } catch {
       setError("Couldn't read that image. Try another photo.")
+    } finally {
+      URL.revokeObjectURL(url)
     }
   }, [])
 

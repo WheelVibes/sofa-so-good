@@ -10,6 +10,7 @@ import {
   doorSwingGeometry,
   isDoubleDoor,
   isSlidingDoor,
+  slidingParkDir,
 } from './doorSwing'
 import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from './types'
 
@@ -171,7 +172,28 @@ describe('doorPlanSymbol', () => {
     // Bar spans the opening, offset a hair to the +Z room side.
     expect(sym.bar[0]).toEqual([1, 0.06])
     expect(sym.bar[1]).toEqual([2, 0.06])
-    // Arrow points toward the hinge (start) jamb, i.e. −X here.
+    // Arrow parks toward the roomier side; here both sides are equal (1 m) so it
+    // ties to the wall start (−X).
     expect(sym.arrow[0][0]).toBeGreaterThan(sym.arrow[1][0])
+  })
+  it('slide arrow follows the roomier side, NOT the hinge (regression)', () => {
+    // hinge=start but MORE free wall AFTER the opening (spaceAfter 1.5 > before
+    // 0.5): the 3D leaf parks toward the wall END (+X). The old hinge-keyed arrow
+    // pointed −X (toward the start jamb) — opposite the actual slide. The arrow
+    // must now point +X to agree with `PlanDoorLeaf`'s `slidingParkDir`.
+    const sym = doorPlanSymbol(wall, { ...base, offset: 0.5, style: 'sliding', hinge: 'start' })!
+    if (sym.kind !== 'sliding') throw new Error('expected sliding')
+    expect(sym.arrow[1][0]).toBeGreaterThan(sym.arrow[0][0])
+  })
+})
+
+describe('slidingParkDir', () => {
+  it('parks toward whichever adjacent segment has more room', () => {
+    // Wall length 3, width 1: more room after → +1 (toward the wall end).
+    expect(slidingParkDir(0.5, 1, 3)).toBe(1)
+    // More room before → -1 (toward the wall start).
+    expect(slidingParkDir(1.5, 1, 3)).toBe(-1)
+    // Exact tie → -1 (toward the start).
+    expect(slidingParkDir(1, 1, 3)).toBe(-1)
   })
 })

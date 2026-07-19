@@ -1,5 +1,5 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import {
   BufferAttribute,
   BufferGeometry,
@@ -140,6 +140,18 @@ export function Roof({ plan }: { plan: FloorPlan }) {
   const dormerCaps = useMemo(
     () => (model ? model.dormers.map((d) => ({ d, geom: dormerCapGeometry(d) })) : []),
     [model],
+  )
+
+  // Dispose the imperatively-built BufferGeometries when they're replaced (any
+  // roof-settings / plan edit recomputes `model`) or on unmount — R3F does NOT
+  // free the previous value of a changed `geometry={…}` prop, so without this the
+  // GPU buffers leak per edit (ratcheting toward context loss over a session).
+  useEffect(() => () => roofGeom?.dispose(), [roofGeom])
+  useEffect(
+    () => () => {
+      for (const { geom } of dormerCaps) geom.dispose()
+    },
+    [dormerCaps],
   )
 
   // Fade the roof out when the orbit camera is looking DOWN into the dollhouse

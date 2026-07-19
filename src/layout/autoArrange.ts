@@ -159,9 +159,10 @@ function tryPlace(
   // Never block a window (RM3): a full-height/balcony-slider opening (sill
   // ≤ 0.05 m) is a hard keep-out for every floor item; a normal window only
   // rejects an item TALLER than its sill (a low console can sit under it, a
-  // wardrobe/bookcase can't). Mounted/ceiling items are exempt — same as the
-  // door-swing check above.
-  if (!def.mounted && ctx.windowKeepOut && ctx.windowKeepOut.length > 0) {
+  // wardrobe/bookcase can't). Mounted/ceiling AND noClip (rug) items are exempt
+  // — exactly like the door-swing check above (a floor rug lies flat under the
+  // window and blocks nothing).
+  if (!def.mounted && !def.noClip && ctx.windowKeepOut && ctx.windowKeepOut.length > 0) {
     const box = aabbOf(item, def, pos, rot)
     const blocked = ctx.windowKeepOut.some(
       (w) => (w.sill <= 0.05 || def.defaultFootprint.h > w.sill) && rectsOverlap(box, w),

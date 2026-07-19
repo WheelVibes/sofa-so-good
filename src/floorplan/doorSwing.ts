@@ -43,6 +43,19 @@ export function isDoubleDoor(o: PlanOpening): boolean {
   return o.kind === 'door' && o.style === 'double'
 }
 
+/** Direction a sliding leaf parks/retracts along its wall: toward whichever
+ *  adjacent segment has more room, so the open leaf always overlaps real wall
+ *  rather than floating past the end. `-1` = toward the wall start, `+1` = toward
+ *  the wall end. The 3D leaf (`PlanDoorLeaf`) and the 2D slide arrow
+ *  (`doorPlanSymbol`) MUST derive their direction from this one helper — keying
+ *  the arrow off `hinge` instead let the plan point the opposite way from the
+ *  actual 3D motion. */
+export function slidingParkDir(offset: number, width: number, wallLen: number): -1 | 1 {
+  const spaceBefore = offset
+  const spaceAfter = Math.max(0, wallLen - (offset + width))
+  return spaceBefore >= spaceAfter ? -1 : 1
+}
+
 export interface DoorSwingGeometry {
   /** Hinge jamb (the pivot point), world metres. */
   hinge: [number, number]
@@ -210,10 +223,12 @@ export function doorPlanSymbol(wall: PlanWall, o: PlanOpening): DoorPlanSymbol |
       [sPt[0] + nx * off, sPt[1] + nz * off],
       [ePt[0] + nx * off, ePt[1] + nz * off],
     ]
-    // Arrow along the wall toward the hinge (park) jamb.
-    const toStart = doorHinge(o) === 'start'
+    // Arrow along the wall toward the park jamb — derived from the SAME roomier-
+    // side heuristic the 3D leaf uses (`slidingParkDir`), so the plan arrow can
+    // never point opposite to the actual 3D slide direction (keying it off
+    // `hinge` did just that when the roomier side wasn't the hinge side).
     const c: [number, number] = [(sPt[0] + ePt[0]) / 2 + nx * off, (sPt[1] + ePt[1]) / 2 + nz * off]
-    const dir = toStart ? -1 : 1
+    const dir = slidingParkDir(o.offset, o.width, wallLength(wall))
     const half = o.width / 2
     const arrow: [[number, number], [number, number]] = [
       [c[0] - ux * dir * half * 0.7, c[1] - uz * dir * half * 0.7],

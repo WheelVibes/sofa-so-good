@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.78 — Bug comb over v0.22.2.64-77: five correctness fixes
+
+Adversarial review of the session's 15 commits confirmed and fixed five
+bugs. (1) Staircase.tsx's plain-mesh branch dropped the rail's pitch/roll —
+the continuous handrail rendered FLAT, resurrecting the exact defect
+v0.22.2.75 fixed; now `rotation={[pitch, rot, roll]}` (GPU-verified sloped).
+(2) Roof.tsx leaked GPU geometry on every roof-settings edit (R3F doesn't
+dispose replaced `geometry` props) — added disposal effects. (3) Paint
+visualizer leaked one object URL per failed photo decode — revoke moved to
+`finally`. (4) A sliding door's 2D plan arrow keyed on `hinge` while the 3D
+leaf parks toward the roomier wall segment — the drawing could tell the
+contractor the wrong slide direction; both now share
+`doorSwing.ts:slidingParkDir` (regression tests added). (5) The window
+keep-out rejected `noClip` rugs in front of balcony sliders — now exempts
+noClip like the door check beside it. Filed (pre-existing, not changed):
+schedule marks don't split by door style; multi-storey DXF mark-order
+divergence; Auto-ridge silently dropping non-facing dormers. 188 targeted
+tests + staircase/roof scenarios re-verified on GPU.
+
 ## v0.22.2.77 — H1-F tail: DXF opening marks share the schedule's grouping; roof px-guard fix
 
 `export/dxf.ts`'s local `assignOpeningMarks`/`openingMarkKey` copy (predating
