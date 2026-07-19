@@ -51,11 +51,11 @@ import {
   Mesh,
   MeshBasicMaterial,
   NearestFilter,
+  NoColorSpace,
   OrthographicCamera,
   PlaneGeometry,
   RGBAFormat,
   Scene,
-  SRGBColorSpace,
   UnsignedByteType,
   WebGLRenderer,
   WebGLRenderTarget,
@@ -108,10 +108,19 @@ function readbackTexture(
   const scene = new Scene()
   const camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1)
   const geo = new PlaneGeometry(2, 2)
+  // The contract is byte-faithful readback: an sRGB-tagged source (KTX2Loader
+  // sets it from the file's DFD) would be linearised at sample time and the
+  // render target holds that linear value un-re-encoded, skewing every channel
+  // (measured: 170 → 103 on the Basis teal fixture). Sample with no colour
+  // transform — the downstream material loader owns the sRGB/linear tagging.
+  texture.colorSpace = NoColorSpace
   const mat = new MeshBasicMaterial({ map: texture })
   scene.add(new Mesh(geo, mat))
 
-  renderer.setSize(width, height)
+  // updateStyle=false: the renderer runs on an OffscreenCanvas, which has no
+  // `.style` — the default style write throws ("Cannot set properties of
+  // undefined") and broke every Basis-KTX2/compressed-DDS upload.
+  renderer.setSize(width, height, false)
   renderer.setRenderTarget(target)
   renderer.render(scene, camera)
 
@@ -302,8 +311,8 @@ export async function decodeDds(buffer: ArrayBuffer): Promise<DecodedImage> {
       UnsignedByteType,
     )
     texture.needsUpdate = true
-    // Preserve sRGB for colour textures; renderer's output encoding is linear.
-    texture.colorSpace = SRGBColorSpace
+    // colorSpace is forced to NoColorSpace inside readbackTexture — the decode
+    // contract is raw bytes; sRGB tagging happens downstream at material load.
 
     const pixels = readbackTexture(renderer, texture, width, height)
     texture.dispose()

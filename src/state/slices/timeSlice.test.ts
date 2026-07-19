@@ -73,4 +73,88 @@ describe('timeSlice', () => {
     expect(useStore.getState().timeMode).toBe('manual')
     expect(useStore.getState().manualHour).toBe(6)
   })
+
+  describe('day → night clip sweep (DAY-NIGHT-CLIP)', () => {
+    it('defaults to off with a sensible day→night range and no active snapshot', () => {
+      const s = useStore.getState()
+      expect(s.clipTimeSweep).toBe(false)
+      expect(s.clipSweepStartHour).toBe(8)
+      expect(s.clipSweepEndHour).toBe(22)
+      expect(s.timeSweepRestore).toBeNull()
+    })
+
+    it('setters toggle the flag and wrap the hour range into [0, 24)', () => {
+      useStore.getState().setClipTimeSweep(true)
+      expect(useStore.getState().clipTimeSweep).toBe(true)
+      useStore.getState().setClipSweepStartHour(25)
+      useStore.getState().setClipSweepEndHour(-1)
+      expect(useStore.getState().clipSweepStartHour).toBe(1)
+      expect(useStore.getState().clipSweepEndHour).toBe(23)
+    })
+
+    it('beginTimeSweep is a no-op while the toggle is off', () => {
+      useStore.getState().setTimeMode('system')
+      useStore.getState().beginTimeSweep()
+      expect(useStore.getState().timeSweepRestore).toBeNull()
+      expect(useStore.getState().timeMode).toBe('system')
+    })
+
+    it('begin snapshots the original time and pins the clock to the start hour', () => {
+      // Original: manual 14:00.
+      useStore.getState().setManualHour(14)
+      useStore.getState().setClipTimeSweep(true)
+      useStore.getState().setClipSweepStartHour(8)
+      useStore.getState().setClipSweepEndHour(22)
+      useStore.getState().beginTimeSweep()
+      const s = useStore.getState()
+      expect(s.timeSweepRestore).toEqual({ timeMode: 'manual', manualHour: 14 })
+      expect(s.timeMode).toBe('manual')
+      expect(s.manualHour).toBe(8) // pinned to start
+    })
+
+    it('begin does not re-snapshot over an already-active sweep', () => {
+      useStore.getState().setManualHour(14)
+      useStore.getState().setClipTimeSweep(true)
+      useStore.getState().beginTimeSweep()
+      // Advance the clock (as the tour would), then a stray second begin.
+      useStore.getState().applyTimeSweepProgress(0.5)
+      useStore.getState().beginTimeSweep()
+      // Snapshot still holds the ORIGINAL 14:00, not the mid-sweep value.
+      expect(useStore.getState().timeSweepRestore).toEqual({ timeMode: 'manual', manualHour: 14 })
+    })
+
+    it('applyTimeSweepProgress drives the clock only while a sweep is active', () => {
+      useStore.getState().setTimeMode('system')
+      // Not active → no-op, stays in system mode.
+      useStore.getState().applyTimeSweepProgress(0.5)
+      expect(useStore.getState().timeMode).toBe('system')
+      // Activate, then progress drives manualHour across the range.
+      useStore.getState().setClipTimeSweep(true)
+      useStore.getState().setClipSweepStartHour(8)
+      useStore.getState().setClipSweepEndHour(22)
+      useStore.getState().beginTimeSweep()
+      useStore.getState().applyTimeSweepProgress(0.5)
+      expect(useStore.getState().timeMode).toBe('manual')
+      expect(useStore.getState().manualHour).toBe(15)
+    })
+
+    it('endTimeSweep restores the original time and clears the snapshot', () => {
+      useStore.getState().setTimeMode('system')
+      useStore.getState().setClipTimeSweep(true)
+      useStore.getState().beginTimeSweep()
+      useStore.getState().applyTimeSweepProgress(1)
+      // Now end → back to the original system mode.
+      useStore.getState().endTimeSweep()
+      const s = useStore.getState()
+      expect(s.timeSweepRestore).toBeNull()
+      expect(s.timeMode).toBe('system')
+    })
+
+    it('endTimeSweep is a no-op when idle', () => {
+      useStore.getState().setManualHour(9)
+      useStore.getState().endTimeSweep()
+      expect(useStore.getState().manualHour).toBe(9)
+      expect(useStore.getState().timeSweepRestore).toBeNull()
+    })
+  })
 })

@@ -1,0 +1,72 @@
+{
+  "name": "bulk-recolor-parametric",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true || state.bootPhase === 'ready'"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.enterRoomEditor?.('livingDining'); })()"
+    },
+    {
+      "name": "seed",
+      "eval": "(() => { const s = window.__store.getState(); s.addItem({ defId: 'armchair', position: [10.2, 3.6], rotation: 0, props: {} }); s.addItem({ defId: 'armchair', position: [11.0, 3.6], rotation: 0, props: {} }); })()"
+    },
+    {
+      "name": "select-both",
+      "eval": "(() => { const s = window.__store.getState(); const ids = s.items.filter(i => i.defId === 'armchair').map(i => i.id); s.setSelectedItemIds(ids); window.__ids = ids; })()"
+    },
+    {
+      "name": "settle1",
+      "wait": 2500
+    },
+    {
+      "name": "shot-before",
+      "screenshot": "before-tint"
+    },
+    {
+      "name": "recolor",
+      "eval": "window.__store.getState().recolorItems(window.__ids, '#ff8800')"
+    },
+    {
+      "name": "assert-color-changed",
+      "eval": "(() => { const s = window.__store.getState(); const chairs = s.items.filter(i => window.__ids.includes(i.id)); const colorKeys = Object.keys(chairs[0].props).filter(k => /colou?r/i.test(k)); const anyOrange = chairs.every(c => Object.entries(c.props).some(([k,v]) => /colou?r/i.test(k) && v === '#ff8800')); if (!anyOrange) throw new Error('no color param set to #ff8800: ' + JSON.stringify(chairs[0].props)); if (chairs[0].props.tint !== undefined) throw new Error('parametric got a tint prop (wrong): ' + chairs[0].props.tint); return 'color params set, no tint'; })()"
+    },
+    {
+      "name": "settle2",
+      "wait": 2500
+    },
+    {
+      "name": "shot-after",
+      "screenshot": "after-tint"
+    },
+    {
+      "name": "clear",
+      "eval": "window.__store.getState().recolorItems(window.__ids, null)"
+    },
+    {
+      "name": "assert-reset",
+      "eval": "(() => { const s = window.__store.getState(); const chairs = s.items.filter(i => window.__ids.includes(i.id)); const stillOrange = chairs.some(c => Object.entries(c.props).some(([k,v]) => /colou?r/i.test(k) && v === '#ff8800')); if (stillOrange) throw new Error('clear did not reset color'); return 'reset to default'; })()"
+    },
+    {
+      "name": "settle3",
+      "wait": 2000
+    },
+    {
+      "name": "shot-cleared",
+      "screenshot": "after-clear"
+    }
+  ]
+}

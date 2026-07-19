@@ -1,0 +1,94 @@
+{
+  "name": "mount-heights-simple",
+  "description": "IXT-SUITES simple rung for the `mountHeights` flag (simple tier): places a wall-mounted mirror, opens its inspector, verifies the one-tap 'Standard heights' preset row renders and clicking a preset commits the exact height to the item's props, then verifies the preset row (only) disappears when the flag is forced off and reappears when it's forced back on.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 5000
+    },
+    { "name": "wait-room-load", "wait": 2000 },
+    {
+      "name": "place-mirror",
+      "eval": "window.__store.getState().addItem({ defId: 'wall-mirror', position: [10.55, 3.5], rotation: 0, props: {} })"
+    },
+    {
+      "name": "verify-mirror-placed",
+      "waitFor": { "store": "state.items.some(it => it.defId === 'wall-mirror')" },
+      "timeout": 5000,
+      "failMessage": "wall-mirror was not added to the store"
+    },
+    {
+      "name": "select-mirror",
+      "eval": "(function(){ const it = window.__store.getState().items.find(i => i.defId === 'wall-mirror'); window.__store.getState().selectItem(it.id); window.__mirrorId = it.id; })()"
+    },
+    {
+      "name": "inspector-open",
+      "waitFor": { "css": ".panel.inspector" },
+      "timeout": 10000,
+      "failMessage": "Inspector panel did not open for the selected wall-mirror"
+    },
+    { "name": "settle-inspector", "wait": 600 },
+    { "name": "shot-inspector-open", "screenshot": "01-mirror-inspector-open" },
+    {
+      "name": "open-properties-section",
+      "eval": "(function(){ const h = [...document.querySelectorAll('.panel.inspector button.insp-sec-toggle')].find(el => el.textContent.trim().startsWith('Properties')); if (!h) throw new Error('Properties disclosure header not found; headers: ' + [...document.querySelectorAll('.panel.inspector button.insp-sec-toggle')].map(b=>b.textContent.trim()).join('|')); h.click(); })()"
+    },
+    { "name": "settle-properties-open", "wait": 400 },
+    { "name": "shot-properties-open", "screenshot": "01b-properties-open" },
+    {
+      "name": "assert-presets-visible-default",
+      "waitFor": { "css": "[role='group'][aria-label='Standard heights']" },
+      "timeout": 10000,
+      "failMessage": "Standard-heights preset row not found with mountHeights flag on (default)"
+    },
+    {
+      "name": "click-vanity-preset",
+      "eval": "(function(){ const group = document.querySelector(\"[role='group'][aria-label='Standard heights']\"); const btn = [...group.querySelectorAll('button.chip')].find(b => b.textContent.includes('1.35')); if (!btn) throw new Error('Over vanity 1.35 m preset chip not found; chips: ' + [...group.querySelectorAll('button.chip')].map(b=>b.textContent).join('|')); btn.click(); })()"
+    },
+    {
+      "name": "verify-mount-height-committed",
+      "waitFor": { "store": "Math.abs((state.items.find(i => i.id === window.__mirrorId)?.props.mountHeight ?? 0) - 1.35) < 0.01" },
+      "timeout": 5000,
+      "failMessage": "mountHeight prop was not updated to 1.35 after clicking the preset chip"
+    },
+    { "name": "shot-after-preset-click", "screenshot": "02-mount-height-set-1-35" },
+    {
+      "name": "disable-mount-heights",
+      "store": { "action": "setFeatureFlag", "args": ["mountHeights", false] }
+    },
+    { "name": "settle-flag-off", "wait": 500 },
+    {
+      "name": "assert-presets-hidden-when-off",
+      "eval": "(function(){ if (document.querySelector(\"[role='group'][aria-label='Standard heights']\")) throw new Error('Standard-heights preset row still visible with mountHeights flag OFF'); })()"
+    },
+    {
+      "name": "assert-hang-height-field-still-present",
+      "eval": "(function(){ const t = document.querySelector('.panel.inspector')?.textContent || ''; if (!t.includes('Hang height')) throw new Error('Hang height numeric field disappeared entirely (should stay — only the preset row is flag-gated): ' + t); })()"
+    },
+    { "name": "shot-flag-off", "screenshot": "03-mount-heights-flag-off" },
+    {
+      "name": "re-enable-mount-heights",
+      "store": { "action": "setFeatureFlag", "args": ["mountHeights", true] }
+    },
+    { "name": "settle-flag-on", "wait": 500 },
+    {
+      "name": "assert-presets-visible-again",
+      "waitFor": { "css": "[role='group'][aria-label='Standard heights']" },
+      "timeout": 10000,
+      "failMessage": "Standard-heights preset row did not reappear after re-enabling mountHeights"
+    },
+    { "name": "shot-flag-back-on", "screenshot": "04-mount-heights-flag-back-on" }
+  ]
+}

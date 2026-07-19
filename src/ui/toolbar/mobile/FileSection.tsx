@@ -19,7 +19,10 @@ import { openDesignReport } from '../../openReport'
 import { downloadRoomScheduleCsv } from '../../openRoomScheduleCsv'
 import { exportScene3d } from '../../openSceneExport'
 import { openSh3dImport } from '../../openSh3dImport'
+import { openSh3fImport } from '../../openSh3fImport'
 import { openShoppingList } from '../../openShoplist'
+import { openTradePack } from '../../openTradePack'
+import { TRADE_PACKS } from '../../tradePacks'
 import { Icon } from '../icons'
 import { Item, Section, SubHeader } from './parts'
 
@@ -42,6 +45,7 @@ export function FileSection({
   const s = useStore
   const recording = useStore((st) => st.recording)
   const budgetOpen = useStore((st) => st.budgetOpen)
+  const renoBudgetOpen = useStore((st) => st.renoBudgetOpen)
 
   const fPanorama = useFeature('panorama')
   const fPanoTour = useFeature('panoTour')
@@ -51,13 +55,16 @@ export function FileSection({
   const fTimeCompare = useFeature('timeCompare')
   const fShare = useFeature('shareExport')
   const fReport = useFeature('report')
+  const fTradePacks = useFeature('tradePacks')
   const fBudget = useFeature('budget')
+  const fRenoBudget = useFeature('renoBudget')
   const fShopExport = useFeature('shopExport')
   const fBoq = useFeature('boq')
   const fQuoteTemplate = useFeature('quoteTemplate')
   const fDxf = useFeature('dxfExport')
   const fSceneExport = useFeature('sceneExport3d')
   const fImportSh3d = useFeature('importSh3d')
+  const fImportSh3f = useFeature('importSh3f')
 
   const saveLayout = async () => {
     const name = await s.getState().promptText({
@@ -102,6 +109,7 @@ export function FileSection({
   // Budget renders from the shared tool-action registry (same behaviour +
   // active state as ⌘K / the desktop File menu's "Budget & costs" row, TB-5).
   const budget = toolAction('budget')
+  const renoBudget = toolAction('renoBudget')
 
   return (
     <Section id="file" title="File" icon="Save" activeId={activeId}>
@@ -199,8 +207,22 @@ export function FileSection({
           onClick={act(() => void downloadRenoIcs())}
         />
       ) : null}
+      {fTradePacks ? <SubHeader>Trade packs</SubHeader> : null}
+      {fTradePacks
+        ? TRADE_PACKS.map((p) => (
+            <Item
+              key={p.id}
+              icon="FloorPlan"
+              label={p.recipient}
+              sub={p.scope}
+              onClick={act(() => void openTradePack(p.id))}
+            />
+          ))
+        : null}
 
-      {fBudget || fShopExport || fBoq ? <SubHeader>Budget &amp; costs</SubHeader> : null}
+      {fBudget || fRenoBudget || fShopExport || fBoq ? (
+        <SubHeader>Budget &amp; costs</SubHeader>
+      ) : null}
       {fBudget ? (
         <Item
           icon={budget.icon}
@@ -209,6 +231,16 @@ export function FileSection({
           on={budgetOpen}
           docs={budget.docs}
           onClick={act(() => budget.run(s))}
+        />
+      ) : null}
+      {fRenoBudget ? (
+        <Item
+          icon={renoBudget.icon}
+          label={resolveToolLabel(renoBudget, s.getState())}
+          sub={renoBudget.sub}
+          on={renoBudgetOpen}
+          docs={renoBudget.docs}
+          onClick={act(() => renoBudget.run(s))}
         />
       ) : null}
       {fShopExport ? (
@@ -301,6 +333,15 @@ export function FileSection({
           sub="Load walls & rooms from a .sh3d file"
           docs="importSh3d"
           onClick={act(() => openSh3dImport())}
+        />
+      ) : null}
+      {fImportSh3f ? (
+        <Item
+          icon="Upload"
+          label="Import SH3D library…"
+          sub="Load furniture from a .sh3f library file"
+          docs="importSh3f"
+          onClick={act(() => openSh3fImport())}
         />
       ) : null}
       <Item

@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_DRAWING_SET_TEMPLATE } from '../export/drawingSetTemplate'
+import { customMetaColumns } from '../export/ffeCsv'
+import { buildFfeSchedule } from '../ffe/ffeSchedule'
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
+import { wallLength } from '../floorplan/types'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import { defaultLayout } from '../furniture/defaultLayout'
+import { defaultSpec } from '../furniture/parametric/spec'
 import { defaultParamProps } from '../furniture/types'
 import { buildDrawingSetHtml } from './drawingSet'
 
@@ -53,7 +58,10 @@ describe('buildDrawingSetHtml', () => {
       { x: 1, z: 1, kind: 'socket' as const },
       { x: 2, z: 1, kind: 'switch' as const },
     ]
-    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG, 'metric', undefined, points)
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG, 'metric', undefined, {
+      points,
+      source: 'heuristic',
+    })
     expect(html).toContain('Electrical plan')
     // No points → no electrical sheet.
     expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)).not.toContain('Electrical plan')
@@ -64,19 +72,33 @@ describe('buildDrawingSetHtml', () => {
       { x: 1, z: 1, kind: 'water-point' as const },
       { x: 2, z: 1, kind: 'floor-trap' as const },
     ]
-    const html = buildDrawingSetHtml(
-      plan,
-      items,
-      BUILTIN_CATALOG,
-      'metric',
-      undefined,
-      undefined,
-      plumbing,
-    )
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG, 'metric', undefined, undefined, {
+      points: plumbing,
+      source: 'heuristic',
+    })
     expect(html).toContain('Plumbing plan')
     expect(html).toContain('Floor trap')
     // No points → no plumbing sheet.
     expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)).not.toContain('Plumbing plan')
+  })
+
+  it('shows the "as designed" provenance note for persisted points and the indicative caveat for the heuristic fallback', () => {
+    const points = [{ x: 1, z: 1, kind: 'socket' as const, mountHeightMm: 1200 }]
+    const persisted = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG, 'metric', undefined, {
+      points,
+      source: 'persisted',
+    })
+    expect(persisted).toContain('Points as designed')
+    expect(persisted).toContain('@1200')
+    expect(persisted).toContain('Heights in mm AFFL')
+    expect(persisted).not.toContain('Indicative — derived from the furniture layout')
+
+    const heuristic = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG, 'metric', undefined, {
+      points,
+      source: 'heuristic',
+    })
+    expect(heuristic).toContain('Indicative — derived from the furniture layout')
+    expect(heuristic).not.toContain('Points as designed')
   })
 
   it('includes a finishes schedule when finishes are supplied', () => {
@@ -99,6 +121,65 @@ describe('buildDrawingSetHtml', () => {
     expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)).not.toContain('Finishes schedule')
   })
 
+  it('draws the setting-out datum + tile marks only when showSettingOut is on AND finishes are supplied (G3)', () => {
+    const finishes = {
+      floor: { livingDining: 'floor-wood-oak' },
+      walls: { livingDining: 'wall-paint-white' },
+    }
+    const withFlag = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      finishes,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      true,
+    )
+    expect(withFlag).toContain('SETTING-OUT DATUM')
+    expect(withFlag).toContain('Tile setting-out point — start laying here, verify joints on site')
+
+    // Flag off (default) → neither.
+    const withoutFlag = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      finishes,
+    )
+    expect(withoutFlag).not.toContain('SETTING-OUT DATUM')
+    expect(withoutFlag).not.toContain('Tile setting-out point')
+
+    // Flag on but no finishes sheet on the set → the datum row still draws
+    // (it lives on the dimensioned-plan sheet, unrelated to finishes), but
+    // the tile marks (which reference the finishes sheet) don't.
+    const noFinishes = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      true,
+    )
+    expect(noFinishes).toContain('SETTING-OUT DATUM')
+    expect(noFinishes).not.toContain('Tile setting-out point')
+  })
+
   it('includes a demolition sheet only when the plan diverged from its baseline', () => {
     const baseline = plan
     const hacked = { ...plan, walls: plan.walls.slice(0, -1) }
@@ -109,11 +190,107 @@ describe('buildDrawingSetHtml', () => {
     )
   })
 
+  it('branches the general-notes + demolition permit text on housing type (SG1)', () => {
+    const baseline = plan
+    const hacked = { ...plan, walls: plan.walls.slice(0, -1) }
+
+    const hdb = buildDrawingSetHtml(hacked, items, BUILTIN_CATALOG, 'metric', baseline)
+    expect(hdb).toContain('written HDB permit')
+    expect(hdb).not.toContain('MCST')
+
+    const condo = buildDrawingSetHtml(
+      { ...hacked, category: { housingType: 'Condominium', projectName: 'p', apartmentType: 'a' } },
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      {
+        ...baseline,
+        category: { housingType: 'Condominium', projectName: 'p', apartmentType: 'a' },
+      },
+    )
+    expect(condo).toContain('MCST')
+    expect(condo).not.toContain('written HDB permit')
+
+    const landed = buildDrawingSetHtml(
+      { ...hacked, category: { housingType: 'Landed', projectName: 'p', apartmentType: 'a' } },
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      { ...baseline, category: { housingType: 'Landed', projectName: 'p', apartmentType: 'a' } },
+    )
+    expect(landed).toContain('BCA')
+    expect(landed).not.toContain('written HDB permit')
+    expect(landed).not.toContain('MCST / building management')
+  })
+
   it('still produces a valid cover-only set with no furniture', () => {
     const html = buildDrawingSetHtml(plan, [], BUILTIN_CATALOG)
     expect(html).toContain('Sheet index')
     expect(html).toContain('Floor plan') // the plan sheet always renders
     expect(html).not.toContain('FF&amp;E schedule') // no furniture → no FF&E sheet
+  })
+
+  describe('FF&E schedule ITEM-META columns (G9)', () => {
+    it('omits the Brand/Model/Supplier/URL/Remarks + custom-key columns when no item carries meta', () => {
+      const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+      expect(html).toContain('FF&amp;E schedule')
+      expect(html).not.toContain('<td>Brand</td>')
+      expect(html).not.toContain('<td>Supplier</td>')
+    })
+
+    it('adds the conditional meta columns + values once an item carries ITEM-META', () => {
+      const withMeta = [
+        {
+          ...items[0],
+          meta: {
+            brand: 'Acme Co',
+            model: 'AC-100',
+            supplier: 'Acme Distribution',
+            url: 'https://www.example.com/products/ac-100?ref=spec',
+            remarks: 'client to purchase',
+            custom: [
+              { key: 'Warranty', value: '5 years' },
+              { key: 'Finish code', value: 'RAL 9010' },
+            ],
+          },
+        },
+        ...items.slice(1),
+      ]
+      const html = buildDrawingSetHtml(plan, withMeta, BUILTIN_CATALOG)
+      expect(html).toContain('<td>Brand</td>')
+      expect(html).toContain('<td>Model</td>')
+      expect(html).toContain('<td>Supplier</td>')
+      expect(html).toContain('<td>URL</td>')
+      expect(html).toContain('<td>Remarks</td>')
+      expect(html).toContain('Acme Co')
+      expect(html).toContain('AC-100')
+      expect(html).toContain('Acme Distribution')
+      expect(html).toContain('client to purchase')
+      // Custom-key column headers appear, alphabetically ordered — the same
+      // rule + order as the CSV export's `customMetaColumns`.
+      const rows = buildFfeSchedule(plan, withMeta, BUILTIN_CATALOG)
+      const cols = customMetaColumns(rows)
+      expect(cols).toEqual(['Finish code', 'Warranty'])
+      const findColIdx = html.indexOf('<td>Finish code</td>')
+      const warrantyIdx = html.indexOf('<td>Warranty</td>')
+      expect(findColIdx).toBeGreaterThan(-1)
+      expect(warrantyIdx).toBeGreaterThan(findColIdx) // alphabetical: Finish code before Warranty
+      expect(html).toContain('5 years')
+      expect(html).toContain('RAL 9010')
+      // Print-width guard: the sheet shows a shortened host+path display, not
+      // the full URL with its query string.
+      expect(html).toContain('example.com/products/ac-100')
+      expect(html).not.toContain('ref=spec')
+    })
+
+    it('reflects a per-instance price override (shared pricing path, not re-implemented)', () => {
+      const overridden = [{ ...items[0], meta: { price: 987 } }, ...items.slice(1)]
+      const html = buildDrawingSetHtml(plan, overridden, BUILTIN_CATALOG)
+      const rows = buildFfeSchedule(plan, overridden, BUILTIN_CATALOG)
+      const row = rows.find((r) => r.unit === 987)
+      expect(row).toBeTruthy()
+      expect(html).toContain('$987')
+    })
   })
 
   it('escapes the plan name (no markup injection)', () => {
@@ -193,7 +370,10 @@ describe('buildDrawingSetHtml — multi-storey fan-out (F13)', () => {
       { x: 1, z: 1, kind: 'socket' as const },
       { x: 2, z: 2, kind: 'aircon' as const, levelId: 'up' },
     ]
-    const html = buildDrawingSetHtml(multi, [], BUILTIN_CATALOG, 'metric', undefined, points)
+    const html = buildDrawingSetHtml(multi, [], BUILTIN_CATALOG, 'metric', undefined, {
+      points,
+      source: 'heuristic',
+    })
     expect(html).toContain('Electrical plan — Ground floor')
     expect(html).toContain('Electrical plan — Upper storey')
   })
@@ -476,5 +656,602 @@ describe('buildDrawingSetHtml — free-text callouts (PARITY-LIGHTINGTEMPLATE-TE
     expect(html).toContain('&quot;')
     expect(html).toContain('&lt;check&gt;')
     expect(html).not.toContain('A & B "test" <check>')
+  })
+
+  describe('locked drawing scale (TODO G2)', () => {
+    it('states a locked "SCALE 1:R @ A4" ratio for the floor-plan sheet', () => {
+      const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+      expect(html).toMatch(/Scale 1:\d+ @ A4/)
+    })
+
+    it('marks non-projection sheets (FF&E schedule, cover) as NTS', () => {
+      const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+      // At least one "Scale NTS" row exists (cover + FF&E schedule).
+      expect(html).toMatch(/Scale NTS/)
+    })
+
+    it('sizes the floor-plan SVG in mm so a wall prints true to the stated scale', () => {
+      const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+      // Pull the stated ratio straight from the title block.
+      const ratioMatch = html.match(/Scale 1:(\d+) @ A4/)
+      expect(ratioMatch).not.toBeNull()
+      const ratio = Number(ratioMatch?.[1])
+      const mmPerM = 1000 / ratio
+      // The floor-plan SVG carries an explicit inline mm size (print-true).
+      expect(html).toMatch(/class="plan-svg" style="width:[\d.]+mm;height:[\d.]+mm"/)
+      // Verify the mm-math against a real wall: its drawn length (viewBox units
+      // == metres, since the floor-plan viewBox is 1 unit = 1 metre) × mmPerM
+      // must equal its real-world length × 1000 / ratio (the G2 formula).
+      const wall = plan.walls.find((w) => wallLength(w) > 0)
+      expect(wall).toBeDefined()
+      if (!wall) return
+      const expectedMm = wallLength(wall) * mmPerM
+      const actualMm = wallLength(wall) * (1000 / ratio)
+      expect(actualMm).toBeCloseTo(expectedMm, 3)
+    })
+  })
+
+  describe('user-customizable paper size + orientation (TODO G2 follow-up)', () => {
+    const buildWith = (
+      paperSize: 'a4' | 'a3' | 'a2' | 'a1',
+      orientation: 'landscape' | 'portrait',
+    ) =>
+      buildDrawingSetHtml(
+        plan,
+        items,
+        BUILTIN_CATALOG,
+        'metric',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { ...DEFAULT_DRAWING_SET_TEMPLATE, paperSize, orientation },
+      )
+
+    it('states the real paper/orientation combo in the title block for A3 landscape', () => {
+      const html = buildWith('a3', 'landscape')
+      expect(html).toMatch(/Scale 1:\d+ @ A3 LANDSCAPE/)
+      expect(html).not.toMatch(/@ A4/)
+    })
+
+    it('states the real paper/orientation combo in the title block for A1 portrait', () => {
+      const html = buildWith('a1', 'portrait')
+      expect(html).toMatch(/Scale 1:\d+ @ A1 PORTRAIT/)
+    })
+
+    it('picks a finer or equal ratio on bigger paper for the same plan (A3 vs default A4, both landscape)', () => {
+      const a4Html = buildWith('a4', 'landscape')
+      const a3Html = buildWith('a3', 'landscape')
+      const a4Ratio = Number(a4Html.match(/Scale 1:(\d+) @ A4/)?.[1])
+      const a3Ratio = Number(a3Html.match(/Scale 1:(\d+) @ A3/)?.[1])
+      expect(a4Ratio).toBeGreaterThan(0)
+      expect(a3Ratio).toBeGreaterThan(0)
+      expect(a3Ratio).toBeLessThanOrEqual(a4Ratio)
+    })
+
+    it('parameterizes the @page CSS size + orientation from the template', () => {
+      expect(buildWith('a2', 'portrait')).toContain('@page { size: A2 portrait;')
+      expect(buildWith('a4', 'landscape')).toContain('@page { size: A4 landscape;')
+    })
+  })
+
+  describe('title-block handover metadata (TODO G5)', () => {
+    it('carries project/client/drawn-by/checked-by/date/sheet-of-total/revision', () => {
+      const template = {
+        ...DEFAULT_DRAWING_SET_TEMPLATE,
+        projectName: 'Serangoon North Vista Reno',
+        projectAddress: '123 Serangoon North Ave 1, #05-123',
+        client: 'Tan Family',
+        drawnBy: 'J. Lim',
+        revision: 'B',
+        revisionNote: 'Issued for tender',
+      }
+      const html = buildDrawingSetHtml(
+        plan,
+        items,
+        BUILTIN_CATALOG,
+        'metric',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        template,
+      )
+      expect(html).toContain('Serangoon North Vista Reno')
+      expect(html).toContain('123 Serangoon North Ave 1')
+      expect(html).toContain('Tan Family')
+      expect(html).toContain('J. Lim')
+      expect(html).toContain('Checked:')
+      expect(html).toContain('Rev B')
+      expect(html).toContain('Issued for tender')
+      // Sheet number + total, e.g. "A-1 of 9".
+      expect(html).toMatch(/A-1 of \d+/)
+    })
+
+    it('falls back to the plan name + blank checked-by when the template is default', () => {
+      const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+      expect(html).toContain(plan.name)
+      expect(html).toContain('Rev A')
+    })
+
+    it('carries the standard SG handover disclaimers on the cover sheet', () => {
+      const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+      expect(html).toContain('General notes')
+      expect(html).toContain('millimetres (mm)')
+      expect(html).toContain('Do NOT scale drawings from screen or PDF')
+      expect(html).toContain('HDB permit')
+      expect(html).toContain('Professional Engineer (PE)')
+      expect(html).toContain('EMA-Licensed Electrical Worker (LEW)')
+      expect(html).toContain('PUB Licensed Plumber')
+      expect(html).toContain('Verify all dimensions on site')
+    })
+
+    it('shows a north indicator on the floor-plan sheet', () => {
+      const html = buildDrawingSetHtml(
+        plan,
+        items,
+        BUILTIN_CATALOG,
+        'metric',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        DEFAULT_DRAWING_SET_TEMPLATE,
+        45,
+      )
+      expect(html).toContain('rotate(-45.0deg)')
+    })
+  })
+})
+
+describe('buildDrawingSetHtml — carpentry sheets (TODO G8)', () => {
+  const plan = buildDefaultPlan()
+
+  function carpentryCatalog() {
+    const wardrobeSpec = JSON.stringify(defaultSpec('wardrobe'))
+    return {
+      ...BUILTIN_CATALOG,
+      'user-wardrobe-1': {
+        id: 'user-wardrobe-1',
+        name: 'Custom wardrobe 120 × 220 cm',
+        category: 'storage',
+        kind: 'gltf',
+        source: 'user',
+        assetId: 'asset-wardrobe-1',
+        uploadedAt: new Date().toISOString(),
+        defaultFootprint: { w: 1.2, d: 0.65, h: 2.2 },
+        parametricSpec: wardrobeSpec,
+      },
+    } as unknown as typeof BUILTIN_CATALOG
+  }
+
+  const wardrobeItem = {
+    id: 'placed-wardrobe-1',
+    defId: 'user-wardrobe-1',
+    position: [1, 1] as [number, number],
+    rotation: 0,
+    props: {},
+  }
+
+  it('adds no carpentry sheet when no parametric piece is placed', () => {
+    const html = buildDrawingSetHtml(
+      plan,
+      [],
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      false,
+      true,
+    )
+    expect(html).not.toContain('Carpentry —')
+  })
+
+  it('adds a carpentry sheet (elevation + section + fabrication note) for a placed piece, gated on the flag', () => {
+    const catalog = carpentryCatalog()
+    const on = buildDrawingSetHtml(
+      plan,
+      [wardrobeItem],
+      catalog,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      false,
+      true,
+    )
+    expect(on).toContain('Carpentry — Custom wardrobe 120 × 220 cm')
+    expect(on).toContain('FRONT ELEVATION')
+    expect(on).toContain('SECTION A-A')
+    expect(on).toContain('Verify all dimensions on site before fabrication.')
+    expect(on).toContain('1200 mm') // overall width dimension
+    expect(on).toMatch(/Shelf 1 height AFF.*1862 mm/)
+    // H2 buildability callouts: materials/finish + hardware note blocks + a
+    // section cut-line marker ("A" bubbles) on the front elevation.
+    expect(on).toContain('MATERIALS &amp; FINISH')
+    expect(on).toContain('HARDWARE')
+    expect(on).toMatch(/Sliding track \+ rollers.*2 door panels/)
+    expect(on).toContain('confirm exact board/laminate code with fabricator')
+    expect(on).toContain('class="section-cut"')
+    expect(on.match(/>A<\/text>/g)?.length).toBe(2)
+
+    // Flag off (default false) → no sheet at all.
+    const off = buildDrawingSetHtml(plan, [wardrobeItem], catalog)
+    expect(off).not.toContain('Carpentry —')
+  })
+
+  it('dedupes 3 placements of the same piece into one sheet noted ×3', () => {
+    const catalog = carpentryCatalog()
+    const items = [
+      wardrobeItem,
+      { ...wardrobeItem, id: 'placed-wardrobe-2', position: [2, 1] as [number, number] },
+      { ...wardrobeItem, id: 'placed-wardrobe-3', position: [3, 1] as [number, number] },
+    ]
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      catalog,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      false,
+      true,
+    )
+    // The sheet name appears twice (its own title block + the cover's sheet
+    // index) but the drawing body itself (elevation/section pair) is ONE sheet.
+    expect(html.match(/FRONT ELEVATION/g)).toHaveLength(1)
+    expect(html).toContain('(×3)')
+  })
+
+  it('respects the carpentry layer toggle even when the flag is on', () => {
+    const catalog = carpentryCatalog()
+    const html = buildDrawingSetHtml(
+      plan,
+      [wardrobeItem],
+      catalog,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { carpentry: false },
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      false,
+      true,
+    )
+    expect(html).not.toContain('Carpentry —')
+  })
+})
+
+describe('buildDrawingSetHtml — door & window schedule (H1)', () => {
+  const plan = buildDefaultPlan()
+
+  it('adds a "Door & window schedule" sheet with a D1 mark row + mm sizes when the plan has openings', () => {
+    const html = buildDrawingSetHtml(plan, [], BUILTIN_CATALOG)
+    expect(html).toContain('Door &amp; window schedule')
+    expect(html).toContain('>D1<')
+    expect(html).toMatch(/\d+ mm × \d+ mm/)
+    expect(html).toContain('mm')
+    // The sheet appears in the cover index and is not-to-scale (a table).
+    expect(html).toContain('Scale NTS')
+  })
+
+  it('omits the sheet when the plan has no openings', () => {
+    const bare = { ...plan, openings: [] }
+    const html = buildDrawingSetHtml(bare, [], BUILTIN_CATALOG)
+    expect(html).not.toContain('Door &amp; window schedule')
+  })
+
+  it('respects the openingSchedule layer toggle', () => {
+    const off = buildDrawingSetHtml(
+      plan,
+      [],
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { openingSchedule: false },
+    )
+    expect(off).not.toContain('Door &amp; window schedule')
+
+    const on = buildDrawingSetHtml(
+      plan,
+      [],
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { openingSchedule: true },
+    )
+    expect(on).toContain('Door &amp; window schedule')
+  })
+
+  it('renders one whole-set schedule (not per-storey) on a multi-storey plan', () => {
+    const upper = {
+      id: 'up',
+      name: 'Upper storey',
+      elevation: 2.9,
+      walls: [
+        {
+          id: 'uw1',
+          start: [0.1, 0.1] as [number, number],
+          end: [6, 0.1] as [number, number],
+          thickness: 'external' as const,
+        },
+        {
+          id: 'uw2',
+          start: [0.1, 0.1] as [number, number],
+          end: [0.1, 6] as [number, number],
+          thickness: 'external' as const,
+        },
+      ],
+      openings: [
+        {
+          id: 'up-d1',
+          wallId: 'uw1',
+          kind: 'door' as const,
+          offset: 1,
+          width: 0.9,
+          sill: 0,
+          head: 2.1,
+        },
+      ],
+      rooms: [
+        {
+          id: 'up-bed',
+          name: 'Bedroom (up)',
+          origin: [0.2, 0.2] as [number, number],
+          width: 5,
+          depth: 5,
+        },
+      ],
+    }
+    const multi = { ...plan, upperLevels: [upper] }
+    const html = buildDrawingSetHtml(multi, [], BUILTIN_CATALOG)
+    // Exactly one sheet — no per-storey suffix on the schedule's own name.
+    expect(html.match(/Door &amp; window schedule/g)?.length).toBe(2) // sheet + cover index row
+    expect(html).not.toContain('Door &amp; window schedule — Ground floor')
+    expect(html).not.toContain('Door &amp; window schedule — Upper storey')
+  })
+})
+
+describe('buildDrawingSetHtml — reflected ceiling plan (TODO H4)', () => {
+  const basePlan = buildDefaultPlan()
+
+  it('is omitted unless showRcp is true, even when the rcp layer is on', () => {
+    const withoutFlag = buildDrawingSetHtml(
+      basePlan,
+      [],
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      false,
+      false,
+      false,
+    )
+    expect(withoutFlag).not.toContain('Reflected ceiling plan')
+  })
+
+  it('includes a Reflected ceiling plan sheet (with a zone note + legend) when showRcp is true', () => {
+    // A simple rectangular (no L-extension) room — the default plan's own
+    // rooms mostly carry an L-extension, which the ceiling geometry engine
+    // correctly treats as non-rectangular (falls back to flat).
+    const room = {
+      id: 'plain',
+      name: 'Plain room',
+      origin: [0, 0] as [number, number],
+      width: 4,
+      depth: 4,
+      ceiling: { style: 'tray' as const, drop: 0.15, margin: 0.3 },
+    }
+    const withCeiling = { ...basePlan, rooms: [room, ...basePlan.rooms.slice(1)] }
+    const html = buildDrawingSetHtml(
+      withCeiling,
+      [],
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      false,
+      false,
+      true,
+    )
+    expect(html).toContain('Reflected ceiling plan')
+    expect(html).toContain('FFL to false ceiling:')
+    expect(html).toContain('class="legend"')
+  })
+
+  it('marks ceiling-mounted fixtures + aircon points, dimensioned off the nearest wall', () => {
+    const fixture = {
+      id: 'cl-1',
+      defId: 'ceiling-light' as const,
+      position: [1, 1] as [number, number],
+      rotation: 0,
+      props: {},
+    }
+    const html = buildDrawingSetHtml(
+      basePlan,
+      [fixture],
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      { points: [{ x: 0.5, z: 0.5, kind: 'aircon' as const }], source: 'heuristic' },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      false,
+      false,
+      true,
+    )
+    expect(html).toContain('class="rcp-fixture"')
+    expect(html).toContain('class="rcp-aircon"')
+    expect(html).toContain('>CL<')
+    expect(html).toContain('>AC<')
+  })
+
+  it('rides the "rcp" layer visibility toggle (hidden when explicitly off)', () => {
+    const html = buildDrawingSetHtml(
+      basePlan,
+      [],
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { rcp: false },
+      undefined,
+      DEFAULT_DRAWING_SET_TEMPLATE,
+      0,
+      false,
+      false,
+      true,
+    )
+    expect(html).not.toContain('Reflected ceiling plan')
+  })
+})
+
+describe('buildDrawingSetHtml — elevation sheet grouping (TODO H6)', () => {
+  const basePlan = buildDefaultPlan()
+
+  // Wall A: has a door opening → full sheet regardless of length/items.
+  const wallA = {
+    id: 'wA',
+    start: [0, 0] as [number, number],
+    end: [6, 0] as [number, number],
+    thickness: 'external' as const,
+  }
+  // Wall B: long (>= threshold), exactly 1 item, no opening → full sheet
+  // (kept full because it's NOT short, even with only 1 item).
+  const wallB = {
+    id: 'wB',
+    start: [0, 10] as [number, number],
+    end: [6, 10] as [number, number],
+    thickness: 'external' as const,
+  }
+  // Wall C: short (< 1.2 m), exactly 1 item, no opening → grouped (minor).
+  const wallC = {
+    id: 'wC',
+    start: [10, 20] as [number, number],
+    end: [10, 20.8] as [number, number],
+    thickness: 'external' as const,
+  }
+  // Wall D: short, no items, no opening → omitted entirely.
+  const wallD = {
+    id: 'wD',
+    start: [10, 10] as [number, number],
+    end: [10, 10.5] as [number, number],
+    thickness: 'external' as const,
+  }
+  const testPlan = {
+    ...basePlan,
+    extent: [30, 30] as [number, number],
+    walls: [wallA, wallB, wallC, wallD],
+    openings: [
+      {
+        id: 'door-a',
+        kind: 'door' as const,
+        wallId: 'wA',
+        offset: 1,
+        width: 0.9,
+        sill: 0,
+        head: 2.1,
+      },
+    ],
+    rooms: [],
+  }
+  const itemNearB = {
+    id: 'item-b',
+    defId: 'table-lamp' as const,
+    position: [3, 10.3] as [number, number],
+    rotation: 0,
+    props: {},
+  }
+  const itemNearC = {
+    id: 'item-c',
+    defId: 'table-lamp' as const,
+    position: [10.3, 20.4] as [number, number],
+    rotation: 0,
+    props: {},
+  }
+  const testItems = [itemNearB, itemNearC]
+
+  it('omits an empty wall (0 items, 0 openings) entirely and notes the count', () => {
+    const html = buildDrawingSetHtml(testPlan, testItems, BUILTIN_CATALOG)
+    // 4 walls in, only A/B/C have content → 1 omitted (wall D).
+    expect(html).toContain('1 minor wall omitted (no items or openings)')
+  })
+
+  it('gives a wall with an opening its own full sheet regardless of length/items', () => {
+    const html = buildDrawingSetHtml(testPlan, testItems, BUILTIN_CATALOG)
+    // Wall A is the first content-bearing wall → "Wall 1" caption, its own sheet.
+    expect(html).toMatch(/Wall 1 · [\d.]+ m × [\d.]+ m · 1 door/)
+  })
+
+  it('gives a long wall (>= threshold) its own full sheet even with only 1 item', () => {
+    const html = buildDrawingSetHtml(testPlan, testItems, BUILTIN_CATALOG)
+    expect(html).toMatch(/Wall 2 · [\d.]+ m × [\d.]+ m · 1 item/)
+    // Its caption sits in an ordinary (non-grid) sheet body.
+    expect(html).not.toMatch(/class="minor-grid">[\s\S]*Wall 2 ·/)
+  })
+
+  it('groups a short (< 1.2 m), ≤1-item, opening-free wall into a minor-wall sheet', () => {
+    const html = buildDrawingSetHtml(testPlan, testItems, BUILTIN_CATALOG)
+    expect(html).toContain('Minor wall elevations (1)')
+    expect(html).toContain('class="minor-grid"')
+    expect(html).toContain('class="minor-cell"')
+    // Wall C is the 3rd content-bearing wall → caption "Wall 3" inside the grid.
+    expect(html).toMatch(/Wall 3 · [\d.]+ m × [\d.]+ m · 1 item/)
+  })
+
+  it('notes the grouping thresholds on the cover general notes', () => {
+    const html = buildDrawingSetHtml(testPlan, testItems, BUILTIN_CATALOG)
+    expect(html).toContain('Elevation sheets (TODO H6)')
+    expect(html).toContain('1.2 m')
   })
 })

@@ -15,6 +15,12 @@ function row(over: Partial<FfeRow> = {}): FfeRow {
     qty: 1,
     unit: 1200,
     total: 1200,
+    url: '',
+    remarks: '',
+    brand: '',
+    model: '',
+    supplier: '',
+    custom: {},
     ...over,
   }
 }

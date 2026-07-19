@@ -51,5 +51,9 @@ export async function saveParametricAsset(
     category: TYPE_CATEGORY[spec.type],
     footprint: model.bounds,
     price: estimatePrice(model),
+    // Recipe round-trip (TODO G8): the drawing set rebuilds this piece's exact
+    // part list from the spec to draw a carpentry elevation + section — never
+    // a parallel geometry model derived from the baked GLB.
+    parametricSpec: JSON.stringify(spec),
   })
 }

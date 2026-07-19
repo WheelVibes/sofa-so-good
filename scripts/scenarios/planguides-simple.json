@@ -1,0 +1,111 @@
+{
+  "name": "planguides-simple",
+  "url": "http://localhost:5211/",
+  "description": "IXT-SUITES simple rung for `planGuides` (pro tier, PARITY-PLAN-GUIDES): the 2D plan editor's persistent ruler-guide buttons ('+ V guide' / '+ H guide' / 'Clear guides') in the Plan menu. Simple: menu has no guide controls at all. Pro: a real pointermove over the plan SVG sets the cursor's plan-coordinate, then '+ V guide' and '+ H guide' pin axis-aligned guides at that (snapped) coordinate — asserted via `floorPlan.guides`, rendered visibly by `PlanGuidesLayer`, then cleared via 'Clear guides' and re-verified hidden back in Simple.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    { "name": "assert-flag-off-simple", "eval": "(function(){ const f = window.__store.getState().featureFlags.planGuides; if (f !== false) throw new Error('planGuides should resolve false in Simple mode, got ' + f); })()" },
+
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 30000 },
+    { "name": "settle-plan-mount", "wait": 1200 },
+
+    {
+      "name": "open-plan-menu-simple",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { if (document.querySelector('.plan-menu-panel')) return; const b = find(); if (b) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu did not open'); })()"
+    },
+    { "name": "wait-plan-menu-simple", "waitFor": { "css": ".plan-menu-panel" }, "timeout": 5000 },
+    { "name": "settle-menu-simple", "wait": 300 },
+    {
+      "name": "assert-hidden-in-simple",
+      "eval": "(function(){ const panel = document.querySelector('.plan-menu-panel'); if (!panel) throw new Error('Plan menu panel missing'); const t = panel.textContent||''; if (t.includes('V guide') || t.includes('H guide') || t.includes('Clear guides')) throw new Error('guide controls visible in Simple mode — planGuides is pro-tier and should be hidden'); })()"
+    },
+    { "name": "shot-simple-menu", "screenshot": "simple-menu" },
+    {
+      "name": "close-plan-menu",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 3000; while (Date.now() < deadline) { if (!document.querySelector('.plan-menu-panel')) return; const b = find(); if (b) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu did not close'); })()"
+    },
+    { "name": "settle-close-simple", "wait": 300 },
+
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "assert-flag-on-pro", "eval": "(function(){ const f = window.__store.getState().featureFlags.planGuides; if (f !== true) throw new Error('planGuides should resolve true in Pro mode, got ' + f); })()" },
+
+    {
+      "name": "hover-plan-canvas",
+      "eval": "(function(){ const svg = document.querySelector('.plan-screen svg'); if (!svg) throw new Error('plan svg not found'); const r = svg.getBoundingClientRect(); const x = r.left + r.width * 0.55; const y = r.top + r.height * 0.45; svg.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, cancelable: true, composed: true, pointerId: 11, pointerType: 'mouse', isPrimary: true, clientX: x, clientY: y })); })()"
+    },
+
+    {
+      "name": "open-plan-menu-pro",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { const panel = document.querySelector('.plan-menu-panel'); if (panel && (panel.textContent||'').includes('V guide')) return; const b = find(); if (b && !panel) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu (Pro) did not show guide controls'); })()"
+    },
+    { "name": "settle-menu-pro", "wait": 300 },
+    { "name": "shot-pro-menu", "screenshot": "pro-menu" },
+    {
+      "name": "click-v-guide",
+      "eval": "(function(){ const panel = document.querySelector('.plan-menu-panel'); const btn = panel && [...panel.querySelectorAll('button')].find((b) => b.textContent.trim() === '+ V guide'); if (!btn) throw new Error(\"'+ V guide' button not found in Pro menu\"); btn.click(); })()"
+    },
+    { "name": "v-guide-added", "waitFor": { "store": "(state.floorPlan.guides||[]).some(g => g.axis === 'x')", "timeout": 8000 } },
+    {
+      "name": "reopen-plan-menu-for-h-guide",
+      "comment": "PlanMenu.tsx closes the whole menu on ANY click inside .plan-menu-panel (it bubbles to the panel's own onClick) — clicking '+ V guide' above already closed it, so it must be reopened before the next action.",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { const panel = document.querySelector('.plan-menu-panel'); if (panel && (panel.textContent||'').includes('H guide')) return; const b = find(); if (b && !panel) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu did not reopen for H guide'); })()"
+    },
+    { "name": "settle-menu-h-guide", "wait": 300 },
+    {
+      "name": "click-h-guide",
+      "eval": "(function(){ const panel = document.querySelector('.plan-menu-panel'); const btn = panel && [...panel.querySelectorAll('button')].find((b) => b.textContent.trim() === '+ H guide'); if (!btn) throw new Error(\"'+ H guide' button not found in Pro menu\"); btn.click(); })()"
+    },
+    { "name": "h-guide-added", "waitFor": { "store": "(state.floorPlan.guides||[]).some(g => g.axis === 'z') && state.floorPlan.guides.length === 2", "timeout": 8000 } },
+    {
+      "name": "assert-guides-finite",
+      "eval": "(function(){ const gs = window.__store.getState().floorPlan.guides; for (const g of gs) { if (!Number.isFinite(g.pos)) throw new Error('guide pos not finite: ' + JSON.stringify(g)); } })()"
+    },
+    {
+      "name": "close-plan-menu-2",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 3000; while (Date.now() < deadline) { if (!document.querySelector('.plan-menu-panel')) return; const b = find(); if (b) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu did not close'); })()"
+    },
+    { "name": "settle-close-pro", "wait": 300 },
+    { "name": "guides-rendered", "waitFor": { "css": ".plan-screen svg line[stroke-dasharray]" }, "timeout": 8000 },
+    {
+      "name": "assert-two-guide-lines-drawn",
+      "eval": "(function(){ const n = document.querySelectorAll('.plan-screen svg line[stroke-dasharray]').length; if (n !== 2) throw new Error('expected 2 rendered guide lines (1 V + 1 H), found ' + n); })()"
+    },
+    { "name": "shot-guides-drawn", "screenshot": "guides-drawn" },
+
+    {
+      "name": "open-plan-menu-clear",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { const panel = document.querySelector('.plan-menu-panel'); if (panel && (panel.textContent||'').includes('Clear guides')) return; const b = find(); if (b && !panel) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu did not show Clear guides'); })()"
+    },
+    { "name": "settle-menu-clear", "wait": 300 },
+    {
+      "name": "click-clear-guides",
+      "eval": "(function(){ const panel = document.querySelector('.plan-menu-panel'); const btn = panel && [...panel.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Clear guides'); if (!btn) throw new Error(\"'Clear guides' button not found\"); btn.click(); })()"
+    },
+    { "name": "guides-cleared", "waitFor": { "store": "(state.floorPlan.guides||[]).length === 0", "timeout": 8000 } },
+    {
+      "name": "close-plan-menu-3",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 3000; while (Date.now() < deadline) { if (!document.querySelector('.plan-menu-panel')) return; const b = find(); if (b) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu did not close'); })()"
+    },
+    { "name": "settle-close-clear", "wait": 300 },
+
+    { "name": "back-to-simple", "store": { "action": "setUiMode", "args": ["simple"] } },
+    { "name": "reresolve-flags-2", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "assert-flag-off-again", "eval": "(function(){ const f = window.__store.getState().featureFlags.planGuides; if (f !== false) throw new Error('planGuides should resolve false back in Simple mode, got ' + f); })()" },
+    {
+      "name": "open-plan-menu-simple-2",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { if (document.querySelector('.plan-menu-panel')) return; const b = find(); if (b) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan menu did not open'); })()"
+    },
+    { "name": "wait-plan-menu-simple-2", "waitFor": { "css": ".plan-menu-panel" }, "timeout": 5000 },
+    { "name": "settle-menu-simple-2", "wait": 300 },
+    {
+      "name": "assert-hidden-again",
+      "eval": "(function(){ const panel = document.querySelector('.plan-menu-panel'); if (!panel) throw new Error('Plan menu panel missing'); const t = panel.textContent||''; if (t.includes('V guide') || t.includes('H guide')) throw new Error('guide controls visible back in Simple mode'); })()"
+    }
+  ]
+}

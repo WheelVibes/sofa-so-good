@@ -2,6 +2,7 @@ import type { LayoutPreset } from './types'
 
 export const brokenPlan: LayoutPreset = {
   id: 'broken-plan',
+  group: 'layout',
   name: 'Broken-Plan Living',
   description:
     'Re-modelled L/D: a slat screen zones the lounge from the dining without closing it.',

@@ -5,6 +5,7 @@ import { useStore } from '../../../state/store'
 import { PresentationSetup } from '../../presentation/PresentationSetup'
 import { promptAndRecordViewTour } from '../../recordViewTour'
 import { renderAllSavedViews } from '../../renderAllViews'
+import { DayNightClipSetup } from '../../scene/DayNightClipSetup'
 import { Icon } from '../icons'
 import { MenuItem } from '../ToolbarMenu'
 
@@ -21,6 +22,7 @@ import { MenuItem } from '../ToolbarMenu'
 export function SavedViewsSection() {
   const savedViews = useStore((s) => s.savedViews)
   const saveCurrentView = useStore((s) => s.saveCurrentView)
+  const suggestSavedViews = useStore((s) => s.suggestSavedViews)
   const applyView = useStore((s) => s.applyView)
   const deleteView = useStore((s) => s.deleteView)
   const setViewNote = useStore((s) => s.setViewNote)
@@ -30,6 +32,8 @@ export function SavedViewsSection() {
   const panoTourOn = useFeature('panoTour')
   const walkthroughOn = useFeature('walkthrough')
   const batchRenderOn = useFeature('batchRender')
+  const dayNightClipOn = useFeature('dayNightClip')
+  const suggestedViewsOn = useFeature('suggestedViews')
 
   const editNote = async (id: string, current: string) => {
     const note = await useStore.getState().promptText({
@@ -80,6 +84,14 @@ export function SavedViewsSection() {
         sub="Bookmark this camera angle"
         onClick={onSave}
       />
+      {suggestedViewsOn ? (
+        <MenuItem
+          icon="Star"
+          label="Suggest views"
+          sub="Auto-add a corner angle per room + an overview"
+          onClick={() => suggestSavedViews()}
+        />
+      ) : null}
       {savedViews.length === 0 ? (
         <div className="px-2 py-1.5 text-[11px] leading-snug" style={{ color: 'var(--text-3)' }}>
           No saved views yet — frame an angle, then "Save current view".
@@ -112,6 +124,9 @@ export function SavedViewsSection() {
           sub="Pick a length, fly the saved-views tour, download the video"
           onClick={() => void promptAndRecordViewTour()}
         />
+      ) : null}
+      {savedViews.length > 1 && walkthroughOn && canRecord() && dayNightClipOn ? (
+        <DayNightClipSetup />
       ) : null}
       {savedViews.length > 0 && batchRenderOn ? (
         <MenuItem

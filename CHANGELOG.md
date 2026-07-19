@@ -5,6 +5,1770 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.23.0.1 — CI fix: knip dead-code scan green
+
+The r11 PR's only red check. De-exported 51 symbols the round's parallel
+agents left public without external consumers (constants, helper fns, and
+result-shape interfaces across airconSizing/System/Placement,
+handoverDates, renovationCost/Allocator, roofModel, switchCircuits,
+tradePacks, shareCard, intakeStates, ocsStarter, and friends) and deleted
+two fully dead ones (OCS_INFO_NOTE, sanitizeItemUrl — both superseded).
+tsc, biome, knip, and 403 affected tests green.
+
+## v0.23.0.0 — Round 11 ships: SG blank-slate journey, presets, variants, catalog, audits
+
+Minor bump for the r11 PR to staging (43 commits this round, v0.22.2.64+).
+Headlines: user-settable room categories flowing through every classifier;
+the 2025-26 SG theme gallery with per-category styling; placement soundness
+(window/door keep-outs, SG bed rules) property-tested across all templates;
+opening variants (zebra/roman/invisible-grille/bifold/sliding/double +
+door materials); CAT-A/B SG materials + furniture; parametric stairs
+hardening + roof; paint visualizer; the full blank-slate journey (intake
+states, whole-reno budget, aircon system planner, switching schematic,
+per-trade packs, waterproofing zones, floor levels) validated end-to-end;
+style-aware schedule marks; four audits (bug comb, UX, contractor SHIP IT,
+mobile) with all findings closed; perf instancing wins. Suite: 8,398 tests.
+
+## v0.22.2.104 — RM1 migration complete: every room classifier honors the explicit category
+
+The five deferred RM1 consumers (suggestions, roomLux, planStatistics,
+handoverChecklist, electricalSchedule) plus two more found by sweep
+(designChatContext, resetSlice dry-floor pass) now resolve through
+`roomCategory(room)` — a user-set Room type flows everywhere. One
+intentional output change: suggestions no longer folds serviceYard/
+storeroom into 'balcony', killing the "Household Shelter — Add outdoor
+seating or planters" class (genuine balconies keep it; everything else
+byte-identical, pinned per consumer). 1,348 targeted tests; suggestions
+panel GPU-verified.
+
+## v0.22.2.103 — Journey residuals: utility ceiling lights + wall-clip sweep
+
+Every room now has a light: the default flat's fixed tables gained flush
+ceiling lights in the Corridor, Household Shelter, and Service Yard (new
+defaults/utility.ts), and the auto-furnish kits gained one in kitchen/bath/
+powder/serviceYard/storeroom/foyer — Lighting coverage 70 → 100, overall
+score 76 → 80, all 18 presets at lighting 100. And the "in-wall" class is
+dead: new `dropWallClippers` sweep in furnishPlan (the wall-clip analog of
+dropDoorBlockers) drops any floor item still embedded in a wall — fixes
+the default flat's AC-ledge outdoor table plus wall-clipped pieces on
+three condo templates; zero in-wall across the default + all 20 templates,
+pinned by new regression suites. 2,604 dir tests green; score + checks
+panels GPU-verified (BLOCKING 0 · OVERLAPS 0 · IN WALL 0).
+
+## v0.22.2.102 — E2E fix round: circuits bridge, condenser collision, theme guard, aircon panel truth
+
+All four validation findings closed. P1: `suggestCircuitLinks` resolves a
+switch's room by probing ~0.3 m perpendicular to its nearest wall (both
+sides, openingProbe-style, 4-cardinal fallback) — the on-wall rendering
+position stays pinned; the full cascade now chains (suggest → S1/S2/S3
+tags + L-marks on the electrical sheet → the electrician pack's exclusion
+replaced by the circuit list). P2: condenser placement slides along the
+ledge via canPlace until clear (3 overlaps → 0; e2e design score 42 → 54,
+Clearance 40 → 88), dropping with an installer advisory when the ledge
+can't fit. P2 theme investigation: every theme preset already scores ≥76
+standalone — the e2e's 42 was the condenser overlaps; a regression guard
+now pins every theme ≥65/0-blocked. P3s: wizard states the floors/walls
+replacement honestly, the aircon section flips to "Installed as planned" /
+"Re-plan aircon" once units exist, cooling list shows FCU-served rooms
+with a show-all toggle. 675 targeted tests; cascade screenshots verified.
+
+## v0.22.2.101 — E2E blank-slate journey validation: promise HOLDS; P1+2 P2 filed
+
+One continuous 99-step GPU session drove bare-BTO intake → surfaces + floor
+levels → theme/furnish → MEP/circuits/aircon → score/checks/budget/handover
+→ master set + trade packs. Verdict: the "no interior designer needed"
+promise holds as a CONNECTED flow — budget quantities, waterproofing, FFL
+overlays, aircon units, and DLP dates all chain stage-to-stage. Filed: P1
+"Suggest circuits" links zero (suggestMepPoints places switches on the wall
+centreline, so pointInRoom assigns them to no room — cascades to a tagless
+electrical sheet and a stale electrician-pack exclusion); P2 condenser
+placement collides with outdoor furniture; P2 japandi Smart-Start furnish
+scores 42/100 against the app's own checks (moveIn was hardened, themes
+weren't); P3s: theme apply silently overwrites chosen surfaces, aircon
+panel says "Proposed" after applying, cooling list includes non-cooled
+rooms. Report: docs/research/2026-07-19-e2e-journey-validation.md +
+reusable e2e scenario.
+
+## v0.22.2.100 — BSJ-7/8: waterproofing zones + floor levels (blank-slate queue COMPLETE)
+
+BSJ-7 `floorplan/waterproofing.ts`: derived membrane zones per wet room —
+floor area + wall upturn (300 mm general, 1800 mm at shower walls localized
+from placed shower/screen items; conservative full perimeter otherwise) —
+hatched with a zone table on the dimensioned plan, enriched into the tiler
+pack + finish schedule wet rows, and costed as a waterproofing sub-line in
+the renovation budget (`trades.waterproofingPerM2`). BSJ-8: additive
+`PlanRoom.floorLevelMm` with a pro-gated inspector field — FFL pills +
+doorway step markers ("50 mm step + transition strip") + kerb advisories on
+the dimensioned plan and tiler notes; deliberately documentation-level (3D
+floor offset filed with an approach note — it ripples through furniture Y,
+walk collision, stair math). Flags `waterproofing` + `floorLevels` (pro).
+1,527 targeted tests; plan overlay + inspector GPU-verified. All eight
+blank-slate journey items (BSJ-1..8) are now SHIPPED.
+
+## v0.22.2.99 — BSJ-5: per-trade handover packs (designed → ordered)
+
+File → Trade packs (pro, `tradePacks`): seven per-recipient bundles —
+Tiler/wet works, Electrician, Plumber, Carpenter, Aircon installer,
+Curtains & blinds, Painter — each a cover page (recipient, scope, contact
+line, trade-specific reference tables: socket targets by room, AFFL
+mount-height conventions, aircon system proposal, paint-area basis,
+wet-area notes) plus the relevant MASTER sheets re-used via the new
+buildDrawingSheets/renderDrawingDocument split (no builder forked; finish
+schedule gains an additive kinds filter). Sheet numbers stay the master
+set's (deliberately non-contiguous, noted on the cover) so contractors
+cross-reference one authoritative set. Honest exclusions when data is
+missing ("No switching schematic — 16 lights unlinked"). Desktop + mobile
+File menu. 444 targeted tests; electrician/tiler/aircon pack documents
+GPU-verified.
+
+## v0.22.2.98 — BSJ-4: bare-BTO + resale starting states (intake family complete)
+
+The wizard's OCS entry grows into a 4-option "Starting state" group. Bare
+BTO: honest grey `floor-screed` on dry rooms (HDB-tiled wet/kitchen floors
+retained — HDB tiles those regardless of OCS), internal door LEAVES absent
+(openings stay; new `DoorState.leaf:'none'` unifies the fixed flat's
+DoorSpec path and plan doors with zero new plan fields), WC/basin plumbing
+provisions as MEP points, no carpentry/furniture. Resale as-is: the
+furnished flat, honestly named, with the baseline captured so later wall
+edits produce REAL hacking quantities. Resale strip-out: screed shell with
+wet-area fittings retained. Budget coherence tested per state (bare ⇒ no
+hacking line; strip-out ⇒ real hacking length). `ocsStarter` flag key kept
+(back-compat) relabelled "Starting states". Full suite 8,318 green; all
+four states GPU-verified.
+
+## v0.22.2.97 — BSJ-3: lighting & switching schematic
+
+Switches now know what they control. Additive `controls`/`gang`/`way` on
+PlanElectricalPoint (zod parity + round-trip); a selected switch in the
+MEP editor gets a room-grouped "Controls" checklist plus dashed on-plan
+leader lines to its lights; deterministic circuit tags (S1, S1a/S1b
+two-way pairs sharing one circuit) annotate both the electrical sheet
+(with a "Lighting circuits" legend + unswitched/empty advisories, through
+the shared declutter) and the DXF ELECTRICAL layer. "Suggest circuits"
+auto-links each room's lights to its door-nearest switch (one undo step).
+All behind the `switchCircuits` pro flag. 1,377 targeted tests; editor +
+sheet scenarios GPU-verified. Guard fix: section padding tokenized.
+
+## v0.22.2.96 — BSJ-2: aircon SYSTEM planner (multi-split grouping + placement)
+
+The purchase/installation decision the per-room BTU data stopped short of.
+`analysis/airconSystem.ts` groups habitable rooms into SG multi-split
+systems (capacity table cited to 2025-26 installer guides: System-2 24k /
+System-3 30k / System-4 38k BTU nominal; ≤130% connection ratio; ≤4 FCU
+per condenser; common vs private usage zones), flags over-capacity,
+two-condenser cases, and the ~110 kg HDB ledge guideline (default 4-room:
+single-split living + System-3 bedrooms, 2 condensers ≈78 kg). "Plan
+aircon" (suggest-then-apply, one undo step) places FCUs flush on exterior
+walls at 2.25 m and the new `aircon-condenser` def on the AC ledge.
+Renovation-budget aircon line now reads placed FCUs (else the proposal).
+`airconSystem` pro flag; trunking is a per-system advisory note with the
+3D route visual filed. 680 targeted tests; proposal + placed units
+GPU-verified.
+
+## v0.22.2.95 — Guard fix: RenovationBudgetPanel margins tokenized
+
+The full gate caught literal px margins in the new budget panel
+(inlinePxGuard) — replaced with --s-N tokens. Everything else in the
+8,263-test suite passed.
+
+## v0.22.2.94 — BSJ batch 1: whole-reno budget allocator + wet-area fittings
+
+BSJ-1 (the blank-slate queue's #1): File → Budget & costs → "Renovation
+budget" — a full SG trade breakdown derived from the design's own
+quantities: hacking (demolition diff lm), wet-works tiling (wet-room
+floor+wall m²), dry flooring by finish, carpentry lm, ceiling works,
+painting (net of openings), M&E per point, aircon per habitable-room FCU,
+glass/aluminium, plumbing fixtures — each line showing quantity basis,
+rate, stage (renoTimeline-aligned) and share; editable ~10% contingency;
+budget-target over/under; indicative SG bands (BTO $40-60k / resale
+$60-90k, labelled indicative); CSV export. One PriceRules card stays the
+single rate source (additive `trades` rates editable in the Pro
+quote-template dialog); BOQ/estimateRenovation outputs pinned
+byte-unchanged. `renoBudget` simple flag. BSJ-6: shower screen (framed
+glass + return wing, instanced ribs pattern), bidet spray, and kitchen
+mixer tap join the catalog with structural-soundness coverage. 650
+targeted tests; panel + all three fittings GPU-verified.
+
+## v0.22.2.93 — Blank-slate journey gap analysis: 8 ranked gaps (new session goal)
+
+Research round for the new goal (SG new-home buyers designing a blank
+slate end-to-end without an ID). Walked the 10-stage bare-unit→ordered
+journey against 2025-26 SG sources with per-stage codebase verification.
+Verdicts: carpentry, appliances/soft furnishing COVERED; electrical MOSTLY
+(only switching missing); intake/wet-works/ceiling-lighting/cooling/
+decision-support/per-trade-output PARTIAL. Ranked queue (BSJ-1..8):
+whole-reno trade budget allocator, aircon SYSTEM planner
+(System-2/3/4 + condenser ledge), lighting/switching schematic,
+bare-BTO + resale starting states, per-trade handover packs, wet-area
+catalog gaps (shower screen/bidet spray/mixer tap), waterproofing-zone
+model, floor build-up/transitions. Full analysis:
+docs/research/2026-07-19-blank-slate-gap-analysis.md.
+
+## v0.22.2.92 — Staircase + window-grille instancing (both filed wins landed)
+
+Staircase risers/posts/rails/newels collapse to 2 InstancedBoxes buckets
+(rail rake baked T·R·S; treads/landings deliberately stay BeveledBox — the
+chamfer catches light on the most prominent surface and no instanced bevel
+primitive exists). Window grille bars / louvre slats / invisible-grille
+cables collapse to one InstancedMesh per window (fade caution resolved by
+reading the code: only the glass pane's material fades — bars never did).
+58 member meshes → 4 instanced nodes on the loft state; staircase 40→15
+draws; two grille windows 31→2. AE<1e-6 equivalence suites across all four
+stair styles + all three grille kinds; staircase close-up pixel-identical;
+fade behaviour byte-identical. 3,075 targeted tests.
+
+## v0.22.2.91 — Perf regression check on R11 GPU additions + fluted-rib instancing
+
+Deterministic draw-call/triangle audit (gl.info over a frozen-shadow orbit
+span, high tier, feature-isolated on the Terrace shell). Verdicts: roof +1
+mesh/+0.8 calls (proportionate), zebra/roman blinds instanced per docs,
+SVG overlays no re-render regression. NOT proportionate: the fluted
+partition rendered ~33 per-rib half-cylinder meshes — now ONE
+InstancedCylinders draw call (additive thetaStart/thetaLength on the
+instancing helper; drying-rack caller unchanged; AE=0 equivalence
+unit-tested; −33 meshes, −3.7 calls/frame, triangles unchanged, visually
+identical). Filed with numbers: staircase ~40 per-part meshes (medium
+risk: bevels + 3 materials), window grille per-bar meshes (hot reveal-fade
+file). Perf logs + methodology in the TODO perf section.
+
+## v0.22.2.90 — Mobile tap-target pass 2: every editing sheet + plan toolbar hits 44 px
+
+Coordinated body.mobile-scoped lift (desktop measured unchanged): shared
+.seg rules bring finish/share/drawings tabs and all wall chips 27→44 px;
+catalog chips 32→44, tabs 36→44, pagination 25→44, search 36→44; plan
+editor View/Edit/Undo/Redo/Done/Floors 26-36→44 (height-only on adjacent
+icons; Return-to-orbit gets an inset hit-expander to 44 effective). MOOD
+"Romantic" clip root-caused to a missing mood-seg class on the mobile
+Segmented — full word now fits, no lossy relabel. Hackability overlay
+confirmed already reachable on mobile (Plan tools → View rail — audit had
+looked in the wrong sheet). Touch-sweep re-measured on every surface;
+reusable tap-pass scenarios added; 132 targeted tests incl. inlinePxGuard.
+
+## v0.22.2.89 — Mobile-depth UX audit (P1=0 / P2=3 / P3=4) + handover tap-target fix
+
+Full phone-width (390×844, emulated touch) audit across cold start, core
+loop, 2D plan editor, and all Pro panels, with a reusable effective-hit-
+target sweep (scripts/scenarios/lib/touchSweep.mjs — credits the repo's
+inset:-9px hit-expander pattern, killing false positives). No breakage, no
+horizontal-scroll leaks. Fixed inline: the 79-row handover checklist was
+~20 px/row — now 44 px rows + 22 px checkboxes under body.mobile. Filed:
+editing bottom-sheets (catalog/finish/share/drawings) keep ~27 px
+tabs/chips/pagination and the 2D plan toolbar is all sub-44 px — queued as
+a coordinated tap-target pass; MOOD "Romantic" label clips at 390 px; MEP
+socket marker/label overlap at phone zoom; hackability-overlay mobile
+discoverability. Also confirms the desktop audit's fixes hold on mobile
+(score 76/Clearance 100/0 blocking; tickable checklist). Report:
+docs/research/2026-07-19-mobile-audit.md.
+
+## v0.22.2.88 — Contractor punch list cleared: entry doors, storey-grouped rooms, halos, elevation swings, A4 symbols
+
+All five re-review punch items. Entry doors no longer read "Unassigned":
+a door onto the outside labels "<Room> (entry)" (or "External (entry)" on
+a perimeter wall with no interior room), via the new probeOpeningRooms
+that reports side resolution + wall externality. Multi-storey grouped
+marks show storey-grouped Rooms cells ("Ground floor: … · Upper storey:
+…") through one shared openingRoomsLabel used by report + drawing set.
+GA-plan room labels ride deterministic near-white halos so they read over
+furniture. Elevations draw the conventional dashed hinge-apex swing
+triangle (two for double doors, none for sliding). MEP/RCP symbols get a
+1.7 mm printed floor at small paper via drawingScale.symbolPrintScale.
+1,229 targeted tests; schedule/plan/elevation/electrical captures reviewed.
+
+## v0.22.2.87 — Contractor re-review: SHIP IT verdict + rc-partition demolition safety fix
+
+Second adversarial SG-contractor review of the full handover package
+(45 sheet captures across 5-Room + multi-storey Terrace; DXF + schedule +
+on-plan marks verified consistent end-to-end; 8 dimensions spot-checked
+against the plan model — all correct; DB note, MEP provenance, and permit
+paths judged accurate). Verdict: SHIP IT. One safety-relevant defect fixed:
+the demolition sheet escalated only `load-bearing` walls to "NOT PERMITTED"
+— a demolished `rc-partition` rendered as a routine removal, contradicting
+the hackability overlay and wall-delete guard. The sheet now shares
+`wallHackability.isDemolitionRestricted` (one classifier for overlay,
+delete guard, and sheet), legend reworded "structural (load-bearing / RC)",
+regression-tested. P2/P3 punch list (entry-door room attribution, grouped
+multi-storey mark spans, GA label overlap) filed in TODO. Full review:
+docs/research/2026-07-19-contractor-re-review.md.
+
+## v0.22.2.86 — Test: report expectation updated for the now-clean default layout
+
+The full gate caught `report.test.ts` still asserting the default layout
+HAS a doorway blocker — the premise v0.22.2.85 fixed. The test now asserts
+the curated layout reads CLEAR, and a new sibling test constructs an
+explicit blocker (wardrobe centred on a door) to keep the report's
+"block a doorway" path covered.
+
+## v0.22.2.85 — UXW fix round: default flat clears its own checks (59→76), label fixes, handover polish
+
+All audit findings closed. The headline (UXW-P2-3): the fixed default flat
+furnishes from static tables that bypass the arranger's door keep-outs —a
+bathroom basin sat in door-bath2's swing and escaped every guard. Basin +
+mirror moved to the west wall (familyNursery floor lamp likewise), and
+circulation SCORING now separates genuinely impassable pinches (<0.5 m
+between large obstacles) from snug-adjacency advisories. New regression
+suite defaultFlatClearance.test.ts pins default flat + EVERY preset ⇒ zero
+blocked doors, circulation ≥40, overall ≥70. Live before→after: score 59
+(F)→76 (C), clearance 78→100 (blocking 1→0), circulation 0→58. Also:
+socket captions folded into the RoomsLayer label stack (no more collision),
+Smart Start sectioned into "Design themes" / "Layout ideas" (+ humanized
+footer token), clearance stat-tile clipping fixed, mood labels compacted
+(Movie/Party), desktop Scene-menu toggles get clarifying subtext, handover
+date shows SG-readable format + the checklist rows are now tickable and
+persisted. 1,105 targeted tests; every surface re-verified on GPU.
+
+## v0.22.2.84 — First-time-user UX walkthrough audit (0 P1 / 3 P2 / 7 P3)
+
+Adversarial end-to-end walkthrough on the GPU harness (cold start, Simple
+core loop, room categories, Pro surfaces, mobile spot-check; 6 re-runnable
+ux-audit scenarios). Nothing broken — every flow works. Filed (TODO UXW-*):
+P2 socket-advisory labels colliding with room perimeter labels in the plan
+editor; P2 Smart Start mixing palette themes with layout remodels in one
+list; P2 the default furnish failing the app's own clearance/circulation
+checks (a basin blocks a door swing; score 59/100). P3s incl. clipped
+check-tile labels, MOOD segment overflow, US-format date input, tour-count
+copy (fixed inline: "7-step" → "9-step"). Full findings:
+docs/research/2026-07-19-ux-walkthrough-audit.md.
+
+## v0.22.2.83 — Simplify pass over v0.22.2.64-82: minimal findings (healthy batch)
+
+Quality pass over the session's 20-commit diff. One fix: five schedule-label
+symbols in `openingSchedule.ts` were exported with zero external consumers —
+now module-private (only `openingStyleMaterialLabel` is public). Four other
+duplication candidates evaluated and deliberately skipped with recorded
+reasons (wall-bearing helper purity constraint, advisory-row markup that
+diverges per panel, renoRules vs permitNotes being different content banks,
+test-consumed exports). The parallel-agent batch held up well.
+
+## v0.22.2.82 — R4 batch 2: OCS starter, floor-loading advisory, reno-rules pack, DLP tracker (round 4 complete)
+
+The last four round-4 items. R4-3 `ocsStarter` (simple): "New BTO (with
+OCS)" Smart Start option seeds the exact HDB handover state — vinyl-strip
+bedroom / polished-porcelain living floors + wall-mounted basin/mixer/
+shower bath kits — so owners design from what HDB actually delivers
+("chosen at booking" note included). R4-5 `floorLoading` (pro): new Checks
+group flags heavy items vs the 150 kg/m² slab guideline (static kg table —
+a placed aquarium reads "≈320 kg over 0.38 m² ≈ 847 kg/m²") + the >50 mm
+concrete-raise rule. R4-6 `renoRulesPack` (pro): Tools → Reno rules — a
+cited, dated reference panel (wet-area 3-year tile rule, window/grille
+compliance, working-hours/noise, DRC permit checklist). R4-8 (rides the
+handover flag): persisted key-collection date on the handover checklist
+computing DLP end (+1 yr), Goodwill ceiling-leak window (+5 yr), spalling
+window (+10 yr) as live countdowns (leap-year-clamped). Full suite 8,225
+green; 4 GPU-verified screenshots. UX research round 4: FULLY SHIPPED.
+
+## v0.22.2.81 — R4 batch 1: aircon BTU, ceiling clearance, socket advisory, hackability overlay
+
+Four SG advisories over data the app already has (sources cited in-module
+from the round-4 research). R4-1 `analysis/airconSizing.ts`: per-room
+cooling load (area × 50-60 BTU/ft², +E/W-sun via plan orientation, +tall
+ceiling, +open-kitchen) with the snapped standard unit size (9k/12k/18k…)
+shown as a "Cooling load" section in the Daylight panel (`airconSizing` pro
+flag). R4-2 `floorplan/ceilingClearance.ts`: finished-headroom readout +
+<2400 mm (cornice <2100 mm) warnings on the RCP sheet (`ceilingClearance`
+pro flag). R4-4 `analysis/socketAdvisory.ts`: per-room-category socket
+targets vs placed MEP points — "2/6 sockets" captions on the plan editor +
+under-provision notes and the 40 A/63 A DB advisory on the electrical sheet
+(rides the mepEditor gating). R4-7 `floorplan/wallHackability.ts` +
+`HackabilityLayer`: plan-editor overlay tinting walls red (load-bearing/RC/
+shelter — never hackable) / amber (permit required) with legend + a warning
+on deleting a protected wall (`hackabilityOverlay` pro flag). 783 targeted
+tests; three GPU-verified scenarios.
+
+## v0.22.2.80 — UX research round 4: 8 ranked SG proposals; competitor parity confirmed
+
+Research round (docs/research/2026-07-19-ux-research-round-4.md + TODO
+queue + REFERENCES.md SG-source group). Competitor sweep across
+Coohom/Planner 5D/Homestyler/Live Home 3D/RoomSketcher/Foyr + 2025-26 AI
+entrants found ZERO net-new client-doable gaps — every candidate (panorama
+tour, video fly-through, GLB import, custom textures, shopping list,
+parametric K&B, gallery wall, measure tools, mirroring, scaled PDF) is
+already shipped or backend-bound. The SG renovation-domain thrust yielded 8
+ranked, pure-client proposals: aircon BTU sizing (R4-1), false-ceiling
+clearance validator (R4-2), BTO OCS starter state (R4-3), electrical
+socket/DB-load advisory (R4-4), floor-loading advisory (R4-5), SG
+reno-rules reference pack (R4-6), live hackability overlay in the 2D editor
+(R4-7), DLP/warranty date tracker (R4-8).
+
+## v0.22.2.79 — Style-aware schedule marks + plan-wide mark numbering
+
+Two contractor-facing schedule fixes. (1) Door/window marks now group by
+(kind, size, STYLE, door MATERIAL) — a sliding and a swing door of identical
+size are separate marks (different products/installation), with a new
+"Style / material" column on the drawing-set schedule sheet and the report's
+Openings schedule ("Sliding · Wood" vs "Panel · Painted"); legacy plans
+normalise to defaults and group byte-identically. (2) The comb's "DXF mark
+divergence" was re-diagnosed empirically: the DXF (ground-only) already
+agreed with the schedule — the REAL conflict was per-level floor-plan sheet
+callouts restarting at D1/W1 on upper storeys while the schedule numbered
+plan-wide. `assignOpeningMarks` now takes the whole plan (planLevels,
+ground-first) and the drawing set threads one precomputed map through every
+level sheet, so callouts, schedule, and DXF all share one numbering. 489
+targeted tests incl. new style-split/multi-storey suites; schedule sheet
+screenshot verified.
+
+## v0.22.2.78 — Bug comb over v0.22.2.64-77: five correctness fixes
+
+Adversarial review of the session's 15 commits confirmed and fixed five
+bugs. (1) Staircase.tsx's plain-mesh branch dropped the rail's pitch/roll —
+the continuous handrail rendered FLAT, resurrecting the exact defect
+v0.22.2.75 fixed; now `rotation={[pitch, rot, roll]}` (GPU-verified sloped).
+(2) Roof.tsx leaked GPU geometry on every roof-settings edit (R3F doesn't
+dispose replaced `geometry` props) — added disposal effects. (3) Paint
+visualizer leaked one object URL per failed photo decode — revoke moved to
+`finally`. (4) A sliding door's 2D plan arrow keyed on `hinge` while the 3D
+leaf parks toward the roomier wall segment — the drawing could tell the
+contractor the wrong slide direction; both now share
+`doorSwing.ts:slidingParkDir` (regression tests added). (5) The window
+keep-out rejected `noClip` rugs in front of balcony sliders — now exempts
+noClip like the door check beside it. Filed (pre-existing, not changed):
+schedule marks don't split by door style; multi-storey DXF mark-order
+divergence; Auto-ridge silently dropping non-facing dormers. 188 targeted
+tests + staircase/roof scenarios re-verified on GPU.
+
+## v0.22.2.77 — H1-F tail: DXF opening marks share the schedule's grouping; roof px-guard fix
+
+`export/dxf.ts`'s local `assignOpeningMarks`/`openingMarkKey` copy (predating
+the H1-F extraction) is gone — the DXF now imports
+`analysis/openingSchedule.ts:assignOpeningMarks`, so DXF, plan sheet, and
+door/window schedule share ONE grouping that can never drift (TASKS.md item
+closed). Also fixes the full-gate `inlinePxGuard` failure the roof round
+introduced: RoofSettings' literal `paddingTop/marginLeft: 6` → `var(--s-2)`
+tokens.
+
+## v0.22.2.76 — Parametric roof + dormers (pro): gable/hip/flat-parapet over landed templates
+
+Additive `FloorPlan.roof` (style gable/hip/flat-parapet, pitch 15-45°,
+overhang, ridge axis, clay-tile/metal-seam material, gable dormers). Pure
+`roofModel.ts:buildRoofModel` derives planes from the top storey's outer
+wall AABB + eave elevation (gable = 2 slopes + 2 end gables; hip collapses
+to a pyramid on square spans; flat-parapet = slab + 4 parapets; degenerate
+footprint → no roof). `apartment/Roof.tsx` mounts in PlanShell and fades
+the whole roof (dormers included) when the orbit camera looks down into the
+dollhouse, so the interior always stays visible. "Roof" section in the plan
+inspector, offered only on landed/multi-level plans; `parametricRoof` pro
+flag (default true) with both-modes tests. Maisonette + Terrace templates
+ship a 30° gable by default. v1 limits documented: bounding-rect roof on
+L/U plans, dormer window is visual-only. 214 targeted tests; 5 GPU shots
+reviewed (flush eaves, dormers seated, interior visible in orbit/top-down).
+
+## v0.22.2.75 — Staircase hardening: pro flag, honest L/U footprints, continuous handrail
+
+The UX-round-3 staircase item was mostly shipped (C171 primitive + C232
+stairConnectivity); this round closes the real gaps. (1) `parametricStairs`
+pro-tier flag — the staircase catalog card was UNGATED (hard-rule
+violation); `useUnifiedCatalog(…, includeStairs)` now drops it from grid/
+search/favourites/recents in Simple mode (pets-gate pattern), both-modes
+tested. (2) Honest footprints: `staircaseFootprintParts` traces the actual
+L/U flights + landing (an L occupies an L, not its bounding box) and a
+straight flight's depth tracks steps×treadDepth — wired as the def's
+footprintParts (sofa-lshape pattern). (3) Visual-verification FAIL fixed:
+the handrail was a short horizontal cap per tread (per-step gaps); now ONE
+continuous sloped rail per flight via new pitch/roll fields on
+StaircasePart, balusters inset so the rail face never z-fights the tread
+edge. 3,708 targeted tests; straight/L-shape/loft-context shots reviewed.
+
+## v0.22.2.74 — Real-photo paint visualizer (simple tier)
+
+"Try on my wall photo" button on the FinishPicker Walls tab opens a lazy,
+self-contained modal: upload a photo (client-side only — stated in the UI),
+tap to trace a polygon over the wall, pick from the existing wall paint
+palette, and the masked pixels recolour via the W3C "color" non-separable
+blend (photo luminance kept, swatch hue+saturation applied) so shadows and
+texture read as real paint, not a sticker. Coverage slider lerps sheer→
+solid; Undo point / Reset mask / Replace / Download PNG. Touch + mouse
+pointer events; `paintVisualizer` simple-tier flag (default true) with
+Simple/Pro/off gating tests. Pure blend/geometry module
+(`ui/paintViz/composite.ts`) unit-tested on light AND dark walls (28 new
+tests); scenario with synthetic gradient-wall photo reviewed on GPU across
+two swatches + low coverage + mobile viewport.
+
+## v0.22.2.73 — Lighting moods: verification closeout (feature shipped v0.22.2.40)
+
+The UX-round-3 "Lighting mood presets" TODO item was stale — the feature
+(Normal/Reading/Movie night/Entertaining/Romantic Segmented row in the
+Scene menu + mobile Scene section, `lightMoodPresets` simple-tier flag,
+`moodPresets.ts` intensity×tint table composed over lightsMode) shipped in
+v0.22.2.40. This closeout audits it against all requirements (flag both-
+modes test, persisted uiSlice state, token classes, 198 tests green), adds
+the missing 5-mood visual scenario (light-moods-r11), reviews the shots
+(all five visibly distinct at 20:00), and ticks TODO. Design note kept:
+moods never force lights on (preserves the switched-off-fixture invariant).
+
+## v0.22.2.72 — Test: explicit timeout on the whole-home Tidy IKEA regression guard
+
+The full-suite gate flaked once on `autoArrange.test.ts`'s IKEA-laden
+whole-home pass — ~2 s standalone but past the 5 s default under full-suite
+CPU contention (heavier since RM3's fine settle fallback). Explicit 20 s
+timeout keeps the gate deterministic; everything else in the 8,046-test
+suite passed.
+
+## v0.22.2.71 — Opening variants round 2: sliding + double doors, brass primitive re-route
+
+`style: 'sliding'` (the SG kitchen/service-yard/balcony norm): 3D leaf
+translates along the wall barn-door style off the shared open/close timing;
+2D plan symbol is a leaf bar + slide-direction arrow with NO swing arc, and
+`doorSwingClearRect` returns null so only the both-sides approach strip
+constrains placement. `style: 'double'` (condo main doors): two half-width
+mirror-hinged leaves, two quarter-arc 2D symbol, conservative full-width
+swing keep-out. New shared `doorSwing.ts:doorPlanSymbol` builder now feeds
+BOTH the 2D editor OpeningsLayer and reportPlanSvg (one source of truth);
+DXF + door schedule verified style-agnostic. Inspector gains Sliding/Double.
+Ride-along: 5 primitives (BarCart, TowelLadder, AltarCabinet, Vanity,
+Sideboard) re-routed from hardcoded brass hexes to the CAT-A brushed-brass
+helpers, same tone. 877 targeted tests incl. new doorSwing suite; GPU shots
+verify slide-not-swing, mirror swing, and both 2D symbols.
+
+## v0.22.2.70 — CAT-B: SG furniture round (altar cabinet, banquette, lift bed, water heater, fluted partition, table leaf)
+
+Six research-ranked SG-home furniture gaps, all procedural. Extendable
+dining table: `leaf` option on dining-table-4 — `diningLeafExtension` widens
+the rendered top (centre-leaf seams) and the def's footprint in lock-step so
+collision stays honest. NEW primitives: AltarCabinet (two-tier prayer/
+ancestral cabinet, ~0.9×0.5×1.5, findable via altar/prayer/shrine/joss
+keywords), Banquette (wall-flush upholstered bench with tufted backrest,
+bouclé option), WaterHeater (mounted SG-universal bathroom storage heater
+with pipe drops), FlutedPartition (black-framed translucent fluted glass
+screen reusing slatLayout + getGlassMaterial). `baseStyle: 'hydraulic'` on
+all four beds (legless ottoman base + lift-deck seam). Structural-soundness
+suite for all variants; catalog entries with prices/licenses; visual
+scenario reviewed on GPU piece by piece.
+
+## v0.22.2.69 — CAT-A: SG materials round (Peranakan tile, bouclé, sintered stone, brass, limewash)
+
+Six research-ranked material gaps for modern SG homes, all procedural/CC0.
+`pattern: 'peranakan'` — four-fold-symmetric matte-cement encaustic tiles
+(medallion + rosette + corner fans, colours derived from one swatch) with
+jade/cobalt/rose floor + wall-accent colourways. `getBoucleMaterial` nubby
+"quiet luxury" upholstery via `getUpholsteryMaterial('boucle')` + the
+seating material enum. Sintered-stone `worktopFinish` on kitchen counters/
+islands. `brushed-brass` MetalFinish preset + side-table top finish.
+Heritage checkerboard jade/cobalt colourways. `pattern: 'limewash'`
+(cloudier mineral wash than plaster; microcement existed, true limewash
+didn't) in white/greige/clay/terracotta. Two new unit suites; user finishes
+doc updated; 4 visual scenarios reviewed on GPU. Deferred: re-routing
+hardcoded brass in existing primitives (BarCart/TowelLadder) to the new
+preset.
+
+## v0.22.2.68 — RM4: modern SG 4-room BTO default layout + shallow-room template fixes
+
+The move-in default flat now reads like a 2025-26 SG BTO. Living/dining:
+sofa + ottoman lounge, 1.8 m TV console, living-window curtains, main-door→
+kitchen path kept clear. Master: centred queen flanked by TWO matching
+nightstands + table lamps (headboard on the north wall — the only non-door
+wall that fits a queen span; both alternatives are the west window wall and
+the door wall, the standard SG compromise), sliding 3-door wardrobe (no
+swing clearance) on the east wall. Bedroom 2: kids/guest (bed + nightstand +
+sliding wardrobe). Bedroom 3: study/flexi (daybed + desk + office chair +
+monitor + bookshelf). Washer lives in the service yard. Modern Contemporary
+styling via the retuned moveIn preset (RM2). Also reshaped the two template
+rooms the RM3 property test flagged as too shallow to hold their beds:
+c3-master 3.7×1.6 → 3.7×2.7 m (queen now clears the ensuite door) and
+g3-bed3 3.0×2.0 → 3.0×2.4 m; both now furnish WITH a bed, pinned by explicit
+assertions in placementSoundness.test.ts (21/21). Visual scenario
+(default-layout-rm4) reviewed on GPU: overview + living/dining + master.
+
+## v0.22.2.67 — RM3 part 2: door approach keep-outs + all-templates soundness property test
+
+Closes the door-path gap the new property test exposed (12 templates had
+beds/appliances in door approach paths). Two arranger fixes: (1) `tryPlace`'s
+door keep-out only fired for parametric defs — fixed-kind (GLB) items like a
+bathroom sink skipped it entirely; now applies to all non-mounted, non-noClip
+floor defs. (2) `ctx.keepOut` covered only the swing-side quarter
+(`doorSwingRects`) while the "Checks" overlay probes BOTH sides — new
+`clearance.ts:doorApproachRects` (0.45 m opening-width strip, both sides, a
+superset of `blockedDoorItems`' probes) merged in everywhere via
+`doorKeepOutRects`. `arrangeBedroom` gains `placeBedHeadboard` (nudges the
+bed along its headboard wall in 0.15 m steps to clear a keep-out instead of
+assuming centred), `settle()` a 0.05 m last-resort grid pass for narrow real
+gaps, and `furnishPlan` a `dropDoorBlockers` safety net per storey. New
+`src/layout/placementSoundness.test.ts` furnishes EVERY template and asserts
+zero window and door violations — 19/19. The net exposed two mis-authored
+template rooms too shallow for their beds (c3-master 3.7×1.6 m, g3-bed3
+3.0×2.0 m — bed dropped rather than blocking the door); queued under RM4.
+
+## v0.22.2.66 — RM3 part 1: window keep-outs, SG bed rules, seating groups, dining-kitchen bias
+
+Placement soundness upgrades in the ONE shared arranger path.
+`clearance.ts:windowFrontRects` projects a 0.65 m keep-out into the room in
+front of every window (room side resolved by probing, same as door swings),
+carrying the opening's sill; `tryPlace` rejects any floor item taller than
+the sill in that zone, and treats a near-zero sill (full-height window /
+balcony slider) as a hard keep-out for everything
+(`CLEARANCE.windowSillTall = 0.95` default). `arrangeBedroom` scores
+headboard edges per SG norms: hard-reject windowed spans, penalise
+foot-to-door (door centreline crossing the bed), prefer both-sides
+`bedSurround`. Armchairs now join the sofa's conversation group (90° beside
+the sofa, facing the coffee-table centre; wall fallback). The dining band is
+biased toward the kitchen-adjacent room edge (room-rect adjacency, legacy
+fraction fallback). interior-design-guidelines.md synced. Follow-up in
+flight: door APPROACH strips (both sides, not just the swing quarter) — a
+new all-templates property test exposes 12 templates with furniture in door
+paths; fix + test land next.
+
+## v0.22.2.65 — RM2: 2025-26 SG theme gallery + per-category preset styling
+
+Preset system upgrade for modern SG homes. `LayoutPreset` gains
+`categoryStyle` (per-`RoomCategory` param overlays applied after `style`, so
+a theme's bedrooms read calmer than its living room), `kits` (per-category
+ADDITIVE kit pieces), and `paletteId` (linking `PALETTE_PRESETS` so applying
+a theme also sets the working colour palette). Base kits gain serviceYard
+(washer + drying rack + tall cabinet), storeroom (shelving), foyer (shoe
+cabinet + bench + mirror) — a shelter/storeroom is no longer left bare. The
+theme gallery is curated to eight 2025-26 SG looks: **Modern Luxe / Quiet
+Luxury (NEW)** and **Peranakan Accent (NEW)** join Japandi, Scandi Calm,
+Warm Minimalist (retuned Muji), Modern Contemporary (retuned default),
+Modern Industrial, and Tropical Biophilic (retuned); coastal + layout
+variants demoted out of the theme grid (still applyable). Default-flat
+preset hydration resolves room categories from item id prefixes so
+categoryStyle works on the fixed default layout too. Visual scenario
+(sg-presets-r11) reviewed on GPU; both new themes verified distinct.
+
+## v0.22.2.64 — Opening variants round 1: zebra/roman blinds, invisible grille, bifold + door materials
+
+SG-staple opening variants with real hi-fi materials. Blinds: **zebra/combi**
+(`kind:'zebra'`, alternating opaque/sheer bands via `zebraBandInstances` — the
+sheer band rides the drapery sheer-opacity path, translucent cloth not a flat
+tint) and **roman** (`kind:'roman'`, stacked `RoundedBox` folds under the
+cassette scaled by `lower`), both on the anchored-stack instancing pattern in
+`primitives/slatLayout.ts`. Windows: **invisible grille** style (hair-thin
+vertical cables, the SG condo standard) via `floorplan/windowGrilleLayout.ts`.
+Doors: **bifold** style (two half-leaves, outer 45°/inner 135° when open — the
+SG toilet/utility standard) plus a new `PlanOpening.material` axis
+(`floorplan/doorMaterial.ts`): painted (default) / wood grain / **vinyl** PVC
+laminate (defaulted for bifold), gated behind `pbrSurfaces` like other
+physical materials. Linen curtains get a visibly coarser weave relief than
+cotton. Opening inspector exposes all new styles + the material select; unit
+tests across doorMaterial/windowGrilleLayout/slatLayout/drapery/vinyl +
+inspector; 7 visual scenarios (zebra/roman/bifold/openings) reviewed on GPU.
+
+## v0.22.2.63 — RM1: user-settable room categories (foundation)
+
+`PlanRoom.category` (13 values: living/dining/bedroom/masterBedroom/kitchen/
+bath/powder/study/serviceYard/storeroom/balcony/foyer/other) with a "Room
+type" Select in the room inspector ("Auto — <inferred>" default) — replaces
+pure name-inference, so a room named anything ("Ella's room") can still get
+the right starter chips, catalog landing, furnish kit, and arranger
+behaviour. One resolver (`roomCategory.ts`: explicit wins → extended name
+regexes → 'other') with downmaps keeping every legacy consumer byte-identical
+when unset; CatalogDrawer/EmptyRoomHint/furnishPlan/autoArrange migrated;
+all 155 HDB+condo template rooms seeded. Regexes deliberately NOT delegated
+to suggestions.ts (a coarser classifier can't recover distinctions it
+collapsed — documented). 296 targeted tests + 20-step scenario. Also checks
+in the RM1-4 design doc (docs/research/2026-07-19-sg-presets-room-
+categories-plan.md).
+
+## v0.22.2.62 — Handover polish: Section A-A labels, datum stagger, elevation hardening
+
+RCP tray success path confirmed already-covered (Bedroom 2 is rectangular;
+scenario re-run green with the "(Tray)" note + dashed inset). Three polish
+fixes: (1) whole-plan Section A-A collapses adjacent identical item labels
+into "Dining chair ×2" instead of concatenating; (2) the dimensioned plan's
+setting-out rows two-row bin-pack close datum labels (a 3-way cluster
+verified numerically — the colliding middle label gets its own row, no more
+"4.854.95 m"); (3) elevations render an item overlapping an opening >60% at
+0.3 opacity so the door/window stays readable (defensive for corrupt/legacy
+placements). 51 targeted tests.
+
+## v0.22.2.61 — Re-review follow-ups: MEP circle declutter + shallow-room tile marks
+
+SG-contractor re-review verdict on v0.22.2.54-60: "ship it with two
+follow-up tickets" — 6/9 prior findings verified fixed, numbers airtight
+across report/sheets/DXF, SG housing-type branching leak-free. Both tickets
+now closed: (1) clustered MEP symbol CIRCLES fan onto a capped n-gon around
+their true mean (deterministic), each displaced circle carrying a thin
+leader + × tick at its TRUE position (drafting convention); labels fan
+relative to the nudged circles; the RCP inherits automatically. (2) The
+tile mark tries south→east→west around a rectangle-shaped label exclusion
+(a radius check passed while still inside a WIDE label) and is honestly
+OMITTED — with a once-per-storey caption note — in rooms too shallow for
+any candidate (the default plan's 0.85 m AC Ledge, a common HDB shape).
+Both screenshot-verified. Low-priority polish list recorded in TODO
+(Section A-A label stagger, datum-label merging, defensive elevation
+rendering).
+
+## v0.22.2.60 — SG1-3: Singapore-specific permit paths + vocabulary (user directive)
+
+Audit verdict: heights (SS 638/CP5), SGD, LEW/PUB-LP naming, BCA citations
+already correct. Fixed the three real findings: (1) permit/compliance
+language now branches on `housingType` via pure `permitNotes.ts` — HDB keeps
+the permit/PE text; **Condominium** gets the MCST/management-approval path
+(house rules on hacking/hours/hoarding, BCA+PE for structural, LEW/PUB
+still); new **Landed** type (terrace template re-filed — it was under
+Condominium) goes BCA-direct; the report's HDB-compliance section is
+HDB-gated with a "Renovation compliance notes" pointer for the others,
+never silence. (2) Wall structure label "Drywall" → "Dry partition
+(Ferrolite / steel-stud)" (schema key unchanged). (3) User-visible
+"baseboard" → "skirting". 215 tests + a 25-step scenario proving a condo
+plan prints MCST and never "written HDB permit".
+
+## v0.22.2.59 — H4+H1-F+H6: RCP sheet, on-plan D/W marks, elevation grouping
+
+The H punch list is complete. **RCP** (`rcpSheet` pro flag): per-storey
+Reflected Ceiling Plan built on the SAME pure `ceilingModel.buildCeiling`
+the 3D render uses (zone notes "FFL to false ceiling: 2450mm (Tray)" +
+dashed inset/beam-grid per treatment can never drift; fallback rooms print
+"verify on site" honestly), ceiling fixtures from the lighting plan's own
+derivation dimensioned off nearest walls with the shared MEP declutter,
+aircon points cross-referenced. **On-plan marks**: D1/W1 callouts near each
+opening on the floor-plan sheet via `assignOpeningMarks` extracted into
+openingSchedule.ts (single grouping source; dxf.ts migration debt noted in
+TASKS). **Elevation grouping**: empty walls omitted (counted on the cover),
+short low-content walls grouped 2×2, content walls keep full sheets —
+constants stated in the general notes. 255 targeted tests (2266 sweep) +
+17-step RCP scenario, screenshot-verified.
+
+## v0.22.2.58 — H5: DXF demolition + new-works layers
+
+`planToDxf` takes the baseline plan (same source as the printed demolition
+sheet, same implicit empty-diff guard): demolished walls emit LINE +
+"(DEMOLISH)" midpoint labels on a DEMOLITION layer (ACI 1 red — CAD
+convention, matching the sheet legend), a load-bearing demolished wall's
+label appends "NOT PERMITTED - LOAD-BEARING" (the printed hard rule carried
+into CAD), and added walls get "(NEW)" markers on NEW_WORKS (ACI 3) without
+redundant geometry (they already live on WALLS). Deterministic; 39 dxf
+tests. A CAD-editing hacking contractor no longer loses kept-vs-removed.
+
+## v0.22.2.57 — H2: carpentry sheets gain buildability callouts
+
+Each carpentry sheet now carries a MATERIALS & FINISH block (spec finish +
+colour, board/back thickness read off the piece's own side/back parts,
+always hedged "confirm exact board/laminate code with fabricator" — no
+invented codes) and a HARDWARE block with counts derived from the real part
+list: sliding wardrobes → track+rollers+2 panels; hinged doors → 2 hinges
+≤1200mm / 3 above (rule stated inline) + handles; drawer banks → runner
+pairs ×N; open shelving → "supports as required" (the spec has no fixed/
+adjustable field, so no pin count is invented). The elevation gains the
+standard dash-dot SECTION cut-line with "A" bubbles and the section pane is
+titled "SECTION A-A". Blocks render below the drawings, no overlap
+(screenshot-verified). 88 tests + extended scenario.
+
+## v0.22.2.56 — H3: elevation AFFL mount heights
+
+Wall elevations now dimension every wall-hung item's mount height ("1100
+AFFL", mm always) as a floor-to-underside vertical line tucked inside the
+item's footprint — opposite axis from the width row so they can't collide,
+with a 2D stagger pass (`staggerMountHeightColumns`) for items close in both
+x and height. Mounted detection: `def.mounted`, OR a conditional `mount`
+enum param reading 'wall' — a real gap found en route (TVs never set
+def.mounted, so the headline TV case would have silently not annotated).
+Height resolution: live prop → schema default → GLB verticalSpan.base →
+never guessed. Floor-standing items stay clean. 46 tests + 17-step scenario
+(TV 1100 + sconce 1450 annotated, sofa not; screenshots legible).
+
+## v0.22.2.55 — H-D1/D2/D3: acceptance-review defects fixed
+
+(1) MEP label declutter: pure `mepLabelLayout.ts` single-linkage-clusters
+points within a 24px collision radius and fans their labels into a vertical
+stack with dashed leaders (circles stay at true positions) — WC soil-pipe/
+water-point pairs and kitchen socket+data clusters are now legible; the 2D
+editor's MepLayer noted for the same treatment later. (2) Tile setting-out
+cross offset 0.5 m below the room label (clamped inside the room) — no
+longer obscures the area text. (3) The report's electrical section now
+prefers designed MEP points ("as designed", per-room counts + AFFL height
+summary via new `buildDesignedElectricalSchedule`) and only falls back to
+the furniture heuristic ("indicative") when none exist — the 40-vs-24
+report/drawing-set contradiction is gone. Also: H1's 'opening-schedule'
+callout target added to the schema enum (cross-agent tsc gap). 126 tests +
+declutter scenario with visual confirmation.
+
+## v0.22.2.54 — H1: door & window schedule sheet
+
+The drawing set gains a "Door & window schedule" NTS sheet from the same
+`buildOpeningSchedule` grouping the report uses (Mark/Type/Qty/Size W×H in
+mm — the carpentry-trade convention, deliberately unlike the report's
+unit-preference display/Sill/Hinge-swing/Rooms), one whole-set sheet (the
+builder already walks storeys), omitted when the plan has no openings, with
+its own drawing-layer toggle + callout target. 139 tests + 15-step scenario
+(screenshot shows D1/D2 + W1-W3 rows styled with the FF&E sheet). Follow-up
+recorded (H1-F): the floor-plan sheet still lacks D1/W1 callouts near the
+openings themselves.
+
+## v0.22.2.53 — Contractor acceptance review: verdict + H punch list
+
+An adversarial contractor's-eye review generated the full package on a
+realistic design (75-step scenario: classified+demolished walls, wardrobe,
+23 suggested + 1 custom MEP point, item meta, A3 template; 31 sheets +
+report + DXF captured) and hand-verified the numbers independently — ALL
+matched (setting-out distances, net wall areas, demolition counts, MEP
+counts across store→sheets→DXF, custom heights, meta columns, title blocks).
+Verdict: "close, but not yet" — 3 defects (clustered MEP labels illegible
+exactly where real designs cluster; tile mark overlapping room labels; the
+report's legacy 40-point indicative electrical section contradicting the
+drawing set's 24 designed points) + buildability gaps (no door/window
+schedule SHEET despite the data existing; carpentry lacks material/hardware
+callouts + section cut-line; elevations lack AFFL mount heights; no RCP; DXF
+demolition layer) recorded as H-D1..H6 in TODO.
+
+## v0.22.2.52 — G8: carpentry elevations + sections — the G-roadmap is complete
+
+`carpentrySheets` (pro): one "Carpentry — <name>" drawing-set sheet per
+distinct placed parametric piece (bookshelf/wardrobe/sideboard/desk/
+kitchen-run; repeats deduped with ×N) — a dimensioned front elevation + one
+representative section at its own locked ~1:20 scale, every dimension in mm
+read straight off the piece's real part list (overall W/H/D, bay widths,
+panel/plinth/worktop thickness, shelf/rail/drawer heights AFF — nothing
+invented). Required new persistence: `UserGltfDef.parametricSpec` round-trips
+the generator spec (was baked into the GLB and lost). Section cut per type
+reconstructed from the parts' own bay boundaries. Three visual bugs caught
+via screenshots and fixed: whole-plan scale buffer swamping small pieces to
+1:50 (dedicated `carpentryScale` against HALF the printable width —
+elevation+section sit side by side), right-side labels reading back over
+geometry, and stacked AFF labels colliding (declutter pass + leaders).
+364 targeted tests + 23-step scenario. **All eight contractor-handover
+roadmap gaps (G1-G9) are now shipped.**
+
+## v0.22.2.51 — G3: setting-out datum + running dimensions + tile marks
+
+`settingOutDims` (pro): the Dimensioned-plan sheet gains a datum marker
+(crosshair + "SETTING-OUT DATUM", default = the plan's min external wall
+corner, `plan.datum` override persisted) and two dashed running-dimension
+rows — each axis-aligned wall FACE's distance measured directly from the
+datum (half-thickness offset toward the datum side; running dims, not
+cumulative chains, so on-site marking-out can't compound errors; via
+`projectToBaseline`, deliberately not `runningDimensions` whose anchor can
+drift off the true datum). Floor-plan sheet gains a tile setting-out cross
+per textured room (centroid convention) + ONE shared caption — the per-mark
+note repeated illegibly on a compact HDB plan, caught and fixed via the
+scenario. Pure `settingOut.ts`; 823 targeted tests + 19-step scenario with
+a live hand-computed face-distance check.
+
+## v0.22.2.50 — G7: SG hacking-plan hardening (wall classification + permit notes)
+
+`PlanWall.structure` (load-bearing / RC partition / brick partition / drywall
+/ unknown; `wallStructure` pro flag): declared per wall in the WallInspector
+(with an honest "user-declared — confirm against HDB/BCA records" hint) or
+bulk-applied to a multi-wall selection (new `setWallsStructure`, "Mixed"
+shown when the selection disagrees). The demolition sheet gains real 45°
+hatch ticks on removed walls, a heavy treatment for load-bearing walls that
+escalates to a danger colour + inline "NOT PERMITTED" label when one is
+marked for demolition (SG absolute rule), a ⚠ + "Structure unverified —
+confirm with HDB/PE before hacking" row for unclassified demolitions, and a
+6-line SG permit-note block (HDB permit always required; PE when RC touched;
+off-limits list; working-hours conditions). Classification rides the
+baseline-vs-current wall diff with zero extra plumbing (diffWalls buckets
+references). 11 svg tests + schema/flag/inspector/bulk tests + an 18-step
+scenario asserting the rendered legend + permit block.
+
+## v0.22.2.49 — G6b: designed MEP points on DXF ELECTRICAL/PLUMBING layers
+
+`planToDxf` emits each persisted point as a CIRCLE (r 0.06 m) + one combined
+"glyph @mm" TEXT (sheet symbol vocabulary imported, not duplicated; no TEXT
+at all when both parts are empty — avoiding sanitizeText's 'Room' fallback
+mislabeling), on ELECTRICAL (ACI 3) / PLUMBING (ACI 5) layers. Designed
+points only — the furniture heuristic is deliberately NOT baked into CAD
+output. Ground-storey filtering matches the exporter's existing single-storey
+convention (tested). 31/31 dxf tests. Closes G6b — the DXF now carries every
+handover layer: walls/rooms/openings/labels/furniture/dimensions/marks/MEP.
+
+## v0.22.2.48 — G1 complete (PR 4+5): Suggest MEP points + as-designed sheets
+
+"Suggest MEP points" (Plan ▾ menu + mobile, mepEditor-gated) seeds a starting
+layout from furniture+doors via ONE shared heuristic (`furniture/mepSuggest.ts`
+— moved verbatim from openDrawingSet, which imports it for the fallback so the
+two can never drift), dedupes against existing points, assigns default AFFL
+heights, one undo step. The electrical/plumbing sheets now PREFER persisted
+points (heuristic only when a family is empty), print "@1200"-style mount
+heights + a "Heights in mm AFFL" legend, and carry a provenance note: "Points
+as designed" vs the amber indicative caveat (params bundled as {points,
+source}). 964 tests across the touched sweep + two scenarios (suggest rerun
+adds 0; captured drawing-set HTML shows the provenance + height suffix).
+**G1 shipped end-to-end** — the largest contractor-handover gap closed:
+points are designed, edited, and printed, no longer export-time fakes.
+
+## v0.22.2.47 — Fix: two handover-accuracy bugs (bug-hunt findings)
+
+Adversarial review of v0.22.2.39-46 found two real defects, both fixed with
+regression tests: (1) CONFIRMED — a selected MEP point survived a storey
+switch: the canvas layer is level-filtered but the inspector resolved the
+selection from the whole-plan arrays, so it could silently edit/delete an
+off-screen point on another storey; the mep lookup is now level-scoped like
+the room/wall/opening branches. (2) PLAUSIBLE→fixed — the finish schedule's
+opening deduction used raw width×(head−sill) with no ceiling clamp; a head
+typed above the real ceiling (no upper bound in the inspector) could zero a
+room's whole net wall area on the printed schedule; deductions now clamp
+per bordering room's ceiling height (accent-wall deductions clamp to wall
+height). The sweep verified clean: scale mm-math across all 8 SVG builders
+(algebraically), all 24 itemPrice call sites ($0 override handled), DXF
+corner math (shared itemFootprint by construction), MEP no-op updates.
+
+## v0.22.2.46 — G1 (PR 3): MEP point editor in the 2D plan
+
+`mepEditor` (pro): a 4th "MEP" tool group (12 kinds, Electrical/Plumbing
+sub-headers; mobile rail parity at 44px) places points with grid/guide +
+0.25 m wall-face snap (pure `mepPlacement.ts`), tool stays armed; points
+render as circle+glyph symbols sharing the SHEETS' exact symbol vocabulary
+(exported `ELEC_SYM_TEXT`/`PLUMB_SYM_TEXT`); drag to move (coalesced undo),
+Delete key + right-click delete, inspector case (within-family kind Select,
+mount-height mm AFFL with per-kind placeholder + 300/1050/1200/2400 preset
+chips, label), `showMep` view toggle. Editor state carries {family, kind}
+(water-heater exists in both unions). Scenario caught a real gating bug —
+the inspector case ignored the flag — fixed + Simple/Pro test added. 186
+targeted tests + 17-step scenario. PR 4 (Suggest) + PR 5 (sheets) next.
+
+## v0.22.2.45 — G9: drawing-set FF&E sheet gains item-metadata columns
+
+The FF&E schedule sheet now shows Unit/Total prices (previously missing —
+report parity) plus the conditional Brand/Model/Supplier/URL/Remarks and
+per-custom-key columns, all from the shared `buildFfeSchedule` rows +
+`customMetaColumns` (imported from ffeCsv — one source of truth, no
+re-derivation). URLs print as a shortened host+path (34-char cap; the CSV
+keeps the full URL) so a query string can't blow out the fixed-width sheet.
+Price override verified through the shared `itemPrice()` path by test, not
+re-implemented. 53 tests + 16-step scenario (captured HTML shows Brand/
+Warranty headers, values, shortened URL; raw query string proven absent).
+
+## v0.22.2.44 — G4: contractor-grade finish schedule (codes, net areas, totals)
+
+`buildFinishSchedule` rewritten: per-room floor/wall/ceiling rows with stable
+material codes (FL-/WL-/CL-, first-seen order, never renumbered; AW- per
+accent colour), quantities — floor m² (shoelace), **wall m² net of openings**
+(perimeter × ceiling − each bordering opening's width×(head−sill), the
+openingSchedule probe geometry; hand-verified 35−1.8−1.44=31.76), ceiling
+(flat footprint; tray/coffered noted honestly), accent-wall rows (net of
+that wall's openings), and per-code totals — what a contractor prices from.
+One renderer (`finishScheduleHtml.ts`) feeds BOTH the report and the drawing
+set so they can't drift; "verify on site" caveat. floorTexScale shown as a
+scale factor (base tile size isn't modelled — no invented mm). 120 tests +
+25-step scenario capturing both documents. Rides the `report` flag.
+Also dropped the stale cross-session git stash both agents kept tripping on
+(archived to scratchpad).
+
+## v0.22.2.43 — G1 (PR 1+2): persisted MEP point model + store actions
+
+First two steps of the MEP-layer plan: `PlanElectricalPoint`/`PlanPlumbingPoint`
+persisted on FloorPlan (free XZ + `mountHeightMm` AFFL + label + levelId; kind
+unions relocated to types.ts with type-only re-exports), SG-convention mount
+defaults + `isDuplicateMepPoint` in pure `mepPoints.ts`, additive zod arrays
+(closed kind enums, no version bump), `mepEditor` flag (pro), PlanSelection
+'mep' member, and six slice actions (add/update/remove × both families,
+coalesced updates, selection-clearing removes) — every mutation forks the
+default plan so points survive `serialize()` (the addNote non-forking quirk
+deliberately NOT copied). 145 targeted tests. Editor UI (PR 3), Suggest
+(PR 4), sheet consumption (PR 5) next.
+
+## v0.22.2.42 — Per-item metadata: URL/price/brand/model/supplier + custom fields
+
+`itemMeta` flag (pro): every placed item gets a "Notes & link" inspector
+section — custom URL (sanitized, Open button), price override (injected at
+the single `itemPrice()` choke-point so budget/shoplist/FF&E/report all
+follow, "custom" tag shown), brand/model/SKU/supplier, description, remarks,
+plus USER-DEFINED custom key/value fields (≤20, clamped not rejected, shared
+pure `itemMetaLimits.ts`). Serializes additively (zod neutralize-not-reject,
+type-only `.optional()` after `.transform()` gotcha documented), coalesced
+undo, FF&E schedule/CSV grow conditional columns (one per distinct custom
+key, alphabetical; rows split rather than silently merging differing meta),
+shoplist custom URL overrides retailer link. 175 tests + 26-step scenario
+(Pro visible/Simple hidden). Real bugs found+fixed en route: blur-commit
+clobbering (live-store read), `.icon-btn` misuse for a text button. TODO
+gains G9 (drawing-set FF&E columns follow-up).
+
+## v0.22.2.41 — Drawing set: locked print-true scale + pro title block + paper options
+
+G2+G5 + user extension. Every plan-bearing sheet auto-picks the largest
+standard ratio (1:20…1:200) fitting the chosen paper and renders mm-TRUE
+(inline mm width/height style — presentational width/height attributes lose
+to the `.draw svg{width:100%}` CSS rule, a trap now in the playbook), stated
+in the title block ("1:50 @ A3 LANDSCAPE"); schedules/cover say NTS. Paper
+size A4/A3/A2/A1 × landscape/portrait user-selectable (ISO-216 printable-mm
+table, one margins source of truth; bigger paper → finer ratio, tested),
+`@page` CSS parameterized. Title blocks gain client/drawn-by/checked-by/date/
+sheet-number/revision + north arrow (live `orientationDeg`); cover gains a
+revision row + General-notes block with the SG disclaimers (print 100%; build
+from setting-out/elevations not the furniture plan; HDB permit/PE/LEW/LP).
+New `drawingSetTemplate` store slice (quoteTemplate pattern: persisted,
+undoable) + editor UI under File → Drawing set. Pure `drawingScale.ts`
+(16 tests); 244 targeted tests + live scenario incl. A3 assertion.
+
+## v0.22.2.40 — Lighting mood presets (one-tap Reading/Movie/Entertaining/Romantic)
+
+`lightMoodPresets` flag (simple): a "Mood" chip row under Scene → Lights
+(desktop + mobile) layers per-mood intensity ×tint on top of `lightsMode` —
+ceiling fixtures dim harder for Movie night (×0.12) / Romantic; Reading
+brightens lamps ×1.25; a `lightOn='no'` fixture is NEVER re-lit (invariant
+tested live). Pure `lighting/moodPresets.ts`; mood persists with the design
+like `lightsMode` (schema+autosave, 'none' back-compat). Pixel-verified:
+Movie night lum 160→80 with red:blue 2.9 vs 1.4 (visibly dimmer + warmer);
+scene-graph probe matched the exact composed multipliers. Fixed a real
+overflow bug (5 chips vs the 264px menu → wrapped .mood-seg row). 174 tests
++ 44-step scenario.
+
+## v0.22.2.39 — G6: DXF export enriched for CAD handoff
+
+`planToDxf` gains FURNITURE (each item's rotated OBB footprint — the same
+`itemFootprint` collision geometry — as a closed POLYLINE) + FURNITURE_TEXT
+(name), DIMENSIONS (the report's auto-dimension strings as LINE + tick +
+extension-stub + centred TEXT — deliberately not R12 DIMENSION entities,
+whose DIMSTYLE dependency renders inconsistently in lightweight readers),
+and OPENING_MARKS (D1/W1… labels matching the door/window schedule), each
+with a distinct AutoCAD colour index. Deterministic; stale defs skipped.
+24 dxf tests (60 with neighbours) green; structural round-trip verified by
+line-scanner (ezdxf unavailable in sandbox). User doc updated. (TODO G6 →
+cleared; ARCHITECTURE bullet rides the next commit — shared file with an
+in-flight agent.)
+
+## v0.22.2.38 — Contractor-handover goal: research + gap analysis + roadmap
+
+New goal (user): output must be contractor-buildable — dimensioned, to-scale,
+following professional designer→contractor handover practice. Research doc
+(`docs/research/2026-07-18-contractor-handover-research.md`): the canonical
+13-drawing set ranked by contractor essentiality, dimensioning/scale
+conventions (1:50 plans, mm units, datum chains, FFL heights, title blocks,
+revision clouds), format norms (to-scale PDF A3/A1 + DXF), SG/HDB specifics
+(hacking permits, wall-classification failure mode, PE/LEW/PUB-LP roles), and
+the key distinction: furniture-layout plans are design-intent — contractors
+build from setting-out plans, elevations, sections, and points plans. Codebase
+audit: metre-native model + multi-sheet drawing set + DXF are ~70-80% there;
+gaps ranked G1-G8 in TODO (first-class MEP layer, locked print scale, datum
+setting-out, quantified finish schedule, title-block metadata, DXF dims,
+hacking-plan classification, carpentry sections).
+
+## v0.22.2.37 — Native share sheet for the hero card
+
+`shareCardNative` flag (simple, default on): on browsers supporting Web Share
+API Level 2 the Share modal's hero-card row shows "Share…" (OS share sheet via
+`navigator.share({files})` — straight to WhatsApp/Telegram/IG on mobile)
+beside "Save"; unsupported browsers keep the original full-width "Save hero
+image" (existing scenario unbroken). Pure `ui/shareNative.ts` helper
+(canShare-probe + AbortError = silent cancel, never an error toast; MDN/
+web.dev transient-activation pattern cited in-file), 12 unit tests +
+both-modes flag test; scenario share-native-simple.json (19/19) proves the
+stubbed share receives the PNG File and the button vanishes without support.
+User doc labels updated; playbook gains the navigator-stubbing gotcha.
+
+## v0.22.2.36 — Asset pipeline: Kenney Furniture Kit fetcher (19 CC0 items)
+
+`scripts/asset-pipeline/fetch-kenney-models.mjs` + `kenney-select.mjs`:
+resolves the pack page's content-hash ZIP, extracts a curated 19-item CC0 set
+(beds/seating/tables/storage/kitchen/bathroom/laundry/lighting/decor/textiles/
+electronics, all self-contained GLBs < 40 KB), optimizes via gltf-transform
+(KHR-unlit registered so the flat-shaded look round-trips), writes CC0
+provenance sidecars; idempotent with --limit/--category/--force. local-assets/
+now 30 GLBs (+ Poly Haven 11); dev server picked them up live, scenario
+verified catalog search + a placed Design Sofa (24/24 steps). Caught a slug
+collision (Kenney "table" vs Poly Haven dining-table — renamed) — fetchers
+must keep slugs globally unique across sources. Unit tests for the curated
+list (5). Poly Pizza is API-key-gated; Quaternius queued as the next batch.
+
+## v0.22.2.35 — UX research round 3: 5 vetted candidates queued
+
+Competitor sweep (Coohom/Homestyler/IKEA Kreativ/Behr/Dulux + 2026 changelogs)
+yielded 5 verified-absent, precedented core-loop candidates, ranked in TODO:
+native share sheet for the hero card (S), lighting mood presets (M),
+real-photo paint visualizer (M), parametric stairs (M/L), parametric
+roof+dormers (L). Near-misses recorded so they aren't re-proposed
+(align/distribute, dollhouse, wardrobe configurator, 2D+3D split view,
+photo→plan AI, shelf-lift gesture — all shipped or ruled out). REFERENCES.md
+gains Dulux Visualizer, Behr Visualizer, DecorViz.
+
+## v0.22.2.34 — Test hygiene: kill the suite's real-network escape + a load flake
+
+Full-suite gate caught a flake: `bulkImport`'s hopeless-GLB test (allocates a
+75 MB File) blew the 5 s default timeout under suite memory pressure → bumped
+to 20 s. Root-caused the mysterious `ECONNREFUSED 127.0.0.1:3000` noise in the
+run: `swUpdate.test.ts`'s unmocked `showUpdatePrompt()` calls fire the
+background `fetchDeployedVersion()` fetch, which happy-dom resolves against
+its DEFAULT origin `http://localhost:3000` — the suite was making real TCP
+connects, with the unhandled-error logs misattributed to whichever test file
+was reporting. Stubbed fetch in that file's beforeEach (unstubbed after). Both
+files green; 0 ECONNREFUSED.
+
+## v0.22.2.33 — IXT-SUITES batch 12 (final): coverage complete + thumbnail-leak probe
+
+Six ladders close out the uncovered-flag pool: `sunStudy` (Tools time-lapse),
+`cameraDof` (HQ-render lens controls + f-stop store round-trip),
+`smartRotateSnap` (gizmo neighbour-axis snap vs 15° grid), `assetSets`
+(GLB-designer "Save groups as separate assets" — NOT the Arrange Sets picker,
+a near-miss the two-pass derivation caught), `pbrSurfaces` (material-factory
+oracle), `paletteFromPhoto` (gate-only; full flow blocked on the native file
+picker — no dev hook). **Uncovered drivable flags: 0.** Plus
+`thumbnail-clone-gpu-probe.json`: measured `gl.info.memory` across category
+cycles + a 3-concurrent compare-tray open → **no leak** (counts fluctuate and
+drop; SkeletonUtils.clone shares geometry with the useGLTF cache — ruling
+recorded in TODO). No app bugs; playbook gotchas appended (incl. reaching
+r3f's `_roots` via the Vite optimized-dep URL from page-context eval).
+
+## v0.22.2.32 — Docs-currency pass (audit of the 43-commit session)
+
+Read-only docs audit found the user guide already current for every big new
+feature (design chat, version compare, catalog compare, walk measure, share
+card — exact labels matched). Fixed the gaps: root CLAUDE.md's path-scoped
+list now includes `src/lighting/` + `src/floorplan/` (both existed, never
+listed); `docs/ARCHITECTURE.md` gains the six systems that had zero mentions
+(catalogCompare, roomStarters, walkMeasure, suggestedViews, aiDesignChat,
+aiPlanGenerate); README highlights add "Try another layout"/item-compare and
+the hero share card. No hardcoded feature/flag count exists to go stale
+(registry has 173 entries; no doc cites a number).
+
+## v0.22.2.31 — IXT-SUITES batch 11: 4 ladders (6 drivable flags left)
+
+Green rungs for `wallNumericEntry` (type "3"+Enter → a 3.00 m wall commits),
+`catalogFitsFilter` ("Fits only" hides the too-big bed, leaves tight-fit
+visible), `gapSuggest` ("Nudge apart" widens a tight side-table pair),
+`triplanarWalls` (scene-graph oracle — a sloped wall's prism mesh gains/loses
+its `uv` BufferAttribute as the flag toggles). No app bugs. Playbook gotchas
+(`.plan-screen svg` resolving to a toolbar icon; `waitFor.visible` is css-only).
+Remaining uncovered drivable flags: `sunStudy`, `cameraDof`, `smartRotateSnap`,
+`assetSets`, `pbrSurfaces`, `paletteFromPhoto` (needs an image-upload hook).
+Also records a perf investigation lead (thumbnail-clone disposal under the
+busier compare-tray queue — verify with a memory probe before acting).
+
+## v0.22.2.30 — IXT-SUITES back-fill batch 10: 4 more ladders (~22 uncovered)
+
+Green rungs for `moodboard` (File-menu row + window.open-captured board HTML),
+`cornerAo` (scene-graph opacity=0.42 plane-count oracle — simple-tier, equal
+in both modes), `planIntegrity` (manufactured stray wall → "⚠1 stray" badge
+Pro-only), `newBadges` (revive an aged-out NEW_BADGES entry via dynamic import
+→ .new-dot Pro-only). Two-pass derivation caught near-miss name collisions
+(catalogFitsFilter≠catalogFits; the cornerAo/pbrSurfaces lookalike scenarios
+don't touch the flags). No app bugs. New playbook gotchas (opacity scene-graph
+oracle, "manufacture a defect before toggling a warning flag", non-unique
+.panel-sub trap, reviving stale NEW_BADGES).
+
+## v0.22.2.29 — Fix: numeric PromptModal rejected decimals (same stepMismatch class)
+
+Bug-hunt round 5 found the shared `PromptModal`'s numeric mode
+(`promptText({numeric:true})`) rendered a bare `type=number` with no `step`,
+which defaults to `step=1` — so any decimal answer failed native
+`stepMismatch` and the `<form>` submit silently no-op'd. This broke real
+flows: floor-plan **scale calibration** ("Real length of the line you drew
+(metres)" — e.g. 3.05) and **record walkthrough** ("Total video length in
+seconds" — e.g. 12.5). Added `step="any"` for the numeric variant. New
+`PromptModal.test.tsx` (the component had none — same coverage gap that hid
+the ScalePlanModal bug) asserts a decimal is valid + submits. Everything else
+round 5 checked came back clean (other number inputs are live-update, not
+form-gated; new batch actions push exactly one history entry; new panels have
+no colour-literal violations).
+
+## v0.22.2.28 — Fix: ScalePlanModal default no-op'd (stepMismatch) + batch 9 ladders
+
+Bug (found by the batch-9 scenario back-fill): the Scale-plan dialog's number
+inputs used `step={0.1}`/`step={0.05}` while their seeded defaults (`'2'`;
+a wall length like `3.47`) don't sit on that step grid — so the untouched
+default failed the input's native HTML5 `stepMismatch` validation and the
+`<form>` submit silently no-op'd in standards-compliant browsers (the dialog's
+most common action). Both inputs now use `step="any"`. Browser-verified: the
+default factor 2 validates, scales the plan 4× (area = 2²), and undo reverts.
+Plus IXT-SUITES batch 9 — green rungs for `shortcutsHelp`, `infoCallouts`,
+`proUpsell`, `planScale` (uncovered 30→26); playbook gotchas ({label}▾
+two-text-node trap, the stepMismatch writeup, ?-key overlay dispatch,
+room↔plan dual-mount InfoCallout).
+
+## v0.22.2.27 — Test-coverage hardening: 72 tests over 5 untested hot modules
+
+Gap analysis (196 test-less files → pure modules × real caller counts) found
+and covered the 5 highest-value holes: `features/flags/resolve.ts` (the
+override/persist/isFeatureEnabled runtime plumbing every gated feature rides —
+zero coverage before), `furniture/footprintDims.ts` (the consolidated
+footprint resolver used by 6 call sites), `glbEdit/transformMath.ts` (shared
+TRS math under pivot/groupTransform), `ui/elevation/sectionFigure.ts` (the
+drawing-set section bridge), and the configurator's `offeredOptions`/`accepts`
+filter + `selectedOption`/`productLabel`. 72 new tests, no bugs exposed (all
+behavior matched intent). Remaining flagged gaps (store-coupled
+selectionActions/itemTransforms/arrangeActions) recorded for a future pass —
+they'd need a store harness or arg-injection refactor, a design call.
+
+## v0.22.2.26 — AI design chat v1 (grounded, read-only, BYO-key)
+
+The research-verified unclaimed differentiator: **Tools → Design chat**
+(`aiDesignChat` flag, pro) answers questions about the user's ACTUAL design.
+Pure `ai/designChatContext.ts` builds a deterministic, capped context from
+the app's own numbers (plan digest via `buildPlanStatistics`, design score +
+per-category issues via `buildDesignScore`, per-room furniture with positions
++ footprints; explicit NOT-AVAILABLE footer for what a pure builder can't
+know); `ai/designChat.ts` hard-constrains the model to cite only supplied
+numbers ("I can't measure that from here" otherwise), read-only, ≤10-turn
+history, same BYO key + endpoint security gate as the other AI surfaces. One
+shared ToolAction wires desktop Tools menu + mobile sheet + ⌘K; panel mirrors
+the aux-panel pattern (lazy + idle-preloaded, session-only history). Dev hook
+`__designChatContext`; browser-verified (panel renders, grounding contains
+real rooms/score/areas, hidden in Simple); 20 new tests (802 targeted green).
+
+## v0.22.2.25 — Batch 8 ladders + two sourced research rulings
+
+IXT-SUITES batch 8 (uncovered → 30): green rungs for `palettePresets`
+(Scandinavian-calm preset applies 5 exact hexes in Pro, hidden in Simple),
+`walkCameraControls` (walk-only FOV/eye-height sliders, simple-tier
+setFeatureFlag proof), `electricalPlan` + `plumbingPlan` (same-mode flag
+round-trips asserted against the captured Drawing-set export HTML via a
+window.open intercept). New playbook gotchas (registry-over-stale-comment,
+Disclosure screenshots, nested-flag proof pattern, export-HTML capture); a
+stale "pro tier" doc comment in WalkCameraControls corrected. Plus two web
+research rulings recorded in TODO.md: **voice dictation = GO but deferred**
+until `textBrief` ships (full platform spec captured: iOS-PWA suppression,
+continuous-mode workaround, en-SG→en-GB retry, privacy copy); **AI design
+chat = BUILD narrowly** (grounded-in-live-model advice is unclaimed by any
+competitor — Coohom AIHom/Homestyler Agent/Havenly AI/Bernard are all
+generative, sourced); REFERENCES.md Havenly line extended with Havenly AI.
+
+## v0.22.2.24 — Two fixes: version-compare capture race + arrange moving locked items
+
+Bug-hunt round 4 (focused on this session's new code) found and fixed:
+- **[High] Overlapping "Compare in 3D" captures could interleave swaps and
+  resume autosave while a temporarily-swapped design was still live** —
+  risking the wrong design being persisted. `pauseAutosave`/`resumeAutosave`
+  are now a NESTING COUNTER (resume only re-enables + resyncs at count 0), and
+  `captureVersionComparePair` gained a module-level in-flight guard (a
+  concurrent call no-ops to null; the modal un-wedges its phase). Covered by
+  new concurrency tests incl. exception-mid-swap.
+- **[Medium] "Try another layout" / Tidy moved LOCKED furniture** —
+  `arrangeCore.isFixed` never checked `item.locked` (unlike mirror/selection
+  ops). Locked items now stay at their exact transform AND act as world
+  obstacles (nothing placed on top); no-locked-items layouts are byte-identical
+  to before. 4 new arranger tests.
+Full suite green (7427).
+
+## v0.22.2.23 — IXT-SUITES back-fill batch 7: 4 more ladders (~34 uncovered)
+
+Green, screenshot-verified simple rungs for `elementColors` (per-wall
+ColorPicker drives `updateWall`; swatch backgroundColor as the oracle),
+`catalogModelInfo` (pro — CC0/Poly Haven card `title` tooltip present in Pro
+only), `assetCredits` (Appearance-popover button opens the real CreditsModal),
+and `densityMode` (pro — proves the flag gates the `data-density` DOM effect,
+not just the UI). No app bugs. New playbook gotchas (simple-tier ladder needs
+a direct `setFeatureFlag` proof not a hidden→shown transition; ColorPicker
+trigger backgroundColor as popover-free proof; flag-gates-the-effect via a DOM
+attribute oracle; the dev-server-restart-vs-HMR signature). Uncovered ~38 → ~34.
+
+## v0.22.2.22 — Fix: bulk "Tint all" silently no-op'd on parametric furniture
+
+The multi-select **Tint all** wrote `props.tint` on every item, but `tint` is
+consumed only by the GLB render path (`gltfRender.ts`) — parametric primitives
+(most of the builtin catalog: sofas, chairs…) read their `color` params and
+ignored it, so bulk-recolouring stock furniture changed nothing on screen
+(caught by the batch-6 scenario's pixel probe). Now per-def: new pure
+`recolorPatch`/`clearRecolorPatch`/`currentRecolorValue` (`appearanceProps.ts`)
+map a recolour to `{tint}` for GLB/IKEA and to every `color` `paramSchema`
+field for parametric (clear resets each to its schema default); a new
+catalog-aware `recolorItems(ids, hex|null)` store action
+(`styleClipboardSlice`, one undo) applies it, and `MultiSelectPanel`'s swatch +
+"Clear tint" selectors now read `currentRecolorValue` so they reflect a
+parametric item's real colour. GLB/IKEA path byte-identical. Browser-verified
+(two armchairs recolour to #ff8800 with color params, no tint; clear reverts);
+33 targeted + 651-test sweep green; scenario `bulk-recolor-parametric.json`.
+
+## v0.22.2.20 — IXT-SUITES back-fill batch 6: 4 more ladders (37 uncovered)
+
+Green rungs for `catalogCompare` (arm → select 2 same-category → tray → Place),
+`bulkAppearance` (Tint-all section gating + bulk tint + clear), `renderPresets`
+(Scene-menu preset select applies time/tone/exposure/lights), and
+`saveMaterials` (compose → name → Save → `SavedMaterial` lands, independent of
+the parent `materialComposer` flag). 4 new playbook gotchas (collapsed
+`<details>` keeps children in DOM → presence waitFor is a false "open"; shared
+Select trigger classNames → target aria-label; Escape clears global selection).
+Uncovered drivable flags 41 → 37. Surfaced a real `bulkAppearance` bug (fixed
+next, v0.22.2.21).
+
+## v0.22.2.19 — Version compare in 3D (split-view reveal)
+
+Compare a saved version against the current design in the live 3D view
+(`versionCompareView` flag, pro): a "Compare in 3D" button on each Versions
+row opens a reveal-divider modal (Current | slot name) built on the proven
+capture-swap-restore pipeline (`RenderCompareModal`/`StagingRevealModal`
+pattern — captures two PNGs, never a live dual-scene render). Safety: the
+pure `withTemporaryDesign` helper pauses autosave (new
+`pauseAutosave`/`resumeAutosave` that cancel the pending debounce and resync
+the watch snapshot on restore) and runs BOTH the swap-in and restore inside
+`runWithoutHistory`, so a compare never leaks into undo history or a save —
+GPU-verified end-to-end (history length + item count unchanged after
+capture). Modal added to the idle-preload order (parity with its sibling).
+15 tests across the pure orchestration, flag gating, and panel wiring.
+
+## v0.22.2.18 — Catalog comparison tray (CATALOG-COMPARE)
+
+Pick 2–3 same-category items and compare them side-by-side (`catalogCompare`
+flag, simple tier): a Compare toggle in the catalog header arms a select mode
+(card clicks select-with-checkmark-badge instead of placing — complies with
+the no-per-card-action-buttons rule), a status row tracks the 2–3 cap
+(different category restarts the pick; 4th same-category tap no-ops), and the
+Modal tray shows thumbnail · W×D · footprint area · price (when `budget` is
+on) · fits-this-room verdict per column with a Place button reusing the shared
+`useCatalogPlacement` grammar. Pure selection/row logic in
+`catalogCompareData.ts`. GPU-verified (two-sofa tray renders sizes/areas/fit +
+Place arms placement); 52 targeted tests + guards green.
+
+## v0.22.2.17 — Share-card format picker (Post · Square · Story)
+
+The hero share card gains 1080×1080 Square and 1080×1920 Story formats
+alongside the default 4:5 Post, via a `Segmented` next to "Save hero image"
+(component-local state, matching the catalog-filter ephemeral precedent).
+Pure `shareCardLayout(format)` table: PAD/RADIUS fixed, the 394 px chrome
+block (name/stats/strip/wordmark) anchors to the bottom, the hero fills the
+rest — default 'post' is byte-identical to the old constants (tested).
+Filename gains a format suffix (default unsuffixed); `__buildShareCard`
+takes an optional format. GPU-verified (Story card renders tall hero +
+bottom chrome correctly); 31 shareCard tests.
+
+## v0.22.2.16 — SH3D import: exact window sills from `elevation`
+
+`.sh3d` windows now import at their true height: the parser reads each
+doorOrWindow's `elevation` (cm→m) and `sh3dPlacement.openingHeights` maps
+window sill = elevation, head = min(elevation + height, ceiling) — with the
+old fixed defaults as the fallback for missing/zero/at-ceiling (corrupt)
+values, and doors deliberately unchanged (always floor-hung). The real import
+path threads `plan.ceilingHeight` through. Also completes the CLAUDE.md-
+flagged cleanup: `sh3dPlacement` now reuses the shared
+`clampOpeningWidth`/`clampOpeningOffset` instead of its inline copy.
+Browser-verified via `__importSh3dBytes` (window renders raised at 1.2 m
+sill; door on the floor); 57 targeted tests + 633-test floorplan sweep green.
+FEATURE_PARITY SH3D row narrowed to legacy serialized archives only.
+
+## v0.22.2.15 — IXT-SUITES back-fill batch 5: 3 more ladders (39 uncovered left)
+
+Green rungs for `dxfExport` (Pro File-menu row → real `downloadPlanDxf` blob
+intercepted via an anchor-click patch, `.dxf` filename asserted),
+`mountHeights` (preset chip commits `mountHeight` 1.35; chips flag-gated,
+numeric field persists), `itemDimensionReadout` (drives the real
+`resizeReadoutSignal` module in-page → `.drag-readout` pill mounts/unmounts,
+stays hidden flag-off). Three initial picks dropped as ALREADY covered once
+a filename-dash-match pass was added to the content grep — the two-pass
+re-derivation method is now a documented playbook gotcha (true uncovered
+count was 42, not 55). No app bugs. Uncovered: 42 → 39.
+
+## v0.22.2.14 — IXT-SUITES back-fill batch 4: 4 more ladders (~40 uncovered left)
+
+Green, visually-confirmed simple rungs for `layerOrder` (context-menu bring
+to front / send to back reorders `items`), `furnitureGroups` (Group hidden
+in Simple / present in Pro → shared groupId → Ungroup clears),
+`copyAppearance` (copy → paste turns the second sofa red), and
+`suggestions` (nested sub-flag: 💡 block disappears while the parent
+designScore panel stays mounted). No app bugs. Five new playbook gotchas
+(store-driven context menu, reorderItems contract, activeGroupId toggle,
+parametric-vs-GLB appearance keys, nested-flag gating). Genuinely-uncovered
+flags (after exclusions): ~44 → ~40.
+
+## v0.22.2.13 — IXT-SUITES back-fill batch 3: 4 more ladders
+
+Green, visually-reviewed simple rungs for `layoutReroll` (reroll twice →
+variants increment + layouts differ → double-undo restores),
+`planLabels` (off→name→price cycle with the furniture layer + budget-flag
+dependency), `wallThickness` (plan-wide fields + per-wall override + reset
+via the real Num inputs), and `designerPicks` (curated row on Floor+Walls
+tabs, swatch applies a known curated id, disappears when forced off). No app
+bugs. Six new playbook gotchas (uncovered-scan spelling false-positives,
+gated-parent discoverability, session-only variant undo caveat, planLabels'
+dual dependency, Num-control native-setter commit, role=group assertion
+pattern).
+
+## v0.22.2.12 — IXT-SUITES back-fill batch 2: 4 pro plan-tool ladders
+
+Four more uncovered flags gain green, visually-verified simple rungs, all
+driven through the real Plan-menu / room-inspector UI with Simple-hidden /
+Pro-present gating + undo round-trips: `dimensionchain-simple.json`
+(addChainDimensions baselines), `planguides-simple.json` (pointer-placed
+V/H guides → PlanGuidesLayer renders → clear), `cornerfillet-simple.json`
+(runtime-discovered connected wall pair → Round corner → +1 wall → undo),
+`roominset-simple.json` (largest-room inset −0.1 m, 24.3→22.2 m² → undo).
+No app bugs found. Five new playbook gotchas recorded (PlanMenu one-shot
+close-on-click, open/settle shape, two-wall selection via the real actions,
+plain-aside vs Popover, largest-room rule for shrink ops). Uncovered flags:
+72 → 68.
+
+## v0.22.2.11 — IXT-SUITES back-fill: 4 new scenario ladders (71→67 uncovered)
+
+Coverage map of 170 flags vs 341 scenarios found 71 flags with zero scenario
+references; added simple rungs for the 4 highest-value Simple-tier core-loop
+gaps, each run green against the live dev server before check-in:
+`materialcomposer-simple.json` (compose-your-own → `compose:` id applied to
+the floor), `wallaccentpicker-simple.json` (selectWall → paint → clear →
+both modes), `plancompass-simple.json` (compass mounts + tracks
+`setOrientationDeg`), `unroomedflag-simple.json` (removeRoom → red flag
+shows through → undo restores). Three new playbook gotchas recorded
+(composer tint-vs-compose seeding, occlusion-probing an always-present
+pointer-events:none layer, selectWall needs a genuinely bordering
+wall/room pair). Skipped-with-reason: devOnly/sidecar flags, non-preloaded
+lazy modals, WebXR, continuous-animation effects.
+
+## v0.22.2.10 — Preview boot-hang investigation: resolved as invocation gap
+
+The `vite preview` prod-build hang is root-caused, NOT an app/deploy bug:
+`vite preview` resolves config with `command:"serve"`, so the base ternary
+picks `/` while `dist/` is baked for `/sofa-so-good/` — every asset request
+falls into the SPA index.html fallback (200/text/html) and boot never loads
+the module graph. Real deploys (GH Pages / Docker / Cloudflare) serve real
+files and are unaffected. Correct smoke invocation
+(`VITE_BASE=/sofa-so-good/ npx vite preview …`) documented in the
+visual-verification playbook (+ prod-smoke gotchas: no `window.__store` in
+prod, benign 502 health ping); TODO investigation entry resolved. Bonus: the
+verified boot (furnished scene screenshot) ran on a fresh build with the
+v0.22.2.9 chunk config — validating that change on a real prod boot.
+
+## v0.22.2.9 — Bundle audit: −2.0 MB gzip off the eager boot payload
+
+Bundle/startup audit found `@react-three/xr` (+ `@pmndrs/*`, `iwer`, `@iwer/*`),
+`ktx-parse`, and `denoiser` — all dynamic-import-only in src — swept into the
+EAGER `vendor` chunk by `manualChunks` (which matches module ids, not
+static-vs-dynamic status; the config's own comment already documents this trap
+for postprocessing/@gltf-transform/meshoptimizer/utif). Extending the existing
+exclusion regex cut `vendor` from 7,016 kB (2,254 kB gzip) to 886 kB (263 kB
+gzip) — **−6.1 MB raw / −2.0 MB gzip off first load**; the bulk was
+`@iwer/devui`'s WebXR-emulator debug-room presets (music_room 2.1 MB, …) now
+correctly deferred behind VR activation. Verified by three A/B rebuilds (the
+delta is exactly these libraries; no new eager reachability; index/three/store
+chunks byte-stable). Audit also confirmed clean: 23 lazy panels + idle preload,
+worker bundles separate, three/examples loaders already excluded, no shipped
+sourcemaps, no bundled CREDITS. Report-only items recorded (eager GLTFLoader
+via userProductsSlice→gltfSlot, nested three copies in tree-shaken/lazy deps).
+A separate PRE-EXISTING `vite preview` boot hang was observed and A/B-cleared
+of any connection to this change — recorded in TODO.md for investigation.
+
+## v0.22.2.8 — A11y sweep: canvas labels + layout-change announcements
+
+Accessibility audit across this session's new surfaces (RecentStrip,
+DayNightClipSetup, eyedropper, starter chips, WalkHud measure, share card —
+all verified already-clean: aria names/pressed states, keyboard reach, focus
+ring coverage, alt-text pattern, reduced-motion block, aria-live toasts). Two
+real gaps fixed: (1) the main orbit + room-editor `<Canvas>` wrappers had no
+accessible name at all — now `role="img"` + a mode-aware descriptive
+aria-label; (2) `tidyRoom` and `rerollRoomLayout` reshuffled a whole room
+silently while every sibling layout action toasts — both now announce via the
+existing aria-live toast container ("Room tidied up" / "Layout rerolled").
+Browser-verified (labelled canvas present; reroll toast lands in a live
+region); 3 tests added.
+
+## v0.22.2.7 — Two integration fixes (bug-hunt round 3)
+
+- **Mid-tour camera-mode switch orphaned the tour + day/night sweep.** The
+  cinematic tour's cleanup lived only in `OrbitCamera`'s frame loop, so
+  toggling to walk mode mid-tour (V / ⌘K — neither blocks while touring)
+  unmounted the component with `touring` stuck truthy forever (RenderPump
+  rendered continuously — silent battery/perf drain), `timeSweepRestore`
+  never restored the clock, and returning to orbit RESTARTED the whole tour.
+  `OrbitCamera` now ends the tour + restores time in an unmount cleanup.
+  Browser-verified (tour+sweep → walk switch → touring cleared, hour restored
+  to 13:00, no restart on return).
+- **`.sh3f` import duplicated byte-identical models within one archive.**
+  `persistUserGlb`'s content-hash dedup reads the LIVE store, but the import
+  batch commits once at the end — so locale/variant catalog entries pointing
+  at the same model file each got a fresh assetId + IndexedDB blob. The loop
+  now hashes first and skips batch-local repeats (the hash is passed through
+  so nothing is hashed twice). Regression test added (per-entry mock bytes so
+  the suite still exercises distinct models).
+
+## v0.22.2.6 — Walk-mode point-to-point measure (WALK-MEASURE)
+
+Measure real distances while walking (`walkMeasure` flag, simple tier —
+mirrors the editor `measure` tier): aim and press G (or the WalkHud "Measure"
+pill — mobile parity) to pin point A on the aimed surface, aim elsewhere and
+press again for B; the distance renders in-scene (amber markers + line +
+midpoint label, dashed live-preview while placing B) and reads out in the HUD
+pill; a third press starts fresh, × clears, leaving walk mode resets.
+Session-only `walkMeasureSlice` (never persisted/undoable); one shared
+raycast in `FirstPersonCamera` (immediate on request, 10 Hz live-preview while
+placing B only) filtered by the pure `collision/walkMeasureHit.ts` (skips
+invisible wall-reveal geometry + noExport overlays). **Real-GPU verification
+caught a production bug in the initial implementation**: three's
+`LineSegments2` raycast requires `Raycaster.camera` — without it, every
+sample after the overlay mounted threw ("Cannot read properties of null
+(reading 'near')"), so the SECOND point could never be placed; fixed by
+setting the camera on the shared raycaster (both branches). Full A→B→reset
+cycle + in-scene render + HUD readout GPU-verified; scenario
+`walk-measure.json`; unit tests across slice, hit filter, request signal,
+flag both modes.
+
+## v0.22.2.5 — "Suggest views": auto-generated hero camera angles
+
+"Suggest views" in the View menu (desktop + mobile; `suggestedViews` flag, pro
+— it feeds the pro presentation family) computes and saves a starter set of
+camera views so Present…/Cinematic tour/Record/Render-all/day-night sweep have
+content without hand-authoring: a corner three-quarter angle per largest
+furnished room (eye 1.5 m, target biased toward the furniture centroid, far
+corner pick guarantees wall clearance, rooms <2.5 m skipped) + a whole-home
+overview mirroring `dollhouseFraming`. Pure math in
+`scene/cameras/suggestViews.ts` (works for the default flat AND custom plans);
+`cameraViewsSlice` gains a pose-based `saveView` (with `saveCurrentView`
+delegating) + `suggestSavedViews()` (dedup by name — second run adds 0,
+toasts the count). GPU-verified (corner view is a genuinely well-composed
+interior shot; overview matches home framing; dedup confirmed); 121 targeted
+tests incl. both modes.
+
+## v0.22.2.4 — Finish eyedropper: sample a surface, paint it elsewhere
+
+The FinishPicker header gains an eyedropper toggle (`finishEyedropper` flag,
+simple tier): arm it, click any wall/floor in the 3D scene to SAMPLE the finish
+it's actually rendering (pure `materials/sampleFinish.ts` — accent wallId →
+live slice → plan-room default → app default precedence, never null), then
+each subsequent click PAINTS the held finish onto the clicked surface by
+reusing the exact drag-to-apply pipeline (`resolveFinishDrop` +
+`finishDropApply` — same one-undo step, recents, toast). Held-sample chip with
+× in the header; crosshair + accent viewport ring while armed;
+Escape/toggle/leave-editor disarms. Session-only `eyedropperSlice`; the click
+side is a capture-phase canvas listener over the existing `finishDropTarget`
+raycast. v1 samples at room-wall granularity (the surface tag carries no
+wallId; the accent branch is implemented + tested for a later per-wall tag).
+Browser-verified (arm → hint row → sampled chip "Warm cream" → apply to
+another room → Escape disarms); 17 unit tests incl. both modes.
+
+## v0.22.2.3 — Room-starter "essentials" chips in the empty-room state
+
+The room editor's empty-room hint now offers **tap-to-add essentials** for the
+room's kind (`roomStarters` flag, simple tier — fixes the Simple-persona
+dead-end where all guidance was pro-tier): bedroom → Queen bed / Wardrobe /
+Nightstand, living → sofa / TV console / coffee table, kitchen / bath / dining /
+study per their patterns (pure `ui/catalog/roomStarters.ts` mapping over the
+existing `RoomKind` taxonomy — all ids verified in `BUILTIN_CATALOG`). Each
+chip adds ONE sensibly-placed piece via the new pure
+`layout/placeStarterItem.ts`: wall-flush midpoints (inward-facing, wallGap
+clearance, `canPlace`-validated against the room's walls + items) → validated
+room centre → centre fallback; one `addItem` = one undo + recents entry.
+Unmapped kinds / flag off keep the plain "Open catalog" prompt. GPU-verified
+(chips render in the empty Main Bedroom; tapping "+ Queen bed" places it
+wall-anchored); 21 unit tests incl. both modes.
+
+## v0.22.2.2 — One-tap "hero card" share image (SHARE-CARD)
+
+"**Save hero image**" in the Share modal's Export section (`shareCard` flag,
+simple tier, desktop + mobile) builds a polished 1080×1350 share-ready PNG:
+the current 3D snapshot (same hi-fi `captureCanvasPng` SSAA path as
+Screenshot/photoreal) on a fixed-dark card with the design name, an
+items·area·rooms stat line (metric + imperial), a ≤6-swatch palette strip
+(master palette → finish-derived fallback), and an accent "Sofa So Good"
+wordmark (live `--accent` read via getComputedStyle — on-brand across all 5
+themes). Pure helpers in `ui/shareCard.ts` (stats/swatches/strip-layout/
+filename — 17 tests, both modes); canvas raster + orchestration in
+`ui/openShareCard.ts` mirroring `openMoodboard`; 2D-editor capture miss falls
+back to an accent-wash placeholder card. Dev hook `window.__buildShareCard`;
+GPU-verified (card renders name/stats/swatches/wordmark correctly); scenario
+`share-card.json`.
+
+## v0.22.2.1 — Onboarding copy: drop stale "75-item" / "4-room" claims
+
+First-run onboarding undersold/misdescribed the app: the Furnish feature card
+advertised a fixed "75-item catalog" (the catalog now far exceeds that with
+parametric/kitchen/pet/CC0/IKEA-import content) and the welcome lede hard-coded
+"your 4-room flat" despite custom plans, `.sh3d` import, and AI plan generation.
+Now "a rich furniture catalog" + "start from the furnished 4-room HDB or your
+own plan" — accurate without a brittle number.
+
+## v0.22.2.0 — Two core-loop UX wins: catalog "Recent" strip + layout reroll
+
+From the UX research pass, the two highest value÷effort core-loop additions,
+both simple-tier, desktop + mobile:
+
+- **Recently-placed quick-add strip (`catalogRecents`).** A thin "Recent" strip
+  atop the catalog browse grid (+ the pre-existing Recent tab, now flag-gated)
+  showing the last 8 defs you placed, tap to place again — the automatic
+  item-level complement to the deliberate Favourites star. Reuses the existing
+  `recentSlice` (`hdb_recent_items`, recorded on every `addItem`) +
+  `useUnifiedCatalog`'s `recent` resolution (drops unresolvable/pets-gated);
+  new `RecentStrip` + a shared `useCatalogPlacement(def)` hook extracted from
+  `CatalogCard` so strip chips and full cards share ONE place grammar
+  (desktop arm/drag, mobile confirm, 2D-plan tap). Hidden when empty.
+
+- **"Try another layout" reroll (`layoutReroll`).** A button under "Tidy up
+  room" re-arranges the same furniture into a different valid layout, cycling 4
+  variants (tap again to cycle; the original tidy is one more tap away).
+  `autoArrange` gains a `seed` (default 0 = byte-identical to today, verified)
+  that rotates the anchor wall / bed headboard / lounge z-band / focal wall;
+  every variant still passes `tryPlace`, so it can never emit a collision-dirty
+  layout. Session-only `layoutVariantSlice.rerollRoomLayout` = one undo step.
+
+Both GPU-verified in the room editor (strip renders the 3 placed items; reroll
+changes the layout collision-clean); 20 unit tests; existing arranger suite
+byte-identical.
+
+## v0.22.1.3 — Three floor-plan/history correctness fixes (bug-hunt round 2)
+
+A second core-loop bug-hunt sweep found three verified bugs, all fixed:
+- **AI plan-draft history spam (HIGH, self-introduced v0.22.0.8/.1.0):**
+  `applyAiPlanDraft` chained `newFloorPlan` + N `addWall`/`addOpening`/`addRoom`,
+  each pushing its own undo entry — a recognized plan produced ~18 undo steps,
+  and a plan with ≳48 walls pushed the pre-AI snapshot off the capped stack,
+  making the original design **unrecoverable**. New reusable
+  `historySlice.runWithoutHistory(fn)` transaction (sets `_suppressHistory`,
+  restored even on throw) so the draft is ONE undoable step: push once, build
+  inside the batch. (Matches the documented "batch = one undo entry" contract.)
+- **Level stacking used the ground ceiling height (BUG-6 class):** `addLevel` /
+  `duplicateLevel` stacked a new storey at `topElevation + plan.ceilingHeight +
+  slab`, so above a storey with a non-default ceiling the new floor intersected
+  the ceiling below. Both now route through `restackLevelElevations` (the helper
+  `moveLevel` already uses).
+- **Wall-drag left openings hanging off the wall:** `moveWallVertex` /
+  `moveWallTo` shortened a wall without re-clamping its openings, so a door past
+  the new wall end vanished from the editor + 3D (and persisted invalid). New
+  `reclampOpenings` re-clamps width/offset against each resized host wall
+  (reference-stable when nothing changed), mirroring `updateOpening`.
+
+7 regression tests added; full suite green (7228).
+
+## v0.22.1.2 — Build-time KTX2 encode in the offline GLB pipeline (opt-in)
+
+Wires an optional KTX2/UASTC texture-encode step into the offline GLB pipeline
+using the SAME Basis-Universal WASM encoder the browser already ships
+(`ktx2-encoder` + `sharp` decode — no native `toktx`/`basisu` binary, which are
+absent in this env). New `scripts/asset-pipeline/ktx2-encode.ts`: pure
+`decideKtx2` eligibility (mime routing, already-KTX2 skip → idempotent,
+sRGB-for-colour / linear-for-normal), an `isKtx2EncoderAvailable` probe, and a
+`@gltf-transform` `ktx2()` transform that degrades cleanly (encoder absent or
+per-texture failure → warn + keep source). Opt-in only: `processGlb(…, {ktx2:
+true})` / `node scripts/fetch-assets.ts --ktx2` (registers `KHR_texture_basisu`,
+decoded at runtime by the existing KTX2Loader). **Off by default** (~0.6–1.3 s
+WASM encode per texture; the win is runtime VRAM, not download size) — enable on
+a CI/asset-bake box. Real KTX2 output byte-verified (valid container magic +
+extension); 14 tests incl. real-encode integration. Clears the TODO deferral;
+corrects the stale process-texture.ts comment (KTX2 rides GLB textures via
+`KHR_texture_basisu`, not the standalone-material path).
+
+## v0.22.1.1 — Collision fixes: flip footprint drift + resized vertical span
+
+Bug-hunt sweep of the core loop found two verified collision bugs, both fixed
+in `collision/placement.ts`: (1) `itemFootprint` never mirrored a GLB's
+authored off-origin offset (`ox/oz`) on flip, so a flipped off-origin model's
+collision OBB + selection/hover footprint drifted from the mesh by 2·ox·scaleX
+(the model could clip a wall while collision read clear, or a click miss the
+mesh) — now negates the offset per flipped axis, matching how
+`resolveFootprintParts` already mirrors part offsets and how `Furniture.tsx`
+renders the flip. (2) `verticalSpan` used the static def height regardless of a
+per-item resize, so the height-aware furniture-vs-furniture test used the wrong
+height for a scaled piece — now scales the span by the item's Y scale, matching
+the XZ footprint. Regression test added; collision + layout suites green (350).
+
+## v0.22.1.0 — AI floor-plan generation (text → plan) + Sweet Home 3D `.sh3f` import
+
+Two marquee parity features (closes the last Coohom AI gap + the SH3D `.sh3f`
+library gap):
+
+**AI floor-plan generation** (`aiPlanGenerate` flag, pro, default on — mirrors
+`aiWalls`; BYO key `hdb_ai_vision_*`, reused). "Generate plan with AI…" in the
+plan editor's Plan menu (desktop + mobile) + ⌘K "Generate plan with AI (BYO
+key)": a natural-language brief → text LLM → wall/opening/**room** JSON parsed
+by the extended `ai/floorPlanAi.ts:parseGeneratedPlan` (new `AiRoom`, tolerant
+`roomsFromRaw`) and applied through the SAME `usePlanAiWalls.applyAiPlanDraft`
+path as AI-walls tracing (now also creates named rooms via `addRoom`), opening
+the editor on an editable draft (undoable, never a silent overwrite). Prompt in
+`ai/floorPlanGenerate.ts` asks for closed rectilinear per-room loops, shared
+partitions, HDB-realistic sizes, inter-room doors + a window per room. Dev hook
+`window.__applyAiGeneratedPlan`; browser-verified (2-room draft: Living +
+Bedroom, partition, doors, windows render editable); scenario
+`ai-plan-generate.json`.
+
+**Sweet Home 3D `.sh3f` furniture-library import** (`importSh3f` flag, pro,
+default on — pure client). "Import SH3D library…" in the File menu (desktop +
+mobile) + ⌘K. Pure `furniture/import/sh3f.ts` unzips + parses the Java
+`PluginFurnitureCatalog*.properties` (ISO-8859-1, `#`/`!` comments, `=`/`:`/ws
+separators, continuations, `\uXXXX` escapes), maps each entry (dims cm→m,
+shared category guess, model format by extension, movable/doorOrWindow) →
+`ui/openSh3fImport.ts` resolves model + siblings/nested zip, converts to GLB via
+the existing upload converter (OBJ/DAE/3DS/FBX/STL/PLY/3MF/USDZ — all supported;
+unknown format / missing bytes / conversion failure skip per-entry with an
+"N of M imported, K skipped" summary), persists via `persistUserGlb` +
+`addManyUserFurniture`. Dev hook `window.__importSh3fBytes`. 109 + 118 unit
+tests across both features.
+
+## v0.22.0.9 — KTX2/DDS GPU decode: two readback bugs fixed + real-GPU verified
+
+The C274 standalone KTX2/DDS material decode's GPU-readback branch
+(Basis-compressed KTX2, BCn DDS) had never been exercised on a real context —
+first real-GPU run surfaced two production bugs, both fixed: (1)
+`renderer.setSize(w, h)` on the OffscreenCanvas wrote `canvas.style.width` →
+"Cannot set properties of undefined" crash on EVERY compressed upload (now
+`updateStyle=false`); (2) the readback quad sampled the loader's sRGB-tagged
+texture → shader linearisation skewed every channel (teal 170 → 103); the
+shared `readbackTexture` now forces `NoColorSpace` (byte-faithful contract —
+downstream material load owns sRGB tagging). Added a real Basis-UASTC+Zstd
+fixture (`basis-teal-8x8.ktx2`, generated by the in-repo encoder), a routing
+test guarding it, and the dev hook `window.__decodeMaterialImage` for headless
+GPU verification — pixel-true decode confirmed under `SHOT_GPU=1`
+(8×8, firstPixel ≈ [0,255,170,255]). Stale TODO deferral cleared (the feature
+itself shipped in C274).
+
+## v0.22.0.8 — AI plan recognition: doors/windows + scale calibration
+
+The BYO-key "AI walls" trace (flag `aiWalls`, pro — same surface, no new flag)
+now asks the vision model for openings and scale in the SAME pass:
+`ai/floorPlanAi.ts` schema/prompt extended (walls block stays byte-compatible;
+`parseVisionResponse` is fully defensive — malformed openings dropped, widths
+defaulted per kind, unusable scale → undefined); new pure
+`ai/floorPlanAiPlacement.ts` snaps centre-point openings onto the nearest
+drafted wall (point-to-segment projection, ≤0.9 m, clamped width/offset,
+door 0/2.1 + window 0.9/2.1 sill/head defaults) and decides scale application
+(`shouldApplyAiScale`); `usePlanAiWalls.applyAiPlanDraft` adds walls →
+openings → calibrates `backdrop.mPerPx` ONLY when the user hasn't manually
+calibrated (new persisted `scaleCalibrated` on Backdrop/BackdropMeta, set by
+the Set-scale tool). Toast reports wall/opening/scale counts. Dev hook
+`window.__applyAiVisionResponse` (no-network); browser-verified (4 walls +
+door + window land correctly, scenario `aiwalls-openings-scale.json`); 34
+unit tests across parsing, placement math, calibration decision, store apply.
+
+## v0.22.0.7 — Drop-folder material auto-detection (offline pipeline)
+
+`index-assets.ts` no longer silently skips a material folder without a
+`material.json` sidecar: the new pure `materialChannels.ts` classifier infers
+the 4 runtime-bound channels (albedo/normal/rough/ao) from filename suffixes
+(diff/albedo/basecolor/col…, nor/nrm (GL preferred over DX), rough/rgh,
+ao/occlusion) — case-insensitive, resolution tokens stripped, metal/disp/ARM
+recognised-but-ignored with warnings, EXR/TIFF/HDR skipped. A sidecar always
+wins; no albedo → skip with warning. Verified end-to-end against fake
+ambientCG + Poly Haven folder layouts (correct GL-normal pick, ignored maps
+absent from output). 14 new tests (11 classifier + 3 indexer integration);
+`dropped/README.md` documents the zero-config path. Also records the AI-matting
+closure ruling in FEATURE_PARITY.md (no product-photo consumer exists — dead
+UI; revisit only after an image consumer is scoped).
+
+## v0.22.0.6 — Poly Haven CC0 model fetcher → local-asset dev DB
+
+New dev pipeline `scripts/asset-pipeline/fetch-polyhaven-models.mjs`: queries
+the Poly Haven API, downloads a model's gltf+bin+texture bundle (1k default),
+repacks it into a single self-contained `.glb` via @gltf-transform
+(weld/dedup/prune, embedded buffers+textures — no new dependencies) and writes
+`local-assets/<category>/<slug>.glb` (+ a provenance sidecar: author, CC0,
+source URL), where the Part-1 dev plugin (`vite-local-assets.mjs` →
+`localAssetsSlice`) auto-loads it into the catalog. Idempotent, 400 ms
+rate-limited; `--limit/--category/--ids/--res/--out/--force`. Pure selection
+helpers in `polyhaven-select.mjs` (bundle/resolution pick, slug, category
+mapping, attribution — 17 unit tests). Curated 11-item furniture set fetched
+(~20 MB total, all < 4 MB each, parse-verified); catalog pickup + placement
+GPU-verified (Mid Century Lounge Chair card → placed in Living/Dining with
+real 1.01×1.19 m footprint). Unblocks the TODO Part-3 "Poly Haven model
+fetcher" deferral; `local-assets/` stays gitignored (scripts are the
+deliverable).
+
+## v0.22.0.5 — Accent-wall creation from the FinishPicker
+
+The Walls tab's "Accent walls" section gains an **"Add accent wall…"** Select
+listing the room's walls that don't yet carry an accent, labelled by compass
+side + length ("North wall · 3.50 m"); picking one hands off to the existing
+`WallAccentPicker` (same surface as a 3D wall tap). New pure
+`materials/roomWalls.ts` (`roomWalls`/`roomWallLabel`) enumerates a room's
+walls for BOTH plan types via the shared `getRoomEditorShell` dispatch (fixed
+apartment `WALLS` ids; custom-plan `floorPlan.walls` ids), matching the
+`${wallId}:${roomId}` accent key. Reuses the `wallAccentPicker` flag (simple
+tier — same surface, new entry point). Baseboard fold-in evaluated and SKIPPED
+(per-wall property, no per-room aggregation; ruling in TODO.md). Also records
+the 2D-plan finish-DnD closure ruling (no reachable entry point — finishes are
+deliberately excluded from the plan editor). GPU-verified end-to-end (Select →
+handoff → accent renders on the NE Living/Dining wall; mobile sheet parity);
+scenario `accent-wall-create.json`; 12 new unit tests.
+
+## v0.22.0.4 — Day→night animated render clip (DAY-NIGHT-CLIP)
+
+Closes the FEATURE_PARITY Coohom gap "day-to-night animated render clip": a
+**Day → night sweep** checkbox (+ From/To hour sliders) under **View → Record
+walkthrough video** (desktop) / the mobile View section animates `manualHour`
+across the saved-views tour, so the recorded clip (and the non-recording
+Cinematic tour) transitions through the day's lighting. New `dayNightClip` flag
+(pro, default on); pure sweep math in `scene/cameras/dayNightSweep.ts`
+(`sweepHourAt` — clamps, sweeps forward through midnight, wraps to [0,24));
+lifecycle in `timeSlice` (`begin/apply/endTimeSweep` — snapshots and restores
+the pre-tour time, incl. on external stop); `OrbitCamera`'s tour loop drives
+progress and skips per-view captured hours while a sweep is active. The setup
+control stops click propagation so the ToolbarMenu panel's close-on-click
+doesn't dismiss the menu mid-configuration (caught in visual verification).
+Real-GPU verified (8:00 day / 15:00 afternoon / 22:00 night frames + restore);
+both modes + mobile asserted; scenarios `daynight-clip-simple.json` +
+`daynight-clip-sweep.json`; 24 unit tests across sweep math, slice lifecycle,
+flag gating.
+
+## v0.22.0.3 — 2D plan editor: docked catalog shrinks the plan viewport
+
+The plan-furnish docked catalog used to float OVER the plan; `.plan-screen` now
+reads `--left-rail` (screens.css) exactly like `.stage-area`, so on desktop the
+plan viewport shrinks beside the rail (catalog resize included) and
+`usePlanViewport`'s ResizeObserver re-fits/re-centres the plan automatically —
+no JS changes. Mobile bottom-sheet behaviour unchanged (`--left-rail` is gated
+to ≥641px). Closes the PLAN-FURNISH polish deferral in TODO.md. Visually
+verified (desktop dock + re-fit, mobile untouched); scenario
+`plan-leftrail-dock.json`.
+
 ## v0.22.0.2 — User-docs full audit + tracker cleanup
 
 All 16 user-guide pages verified claim-by-claim against source (labels, shortcuts vs

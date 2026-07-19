@@ -14,7 +14,8 @@ import { SliderField } from '../controls/SliderField'
  * field-of-view + eye-height sliders. Rendered as a **"Walk settings"** section
  * inside the Appearance & help popover (so it's tucked away, not floating over
  * the walk view) and only while in first-person walk mode. Gated by the
- * `walkCameraControls` flag (pro tier). Token-class styled so it works in
+ * `walkCameraControls` flag (simple tier — the registry is the truth; an older
+ * comment here said "pro"). Token-class styled so it works in
  * light/dark across all themes; eye-height respects the unit preference.
  */
 export function WalkSettings() {

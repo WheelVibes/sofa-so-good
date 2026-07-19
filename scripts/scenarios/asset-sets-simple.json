@@ -1,0 +1,131 @@
+{
+  "name": "asset-sets-simple",
+  "description": "IXT-SUITES simple rung for the `assetSets` flag (pro tier — 'Save groups as separate assets', Asset Studio Stage 3d, `furniture/glbEdit/setSplit.ts` + `ui/glbEditor/SavePanel.tsx`/`designerContext.tsx`). NOTE the parent-agent brief called this 'the Arrange Sets picker' but that's a different, already-ungated surface (`ArrangeMenu.tsx`'s 'Drop a set' / `userSets` flag) — `assetSets` actually gates a checkbox INSIDE the GLB designer's Save panel that additionally saves each top-level transform GROUP as its own standalone catalog asset. The whole designer dialog is Pro-only at the mount level (isPro gate, not a FEATURE_FLAGS entry) so the tier proof here is a direct `setFeatureFlag('assetSets', false/true)` override once already in Pro (mirrors the batch-9/10 'simple-tier -> setFeatureFlag proof' pattern for a flag whose parent surface is itself pro-gated). Real interaction: add two boxes, multi-select them, Group, toggle 'Save groups as separate assets' ONLY once the flag is back on, name + Save, and assert BOTH the combined asset AND the split-out 'Group 1' piece land in `state.userFurniture` (real `persistUserGlb` -> `addUserFurniture` round-trip, not a toast).",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "open-designer", "store": { "action": "setGlbDesignerOpen", "args": [true] } },
+    {
+      "name": "wait-designer",
+      "waitFor": { "text": "3D asset designer" },
+      "timeout": 15000
+    },
+    { "name": "add-box-1", "click": { "text": "Box" } },
+    {
+      "name": "wait-box-1",
+      "waitFor": { "css": "input[aria-label='box position X']" },
+      "timeout": 5000
+    },
+    { "name": "add-box-2", "click": { "text": "Box" } },
+    {
+      "name": "wait-two-shapes",
+      "waitFor": { "text": "Shapes" },
+      "timeout": 5000,
+      "failMessage": "the 'Shapes' section header should appear once there are 2+ parts"
+    },
+    { "name": "shot-two-boxes", "screenshot": "01-two-boxes" },
+    {
+      "name": "enter-select-mode",
+      "eval": "(() => { const b = [...document.querySelectorAll('button.chip')].find(x => x.textContent.trim() === 'Select'); if (!b) throw new Error('Select chip not found'); b.click(); })()"
+    },
+    {
+      "name": "wait-select-mode",
+      "waitFor": { "store": "[...document.querySelectorAll('button.chip')].some(x => x.getAttribute('aria-pressed') === 'true')" },
+      "timeout": 5000,
+      "failMessage": "multi-select mode should be active (chip reads 'Selecting…' / aria-pressed=true)"
+    },
+    {
+      "name": "assert-box-2-preselected",
+      "comment": "REAL app behaviour found while authoring this rung: the designer keeps a single-selection concept (`selId`) derived as the LAST id in the multi-select array `selIds` -- adding a new shape calls `setSelId(newId)` which REPLACES `selIds` with just that one id. So after adding box 1 then box 2, box 2 (the most-recently-added shape) is already the sole selection when 'Select' mode is toggled on -- its checkbox starts CHECKED. Clicking it again would toggle it OFF (an earlier draft of this scenario did exactly that and silently ended up with only box 1 selected). Assert the real starting state instead of assuming both start unchecked.",
+      "eval": "(() => { const b2 = document.querySelector('input[aria-label=\"Select box 2\"]'); if (!b2) throw new Error('box 2 checkbox not found'); if (!b2.checked) throw new Error('expected box 2 (the last-added shape) to start pre-selected when entering multi-select mode') })()"
+    },
+    {
+      "name": "select-box-1",
+      "comment": "Only box 1 needs a click -- box 2 is already selected (see the assertion above). Clicking ADDS box 1 to the existing single-item selection, landing both selected without ever double-toggling box 2.",
+      "eval": "(() => { const b1 = document.querySelector('input[aria-label=\"Select box 1\"]'); if (!b1) throw new Error('box 1 checkbox not found'); b1.click(); })()"
+    },
+    {
+      "name": "wait-box-1-checked",
+      "waitFor": { "css": "input[aria-label='Select box 1']:checked" },
+      "timeout": 5000,
+      "failMessage": "box 1's checkbox should be checked after clicking it"
+    },
+    {
+      "name": "assert-box-2-still-checked",
+      "eval": "(() => { const b2 = document.querySelector('input[aria-label=\"Select box 2\"]'); if (!b2.checked) throw new Error('box 2 should remain selected after adding box 1 to the selection') })()"
+    },
+    {
+      "name": "wait-group-chip",
+      "waitFor": { "text": "Group 2" },
+      "timeout": 5000,
+      "failMessage": "the 'Group 2' chip should appear once 2 eligible parts are selected"
+    },
+    {
+      "name": "click-group",
+      "eval": "(() => { const b = [...document.querySelectorAll('button.chip')].find(x => x.textContent.trim().startsWith('Group ') && x.getAttribute('aria-label') === 'Group selected shapes'); if (!b) throw new Error('Group chip not found'); b.click(); })()"
+    },
+    {
+      "name": "wait-group-created",
+      "waitFor": { "text": "Group 1" },
+      "timeout": 5000,
+      "failMessage": "grouping the two boxes should create a 'Group 1' transform group"
+    },
+    { "name": "shot-grouped", "screenshot": "02-grouped" },
+    {
+      "name": "force-flag-off",
+      "eval": "window.__store.getState().setFeatureFlag('assetSets', false)"
+    },
+    { "name": "settle-flag-off", "wait": 500 },
+    {
+      "name": "assert-split-toggle-hidden",
+      "eval": "(() => { if (document.body.textContent.includes('Save groups as separate assets')) throw new Error('assetSets=false should hide the split-groups toggle even with a real splittable group present') })()"
+    },
+    { "name": "shot-flag-off", "screenshot": "03-assetsets-off-no-split-toggle" },
+    {
+      "name": "force-flag-on",
+      "eval": "window.__store.getState().setFeatureFlag('assetSets', true)"
+    },
+    {
+      "name": "wait-split-toggle",
+      "waitFor": { "text": "Save groups as separate assets" },
+      "timeout": 5000,
+      "failMessage": "assetSets=true should reveal the split-groups toggle (canSplitGroups = setsEnabled && !overwrite && hasSplittableGroups)"
+    },
+    { "name": "shot-flag-on", "screenshot": "04-assetsets-on-split-toggle-visible" },
+    {
+      "name": "enable-split-groups",
+      "eval": "(() => { const b = document.querySelector('[aria-label=\"Save groups as separate assets\"]'); if (!b) throw new Error('split-groups switch not found'); b.click(); })()"
+    },
+    {
+      "name": "assert-switch-on",
+      "eval": "(() => { const b = document.querySelector('[aria-label=\"Save groups as separate assets\"]'); if (b.getAttribute('aria-checked') !== 'true') throw new Error('split-groups switch did not turn on') })()"
+    },
+    {
+      "name": "set-asset-name",
+      "eval": "(function(){ const inp = document.querySelector('input[aria-label=\"Asset name\"]'); if (!inp) throw new Error('asset name input missing'); const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set; setter.call(inp, 'IXT Set Combo'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "record-userfurniture-baseline",
+      "eval": "window.__glbBaseline = window.__store.getState().userFurniture.length"
+    },
+    {
+      "name": "click-save",
+      "comment": "DOM .click() not the harness text-click — 'Save asset' is below the fold in the scrolling right panel (see the glb-designer-simple.json gotcha).",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Save asset' && !b.disabled); if (!btn) throw new Error('Save asset button not found or disabled'); btn.scrollIntoView(); btn.click(); })()"
+    },
+    {
+      "name": "assert-combined-and-split-assets-saved",
+      "waitFor": {
+        "store": "state.userFurniture.length >= window.__glbBaseline + 2 && state.userFurniture.some(d => d.name === 'IXT Set Combo') && state.userFurniture.some(d => d.name === 'Group 1')"
+      },
+      "timeout": 20000,
+      "failMessage": "saving with 'Save groups as separate assets' on should add BOTH the combined 'IXT Set Combo' asset AND a standalone 'Group 1' asset to state.userFurniture"
+    },
+    { "name": "shot-after-save", "screenshot": "05-after-save-set-split" }
+  ]
+}

@@ -46,6 +46,7 @@ export async function openDesignReport(): Promise<void> {
       s.baselinePlan,
       s.priceRules,
       s.petTypes,
+      s.keyCollectionDate,
     )
   } catch {
     win.close()

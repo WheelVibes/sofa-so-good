@@ -1,0 +1,118 @@
+{
+  "name": "accent-wall-create",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "select-room",
+      "eval": "window.__store.getState().selectRoom('livingDining')"
+    },
+    {
+      "name": "picker-open",
+      "waitFor": {
+        "css": ".finish-picker"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "walls-tab",
+      "eval": "(() => { const b = [...document.querySelectorAll('.finish-picker button')].find(b => b.textContent.trim() === 'Walls'); if (!b) throw new Error('no Walls tab'); b.click(); })()"
+    },
+    {
+      "name": "accent-section",
+      "waitFor": {
+        "text": "Accent walls"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "shot-accent-section",
+      "screenshot": "accent-section"
+    },
+    {
+      "name": "open-add-select",
+      "eval": "(() => { const b = document.querySelector('button[aria-label=\"Add an accent wall\"]'); if (!b) throw new Error('no Add accent wall trigger'); b.click(); })()"
+    },
+    {
+      "name": "options-visible",
+      "waitFor": {
+        "css": "[role='option']"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "shot-wall-options",
+      "screenshot": "wall-options"
+    },
+    {
+      "name": "pick-east",
+      "eval": "(() => { const o = [...document.querySelectorAll('[role=\"option\"]')].find(o => /East wall/.test(o.textContent)); if (!o) throw new Error('no East wall option: ' + [...document.querySelectorAll('[role=\"option\"]')].map(x => x.textContent.trim()).join('|')); o.click(); })()"
+    },
+    {
+      "name": "handoff",
+      "waitFor": {
+        "store": "state.selectedWall != null"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "accent-picker-open",
+      "waitFor": {
+        "text": "Accent wall"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "shot-accent-picker",
+      "screenshot": "accent-picker"
+    },
+    {
+      "name": "choose-finish",
+      "eval": "(() => { const sw = [...document.querySelectorAll('.swatch, [class*=swatch]')].filter(e => e.closest('.panel')); const target = sw.find(e => /brick|red|fluted|oak/i.test(e.getAttribute('title') || e.getAttribute('aria-label') || e.textContent || '')) || sw[1] || sw[0]; if (!target) throw new Error('no swatches in accent picker'); target.click(); })()"
+    },
+    {
+      "name": "accent-set",
+      "waitFor": {
+        "store": "Object.keys(state.finishes.wallAccents || {}).some(k => k.endsWith(':livingDining'))"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "settle-render",
+      "wait": 2500
+    },
+    {
+      "name": "shot-3d-accent",
+      "screenshot": "accent-in-3d"
+    },
+    {
+      "name": "list-managed",
+      "eval": "(() => JSON.stringify(window.__store.getState().finishes.wallAccents))()"
+    },
+    {
+      "name": "mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "settle-mobile",
+      "wait": 1000
+    },
+    {
+      "name": "shot-mobile",
+      "screenshot": "accent-mobile"
+    }
+  ]
+}

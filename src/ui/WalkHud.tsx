@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useFeature } from '../features/useFeature'
+import { requestWalkMeasurePoint } from '../scene/cameras/walkMeasureRequest'
 import { useStore } from '../state/store'
+import { formatLength } from '../utils/measurement'
 import { InfoCallout } from './InfoCallout'
+import { Icon } from './toolbar/icons'
 
 /** True on touch-primary devices, where Pointer Lock is unavailable and the
  * on-screen joystick + canvas drag-to-look drive the camera instead. Mirrors
@@ -21,6 +25,26 @@ export function WalkHud() {
   const cameraMode = useStore((s) => s.cameraMode)
   const walking = cameraMode === 'firstPerson'
   const [visible, setVisible] = useState(false)
+  // Walk-mode point-to-point measure (WALK-MEASURE): the touch-parity
+  // counterpart to the `walkMeasurePoint` (G) keybinding — walk mode on touch
+  // has no keyboard, so this button is the only way to place a point there.
+  // Shown on both platforms for consistency (mirrors every other walk-mode
+  // affordance having both a key and a HUD control).
+  const measureEnabled = useFeature('walkMeasure')
+  const measureA = useStore((s) => s.walkMeasureA)
+  const measureB = useStore((s) => s.walkMeasureB)
+  const measureLive = useStore((s) => s.walkMeasureLive)
+  const clearWalkMeasure = useStore((s) => s.clearWalkMeasure)
+  const units = useStore((s) => s.units)
+  const measureEnd = measureB ?? measureLive
+  const measureDist =
+    measureA && measureEnd
+      ? Math.hypot(
+          measureEnd[0] - measureA[0],
+          measureEnd[1] - measureA[1],
+          measureEnd[2] - measureA[2],
+        )
+      : null
 
   useEffect(() => {
     if (!walking) {
@@ -47,6 +71,45 @@ export function WalkHud() {
           </InfoCallout>
         </div>
       </div>
+      {/* Walk-measure control: top-right, persistent (not auto-fading like the
+          controls banner below — it's an active tool, not a one-time hint). */}
+      {measureEnabled ? (
+        <div
+          className="pointer-events-none absolute right-4 z-20"
+          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}
+        >
+          <div className="walk-measure pointer-events-auto">
+            <button
+              type="button"
+              className="wm-btn"
+              onClick={() => requestWalkMeasurePoint()}
+              aria-label={
+                !measureA
+                  ? 'Set first measure point'
+                  : !measureB
+                    ? 'Set second measure point'
+                    : 'Start a new measurement'
+              }
+            >
+              <Icon.Tape width={16} height={16} />
+              {!measureA ? 'Measure' : !measureB ? 'Set point' : 'New'}
+            </button>
+            {measureDist !== null ? (
+              <span className="wm-dist">{formatLength(measureDist, units)}</span>
+            ) : null}
+            {measureA ? (
+              <button
+                type="button"
+                className="wm-clear"
+                aria-label="Clear measurement"
+                onClick={() => clearWalkMeasure()}
+              >
+                <Icon.Close width={14} height={14} />
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
       {/* Controls banner: bottom-centre, clear of the home indicator (safe-area).
           When the touch joystick is present it sits bottom-left, so lift the
           banner above it (joystick = 24px inset + 88px tall) to avoid the overlap

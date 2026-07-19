@@ -1,0 +1,55 @@
+{
+  "name": "ux-audit-02-coreloop",
+  "description": "UX audit stage 2: Simple-mode core loop — Smart Start theme gallery, furnish, Scene menu moods, catalog drawer, FinishPicker tabs + paint-viz entry, share modal.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "assert-simple", "waitFor": { "store": "state.uiMode === 'simple'" }, "timeout": 5000 },
+
+    { "name": "open-smartstart", "store": { "action": "setSmartStartOpen", "args": [true] } },
+    { "name": "wizard-visible", "waitFor": { "css": ".modal-overlay" }, "timeout": 8000 },
+    { "name": "settle-wizard", "wait": 600 },
+    { "name": "shot-smartstart-top", "screenshot": "smartstart-gallery-top" },
+    { "name": "scroll-wizard", "eval": "const m=document.querySelector('.modal-overlay .modal, .modal-overlay'); const sc=[...document.querySelectorAll('.modal-overlay *')].find(e=>e.scrollHeight>e.clientHeight+20); if(sc) sc.scrollTop=sc.scrollHeight;" },
+    { "name": "settle-scroll", "wait": 500 },
+    { "name": "shot-smartstart-bottom", "screenshot": "smartstart-gallery-bottom" },
+
+    { "name": "pick-style", "click": ".ss-card" },
+    { "name": "settle-pick", "wait": 400 },
+    { "name": "shot-smartstart-picked", "screenshot": "smartstart-style-selected" },
+    { "name": "furnish", "click": { "text": "Furnish my flat" } },
+    { "name": "furnished", "waitFor": { "store": "state.items.length > 0 && state.smartStartOpen === false" }, "timeout": 10000 },
+    { "name": "settle-furnish", "wait": 1800 },
+    { "name": "shot-furnished-scene", "screenshot": "furnished-scene" },
+
+    { "name": "open-scene-menu", "click": { "text": "Scene" } },
+    { "name": "settle-scene-menu", "wait": 600 },
+    { "name": "shot-scene-menu-moods", "screenshot": "scene-menu-moods" },
+    { "name": "set-mood-movie", "store": { "action": "setLightMood", "args": ["movie"] } },
+    { "name": "close-scene-menu", "key": "Escape" },
+    { "name": "settle-mood", "wait": 800 },
+    { "name": "nudge", "eval": "window.__store.getState().setManualHour?.(14)" },
+    { "name": "settle-nudge", "wait": 600 },
+    { "name": "shot-mood-applied", "screenshot": "mood-movie-applied" },
+    { "name": "reset-mood", "store": { "action": "setLightMood", "args": ["none"] } },
+
+    { "name": "enter-room", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "settle-enter", "wait": 800 },
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "catalog-visible", "waitFor": { "css": ".panel.catalog" }, "timeout": 8000 },
+    { "name": "settle-catalog", "wait": 700 },
+    { "name": "shot-catalog-drawer", "screenshot": "catalog-drawer" },
+
+    { "name": "select-room-finish", "store": { "action": "selectRoom", "args": ["livingDining"] } },
+    { "name": "finish-visible", "waitFor": { "css": ".panel.inspector" }, "timeout": 8000 },
+    { "name": "settle-finish", "wait": 700 },
+    { "name": "shot-finish-picker", "screenshot": "finish-picker" },
+
+    { "name": "share-open", "store": { "action": "setShareOpen", "args": [true] } },
+    { "name": "share-visible", "waitFor": { "css": ".modal-overlay" }, "timeout": 8000 },
+    { "name": "settle-share", "wait": 600 },
+    { "name": "shot-share", "screenshot": "share-modal" }
+  ]
+}

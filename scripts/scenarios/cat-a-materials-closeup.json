@@ -1,0 +1,35 @@
+{
+  "name": "cat-a-materials-closeup",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "viewport", "viewport": { "width": 1400, "height": 950 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.setOnboardingOpen?.(false); s.endTour?.(); s.dismissLocationPrompt?.(); s.setLocation?.({ lat: 1.3521, lon: 103.8198, label: 'SG' }); s.setManualHour?.(13); s.setQualityTier?.('high'); })()"
+    },
+    { "name": "scene-ready", "store": { "action": "setSceneReady", "args": [true] } },
+    { "name": "wait-furnished", "wait": 3000 },
+    {
+      "name": "boucle-sofa-and-sintered-worktop",
+      "eval": "(() => { const s=window.__store.getState(); const items=s.items||[]; let out=[]; for(const it of items){ const d=(it.defId||'').toLowerCase(); if(/sofa|sectional|loveseat|armchair/.test(d)){ s.updateItemProps(it.id,{material:'boucle',color:'#cabfa9'}); out.push('boucle:'+d); } if(/kitchen-counter|kitchen-island|counter/.test(d)){ s.updateItemProps(it.id,{worktopFinish:'sintered',worktopColor:'#e8e4dc'}); out.push('sintered:'+d); } } console.log('APPLIED='+out.join(',')); })()"
+    },
+    { "name": "floor-peranakan-jade", "store": { "action": "setAllFloorFinish", "args": ["floor-peranakan-jade"] } },
+    { "name": "wall-limewash-clay", "store": { "action": "setAllWallFinish", "args": ["wall-limewash-clay"] } },
+    { "name": "enter-living", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "wait-living", "wait": 6000 },
+    { "name": "shot-living", "screenshot": "cat-a-living-peranakan-limewash-boucle" },
+    { "name": "exit-living", "store": { "action": "exitRoomEditor", "args": [] } },
+    { "name": "wait-exit", "wait": 1500 },
+    { "name": "enter-kitchen", "store": { "action": "enterRoomEditor", "args": ["kitchen"] } },
+    { "name": "wait-kitchen", "wait": 6000 },
+    { "name": "shot-kitchen", "screenshot": "cat-a-kitchen-sintered-worktop" },
+    { "name": "exit-kitchen", "store": { "action": "exitRoomEditor", "args": [] } },
+    { "name": "wait-exit2", "wait": 1500 },
+    { "name": "floor-checker-jade", "store": { "action": "setAllFloorFinish", "args": ["floor-checker-jade"] } },
+    { "name": "wall-limewash-white", "store": { "action": "setAllWallFinish", "args": ["wall-limewash-white"] } },
+    { "name": "enter-living-2", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "wait-checker", "wait": 6000 },
+    { "name": "shot-checker", "screenshot": "cat-a-living-checker-jade" }
+  ]
+}

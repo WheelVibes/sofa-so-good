@@ -63,6 +63,39 @@ export function Bed({ props }: BedProps) {
             args={[width, frameH * 0.3, length]}
           />
         </>
+      ) : baseStyle === 'hydraulic' ? (
+        <>
+          {/* Gas-lift ottoman storage base — a legless box whose whole deck lifts
+              on hidden struts. A low floor plinth carries an inset lift-up deck;
+              the reveal step between them reads as the lid parting seam. */}
+          <BeveledBox
+            castShadow
+            receiveShadow
+            position={[0, frameH * 0.16, 0]}
+            material={frameMat}
+            args={[width, frameH * 0.32, length]}
+          />
+          <BeveledBox
+            castShadow
+            receiveShadow
+            position={[0, frameH * 0.66, 0]}
+            material={frameMat}
+            args={[width - 0.05, frameH * 0.68, length - 0.05]}
+          />
+          {/* Subtle gas-strut hint: a short satin cylinder on the exposed plinth
+              ledge at the head end, angled up toward the lifting deck (the ram). */}
+          {[-1, 1].map((s) => (
+            <mesh
+              key={`strut${s}`}
+              castShadow
+              position={[s * (width / 2 - 0.02), frameH * 0.4, -length / 2 + 0.14]}
+              rotation={[0, 0, s * 0.22]}
+            >
+              <cylinderGeometry args={[0.009, 0.009, frameH * 0.5, 10]} />
+              <meshStandardMaterial color="#9aa0a6" roughness={0.35} metalness={0.7} />
+            </mesh>
+          ))}
+        </>
       ) : (
         <BeveledBox
           castShadow

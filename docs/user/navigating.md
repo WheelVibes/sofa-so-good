@@ -78,7 +78,12 @@ for crossing the whole flat without walking the distance, especially on a phone.
 2. **Click the scene once** to capture the mouse, then **move the mouse** to look
    around. Move with <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>.
 3. Walk up to a door and press <kbd>E</kbd> to open or close it.
-4. Press <kbd>Esc</kbd> to release the mouse, or <kbd>V</kbd> to return to orbit.
+4. **Measure while you walk** — aim at any wall, floor, or piece of furniture and
+   press <kbd>G</kbd> (or tap the **Measure** pill) to pin the first point, then aim
+   elsewhere and press it again: the distance draws in the room and reads out in
+   the pill ("will that sofa fit here?"). A third press starts a new measurement;
+   the **×** clears it.
+5. Press <kbd>Esc</kbd> to release the mouse, or <kbd>V</kbd> to return to orbit.
 
 > Your browser shows its own *"Press Esc to show your cursor"* notice while the
 > mouse is captured. That bar is part of the browser (a privacy safeguard for
@@ -143,7 +148,11 @@ has come, a compelling way to show off a design.
 ## Saved views & presentation (Pro)
 
 **View → Save current view** bookmarks the camera angle you're at (with the
-lighting at that moment), so you can jump back to it from the same menu. Each
+lighting at that moment), so you can jump back to it from the same menu.
+**View → Suggest views** *(Pro)* auto-adds a starter set — a well-composed
+corner angle for each of your largest furnished rooms plus a whole-home
+overview — so the Present / tour / render features below have content without
+any manual camera work (running it again never duplicates). Each
 saved view row has three small buttons:
 
 - **360°** — present this view as an interactive panorama slide (see below).
@@ -155,6 +164,13 @@ order (no recording). **View → Record walkthrough video** does the same flight
 and captures it: it asks for the total video length, then flies the tour and
 downloads the clip when it ends (an MP4 where your browser supports it, otherwise
 a WebM). Both need at least two saved views.
+
+**Day → night sweep** — a checkbox under **Record walkthrough video** animates
+the **time of day across the tour**: tick it, pick the **From** and **To** times
+on the two sliders that appear, and the flight (including the recorded clip)
+transitions through the day's lighting — say bright morning to warm evening
+lamps — as it moves through your views. It applies to the Cinematic tour too,
+and your original time of day is restored when the tour ends.
 
 **View → Render all views** flies through every saved view in turn and downloads
 a high-quality PNG of each — a one-click way to export a whole set of presentation

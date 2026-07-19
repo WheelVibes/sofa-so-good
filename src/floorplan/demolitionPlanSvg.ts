@@ -1,16 +1,40 @@
 /**
- * Demolition / hacking plan SVG renderer (feature F30).
+ * Demolition / hacking plan SVG renderer (feature F30; hardened for SG under
+ * TODO G7 — see `docs/research/2026-07-18-contractor-handover-research.md`).
  *
  * Pure `WallDiff → SVG string` step: draws kept walls solid, demolished walls
- * dashed (the "hacking" colour), and added walls bold (the "new" colour), plus
- * a small legend. The viewBox is computed from the bounds of ALL walls across
- * the diff. All colours come from the injected palette — nothing is hardcoded.
+ * dashed + diagonally hatched (the drafting convention for "to be removed"),
+ * and added walls bold (the "new" colour), plus a legend + a concise SG
+ * permit-note block. The viewBox is computed from the bounds of ALL walls
+ * across the diff. All colours come from the injected palette — nothing is
+ * hardcoded.
+ *
+ * **Structural classification (G7):** `PlanWall.structure` rides straight
+ * through from the source plan into `WallDiff.kept/demolished/added` (the diff
+ * only matches/buckets wall objects, never clones them), so this module reads
+ * it directly off each wall with no extra plumbing. Whether a wall is
+ * demolition-restricted is decided by the ONE shared classifier
+ * (`wallHackability.ts:isDemolitionRestricted`) so this sheet can NEVER diverge
+ * from the live hackability overlay + wall-delete guard — a **structural** wall
+ * is either `'load-bearing'` OR `'rc-partition'` (a reinforced-concrete
+ * partition; the household-shelter/RC case). A structural wall always gets a
+ * heavy/solid treatment; if it's ALSO being demolished that escalates to a
+ * hard danger treatment + an inline "NOT PERMITTED" label — SG hacking rules
+ * make load-bearing/RC demolition absolutely off-limits, never just "needs a
+ * permit" like an ordinary brick/drywall partition. An `'unknown'` (or
+ * unset — same thing) wall being demolished gets an inline "⚠" — the app has
+ * no way to verify a user's classification, and wall type is a **documented SG
+ * failure mode**: older HDB beam-and-column + brick infill and newer precast
+ * RC / Ferrolite partitions look identical on a plan but are structurally
+ * different.
  *
  * Self-contained: imports only `./demolitionPlan` and `./types`.
  */
 
 import type { WallDiff } from './demolitionPlan'
-import type { PlanWall } from './types'
+import { permitNotes } from './permitNotes'
+import type { HousingType, PlanWall } from './types'
+import { isDemolitionRestricted } from './wallHackability'
 
 interface DemolitionPalette {
   /** Kept walls (unchanged). */
@@ -21,12 +45,24 @@ interface DemolitionPalette {
   added: string
   /** Strong foreground for the legend text + swatch outlines. */
   ink: string
+  /** Hard-stop danger treatment for a structural (load-bearing / RC) wall
+   *  marked for demolition (G7). Optional — falls back to `demolished` for callers that haven't
+   *  opted into the extra colour (keeps existing palettes valid). */
+  danger?: string
 }
 
 export interface DemolitionSvgOpts {
   palette: DemolitionPalette
   /** Target SVG width in pixels (height derives from plan aspect). Default 800. */
   widthPx?: number
+  /** When set (mm printed per metre of real-world extent, from
+   *  `drawingScale.ts:pickDrawingScale`), sizes the returned `<svg>` with
+   *  explicit `width`/`height` in mm instead of pixels — print-true (TODO G2). */
+  printMmPerM?: number
+  /** Plan's housing type (SG1) — branches the permit-note block between the
+   *  HDB permit path, the Condominium MCST path, and the Landed BCA-direct
+   *  path. Defaults to the HDB text (prior universal behaviour) when unset. */
+  housingType?: HousingType
 }
 
 /** Padding (metres) around the wall bounds. */
@@ -36,6 +72,9 @@ const LEGEND_PAD = 12
 const LEGEND_ROW = 20
 const LEGEND_SWATCH = 22
 const FONT = 12
+/** Permit-note block layout, in pixels. */
+const NOTE_ROW = 15
+const NOTE_FONT = 10.5
 
 /** Minimal XML-attribute escaping for injected strings. */
 function esc(s: string): string {
@@ -75,6 +114,15 @@ function wallBounds(walls: PlanWall[]): Bounds {
   return { minX, minZ, maxX, maxZ }
 }
 
+/** Structural — demolition NOT permitted under SG rules. Reuses the ONE
+ *  classifier (`wallHackability`) so this sheet can never diverge from the
+ *  live hackability overlay + wall-delete guard: BOTH `'load-bearing'` AND
+ *  `'rc-partition'` (reinforced-concrete partition) are off-limits, not just
+ *  load-bearing. */
+const isStructural = (w: PlanWall) => isDemolitionRestricted(w.structure)
+/** Absent `structure` means the SAME thing as an explicit `'unknown'`. */
+const isUnverified = (w: PlanWall) => (w.structure ?? 'unknown') === 'unknown'
+
 /**
  * Render a hacking plan as a standalone SVG string. Plan metres map to pixels
  * by a uniform scale; +Z (south) maps to +Y (down) in SVG.
@@ -95,30 +143,73 @@ export function demolitionSvg(diff: WallDiff, opts: DemolitionSvgOpts): string {
   const px = (x: number) => (x - b.minX + PAD) * scale
   const py = (z: number) => (z - b.minZ + PAD) * scale
 
-  const legendH = LEGEND_PAD * 2 + LEGEND_ROW * 3
-  const heightPx = planH + legendH
+  // G7 classification tallies — drive both extra legend rows and the block height.
+  const structuralAny = all.some(isStructural)
+  const structuralDemolished = diff.demolished.filter(isStructural)
+  const unverifiedDemolished = diff.demolished.filter((w) => isUnverified(w) && !isStructural(w))
+  const extraLegendRows =
+    (structuralAny ? 1 : 0) +
+    (structuralDemolished.length > 0 ? 1 : 0) +
+    (unverifiedDemolished.length > 0 ? 1 : 0)
+
+  const legendH = LEGEND_PAD * 2 + LEGEND_ROW * (3 + extraLegendRows)
+  const notes = permitNotes(opts.housingType)
+  const noteH = LEGEND_PAD + NOTE_ROW * notes.length
+  const heightPx = planH + legendH + noteH
 
   const parts: string[] = []
+  // Print-true sizing (TODO G2): 1 viewBox unit already equals `1/scale`
+  // metres, so `width/height px × (mmPerM / scale)` mm is the sheet's exact
+  // printed size at the locked scale. An inline `style` (not the plain
+  // `width`/`height` attribute) is required: presentational attributes have
+  // the LOWEST CSS priority, so a plain attribute would be silently
+  // overridden by the drawing-set's `.draw svg { width:100% }` rule.
+  const sizeStyle =
+    opts.printMmPerM != null
+      ? ` style="width:${n(widthPx * (opts.printMmPerM / scale))}mm;height:${n(heightPx * (opts.printMmPerM / scale))}mm"`
+      : ''
   parts.push(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${n(widthPx)}" height="${n(
-      heightPx,
-    )}" viewBox="0 0 ${n(widthPx)} ${n(heightPx)}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${n(widthPx)}" height="${n(heightPx)}"${sizeStyle} viewBox="0 0 ${n(widthPx)} ${n(heightPx)}">`,
   )
 
-  // Kept walls (solid, base weight).
+  const dangerColor = palette.danger ?? palette.demolished
+
+  // Kept walls — solid, base weight; heavy when structural (G7).
   for (const w of diff.kept) {
-    parts.push(wallLine(w, px, py, palette.kept, 2, undefined))
+    parts.push(wallLine(w, px, py, palette.kept, isStructural(w) ? 5 : 2, undefined))
   }
-  // Demolished walls (dashed, the hacking colour).
+  // Demolished walls — dashed + diagonally hatched (drafting "to be removed"
+  // convention). A STRUCTURAL wall (load-bearing OR reinforced-concrete
+  // partition) marked for demolition escalates to a hard danger treatment +
+  // an inline "NOT PERMITTED" label (G7 — this is never a normal hacking
+  // item); an unverified ('unknown'/absent) classification gets an inline "⚠"
+  // warning instead.
   for (const w of diff.demolished) {
-    parts.push(wallLine(w, px, py, palette.demolished, 2, '6 4'))
+    const structural = isStructural(w)
+    const color = structural ? dangerColor : palette.demolished
+    parts.push(wallLine(w, px, py, color, structural ? 5 : 2, '6 4'))
+    parts.push(hatchLines(w, px, py, color))
+    if (structural) {
+      parts.push(wallLabel(w, px, py, 'NOT PERMITTED', color))
+    } else if (isUnverified(w)) {
+      parts.push(wallLabel(w, px, py, '⚠', palette.ink))
+    }
   }
-  // Added walls (bold, the new colour).
+  // Added walls — bold, the new colour; heavy when structural (rare, but
+  // classification can be set on a newly-drawn wall too).
   for (const w of diff.added) {
-    parts.push(wallLine(w, px, py, palette.added, 4, undefined))
+    parts.push(wallLine(w, px, py, palette.added, isStructural(w) ? 6 : 4, undefined))
   }
 
-  parts.push(legend(diff, planH, palette))
+  parts.push(
+    legend(diff, planH, palette, {
+      structuralAny,
+      structuralDemolished: structuralDemolished.length,
+      unverifiedDemolished: unverifiedDemolished.length,
+      dangerColor,
+    }),
+  )
+  parts.push(permitNoteBlock(notes, planH + legendH, palette))
 
   parts.push('</svg>')
   return parts.join('\n')
@@ -140,8 +231,84 @@ function wallLine(
   )
 }
 
-/** A 3-row legend (kept / demolished / added) with counts + totals. */
-function legend(diff: WallDiff, planH: number, palette: DemolitionPalette): string {
+/** Spacing/size (px) of the demolition diagonal-hatch ticks. */
+const HATCH_SPACING = 10
+const HATCH_HALF = 5
+
+/**
+ * Diagonal hatch ticks along a demolished wall (real drafting "to be removed"
+ * hatch convention — short 45°-diagonal strokes crossing the wall run, spaced
+ * evenly along its length) rather than just a dashed centreline colour.
+ */
+function hatchLines(
+  w: PlanWall,
+  px: (x: number) => number,
+  py: (z: number) => number,
+  color: string,
+): string {
+  const x1 = px(w.start[0])
+  const y1 = py(w.start[1])
+  const x2 = px(w.end[0])
+  const y2 = py(w.end[1])
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const len = Math.hypot(dx, dy)
+  if (len < 1e-6) return ''
+  const ux = dx / len
+  const uy = dy / len
+  // Perpendicular unit vector.
+  const nx = -uy
+  const ny = ux
+  const diag = HATCH_HALF * Math.SQRT1_2
+  const steps = Math.max(1, Math.round(len / HATCH_SPACING))
+  const out: string[] = ['<g class="hatch">']
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps
+    const cx = x1 + dx * t
+    const cy = y1 + dy * t
+    // 45°-diagonal tick: half along the wall run, half across it.
+    const ax = (ux + nx) * diag
+    const ay = (uy + ny) * diag
+    out.push(
+      `<line x1="${n(cx - ax)}" y1="${n(cy - ay)}" x2="${n(cx + ax)}" y2="${n(cy + ay)}" ` +
+        `stroke="${esc(color)}" stroke-width="1" />`,
+    )
+  }
+  out.push('</g>')
+  return out.join('\n')
+}
+
+/** An inline text marker (⚠ / NOT PERMITTED) at a wall's midpoint (G7). */
+function wallLabel(
+  w: PlanWall,
+  px: (x: number) => number,
+  py: (z: number) => number,
+  text: string,
+  color: string,
+): string {
+  const mx = (px(w.start[0]) + px(w.end[0])) / 2
+  const my = (py(w.start[1]) + py(w.end[1])) / 2 - 6
+  return (
+    `<text x="${n(mx)}" y="${n(my)}" font-size="${FONT}" font-weight="700" ` +
+    `text-anchor="middle" fill="${esc(color)}">${esc(text)}</text>`
+  )
+}
+
+interface ClassificationTallies {
+  structuralAny: boolean
+  structuralDemolished: number
+  unverifiedDemolished: number
+  dangerColor: string
+}
+
+/** A base 3-row legend (kept / demolished / added) plus, when relevant, extra
+ *  G7 classification rows — with counts + totals. */
+function legend(
+  diff: WallDiff,
+  planH: number,
+  palette: DemolitionPalette,
+  tallies: ClassificationTallies,
+): string {
   const rows: Array<{ color: string; dash: string | undefined; width: number; label: string }> = [
     { color: palette.kept, dash: undefined, width: 2, label: `Kept (${diff.kept.length})` },
     {
@@ -157,6 +324,30 @@ function legend(diff: WallDiff, planH: number, palette: DemolitionPalette): stri
       label: `Added (${diff.added.length}) — ${n(diff.addedLengthM)} m`,
     },
   ]
+  if (tallies.structuralAny) {
+    rows.push({
+      color: palette.ink,
+      dash: undefined,
+      width: 5,
+      label: 'Structural — load-bearing / RC (heavy line)',
+    })
+  }
+  if (tallies.structuralDemolished > 0) {
+    rows.push({
+      color: tallies.dangerColor,
+      dash: '6 4',
+      width: 5,
+      label: `NOT PERMITTED — structural (load-bearing / RC) (${tallies.structuralDemolished})`,
+    })
+  }
+  if (tallies.unverifiedDemolished > 0) {
+    rows.push({
+      color: palette.demolished,
+      dash: '6 4',
+      width: 2,
+      label: `⚠ Structure unverified — confirm with HDB/PE before hacking (${tallies.unverifiedDemolished})`,
+    })
+  }
 
   const out: string[] = ['<g class="legend">']
   let y = planH + LEGEND_PAD + LEGEND_ROW / 2
@@ -172,6 +363,24 @@ function legend(diff: WallDiff, planH: number, palette: DemolitionPalette): stri
     )
     y += LEGEND_ROW
   }
+  out.push('</g>')
+  return out.join('\n')
+}
+
+/** Concise SG permit-note block (G7/SG1), rendered below the legend. `lines`
+ *  is the housing-type-branched note text from `permitNotes()` — line 0 is
+ *  the bold title, the rest render as bullets. */
+function permitNoteBlock(lines: string[], topY: number, palette: DemolitionPalette): string {
+  const out: string[] = ['<g class="permit-notes">']
+  let y = topY + LEGEND_PAD + NOTE_ROW / 2
+  lines.forEach((line, i) => {
+    const text = i === 0 ? line : `• ${line}`
+    out.push(
+      `<text x="${LEGEND_PAD}" y="${n(y)}" font-size="${NOTE_FONT}"${i === 0 ? ' font-weight="700"' : ''} ` +
+        `dominant-baseline="middle" fill="${esc(palette.ink)}">${esc(text)}</text>`,
+    )
+    y += NOTE_ROW
+  })
   out.push('</g>')
   return out.join('\n')
 }

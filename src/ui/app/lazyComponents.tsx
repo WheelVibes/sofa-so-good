@@ -44,6 +44,9 @@ export const RenderCompareModal = lazyWithRetry(() =>
 export const StagingRevealModal = lazyWithRetry(() =>
   import('../StagingRevealModal').then((m) => ({ default: m.StagingRevealModal })),
 )
+export const VersionCompareModal = lazyWithRetry(() =>
+  import('../VersionCompareModal').then((m) => ({ default: m.VersionCompareModal })),
+)
 export const TimeCompareModal = lazyWithRetry(() =>
   import('../TimeCompareModal').then((m) => ({ default: m.TimeCompareModal })),
 )
@@ -78,6 +81,9 @@ export const SmartStartWizard = lazyWithRetry(() =>
 export const BudgetPanel = lazyWithRetry(() =>
   import('../BudgetPanel').then((m) => ({ default: m.BudgetPanel })),
 )
+export const RenovationBudgetPanel = lazyWithRetry(() =>
+  import('../RenovationBudgetPanel').then((m) => ({ default: m.RenovationBudgetPanel })),
+)
 export const ClearancePanel = lazyWithRetry(() =>
   import('../ClearancePanel').then((m) => ({ default: m.ClearancePanel })),
 )
@@ -90,6 +96,9 @@ export const DesignScorePanel = lazyWithRetry(() =>
 export const CommentsPanel = lazyWithRetry(() =>
   import('../CommentsPanel').then((m) => ({ default: m.CommentsPanel })),
 )
+export const DesignChatPanel = lazyWithRetry(() =>
+  import('../DesignChatPanel').then((m) => ({ default: m.DesignChatPanel })),
+)
 export const DrawingCalloutsPanel = lazyWithRetry(() =>
   import('../DrawingCalloutsPanel').then((m) => ({ default: m.DrawingCalloutsPanel })),
 )
@@ -98,6 +107,12 @@ export const AccessibilityPanel = lazyWithRetry(() =>
 )
 export const PetCompliancePanel = lazyWithRetry(() =>
   import('../PetCompliancePanel').then((m) => ({ default: m.PetCompliancePanel })),
+)
+export const RenoRulesPanel = lazyWithRetry(() =>
+  import('../RenoRulesPanel').then((m) => ({ default: m.RenoRulesPanel })),
+)
+export const HandoverPanel = lazyWithRetry(() =>
+  import('../HandoverPanel').then((m) => ({ default: m.HandoverPanel })),
 )
 export const FlagsPanel = lazyWithRetry(() =>
   import('../FlagsPanel').then((m) => ({ default: m.FlagsPanel })),

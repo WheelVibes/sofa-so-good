@@ -37,6 +37,8 @@ type NonFlagDocKey =
   | 'theme'
   | 'glbDesigner'
   | 'importTextures'
+  | 'renoRules'
+  | 'handover'
 
 export type DocKey = FeatureFlag | NonFlagDocKey
 
@@ -74,6 +76,7 @@ export const FEATURE_DOCS: Partial<Record<DocKey, DocEntry>> = {
   // ── design-tools page ───────────────────────────────────────────────────
   smartStart: { page: 'design-tools', anchor: 'smart-start' },
   budget: { page: 'design-tools', anchor: 'budget-shopping-list' },
+  renoBudget: { page: 'design-tools', anchor: 'renovation-budget' },
   shopExport: { page: 'design-tools', anchor: 'budget-shopping-list' },
   boq: { page: 'design-tools', anchor: 'budget-shopping-list' },
   clearanceChecks: { page: 'design-tools', anchor: 'clearance-fit-checks' },
@@ -86,6 +89,8 @@ export const FEATURE_DOCS: Partial<Record<DocKey, DocEntry>> = {
   drawingCallouts: { page: 'design-tools', anchor: 'drawings-—-elevations-lighting-plan' },
   measure: { page: 'design-tools', anchor: 'measure' },
   daylight: { page: 'design-tools', anchor: 'design-score' },
+  renoRules: { page: 'design-tools', anchor: 'sg-renovation-rules' },
+  handover: { page: 'design-tools', anchor: 'handover-dlp-dates' },
   comments: { page: 'design-tools', anchor: 'comments-pro' },
   history: { page: 'design-tools', anchor: 'history' },
   versions: { page: 'design-tools', anchor: 'versions-share-report' },
@@ -143,6 +148,7 @@ export const FEATURE_DOCS: Partial<Record<DocKey, DocEntry>> = {
   parametricFurniture: { page: 'importing-models', anchor: 'design-your-own-asset' },
   glbDesigner: { page: 'importing-models', anchor: 'design-your-own-asset' },
   importSh3d: { page: 'floor-plan-editor', anchor: 'templates-saving' },
+  importSh3f: { page: 'importing-models', anchor: 'importing' },
   importTextures: { page: 'importing-textures', anchor: 'importing-using' },
 
   // ── exporting (3D / CAD / AR / moodboard) ───────────────────────────────

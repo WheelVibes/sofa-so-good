@@ -52,6 +52,43 @@
 }
 .cat-recent-clear:hover { color: var(--text); text-decoration: underline; }
 
+/* Recently-placed quick-add strip (CATALOG-RECENTS): a thin horizontal
+   tap-to-place row atop the browse grid. Chips scroll horizontally so the row
+   height stays fixed regardless of how many recents exist. */
+.cat-recent-strip { flex-shrink: 0; padding-top: var(--s-2); }
+.cat-recent-strip-head {
+  font-size: var(--t-2xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--text-3); margin-bottom: var(--s-1);
+}
+.cat-recent-strip-row {
+  display: flex; gap: var(--s-1); overflow-x: auto; scrollbar-width: none;
+  padding-bottom: var(--s-1);
+}
+.cat-recent-strip-row::-webkit-scrollbar { display: none; }
+.cat-recent-card {
+  flex: none; display: flex; align-items: center; gap: var(--s-1);
+  padding: var(--s-1) var(--s-2); border-radius: var(--r-2);
+  background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--text); cursor: pointer; max-width: 160px;
+  transition: border-color var(--dur) var(--ease), background-color var(--dur) var(--ease);
+}
+@media (hover: hover) {
+  .cat-recent-card:hover { border-color: var(--accent); background-color: var(--surface-3); }
+}
+.cat-recent-card:focus-visible {
+  outline: none; box-shadow: var(--focus-ring); border-color: var(--accent);
+}
+.cat-recent-thumb {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; flex: none; border-radius: var(--r-1);
+  background: var(--surface-3); overflow: hidden; color: var(--text-3);
+}
+.cat-recent-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.cat-recent-name {
+  font-size: var(--t-xs); font-weight: 600; line-height: 1.25;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+
 /* category rail — ::before/::after spacers (not padding) so horizontal scroll keeps
    the same inset at both edges; padding on overflow containers often clips flush. */
 .cat-rail {
@@ -90,6 +127,10 @@
    right-aligned, muted-caption treatment as the Max $ filter above it. */
 .cat-fits-only { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .cat-fits-only input { accent-color: var(--accent); cursor: pointer; }
+/* CATALOG-COMPARE status bar — label reads left, the Compare/Cancel actions
+   stay right-aligned like the rest of the .cat-sort row family. */
+.cmp-status { justify-content: space-between; }
+.cmp-status .cat-sort-label { flex: 1; text-align: left; }
 /* Catalog flex column: only the card grid scrolls — header chrome (search, rail,
    sort, pager, footer) keeps its natural height so category chips don't squash
    when a category has many rows. */
@@ -229,6 +270,47 @@
 .cat-card.no-fit { opacity: 0.55; }
 .cat-card.no-fit:hover,
 .cat-card.no-fit:focus-visible { opacity: 0.85; }
+
+/* CATALOG-COMPARE: side-by-side item comparison tray. Columns scroll
+   horizontally on narrow viewports (mobile bottom-sheet friendly) rather than
+   being squeezed into a fixed grid. */
+.cmp-tray {
+  display: flex; gap: var(--s-4); overflow-x: auto; padding-bottom: var(--s-1);
+}
+.cmp-col {
+  flex: 1 1 160px; min-width: 160px; max-width: 220px;
+  display: flex; flex-direction: column; gap: var(--s-3);
+  padding: var(--s-3); border-radius: var(--r-2); border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.cmp-thumb {
+  aspect-ratio: 1 / 1; border-radius: var(--r-1); background: var(--surface-3);
+  display: grid; place-items: center; color: var(--text-3); overflow: hidden;
+}
+.cmp-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.cmp-name { font-size: var(--t-sm); font-weight: 700; color: var(--text); line-height: 1.25; }
+.cmp-facts { display: grid; grid-template-columns: 1fr; gap: var(--s-1); margin: 0; }
+.cmp-facts dt { font-size: var(--t-2xs); color: var(--text-3); font-weight: 600; }
+.cmp-facts dd { margin: 0 0 var(--s-1); font-size: var(--t-xs); font-weight: 600; color: var(--text); }
+.cmp-fit-fits { color: var(--accent-soft-text); }
+.cmp-fit-tight { color: oklch(0.62 0.14 70); }
+[data-mode='dark'] .cmp-fit-tight { color: oklch(0.75 0.13 72); }
+.cmp-fit-wont-fit { color: var(--danger); }
+.cmp-fit-unknown { color: var(--text-3); }
+
+/* Catalog header "Compare" toggle (funnel-adjacent). Selection badge overlay on
+   a card while compare mode is armed — a visual cue, NOT a new per-card button
+   (src/ui/CLAUDE.md no-card-buttons rule): the whole card stays the single
+   click target, this is purely decorative feedback. */
+.cat-card.compare-armed { cursor: pointer; }
+.cat-card.compare-selected { border-color: var(--accent); background-color: var(--surface-solid); }
+.cmp-badge {
+  position: absolute; top: 6px; left: 6px; z-index: 2;
+  width: 20px; height: 20px; border-radius: 999px;
+  display: grid; place-items: center;
+  background: var(--surface-solid); border: 1px solid var(--border); color: var(--text-3);
+}
+.cmp-badge.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
 .pager { display: flex; align-items: center; justify-content: space-between; padding: var(--s-2) var(--s-4); border-top: 1px solid var(--border); font-size: var(--t-xs); color: var(--text-3); font-weight: 600; }
 .pager button { padding: 4px 8px; border-radius: var(--r-2); color: var(--text-2); }
@@ -567,6 +649,23 @@
    no hairline — scoped to the picker so the base rule other panels rely on is
    untouched. */
 .finish-picker .sec-h { position: static; background: transparent; box-shadow: none; }
+/* Eyedropper (UX-7): armed toggle in the picker header + the sampling hint row.
+   `.icon-btn.on` marks the armed/pressed state with the accent (reused by any
+   icon-btn that toggles a mode). */
+.icon-btn.on { background: var(--accent-soft); color: var(--accent); }
+.icon-btn.on:hover { background: var(--accent-soft); color: var(--accent); }
+.eyedrop-hint {
+  display: flex; align-items: center; gap: var(--s-2);
+  margin: var(--s-1) var(--s-4) var(--s-3);
+  padding: var(--s-2) var(--s-3); border-radius: var(--r-2);
+  background: var(--accent-soft); color: var(--accent-soft-text);
+  border: 1px solid var(--accent);
+  font-size: var(--t-xs); line-height: var(--lh-body);
+}
+.eyedrop-hint .swatch { flex: none; }
+.eyedrop-hint strong { font-weight: 700; }
+/* Crosshair sampling cue on the canvas while the eyedropper is armed. */
+.stage-area.finish-eyedropper-active canvas { cursor: crosshair; }
 /* Full-width Floor | Walls | Ceiling surface tab row in the finish picker — the
    `.seg` pill stretched to the panel width, each tab flexing evenly (no fixed
    widths, so it holds at 390 px). */

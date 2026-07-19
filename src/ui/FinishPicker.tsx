@@ -26,6 +26,7 @@ import {
   tintMaterialId,
 } from '../materials/composeMaterial'
 import { resolveDesignerPicks } from '../materials/designerPicks'
+import { roomWallLabel, roomWalls } from '../materials/roomWalls'
 import type { MaterialCategory, MaterialDef } from '../materials/types'
 import { useMaterials } from '../materials/useMaterial'
 import { editableRooms } from '../state/rooms'
@@ -46,6 +47,12 @@ import { Icon } from './toolbar/icons'
 // on close anyway, so mount-gating on `uploadOpen` is behaviour-identical.
 const UploadMaterialDialog = lazyWithRetry(() =>
   import('./upload/UploadMaterialDialog').then((m) => ({ default: m.UploadMaterialDialog })),
+)
+
+// Lazy-loaded: the real-photo paint visualizer (its own canvas compositing) only
+// loads once the user opens it — resets on close, so mount-gating is identical.
+const PaintVizModal = lazyWithRetry(() =>
+  import('./paintViz/PaintVizModal').then((m) => ({ default: m.PaintVizModal })),
 )
 
 /** Filter finishes by a free-text query against the material name (empty query
@@ -81,6 +88,7 @@ export function FinishPicker() {
   const setCeilingFinish = useStore((s) => s.setCeilingFinish)
   const clearCeilingFinish = useStore((s) => s.clearCeilingFinish)
   const clearWallAccent = useStore((s) => s.clearWallAccent)
+  const selectWall = useStore((s) => s.selectWall)
   const setAllFloorFinish = useStore((s) => s.setAllFloorFinish)
   const setAllWallFinish = useStore((s) => s.setAllWallFinish)
   const setAllCeilingFinish = useStore((s) => s.setAllCeilingFinish)
@@ -105,6 +113,9 @@ export function FinishPicker() {
       ? arrangeRoom(roomId as RoomId, s.items, furnitureCatalog, s.doors)
       : arrangePlanRoom(s.floorPlan, roomId, s.items, furnitureCatalog, s.doors)
     s.setItems(next)
+    // A11Y: like rerollRoomLayout, this silently repositions every item with no
+    // visible confirmation — announce it the same way mirror/clone/swap do.
+    s.notify.start({ title: 'Room tidied up', kind: 'success' })
   }
   // Unlocked items inside this room (the set the room editor shows). Drives the
   // "Clear room" action + its count.
@@ -284,6 +295,13 @@ export function FinishPicker() {
   const fComposer = useFeature('materialComposer')
   const fSaveMaterials = useFeature('saveMaterials')
   const fRecolor = useFeature('finishRecolor')
+  const fLayoutReroll = useFeature('layoutReroll')
+  const fEyedropper = useFeature('finishEyedropper')
+  const fPaintViz = useFeature('paintVisualizer')
+  const eyedropperArmed = useStore((s) => s.eyedropperArmed)
+  const sampledFinish = useStore((s) => s.sampledFinish)
+  const toggleEyedropper = useStore((s) => s.toggleEyedropper)
+  const setSampledFinish = useStore((s) => s.setSampledFinish)
   const materials = useMaterials()
   const savedMaterials = useStore(useShallow((s) => s.savedMaterials))
   const saveMaterial = useStore((s) => s.saveMaterial)
@@ -312,6 +330,7 @@ export function FinishPicker() {
       .notify.start({ title: `Saved "${name}" to your materials`, kind: 'success' })
   }
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [paintVizOpen, setPaintVizOpen] = useState(false)
   const [finishQuery, setFinishQuery] = useState('')
   const [view, setView] = useState<View>('swatch')
   // Remember which surface was last finished, across sessions, so Browse opens
@@ -469,16 +488,69 @@ export function FinishPicker() {
             </div>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => selectRoom(null)}
-          className="icon-btn"
-          aria-label="Close finish picker"
-        >
-          <Icon.Close width={16} height={16} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-1)' }}>
+          {fEyedropper && view === 'swatch' ? (
+            <button
+              type="button"
+              onClick={toggleEyedropper}
+              className={`icon-btn${eyedropperArmed ? ' on' : ''}`}
+              aria-label="Eyedropper — sample a finish from a surface"
+              aria-pressed={eyedropperArmed}
+              title="Eyedropper — click a wall or floor in the 3D view to sample its finish, then apply it elsewhere"
+            >
+              <Icon.Eyedropper width={16} height={16} />
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => selectRoom(null)}
+            className="icon-btn"
+            aria-label="Close finish picker"
+          >
+            <Icon.Close width={16} height={16} />
+          </button>
+        </div>
       </div>
       <hr className="hr" />
+      {fEyedropper && eyedropperArmed ? (
+        <div className="eyedrop-hint" role="status">
+          {sampledFinish ? (
+            <>
+              <span
+                className="swatch"
+                style={{
+                  backgroundColor: sampledFinish.finishId.startsWith('#')
+                    ? sampledFinish.finishId
+                    : (materials[sampledFinish.finishId]?.swatch ?? '#ccc'),
+                }}
+                aria-hidden="true"
+              />
+              <span className="flex-1" style={{ minWidth: 0 }}>
+                Sampled{' '}
+                <strong>
+                  {sampledFinish.finishId.startsWith('#')
+                    ? sampledFinish.finishId.toUpperCase()
+                    : (materials[sampledFinish.finishId]?.name ?? sampledFinish.finishId)}
+                </strong>{' '}
+                — tap a surface to apply
+              </span>
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={() => setSampledFinish(null)}
+                aria-label="Clear sampled finish"
+                title="Clear the held finish and sample another"
+              >
+                <Icon.Close width={14} height={14} />
+              </button>
+            </>
+          ) : (
+            <span className="flex-1">
+              Eyedropper armed — tap a wall or floor to sample its finish.
+            </span>
+          )}
+        </div>
+      ) : null}
 
       {view === 'swatch' ? (
         <div className="panel-body">
@@ -589,6 +661,18 @@ export function FinishPicker() {
               >
                 Apply walls to all rooms
               </button>
+              {fPaintViz ? (
+                <button
+                  type="button"
+                  className="btn btn-soft btn-block"
+                  style={{ marginTop: 'var(--s-2)' }}
+                  onClick={() => setPaintVizOpen(true)}
+                  title="See a paint colour on a photo of your own wall — the photo stays on your device"
+                >
+                  <Icon.Palette width={14} height={14} />
+                  Try on my wall photo
+                </button>
+              ) : null}
               {fComposer ? (
                 <MaterialComposer
                   label="Walls"
@@ -660,13 +744,22 @@ export function FinishPicker() {
             </>
           ) : null}
           {/* Accent walls (per-`wallId:roomId`): surface + manage this room's
-              accents in one place. Creating one stays a 3D wall tap (opens the
-              WallAccentPicker) — the wall→room mapping differs by plan type, so
-              we don't re-enumerate it here; this is the management/discovery view. */}
+              accents in one place. Creating one either taps a wall in the 3D
+              view OR picks a wall from the "Add accent wall" list below — the
+              wall→room enumeration (`materials/roomWalls.ts`) resolves the SAME
+              wall ids the accent key uses for BOTH the fixed apartment and
+              custom plans, so a picked wall opens the WallAccentPicker (finish
+              choice) exactly as a 3D tap does. */}
           {fWallAccent && activeTab === 'wall'
             ? (() => {
                 const accents = Object.entries(finishes.wallAccents).filter(
                   ([k]) => k.slice(k.lastIndexOf(':') + 1) === roomId,
+                )
+                const accentWallIds = new Set(accents.map(([k]) => k.slice(0, k.lastIndexOf(':'))))
+                // Walls of this room that don't yet carry an accent — the
+                // "Add accent wall" options. Works for fixed + custom plans.
+                const addable = roomWalls(plan, roomId ?? '').filter(
+                  (w) => !accentWallIds.has(w.wallId),
                 )
                 return (
                   <div className="sec">
@@ -680,8 +773,8 @@ export function FinishPicker() {
                           margin: 'var(--s-1) 0 0',
                         }}
                       >
-                        Tap any wall in the 3D view to paint it a different colour from the rest of
-                        the room.
+                        Pick a wall below (or tap any wall in the 3D view) to paint it a different
+                        colour from the rest of the room.
                       </p>
                     ) : (
                       <>
@@ -737,10 +830,29 @@ export function FinishPicker() {
                             margin: 'var(--s-2) 0 0',
                           }}
                         >
-                          Tap another wall in the 3D view to add one.
+                          Add another below, or tap a wall in the 3D view.
                         </p>
                       </>
                     )}
+                    {addable.length > 0 ? (
+                      <Select
+                        className="input"
+                        ariaLabel="Add an accent wall"
+                        value=""
+                        placeholder="Add accent wall…"
+                        onChange={(wallId) => {
+                          if (wallId && roomId) selectWall(wallId, roomId)
+                        }}
+                        style={{ marginTop: 'var(--s-2)', width: '100%' }}
+                        options={[
+                          { value: '', label: 'Add accent wall…', disabled: true },
+                          ...addable.map((w) => ({
+                            value: w.wallId,
+                            label: roomWallLabel(w, units),
+                          })),
+                        ]}
+                      />
+                    ) : null}
                   </div>
                 )
               })()
@@ -780,6 +892,20 @@ export function FinishPicker() {
             <Icon.Tidy width={14} height={14} />
             Tidy up room
           </button>
+          {fLayoutReroll && roomItemIds.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (roomId) useStore.getState().rerollRoomLayout(roomId)
+              }}
+              title="Re-arrange this room into a different valid layout — tap again to cycle through alternatives. Collision-checked; undoable."
+              className="btn btn-soft btn-block"
+              style={{ marginTop: 'var(--s-2)' }}
+            >
+              <Icon.Refresh width={14} height={14} />
+              Try another layout
+            </button>
+          ) : null}
           {roomItemIds.length > 0 ? (
             <button
               type="button"
@@ -851,6 +977,15 @@ export function FinishPicker() {
           {uploadOpen && (
             <Suspense fallback={null}>
               <UploadMaterialDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
+            </Suspense>
+          )}
+          {fPaintViz && paintVizOpen && (
+            <Suspense fallback={null}>
+              <PaintVizModal
+                open={paintVizOpen}
+                onClose={() => setPaintVizOpen(false)}
+                swatches={groups.wall.map((m) => ({ id: m.id, name: m.name, hex: m.swatch }))}
+              />
             </Suspense>
           )}
         </div>

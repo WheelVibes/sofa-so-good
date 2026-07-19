@@ -49,7 +49,14 @@ export function applySh3dResult(result: Sh3dImportResult, planName: string): voi
     resolvedRemoteFurniture: s.resolvedRemoteFurniture,
     packFurniture: s.packFurniture,
   })
-  const placement = resolveSh3dImport(result.items, plan.walls, catalog, [], genImportId)
+  const placement = resolveSh3dImport(
+    result.items,
+    plan.walls,
+    catalog,
+    [],
+    genImportId,
+    plan.ceilingHeight,
+  )
   plan.openings = placement.openings
 
   // One undoable step: replace the world's items + plan together.

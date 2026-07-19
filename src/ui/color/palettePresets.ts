@@ -56,4 +56,14 @@ export const PALETTE_PRESETS: PalettePreset[] = [
     name: 'Navy & brass',
     colors: ['#eee9e0', '#cdb98a', '#59616e', '#2e3646', '#191d26'],
   },
+  {
+    id: 'modern-luxe',
+    name: 'Modern Luxe',
+    colors: ['#f2ede4', '#e8e0d2', '#b8a894', '#b8975e', '#4b3a2f'],
+  },
+  {
+    id: 'peranakan',
+    name: 'Peranakan Accent',
+    colors: ['#f2e9d3', '#e2725b', '#1f6f5c', '#1a3f8f', '#4a352a'],
+  },
 ]

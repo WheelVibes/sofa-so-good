@@ -1,0 +1,27 @@
+{
+  "name": "plan-mep",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+
+    { "name": "add-electrical", "eval": "window.__store.getState().addElectricalPoint({ x: 4.5, z: 1.2, kind: 'socket' })" },
+    { "name": "add-plumbing", "eval": "window.__store.getState().addPlumbingPoint({ x: 7.0, z: 3.0, kind: 'water-point' })" },
+    { "name": "points-present", "waitFor": { "store": "(state.floorPlan.electricalPoints||[]).length === 1 && (state.floorPlan.plumbingPoints||[]).length === 1" } },
+    { "name": "shot-symbols", "screenshot": "mep-symbols" },
+
+    { "name": "select-electrical", "eval": "(() => { const s=window.__store.getState(); const p=s.floorPlan.electricalPoints[0]; s.setPlanSelection({ type:'mep', family:'electrical', id:p.id }); })()" },
+    { "name": "shot-selected", "screenshot": "mep-selected-inspector" },
+
+    { "name": "edit-mount-height", "eval": "(() => { const s=window.__store.getState(); const p=s.floorPlan.electricalPoints[0]; s.updateElectricalPoint(p.id, { mountHeightMm: 1200 }); })()" },
+    { "name": "mount-height-updated", "waitFor": { "store": "state.floorPlan.electricalPoints[0].mountHeightMm === 1200" } },
+    { "name": "shot-mount-height", "screenshot": "mep-mount-height-1200" },
+
+    { "name": "flag-off", "eval": "window.__store.getState().setFeatureFlag('mepEditor', false)" },
+    { "name": "shot-flag-off", "screenshot": "mep-flag-off" }
+  ]
+}

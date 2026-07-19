@@ -13,14 +13,22 @@ export function Num({
   onChange,
   step = 0.1,
   min,
+  placeholder,
 }: {
   label: string
-  value: number
+  /** `undefined` renders an empty field (showing `placeholder` if given) —
+   *  the "this field has no explicit value, a default applies" state (e.g. a
+   *  MEP point's unset `mountHeightMm`, MEP layer G1 PR3). */
+  value: number | undefined
   onChange: (v: number) => void
   step?: number
   min?: number
+  /** Shown in the empty field when `value` is `undefined` (e.g. "300" for a
+   *  socket's default mount height) — NOT committed until the user types. */
+  placeholder?: string
 }) {
-  const committed = Number.isFinite(value) ? String(Math.round(value * 1000) / 1000) : ''
+  const committed =
+    value != null && Number.isFinite(value) ? String(Math.round(value * 1000) / 1000) : ''
   const [text, setText] = useState<string | null>(null)
   return (
     <label className="flex items-center justify-between gap-2 text-xs">
@@ -32,6 +40,7 @@ export function Num({
         value={text ?? committed}
         step={step}
         min={min}
+        placeholder={placeholder}
         onChange={(e) => {
           setText(e.target.value)
           const n = Number.parseFloat(e.target.value)

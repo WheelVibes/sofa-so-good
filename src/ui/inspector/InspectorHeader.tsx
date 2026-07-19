@@ -71,14 +71,24 @@ export function InspectorHeader({
               {priceOn ? (
                 <div
                   className="insp-price mono"
-                  title="Estimated price (see the Budget panel for the full list)"
+                  title={
+                    item.meta?.price !== undefined
+                      ? 'Custom price you entered (Notes & link section) — overrides the estimate'
+                      : 'Estimated price (see the Budget panel for the full list)'
+                  }
                 >
-                  ~$
+                  {item.meta?.price === undefined ? '~' : ''}$
                   {itemPrice(
                     def,
                     def.category,
                     typeof item.props.variant === 'string' ? item.props.variant : undefined,
+                    item.meta?.price,
                   ).toLocaleString('en-SG')}
+                  {item.meta?.price !== undefined ? (
+                    <span className="panel-sub" style={{ marginLeft: 'var(--s-1)' }}>
+                      custom
+                    </span>
+                  ) : null}
                 </div>
               ) : null}
             </>

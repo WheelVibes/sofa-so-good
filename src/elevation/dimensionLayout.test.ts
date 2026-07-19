@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { approxTextWidth, staggerDimensionRows } from './dimensionLayout'
+import { approxTextWidth, staggerDimensionRows, staggerMountHeightColumns } from './dimensionLayout'
 
 describe('staggerDimensionRows', () => {
   it('keeps non-colliding labels on row 0', () => {
@@ -44,5 +44,42 @@ describe('staggerDimensionRows', () => {
   it('approxTextWidth scales with length and font size', () => {
     expect(approxTextWidth('1.20 m', 0.2)).toBeCloseTo(6 * 0.2 * 0.62, 6)
     expect(approxTextWidth('', 0.2)).toBe(0)
+  })
+})
+
+describe('staggerMountHeightColumns (H3)', () => {
+  it('keeps well-separated items on column 0', () => {
+    expect(
+      staggerMountHeightColumns([
+        { x: 0.5, height: 1.1 },
+        { x: 3.0, height: 1.45 },
+      ]),
+    ).toEqual([0, 0])
+  })
+
+  it('fans out two items stacked close together at a similar height', () => {
+    const cols = staggerMountHeightColumns([
+      { x: 1.0, height: 1.1 },
+      { x: 1.1, height: 1.15 }, // close in x AND height → collides
+    ])
+    expect(cols[0]).toBe(0)
+    expect(cols[1]).toBe(1)
+  })
+
+  it('does not fan out close-x items whose heights are far apart', () => {
+    const cols = staggerMountHeightColumns([
+      { x: 1.0, height: 0.9 },
+      { x: 1.05, height: 2.4 }, // same wall segment, very different height
+    ])
+    expect(cols).toEqual([0, 0])
+  })
+
+  it('returns columns in input order regardless of x order', () => {
+    const cols = staggerMountHeightColumns([
+      { x: 2.0, height: 1.1 },
+      { x: 0.5, height: 1.1 },
+      { x: 2.05, height: 1.1 }, // collides with #0
+    ])
+    expect(cols).toEqual([0, 0, 1])
   })
 })

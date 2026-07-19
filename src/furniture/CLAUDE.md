@@ -28,6 +28,47 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   Set `verticalSpan`/`mounted`/`noClip` for non-floor items; `lightEmitters.ts` to emit light
   at night; add to `defaults/` to ship in the move-in flat (collision-checked by
   `defaultLayout.test.ts`).
+- **Parametric `Staircase` (F8/C171, `parametricStairs` pro flag).** Pure geometry in
+  `primitives/staircaseModel.ts` (`buildStaircase` → treads/risers/landings/posts + rail/newel;
+  `Staircase.tsx` only maps parts → boxes), like `cabinetModel.ts`. Straight / L / U / spiral;
+  each step is a solid box stacked on the one below (closed stringer, grounded to the floor — no
+  floating). **Instanced buckets (PERF):** `staircaseInstanceBuckets(parts)` (pure, in
+  `staircaseModel.ts`) splits the ~40 per-part meshes into `risers` (one surface material) +
+  `metal` (`post`/`rail`/`newel`, one brushed-metal material) — each ONE `InstancedBoxes` draw
+  call — leaving `treads`+`landings` as `BeveledBox` meshes (their subtle chamfer catches light on
+  the horizontal surface a foot lands on; there is no instanced beveled-box primitive, so
+  instancing them would drop the chamfer — a visible regression on the most prominent surface).
+  Rotation (incl. the rail's pitch/roll rake) bakes into the instance matrix as T·R·S, AE=0 vs. the
+  old per-mesh `rotation={[pitch, rot, roll]}` (unit-tested, `staircaseModel.test.ts`). The
+  per-item ghost/opacity path (`Furniture.tsx`) clones each mesh's material per-node, so it applies
+  to the shared cached instanced material without mutating other staircases — unchanged behaviour.
+  **Handrail is ONE continuous sloped rail per flight** (first→last post), tilted up the
+  rake via a `pitch` (X, for Z-running flights) or `roll` (Z, for the turned X-running flight) field
+  on `StaircasePart` — the renderer applies `rotation={[pitch, rot, roll]}`; NEVER a short
+  horizontal cap per tread (that leaves per-step vertical gaps — a visual FAIL). Balusters/rail are
+  inset to `width/2 - RAIL_T` so the rail's outer face isn't coplanar with the tread edge (the
+  structural-soundness harness z-fights a flush face). **Honest footprint:** `staircaseFootprintParts`
+  traces the L/U flights (an L occupies an L, not the full box) + a straight flight's depth tracks
+  `steps × treadDepth`; wired as the `staircase` def's `footprintParts` function (`defs/others.ts`).
+  The def is **hidden in Simple mode** — `useUnifiedCatalog(…, includeStairs)` drops it when
+  `parametricStairs` is off. `analysis/stairConnectivity.ts:isStaircaseItem` recognises it by def id
+  OR the `Staircase` primitive.
+- **Extendable-table leaf keeps render + footprint in lock-step (CAT-B).** A drop-in leaf that
+  widens a piece must widen its collision box by the SAME amount, or the extended top clips through
+  neighbours. `defs/diningSeatDims.ts:diningLeafExtension(props)` is the single shared source of the
+  extra width (0 unless `leaf:'extended'` on a rect top) — the `DiningTable` primitive adds it to the
+  rendered top width AND the `dining-table-4` def's `footprintParts` adds it to the OBB. Never compute
+  a leaf/extension delta in only one of the two; route both through one pure helper (the same
+  render↔collision discipline the `seats` enum already uses via `diningSeatDim`).
+- **Translucent fluted glass (CAT-B `FlutedPartition`).** A floor-standing fluted-glass screen reuses
+  two existing pieces rather than new art: the vertical rib layout comes from
+  `primitives/slatLayout.ts` (`battenCount`/`battenStep`/`battenOffset`, same as `RoomDivider`), and
+  the panes/ribs share ONE `getGlassMaterial(tier, …)` instance (tier read from `useStore`, cheap
+  transparent pane on Performance/Medium → real transmission on High/Max, like `GlassMaterial`). The
+  half-round ribs are cylinders (`thetaLength: Math.PI`) so they never trigger the coplanar detector,
+  and collapse to **one `InstancedCylinders` draw call** (unit half-cylinder scaled `[ribR,innerH,ribR]`
+  — `InstancedCylinders` takes optional `thetaStart`/`thetaLength` for the arc, AE=0-equivalent to the
+  old per-rib mesh, verified in `InstancedBoxes.test.ts`); the frame is one `InstancedBoxes` draw call.
 - **Round/oval footprints (`footprintShapes.ts:ellipseFootprintParts`).** `footprintParts` is a
   UNION of OBBs — it can only add area, never carve a rectangle down to a disc — so a true
   circle/ellipse isn't representable exactly. `ellipseFootprintParts(width, depth, steps=4)`
@@ -57,7 +98,7 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   `ui/floorplan/editor/planFurnishPlacement.ts:buildPlanWindowGhostItem` wraps the same
   `snapToNearestWindow` + `windowFixtureProps` pair scoped to the EDITED level's walls/openings
   (`levelAsPlan`), ghost and commit both snapped; no-window levels toast + disarm on arming.
-  Window grilles stay an opening `style` (`grille`/`louvre`), not a fixture.
+  Window grilles stay an opening `style` (`grille`/`invisible-grille`/`louvre`), not a fixture.
   Placement also **sizes** the fixture to its window via the pure `windowFixtureProps(defId, window,
   ceilingHeight)` — curtains wider than the glass + floor-to-ceiling, blinds slightly wider with a
   covering drop. The `Curtain` primitive is a **double-sided wavy draped sheet** (two gathering panels,
@@ -91,6 +132,13 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   `<mesh position rotation>` box — verified byte-identical (AE=0) across the raise/lower range. The
   slat layout is pure geometry in `primitives/slatLayout.ts` (`venetianSlatInstances`/
   `venetianSlatCount`, unit-tested); the raise/lower toggle stays a Y-scale on the parent group.
+  **Zebra/combi** (`kind:'zebra'`, SG's most popular blind) reuses the same anchored-stack pattern
+  for its alternating opaque/sheer bands (`zebraBandInstances`, two `InstancedBoxes` buckets — one
+  material per band type, since a shared instanced material can't vary opacity per instance) —
+  the sheer band rides the drapery sheer-opacity path (translucent cloth, not a flat tint).
+  **Roman** (`kind:'roman'`) is a small fixed stack of overlapping `RoundedBox` folds right under
+  the cassette (`romanFoldOffsets`, few enough to render as plain meshes) plus the ordinary flat
+  roller panel below, scaled by `lower` exactly like the roller.
   The **drying rack** does the same for its rods via the sibling `InstancedCylinders`
   (unit-cylinder scaled `[radius, length, radius]` + rotation; `dryingRackCylinders` in the same
   module) — all 11 legs/rails/bars collapse to one draw call (bars unified to the leg tessellation).
@@ -234,7 +282,43 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   `ui/parametric/ParametricControls.tsx`; add a feature flag if the type needs its own gate;
   add unit tests in `parametric/__tests__/<type>.test.ts`; add a scenario ladder
   (`scripts/scenarios/parametric-<type>-simple.json` + journey). Kitchen-run specifics:
-  `kitchenCabinets` flag (tier: `simple`), `TYPE_CATEGORY` maps to `'kitchen'`.
+  `kitchenCabinets` flag (tier: `simple`), `TYPE_CATEGORY` maps to `'kitchen'`. Every
+  generated piece's `ParametricSpec` round-trips onto its saved def as
+  `UserGltfDef.parametricSpec` (JSON string, set by `saveParametricAsset` → `persistUserGlb` →
+  `hydrateAssets.ts`/`schema.ts`, the same pattern as `slotSpec`/`assetSpec`) — this is what
+  lets `carpentryElevation.ts` (below) rebuild a placed piece's exact geometry for its drawing-
+  set sheet without a parallel model; adding a new `build<Type>` here is what a new type's
+  carpentry cut/dims are derived from, so no extra wiring is needed there beyond
+  `pickSectionCut`'s per-type branch.
+- **Carpentry/joinery elevations + sections (TODO G8, `carpentrySheets` flag, pro).**
+  `carpentryElevation.ts:buildCarpentryPiece(spec)` is the pure geometry step for the drawing
+  set's per-piece "Carpentry — `<name>`" sheet (see `docs/ARCHITECTURE.md` for the full design):
+  it reuses `buildParametric`'s part list unchanged, projects it to a front elevation (drop Z)
+  + one representative section (a per-type cut X reconstructed from the parts' own bay-boundary
+  positions, never a second bay-math formula), and reads every dimension (overall W/H/D, bay
+  widths, panel/plinth/worktop thickness, shelf/rail/drawer-front heights AFF) straight off the
+  cut parts — never inventing a number the spec/parts don't already encode. `ui/carpentrySheets.ts`
+  resolves + dedupes placed instances via each def's persisted `parametricSpec` (see the bullet
+  above); `ui/carpentrySheetSvg.ts` renders the dimensioned SVG (mm-only labels, dashed hidden
+  lines, a `declutterLabelY` collision pass for closely-stacked AFF heights). **Buildability
+  callouts (TODO H2):** `buildCarpentryPiece` also returns `sectionTitle` ("SECTION A-A") +
+  `elevationCutX` (drawn by `carpentrySheetSvg.ts`'s `cutX` opt as a dash-dot cut-line + "A"
+  bubbles on the elevation only) and `materialNotes`/`hardwareCallouts` (both exported, pure,
+  unit-tested) — an honest finish/board/edge-banding note (hedged "confirm … with fabricator",
+  never an invented laminate code; `"TBC by fabricator"` when a thickness can't be read off the
+  parts) and a hardware note whose counts are read straight off the piece's real
+  `door`/`handle`/`drawer-front`/`drawer-handle` parts — never estimated from the spec alone.
+  `role:'door'` doesn't distinguish a wardrobe's sliding vs hinged front, so `hardwareCallouts`
+  is the one place that reads `spec.wardrobeFront` (sliding → track+rollers; hinged → a hinge
+  count via the standard 2-per-door-≤1200mm/3-above rule); every other type/bay is generic over
+  the shared role vocabulary. Zero doors + zero drawers → "shelf supports as required by
+  fabricator" (the spec has no fixed-vs-adjustable field to report). Scoped to the 5
+  `ParametricType`s only — a standalone kitchen-cabinet catalog item (`cabinet/cabinetModel.ts`
+  `buildCabinet`, placed via `primitives/CabinetModule.tsx`) keeps its spec live on the item's own
+  `props` (no GLB-export/spec-loss step to begin with) rather than a persisted `parametricSpec`
+  JSON string, so it doesn't share this exact resolution path yet — a future extension would add
+  a `CabinetSpec`-based sheet builder alongside this one, not fold it into
+  `collectCarpentrySheets`.
 - **Array helpers** — pure geometry, render-agnostic, unit-tested, no store imports:
   - `arrayPlacement.ts` — linear/grid array:
     - `arrayOffsets(src, count, spacing, axis)` — N evenly-spaced positions along the item's

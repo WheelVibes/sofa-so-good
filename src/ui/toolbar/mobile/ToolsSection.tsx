@@ -35,6 +35,7 @@ export function ToolsSection({
   const designScoreOpen = useStore((st) => st.designScoreOpen)
   const accessibilityOpen = useStore((st) => st.accessibilityOpen)
   const commentsOpen = useStore((st) => st.commentsOpen)
+  const designChatOpen = useStore((st) => st.designChatOpen)
   const tapeMode = useStore((st) => st.tapeMode)
   const touring = useStore((st) => st.touring)
 
@@ -54,6 +55,7 @@ export function ToolsSection({
     accessibility: accessibilityOpen,
     measure: tapeMode,
     comments: commentsOpen,
+    'ai-design-chat': designChatOpen,
     history: historyOpen,
     versions: versionsOpen,
     walkthrough: Boolean(touring),

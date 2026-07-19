@@ -1,0 +1,19 @@
+{
+  "name": "sg-presets-r11",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "viewport", "viewport": { "width": 1280, "height": 900 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.setOnboardingOpen?.(false); s.endTour?.(); s.dismissLocationPrompt?.(); s.setLocation?.({ lat: 1.3521, lon: 103.8198, label: 'SG' }); s.setManualHour?.(13); s.setQualityTier?.('high'); })()"
+    },
+    { "name": "scene-ready", "store": { "action": "setSceneReady", "args": [true] } },
+    { "name": "apply-modern-luxe", "store": { "action": "applyLayoutPreset", "args": ["modern-luxe"] } },
+    { "name": "wait-luxe", "wait": 3000 },
+    { "name": "shot-luxe", "screenshot": "modern-luxe-overview" },
+    { "name": "apply-peranakan", "store": { "action": "applyLayoutPreset", "args": ["peranakan-accent"] } },
+    { "name": "wait-peranakan", "wait": 3000 },
+    { "name": "shot-peranakan", "screenshot": "peranakan-accent-overview" }
+  ]
+}

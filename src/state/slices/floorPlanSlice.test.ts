@@ -90,6 +90,64 @@ describe('floorPlanSlice', () => {
     expect(plan.upperLevels?.find((l) => l.id === up)?.name).toBe('Roof')
   })
 
+  it('addLevel stacks the new storey off the level below its OWN ceiling height (BUG-6 class)', () => {
+    useStore.getState().newFloorPlan('AddLevel stacking')
+    const a = useStore.getState().addLevel()
+    // Give the first upper storey a tall ceiling, distinct from the 2.6 ground.
+    useStore.setState((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        upperLevels: (s.floorPlan.upperLevels ?? []).map((l) =>
+          l.id === a ? { ...l, ceilingHeight: 3.5 } : l,
+        ),
+      },
+    }))
+    const b = useStore.getState().addLevel()
+    const upper = useStore.getState().floorPlan.upperLevels ?? []
+    const la = upper.find((l) => l.id === a)!
+    const lb = upper.find((l) => l.id === b)!
+    // b's floor must clear a's 3.5 m ceiling (+0.3 slab), NOT the 2.6 ground default.
+    expect(lb.elevation - la.elevation).toBeCloseTo(3.5 + 0.3, 6)
+  })
+
+  it('duplicateLevel stacks the copy off the level below its own ceiling height', () => {
+    useStore.getState().newFloorPlan('DuplicateLevel stacking')
+    const a = useStore.getState().addLevel()
+    useStore.setState((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        upperLevels: (s.floorPlan.upperLevels ?? []).map((l) =>
+          l.id === a ? { ...l, ceilingHeight: 4.0 } : l,
+        ),
+      },
+    }))
+    const copy = useStore.getState().duplicateLevel(a)!
+    const upper = useStore.getState().floorPlan.upperLevels ?? []
+    const la = upper.find((l) => l.id === a)!
+    const lc = upper.find((l) => l.id === copy)!
+    expect(lc.elevation - la.elevation).toBeCloseTo(4.0 + 0.3, 6)
+  })
+
+  it('shortening a wall by dragging re-clamps its openings to stay on the wall (BUG: wall-drag opening drift)', () => {
+    useStore.getState().newFloorPlan('Opening clamp')
+    // A 4 m wall from (0,0) to (4,0) with a 0.9 m door near the far end (offset 3.0).
+    const w = useStore.getState().addWall({ start: [0, 0], end: [4, 0], thickness: 'internal' })
+    const o = useStore.getState().addOpening({
+      kind: 'door',
+      wallId: w,
+      offset: 3.0,
+      width: 0.9,
+      sill: 0,
+      head: 2.1,
+    })
+    // Drag the wall's end vertex inward so the wall is now only 2 m long.
+    useStore.getState().moveWallVertex(w, 'end', [2, 0])
+    const op = useStore.getState().floorPlan.openings.find((x) => x.id === o)!
+    // offset + width must fit inside the new 2 m span.
+    expect(op.offset + op.width).toBeLessThanOrEqual(2 + 1e-6)
+    expect(op.offset).toBeGreaterThanOrEqual(0)
+  })
+
   it('reorders upper levels and re-stacks their elevations', () => {
     useStore.getState().newFloorPlan('Reorder levels')
     const a = useStore.getState().addLevel() // first upper (lowest)

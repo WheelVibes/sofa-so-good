@@ -15,6 +15,11 @@ import {
   restackLevelElevations,
   withLevelGeometry,
 } from '../../floorplan/levels'
+import {
+  electricalMountDefaultMm,
+  isDuplicateMepPoint,
+  plumbingMountDefaultMm,
+} from '../../floorplan/mepPoints'
 import { mirrorPlanRegion } from '../../floorplan/mirrorPlanRegion'
 import { DEFAULT_PLAN_ID } from '../../floorplan/planGeometry'
 import { type RescaleOptions, type RescaleSpec, rescalePlan } from '../../floorplan/rescalePlan'
@@ -25,15 +30,18 @@ import {
   newWallName,
 } from '../../floorplan/roomWallNames'
 import { addGuide } from '../../floorplan/snapToGuides'
+import { suggestCircuitLinks } from '../../floorplan/switchCircuits'
 import {
   type CeilingConfig,
   clampOpeningOffset,
   clampOpeningWidth,
   type FloorPlan,
   type PlanDimension,
+  type PlanElectricalPoint,
   type PlanGuide,
   type PlanNote,
   type PlanOpening,
+  type PlanPlumbingPoint,
   type PlanPolyline,
   type PlanRoom,
   type PlanUpperLevel,
@@ -44,6 +52,9 @@ import {
   wallLength,
 } from '../../floorplan/types'
 import { joinAdjacentWalls, reverseWallGeometry } from '../../floorplan/wallOps'
+import { buildMergedCatalog } from '../../furniture/catalog'
+import { deriveElectricalPoints, derivePlumbingPoints } from '../../furniture/mepSuggest'
+import { buildLightingPlan } from '../../lighting2d/lightingPlan'
 import type { PlanLabelMode } from '../../ui/floorplan/planLabels'
 import { nextPlanLabelMode } from '../../ui/floorplan/planLabels'
 import type { RootState } from '../store'
@@ -59,6 +70,7 @@ export type PlanSelection =
   | { type: 'note'; id: string }
   | { type: 'dim'; id: string }
   | { type: 'polyline'; id: string }
+  | { type: 'mep'; family: 'electrical' | 'plumbing'; id: string }
   | null
 
 let idCounter = 0
@@ -111,6 +123,27 @@ function applyRoomElementNames(
   return { walls: nextWalls, openings: nextOpenings }
 }
 
+/** Re-clamp every opening's width + offset against its (possibly resized) host
+ *  wall, so shortening a wall (e.g. dragging its vertex/endpoint) never leaves
+ *  an opening hanging off the wall end — where `openingCenter` computes a point
+ *  past the span and the door/window vanishes from the editor + 3D (BUG: wall-
+ *  drag opening drift). Returns the same array reference when nothing changed,
+ *  so a drag that didn't resize any hosting wall stays reference-stable. */
+function reclampOpenings(walls: PlanWall[], openings: PlanOpening[]): PlanOpening[] {
+  let changed = false
+  const next = openings.map((o) => {
+    const wall = walls.find((w) => w.id === o.wallId)
+    if (!wall) return o
+    const wlen = wallLength(wall)
+    const width = clampOpeningWidth(o.width, wlen)
+    const offset = clampOpeningOffset(o.offset, width, wlen)
+    if (width === o.width && offset === o.offset) return o
+    changed = true
+    return { ...o, width, offset }
+  })
+  return changed ? next : openings
+}
+
 export interface FloorPlanSlice {
   /** The active, rendered floor plan. */
   floorPlan: FloorPlan
@@ -150,6 +183,9 @@ export interface FloorPlanSlice {
   removeWalls: (ids: string[], levelId?: string) => void
   /** Bulk lock/unlock walls; one history step. */
   setWallsLocked: (ids: string[], locked: boolean, levelId?: string) => void
+  /** Bulk-set a structural classification (TODO G7, `wallStructure`) across every
+   *  selected wall; one history step. `undefined` resets to the 'unknown' default. */
+  setWallsStructure: (ids: string[], structure: PlanWall['structure'], levelId?: string) => void
   /** Saved named floor plans (the apartment library). */
   savedPlans: FloorPlan[]
   /** Save the active plan into the library (new entry; returns its id). */
@@ -172,7 +208,7 @@ export interface FloorPlanSlice {
     patch: Partial<
       Pick<
         FloorPlan,
-        'name' | 'ceilingHeight' | 'extent' | 'wallColor' | 'category' | 'wallThickness'
+        'name' | 'ceilingHeight' | 'extent' | 'wallColor' | 'category' | 'wallThickness' | 'roof'
       >
     >,
   ) => void
@@ -285,6 +321,43 @@ export interface FloorPlanSlice {
   updatePolyline: (id: string, patch: Partial<Omit<PlanPolyline, 'id'>>) => void
   /** Remove a polyline; clears the selection if it was selected. */
   removePolyline: (id: string) => void
+
+  /** Add a persisted electrical point (MEP layer, G1); returns its id. Forks
+   *  the default plan (risk #1 — a non-forking add on the seeded default plan
+   *  would be dropped by `serialize()`). */
+  addElectricalPoint: (point: Omit<PlanElectricalPoint, 'id'>) => string
+  /** Patch an electrical point (kind/position/mountHeightMm/label/levelId).
+   *  Coalesced per-id so a drag or a stream of typed edits is one undo step. */
+  updateElectricalPoint: (id: string, patch: Partial<Omit<PlanElectricalPoint, 'id'>>) => void
+  /** Remove an electrical point; clears the selection if it was selected. */
+  removeElectricalPoint: (id: string) => void
+
+  /** Add a persisted plumbing point (MEP layer, G1); returns its id. Same
+   *  fork-on-default rule as `addElectricalPoint`. */
+  addPlumbingPoint: (point: Omit<PlanPlumbingPoint, 'id'>) => string
+  /** Patch a plumbing point. Coalesced per-id (drags / typed edits = one step). */
+  updatePlumbingPoint: (id: string, patch: Partial<Omit<PlanPlumbingPoint, 'id'>>) => void
+  /** Remove a plumbing point; clears the selection if it was selected. */
+  removePlumbingPoint: (id: string) => void
+
+  /** Derive a starting electrical + plumbing layout from the current
+   *  furniture + doors (MEP layer, G1 PR4) — the same heuristic
+   *  (`furniture/mepSuggest.ts`) the drawing-set export falls back to when no
+   *  points have been authored yet (ONE derivation source — plan-doc risk #4).
+   *  Drops any candidate that duplicates an already-persisted point (same
+   *  kind + storey within 0.3 m, `isDuplicateMepPoint`), assigns ids +
+   *  per-kind default mount heights, and appends both families under ONE
+   *  undo step. Forks the default plan (same rule as `addElectricalPoint`).
+   *  Returns how many of each were actually added (0 on a re-run once
+   *  everything's already suggested). */
+  suggestMepPoints: () => { electrical: number; plumbing: number }
+
+  /** Suggest switch→light circuit links (BSJ-3, `switchCircuits` pro flag): per
+   *  room, link the switch nearest the room's door to that room's light
+   *  fixtures (`switchCircuits.ts:suggestCircuitLinks`). Overwrites the chosen
+   *  switch's `controls` under ONE undo step; forks the default plan. Returns
+   *  how many switches were linked (0 when there's nothing to link). */
+  suggestSwitchCircuits: () => { linked: number }
 
   /** Add a persistent ruler guide (PARITY-PLAN-GUIDES); de-duped per-axis. */
   addPlanGuide: (guide: PlanGuide) => void
@@ -525,6 +598,16 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       })),
     }))
   },
+  setWallsStructure: (ids, structure, levelId) => {
+    const set0 = new Set(ids)
+    if (set0.size === 0) return
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (gg) => ({
+        walls: gg.walls.map((w) => (set0.has(w.id) ? { ...w, structure } : w)),
+      })),
+    }))
+  },
   resetFloorPlan: () => {
     // Snapshot first so "Reset to HDB" is undoable — otherwise a hand-built
     // custom plan is destroyed with no way back.
@@ -691,17 +774,16 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         const EPS = 1e-3
         const shared = (p: [number, number]) =>
           Math.abs(p[0] - from[0]) < EPS && Math.abs(p[1] - from[1]) < EPS
-        return {
-          walls: g.walls.map((w) => {
-            // Locked walls stay anchored even when they share this corner: the
-            // dragged wall detaches from them instead of dragging them along.
-            if (w.locked) return w
-            const next = { ...w }
-            if (shared(w.start)) next.start = [...to] as [number, number]
-            if (shared(w.end)) next.end = [...to] as [number, number]
-            return next
-          }),
-        }
+        const walls = g.walls.map((w) => {
+          // Locked walls stay anchored even when they share this corner: the
+          // dragged wall detaches from them instead of dragging them along.
+          if (w.locked) return w
+          const next = { ...w }
+          if (shared(w.start)) next.start = [...to] as [number, number]
+          if (shared(w.end)) next.end = [...to] as [number, number]
+          return next
+        })
+        return { walls, openings: reclampOpenings(walls, g.openings) }
       }),
     }))
   },
@@ -724,13 +806,12 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         // shared either corner, so the network stays connected.
         const remap = (p: [number, number]): [number, number] =>
           near(p, cs) ? [...newStart] : near(p, ce) ? [...newEnd] : p
-        return {
-          // Locked walls stay anchored even at a shared corner — the moved wall
-          // detaches from them rather than dragging them along.
-          walls: g.walls.map((w) =>
-            w.locked ? w : { ...w, start: remap(w.start), end: remap(w.end) },
-          ),
-        }
+        // Locked walls stay anchored even at a shared corner — the moved wall
+        // detaches from them rather than dragging them along.
+        const walls = g.walls.map((w) =>
+          w.locked ? w : { ...w, start: remap(w.start), end: remap(w.end) },
+        )
+        return { walls, openings: reclampOpenings(walls, g.openings) }
       }),
     }))
   },
@@ -1161,6 +1242,160 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     }))
   },
 
+  // Electrical/plumbing points are top-level plan arrays (level-tagged via
+  // `levelId`), the same notes/dimensions/polylines annotation-class shape
+  // (MEP layer, G1). Unlike `addNote`/`addDimension`/`addPolyline` above, every
+  // mutation here runs through `forkIfDefault` — those three actions patch the
+  // plan WITHOUT forking (a pre-existing quirk this deliberately does not
+  // copy): `serialize()` drops the whole `floorPlan` while it's still the
+  // seeded default (`isDefaultPlan`), so a non-forking add on the untouched
+  // default plan would silently lose its points on the next save/share-link
+  // (plan-doc risk #1).
+  addElectricalPoint: (point) => {
+    const id = planId('ep')
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...forkIfDefault(s.floorPlan),
+        electricalPoints: [...(s.floorPlan.electricalPoints ?? []), { ...point, id }],
+      },
+    }))
+    return id
+  },
+  updateElectricalPoint: (id, patch) => {
+    get().pushHistoryCoalesced(`plan-ep-${id}`)
+    set((s) => ({
+      floorPlan: {
+        ...forkIfDefault(s.floorPlan),
+        electricalPoints: (s.floorPlan.electricalPoints ?? []).map((p) =>
+          p.id === id ? { ...p, ...patch } : p,
+        ),
+      },
+    }))
+  },
+  removeElectricalPoint: (id) => {
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...forkIfDefault(s.floorPlan),
+        electricalPoints: (s.floorPlan.electricalPoints ?? []).filter((p) => p.id !== id),
+      },
+      planSelection:
+        s.planSelection?.type === 'mep' &&
+        s.planSelection.family === 'electrical' &&
+        s.planSelection.id === id
+          ? null
+          : s.planSelection,
+    }))
+  },
+
+  addPlumbingPoint: (point) => {
+    const id = planId('pp')
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...forkIfDefault(s.floorPlan),
+        plumbingPoints: [...(s.floorPlan.plumbingPoints ?? []), { ...point, id }],
+      },
+    }))
+    return id
+  },
+  updatePlumbingPoint: (id, patch) => {
+    get().pushHistoryCoalesced(`plan-pp-${id}`)
+    set((s) => ({
+      floorPlan: {
+        ...forkIfDefault(s.floorPlan),
+        plumbingPoints: (s.floorPlan.plumbingPoints ?? []).map((p) =>
+          p.id === id ? { ...p, ...patch } : p,
+        ),
+      },
+    }))
+  },
+  removePlumbingPoint: (id) => {
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...forkIfDefault(s.floorPlan),
+        plumbingPoints: (s.floorPlan.plumbingPoints ?? []).filter((p) => p.id !== id),
+      },
+      planSelection:
+        s.planSelection?.type === 'mep' &&
+        s.planSelection.family === 'plumbing' &&
+        s.planSelection.id === id
+          ? null
+          : s.planSelection,
+    }))
+  },
+
+  suggestMepPoints: () => {
+    const s = get()
+    const catalog = buildMergedCatalog(s)
+    const existingElectrical = s.floorPlan.electricalPoints ?? []
+    const existingPlumbing = s.floorPlan.plumbingPoints ?? []
+
+    const electricalCandidates = deriveElectricalPoints(s.floorPlan, s.items, catalog)
+    const plumbingCandidates = derivePlumbingPoints(s.items, catalog)
+
+    const newElectrical: PlanElectricalPoint[] = []
+    for (const c of electricalCandidates) {
+      if (isDuplicateMepPoint(existingElectrical, c) || isDuplicateMepPoint(newElectrical, c))
+        continue
+      newElectrical.push({
+        ...c,
+        id: planId('ep'),
+        mountHeightMm: electricalMountDefaultMm(c.kind),
+      })
+    }
+    const newPlumbing: PlanPlumbingPoint[] = []
+    for (const c of plumbingCandidates) {
+      if (isDuplicateMepPoint(existingPlumbing, c) || isDuplicateMepPoint(newPlumbing, c)) continue
+      newPlumbing.push({ ...c, id: planId('pp'), mountHeightMm: plumbingMountDefaultMm(c.kind) })
+    }
+
+    if (newElectrical.length === 0 && newPlumbing.length === 0)
+      return { electrical: 0, plumbing: 0 }
+
+    get().pushHistory()
+    set((state) => ({
+      floorPlan: {
+        ...forkIfDefault(state.floorPlan),
+        electricalPoints: [...(state.floorPlan.electricalPoints ?? []), ...newElectrical],
+        plumbingPoints: [...(state.floorPlan.plumbingPoints ?? []), ...newPlumbing],
+      },
+    }))
+    return { electrical: newElectrical.length, plumbing: newPlumbing.length }
+  },
+
+  suggestSwitchCircuits: () => {
+    const s = get()
+    const catalog = buildMergedCatalog(s)
+    const lights = buildLightingPlan(s.items, catalog).lights
+    const switches = (s.floorPlan.electricalPoints ?? [])
+      .filter((p) => p.kind === 'switch')
+      .map((p) => ({
+        id: p.id,
+        x: p.x,
+        z: p.z,
+        controls: p.controls,
+        gang: p.gang,
+        way: p.way,
+        levelId: p.levelId,
+      }))
+    const linkMap = suggestCircuitLinks(s.floorPlan, switches, lights)
+    if (linkMap.size === 0) return { linked: 0 }
+
+    get().pushHistory()
+    set((state) => ({
+      floorPlan: {
+        ...forkIfDefault(state.floorPlan),
+        electricalPoints: (state.floorPlan.electricalPoints ?? []).map((p) =>
+          linkMap.has(p.id) ? { ...p, controls: linkMap.get(p.id)! } : p,
+        ),
+      },
+    }))
+    return { linked: linkMap.size }
+  },
+
   // Ruler guides are a plan-wide array (not level-tagged) — pure reference lines
   // the 2D editor snaps to (PARITY-PLAN-GUIDES). `addGuide` de-dupes per axis.
   addPlanGuide: (guide) => {
@@ -1192,19 +1427,23 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     set((s) => {
       const existing = s.floorPlan.upperLevels ?? []
       const slab = 0.3
-      const top = existing.reduce(
-        (m, l) => Math.max(m, l.elevation),
-        0, // ground floor slab top
-      )
       const level: PlanUpperLevel = {
         id,
         name: name ?? `Level ${existing.length + 2}`,
-        elevation: top + s.floorPlan.ceilingHeight + slab,
+        elevation: 0, // recomputed by restackLevelElevations below
         walls: [],
         openings: [],
         rooms: [],
       }
-      return { floorPlan: { ...forkIfDefault(s.floorPlan), upperLevels: [...existing, level] } }
+      // Stack the new storey above the one below using THAT storey's own ceiling
+      // height, not the ground default (BUG-6 class): restack the whole array so
+      // each level's floor sits directly on the ceiling below it.
+      const upperLevels = restackLevelElevations(
+        [...existing, level],
+        s.floorPlan.ceilingHeight,
+        slab,
+      )
+      return { floorPlan: { ...forkIfDefault(s.floorPlan), upperLevels } }
     })
     return id
   },
@@ -1220,13 +1459,11 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       { walls: src.walls, openings: src.openings, rooms: src.rooms },
       planId,
     )
-    const existing = plan.upperLevels ?? []
     const slab = 0.3
-    const top = existing.reduce((m, l) => Math.max(m, l.elevation), 0)
     const level: PlanUpperLevel = {
       id: newId,
       name: `${src.name} copy`,
-      elevation: top + plan.ceilingHeight + slab,
+      elevation: 0, // recomputed by restackLevelElevations below
       ...(src.ceilingHeight !== undefined ? { ceilingHeight: src.ceilingHeight } : {}),
       walls: cloned.walls,
       openings: cloned.openings,
@@ -1267,10 +1504,17 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         const nr = cloned.roomIdMap[rid]
         if (nw && nr) wallAccents[`${nw}:${nr}`] = mat
       }
+      // Stack the copy above the storey below it using that storey's own ceiling
+      // height, not the ground default (BUG-6 class) — restack the whole array.
+      const upperLevels = restackLevelElevations(
+        [...(s.floorPlan.upperLevels ?? []), level],
+        s.floorPlan.ceilingHeight,
+        slab,
+      )
       return {
         floorPlan: {
           ...forkIfDefault(s.floorPlan),
-          upperLevels: [...(s.floorPlan.upperLevels ?? []), level],
+          upperLevels,
         },
         items: [...s.items, ...newItems],
         finishes: {

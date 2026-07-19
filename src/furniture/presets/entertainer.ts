@@ -2,6 +2,7 @@ import type { LayoutPreset } from './types'
 
 export const entertainer: LayoutPreset = {
   id: 'entertainer',
+  group: 'layout',
   name: "Entertainer's Lounge",
   description: 'Re-modelled L/D: L-sofa to a media credenza + bar cart, six-seat dining.',
   dryFloor: 'floor-wood-walnut',

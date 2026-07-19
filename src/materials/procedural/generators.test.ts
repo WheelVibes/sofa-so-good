@@ -36,6 +36,7 @@ describe('per-pattern size registry (PERF9 tail)', () => {
     'batten',
     'fluted',
     'plaster',
+    'limewash',
   ]
   const DETAILED_PATTERNS: ProceduralPattern[] = [
     'wood',
@@ -48,6 +49,7 @@ describe('per-pattern size registry (PERF9 tail)', () => {
     'brick',
     'grasscloth',
     'stripe',
+    'peranakan',
   ]
 
   it('PATTERN_SIZE_CAP covers every ProceduralPattern with no unknown keys', () => {

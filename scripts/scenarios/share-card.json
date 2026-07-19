@@ -1,0 +1,77 @@
+{
+  "name": "share-card",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true || state.bootPhase === 'ready'"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(14); })()"
+    },
+    {
+      "name": "warm-render",
+      "wait": 4000
+    },
+    {
+      "name": "open-share",
+      "eval": "window.__store.getState().setShareOpen(true)"
+    },
+    {
+      "name": "modal-open",
+      "waitFor": {
+        "css": ".modal-overlay"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "btn-visible",
+      "waitFor": {
+        "text": "Save hero image"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "shot-modal",
+      "screenshot": "share-modal"
+    },
+    {
+      "name": "close-modal",
+      "key": "Escape"
+    },
+    {
+      "name": "build-card",
+      "eval": "void window.__buildShareCard()"
+    },
+    {
+      "name": "card-built",
+      "waitFor": {
+        "store": "typeof window.__buildShareCardResult === 'string' && window.__buildShareCardResult.startsWith('data:image/png')"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "inject-img",
+      "eval": "(() => { const img = document.createElement('img'); img.src = window.__buildShareCardResult; img.style.cssText = 'position:fixed;inset:0;z-index:99999;width:100vw;height:100vh;object-fit:contain;background:#333'; img.id = '__cardpreview'; document.body.appendChild(img); })()"
+    },
+    {
+      "name": "img-settle",
+      "wait": 1000
+    },
+    {
+      "name": "shot-card",
+      "screenshot": "hero-card"
+    }
+  ]
+}

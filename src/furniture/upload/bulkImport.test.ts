@@ -254,7 +254,11 @@ describe('bulkImport early size-cap gate (IO-002)', () => {
     vi.stubGlobal('URL', { ...URL, createObjectURL: () => 'blob:test' })
   })
 
-  it('rejects a hopeless GLB (> multiplier × cap) before optimize runs (no worker/CPU spent)', async () => {
+  // 20s timeout: this test allocates + copies a 75 MB File (3× the 25 MB cap);
+  // under full-suite memory pressure that alone can blow the 5 s default.
+  it('rejects a hopeless GLB (> multiplier × cap) before optimize runs (no worker/CPU spent)', {
+    timeout: 20000,
+  }, async () => {
     const spy = vi.spyOn(runOptimizeModule, 'runOptimize')
     const res = await importGlbFiles([hopelessGlb('huge.glb')], { category: 'decor' })
     expect(res.imported).toBe(0)

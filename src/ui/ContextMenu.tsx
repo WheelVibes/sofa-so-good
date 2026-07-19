@@ -163,6 +163,15 @@ function buildMenu(
       return buildSimplePlanMenu('Polyline', 'Edit', () =>
         useStore.getState().removePolyline(target.id),
       )
+    case 'mep':
+      return buildSimplePlanMenu(
+        target.family === 'electrical' ? 'Electrical point' : 'Plumbing point',
+        'Lights',
+        () =>
+          target.family === 'electrical'
+            ? useStore.getState().removeElectricalPoint(target.id)
+            : useStore.getState().removePlumbingPoint(target.id),
+      )
     case 'canvas':
       return buildCanvasMenu()
   }

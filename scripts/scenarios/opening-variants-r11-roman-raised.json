@@ -1,0 +1,18 @@
+{
+  "name": "opening-variants-r11-roman-raised",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "viewport", "viewport": { "width": 1280, "height": 900 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.setOnboardingOpen?.(false); s.endTour?.(); s.dismissLocationPrompt?.(); s.setLocation?.({ lat: 1.3521, lon: 103.8198, label: 'SG' }); s.setManualHour?.(13); s.setQualityTier?.('high'); })()" },
+    { "name": "scene-ready", "store": { "action": "setSceneReady", "args": [true] } },
+    { "name": "place-blind", "eval": "(() => { const s = window.__store.getState(); s.setItems([ { id: 'roman1', defId: 'roller-blind', position: [2, 2.7], rotation: 0, props: { kind: 'roman', lower: 0.35, width: 1.3, drop: 1.7, color: '#c9a878' } } ]); })()" },
+    { "name": "items-placed", "waitFor": { "store": "window.__store.getState().items.length === 1" } },
+    { "name": "select", "eval": "window.__store.getState().setSelectedItemIds?.(['roman1'])" },
+    { "name": "frame", "key": "z" },
+    { "name": "settle-frame", "wait": 1200 },
+    { "name": "deselect", "eval": "window.__store.getState().setSelectedItemIds?.([])" },
+    { "name": "wait-deselect", "wait": 400 },
+    { "name": "shot-raised", "screenshot": "roman-blind-raised" }
+  ]
+}

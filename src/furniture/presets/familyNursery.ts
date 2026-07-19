@@ -2,6 +2,7 @@ import type { LayoutPreset } from './types'
 
 export const familyNursery: LayoutPreset = {
   id: 'family-nursery',
+  group: 'layout',
   name: 'Family Nursery',
   description:
     'Soft warm flat; Bedroom 3 re-modelled as a nursery (crib + changing + nursing nook).',
@@ -58,8 +59,12 @@ export const familyNursery: LayoutPreset = {
       },
       {
         id: 'default-b3-lamp',
+        // Arc lamp for the glider nook. Pulled SOUTH to z=2.4 (was 3.1) so it
+        // clears bedroom 3's door on the corridor-N wall (spans x≈6.10–6.90,
+        // swings into the room) — at 3.1 it sat in the door's probe path
+        // (UXW-P2-3); its arc still reaches over the glider at (7.5, 3.0).
         defId: 'floor-lamp',
-        position: [6.4, 3.1],
+        position: [6.4, 2.4],
         rotation: 0.6,
         props: { base: 'arc', shade: 'drum', poleColor: '#3a3026' },
       },

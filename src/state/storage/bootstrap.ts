@@ -244,6 +244,41 @@ async function exposeDevHelpers(): Promise<void> {
   const { persistUserMaterial } = await import('../../materials/upload/persist')
   ;(window as unknown as { __persistUserMaterial?: unknown }).__persistUserMaterial =
     persistUserMaterial
+  // Expose the standalone texture decode path (KTX2/DDS + the TGA/TIFF/EXR/HDR
+  // exotic formats) so the GPU scenario harness can verify a real WebGL readback
+  // headlessly (SHOT_GPU=1). `bytesB64` is the base64-encoded raw file; `name`
+  // supplies the extension the decoder routes on. Returns (and records on
+  // `__decodeMaterialImageResult`) a small summary — never the whole pixel buffer.
+  const { decodeImage } = await import('../../materials/convert/decodeImage')
+  ;(window as unknown as { __decodeMaterialImage?: unknown }).__decodeMaterialImage = async (
+    bytesB64: string,
+    name: string,
+  ) => {
+    const bin = atob(bytesB64)
+    const bytes = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+    const file = new File([bytes], name, { type: 'application/octet-stream' })
+    try {
+      const img = await decodeImage(file)
+      const result = {
+        ok: true as const,
+        width: img.width,
+        height: img.height,
+        length: img.data.length,
+        firstPixel: [img.data[0], img.data[1], img.data[2], img.data[3]],
+      }
+      ;(
+        window as unknown as { __decodeMaterialImageResult?: unknown }
+      ).__decodeMaterialImageResult = result
+      return result
+    } catch (e) {
+      const result = { ok: false as const, error: e instanceof Error ? e.message : String(e) }
+      ;(
+        window as unknown as { __decodeMaterialImageResult?: unknown }
+      ).__decodeMaterialImageResult = result
+      return result
+    }
+  }
   // Expose the Sweet Home 3D import path so the scenario harness can drive a full
   // `.sh3d` parse → place (PARITY-SH3D); `bytes` are the raw archive (the harness
   // base64-decodes a synthetic fixture into a Uint8Array).
@@ -253,6 +288,22 @@ async function exposeDevHelpers(): Promise<void> {
     bytes: Uint8Array,
     name = 'Imported plan',
   ) => applySh3dResult(parseSh3d(bytes, name), name)
+  // Expose the Sweet Home 3D furniture-LIBRARY import (PARITY-SH3F) so the
+  // scenario harness can verify a full `.sh3f` parse → OBJ/DAE/3DS→GLB convert →
+  // persist headlessly (needs a REAL browser for the three loaders + GLTFExporter,
+  // so a unit test can't cover the convert leg — this is the end-to-end seam).
+  // `bytes` are the raw archive (base64-decoded to a Uint8Array); resolves to the
+  // import summary (imported / duplicate / skipped counts).
+  const { parseSh3f } = await import('../../furniture/import/sh3f')
+  const { applySh3fResult } = await import('../../ui/openSh3fImport')
+  ;(window as unknown as { __importSh3fBytes?: unknown }).__importSh3fBytes = async (
+    bytes: Uint8Array,
+    name = 'Imported library',
+  ) => {
+    const result = await applySh3fResult(parseSh3f(bytes, name), name)
+    ;(window as unknown as { __importSh3fResult?: unknown }).__importSh3fResult = result
+    return result
+  }
   // Expose the model-group detection path so the scenario harness can drive a
   // full detect over a synthetic folder headlessly (the upload dialog itself is
   // React.lazy and won't mount headless — see visual-verification-playbook.md).
@@ -292,6 +343,24 @@ async function exposeDevHelpers(): Promise<void> {
     ;(window as unknown as { __detectGroupsResult?: unknown }).__detectGroupsResult = result
     return result
   }
+  // Expose the AI plan-recognition APPLY path so the scenario harness can drive
+  // walls + doors/windows placement from a CANNED vision response — no network
+  // call (AI-PLAN-OPENINGS). Given the raw model reply text (or an already-shaped
+  // JSON string), it parses via the same defensive parser and applies the draft
+  // (blank plan → walls → snapped openings) to the store, returning the counts.
+  // Scale calibration is NOT applied here (it writes the editor's backdrop React
+  // state, unreachable from a window hook) — unit-tested separately.
+  const { parseVisionResponse, parseGeneratedPlan } = await import('../../ai/floorPlanAi')
+  const { applyAiPlanDraft } = await import('../../ui/floorplan/editor/usePlanAiWalls')
+  ;(window as unknown as { __applyAiVisionResponse?: unknown }).__applyAiVisionResponse = (
+    text: string,
+  ) => applyAiPlanDraft(parseVisionResponse(text))
+  // Sibling hook for text→plan GENERATION (AI-PLAN-GENERATE): parse a CANNED LLM
+  // reply (walls + openings + named rooms) and apply it as a fresh draft — same
+  // apply path as generation, no network call. Returns the landed counts.
+  ;(window as unknown as { __applyAiGeneratedPlan?: unknown }).__applyAiGeneratedPlan = (
+    text: string,
+  ) => applyAiPlanDraft(parseGeneratedPlan(text))
   // Expose the bulk GLB import path (convert → optimize-pool → LOD → persist)
   // so the scenario harness can drive a REAL import with REAL `Worker`
   // construction — unlike the Node/happy-dom unit tests, a real browser can
@@ -313,5 +382,34 @@ async function exposeDevHelpers(): Promise<void> {
     const result = await importGlbFiles(files, opts)
     ;(window as unknown as { __importGlbFilesResult?: unknown }).__importGlbFilesResult = result
     return result
+  }
+  // Expose the one-tap hero-card builder so the scenario harness can verify the
+  // composed PNG headlessly (the canvas raster needs a real browser). Returns the
+  // card's PNG data URL and records it on `__buildShareCardResult`. Optional
+  // `format` ('post' | 'square' | 'story', defaults to 'post') selects the
+  // aspect preset — e.g. `window.__buildShareCard('story')`.
+  const { buildShareCardDataUrl } = await import('../../ui/openShareCard')
+  ;(window as unknown as { __buildShareCard?: unknown }).__buildShareCard = async (
+    format?: 'post' | 'square' | 'story',
+  ) => {
+    const url = await buildShareCardDataUrl(format)
+    ;(window as unknown as { __buildShareCardResult?: unknown }).__buildShareCardResult = url
+    return url
+  }
+  // Expose the AI design-chat GROUNDING context builder so the scenario
+  // harness can inspect what the model would be told, headlessly — no network
+  // call (this hook never fakes a chat reply; the live `askDesignChat` call
+  // still needs a real BYO key + browser fetch). Mirrors the live design at
+  // call time via the store, exactly like the panel's own `useMemo`.
+  const { buildDesignChatContext } = await import('../../ai/designChatContext')
+  const { buildMergedCatalog } = await import('../../furniture/catalog')
+  ;(window as unknown as { __designChatContext?: unknown }).__designChatContext = () => {
+    const s = useStore.getState()
+    const defs = buildMergedCatalog({
+      userFurniture: s.userFurniture,
+      resolvedRemoteFurniture: s.resolvedRemoteFurniture,
+      packFurniture: s.packFurniture,
+    })
+    return buildDesignChatContext({ items: s.items, defs, plan: s.floorPlan, doors: s.doors })
   }
 }

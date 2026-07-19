@@ -3,6 +3,7 @@ import {
   buildVisionRequest,
   classifyVisionEndpoint,
   extractContent,
+  parseVisionResponse,
   parseWallsResponse,
 } from './floorPlanAi'
 
@@ -71,6 +72,65 @@ describe('parseWallsResponse', () => {
     expect(parseWallsResponse('sorry, I cannot help')).toEqual([])
     expect(parseWallsResponse('{"foo":1}')).toEqual([])
     expect(parseWallsResponse('')).toEqual([])
+  })
+})
+
+describe('parseVisionResponse', () => {
+  it('parses walls + openings + a direct scale', () => {
+    const r = parseVisionResponse(
+      '{"walls":[{"x1":0,"z1":0,"x2":4,"z2":0,"external":true}],' +
+        '"openings":[{"kind":"door","x":1,"z":0,"width":0.9},' +
+        '{"kind":"window","x":3,"z":0,"width":1.2}],' +
+        '"scale":{"metresPerPixel":0.02}}',
+    )
+    expect(r.walls).toHaveLength(1)
+    expect(r.openings).toEqual([
+      { kind: 'door', x: 1, z: 0, width: 0.9 },
+      { kind: 'window', x: 3, z: 0, width: 1.2 },
+    ])
+    expect(r.mPerPx).toBe(0.02)
+  })
+
+  it('derives scale from a reference span (pixels + metres)', () => {
+    const r = parseVisionResponse(
+      '{"walls":[{"x1":0,"z1":0,"x2":4,"z2":0}],"scale":{"pixels":100,"metres":2}}',
+    )
+    expect(r.mPerPx).toBe(0.02)
+  })
+
+  it('falls back to walls-only when openings + scale are absent (backward compatible)', () => {
+    const r = parseVisionResponse('{"walls":[{"x1":0,"z1":0,"x2":4,"z2":0}]}')
+    expect(r.walls).toHaveLength(1)
+    expect(r.openings).toEqual([])
+    expect(r.mPerPx).toBeUndefined()
+  })
+
+  it('drops malformed opening entries but keeps the good ones (defaults a bad width)', () => {
+    const r = parseVisionResponse(
+      '{"walls":[{"x1":0,"z1":0,"x2":4,"z2":0}],"openings":[' +
+        '{"kind":"door","x":1,"z":0,"width":0.9},' + // good
+        '{"kind":"portal","x":2,"z":0,"width":1},' + // bad kind → dropped
+        '{"kind":"window","x":"nope","z":0,"width":1},' + // bad centre → dropped
+        '{"kind":"window","x":3,"z":0}]}', // missing width → default 1.2
+    )
+    expect(r.openings).toEqual([
+      { kind: 'door', x: 1, z: 0, width: 0.9 },
+      { kind: 'window', x: 3, z: 0, width: 1.2 },
+    ])
+  })
+
+  it('ignores an unusable / non-positive scale', () => {
+    expect(parseVisionResponse('{"walls":[{"x1":0,"z1":0,"x2":4,"z2":0}],"scale":{}}').mPerPx).toBe(
+      undefined,
+    )
+    expect(
+      parseVisionResponse('{"walls":[{"x1":0,"z1":0,"x2":4,"z2":0}],"scale":{"metresPerPixel":0}}')
+        .mPerPx,
+    ).toBeUndefined()
+  })
+
+  it('returns empty walls/openings for non-JSON', () => {
+    expect(parseVisionResponse('sorry')).toEqual({ walls: [], openings: [] })
   })
 })
 

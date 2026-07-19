@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { appearanceKeys, extractAppearance, mergeAppearance } from './appearanceProps'
+import {
+  appearanceKeys,
+  clearRecolorPatch,
+  currentRecolorValue,
+  extractAppearance,
+  mergeAppearance,
+  recolorPatch,
+} from './appearanceProps'
 import type { FurnitureDef, ParamField } from './types'
 
 function paramDef(schema: ParamField[]): FurnitureDef {
@@ -80,5 +87,74 @@ describe('mergeAppearance', () => {
   it('returns the same reference when nothing changes', () => {
     const props = { color: '#111' }
     expect(mergeAppearance(props, { color: '#111' }, SOFA)).toBe(props)
+  })
+})
+
+const gltf = {
+  kind: 'gltf',
+  id: 'x',
+  name: 'x',
+  category: 'seating',
+} as unknown as FurnitureDef
+
+const MULTI_COLOR = paramDef([
+  { kind: 'color', key: 'seatColor', label: 'Seat', default: '#7a5c3c' },
+  { kind: 'color', key: 'legColor', label: 'Legs', default: '#4e3a24' },
+  { kind: 'number', key: 'width', label: 'W', min: 0, max: 3, step: 0.1, default: 2 },
+])
+
+describe('recolorPatch', () => {
+  it('targets props.tint for gltf/ikea defs', () => {
+    expect(recolorPatch(gltf, '#ff8800')).toEqual({ tint: '#ff8800' })
+  })
+
+  it('sets EVERY color-kind paramSchema field for a parametric def', () => {
+    expect(recolorPatch(MULTI_COLOR, '#ff8800')).toEqual({
+      seatColor: '#ff8800',
+      legColor: '#ff8800',
+    })
+  })
+
+  it('a single-color parametric def patches just that field', () => {
+    expect(recolorPatch(SOFA, '#111')).toEqual({ color: '#111' })
+  })
+
+  it('a parametric def with no color field patches nothing', () => {
+    const noColor = paramDef([
+      { kind: 'number', key: 'width', label: 'W', min: 0, max: 3, step: 0.1, default: 2 },
+    ])
+    expect(recolorPatch(noColor, '#111')).toEqual({})
+  })
+})
+
+describe('clearRecolorPatch', () => {
+  it('deletes tint for gltf/ikea defs', () => {
+    expect(clearRecolorPatch(gltf)).toEqual({ tint: undefined })
+  })
+
+  it('resets every color-kind field to ITS OWN schema default for parametric', () => {
+    expect(clearRecolorPatch(MULTI_COLOR)).toEqual({
+      seatColor: '#7a5c3c',
+      legColor: '#4e3a24',
+    })
+  })
+})
+
+describe('currentRecolorValue', () => {
+  it('reads props.tint for gltf/ikea, or "" when absent', () => {
+    expect(currentRecolorValue({ props: { tint: '#abcabc' } }, gltf)).toBe('#abcabc')
+    expect(currentRecolorValue({ props: {} }, gltf)).toBe('')
+  })
+
+  it('reads the FIRST color field for parametric, live value winning over default', () => {
+    expect(currentRecolorValue({ props: { seatColor: '#222222' } }, MULTI_COLOR)).toBe('#222222')
+    expect(currentRecolorValue({ props: {} }, MULTI_COLOR)).toBe('#7a5c3c') // falls back to default
+  })
+
+  it("returns '' for a parametric def with no color field", () => {
+    const noColor = paramDef([
+      { kind: 'number', key: 'width', label: 'W', min: 0, max: 3, step: 0.1, default: 2 },
+    ])
+    expect(currentRecolorValue({ props: {} }, noColor)).toBe('')
   })
 })

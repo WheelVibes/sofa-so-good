@@ -1,0 +1,122 @@
+{
+  "name": "savematerials-simple",
+  "description": "Simple rung for the saveMaterials flag (IXT-SUITES batch 6): tier:'simple', default-on 'Name + Save' row inside MaterialComposer (nested under the already-covered materialComposer flag, mirroring the suggestions-inside-designScore pattern from batch 4). Opens the composer, asserts the Save row is present (hidden when force-disabled, restored after), types a custom name, applies the composed finish then Saves it, and asserts a SavedMaterial with that exact name lands in state.savedMaterials.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000
+    },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 10000
+    },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading?.()" },
+    { "name": "wait-room-load", "wait": 1500 },
+    {
+      "name": "select-room",
+      "store": { "action": "selectRoom", "args": ["livingDining"] }
+    },
+    {
+      "name": "finish-picker-visible",
+      "waitFor": { "css": ".panel.inspector" },
+      "timeout": 15000,
+      "failMessage": "FinishPicker (.panel.inspector) did not appear after room selection"
+    },
+    {
+      "name": "expand-compose-disclosure",
+      "eval": "(() => { const s = [...document.querySelectorAll('summary.compose-summary')].find((x) => x.textContent.trim() === 'Compose your own…'); if (!s) throw new Error('Compose your own… summary not found'); s.click(); })()"
+    },
+    {
+      "name": "composer-controls-visible",
+      "waitFor": { "css": "button[aria-label='Apply composed floor finish']" },
+      "timeout": 10000,
+      "failMessage": "MaterialComposer's Apply button did not appear after expanding the Disclosure"
+    },
+    {
+      "name": "assert-save-row-present-simple",
+      "waitFor": { "css": "input[aria-label='Floor custom material name']" },
+      "failMessage": "The Save-as-custom-material name field should be present in Simple mode (saveMaterials is tier:simple, default:true)"
+    },
+    { "name": "shot-composer-with-save-row", "screenshot": "01-composer-save-row-present" },
+    {
+      "name": "force-flag-off",
+      "eval": "window.__store.getState().setFeatureFlag('saveMaterials', false)"
+    },
+    {
+      "name": "assert-save-row-hidden",
+      "waitFor": { "css": "input[aria-label='Floor custom material name']", "visible": false },
+      "failMessage": "The Save name field should disappear once saveMaterials is force-disabled (Apply button should remain, gated by materialComposer only)"
+    },
+    {
+      "name": "assert-apply-button-still-present",
+      "waitFor": { "css": "button[aria-label='Apply composed floor finish']" },
+      "failMessage": "Disabling saveMaterials should not hide the Apply button (that belongs to the separate materialComposer flag)"
+    },
+    { "name": "shot-save-row-hidden", "screenshot": "02-save-row-hidden-composer-intact" },
+    {
+      "name": "restore-flag-on",
+      "eval": "window.__store.getState().setFeatureFlag('saveMaterials', true)"
+    },
+    {
+      "name": "assert-save-row-restored",
+      "waitFor": { "css": "input[aria-label='Floor custom material name']" },
+      "failMessage": "The Save name field should reappear once saveMaterials is re-enabled"
+    },
+    {
+      "name": "open-texture-select",
+      "eval": "document.querySelector(\"button[aria-label='Floor texture or material']\")?.click()"
+    },
+    {
+      "name": "options-visible",
+      "waitFor": { "css": "[role='option']" },
+      "timeout": 5000,
+      "failMessage": "The Select's option list (portalled Popover) did not open"
+    },
+    {
+      "name": "pick-wood-pattern",
+      "eval": "[...document.querySelectorAll(\"[role='option']\")].find((o) => o.textContent.trim() === 'Wood planks')?.click()"
+    },
+    {
+      "name": "apply-composed-finish",
+      "eval": "document.querySelector(\"button[aria-label='Apply composed floor finish']\")?.click()"
+    },
+    {
+      "name": "verify-composed-finish-stored",
+      "waitFor": {
+        "store": "state.finishes && typeof state.finishes.floor['livingDining'] === 'string' && state.finishes.floor['livingDining'].startsWith('compose:')"
+      },
+      "timeout": 10000,
+      "failMessage": "Expected finishes.floor['livingDining'] to be a compose:<pattern>:<hex> id after Apply"
+    },
+    {
+      "name": "click-name-field",
+      "click": { "selector": "input[aria-label='Floor custom material name']" }
+    },
+    { "name": "type-custom-name", "type": "type", "text": "My oak weave" },
+    {
+      "name": "click-save-button",
+      "click": { "selector": "button[aria-label='Save composed floor finish as a custom material']" }
+    },
+    {
+      "name": "assert-saved-material-lands",
+      "waitFor": {
+        "store": "Array.isArray(state.savedMaterials) && state.savedMaterials.some(m => m.name === 'My oak weave' && m.category === 'floor')"
+      },
+      "timeout": 10000,
+      "failMessage": "Expected a SavedMaterial named 'My oak weave' (category floor) in state.savedMaterials after Save"
+    },
+    { "name": "shot-material-saved", "screenshot": "03-material-saved" }
+  ]
+}

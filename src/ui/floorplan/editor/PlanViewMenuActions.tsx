@@ -20,6 +20,12 @@ export function PlanViewMenuActions({
   onToggleWallDims,
   showFurniture,
   onToggleFurniture,
+  fMep,
+  showMep,
+  onToggleMep,
+  fHackability,
+  showHackability,
+  onToggleHackability,
   skeleton,
   onToggleSkeleton,
   isMultiLevel,
@@ -37,6 +43,12 @@ export function PlanViewMenuActions({
   onToggleWallDims: () => void
   showFurniture: boolean
   onToggleFurniture: () => void
+  fMep: boolean
+  showMep: boolean
+  onToggleMep: () => void
+  fHackability: boolean
+  showHackability: boolean
+  onToggleHackability: () => void
   skeleton: boolean
   onToggleSkeleton: () => void
   isMultiLevel: boolean
@@ -84,6 +96,28 @@ export function PlanViewMenuActions({
       >
         Furniture
       </button>
+      {fMep && (
+        <button
+          type="button"
+          onClick={onToggleMep}
+          className={`btn btn-sm${showMep ? ' btn-accent' : ''}`}
+          title="Toggle the electrical/plumbing points layer"
+          aria-pressed={showMep}
+        >
+          MEP
+        </button>
+      )}
+      {fHackability && (
+        <button
+          type="button"
+          onClick={onToggleHackability}
+          className={`btn btn-sm${showHackability ? ' btn-accent' : ''}`}
+          title="Toggle the wall hackability overlay — tints walls by demolition-permit status (red = not permitted, amber = permit required, muted = unclassified)"
+          aria-pressed={showHackability}
+        >
+          Hackability
+        </button>
+      )}
       <button
         type="button"
         onClick={onToggleSkeleton}

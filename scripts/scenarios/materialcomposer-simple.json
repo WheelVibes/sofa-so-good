@@ -1,0 +1,115 @@
+{
+  "name": "materialcomposer-simple",
+  "description": "Simple ladder for materialComposer (Compose finishes): opens the FinishPicker for a room, expands the 'Compose your own…' Disclosure inside the floor tab, applies a composed procedural finish via the real Apply button, and asserts the store records a compose:<pattern>:<hex> finish id. materialComposer is simple-tier (present in both Simple and Pro) — asserted ON in both modes.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "Expected uiMode=simple at boot"
+    },
+    {
+      "name": "verify-materialcomposer-on-in-simple",
+      "waitFor": {
+        "store": "state.featureFlags && state.featureFlags.materialComposer === true"
+      },
+      "timeout": 10000,
+      "failMessage": "materialComposer should be ON in Simple mode (it is simple-tier)"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 5000
+    },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading?.()" },
+    { "name": "wait-room-load", "wait": 1500 },
+    {
+      "name": "select-room",
+      "store": { "action": "selectRoom", "args": ["livingDining"] }
+    },
+    {
+      "name": "finish-picker-visible",
+      "waitFor": { "css": ".panel.inspector" },
+      "timeout": 15000,
+      "failMessage": "FinishPicker (.panel.inspector) did not appear after room selection"
+    },
+    { "name": "shot-finish-picker-open", "screenshot": "01-finish-picker-open" },
+    {
+      "name": "expand-compose-disclosure",
+      "click": { "text": "Compose your own…" }
+    },
+    {
+      "name": "composer-controls-visible",
+      "waitFor": { "css": "button[aria-label='Apply composed floor finish']" },
+      "timeout": 10000,
+      "failMessage": "MaterialComposer's Apply button did not appear after expanding the Disclosure"
+    },
+    { "name": "shot-composer-open", "screenshot": "02-composer-open" },
+    {
+      "name": "open-texture-select",
+      "eval": "document.querySelector(\"button[aria-label='Floor texture or material']\")?.click()"
+    },
+    {
+      "name": "options-visible",
+      "waitFor": { "css": "[role='option']" },
+      "timeout": 5000,
+      "failMessage": "The Select's option list (portalled Popover) did not open"
+    },
+    {
+      "name": "pick-wood-pattern",
+      "eval": "[...document.querySelectorAll(\"[role='option']\")].find((o) => o.textContent.trim() === 'Wood planks')?.click()"
+    },
+    {
+      "name": "apply-composed-finish",
+      "eval": "document.querySelector(\"button[aria-label='Apply composed floor finish']\")?.click()"
+    },
+    {
+      "name": "verify-composed-finish-stored",
+      "waitFor": {
+        "store": "state.finishes && typeof state.finishes.floor['livingDining'] === 'string' && state.finishes.floor['livingDining'].startsWith('compose:')"
+      },
+      "timeout": 10000,
+      "failMessage": "Expected finishes.floor['livingDining'] to be a compose:<pattern>:<hex> id after Apply"
+    },
+    { "name": "shot-composed-finish-applied", "screenshot": "03-composed-finish-applied" },
+    {
+      "name": "switch-to-pro",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "reresolve-flags-pro",
+      "eval": "window.__store.getState().reresolveFeatureFlags?.()"
+    },
+    {
+      "name": "verify-pro-mode",
+      "waitFor": { "store": "state.uiMode === 'pro'" },
+      "timeout": 5000
+    },
+    {
+      "name": "verify-materialcomposer-on-in-pro",
+      "waitFor": {
+        "store": "state.featureFlags && state.featureFlags.materialComposer === true"
+      },
+      "timeout": 10000,
+      "failMessage": "materialComposer should still be ON in Pro mode (simple-tier flags are shown in both modes)"
+    },
+    {
+      "name": "composer-still-present-in-pro",
+      "waitFor": { "css": "button[aria-label='Apply composed floor finish']" },
+      "timeout": 10000,
+      "failMessage": "MaterialComposer's Apply button should still render in Pro mode"
+    },
+    { "name": "shot-pro-mode-composer", "screenshot": "04-pro-mode-composer-present" }
+  ]
+}

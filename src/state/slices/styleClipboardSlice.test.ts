@@ -53,4 +53,51 @@ describe('styleClipboardSlice', () => {
     expect(items.find((i) => i.id === b)!.props.beddingColor).toBe('#222222')
     expect(items.find((i) => i.id === c)!.props.beddingColor).toBe('#222222')
   })
+
+  describe('recolorItems (bulk "Tint all")', () => {
+    it("targets a parametric def's color field(s), not props.tint", () => {
+      const a = addBed('#111111', [1, 1])
+      const n = useStore.getState().recolorItems([a], '#ff8800')
+      expect(n).toBe(1)
+      const item = useStore.getState().items.find((i) => i.id === a)!
+      expect(item.props.beddingColor).toBe('#ff8800')
+      expect(item.props.tint).toBeUndefined()
+    })
+
+    it('skips locked items', () => {
+      const a = addBed('#111111', [1, 1])
+      useStore.getState().toggleLock(a)
+      const n = useStore.getState().recolorItems([a], '#ff8800')
+      expect(n).toBe(0)
+      expect(useStore.getState().items.find((i) => i.id === a)!.props.beddingColor).toBe('#111111')
+    })
+
+    it('null hex clears back to the schema default, not blank', () => {
+      const a = addBed('#111111', [1, 1])
+      useStore.getState().recolorItems([a], '#ff8800')
+      useStore.getState().recolorItems([a], null)
+      const item = useStore.getState().items.find((i) => i.id === a)!
+      // bed-single's beddingColor schema default (not '#111111', not '#ff8800').
+      expect(item.props.beddingColor).not.toBe('#ff8800')
+      expect(typeof item.props.beddingColor).toBe('string')
+    })
+
+    it('is a no-op (returns 0) when nothing actually changes', () => {
+      const a = addBed('#ff8800', [1, 1])
+      useStore.getState().recolorItems([a], '#ff8800') // sets every color field to it
+      expect(useStore.getState().recolorItems([a], '#ff8800')).toBe(0)
+    })
+
+    it('batches multiple items into ONE undo step', () => {
+      const a = addBed('#111111', [1, 1])
+      const b = addBed('#222222', [3, 1])
+      const beforePast = useStore.getState().past.length
+      useStore.getState().recolorItems([a, b], '#333333')
+      expect(useStore.getState().past.length).toBe(beforePast + 1)
+      useStore.getState().undo()
+      const items = useStore.getState().items
+      expect(items.find((i) => i.id === a)!.props.beddingColor).toBe('#111111')
+      expect(items.find((i) => i.id === b)!.props.beddingColor).toBe('#222222')
+    })
+  })
 })

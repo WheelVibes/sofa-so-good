@@ -10,17 +10,12 @@
  * Self-contained: imports only `./types`. No furniture / store types.
  */
 
-import type { FloorPlan } from './types'
+import type { ElectricalKind, FloorPlan } from './types'
 
-/** Standard SG electrical point kinds. */
-export type ElectricalKind =
-  | 'socket'
-  | 'socket-double'
-  | 'switch'
-  | 'data'
-  | 'tv-point'
-  | 'aircon'
-  | 'water-heater'
+/** Standard SG electrical point kinds — moved to `floorplan/types.ts` (MEP
+ *  layer plan, G1) so `PlanElectricalPoint` can live there without an import
+ *  cycle; re-exported here type-only so existing importers are unaffected. */
+export type { ElectricalKind }
 
 /** A single electrical point placed in the plan (world metres). */
 export interface ElectricalPoint {
@@ -31,6 +26,22 @@ export interface ElectricalPoint {
   label?: string
   /** Storey the point sits on; absent = ground (F13). */
   levelId?: string
+  /** Mount height above finished floor level (mm, AFFL) — carried through from
+   *  a persisted `PlanElectricalPoint` (MEP layer, G1 PR5) so the exported
+   *  sheet can print it beside the symbol. Absent for heuristic-derived
+   *  points (the furniture-layout fallback has no authored height). */
+  mountHeightMm?: number
+  /** Point id — carried through from the persisted `PlanElectricalPoint` so the
+   *  electrical sheet can join a `switch` to its lighting circuit (BSJ-3).
+   *  Absent for heuristic-derived points. */
+  id?: string
+  /** Controlled light-fixture ids for a `switch` point (BSJ-3) — carried through
+   *  so the sheet can tag the circuit. See `PlanElectricalPoint.controls`. */
+  controls?: string[]
+  /** Switch gang count (BSJ-3). */
+  gang?: number
+  /** One-way (1) / two-way (2) switching (BSJ-3). */
+  way?: number
 }
 
 /** One schedule row: how many of a given kind, with a friendly label. */
@@ -95,6 +106,15 @@ export function buildElectricalPlan(plan: FloorPlan, points: ElectricalPoint[]):
     const out: ElectricalPoint = { x: num(p.x), z: num(p.z), kind }
     if (typeof p.label === 'string' && p.label.length > 0) out.label = p.label
     if (typeof p.levelId === 'string' && p.levelId.length > 0) out.levelId = p.levelId
+    if (typeof p.mountHeightMm === 'number' && Number.isFinite(p.mountHeightMm))
+      out.mountHeightMm = p.mountHeightMm
+    // BSJ-3: carry the id + switch-circuit fields through so the sheet can join
+    // a switch to its lighting circuit. Only meaningful on `switch` points.
+    if (typeof p.id === 'string' && p.id.length > 0) out.id = p.id
+    if (Array.isArray(p.controls) && p.controls.length > 0)
+      out.controls = p.controls.filter((c) => typeof c === 'string' && c.length > 0)
+    if (typeof p.gang === 'number' && Number.isFinite(p.gang)) out.gang = p.gang
+    if (typeof p.way === 'number' && Number.isFinite(p.way)) out.way = p.way
     clean.push(out)
   }
 

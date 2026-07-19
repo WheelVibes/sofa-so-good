@@ -55,7 +55,9 @@ export async function openMoodboard(): Promise<void> {
           name: def.name,
           category: def.category,
           count: 1,
-          each: itemPrice(def, def.category),
+          // First-occurrence pricing (like `name`/`category` above) — see the
+          // matching note in `openBoq.ts`.
+          each: itemPrice(def, def.category, undefined, it.meta?.price),
         })
     }
     const input: MoodboardInput = {

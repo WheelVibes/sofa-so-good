@@ -45,7 +45,7 @@ export const PLAN_TEMPLATES: FloorPlan[] = [
   cat(hdb3Gen(), 'HDB', 'Punggol Point Cove', '3Gen'),
   cat(hdbJumbo(), 'HDB', 'Bishan Ridges', 'Jumbo'),
   cat(hdbMaisonette(), 'HDB', 'Bishan Ridges', 'Executive Maisonette'),
-  // Condominium / landed — grouped by development.
+  // Condominium — grouped by development.
   cat(studio(), 'Condominium', 'The Sail @ Marina Bay', 'Studio'),
   cat(oneBed(), 'Condominium', 'The Sail @ Marina Bay', '1-Bedroom'),
   cat(loft(), 'Condominium', 'Sky Habitat', 'Loft'),
@@ -56,7 +56,9 @@ export const PLAN_TEMPLATES: FloorPlan[] = [
   cat(condo4Bed(), 'Condominium', "d'Leedon", '4-Bedroom'),
   cat(condoStudio(), 'Condominium', "d'Leedon", 'Studio'),
   cat(condoPenthouse(), 'Condominium', 'Marina One Residences', 'Penthouse'),
-  cat(condoTerrace(), 'Condominium', 'Landed Terraces', 'Terrace House'),
+  // Landed — houses on their own land title (terraces/semi-Ds/bungalows);
+  // a distinct approval path (BCA-direct, no HDB/MCST) from HDB/Condominium.
+  cat(condoTerrace(), 'Landed', 'Landed Terraces', 'Terrace House'),
 ]
 
 /** Build the housing-type → project → templates tree for the cascading picker.

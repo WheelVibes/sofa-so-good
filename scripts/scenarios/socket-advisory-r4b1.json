@@ -1,0 +1,14 @@
+{
+  "name": "socket-advisory-r4b1",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()" },
+    { "name": "pro-mode", "eval": "(() => { const s = window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags(); })()" },
+    { "name": "seed-mep", "eval": "(() => { const s = window.__store.getState(); s.suggestMepPoints?.(); })()" },
+    { "name": "open-plan-editor", "eval": "window.__store.getState().setFloorPlanEditing(true)" },
+    { "name": "plan-visible", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "settle-plan", "wait": 800 },
+    { "name": "shot-mep-advisory", "screenshot": "socket-advisory-mep" }
+  ]
+}

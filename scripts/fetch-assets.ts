@@ -15,6 +15,9 @@ import { writeSidecar } from './asset-pipeline/sidecar'
 
 const args = new Set(process.argv.slice(2))
 const QUICK = args.has('--quick')
+// Opt-in build-time KTX2/UASTC texture compression for furniture GLBs. Off by
+// default (CPU-heavy); no-ops when the encoder is unavailable. See ktx2-encode.ts.
+const KTX2 = args.has('--ktx2')
 const projectRoot = process.cwd()
 const cacheRoot = join(projectRoot, '.asset-cache')
 
@@ -23,7 +26,7 @@ async function fetchFurniture(entries: FurnitureManifestEntry[]): Promise<void> 
     console.log(`[furniture] ${e.id}`)
     const cached = await downloadToCache(cacheRoot, e.downloadUrl)
     const out = join(projectRoot, 'public/assets/furniture', `${e.id}.glb`)
-    await processGlb(cached, out, { compress: !QUICK })
+    await processGlb(cached, out, { compress: !QUICK, ktx2: KTX2 })
     writeSidecar(out, {
       id: e.id,
       name: e.name,

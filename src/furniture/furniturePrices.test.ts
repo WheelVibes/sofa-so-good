@@ -107,6 +107,23 @@ describe('itemPrice', () => {
     } as IkeaGltfDef
     expect(itemPrice(mixed, 'beds', 'white')).toBe(204)
   })
+
+  it('a custom priceOverride (ITEM-META) wins over the IKEA variant price', () => {
+    expect(itemPrice(ikea, 'beds', undefined, 500)).toBe(500)
+  })
+
+  it('a custom priceOverride wins over the category/table fallback', () => {
+    const bed = { id: 'bed-queen', category: 'beds' } as FurnitureDef
+    expect(itemPrice(bed, 'beds', undefined, 0)).toBe(0) // zero is a valid override
+    expect(itemPrice(bed, 'beds', undefined, 42)).toBe(42)
+  })
+
+  it('ignores an invalid priceOverride (negative/NaN/undefined) and falls back normally', () => {
+    const bed = { id: 'bed-queen', category: 'beds' } as FurnitureDef
+    expect(itemPrice(bed, 'beds', undefined, -5)).toBe(900)
+    expect(itemPrice(bed, 'beds', undefined, Number.NaN)).toBe(900)
+    expect(itemPrice(bed, 'beds', undefined, undefined)).toBe(900)
+  })
 })
 
 describe('furniturePrices', () => {

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_QUOTE_TEMPLATE } from '../../export/quoteTemplate'
 import { serialize } from '../schema'
 import { useStore } from '../store'
-import { PERSISTENT_WATCH_KEYS, startAutosave } from './autosave'
+import { PERSISTENT_WATCH_KEYS, pauseAutosave, resumeAutosave, startAutosave } from './autosave'
 import type { StorageAdapter } from './StorageAdapter'
 import { StorageError } from './StorageAdapter'
 
@@ -78,6 +78,7 @@ describe('startAutosave error handling', () => {
   // change was lost on reload unless an unrelated tracked field also changed.
   it.each([
     ['lightsMode', (s: ReturnType<typeof useStore.getState>) => s.setLightsMode?.('on')],
+    ['lightMood', (s: ReturnType<typeof useStore.getState>) => s.setLightMood?.('movie')],
     ['orientationDeg', () => useStore.setState({ orientationDeg: 90 })],
     ['designNote', (s: ReturnType<typeof useStore.getState>) => s.setDesignNote('client brief')],
     [
@@ -132,6 +133,81 @@ describe('startAutosave error handling', () => {
     document.dispatchEvent(new Event('visibilitychange'))
     await Promise.resolve()
     expect(adapter.save).toHaveBeenCalledTimes(1)
+    stop()
+  })
+})
+
+// BUG: overlapping version-compare captures corrupt restore + risk an autosave
+// leak — pauseAutosave/resumeAutosave must be a NESTING counter, not a plain
+// boolean, so two overlapping pause windows can't have the second's resume
+// prematurely re-enable autosave while the first's swap is still live.
+describe('pauseAutosave/resumeAutosave nesting counter', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    useStore.getState().resetToDefault()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  it('a single pause/resume pair behaves as before (no change scheduled while paused, resumes after)', async () => {
+    const adapter = makeAdapter(async () => {})
+    const stop = startAutosave({ adapter })
+
+    pauseAutosave()
+    useStore.setState((s) => ({ items: [...s.items] }) as never)
+    await vi.advanceTimersByTimeAsync(600)
+    expect(adapter.save).not.toHaveBeenCalled()
+
+    resumeAutosave()
+    useStore.setState((s) => ({ items: [...s.items] }) as never)
+    await vi.advanceTimersByTimeAsync(600)
+    expect(adapter.save).toHaveBeenCalledTimes(1)
+
+    stop()
+  })
+
+  it('double pause needs double resume — a single resume does NOT re-enable scheduling', async () => {
+    const adapter = makeAdapter(async () => {})
+    const stop = startAutosave({ adapter })
+
+    // Two overlapping pauses (e.g. two overlapping version-compare captures).
+    pauseAutosave()
+    pauseAutosave()
+
+    // One resume (the first capture finishing) must NOT re-enable autosave —
+    // the second capture's swap may still be live.
+    resumeAutosave()
+    useStore.setState((s) => ({ items: [...s.items] }) as never)
+    await vi.advanceTimersByTimeAsync(600)
+    expect(adapter.save).not.toHaveBeenCalled()
+
+    // The matching second resume finally re-enables it.
+    resumeAutosave()
+    useStore.setState((s) => ({ items: [...s.items] }) as never)
+    await vi.advanceTimersByTimeAsync(600)
+    expect(adapter.save).toHaveBeenCalledTimes(1)
+
+    stop()
+  })
+
+  it('an extra resume beyond the pause count does not go negative / misbehave on the next real pause', async () => {
+    const adapter = makeAdapter(async () => {})
+    const stop = startAutosave({ adapter })
+
+    // Resume with no prior pause — should clamp at 0, not go negative.
+    resumeAutosave()
+    pauseAutosave()
+    useStore.setState((s) => ({ items: [...s.items] }) as never)
+    await vi.advanceTimersByTimeAsync(600)
+    expect(adapter.save).not.toHaveBeenCalled()
+
+    resumeAutosave()
+    useStore.setState((s) => ({ items: [...s.items] }) as never)
+    await vi.advanceTimersByTimeAsync(600)
+    expect(adapter.save).toHaveBeenCalledTimes(1)
+
     stop()
   })
 })

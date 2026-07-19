@@ -29,6 +29,9 @@ function renderSheet(over: Partial<Parameters<typeof PlanToolsSheet>[0]> = {}) {
       planDefaults={frag('Ceiling height')}
       totalLabel={<span>Total 90 m²</span>}
       onHelp={onHelp}
+      fMep={false}
+      mep={{ family: 'electrical', kind: 'socket' }}
+      onPickMep={() => {}}
       {...over}
     />,
   )
@@ -100,5 +103,23 @@ describe('PlanToolsSheet — icon-rail sheet paradigm', () => {
   it('renders nothing while closed', () => {
     renderSheet({ open: false })
     expect(document.querySelector('.m-menu-overlay')).toBeNull()
+  })
+
+  it('hides the MEP rail tab when the flag is off', () => {
+    renderSheet({ fMep: false })
+    const tabs = screen.getAllByRole('tab').map((t) => t.getAttribute('aria-label'))
+    expect(tabs).not.toContain('MEP')
+  })
+
+  it('shows the MEP rail tab + electrical/plumbing kind chips when the flag is on', () => {
+    const onPickMep = vi.fn()
+    renderSheet({ fMep: true, onPickMep })
+    const tabs = screen.getAllByRole('tab').map((t) => t.getAttribute('aria-label'))
+    expect(tabs).toContain('MEP')
+    fireEvent.click(screen.getByRole('tab', { name: 'MEP' }))
+    expect(screen.getByText('Electrical')).toBeTruthy()
+    expect(screen.getByText('Plumbing')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Switch' }))
+    expect(onPickMep).toHaveBeenCalledWith({ family: 'electrical', kind: 'switch' })
   })
 })

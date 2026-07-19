@@ -49,6 +49,11 @@ function wallpaper(
 export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   // ── Floors (procedural PBR) ─────────────────────────────────────────────
   'floor-concrete': floor('floor-concrete', 'Concrete (bare)', '#bcb9b3', 'concrete', [2.2, 2.2]),
+  // Raw cement screed — the unfinished floor an HDB BTO is handed over with when
+  // the buyer does NOT opt into the Optional Component Scheme (BSJ-4). A flat,
+  // dusty grey cement topping over the structural slab; distinct from the smoother
+  // `floor-concrete` microcement look (HDB Group Reno / 9creation bare-handover).
+  'floor-screed': floor('floor-screed', 'Cement screed (bare)', '#a7a29a', 'concrete', [3.2, 3.2]),
   'floor-wood-oak': floor('floor-wood-oak', 'Oak planks', '#b88f5d', 'wood', [1.9, 1.2]),
   'floor-wood-walnut': floor('floor-wood-walnut', 'Walnut planks', '#6b4428', 'wood', [1.9, 1.2]),
   'floor-tile-white': floor('floor-tile-white', 'White tiles', '#e6e3dc', 'tile', [0.6, 0.6]),
@@ -125,6 +130,45 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     '#5a564e',
     'terrazzo',
     [1.0, 1.0],
+  ),
+  // Heritage checkerboard colourways (jade / cobalt) — the classic Peranakan
+  // shophouse floor. Two tiles ≈ 0.6 m each at this uvScale.
+  'floor-checker-jade': floor(
+    'floor-checker-jade',
+    'Heritage checker (jade)',
+    '#3f7d6a',
+    'checker',
+    [1.2, 1.2],
+  ),
+  'floor-checker-cobalt': floor(
+    'floor-checker-cobalt',
+    'Heritage checker (cobalt)',
+    '#2f4d8a',
+    'checker',
+    [1.2, 1.2],
+  ),
+  // Peranakan / Nyonya majolica encaustic tiles — the named 2026 heritage trend.
+  // Small cement tiles (~0.2 m each; 2 tiles per texture → 0.4 m uvScale).
+  'floor-peranakan-jade': floor(
+    'floor-peranakan-jade',
+    'Peranakan tile (jade)',
+    '#3f7d6a',
+    'peranakan',
+    [0.4, 0.4],
+  ),
+  'floor-peranakan-cobalt': floor(
+    'floor-peranakan-cobalt',
+    'Peranakan tile (cobalt)',
+    '#2f4d8a',
+    'peranakan',
+    [0.4, 0.4],
+  ),
+  'floor-peranakan-rose': floor(
+    'floor-peranakan-rose',
+    'Peranakan tile (rose)',
+    '#c56b6b',
+    'peranakan',
+    [0.4, 0.4],
   ),
   'floor-carpet-blue': floor('floor-carpet-blue', 'Navy carpet', '#3f4a63', 'carpet', [1.5, 1.5]),
   'floor-carpet-greige': floor(
@@ -351,6 +395,64 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     pattern: 'concrete',
     swatch: '#54524f',
     uvScale: [3, 3],
+  },
+  // Limewash / mineral-wash paint — soft cloudy tonal wash ("quiet luxury").
+  // A distinct matte-paint patina, tiled broad like plaster.
+  'wall-limewash-white': {
+    id: 'wall-limewash-white',
+    name: 'Limewash (soft white)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'limewash',
+    swatch: '#e8e6dd',
+    uvScale: [2.5, 2.5],
+  },
+  'wall-limewash-greige': {
+    id: 'wall-limewash-greige',
+    name: 'Limewash (greige)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'limewash',
+    swatch: '#cdc6b8',
+    uvScale: [2.5, 2.5],
+  },
+  'wall-limewash-clay': {
+    id: 'wall-limewash-clay',
+    name: 'Limewash (clay)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'limewash',
+    swatch: '#bf8a6f',
+    uvScale: [2.5, 2.5],
+  },
+  'wall-limewash-terracotta': {
+    id: 'wall-limewash-terracotta',
+    name: 'Limewash (terracotta)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'limewash',
+    swatch: '#a8603f',
+    uvScale: [2.5, 2.5],
+  },
+  // Peranakan majolica as a backsplash / feature-wall accent (same painter as
+  // the floor tiles; tighter tiling for a wall).
+  'wall-peranakan-jade': {
+    id: 'wall-peranakan-jade',
+    name: 'Peranakan tile (jade)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'peranakan',
+    swatch: '#3f7d6a',
+    uvScale: [0.4, 0.4],
+  },
+  'wall-peranakan-cobalt': {
+    id: 'wall-peranakan-cobalt',
+    name: 'Peranakan tile (cobalt)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'peranakan',
+    swatch: '#2f4d8a',
+    uvScale: [0.4, 0.4],
   },
   // Board-and-batten panelling (vertical raised battens), tiles ~1.2 m wide.
   'wall-batten-white': wallpaper(

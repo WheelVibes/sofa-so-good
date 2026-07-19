@@ -41,8 +41,10 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   the `left:50%` toolbar re-centres over the remaining space) and the panel docks full-height. Pure
   CSS keyed on the panel's *presence* (panels mount only when open) — no JS open-state. A new panel
   that should reflow the canvas just needs the right `dock-panel`/`dock-panel-left` class; mobile
-  (≤640px) keeps bottom-sheets (the dock rules are gated to ≥641px). (The 2D floor-plan editor has
-  its own layout — not docked yet.) **The catalog dock is user-resizable** (`catalogResize` flag,
+  (≤640px) keeps bottom-sheets (the dock rules are gated to ≥641px). (The 2D floor-plan editor's
+  `.plan-screen` also reads `--left-rail` (screens.css) so the docked catalog shrinks the plan
+  viewport the same way — the SVG's `ResizeObserver`-backed `usePlanViewport` re-fits on the
+  resulting resize, no JS wiring needed.) **The catalog dock is user-resizable** (`catalogResize` flag,
   simple tier, desktop only): `CatalogResizeHandle` (a `col-resize` grab handle on the panel's right
   edge) pointer-drags to set `--catalog-w` on the root, which drives BOTH `--left-rail` and the
   panel `width` (default 320px, clamped 260–560px). Width persists per-device to localStorage
@@ -203,6 +205,20 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   (don't fight the user), and an unmapped kind / whole-flat view keeps the persisted default.
   Gated by the `catalogRoomAware` flag (simple tier — a default-landing convenience is core-loop,
   not analytical); flag off restores today's behaviour. Unit-test the mapping + BOTH modes.
+- **Recently-placed quick-add strip (CATALOG-RECENTS, `catalogRecents` flag, simple tier)** — the
+  automatic, item-level "the thing I just used" complement to the deliberate Favourites star.
+  `recentSlice` (state) records a defId on every `addItem` commit, newest-first / deduped / capped
+  24, self-persisted per-device to `localStorage` (`hdb_recent_items`, out of the save schema like
+  favourites); `useUnifiedCatalog.ts` resolves those ids to a `recent: GridItem[]` (local defs only,
+  unresolvable/pets-gated entries dropped like clipboard paste). Two surfaces, both gated by the one
+  flag: the fuller **"Recent" pseudo-category tab** (`CategoryTabs`, chip hidden when count 0) and a
+  thin **`RecentStrip`** row (`ui/catalog/RecentStrip.tsx`, capped `RECENT_STRIP_MAX`=8) rendered atop
+  the browse grid in `CatalogDrawer` — shown only in a real browse category (not search / the
+  favourites+recent tabs) and hidden when empty (no dead strip). Both the strip chips and the full
+  `CatalogCard` share ONE place path via **`useCatalogPlacement(def)`** (extracted from `CatalogCard`
+  — desktop click-to-arm + native drag, mobile explicit-confirm `placeConfirm` + 2D-plan
+  tap-to-place); don't re-implement the placement grammar per surface. Test the flag in BOTH modes
+  (simple-tier → on in both).
 - **Stable catalog order across download (STABLE-CATALOG-ORDER)** lives in `useUnifiedCatalog.ts`:
   each category is a leading local block → remote CC0 block → shared-library block, and a card must
   NOT change block when it's downloaded. A resolved remote entry renders its local def AT the remote

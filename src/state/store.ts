@@ -36,6 +36,16 @@ import {
   type DrawingCalloutsSlice,
 } from './slices/drawingCalloutsSlice'
 import {
+  createDrawingSetTemplateSlice,
+  DRAWING_SET_TEMPLATE_INITIAL,
+  type DrawingSetTemplateSlice,
+} from './slices/drawingSetTemplateSlice'
+import {
+  createEyedropperSlice,
+  EYEDROPPER_INITIAL,
+  type EyedropperSlice,
+} from './slices/eyedropperSlice'
+import {
   createFavouritesSlice,
   FAVOURITES_INITIAL,
   type FavouritesSlice,
@@ -61,6 +71,11 @@ import {
 } from './slices/installedPacksSlice'
 import { createIsolateSlice, ISOLATE_INITIAL, type IsolateSlice } from './slices/isolateSlice'
 import { createItemsSlice, ITEMS_INITIAL, type ItemsSlice } from './slices/itemsSlice'
+import {
+  createLayoutVariantSlice,
+  LAYOUT_VARIANT_INITIAL,
+  type LayoutVariantSlice,
+} from './slices/layoutVariantSlice'
 import {
   createLightInteractSlice,
   LIGHT_INTERACT_INITIAL,
@@ -166,6 +181,11 @@ import {
   type UserStylesSlice,
 } from './slices/userStylesSlice'
 import {
+  createWalkMeasureSlice,
+  WALK_MEASURE_INITIAL,
+  type WalkMeasureSlice,
+} from './slices/walkMeasureSlice'
+import {
   createWindowFixtureSlice,
   WINDOW_FIXTURE_INITIAL,
   type WindowFixtureSlice,
@@ -178,6 +198,7 @@ export interface RootState
     MeasurementsSlice,
     CommentsSlice,
     DrawingCalloutsSlice,
+    DrawingSetTemplateSlice,
     DoorsSlice,
     WindowFixtureSlice,
     ScreenInteractSlice,
@@ -221,7 +242,10 @@ export interface RootState
     QuoteTemplateSlice,
     FeatureFlagsSlice,
     AuthSlice,
-    IsolateSlice {
+    IsolateSlice,
+    EyedropperSlice,
+    LayoutVariantSlice,
+    WalkMeasureSlice {
   __resetForTest: () => void
 }
 
@@ -232,6 +256,7 @@ const INITIAL = {
   ...MEASUREMENTS_INITIAL,
   ...COMMENTS_INITIAL,
   ...DRAWING_CALLOUTS_INITIAL,
+  ...DRAWING_SET_TEMPLATE_INITIAL,
   ...DOORS_INITIAL,
   ...WINDOW_FIXTURE_INITIAL,
   ...SCREEN_INTERACT_INITIAL,
@@ -272,8 +297,11 @@ const INITIAL = {
   ...STYLE_CLIPBOARD_INITIAL,
   ...USER_SETS_INITIAL,
   ...ISOLATE_INITIAL,
+  ...EYEDROPPER_INITIAL,
+  ...LAYOUT_VARIANT_INITIAL,
   ...USER_PRODUCTS_INITIAL,
   ...USER_COMPONENTS_INITIAL,
+  ...WALK_MEASURE_INITIAL,
 }
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -283,6 +311,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createMeasurementsSlice(set, get, api),
   ...createCommentsSlice(set, get, api),
   ...createDrawingCalloutsSlice(set, get, api),
+  ...createDrawingSetTemplateSlice(set, get, api),
   ...createDoorsSlice(set, get, api),
   ...createWindowFixtureSlice(set, get, api),
   ...createScreenInteractSlice(set, get, api),
@@ -327,6 +356,9 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createUserProductsSlice(set, get, api),
   ...createUserComponentsSlice(set, get, api),
   ...createIsolateSlice(set, get, api),
+  ...createEyedropperSlice(set, get, api),
+  ...createLayoutVariantSlice(set, get, api),
+  ...createWalkMeasureSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }))
 

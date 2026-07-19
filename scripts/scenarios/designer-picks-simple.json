@@ -1,0 +1,111 @@
+{
+  "name": "designer-picks-simple",
+  "url": "http://localhost:5211/",
+  "description": "IXT-SUITES simple rung for `designerPicks` (simple tier — the curated 'Designer picks' one-tap swatch row above the full floor/wall finish grid in FinishPicker). Opens the FinishPicker for livingDining, asserts the `[role=group][aria-label='Designer picks']` row renders on the Floor tab with >0 curated swatches, clicks the 2nd curated swatch and asserts `finishes.floor['livingDining']` becomes one of the known curated floor ids, switches to the Walls tab and asserts a SEPARATE curated row renders there too, then re-verifies both rows are present after a Simple→Pro switch (designerPicks is simple-tier, shown in both modes) and absent when the flag is explicitly overridden off.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "Expected uiMode=simple at boot"
+    },
+    {
+      "name": "verify-designerpicks-on-in-simple",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.designerPicks === true" },
+      "timeout": 10000,
+      "failMessage": "designerPicks should be ON in Simple mode (it is simple-tier)"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 5000
+    },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading?.()" },
+    { "name": "wait-room-load", "wait": 1500 },
+    {
+      "name": "select-room",
+      "store": { "action": "selectRoom", "args": ["livingDining"] }
+    },
+    {
+      "name": "finish-picker-visible",
+      "waitFor": { "css": ".panel.inspector" },
+      "timeout": 15000,
+      "failMessage": "FinishPicker (.panel.inspector) did not appear after room selection"
+    },
+    {
+      "name": "designer-picks-row-visible-floor",
+      "eval": "(function(){ const grp = document.querySelector(\"[role='group'][aria-label='Designer picks']\"); if (!grp) throw new Error('Designer picks row did not render on the Floor tab'); const n = grp.querySelectorAll('button').length; if (n === 0) throw new Error('Designer picks row rendered with 0 swatches'); window.__floorPicksCount = n; })()"
+    },
+    { "name": "record-baseline-floor-finish", "eval": "window.__baselineFloorFinish = window.__store.getState().finishes.floor['livingDining']" },
+    { "name": "shot-designer-picks-floor", "screenshot": "01-designer-picks-floor-tab" },
+    {
+      "name": "click-second-designer-pick",
+      "eval": "(function(){ const grp = document.querySelector(\"[role='group'][aria-label='Designer picks']\"); const btns = [...grp.querySelectorAll('button')]; const btn = btns[1] || btns[0]; if (!btn) throw new Error('No designer-pick swatch to click'); btn.click(); })()"
+    },
+    {
+      "name": "floor-finish-applied",
+      "waitFor": {
+        "store": "(function(){ const ids = ['floor-wood-oak','floor-wood-walnut','floor-parquet','floor-tile-marble','floor-tile-white','floor-carpet']; return ids.includes(state.finishes.floor['livingDining']); })()"
+      },
+      "timeout": 5000,
+      "failMessage": "finishes.floor['livingDining'] should be one of the known curated floor ids after clicking a Designer pick swatch"
+    },
+    { "name": "shot-floor-finish-applied", "screenshot": "02-floor-finish-applied" },
+    {
+      "name": "switch-to-walls-tab",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.panel.inspector button')].find((b) => b.textContent.trim() === 'Walls'); if (!btn) throw new Error(\"'Walls' tab button not found\"); btn.click(); })()"
+    },
+    {
+      "name": "designer-picks-row-visible-walls",
+      "waitFor": { "css": "[role='group'][aria-label='Designer picks']" },
+      "timeout": 5000,
+      "failMessage": "Designer picks row did not render on the Walls tab"
+    },
+    { "name": "shot-designer-picks-walls", "screenshot": "03-designer-picks-walls-tab" },
+    {
+      "name": "switch-to-pro",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "reresolve-flags-pro",
+      "eval": "window.__store.getState().reresolveFeatureFlags?.()"
+    },
+    {
+      "name": "verify-pro-mode",
+      "waitFor": { "store": "state.uiMode === 'pro'" },
+      "timeout": 5000
+    },
+    {
+      "name": "verify-designerpicks-on-in-pro",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.designerPicks === true" },
+      "timeout": 10000,
+      "failMessage": "designerPicks should still be ON in Pro mode (simple-tier flags are shown in both modes)"
+    },
+    {
+      "name": "designer-picks-still-present-in-pro",
+      "waitFor": { "css": "[role='group'][aria-label='Designer picks']" },
+      "timeout": 5000,
+      "failMessage": "Designer picks row should still render in Pro mode"
+    },
+    { "name": "shot-pro-mode-designer-picks", "screenshot": "04-pro-mode-designer-picks" },
+    {
+      "name": "force-flag-off",
+      "store": { "action": "setFeatureFlag", "args": ["designerPicks", false] }
+    },
+    {
+      "name": "designer-picks-hidden-when-forced-off",
+      "eval": "(function(){ const grp = document.querySelector(\"[role='group'][aria-label='Designer picks']\"); if (grp) throw new Error('Designer picks row should be hidden when the flag is forced off'); })()"
+    },
+    { "name": "shot-flag-forced-off", "screenshot": "05-flag-forced-off-hidden" }
+  ]
+}

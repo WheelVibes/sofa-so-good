@@ -136,6 +136,8 @@ export const COMPOSE_TEXTURES: ComposeTexture[] = [
   { pattern: 'brick', label: 'Brick', uvScale: [1.2, 1.2] },
   { pattern: 'batten', label: 'Board & batten', uvScale: [1.2, 1.2] },
   { pattern: 'fluted', label: 'Fluted panel', uvScale: [0.8, 0.8] },
+  { pattern: 'peranakan', label: 'Peranakan tile', uvScale: [0.4, 0.4] },
+  { pattern: 'limewash', label: 'Limewash', uvScale: [2.5, 2.5] },
 ]
 
 const BY_PATTERN = new Map(COMPOSE_TEXTURES.map((t) => [t.pattern, t]))

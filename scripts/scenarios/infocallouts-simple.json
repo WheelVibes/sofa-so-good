@@ -1,0 +1,105 @@
+{
+  "name": "infocallouts-simple",
+  "url": "http://localhost:5211/",
+  "description": "IXT-SUITES batch 9 simple rung for the `infoCallouts` flag (simple tier — on in both modes). Enters the room editor and asserts the 'Designing one room' `.info-callout` (id=room-editor) is mounted, screenshots it, dismisses it via its close button and asserts it never re-mounts on a fresh enterRoomEditor call (persisted dismissal), then enters the floor-plan editor and asserts its DIFFERENT `.info-callout` (id=floor-plan) still shows (per-id dismissal, not a global switch), then flips the flag off directly and asserts the floor-plan callout unmounts even though it was never dismissed, and restores it back on to confirm it reappears (still dismissed by id where applicable — a fresh id 'floor-plan' was never dismissed so it comes straight back).",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "Expected uiMode=simple at boot"
+    },
+    {
+      "name": "boot-settled",
+      "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" },
+      "timeout": 60000
+    },
+    { "name": "settle-post-boot", "wait": 600 },
+    {
+      "name": "verify-flag-on-in-simple",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.infoCallouts === true" },
+      "timeout": 10000,
+      "failMessage": "infoCallouts should be ON in Simple mode (it is simple-tier)"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 5000
+    },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading?.()" },
+    { "name": "wait-room-load", "wait": 1200 },
+    {
+      "name": "assert-room-editor-callout-present",
+      "eval": "(function(){ const el = document.querySelector('.info-callout'); if (!el) throw new Error('Expected the room-editor .info-callout to be mounted'); if (!/Designing one room/.test(el.textContent||'')) throw new Error('Wrong callout content: ' + (el.textContent||'')); })()"
+    },
+    { "name": "shot-room-editor-callout", "screenshot": "01-room-editor-callout-visible" },
+    {
+      "name": "dismiss-room-editor-callout",
+      "eval": "(function(){ const btn = document.querySelector('.info-callout .ic-dismiss'); if (!btn) throw new Error(\"'.ic-dismiss' button not found\"); btn.click(); })()"
+    },
+    {
+      "name": "assert-dismissed-persisted",
+      "waitFor": { "store": "state.dismissedCallouts && state.dismissedCallouts.includes('room-editor')" },
+      "timeout": 5000
+    },
+    {
+      "name": "assert-callout-gone",
+      "eval": "(function(){ if (document.querySelector('.info-callout')) throw new Error('Expected .info-callout to unmount after dismiss'); })()"
+    },
+    { "name": "shot-room-editor-callout-dismissed", "screenshot": "02-room-editor-callout-dismissed" },
+    {
+      "name": "re-enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["kitchen"] }
+    },
+    { "name": "re-enter-settle", "wait": 800 },
+    {
+      "name": "assert-callout-stays-dismissed",
+      "eval": "(function(){ if (document.querySelector('.info-callout')) throw new Error('room-editor callout should stay dismissed across a fresh enterRoomEditor call'); })()"
+    },
+    {
+      "name": "exit-room-editor",
+      "store": { "action": "exitRoomEditor", "args": [] }
+    },
+    { "name": "exit-settle", "wait": 400 },
+    {
+      "name": "enter-floorplan",
+      "store": { "action": "setFloorPlanEditing", "args": [true] }
+    },
+    { "name": "plan-screen-ready", "waitFor": { "css": ".plan-screen" }, "timeout": 30000 },
+    { "name": "settle-plan-mount", "wait": 1000 },
+    {
+      "name": "assert-floorplan-callout-present",
+      "eval": "(function(){ const el = document.querySelector('.plan-screen .info-callout'); if (!el) throw new Error('Expected the floor-plan .info-callout to be mounted (a different id than room-editor, so its own dismissal is independent)'); if (!/Editing your floor plan/.test(el.textContent||'')) throw new Error('Wrong callout content: ' + (el.textContent||'')); })()"
+    },
+    { "name": "shot-floorplan-callout", "screenshot": "03-floorplan-callout-visible" },
+    {
+      "name": "turn-flag-off",
+      "store": { "action": "setFeatureFlag", "args": ["infoCallouts", false] }
+    },
+    { "name": "flag-off-settle", "wait": 400 },
+    {
+      "name": "assert-floorplan-callout-hidden-by-flag",
+      "eval": "(function(){ if (document.querySelector('.plan-screen .info-callout')) throw new Error('Expected .info-callout to unmount once infoCallouts is turned off (never dismissed, only flag-gated)'); })()"
+    },
+    { "name": "shot-flag-off", "screenshot": "04-flag-off-callout-hidden" },
+    {
+      "name": "restore-flag-on",
+      "store": { "action": "setFeatureFlag", "args": ["infoCallouts", true] }
+    },
+    { "name": "flag-restore-settle", "wait": 400 },
+    {
+      "name": "assert-floorplan-callout-reappears",
+      "eval": "(function(){ const el = document.querySelector('.plan-screen .info-callout'); if (!el) throw new Error('Expected the floor-plan .info-callout to reappear once infoCallouts is restored'); })()"
+    },
+    { "name": "shot-flag-restored", "screenshot": "05-flag-restored-callout-visible" }
+  ]
+}

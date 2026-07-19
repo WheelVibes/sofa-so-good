@@ -1,0 +1,88 @@
+{
+  "name": "sun-study-simple",
+  "description": "IXT-SUITES simple rung for the `sunStudy` flag (pro tier — `ui/toolbar/menus/ToolsMenu.tsx` 'Sun study' row, wired to the local-state `useSunStudy` hook (`scene/sunStudy.ts` shape) that time-lapses `manualHour` dawn->dusk at ~1.4 sim-hours/real-second while active, restoring the prior time mode + hour on stop). Simple/Pro gate: the Tools menu itself is Pro-only at the mount level (Toolbar.tsx `{proMode && <ToolsMenu />}`), so this asserts the row's ABSENCE via the whole menu's absence in Simple and its presence + real effect in Pro — the same 'stronger, structural absence proof' pattern the batch-10 newBadges gotcha documents for another Pro-only menu. Real interaction: toggling Sun study on drives `manualHour` forward on its own (no user input needed) — verified by sampling the store value at two points in time and asserting the second reading is later on the 6-20h dawn->dusk band; toggling off restores the exact mode+hour it started from.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setTimeMode?.('manual'); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "verify-simple-default",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000
+    },
+    {
+      "name": "assert-tools-menu-absent-in-simple",
+      "eval": "(() => { const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Tools'); if (btn) throw new Error('Tools menu trigger should not exist in the DOM in Simple mode (ToolsMenu is Pro-only at the mount level)') })()"
+    },
+    { "name": "shot-simple-no-tools", "screenshot": "01-simple-no-tools-menu" },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "open-tools-menu",
+      "eval": "(() => { const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Tools'); if (!btn) throw new Error('Tools menu trigger should exist in Pro mode'); btn.click(); })()"
+    },
+    {
+      "name": "wait-tools-panel",
+      "waitFor": { "text": "Sun study" },
+      "timeout": 5000,
+      "failMessage": "the Sun study row should be present in the Tools menu (Review group) when sunStudy resolves on"
+    },
+    { "name": "shot-tools-menu-open", "screenshot": "02-tools-menu-sun-study-row" },
+    {
+      "name": "record-hour-baseline",
+      "eval": "window.__sunBefore = { mode: window.__store.getState().timeMode, hour: window.__store.getState().manualHour }"
+    },
+    {
+      "name": "click-sun-study",
+      "eval": "(() => { const b = [...document.querySelectorAll('.pop-panel button')].find(x => x.textContent.trim().startsWith('Sun study')); if (!b) throw new Error('Sun study row not found'); b.click(); })()"
+    },
+    {
+      "name": "wait-timelapse-running",
+      "waitFor": { "store": "state.timeMode === 'manual' && typeof state.manualHour === 'number'" },
+      "timeout": 5000
+    },
+    { "name": "let-timelapse-advance", "wait": 2000 },
+    {
+      "name": "assert-hour-advanced",
+      "comment": "useSunStudy resets hour to a hardcoded dawn (6) the instant it activates, ignoring whatever manualHour was before (confirmed by reading scene/sunStudy.ts) -- so the real proof is (a) the hour jumped to the 6-20h dawn->dusk band regardless of the pre-toggle baseline of 13, and (b) it's still moving.",
+      "eval": "(() => { const h = window.__store.getState().manualHour; if (h < 6 || h > 20) throw new Error('sun study should land manualHour on the 6-20h dawn->dusk band, got ' + h); if (Math.abs(h - window.__sunBefore.hour) < 1e-3) throw new Error('sun study should have moved manualHour away from the pre-toggle baseline ' + window.__sunBefore.hour); window.__sunMid = h; })()"
+    },
+    { "name": "shot-mid-timelapse", "screenshot": "03-mid-timelapse-hour-advanced" },
+    {
+      "name": "let-timelapse-advance-more",
+      "wait": 1500
+    },
+    {
+      "name": "assert-hour-kept-advancing",
+      "eval": "(() => { const h = window.__store.getState().manualHour; if (Math.abs(h - window.__sunMid) < 1e-3) throw new Error('sun study hour should keep advancing frame-over-frame, stuck at ' + h) })()"
+    },
+    {
+      "name": "reopen-tools-menu-to-stop",
+      "eval": "(() => { const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Tools'); btn.click(); })()"
+    },
+    {
+      "name": "wait-tools-panel-2",
+      "waitFor": { "text": "Sun study" },
+      "timeout": 5000
+    },
+    {
+      "name": "click-sun-study-off",
+      "eval": "(() => { const b = [...document.querySelectorAll('.pop-panel button')].find(x => x.textContent.trim().startsWith('Sun study')); if (!b) throw new Error('Sun study row not found (stop)'); b.click(); })()"
+    },
+    {
+      "name": "assert-restored",
+      "waitFor": { "store": "state.timeMode === window.__sunBefore.mode && Math.abs(state.manualHour - window.__sunBefore.hour) < 1e-6" },
+      "timeout": 5000,
+      "failMessage": "stopping sun study should restore the exact prior time mode + hour"
+    },
+    { "name": "shot-stopped-restored", "screenshot": "04-stopped-hour-restored" },
+    { "name": "back-to-simple", "store": { "action": "setUiMode", "args": ["simple"] } },
+    {
+      "name": "assert-tools-menu-absent-again",
+      "eval": "(() => { const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Tools'); if (btn) throw new Error('Tools menu should be gone again after switching back to Simple') })()"
+    },
+    { "name": "shot-simple-again", "screenshot": "05-simple-again-no-tools" }
+  ]
+}

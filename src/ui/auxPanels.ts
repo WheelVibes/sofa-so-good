@@ -11,6 +11,7 @@ type StoreState = ReturnType<typeof useStore.getState>
  */
 export function closeAllAuxPanels(s: StoreState): void {
   if (s.budgetOpen) s.toggleBudget()
+  if (s.renoBudgetOpen) s.toggleRenoBudget()
   s.setClearancePanelOpen(false)
   s.setElevationsOpen(false)
   s.setDaylightOpen(false)
@@ -21,4 +22,7 @@ export function closeAllAuxPanels(s: StoreState): void {
   s.setHistoryOpen(false)
   s.setCommentsOpen(false)
   s.setDrawingCalloutsOpen(false)
+  s.setDesignChatOpen(false)
+  s.setRenoRulesOpen(false)
+  s.setHandoverOpen(false)
 }

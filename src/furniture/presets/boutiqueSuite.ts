@@ -2,6 +2,7 @@ import type { LayoutPreset } from './types'
 
 export const boutiqueSuite: LayoutPreset = {
   id: 'boutique-suite',
+  group: 'layout',
   name: 'Boutique Suite',
   description: 'Hotel-style main bedroom: symmetric bed, twin nightstands, foot bench.',
   dryFloor: 'floor-wood-walnut',

@@ -1,0 +1,69 @@
+{
+  "name": "aircon-system-bsj2",
+  "url": "http://localhost:5211/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "pro-mode",
+      "eval": "(() => { const s = window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags(); })()"
+    },
+    {
+      "name": "open-daylight",
+      "eval": "window.__store.getState().setDaylightOpen(true)"
+    },
+    {
+      "name": "panel-visible",
+      "waitFor": { "css": "#daylightPanel" },
+      "timeout": 15000
+    },
+    {
+      "name": "system-visible",
+      "waitFor": { "text": "Aircon system" },
+      "timeout": 8000
+    },
+    {
+      "name": "scroll-to-system",
+      "eval": "(() => { const els=[...document.querySelectorAll('.sec-h')]; const t=els.find(e=>/aircon system/i.test(e.textContent)); if (t) t.scrollIntoView({block:'start'}); return t ? 'found' : 'missing'; })()"
+    },
+    { "name": "wait-scroll", "wait": 700 },
+    {
+      "name": "shot-proposal",
+      "screenshot": "aircon-system-proposal"
+    },
+    {
+      "name": "click-plan-aircon",
+      "eval": "(() => { const b=[...document.querySelectorAll('button')].find(x=>/plan aircon/i.test(x.textContent||'')); if (b) { b.click(); return 'clicked'; } return 'missing'; })()"
+    },
+    { "name": "wait-apply", "wait": 800 },
+    {
+      "name": "report-placed",
+      "eval": "(() => { const its=window.__store.getState().items; return JSON.stringify({ fcus: its.filter(i=>i.defId==='aircon-unit').length, condensers: its.filter(i=>i.defId==='aircon-condenser').length }); })()"
+    },
+    {
+      "name": "close-daylight",
+      "eval": "window.__store.getState().setDaylightOpen(false)"
+    },
+    { "name": "settle-scene", "wait": 1200 },
+    {
+      "name": "shot-scene",
+      "screenshot": "aircon-system-placed-3d"
+    },
+    {
+      "name": "frame-ledge",
+      "eval": "(() => { const s=window.__store.getState(); const c=s.items.find(i=>i.defId==='aircon-condenser'); if (c) { s.selectItem?.(c.id); s.setSelectedItemIds?.([c.id]); return 'selected '+c.id; } return 'none'; })()"
+    },
+    { "name": "settle-sel", "wait": 900 },
+    {
+      "name": "shot-condenser",
+      "screenshot": "aircon-system-condenser"
+    }
+  ]
+}

@@ -59,7 +59,11 @@ export async function assembleBoqInput(): Promise<BoqInput> {
         name: def.name,
         category: def.category,
         qty: 1,
-        unitPrice: itemPrice(def, def.category),
+        // First-occurrence pricing (like `name`/`category` above) — this
+        // aggregation already conflates variant/instance differences under
+        // one defId, so a custom price override is taken from the first
+        // instance seen, same simplification.
+        unitPrice: itemPrice(def, def.category, undefined, it.meta?.price),
       })
   }
 

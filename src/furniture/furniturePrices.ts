@@ -41,6 +41,7 @@ export const ITEM_PRICE: Record<string, number> = {
   'sofa-bed': 899,
   'bay-daybed': 549,
   recliner: 649,
+  banquette: 420,
   // Beds
   'bed-single': 450,
   'bed-double': 700,
@@ -77,6 +78,7 @@ export const ITEM_PRICE: Record<string, number> = {
   pegboard: 59,
   'utility-cabinet': 329,
   'storage-bench': 229,
+  'altar-cabinet': 480,
   'kitchen-counter': 1400,
   'room-divider': 300,
   // Appliances
@@ -91,11 +93,16 @@ export const ITEM_PRICE: Record<string, number> = {
   microwave: 180,
   'range-hood': 350,
   'aircon-unit': 1200,
+  'aircon-condenser': 900,
   // Bathroom
   toilet: 400,
   'bathroom-sink': 280,
   shower: 600,
+  'shower-screen': 700,
+  'bidet-spray': 80,
+  'mixer-tap': 220,
   'floor-mirror': 180,
+  'water-heater': 350,
   // Lighting
   'ceiling-light': 120,
   'ceiling-fan': 280,
@@ -111,6 +118,7 @@ export const ITEM_PRICE: Record<string, number> = {
   rug: 240,
   curtains: 160,
   'roller-blind': 120,
+  'fluted-partition': 420,
   'wall-clock': 45,
   'wall-shelf': 60,
   // Previously fell back to the (often wildly off) per-category base.
@@ -200,12 +208,24 @@ export const ITEM_PRICE: Record<string, number> = {
  *  (`variant` — the finish the user selected on that placed item) wins, so two
  *  instances on different finishes are priced independently; it falls back to
  *  the def's active variant, then any priced variant, then a per-item table
- *  entry, then the per-category base, then 100. */
+ *  entry, then the per-category base, then 100.
+ *
+ *  `priceOverride` (ITEM-META `meta.price`) is the **single choke-point** for a
+ *  user-entered custom per-instance price: when it's a finite, non-negative
+ *  number it wins over everything else (IKEA variant / user-def estimate /
+ *  static table) — every consumer (budget totals, shopping list, FF&E
+ *  schedule/CSV, BOQ, inspector) MUST route a placed item's price through this
+ *  parameter rather than re-deriving/overriding it downstream, so a custom
+ *  price can never drift between surfaces. */
 export function itemPrice(
   def: Pick<FurnitureDef, 'id' | 'category'> & Partial<FurnitureDef>,
   category: FurnitureCategory,
   variant?: string,
+  priceOverride?: number,
 ): number {
+  if (typeof priceOverride === 'number' && Number.isFinite(priceOverride) && priceOverride >= 0) {
+    return priceOverride
+  }
   if (def.kind === 'gltf' && def.source === 'ikea' && def.variants) {
     const wanted = variant ?? def.activeVariant
     const chosen =

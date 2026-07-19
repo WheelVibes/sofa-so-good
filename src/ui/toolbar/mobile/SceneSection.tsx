@@ -1,5 +1,6 @@
 import { formatWallFade, WALL_REVEAL_STRENGTH_STEP } from '../../../apartment/walls/wallRevealMath'
 import { useFeature } from '../../../features/useFeature'
+import { LIGHT_MOODS, MOOD_PRESETS } from '../../../lighting/moodPresets'
 import { HDRI_PRESETS } from '../../../scene/lighting/hdriCatalog'
 import { applyRenderPreset, RENDER_PRESETS } from '../../../scene/renderPresets'
 import { BACKDROPS, type BackdropKind } from '../../../scene/SceneBackdrop'
@@ -14,6 +15,8 @@ import { BackdropUpload } from '../../scene/BackdropUpload'
 import { TimeOfDaySlider } from '../../scene/TimeOfDaySlider'
 import { Item, LIGHTS_LABEL, Section } from './parts'
 
+const MOOD_OPTIONS = LIGHT_MOODS.map((m) => ({ value: m, label: MOOD_PRESETS[m].shortLabel }))
+
 /** Scene — time of day, lights, render preset, sun, wall reveal, backdrops, HDRI. */
 export function SceneSection({
   activeId,
@@ -26,6 +29,7 @@ export function SceneSection({
 }) {
   const s = useStore
   const lightsMode = useStore((st) => st.lightsMode)
+  const lightMood = useStore((st) => st.lightMood)
   const showCeilingFixtures = useStore((st) => st.showCeilingFixtures)
   const wallRevealStrength = useStore((st) => st.wallRevealStrength)
   const wallRevealScope = useStore((st) => st.wallRevealScope)
@@ -43,6 +47,7 @@ export function SceneSection({
   const fHdri = useFeature('hdriEnvironment')
   const fPetProfile = useFeature('petProfile')
   const fMotion = useFeature('furnitureMotion')
+  const fLightMoods = useFeature('lightMoodPresets')
   const motionEnabled = useStore((st) => st.motionEnabled)
 
   // Detect which render preset (if any) matches current state for the dropdown.
@@ -80,6 +85,21 @@ export function SceneSection({
           }))}
         />
       </label>
+      {/* Lighting mood presets (UX round-3 #3): one-tap brightness + colour-
+          temperature adjustment layered on top of Lights above. */}
+      {fLightMoods && (
+        <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+          <span>Mood</span>
+          <Segmented
+            ariaLabel="Lighting mood"
+            fit
+            className="mood-seg"
+            value={lightMood}
+            onChange={(v) => s.getState().setLightMood(v as (typeof MOOD_OPTIONS)[number]['value'])}
+            options={MOOD_OPTIONS}
+          />
+        </label>
+      )}
       <Item
         icon="Lights"
         label={`Ceiling fixtures: ${showCeilingFixtures ? 'Visible' : 'Hidden'}`}

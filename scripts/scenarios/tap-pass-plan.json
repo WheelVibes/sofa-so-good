@@ -1,0 +1,28 @@
+{
+  "name": "tap-pass-plan",
+  "description": "Verify the 2D plan-editor header tap targets (P2-2) + hackability discoverability in the plan-tools View section (P3-3) at 390x844.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; (function(){ const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setUiMode?.('pro'); s.reresolveFeatureFlags?.(); })()" },
+    { "name": "mobile", "viewport": { "width": 390, "height": 844 } },
+    { "name": "settle-mobile", "wait": 1500 },
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-visible", "waitFor": { "css": ".plan-screen" }, "timeout": 30000 },
+    { "name": "settle-plan", "wait": 2500 },
+    { "name": "enter-edit-mode", "eval": "(() => { const b=[...document.querySelectorAll('.plan-header button')].find(x=>x.textContent.trim()==='Edit'); if(b) b.click(); return !!b })()" },
+    { "name": "settle-edit", "wait": 1000 },
+    { "name": "shot-plan", "screenshot": "11-plan-header" },
+    { "name": "sweep-plan", "eval": { "file": "scripts/scenarios/lib/touchSweep.mjs" } },
+    { "name": "shot-sweep-plan", "screenshot": "12-sweep-plan" },
+    { "name": "clear-6", "eval": "document.getElementById('__tt_overlay')?.remove()" },
+    { "name": "open-plan-tools", "eval": "(() => { const b=[...document.querySelectorAll('.plan-header button')].find(x=>(x.className||'').includes('m-menu-btn')); if(b) b.click(); return !!b })()" },
+    { "name": "settle-plan-tools", "wait": 1000 },
+    { "name": "open-view-section", "eval": "(() => { const b=[...document.querySelectorAll('.m-rail-btn, [role=tab], button')].find(x=>(x.getAttribute('title')||x.getAttribute('aria-label')||x.textContent||'').trim()==='View'); if(b) b.click(); return b?(b.title||b.textContent):'NOT-FOUND' })()" },
+    { "name": "settle-view-section", "wait": 900 },
+    { "name": "check-hackability", "eval": "(() => { const b=[...document.querySelectorAll('button')].find(x=>/hackab/i.test(x.textContent||'')); return b? ('FOUND: '+b.textContent.trim()) : 'NOT-FOUND' })()" },
+    { "name": "shot-plan-tools-view", "screenshot": "13-plan-tools-view-hackability" },
+    { "name": "sweep-plan-tools", "eval": { "file": "scripts/scenarios/lib/touchSweep.mjs" } },
+    { "name": "shot-sweep-plan-tools", "screenshot": "14-sweep-plan-tools" }
+  ]
+}

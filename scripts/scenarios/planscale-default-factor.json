@@ -1,0 +1,77 @@
+{
+  "name": "planscale-default-factor",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true || state.bootPhase === 'ready'"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setUiMode?.('pro'); s.reresolveFeatureFlags?.(); s.setFloorPlanEditing(true); })()"
+    },
+    {
+      "name": "plan-open",
+      "waitFor": {
+        "css": ".plan-screen"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "baseline-area",
+      "eval": "(() => { const p = window.__store.getState().floorPlan; const xs = p.walls.flatMap(w => [w.start[0], w.end[0]]); const zs = p.walls.flatMap(w => [w.start[1], w.end[1]]); window.__area0 = (Math.max(...xs) - Math.min(...xs)) * (Math.max(...zs) - Math.min(...zs)); })()"
+    },
+    {
+      "name": "open-menu",
+      "eval": "(() => { const b = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Plan ▾'); if (!b) throw new Error('no Plan menu'); b.click(); })()"
+    },
+    {
+      "name": "menu-open",
+      "waitFor": {
+        "css": ".plan-menu-panel"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "open-scale",
+      "eval": "(() => { const b = [...document.querySelectorAll('.plan-menu-panel button')].find(b => /Scale plan/i.test(b.textContent)); if (!b) throw new Error('no Scale plan entry'); b.click(); })()"
+    },
+    {
+      "name": "modal-open",
+      "waitFor": {
+        "css": "input[aria-label=\"Scale factor\"]"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "assert-valid-default",
+      "eval": "(() => { const inp = document.querySelector('input[aria-label=\"Scale factor\"]'); if (!inp) throw new Error('no factor input'); if (inp.validity.stepMismatch) throw new Error('default value still stepMismatch'); if (inp.value !== '2') throw new Error('default not 2: ' + inp.value); return 'default 2 is valid'; })()"
+    },
+    {
+      "name": "submit-default",
+      "eval": "(() => { const b = [...document.querySelectorAll('button[type=\"submit\"]')].find(b => !b.disabled); if (!b) throw new Error('no enabled submit'); b.click(); })()"
+    },
+    {
+      "name": "scaled",
+      "eval": "(() => { const p = window.__store.getState().floorPlan; const xs = p.walls.flatMap(w => [w.start[0], w.end[0]]); const zs = p.walls.flatMap(w => [w.start[1], w.end[1]]); const area = (Math.max(...xs) - Math.min(...xs)) * (Math.max(...zs) - Math.min(...zs)); const ratio = area / window.__area0; if (Math.abs(ratio - 4) > 0.05) throw new Error('area ratio not ~4 (factor 2^2): ' + ratio.toFixed(3)); return 'scaled x' + ratio.toFixed(2); })()"
+    },
+    {
+      "name": "undo",
+      "eval": "window.__store.getState().undo()"
+    },
+    {
+      "name": "reverted",
+      "eval": "(() => { const p = window.__store.getState().floorPlan; const xs = p.walls.flatMap(w => [w.start[0], w.end[0]]); const zs = p.walls.flatMap(w => [w.start[1], w.end[1]]); const area = (Math.max(...xs) - Math.min(...xs)) * (Math.max(...zs) - Math.min(...zs)); if (Math.abs(area - window.__area0) > 0.01) throw new Error('undo did not revert'); return 'reverted'; })()"
+    }
+  ]
+}

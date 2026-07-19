@@ -9,7 +9,7 @@
  * and safe to reuse from the store actions.
  */
 
-import type { FurnitureDef, ParamProps, ParamValue } from './types'
+import type { FurnitureDef, FurnitureItem, ParamProps, ParamValue } from './types'
 
 /** Enum/string param keys that name a look dimension (finish/colour/material/…). */
 const APPEARANCE_KEY_RE =
@@ -68,4 +68,63 @@ export function mergeAppearance(
     changed = true
   }
   return changed ? next : targetProps
+}
+
+/**
+ * A bulk-recolour patch for `def`, targeting whichever prop key(s) its render
+ * path actually reads (BUG: `props.tint` is GLB-only — a parametric primitive
+ * never looks at it, so tinting stock furniture was a silent no-op):
+ *  - gltf / ikea → `{ tint: hex }` (the only key `gltfRender.ts` consumes);
+ *  - parametric → every `color`-kind `paramSchema` field set to `hex` (a sofa's
+ *    `color`, an armchair's `frameColor` + `fabricColor`, …, whichever exist).
+ * A parametric def with no color field at all yields `{}` (nothing to patch —
+ * e.g. a def whose "colour" is a materia/enum pick, out of scope here).
+ */
+export function recolorPatch(def: FurnitureDef, hex: string): ParamProps {
+  if (def.kind === 'parametric') {
+    const out: ParamProps = {}
+    for (const f of def.paramSchema) {
+      if (f.kind === 'color') out[f.key] = hex
+    }
+    return out
+  }
+  return { tint: hex }
+}
+
+/**
+ * The inverse of {@link recolorPatch} — clears a bulk recolour back to the
+ * def's own designed look:
+ *  - gltf / ikea → `{ tint: undefined }` (deletes the override, reverting to
+ *    the GLB's own baked materials);
+ *  - parametric → every `color` field reset to its OWN schema `default` (not
+ *    blanked — there's no "no colour" state for a primitive that always
+ *    renders a material, so "clear" means "back to the def's designed colour").
+ */
+export function clearRecolorPatch(def: FurnitureDef): Record<string, ParamValue | undefined> {
+  if (def.kind === 'parametric') {
+    const out: Record<string, ParamValue | undefined> = {}
+    for (const f of def.paramSchema) {
+      if (f.kind === 'color') out[f.key] = f.default
+    }
+    return out
+  }
+  return { tint: undefined }
+}
+
+/**
+ * The current bulk-recolour hex for `item` under `def`, for display (the
+ * MultiSelectPanel swatch + "shared tint" check) — gltf/ikea reads `props.tint`;
+ * parametric reads the FIRST `color` field (the item's live value, falling back
+ * to that field's schema default). Returns '' when there's nothing to show
+ * (gltf with no tint override, or a parametric def with no color field).
+ */
+export function currentRecolorValue(item: Pick<FurnitureItem, 'props'>, def: FurnitureDef): string {
+  if (def.kind === 'parametric') {
+    const first = def.paramSchema.find((f) => f.kind === 'color')
+    if (!first) return ''
+    const v = item.props[first.key]
+    return typeof v === 'string' && v !== '' ? v : first.default
+  }
+  const v = item.props.tint
+  return typeof v === 'string' ? v : ''
 }

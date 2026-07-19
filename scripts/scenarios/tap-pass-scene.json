@@ -1,0 +1,20 @@
+{
+  "name": "tap-pass-scene",
+  "description": "Verify the MOOD row label (Romance) + scene sheet tap targets at 390x844.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; (function(){ const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setUiMode?.('pro'); s.reresolveFeatureFlags?.(); })()" },
+    { "name": "mobile", "viewport": { "width": 390, "height": 844 } },
+    { "name": "settle-mobile", "wait": 2500 },
+    { "name": "open-menu", "eval": "(() => { const b=[...document.querySelectorAll('button')].find(x=>(x.className||'').includes('m-menu-btn')); if(b) b.click(); return !!b })()" },
+    { "name": "settle-menu", "wait": 900 },
+    { "name": "list-rail", "eval": "(() => [...document.querySelectorAll('.m-rail-btn')].map(b=>b.getAttribute('title')||b.getAttribute('aria-label')||b.textContent.trim()).join(' | '))()" },
+    { "name": "open-scene-section", "eval": "(() => { const b=[...document.querySelectorAll('.m-rail-btn')].find(x=>/scene|light/i.test((x.getAttribute('title')||x.getAttribute('aria-label')||x.textContent||''))); if(b) b.click(); return b?(b.getAttribute('title')||b.getAttribute('aria-label')):'NOT-FOUND' })()" },
+    { "name": "settle-scene", "wait": 1200 },
+    { "name": "mood-labels", "eval": "(() => { const btns=[...document.querySelectorAll('.m-detail .seg button, .seg button')]; return btns.map(b=>b.textContent.trim()).filter(Boolean).join(' | ') })()" },
+    { "name": "shot-scene-moods", "screenshot": "05-scene-moods" },
+    { "name": "sweep-scene", "eval": { "file": "scripts/scenarios/lib/touchSweep.mjs" } },
+    { "name": "shot-sweep-scene", "screenshot": "06-sweep-scene" }
+  ]
+}

@@ -132,7 +132,9 @@ same change that reshapes a system.
   19 starter `PLAN_TEMPLATES`: HDB 2/3/4/5-room + Exec/3Gen/Jumbo +
   two-storey Executive Maisonette, condo studio/1-bed/1+study/2/3/4-bed/penthouse, two-storey
   terrace + mezzanine loft (real `upperLevels`, ML6a) — `docs/research/{hdb,condo}-floor-plans.md`;
-  each carries a `category` {housingType › projectName › apartmentType} and `templateCategoryTree`
+  each carries a `category` {housingType › projectName › apartmentType} — housingType is
+  `'HDB'|'Condominium'|'Landed'` (SG1; the terrace template is filed under `'Landed'`, its own
+  BCA-direct approval path — see `floorplan/permitNotes.ts`) — and `templateCategoryTree`
   groups them for the cascading `ui/floorplan/TemplatePicker.tsx`; default = HDB › Serangoon North
   Vista › 4-Room; `ui/floorplan/SaveTemplateModal.tsx` prompts for the category on save),
   `roomDetect.ts`, `planIntegrity.ts` (stray-element checks — walls joined to no other wall,
@@ -149,6 +151,12 @@ same change that reshapes a system.
   `wallBoxes`/`planCollisionWalls`/room detection; 2D bulge handle; `curvedWalls` flag, openings
   disabled on curves), `slopedWall.ts` (sloping walls — `PlanWall.topHeightEnd` → a prism rendered by
   PlanShell's `SlopedWallMesh`; `slopingWalls` flag, openings disabled),
+  `roofModel.ts` (parametric roof — pure `buildRoofModel` turns the top storey's footprint
+  bounding box + `FloorPlan.roof` `{style gable|hip|flat-parapet, pitchDeg, overhang, ridgeAxis,
+  material?, dormers?}` into triangulatable roof planes + parapet/dormer boxes, rendered by
+  `apartment/Roof.tsx` which fades the roof out when the orbit camera looks down inside;
+  `parametricRoof` Pro flag, edited via `ui/floorplan/RoofSettings.tsx`, seeded on the Terrace +
+  Maisonette templates — UX-round-3),
   `mirrorPlanRegion.ts` (whole-plan left↔right reflection about a vertical axis `x` — every wall/room/
   opening/annotation + all storeys + furniture, for mirror-image HDB stacks; flips opening hinge/swing
   handedness + wall `arc` sign + furniture yaw/`flipX`; pure + composable, double-mirror = identity;
@@ -339,6 +347,37 @@ same change that reshapes a system.
   unmapped/whole-flat view leaves today's persisted default untouched. This only changes the
   DEFAULT landing tab — the CategoryTabs order, search, filters, and favourites/recent are
   unchanged. Flag off → today's behaviour exactly.
+  **Room categories (RM1, 2026-07-19 SG-presets plan):** `PlanRoom.category?: RoomCategory`
+  (`floorplan/types.ts` — 13 values: living/dining/bedroom/masterBedroom/kitchen/bath/powder/
+  study/serviceYard/storeroom/balcony/foyer/other; `PlanRoomZ` additive enum) is the persisted,
+  USER-declared room type, edited via the `RoomInspector`'s "Room type" `Select` right under Name
+  (first option "Auto — ‹inferred›" clears it back to undefined; `updateRoom` persists, undoable).
+  `floorplan/roomCategory.ts` is the ONE resolver: `roomCategory(room)` (explicit `category` wins,
+  else `roomCategoryFromName` infers from the name, else `'other'` — total, never null) +
+  `toRoomKind`/`toArrangeKind` downmaps to the two coarser PRE-EXISTING classifiers
+  (`analysis/suggestions.ts`'s `RoomKind` and `autoArrange.ts`'s internal 5-kind arranger union)
+  so every existing coarse consumer keeps working unchanged when a room has no explicit category.
+  This module owns its OWN regex set rather than delegating to `roomKindFromName` — `RoomCategory`
+  is a strict refinement (splits `bath`→`bath`/`powder`, `bedroom`→`bedroom`/`masterBedroom`, the
+  catch-all `balcony` bucket→`serviceYard`/`storeroom`/`foyer`/`balcony`) that the coarser
+  classifiers' regexes can't recover once collapsed. RM1 migrated: `CatalogDrawer`'s room-aware
+  landing (explicit category resolved from `floorPlan.rooms` before falling back to
+  `roomDisplayName`), `EmptyRoomHint`'s starter chips, `furnishPlan.ts`'s `kitForRoom` (switches on
+  `roomCategory(room)` — `serviceYard`/`storeroom`/`foyer`/`other` still get no kit; those kits are
+  RM2), and `autoArrange.ts`'s `roomKindFromItems` (explicit category → name → item-inference,
+  in that priority order). `templates/shared.ts`'s `room()` builder takes an optional trailing
+  `category` param, seeded across every HDB + condo starter template. **RM1-tail migration
+  complete:** the five deferred consumers now resolve through `roomCategory` too —
+  `analysis/suggestions.ts`, `lighting2d/roomLux.ts`, `analysis/planStatistics.ts`,
+  `analysis/handoverChecklist.ts`, `analysis/electricalSchedule.ts` (plus `ai/designChatContext.ts`
+  and `state/slices/resetSlice.ts`'s dry-floor pass). Each honours an explicit `category` (via
+  `toRoomKind`, or `toArrangeKind` in resetSlice) and keeps the legacy name classifier
+  byte-identical when a room has none. **One deliberate output change:** suggestions no longer
+  treats a `serviceYard`/`storeroom` (household shelter, service yard) as `'balcony'` — it maps them
+  to a suggester-local non-habitable `'utility'` kind so they stop getting the bogus "add outdoor
+  seating or planters" idea (flagged by the quality round); genuine balconies/ledges keep it. The
+  `'utility'` kind is local to `suggestions.ts` so it doesn't ripple into `RoomKind`'s other
+  consumers.
   **Pet fittings** (Pet program P1, `petFittings` flag, tier: **simple**, default on): the `pets`
   `FurnitureCategory` (16th value) collects pet beds, safety fittings and pet furniture. The flag
   gates the tab via `useUnifiedCatalog(includeRemote, includeShared, includePets)` — off zeroes the
@@ -379,6 +418,15 @@ same change that reshapes a system.
   and an all-filtered-out grid shows the shared `EmptyState` with distinct copy. Unit-tested in
   `catalogBrowse.test.ts` + `CatalogDrawer.filter.test.tsx` + `features/flags/catalogFilters.test.ts`
   (both modes); scenario `scripts/scenarios/catalog-filter-simple.json`.
+  **Compare items** (CATALOG-COMPARE, `catalogCompare` flag, simple): a header "Compare" toggle
+  arms select-for-compare (a checkmark overlay on `CatalogCard`, NOT a new per-card button — per
+  the `src/ui/CLAUDE.md` no-card-buttons rule); 2–3 same-category picks open the
+  `catalog/CatalogCompareTray.tsx` modal with one column per item (thumbnail, W×D×H, footprint
+  area, price, room-fit verdict via `itemFitsRoom`), each Place button reusing
+  `useCatalogPlacement`; pure selection/row logic in `catalog/catalogCompareData.ts`.
+  **Room-starter chips** (`roomStarters` flag, simple): `ui/EmptyRoomHint.tsx` offers tap-to-add
+  anchor pieces per room kind (pure `catalog/roomStarters.ts` map) placed one-at-a-time,
+  wall-anchored + `canPlace`-validated via pure `layout/placeStarterItem.ts`.
   Layers (`LayersPanel.tsx`, `leftMode`) = Objects tree, select/hide/lock/delete + name
   filter + per-row finish drop target. Packs = downloadable content. Plus InspectorPanel
   (`inspector/InspectorPanel.tsx` is now a thin ~180-line composition shell — REFAC-1 extracted
@@ -395,7 +443,9 @@ same change that reshapes a system.
   (`inspector/ScatterFillSection.tsx` → pure `layout/scatterInRoom.ts` — evenly fills the
   selected item's room with N collision-safe copies on a packed grid, deterministic by seed;
   Pro-only via `scatterFill` flag)), FinishPicker, WallAccentPicker (paint one wall face an accent
-  finish, opened by a wall-face click; `wallAccentPicker` flag), GraphicsSettings,
+  finish, opened by a wall-face click OR the FinishPicker Walls-tab "Add accent wall…" Select —
+  room→walls enumeration for both plan types via the pure `materials/roomWalls.ts`;
+  `wallAccentPicker` flag), GraphicsSettings,
   BudgetPanel, NavCluster, CreditsModal (asset attribution/licenses, opened from the Appearance
   panel's "Asset credits" entry; `assetCredits` flag; built on the shared `Modal`),
   CommandPalette, **ContextMenu** (dynamic right-click menu — `featuresSlice.ContextTarget`
@@ -945,8 +995,14 @@ same change that reshapes a system.
   ~19:10). The shared **`ui/scene/TimeOfDaySlider`** (desktop Scene menu + mobile sheet) is a
   free-scrub 24h slider + a "System time" toggle (always shows the real clock, never the
   selected time). **Lights** (`lightsMode` off/on/auto) is an independent fixture toggle — not
-  tied to the sun (lights can be on in daytime). Fixtures emit capped night point lights; shades
-  glow via `fixtureGlow`. **Orbit and the room editor run this exact same graded simulation**
+  tied to the sun (lights can be on in daytime). **Lighting mood presets** (UX round-3 #3,
+  `lightMoodPresets` flag, simple tier): a one-tap Scene-menu chip row (Normal/Reading/Movie
+  night/Entertaining/Romantic, `lighting/moodPresets.ts`, pure) layers a brightness multiplier +
+  warm/cool tint on top of the `lightsMode` level (`FurnitureLights.tsx`: `baseIntensity *
+  lightsModeLevel * moodMultiplier`) — ceiling-mounted kinds dim harder for Movie
+  night/Romantic. It can only scale an already-lit fixture, never re-light one switched off via
+  `lightOn === 'no'`; the mood persists with the design like `lightsMode`. Fixtures emit capped
+  night point lights; shades glow via `fixtureGlow`. **Orbit and the room editor run this exact same graded simulation**
   (ORBIT-CEILING) rather than a flat daytime fill — since orbit culls the real ceiling to see
   inside, an invisible shadow-casting virtual ceiling occluder (`apartment/ceiling/
   CeilingOccluder.tsx`, mounted in both `Scene.tsx` and `RoomEditorScene.tsx`) blocks the sun
@@ -1053,6 +1109,18 @@ same change that reshapes a system.
 - **Wall elevations** (`elevation/projectElevation.ts` pure → `WallElevation` per plan wall, reusing
   the collision OBB helpers; `ui/elevation/elevationSvg.ts` renders to a palette-injected SVG string
   shared by the `ElevationPanel` (token colours) + the report). The vertical counterpart to the plan.
+  **Mount-height dimensions (H3):** every projected item that's actually wall/ceiling-mounted right
+  now carries an AFFL height in mm — `projectElevation.ts:itemMountHeight` resolves it (live
+  `mountHeight` prop → the def's parametric default → a non-parametric mounted def's
+  `verticalSpan.base`), where "mounted right now" (`isWallMounted`) is `def.mounted` (sconces, cove
+  lights, wall cabinets, always-mounted GLBs) **or** a def whose own `mount` enum param (TVs,
+  aircon — floor-or-wall) currently reads `'wall'`; a floor-standing item resolves to `null` and gets
+  no height dim (no clutter). `elevationSvg.ts` draws it as a vertical dimension (`"1100 AFFL"`)
+  tucked inside the item's own footprint, opposite the below-floor width-dimension row; two mounted
+  items close together on one wall fan into separate columns via
+  `dimensionLayout.ts:staggerMountHeightColumns` (mirrors `staggerDimensionRows`'s greedy collision
+  assignment, but 2D — close in BOTH x and height — since a height dim is a vertical line, not a
+  horizontal span).
 - **Cross-section** (`floorplan/section.ts` pure → a `Section` cut along a mid-plan line: cut wall
   columns w/ heights, floor/ceiling runs, room spans, opening gaps, + furniture silhouettes beyond the
   cut supplied via `ui/elevation/sectionFigure.ts` `sectionSilhouettes` so the core stays footprint-
@@ -1074,6 +1142,27 @@ same change that reshapes a system.
   schedule: Room/Item/Source/SKU/Size (W×D×H, unit-aware)/Qty/Unit price/Line total + grand-total
   footer; prices blanked when `budget` is off; `ui/openFfeCsv.ts` = Blob download `<plan>-ffe.csv`).
   File menu + mobile + ⌘K, `shopExport` flag (simple) — the machine-readable third FF&E export.
+  **Per-instance handover metadata (ITEM-META, `itemMeta` flag, pro)**: an optional `FurnitureItem.meta`
+  (`furniture/types.ts`) — `url`/`price`/`brand`/`model`/`supplier`/`description`/`remarks`, all trimmed,
+  empty→omitted, set via the dedicated `setItemMeta` store action (coalesced undo, `state/slices/
+  itemsSlice.ts`) from the inspector's **Notes & link** section (`ui/inspector/ItemMetaSection.tsx`,
+  URL validated http/https on blur via `itemMetaValidation.ts`). `meta.price` is the one field read by
+  `furniture/furniturePrices.ts:itemPrice` (the single price-resolution choke-point — every consumer
+  passes it through) as a per-instance override, ahead of the IKEA-variant/user-def/category fallback.
+  `ffeSchedule.ts`/`ffeCsv.ts`/`report.ts`'s FF&E table AND `drawingSet.ts`'s FF&E sheet (G9 — the
+  latter renders the SAME `FfeRow[]` from `buildFfeSchedule`, no metadata re-derived) gain
+  Brand/Model/Supplier/URL/Remarks columns (and `ui/shoplist.ts`'s line URL) only when any item
+  carries them; two instances with differing meta/price never silently aggregate into one line.
+  `meta.custom?: {key,value}[]` (arbitrary user-defined fields, ordered, ≤20 entries/key≤40/
+  value≤500 chars — clamped not rejected on import + in the setter,
+  `furniture/itemMetaLimits.ts:clampCustomMetaEntries`, shared by `schema.ts` and
+  `itemsSlice.ts`) adds a "Custom fields" add/remove-row sub-list to `ItemMetaSection.tsx`; each
+  DISTINCT key across the FF&E schedule becomes its own alphabetical CSV/report/drawing-set column
+  (`ffeCsv.ts:customMetaColumns`, reused by `drawingSet.ts` — never a second key-collection pass) —
+  shoplist/the report's other tables are untouched by `custom`. `drawingSet.ts`'s sheet is a
+  fixed-width printed page (not a scrollable table), so its URL column shows a shortened
+  host+path display string (`drawingSet.ts:shortUrl`) instead of the full link — the CSV export
+  is the reference copy of the untouched URL.
   **Cost breakdown CSV** (`export/costBreakdownCsv.ts` pure `buildCostBreakdown`/`buildCostBreakdownCsv` →
   one sectioned RFC-4180 CSV reconciling Furniture-by-category (qty + subtotal via `itemPrice`) +
   Renovation/finishes lines (floor/wall area × the `renovationCost` rate table via `estimateRenovation`
@@ -1083,16 +1172,245 @@ same change that reshapes a system.
 - **Drawing set** (`ui/drawingSet.ts` + `openDrawingSet.ts`): a paginated multi-sheet "plan set"
   (cover + plan + per-wall elevations + cross-section + lighting + electrical (`floorplan/electricalPlan*`,
   `electricalPlan` flag) + plumbing (`floorplan/plumbingPlan*`, `plumbingPlan` flag — points auto-derived
-  from fixtures) + a per-room finishes schedule (`floorplan/finishSchedule.ts` — floor/wall material
-  callouts) + FF&E, title blocks, `@page` A4) reusing all the pure renderers — the formal counterpart
-  to the one-page `report.ts`. **Sheet/layer toggles** (PARITY-DRAWLAYERS): `ui/drawingLayers.ts`
-  (dependency-light list + `DrawingLayerVisibility` so the heavy builder stays dynamically imported) +
-  `buildDrawingSetHtml`'s optional `layers` arg gate each group on/off (floor plan always included);
-  the Tools-menu "Include sheets" checklist writes `uiSlice.drawingLayers` (session-only).
-- **CAD plan exports**: `ui/openDxf.ts` (`export/dxf.ts` `planToDxf`) downloads the plan as DXF;
-  `ui/openPlanSvg.ts` downloads it as a vector `.svg`, reusing `reportPlanSvg` + pure
-  `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog + injected `xmlns`). Both in Tools +
-  mobile + ⌘K, `dxfExport` flag (pro).
+  from fixtures) + a contractor-grade finishes schedule + FF&E + a door & window schedule, title blocks,
+  a user-customizable `@page` size/orientation) reusing all the pure renderers — the formal counterpart
+  to the one-page `report.ts`.
+  **Per-trade handover packs (BSJ-5, `tradePacks` pro flag): `ui/tradePacks.ts` + `openTradePack.ts`.**
+  The designed→ordered bridge — re-bundles the master set (organised by drawing TYPE) into per-RECIPIENT
+  packs (Tiler / Electrician / Plumber / Carpenter / Aircon / Curtains / Painter). `drawingSet.ts` split
+  into `buildDrawingSheets` (numbered `Sheet[]`) + `renderDrawingDocument` (shared HTML wrapper); a pack
+  builds the master sheets ONCE, selects its recipient's subset by `calloutGroup` **keeping the master
+  A-N numbering** (`NUMBERING_NOTE` — a contractor cross-references), and prepends a pack cover (scope +
+  contact placeholder + title-block info + an included-sheet index + honest EXCLUSION notes for missing
+  data + advisory tables composed from the same pure builders the editor uses — `socketAdvisory` + MEP
+  mount-height defaults + `airconSystem` proposal + `switchCircuits` status + placed window-treatment /
+  built-in-joinery / paint-area summaries). The finish schedule is narrowed per pack via
+  `finishScheduleHtml`'s optional `kinds` param (tiler → floors+walls, painter → walls). No sheet builder
+  is forked. File menu: desktop `TradePacksPicker` Disclosure + mobile FileSection "Trade packs" section.
+  **Door & window schedule (H1):** `layerOn(layers, 'openingSchedule')` gate — one whole-set `NTS` sheet
+  (like Finishes/FF&E, not per-storey: `analysis/openingSchedule.ts:buildOpeningSchedule` already walks
+  every storey internally) rendering the same `D1/D2…`/`W1/W2…` mark rows as `report.ts`'s "Openings
+  schedule" section, so the two stay in lock-step. Sizes/sill print in **millimetres always** (not
+  `formatLength(units)`) — door/window schedules are a carpentry-adjacent trade deliverable, matching
+  the carpentry sheets' own `overallMm` convention regardless of the app's metric/imperial display
+  preference. `CalloutSheet` gained `'opening-schedule'` (`state/slices/drawingCalloutsSlice.ts` +
+  `DrawingCalloutsPanel.tsx`); `DrawingLayer` gained `'openingSchedule'` (`ui/drawingLayers.ts`,
+  auto-picked up by the generic `DRAWING_LAYERS`-driven "Include sheets" checklist). No new feature
+  flag — rides the existing `drawings` flag like every other sheet group.
+  **Finish schedule (G4)**: the pure `floorplan/finishSchedule.ts:buildFinishSchedule(plan, finishes,
+  nameOf)` returns a `FinishSchedule` — per-room floor/wall/ceiling `FinishCell`s (each with a stable,
+  first-seen-order material **code** `FL-01`/`WL-01`/`CL-01` that never renumbers on a later addition,
+  a display name, and an area quantity: floor = room area, wall = perimeter × ceiling height **net of
+  door/window openings** — deducted per bordering room via `openingProbePoints`, ceiling = the flat
+  footprint with a tray/coffered/dropped/sloped treatment flagged as a verify-on-site note rather than
+  silently under-counted), a separate `accentWalls` list (`PlanWall.color` overrides, keyed `AW-0N` by
+  distinct colour, with orientation + net-of-openings face area), and a per-code `totals` array (what a
+  contractor prices from) plus a standing "verify on site" caveat. `ui/finishScheduleHtml.ts` is the ONE
+  HTML renderer both `report.ts`'s "Finishes schedule" section and `drawingSet.ts`'s sheet consume, so
+  the two documents can't drift. `floorTexScale` is surfaced honestly as a tiling-scale factor (no base
+  tile mm size is stored in the model, so none is invented). No new flag — rides the existing
+  `report`/drawing-set gating. **Sheet/layer toggles**
+  (PARITY-DRAWLAYERS): `ui/drawingLayers.ts` (dependency-light list + `DrawingLayerVisibility` so the
+  heavy builder stays dynamically imported) + `buildDrawingSetHtml`'s optional `layers` arg gate each
+  group on/off (floor plan always included); the Tools-menu "Include sheets" checklist writes
+  `uiSlice.drawingLayers` (session-only).
+  **Locked, print-true scale** (TODO G2): `floorplan/drawingScale.ts`'s pure `pickDrawingScale(extentM,
+  printableMm)` walks the standard ladder `[1:20…1:200]` and picks the largest-detail ratio whose
+  printed extent fits the printable area; `drawingSet.ts` computes one per plan-bearing sheet (floor
+  plan/elevations/lighting/dimensioned/demolition/electrical/plumbing/section — schedules + cover show
+  "NTS") and threads the resulting `mmPerM` into every SVG builder's optional `printMmPerM` param, which
+  sizes the `<svg>` via an inline `style="width:…mm;height:…mm"` (a bare `width`/`height` **attribute**
+  would be silently overridden by the `.draw svg{width:100%}` rule — presentational attributes have the
+  lowest CSS priority; see the playbook gotcha). The graphic scale bar (`reportPlanSvg.ts`
+  `scaleBarSvg`) stays as a second, PDF-viewer-rescale-proof check.
+  **User-customizable paper (G2 follow-up):** `drawingScale.ts`'s `PAPER_SIZE_MM` (ISO 216 A4/A3/A2/A1,
+  portrait `[width,height]` mm — the single source of truth) + `paperDimensionsMm(size, orientation)` +
+  `printableAreaMm`/`PAPER_PRINTABLE_MM` (every size × orientation combo, precomputed) generalise the
+  printable-area math beyond the original hardcoded A4-landscape constant (kept as
+  `A4_LANDSCAPE_PRINTABLE_MM` for callers that don't care). `drawingSet.ts` reads `template.paperSize`/
+  `template.orientation` to pick each sheet's scale AND to parameterize the `@page { size: … }` rule +
+  `.sheet`/`.draw svg{max-height}` CSS dimensions from the SAME table (never a second hardcoded
+  A4 number) — so the `@page` size, the sheet box, and the scale-picker's printable area can never
+  drift apart. The title block states the real combo, e.g. `"1:50 @ A3 LANDSCAPE"`.
+  **Title-block handover metadata** (TODO G5): `export/drawingSetTemplate.ts` (`DrawingSetTemplate` —
+  project name/address, client, drawn-by, checked-by, revision + note, `paperSize`/`orientation`)
+  mirrors `quoteTemplate.ts`'s shape/persistence pattern exactly, via `drawingSetTemplateSlice.ts`
+  (persisted in `serialize()`/autosave/history like `quoteTemplate`; `paperSize`/`orientation` are
+  additive optional Zod fields defaulting to `'a4'`/`'landscape'` on load, no version bump); a minimal
+  editor (`FileMenu.tsx`'s `DrawingSetInfoEditor`, a collapsed `Disclosure` with two `controls/Select`
+  drop-downs for paper size + orientation alongside the text fields) sits under the "Drawing set" row.
+  Every sheet's title block now shows client/drawn/checked/date/locked-scale/sheet-of-total/revision;
+  plan-view sheets add a small north-arrow glyph (`northIndicatorSvg`, rotated by the live
+  `orientationDeg`); the cover sheet carries a revision-table row + a General notes block with the
+  standard SG disclaimers (mm units, don't scale from screen, HDB permit/PE/LEW/LP responsibilities,
+  verify on site).
+  **Setting-out & datum dimensioning (TODO G3, `settingOutDims` flag, pro):**
+  `floorplan/settingOut.ts` is the pure core (`datumPoint`/`settingOutDimensions`/
+  `tileSettingOutPoints` — see `floorplan/CLAUDE.md` for the full design rationale:
+  why a fixed datum instead of cumulative chains, the face-offset convention, and why
+  `dimensionChain.ts`'s `projectToBaseline` is reused but `runningDimensions` is not).
+  The dimensioned-plan sheet gets a datum-referenced setting-out row
+  (`autoDimensionSvg.ts`'s `dimensionSvg({settingOut:true})`, same sheet as the
+  existing auto-dims, drawn dashed/further-out so the two never overlap); the
+  floor-plan sheet gets a tile setting-out cross per room + one shared caption
+  (`reportPlanSvg.ts`'s `showTileMarks`, gated to when the finishes sheet is also
+  included). `FloorPlan.datum?: {x,z}` is an additive optional override reserved for
+  a future placement UI (unused by any editor in this pass).
+  **Waterproofing zones (BSJ-7, `waterproofing` flag, pro):** `floorplan/waterproofing.ts`
+  (pure → `buildWaterproofingZones(plan, items)`) models a zone per wet/hard-service room
+  (bath/powder/kitchen/serviceYard/balcony) = floor area + wall upturn (300 mm general,
+  1800 mm at shower walls — localized from a placed `shower`/`shower-screen`, else the full
+  bath perimeter conservatively) + a total membrane area (m²). Fed to: a diagonal wet-area
+  hatch + zone table on the dimensioned plan (`autoDimensionSvg.ts` overlay), the tiler
+  handover pack (`ui/tradePacks.ts`), a "waterproofing membrane below" note on wet floor rows
+  of the finish schedule (unconditional — factual), and an additive `waterproofing` budget
+  sub-line (`renovationAllocator.ts`, `trades.waterproofingPerM2`, gated by the flag).
+  **Floor levels & transitions (BSJ-8, `floorLevels` flag, pro):** additive
+  `PlanRoom.floorLevelMm?` (mm vs the FFL datum; schema.ts ⇄ types.ts parity) is
+  DOCUMENTATION-level — it does NOT move the 3D floor mesh (follow-up). `floorplan/floorLevels.ts`
+  (pure) derives per-room FFL tags (`buildRoomFflTags`, only where set), doorway step markers
+  between rooms at different levels (`buildFloorTransitions`, via `openingProbe.roomsAcrossOpening`),
+  and a kerb/step advisory (`buildKerbAdvisories` — a bath/powder level with its adjacent dry room).
+  Rendered as FFL pills + step diamonds + a legend on the dimensioned plan (same `autoDimensionSvg.ts`
+  overlay) and in the tiler pack; edited via the RoomInspector "Floor level (mm)" field. Intake
+  states deliberately don't seed it (see `intakeStates.ts` note).
+  **Carpentry/joinery elevations + sections (TODO G8, `carpentrySheets` flag, pro):**
+  the single most-cited DIY-handover gap — a dimensioned front elevation + one
+  representative section per distinct PLACED parametric piece (bookshelf/wardrobe/
+  sideboard/desk/kitchen-run — the 5 `parametric/spec.ts` `ParametricType`s; a
+  standalone kitchen-cabinet catalog item does NOT share this path yet, see
+  `furniture/CLAUDE.md`). Geometry is pure + reused, never re-derived:
+  `furniture/carpentryElevation.ts:buildCarpentryPiece(spec)` runs the piece's OWN
+  `buildParametric(spec)` part list through two projections — front elevation (drop
+  Z) and a vertical section at a per-type cut X reconstructed FROM the part
+  positions themselves (bay boundaries from `side`/`divider` parts, never a second
+  bay-math formula): bookshelf/sideboard/kitchen-run cut through the first bay,
+  wardrobe through whichever bay carries the most `shelf` parts, desk through its
+  pedestal's `side` panels (or the first `leg` on a 4-leg desk). Every dimension
+  (overall W/H/D, bay widths, panel thickness, plinth/toe-kick height, worktop
+  thickness, and — the actual gap this closes — every shelf/rail/drawer-front
+  height above floor, AFF) is read straight off the cut parts' real positions/
+  sizes, always in **mm** (carpentry is mm-throughout, unlike the plan sheets'
+  `UnitSystem` toggle); a shelf/rail hidden behind a closed door/drawer renders
+  dashed. `ui/carpentrySheetSvg.ts` renders each view (tick+label dims mirroring
+  `autoDimensionSvg.ts`'s convention) and runs a `declutterLabelY` pass per
+  `labelSide` column so two close-together AFF heights (e.g. a wardrobe's top
+  shelf + the rail just under it) never overlap — a nudged label gets a short
+  dashed leader back to its tick's true height. `ui/carpentrySheets.ts:
+  collectCarpentrySheets(items, catalog)` resolves distinct placed pieces from
+  each def's persisted `parametricSpec` (JSON, `UserGltfDef.parametricSpec` —
+  the same "recipe alongside the baked GLB" pattern as `slotSpec`/`assetSpec`,
+  written by `saveParametricAsset`), deduping repeats of the SAME def to one
+  sheet noted `"(×N)"`. `ui/drawingSet.ts` appends one "Carpentry — `<name>`"
+  sheet per entry (own locked scale via `carpentryScale`, sized against HALF the
+  printable width since the elevation + section sit side by side on one sheet —
+  finer than a whole-plan sheet since a joinery piece is far smaller) with the
+  standard "verify all dimensions on site before fabrication" note; no placed
+  parametric pieces → no carpentry sheets (and the cover's sheet index omits
+  them). New `carpentry` `DrawingLayer` + `CalloutSheet` entry follow the
+  existing toggle/callout plumbing. **Buildability callouts (TODO H2 — "a
+  carpenter can cut the carcass but can't order hardware or select finish"):**
+  `buildCarpentryPiece` also returns `sectionTitle` (always `"SECTION A-A"`,
+  standard drafting convention) + `elevationCutX` (the section's cut X, same
+  local frame as the elevation rects) and two note-line arrays,
+  `materialNotes(spec, parts)` and `hardwareCallouts(spec, parts)` — both pure,
+  exported, unit-tested. Materials: the finish kind + tint stated HONESTLY
+  (`"or equivalent, confirm exact board/laminate code with fabricator"` — a
+  `mat:<id>` DLC finish names the catalog id, never a fabricated brand/code),
+  board + back-panel thickness read straight off the piece's own `side`/`back`
+  parts (`"TBC by fabricator"` when there's no side panel to read, e.g. a
+  four-leg desk), and a fixed edge-banding line. Hardware: counts are read
+  straight off the piece's REAL part list (`role: 'door'|'handle'|
+  'drawer-front'|'drawer-handle'`) — never invented. `role:'door'` doesn't
+  distinguish sliding vs hinged wardrobe fronts, so that's the one case
+  `hardwareCallouts` reads `spec.wardrobeFront` for: `sliding` → "sliding track
+  + rollers, soft-close" for however many door panels the builder emitted
+  (always 2, any bay count); `hinged` → a hinge count per the standard rule (2
+  hinges/door ≤1200mm tall, 3 above, stated inline) + a handle count. Every
+  other type/bay (sideboard/kitchen-run doors, any drawer bank on any type,
+  wardrobe interior drawers) is generic over the same role vocabulary — no
+  per-type branching needed. Zero doors + zero drawers (bookshelf, any
+  open-front bay) → "shelf supports as required by fabricator" (the spec
+  doesn't track fixed-vs-adjustable, so a pin count is never invented).
+  `ui/carpentrySheetSvg.ts:carpentrySvg`'s `cutX` opt draws the dash-dot
+  section-cut line + "A" bubbles top/bottom on the elevation only (its Y-extent
+  is the piece's own geometry bbox ± a small margin, clear of the dimension
+  rows). `ui/drawingSet.ts` retitles the section pane `piece.sectionTitle`,
+  passes `cutX: piece.elevationCutX` to the elevation's `carpentrySvg` call,
+  and renders the two note arrays as a "MATERIALS & FINISH" / "HARDWARE" pair
+  BELOW the elevation+section row (not overlaid — the sheet's declutter
+  precedent), each a bulleted list.
+  **On-plan D/W mark callouts (H1-F):** `reportPlanSvg.ts`'s FLOOR-PLAN sheet draws a small rose
+  (`#be123c`) `D1`/`W1`… label near each opening (nudged off the wall centreline like the DXF
+  export's own marks, `openingMarksSvg`'s `MARK_LABEL_OFFSET`), keyed off
+  `analysis/openingSchedule.ts:assignOpeningMarks(openings)` — a per-opening (not aggregated)
+  variant of `buildOpeningSchedule`'s grouping, extracted here from `export/dxf.ts`'s own
+  identical local copy (that module was owned by a concurrent change in this pass and left
+  untouched; `TASKS.md` tracks migrating its copy to this shared export on next touch). `showOpeningMarks` is a new optional `reportPlanSvg` param, gated in `drawingSet.ts` to
+  `layerOn(layers, 'openingSchedule')` (same "don't reference a hidden sheet" rule as the G3 tile
+  marks) — no new feature flag, since it's presentation over data the schedule sheet already
+  carries.
+  **Reflected ceiling plan (TODO H4, `rcpSheet` flag, pro):** canonical drawing #4 — per-storey
+  false-ceiling/bulkhead zones with drop heights, ceiling-fixture positions dimensioned off the
+  nearest walls, aircon points marked. Pure core `floorplan/rcp.ts:buildReflectedCeilingPlan(plan,
+  fixtures, electricalPoints)` reuses existing systems wholesale rather than inventing a parallel
+  model: each room's zone note + treatment rect/beam-grid come straight from the SAME geometry
+  engine the 3D scene renders from (`apartment/ceiling/ceilingModel.ts:buildCeiling` — pure, no
+  three/React, safe to import from `floorplan/`), so a printed "FFL to false ceiling: 2450mm" and
+  its inset dashed rect can never drift from what the room actually shows in 3D; a non-rectangular
+  room or too-low ceiling that the geometry engine falls back on (`CeilingModel.fallback`) prints
+  "treatment not applied — verify room shape/height on site" rather than a treatment that isn't
+  really built. Ceiling-mounted fixtures are the SAME `PlanLight[]` the lighting plan already
+  derives (`lighting2d/lightingPlan.ts:buildLightingPlan`), filtered to `CEILING_FIXTURE_TYPES`
+  (`ceiling-light`/`ceiling-fan`/`cove-light` — matches `furniture/lightEmitters.ts`'s
+  `LIGHT_EMITTERS` registry; floor/table lamps, sconces, and the vanity's mirror bulbs are NOT
+  ceiling fixtures and are excluded), each dimensioned off the nearest wall on each axis
+  (`nearestAxisWall` — centreline distance, not the setting-out sheet's face-offset precision; a
+  ceiling point only needs "roughly here off that wall", matching the electrical/lighting plans'
+  own convention). Aircon points are the SAME persisted/heuristic electrical points the electrical
+  plan draws (`kind === 'aircon'`), marked here for cross-reference only — their full schedule
+  stays on the Electrical plan. SVG renderer `floorplan/rcpSvg.ts:rcpSvg` mirrors
+  `electricalPlanSvg.ts`'s shape (wall context, circle+marking symbols, legend/schedule below,
+  `printMmPerM` sizing) and reuses `mepLabelLayout.ts:layoutMepLabels` to declutter fixture
+  distance labels exactly like the MEP sheets (H-D1). `ui/drawingSet.ts` appends one "Reflected
+  ceiling plan" sheet per storey that has rooms (unlike the lighting/electrical sheets, which only
+  print for a storey with fixtures/points — every room carries a useful zone note even when flat);
+  new `rcp` `DrawingLayer` + `CalloutSheet` entry (`state/slices/drawingCalloutsSlice.ts` +
+  `DrawingCalloutsPanel.tsx`) follow the existing toggle/callout plumbing. New `rcpSheet` flag
+  (pro, default true) gates it — analytical drawing-set content, same category as
+  `settingOutDims`/`carpentrySheets` (NOT the pre-existing `drawings` flag, which gates the
+  separate live in-app Drawings panel — elevations + lighting — an unrelated feature).
+  **False-ceiling clearance validator (R4-2):** `floorplan/ceilingClearance.ts:buildCeilingClearance(plan)`
+  (pure) reuses `buildCeiling(...).lowestY` as the finished clearance per treated room and warns below
+  `MIN_FINISHED_CLEARANCE_M` (2.4 m; `STANDARD_SLAB_M` 2.6, `CORNICE_MIN_M` 2.1). `rcp.ts` attaches the
+  per-zone clearance (headroom mm + warn/belowCornice) only when `isFeatureEnabled('ceilingClearance')`
+  (the `ceilingClearance` pro flag), and `rcpSvg.ts` prints it as a "⚠ …mm under 2400mm min headroom"
+  marking (or a passing clearance readout) in each zone note.
+  **Elevation sheet grouping (TODO H6):** a 4-room HDB flat produced ~20 one-per-wall elevation
+  sheets, most bare. `ui/drawingSet.ts`'s elevation loop now partitions `projectAllElevations`'
+  output (tagged with its ORIGINAL index so "Wall N" captions never repeat across the two kinds
+  of sheet) into: dropped entirely (0 items AND 0 openings — noted under the cover's sheet index,
+  "N minor walls omitted"), grouped (`MINOR_WALL_MAX_LENGTH_M` = 1.2m, `MINOR_WALL_MAX_ITEMS` = 1,
+  no openings — up to `MINOR_WALL_GROUP_SIZE` = 4 per sheet in a CSS 2×2 `.minor-grid`, one shared
+  scale via `minorElevationScale` sized to the largest wall in that group, quarter-page budget),
+  or full (everything else — any opening, or >1 item, always gets its own page). Thresholds are
+  constants, noted on the cover's general notes.
+- **CAD plan exports**: `ui/openDxf.ts` (`export/dxf.ts` `planToDxf`) downloads the plan as an ASCII
+  DXF R12 document for a contractor/fabricator CAD handoff (TODO G6): `WALLS`/`ROOMS`/`DOORS`/
+  `WINDOWS`/`LABELS` (base geometry) plus `FURNITURE` (each placed item's rotated footprint — the
+  same `collision/placement.ts:itemFootprint` OBB collision/selection use — as a closed POLYLINE)
+  + `FURNITURE_TEXT` (item name), `DIMENSIONS` (the `floorplan/autoDimension.ts` auto-dimension
+  strings rendered as LINE + perpendicular tick + extension-stub + TEXT primitives — no native
+  `DIMENSION` entity, since R12's needs a `DIMSTYLE` table lightweight readers render
+  inconsistently), `OPENING_MARKS` (a D1/D2…/W1/W2… mark TEXT beside each door/window,
+  cross-referencing `analysis/openingSchedule.ts`), and `ELECTRICAL`/`PLUMBING` (TODO G6b — a
+  CIRCLE + symbol TEXT, `@<mm>` mount-height suffix when set, per PERSISTED
+  `plan.electricalPoints`/`plumbingPoints` — same `ELEC_SYM_TEXT`/`PLUMB_SYM_TEXT` glyphs the MEP
+  sheets use, never the furniture heuristic; ground-only, same single-storey convention as
+  walls/rooms). Every layer carries a distinct AutoCAD colour index via the LAYER table.
+  `ui/openPlanSvg.ts` downloads the bare plan as a vector `.svg`,
+  reusing `reportPlanSvg` + pure `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog +
+  injected `xmlns`). Both in Tools + mobile + ⌘K, `dxfExport` flag (pro).
 - **Sweet Home 3D import** (`importSh3d` flag, pro; PARITY-SH3D): pure parser core
   `floorplan/import/sh3d.ts` `parseSh3d(bytes)` unzips a `.sh3d` (fflate `unzipSync`), reads
   `Home.xml` (DOMParser), and maps it into our plan model — cm→m (÷100), origin-anchored bbox,
@@ -1109,6 +1427,25 @@ same change that reshapes a system.
   (`setItems` + `setFloorPlan` with the openings) + a toast summarising walls / rooms / furniture
   placed / openings / unmatched (with each unplaceable piece as a warning detail). File menu +
   mobile File + ⌘K (`import-sh3d`).
+- **Sweet Home 3D furniture library import** (`importSh3f` flag, pro; PARITY-SH3F): imports a
+  `.sh3f` furniture LIBRARY (not a home plan) as user furniture. Pure parser core
+  `furniture/import/sh3f.ts` `parseSh3f(bytes)` unzips the archive (fflate `unzipSync`), parses
+  every `PluginFurnitureCatalog*.properties` (a hand-rolled Java-`.properties` reader —
+  `parseJavaProperties`: `#`/`!` comments, `=`/`:`/whitespace separators, line continuations,
+  `\uXXXX`/escape handling; catalog bytes decoded ISO-8859-1), and maps each indexed entry
+  (`name#n`/`model#n`/`width#n`…) to a normalized `Sh3fEntry` — dims cm→m, category via the
+  shared `categoryForPieceName`, model format by extension (`convert/formats.ts`
+  `modelFormatFromName`), `movable`/`doorOrWindow` flags. Pure (no three/React/store), so the
+  mapping is unit-tested without a browser. DOM glue `ui/openSh3fImport.ts` resolves each entry's
+  model (+ sibling MTL/textures, or a nested multi-part `.zip`) to `File`s, converts it to a
+  self-contained GLB through the SAME upload path as drag-drop imports (`convert/convertModel` →
+  `GLTFExporter`, so OBJ/DAE/3DS/FBX/STL/PLY/… are all supported), and persists it via
+  `persistUserGlb` (batch-committed with `addManyUserFurniture`). Entries with an unrecognized
+  model extension, a missing model, or a conversion failure are SKIPPED per-entry with a note; the
+  toast summarises "N of M imported, K skipped". `.sh3f` content is user-supplied → treated like
+  any other user upload (no bundled-asset licence). File menu + mobile File + ⌘K (`import-sh3f`);
+  dev hook `window.__importSh3fBytes(bytes, name)` (mirrors `__importSh3dBytes`) drives the full
+  parse→convert→persist headlessly (needs a real browser for the three loaders).
 - **Multi-axis furniture tilt** (`tiltFurniture` flag, pro; PARITY-TILT): `FurnitureItem` gains optional
   `pitch`/`roll` (radians); `furniture/tiltRotation.ts` `itemRotation` returns the intrinsic Euler tuple
   `[pitch, yaw, roll, 'YXZ']` the `Furniture` root group uses (reduces to pure yaw when untilted). The
@@ -1224,6 +1561,14 @@ same change that reshapes a system.
   (multi-storey aware, strays → "Unassigned"). An *indicative* rough quote aid, not a certified electrical
   layout. Rendered as the "Electrical points (indicative)" report section (rides the `report` flag, additive
   block — distinct from the lighting plan + fixture schedule). PARITY-ELECTRICAL-SCHED.
+- **Socket-count & DB-load advisory** (`analysis/socketAdvisory.ts` pure → `buildSocketAdvisory(plan)`:
+  per-room recommended outlet targets `TARGET_SOCKETS_BY_CATEGORY` (living 8 / kitchen 10 / masterBedroom
+  6 / bedroom 4 / study 6 / dining 4 / bath 2 / powder 1 / serviceYard 2, keyed via `roomCategory`) vs the
+  placed `electricalPoints` attributed by room — `socket`=1, `socket-double`=2 outlets; `data`/`tv-point`
+  counted separately — flagging under-provisioned rooms, plus the static `DB_LOAD_NOTE` (40 A common in
+  older blocks; 63 A upgrade needs SP Group approval)). Surfaces on the electrical plan sheet's notes
+  block (`electricalPlanSvg.ts`, under the `electricalPlan` flag) + a per-room "N/target sockets"
+  shortfall tag in the editor's `MepLayer.tsx` (under `mepEditor`) — no new flag (R4-4).
 - **IES photometric profiles** (`src/lighting/ies/`, pure + render-agnostic — PC-IES-LIGHT, Coohom
   parity): `parseIes.ts` parses an IESNA LM-63 ASCII `.ies` file (header keywords, TILT line incl.
   inline `TILT=INCLUDE`, the 10 photometric params, vertical/horizontal angle arrays, candela grid ×
@@ -1244,12 +1589,42 @@ same change that reshapes a system.
   suggestions** section (PARITY-SUGGESTIONS-SECTION) — same builder, categories derived via
   `pointInRoom`; rides the existing `report` flag, omitted when no suggestion fires.
 - **Move-in / handover checklist** (`analysis/handoverChecklist.ts` pure →
-  `buildHandoverChecklist(plan,items,catalog)`: a derived snagging + key-handover punch-list
-  grouped by room (per-`RoomKind` defect rules via `roomKindFromName`, generic bucket for an
+  `buildHandoverChecklist(plan,items,catalog,keyCollectionDate?)`: a derived snagging + key-handover
+  punch-list grouped by room (per-`RoomKind` defect rules via `roomKindFromName`, generic bucket for an
   unrecognised kind), plus appliance/utility activation items for the appliance categories
   actually placed, plus an always-present keys/meters/documents group). The report's **Move-in
   checklist** section (PARITY-MOVEIN-CHECKLIST); rides the existing `report` flag, always renders
   (an empty plan still yields the generic group).
+- **DLP / warranty date tracker (R4-8)** (`analysis/handoverDates.ts` pure →
+  `buildHandoverDates(iso)`: from a `keyCollectionDate` computes the DLP end (+1yr), ceiling-leak
+  (+5yr) and spalling (+10yr) deadline dates; `addYears` clamps 29 Feb, `daysUntil` drives the
+  countdown). When set, `buildHandoverChecklist` appends a "Warranty & defect dates" group; surfaced
+  live in `ui/HandoverPanel.tsx` (`handoverOpen`, Tools → Handover & DLP) with a date input +
+  countdowns, and in the report. `keyCollectionDate` persists (additive zod in `schema.ts` +
+  autosave watch-list).
+- **SG renovation-rules reference pack (R4-6)** (`floorplan/renoRules.ts` static data → `RENO_RULES`
+  4 cited sections: wet-area 3-year tile rule, windows & grilles, working hours/noise, permits/DRC).
+  Surfaced by `ui/RenoRulesPanel.tsx` (`renoRulesOpen`, Tools → Reno rules), gated by the
+  `renoRulesPack` pro flag.
+- **Floor-loading / raised-platform advisory (R4-5)** (`analysis/floorLoading.ts` pure →
+  `buildFloorLoadingReport(items,catalog)`: flags heavy suspects — bathtub/aquarium/stone tables/
+  piano/loaded bookcases from a static kg table + density = weight ÷ scaled footprint vs the 150 kg/m²
+  slab guideline — plus raised platforms >50 mm). A "Floor loading" advisory group in
+  `ui/ClearancePanel.tsx`, gated by the `floorLoading` pro flag.
+- **BTO OCS starter (R4-3)** (`furniture/ocsStarter.ts` pure manifest → OCS floor finishes by room
+  id/category + `OCS_BATH_KIT` sanitary fittings). `state/slices/resetSlice.ts:applyOcsStarter` seeds
+  the bare OCS handover state (vinyl bedrooms / porcelain living + bath fittings, furniture cleared);
+  `furnishPlan.ts:furnishOcsItems` places the bath fittings for a custom plan. Exposed as "New BTO
+  (with OCS)" in `ui/wizard/SmartStartWizard.tsx`, gated by the `ocsStarter` simple flag.
+- **Bare-BTO & resale starting states (BSJ-4)** (`furniture/intakeStates.ts` pure: screed-dry floor
+  map + retained-wet rule, `absentLeafDoorIds`, bare WC/basin `bareSanitaryProvisions`, strip-out
+  fitting keep-set, `INTAKE_STATES` metadata → `floor-screed` material). Three `resetSlice` actions
+  (`applyBareBto`/`applyResaleAsIs`/`applyResaleStripout`) sit beside `applyOcsStarter`; each captures
+  `baselinePlan` so the hacking diff is honest (bare BTO → no hacking line). Absent door leaves =
+  `DoorState.leaf:'none'` (rides `doors` persistence/history; guarded in `Door.tsx` + `PlanDoorLeaf.tsx`,
+  2D symbol keeps the opening). Smart Start's OCS entry becomes a 4-option "Starting state" group gated
+  by the (relabelled) `ocsStarter` flag. Fixed-flat plumbing provisions are session-only (default plan
+  isn't serialized); screed floors + absent leaves persist.
 - **Renovation estimate** (`analysis/renovationCost.ts` pure → `estimateRenovation(floorAreas,wallAreas,rules?)`:
   SG supply+install $/m² per finish category). The default rate table (`RENO_RATES`) is the factory
   default of a **configurable price-rule library** (`PriceRules`/`DEFAULT_PRICE_RULES`, with
@@ -1260,6 +1635,19 @@ same change that reshapes a system.
   (`buildReportHtml`) and the cost CSV (`buildCostBreakdown`) so all three price identically. Editor:
   the "Price rules (rates)" section of `QuoteTemplateModal` (`priceRules` flag, pro). The report's
   Renovation estimate section shows the finishes subtotal + combined furniture+finishes total.
+- **Whole-reno budget allocator** (`analysis/renovationAllocator.ts` pure → `buildRenovationAllocation(input)`:
+  a full SG **trade** breakdown — hacking (from `demolitionPlan.diffWalls` vs. the baseline), masonry/wet
+  works (wet-room tiling area), flooring (dry floors), carpentry (placed cabinet/wardrobe/counter lin.m),
+  ceiling works (non-flat ceiling area), painting (dry wall area net of openings), M&E (electrical +
+  plumbing point count), aircon (PLACED `aircon-unit` FCU count when present, else the `airconSystem`
+  planner's per-room proposal), glass & aluminium
+  (shower-screen/partition area), plumbing fixtures (count), + a contingency line and indicative SG
+  reference bands. Reuses ONE rate card: tiling/flooring/painting/carpentry from `PriceRules`
+  `floor`/`wall`/`carpentryPerM`, the trades with no prior rate from the additive `PriceRules.trades`
+  (`TradeRates` — hacking/ceiling/M&E/aircon/glass/fixture/contingency, editable in the same
+  `QuoteTemplateModal` price-rules section; `estimateRenovation`/BOQ ignore `trades`, so their output is
+  unchanged). Surfaced as the `RenovationBudgetPanel` aux panel (`ui/renovationBudget.ts` assembles from
+  the store + a CSV export), in the File "Budget & costs" group, `renoBudget` flag (simple, default on).
 - **Plan statistics** (`analysis/planStatistics.ts` pure → `buildPlanStatistics(plan)`: GFA summed
   across ALL storeys, room count + per-kind mix (`roomKindFromName` buckets, unknown→`other`),
   average room size, total room perimeter + total wall length, and the net-vs-circulation split
@@ -1304,6 +1692,27 @@ same change that reshapes a system.
   `VENT_MIN_RATIO` (0.05); windows attributed to rooms by a wall-midpoint probe, `OPENABLE_FRACTION`
   for sliding windows; level-gated for multi-storey). `ui/DaylightPanel.tsx` + the report's
   "Daylight & ventilation" section (PARITY-DAYLIGHT-DIGEST; skipped when no room has a window).
+- **Aircon cooling-load (BTU) advisory** (`analysis/airconSizing.ts` pure → `buildAirconSizing(plan,
+  orientationDeg)`: per-room recommended BTU = floor area × `BTU_PER_SQM` (600, the ~50–60 BTU/ft²
+  SG rule-of-thumb mid) × modifiers — `+15%` for an exterior window facing W/E (room-side compass ⊕
+  `orientationDeg`, via `planRoomShell`), `+20%` for a ceiling > 3 m — plus `+4000 BTU` on a
+  living/dining zone an open (≥1.8 m opening) kitchen vents into (`roomsAcrossOpening` + `roomCategory`);
+  rounded up to a standard split size `[9k,12k,18k,24k]`, external rooms skipped, whole-flat total).
+  Rides the Daylight & ventilation panel (`ui/DaylightPanel.tsx` "Cooling load" section) gated by the
+  `airconSizing` pro flag (R4-1).
+- **Aircon SYSTEM planner (BSJ-2)** (`analysis/airconSystem.ts` pure → `buildAirconSystemPlan(plan,
+  orientationDeg)`: groups the served (habitable) rooms from `buildAirconSizing` into common (living/
+  dining) vs private (bedroom/study) usage zones, packs each zone onto outdoor condensers of ≤4 FCUs
+  (`MAX_FCU_PER_CONDENSER`) → System-2/3/4 proposals with connected-load %, over-`MAX_CONNECTION_RATIO`
+  (130%) flag against a cited nominal-capacity table (`CONDENSER_NOMINAL_BTU`), per-system trunking
+  note, and a ~110 kg (`LEDGE_MAX_KG`) ledge-weight advisory when ≥2 condensers share a ledge).
+  Placement is pure `analysis/airconPlacement.ts:planAirconPlacements` — a wall FCU (`aircon-unit`)
+  flush on each served room's exterior wall at 2.25 m + condenser(s) (`aircon-condenser`, new
+  `AirconCondenser` primitive) on the AC-ledge / service-yard / balcony room (`findLedgeRoom`).
+  Applied by `resetSlice.planAircon` (suggest-then-apply: drops existing aircon items, appends the
+  fresh set, ONE undo step). Surfaced as the "Aircon system" section + "Plan aircon" action in
+  `DaylightPanel`, gated by the `airconSystem` pro flag. The `renovationAllocator` aircon line now
+  counts PLACED FCUs when present, else this planner's proposal.
 - **Door & window schedule** (`analysis/openingSchedule.ts` pure → `buildOpeningSchedule(plan)`:
   walks `plan.openings` across all storeys, resolves each opening's room(s) by a wall-midpoint probe
   (`PROBE_OFFSET`, as in `daylight.ts`), and groups openings with identical (kind, width, head−sill)
@@ -1315,7 +1724,26 @@ same change that reshapes a system.
   facade windows, floor loading, ceiling heights). `analysis/stairConnectivity.ts` (ML6b) follows
   the same pattern for multi-storey plans: `buildStairAdvisories(plan, items, getDef)` flags any
   upper storey no staircase reaches (a `staircase`-family item on the storey below whose footprint
-  lands in rooms of BOTH storeys). Both surface in the report's "HDB compliance hints" section.
+  lands in rooms of BOTH storeys — `isStaircaseItem` matches the `staircase` def id OR any def
+  rendering the `Staircase` primitive). The adjustable `staircase` catalog item (def in
+  `furniture/defs/others.ts`, geometry `furniture/primitives/staircaseModel.ts`) is gated by the
+  `parametricStairs` **pro** flag — hidden from the catalog in Simple mode via
+  `useUnifiedCatalog(…, includeStairs)`; its honest plan footprint (`staircaseFootprintParts`) traces
+  the L/U flights rather than the full bounding box. Both surface in the report's "HDB compliance hints" section —
+  gated to `housingType==='HDB'` (or absent, back-compat); a Condominium/Landed plan gets a
+  "Renovation compliance notes" section instead with a one-line pointer to its own approval path
+  (MCST/BCA) plus any stair advisories (SG1). `floorplan/permitNotes.ts:permitNotes(housingType)`
+  is the single source of the HDB-permit / Condominium-MCST / Landed-BCA note text, read by the
+  demolition-plan sheet (`demolitionPlanSvg.ts`) and the drawing-set cover sheet's general notes.
+  **Live hackability overlay (R4-7):** `floorplan/wallHackability.ts` is the one classifier —
+  `wallHackability(structure)` → `'no'` (load-bearing/RC, demolition NOT permitted) / `'permit'`
+  (brick/dry partition, permit required) / `'unknown'` (unclassified) + `hackClassLabel`/
+  `hackClassDescription`/`isDemolitionRestricted`. `ui/floorplan/editor/layers/HackabilityLayer.tsx`
+  tints each current-storey wall by class (`--danger`/`--sun`/`--text-3`) with a legend, mounted under
+  a "Hackability" toggle in the plan editor's View ▾ menu (`PlanViewMenuActions.tsx` + `FloorPlanEditor.tsx`
+  `showHackability` state), gated by the `hackabilityOverlay` pro flag. Deleting a load-bearing/RC wall in
+  `WallInspector.tsx` first raises a `confirmAction({ danger })` "NOT PERMITTED" warning (warns, doesn't
+  block). Layer registered in `inlinePxGuard`'s grandfathered list like `MepLayer`.
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
   walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
   rule across the whole design (frame-scoped memo: same items/defs identities within
@@ -1397,7 +1825,12 @@ same change that reshapes a system.
   The **auto-arrange tidy pass** (`layout/autoArrange.ts` → `tryPlace`) reuses the same broadphase:
   each candidate placement restricts `canPlace`'s `others` to its footprint neighbourhood via
   `placement.ts` `broadphaseNeighbours` (ARRANGE-GRID) — identical result, proven by
-  `layout/arrangeBroadphase.test.ts`.
+  `layout/arrangeBroadphase.test.ts`. **Layout reroll (LAYOUT-REROLL, `layoutReroll` flag, simple):**
+  `arrangeRoom`/`arrangePlanRoom` take a `seed` (default 0 = today's byte-identical output;
+  `LAYOUT_VARIANT_COUNT`=4) that rotates candidate walls / bed anchor / lounge z-band / focal wall —
+  each variant still validated by `tryPlace`, so never collision-dirty. `layoutVariantSlice`
+  (session-only `layoutVariants: Record<roomId, seed>`) `rerollRoomLayout(roomId)` advances the seed
+  and commits one `pushHistory` + `setItems` (one undo step); UI is FinishPicker's "Try another layout".
   On drop, a single **surface item** (one carrying a numeric `surfaceHeight`) over a table/shelf snaps
   its rest height onto that surface's top (PC2-SURFACE-DROP, pure `collision/surfaceDrop.ts`
   `resolveSurfaceDropHeight` over the `tables`/`storage` categories; updates `props.surfaceHeight` via
@@ -1418,7 +1851,12 @@ same change that reshapes a system.
   state reuses the persisted `lastSurface` (`LAST_SURFACE_KEY`, extended to `'ceiling'`) that also drives
   the Browse target. The `.finish-picker .sec-h` scoped rule flattens
   the picker's section-header strips (static/transparent/no hairline) without touching the base sticky
-  `.sec-h`;
+  `.sec-h`; the Walls tab also opens the **real-photo paint visualizer** (`paintVisualizer` flag, simple
+  tier): `ui/paintViz/PaintVizModal.tsx` — a self-contained modal (lazy-loaded, all state
+  component-local) that composites a chosen wall swatch onto an uploaded wall photo via the pure
+  `ui/paintViz/composite.ts` (point-in-polygon mask + a W3C "color" luminance-preserving blend, so the
+  photo's shading/texture survive). Client-side only (photo never leaves the device); reuses the wall
+  paint swatches (`groups.wall`) as its colour source;
   the finish setters write through to the active plan and plan activation prunes stale
   custom-room keys; `PlanRoomShell` paints plan walls via `apartment/walls/PlanWallFinishFace`. **Split / Reverse / Join** (pure `wallOps.ts` — openings re-homed) + **exact length/angle** inspector
   fields (`wallOps.ts` `endForLength`/`endForAngle`/`wallAngleDeg` — PARITY-WALLDIM) + draggable endpoint handles (`moveWallVertex`) +
@@ -1483,7 +1921,71 @@ same change that reshapes a system.
   PARITY-PLANTEXT) + **dimension
   lines** (Dimension tool → `plan.dimensions`, measured-length labels) — both persisted (PARITY-DIMTEXT).
   **Polyline markup** (Polyline tool → `plan.polylines`, open/closed + dashed + end-arrow; pure
-  `floorplan/polyline.ts`; `planPolyline` flag, pro — PARITY-POLYLINE). **Draggable room-name labels**
+  `floorplan/polyline.ts`; `planPolyline` flag, pro — PARITY-POLYLINE).
+  **MEP points** (G1 — persisted, editable electrical/plumbing points, contractor-handover goal):
+  `FloorPlan.electricalPoints`/`plumbingPoints` (`PlanElectricalPoint`/`PlanPlumbingPoint`,
+  `floorplan/types.ts` — `ElectricalKind`/`PlumbingKind` moved there so `electricalPlan.ts`/
+  `plumbingPlan.ts` re-export type-only, avoiding an import cycle), free XZ (not wall-anchored —
+  wall attachment is a placement-time snap, not a persisted binding) + a level tag, mount height
+  in mm AFFL (per-kind default in `floorplan/mepPoints.ts`'s `ELECTRICAL_MOUNT_DEFAULTS_MM`/
+  `PLUMBING_MOUNT_DEFAULTS_MM`) + optional label. The `'mep'` editor tool (+ an editor-local armed
+  `family`/`kind`, default electrical socket) is a 4th `DrawToolPalette` `PlanMenu` group ("MEP",
+  Electrical/Plumbing sub-headers, 12 kinds total) that arms tool+kind in one click (mirrored on
+  mobile by a `PlanToolsSheet` "MEP" rail section, 44px chips) — `FloorPlanEditor`'s `onDown` snaps
+  the grid/guide-snapped click onto the nearest wall FACE when within 0.25 m (pure decision in
+  `ui/floorplan/editor/mepPlacement.ts`, given an already-computed `nearestWall()` hit — an MEP
+  point conventionally sits ON the wall it serves) and adds to the family the kind belongs to; the
+  tool stays armed (door/window convention) so several points place in a row. `layers/MepLayer.tsx`
+  (a `NotesLayer` clone) renders each point as a circle + glyph, reusing the exported sheets' exact
+  symbol vocabulary (`electricalPlanSvg.ts`/`plumbingPlanSvg.ts` export `ELEC_SYM_TEXT`/
+  `PLUMB_SYM_TEXT` — one symbol set, not two) — electrical in `--accent`, plumbing in the distinct
+  `--accent-2` token, selected always `--accent`; click (select tool) selects, drag repositions via
+  `beginElementDrag` + coalesced `updateElectricalPoint`/`updatePlumbingPoint`. `PlanInspector`'s
+  `'mep'` case is a within-family kind `Select`, a mount-height `Num` (step 50 mm, placeholder = the
+  per-kind default) + quick-pick preset chips for electrical (300/1050/1200/2400 mm — `Num` grew an
+  optional `undefined`-value + `placeholder` mode for this), a label input, delete. A `showMep`
+  session toggle in `PlanViewMenuActions` (shown by default — unlike furniture footprints, MEP
+  points are plan elements authored here, not a duplicate of the 3D scene); `Delete`/`Backspace`
+  removes the selection; a right-click gets the same minimal delete-only menu as notes/dimensions/
+  polylines (`ContextTarget`'s `'mep'` kind). All six store actions (`add`/`update`/`remove` × 2
+  families) fork the default plan + push history (unlike `addNote`'s pre-existing non-forking
+  quirk, deliberately not copied — a non-forking add on the untouched default plan would lose its
+  points on the next save/share-link). Gated end-to-end by the `mepEditor` flag (pro, default on) —
+  the pre-existing `electricalPlan`/`plumbingPlan` flags still gate the exported SHEETS separately.
+  **Suggest MEP points** (G1 PR4): the Plan ▾ menu's (+ mobile Plan-tools sheet's) "Suggest MEP
+  points" entry (`mepEditor`-gated) derives a starting layout from the current furniture + doors
+  via `floorPlanSlice.suggestMepPoints()` — the SAME heuristic the drawing-set export falls back to
+  (`furniture/mepSuggest.ts:deriveElectricalPoints`/`derivePlumbingPoints`, moved verbatim out of
+  `openDrawingSet.ts` so there is exactly ONE derivation source, never two that could drift), drops
+  any candidate duplicating an already-persisted point (`floorplan/mepPoints.ts:isDuplicateMepPoint`
+  — same kind + storey within 0.3 m), assigns ids + per-kind default mount heights, and appends both
+  families under ONE undo step + fork-if-default. A toast reports "Added N electrical + M plumbing
+  points — drag to refine" (or an info toast when a re-run finds nothing new). **Sheets prefer
+  persisted points (G1 PR5):** `openDrawingSet.ts` now reads `floorPlan.electricalPoints`/
+  `plumbingPoints` first and only falls back to the heuristic when that family's array is empty —
+  `buildDrawingSetHtml`'s electrical/plumbing params are bundled `{points, source: 'persisted' |
+  'heuristic'}` objects (rather than a 13th/14th positional param) so each sheet knows its own
+  provenance: a `'persisted'` sheet carries a neutral "Points as designed — heights in mm AFFL" note
+  + prints an `@1200`-style mount-height suffix beside each symbol (a "Heights in mm AFFL" legend
+  line appears whenever any point on the sheet carries one — `electricalPlanSvg.ts`/
+  `plumbingPlanSvg.ts`), a `'heuristic'` sheet keeps the pre-existing amber "Indicative — derived
+  from the furniture layout; verify on site" caveat. `ElectricalPoint`/`PlumbingPoint` (the sheet-
+  builder's transient shape, distinct from the persisted `PlanElectricalPoint`/`PlanPlumbingPoint`)
+  both grew an optional `mountHeightMm` carried through `buildElectricalPlan`/`buildPlumbingPlan`'s
+  clean-copy validation loop. **Lighting & switching schematic** (BSJ-3, `switchCircuits` pro flag):
+  additive `PlanElectricalPoint.controls?`/`gang?`/`way?` link a `switch` to the light fixtures it
+  drives (controlled id = light-fixture item id — no lighting-kind point exists; see
+  `floorplan/switchCircuits.ts` for the id-vocabulary decision). Pure `switchCircuits.ts`
+  (`buildSwitchCircuits`) assigns deterministic S/L tags (two-way pair = two `way:2` switches with the
+  same `controls` → one circuit, `Sna`/`Snb`) + unswitched-light/empty-switch advisory counts;
+  `suggestCircuitLinks` (door-nearest-switch heuristic) backs `floorPlanSlice.suggestSwitchCircuits`
+  (one undo). The electrical sheet (`electricalPlanSvg`, when `drawingSet` passes `opts.lights` under
+  the flag) tags each linked switch + draws controlled-light crossed-circle markers through the SAME
+  `mepLabelLayout` declutter as the symbols + a "Lighting circuits" legend; `export/dxf.ts:mepSection`
+  suffixes the ELECTRICAL text with the identical tag (sheet↔DXF consistent). Editor: the selected
+  switch's inspector "Controls" section (`SwitchControlsSection`, room-grouped light list + two-way +
+  gang, list-only v1) + `SwitchLinksLayer` dashed leader lines to controlled lights. **Draggable
+  room-name labels**
   (`room.labelOffset`; `roomLabelPosition` = centroid + offset, shared by editor + report/drawing set —
   PARITY-ROOMLABEL). Each room's label shows name + live floor **area** (`planRoomArea`) + wall
   **perimeter** (`planRoomPerimeter` — shared with the report) on the full-detail tier, unit-aware
@@ -1564,7 +2066,15 @@ same change that reshapes a system.
   uniform-fit to the plan and renders above room fills but below walls/dims (pure math in
   `editor/backdropPlacement.ts` — fit/centre/anchored-rescale + the 25 MB cap); Scale-tool
   calibration (`mPerPx`) anchors on the drawn segment's midpoint; persisted to IDB
-  (`backdropPersist.ts`, `usePlanBackdrop.ts`) + **"AI walls"** (BYO-key).
+  (`backdropPersist.ts`, `usePlanBackdrop.ts`) + **"AI walls"** (BYO-key; the one vision pass
+  drafts walls AND door/window openings AND a scale estimate — `ai/floorPlanAi.ts:
+  parseVisionResponse` → pure `ai/floorPlanAiPlacement.ts` nearest-wall snap →
+  `usePlanAiWalls.applyAiPlanDraft`; AI scale never overwrites a manual Set-scale calibration
+  (`backdrop.scaleCalibrated`); dev hook `window.__applyAiVisionResponse` for no-network testing).
+  **AI plan generation** ("Generate plan with AI…" in the Plan menu + ⌘K `ai-plan-generate`,
+  `aiPlanGenerate` flag, pro, BYO-key): a text brief → wall/opening/room JSON via
+  `ai/floorPlanGenerate.ts` reusing the same parse/apply path + `usePlanAiGenerate`; dev hook
+  `window.__applyAiGeneratedPlan`.
   **Snap to grid** (Plan menu "Snap to grid", `planGridSnap` flag, pro; PARITY-GRID-SNAP): a
   whole-plan transform that rounds every wall endpoint / room polygon vertex / opening offset /
   note·dim·polyline coordinate (and every upper storey + the `extent`) to the editor's current
@@ -1593,10 +2103,20 @@ same change that reshapes a system.
   Menus: **View** (Orbit/Walk + top/reset/turntable + saved views `cameraViewsSlice` with
   per-view note + 360°-slide toggles, Present…, and **Render all views** —
   `ui/renderAllViews.ts` flies each saved view and downloads a `captureCanvasPng` PNG per view,
-  `batchRender` flag, pro),
+  `batchRender` flag, pro; plus the **day→night clip sweep** — `DayNightClipSetup` checkbox +
+  From/To sliders under Record walkthrough video (`dayNightClip` flag, pro): the saved-views
+  tour drives `manualHour` from tour progress via `timeSlice.begin/apply/endTimeSweep` +
+  `scene/cameras/dayNightSweep.ts:sweepHourAt`, restoring the pre-tour time on stop; plus
+  **Suggest views** — `SavedViewsSection`/`ViewSection` action calling
+  `scene/cameras/suggestViews.ts:suggestViews` (`suggestedViews` flag, pro) to auto-save a
+  corner three-quarter view per largest furnished room + a whole-home overview via the
+  pose-based `cameraViewsSlice.saveView`, deduped by name),
   **Scene** (time slider + Lighting + Backdrop + sun `CompassModal`), **Edit** (step into
   room / floor-plan), **Arrange** (Tidy + Sets/Presets/Styles pick→Apply `PickApply`),
-  **Tools** (Budget/Checks/Sun study/Walkthrough/Report), **File**, **Graphics**. Three
+  **Tools** (Budget/Checks/Sun study/Walkthrough/Report + **Design chat** — the read-only
+  BYO-key `ui/DesignChatPanel.tsx` advisor grounded in `ai/designChatContext.ts`'s digest of
+  the app's own numbers, prompt/call in `ai/designChat.ts`, `aiDesignChat` flag, pro), **File**,
+  **Graphics**. Three
   states: overview/room-editor/walk. Tooltips+menus via `Popover`; shortcut chips from
   `controls/keybindings.ts`. Mobile: minimal bar → bottom action-sheet with a master-detail
   layout — an icon-only left rail of sections (`data-tour-section`) opens each section's items in
@@ -1611,7 +2131,13 @@ same change that reshapes a system.
   hotkeys can't fire behind a dialog; Escape stays per-modal, ⌘K/undo are suppressed).
 - **Walk-mode** (`scene/cameras/FirstPersonCamera.tsx`, `walkInput.ts`, `ui/walk/`): fine
   = Pointer Lock (WASD+mouse, Esc; native banner unstyleable), coarse = `WalkJoystick` +
-  drag-look; `WalkHud`, `Crosshair`. **Observer camera controls** (PARITY-WALKCAM,
+  drag-look; `WalkHud`, `Crosshair`. **Point-to-point measure** (WALK-MEASURE, `walkMeasure`
+  flag, simple): aim + `G` (`keybindings.ts:walkMeasurePoint`) / the WalkHud "Measure" pill sets
+  two points; `FirstPersonCamera`'s throttled aim raycast (filtered by pure
+  `collision/walkMeasureHit.ts`) drives `state/slices/walkMeasureSlice.ts` and
+  `scene/WalkMeasureOverlay.tsx` renders the segment + live distance; the button↔frame-loop
+  handoff is the `scene/cameras/walkMeasureRequest.ts` module signal (walkTeleport pattern).
+  **Observer camera controls** (PARITY-WALKCAM,
   `walkCameraControls` flag, pro): FOV (50–100°, default 70) + eye-height (1.2–1.9 m, default
   1.6) sliders in `ui/walk/WalkCameraControls.tsx`, persisted in `editorPrefs`; pure clamp
   helpers + ranges in `scene/cameras/walkCameraSettings.ts`; FOV applies reactively to the live
@@ -1865,6 +2391,16 @@ same change that reshapes a system.
   (+ optional `.glb.json` sidecar) into `public/assets/furniture/`, `npm run index-assets`
   → regenerates `generatedCatalog.ts` + `CREDITS`. Must be floor-anchored + centred (no
   runtime fit). License CC0 default, may be CC-BY (sidecar → inspector `SourceLine`).
+  **Poly Haven fetcher** (`scripts/asset-pipeline/fetch-polyhaven-models.mjs`, dev): downloads
+  CC0 model gltf bundles (1k default) and repacks self-contained GLBs into
+  `local-assets/<category>/` (gitignored) for the Part-1 local-asset dev DB; pure selection
+  helpers in `polyhaven-select.mjs` (unit-tested); idempotent, rate-limited,
+  `--limit/--category/--ids/--res`.
+  **Build-time KTX2** (`scripts/asset-pipeline/ktx2-encode.ts`, opt-in): an optional
+  UASTC-encode `@gltf-transform` transform for GLB textures via the same Basis-Universal WASM
+  encoder as the browser (`ktx2-encoder` + `sharp`, no native `toktx`), registering
+  `KHR_texture_basisu`. `processGlb(…, {ktx2:true})` / `fetch-assets.ts --ktx2`; OFF by default
+  (WASM encode is slow; win is VRAM not size); degrades cleanly when the encoder is absent.
   **Cache lifecycle (PERF-001/008)**: `GltfModel` caches parsed GPU scenes (drei `useGLTF`)
   plus module-level `FOOTPRINT_CACHE`/`SUPPORT_PLANE_*`; removal paths (`freeResource` in
   `userAssetsSlice`, `markPackUninstalled` in `installedPacksSlice`) call

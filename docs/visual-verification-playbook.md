@@ -29,6 +29,32 @@ kept in `scripts/scenarios/`.
   `pano-tour-journey.json`); keep each scenario focused and re-runnable on a clean
   profile (`first-run.json` is the worked example).
 
+## Local prod-build smoke test (`vite preview` needs a matching `VITE_BASE`)
+
+**`vite preview` must be given the same `VITE_BASE` the build used, or every asset
+404s into the SPA index.html fallback and boot hangs on the loader.** `vite preview`
+resolves its config with Vite's internal `command: "serve"` (not `"build"`), so
+`vite.config.ts`'s base ternary (`command === 'build' ? '/sofa-so-good/' : '/'`)
+silently reverts to `/` under preview — while `dist/` still references the sub-path
+base (`/sofa-so-good/`, the default GH-Pages build). Symptoms: the boot loader stuck
+on a random phrase ("Waiting for the lift…"), console full of resource 404s, and
+`curl -I` on any asset under the base returning `200`/`text/html` (it's silently
+serving `index.html`, Vite's SPA fallback). Correct invocations:
+
+```bash
+# GH-Pages-style build (default):
+VITE_BASE=/sofa-so-good/ npx vite preview --port 5300 --strictPort
+# → http://localhost:5300/sofa-so-good/
+# Root-served build (Docker/nginx/Cloudflare parity):
+VITE_BASE=/ npm run build && npx vite preview --port 5300 --strictPort
+# → http://localhost:5300/
+```
+
+Real deploys are unaffected (static hosts serve real files; they never re-run the
+command-aware config). `window.__store` does NOT exist in prod builds — drive
+prod smoke tests with DOM waits (`waitFor {css: "canvas"}`), not store predicates;
+a `502` on the `hasBackend()` health ping is expected/harmless with no local backend.
+
 ## Real-GPU mode (`SHOT_GPU=1`)
 
 By default the harness renders with **SwiftShader** (software WebGL) — fine for
@@ -273,6 +299,17 @@ come out near-black.
   `oklch`; (b) probing the *inputs* of its gate (flag + `qualityTier`) rather than the hook itself;
   (c) driving the CSS var yourself via `el.style.setProperty('--mx', …)` for the visual; and lean on
   the effect's unit suite for the handler→var wiring. Say which evidence you got.
+- **`navigator.canShare`/`navigator.share` are absent in headless Chromium — stub them with a plain
+  `eval` before opening the surface that gates on them** (`share-native-simple.json`). An `eval` step
+  assigning `navigator.canShare = (data) => …` / `navigator.share = (data) => { …; return
+  Promise.resolve() }` works fine (these are plain instance properties, no native-getter lock like
+  `navigator.geolocation`); record each call's args on `window.__shareCalls` so a later `waitFor
+  {store: "window.__shareCalls.length > 0"}` step can confirm the click actually reached
+  `navigator.share` (a synthetic `click` on a real DOM `<button>` does reach its React `onClick`,
+  unlike the R3F-canvas/pointermove cases above — this isn't a canvas or root-delegated-only
+  handler). To verify the ungated fallback, `delete navigator.canShare; delete navigator.share;` and
+  reassert the gated button is absent — don't just trust the flag-off case, the button's real gate is
+  `canShareHeroCardNative()`'s runtime probe, not only the feature flag.
 
 ### Scenario template
 
@@ -570,6 +607,169 @@ place (same id, new geometry, no duplicate) and the placed instance still resolv
   props:{}})` always lands; for the default flat, room centroids are stable
   (`apartment/constants.ts` — e.g. Living/Dining centre ≈ `[10.55, 4.1]`). `enterRoomEditor('<roomId>')`
   first to frame the room for a clean before/after screenshot.
+
+### Gotchas from the IXT-SUITES back-fill (materialComposer / wallAccentPicker / planCompass / unroomedFlag)
+
+- **`MaterialComposer` auto-seeds a `tint:` of the ACTIVE catalog material, not a fresh
+  `compose:` pattern**, whenever the room's current finish matches a catalog id — an "apply
+  composed finish" assertion expecting a `compose:` prefix must first drive the composer's
+  custom `Select` to an explicit procedural pattern option (trigger click → portalled
+  `[role="option"]` click), or it will (correctly) get a `tint:` id and fail.
+- **A `pointer-events:none` layer that is ALWAYS in the DOM can't be probed by presence or
+  point-picking.** `unroomedFlag`'s red polygon exists at the full building footprint at all
+  times — it's merely occluded by the `RoomsLayer` fills painted above it, and
+  `elementFromPoint` skips it (`pointer-events:none`). Assert OCCLUSION instead: check whether
+  any room-fill element still covers a known world point after the mutation (e.g. does a
+  `[fill^='var(--surface']` rect contain the point), not whether the flag layer "appeared".
+- **Store actions that mirror a picker's internals need the SAME argument pair the UI uses** —
+  `selectWall(wallId, roomId)` must be a genuinely bordering pair (verify via `wallRoomSides()`)
+  or the `WallAccentPicker` mounts against a wall the room doesn't own and the accent key
+  (`wallId:roomId`) never resolves in the 3D scene.
+
+### Gotchas from the IXT-SUITES back-fill batch 2 (dimensionChain / planGuides / cornerFillet / roomInset)
+
+- **`PlanMenu.tsx`'s panel closes the WHOLE menu on ANY click inside it** — the `.plan-menu-panel`
+  wrapper has its own `onClick={() => setOpen(false)}` and the comment says so outright
+  ("Clicking an action closes the menu (bubbles to the panel)"): every action button in the "Plan
+  ▾" menu is a **one-shot** control. A multi-action scenario (add a V guide, then an H guide, then
+  Clear guides) must **reopen the menu before every single click**, not just the first — reusing
+  the same self-retrying open-eval from the `aiwalls-simple.json` gotcha (poll until the target
+  button's text is present in `.plan-menu-panel`, re-clicking the "Plan ▾" trigger if it isn't).
+  Forgetting this makes the *second* action's button-lookup fail with "button not found" even
+  though the first click worked fine — it's not a missing feature, the panel is simply gone.
+- **Add explicit settle waits around every Plan-menu open/close, even when the open-eval already
+  polls for `.plan-menu-panel` to appear.** A single self-retrying open-eval that returns the
+  instant it sees the panel can still race the SAME stray scroll/resize the aiwalls-simple gotcha
+  documented — the panel can flicker shut again microseconds after the eval returns, so the very
+  next step (an assertion or a screenshot) sometimes finds it already gone. `aiwalls-simple.json`'s
+  actual working pattern is open-eval → `waitFor {css:'.plan-menu-panel'}` → a short **300 ms
+  settle `wait`** → THEN assert/screenshot/click; mirror that three-step shape (not just the
+  open-eval alone) for every open, and add a 300 ms settle after every close too. Skipping the
+  settle produced an intermittent "Plan menu panel missing" failure that a bare re-run without the
+  waits did not reproduce every time — a genuine timing race, not a flaky harness fluke.
+- **Selecting two connected walls for `cornerFillet` (or any two-wall action) mirrors the real
+  multi-select gesture exactly**: `setPlanSelection({type:'wall', id: idA})` (primary) followed by
+  `toggleWallSelection(idB)` (adds it as an "extra" in `selectedWallIds`) reproduces
+  `FloorPlanEditor`'s own `selectedWalls` memo (`sel.id` ∪ `selectedWallIds`, filtered to walls
+  that still exist) — don't hand-write `{selectedWallIds:[idA,idB]}` via `setState` directly, since
+  the component's `useMemo` also folds in `planSelection` and a hand-rolled state shape can
+  silently disagree with what the two "Round corner"/"Bevel corner" buttons actually read
+  (`selectedWalls.size === 2`). Find a genuinely-connected pair generically at runtime (search
+  `floorPlan.walls` for two whose `start`/`end` share a point, keyed by a rounded string) rather
+  than hardcoding wall ids from one plan snapshot — plan-generation details can shift the ids.
+- **`RoomInspector`'s `.plan-props` aside is a plain component, not a `Popover`-based menu** — its
+  buttons ("Inset −0.1 m", "Grow +0.1 m", the ceiling-style segmented control, …) do **not**
+  auto-close anything on click, so (unlike the Plan-menu buttons above) a sequence of clicks inside
+  it needs no reopen dance. Select the room via `setPlanSelection({type:'room', id})` — the panel
+  mounts on `sel?.type === 'room'` and stays open across a Simple↔Pro `setUiMode` switch (selection
+  state is untouched by the mode switch, only the flag-gated JSX inside the panel changes).
+- **Pick the LARGEST room for a room-outline-shrinking op.** `insetRoom` rejects (returns `false`,
+  shows an error toast) when the offset would collapse the outline — `insetPolygon`'s degenerate
+  check. A small room (a bathroom, a household shelter) in the default HDB flat can legitimately
+  reject a 0.1 m inset depending on its narrowest span; reduce the flakiness by reducing over
+  `rooms.reduce((a,b) => a.width*a.depth >= b.width*b.depth ? a : b)` to always target the biggest
+  room (Living/Dining in the default flat), which comfortably tolerates the standard 0.1 m nudge.
+
+### Gotchas from the IXT-SUITES back-fill batch 3 (layoutReroll / planLabels / wallThickness / designerPicks)
+
+- **A curated-swatch/name-search substring scan across `scripts/scenarios/*.json` gives false
+  "uncovered" results on a British/American spelling mismatch.** `elementColors` (flag) vs.
+  `element-colours-verify.json` (existing scenario) don't share a substring once dashes are
+  stripped (`elementcolors` vs `elementcolourverify`) — a naive "does the flag name normalize into
+  any scenario filename" pass will report an already-covered flag as a gap. Always grep the
+  registry `label`/`description` text too (or just open the top few candidate files) before
+  authoring a scenario that turns out to duplicate one that already exists under a differently
+  spelled name.
+- **A flag can gate a control that lives inside an ALREADY-flag-gated parent panel with no
+  dedicated route of its own.** `layoutReroll`'s only UI is the "Try another layout" button inside
+  `FinishPicker`'s "Room layout" section (itself reached via `enterRoomEditor` + `selectRoom`, the
+  same open sequence `materialcomposer-simple.json` established) — there's no separate menu/route
+  to discover it from a flag name search; `grep -rn "layoutReroll"` across `src/ui` is what actually
+  finds it (only 3 hits: `types.ts`, `registry.ts`, `FinishPicker.tsx`).
+- **`rerollRoomLayout`'s variant counter (`layoutVariants[roomId]`) is session-only state, NOT part
+  of `HistorySnapshot`** (see `src/state/CLAUDE.md`'s undo-granularity rule) — `undo()` reverts the
+  reshuffled `items` array but leaves `layoutVariants[roomId]` at whatever it last was. Don't assert
+  the variant counter decremented after an undo; assert only that the item transforms round-tripped
+  back to the pre-reroll snapshot.
+- **`planLabels`' cycle button lives in the "View ▾" `PlanMenu`** (the same self-closing-on-any-click
+  panel documented in the batch-2 gotchas) — reopen it before EVERY click (toggling "Furniture" ON,
+  then separately cycling "Labels: off"→"Labels: name"→"Labels: name"→"Labels: + price" are three
+  separate opens, not one). Two more gotchas specific to this flag: (1) **label TEXT rendering is
+  gated on the SEPARATE "Furniture" visibility toggle**, not just `planLabels` — `FurnitureLayer`
+  (and its `.plan-item-label` texts) only mounts at all when `showFurniture` is true, so a scenario
+  that skips turning Furniture on first will find zero label elements no matter what `planLabels`
+  mode is active. (2) **the price line needs `budget` (a `default:false` flag) ALSO on** —
+  `fPrice = useFeature('budget')` gates whether `itemPrice(...)` is even computed, so cycling to
+  `'price'` mode with `budget` still off silently produces name-only labels (no `$` tspan); flip
+  `budget` on via `setFeatureFlag('budget', true)` before asserting the price line.
+- **`wallThickness`'s plan-wide Exterior/Interior fields live in the NO-SELECTION `PlanInspector`
+  default panel** (`.plan-props`, desktop-only-by-default but always mounted since nothing is
+  selected) — no click/open dance needed, just `setFloorPlanEditing(true)` and wait for
+  `.plan-props`. The `Num` control has no `aria-label` on the `<input>` itself, only a sibling
+  `<span>` inside the wrapping `<label>` — locate it via `[...document.querySelectorAll('.plan-props
+  label')].find(l => l.querySelector('span')?.textContent.trim() === 'Exterior (m)')` then
+  `.querySelector('input')`, and commit a value with the native-setter + `dispatchEvent(new
+  Event('input', {bubbles:true}))` trick (`expansion-e4b.json`'s established pattern) — a plain
+  `.value = '0.3'` assignment does NOT fire React's `onChange` (React's controlled-input tracker
+  ignores a direct property write). The SAME `Num` component (same lack of `aria-label`) backs the
+  per-wall `WallInspector` "Thickness (m)" override field one selection away — select a wall via
+  `setPlanSelection({type:'wall', id})` first.
+- **`designerPicks`' curated row is `[role="group"][aria-label="Designer picks"]`**, rendered by a
+  local `DesignerPicks` component inside `ui/finish/swatches.tsx`'s `SwatchGroup` (shared by every
+  surface tab) — the SAME `aria-label` string appears independently on the Floor AND Walls tabs (two
+  separate DOM nodes, one per active tab), so `waitFor {css: "[role=group][aria-label='Designer
+  picks']"}` after switching tabs is sufficient (no need to disambiguate by tab). Each swatch
+  button's own `aria-label` is `Designer pick: <name>` — with no easy DOM-exposed material id, assert
+  the applied finish id is a MEMBER of the six known curated floor ids (mirroring `designerPicks.ts`'s
+  `DESIGNER_FLOOR_IDS` list in the scenario's assertion) rather than trying to derive the exact id
+  from the clicked button.
+
+### Gotchas from the IXT-SUITES back-fill batch 4 (layerOrder / furnitureGroups / copyAppearance / suggestions)
+
+- **`openContextMenu(menu)` and `selectItem`/`setSelectedItemIds` are plain store actions — drive
+  the right-click ContextMenu and single/multi-item selection directly instead of trying to
+  synthesize a real right-click on the R3F canvas** (which doesn't raycast per the existing
+  gotcha above). `openContextMenu({x, y, target: {kind:'item', id}})` mounts `.ctx-menu` exactly
+  like a real right-click would, with the full selection-aware row set (`layerOrder`'s "Bring to
+  front"/"Send to back" rows among them) — no canvas interaction needed at all.
+- **`reorderItems(ids, move)`'s array-order contract is exact and cheap to assert**: `'front'`
+  moves the id(s) to the END of `items` (last = top of the 3D stack / SVG paint order), `'back'` to
+  the START. A round-trip scenario can assert `items[items.length-1].id === target` after "Bring to
+  front" and `items[0].id === target` after "Send to back" without any pixel/visual check.
+  `layerOrder` is `tier:'simple'` (always on regardless of Simple/Pro), so its scenario asserts
+  presence in both modes rather than a hidden→shown transition.
+- **`furnitureGroups`'s Group/Ungroup buttons live in `MultiSelectPanel` (`.panel.inspector`,
+  mounts when `selectedItemIds.length > 1`), a plain HTML panel** — unlike the context menu, no
+  store-action shortcut is needed, real `click: {text: "Group"/"Ungroup"}` steps work directly.
+  Two gotchas: (1) **`setSelectedItemIds([a,b])` does NOT set `activeGroupId`** (only the
+  selection-flow `selectItem`/plan-click paths that discover an existing group membership do) —
+  the panel decides Group-vs-Ungroup purely off `activeGroupId`, so after calling `groupItems`
+  via the UI, mirror what a real re-select would produce with `window.__store.setState({
+  activeGroupId: <the new shared groupId> })` before asserting the "Ungroup" button appears; don't
+  expect it to flip automatically. (2) The "Group" button additionally requires
+  `selectedItemIds.length > 1` — a plain 2-item `addItem` + `setSelectedItemIds` is enough, no
+  drag-marquee needed.
+- **`copyAppearance`'s clipboard only carries "look" keys — a GLB/IKEA item's is
+  `['variant','tint','reflective']`, but a *parametric* item's is whichever of its own
+  `paramSchema` fields are `kind:'color'` or an enum key matching `/finish|materi|wood|metal|
+  fabric|leather|colou?r|.../`** (`appearanceKeys()` in `furniture/appearanceProps.ts`). For a
+  parametric fixture like `sofa-3seat`, that's `props.color` (its `paramSchema`'s `kind:'color'`
+  field), NOT `tint` — seeding two sofas with different `props.color` and asserting the target's
+  `color` after paste is the reliable round-trip; a `tint`-based fixture would silently never
+  change on a parametric def since `tint` isn't in its appearance-key set.
+- **`suggestions` is a genuinely separate flag NESTED inside the already-`designScore`-flag-gated
+  `#designScorePanel`** (`DesignScorePanel.tsx`'s own `useFeature('suggestions')`), so the
+  Simple/Pro visibility ladder used for `designScore` itself (hidden/shown via the parent flag)
+  doesn't exercise `suggestions` independently — both default true/pro so they flip together on a
+  uiMode switch. Isolate it by leaving the panel open in Pro and calling
+  `setFeatureFlag('suggestions', false)` directly (dev build has `IS_DEV` true so overrides are
+  honoured): the panel (score dial + category rows) stays mounted while only the "Suggestions"
+  sub-block (💡 tip lines) disappears — proves the sub-flag's own gate rather than just its
+  parent's. **The suggester only fires per-room `empty-*` rules when a room has ZERO furniture
+  categories** (`buildSuggestions`'s `categories.size === 0` check) — the default HDB flat ships
+  furnished, so `setItems([])` first (clearing every room) is what makes the "Suggestions" section
+  populate at all; against the stock furnished flat the section can render empty/absent and look
+  like a false "hidden" result that's actually just "nothing to suggest".
 
 ### Worked example — GLB designer CSG v2 non-destructive booleans (Stage 1b)
 
@@ -901,6 +1101,314 @@ back to orbit (config persists). Gotchas learned here:
   that fallback (not a render bug) is why — `livingDining` works because the default plan keeps
   its main rect and `extension` as separate rectangles.
 
+### Gotchas from the IXT-SUITES back-fill batch 6 (catalogCompare / bulkAppearance / renderPresets / saveMaterials)
+
+- **`catalogCompare`'s cards are plain `role="button"` `<div>`s identified only by `aria-label`
+  (`"Add <name> to compare"` / `"Place <name>"`), not by visible text** — `clickByText` can't find
+  them reliably (their visible text is the def name, not the aria-label), so drive them with an
+  `eval` querying `[aria-label='Add <name> to compare']` directly. Pick two SAME-CATEGORY defs by
+  name (e.g. "3-seat sofa" + "2-seat sofa", both `category: 'seating'`) — `toggleCompareSelection`
+  resets the whole selection to just the new pick the moment a different-category item is tapped,
+  so a naive "click the first two catalog cards" approach silently ends up with only 1 item
+  selected. Arming a placement from the tray's "Place" button (`useCatalogPlacement.arm`) is
+  provable via `state.activeDefId` (no scene click needed) — the tray closes and compare mode
+  exits in the same `onPlaced` callback.
+- **A custom `Select` (`ui/controls/Select.tsx`) shares its trigger `className` with SIBLING
+  selects on the same panel — don't assume a component class is unique.** `SceneMenu.tsx` gives
+  FOUR different selects (Render preset, Window view, Reveal walls, pets) the identical
+  `className="input scene-select"`; a `waitFor {css:'.scene-select'}`/`visible:false` assertion
+  meant to gate on the render-preset control alone will falsely pass at "present" (any of the 4
+  matches) and falsely FAIL at "hidden" (the other 3 keep the class alive after force-disabling
+  just `renderPresets`). Target the Select's own `ariaLabel` prop instead — it renders as
+  `aria-label` on the trigger `<button>` (`button[aria-label='Render preset']`), which IS unique
+  per control.
+- **`SceneMenu`'s render-preset apply logic (`applyRenderPreset`) isn't reachable via a real click
+  in a scenario without risking the parent-menu-closes-first bug** (documented in the
+  backdrop-upload gotchas: a `Select` nested inside a `ToolbarMenu`/`Popover`-based menu portals
+  its options to a DOM sibling, so the parent menu's outside-pointerdown listener closes the WHOLE
+  menu before the option's own click fires). Mirror the same work-around: drive the identical 4
+  setters `applyRenderPreset` calls (`setPresetTime`/`setToneMapping`/`setExposure`/
+  `setLightsMode`) directly via `store`/`eval` steps, and assert on `timeMode==='manual' &&
+  manualHour===12` (not a nonexistent `timePreset` field — `setPresetTime` writes `manualHour`
+  via `PRESET_HOURS[preset]`, there's no separate preset-name field in the store).
+- **`bulkAppearance`'s "Tint all" bulk-recolour is a CONFIRMED REAL BUG for the vast majority of
+  the built-in catalog: it writes `props.tint` unconditionally on every selected item
+  (`MultiSelectPanel.tsx`'s `setTintAll`), but `tint` is a GLTF-only appearance key
+  (`GLTF_APPEARANCE_KEYS` in `furniture/appearanceProps.ts`) — a parametric/procedural primitive
+  (e.g. `sofa-3seat`, `armchair`) reads its own colour from `props.color` (or `seatColor`/
+  `legColor`/…, per its `paramSchema`), never `props.tint`, so the primitive component (e.g.
+  `furniture/primitives/Sofa.tsx`'s `readStr(props, 'color', …)`) never looks at the newly-written
+  `tint` at all.** The bug is silent and misleading: the swatch trigger visibly shows the applied
+  colour (`sharedTint` also reads `props.tint`, so the UI "looks" like it worked), the store
+  round-trips the write correctly, but the 3D render is provably byte-identical before/after (a
+  pixel probe at the same screen point on both a sofa and an armchair returned the exact same RGB
+  after tinting two stock procedural items #ff8800) — bulk recolour only has any visual effect on
+  GLTF/IKEA-backed items, which is a small minority of the catalog. Not fixed here per the
+  Implementer-agent scope (report, don't silently work around) — flag for a real fix: either write
+  `props.color` (+ any other colour-kind paramSchema keys) for parametric items alongside `tint`
+  for GLTF ones, or gate the whole "Tint all" section on the selection actually containing at
+  least one GLTF item.
+- **`Escape` is a GLOBAL "clear selection" shortcut, not just "close the open popover."** Closing
+  the bulk `ColorPicker`'s popover via a `key: "Escape"` step also cleared `selectedItemIds`
+  (unmounting the whole `MultiSelectPanel`, including the very `.ms-appearance` block whose
+  post-state you're trying to assert) — the popover's own trigger swatch button toggles
+  open/closed via a plain re-click (`onClick={() => (open ? close() : openEditor())}`), so close it
+  by clicking the SAME trigger button again, never `Escape`, when a selection must survive the
+  close.
+- **A native `<details>`/`<summary>` (`ui/controls/Disclosure.tsx`, backing "Compose your own…" and
+  "Apartment colour palette…") being COLLAPSED (closed) does NOT remove its children from the DOM —
+  only CSS hides them.** This makes `waitFor {css: <selector inside the details>}` and
+  `clickByText`'s deepest-match a FALSE POSITIVE for "is it open/visible": the child input/button
+  is still `document.querySelector`-able (and even reports a real, if off-screen, bounding rect)
+  whether the `<details>` is expanded or not. Don't use plain DOM-presence `waitFor{css}` to prove a
+  Disclosure is open — check the `<details>` element's own `.open` boolean instead
+  (`document.querySelector('details.compose').open === true`), or (simpler) just gate on a control
+  that's ONLY ever rendered while a sibling flag is on (React-conditional gating, e.g. the
+  `saveMaterials`-gated Save row's own presence/absence, still valid since THAT unmount really is a
+  React conditional `{onSave ? (...) : null}`, not the native details collapse).
+- **This is the SAME root cause as the earlier documented "`clickByText` does NOT scroll the target
+  into view" gotcha, but manifesting differently: a below-the-fold `<summary>` click doesn't error,
+  it silently no-ops.** `clickByText`'s own coordinate math is correct (it finds the `<summary>`,
+  computes its centre), but `page.mouse.click(x,y)` dispatches at a y-coordinate that can be
+  WELL BELOW the viewport height when the target row lives far down a long scrollable panel (e.g.
+  FinishPicker's "Compose your own…" sits under a tall swatch grid) — `document.elementFromPoint`
+  at that same (x,y) returns `null` (nothing is there; the coordinate is outside the viewport), so
+  the click is a genuine no-op with NO thrown error and NO visible symptom other than the
+  `<details>` staying closed forever after. Confirmed via a MutationObserver on the `open` attribute
+  (zero mutations recorded) + a `document.body.contains()` check (the exact same DOM node, never
+  replaced) — ruling out a remount/rerender theory before finding the real cause. Fix identically
+  to the established GLB-designer pattern: toggle it via a viewport-independent DOM `.click()` in
+  an `eval` — `[...document.querySelectorAll('summary.compose-summary')].find(s =>
+  s.textContent.trim() === 'Compose your own…').click()` — never `click:{text:...}` for a
+  `<summary>` that might be scrolled out of view. `page.click(selector)` (Puppeteer's built-in
+  ElementHandle click, used for ordinary `<input>`/`<button>` selectors) auto-scrolls into view and
+  is NOT affected — only the custom `clickByText` helper (`click:{text:...}`) has this blind spot.
+
+### Gotchas from the IXT-SUITES back-fill batch 7 (elementColors / catalogModelInfo / assetCredits / densityMode)
+
+- **A British/American spelling gap in a naive "grep every scenario for the flag name" sweep can
+  wrongly mark an already-visually-covered feature as uncovered.** `element-colours-verify.json`
+  exercises the `elementColors` feature's rendering but never references the literal flag string
+  (no `setFeatureFlag('elementColors', …)` call in it), so a filename/contents scan reports it
+  "uncovered" even though the visual behaviour is tested — what's actually missing is the
+  **flag-gating rung** (hidden/shown + `setFeatureFlag` round-trip), not the feature's first
+  scenario ever. Treat "already has a scenario" and "has a gating rung" as two separate questions;
+  it's fine (and was the right call here) to add a dedicated `elementcolors-simple.json` purely for
+  the gate, even with an existing non-gate scenario on the books.
+- **A `tier:'simple'` flag's "Simple/Pro ladder" is NOT a hidden→shown transition** — CLAUDE.md's
+  rule only force-hides `pro`-tier flags in Simple; a `simple`-tier flag (`elementColors`,
+  `assetCredits`) resolves the SAME in both modes (present in both, by default). The correct
+  three-part proof for a `tier:'simple'`, `default:true` flag is: (1) present in Simple, (2) present
+  in Pro, (3) a **direct** `setFeatureFlag(id, false)` override (dev build only) actually hides it
+  and restoring it brings it back — i.e. prove the flag *controls* the UI at all, since the
+  mode-switch alone can't demonstrate that for a simple-tier feature.
+- **`WallInspector`'s "Wall colour" `ColorPicker` trigger is a plain `<button aria-label="Wall
+  colour">` whose `backgroundColor` inline style IS the applied hex** — no need to drive the
+  popover's internal swatch grid to prove a colour round-trip; `a.updateWall(id, {color:'#3366cc'})`
+  + asserting `getComputedStyle(btn).backgroundColor === 'rgb(51, 102, 204)'` is a clean, popover-free
+  proof, and the button's own `onClick` toggles the popover open/closed on repeat clicks (so open +
+  close a `ColorPicker` with two identical `.click()` evals on the same trigger, no `Escape`/outside
+  -click needed — sidesteps the Escape-clears-selection class of bug documented in the batch-6
+  gotchas, which doesn't even apply here since plan-wall selection isn't `selectedItemIds`, but the
+  pattern is safer to default to regardless).
+- **`catalogModelInfo`'s tooltip needs a catalog item whose def actually HAS `license`/`attribution`/
+  `byteSize` set, or `modelInfoText()` returns `null` and the card's `title` attribute is absent
+  regardless of the flag** — most procedural/parametric primitives (sofa, table, …) carry none of
+  these fields. `GENERATED_FURNITURE` (`furniture/generatedCatalog.ts`, merged into the real catalog
+  by `catalog.ts`) is the reliable source of CC0/CC-BY bundled GLB decor props with `license` +
+  `attribution` set — e.g. `book-set` ("Book set", CC0, Poly Haven) — searchable in the catalog
+  drawer's real search box (`input[aria-label="Search the furniture catalog"]`) to isolate a single
+  card whose `title` attribute is asserted, rather than trying to prove a tooltip on a def that never
+  renders one.
+- **`assetCredits` gates only the "Asset credits" entry-point BUTTON in `AppearancePopover` — the
+  `CreditsModal` component itself has no `useFeature('assetCredits')` check of its own.** It mounts
+  unconditionally in `App.tsx` and opens purely on `creditsOpen` (a plain store boolean), so once
+  open (however it got there) the modal renders regardless of the flag; the flag's entire effect is
+  "can the user reach `setCreditsOpen(true)` through the UI at all." Drive/assert the gate at the
+  BUTTON, and drive the open/close of the modal itself via the `setCreditsOpen` store action directly
+  (or the button click) — a `setFeatureFlag('assetCredits', false)` after the modal is already open
+  correctly does NOT close it (matches the code: no gate inside `CreditsModal`), so don't write an
+  assertion expecting the open modal to auto-close when the flag flips.
+- **`densityMode` gates the *effect*, not just a preference field — a great pattern for asserting
+  a pro-tier flag's REAL DOM consequence instead of only a button's presence.** `editorPrefs.ts`
+  writes `document.documentElement.setAttribute('data-density', flagOn ? density : 'comfortable')`
+  on every relevant change, so `document.documentElement.getAttribute('data-density')` is a clean,
+  UI-independent oracle: setting `density:'compact'` while in Simple mode (`densityMode` forced off)
+  provably leaves the DOM attribute at `'comfortable'` (the preference persists in the store, only the
+  *effect* is suppressed), and switching to Pro flips the attribute to `'compact'` immediately with no
+  further action — a stronger, more direct proof than checking whether a "Density" label merely
+  exists in the popover DOM.
+- **A concurrent agent's dev-server restart (not just an HMR module swap) can kill an in-flight
+  scenario with `Protocol error: Target closed` or a `waitFor` timeout, distinguishable from a real
+  bug by the console log's `[vite] server connection lost. Polling for restart...` line** — this is
+  a full process restart (e.g. another agent's source edit triggering a Vite full reload / crash-
+  recovery), not the ordinary HMR module-hot-swap the existing playbook guidance already covers.
+  `curl -sf <url>` returning `200` again confirms the server is back; simply re-run the exact same
+  scenario once it does — no scenario/harness change was at fault in either case observed here.
+
+### Gotchas from the IXT-SUITES back-fill batch 8 (palettePresets / walkCameraControls / electricalPlan / plumbingPlan)
+
+- **Don't trust a flag's tier from memory or from a sibling feature's doc comment — re-read the
+  registry entry itself.** `WalkCameraControls.tsx`'s own docblock says "Gated by the
+  `walkCameraControls` flag (pro tier)", but the actual `FEATURE_FLAGS` registry entry is
+  `tier: 'simple'` (a stale comment, not a bug — the gating code reads the real tier via
+  `useFeature`, so behaviour is correct). A first draft of `electricalplan-simple.json` similarly
+  assumed `electricalPlan`/`plumbingPlan` were simple-tier (they read like core-loop drawing
+  content) and asserted the flag was ON by default in Simple mode — the registry says `tier: 'pro'`
+  for both, so the assertion failed immediately at boot. Always grep the registry entry itself
+  before writing the ladder's first assertion.
+- **A `simple`-tier flag whose only UI surface lives inside a native `<details>`/`Disclosure`
+  (`MasterPaletteEditor`'s "Palette presets" gallery, nested in `FinishPicker`'s "Apartment colour
+  palette…" `Disclosure`) needs the disclosure OPENED for a meaningful screenshot, even though the
+  presence/absence assertions themselves are correct either way** (per the batch-6 gotcha, a
+  collapsed `<details>` still has its children in the DOM). Open it the same viewport-independent
+  way as a below-the-fold `<summary>`: `[...document.querySelectorAll('summary')].find(s =>
+  s.textContent.includes('Apartment colour palette')).closest('details')` and check/set `.open`
+  directly, or `.click()` the summary if closed — don't rely on `clickByText` scrolling to it.
+- **A pro-tier flag whose only reachable UI entry point is ITSELF gated behind a *different*
+  pro-tier flag can't be proven with a bare Simple→Pro mode switch alone — the switch flips both
+  flags at once.** `electricalPlan`/`plumbingPlan` only affect the multi-sheet "Drawing set" export
+  (`openDrawingSet.ts`), and the "Drawing set" File-menu row itself is gated on the separate
+  `report` flag (`FileMenu.tsx`'s `fReport`), not on `electricalPlan`/`plumbingPlan` directly.
+  Switching Simple→Pro turns both `report` (which reveals the menu row) and `electricalPlan` (which
+  adds the sheet) on together, so a mode-switch-only ladder can't isolate which flag did what. Prove
+  the SPECIFIC flag's effect with a same-mode round-trip: stay in Pro (menu row stays reachable via
+  `report`) and drive `electricalPlan`/`plumbingPlan` directly via `setFeatureFlag`, re-triggering
+  the export each time — the sheet disappears/reappears while the menu row itself never moves.
+- **`openDrawingSet()` opens a real `window.open('', '_blank')` popup and calls `document.write` on
+  it** — instead of letting a second tab spawn (untracked by the harness's puppeteer `page` handle,
+  and printed via a delayed `win.print()`), intercept `window.open` in an `eval` step BEFORE
+  clicking "Drawing set": replace it with a function returning a stub `{ document: { write(html){
+  window.__capturedHtml = html }, close(){} }, close(){}, focus(){}, print(){} }`. The dynamic
+  `import('./drawingSet')` + HTML build still runs for real (nothing about the sheet-selection
+  logic is mocked) — only the popup window itself is swapped for a capture sink, so the produced
+  HTML string is asserted directly (`__capturedHtml.includes('Electrical plan')`) instead of trying
+  to screenshot a second, harness-invisible tab. Restore `window.open` from a saved
+  `window.__origWindowOpen` at the end if later steps in the same session need real popups.
+
+### Gotchas from the IXT-SUITES back-fill batch 9 (shortcutsHelp / infoCallouts / proUpsell / planScale)
+
+- **A trigger button whose visible label is `{variable} ▾`** (`PlanMenu.tsx`'s `{label} ▾`,
+  matching the existing `View ▾`/`Plan ▾` menus) renders as **two sibling DOM Text nodes**
+  (`"Plan"` from the JSX expression, `" ▾"` from the adjacent literal) — JSX does not merge
+  adjacent text children into one DOM Text node, and browsers only merge them via an explicit
+  `.normalize()` call, which nothing here does. The generic `{"click": {"text": "Plan ▾"}}` step
+  walks `NodeFilter.SHOW_TEXT` and checks EACH node's own `textContent` individually (never the
+  parent element's combined text), so a two-word label split across nodes can never match as one
+  string and the step times out with "could not find visible element" even though the button is
+  plainly visible on screen (confirmed via the on-failure screenshot). This was already why
+  `plan-labels-cycle-simple.json`'s batch-3 rung open the "View ▾" menu via a bespoke polling
+  `eval` (`[...document.querySelectorAll('button')].find(x => x.textContent.trim() === 'Plan ▾')`)
+  instead of the `click:{text:...}` step — reuse that exact pattern for ANY menu trigger whose
+  label is built from an interpolated variable + a literal suffix, not just `View ▾`.
+- **REAL BUG found, not worked around in source:** `ScalePlanModal.tsx`'s factor `<input
+  type="number" min={0.01} step={0.1} .../>` defaults to `factorStr = '2'` — but `2` fails the
+  input's own native HTML5 `stepMismatch` constraint against `min=0.01`/`step=0.1` (valid values
+  are `0.01 + n×0.1`; `2` isn't one of them). Clicking the "Scale" submit button with the
+  untouched default silently no-ops in any browser enforcing native constraint validation (a
+  native tooltip reads "Please enter a valid value. The two nearest valid values are 1.91 and
+  2.01." and the `<form onSubmit>` never fires) — the single most common action in the dialog
+  (doubling a wrong-scale plan) is broken out of the box. `planscale-simple.json` documents this
+  by asserting `input.validity.stepMismatch === true` for the untouched default, then drives the
+  apply path with a step-aligned `'2.01'` (set via the native
+  `HTMLInputElement.prototype.value` setter + a dispatched `input` event, the standard way to make
+  React see a programmatic value change) so the rung still proves the real apply/undo behaviour.
+  Report this upstream rather than "fixing" it by changing the test's expectations only — the fix
+  belongs in `ScalePlanModal.tsx` (e.g. `step={0.01}` or seeding `factorStr` from a value that
+  satisfies the existing step), not in the scenario.
+- **Verifying a `?`-triggered pro-tier overlay (`shortcutsHelp`) needs a real `KeyboardEvent`
+  dispatch, not a `key` step.** `page.keyboard.press('?')` has no reliable Puppeteer key mapping
+  for a shifted symbol; `window.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles:
+  true, cancelable: true }))` matches exactly what `useAppHotkeys.ts`'s `window.addEventListener
+  ('keydown', ...)` listener reads (`e.key === '?'`) and reliably triggers the flag-gated
+  branch (open the shortcuts modal) vs. its off-flag fallback (toggle the Appearance panel) —
+  proving the SAME keypress routes to two different targets depending on the flag is a clean way
+  to isolate the flag's effect without touching any other control.
+- **Two screens can each mount their OWN `InfoCallout` with a different `id` while both stay
+  "active" in the store simultaneously** — `setFloorPlanEditing(true)` does NOT clear
+  `roomEditor.active` (no cross-clearing between the room editor and the floor-plan editor
+  screens), so a bare `document.querySelector('.info-callout')` after entering the plan editor
+  can still resolve to the ROOM editor's off-screen instance instead of the new floor-plan one
+  if the room-editor container happens to render first in DOM order. Call `exitRoomEditor()`
+  explicitly before entering the floor-plan editor (or scope the selector to
+  `.plan-screen .info-callout`) rather than assuming the two screens are mutually exclusive in
+  the DOM.
+- **A dev-server HMR hiccup mid-run** (`[vite] server connection lost. Polling for
+  restart...` + a `502 Bad Gateway` resource load, seen once while another agent was
+  concurrently editing unrelated `*.test.*` files) can reload the page mid-step and kill the
+  Puppeteer `Target` (`Protocol error (Runtime.evaluate): Target closed`), aborting the run with
+  ~90s of hung `browser.close()` afterwards. Not a scenario bug — just re-run once the dev
+  server's `curl -s -o /dev/null -w '%{http_code}' <url>` reports `200` again.
+
+### Gotchas from the IXT-SUITES back-fill batch 10 (moodboard / cornerAo / planIntegrity / newBadges)
+
+- **Two near-identical flag names can gate genuinely different behaviour — always re-check the
+  registry entry, not just the name.** `catalogFits` (simple tier, "badge/dim items that won't
+  fit") already has visual coverage (`catalog-fits-simple.json`/`-journey.json`), but
+  `catalogFitsFilter` (pro tier, the separate "Fits only" browse-filter toggle) does not — a
+  substring/filename sweep that stops at the first `catalog-fits*` hit would wrongly mark
+  `catalogFitsFilter` as covered. Same trap almost bit `pbrSurfaces` against the pre-existing
+  `pbr-maps-verify.json` (that scenario applies finishes and never touches the flag) and `cornerAo`
+  against `photo-gtao-ab-ao.json` (that's the unrelated real-time N8AO/SSAO debug rig, not the
+  baked-strip fallback). Open the candidate file and check what it actually asserts before
+  crossing a flag off the uncovered list.
+- **A `mesh`/`material` pair with a stable, distinctive numeric property is a clean scene-graph
+  oracle for an otherwise-invisible-from-orbit render toggle.** `cornerAo`'s baked wall/floor AO
+  strips (`scene/CornerAO.tsx`) are subtle (a soft dark gradient hugging the skirting) and easy to
+  miss in a whole-flat orbit screenshot, but `WallFloorAO` renders a `meshBasicMaterial` with
+  `opacity === CORNER_AO_OPACITY` (0.42) on a `PlaneGeometry` — traversing `window.__three.scene`
+  and counting meshes matching that exact opacity is a reliable presence/absence proof
+  (present at default `performance` quality tier, count drops to exactly 0 on
+  `setFeatureFlag('cornerAo', false)`, returns on restore) independent of camera framing or
+  pixel-diffing. Since `cornerAo` is `tier: 'simple'` (resolves the same in both Simple and Pro),
+  the three-part proof from the batch-7 gotcha applies verbatim: present in Simple, present in
+  Pro (and the mesh COUNT must be identical across the mode switch — a differing count would mean
+  something else moved, not just narrated as "still on"), then a direct override hides/restores it.
+- **A stray-element warning badge needs a genuine defect, not just the flag on.** `planIntegrity`'s
+  `PlanTotalLabel` only shows `⚠ N stray` when `planIntegrityFlags()` actually finds something
+  disconnected — the default apartment plan is fully connected, so flipping the flag alone on a
+  pristine plan proves nothing. Manufacture a real stray element first with the plain store action
+  (`addWall({start:[50,50], end:[52,50], thickness:'internal'})` — a 2 m segment far outside the
+  footprint, joined to nothing) before toggling the flag; the badge (and, visually, that one wall
+  segment rendered in red on the plan canvas while stray) then genuinely responds to the flag.
+- **`.panel-sub` is not a unique class — the floor-plan editor has at least four unrelated elements
+  wearing it** (`PlanTotalLabel`'s "Total … · N rooms", `GridZoomControls`, and two labels inside
+  `WallNumericEntry`). A bare `document.querySelector('.panel-sub')` grabs whichever one happens to
+  be first in DOM order (observed: it grabbed the grid-size control's "Grid" label instead of the
+  total readout, an assertion failure that reads exactly like the feature being broken). Filter by
+  content instead: `[...document.querySelectorAll('.panel-sub')].map(e=>e.textContent).find(t =>
+  t.startsWith('Total'))`. General lesson: a component-scoped `className` shared across a panel
+  family (see also the batch-6 `.scene-select` gotcha) is common in this codebase — never assume a
+  single `querySelector` hit is *the* element without checking how many share the class.
+  `console.log`ging the *actual* matched text in the thrown Error message (not just "assertion
+  failed") is what made this one-line diagnosis instead of a re-read of the whole component.
+- **A stale/aged-out `NEW_BADGES` registry entry can be revived for a scenario via the same
+  dynamic-import "drive a private module-level signal" technique from batch 5** — `newBadges`'s
+  only two live wirings (`styleQuiz`, `parallelProjection`) are both long past their recency window
+  (their `APP_VERSION` has since moved a minor line on), so a scenario that doesn't touch this
+  would see `useNewBadge` correctly return `show:false` regardless of the `newBadges` flag and
+  wrongly conclude the wiring is broken. `await import('/src/ui/newBadges.ts')` resolves in-page
+  and returns the real, mutable `NEW_BADGES` object — `nb.NEW_BADGES.styleQuiz =
+  (await import('/src/version.ts')).APP_VERSION` makes the entry "recently introduced" again for
+  the run's lifetime, exercising the exact same `isRecentlyIntroduced` → `.new-dot` render path a
+  genuinely-new entry would, without touching source. (Mirrors `MenuItem.badge.test.tsx`'s own
+  technique of `vi.mock`-ing `APP_VERSION` to pin recency — this is the browser-scenario
+  equivalent when you can't mock a module import.)
+- **The Tools menu itself is Pro-only at the mount level, not just flag-gated content inside it** —
+  `Toolbar.tsx` renders `{proMode && <ToolsMenu />}`, so in Simple mode there's no "Tools" button in
+  the DOM at all (not a hidden/disabled one). A `newBadges`-in-Simple-mode assertion should check
+  for the trigger button's ABSENCE, not try to open a menu that structurally can't exist yet — this
+  is actually a *stronger*, simpler proof than a hidden-row check would be.
+- **The "Style quiz" row can be below the fold in a screenshot even when the DOM assertion on its
+  `.new-dot` passes** — the Tools menu's Analyse group is long (10 rows) and the Style row is
+  further down under a Style label past Review & Tour; a 1600×1000 screenshot after opening the
+  menu shows Walkthrough at the bottom, not Style quiz. The DOM query (`querySelectorAll('.pop-panel
+  button')` + `.find`) still finds and asserts the real off-screen node correctly — same class of
+  limitation as the batch-6 "below-the-fold `<summary>`" gotcha, but for *reading* the DOM rather
+  than *clicking* it (reading has no scroll dependency; only synthetic *clicks* by screen
+  coordinate do). Note this honestly as "DOM-proven, not pixel-visible in this shot" rather than
+  scrolling to force a screenshot that adds no additional proof.
+
 ---
 
 ## Packaged targets (Docker / Electron)
@@ -1001,6 +1509,17 @@ PNG**.
 ---
 
 ## Gotchas & fixes (the actual time-sinks)
+
+### A store-level flag-off must be re-verified against EVERY consumer, not just the obvious one
+Flipping a pro-tier flag off mid-scenario (`setFeatureFlag('mepEditor', false)`) is a good way to
+catch a consumer that forgot its own `useFeature` gate — it caught exactly that in the MEP-points
+work (G1 PR3): the toolbar group and the plan layer were correctly gated, but the `PlanInspector`
+`'mep'` selection case wasn't — flipping the flag off with a MEP point still selected left the
+"Electrical point" panel (kind/mount-height/delete) fully rendered and usable in Simple mode. The
+screenshot looked identical whether the flag was on or off — only cross-checking against the
+toolbar (which correctly lost its "MEP ▾" group) revealed the mismatch. When a feature has several
+render sites (tool palette + canvas layer + inspector case + mobile sheet), flip its flag off with
+something already selected/armed and diff EVERY site, not just the one you're actively screenshotting.
 
 ### First-run overlays cover the scene (location modal, onboarding, tour)
 Three first-run overlays will obscure your screenshot, and they're gated on
@@ -1516,3 +2035,293 @@ Living/Dining room at High tier (the money shot). It's the Stage-11b integration
   template tags cushions AND arms/backrest with the same grey `#8a8f98` FABRIC look, but only the
   cushions carry the velvet `sheen` bundle; filtering on `sheen>0` recolours the cushions and leaves
   the arms grey (a half-finished sofa). Key on the FABRIC colour tag to upholster the whole piece.
+
+### Gotchas from the IXT-SUITES back-fill batch 5 (dxfExport / mountHeights / itemDimensionReadout)
+
+- **Filename-substring search across `scripts/scenarios/*.json` finds FAR more real coverage than a
+  content-grep for the literal flag name** — this batch's re-derivation first ran a content-only
+  `grep -rl "<flagName>"` (batch-1-4's method) and got 55 "uncovered" hits; re-running with the
+  flag name **dash-cased and matched against filenames** (`layoutReroll` → `layout-reroll`) dropped it
+  to 42, revealing that `scatterFill`, `proceduralSky`, `planMirrorRegion`, `planPolyline`,
+  `catalogFits`, `catalogResize`, `finishEyedropper`, `floorTexture`, `iesLights`, `openingStyles`,
+  `roomReorder`, `catalogRecents`, and `roomStarters` all already have a scenario whose steps drive
+  the feature (often visual/render-verification style, not composed as an explicit flag-gate ladder)
+  but simply never mention the camelCase flag identifier as a literal substring. **Always run BOTH
+  passes** (content-grep AND filename dash-match) before concluding a flag is uncovered, and open the
+  top candidate file to judge whether it already substitutes for a ladder rung (a pure visual-verify
+  scenario with no flag toggle is weaker coverage than a real ladder, but still means the feature
+  itself is drivable/exercised — don't blindly re-author a duplicate).
+- **A private (non-exported-to-`window`) module-level signal can be driven directly via a page-context
+  dynamic `import()` of its source file, and this DOES work reliably** (confirmed here, extending the
+  "scene-graph probe" gotcha two sections up from a read-only traversal to a genuine read-WRITE
+  drive): `await import('/src/scene/selection/resizeReadoutSignal.ts')` resolves in-page and returns
+  the real module namespace (`setResizeReadout`/`clearResizeReadout`/`getResizeReadout`), which lets a
+  scenario exercise `ResizeHud`'s actual consumer contract (mount-on-live-signal, format the pill text,
+  unmount-on-clear, stay hidden with the flag off even while the signal is live) without needing to
+  reproduce the real 3D `ResizeGizmo` pointer-drag gesture at all — genuinely equivalent to what the
+  gizmo would publish on each resize tick, not a workaround. Store the returned module namespace on
+  `window` (`window.__resizeSignal = m`) so later steps in the same scenario can call it again without
+  re-importing (dynamic `import()` of the same URL is cached anyway, but stashing it also sidesteps the
+  "no top-level `const` across eval steps" scoping gotcha). General lesson: before reaching for a
+  "can't be exercised headless" writeup on a module-level (not-on-`window`) signal or store, try the
+  dynamic-import drive first — it is NOT the same limitation as "`React.lazy` modals never resolve
+  headlessly" (that's an unresolved dynamic **component chunk** fetch stalling on `Suspense`; a plain
+  `.ts` module's `import()` is a normal, fast Vite dev-server fetch that resolves immediately).
+- **A Simple-mode inspector "Properties" section starts COLLAPSED** (`InspectorSection`'s
+  `defaultOpen={proMode}` — Pro starts expanded, Simple starts collapsed) — any scenario that selects
+  an item and expects to find a parametric field (e.g. `wall-mirror`'s "Hang height" / the
+  `MountHeightPresets` "Standard heights" chip row) inside `.panel.inspector` must first click the
+  section's own toggle button (`button.insp-sec-toggle` whose text starts with `"Properties"`) or every
+  later `waitFor`/`eval` query against that section's contents times out looking for DOM that is simply
+  unmounted (`{open ? children : null}`), not absent from the feature. The **`Size`** section has the
+  identical collapsed-by-default-in-Simple gotcha (`defaultOpen={proMode}` again) — expand it the same
+  way if a scenario needs the W/D/H `DimField`s.
+- **A download-triggering action (`<a>` + `URL.createObjectURL` + `.click()` + `.remove()`, no real
+  navigation) is fully verifiable headless by patching `HTMLAnchorElement.prototype.click` BEFORE the
+  triggering click**, then reading back the captured `{href, download}` pairs — `href` will be a
+  `blob:` URL (proves the export function actually built + Blobbed real content) and `download` carries
+  the intended filename/extension. No real file ever hits disk in headless Chromium, so this is the
+  only way to assert an export "worked" beyond "the button exists": see `dxf-export-simple.json`
+  (`downloadPlanDxf()` → `planToDxf` → Blob → anchor click). Restore the original `.click` after
+  asserting if a later step in the same scenario needs a real anchor click for something else.
+- **`FileMenu`'s "CAD, 3D & data" section (Export DXF/SVG/glTF/AR) sits well below the fold** in the
+  desktop `.pop-panel` — same family as the GLB-designer "Save asset" scroll gotcha two sections up.
+  Locating and clicking the row via a DOM `.click()` inside an `eval` (`[...document.querySelectorAll
+  ('.pop-panel button')].find(b => b.textContent.includes('Export DXF'))`) sidesteps the harness's
+  `clickByText` viewport-visibility requirement entirely — don't bother scrolling the popover first.
+
+### Gotchas from the IXT-SUITES back-fill batch 11 (wallNumericEntry / catalogFitsFilter / gapSuggest / triplanarWalls)
+
+- **`document.querySelector('.plan-screen svg')` can silently grab an unrelated ICON `<svg>`, not the
+  plan canvas.** The 2D editor's toolbar/inspector render several small `<svg>` icons (`.icn`/`.ic`
+  classes, 14–18px) as DOM siblings *inside* `.plan-screen`, and they appear EARLIER in document order
+  than the actual drawing surface — `querySelector` returns the FIRST match, so a selector meant to grab
+  the canvas silently returns a 16×16 icon instead. Dispatching a synthetic `PointerEvent('pointerdown',
+  …)` on that icon is a complete, silent no-op (no error, no state change) — exactly the shape of bug
+  that burns a whole scenario draft chasing a "flag/gate isn't working" theory. Symptom: a `waitFor` for
+  whatever the click should have produced times out with no console error at all. Fix: target the
+  canvas's own specific class, `.plan-paper` (unique, always the actual drawing `<svg>`), never the
+  generic `.plan-screen svg` — this is *narrower* than the wildcard used successfully in
+  `plan-furniture-rotate.json`'s `pointermove` step, which worked there only because it fired on a
+  window-level listener already primed by a real pointer-capture, not because `.plan-screen svg`
+  reliably resolves to the canvas. Confirmed the fix by getting `.plan-paper`'s `getBoundingClientRect()`
+  (a large canvas, e.g. 3632×3552, offset far outside the viewport since it's scrollable/zoomable — its
+  *centre* still lands inside the visible viewport and is a safe empty click point for starting a
+  wall-tool draft) and verifying a debug probe (`document.querySelector('.plan-paper circle')`, the
+  wall-draft anchor dot) appeared only after switching to this selector.
+- **`waitFor: {"text": "...", "visible": false}` is NOT a supported combination — `visible` only applies
+  to the `css` variant.** `interact.mjs`'s `waitForCondition` implements `text` as a bare
+  `document.body.textContent.includes(txt)` existence check; it never reads `step.visible` for that
+  branch, so writing `{"text": "X", "visible": false}` to assert "X disappeared" silently waits for X to
+  *appear* (which may never happen) and times out with a message that looks like a feature-not-working
+  failure. To assert text absence, use an `eval`/`store` predicate instead:
+  `!document.body.textContent.includes('X')` (or scope it to a specific container query). Caught
+  authoring `catalogfitsfilter-simple.json`'s "Fits only" checkbox hide-assertion.
+- **The catalog "Fits only" checkbox (`catalogFitsFilter`) only renders while NOT searching** — its
+  mount guard is `{!q && fFitsFilter && roomFreeRects ? …}` (`CatalogDrawer.tsx`), so a scenario that
+  types into the search box first (the pattern the existing `catalogFits`-badge scenario uses) will
+  never see the checkbox at all. Drive it by clicking a category tab (e.g. "Beds") instead of searching
+  — `CategoryTabs`' `LABELS` map gives the exact clickable button text per `FurnitureCategory`.
+- **`catalogFits` (the passive per-card badge, simple tier) and `catalogFitsFilter` (the pro-tier "Fits
+  only" browse checkbox) are two separate flags layered on the same `roomFit.ts` check** — don't
+  conflate them. The Queen bed in a small bathroom (`bath1`) is flagged `'wont-fit'` (badge text "Won't
+  fit") regardless of which flag is on; only `catalogFitsFilter`'s checkbox controls whether a
+  `'wont-fit'` card is filtered OUT of the grid. Other oversized-for-the-room items can be `'tight-fit'`
+  (badge "Tight fit") instead of `'wont-fit'` — the filter does NOT hide those, only genuine `wont-fit`
+  cards, so don't assume every badged card disappears once the checkbox is on.
+- **`gapSuggest`'s "Nudge apart" button needs a real narrow ITEM↔ITEM gap, not a wall gap** — the
+  button is explicitly suppressed for wall-participant gaps (`!g.wall`, `ClearancePanel.tsx`). Seed two
+  small items (e.g. two `side-table` defs, 0.45×0.45 m footprint) via `setItems` at a centre-to-centre
+  distance in (footprint + `CLEARANCE.sofaToCoffee` 0.4 m, footprint + `CLEARANCE.walkwayIdeal` 0.9 m)
+  to land a real classified gap (`tight` < 0.6 m clear, else `sub-ideal` up to 0.9 m clear) — e.g. 0.95 m
+  centre-to-centre for two 0.45 m tables gives a 0.5 m clear gap (`tight`). Assert the widen by comparing
+  the pair's centre-to-centre distance before/after the click, not an absolute position (the fix splits
+  the move across both items).
+- **An "invisible from orbit" render-only effect (a UV/tangent/attribute-readiness flag with a
+  solid-colour fallback material that ignores it) needs a scene-graph oracle, not pixels — and the
+  live scene IS reachable via the same `HqRenderController` singleton used for the HQ-render modal,
+  even when that modal is never opened.** `triplanarWalls` only adds a `uv` `BufferAttribute` to a
+  sloped-wall prism's geometry (`PlanShell.tsx`'s `SlopedWallMesh`); the meshes render with a flat
+  `meshStandardMaterial` that never reads UV, so a screenshot is pixel-for-pixel identical with the flag
+  on/off. `HqRenderController` (mounted unconditionally inside `Scene.tsx`, not gated on the HQ-render
+  modal being open) publishes `{scene, camera}` to the module-level `hqRenderSource.ts` singleton
+  the instant the main Canvas mounts — `await import('/src/scene/pathtrace/hqRenderSource.ts')` then
+  `.getHqRenderSource()` from a page-context `eval` gives a real live `THREE.Scene` to `traverse()`.
+  The sloped-wall prism is uniquely identifiable without any dev hook or id plumbing: its geometry is
+  ALWAYS a fixed 36-vertex (12-triangle) non-indexed triangle soup when the wall has no openings
+  (`slopedWallTriangles`'s `baseY=0` full-height case) — `geometry.attributes.position.count === 36`
+  singles it out from every other mesh in a default/template flat. Toggling the flag and re-probing in
+  the SAME session (no reload) works because the flag change is a plain store update; React re-renders
+  `SlopedWallMesh`, and its `useMemo` (keyed on `triplanar`) rebuilds the `BufferGeometry` with or
+  without the `uv` attribute — the live scene graph reflects the new geometry object immediately, no
+  extra settle wait needed beyond letting the store's re-render commit (~800 ms was generous, not
+  required to be that long).
+
+### Gotchas from the IXT-SUITES back-fill batch 12 (sunStudy / cameraDof / smartRotateSnap / assetSets / pbrSurfaces) — likely the FINAL batch
+
+This batch closed out the six flags batch 11's report left uncovered. Re-deriving the "uncovered"
+list confirmed all six were genuinely un-scenario'd (two-pass check: `grep -rl <flag> scripts/
+scenarios/` found zero content hits for any of the six, and a filename dash-match found only
+unrelated near-miss files — `pbr-maps-verify.json` for `pbrSurfaces` (already known unrelated per
+batch 10) and `palettepresets-simple.json` for `paletteFromPhoto` (confirmed a genuinely different
+flag, `palettePresets`, by reading both `registry.ts` entries side by side)).
+
+- **A parent-agent task brief can misname which flag gates which UI — verify against the registry
+  before writing the scenario, not the brief's prose.** The brief described `assetSets` as "the
+  Arrange 'Sets' pick→apply" (`ArrangeMenu.tsx`'s "Drop a set" dropdown), but `grep -rn "assetSets"
+  src/` shows its only real wiring is `ui/glbEditor/designerContext.tsx`'s `setsEnabled` — the GLB
+  designer's "Save groups as separate assets" checkbox (Asset Studio Stage 3d,
+  `furniture/glbEdit/setSplit.ts`). The Arrange "Drop a set" picker is completely ungated (no flag
+  at all); `ArrangeMenu.tsx`'s "My sets" section uses a DIFFERENT flag (`userSets`). Always
+  `grep -rn "<flagName>" src/` before touching source/writing steps — a name that sounds like an
+  existing feature can point somewhere else entirely.
+- **`useSunStudy`'s time-lapse hardcodes its start hour to 6 (dawn), ignoring whatever
+  `manualHour` was before activation** (`scene/sunStudy.ts` / the near-duplicate copy inlined in
+  `ToolsMenu.tsx`) — only the STOP path restores the pre-toggle `timeMode`+`manualHour`. A
+  scenario that seeds `manualHour=13` then asserts the hour "advanced forward from 13" after
+  toggling on is wrong: the real first frame jumps DOWN to ~6 before climbing. Assert instead that
+  the hour lands on the 6–20h dawn→dusk band and has moved away from the pre-toggle baseline (in
+  either direction), then that it keeps moving frame-over-frame; assert the STOP path restores the
+  *exact* original mode+hour (that part IS a strict equality).
+- **A Pro-only menu's rows auto-close the WHOLE menu on any click (same class as the batch-2
+  `PlanMenu` gotcha) — reopen it before every subsequent click on a different row.**
+  `ToolsMenu`/`ToolbarMenu`'s doc comment says so outright ("choosing an item closes the menu, click
+  bubbles to the panel's onClick"). Toggling `sunStudy` on, then later off, needs the Tools menu
+  reopened before the second click — the first click's own re-render already tore the panel down.
+- **`cameraDof`'s two consumers are gated independently and need different verification
+  strategies.** The raster `<DepthOfField>` pass (`scene/Effects.tsx`/`EffectsImpl.tsx`) only
+  mounts on High/Maximum quality tiers — a live pixel diff needs a real-GPU tier switch, which the
+  playbook's own "don't switch quality tiers repeatedly in one GPU session" gotcha flags as
+  fragile. The HQ Render modal's lens-control DOM (`ui/HqRenderModal.tsx`, `hasLensControls =
+  useFeature('cameraDof')`) is the clean, GPU-free rung: flag off → one fallback "Depth of field"
+  select (f-stop presets incl. off); flag on → the full set (focal-length select, aperture select,
+  auto-focus checkbox, and — only once `dofAuto` is turned off, since it **defaults to `true`** —
+  a manual focus-distance input). `setHqRenderOpen(true)` mounts the modal directly; no need to
+  actually start a render session to prove the gate + a real store round-trip
+  (picking an aperture option commits `state.dofFStop`).
+- **A rotate-gizmo drag scenario can extend `gizmo-rotate-multitouch.json`'s exact
+  world→client-px projection recipe to test angle-SNAPPING logic, not just pointer-id gating.**
+  `smartRotateSnap`'s effect (`scene/selection/rotateGizmoMath.ts:smartSnapRotation`, 5° threshold
+  around a neighbour/wall axis, else the 15° grid) needs a genuinely non-grid reference axis (seed
+  a second item at e.g. 37°/0.6458 rad — deliberately NOT a 15° multiple) and a candidate drag
+  angle within 5° of it but clearly nearer the neighbour axis than the nearest 15°-grid step (39°:
+  |39−37|=2° vs |39−45|=6°) so the two rules would visibly disagree if the flag's effect were a
+  no-op. Reset the target item's rotation to 0 (`setItems`) before EACH attempt so the grab-handle
+  world position is deterministic and reusable across an on/off A-B pair in one session.
+- **Programmatic `.click()` calls on TWO separate multi-select checkboxes in the same `eval` can
+  silently under-select — not from a React batching race, but because the SECOND element may
+  already be pre-checked from an unrelated single-selection concept.** Authoring `asset-sets-
+  simple.json`: the GLB designer keeps one derived single-selection (`selId = selIds[selIds.length
+  - 1]`) that a NEWLY ADDED shape claims via `setSelId(newId)`, which REPLACES `selIds` with just
+  that one id. So after adding two boxes in sequence, the SECOND box (not the first) is already
+  the sole selection the instant "Select" (multi-select) mode is toggled on — its checkbox starts
+  CHECKED. A scenario that then does `box1.click(); box2.click()` assuming both start unchecked
+  actually toggles box 2 back OFF (its checkbox already reflected `selected=true`, so the additive
+  `toggleSel` call REMOVES it), leaving only box 1 selected and the "Group 2" chip never appearing
+  — a failure that looks exactly like a broken multi-select feature but is a test-authoring gap.
+  Fix: assert the real starting state first (`document.querySelector('input[aria-label="Select box
+  2"]').checked === true`), then click ONLY the checkbox(es) that still need adding, not every
+  checkbox indiscriminately. General lesson for any "add N things then multi-select them" flow:
+  check whether adding an item already leaves it selected before scripting the selection clicks.
+- **`pbrSurfaces`' material-factory functions (`materials/furnitureMaterials.ts:getMetalMaterial`/
+  `getPaintedMaterial`, etc.) read the flag at BUILD time and cache by a key that deliberately
+  omits the flag** (documented in `src/materials/CLAUDE.md`) — re-toggling the flag live and
+  re-requesting the SAME `(finish, color, repeat)` key returns the stale cached instance
+  regardless of the flag's new value. A scenario proving the gate must build each half at a FRESH,
+  never-before-built cache key (a different `color` per state), not toggle-and-rebuild-the-same-
+  key. Drive the pure factory functions directly via a page-context dynamic import
+  (`await import('/src/materials/furnitureMaterials.ts')`, the same technique
+  `hqRenderSource`/`newBadges` use) rather than placing furniture and traversing the scene graph —
+  it's simpler and sidesteps ever needing to identify which mesh in a crowded scene owns which
+  cached material. Verified: flag off → plain `MeshStandardMaterial`, no `normalMap`/
+  `roughnessMap`; flag on → `MeshPhysicalMaterial` with both maps + positive `anisotropy`;
+  re-requesting the OFF-built key while the flag is now on returns the exact same stale instance
+  (worth asserting explicitly so nobody "fixes" a future version of this test by expecting a live
+  rebuild).
+- **`paletteFromPhoto` (`ui/paletteFromPhoto.ts:pickPaletteFromPhoto`) cannot be driven end-to-end
+  headlessly — confirmed by reading the implementation, not assumed.** It creates a detached
+  `<input type=file>`, wires `onchange` as a closure over that same local variable (never exposed
+  on `window`), and calls `.click()` — a real native file-picker dialog that headless Chromium
+  either hangs on or silently auto-dismisses with no `change` event either way. Unlike the
+  `sh3d-furn-import` case (which got a dev-only `__importSh3dBytes` hook), no such hook exists here
+  yet. This rung stays intentionally GATE-ONLY: the Command Palette entry's Simple/Pro visibility
+  (`CommandPalette.tsx` `COMMAND_FLAGS['palette-from-photo']`), driven via `.cmdk-search input`
+  (note: the search input has NO `aria-label`, unlike most controls in this codebase — target it
+  by its wrapper class). Reviving full coverage would need a dev-only lever like
+  `window.__pickPaletteFromPhotoBytes(base64, mimeType)` mirroring `__importSh3dBytes` — flagged,
+  not built (out of scope for a coverage back-fill).
+
+### `drawingSet.ts` print-true SVG sizing must use inline `style`, never a bare `width`/`height` attribute (TODO G2)
+The drawing set's `.draw svg { width: 100%; height: 100%; max-height: 150mm }` CSS rule
+exists so every sheet's diagram fit-to-page fills its box. Adding real, mm-accurate
+sizing per the locked scale ratio (`floorplan/drawingScale.ts:pickDrawingScale`) by
+setting a plain SVG `width`/`height` **attribute** (e.g. `width="185.3mm"`) does
+**nothing** — SVG/HTML presentational attributes have the LOWEST CSS priority (lower
+than any matching selector, even a simple type selector), so the `.draw svg` class
+rule silently wins and stretches the element back to 100%, discarding the print-true
+size with no visible error. The fix is an inline `style="width:…mm;height:…mm"` on the
+`<svg>` element — inline style always wins over an external stylesheet rule (short of
+`!important`, which `.draw svg` doesn't use) — verified by screenshotting the captured
+export: with the bare-attribute version the floor plan filled the whole sheet
+regardless of the stated scale (visually identical at "Scale 1:20" and "Scale 1:200");
+with the inline-style fix the same plan renders visibly smaller-than-the-sheet at a
+coarser ratio and fills more of the sheet at a finer one, matching the stated scale.
+Reuse this pattern for any future per-element mm-true sizing added to a generated
+print document (report/BOQ/drawing set) — never rely on a raw `width`/`height` attribute
+when a class rule could match the same element.
+
+### Verifying a locked print scale + title-block metadata via a captured export (extends the `window.open` intercept above)
+Combine the `window.open` capture-sink intercept (above, "Verifying a new-window
+exporter") with plain string assertions on the captured HTML — no need to actually
+render/measure the popup for a scale or title-block-content check: parse the
+"Scale 1:R @ A4" text straight out of the string with a regex, then verify the G2 mm-math
+purely in `page.evaluate` against the live `floorPlan` (`wallLength`-equivalent
+`Math.hypot`) rather than trying to read a rendered element's `getBoundingClientRect()`
+(brittle under a scrolled/interrupted headless page). Only render the captured HTML
+into the main document (`document.open(); document.write(html); document.close()`) for
+the FINAL visual-confirmation screenshot, after the string assertions already passed —
+this keeps the fast assertions decoupled from the one thing that actually needs a
+screenshot. See `scripts/scenarios/drawing-scale-simple.json`.
+
+**Follow-up (user-customizable paper):** `document.open()`/`document.write()` on the
+SAME document does NOT navigate — it's still the same JS realm, so `window.__store`
+and anything else you stashed on `window` (e.g. `window.__a4Html`/`window.__a4Ratio`)
+survive a rewrite; you can safely capture TWO exports in one session (switch
+`drawingSetTemplate.paperSize`/`orientation` via `s.setDrawingSetTemplate({...s.
+drawingSetTemplate, paperSize:'a3'})` between captures, since the store action replaces
+the whole object) and only pay for `document.write` + a screenshot once at the very
+end for each variant you want a picture of — do the store-dependent switch-and-capture
+work FIRST, stash every captured HTML string, THEN do all the `document.write`+
+screenshot pairs back to back. One observed flake: two `document.write` rewrites in
+quick succession in the same headless session occasionally hit a Puppeteer "Target
+closed" `Page.captureScreenshot` error on the second screenshot (all prior assertion
+steps still passed) — if this happens, re-run just the failing variant's capture
++screenshot as its own short scenario rather than re-running the whole thing.
+
+### Worked example — parametric Staircase geometry (parametricStairs)
+
+Scenario `scripts/scenarios/staircase-r-verify.mjs` (an `.mjs` scenario so it can
+`readFileSync` a dumped loft-plan JSON and inject it via `setFloorPlan`): three
+shots — a straight flight close-up, an L-shape (landing + return) close-up, and the
+stair in a multi-level (loft) context feeding `stairConnectivity`. Camera close-ups
+use `window.__three.camera`/`controls` (copy the `aimCam` helper). Place stairs with
+`store.setItems([{ defId:'staircase', position:[x,z], rotation, props:{ style, steps,
+width, riserHeight, treadDepth, railing } }])`.
+
+**Key finding — a handrail must be ONE continuous sloped rail, not per-step caps.**
+The first render had a post + a *short horizontal* rail segment per tread; the caps
+sat at each post top but the 0.17 m riser jump left a visible vertical gap between
+consecutive caps (reads as a broken/gappy rail — a FAIL). Fix: emit a SINGLE rail box
+per flight spanning first→last post, tilted up the flight rake — pitch about X for a
+Z-running flight, roll about Z for the turned (X-running) flight of an L/U. The
+`Staircase` renderer applies `rotation={[pitch, rot, roll]}` (each rail sets exactly
+one of pitch/roll, so Euler order never composes ambiguously).
+
+**Gotcha — a flush rail z-fights the tread edge (structural-soundness harness).** With
+the rail's outer face at `width/2 - RAIL_T/2` it was *coplanar* with the tread edge at
+the same X; the short per-step caps stayed under the harness's coplanar-overlap
+threshold, but the long continuous rail exceeded it (104 cm²) and
+`structuralSoundness.test.tsx` failed with a "z-fighting coplanar face pair". Inset the
+balusters/rail to `width/2 - RAIL_T` (a ~2 cm gap from the tread edge) — also more
+realistic (a set-in guard). Re-shoot after ANY geometry tweak: the inset is 2 cm and
+invisible-looking but the harness is exact.

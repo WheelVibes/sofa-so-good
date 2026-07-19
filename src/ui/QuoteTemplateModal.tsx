@@ -13,6 +13,7 @@
 import {
   DEFAULT_PRICE_RULES,
   type FloorRateKind,
+  type TradeRates,
   type WallRateKind,
 } from '../analysis/renovationCost'
 import { DEFAULT_QUOTE_TEMPLATE, type QuoteTemplate } from '../export/quoteTemplate'
@@ -34,6 +35,17 @@ const WALL_RATE_LABELS: Record<WallRateKind, string> = {
   tile: 'Wall tiles',
   wallpaper: 'Wallpaper',
   other: 'Other walls',
+}
+/** Friendly labels + units for the whole-reno trade rates (BSJ-1). */
+const TRADE_RATE_META: Record<keyof TradeRates, { label: string; unit: string }> = {
+  hackingPerM: { label: 'Hacking / demolition', unit: '/lin.m' },
+  ceilingPerM2: { label: 'False ceiling / partition', unit: '/m²' },
+  mePerPoint: { label: 'M&E point', unit: '/point' },
+  airconPerUnit: { label: 'Aircon (indoor unit)', unit: '/unit' },
+  glassPerM2: { label: 'Glass & aluminium', unit: '/m²' },
+  plumbingFixtureEach: { label: 'Plumbing fixture install', unit: '/no.' },
+  waterproofingPerM2: { label: 'Waterproofing membrane', unit: '/m²' },
+  contingencyPct: { label: 'Contingency', unit: '%' },
 }
 
 // ---------------------------------------------------------------------------
@@ -266,6 +278,8 @@ export function QuoteTemplateModal() {
     setRules({ ...rules, floor: { ...rules.floor, [kind]: v } })
   const setWallRate = (kind: WallRateKind, v: number) =>
     setRules({ ...rules, wall: { ...rules.wall, [kind]: v } })
+  const setTradeRate = (kind: keyof TradeRates, v: number) =>
+    setRules({ ...rules, trades: { ...rules.trades, [kind]: v } })
   const rulesAreDefault = JSON.stringify(rules) === JSON.stringify(DEFAULT_PRICE_RULES)
 
   // Partial updater: merge one field at a time.
@@ -461,6 +475,21 @@ export function QuoteTemplateModal() {
               unit="/lin.m"
               onChange={(v) => setRules({ ...rules, carpentryPerM: v })}
             />
+            <div
+              className="label"
+              style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 'var(--s-1)' }}
+            >
+              Renovation trades (whole-reno budget)
+            </div>
+            {(Object.keys(TRADE_RATE_META) as (keyof TradeRates)[]).map((kind) => (
+              <RateRow
+                key={`trade-${kind}`}
+                label={TRADE_RATE_META[kind].label}
+                value={rules.trades[kind]}
+                unit={TRADE_RATE_META[kind].unit}
+                onChange={(v) => setTradeRate(kind, v)}
+              />
+            ))}
           </>
         ) : null}
       </div>

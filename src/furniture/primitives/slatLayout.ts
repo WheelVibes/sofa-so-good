@@ -85,6 +85,75 @@ export function venetianSlatInstances(
   }))
 }
 
+// ── Zebra / combi blind band stack ──────────────────────────────────────────
+// A zebra (combi/vision) blind is two sheer/opaque fabric layers that scroll
+// together, reading from the front as alternating horizontal bands — the SG
+// market's most popular blind style. Modelled the same way as the venetian
+// stack (a fixed set of instance transforms anchored at the cassette top,
+// scaled by the raise/lower group), but split into two InstancedBoxes buckets
+// (opaque vs. sheer) since each needs its own material/opacity.
+
+/** Target band height (m) — the alternating-stripe convention reads at
+ *  typical camera distance around 6-10 cm bands. */
+const ZEBRA_BAND_HEIGHT = 0.08
+const ZEBRA_Z = 0.045
+
+/** Band count for a stack covering `maxDrop` — floored at 4 so a tiny blind
+ *  still reads as striped. Mirrors {@link venetianSlatCount}'s idiom. */
+export function zebraBandCount(maxDrop: number): number {
+  return Math.max(4, Math.round(maxDrop / ZEBRA_BAND_HEIGHT))
+}
+
+/**
+ * Instance transforms for a zebra/combi blind's alternating bands, anchored at
+ * the cassette top (y = 0) and descending — split into `opaque` (odd/solid
+ * fabric colour) and `sheer` (even/pale translucent) buckets so each can carry
+ * its own material via a separate `InstancedBoxes` draw call. Bands are
+ * slightly under-height (96% of the pitch) so a hairline gap separates them
+ * instead of z-fighting at shared edges.
+ */
+export function zebraBandInstances(
+  width: number,
+  maxDrop: number,
+): { opaque: BoxInstance[]; sheer: BoxInstance[] } {
+  const n = zebraBandCount(maxDrop)
+  const pitch = maxDrop / n
+  const opaque: BoxInstance[] = []
+  const sheer: BoxInstance[] = []
+  for (let i = 0; i < n; i++) {
+    const inst: BoxInstance = {
+      position: [0, -pitch * (i + 0.5), ZEBRA_Z],
+      size: [width, pitch * 0.96, 0.01],
+    }
+    if (i % 2 === 0) opaque.push(inst)
+    else sheer.push(inst)
+  }
+  return { opaque, sheer }
+}
+
+// ── Roman blind fold stack ───────────────────────────────────────────────────
+// A roman blind gathers into soft horizontal folds at the header when raised;
+// the folds are modelled as a small fixed stack of slightly overlapping
+// rounded-edge boxes right below the cassette (few enough — 3-5 — to render as
+// plain meshes rather than instances), with a flat fabric panel (the existing
+// roller-panel geometry, scaled by `lower`) filling the drop below them.
+
+export const ROMAN_FOLD_COUNT = 4
+export const ROMAN_FOLD_HEIGHT = 0.09
+const ROMAN_FOLD_OVERLAP = 0.03
+
+/** Y-offsets (top-down, 0 = just under the cassette) of each fold's centre —
+ *  each fold overlapping the one above by `ROMAN_FOLD_OVERLAP` so the stack
+ *  reads as gathered fabric rather than stacked bricks. */
+export function romanFoldOffsets(
+  count: number = ROMAN_FOLD_COUNT,
+  foldHeight: number = ROMAN_FOLD_HEIGHT,
+  overlap: number = ROMAN_FOLD_OVERLAP,
+): number[] {
+  const step = foldHeight - overlap
+  return Array.from({ length: count }, (_, i) => -foldHeight / 2 - i * step)
+}
+
 // ── Drying-rack rod frame ────────────────────────────────────────────────────
 // A foldable A-frame drying rack: two splayed leg frames (each an inverted-V of
 // two tilted legs + a foot rail) joined by a run of horizontal drying bars.

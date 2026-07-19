@@ -1,5 +1,10 @@
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import {
+  buildFloorLoadingReport,
+  type FloorLoadingReport,
+  SLAB_LOAD_LIMIT,
+} from '../analysis/floorLoading'
 import { findWallClipsByLevel } from '../collision/levelWallClips'
 import { findItemOverlaps, type OverlapPair } from '../collision/placement'
 import { buildCollisionWalls } from '../collision/wallsFromState'
@@ -23,6 +28,7 @@ export function ClearancePanel() {
   const open = useStore((s) => s.clearancePanelOpen)
   const setOpen = useStore((s) => s.setClearancePanelOpen)
   const fGapFix = useFeature('gapSuggest')
+  const fFloorLoad = useFeature('floorLoading')
   const items = useStore((s) => s.items)
   const plan = useStore((s) => s.floorPlan)
   const doors = useStore((s) => s.doors)
@@ -39,7 +45,7 @@ export function ClearancePanel() {
     })),
   )
 
-  const { blocked, overlaps, wallClips, narrowGaps, catalog } = useMemo(() => {
+  const { blocked, overlaps, wallClips, narrowGaps, catalog, floorLoad } = useMemo(() => {
     if (!open)
       return {
         blocked: [] as string[],
@@ -47,6 +53,7 @@ export function ClearancePanel() {
         wallClips: [] as string[],
         narrowGaps: [] as NarrowGap[],
         catalog: {} as Record<FurnitureType, FurnitureDef>,
+        floorLoad: null as FloorLoadingReport | null,
       }
     const merged = buildMergedCatalog(catalogInputs)
     // Whole-plan collision walls (not the room-editor subset) so the check has
@@ -60,8 +67,9 @@ export function ClearancePanel() {
       wallClips: findWallClipsByLevel(items, merged, plan, doors, walls),
       narrowGaps: findNarrowGaps(items, merged, plan),
       catalog: merged,
+      floorLoad: fFloorLoad ? buildFloorLoadingReport(items, merged) : null,
     }
-  }, [open, items, plan, doors, catalogInputs])
+  }, [open, items, plan, doors, catalogInputs, fFloorLoad])
 
   if (!open) return null
 
@@ -134,7 +142,7 @@ export function ClearancePanel() {
           </div>
           <div className="clr-stat warn">
             <div className="n">{overlapCount}</div>
-            <div className="l">Overlapping</div>
+            <div className="l">Overlaps</div>
           </div>
           <div className="clr-stat err">
             <div className="n">{wallClipCount}</div>
@@ -256,6 +264,68 @@ export function ClearancePanel() {
             ))}
           </div>
         )}
+
+        {floorLoad?.hasConcern ? (
+          <>
+            <hr className="hr" />
+            <div className="sec-h">Floor loading</div>
+            <div
+              style={{
+                color: 'var(--text-3)',
+                fontSize: 'var(--t-2xs)',
+                marginBottom: 'var(--s-2)',
+              }}
+            >
+              HDB slabs are rated ~{SLAB_LOAD_LIMIT} kg/m² imposed load (estimates — confirm with a
+              PE / contractor).
+            </div>
+            <div className="clr-list">
+              {floorLoad.exceeding.map((it) => (
+                <button
+                  type="button"
+                  key={it.itemId}
+                  className="clr-item warn"
+                  onClick={() => select(it.itemId)}
+                >
+                  <div className="ci-head">
+                    <span className="badge warn">Heavy</span>
+                    <span className="ci-title">{it.name} may overload the slab</span>
+                  </div>
+                  <div className="ci-detail">
+                    ≈ {it.estWeightKg} kg over {it.footprintM2} m² ≈ {it.densityKgM2} kg/m² — above
+                    the ~{SLAB_LOAD_LIMIT} kg/m² guideline.
+                  </div>
+                  <div className="ci-fix">
+                    <Icon.Check width={14} height={14} />
+                    Spread the load over a wider base, or check with a PE before installing.
+                  </div>
+                </button>
+              ))}
+              {floorLoad.platforms.map((p) => (
+                <button
+                  type="button"
+                  key={p.itemId}
+                  className="clr-item warn"
+                  onClick={() => select(p.itemId)}
+                >
+                  <div className="ci-head">
+                    <span className="badge warn">Platform</span>
+                    <span className="ci-title">
+                      {p.name} raised {p.raiseMm} mm
+                    </span>
+                  </div>
+                  <div className="ci-detail">
+                    A concrete raise over 50 mm implies structural loading that needs an HDB permit.
+                  </div>
+                  <div className="ci-fix">
+                    <Icon.Check width={14} height={14} />
+                    Build platforms in lightweight timber-joist, not solid concrete screed.
+                  </div>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : null}
       </div>
     </aside>
   )

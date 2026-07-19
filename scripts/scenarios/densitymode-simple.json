@@ -1,0 +1,79 @@
+{
+  "name": "densitymode-simple",
+  "description": "Simple ladder for the densityMode flag (pro tier, default true): the 'Density' segmented control in the Appearance popover is hidden in Simple, present in Pro; clicking Compact/Comfortable there is a real DOM click that flows through setDensity -> editorPrefs' effect, which writes the EFFECTIVE density onto <html data-density> only while the flag resolves on (the flag gates the *effect*, not just the preference, per editorPrefs.ts's own comment) — so a Compact pick made in Pro is provably suppressed back to 'comfortable' the moment the app returns to Simple, even though the underlying preference is still 'compact'.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "verify-simple-mode", "waitFor": { "store": "state.uiMode === 'simple'" }, "timeout": 5000 },
+    {
+      "name": "reset-density-pref",
+      "eval": "window.__store.getState().setDensity('comfortable')"
+    },
+    {
+      "name": "verify-data-density-comfortable",
+      "waitFor": { "store": "document.documentElement.getAttribute('data-density') === 'comfortable'" },
+      "timeout": 3000
+    },
+    { "name": "open-appearance-popover", "store": { "action": "setAppearanceOpen", "args": [true] } },
+    { "name": "popover-visible", "waitFor": { "text": "Theme" }, "timeout": 10000 },
+    { "name": "shot-01-appearance-simple", "screenshot": "01-appearance-popover-simple" },
+    {
+      "name": "verify-density-section-hidden-simple",
+      "eval": "(function(){ const label = [...document.querySelectorAll('.pop-label')].find(l => l.textContent.trim() === 'Density'); if (label) throw new Error('Density section visible in Simple mode (densityMode is pro-tier, should be forced off)'); })()"
+    },
+    {
+      "name": "attempt-set-compact-while-simple",
+      "eval": "window.__store.getState().setDensity('compact')"
+    },
+    { "name": "wait-noop-settle", "wait": 300 },
+    {
+      "name": "verify-data-density-still-comfortable-in-simple",
+      "eval": "(function(){ const eff = document.documentElement.getAttribute('data-density'); if (eff !== 'comfortable') throw new Error('data-density is \\'' + eff + '\\' in Simple mode even though densityMode is pro-tier — the flag should force the EFFECT to comfortable regardless of the stored preference'); })()"
+    },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "wait-pro", "wait": 500 },
+    {
+      "name": "verify-density-section-present-pro",
+      "eval": "(function(){ const label = [...document.querySelectorAll('.pop-label')].find(l => l.textContent.trim() === 'Density'); if (!label) throw new Error('Density section missing in Pro mode'); })()"
+    },
+    { "name": "shot-02-appearance-pro", "screenshot": "02-appearance-popover-pro" },
+    {
+      "name": "verify-data-density-now-compact",
+      "eval": "(function(){ const eff = document.documentElement.getAttribute('data-density'); if (eff !== 'compact') throw new Error('data-density did not switch to compact once Pro resolved densityMode on, got: ' + eff); })()"
+    },
+    {
+      "name": "click-comfortable-button",
+      "eval": "[...document.querySelectorAll('.appe-mode button')].find(b => b.textContent.trim() === 'Comfortable').click()"
+    },
+    {
+      "name": "verify-data-density-comfortable-after-click",
+      "waitFor": { "store": "document.documentElement.getAttribute('data-density') === 'comfortable'" },
+      "timeout": 3000
+    },
+    { "name": "shot-03-comfortable-clicked", "screenshot": "03-comfortable-clicked" },
+    {
+      "name": "click-compact-button",
+      "eval": "[...document.querySelectorAll('.appe-mode button')].find(b => b.textContent.trim() === 'Compact').click()"
+    },
+    {
+      "name": "verify-data-density-compact-after-click",
+      "waitFor": { "store": "document.documentElement.getAttribute('data-density') === 'compact'" },
+      "timeout": 3000
+    },
+    { "name": "shot-04-compact-clicked", "screenshot": "04-compact-clicked" },
+    { "name": "back-to-simple", "store": { "action": "setUiMode", "args": ["simple"] } },
+    { "name": "wait-back-simple", "wait": 400 },
+    {
+      "name": "verify-forced-comfortable-again-in-simple",
+      "eval": "(function(){ const eff = document.documentElement.getAttribute('data-density'); if (eff !== 'comfortable') throw new Error('data-density did not revert to comfortable after switching back to Simple, got: ' + eff); const pref = window.__store.getState().density; if (pref !== 'compact') throw new Error('Underlying density preference was not preserved across the mode switch, got: ' + pref); })()"
+    },
+    { "name": "close-popover", "store": { "action": "setAppearanceOpen", "args": [false] } },
+    { "name": "reset-density-pref-final", "eval": "window.__store.getState().setDensity('comfortable')" },
+    { "name": "shot-05-done", "screenshot": "05-back-to-simple" }
+  ]
+}

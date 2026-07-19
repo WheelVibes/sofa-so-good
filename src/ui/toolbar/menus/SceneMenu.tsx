@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { formatWallFade, WALL_REVEAL_STRENGTH_STEP } from '../../../apartment/walls/wallRevealMath'
 import { useFeature } from '../../../features/useFeature'
+import { LIGHT_MOODS, MOOD_PRESETS } from '../../../lighting/moodPresets'
 import { HDRI_PRESETS } from '../../../scene/lighting/hdriCatalog'
 import { applyRenderPreset, RENDER_PRESETS } from '../../../scene/renderPresets'
 import type { BackdropKind } from '../../../scene/SceneBackdrop'
@@ -8,6 +9,7 @@ import { BACKDROPS } from '../../../scene/SceneBackdrop'
 import { PRESET_HOURS } from '../../../state/slices/timeSlice'
 import type { LightsMode } from '../../../state/slices/uiSlice'
 import { useStore } from '../../../state/store'
+import { Segmented } from '../../controls/Segmented'
 import { Select } from '../../controls/Select'
 import { SliderField } from '../../controls/SliderField'
 import { PetProfileControl } from '../../PetProfileControl'
@@ -21,6 +23,8 @@ const LIGHTS_MODES: { key: LightsMode; label: string }[] = [
   { key: 'on', label: 'On' },
   { key: 'off', label: 'Off' },
 ]
+
+const MOOD_OPTIONS = LIGHT_MOODS.map((m) => ({ value: m, label: MOOD_PRESETS[m].shortLabel }))
 
 const WALL_REVEAL_SCOPES: { key: 'exterior' | 'all'; label: string }[] = [
   { key: 'exterior', label: 'Exterior only' },
@@ -74,6 +78,9 @@ export function SceneMenu() {
   const fMotion = useFeature('furnitureMotion')
   const motionEnabled = useStore((s) => s.motionEnabled)
   const toggleMotion = useStore((s) => s.toggleMotion)
+  const fLightMoods = useFeature('lightMoodPresets')
+  const lightMood = useStore((s) => s.lightMood)
+  const setLightMood = useStore((s) => s.setLightMood)
   const [compassOpen, setCompassOpen] = useState(false)
   const activePresetId = useActivePresetId()
 
@@ -102,6 +109,25 @@ export function SceneMenu() {
           ))}
         </div>
 
+        {/* ---- Lighting mood presets (UX round-3 #3): one-tap brightness +
+            colour-temperature adjustment layered on top of Lights above ---- */}
+        {fLightMoods && (
+          <>
+            <div className="scene-sep" />
+            <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+              <span>Mood</span>
+              <Segmented
+                ariaLabel="Lighting mood"
+                fit
+                className="mood-seg"
+                value={lightMood}
+                onChange={(v) => setLightMood(v as (typeof MOOD_OPTIONS)[number]['value'])}
+                options={MOOD_OPTIONS}
+              />
+            </label>
+          </>
+        )}
+
         {/* ---- Ceiling fixtures ---- */}
         <div className="scene-sep" />
         <label className="scene-field" onClick={(e) => e.stopPropagation()}>
@@ -114,6 +140,7 @@ export function SceneMenu() {
           >
             {showCeilingFixtures ? 'Visible' : 'Hidden'}
           </button>
+          <small className="scene-field-sub">3D geometry; illumination stays on</small>
         </label>
 
         {/* ---- Furniture motion (fan blades) — bug #15 ---- */}
@@ -130,6 +157,9 @@ export function SceneMenu() {
               >
                 {motionEnabled ? 'On' : 'Paused'}
               </button>
+              <small className="scene-field-sub">
+                Animate fan blades and other moving furniture
+              </small>
             </label>
           </>
         )}

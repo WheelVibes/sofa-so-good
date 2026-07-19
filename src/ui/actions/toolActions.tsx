@@ -112,6 +112,23 @@ export const TOOL_ACTIONS: readonly ToolAction[] = [
     ),
   },
   {
+    id: 'renoBudget',
+    label: 'Renovation budget',
+    paletteLabel: 'Renovation budget (by trade)',
+    sub: 'Whole-reno cost by trade & stage (SGD)',
+    icon: 'Budget',
+    category: 'analyze',
+    flag: 'renoBudget',
+    docs: 'renoBudget',
+    // Rendered manually in the File menus' "Budget & costs" group (like budget).
+    surfaces: ['palette'],
+    isActive: (s) => s.renoBudgetOpen,
+    run: auxToggle(
+      (s) => s.renoBudgetOpen,
+      (store) => store.getState().toggleRenoBudget(),
+    ),
+  },
+  {
     id: 'clearance',
     label: 'Checks',
     paletteLabel: 'Clearance & fit checks',
@@ -207,6 +224,38 @@ export const TOOL_ACTIONS: readonly ToolAction[] = [
     ),
   },
   {
+    id: 'reno-rules',
+    label: 'Reno rules',
+    paletteLabel: 'SG renovation rules',
+    sub: 'Tile rule, grilles, working hours, permits',
+    icon: 'Book',
+    category: 'analyze',
+    flag: 'renoRulesPack',
+    docs: 'renoRules',
+    surfaces: ['desktop', 'mobile', 'palette'],
+    isActive: (s) => s.renoRulesOpen,
+    run: auxToggle(
+      (s) => s.renoRulesOpen,
+      (store) => store.getState().setRenoRulesOpen(true),
+    ),
+  },
+  {
+    id: 'handover',
+    label: 'Handover & DLP',
+    paletteLabel: 'Handover checklist & DLP dates',
+    sub: 'Move-in checklist + warranty date tracker',
+    icon: 'Check',
+    category: 'analyze',
+    flag: 'report',
+    docs: 'handover',
+    surfaces: ['desktop', 'mobile', 'palette'],
+    isActive: (s) => s.handoverOpen,
+    run: auxToggle(
+      (s) => s.handoverOpen,
+      (store) => store.getState().setHandoverOpen(true),
+    ),
+  },
+  {
     id: 'measure',
     // 'Measure distance' (not plain 'Measure') — the toolbar's 'Dimensions'
     // overlay toggle used to be called 'Measurements', and the two near-identical
@@ -239,6 +288,21 @@ export const TOOL_ACTIONS: readonly ToolAction[] = [
     run: auxToggle(
       (s) => s.commentsOpen,
       (store) => store.getState().setCommentsOpen(true),
+    ),
+  },
+  {
+    id: 'ai-design-chat',
+    label: 'Design chat',
+    paletteLabel: 'AI design chat (BYO key)',
+    sub: 'Ask an LLM about your design — grounded in its live numbers',
+    icon: 'Style',
+    category: 'analyze',
+    flag: 'aiDesignChat',
+    surfaces: ['desktop', 'mobile', 'palette'],
+    isActive: (s) => s.designChatOpen,
+    run: auxToggle(
+      (s) => s.designChatOpen,
+      (store) => store.getState().setDesignChatOpen(true),
     ),
   },
   // ── Review & tour ───────────────────────────────────────────────────────────

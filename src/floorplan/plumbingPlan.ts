@@ -10,10 +10,12 @@
  * Self-contained: imports only `./types`. No furniture / store types.
  */
 
-import type { FloorPlan } from './types'
+import type { FloorPlan, PlumbingKind } from './types'
 
-/** Standard SG plumbing point kinds. */
-export type PlumbingKind = 'water-point' | 'drainage' | 'floor-trap' | 'soil-pipe' | 'water-heater'
+/** Standard SG plumbing point kinds — moved to `floorplan/types.ts` (MEP layer
+ *  plan, G1), same rationale as `electricalPlan.ts`'s `ElectricalKind`.
+ *  Re-exported here type-only so existing importers are unaffected. */
+export type { PlumbingKind }
 
 /** A single plumbing point placed in the plan (world metres). */
 export interface PlumbingPoint {
@@ -24,6 +26,10 @@ export interface PlumbingPoint {
   label?: string
   /** Storey the point sits on; absent = ground (F13). */
   levelId?: string
+  /** Mount height above finished floor level (mm, AFFL) — carried through from
+   *  a persisted `PlanPlumbingPoint` (MEP layer, G1 PR5). Absent for
+   *  heuristic-derived points. */
+  mountHeightMm?: number
 }
 
 /** One schedule row: how many of a given kind, with a friendly label. */
@@ -82,6 +88,8 @@ export function buildPlumbingPlan(plan: FloorPlan, points: PlumbingPoint[]): Plu
     const out: PlumbingPoint = { x: num(p.x), z: num(p.z), kind }
     if (typeof p.label === 'string' && p.label.length > 0) out.label = p.label
     if (typeof p.levelId === 'string' && p.levelId.length > 0) out.levelId = p.levelId
+    if (typeof p.mountHeightMm === 'number' && Number.isFinite(p.mountHeightMm))
+      out.mountHeightMm = p.mountHeightMm
     clean.push(out)
   }
 

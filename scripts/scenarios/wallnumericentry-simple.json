@@ -1,0 +1,45 @@
+{
+  "name": "wallnumericentry-simple",
+  "description": "IXT-SUITES: wallNumericEntry (pro) flag gate + a real interaction. Simple/Pro gate on the WallNumericEntry overlay presence while drawing a wall; a real length+Enter commit adds a wall of the exact typed length.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    { "name": "assert-simple-hidden", "waitFor": { "store": "state.uiMode === 'simple' && state.featureFlags.wallNumericEntry === false" }, "timeout": 5000, "failMessage": "wallNumericEntry should be OFF in Simple mode" },
+    { "name": "to-pro", "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()" },
+    { "name": "assert-pro-on", "waitFor": { "store": "state.featureFlags.wallNumericEntry === true" }, "timeout": 5000, "failMessage": "wallNumericEntry should be ON in Pro mode" },
+    { "name": "new-plan", "eval": "window.__store.getState().newFloorPlan('Numeric wall test')" },
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "record-wall-count", "eval": "window.__wallsBefore = window.__store.getState().floorPlan.walls.length" },
+    { "name": "click-wall-tool", "click": { "text": "Wall" } },
+    {
+      "name": "start-wall-draft",
+      "eval": "(() => { const svg = document.querySelector('.plan-paper'); if (!svg) throw new Error('plan-paper svg not found'); const r = svg.getBoundingClientRect(); window.__cx = r.left + r.width/2; window.__cy = r.top + r.height/2; const opt = { bubbles:true, cancelable:true, composed:true, pointerId:9, pointerType:'mouse', isPrimary:true, button:0, buttons:1, clientX:window.__cx, clientY:window.__cy }; svg.dispatchEvent(new PointerEvent('pointerdown', opt)); })()"
+    },
+    { "name": "numeric-overlay-visible", "waitFor": { "css": "input[aria-label='Wall length']" }, "timeout": 8000, "failMessage": "WallNumericEntry overlay (Wall length input) did not mount after starting a wall draft in Pro mode" },
+    { "name": "shot-overlay-open", "screenshot": "numeric-entry-open" },
+    { "name": "type-length", "type": "type", "text": "3" },
+    { "name": "commit-length", "key": "Enter" },
+    {
+      "name": "wall-added",
+      "waitFor": {
+        "store": "state.floorPlan.walls.length === window.__wallsBefore + 1",
+        "timeout": 5000
+      },
+      "failMessage": "Committing the numeric-entry length did not add a wall"
+    },
+    {
+      "name": "assert-exact-length",
+      "eval": "(() => { const walls = window.__store.getState().floorPlan.walls; const w = walls[walls.length - 1]; const len = Math.hypot(w.end[0]-w.start[0], w.end[1]-w.start[1]); if (Math.abs(len - 3) > 0.02) throw new Error('expected the committed wall to be 3 m long, got ' + len); return len; })()"
+    },
+    { "name": "escape-draft", "key": "Escape" },
+    { "name": "shot-wall-committed", "screenshot": "wall-committed" },
+    { "name": "close-plan", "store": { "action": "setFloorPlanEditing", "args": [false] } },
+    { "name": "back-to-simple", "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('simple'); s.reresolveFeatureFlags();})()" },
+    { "name": "assert-simple-again", "waitFor": { "store": "state.featureFlags.wallNumericEntry === false" }, "timeout": 5000 }
+  ]
+}

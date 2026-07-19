@@ -95,14 +95,37 @@ furniture inspector — a **Name** field on top, then a grid of quick actions:
   is never overwritten.
 - **Walls** — *Reverse*, *Split* (cut in two at the midpoint), *Join* (merge a
   collinear neighbour), *Duplicate*, *Lock* and *Delete*, with the exact
-  thickness / start / end / length / angle fields underneath. A **Baseboard /
-  skirting** section sets this wall's skirting **height** and **colour** (or hides
+  thickness / start / end / length / angle fields underneath. A **Skirting**
+  section sets this wall's skirting **height** and **colour** (or hides
   it), and a **Wall colour** picker recolours just this one wall (with a *reset*).
+  A **Structure** picker (Pro) classifies this wall — **Unknown / not verified**
+  (the default), **Load-bearing**, **RC partition**, **Brick partition** or
+  **Dry partition (Ferrolite / steel-stud)** — for the Drawing set's
+  demolition/hacking sheet; a note underneath reminds you this is
+  **user-declared, not verified** — confirm against HDB/BCA as-built records (or
+  a PE) before hacking, since an older HDB block can hide a load-bearing
+  beam-and-column wall behind what looks like a plain partition on plan.
+  Turn on the **Hackability** toggle in the **View ▾** menu (Pro) to tint every
+  wall live by its demolition-permit status while you edit — **red** = never
+  hackable (load-bearing / RC), **amber** = permit required (brick / dry
+  partition), **muted** = still unclassified — with a small legend above the
+  plan. It's driven straight off each wall's **Structure** tag, so classify your
+  walls to see it work. Deleting a wall you've tagged load-bearing/RC first
+  raises a **"NOT PERMITTED under HDB rules"** confirmation — it warns, it doesn't
+  block (you can still remove it from the drawing).
 - **Doors / windows** — *Flip hinge* and *Flip swing* (doors), *Duplicate*,
   *Lock* and *Delete*, plus the offset / width / sill / head fields. A **Style**
-  picker sets a **door** style (**Panelled**, **Flush** or **Glazed**) or a
-  **window** style (**Plain glass**, **Safety grille** or **Louvre**), and a colour
-  picker sets the door's **Leaf colour** or the window's **Glass tint**.
+  picker sets a **door** style (**Panelled**, **Flush**, **Glazed**,
+  **Bifold** — the standard toilet/utility door, folding into two half-width
+  leaves — **Sliding** — the leaf slides along the wall instead of swinging, the
+  usual kitchen / service-yard / balcony door — or **Double** — two half-width
+  leaves swinging open together, for a condo main door or a large master
+  bedroom) or a **window** style (**Plain glass**, **Safety grille**,
+  **Invisible grille** — hair-thin near-invisible cables instead of visible
+  bars — or **Louvre**); a colour picker sets the door's **Leaf colour** or the
+  window's **Glass tint**; and a door also gets a **Material** picker
+  (**Painted**, **Timber / wood grain** or **Vinyl / PVC laminate** — Bifold
+  defaults to vinyl, the standard finish for an SG toilet/utility door).
 - **Lock** — a locked wall or opening can still be selected but won't move,
   reshape or delete by accident (its drag handles disappear) — unlock it to edit
   again.
@@ -117,8 +140,10 @@ selected does nothing.
 **Select several walls at once** — Shift‑click (or ⌘/Ctrl‑click) walls to add or
 remove them from the selection; on a touch screen, turn on the toolbar **Select+**
 toggle and tap walls instead. The Properties panel then shows how many are
-selected with **Lock all**, **Delete all** (locked walls are kept) and **Clear
-selection** — handy for clearing out a whole run of walls in one go.
+selected with **Lock all**, **Delete all** (locked walls are kept), a **Structure
+(all)** picker (Pro — shows "Mixed" when the selection disagrees, otherwise the
+shared value; picking one classifies every selected wall in one step) and **Clear
+selection** — handy for tagging or clearing out a whole run of walls in one go.
 
 **Edit a piece of furniture from the plan** — select a furniture footprint and the
 Properties panel becomes a furniture editor: rename it, set its exact **X** / **Z**
@@ -208,6 +233,67 @@ All three are saved with your design and are tagged to the storey you drew them 
 Your **text notes** also print onto the floor-plan sheet of the **Report** and the
 **Drawing set**, so on-plan callouts reach the documents you hand to a builder.
 
+## Electrical & plumbing points *(Pro)*
+
+For a contractor-ready plan, place the exact **electrical and plumbing points**
+you want wired/plumbed, instead of relying on the furniture-based estimate on
+the exported sheets:
+
+- Open the **MEP** tool group in the toolbar (desktop: a dropdown next to
+  Markup; on a phone: the **MEP** section of the Plan-tools menu). Pick a kind
+  under **Electrical** (Socket, Double socket, Switch, Data point, TV point,
+  Aircon point, Water heater) or **Plumbing** (Water point, Drainage, Floor
+  trap, Soil pipe, Water heater) — this arms the tool with that kind.
+- Click on the plan to place a point. A click near a wall **snaps onto that
+  wall's face** (so a socket/switch reads as mounted ON the wall it serves);
+  elsewhere it drops at the click. The tool stays armed, so you can place
+  several of the same kind in a row.
+- Switch to **Select** to click a point (selecting it) and drag to reposition
+  it. The inspector shows its **Kind** (swap it within its own family — an
+  electrical point can't become a plumbing one), its **Mount height (mm
+  AFFL)** — above finished floor level, with standard-height quick-pick chips
+  for electrical points (300 / 1050 / 1200 / 2400 mm) — an optional **Label**
+  (e.g. "fridge", "WC"), and **Delete**.
+- The **MEP** toggle in the **View ▾** menu shows/hides the points layer
+  (shown by default); <kbd>Delete</kbd>/<kbd>Backspace</kbd> removes the
+  selected point. While the layer is on, any room short of the recommended
+  socket count for its type shows a small **"3/8 sockets"** shortfall tag at its
+  centre, so you can see the gap as you place points (the full advisory + DB-load
+  note print on the exported Electrical plan sheet).
+- Don't want to place every point by hand? **Plan ▾ → Suggest MEP points**
+  (also in the phone Plan-tools sheet) looks at your placed furniture and
+  doors and adds a starting layout — a socket by every appliance, a switch
+  just inside each door, a soil pipe + water point at the WC, and so on —
+  then tells you how many electrical + plumbing points it added. Run it again
+  any time you add more furniture; it skips anything it's already suggested.
+  Drag any point afterwards to fine-tune its exact position.
+
+### Switch → light circuits *(Pro)*
+
+Tell your electrician **which switch controls which light**. Select a **switch**
+point and use its inspector's **Controls** section to tick the light fixtures it
+operates (grouped by room). Tick **Two‑way** on two switches that share the same
+lights (a staircase or bedroom operated from both ends) and pick the same
+fixtures on each — they become one circuit, tagged **S1a / S1b**. Set the
+**Gang** (1‑ or 2‑gang) for the plate.
+
+- While a switch is selected, dashed **leader lines** run from it to every light
+  it controls, so you can confirm the links at a glance.
+- **Plan ▾ → Suggest circuits** auto‑links, in each room, the switch nearest the
+  room's door to that room's lights (the usual entry‑switch convention) — one
+  undo step; refine any switch afterwards.
+- The exported **Electrical plan** tags each switch and its lights with matching
+  circuit numbers (**S1**, **S2**, …; lights read **L1 [S1]**), lists every
+  circuit in a **Lighting circuits** legend ("S1 — Living downlights (2‑gang) —
+  controls L1, L2"), and flags any lights with no switch (or switches that
+  control nothing). The same tags carry into the DXF export.
+
+*(Pro tools are hidden in Simple mode — switch to Pro from the mode toggle to
+use them. The exported Electrical/Plumbing plan sheets now use the points you
+place here once you've authored any — printing your chosen mount height
+beside each symbol as an "@1200"-style suffix, with a plan that has none yet
+falling back to the furniture-based estimate, marked "indicative".)*
+
 ## Levels (storeys)
 
 Designing a maisonette, loft or landed home? The **floor dropdown** at the
@@ -286,7 +372,10 @@ Have a real floor‑plan image or a room scan? Trace over it:
 3. Adjust **Trace opacity** (5–100%), then draw walls over the image. **Center**
    re‑centres the image on your plan at any time.
 4. *(Experimental, optional)* **AI walls** sends the photo to a vision model
-   (your own API key) and drafts the walls for you to correct.
+   (your own API key) and drafts the walls for you to correct. The same pass also
+   proposes **doors and windows** on the recognized walls, and — if the model can
+   read a dimension off the drawing — **calibrates the trace scale** for you
+   (your own **Set scale** calibration is never overwritten).
 
 Your reference photo and its calibration are **saved on your device** — close
 the editor or reload the app and it's still there when you come back. Remove it
@@ -326,9 +415,33 @@ Floor and wall **finishes** are set in the **per‑room (3D) editor**, not here 
 floor‑plan editor is for the shell (walls, rooms, openings) and layout, so the room
 inspector keeps you focused on shape and naming.
 
+Right under **Name**, a **Room type** dropdown lets you tell the app what a room
+actually is — useful once you've renamed it to something personal (e.g. "Ella's
+room") that the app can no longer guess from the name alone. The first option is
+always **"Auto — ‹guess›"**, showing what the app would infer from the current
+name; pick it again any time to clear your override and go back to automatic
+guessing. Below it are the 13 room types: Living room, Dining room, Bedroom,
+Master bedroom, Kitchen, Bathroom, Powder room / WC, Study, Service yard,
+Storeroom, Balcony, Foyer / entrance, and Other. Your pick drives the "fits this
+room" catalog defaults and starter suggestions the same way the name would have
+— it's just more reliable once you've renamed the room.
+
 You can **drag a room's name** on the plan to nudge it clear of furniture or a tight
 room — it prints in the new spot on the Report and Drawing set too. The inspector's
 **Reset label position** button recentres it.
+
+**Floor level (mm)** *(Pro)* — a selected room's inspector has a **Floor level**
+field: the finished-floor offset in millimetres versus your home's main floor
+datum (e.g. a bathroom **−50**, a balcony **−50**, so water can't run out into the
+dry rooms). It's documentation only — it tags the **Dimensioned plan** and the
+**Tiler** handover pack with an "FFL −50" marker, and draws a **step / transition
+strip** marker at any doorway where two rooms sit at different levels; it does *not*
+move the 3D floor. Rooms you leave at 0 sit level with the datum and get no tag.
+
+Wet rooms (bathrooms, powder rooms, kitchen, service yard, balcony) also print a
+diagonal **waterproofing hatch** on the Dimensioned plan and a per-room
+waterproofing zone table (floor area + wall upturn heights) in the Tiler pack —
+see [Design tools → Drawing set](design-tools.md).
 
 **Duplicate room** — at the bottom of a selected room's inspector, **Duplicate
 room** drops a complete copy beside the original: its shape (rectangle, L‑shape
@@ -344,6 +457,32 @@ Bathrooms keep their lower dropped ceiling. The height is saved with your design
 
 Below it, a **Wall colour** picker repaints every wall of a custom plan (Reset
 returns the default warm off‑white). It's saved with the plan too.
+
+## Roof *(Pro)*
+
+Landed and multi‑storey plans (the **Terrace House** and **Executive
+Maisonette** templates ship with one already, and any plan with an upper storey
+qualifies) get a **Roof** section in the same no‑selection inspector. Press
+**Add roof** to place a pitched roof over the top storey, or **Remove** to take
+it away. When a roof is present you can set:
+
+- **Style** — **Gable** (two slopes meeting at a ridge, with triangular end
+  gables), **Hip** (four slopes running down to all four eaves), or
+  **Flat + parapet** (a flat top ringed by a low parapet wall).
+- **Pitch (°)** — how steep the slopes are, 15–45° (gable/hip only).
+- **Ridge** — which way the ridge runs: **Auto (longer side)**, **East–West**,
+  or **North–South** (gable/hip only).
+- **Overhang (m)** — how far the eaves project past the walls, 0–0.6 m.
+- **Material** — **Clay tile** or **Metal seam**.
+- **Dormers** — press **Add dormer** to break a slope with a small gabled dormer
+  (gable/hip only). Each dormer has a **Side** (limited to the sides the roof
+  actually faces), an **Offset (m)** along that side, and a **Width (m)**.
+
+The roof is built over the top storey's outer footprint (its bounding rectangle,
+so an L‑shaped plan gets a clean rectangular roof enclosing it). It shows from
+the outside and **fades away automatically when you orbit down into the home**,
+so it never blocks your view of the rooms. Everything here is saved with the
+plan.
 
 ## Panning & zoom
 

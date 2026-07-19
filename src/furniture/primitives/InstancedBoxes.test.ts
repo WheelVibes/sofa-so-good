@@ -1,4 +1,4 @@
-import { Object3D, Vector3 } from 'three'
+import { CylinderGeometry, Object3D, Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
 import { type BoxInstance, bakeInstanceMatrix } from './InstancedBoxes'
 
@@ -79,6 +79,36 @@ describe('bakeInstanceMatrix', () => {
     expect(scale.x).toBeCloseTo(1.3, 12)
     expect(scale.y).toBeCloseTo(0.006, 12)
     expect(scale.z).toBeCloseTo(0.06, 12)
+  })
+
+  it('a fluted-rib instance (unit half-cylinder, scaled) equals the old per-mesh half-cylinder (AE=0)', () => {
+    // FlutedPartition previously rendered each rib as
+    //   <mesh position={[x, y, depth*0.22]}>
+    //     <cylinderGeometry args={[ribR, ribR, innerH, 10, 1, false, 0, PI]} />
+    // and now renders one InstancedCylinders(radialSegments=10, thetaLength=PI)
+    // with instance { position, size: [ribR, innerH, ribR] } over a unit
+    // half-cylinder. Prove the two are the byte-exact same geometry in world space.
+    const ribR = 0.016
+    const innerH = 1.98
+    const x = 0.37
+    const y = 1.05
+    const z = 0.06 * 0.22
+    // Old path: a real-sized half-cylinder translated to its position.
+    const old = new CylinderGeometry(ribR, ribR, innerH, 10, 1, false, 0, Math.PI)
+    old.translate(x, y, z)
+    // New path: a unit half-cylinder transformed by the baked instance matrix.
+    const unit = new CylinderGeometry(1, 1, 1, 10, 1, false, 0, Math.PI)
+    const m = bakeInstanceMatrix(
+      { position: [x, y, z], size: [ribR, innerH, ribR] },
+      new Object3D(),
+    )
+    unit.applyMatrix4(m)
+    const a = old.getAttribute('position').array
+    const b = unit.getAttribute('position').array
+    expect(b.length).toBe(a.length)
+    let maxErr = 0
+    for (let i = 0; i < a.length; i++) maxErr = Math.max(maxErr, Math.abs(a[i] - b[i]))
+    expect(maxErr).toBeLessThan(1e-6)
   })
 
   it('omitted rotation still resets a dirtied scratch to identity', () => {

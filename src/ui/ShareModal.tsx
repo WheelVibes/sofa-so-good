@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   buildDesignShareUrl,
   DesignShareError,
@@ -10,11 +11,20 @@ import { EXPORT_EVENT } from '../scene/ScreenshotController'
 import { exportDesignToFile } from '../state/storage/designFile'
 import { useStore } from '../state/store'
 import { AiPhotorealSection } from './ai/AiPhotorealSection'
+import { Segmented } from './controls/Segmented'
 import { Modal } from './Modal'
 import { openDesignReport } from './openReport'
 import { exportScene3d } from './openSceneExport'
+import { canShareHeroCardNative, openShareCard, shareHeroCardNative } from './openShareCard'
+import type { ShareCardFormat } from './shareCard'
 import { buildShareSummary } from './shareSummary'
 import { Icon } from './toolbar/icons'
+
+const SHARE_CARD_FORMAT_OPTIONS: { value: ShareCardFormat; label: string; title: string }[] = [
+  { value: 'post', label: 'Post', title: 'Post — 4:5 (1080×1350)' },
+  { value: 'square', label: 'Square', title: 'Square — 1:1 (1080×1080)' },
+  { value: 'story', label: 'Story', title: 'Story — 9:16 (1080×1920)' },
+]
 
 /** Share & export modal: a shareable link, project notes, and PNG / PDF export.
  *  The PNG export fires the canvas screenshot event; the PDF opens the real
@@ -27,6 +37,33 @@ export function ShareModal() {
   const setDesignNote = useStore((s) => s.setDesignNote)
   const aiPhotoreal = useFeature('aiPhotoreal')
   const sceneExport = useFeature('sceneExport3d')
+  const shareCard = useFeature('shareCard')
+  const shareCardNative = useFeature('shareCardNative')
+  // Component-local + ephemeral (like the catalog's Max$/Fits-only controls) —
+  // no existing per-device pref plumbing for a single modal-local choice, and
+  // it's low-stakes enough not to warrant one.
+  const [shareCardFormat, setShareCardFormat] = useState<ShareCardFormat>('post')
+  // Computed once per mount (device support doesn't change mid-session) — the
+  // "Share…" action only renders where `navigator.share({ files })` can
+  // actually succeed; `canShareHeroCardNative` is cheap + gesture-independent
+  // (unlike `share()` itself, `canShare()` has no transient-activation
+  // requirement), so a lazy `useState` initializer is enough.
+  const [canShareNative] = useState(() => canShareHeroCardNative())
+  const [sharingCard, setSharingCard] = useState(false)
+
+  const shareHeroCard = async () => {
+    setSharingCard(true)
+    try {
+      const result = await shareHeroCardNative(shareCardFormat)
+      if (result === 'unsupported') {
+        // Platform lied about support (or changed mid-session) — fall back
+        // to the download path rather than leaving the user stuck.
+        await openShareCard(shareCardFormat)
+      }
+    } finally {
+      setSharingCard(false)
+    }
+  }
 
   const toast = (title: string) => useStore.getState().notify.start({ title, kind: 'success' })
 
@@ -147,6 +184,63 @@ export function ShareModal() {
         <div className="sec-h">
           <span>Export</span>
         </div>
+        {shareCard && (
+          <>
+            <div style={{ marginBottom: 'var(--s-2)' }}>
+              <Segmented
+                value={shareCardFormat}
+                onChange={(v) => setShareCardFormat(v as ShareCardFormat)}
+                options={SHARE_CARD_FORMAT_OPTIONS}
+                ariaLabel="Hero image format"
+              />
+            </div>
+            <div
+              style={
+                shareCardNative && canShareNative
+                  ? { display: 'flex', gap: 'var(--s-2)' }
+                  : undefined
+              }
+            >
+              {shareCardNative && canShareNative && (
+                <button
+                  type="button"
+                  className="btn btn-accent"
+                  style={{ flex: 1 }}
+                  disabled={sharingCard}
+                  onClick={() => {
+                    void shareHeroCard()
+                  }}
+                >
+                  <Icon.Share width={14} height={14} />
+                  Share…
+                </button>
+              )}
+              <button
+                type="button"
+                className={
+                  shareCardNative && canShareNative ? 'btn btn-soft' : 'btn btn-accent btn-block'
+                }
+                style={shareCardNative && canShareNative ? { flex: 1 } : undefined}
+                onClick={() => {
+                  void openShareCard(shareCardFormat)
+                }}
+              >
+                <Icon.Frame width={14} height={14} />
+                {shareCardNative && canShareNative ? 'Save' : 'Save hero image'}
+              </button>
+            </div>
+            <p
+              style={{
+                fontSize: 'var(--t-2xs)',
+                color: 'var(--text-3)',
+                margin: 'var(--s-2) 0 var(--s-3)',
+                lineHeight: 1.4,
+              }}
+            >
+              A share-ready card: your 3D view framed with the design's palette, name and stats.
+            </p>
+          </>
+        )}
         <div className="export-row">
           <button
             type="button"

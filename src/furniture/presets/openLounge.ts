@@ -2,6 +2,7 @@ import type { LayoutPreset } from './types'
 
 export const openLounge: LayoutPreset = {
   id: 'open-lounge',
+  group: 'layout',
   name: 'Open-Concept Lounge',
   description: 'Re-modelled L/D: L-sectional facing a media wall, open dining.',
   dryFloor: 'floor-wood-oak',

@@ -81,10 +81,15 @@ export interface UnifiedCatalog {
  * un-downloaded remote entries surface. Already-resolved remote models stay as
  * local defs regardless — gating affects the browse/add path, not placed items.
  */
+/** Def id of the parametric staircase (see analysis/stairConnectivity.ts). Gated
+ *  by the `parametricStairs` flag: hidden from the catalog in Simple mode. */
+const STAIRCASE_DEF_ID = 'staircase'
+
 export function useUnifiedCatalog(
   includeRemote = true,
   includeShared = true,
   includePets = true,
+  includeStairs = true,
 ): UnifiedCatalog {
   const localByCategory = useCatalogByCategory()
   const remoteEntriesAll = useRemoteEntries('furniture')
@@ -185,6 +190,15 @@ export function useUnifiedCatalog(
     // cross-catalog search / favourites / recents.
     if (!includePets) byCategory.pets = []
 
+    // Flag-gate the parametric staircase card (parametricStairs): with the flag
+    // off (Simple mode) the single `staircase` def is dropped from its category
+    // so it never surfaces in the grid, cross-catalog search, or counts.
+    if (!includeStairs) {
+      byCategory.others = byCategory.others.filter(
+        (it) => it.kind !== 'local' || it.def.id !== STAIRCASE_DEF_ID,
+      )
+    }
+
     const all: GridItem[] = []
     const counts = {} as Record<FurnitureCategory, number>
     for (const c of FURNITURE_CATEGORIES) {
@@ -199,6 +213,7 @@ export function useUnifiedCatalog(
       const def = localById.get(id)
       if (def) {
         if (!includePets && def.category === 'pets') continue
+        if (!includeStairs && def.id === STAIRCASE_DEF_ID) continue
         favourites.push({ kind: 'local', def })
         continue
       }
@@ -222,7 +237,10 @@ export function useUnifiedCatalog(
     const recent: GridItem[] = []
     for (const id of recentDefIds) {
       const def = localById.get(id)
-      if (def && (includePets || def.category !== 'pets')) recent.push({ kind: 'local', def })
+      if (!def) continue
+      if (!includePets && def.category === 'pets') continue
+      if (!includeStairs && def.id === STAIRCASE_DEF_ID) continue
+      recent.push({ kind: 'local', def })
     }
 
     return { byCategory, all, counts, favourites, recent }
@@ -234,5 +252,6 @@ export function useUnifiedCatalog(
     collections,
     recentDefIds,
     includePets,
+    includeStairs,
   ])
 }

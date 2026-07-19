@@ -6,6 +6,7 @@
  */
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { roomWalls } from '../materials/roomWalls'
 import { useStore } from '../state/store'
 import { FinishPicker } from './FinishPicker'
 
@@ -74,5 +75,49 @@ describe('FinishPicker — accent walls section', () => {
     render(<FinishPicker />)
     openWallsTab()
     expect(screen.queryByText('Accent walls')).toBeNull()
+  })
+})
+
+describe('FinishPicker — create accent wall (ACCENT-CREATE)', () => {
+  // The accent section rides the simple-tier `wallAccentPicker` flag, so the
+  // "Add accent wall" affordance must be present in BOTH Simple and Pro.
+  for (const mode of ['simple', 'pro'] as const) {
+    it(`offers an "Add accent wall" picker in ${mode} mode`, () => {
+      useStore.getState().setUiMode(mode)
+      useStore.getState().reresolveFeatureFlags()
+      useStore.getState().selectRoom(ROOM)
+      render(<FinishPicker />)
+      openWallsTab()
+      expect(screen.getByRole('combobox', { name: 'Add an accent wall' })).toBeInTheDocument()
+    })
+  }
+
+  it('picking a wall hands off to the finish-choice panel (selects that wall)', () => {
+    render(<FinishPicker />)
+    openWallsTab()
+    const add = screen.getByRole('combobox', { name: 'Add an accent wall' })
+    fireEvent.click(add)
+    // Options are the room's walls, compass-labelled. Pick the first real one.
+    const option = screen.getAllByRole('option').find((o) => /wall ·/i.test(o.textContent ?? ''))
+    expect(option).toBeDefined()
+    if (!option) return
+    fireEvent.click(option)
+    // Handoff: the wall is now selected (opens the WallAccentPicker finish choice).
+    const sel = useStore.getState().selectedWall
+    expect(sel?.roomId).toBe(ROOM)
+    expect(sel?.wallId).toBeTruthy()
+  })
+
+  it('round-trips: creating an accent on a room wall sets finishes.wallAccents', () => {
+    // Store-level create: enumerate the room's walls (same helper the picker
+    // uses) then apply an accent finish → it lands under the `wallId:roomId` key.
+    const s = useStore.getState()
+    const wall = roomWalls(s.floorPlan, ROOM)[0]
+    expect(wall).toBeDefined()
+    const key = `${wall.wallId}:${ROOM}`
+    s.setWallAccent(key, 'wall-brick-red')
+    expect(useStore.getState().finishes.wallAccents[key]).toBe('wall-brick-red')
+    useStore.getState().clearWallAccent(key)
+    expect(useStore.getState().finishes.wallAccents[key]).toBeUndefined()
   })
 })

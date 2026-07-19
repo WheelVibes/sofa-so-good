@@ -4,6 +4,7 @@ import { enterVr } from '../../../scene/xr/xrStore'
 import { captureThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
 import { PresentationSetup } from '../../presentation/PresentationSetup'
+import { DayNightClipSetup } from '../../scene/DayNightClipSetup'
 import { Icon } from '../icons'
 import { Item, Section } from './parts'
 
@@ -35,6 +36,8 @@ export function ViewSection({
   const fPanoTour = useFeature('panoTour')
   const fTwoPointPerspective = useFeature('twoPointPerspective')
   const fParallelProjection = useFeature('parallelProjection')
+  const fDayNightClip = useFeature('dayNightClip')
+  const fSuggestedViews = useFeature('suggestedViews')
 
   return (
     <Section id="view" title="View" icon="Orbit" activeId={activeId}>
@@ -144,6 +147,14 @@ export function ViewSection({
               })}
             />
           ) : null}
+          {fSavedViews && fSuggestedViews ? (
+            <Item
+              icon="Star"
+              label="Suggest views"
+              sub="Auto-add a corner angle per room + an overview"
+              onClick={act(() => s.getState().suggestSavedViews(), { keep: true })}
+            />
+          ) : null}
           {fSavedViews && savedViews.length > 0 ? (
             fPresentation && fPanoTour ? (
               <PresentationSetup />
@@ -164,6 +175,7 @@ export function ViewSection({
               onClick={act(() => s.getState().setTouring('views'))}
             />
           ) : null}
+          {fSavedViews && savedViews.length > 1 && fDayNightClip ? <DayNightClipSetup /> : null}
         </>
       ) : null}
       {!roomEditorActive &&

@@ -1,0 +1,65 @@
+{
+  "name": "ai-plan-generate",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setUiMode?.('pro'); s.reresolveFeatureFlags?.(); })()"
+    },
+    {
+      "name": "hook",
+      "waitFor": {
+        "store": "typeof window.__applyAiGeneratedPlan === 'function'"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "apply",
+      "eval": "window.__gp = window.__applyAiGeneratedPlan('{\"walls\":[{\"x1\":0,\"z1\":0,\"x2\":6,\"z2\":0,\"external\":true},{\"x1\":6,\"z1\":0,\"x2\":6,\"z2\":8,\"external\":true},{\"x1\":6,\"z1\":8,\"x2\":0,\"z2\":8,\"external\":true},{\"x1\":0,\"z1\":8,\"x2\":0,\"z2\":0,\"external\":true},{\"x1\":0,\"z1\":4,\"x2\":6,\"z2\":4,\"external\":false}],\"openings\":[{\"kind\":\"door\",\"x\":3,\"z\":8,\"width\":0.9},{\"kind\":\"door\",\"x\":3,\"z\":4,\"width\":0.9},{\"kind\":\"window\",\"x\":6,\"z\":2,\"width\":1.2},{\"kind\":\"window\",\"x\":0,\"z\":6,\"width\":1.2}],\"rooms\":[{\"name\":\"Living\",\"x\":0,\"z\":0,\"width\":6,\"depth\":4},{\"name\":\"Bedroom\",\"x\":0,\"z\":4,\"width\":6,\"depth\":4}]}')"
+    },
+    {
+      "name": "walls-in",
+      "waitFor": {
+        "store": "state.floorPlan.walls.length >= 5"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "rooms-in",
+      "waitFor": {
+        "store": "(state.floorPlan.rooms || []).length >= 2"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "probe",
+      "eval": "(() => { const s = window.__store.getState(); return JSON.stringify({ walls: s.floorPlan.walls.length, rooms: (s.floorPlan.rooms||[]).map(r => r.name), openings: s.floorPlan.walls.flatMap(w => w.openings||[]).length + (s.floorPlan.openings||[]).length }); })()"
+    },
+    {
+      "name": "open-plan",
+      "eval": "window.__store.getState().setFloorPlanEditing(true)"
+    },
+    {
+      "name": "plan-visible",
+      "waitFor": {
+        "css": ".plan-screen"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "settle",
+      "wait": 1500
+    },
+    {
+      "name": "shot-plan",
+      "screenshot": "ai-generated-plan"
+    }
+  ]
+}

@@ -20,6 +20,11 @@ interface RoomsLayerProps {
   showRoomLabels: boolean
   roomFont: number
   units: UnitSystem
+  /** Per-room socket-shortfall advisory (R4-4), only populated when the MEP
+   *  view is active. Folded into this label block (as a trailing line under
+   *  the perimeter) so it can't collide with the perimeter text the way a
+   *  separately-anchored `MepLayer` caption did (UXW-P2-1). */
+  socketShortfall?: Map<string, { placed: number; target: number }>
   svgRef: React.RefObject<SVGSVGElement | null>
   setPlanSelection: (sel: PlanSelection) => void
   beginElementDrag: (e: React.PointerEvent, isSelectedNow: boolean) => boolean
@@ -47,6 +52,7 @@ export function RoomsLayer({
   showRoomLabels,
   roomFont,
   units,
+  socketShortfall,
   svgRef,
   setPlanSelection,
   beginElementDrag,
@@ -214,7 +220,14 @@ export function RoomsLayer({
               const maxChars = Math.max(4, Math.floor((roomWidthM * PX * 0.92) / (fontPx * 0.55)))
               const nameLines = wrapLabel(r.name, maxChars)
               const lineH = fontPx + 1
-              const totalLines = nameLines.length + (detail === 'full' ? 2 : 0)
+              // Socket-shortfall advisory line (R4-4), folded into this block
+              // so it stacks under the perimeter instead of colliding with it
+              // (UXW-P2-1). Only when the MEP view is active AND some label
+              // detail is showing (never on the fully-zoomed-out 'none' state).
+              const sockets = socketShortfall?.get(r.id)
+              const socketLine = sockets ? `${sockets.placed}/${sockets.target} sockets` : null
+              const totalLines =
+                nameLines.length + (detail === 'full' ? 2 : 0) + (socketLine ? 1 : 0)
               // Vertically centre the multi-line block on the label anchor.
               const yTop = pz - ((totalLines - 1) * lineH) / 2
               return (
@@ -250,6 +263,11 @@ export function RoomsLayer({
                         {`P ${formatLength(planRoomPerimeter(r), units)}`}
                       </tspan>
                     </>
+                  )}
+                  {socketLine && (
+                    <tspan x={px} dy={detail === 'full' ? lineH : lineH + 2} fill="var(--text-3)">
+                      {socketLine}
+                    </tspan>
                   )}
                 </text>
               )

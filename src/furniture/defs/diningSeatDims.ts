@@ -19,3 +19,17 @@ export function diningSeatDim(props: ParamProps): { w: number; d: number } {
   const key = typeof props.seats === 'string' ? props.seats : '4'
   return DINING_SEAT_DIMENSIONS[key] ?? DINING_SEAT_DIMENSIONS['4']
 }
+
+/** Extra width (m) added by the drop-in centre leaf of an extendable table. */
+const DINING_LEAF_WIDTH = 0.45
+
+/** Width (m) the leaf adds for the item's live props: `DINING_LEAF_WIDTH` when
+ *  `leaf: 'extended'` on a rectangular top, else 0. The extension is only
+ *  meaningful for the rectangular top (a drop-in centre leaf), so round/oval
+ *  tops never extend — keeping the rendered top and the collision footprint in
+ *  lock-step (the primitive and the def's `footprintParts` both call this). */
+export function diningLeafExtension(props: ParamProps): number {
+  const shape = typeof props.shape === 'string' ? props.shape : 'rect'
+  const leaf = typeof props.leaf === 'string' ? props.leaf : 'none'
+  return shape === 'rect' && leaf === 'extended' ? DINING_LEAF_WIDTH : 0
+}

@@ -32,6 +32,39 @@ export function plasterFields(base: [number, number, number], seed: number, S: n
   return f
 }
 
+/**
+ * Limewash / mineral-wash wall (the "quiet luxury" matte-paint trend). Unlike
+ * `plaster` (a near-uniform clean matte) and `concrete`/microcement (an
+ * industrial mottle), limewash's signature is a soft, cloudy TONAL wash — broad
+ * low-frequency colour drift laid down in overlapping brush strokes — so it
+ * reads as a hand-applied mineral patina. Deliberately a stronger tonal
+ * variation than `plaster` (±~0.1 vs ±~0.02) with a faint diagonal brush-drag,
+ * kept flat + matte (near-zero relief, high roughness) so it never reads as
+ * stucco or dirt.
+ */
+export function limewashFields(base: [number, number, number], seed: number, S: number): Fields {
+  const f = blank(S)
+  // Near-flat: only a whisper of brush relief so grazing light hints at strokes.
+  f.normalStrength = 0.8
+  const cloud = makeFbm(seed + 31, 4, 3) // broad tonal clouds
+  const mid = makeFbm(seed + 47, 3, 6) // mid-scale drift
+  const brush = makeFbm(seed + 59, 2, 40) // fine brush texture
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const u = x / S
+      const v = y / S
+      // Cloudy tonal wash — the limewash signature.
+      const c = (cloud(u, v) - 0.5) * 0.14 + (mid(u, v) - 0.5) * 0.06
+      // Brush drag: sample noise stretched along v so the strokes streak vertically.
+      const drag = (brush(u * 3, v * 0.4) - 0.5) * 0.03
+      const factor = 0.95 + c + drag
+      const [r, g, b] = shade(base, clamp01(factor))
+      setPx(f, y * S + x, r, g, b, 0.5 + c * 0.6 + drag, clamp01(0.9 + drag * 0.5))
+    }
+  }
+  return f
+}
+
 export function battenFields(base: [number, number, number], seed: number, S: number): Fields {
   const f = blank(S)
   f.normalStrength = 7

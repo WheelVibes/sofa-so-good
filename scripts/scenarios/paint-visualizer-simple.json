@@ -1,0 +1,43 @@
+{
+  "name": "paint-visualizer-simple",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "viewport", "viewport": { "width": 1280, "height": 900 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.setOnboardingOpen?.(false); s.endTour?.(); s.dismissLocationPrompt?.(); s.setLocation?.({ lat: 1.3521, lon: 103.8198, label: 'SG' }); s.setManualHour?.(13); s.setSceneReady?.(true); })()" },
+
+    { "name": "enter-room", "eval": "(() => { const s=window.__store.getState(); const rooms=s.floorPlan.rooms; const room=rooms.find(r=>/living/i.test(r.name))||rooms[0]; s.selectRoom(room.id); s.enterRoomEditor(room.id); s.hideLoading?.(); return room.name; })()" },
+    { "name": "settle-room", "wait": 1500 },
+    { "name": "hide-loading-again", "eval": "window.__store.getState().hideLoading?.()" },
+
+    { "name": "select-wall-tab", "eval": "(() => { const tabs=[...document.querySelectorAll('.finish-surface-tabs button')]; const wall=tabs.find(b=>/wall/i.test(b.textContent||'')); if(wall) wall.click(); return tabs.map(t=>t.textContent); })()" },
+    { "name": "settle-tab", "wait": 400 },
+    { "name": "open-paint-viz", "eval": "(() => { const btns=[...document.querySelectorAll('button')]; const b=btns.find(x=>/try on my wall photo/i.test(x.textContent||'')); if(b){b.click(); return 'clicked';} return 'not-found'; })()" },
+    { "name": "wait-modal", "waitFor": { "css": "#paint-viz-modal" }, "timeout": 15000 },
+    { "name": "settle-modal", "wait": 500 },
+    { "name": "shot-upload-prompt", "screenshot": "paintviz-1-upload-prompt" },
+
+    { "name": "inject-photo", "eval": "(() => { const cv=document.createElement('canvas'); cv.width=680; cv.height=460; const c=cv.getContext('2d'); const g=c.createLinearGradient(0,0,0,460); g.addColorStop(0,'#efe9df'); g.addColorStop(1,'#c9bfae'); c.fillStyle=g; c.fillRect(0,0,680,460); c.fillStyle='rgba(0,0,0,0.06)'; for(let y=0;y<460;y+=6){ c.fillRect(0,y,680,2); } c.fillStyle='#6b7686'; c.fillRect(430,90,200,170); c.fillStyle='#aeb9c7'; c.fillRect(438,98,184,154); c.strokeStyle='#3d4652'; c.lineWidth=6; c.strokeRect(430,90,200,170); c.fillStyle='#8a7a5f'; c.fillRect(0,410,680,50); cv.toBlob((blob)=>{ const file=new File([blob],'wall.png',{type:'image/png'}); const dt=new DataTransfer(); dt.items.add(file); const input=document.querySelector('.paint-viz input[type=file]'); input.files=dt.files; input.dispatchEvent(new Event('change',{bubbles:true})); }, 'image/png'); return 'injecting'; })()" },
+    { "name": "wait-canvas", "waitFor": { "css": ".paint-viz-canvas" }, "timeout": 15000 },
+    { "name": "settle-canvas", "wait": 900 },
+
+    { "name": "place-polygon", "eval": "(() => { const cv=document.querySelector('.paint-viz-canvas'); const r=cv.getBoundingClientRect(); const pts=[[0.04,0.05],[0.58,0.05],[0.58,0.86],[0.04,0.86]]; for(const [fx,fy] of pts){ const x=r.left+fx*r.width; const y=r.top+fy*r.height; cv.dispatchEvent(new PointerEvent('pointerdown',{clientX:x,clientY:y,bubbles:true,pointerId:1})); } return 'placed-'+pts.length; })()" },
+    { "name": "settle-polygon", "wait": 700 },
+
+    { "name": "apply-first-swatch", "eval": "(() => { const sw=[...document.querySelectorAll('.paint-viz-swatch')]; const target=sw.find(s=>/blue|navy|indigo|teal/i.test(s.textContent||''))||sw[Math.min(6,sw.length-1)]; if(target){target.click(); return target.textContent;} return 'no-swatch'; })()" },
+    { "name": "settle-swatch1", "wait": 900 },
+    { "name": "shot-swatch-1", "screenshot": "paintviz-2-swatch-blue" },
+
+    { "name": "apply-second-swatch", "eval": "(() => { const sw=[...document.querySelectorAll('.paint-viz-swatch')]; const target=sw.find(s=>/green|sage|olive|forest/i.test(s.textContent||''))||sw.find(s=>/terra|clay|rust|red|brick|coral/i.test(s.textContent||''))||sw[Math.min(2,sw.length-1)]; if(target){target.click(); return target.textContent;} return 'no-swatch'; })()" },
+    { "name": "settle-swatch2", "wait": 900 },
+    { "name": "shot-swatch-2", "screenshot": "paintviz-3-swatch-warm" },
+
+    { "name": "lower-coverage", "eval": "(() => { const sl=document.querySelector('.paint-viz-strength .slider'); if(sl){ const setter=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set; setter.call(sl,'0.45'); sl.dispatchEvent(new Event('input',{bubbles:true})); return 'coverage-0.45'; } return 'no-slider'; })()" },
+    { "name": "settle-coverage", "wait": 900 },
+    { "name": "shot-coverage", "screenshot": "paintviz-4-coverage-45" },
+
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 780 } },
+    { "name": "settle-mobile", "wait": 900 },
+    { "name": "shot-mobile", "screenshot": "paintviz-5-mobile" }
+  ]
+}

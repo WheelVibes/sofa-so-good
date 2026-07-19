@@ -14,6 +14,7 @@
  * as opaque tags (e.g. 'seating', 'tables', 'beds', 'lighting', 'storage',
  * 'textiles', 'kitchen', 'bathroom', 'media', 'decor', 'outdoor').
  */
+import { type RoomCategory, roomCategoryFromName, toRoomKind } from '../floorplan/roomCategory'
 
 /** A room as seen by the suggester. Categories are opaque catalog tags. */
 interface SuggestionRoom {
@@ -23,6 +24,9 @@ interface SuggestionRoom {
   areaSqm: number
   /** Furniture category strings currently placed in this room. */
   itemCategories: string[]
+  /** User-declared room category (RM1). When present it wins over name
+   *  inference; absent rooms fall back to the legacy name classifier. */
+  category?: RoomCategory
 }
 
 export interface SuggestionInput {
@@ -50,8 +54,39 @@ export type RoomKind =
   | 'balcony'
   | 'other'
 
+/**
+ * The suggester's internal kind vocabulary — the coarse `RoomKind` plus a
+ * `'utility'` bucket the exported `RoomKind` deliberately lacks. Service yards,
+ * storerooms and household shelters used to collapse into `'balcony'` (the only
+ * non-habitable `RoomKind`), which wrongly fired the "add outdoor seating or
+ * planters" idea (RM1-tail fix). `'utility'` is a separate non-habitable kind no
+ * rule targets, so those rooms get NO suggestions — kept local so the change
+ * doesn't ripple into `RoomKind`'s other consumers (roomLux/electrical/…). */
+type SuggestionKind = RoomKind | 'utility'
+
 /** Kinds we never nag to furnish (external / service / utility spaces). */
-const NON_HABITABLE: ReadonlySet<RoomKind> = new Set<RoomKind>(['balcony'])
+const NON_HABITABLE: ReadonlySet<SuggestionKind> = new Set<SuggestionKind>(['balcony', 'utility'])
+
+/**
+ * Resolve a room's suggestion kind. An explicit, user-set `category` (RM1) wins;
+ * otherwise the legacy name classifier is used UNCHANGED so every room without a
+ * category keeps byte-identical suggestions — with ONE deliberate exception: a
+ * service yard / storeroom / household shelter that the coarse classifier misfiled
+ * as `'balcony'` is remapped to the non-habitable `'utility'` kind so it no longer
+ * gets the bogus outdoor-seating idea. Genuine balconies / ledges keep `'balcony'`.
+ */
+function resolveSuggestionKind(room: SuggestionRoom): SuggestionKind {
+  if (room.category) {
+    if (room.category === 'serviceYard' || room.category === 'storeroom') return 'utility'
+    return toRoomKind(room.category)
+  }
+  const legacy = roomKindFromName(room.name)
+  if (legacy === 'balcony') {
+    const cat = roomCategoryFromName(room.name)
+    if (cat === 'serviceYard' || cat === 'storeroom') return 'utility'
+  }
+  return legacy
+}
 
 /**
  * Infer a room's kind from its name (mirrors the app's `roomKindFromName`
@@ -76,7 +111,7 @@ export function roomKindFromName(name: string | undefined): RoomKind {
 }
 
 interface RuleContext {
-  kind: RoomKind
+  kind: SuggestionKind
   areaSqm: number
   categories: ReadonlySet<string>
   has: (cat: string) => boolean
@@ -88,7 +123,7 @@ interface RuleContext {
 interface SuggestionRule {
   id: string
   /** Kinds this rule applies to; omit to apply to every habitable kind. */
-  kinds?: RoomKind[]
+  kinds?: SuggestionKind[]
   severity: 'tip' | 'idea'
   message: string
   addCategory?: string
@@ -321,7 +356,7 @@ const SUGGESTION_RULES: readonly SuggestionRule[] = [
 ]
 
 /** Whether a rule applies to a given room kind. */
-function ruleAppliesToKind(rule: SuggestionRule, kind: RoomKind): boolean {
+function ruleAppliesToKind(rule: SuggestionRule, kind: SuggestionKind): boolean {
   return rule.kinds ? rule.kinds.includes(kind) : !NON_HABITABLE.has(kind)
 }
 
@@ -337,7 +372,7 @@ export function buildSuggestions(input: SuggestionInput | null | undefined): Sug
   const out: Suggestion[] = []
   for (const room of rooms) {
     if (!room) continue
-    const kind = roomKindFromName(room.name)
+    const kind = resolveSuggestionKind(room)
     const categories = new Set(
       (Array.isArray(room.itemCategories) ? room.itemCategories : []).filter(
         (c): c is string => typeof c === 'string' && c.length > 0,

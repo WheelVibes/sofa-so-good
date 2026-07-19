@@ -1,0 +1,47 @@
+{
+  "name": "drawingset-itemmeta-simple",
+  "description": "G9 — drawing-set FF&E sheet gains ITEM-META columns. Sets a placed item's ITEM-META (brand + a custom key) via setItemMeta, then captures the printable Drawing set window's HTML (same window.open capture-sink intercept as finish-schedule-simple.json) and asserts the FF&E schedule sheet shows the Brand header + value AND the custom-key header — the same conditional columns the report/CSV already surface, built from the same buildFfeSchedule rows (no separate metadata derivation in drawingSet.ts).",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "boot-settled",
+      "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" },
+      "timeout": 60000
+    },
+    { "name": "settle-post-boot", "wait": 800 },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "mode-settle", "wait": 600 },
+    {
+      "name": "set-item-meta",
+      "eval": "(function(){ const s = window.__store.getState(); if (!s.items.length) throw new Error('default layout has no placed items'); const id = s.items[0].id; s.setItemMeta(id, { brand: 'Acme Co', model: 'AC-100', supplier: 'Acme Distribution', url: 'https://www.example.com/products/ac-100?ref=spec', remarks: 'client to purchase', custom: [{ key: 'Warranty', value: '5 years' }] }); })()"
+    },
+    {
+      "name": "patch-window-open",
+      "eval": "window.__capturedHtml = null; window.__origWindowOpen = window.open; window.open = function () { return { document: { write: function (html) { window.__capturedHtml = html }, close: function () {} }, close: function () {}, focus: function () {}, print: function () {} }; };"
+    },
+    { "name": "open-file", "click": { "text": "File" } },
+    { "name": "file-panel-open", "waitFor": { "css": ".pop-panel" }, "timeout": 10000 },
+    { "name": "settle-menu", "wait": 400 },
+    {
+      "name": "click-drawing-set",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.pop-panel button')].find(b => b.textContent.includes('Drawing set')); if (!btn) throw new Error('Drawing set button not found'); btn.click(); })()"
+    },
+    {
+      "name": "wait-drawingset-captured",
+      "waitFor": { "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 0" },
+      "timeout": 15000,
+      "failMessage": "openDrawingSet() never wrote HTML via the intercepted window.open"
+    },
+    {
+      "name": "assert-drawingset-ffe-meta",
+      "eval": "(function(){ const html = window.__capturedHtml; if (!html.includes('FF&amp;E schedule')) throw new Error('Drawing set HTML has no FF&E schedule sheet'); if (!html.includes('<td>Brand</td>')) throw new Error('FF&E sheet is missing the Brand column header'); if (!html.includes('Acme Co')) throw new Error('FF&E sheet is missing the Brand value'); if (!html.includes('<td>Warranty</td>')) throw new Error('FF&E sheet is missing the custom-key (Warranty) column header'); if (!html.includes('5 years')) throw new Error('FF&E sheet is missing the custom-key value'); if (!html.includes('example.com/products/ac-100')) throw new Error('FF&E sheet is missing the shortened URL display'); if (html.includes('ref=spec')) throw new Error('FF&E sheet leaked the full query string — the URL column should be a print-shortened display, not the raw URL'); window.open = window.__origWindowOpen; })()"
+    },
+    { "name": "shot-drawingset-ffe-meta", "screenshot": "01-drawingset-ffe-meta-captured" }
+  ]
+}

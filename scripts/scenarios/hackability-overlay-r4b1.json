@@ -1,0 +1,17 @@
+{
+  "name": "hackability-overlay-r4b1",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()" },
+    { "name": "pro-mode", "eval": "(() => { const s = window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags(); })()" },
+    { "name": "set-wall-structures", "eval": "(() => { const s = window.__store.getState(); const walls = s.floorPlan.walls; let ext = 0, brick = 0, dry = 0; for (const w of walls) { if (w.thickness === 'external') { s.updateWall(w.id, { structure: 'load-bearing' }, 'ground'); ext++; } else if (brick < 2) { s.updateWall(w.id, { structure: 'brick-partition' }, 'ground'); brick++; } else if (dry < 2) { s.updateWall(w.id, { structure: 'drywall' }, 'ground'); dry++; } } window.__wallCounts = { ext, brick, dry }; })()" },
+    { "name": "open-plan-editor", "eval": "window.__store.getState().setFloorPlanEditing(true)" },
+    { "name": "plan-visible", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "settle-plan", "wait": 600 },
+    { "name": "toggle-hackability", "eval": "(() => { window.__hackDone = false; const findView = () => [...document.querySelectorAll('button[aria-haspopup=\"menu\"]')].find((b) => /^\\s*View/.test(b.textContent || '')); const findHack = () => [...document.querySelectorAll('button')].find((b) => (b.textContent || '').trim() === 'Hackability'); (async () => { for (let i = 0; i < 30; i++) { let h = findHack(); if (!h) { findView()?.click(); await new Promise((r) => setTimeout(r, 200)); h = findHack(); } if (h) { h.click(); window.__hackDone = true; return; } await new Promise((r) => setTimeout(r, 150)); } })(); })()" },
+    { "name": "overlay-legend-visible", "waitFor": { "text": "Permit required" }, "timeout": 20000 },
+    { "name": "settle-overlay", "wait": 600 },
+    { "name": "shot-overlay", "screenshot": "hackability-overlay" }
+  ]
+}

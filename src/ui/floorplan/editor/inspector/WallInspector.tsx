@@ -1,11 +1,23 @@
 import { useFeature } from '../../../../features/useFeature'
 import { defaultWallName } from '../../../../floorplan/planElementName'
 import { DEFAULT_PLAN_WALL_COLOR, type PlanWall, wallLength } from '../../../../floorplan/types'
+import { isDemolitionRestricted } from '../../../../floorplan/wallHackability'
 import { endForAngle, endForLength, wallAngleDeg } from '../../../../floorplan/wallOps'
 import { useStore } from '../../../../state/store'
 import { ColorPicker } from '../../../controls/ColorPicker'
+import { Select } from '../../../controls/Select'
 import { Icon } from '../../../toolbar/icons'
 import { ActBtn, NameField, Num } from './shared'
+
+/** Structure select options (TODO G7). Order: most → least structural. Exported
+ *  for the bulk-classify action on the multi-wall selection panel (`PlanInspector`). */
+export const STRUCTURE_OPTIONS = [
+  ['unknown', 'Unknown / not verified'],
+  ['load-bearing', 'Load-bearing'],
+  ['rc-partition', 'RC partition'],
+  ['brick-partition', 'Brick partition'],
+  ['drywall', 'Dry partition (Ferrolite / steel-stud)'],
+] as const
 
 /** Inspector body for a selected wall. Reads edits/state from the store exactly
  *  as the inline dispatcher code did. */
@@ -16,6 +28,7 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
   const slopingWallsOn = useFeature('slopingWalls')
   const wallBaseboardOn = useFeature('wallBaseboard')
   const elementColorsOn = useFeature('elementColors')
+  const wallStructureOn = useFeature('wallStructure')
   return (
     <div className="space-y-2">
       <NameField
@@ -67,7 +80,22 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
           icon={<Icon.Trash width={16} height={16} />}
           danger
           disabled={w.locked}
-          onClick={() => a.removeWall(w.id, levelId)}
+          onClick={async () => {
+            // R4-7: warn (don't block) before removing a load-bearing / RC wall
+            // — its demolition is NOT PERMITTED under HDB rules, but removing it
+            // from the drawing is allowed. Non-restricted walls delete as before.
+            if (isDemolitionRestricted(w.structure)) {
+              const ok = await a.confirmAction({
+                title: 'Not permitted to demolish',
+                message:
+                  'Demolishing a load-bearing / RC wall is NOT PERMITTED under HDB rules. Delete it from the plan anyway?',
+                confirmLabel: 'Delete anyway',
+                danger: true,
+              })
+              if (!ok) return
+            }
+            a.removeWall(w.id, levelId)
+          }}
         />
       </div>
       <div className="seg accent" style={{ display: 'flex' }}>
@@ -83,6 +111,35 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
           </button>
         ))}
       </div>
+      {wallStructureOn ? (
+        <div className="flex flex-col gap-1" style={{ marginTop: 'var(--s-1)' }}>
+          <div className="row" style={{ padding: 'var(--s-2) 0', alignItems: 'center' }}>
+            <span className="label">Structure</span>
+            <Select
+              className="input"
+              style={{ marginLeft: 'auto', maxWidth: '56%' }}
+              value={w.structure ?? 'unknown'}
+              onChange={(v) =>
+                a.updateWall(w.id, { structure: v as PlanWall['structure'] }, levelId)
+              }
+              ariaLabel="Structure"
+              options={STRUCTURE_OPTIONS.map(([value, label]) => ({ value, label }))}
+            />
+          </div>
+          <div
+            className="label"
+            style={{
+              fontSize: 'var(--t-2xs)',
+              color: 'var(--text-3)',
+              lineHeight: 'var(--lh-body)',
+            }}
+          >
+            User-declared, not verified — older HDB blocks can hide a load-bearing beam-and-column
+            wall behind what looks like a partition on plan. Confirm against HDB/BCA as-built
+            records (or a PE) before hacking.
+          </div>
+        </div>
+      ) : null}
       {wallThicknessOn ? (
         <div className="flex flex-col gap-1">
           <Num
@@ -171,7 +228,7 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
       {wallBaseboardOn ? (
         <div className="space-y-1" style={{ marginTop: 'var(--s-1)' }}>
           <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
-            Baseboard / skirting
+            Skirting
           </div>
           <label className="flex items-center gap-2 text-xs">
             <input
@@ -185,7 +242,7 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
                 )
               }
             />
-            <span>Show baseboard</span>
+            <span>Show skirting</span>
           </label>
           {!w.baseboard?.hidden ? (
             <>
@@ -210,7 +267,7 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
               <div className="flex items-center justify-between gap-2 text-xs">
                 <span className="label">Colour</span>
                 <ColorPicker
-                  ariaLabel="Baseboard colour"
+                  ariaLabel="Skirting colour"
                   value={w.baseboard?.color ?? '#eceae4'}
                   onChange={(hex) =>
                     a.updateWall(w.id, { baseboard: { ...w.baseboard, color: hex } }, levelId)
@@ -225,7 +282,7 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
               className="btn btn-soft btn-sm btn-block"
               onClick={() => a.updateWall(w.id, { baseboard: undefined }, levelId)}
             >
-              Reset baseboard
+              Reset skirting
             </button>
           ) : null}
         </div>

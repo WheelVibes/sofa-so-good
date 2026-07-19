@@ -1,0 +1,57 @@
+{
+  "name": "ux-audit-04-pro-panels",
+  "description": "UX audit stage 4: Pro-mode analytical dock panels — Checks/clearance (incl floor loading), Design score, Elevation/drawings, Handover/DLP, Reno rules. Desktop + mobile legs.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13)" },
+    { "name": "pro-mode", "eval": "(() => { const st=window.__store.getState(); st.setUiMode?.('pro'); st.reresolveFeatureFlags?.() })()" },
+    { "name": "assert-pro", "waitFor": { "store": "state.uiMode === 'pro'" }, "timeout": 5000 },
+
+    { "name": "open-checks", "store": { "action": "setClearancePanelOpen", "args": [true] } },
+    { "name": "checks-visible", "waitFor": { "css": "#clearancePanel" }, "timeout": 8000 },
+    { "name": "settle-checks", "wait": 900 },
+    { "name": "shot-checks", "screenshot": "pro-checks-clearance" },
+    { "name": "close-checks", "store": { "action": "setClearancePanelOpen", "args": [false] } },
+
+    { "name": "open-score", "store": { "action": "setDesignScoreOpen", "args": [true] } },
+    { "name": "score-visible", "waitFor": { "css": "#designScorePanel" }, "timeout": 8000 },
+    { "name": "settle-score", "wait": 900 },
+    { "name": "shot-score", "screenshot": "pro-design-score" },
+    { "name": "close-score", "store": { "action": "setDesignScoreOpen", "args": [false] } },
+
+    { "name": "open-elev", "store": { "action": "setElevationsOpen", "args": [true] } },
+    { "name": "elev-visible", "waitFor": { "css": "#elevationPanel" }, "timeout": 8000 },
+    { "name": "settle-elev", "wait": 900 },
+    { "name": "shot-elev", "screenshot": "pro-elevation-drawings" },
+    { "name": "close-elev", "store": { "action": "setElevationsOpen", "args": [false] } },
+
+    { "name": "open-handover", "store": { "action": "setHandoverOpen", "args": [true] } },
+    { "name": "handover-visible", "waitFor": { "css": "#handoverPanel" }, "timeout": 8000 },
+    { "name": "settle-handover", "wait": 900 },
+    { "name": "shot-handover", "screenshot": "pro-handover-dlp" },
+    { "name": "close-handover", "store": { "action": "setHandoverOpen", "args": [false] } },
+
+    { "name": "open-reno", "store": { "action": "setRenoRulesOpen", "args": [true] } },
+    { "name": "reno-visible", "waitFor": { "css": "#renoRulesPanel" }, "timeout": 8000 },
+    { "name": "settle-reno", "wait": 900 },
+    { "name": "shot-reno", "screenshot": "pro-reno-rules" },
+
+    { "name": "open-two", "store": { "action": "setDesignScoreOpen", "args": [true] } },
+    { "name": "settle-two", "wait": 900 },
+    { "name": "shot-overlap", "screenshot": "pro-two-panels-overlap" },
+    { "name": "close-reno", "store": { "action": "setRenoRulesOpen", "args": [false] } },
+    { "name": "close-score2", "store": { "action": "setDesignScoreOpen", "args": [false] } },
+
+    { "name": "mobile", "viewport": { "width": 390, "height": 844 } },
+    { "name": "open-checks-mobile", "store": { "action": "setClearancePanelOpen", "args": [true] } },
+    { "name": "checks-mobile-visible", "waitFor": { "css": "#clearancePanel" }, "timeout": 8000 },
+    { "name": "settle-checks-mobile", "wait": 900 },
+    { "name": "shot-checks-mobile", "screenshot": "pro-checks-mobile" },
+    { "name": "close-checks-mobile", "store": { "action": "setClearancePanelOpen", "args": [false] } },
+    { "name": "open-reno-mobile", "store": { "action": "setRenoRulesOpen", "args": [true] } },
+    { "name": "reno-mobile-visible", "waitFor": { "css": "#renoRulesPanel" }, "timeout": 8000 },
+    { "name": "settle-reno-mobile", "wait": 900 },
+    { "name": "shot-reno-mobile", "screenshot": "pro-reno-mobile" }
+  ]
+}

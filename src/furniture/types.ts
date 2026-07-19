@@ -85,6 +85,7 @@ export type PrimitiveKind =
   | 'PottedPlant'
   | 'FlatscreenTV'
   | 'AirconUnit'
+  | 'AirconCondenser'
   | 'Refrigerator'
   | 'FloorLamp'
   | 'Toilet'
@@ -203,6 +204,13 @@ export type PrimitiveKind =
   | 'TrestleDesk'
   | 'StorageBench'
   | 'BayDaybed'
+  | 'AltarCabinet'
+  | 'Banquette'
+  | 'WaterHeater'
+  | 'FlutedPartition'
+  | 'ShowerScreen'
+  | 'BidetSpray'
+  | 'MixerTap'
 
 export type ParamField =
   | {
@@ -375,6 +383,14 @@ export interface UserGltfDef extends FurnitureDefBase {
    *  with its full editable part list instead of a frozen source mesh. Persisted
    *  (IDB meta + save schema). Absent for other defs. */
   assetSpec?: string
+  /** Parametric-furniture generator recipe (JSON `ParametricSpec`,
+   *  `parametric/spec.ts`) when this def was baked by the parametric generator
+   *  (PF2, `saveParametricAsset`) — lets the drawing set rebuild the piece's
+   *  exact part list (`buildParametric`) to draw a carpentry elevation +
+   *  section (TODO G8) without a parallel geometry model. Persisted (IDB meta
+   *  + save schema), same pattern as `slotSpec`/`assetSpec`. Absent for other
+   *  defs (incl. GLB uploads that merely resemble a parametric shape). */
+  parametricSpec?: string
 }
 
 export interface RemoteGltfDef extends FurnitureDefBase {
@@ -572,7 +588,40 @@ export interface FurnitureItem {
    *  in `props` stay relative to the item's level floor — renderers add the
    *  level's elevation. See docs/research/multi-level-design.md (F13). */
   levelId?: string
+  /** Optional per-instance handover metadata (ITEM-META): a custom product/spec
+   *  URL, price override, brand/model/supplier spec-book fields, a free-text
+   *  description, and special remarks (e.g. "existing — retain", "client to
+   *  purchase", installation notes). Every field is optional; the whole object
+   *  is omitted once every field is empty, keeping saves lean. `price` is the
+   *  ONE exception to "purely annotative" — it's read by `itemPrice()` (the
+   *  single price-resolution choke-point) as a per-instance override; the rest
+   *  never touch geometry/collision/render. */
+  meta?: ItemMeta
   props: ParamProps
+}
+
+/** Per-instance handover/annotation metadata. See {@link FurnitureItem.meta}. */
+interface ItemMeta {
+  /** Product page / spec sheet URL (validated http/https at the UI edit boundary). */
+  url?: string
+  /** Custom unit price override (SGD, finite, ≥0) — wins over the derived/
+   *  retailer price everywhere a price is resolved (see `furniturePrices.ts:itemPrice`). */
+  price?: number
+  /** Manufacturer / brand name (FF&E spec-book field). */
+  brand?: string
+  /** Model name / number, distinct from the app's own SKU field. */
+  model?: string
+  /** Supplier / vendor the piece is sourced from (FF&E spec-book field). */
+  supplier?: string
+  description?: string
+  remarks?: string
+  /** User-defined custom key/value fields, beyond the fixed set above — an
+   *  ORDERED list (display + CSV column order follows first-seen order across
+   *  items) capped at `CUSTOM_META_MAX_ENTRIES` entries (key/value length-
+   *  capped too, see `itemMetaLimits.ts`). Duplicate keys are allowed on the
+   *  model (the UI nudges toward uniqueness); a CSV/report column merge is
+   *  last-one-wins. Absent/empty array when the user hasn't added any. */
+  custom?: { key: string; value: string }[]
 }
 
 /** Returns the param schema's default values as a fresh ParamProps map.

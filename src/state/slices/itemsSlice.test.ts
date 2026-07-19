@@ -76,6 +76,179 @@ describe('renameItem', () => {
   })
 })
 
+describe('setItemMeta (ITEM-META)', () => {
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+  })
+
+  it('trims fields, sets meta, and omits the whole object once empty', () => {
+    const s = useStore.getState()
+    const id = s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    s.setItemMeta(id, {
+      url: '  https://example.com/chair  ',
+      description: '  A nice chair  ',
+      remarks: '  existing — retain  ',
+    })
+    const item = useStore.getState().items.find((i) => i.id === id)
+    expect(item?.meta).toEqual({
+      url: 'https://example.com/chair',
+      description: 'A nice chair',
+      remarks: 'existing — retain',
+    })
+    // Clearing every field back to blank drops the whole `meta` object.
+    s.setItemMeta(id, { url: '  ', description: '', remarks: '' })
+    expect(useStore.getState().items.find((i) => i.id === id)?.meta).toBeUndefined()
+  })
+
+  it('omits an empty field from the object while keeping the others', () => {
+    const s = useStore.getState()
+    const id = s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    s.setItemMeta(id, { remarks: 'client to purchase' })
+    const item = useStore.getState().items.find((i) => i.id === id)
+    expect(item?.meta?.remarks).toBe('client to purchase')
+    expect(item?.meta?.url).toBeUndefined()
+    expect(item?.meta?.description).toBeUndefined()
+  })
+
+  it('sets brand/model/supplier/price (FF&E spec-book fields), trimmed', () => {
+    const s = useStore.getState()
+    const id = s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    s.setItemMeta(id, {
+      price: 249,
+      brand: '  Acme  ',
+      model: '  X-100  ',
+      supplier: '  Acme Direct  ',
+    })
+    const item = useStore.getState().items.find((i) => i.id === id)
+    expect(item?.meta).toEqual({
+      price: 249,
+      brand: 'Acme',
+      model: 'X-100',
+      supplier: 'Acme Direct',
+    })
+  })
+
+  it('rejects a negative or NaN price (omits it rather than storing garbage)', () => {
+    const s = useStore.getState()
+    const id = s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    s.setItemMeta(id, { price: -5, remarks: 'note' })
+    expect(useStore.getState().items.find((i) => i.id === id)?.meta?.price).toBeUndefined()
+    s.setItemMeta(id, { price: Number.NaN })
+    expect(useStore.getState().items.find((i) => i.id === id)?.meta?.price).toBeUndefined()
+  })
+
+  it('accepts a zero price (a legitimate "already owned, no cost" override)', () => {
+    const s = useStore.getState()
+    const id = s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    s.setItemMeta(id, { price: 0 })
+    expect(useStore.getState().items.find((i) => i.id === id)?.meta?.price).toBe(0)
+  })
+
+  it('clearing price back to undefined restores the derived/catalog price', () => {
+    const s = useStore.getState()
+    const id = s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    s.setItemMeta(id, { price: 500 })
+    expect(useStore.getState().items.find((i) => i.id === id)?.meta?.price).toBe(500)
+    s.setItemMeta(id, { price: undefined })
+    expect(useStore.getState().items.find((i) => i.id === id)?.meta?.price).toBeUndefined()
+  })
+
+  it('trims custom field keys/values and drops blank-key/blank-value entries', () => {
+    const s = useStore.getState()
+    const id = s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    s.setItemMeta(id, {
+      custom: [
+        { key: '  Fabric  ', value: '  Linen  ' },
+        { key: '  ', value: 'dropped: blank key' },
+        { key: 'dropped: blank value', value: '   ' },
+        { key: 'Warranty', value: '2 years' },
+      ],
+    })
+    expect(useStore.getState().items.find((i) => i.id === id)?.meta?.custom).toEqual([
+      { key: 'Fabric', value: 'Linen' },
+      { key: 'Warranty', value: '2 years' },
+    ])
+  })
+
+  it('caps custom entries at CUSTOM_META_MAX_ENTRIES (earliest entries win)', () => {
+    const s = useStore.getState()
+    const id = s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    const many = Array.from({ length: 25 }, (_, i) => ({ key: `k${i}`, value: `v${i}` }))
+    s.setItemMeta(id, { custom: many })
+    const custom = useStore.getState().items.find((i) => i.id === id)?.meta?.custom
+    expect(custom).toHaveLength(20)
+    expect(custom?.[0]).toEqual({ key: 'k0', value: 'v0' })
+    expect(custom?.[19]).toEqual({ key: 'k19', value: 'v19' })
+  })
+
+  it('truncates an over-long custom key/value rather than dropping the entry', () => {
+    const s = useStore.getState()
+    const id = s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    const longKey = 'k'.repeat(60)
+    const longValue = 'v'.repeat(600)
+    s.setItemMeta(id, { custom: [{ key: longKey, value: longValue }] })
+    const entry = useStore.getState().items.find((i) => i.id === id)?.meta?.custom?.[0]
+    expect(entry?.key.length).toBe(40)
+    expect(entry?.value.length).toBe(500)
+  })
+
+  it('allows duplicate keys in the model (last-one-wins is a CSV/report concern, not a store one)', () => {
+    const s = useStore.getState()
+    const id = s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    s.setItemMeta(id, {
+      custom: [
+        { key: 'Color', value: 'Blue' },
+        { key: 'Color', value: 'Green' },
+      ],
+    })
+    expect(useStore.getState().items.find((i) => i.id === id)?.meta?.custom).toEqual([
+      { key: 'Color', value: 'Blue' },
+      { key: 'Color', value: 'Green' },
+    ])
+  })
+
+  it('an empty custom array is omitted from meta entirely (keeps saves lean)', () => {
+    const s = useStore.getState()
+    const id = s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    s.setItemMeta(id, { remarks: 'note', custom: [] })
+    expect(useStore.getState().items.find((i) => i.id === id)?.meta?.custom).toBeUndefined()
+  })
+
+  it('is undoable — one history entry per meta edit, coalesced per item', () => {
+    const s = useStore.getState()
+    const id = s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    const before = useStore.getState().past.length
+    useStore.getState().setItemMeta(id, { remarks: 'note one' })
+    expect(useStore.getState().past.length).toBe(before + 1)
+    useStore.getState().undo()
+    expect(useStore.getState().items.find((i) => i.id === id)?.meta).toBeUndefined()
+  })
+
+  it('does not push history when the meta is unchanged (no-op)', () => {
+    const s = useStore.getState()
+    const id = s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    useStore.getState().setItemMeta(id, { remarks: 'note' })
+    const after = useStore.getState().past.length
+    useStore.getState().setItemMeta(id, { remarks: '  note  ' }) // trims to same value
+    expect(useStore.getState().past.length).toBe(after)
+  })
+
+  it('never touches props/geometry — only the meta field changes', () => {
+    const s = useStore.getState()
+    const id = s.addItem({
+      defId: 'dining-chair',
+      position: [1, 2],
+      rotation: 0.5,
+      props: { finish: 'wood' },
+    })
+    s.setItemMeta(id, { description: 'a note' })
+    const item = useStore.getState().items.find((i) => i.id === id)
+    expect(item?.props).toEqual({ finish: 'wood' })
+    expect(item?.position).toEqual([1, 2])
+    expect(item?.rotation).toBe(0.5)
+  })
+})
+
 describe('setAllLocked', () => {
   beforeEach(() => {
     useStore.getState().__resetForTest()

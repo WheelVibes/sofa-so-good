@@ -1,6 +1,7 @@
 import { canPlace, itemFootprint } from '../../collision/placement'
 import { placementWalls } from '../../collision/placementWalls'
 import { useFeature } from '../../features/useFeature'
+import { currentRecolorValue } from '../../furniture/appearanceProps'
 import { useCatalog } from '../../furniture/catalog'
 import { planDuplicates } from '../../furniture/duplicatePlacement'
 import { itemsCost } from '../../furniture/itemsCost'
@@ -37,26 +38,29 @@ export function MultiSelectPanel() {
   const groupsOn = useFeature('furnitureGroups')
   const isolateOn = useFeature('isolateSelection')
   const mirrorAxisOn = useFeature('mirrorSelection')
-  // The tint shared by every selected (unlocked) item, or '' when they differ /
-  // are untinted — drives the bulk ColorPicker's displayed swatch.
+  // The recolour value shared by every selected (unlocked) item, or '' when
+  // they differ / carry none — drives the bulk ColorPicker's displayed swatch.
+  // Uses `currentRecolorValue` (not a raw `props.tint` read) so a parametric
+  // item's `color` field is reflected here too, not just GLB `tint`.
   const sharedTint = useStore((s) => {
     const sel = s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
     if (sel.length === 0) return ''
-    const first = typeof sel[0].props.tint === 'string' ? (sel[0].props.tint as string) : ''
-    return sel.every((it) => (typeof it.props.tint === 'string' ? it.props.tint : '') === first)
-      ? first
-      : ''
+    const values = sel.map((it) => {
+      const def = catalog[it.defId]
+      return def ? currentRecolorValue(it, def) : ''
+    })
+    const first = values[0]
+    return values.every((v) => v === first) ? first : ''
   })
-  // Whether ANY selected item carries a tint — so "Clear tint" is offered even
-  // when the selection's tints differ (sharedTint is '' but a reset still helps).
+  // Whether ANY selected item carries a recolour worth clearing — so "Clear
+  // tint" is offered even when the selection's values differ (sharedTint is
+  // '' but a reset still helps).
   const anyTinted = useStore((s) =>
-    s.items.some(
-      (i) =>
-        s.selectedItemIds.includes(i.id) &&
-        !i.locked &&
-        typeof i.props.tint === 'string' &&
-        i.props.tint !== '',
-    ),
+    s.items.some((i) => {
+      if (!s.selectedItemIds.includes(i.id) || i.locked) return false
+      const def = catalog[i.defId]
+      return def ? currentRecolorValue(i, def) !== '' : false
+    }),
   )
   // Price displays are gated behind the budget/price feature (off by default).
   const priceOn = useFeature('budget')
@@ -87,15 +91,17 @@ export function MultiSelectPanel() {
       s.moveItem(id, pos)
   }
 
-  // Bulk recolour: write `props.tint` on every selected (unlocked) item in one
-  // undo step (`updateManyItemProps`). A '' tint clears the override (back to
-  // the item's own materials).
+  // Bulk recolour: `recolorItems` targets whichever prop key(s) each selected
+  // (unlocked) item's OWN def understands — GLB/IKEA `tint`, parametric every
+  // `color`-kind paramSchema field — in one undo step. An empty hex clears the
+  // recolour instead (gltf → drop the tint override; parametric → reset each
+  // color field to its designed default).
   const setTintAll = (hex: string) => {
     const s = useStore.getState()
     const ids = s.items
       .filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
       .map((i) => i.id)
-    s.updateManyItemProps(ids, { tint: hex })
+    s.recolorItems(ids, hex === '' ? null : hex)
   }
 
   const align = (axis: 0 | 1) => {

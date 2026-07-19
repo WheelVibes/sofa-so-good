@@ -1,0 +1,88 @@
+{
+  "name": "drawing-scale-simple",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "tall-viewport", "viewport": { "width": 1200, "height": 1400 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    {
+      "name": "set-handover-metadata",
+      "store": {
+        "action": "setDrawingSetTemplate",
+        "args": [
+          {
+            "projectName": "Serangoon North Vista Reno",
+            "projectAddress": "123 Serangoon North Ave 1, #05-123",
+            "client": "Tan Family",
+            "drawnBy": "J. Lim",
+            "checkedBy": "",
+            "revision": "B",
+            "revisionNote": "Issued for tender",
+            "paperSize": "a4",
+            "orientation": "landscape"
+          }
+        ]
+      }
+    },
+    {
+      "name": "intercept-window-open",
+      "eval": "window.open = () => ({ document: { write(h) { window.__capturedHtml = h }, close() {} }, close() {}, focus() {}, print() {} })"
+    },
+    { "name": "open-file-menu", "click": "button[aria-label=\"File\"]" },
+    { "name": "file-menu-open", "waitFor": { "css": ".menu-item" }, "timeout": 8000 },
+    { "name": "click-drawing-set", "click": { "text": "Drawing set" } },
+    {
+      "name": "drawing-set-captured",
+      "waitFor": {
+        "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 1000"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "assert-locked-scale-and-title-block",
+      "eval": "(() => { const html = window.__capturedHtml; const need = (re, label) => { if (!re.test(html)) throw new Error('missing: ' + label) }; need(/Scale 1:\\d+ @ A4 LANDSCAPE/, 'locked scale ratio + paper/orientation'); need(/@page \\{ size: A4 landscape;/, 'A4 landscape @page CSS'); need(/Scale NTS/, 'NTS on schedule/cover sheets'); need(/class=\"plan-svg\" style=\"width:[\\d.]+mm;height:[\\d.]+mm\"/, 'mm-true floor-plan sizing'); need(/Serangoon North Vista Reno/, 'project name'); need(/123 Serangoon North Ave 1/, 'project address'); need(/Tan Family/, 'client'); need(/J\\. Lim/, 'drawn by'); need(/Checked:/, 'checked-by field'); need(/Rev B/, 'revision letter'); need(/Issued for tender/, 'revision note'); need(/A-1 of \\d+/, 'sheet number of total'); need(/General notes/, 'general notes block'); need(/Do NOT scale drawings from screen or PDF/, 'print-at-100% disclaimer'); need(/HDB permit/, 'HDB permit disclaimer'); need(/Professional Engineer \\(PE\\)/, 'PE disclaimer'); need(/EMA-Licensed Electrical Worker \\(LEW\\)/, 'LEW disclaimer'); need(/PUB Licensed Plumber/, 'PUB plumber disclaimer'); window.__scenarioOk = true; })()"
+    },
+    {
+      "name": "verify-mm-math-for-a-known-wall",
+      "eval": "(() => { const html = window.__capturedHtml; const plan = window.__store.getState().floorPlan; const ratioMatch = html.match(/Scale 1:(\\d+) @ A4/); if (!ratioMatch) throw new Error('no scale ratio found'); const ratio = Number(ratioMatch[1]); const mmPerM = 1000 / ratio; const wall = plan.walls.find((w) => { const dx = w.end[0]-w.start[0], dz = w.end[1]-w.start[1]; return Math.hypot(dx, dz) > 0.01 }); if (!wall) throw new Error('no wall found'); const lenM = Math.hypot(wall.end[0]-wall.start[0], wall.end[1]-wall.start[1]); const expectedMm = lenM * mmPerM; const actualMm = lenM * (1000 / ratio); if (Math.abs(actualMm - expectedMm) > 0.001) throw new Error('mm-math mismatch: ' + actualMm + ' vs ' + expectedMm); window.__mmMathOk = true; })()"
+    },
+    {
+      "name": "stash-a4-html-and-ratio",
+      "eval": "window.__a4Html = window.__capturedHtml; window.__a4Ratio = Number(window.__capturedHtml.match(/Scale 1:(\\d+) @ A4/)[1]); window.__capturedHtml = undefined"
+    },
+    {
+      "name": "switch-to-a3-paper",
+      "eval": "(() => { const s = window.__store.getState(); s.setDrawingSetTemplate({ ...s.drawingSetTemplate, paperSize: 'a3', orientation: 'landscape' }) })()"
+    },
+    { "name": "open-file-menu-again", "click": "button[aria-label=\"File\"]" },
+    { "name": "file-menu-open-again", "waitFor": { "css": ".menu-item" }, "timeout": 8000 },
+    { "name": "click-drawing-set-again", "click": { "text": "Drawing set" } },
+    {
+      "name": "drawing-set-captured-a3",
+      "waitFor": {
+        "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 1000"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "assert-a3-title-block-and-finer-scale",
+      "eval": "(() => { const html = window.__capturedHtml; if (!/Scale 1:\\d+ @ A3 LANDSCAPE/.test(html)) throw new Error('missing A3 LANDSCAPE scale label'); if (!/@page \\{ size: A3 landscape;/.test(html)) throw new Error('@page CSS not parameterized to A3 landscape'); const a3Ratio = Number(html.match(/Scale 1:(\\d+) @ A3/)[1]); if (!(a3Ratio <= window.__a4Ratio)) throw new Error('A3 ratio ' + a3Ratio + ' is not finer-or-equal to A4 ratio ' + window.__a4Ratio); window.__a3Html = html; window.__a3ScenarioOk = true; })()"
+    },
+    {
+      "name": "render-a4-captured-for-screenshot",
+      "eval": "document.open(); document.write(window.__a4Html); document.close();"
+    },
+    { "name": "shot-cover-sheet", "screenshot": "drawing-scale-cover-sheet" },
+
+    {
+      "name": "render-a3-captured-for-screenshot",
+      "eval": "document.open(); document.write(window.__a3Html); document.close();"
+    },
+    { "name": "shot-a3-cover-sheet", "screenshot": "drawing-scale-a3-cover-sheet" }
+  ]
+}

@@ -6,14 +6,22 @@
  */
 import { doorSwingClearRect } from '../floorplan/doorSwing'
 import type { FloorPlan } from '../floorplan/types'
-import { wallLength } from '../floorplan/types'
+import { pointInRoom, wallLength } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
+import { CLEARANCE } from './designRules'
 
 export interface Rect {
   x0: number
   z0: number
   x1: number
   z1: number
+}
+
+/** A window's keep-out rect (see `windowFrontRects`) plus the sill height
+ *  (metres AFL) it was derived from, so a caller can decide whether a given
+ *  item is short enough to sit in it. */
+export interface WindowFrontRect extends Rect {
+  sill: number
 }
 
 /**
@@ -34,6 +42,117 @@ export function doorSwingRects(plan: FloorPlan): Rect[] {
   return rects
 }
 
+/**
+ * Keep-clear rectangle spanning each door's full width, projecting `depth`
+ * metres to BOTH sides of the wall (unlike `doorSwingRects`, which only
+ * covers the leaf's swing-side quarter). This is a superset of
+ * `blockedDoorItems`'s probe points (±0.28/±0.42 m along the wall normal, at
+ * the opening's centre) — furniture that would trip that probe check always
+ * overlaps this rect, so a `tryPlace` caller including it in `keepOut` never
+ * produces a "blocked door" the checks overlay would flag. The approach side
+ * matters regardless of which way the leaf swings (you still have to walk
+ * through the opening from the non-swing side too), so — unlike
+ * `windowFrontRects` — no room-side resolution is needed.
+ */
+export function doorApproachRects(plan: FloorPlan, depth = 0.45): Rect[] {
+  const rects: Rect[] = []
+  for (const o of plan.openings) {
+    if (o.kind !== 'door') continue
+    const wall = plan.walls.find((w) => w.id === o.wallId)
+    if (!wall) continue
+    const len = wallLength(wall)
+    if (len === 0) continue
+    const ux = (wall.end[0] - wall.start[0]) / len
+    const uz = (wall.end[1] - wall.start[1]) / len
+    const nx = -uz
+    const nz = ux
+    const sPt: [number, number] = [wall.start[0] + ux * o.offset, wall.start[1] + uz * o.offset]
+    const ePt: [number, number] = [
+      wall.start[0] + ux * (o.offset + o.width),
+      wall.start[1] + uz * (o.offset + o.width),
+    ]
+    const corners: Array<[number, number]> = []
+    for (const base of [sPt, ePt]) {
+      for (const side of [-1, 1]) {
+        corners.push([base[0] + nx * depth * side, base[1] + nz * depth * side])
+      }
+    }
+    const xs = corners.map((c) => c[0])
+    const zs = corners.map((c) => c[1])
+    rects.push({
+      x0: Math.min(...xs),
+      z0: Math.min(...zs),
+      x1: Math.max(...xs),
+      z1: Math.max(...zs),
+    })
+  }
+  return rects
+}
+
+/**
+ * Keep-clear rectangle projecting `depth` metres INTO the room in front of
+ * each window opening — the zone a tall piece (wardrobe, bookcase, tall
+ * cabinet) would block if pushed against that wall. The room-side of the wall
+ * is resolved the same way `defaultDoorSwing` picks a door's swing side: probe
+ * a short distance to each side of the opening's centre and pick whichever
+ * side actually lands inside a room (falls back to the wall's right-hand
+ * normal when neither/both sides resolve, e.g. an opening with no room data
+ * yet). Each rect carries the opening's own `sill` so the caller (the
+ * auto-arranger's `tryPlace`) can allow a SHORT item to sit there while
+ * rejecting a tall one, and treat a near-zero sill (a full-height window or
+ * balcony sliding door) as a hard keep-out for every floor item.
+ */
+export function windowFrontRects(plan: FloorPlan, depth = 0.65): WindowFrontRect[] {
+  const rects: WindowFrontRect[] = []
+  for (const o of plan.openings) {
+    if (o.kind !== 'window') continue
+    const wall = plan.walls.find((w) => w.id === o.wallId)
+    if (!wall) continue
+    const len = wallLength(wall)
+    if (len === 0) continue
+    const ux = (wall.end[0] - wall.start[0]) / len
+    const uz = (wall.end[1] - wall.start[1]) / len
+    const sPt: [number, number] = [wall.start[0] + ux * o.offset, wall.start[1] + uz * o.offset]
+    const ePt: [number, number] = [
+      wall.start[0] + ux * (o.offset + o.width),
+      wall.start[1] + uz * (o.offset + o.width),
+    ]
+    const cx = (sPt[0] + ePt[0]) / 2
+    const cz = (sPt[1] + ePt[1]) / 2
+    const rawNx = -uz
+    const rawNz = ux
+    const probe = 0.5
+    const rightInside = plan.rooms.some((r) =>
+      pointInRoom(r, cx + rawNx * probe, cz + rawNz * probe),
+    )
+    const leftInside = plan.rooms.some((r) =>
+      pointInRoom(r, cx - rawNx * probe, cz - rawNz * probe),
+    )
+    const [nx, nz] = leftInside && !rightInside ? [-rawNx, -rawNz] : [rawNx, rawNz]
+    const farS: [number, number] = [sPt[0] + nx * depth, sPt[1] + nz * depth]
+    const farE: [number, number] = [ePt[0] + nx * depth, ePt[1] + nz * depth]
+    const xs = [sPt[0], ePt[0], farS[0], farE[0]]
+    const zs = [sPt[1], ePt[1], farS[1], farE[1]]
+    rects.push({
+      x0: Math.min(...xs),
+      z0: Math.min(...zs),
+      x1: Math.max(...xs),
+      z1: Math.max(...zs),
+      sill: o.sill ?? CLEARANCE.windowSillTall,
+    })
+  }
+  return rects
+}
+
+/** Every rect a door's keep-out covers: its swing quarter (`doorSwingRects`)
+ *  plus its two-sided approach strip (`doorApproachRects`) — the full set the
+ *  auto-arranger avoids and `blockedDoorItems` probes for. A convenience for
+ *  callers (e.g. `furnishPlan.ts`'s post-arrange safety filter) that want
+ *  "every door keep-out" without importing + merging both themselves. */
+export function doorKeepOutRects(plan: FloorPlan): Rect[] {
+  return [...doorSwingRects(plan), ...doorApproachRects(plan)]
+}
+
 /** Unrotated footprint width/depth of an item (accounts for parametric size). */
 function footprintSize(item: FurnitureItem, def: FurnitureDef): { w: number; d: number } {
   let w = def.defaultFootprint.w
@@ -49,7 +168,7 @@ function footprintSize(item: FurnitureItem, def: FurnitureDef): { w: number; d: 
 }
 
 /** Footprint AABB of an item (accounts for rotation + parametric size). */
-function footprintAabb(item: FurnitureItem, def: FurnitureDef): Rect {
+export function footprintAabb(item: FurnitureItem, def: FurnitureDef): Rect {
   const { w, d } = footprintSize(item, def)
   const c = Math.abs(Math.cos(item.rotation))
   const s = Math.abs(Math.sin(item.rotation))

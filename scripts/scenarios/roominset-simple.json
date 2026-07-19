@@ -1,0 +1,68 @@
+{
+  "name": "roominset-simple",
+  "url": "http://localhost:5211/",
+  "description": "IXT-SUITES simple rung for `roomInset` (pro tier, PARITY-ROOM-INSET): the 2D plan editor's 'Inset −0.1 m' / 'Grow +0.1 m' buttons in the RoomInspector (`.plan-props`), shown only with a room selected. Simple: the room properties panel shows no inset/grow controls at all (even with a room selected). Pro: selecting the largest room (Living/Dining, avoids a collapse-reject on a narrow room) and clicking 'Inset −0.1 m' calls the real `insetRoom` op (an actual `insetPolygon` offset of the room outline, not a placeholder), visibly shrinking the room boundary on the plan — asserted via the room's live polygon/width/depth in the store, then undone back to the original outline.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    { "name": "assert-flag-off-simple", "eval": "(function(){ const f = window.__store.getState().featureFlags.roomInset; if (f !== false) throw new Error('roomInset should resolve false in Simple mode, got ' + f); })()" },
+
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 30000 },
+    { "name": "settle-plan-mount", "wait": 1200 },
+
+    {
+      "name": "select-largest-room",
+      "eval": "(function(){ const s = window.__store.getState(); const rooms = s.floorPlan.rooms; if (!rooms.length) throw new Error('no rooms in the default plan'); const biggest = rooms.reduce((a, b) => (a.width * a.depth >= b.width * b.depth ? a : b)); window.__roomId = biggest.id; window.__wd0 = { w: biggest.width, d: biggest.depth }; s.setPlanSelection({ type: 'room', id: biggest.id }); })()"
+    },
+    { "name": "selection-set", "waitFor": { "store": "state.planSelection?.type === 'room' && state.planSelection.id === window.__roomId" } },
+    { "name": "props-panel-open", "waitFor": { "css": ".plan-props" }, "timeout": 8000 },
+
+    {
+      "name": "assert-hidden-in-simple",
+      "eval": "(function(){ const panel = document.querySelector('.plan-props'); if (!panel) throw new Error('.plan-props panel missing'); const t = panel.textContent||''; if (t.includes('Inset') || t.includes('Grow +')) throw new Error('inset/grow controls visible in Simple mode — roomInset is pro-tier and should be hidden'); })()"
+    },
+    { "name": "shot-simple-room-selected", "screenshot": "simple-room-selected" },
+
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "assert-flag-on-pro", "eval": "(function(){ const f = window.__store.getState().featureFlags.roomInset; if (f !== true) throw new Error('roomInset should resolve true in Pro mode, got ' + f); })()" },
+    {
+      "name": "reselect-room-after-mode-switch",
+      "eval": "(function(){ const s = window.__store.getState(); if (s.planSelection?.type !== 'room' || s.planSelection.id !== window.__roomId) s.setPlanSelection({ type: 'room', id: window.__roomId }); })()"
+    },
+    { "name": "inset-controls-visible", "waitFor": { "text": "Inset −0.1 m" }, "timeout": 8000 },
+    { "name": "shot-pro-inset-controls", "screenshot": "pro-inset-controls" },
+
+    {
+      "name": "click-inset",
+      "eval": "(function(){ const panel = document.querySelector('.plan-props'); const btn = panel && [...panel.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith('Inset')); if (!btn) throw new Error(\"'Inset −0.1 m' button not found\"); btn.click(); })()"
+    },
+    {
+      "name": "room-shrunk",
+      "waitFor": { "store": "(() => { const r = state.floorPlan.rooms.find(x => x.id === window.__roomId); return !!r && !!r.polygon; })()", "timeout": 8000 }
+    },
+    {
+      "name": "assert-room-smaller",
+      "eval": "(function(){ const s = window.__store.getState(); const r = s.floorPlan.rooms.find(x => x.id === window.__roomId); if (!r || !r.polygon) throw new Error('room lost its polygon after inset'); if (!(r.width < window.__wd0.w) && !(r.depth < window.__wd0.d)) throw new Error('bounding box did not shrink after inset: ' + JSON.stringify({ before: window.__wd0, after: { w: r.width, d: r.depth } })); })()"
+    },
+    { "name": "shot-inset-applied", "screenshot": "inset-applied" },
+
+    { "name": "undo-inset", "eval": "window.__store.getState().undo()" },
+    {
+      "name": "inset-reverted",
+      "waitFor": { "store": "(() => { const r = state.floorPlan.rooms.find(x => x.id === window.__roomId); return !!r && Math.abs(r.width - window.__wd0.w) < 1e-6 && Math.abs(r.depth - window.__wd0.d) < 1e-6; })()", "timeout": 8000 }
+    },
+
+    { "name": "back-to-simple", "store": { "action": "setUiMode", "args": ["simple"] } },
+    { "name": "reresolve-flags-2", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "assert-flag-off-again", "eval": "(function(){ const f = window.__store.getState().featureFlags.roomInset; if (f !== false) throw new Error('roomInset should resolve false back in Simple mode, got ' + f); })()" },
+    {
+      "name": "assert-hidden-again",
+      "eval": "(function(){ const panel = document.querySelector('.plan-props'); if (!panel) throw new Error('.plan-props panel missing'); const t = panel.textContent||''; if (t.includes('Inset') || t.includes('Grow +')) throw new Error('inset/grow controls visible back in Simple mode'); })()"
+    }
+  ]
+}

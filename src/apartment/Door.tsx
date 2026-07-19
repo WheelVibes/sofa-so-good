@@ -17,6 +17,9 @@ function findWall(wallId: string): WallSpec | undefined {
 export function DoorLeaf({ spec }: { spec: DoorSpec }) {
   const wall = findWall(spec.wallId)
   const isOpen = useStore((s) => s.doors[spec.id]?.open ?? spec.defaultOpen)
+  // BSJ-4: a bare-BTO / strip-out handover leaves this leaf ABSENT (opening +
+  // frame stay via the wall cutout; only the swinging leaf is gone).
+  const leafAbsent = useStore((s) => s.doors[spec.id]?.leaf === 'none')
   const toggle = useStore((s) => s.toggleDoor)
   const swingRef = useRef<Group>(null!)
   const rootRef = useRef<Group>(null)
@@ -67,6 +70,7 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
   })
 
   if (!wall) return null
+  if (leafAbsent) return null
   const dx = wall.end[0] - wall.start[0]
   const dz = wall.end[1] - wall.start[1]
   const length = Math.hypot(dx, dz)

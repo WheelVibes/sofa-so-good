@@ -1,0 +1,84 @@
+{
+  "name": "version-compare",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true || state.bootPhase === 'ready'"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setUiMode?.('pro'); s.reresolveFeatureFlags?.(); })()"
+    },
+    {
+      "name": "seed-version",
+      "eval": "(() => { const st = window.__store.getState(); const savedAt = new Date().toISOString(); const state = { version: 2, apartmentId: 'serangoon-north-vista-4r', items: st.items.slice(0, 20), doors: st.doors, finishes: st.finishes, userFurniture: [], userMaterials: [], timeMode: st.timeMode || 'manual', manualHour: st.manualHour || 13, cameraMode: st.cameraMode || 'orbit', savedAt }; localStorage.setItem('sofa-so-good:save:test-v1', JSON.stringify(state)); const idx = JSON.parse(localStorage.getItem('sofa-so-good:save-index') || '[]'); idx.push({ slot: 'test-v1', savedAt }); localStorage.setItem('sofa-so-good:save-index', JSON.stringify(idx)); })()"
+    },
+    {
+      "name": "baseline",
+      "eval": "window.__hist = window.__store.getState().past.length; window.__items = window.__store.getState().items.length"
+    },
+    {
+      "name": "open-versions",
+      "eval": "window.__store.getState().setVersionsOpen(true)"
+    },
+    {
+      "name": "panel-open",
+      "waitFor": {
+        "text": "test-v1"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "click-compare-3d",
+      "eval": "(() => { const b = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Compare in 3D' || (b.getAttribute('aria-label') || '').trim() === 'Compare in 3D'); if (!b) throw new Error('no Compare in 3D button'); b.click(); })()"
+    },
+    {
+      "name": "modal-open",
+      "waitFor": {
+        "store": "state.versionCompareOpen === true"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "modal-dom",
+      "waitFor": {
+        "text": "Capture compare"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "capture",
+      "eval": "(() => { const b = [...document.querySelectorAll('button')].find(b => /Capture compare|Re-capture/.test(b.textContent)); b.click(); })()"
+    },
+    {
+      "name": "captured",
+      "waitFor": {
+        "css": "img[alt='Current design'], img[alt='Saved version']"
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "settle",
+      "wait": 1500
+    },
+    {
+      "name": "shot-compare",
+      "screenshot": "version-compare"
+    },
+    {
+      "name": "assert-no-leak",
+      "eval": "(() => { const s = window.__store.getState(); if (s.past.length !== window.__hist) throw new Error('history leaked: ' + window.__hist + ' -> ' + s.past.length); if (s.items.length !== window.__items) throw new Error('items not restored: ' + window.__items + ' -> ' + s.items.length); return 'no leak, restored'; })()"
+    }
+  ]
+}

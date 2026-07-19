@@ -2,6 +2,7 @@ import type { LayoutPreset } from './types'
 
 export const wfhStudio: LayoutPreset = {
   id: 'wfh-studio',
+  group: 'layout',
   name: 'Work-From-Home',
   description: 'Re-modelled L/D: compact lounge, a study nook + shelving, round dining.',
   dryFloor: 'floor-wood-ash',

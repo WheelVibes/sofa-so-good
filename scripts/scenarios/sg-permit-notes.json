@@ -1,0 +1,72 @@
+{
+  "name": "sg-permit-notes",
+  "description": "SG1 — housing-type-conditional permit/compliance language. Switches the active plan's `category.housingType` to Condominium via the store, regenerates the Drawing set (cover sheet general notes) and the Report (compliance section), and asserts the MCST/building-management approval text appears while the HDB permit text does not. openDrawingSet()/openReport() open a new window and call document.write; window.open is intercepted (stub capturing the written HTML) so no real popup spawns.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "boot-settled", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 60000 },
+    { "name": "settle-post-boot", "wait": 600 },
+
+    {
+      "name": "set-housing-type-condo",
+      "eval": "(function(){ const s = window.__store.getState(); const withCat = (plan) => ({ ...plan, category: { housingType: 'Condominium', projectName: 'Sky Habitat', apartmentType: 'Loft' } }); window.__store.setState({ floorPlan: withCat(s.floorPlan), baselinePlan: withCat(s.baselinePlan) }); })()"
+    },
+    {
+      "name": "assert-housing-type-stuck",
+      "eval": "(function(){ const c = window.__store.getState().floorPlan.category; if (c?.housingType !== 'Condominium') throw new Error('housingType did not stick on the live plan'); })()"
+    },
+
+    {
+      "name": "patch-window-open",
+      "eval": "window.__capturedHtml = null; window.__origWindowOpen = window.open; window.open = function () { return { document: { write: function (html) { window.__capturedHtml = html }, close: function () {} }, close: function () {}, focus: function () {}, print: function () {} }; };"
+    },
+    { "name": "open-file", "click": { "text": "File" } },
+    { "name": "file-panel-open", "waitFor": { "css": ".pop-panel" }, "timeout": 10000 },
+    { "name": "settle-file", "wait": 400 },
+    {
+      "name": "click-drawing-set",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.pop-panel button')].find(b => b.textContent.includes('Drawing set')); if (!btn) throw new Error('Drawing set button not found'); btn.click(); })()"
+    },
+    {
+      "name": "wait-drawing-set-captured",
+      "waitFor": { "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 0" },
+      "timeout": 15000,
+      "failMessage": "openDrawingSet() never wrote HTML via the intercepted window.open"
+    },
+    {
+      "name": "assert-drawing-set-condo-notes",
+      "eval": "(function(){ const html = window.__capturedHtml; window.open = window.__origWindowOpen; if (!html.includes('MCST')) throw new Error('missing the Condominium MCST/building-management approval note on the drawing-set cover sheet'); if (html.includes('written HDB permit')) throw new Error('drawing-set cover sheet still renders the HDB-permit text for a Condominium plan'); if (!html.includes('Professional Engineer')) throw new Error('missing the PE-endorsement note for structural work'); })()"
+    },
+    { "name": "shot-sg-permit-notes-drawing-set", "screenshot": "sg-permit-notes-drawing-set" },
+
+    {
+      "name": "close-file-panel",
+      "eval": "document.body.click()"
+    },
+    {
+      "name": "patch-window-open-report",
+      "eval": "window.__capturedHtml = null; window.__origWindowOpen = window.open; window.open = function () { return { document: { write: function (html) { window.__capturedHtml = html }, close: function () {} }, close: function () {}, focus: function () {}, print: function () {} }; };"
+    },
+    { "name": "open-file-2", "click": { "text": "File" } },
+    { "name": "file-panel-open-2", "waitFor": { "css": ".pop-panel" }, "timeout": 10000 },
+    { "name": "settle-file-2", "wait": 400 },
+    {
+      "name": "click-report",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.pop-panel button')].find(b => b.textContent.includes('Report') || b.textContent.includes('report')); if (!btn) throw new Error('Report button not found'); btn.click(); })()"
+    },
+    {
+      "name": "wait-report-captured",
+      "waitFor": { "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 0" },
+      "timeout": 15000,
+      "failMessage": "openReport() never wrote HTML via the intercepted window.open"
+    },
+    {
+      "name": "assert-report-gates-hdb-section",
+      "eval": "(function(){ const html = window.__capturedHtml; window.open = window.__origWindowOpen; if (html.includes('HDB compliance hints')) throw new Error('report still renders the HDB-only compliance section for a Condominium plan'); if (!html.includes('Renovation compliance notes')) throw new Error('missing the Condominium/Landed pointer section (Renovation compliance notes)'); if (!html.includes('MCST')) throw new Error('missing the MCST pointer line in the report'); })()"
+    },
+    { "name": "shot-sg-permit-notes-report", "screenshot": "sg-permit-notes-report" }
+  ]
+}

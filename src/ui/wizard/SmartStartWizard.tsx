@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useFeature } from '../../features/useFeature'
 import { type BriefMatch, parseBrief } from '../../furniture/briefParser'
+import { INTAKE_STATES, type IntakeStateId } from '../../furniture/intakeStates'
+import type { LayoutPreset } from '../../furniture/layoutPresets'
 import { LAYOUT_PRESETS } from '../../furniture/layoutPresets'
 import { BUILTIN_MATERIALS } from '../../materials/builtinCatalog'
-import type { ThemeName } from '../../state/slices/appearanceSlice'
+import { THEME_META, type ThemeName } from '../../state/slices/appearanceSlice'
 import { useStore } from '../../state/store'
 import { Modal } from '../Modal'
 
@@ -30,8 +32,47 @@ const PRESET_THEME: Record<string, ThemeName> = {
   'warm-industrial': 'estate',
   'cozy-tropical': 'kampong',
   japandi: 'clay',
+  'modern-luxe': 'estate',
+  minimalist: 'porcelain',
+  'peranakan-accent': 'kampong',
   coastal: 'porcelain',
   'open-lounge': 'estate',
+}
+
+/** The curated 2025-26 SG theme gallery (RM2 `group: 'theme'`) — SmartStart's
+ *  primary grid. */
+const themePresets = LAYOUT_PRESETS.filter((p) => p.group === 'theme')
+/** Re-modelled living/dining layout variants (RM2 `group: 'layout'`) —
+ *  demoted to a secondary section (a layout tweak, not a full cosmetic
+ *  theme). Presets with no `group` (fading coastal/modernMono) show in
+ *  neither section but stay resolvable by id + the text-brief matcher. */
+const layoutPresets = LAYOUT_PRESETS.filter((p) => p.group === 'layout')
+
+function PresetCard({
+  preset,
+  picked,
+  onPick,
+}: {
+  preset: LayoutPreset
+  picked: string
+  onPick: (id: string) => void
+}) {
+  const on = picked === preset.id
+  return (
+    <button
+      type="button"
+      className={`ss-card${on ? ' on' : ''}`}
+      onClick={() => onPick(preset.id)}
+      aria-pressed={on}
+    >
+      <span className="ss-card-name">{preset.name}</span>
+      <span className="ss-card-desc">{preset.description}</span>
+      <span className="ss-card-swatches">
+        <i style={{ background: swatchColor(preset.dryFloor, 'var(--surface-2)') }} />
+        <i style={{ background: swatchColor(preset.wall, 'var(--surface)') }} />
+      </span>
+    </button>
+  )
 }
 
 export function SmartStartWizard() {
@@ -39,6 +80,17 @@ export function SmartStartWizard() {
   const setOpen = useStore((s) => s.setSmartStartOpen)
   const current = useStore((s) => s.theme)
   const fTextBrief = useFeature('textBrief')
+  const fOcs = useFeature('ocsStarter')
+
+  // BSJ-4: apply one of the four buyer starting states, then close the wizard.
+  const applyIntake = (id: IntakeStateId) => {
+    const s = useStore.getState()
+    if (id === 'bto-bare') s.applyBareBto()
+    else if (id === 'bto-ocs') s.applyOcsStarter()
+    else if (id === 'resale-asis') s.applyResaleAsIs()
+    else s.applyResaleStripout()
+    setOpen(false)
+  }
   const [picked, setPicked] = useState<string>(LAYOUT_PRESETS[0]?.id ?? 'move-in')
   const [brief, setBrief] = useState('')
   // Last brief-match result: a match (highlight + budget chip), 'none'
@@ -96,6 +148,56 @@ export function SmartStartWizard() {
         Pick a style — we’ll furnish every room and finish the walls &amp; floors to match. You can
         tweak anything afterwards.
       </p>
+      <p
+        className="panel-sub"
+        style={{
+          textTransform: 'none',
+          letterSpacing: 0,
+          marginBottom: 10,
+          color: 'var(--text-3)',
+        }}
+      >
+        Replaces any floors &amp; walls you’ve already set on the living spaces.
+      </p>
+      {fOcs ? (
+        <div className="ss-ocs" style={{ marginBottom: 12 }}>
+          <div className="sec-h" style={{ marginBottom: 'var(--s-1)' }}>
+            Starting state
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-1)' }}>
+            {INTAKE_STATES.map((st) => (
+              <button
+                key={st.id}
+                type="button"
+                className="btn btn-block"
+                onClick={() => applyIntake(st.id)}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  gap: 2,
+                  height: 'auto',
+                  padding: 'var(--s-2)',
+                  textAlign: 'left',
+                }}
+              >
+                <span style={{ fontWeight: 700 }}>{st.name}</span>
+                <span
+                  className="panel-sub"
+                  style={{
+                    textTransform: 'none',
+                    letterSpacing: 0,
+                    lineHeight: 'var(--lh-body)',
+                    whiteSpace: 'normal',
+                  }}
+                >
+                  {st.blurb}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
       {fTextBrief ? (
         <div style={{ marginBottom: 10 }}>
           <label className="label" htmlFor="ss-brief" style={{ display: 'block', marginBottom: 4 }}>
@@ -145,32 +247,35 @@ export function SmartStartWizard() {
           </div>
         </div>
       ) : null}
-      <div className="ss-grid">
-        {LAYOUT_PRESETS.map((p) => {
-          const on = picked === p.id
-          return (
-            <button
-              key={p.id}
-              type="button"
-              className={`ss-card${on ? ' on' : ''}`}
-              onClick={() => setPicked(p.id)}
-              aria-pressed={on}
-            >
-              <span className="ss-card-name">{p.name}</span>
-              <span className="ss-card-desc">{p.description}</span>
-              <span className="ss-card-swatches">
-                <i style={{ background: swatchColor(p.dryFloor, 'var(--surface-2)') }} />
-                <i style={{ background: swatchColor(p.wall, 'var(--surface)') }} />
-              </span>
-            </button>
-          )
-        })}
+      {/* Two labelled sections (UXW-P2-2): whole-flat palette THEMES vs.
+          living/dining LAYOUT remodels — conceptually different jobs that
+          read as peers when flat, so the RM2 `group` field splits them. */}
+      <div className="sec-h" style={{ marginTop: 'var(--s-2)' }}>
+        Design themes
       </div>
+      <div className="ss-grid">
+        {themePresets.map((p) => (
+          <PresetCard key={p.id} preset={p} picked={picked} onPick={setPicked} />
+        ))}
+      </div>
+      {layoutPresets.length > 0 ? (
+        <>
+          <div className="sec-h" style={{ marginTop: 'var(--s-3)' }}>
+            Layout ideas
+          </div>
+          <div className="ss-grid">
+            {layoutPresets.map((p) => (
+              <PresetCard key={p.id} preset={p} picked={picked} onPick={setPicked} />
+            ))}
+          </div>
+        </>
+      ) : null}
       <p
         className="panel-sub"
         style={{ textTransform: 'none', letterSpacing: 0, marginTop: 10, opacity: 0.7 }}
       >
-        Applies to the current apartment shell. Theme: <b>{PRESET_THEME[picked] ?? current}</b>.
+        Applies to the current apartment shell. Theme:{' '}
+        <b>{THEME_META[PRESET_THEME[picked] ?? current]?.name ?? THEME_META[current].name}</b>.
       </p>
     </Modal>
   )

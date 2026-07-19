@@ -32,17 +32,21 @@ type Persistent = {
   timeMode: unknown
   manualHour: unknown
   lightsMode: unknown
+  lightMood: unknown
   annotations: unknown
   comments: unknown
   drawingCallouts: unknown
   cameraMode: unknown
   orientationDeg: unknown
+  keyCollectionDate: unknown
+  handoverChecked: unknown
   location: unknown
   locationPromptDismissed: unknown
   petTypes: unknown
   designNote: unknown
   panoTourStops: unknown
   quoteTemplate: unknown
+  drawingSetTemplate: unknown
   priceRules: unknown
 }
 
@@ -61,17 +65,21 @@ export const PERSISTENT_WATCH_KEYS = [
   'timeMode',
   'manualHour',
   'lightsMode',
+  'lightMood',
   'annotations',
   'comments',
   'drawingCallouts',
   'cameraMode',
   'orientationDeg',
+  'keyCollectionDate',
+  'handoverChecked',
   'location',
   'locationPromptDismissed',
   'petTypes',
   'designNote',
   'panoTourStops',
   'quoteTemplate',
+  'drawingSetTemplate',
   'priceRules',
 ] as const satisfies readonly (keyof Persistent)[]
 
@@ -89,17 +97,21 @@ function pickPersistent(): Persistent {
     timeMode: s.timeMode,
     manualHour: s.manualHour,
     lightsMode: s.lightsMode,
+    lightMood: s.lightMood,
     annotations: s.annotations,
     comments: s.comments,
     drawingCallouts: s.drawingCallouts,
     cameraMode: s.cameraMode,
     orientationDeg: s.orientationDeg,
+    keyCollectionDate: s.keyCollectionDate,
+    handoverChecked: s.handoverChecked,
     location: s.location,
     locationPromptDismissed: s.locationPromptDismissed,
     petTypes: s.petTypes,
     designNote: s.designNote,
     panoTourStops: s.panoTourStops,
     quoteTemplate: s.quoteTemplate,
+    drawingSetTemplate: s.drawingSetTemplate,
     priceRules: s.priceRules,
   }
 }
@@ -117,17 +129,21 @@ function shallowEqual(a: Persistent, b: Persistent): boolean {
     a.timeMode === b.timeMode &&
     a.manualHour === b.manualHour &&
     a.lightsMode === b.lightsMode &&
+    a.lightMood === b.lightMood &&
     a.annotations === b.annotations &&
     a.comments === b.comments &&
     a.drawingCallouts === b.drawingCallouts &&
     a.cameraMode === b.cameraMode &&
     a.orientationDeg === b.orientationDeg &&
+    a.keyCollectionDate === b.keyCollectionDate &&
+    a.handoverChecked === b.handoverChecked &&
     a.location === b.location &&
     a.locationPromptDismissed === b.locationPromptDismissed &&
     a.petTypes === b.petTypes &&
     a.designNote === b.designNote &&
     a.panoTourStops === b.panoTourStops &&
     a.quoteTemplate === b.quoteTemplate &&
+    a.drawingSetTemplate === b.drawingSetTemplate &&
     a.priceRules === b.priceRules
   )
 }
@@ -140,6 +156,57 @@ export interface AutosaveOptions {
   onRecover?: () => void
 }
 
+/** Module-level pause COUNTER (VERSION-COMPARE-VIEW): lets a caller that
+ *  temporarily swaps a DIFFERENT design into the live store (e.g. the version
+ *  split-view's capture-then-restore) guarantee the debounced write can never
+ *  fire mid-swap and persist that scratch state over the real autosave slot —
+ *  regardless of how long the swap holds the store (no race with `DEBOUNCE_MS`).
+ *  There's only ever one `startAutosave()` instance app-wide (wired once in
+ *  `bootstrap.ts`), so a module-level counter (rather than a per-instance one
+ *  threaded through closures) is sufficient and lets any caller reach it
+ *  without a store reference.
+ *
+ *  It's a NESTING counter, not a boolean (overlapping-capture hazard): two
+ *  overlapping `withTemporaryDesign` windows (e.g. a second version-compare
+ *  capture starting before the first's restore has finished) each call
+ *  `pauseAutosave()`/`resumeAutosave()` once. With a plain boolean, whichever
+ *  `resumeAutosave()` ran first would flip autosave back on while the OTHER
+ *  swap still had a different design live in the store, letting the debounced
+ *  write persist that scratch state. Counting pauses/resumes means autosave
+ *  only actually resumes once the count drops back to 0 — i.e. once every
+ *  overlapping swap has finished restoring. */
+let autosavePauseCount = 0
+/** Pending debounce timer, hoisted to module scope so `pauseAutosave` can
+ *  cancel a write that's already scheduled when the pause begins. */
+let pendingTimer: ReturnType<typeof setTimeout> | null = null
+/** Last-seen persisted snapshot, hoisted to module scope so `resumeAutosave`
+ *  can resync it to the just-restored state without a spurious write. */
+let lastPersistent: Persistent | null = null
+
+/** Suspend autosave scheduling: cancels any pending debounced write and
+ *  ignores further store changes until every matching {@link resumeAutosave}
+ *  call has run (nesting counter — see `autosavePauseCount` above). */
+export function pauseAutosave(): void {
+  autosavePauseCount++
+  if (pendingTimer) {
+    clearTimeout(pendingTimer)
+    pendingTimer = null
+  }
+}
+
+/** Resume autosave scheduling ONE nesting level; only actually re-enables
+ *  scheduling once every {@link pauseAutosave} call has been matched (count
+ *  back to 0) — so an inner/overlapping resume can't prematurely re-enable
+ *  autosave while an outer pause is still in effect. On the FINAL resume,
+ *  resyncs the watched snapshot to the CURRENT state (called right after the
+ *  caller has restored the store to its pre-swap values), so the restore
+ *  itself is never mistaken for a change needing a write. */
+export function resumeAutosave(): void {
+  autosavePauseCount = Math.max(0, autosavePauseCount - 1)
+  if (autosavePauseCount > 0) return
+  lastPersistent = pickPersistent()
+}
+
 /** Subscribes to the store and writes the autosave slot at most once
  *  per `DEBOUNCE_MS`. Returns an unsubscribe + flush handle. */
 export function startAutosave({
@@ -147,12 +214,11 @@ export function startAutosave({
   onError,
   onRecover,
 }: AutosaveOptions = {}): () => void {
-  let timer: ReturnType<typeof setTimeout> | null = null
-  let last = pickPersistent()
+  lastPersistent = pickPersistent()
   let failed = false
 
   const flush = () => {
-    timer = null
+    pendingTimer = null
     const state = useStore.getState()
     const payload = serialize(state)
     adapter
@@ -171,11 +237,17 @@ export function startAutosave({
   }
 
   const unsubscribe = useStore.subscribe(() => {
+    // Ignore store changes entirely while a temporary-design swap (VERSION-
+    // COMPARE-VIEW) is in progress — `resumeAutosave()` resyncs `lastPersistent`
+    // once the LAST overlapping swap restores the real state (nesting counter
+    // back to 0), so no write is ever scheduled for the scratch state and none
+    // is missed for the restore either.
+    if (autosavePauseCount > 0) return
     const next = pickPersistent()
-    if (shallowEqual(next, last)) return
-    last = next
-    if (timer) clearTimeout(timer)
-    timer = setTimeout(flush, DEBOUNCE_MS)
+    if (lastPersistent && shallowEqual(next, lastPersistent)) return
+    lastPersistent = next
+    if (pendingTimer) clearTimeout(pendingTimer)
+    pendingTimer = setTimeout(flush, DEBOUNCE_MS)
   })
 
   // Flush a pending debounced write before the page goes away, so an edit made
@@ -186,8 +258,8 @@ export function startAutosave({
   const flushPending = () => {
     // Push any pending cloud autosave up before the page goes away.
     flushCloudAutosave()
-    if (!timer) return
-    clearTimeout(timer)
+    if (!pendingTimer) return
+    clearTimeout(pendingTimer)
     flush()
   }
   const onPageHide = () => flushPending()

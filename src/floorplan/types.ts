@@ -11,6 +11,25 @@
 
 export type PlanVec2 = [number, number]
 
+/** Standard SG electrical point kinds (moved from `electricalPlan.ts` — MEP
+ *  layer plan (G1) — so `types.ts` can host the persisted `PlanElectricalPoint`
+ *  without `electricalPlan.ts` importing back from `floorplan/types.ts`, which
+ *  would create an import cycle. `electricalPlan.ts` re-exports this
+ *  type-only so existing importers are unaffected. */
+export type ElectricalKind =
+  | 'socket'
+  | 'socket-double'
+  | 'switch'
+  | 'data'
+  | 'tv-point'
+  | 'aircon'
+  | 'water-heater'
+
+/** Standard SG plumbing point kinds (moved from `plumbingPlan.ts` — see
+ *  `ElectricalKind` above for the rationale). `plumbingPlan.ts` re-exports this
+ *  type-only. */
+export type PlumbingKind = 'water-point' | 'drainage' | 'floor-trap' | 'soil-pipe' | 'water-heater'
+
 export interface PlanWall {
   id: string
   start: PlanVec2
@@ -53,6 +72,19 @@ export interface PlanWall {
    *  for THIS wall only. Absent = use the plan default. Edited in the 2D plan
    *  inspector (`elementColors`). */
   color?: string
+  /** Optional user-declared structural classification (TODO G7 — SG hacking-plan
+   *  hardening). Absent = `'unknown'`. **User-declared, not verified** — the app
+   *  cannot tell a load-bearing beam-and-column wall from a non-structural
+   *  precast/Ferrolite partition from plan geometry alone (both look identical on
+   *  plan; this is a documented HDB hacking-plan failure mode). Classification
+   *  must be confirmed against HDB/BCA as-built records or a PE before hacking —
+   *  the inspector + demolition sheet both carry that caveat inline. Drives the
+   *  demolition sheet's classification rendering (`demolitionPlanSvg.ts`):
+   *  `'load-bearing'` walls get a heavy/solid treatment (and a hard "NOT
+   *  PERMITTED" danger callout if marked for demolition); `'unknown'` walls
+   *  being demolished get a ⚠ warning marker. Edited in the 2D plan inspector
+   *  (`wallStructure`). */
+  structure?: 'load-bearing' | 'rc-partition' | 'brick-partition' | 'drywall' | 'unknown'
 }
 
 export interface PlanOpening {
@@ -89,15 +121,58 @@ export interface PlanOpening {
    *  (`elementColors`). */
   color?: string
   /** Optional style/type (`openingStyles`). Doors: `panel` (default, recessed
-   *  panels) / `flush` (plain slab) / `glazed` (upper vision panel). Windows:
-   *  `plain` (default glass) / `grille` (vertical safety bars) / `louvre`
-   *  (horizontal slats). Absent = the default for the kind. */
+   *  panels) / `flush` (plain slab) / `glazed` (upper vision panel) / `bifold`
+   *  (two half-width leaves that fold at a centre hinge — the standard SG
+   *  toilet/utility door) / `sliding` (leaf slides along the wall, no swing —
+   *  the SG kitchen/service-yard/balcony norm) / `double` (two half-width leaves
+   *  hinged at both jambs swinging the same side — condo main doors, larger-unit
+   *  master bedrooms). Windows: `plain` (default glass) / `grille`
+   *  (vertical safety bars) / `louvre` (horizontal slats) / `invisible-grille`
+   *  (hair-thin steel cables in place of visible bars — the modern
+   *  near-invisible safety-grille convention). Absent = the default for the
+   *  kind. */
   style?: string
+  /** Doors only: leaf surface finish (`openingStyles`) — `painted` (default for
+   *  `panel`/`flush`/`glazed`, flat colour via `color`), `wood` (procedural
+   *  wood grain tinted by `color`), or `vinyl` (smooth PVC laminate — the
+   *  standard SG toilet/utility door finish; the default for `style: 'bifold'`
+   *  when unset). Absent on a window has no effect. */
+  material?: string
 }
+
+/** Explicit, user-settable room category (RM1 — SG-presets room categories).
+ *  Distinct from `analysis/suggestions.ts`'s `RoomKind` (a coarser, inferred-
+ *  only classifier consumed by suggestions/handover/electrical reports):
+ *  `RoomCategory` is the persisted, USER-declared source of truth a room's
+ *  `category` field carries; `roomCategory.ts` downmaps it to `RoomKind` (and
+ *  to the auto-arrange kind) for every consumer that still speaks the
+ *  coarser vocabulary. Additive — a room with no `category` falls back to
+ *  name-based inference exactly as before. */
+export const ROOM_CATEGORIES = [
+  'living',
+  'dining',
+  'bedroom',
+  'masterBedroom',
+  'kitchen',
+  'bath',
+  'powder',
+  'study',
+  'serviceYard',
+  'storeroom',
+  'balcony',
+  'foyer',
+  'other',
+] as const
+
+export type RoomCategory = (typeof ROOM_CATEGORIES)[number]
 
 export interface PlanRoom {
   id: string
   name: string
+  /** Explicit user-set room category (RM1). Absent → inferred from `name`
+   *  via `roomCategory.ts`'s `roomCategoryFromName`. Set/cleared from the
+   *  floor-plan editor's `RoomInspector` "Room type" control. */
+  category?: RoomCategory
   /** NW corner of the room's interior rectangle. */
   origin: PlanVec2
   width: number
@@ -113,6 +188,17 @@ export interface PlanRoom {
   polygon?: PlanVec2[]
   /** Optional per-room ceiling height. */
   ceilingHeight?: number
+  /** Optional finished-floor-level offset (mm) vs the main FFL datum (BSJ-8 —
+   *  `floorLevels` pro flag). Negative = below the datum (a bathroom is
+   *  typically −25/−50 mm below the adjacent dry rooms so water can't run out; a
+   *  balcony −50 mm). Absent → level with the datum (0). This is a
+   *  DOCUMENTATION-level field in v1: it drives per-room FFL tags + doorway
+   *  step/transition markers on the dimensioned/setting-out plan, the kerb/step
+   *  advisory, and the tiler pack — it does NOT move the 3D floor mesh (that
+   *  would ripple through furniture Y-placement; filed as a follow-up). Set from
+   *  the floor-plan editor's `RoomInspector` "Floor level" field. Additive +
+   *  optional — no schema-version bump. */
+  floorLevelMm?: number
   /** Optional floor finish (catalog material id); defaults to oak in the shell. */
   floor?: string
   /** Optional wall finish (catalog material id); plain plaster when unset. */
@@ -178,8 +264,11 @@ export interface PlanUpperLevel {
   rooms: PlanRoom[]
 }
 
-/** Top-level housing category for the template picker. */
-export type HousingType = 'HDB' | 'Condominium'
+/** Top-level housing category for the template picker. `'Landed'` covers
+ *  terraces/semi-Ds/bungalows — a distinct approval path from HDB (no HDB
+ *  permit, straight to BCA) and from Condominium (no MCST). Additive: older
+ *  saved plans/templates predate it and simply carry 'HDB'|'Condominium'. */
+export type HousingType = 'HDB' | 'Condominium' | 'Landed'
 
 /** Three-level template categorisation: housing type → project → apartment type
  *  (e.g. HDB › Serangoon North Vista › 4-Room). Every built-in template carries
@@ -190,6 +279,49 @@ interface PlanCategory {
   projectName: string
   /** Unit type within the project (e.g. "4-Room", "2-Bedroom"). */
   apartmentType: string
+}
+
+/** Roof style for the parametric roof (UX research round 3, `parametricRoof`
+ *  pro flag). `gable` = two pitched planes + triangular end gables; `hip` =
+ *  four planes sloping to all four eaves; `flat-parapet` = a flat slab ringed
+ *  by a low parapet wall. See `roofModel.ts` for the geometry + v1 limitations. */
+export type RoofStyle = 'gable' | 'hip' | 'flat-parapet'
+
+/** Roof surface finish — a procedural clay-tile colour or a standing-seam metal
+ *  colour (no external asset). Absent = clay tile. */
+export type RoofMaterialKind = 'clay-tile' | 'metal-seam'
+
+/** Compass side of the roof a dormer sits on. Only the two sides the main roof
+ *  planes FACE are valid for a given ridge axis (ridge along X ⇒ N/S dormers;
+ *  ridge along Z ⇒ E/W dormers); a dormer on a non-facing side is skipped. */
+export type RoofDormerSide = 'N' | 'S' | 'E' | 'W'
+
+/** A gable dormer on one of the main roof planes: a small box + tiny gable that
+ *  breaks the slope for a window. `offset` is metres along that wall from its
+ *  minimum corner; `width` is the dormer's span (m). Window is visual only. */
+export interface PlanRoofDormer {
+  wallSide: RoofDormerSide
+  offset: number
+  width: number
+}
+
+/** Parametric roof over the top storey's footprint (UX research round 3, L,
+ *  `parametricRoof` pro flag). Additive + optional — a plan with no `roof`
+ *  renders exactly as before. Offered on landed/multi-storey plans. See
+ *  `roofModel.ts:buildRoofModel` for the pure geometry. */
+export interface PlanRoof {
+  style: RoofStyle
+  /** Roof pitch in degrees, clamped to [15, 45] by the geometry builder. */
+  pitchDeg: number
+  /** Eave overhang past the wall face (m), clamped to [0, 0.6]. */
+  overhang: number
+  /** Ridge direction: `auto` runs the ridge along the longer footprint axis;
+   *  `x`/`z` force it along that world axis. Ignored by `flat-parapet`. */
+  ridgeAxis: 'auto' | 'x' | 'z'
+  /** Surface finish; absent = clay tile. */
+  material?: RoofMaterialKind
+  /** Gable dormers on the main roof planes (gable/hip only). */
+  dormers?: PlanRoofDormer[]
 }
 
 export interface FloorPlan {
@@ -234,6 +366,25 @@ export interface FloorPlan {
    *  the editor snaps points to (Figma/Coohom-style ruler guides), distinct from
    *  transient smart guides. Plan-wide (not level-tagged). Additive + optional. */
   guides?: PlanGuide[]
+  /** Persisted electrical points (MEP layer, G1) — replaces the export-time
+   *  furniture heuristic once authored. Free XZ (not wall-anchored — see
+   *  `mepPoints.ts` header), level-tagged. Additive + optional. */
+  electricalPoints?: PlanElectricalPoint[]
+  /** Persisted plumbing points (MEP layer, G1). Same shape/rules as
+   *  `electricalPoints`. Additive + optional. */
+  plumbingPoints?: PlanPlumbingPoint[]
+  /** Optional explicit setting-out datum (TODO G3 — SG contractor
+   *  handover), ground storey only. Reserved for a future editor placement
+   *  affordance (not wired to any UI in this pass — see `settingOut.ts`'s
+   *  header for why); absent = the computed min-x/min-z external wall corner
+   *  (`settingOut.ts:datumPoint`), which is what every setting-out plan uses
+   *  in practice. Additive + optional. */
+  datum?: { x: number; z: number }
+  /** Optional parametric roof over the top storey (UX research round 3,
+   *  `parametricRoof` pro flag). Additive + optional — absent = no roof (the
+   *  prior behaviour). Rendered by `apartment/Roof.tsx` from the pure
+   *  `roofModel.ts` geometry. */
+  roof?: PlanRoof
 }
 
 /** A persistent axis-aligned reference guide: a vertical line at `x = pos`
@@ -276,6 +427,54 @@ export interface PlanPolyline {
   /** Arrowhead at the final point (open polylines only); absent = none. */
   arrow?: boolean
   /** Storey the polyline sits on; absent = ground (F13). */
+  levelId?: string
+}
+
+/** A persisted electrical point (MEP layer, G1) — free XZ world position (not
+ *  wall-anchored; wall attachment is a placement-time snap, not a persisted
+ *  binding — see `mepPoints.ts`). */
+export interface PlanElectricalPoint {
+  id: string
+  x: number
+  z: number
+  kind: ElectricalKind
+  /** Mount height above finished floor level (mm, AFFL). Absent = the
+   *  per-kind default from `mepPoints.ts`'s `ELECTRICAL_MOUNT_DEFAULTS_MM`. */
+  mountHeightMm?: number
+  /** Optional free-text annotation (e.g. "fridge", "study desk"). */
+  label?: string
+  /** Storey the point sits on; absent = ground (F13). */
+  levelId?: string
+  /** Lighting/switching schematic (BSJ-3, `switchCircuits` pro flag) — for a
+   *  `switch` point, the ids of the light fixtures it controls. An id is a
+   *  placed light fixture's item id (`PlanLight.id === item.id`); there is no
+   *  lighting-kind electrical POINT today, so a raw id is unambiguous (see
+   *  `switchCircuits.ts` for the id-vocabulary decision + how a future
+   *  point target would be `point:`-prefixed). Absent/empty = controls nothing.
+   *  Additive + optional — no version bump. */
+  controls?: string[]
+  /** Switch gang count (how many rockers on the plate) — informational, 1 or 2.
+   *  Absent = 1. */
+  gang?: number
+  /** One-way (`1`, absent) or two-way (`2`) switching. A two-way circuit is
+   *  modelled as TWO `switch` points listing the SAME `controls` with `way: 2`
+   *  on both — they share one circuit number and get `Sna`/`Snb` tags. */
+  way?: number
+}
+
+/** A persisted plumbing point (MEP layer, G1). Same shape/rules as
+ *  `PlanElectricalPoint`. */
+export interface PlanPlumbingPoint {
+  id: string
+  x: number
+  z: number
+  kind: PlumbingKind
+  /** Mount height above finished floor level (mm, AFFL). Absent = the
+   *  per-kind default from `mepPoints.ts`'s `PLUMBING_MOUNT_DEFAULTS_MM`. */
+  mountHeightMm?: number
+  /** Optional free-text annotation (e.g. "kitchen sink", "WC"). */
+  label?: string
+  /** Storey the point sits on; absent = ground (F13). */
   levelId?: string
 }
 

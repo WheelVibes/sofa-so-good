@@ -1,0 +1,27 @@
+{
+  "name": "copyappearance-simple",
+  "description": "IXT-SUITES batch 4: copyAppearance (simple) flag — the single-item inspector's 'Copy appearance' / 'Paste appearance' buttons (ItemBulkActions) transfer a look-only prop subset (e.g. upholstery colour) between two same-category items, on in both Simple and Pro.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "enter-room", "eval": "window.__store.getState().enterRoomEditor?.('livingDining')" },
+    { "name": "room-ready", "waitFor": { "store": "state.roomEditor?.active === true" }, "timeout": 8000 },
+    { "name": "assert-simple-on", "waitFor": { "store": "state.uiMode === 'simple' && state.featureFlags.copyAppearance === true" }, "timeout": 5000, "failMessage": "copyAppearance should be on in Simple (simple tier, default true)" },
+    { "name": "seed-items", "eval": "(() => { const s = window.__store.getState(); const a = s.addItem({ defId: 'sofa-3seat', position: [10.0, 3.5], rotation: 0, props: { color: '#c0392b' } }); const b = s.addItem({ defId: 'sofa-3seat', position: [10.0, 5.0], rotation: 0, props: { color: '#8aa1a8' } }); window.__caIds = [a, b]; s.selectItem(a); })()" },
+    { "name": "inspector-visible", "waitFor": { "css": ".panel.inspector" }, "timeout": 8000, "failMessage": "single-item inspector did not mount" },
+    { "name": "copy-btn-visible-simple", "waitFor": { "text": "Copy appearance" }, "timeout": 5000, "failMessage": "'Copy appearance' button should render in Simple mode" },
+    { "name": "shot-copy-btn", "screenshot": "inspector-copy-btn" },
+    { "name": "click-copy", "click": { "text": "Copy appearance" } },
+    { "name": "assert-clipboard-set", "waitFor": { "store": "window.__store.getState().appearanceClipboard?.props?.color === '#c0392b'" }, "timeout": 5000, "failMessage": "copyAppearance should capture item A's colour into appearanceClipboard" },
+    { "name": "select-target", "eval": "window.__store.getState().selectItem(window.__caIds[1])" },
+    { "name": "paste-btn-visible", "waitFor": { "text": "Paste appearance" }, "timeout": 5000, "failMessage": "'Paste appearance' should render once a clipboard exists" },
+    { "name": "click-paste", "click": { "text": "Paste appearance" } },
+    { "name": "assert-pasted", "waitFor": { "store": "(() => { const s = window.__store.getState(); const b = s.items.find(i => i.id === window.__caIds[1]); return b?.props?.color === '#c0392b'; })()" }, "timeout": 5000, "failMessage": "item B should now carry item A's copied colour" },
+    { "name": "shot-pasted", "screenshot": "inspector-pasted" },
+    { "name": "to-pro", "eval": "(() => { const s = window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags(); })()" },
+    { "name": "assert-pro-on", "waitFor": { "store": "state.featureFlags.copyAppearance === true" }, "timeout": 5000, "failMessage": "copyAppearance is simple-tier — should remain on in Pro too" },
+    { "name": "copy-btn-visible-pro", "waitFor": { "text": "Copy appearance" }, "timeout": 5000 }
+  ]
+}

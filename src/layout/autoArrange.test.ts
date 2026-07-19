@@ -12,6 +12,7 @@ import {
   arrangeAllRoomsForPlan,
   arrangePlanRoom,
   arrangeRoom,
+  LAYOUT_VARIANT_COUNT,
   roleForCategory,
   roleOf,
   roomKindFromName,
@@ -252,14 +253,20 @@ describe('arrangeRoom', () => {
     ) => b.x0 < k.x1 && b.x1 > k.x0 && b.z0 < k.z1 && b.z1 > k.z0
     for (const it of out) {
       const def = BUILTIN_CATALOG[it.defId]
-      if (def?.kind !== 'parametric' || def.mounted) continue
+      // A rug (noClip) is a flat floor covering people walk OVER, not a real
+      // door-path blocker — `blockedDoorItems`/the arranger's own keep-out
+      // check exempt it the same way (RM3 pt.2), so this hand-rolled probe
+      // matches that semantics too.
+      if (!def || def.mounted || def.noClip) continue
       if (roomOf(it.position) !== 'livingDining') continue
       let w = def.defaultFootprint.w
       let d = def.defaultFootprint.d
-      const wv = it.props[def.footprintParams?.w ?? 'width']
-      const dv = it.props[def.footprintParams?.d ?? 'depth']
-      if (typeof wv === 'number') w = wv
-      if (typeof dv === 'number') d = dv
+      if (def.kind === 'parametric') {
+        const wv = it.props[def.footprintParams?.w ?? 'width']
+        const dv = it.props[def.footprintParams?.d ?? 'depth']
+        if (typeof wv === 'number') w = wv
+        if (typeof dv === 'number') d = dv
+      }
       const c = Math.abs(Math.cos(it.rotation))
       const s = Math.abs(Math.sin(it.rotation))
       const hx = (c * w + s * d) / 2
@@ -274,6 +281,133 @@ describe('arrangeRoom', () => {
         if (overlaps(box, k))
           throw new Error(`${it.id} (${it.defId}) blocks a door/opening at [${it.position}]`)
       }
+    }
+  })
+})
+
+describe('locked items are treated as fixed obstacles (BUG: reroll/tidy moved locked furniture)', () => {
+  it('keeps a locked item at its exact position/rotation across arrangeRoom', () => {
+    const base = hydrate()
+    const lockedPos: [number, number] = [11.4, 4.2]
+    const withLock = base.map((i) =>
+      i.defId === 'sofa-3seat' ? { ...i, position: lockedPos, rotation: 1.23, locked: true } : i,
+    )
+    const out = arrangeRoom('livingDining', withLock, BUILTIN_CATALOG, {})
+    const sofa = out.find((i) => i.defId === 'sofa-3seat')!
+    expect(sofa.position).toEqual(lockedPos)
+    expect(sofa.rotation).toBe(1.23)
+  })
+
+  it('keeps a locked item at its exact position/rotation across a seeded reroll', () => {
+    const base = hydrate()
+    const lockedPos: [number, number] = [11.4, 4.2]
+    const withLock = base.map((i) =>
+      i.defId === 'sofa-3seat' ? { ...i, position: lockedPos, rotation: 1.23, locked: true } : i,
+    )
+    for (let seed = 0; seed < LAYOUT_VARIANT_COUNT; seed++) {
+      const out = arrangeRoom('livingDining', withLock, BUILTIN_CATALOG, {}, seed)
+      const sofa = out.find((i) => i.defId === 'sofa-3seat')!
+      expect(sofa.position).toEqual(lockedPos)
+      expect(sofa.rotation).toBe(1.23)
+    }
+  })
+
+  it('does not let other items overlap the locked item', () => {
+    const base = hydrate()
+    const lockedPos: [number, number] = [11.4, 4.2]
+    const withLock = base.map((i) =>
+      i.defId === 'sofa-3seat' ? { ...i, position: lockedPos, rotation: 1.23, locked: true } : i,
+    )
+    const out = arrangeRoom('livingDining', withLock, BUILTIN_CATALOG, {})
+    assertValid(out)
+  })
+
+  it('a room with no locked items is unchanged (byte-identical to before the fix)', () => {
+    const base = hydrate()
+    const out = arrangeRoom('livingDining', base, BUILTIN_CATALOG, {})
+    assertValid(out)
+    const sofa = out.find((i) => i.defId === 'sofa-3seat' && roomOf(i.position) === 'livingDining')
+    expect(sofa).toBeDefined()
+    // Facing +X (east) ≈ rotation PI/2 — same as the pre-fix behaviour asserted
+    // in the 'orients the living-room sofa to face the east TV wall' test above.
+    expect(Math.abs(Math.sin(sofa!.rotation) - 1)).toBeLessThan(0.1)
+  })
+})
+
+describe('layout reroll variants (LAYOUT-REROLL)', () => {
+  // A signature that ignores id order — position + rotation per item.
+  const sig = (items: FurnitureItem[]) =>
+    items
+      .map(
+        (i) =>
+          `${i.id}:${i.position[0].toFixed(3)},${i.position[1].toFixed(3)}@${i.rotation.toFixed(3)}`,
+      )
+      .sort()
+      .join('|')
+
+  const ROOMS_UNDER_TEST = [
+    'livingDining',
+    'mainBedroom',
+    'bedroom2',
+    'bedroom3',
+    'kitchen',
+  ] as const
+
+  it('seed 0 is byte-identical to the default (no-seed) arranger', () => {
+    for (const room of ROOMS_UNDER_TEST) {
+      const base = hydrate()
+      const noSeed = arrangeRoom(room, base, BUILTIN_CATALOG, {})
+      const seed0 = arrangeRoom(room, base, BUILTIN_CATALOG, {}, 0)
+      expect(sig(seed0)).toBe(sig(noSeed))
+    }
+  })
+
+  it('every seed produces a collision-valid, in-room layout', () => {
+    for (const room of ROOMS_UNDER_TEST) {
+      for (let seed = 0; seed < LAYOUT_VARIANT_COUNT; seed++) {
+        const out = arrangeRoom(room, hydrate(), BUILTIN_CATALOG, {}, seed)
+        assertValid(out)
+        // No item was flung out of its room by a variant.
+        const before = hydrate().filter((i) => roomOf(i.position) === room)
+        const after = out.filter((i) => roomOf(i.position) === room)
+        expect(after.length).toBe(before.length)
+      }
+    }
+  })
+
+  it('at least one seed yields a DIFFERENT layout from the default per room', () => {
+    for (const room of ROOMS_UNDER_TEST) {
+      const base = hydrate()
+      const def = sig(arrangeRoom(room, base, BUILTIN_CATALOG, {}, 0))
+      const anyDifferent = Array.from({ length: LAYOUT_VARIANT_COUNT - 1 }, (_, i) =>
+        sig(arrangeRoom(room, base, BUILTIN_CATALOG, {}, i + 1)),
+      ).some((s) => s !== def)
+      expect(anyDifferent).toBe(true)
+    }
+  })
+
+  it('bedroom reroll moves the bed to a different headboard wall', () => {
+    const base = hydrate()
+    const bedOf = (items: FurnitureItem[]) =>
+      items.find(
+        (i) => roleOf(i.defId, BUILTIN_CATALOG) === 'bed' && roomOf(i.position) === 'mainBedroom',
+      )!
+    const def = bedOf(arrangeRoom('mainBedroom', base, BUILTIN_CATALOG, {}, 0))
+    const moved = Array.from({ length: LAYOUT_VARIANT_COUNT - 1 }, (_, i) =>
+      bedOf(arrangeRoom('mainBedroom', base, BUILTIN_CATALOG, {}, i + 1)),
+    ).some(
+      (b) =>
+        Math.hypot(b.position[0] - def.position[0], b.position[1] - def.position[1]) > 0.3 ||
+        Math.abs(b.rotation - def.rotation) > 0.1,
+    )
+    expect(moved).toBe(true)
+  })
+
+  it('custom-plan reroll stays valid across seeds (arrangePlanRoom)', () => {
+    const plan = buildDefaultPlan()
+    for (let seed = 0; seed < LAYOUT_VARIANT_COUNT; seed++) {
+      const out = arrangePlanRoom(plan, 'livingDining', hydrate(), BUILTIN_CATALOG, {}, seed)
+      assertValid(out)
     }
   })
 })
@@ -415,7 +549,10 @@ describe('arrangeAllRooms with imported IKEA defs (whole-home Tidy regression gu
     expect(new Set(out.map((i) => i.id)).size).toBe(items.length)
     expect(out.find((i) => i.id === 's1')).toBeDefined()
     expect(out.find((i) => i.id === 'b1')).toBeDefined()
-  })
+    // Whole-home pass over a full catalog + fine settle fallback (RM3) runs
+    // ~2 s alone but can exceed the 5 s default under full-suite CPU
+    // contention — give it explicit headroom so the gate stays deterministic.
+  }, 20000)
 })
 
 describe('roomKindFromName', () => {

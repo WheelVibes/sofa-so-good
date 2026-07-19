@@ -1,0 +1,168 @@
+{
+  "name": "unroomedflag-simple",
+  "description": "Simple ladder for unroomedFlag (Un-roomed area flag): opens the 2D plan editor, confirms the Kitchen's floor area is covered by a real room fill (fully-roomed default flat), then removes the Kitchen room (removeRoom keeps its walls) and asserts that same point is no LONGER covered by any room fill (the red un-roomed polygon underneath is now the topmost thing showing there) \u2014 then undoes and asserts the room fill covers it again. The polygon itself is a static, pointer-events:none full-building outline drawn BENEATH the RoomsLayer (so it's occlusion-tested via DOM room-fill coverage, not element-picking, which pointer-events:none defeats \u2014 elementFromPoint skips pointer-events:none shapes entirely). unroomedFlag is simple-tier (present in both Simple and Pro) \u2014 asserted ON in both modes.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": {
+        "store": "state.uiMode === 'simple'"
+      },
+      "timeout": 5000,
+      "failMessage": "Expected uiMode=simple at boot"
+    },
+    {
+      "name": "verify-unroomedflag-on-in-simple",
+      "waitFor": {
+        "store": "state.featureFlags && state.featureFlags.unroomedFlag === true"
+      },
+      "timeout": 10000,
+      "failMessage": "unroomedFlag should be ON in Simple mode (it is simple-tier)"
+    },
+    {
+      "name": "open-plan-editor",
+      "store": {
+        "action": "setFloorPlanEditing",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "plan-screen-visible",
+      "waitFor": {
+        "css": ".plan-screen"
+      },
+      "timeout": 30000,
+      "failMessage": ".plan-screen did not mount after setFloorPlanEditing(true)"
+    },
+    {
+      "name": "wait-plan-settle",
+      "wait": 1000
+    },
+    {
+      "name": "verify-kitchen-point-covered-by-room-fill",
+      "waitFor": {
+        "store": "(() => { const x = 816, y = 748; return [...document.querySelectorAll(\"[fill^='var(--surface']\")].some((el) => { const b = el.getBoundingClientRect(); return x >= b.left && x <= b.right && y >= b.top && y <= b.bottom; }); })()"
+      },
+      "timeout": 10000,
+      "failMessage": "Expected the Kitchen's floor area to be covered by a room fill on the fully-roomed default flat"
+    },
+    {
+      "name": "shot-fully-roomed",
+      "screenshot": "01-fully-roomed-no-flag"
+    },
+    {
+      "name": "remove-a-room-keep-walls",
+      "store": {
+        "action": "removeRoom",
+        "args": [
+          "kitchen"
+        ]
+      }
+    },
+    {
+      "name": "verify-room-removed",
+      "waitFor": {
+        "store": "!state.floorPlan.rooms.some((r) => r.id === 'kitchen')"
+      },
+      "timeout": 5000,
+      "failMessage": "Expected the kitchen room to be removed from the plan"
+    },
+    {
+      "name": "verify-unroomed-flag-appears",
+      "waitFor": {
+        "store": "(() => { const x = 816, y = 748; return ![...document.querySelectorAll(\"[fill^='var(--surface']\")].some((el) => { const b = el.getBoundingClientRect(); return x >= b.left && x <= b.right && y >= b.top && y <= b.bottom; }); })()"
+      },
+      "timeout": 10000,
+      "failMessage": "Expected NO room fill to cover the Kitchen's floor area once the kitchen room (but not its walls) is removed \u2014 the red un-roomed polygon underneath should now show"
+    },
+    {
+      "name": "shot-unroomed-flag-visible",
+      "screenshot": "02-unroomed-flag-visible"
+    },
+    {
+      "name": "undo-room-removal",
+      "store": {
+        "action": "undo",
+        "args": []
+      }
+    },
+    {
+      "name": "verify-room-restored",
+      "waitFor": {
+        "store": "state.floorPlan.rooms.some((r) => r.id === 'kitchen')"
+      },
+      "timeout": 5000,
+      "failMessage": "Expected undo to restore the kitchen room"
+    },
+    {
+      "name": "verify-unroomed-flag-clears",
+      "waitFor": {
+        "store": "(() => { const x = 816, y = 748; return [...document.querySelectorAll(\"[fill^='var(--surface']\")].some((el) => { const b = el.getBoundingClientRect(); return x >= b.left && x <= b.right && y >= b.top && y <= b.bottom; }); })()"
+      },
+      "timeout": 10000,
+      "failMessage": "Expected the Kitchen room fill to cover its area again once restored by undo"
+    },
+    {
+      "name": "shot-flag-cleared-after-undo",
+      "screenshot": "03-flag-cleared-after-undo"
+    },
+    {
+      "name": "switch-to-pro",
+      "store": {
+        "action": "setUiMode",
+        "args": [
+          "pro"
+        ]
+      }
+    },
+    {
+      "name": "verify-pro-mode",
+      "waitFor": {
+        "store": "state.uiMode === 'pro'"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "verify-unroomedflag-on-in-pro",
+      "waitFor": {
+        "store": "state.featureFlags && state.featureFlags.unroomedFlag === true"
+      },
+      "timeout": 10000,
+      "failMessage": "unroomedFlag should still be ON in Pro mode (simple-tier flags are shown in both modes)"
+    },
+    {
+      "name": "remove-room-again-in-pro",
+      "store": {
+        "action": "removeRoom",
+        "args": [
+          "kitchen"
+        ]
+      }
+    },
+    {
+      "name": "verify-unroomed-flag-in-pro",
+      "waitFor": {
+        "store": "(() => { const x = 816, y = 748; return ![...document.querySelectorAll(\"[fill^='var(--surface']\")].some((el) => { const b = el.getBoundingClientRect(); return x >= b.left && x <= b.right && y >= b.top && y <= b.bottom; }); })()"
+      },
+      "timeout": 10000,
+      "failMessage": "The un-roomed flag should still work identically in Pro mode"
+    },
+    {
+      "name": "shot-pro-mode-flag",
+      "screenshot": "04-pro-mode-flag-visible"
+    }
+  ]
+}

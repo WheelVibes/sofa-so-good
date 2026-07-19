@@ -1,0 +1,63 @@
+{
+  "name": "design-chat-simple",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true || state.bootPhase === 'ready'"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setUiMode?.('pro'); s.reresolveFeatureFlags?.(); })()"
+    },
+    {
+      "name": "flag-on-pro",
+      "waitFor": {
+        "store": "state.featureFlags.aiDesignChat === true"
+      }
+    },
+    {
+      "name": "grounding",
+      "eval": "(() => { const ctx = window.__designChatContext(); if (typeof ctx !== 'string' || ctx.length < 200) throw new Error('context too small: ' + String(ctx).slice(0, 100)); const must = ['Living', 'score', 'm²']; for (const m of must) { if (!new RegExp(m, 'i').test(ctx)) throw new Error('context missing \"' + m + '\": ' + ctx.slice(0, 300)); } window.__ctxLen = ctx.length; return 'grounded, ' + ctx.length + ' chars'; })()"
+    },
+    {
+      "name": "open-panel",
+      "eval": "window.__store.getState().setDesignChatOpen(true)"
+    },
+    {
+      "name": "panel-open",
+      "waitFor": {
+        "text": "Design chat"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "settle",
+      "wait": 1200
+    },
+    {
+      "name": "shot-panel",
+      "screenshot": "design-chat-panel"
+    },
+    {
+      "name": "simple-hides",
+      "eval": "(() => { const s = window.__store.getState(); s.setUiMode('simple'); s.reresolveFeatureFlags?.(); })()"
+    },
+    {
+      "name": "flag-off-simple",
+      "waitFor": {
+        "store": "state.featureFlags.aiDesignChat === false"
+      }
+    }
+  ]
+}

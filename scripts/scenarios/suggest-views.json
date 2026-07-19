@@ -1,0 +1,67 @@
+{
+  "name": "suggest-views",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true || state.bootPhase === 'ready'"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setUiMode?.('pro'); s.reresolveFeatureFlags?.(); })()"
+    },
+    {
+      "name": "suggest",
+      "eval": "window.__count = window.__store.getState().suggestSavedViews()"
+    },
+    {
+      "name": "views-added",
+      "waitFor": {
+        "store": "(state.savedViews || []).length >= 3"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "probe",
+      "eval": "(() => JSON.stringify(window.__store.getState().savedViews.map(v => v.name)))()"
+    },
+    {
+      "name": "dedup-check",
+      "eval": "(() => { const n = window.__store.getState().suggestSavedViews(); if (n !== 0) throw new Error('dedup failed, second run added ' + n); return 'dedup ok'; })()"
+    },
+    {
+      "name": "apply-corner",
+      "eval": "(() => { const s = window.__store.getState(); const v = s.savedViews.find(v => /corner/i.test(v.name)); s.applyView(v.id); window.__cornerName = v.name; })()"
+    },
+    {
+      "name": "settle1",
+      "wait": 4000
+    },
+    {
+      "name": "shot-corner",
+      "screenshot": "suggested-corner"
+    },
+    {
+      "name": "apply-overview",
+      "eval": "(() => { const s = window.__store.getState(); const v = s.savedViews.find(v => /overview/i.test(v.name)); s.applyView(v.id); })()"
+    },
+    {
+      "name": "settle2",
+      "wait": 4000
+    },
+    {
+      "name": "shot-overview",
+      "screenshot": "suggested-overview"
+    }
+  ]
+}

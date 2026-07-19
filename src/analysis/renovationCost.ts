@@ -56,6 +56,50 @@ export function wallRateKind(id: string): WallRateKind {
 /** Built-in carpentry rate (SGD per linear metre) for cabinet/wardrobe runs. */
 const DEFAULT_CARPENTRY_RATE = 320
 
+/**
+ * Per-trade rates for the whole-renovation budget allocator (BSJ-1). These cover
+ * the trades the finishes-only `estimateRenovation` deliberately excludes
+ * (hacking, ceiling, M&E, aircon, glass, plumbing fixtures) so the allocator can
+ * reuse ONE rate card end-to-end. The tiling + painting + flooring trades reuse
+ * the existing `floor`/`wall` finish buckets above (single source of truth), so
+ * they intentionally have no entry here.
+ *
+ * Indicative SG mid-market 2025-26 rates (9creation / Qanvast / RCS).
+ */
+type TradeRateKey =
+  /** Demolition / hacking, SGD per linear metre of demolished wall. */
+  | 'hackingPerM'
+  /** False ceiling / partition ceiling works, SGD per m². */
+  | 'ceilingPerM2'
+  /** M&E first/final fix, SGD per electrical or plumbing point. */
+  | 'mePerPoint'
+  /** Aircon install allowance, SGD per indoor FCU (incl. share of piping/condenser). */
+  | 'airconPerUnit'
+  /** Glass & aluminium (shower screens / partitions / grilles), SGD per m². */
+  | 'glassPerM2'
+  /** Sanitary / plumbing fixture install, SGD each. */
+  | 'plumbingFixtureEach'
+  /** Waterproofing membrane (wet-area floor + wall upturn, BSJ-7), SGD per m². */
+  | 'waterproofingPerM2'
+  /** Contingency, percent of the trade subtotal (0–100). */
+  | 'contingencyPct'
+
+/** A `Record` (not an interface) so it stays assignable to the lenient
+ *  `Record<string, number>` save schema, exactly like the `floor`/`wall` maps. */
+export type TradeRates = Record<TradeRateKey, number>
+
+/** Factory-default per-trade rates. */
+const DEFAULT_TRADE_RATES: TradeRates = {
+  hackingPerM: 55,
+  ceilingPerM2: 32,
+  mePerPoint: 120,
+  airconPerUnit: 1800,
+  glassPerM2: 240,
+  plumbingFixtureEach: 150,
+  waterproofingPerM2: 35,
+  contingencyPct: 10,
+}
+
 /** A complete, user-overridable rate card driving the quote + renovation estimate. */
 export interface PriceRules {
   /** $/m² per floor-finish bucket. */
@@ -64,6 +108,9 @@ export interface PriceRules {
   wall: Record<WallRateKind, number>
   /** Carpentry $/linear metre (cabinets / wardrobes / counters). */
   carpentryPerM: number
+  /** Per-trade rates for the whole-reno budget allocator (BSJ-1). Additive — the
+   *  BOQ + `estimateRenovation` never read this, so their output is unchanged. */
+  trades: TradeRates
 }
 
 /** Factory defaults — reproduce the built-in rate table exactly. */
@@ -71,11 +118,17 @@ export const DEFAULT_PRICE_RULES: PriceRules = {
   floor: { ...RENO_RATES.floor },
   wall: { ...RENO_RATES.wall },
   carpentryPerM: DEFAULT_CARPENTRY_RATE,
+  trades: { ...DEFAULT_TRADE_RATES },
 }
 
 /** Clamp a single rate to a finite, non-negative number (fallback to the default). */
 function safeRate(v: unknown, fallback: number): number {
   return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : fallback
+}
+
+/** Clamp a percentage to a finite [0, 100] number (fallback to the default). */
+function safePct(v: unknown, fallback: number): number {
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 100 ? v : fallback
 }
 
 /** A loosely-typed partial rate card (each bucket independently optional) —
@@ -84,6 +137,7 @@ export interface PartialPriceRules {
   floor?: Partial<Record<FloorRateKind, number>>
   wall?: Partial<Record<WallRateKind, number>>
   carpentryPerM?: number
+  trades?: Partial<TradeRates>
 }
 
 /** Merge a partial (e.g. deserialised) rate card onto the defaults, sanitising
@@ -98,7 +152,14 @@ export function mergePriceRules(partial?: PartialPriceRules | null): PriceRules 
   for (const k of Object.keys(d.wall) as WallRateKind[]) {
     wall[k] = safeRate(partial?.wall?.[k], d.wall[k])
   }
-  return { floor, wall, carpentryPerM: safeRate(partial?.carpentryPerM, d.carpentryPerM) }
+  const trades = {} as TradeRates
+  for (const k of Object.keys(DEFAULT_TRADE_RATES) as (keyof TradeRates)[]) {
+    trades[k] =
+      k === 'contingencyPct'
+        ? safePct(partial?.trades?.[k], DEFAULT_TRADE_RATES[k])
+        : safeRate(partial?.trades?.[k], DEFAULT_TRADE_RATES[k])
+  }
+  return { floor, wall, carpentryPerM: safeRate(partial?.carpentryPerM, d.carpentryPerM), trades }
 }
 
 /** True when any rate differs from the factory default (decides save-schema persistence). */
@@ -108,6 +169,9 @@ export function isNonDefaultPriceRules(r: PriceRules): boolean {
   for (const k of Object.keys(d.floor) as FloorRateKind[])
     if (r.floor[k] !== d.floor[k]) return true
   for (const k of Object.keys(d.wall) as WallRateKind[]) if (r.wall[k] !== d.wall[k]) return true
+  const t = r.trades ?? DEFAULT_TRADE_RATES
+  for (const k of Object.keys(DEFAULT_TRADE_RATES) as (keyof TradeRates)[])
+    if (t[k] !== DEFAULT_TRADE_RATES[k]) return true
   return false
 }
 

@@ -1,0 +1,32 @@
+{
+  "name": "ux-audit-03-roomcat-plan",
+  "description": "UX audit stage 3+plan: 2D plan editor — rename a room, set Room type (RoomInspector), plus Pro overlays hackability + MEP.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "pro-mode", "eval": "(() => { const st=window.__store.getState(); st.setUiMode?.('pro'); st.reresolveFeatureFlags?.() })()" },
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-visible", "waitFor": { "css": ".plan-screen" }, "timeout": 40000 },
+    { "name": "settle-plan", "wait": 2500 },
+    { "name": "shot-plan-editor", "screenshot": "plan-editor" },
+
+    { "name": "select-room", "eval": "(() => { const s=window.__store.getState(); const rooms=(s.floorPlan.levels? s.floorPlan.levels.find(l=>l.id===s.floorPlan.activeLevelId)?.rooms : null) || s.floorPlan.rooms || []; const biggest=rooms.reduce((a,b)=> (a && a.width*a.depth>=b.width*b.depth)?a:b, rooms[0]); window.__pickRoom=biggest?.id; s.setPlanSelection({type:'room', id: biggest.id}); return biggest?.id })()" },
+    { "name": "room-inspector-visible", "waitFor": { "css": ".plan-props, #planInspector, .plan-inspector" }, "timeout": 6000, "failMessage": "Room inspector did not open" },
+    { "name": "settle-sel", "wait": 500 },
+    { "name": "shot-room-inspector", "screenshot": "room-inspector-default" },
+
+    { "name": "rename-room", "eval": "(() => { const s=window.__store.getState(); s.updateRoom(window.__pickRoom, {name:'Reading Nook'}); })()" },
+    { "name": "set-category", "eval": "(() => { const s=window.__store.getState(); s.updateRoom(window.__pickRoom, {category:'study'}); })()" },
+    { "name": "settle-rename", "wait": 500 },
+    { "name": "shot-room-renamed", "screenshot": "room-renamed-category" },
+
+    { "name": "open-mep", "eval": "(() => { const btns=[...document.querySelectorAll('button')]; const b=btns.find(x=>x.textContent.trim()==='MEP'); if(b) b.click(); return !!b })()" },
+    { "name": "settle-mep", "wait": 800 },
+    { "name": "shot-mep", "screenshot": "plan-mep-mode" },
+
+    { "name": "open-hack", "eval": "(() => { const btns=[...document.querySelectorAll('button')]; const b=btns.find(x=>x.textContent.trim()==='Hackability'); if(b) b.click(); return !!b })()" },
+    { "name": "settle-hack", "wait": 800 },
+    { "name": "shot-hack", "screenshot": "plan-hackability" }
+  ]
+}

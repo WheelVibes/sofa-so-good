@@ -23,6 +23,7 @@ export type ContextTarget =
   | { kind: 'dim'; id: string }
   | { kind: 'note'; id: string }
   | { kind: 'polyline'; id: string }
+  | { kind: 'mep'; family: 'electrical' | 'plumbing'; id: string }
   | { kind: 'canvas' }
 
 /** Position of the right-click context menu, in viewport px, + its target. */
@@ -71,6 +72,12 @@ export interface FeaturesSlice {
   renderCompareOpen: boolean
   /** Before/after staging-reveal modal visibility (empty room vs furnished). */
   stagingRevealOpen: boolean
+  /** Live 3D version split-view compare modal visibility (current design vs a
+   *  saved version, reveal-divider). */
+  versionCompareOpen: boolean
+  /** The saved version slot the compare modal targets, or null when closed /
+   *  none chosen yet. Set together with `versionCompareOpen`. */
+  versionCompareSlot: string | null
   /** Time-of-day comparison reveal modal visibility (same scene, two times). */
   timeCompareOpen: boolean
   /** One-tap style-transfer modal visibility. */
@@ -112,6 +119,9 @@ export interface FeaturesSlice {
   historyOpen: boolean
   /** Pinned design comments (F24) panel visibility. */
   commentsOpen: boolean
+  /** AI design chat (read-only, BYO-key advisor grounded in the live design)
+   *  panel visibility. */
+  designChatOpen: boolean
   /** Smart Start wizard (pick a style → furnished flat) visibility. */
   smartStartOpen: boolean
   /** GLB Asset Designer (compose/edit a custom asset → catalog) visibility. */
@@ -135,6 +145,18 @@ export interface FeaturesSlice {
   /** Optional shopping budget target (SGD); drives the over/under indicator in
    *  the Budget panel. Persisted per-device. `null` = no target set. */
   budgetTarget: number | null
+  /** Handover / DLP tracker (R4-8) panel visibility. */
+  handoverOpen: boolean
+  /** SG renovation-rules reference pack (R4-6) panel visibility. */
+  renoRulesOpen: boolean
+  /** Optional key-collection / TOP date (`yyyy-mm-dd`) driving the DLP /
+   *  warranty date tracker (R4-8). Persisted with the design. `null` = unset. */
+  keyCollectionDate: string | null
+  /** Ticked move-in checklist items (checklist item id → true), so a user can
+   *  tick items off on collection day and have it survive a reload (UXW-P3-6).
+   *  Persisted with the design, additively — like `keyCollectionDate`; not an
+   *  undoable edit, so it's out of the history snapshot. */
+  handoverChecked: Record<string, boolean>
   setCmdkOpen: (open: boolean) => void
   toggleCmdk: () => void
   setLeftMode: (mode: 'catalog' | 'layers') => void
@@ -157,6 +179,8 @@ export interface FeaturesSlice {
   setHqRenderOpen: (open: boolean) => void
   setRenderCompareOpen: (open: boolean) => void
   setStagingRevealOpen: (open: boolean) => void
+  /** Open the version-compare modal for `slot` (null to close). */
+  setVersionCompare: (slot: string | null) => void
   setTimeCompareOpen: (open: boolean) => void
   setStyleTransferOpen: (open: boolean) => void
   setStyleQuizOpen: (open: boolean) => void
@@ -180,6 +204,7 @@ export interface FeaturesSlice {
   setVersionsOpen: (open: boolean) => void
   setHistoryOpen: (open: boolean) => void
   setCommentsOpen: (open: boolean) => void
+  setDesignChatOpen: (open: boolean) => void
   setSmartStartOpen: (open: boolean) => void
   setGlbDesignerOpen: (open: boolean) => void
   setParametricOpen: (open: boolean) => void
@@ -190,6 +215,12 @@ export interface FeaturesSlice {
   setQuoteTemplateOpen: (open: boolean) => void
   setShopTab: (tab: 'list' | 'saved') => void
   setBudgetTarget: (target: number | null) => void
+  setHandoverOpen: (open: boolean) => void
+  setRenoRulesOpen: (open: boolean) => void
+  /** Set / clear the key-collection date (`yyyy-mm-dd`, or `null`). */
+  setKeyCollectionDate: (date: string | null) => void
+  /** Toggle a move-in checklist item's ticked state (UXW-P3-6). */
+  toggleHandoverCheck: (id: string) => void
 }
 
 export const FEATURES_INITIAL = {
@@ -208,6 +239,8 @@ export const FEATURES_INITIAL = {
   hqRenderOpen: false,
   renderCompareOpen: false,
   stagingRevealOpen: false,
+  versionCompareOpen: false,
+  versionCompareSlot: null as string | null,
   timeCompareOpen: false,
   styleTransferOpen: false,
   styleQuizOpen: false,
@@ -226,6 +259,7 @@ export const FEATURES_INITIAL = {
   versionsOpen: false,
   historyOpen: false,
   commentsOpen: false,
+  designChatOpen: false,
   smartStartOpen: false,
   glbDesignerOpen: false,
   parametricOpen: false,
@@ -236,6 +270,10 @@ export const FEATURES_INITIAL = {
   quoteTemplateOpen: false,
   shopTab: 'list' as 'list' | 'saved',
   budgetTarget: null as number | null,
+  handoverOpen: false,
+  renoRulesOpen: false,
+  keyCollectionDate: null as string | null,
+  handoverChecked: {} as Record<string, boolean>,
 }
 
 export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set) => ({
@@ -270,6 +308,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setHqRenderOpen: (hqRenderOpen) => set({ hqRenderOpen }),
   setRenderCompareOpen: (renderCompareOpen) => set({ renderCompareOpen }),
   setStagingRevealOpen: (stagingRevealOpen) => set({ stagingRevealOpen }),
+  setVersionCompare: (slot) => set({ versionCompareOpen: slot !== null, versionCompareSlot: slot }),
   setTimeCompareOpen: (timeCompareOpen) => set({ timeCompareOpen }),
   setStyleTransferOpen: (styleTransferOpen) => set({ styleTransferOpen }),
   setStyleQuizOpen: (styleQuizOpen) => set({ styleQuizOpen }),
@@ -295,6 +334,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setVersionsOpen: (versionsOpen) => set({ versionsOpen }),
   setHistoryOpen: (historyOpen) => set({ historyOpen }),
   setCommentsOpen: (commentsOpen) => set({ commentsOpen }),
+  setDesignChatOpen: (designChatOpen) => set({ designChatOpen }),
   setSmartStartOpen: (smartStartOpen) => set({ smartStartOpen }),
   setGlbDesignerOpen: (glbDesignerOpen) => set({ glbDesignerOpen }),
   setParametricOpen: (parametricOpen) => set({ parametricOpen }),
@@ -306,4 +346,17 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setShopTab: (shopTab) => set({ shopTab }),
   setBudgetTarget: (budgetTarget) =>
     set({ budgetTarget: budgetTarget != null && budgetTarget > 0 ? budgetTarget : null }),
+  setHandoverOpen: (handoverOpen) => set({ handoverOpen }),
+  setRenoRulesOpen: (renoRulesOpen) => set({ renoRulesOpen }),
+  setKeyCollectionDate: (keyCollectionDate) =>
+    set({ keyCollectionDate: keyCollectionDate || null }),
+  toggleHandoverCheck: (id) =>
+    set((s) => {
+      // Replace the object (new reference) so the autosave reference-compare
+      // detects the change; drop the key when un-ticking to keep saves lean.
+      const next = { ...s.handoverChecked }
+      if (next[id]) delete next[id]
+      else next[id] = true
+      return { handoverChecked: next }
+    }),
 })

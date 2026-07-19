@@ -1,0 +1,46 @@
+{
+  "name": "gapsuggest-simple",
+  "description": "IXT-SUITES: gapSuggest (pro) flag gate + a real interaction. Two side tables seeded 0.5 m apart (a 'Narrow' walkway gap) inside the Living/Dining room; the ClearancePanel's 'Nudge apart' button is hidden in Simple and, in Pro, one click widens the gap toward the 0.9 m ideal clearance.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "seed-narrow-gap",
+      "eval": "(() => { const s = window.__store.getState(); s.setItems([ { id:'gap-a', defId:'side-table', position:[10.075, 4.1], rotation:0, props:{} }, { id:'gap-b', defId:'side-table', position:[11.025, 4.1], rotation:0, props:{} } ]); })()"
+    },
+    { "name": "items-present", "waitFor": { "store": "state.items.length === 2" } },
+    { "name": "assert-simple-hidden", "waitFor": { "store": "state.uiMode === 'simple' && state.featureFlags.gapSuggest === false" }, "timeout": 5000, "failMessage": "gapSuggest should be OFF in Simple mode" },
+    { "name": "open-panel-simple", "store": { "action": "setClearancePanelOpen", "args": [true] } },
+    { "name": "panel-visible-simple", "waitFor": { "css": "#clearancePanel" }, "timeout": 8000 },
+    { "name": "assert-narrow-gap-flagged-simple", "waitFor": { "text": "Narrow" }, "timeout": 5000, "failMessage": "ClearancePanel should list the narrow gap regardless of gapSuggest" },
+    {
+      "name": "assert-no-nudge-button-simple",
+      "eval": "(() => { const btns = [...document.querySelectorAll('#clearancePanel button')]; if (btns.some((b) => b.textContent.trim() === 'Nudge apart')) throw new Error('Nudge apart button should not render in Simple mode'); })()"
+    },
+    { "name": "shot-simple-no-nudge", "screenshot": "simple-no-nudge-button" },
+    { "name": "to-pro", "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()" },
+    { "name": "assert-pro-on", "waitFor": { "store": "state.featureFlags.gapSuggest === true" }, "timeout": 5000, "failMessage": "gapSuggest should be ON in Pro mode" },
+    { "name": "nudge-button-visible", "waitFor": { "text": "Nudge apart" }, "timeout": 8000, "failMessage": "'Nudge apart' button did not appear in Pro mode" },
+    { "name": "shot-pro-nudge-visible", "screenshot": "pro-nudge-visible" },
+    {
+      "name": "record-positions-before",
+      "eval": "window.__before = window.__store.getState().items.map((i) => ({ id: i.id, position: i.position.slice() }))"
+    },
+    {
+      "name": "click-nudge-apart",
+      "eval": "(() => { const btn = [...document.querySelectorAll('#clearancePanel button')].find((b) => b.textContent.trim() === 'Nudge apart'); if (!btn) throw new Error('Nudge apart button not found'); btn.click(); })()"
+    },
+    {
+      "name": "assert-gap-widened",
+      "eval": "(() => { const items = window.__store.getState().items; const a = items.find((i) => i.id === 'gap-a'); const b = items.find((i) => i.id === 'gap-b'); const before = window.__before; const ba = before.find((i) => i.id === 'gap-a'); const bb = before.find((i) => i.id === 'gap-b'); const distBefore = Math.hypot(ba.position[0]-bb.position[0], ba.position[1]-bb.position[1]); const distAfter = Math.hypot(a.position[0]-b.position[0], a.position[1]-b.position[1]); if (!(distAfter > distBefore + 0.05)) throw new Error('Nudge apart did not widen the gap: before=' + distBefore + ' after=' + distAfter); return { distBefore, distAfter }; })()"
+    },
+    { "name": "shot-pro-nudged", "screenshot": "pro-gap-nudged" },
+    { "name": "close-panel", "store": { "action": "setClearancePanelOpen", "args": [false] } },
+    { "name": "back-to-simple", "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('simple'); s.reresolveFeatureFlags();})()" },
+    { "name": "assert-simple-again", "waitFor": { "store": "state.featureFlags.gapSuggest === false" }, "timeout": 5000 }
+  ]
+}

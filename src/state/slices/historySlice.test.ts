@@ -451,6 +451,7 @@ describe('HistorySnapshot completeness guard (TEST-4)', () => {
     'comments',
     'drawingCallouts',
     'quoteTemplate',
+    'drawingSetTemplate',
     'priceRules',
     'masterPalette',
     'roomPalettes',
@@ -574,6 +575,38 @@ describe('HistorySnapshot completeness guard (TEST-4)', () => {
       expect(s().roomPalettes.mainBedroom).toEqual(['#00ff00'])
       s().undo()
       expect(s().roomPalettes).toEqual({})
+    })
+  })
+
+  describe('runWithoutHistory (batch collapses to one undo step)', () => {
+    it('suppresses internal pushes so many actions become one undo entry', () => {
+      s().clearHistory()
+      const before = s().past.length
+      // One explicit snapshot, then a batch of actions that each normally push.
+      s().pushHistory()
+      s().runWithoutHistory(() => {
+        s().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
+        s().addWall({ start: [2, 0], end: [2, 2], thickness: 'internal' })
+        s().addRoom({ name: 'R', origin: [0, 0], width: 2, depth: 2 })
+      })
+      // Exactly ONE new past entry despite 3 pushing actions inside the batch.
+      expect(s().past.length).toBe(before + 1)
+      // Suppression is restored afterward — a normal push works again.
+      s().pushHistory()
+      expect(s().past.length).toBe(before + 2)
+    })
+
+    it('restores suppression state even if the batch throws', () => {
+      s().clearHistory()
+      expect(() =>
+        s().runWithoutHistory(() => {
+          throw new Error('boom')
+        }),
+      ).toThrow('boom')
+      expect(s()._suppressHistory).toBe(false)
+      const n = s().past.length
+      s().pushHistory()
+      expect(s().past.length).toBe(n + 1)
     })
   })
 })

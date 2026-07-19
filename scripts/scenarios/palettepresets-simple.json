@@ -1,0 +1,96 @@
+{
+  "name": "palettepresets-simple",
+  "description": "IXT-SUITES simple rung for the `palettePresets` flag (pro tier, nested inside the already simple-tier `masterPalette` editor in FinishPicker): the 'Palette presets' gallery is absent in Simple mode (masterPalette editor still renders) and present in Pro; a real click on a preset button applies it via the normal setMasterPalette action (undoable).",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "App did not boot in Simple mode"
+    },
+    {
+      "name": "boot-settled",
+      "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" },
+      "timeout": 60000
+    },
+    { "name": "settle-post-boot", "wait": 800 },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 5000
+    },
+    { "name": "wait-room-load", "wait": 2000 },
+    {
+      "name": "select-room",
+      "store": { "action": "selectRoom", "args": ["livingDining"] }
+    },
+    {
+      "name": "finish-picker-open",
+      "waitFor": { "css": ".panel.inspector" },
+      "timeout": 10000
+    },
+    { "name": "settle-picker", "wait": 400 },
+    {
+      "name": "open-palette-disclosure",
+      "eval": "(function(){ const s = [...document.querySelectorAll('.panel.inspector summary')].find(x => x.textContent.trim().includes('Apartment colour palette')); if (!s) throw new Error('Apartment colour palette <summary> not found'); const d = s.closest('details'); if (!d.open) s.click(); })()"
+    },
+    {
+      "name": "assert-disclosure-open",
+      "eval": "(function(){ const s = [...document.querySelectorAll('.panel.inspector summary')].find(x => x.textContent.trim().includes('Apartment colour palette')); const d = s.closest('details'); if (!d.open) throw new Error('Apartment colour palette <details> did not open'); })()"
+    },
+    { "name": "settle-disclosure-open", "wait": 300 },
+    { "name": "shot-simple-no-presets", "screenshot": "01-simple-master-palette-no-presets" },
+    {
+      "name": "assert-master-palette-visible-simple",
+      "eval": "(function(){ const t = document.querySelector('.panel.inspector')?.textContent || ''; if (!t.includes('Apartment palette')) throw new Error('Apartment palette editor (masterPalette, simple tier) missing in Simple mode: ' + t.slice(0,300)); })()"
+    },
+    {
+      "name": "assert-presets-hidden-simple",
+      "eval": "(function(){ const t = document.querySelector('.panel.inspector')?.textContent || ''; if (t.includes('Palette presets')) throw new Error('Palette presets gallery visible in Simple mode (should be Pro-only)'); })()"
+    },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "mode-settle", "wait": 600 },
+    {
+      "name": "assert-presets-visible-pro",
+      "waitFor": { "text": "Palette presets" },
+      "timeout": 5000,
+      "failMessage": "Palette presets gallery missing in Pro mode"
+    },
+    { "name": "shot-pro-presets", "screenshot": "02-pro-palette-presets-gallery" },
+    {
+      "name": "capture-baseline-palette",
+      "eval": "window.__masterBefore = JSON.stringify(window.__store.getState().masterPalette || [])"
+    },
+    {
+      "name": "click-scandi-preset",
+      "eval": "(function(){ const btn = document.querySelector('.pal-preset[aria-label=\"Apply the Scandinavian calm palette preset\"]'); if (!btn) throw new Error('Scandinavian calm preset button not found'); btn.click(); })()"
+    },
+    {
+      "name": "assert-palette-applied",
+      "waitFor": {
+        "store": "JSON.stringify(state.masterPalette) === JSON.stringify(['#f5f1ea','#d9d2c5','#a8988a','#5d5147','#2f2a25'])"
+      },
+      "timeout": 5000,
+      "failMessage": "masterPalette did not update to the Scandinavian calm preset colours after clicking the preset button"
+    },
+    { "name": "shot-pro-applied", "screenshot": "03-pro-palette-applied" },
+    { "name": "back-to-simple", "store": { "action": "setUiMode", "args": ["simple"] } },
+    { "name": "mode-settle-2", "wait": 600 },
+    {
+      "name": "assert-presets-hidden-simple-again",
+      "eval": "(function(){ const t = document.querySelector('.panel.inspector')?.textContent || ''; if (t.includes('Palette presets')) throw new Error('Palette presets gallery visible after switching back to Simple mode'); if (!t.includes('Apartment palette')) throw new Error('Apartment palette editor unexpectedly missing after switching back to Simple'); })()"
+    },
+    { "name": "shot-back-to-simple", "screenshot": "04-back-to-simple-presets-hidden" }
+  ]
+}

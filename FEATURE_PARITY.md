@@ -42,10 +42,6 @@ are interaction/productivity features, plus the AI auto-layout family.
 
 | Feature | Have | Feasible | Gap & approach (reference our modules) | Effort |
 |---|---|---|---|---|
-| Day-to-night animated render clip | ◑ | ✅ | Animate the time-of-day slider along the video path (real-GPU final clip). | M |
-| AI floor-plan generation (text → plan) | ❌ | 🔑 | BYO-key LLM emits wall/room JSON into the 2D plan schema. | L |
-| AI plan recognition: auto-detect doors/windows + scale | ◑ | 🔑 | Extend the existing BYO-key AI wall tracing to openings + scale calibration. | M |
-| AI matting / background removal | ❌ | ✅ | WASM segmentation (MODNet/rembg-wasm) for product cutouts. | M |
 
 _(Hosted 60k–1M+ model library · branded/manufacturer catalogs · cloud accounts /
 multi-user collab / teams · supplier/e-commerce/CNC integration → see §4 Out of scope.)_
@@ -64,7 +60,7 @@ polylines), and its iconic **video flythrough** export.
 
 | Feature | Have | Feasible | Gap & approach (reference our modules) | Effort |
 |---|---|---|---|---|
-| Import SH3D **`.sh3f` libraries** + legacy archives | ◑ | ✅ | `.sh3d` (Home.xml) walls/rooms/furniture/openings already import; remaining: `.sh3f` furniture libraries, legacy serialized (non-`Home.xml`) archives, exact sill from SH3D `elevation`. | L |
+| Import SH3D legacy serialized archives | ◑ | ✅ | `.sh3d` (Home.xml) walls/rooms/furniture/openings (incl. exact window sills from `elevation`) AND `.sh3f` furniture libraries now import; remaining: legacy serialized (non-`Home.xml`) archives only. | L |
 | Multi-language UI (20+) | ❌ | ✅ | i18n framework + translations; large, pure-client, low near-term value for HDB focus. | L |
 | Plugin/extension API | ❌ | ✅ | Define a JS extension surface; large architectural effort, low near-term value. | L |
 
@@ -75,10 +71,15 @@ polylines), and its iconic **video flythrough** export.
 > Shipped items are removed from this list as they land (see `CHANGELOG.md`); this
 > section tracks only what is still open.
 
-**High-value medium efforts (M):**
-1. Day-to-night animated render clip (Coohom) — animate time-of-day along the video path.
-2. AI plan recognition: auto-detect openings + scale (Coohom, 🔑 BYO-key).
-3. AI matting / background removal for product cutouts (WASM segmentation).
+**High-value medium efforts (M):** _(all shipped — records in `CHANGELOG.md`)_
+
+_(AI matting / background removal — **closed 2026-07-18, no consumer**: no surface in the app
+takes a user product photo as a visual element (the moodboard is auto-generated from the live
+design; wall-art is procedural; uploads are tileable PBR maps / full-frame backdrops), so a
+cutout tool would be dead UI. Revisit only after a consumer is scoped (image-param wall art or a
+pin-your-own-product moodboard). If revived: a tfjs runtime already ships transitively via the
+`denoiser` dep — only model weights would be new — and a zero-dep border-flood-fill cutout covers
+the white-background retailer-photo case.)_
 
 _(The former "fast rasterized preview render tier" row was retired 2026-07-10: the capability
 substantively ships — one-tap raster render presets (`scene/renderPresets.ts`, F4) + the 2×
@@ -87,8 +88,7 @@ raster capture (`RenderCompareModal`) together ARE the local analog to Coohom's 
 no distinct feature remains to build.)_
 
 **Marquee large efforts (L):**
-5. **AI floor-plan generation** (text → plan, Coohom, 🔑 BYO-key).
-6. Import SH3D **`.sh3f`** libraries + legacy archives; multi-language UI; plugin/extension API (SH3D) — large, lower near-term value.
+6. Import SH3D legacy serialized archives + exact `elevation` sill; multi-language UI; plugin/extension API (SH3D) — large, lower near-term value.
 
 **Consumer/styling front-end (context, not Coohom/SH3D):** the remaining consumer front-of-funnel
 edge (Spoak/Decor8/Havenly/DecorMatters) is the community/gamification/feed layer, which is ☁️

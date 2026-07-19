@@ -103,8 +103,14 @@ export function itemFootprint(item: FurnitureItem, def: FurnitureDef): OBB {
   const { scaleX, scaleZ } = resolveScale(item, def)
   const cos = Math.cos(item.rotation)
   const sin = Math.sin(item.rotation)
-  const sx = ox * scaleX
-  const sz = oz * scaleZ
+  // Flip mirrors the GLB's authored off-origin offset: `Furniture.tsx` renders a
+  // flip as a `scale={[flipX?-1:1, 1, flipZ?-1:1]}` wrapper around the local
+  // origin, so geometry authored at +ox renders at −ox. Without matching that
+  // here, a flipped off-origin GLB's collision OBB + selection/hover footprint
+  // drift from the mesh by 2·ox·scaleX (parts already mirror via
+  // resolveFootprintParts; the base offset must too).
+  const sx = (item.flipX ? -ox : ox) * scaleX
+  const sz = (item.flipZ ? -oz : oz) * scaleZ
 
   return {
     cx: item.position[0] + cos * sx - sin * sz,
@@ -284,7 +290,14 @@ function verticalSpan(item: FurnitureItem, def: FurnitureDef): { base: number; t
   const span = def.verticalSpan ?? { base: 0, top: def.defaultFootprint.h }
   const sh = item.props['surfaceHeight']
   const base0 = typeof sh === 'number' ? sh : span.base
-  const height = span.top - span.base
+  // Per-item resize (CUSTOMIZE-PARAM-SIZE) scales the vertical extent by the
+  // item's Y scale — mirroring how `Furniture.tsx` scales the primitive — so a
+  // piece the user made taller occupies its true height in the height-aware
+  // furniture-vs-furniture test (footprint XZ already tracks scaleX/scaleZ).
+  const defScale = def.kind === 'parametric' ? undefined : def.scale
+  const scale = (typeof item.props['scale'] === 'number' ? item.props['scale'] : defScale) ?? 1
+  const scaleY = typeof item.props['scaleY'] === 'number' ? (item.props['scaleY'] as number) : scale
+  const height = (span.top - span.base) * scaleY
   // Per-item elevation raises the whole piece off the floor (SH3D parity), so
   // its height-aware collision span shifts up with it.
   const lift = item.elevation ?? 0

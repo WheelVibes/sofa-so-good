@@ -46,3 +46,48 @@ export function staggerDimensionRows(labels: readonly DimLabelBox[], gap = 0.06)
   }
   return rows
 }
+
+/** One mount-height dimension's anchor, for the H3 declutter pass below. */
+export interface MountDimAnchor {
+  /** Horizontal anchor of the dimension line (m, elevation X — near the
+   *  item's own footprint). */
+  x: number
+  /** AFFL mount height (m) — items whose heights are close AND whose anchors
+   *  are close read as visually stacked, so they need to fan out. */
+  height: number
+}
+
+/**
+ * Assign each mount-height dimension a "column" (0 = hug the item, 1, 2, …
+ * further out) so that when two items on the SAME wall sit close together
+ * horizontally (`xGap`) at close AFFL heights (`heightGap`) — their vertical
+ * dimension lines/labels would otherwise overlap — the later one fans out to
+ * the next column. Mirrors {@link staggerDimensionRows}'s greedy row
+ * assignment for the width-dimension row, but the collision test is 2D
+ * (x AND height close) since a height dim is a vertical line rather than a
+ * horizontal span. Greedy in left-to-right (x) order; returned array is in
+ * INPUT order.
+ */
+export function staggerMountHeightColumns(
+  anchors: readonly MountDimAnchor[],
+  xGap = 0.3,
+  heightGap = 0.3,
+): number[] {
+  const order = anchors.map((_, i) => i).sort((a, b) => anchors[a].x - anchors[b].x || a - b)
+  const placed: { x: number; height: number; col: number }[] = []
+  const cols: number[] = new Array(anchors.length).fill(0)
+  for (const i of order) {
+    const a = anchors[i]
+    let col = 0
+    while (
+      placed.some(
+        (p) =>
+          p.col === col && Math.abs(p.x - a.x) < xGap && Math.abs(p.height - a.height) < heightGap,
+      )
+    )
+      col++
+    cols[i] = col
+    placed.push({ x: a.x, height: a.height, col })
+  }
+  return cols
+}

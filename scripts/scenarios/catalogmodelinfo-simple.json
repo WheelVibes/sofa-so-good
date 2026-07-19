@@ -1,0 +1,68 @@
+{
+  "name": "catalogmodelinfo-simple",
+  "description": "Simple ladder for the catalogModelInfo flag (pro tier, default true): a bundled CC0 GLB catalog card's title tooltip carries its size + licence + attribution only when the flag resolves on. Hidden in Simple, present in Pro; searches for 'Book set' (a generatedCatalog CC0/Poly Haven decor item with license+attribution set) so modelInfoText() has something to render.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "verify-simple-mode", "waitFor": { "store": "state.uiMode === 'simple'" }, "timeout": 5000 },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "room-editor-active", "waitFor": { "store": "state.roomEditor.active === true" }, "timeout": 5000 },
+    { "name": "wait-room-load", "wait": 1500 },
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "catalog-visible", "waitFor": { "css": ".panel.catalog" }, "timeout": 20000 },
+    {
+      "name": "search-book-set",
+      "click": { "selector": "input[aria-label='Search the furniture catalog']" }
+    },
+    { "name": "type-query", "type": "type", "text": "Book set" },
+    {
+      "name": "card-visible",
+      "waitFor": { "css": ".card-grid .cat-card" },
+      "timeout": 10000,
+      "failMessage": "'Book set' catalog card did not appear in search results"
+    },
+    { "name": "shot-01-search-simple", "screenshot": "01-search-simple" },
+    {
+      "name": "verify-no-tooltip-in-simple",
+      "eval": "(function(){ const card = [...document.querySelectorAll('.card-grid .cat-card')].find(c => c.getAttribute('aria-label')?.includes('Book set')); if (!card) throw new Error('Book set card not found'); const title = card.getAttribute('title'); if (title) throw new Error('Card carries a model-info title in Simple mode (catalogModelInfo is pro-tier, should be forced off): ' + title); })()"
+    },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "wait-pro", "wait": 500 },
+    { "name": "shot-02-search-pro", "screenshot": "02-search-pro" },
+    {
+      "name": "verify-tooltip-present-in-pro",
+      "eval": "(function(){ const card = [...document.querySelectorAll('.card-grid .cat-card')].find(c => c.getAttribute('aria-label')?.includes('Book set')); if (!card) throw new Error('Book set card not found in Pro mode'); const title = card.getAttribute('title'); if (!title) throw new Error('No title attribute on the card in Pro mode — catalogModelInfo tooltip missing'); if (!title.includes('CC0') || !title.includes('Poly Haven')) throw new Error('Title does not contain expected licence/attribution: ' + title); window.__cardTitle = title; })()"
+    },
+    {
+      "name": "force-flag-off-in-pro",
+      "eval": "window.__store.getState().setFeatureFlag('catalogModelInfo', false)"
+    },
+    { "name": "wait-flag-off", "wait": 300 },
+    {
+      "name": "verify-tooltip-hidden-when-forced-off",
+      "eval": "(function(){ const card = [...document.querySelectorAll('.card-grid .cat-card')].find(c => c.getAttribute('aria-label')?.includes('Book set')); if (!card) throw new Error('Book set card not found'); const title = card.getAttribute('title'); if (title) throw new Error('Title still present after setFeatureFlag(catalogModelInfo,false): ' + title); })()"
+    },
+    { "name": "shot-03-forced-off", "screenshot": "03-forced-off" },
+    {
+      "name": "restore-flag",
+      "eval": "window.__store.getState().setFeatureFlag('catalogModelInfo', true)"
+    },
+    { "name": "wait-flag-restore", "wait": 300 },
+    {
+      "name": "verify-tooltip-restored",
+      "eval": "(function(){ const card = [...document.querySelectorAll('.card-grid .cat-card')].find(c => c.getAttribute('aria-label')?.includes('Book set')); const title = card && card.getAttribute('title'); if (!title) throw new Error('Title did not come back after restoring the flag'); })()"
+    },
+    { "name": "back-to-simple", "store": { "action": "setUiMode", "args": ["simple"] } },
+    { "name": "wait-back-simple", "wait": 400 },
+    {
+      "name": "verify-hidden-again-in-simple",
+      "eval": "(function(){ const card = [...document.querySelectorAll('.card-grid .cat-card')].find(c => c.getAttribute('aria-label')?.includes('Book set')); if (!card) throw new Error('Book set card not found'); const title = card.getAttribute('title'); if (title) throw new Error('Title present again after switching back to Simple: ' + title); })()"
+    },
+    { "name": "shot-04-back-simple", "screenshot": "04-back-to-simple" }
+  ]
+}

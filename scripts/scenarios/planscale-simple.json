@@ -1,0 +1,127 @@
+{
+  "name": "planscale-simple",
+  "url": "http://localhost:5211/",
+  "description": "IXT-SUITES batch 9 simple rung for the `planScale` flag (pro tier — the 'Scale plan…' row in the 2D floor-plan editor's 'Plan ▾' menu, PARITY-PLAN-SCALE). Enters the floor-plan editor in Simple mode and asserts the 'Scale plan…' row is ABSENT from the Plan menu, switches to Pro + reresolves flags and asserts the row now appears, opens the ScalePlanModal. REAL BUG FOUND + documented here (not worked around in source, only in the test): the modal's default factor value '2' FAILS the number input's own native HTML5 step validation (min={0.01} step={0.1} in ScalePlanModal.tsx — the browser reports 'the two nearest valid values are 1.91 and 2.01', so clicking 'Scale' with the untouched default silently no-ops in every browser that enforces native constraint validation). The ladder asserts this stepMismatch reproduces, then types a step-aligned '2.01' to actually exercise the apply path, asserting the plan's wall-bounding-box area scales by ~factor^2, then undoes the rescale and confirms the plan reverts to its original footprint.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "Expected uiMode=simple at boot"
+    },
+    {
+      "name": "boot-settled",
+      "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" },
+      "timeout": 60000
+    },
+    { "name": "settle-post-boot", "wait": 600 },
+    {
+      "name": "verify-flag-off-in-simple",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.planScale === false" },
+      "timeout": 5000,
+      "failMessage": "planScale should be OFF in Simple mode (it is pro-tier)"
+    },
+    {
+      "name": "enter-floorplan",
+      "store": { "action": "setFloorPlanEditing", "args": [true] }
+    },
+    { "name": "plan-screen-ready", "waitFor": { "css": ".plan-screen" }, "timeout": 30000 },
+    { "name": "settle-plan-mount", "wait": 1200 },
+    {
+      "name": "open-plan-menu-simple",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { const panel = document.querySelector('.plan-menu-panel'); if (panel) return; const b = find(); if (b && !panel) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan ▾ menu button not found/did not open'); })()"
+    },
+    { "name": "plan-menu-open-simple", "waitFor": { "css": ".plan-menu-panel" }, "timeout": 5000 },
+    { "name": "settle-menu-simple", "wait": 300 },
+    {
+      "name": "assert-scale-row-absent-simple",
+      "eval": "(function(){ const t = document.querySelector('.plan-menu-panel')?.textContent || ''; if (t.includes('Scale plan')) throw new Error('Scale plan row visible in Simple mode Plan menu (should be Pro-only, planScale is pro-tier)'); })()"
+    },
+    { "name": "shot-plan-menu-simple", "screenshot": "01-plan-menu-simple-no-scale-row" },
+    { "name": "close-menu-simple", "key": "Escape" },
+    { "name": "close-settle", "wait": 300 },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    {
+      "name": "reresolve-flags-pro",
+      "eval": "window.__store.getState().reresolveFeatureFlags?.()"
+    },
+    { "name": "mode-settle", "wait": 500 },
+    {
+      "name": "verify-flag-on-in-pro",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.planScale === true" },
+      "timeout": 10000,
+      "failMessage": "planScale should be ON once switched to Pro mode"
+    },
+    {
+      "name": "capture-bbox-before",
+      "eval": "(function(){ function bbox(walls){ let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity; for (const w of walls){ for (const p of [w.start, w.end]){ if (p[0]<minX) minX=p[0]; if (p[0]>maxX) maxX=p[0]; if (p[1]<minY) minY=p[1]; if (p[1]>maxY) maxY=p[1]; } } return (maxX-minX)*(maxY-minY); } const plan = window.__store.getState().floorPlan; window.__areaBefore = bbox(plan.walls); if (!(window.__areaBefore > 0)) throw new Error('Expected a positive baseline wall bounding-box area'); })()"
+    },
+    {
+      "name": "open-plan-menu-pro",
+      "eval": "(async () => { const find = () => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Plan ▾'); const deadline = Date.now() + 5000; while (Date.now() < deadline) { const panel = document.querySelector('.plan-menu-panel'); if (panel) return; const b = find(); if (b && !panel) b.click(); await new Promise((r) => setTimeout(r, 200)); } throw new Error('Plan ▾ menu button not found/did not open'); })()"
+    },
+    { "name": "plan-menu-open-pro", "waitFor": { "css": ".plan-menu-panel" }, "timeout": 5000 },
+    { "name": "settle-menu-pro", "wait": 300 },
+    {
+      "name": "assert-scale-row-present-pro",
+      "eval": "(function(){ const t = document.querySelector('.plan-menu-panel')?.textContent || ''; if (!t.includes('Scale plan')) throw new Error('Scale plan row missing in Pro mode Plan menu'); })()"
+    },
+    { "name": "shot-plan-menu-pro", "screenshot": "02-plan-menu-pro-scale-row-visible" },
+    {
+      "name": "click-scale-plan-row",
+      "eval": "(function(){ const panel = document.querySelector('.plan-menu-panel'); const btn = panel && [...panel.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Scale plan…'); if (!btn) throw new Error(\"'Scale plan…' button not found in Plan menu\"); btn.click(); })()"
+    },
+    {
+      "name": "scale-modal-open",
+      "waitFor": { "css": ".modal-overlay" },
+      "timeout": 5000
+    },
+    {
+      "name": "assert-scale-modal-title",
+      "eval": "(function(){ const t = document.querySelector('.modal-overlay .panel')?.textContent || ''; if (!t.includes('Scale plan')) throw new Error('Scale-plan modal did not render its title/content'); })()"
+    },
+    { "name": "shot-scale-modal-open", "screenshot": "03-scale-plan-modal-open" },
+    {
+      "name": "assert-default-factor-2",
+      "eval": "(function(){ const input = document.querySelector('input[aria-label=\"Scale factor\"]'); if (!input) throw new Error('Scale-factor input not found'); if (input.value !== '2') throw new Error('Expected default factor 2, got ' + input.value); })()"
+    },
+    {
+      "name": "confirm-real-bug-default-factor-fails-native-validation",
+      "eval": "(function(){ const input = document.querySelector('input[aria-label=\"Scale factor\"]'); if (!input) throw new Error('Scale-factor input not found'); if (!input.validity.stepMismatch) throw new Error('REGRESSION CHECK: expected the KNOWN BUG (default factor \"2\" failing native stepMismatch against min=0.01/step=0.1) to still repro — if this throws, the modal was fixed and this workaround/report is stale'); })()"
+    },
+    {
+      "name": "set-step-aligned-factor",
+      "eval": "(function(){ const input = document.querySelector('input[aria-label=\"Scale factor\"]'); const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; setter.call(input, '2.01'); input.dispatchEvent(new Event('input', { bubbles: true })); if (input.validity.stepMismatch) throw new Error('2.01 should be step-aligned (min 0.01 + n*0.1) and pass native validation'); })()"
+    },
+    {
+      "name": "submit-scale",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.modal-overlay .panel button')].find((b) => b.type === 'submit' && b.textContent.trim() === 'Scale'); if (!btn) throw new Error(\"'Scale' submit button not found\"); if (btn.disabled) throw new Error('Scale submit button is disabled'); btn.click(); })()"
+    },
+    {
+      "name": "modal-closed-after-apply",
+      "waitFor": { "store": "!document.querySelector('.modal-overlay')" },
+      "timeout": 5000
+    },
+    { "name": "settle-after-scale", "wait": 500 },
+    {
+      "name": "assert-area-quadrupled",
+      "eval": "(function(){ function bbox(walls){ let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity; for (const w of walls){ for (const p of [w.start, w.end]){ if (p[0]<minX) minX=p[0]; if (p[0]>maxX) maxX=p[0]; if (p[1]<minY) minY=p[1]; if (p[1]>maxY) maxY=p[1]; } } return (maxX-minX)*(maxY-minY); } const plan = window.__store.getState().floorPlan; const after = bbox(plan.walls); const ratio = after / window.__areaBefore; if (ratio < 3.5 || ratio > 4.5) throw new Error('Expected wall bounding-box area to roughly quadruple (x2 factor squared), got ratio ' + ratio); window.__areaAfter = after; })()"
+    },
+    { "name": "shot-plan-after-scale", "screenshot": "04-plan-scaled-2x" },
+    {
+      "name": "undo-scale",
+      "store": { "action": "undo", "args": [] }
+    },
+    { "name": "undo-settle", "wait": 500 },
+    {
+      "name": "assert-area-reverted",
+      "eval": "(function(){ function bbox(walls){ let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity; for (const w of walls){ for (const p of [w.start, w.end]){ if (p[0]<minX) minX=p[0]; if (p[0]>maxX) maxX=p[0]; if (p[1]<minY) minY=p[1]; if (p[1]>maxY) maxY=p[1]; } } return (maxX-minX)*(maxY-minY); } const plan = window.__store.getState().floorPlan; const reverted = bbox(plan.walls); const ratio = reverted / window.__areaBefore; if (ratio < 0.9 || ratio > 1.1) throw new Error('Expected the undo to revert the plan back to its original bounding-box area, got ratio ' + ratio); })()"
+    },
+    { "name": "shot-plan-reverted", "screenshot": "05-plan-reverted-after-undo" }
+  ]
+}

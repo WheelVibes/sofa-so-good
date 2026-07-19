@@ -6,7 +6,7 @@ import { Select } from '../controls/Select'
 import { FuzzyCombo } from '../FuzzyCombo'
 import { Modal } from '../Modal'
 
-const HOUSING_TYPES: HousingType[] = ['HDB', 'Condominium']
+const HOUSING_TYPES: HousingType[] = ['HDB', 'Condominium', 'Landed']
 
 /**
  * Collects a name + template category (housing type › project › apartment type)

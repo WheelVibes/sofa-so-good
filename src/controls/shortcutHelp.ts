@@ -82,6 +82,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
         desc: 'Move around',
       },
       { keys: [bindKey('interact')], desc: 'Open a door / interact' },
+      { keys: [bindKey('walkMeasurePoint')], desc: 'Set a measure point' },
     ],
   },
 ]

@@ -230,7 +230,16 @@
 .clr-stat.err .n { color: var(--danger); }
 .clr-stat.warn .n { color: oklch(0.6 0.14 70); }
 .clr-stat.ok .n { color: var(--accent-soft-text); }
-.clr-stat .l { font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); font-weight: 700; margin-top: 3px; }
+.clr-stat .l { font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; color: var(--text-3); font-weight: 700; margin-top: 3px; }
+
+/* Handover panel (UXW-P3-6): SG-readable date confirmation + tickable move-in
+   checklist rows (state persisted via `handoverChecked`). */
+.ho-date-note { margin-top: var(--s-1); font-size: var(--t-2xs); color: var(--text-3); }
+.ho-checklist { list-style: none; margin: 0; padding: 0; }
+.ho-checklist li { margin-bottom: var(--s-1); }
+.ho-check { display: flex; align-items: flex-start; gap: var(--s-2); cursor: pointer; font-size: var(--t-sm); line-height: var(--lh-body); color: var(--text-2); }
+.ho-check input { flex: none; width: 15px; height: 15px; margin-top: 2px; accent-color: var(--accent); cursor: pointer; }
+.ho-check .done { color: var(--text-3); text-decoration: line-through; }
 .clr-list { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-4); }
 .clr-item {
   text-align: left; width: 100%; padding: var(--s-3);
@@ -568,7 +577,20 @@ body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
 .scene-seg button.on { background: var(--accent); color: var(--on-accent); }
 .scene-field { display: block; padding: 0 6px 4px; }
 .scene-field > span { display: block; font-size: var(--t-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); padding: 2px 0 4px; }
+/* Clarifying subtext under a single-state toggle (UXW-P3-4) — mirrors the
+   mobile Scene sheet's `sub` so "Hidden"/"On" reads as a state description,
+   not an ambiguous action. Normal-case, quieter than the uppercase label. */
+.scene-field-sub { display: block; margin-top: 4px; font-size: var(--t-2xs); font-weight: 500; text-transform: none; letter-spacing: 0; line-height: var(--lh-body); color: var(--text-3); }
 .scene-select { width: 100%; }
+/* 5 short-label chips (UXW-P3-3). The shortLabels (Normal/Reading/Movie/Party/
+   Romantic) fit the narrow 264px Scene menu at NATURAL width, so let each chip
+   size to its label rather than forcing equal widths (which shrank "Reading"/
+   "Romantic" below their text and triggered `.seg.fit`'s ellipsis). Disable
+   that ellipsis here and allow a clean 2nd-row wrap as a fallback. On mobile
+   the `.m-detail .seg` full-width rule still governs layout — this only lifts
+   the ellipsis, which the wider sheet never needed anyway. */
+.mood-seg { width: 100%; flex-wrap: wrap; justify-content: center; }
+.seg.fit.mood-seg button { overflow: visible; text-overflow: clip; padding-left: 6px; padding-right: 6px; }
 /* Pet-profile multi-select (P6) — a wrap of toggle chips, shared by the Scene
    menu, mobile Scene sheet, and the Pet-compliance panel empty state. */
 .pet-chip-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 6px 4px; }
@@ -595,3 +617,54 @@ body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
 .arr-pick { display: flex; align-items: center; gap: 6px; padding: 2px 6px 4px; }
 .arr-select { flex: 1; min-width: 0; height: 30px; font-size: var(--t-xs); }
 .arr-apply { flex: none; height: 30px; padding: 0 12px; }
+
+/* ---- Real-photo paint visualizer (PaintVizModal) ---------------- */
+.paint-viz { display: flex; flex-direction: column; gap: var(--s-3); }
+.paint-viz-privacy {
+  display: flex; align-items: center; gap: var(--s-1);
+  margin: 0; font-size: var(--t-xs); font-weight: 600; color: var(--text-3);
+}
+.paint-viz-drop {
+  display: flex; flex-direction: column; align-items: center; gap: var(--s-2);
+  padding: var(--s-6) var(--s-3); text-align: center;
+  border: 1px dashed var(--border); border-radius: var(--r-2);
+  background: var(--surface-2); color: var(--text-2);
+}
+.paint-viz-drop p { margin: 0; font-size: var(--t-sm); }
+.paint-viz-stage {
+  display: flex; justify-content: center;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--r-2); overflow: hidden;
+}
+.paint-viz-canvas {
+  display: block; max-width: 100%; max-height: 340px; width: auto; height: auto;
+  cursor: crosshair; touch-action: none;
+}
+.paint-viz-hint {
+  margin: 0; font-size: var(--t-xs); color: var(--text-3); text-align: center;
+}
+.paint-viz-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.paint-viz-actions .btn { flex: 1 1 auto; justify-content: center; }
+.paint-viz-strength {
+  display: flex; align-items: center; gap: var(--s-3);
+  font-size: var(--t-xs); font-weight: 600; color: var(--text-2);
+}
+.paint-viz-strength .slider { flex: 1; }
+.paint-viz-swatches {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: var(--s-2);
+}
+.paint-viz-swatch {
+  display: flex; flex-direction: column; align-items: stretch; gap: 4px;
+  padding: 4px; border: 1px solid var(--border); border-radius: var(--r-2);
+  background: var(--surface-2); cursor: pointer; min-width: 0;
+  transition: border-color var(--dur) var(--ease);
+}
+.paint-viz-swatch:hover { border-color: var(--border-2); }
+.paint-viz-swatch.on { border-color: var(--accent); }
+.paint-viz-chip { height: 34px; border-radius: 4px; border: 1px solid var(--border); }
+.paint-viz-name {
+  font-size: var(--t-2xs); font-weight: 600; color: var(--text-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
+}
+.paint-viz-error { margin: 0; font-size: var(--t-xs); color: var(--danger); }

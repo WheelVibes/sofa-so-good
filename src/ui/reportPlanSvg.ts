@@ -1,5 +1,7 @@
-import { doorSwingGeometry } from '../floorplan/doorSwing'
+import { assignOpeningMarks } from '../analysis/openingSchedule'
+import { doorPlanSymbol } from '../floorplan/doorSwing'
 import { roomLabelPosition } from '../floorplan/roomCentroid'
+import { anyTileMarksOmitted, tileSettingOutPoints } from '../floorplan/settingOut'
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, planRoomArea, wallLength } from '../floorplan/types'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
@@ -15,6 +17,48 @@ const esc = (s: string) =>
 
 const ANN = '#0d9488' // teal — dimension callouts, distinct from the wall strokes
 const NOTE = '#b45309' // amber — free text callouts (matches the drawing-set storey notes)
+const TILE = '#7c3aed' // violet — tile setting-out marks, distinct from both of the above
+const MARK = '#be123c' // rose — opening D/W mark callouts (H1-F), distinct from all of the above
+
+/** Tile setting-out start-point crosses (TODO G3) — one per room, at its
+ *  centroid (`settingOut.ts:tileSettingOutPoints`). v1-modest: a small cross,
+ *  no grid (there is no tile size/pattern in the model to derive a real grid
+ *  from). The convention note is printed ONCE (`tileSettingOutCaption`, in the
+ *  scale-bar strip) rather than repeated per mark — a small flat can have 8+
+ *  rooms, and a full sentence at every centroid overlapped illegibly with
+ *  neighbouring room labels/furniture in a compact HDB layout. Only drawn when
+ *  the caller opts in (`showTileMarks` — gated to when the finishes sheet is
+ *  ALSO on the drawing set, so the note doesn't appear detached from the
+ *  finishes it refers to). */
+function tileSettingOutSvg(plan: FloorPlan): string {
+  const R = 0.09
+  return tileSettingOutPoints(plan)
+    .map(({ point: [x, z] }) => {
+      const cx = x.toFixed(3)
+      const cz = z.toFixed(3)
+      return (
+        `<line x1="${(x - R).toFixed(3)}" y1="${cz}" x2="${(x + R).toFixed(3)}" y2="${cz}" stroke="${TILE}" stroke-width="0.045"/>` +
+        `<line x1="${cx}" y1="${(z - R).toFixed(3)}" x2="${cx}" y2="${(z + R).toFixed(3)}" stroke="${TILE}" stroke-width="0.045"/>`
+      )
+    })
+    .join('')
+}
+
+/** The tile setting-out convention, printed once (not per-mark — see above).
+ *  When `omitted` (some room on this storey had its mark skipped — see
+ *  `settingOut.ts:tileMarkPoint` — a room too small in every direction for
+ *  the mark to clear its own name/area label, e.g. an AC ledge), appends a
+ *  second line noting the omission ONCE for the whole sheet rather than
+ *  leaving a silently-missing mark unexplained. */
+function tileSettingOutCaption(capY: number, omitted = false): string {
+  const omittedLine = omitted
+    ? `<tspan x="0" dy="0.34">(marks omitted for small utility rooms)</tspan>`
+    : ''
+  return (
+    `<text x="0" y="${capY.toFixed(3)}" font-size="0.24" fill="${TILE}">` +
+    `+ Tile setting-out point — start laying here, verify joints on site${omittedLine}</text>`
+  )
+}
 
 /** Render the plan's free-text notes (the editor's Text tool, PARITY-DIMTEXT) as
  *  amber text callouts with a small locator dot — so the user's on-plan
@@ -75,15 +119,71 @@ function openingsSvg(plan: FloorPlan): string {
       const maskW = (wall.thickness === 'external' ? 0.18 : 0.09) + 0.05
       let s = `<line x1="${sx.toFixed(3)}" y1="${sz.toFixed(3)}" x2="${ex.toFixed(3)}" y2="${ez.toFixed(3)}" stroke="#ffffff" stroke-width="${maskW.toFixed(3)}" stroke-linecap="butt"/>`
       if (o.kind === 'door') {
-        const g = doorSwingGeometry(wall, o)
-        if (g) {
-          s += `<line x1="${g.hinge[0].toFixed(3)}" y1="${g.hinge[1].toFixed(3)}" x2="${g.leafTip[0].toFixed(3)}" y2="${g.leafTip[1].toFixed(3)}" stroke="#6b7280" stroke-width="0.04"/>`
-          s += `<path d="M ${g.freeJamb[0].toFixed(3)} ${g.freeJamb[1].toFixed(3)} A ${o.width.toFixed(3)} ${o.width.toFixed(3)} 0 0 ${g.sweep} ${g.leafTip[0].toFixed(3)} ${g.leafTip[1].toFixed(3)}" fill="none" stroke="#9ca3af" stroke-width="0.025"/>`
+        const sym = doorPlanSymbol(wall, o)
+        if (sym?.kind === 'swing') {
+          for (const lf of sym.leaves) {
+            s += `<line x1="${lf.hinge[0].toFixed(3)}" y1="${lf.hinge[1].toFixed(3)}" x2="${lf.leafTip[0].toFixed(3)}" y2="${lf.leafTip[1].toFixed(3)}" stroke="#6b7280" stroke-width="0.04"/>`
+            s += `<path d="M ${lf.freeJamb[0].toFixed(3)} ${lf.freeJamb[1].toFixed(3)} A ${lf.radius.toFixed(3)} ${lf.radius.toFixed(3)} 0 0 ${lf.sweep} ${lf.leafTip[0].toFixed(3)} ${lf.leafTip[1].toFixed(3)}" fill="none" stroke="#9ca3af" stroke-width="0.025"/>`
+          }
+        } else if (sym?.kind === 'sliding') {
+          // Sliding: leaf bar + slide-direction arrow (no swing arc).
+          const [b0, b1] = sym.bar
+          const [a0, a1] = sym.arrow
+          s += `<line x1="${b0[0].toFixed(3)}" y1="${b0[1].toFixed(3)}" x2="${b1[0].toFixed(3)}" y2="${b1[1].toFixed(3)}" stroke="#6b7280" stroke-width="0.05"/>`
+          s += `<line x1="${a0[0].toFixed(3)}" y1="${a0[1].toFixed(3)}" x2="${a1[0].toFixed(3)}" y2="${a1[1].toFixed(3)}" stroke="#9ca3af" stroke-width="0.025"/>`
+          const adx = a1[0] - a0[0]
+          const adz = a1[1] - a0[1]
+          const alen = Math.hypot(adx, adz) || 1
+          const uax = adx / alen
+          const uaz = adz / alen
+          const hb = 0.09
+          s += `<line x1="${a1[0].toFixed(3)}" y1="${a1[1].toFixed(3)}" x2="${(a1[0] - (uax + uaz) * hb).toFixed(3)}" y2="${(a1[1] - (uaz - uax) * hb).toFixed(3)}" stroke="#9ca3af" stroke-width="0.025"/>`
+          s += `<line x1="${a1[0].toFixed(3)}" y1="${a1[1].toFixed(3)}" x2="${(a1[0] - (uax - uaz) * hb).toFixed(3)}" y2="${(a1[1] - (uaz + uax) * hb).toFixed(3)}" stroke="#9ca3af" stroke-width="0.025"/>`
         }
       } else {
         s += `<line x1="${sx.toFixed(3)}" y1="${sz.toFixed(3)}" x2="${ex.toFixed(3)}" y2="${ez.toFixed(3)}" stroke="#9ca3af" stroke-width="0.03"/>`
       }
       return s
+    })
+    .join('')
+}
+
+/** Distance (m) an opening mark label sits off the wall centreline, clear of
+ *  the wall stroke and the door-swing arc — matches `export/dxf.ts`'s own
+ *  `MARK_OFFSET` (independent constant; that module is out of scope here —
+ *  see `analysis/openingSchedule.ts:assignOpeningMarks`'s header). */
+const MARK_LABEL_OFFSET = 0.3
+
+/**
+ * On-plan D1/W1… mark callouts (H1-F, contractor-handover punch list): a
+ * small rose label near each door/window, keyed off the SAME
+ * `assignOpeningMarks` grouping the door & window schedule sheet uses, so a
+ * mark on this plan can never drift from the schedule that types it. Nudged
+ * off the wall centreline (perpendicular offset) so it clears the opening's
+ * gap + door-swing arc.
+ */
+function openingMarksSvg(plan: FloorPlan, marks: Map<string, string>): string {
+  if (marks.size === 0) return ''
+  return plan.openings
+    .map((o) => {
+      const label = marks.get(o.id)
+      if (!label) return ''
+      const wall = plan.walls.find((wl) => wl.id === o.wallId)
+      if (!wall) return ''
+      const len = wallLength(wall)
+      if (len === 0) return ''
+      const ux = (wall.end[0] - wall.start[0]) / len
+      const uz = (wall.end[1] - wall.start[1]) / len
+      const mx = wall.start[0] + ux * (o.offset + o.width / 2)
+      const mz = wall.start[1] + uz * (o.offset + o.width / 2)
+      // Perpendicular (rotate the wall direction 90°) — nudges the label off
+      // the wall line, toward whichever side keeps it inside the plan extent.
+      const px = -uz
+      const pz = ux
+      const sign = mz + pz * MARK_LABEL_OFFSET < plan.extent[1] ? 1 : -1
+      const lx = mx + px * MARK_LABEL_OFFSET * sign
+      const lz = mz + pz * MARK_LABEL_OFFSET * sign
+      return `<text x="${lx.toFixed(3)}" y="${lz.toFixed(3)}" font-size="0.24" font-weight="700" fill="${MARK}" text-anchor="middle" dominant-baseline="middle">${esc(label)}</text>`
     })
     .join('')
 }
@@ -136,6 +236,27 @@ export function reportPlanSvg(
    *  tint) drawn under the walls, so the report plan reads as a furnished
    *  layout — "where things go", colour-keyed by furniture type. */
   footprints: { corners: [number, number][]; fill: string }[] = [],
+  /** When set (mm printed per metre of real-world extent, from
+   *  `floorplan/drawingScale.ts:pickDrawingScale`), sizes the returned
+   *  `<svg>` with explicit `width`/`height` in mm instead of leaving it
+   *  unsized to stretch to its container — print-true (TODO G2). */
+  printMmPerM?: number,
+  /** Draw tile setting-out start-point crosses (TODO G3, `settingOutDims`
+   *  flag) — gated by the caller to when the finishes sheet is ALSO on the
+   *  drawing set. Default false (existing callers are unaffected). */
+  showTileMarks = false,
+  /** Draw each door/window's D1/W1… schedule mark near it on the plan (H1-F)
+   *  — gated by the caller to when the door & window schedule sheet is ALSO
+   *  on the drawing set, so a mark never appears with nothing to cross-
+   *  reference against. Default false (existing callers are unaffected). */
+  showOpeningMarks = false,
+  /** Precomputed whole-plan opening→mark map (`assignOpeningMarks(fullPlan)`).
+   *  A multi-storey caller (the drawing set) MUST pass this so each per-level
+   *  sheet uses the plan-wide numbering the schedule uses — passing only the
+   *  stripped single level would restart marks (an upper door showing `D1`
+   *  while the schedule types it `D2`). Omitted ⇒ derived from `plan` itself
+   *  (correct for a single-storey plan). */
+  openingMarks?: Map<string, string>,
 ): string {
   // Defensive: a malformed/partial plan (no extent or no walls) yields no
   // diagram rather than throwing.
@@ -166,19 +287,57 @@ export function reportPlanSvg(
     .join('')
 
   // Each room labelled with its name + area (standard architectural practice —
-  // the plan reads on its own without cross-referencing the rooms table).
+  // the plan reads on its own without cross-referencing the rooms table). On
+  // the FURNISHED (GA) plan the label sits over indicative furniture
+  // footprints; without a mask, the room name/area collides illegibly with the
+  // silhouettes in dense zones (contractor re-review P3). So each label rides a
+  // deterministic near-white backing plate (a text halo — the same "mask the
+  // background" convention the opening white-gap cut already uses here), sized
+  // from the label's own text, drawn UNDER the ink. Purely a function of the
+  // text + anchor, so the output stays deterministic.
   const labels = plan.rooms
     .map((r) => {
       const [lx, lz] = roomLabelPosition(r)
       const x = lx.toFixed(3)
-      return `<text x="${x}" y="${lz.toFixed(3)}" font-size="0.32" fill="#6b7280" text-anchor="middle"><tspan x="${x}" dy="-0.14">${esc(r.name)}</tspan><tspan x="${x}" dy="0.42" font-size="0.26" fill="#9ca3af">${esc(formatArea(planRoomArea(r), units))}</tspan></text>`
+      const area = formatArea(planRoomArea(r), units)
+      // Estimate each line's printed width (avg glyph advance ≈ 0.55 × font
+      // size) to size the halo; the wider of name (0.32) / area (0.26) wins.
+      const nameW = r.name.length * 0.32 * 0.55
+      const areaW = area.length * 0.26 * 0.55
+      const plateW = Math.max(nameW, areaW) + 0.2
+      // The two baselines span lz−0.14 (name) → lz+0.28 (area); pad above/below
+      // for the cap/descender so the plate fully backs both lines.
+      const plateX = (lx - plateW / 2).toFixed(3)
+      const plate = `<rect x="${plateX}" y="${(lz - 0.52).toFixed(3)}" width="${plateW.toFixed(3)}" height="0.92" rx="0.08" fill="#ffffff" fill-opacity="0.82"/>`
+      const text = `<text x="${x}" y="${lz.toFixed(3)}" font-size="0.32" fill="#6b7280" text-anchor="middle"><tspan x="${x}" dy="-0.14">${esc(r.name)}</tspan><tspan x="${x}" dy="0.42" font-size="0.26" fill="#9ca3af">${esc(area)}</tspan></text>`
+      return plate + text
     })
     .join('')
 
-  // Extra strip below the plan for a scale bar (standard on architectural plans).
-  const scaleStrip = 0.9
-  const barY = d + pad + scaleStrip * 0.55
+  // Extra strip below the plan for a scale bar (standard on architectural
+  // plans) — taller when the tile setting-out caption also rides in it (G3),
+  // taller still when a second "marks omitted" line is needed (re-review
+  // follow-up to H-D2).
+  const tileMarksOmitted = showTileMarks && anyTileMarksOmitted(plan)
+  const scaleStrip = showTileMarks ? (tileMarksOmitted ? 1.64 : 1.3) : 0.9
+  const barY = d + pad + 0.9 * 0.55
   const vbH = d + pad * 2 + scaleStrip
   const openings = openingsSvg(plan)
-  return `<svg class="plan-svg" viewBox="${-pad} ${-pad} ${(w + pad * 2).toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${furniture}${walls}${openings}${labels}${notesSvg(plan)}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}</svg>`
+  const fullW = w + pad * 2
+  // Print-true sizing (TODO G2): the viewBox is already 1 unit = 1 metre, so
+  // the full viewBox extent (metres) × mmPerM (mm per metre) is the sheet's
+  // exact printed size at the locked scale. An inline `style` (not a bare
+  // `width`/`height` attribute) is required: presentational attributes have
+  // the LOWEST CSS priority, so a plain attribute would be silently
+  // overridden by the drawing-set's `.draw svg { width:100% }` rule.
+  const sizeAttr =
+    printMmPerM != null
+      ? ` style="width:${(fullW * printMmPerM).toFixed(3)}mm;height:${(vbH * printMmPerM).toFixed(3)}mm"`
+      : ''
+  const tileMarks = showTileMarks ? tileSettingOutSvg(plan) : ''
+  const tileCaption = showTileMarks ? tileSettingOutCaption(barY + 0.55, tileMarksOmitted) : ''
+  const openingMarksStr = showOpeningMarks
+    ? openingMarksSvg(plan, openingMarks ?? assignOpeningMarks(plan))
+    : ''
+  return `<svg class="plan-svg"${sizeAttr} viewBox="${-pad} ${-pad} ${fullW.toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${furniture}${walls}${openings}${openingMarksStr}${labels}${notesSvg(plan)}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}${tileMarks}${tileCaption}</svg>`
 }

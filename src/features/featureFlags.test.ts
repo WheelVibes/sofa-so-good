@@ -82,6 +82,23 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'simple').furnitureGroups).toBe(false)
   })
 
+  it('importSh3f (pro tier) is present in Pro and hidden in Simple', () => {
+    // Importing a .sh3f furniture library is an interop surface beyond the core
+    // furnish loop → pro; hidden in Simple, restored in Pro.
+    expect(resolveFlags(true, {}, false, 'pro').importSh3f).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').importSh3f).toBe(false)
+  })
+
+  it('parametricStairs (pro tier) is present in Pro and hidden in Simple', () => {
+    // The parametric staircase generator is a structural authoring tool for
+    // multi-level plans → pro; the catalog card gates on this flag so it
+    // disappears from Simple's minimal core loop. Pure-code → on in prod Pro.
+    expect(resolveFlags(true, {}, false, 'pro').parametricStairs).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').parametricStairs).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').parametricStairs).toBe(true)
+    expect(resolveFlags(false, {}, false, 'simple').parametricStairs).toBe(false)
+  })
+
   it('pathArray (pro tier) is present in Pro and hidden in Simple', () => {
     // Duplicate-along-path (PARITY-DUP-PATH) is advanced array tooling → pro; the
     // inspector section gates on this flag so it disappears from Simple's core loop.
@@ -389,6 +406,13 @@ describe('renderPresets flag (F4)', () => {
   })
 })
 
+describe('lightMoodPresets flag (UX round-3 #3)', () => {
+  it('is simple-tier: enabled in both Simple and Pro by default', () => {
+    expect(resolveFlags(false, {}, false, 'simple').lightMoodPresets).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').lightMoodPresets).toBe(true)
+  })
+})
+
 describe('contactShadows flag (RZ1)', () => {
   it('is simple-tier: grounding shadows stay on in both Simple and Pro by default', () => {
     expect(resolveFlags(false, {}, false, 'simple').contactShadows).toBe(true)
@@ -600,13 +624,19 @@ describe('furnitureMotion flag (bug #15 — animate fan blades toggle)', () => {
   })
 })
 
-describe('AI surfaces (aiPhotoreal / aiWalls / aiLayout — IXT-SUITES AI-surfaces rung)', () => {
-  // All three are experimental BYO-key AI features (no bundled key, no
+describe('AI surfaces (aiPhotoreal / aiWalls / aiLayout / aiPlanGenerate / aiDesignChat — IXT-SUITES AI-surfaces rung)', () => {
+  // All are experimental BYO-key AI features (no bundled key, no
   // sidecar): pure client code that fails soft with no key, so — unlike
   // ikeaLive/livePrices — they are NOT devOnly and ship in prod, but are
   // pro-tier (hidden in Simple, where the UI stays the minimal core loop).
   it('are pro-tier, ship in prod (no devOnly gate), default on', () => {
-    for (const key of ['aiPhotoreal', 'aiWalls', 'aiLayout'] as const) {
+    for (const key of [
+      'aiPhotoreal',
+      'aiWalls',
+      'aiLayout',
+      'aiPlanGenerate',
+      'aiDesignChat',
+    ] as const) {
       expect(FEATURE_FLAGS[key].tier).toBe('pro')
       expect(FEATURE_FLAGS[key].devOnly).toBeUndefined()
       expect(FEATURE_FLAGS[key].default).toBe(true)
@@ -614,7 +644,13 @@ describe('AI surfaces (aiPhotoreal / aiWalls / aiLayout — IXT-SUITES AI-surfac
   })
 
   it('are hidden in Simple mode and present in Pro mode (both build kinds)', () => {
-    for (const key of ['aiPhotoreal', 'aiWalls', 'aiLayout'] as const) {
+    for (const key of [
+      'aiPhotoreal',
+      'aiWalls',
+      'aiLayout',
+      'aiPlanGenerate',
+      'aiDesignChat',
+    ] as const) {
       expect(resolveFlags(false, {}, false, 'simple')[key]).toBe(false)
       expect(resolveFlags(false, {}, false, 'pro')[key]).toBe(true)
       expect(resolveFlags(true, {}, false, 'simple')[key]).toBe(false)

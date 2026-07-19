@@ -1,5 +1,5 @@
 import type React from 'react'
-import { doorSwingGeometry } from '../../../../floorplan/doorSwing'
+import { doorPlanSymbol } from '../../../../floorplan/doorSwing'
 import { type PlanOpening, type PlanWall, wallLength } from '../../../../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../../../../floorplan/wallArc'
 import type { PlanSelection } from '../../../../state/slices/floorPlanSlice'
@@ -145,27 +145,84 @@ export function OpeningsLayer({
             />
             {o.kind === 'door' ? (
               (() => {
-                // Leaf line (hinge → open tip) + swing arc, honouring the
-                // door's configured hinge jamb + swing side.
-                const g = doorSwingGeometry(wall, o)
-                if (!g) return null
+                // Architectural door symbol from the shared builder: one/two
+                // swing leaves (panel/flush/glazed/bifold vs double) each drawn
+                // as a leaf line + quarter arc, honouring hinge/swing; or a
+                // sliding door's leaf bar + slide-direction arrow (no arc).
+                const sym = doorPlanSymbol(wall, o)
+                if (!sym) return null
+                if (sym.kind === 'sliding') {
+                  const [b0, b1] = sym.bar
+                  const [a0, a1] = sym.arrow
+                  // Arrowhead: two short barbs at the arrow tip.
+                  const adx = a1[0] - a0[0]
+                  const adz = a1[1] - a0[1]
+                  const alen = Math.hypot(adx, adz) || 1
+                  const uax = adx / alen
+                  const uaz = adz / alen
+                  const hb = 0.09 // barb length (m)
+                  return (
+                    <>
+                      <line
+                        x1={toPx(b0[0])}
+                        y1={toPx(b0[1])}
+                        x2={toPx(b1[0])}
+                        y2={toPx(b1[1])}
+                        stroke={color}
+                        strokeWidth={isSel ? 4 : 3}
+                        strokeLinecap="round"
+                      />
+                      <line
+                        x1={toPx(a0[0])}
+                        y1={toPx(a0[1])}
+                        x2={toPx(a1[0])}
+                        y2={toPx(a1[1])}
+                        stroke={color}
+                        strokeWidth={1.5}
+                        opacity={0.8}
+                      />
+                      <line
+                        x1={toPx(a1[0])}
+                        y1={toPx(a1[1])}
+                        x2={toPx(a1[0] - (uax + uaz) * hb)}
+                        y2={toPx(a1[1] - (uaz - uax) * hb)}
+                        stroke={color}
+                        strokeWidth={1.5}
+                        opacity={0.8}
+                      />
+                      <line
+                        x1={toPx(a1[0])}
+                        y1={toPx(a1[1])}
+                        x2={toPx(a1[0] - (uax - uaz) * hb)}
+                        y2={toPx(a1[1] - (uaz + uax) * hb)}
+                        stroke={color}
+                        strokeWidth={1.5}
+                        opacity={0.8}
+                      />
+                    </>
+                  )
+                }
                 return (
                   <>
-                    <line
-                      x1={toPx(g.hinge[0])}
-                      y1={toPx(g.hinge[1])}
-                      x2={toPx(g.leafTip[0])}
-                      y2={toPx(g.leafTip[1])}
-                      stroke={color}
-                      strokeWidth={isSel ? 3 : 2}
-                    />
-                    <path
-                      d={`M ${toPx(g.freeJamb[0])} ${toPx(g.freeJamb[1])} A ${o.width * PX} ${o.width * PX} 0 0 ${g.sweep} ${toPx(g.leafTip[0])} ${toPx(g.leafTip[1])}`}
-                      fill="none"
-                      stroke={color}
-                      strokeWidth={1}
-                      opacity={0.7}
-                    />
+                    {sym.leaves.map((lf, i) => (
+                      <g key={`${o.id}.leaf${i}`}>
+                        <line
+                          x1={toPx(lf.hinge[0])}
+                          y1={toPx(lf.hinge[1])}
+                          x2={toPx(lf.leafTip[0])}
+                          y2={toPx(lf.leafTip[1])}
+                          stroke={color}
+                          strokeWidth={isSel ? 3 : 2}
+                        />
+                        <path
+                          d={`M ${toPx(lf.freeJamb[0])} ${toPx(lf.freeJamb[1])} A ${lf.radius * PX} ${lf.radius * PX} 0 0 ${lf.sweep} ${toPx(lf.leafTip[0])} ${toPx(lf.leafTip[1])}`}
+                          fill="none"
+                          stroke={color}
+                          strokeWidth={1}
+                          opacity={0.7}
+                        />
+                      </g>
+                    ))}
                   </>
                 )
               })()

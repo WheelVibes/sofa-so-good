@@ -1,0 +1,84 @@
+{
+  "name": "thumbnail-clone-gpu-probe",
+  "description": "MEASUREMENT ONLY (TODO 'Open — investigations' lead, 2026-07-18 perf sweep): does `ui/catalog/thumbnails.tsx`'s `GltfThumbnailCapture` (`SkeletonUtils.clone(gltf.scene)` per active def, rendered via `<primitive object={obj}>`) leak geometry/texture GPU resources on unmount, now that the catalog compare tray drives up to 3 concurrent thumbnail requests? Reads `renderer.info.memory.{geometries,textures}` off the THUMBNAIL HOST's own dedicated off-screen `<Canvas>` (NOT the main scene's `window.__three` -- the thumbnail host is a separate R3F root with its own WebGLRenderer) via r3f's internal `_roots` registry (`await import('/node_modules/.vite/deps/@react-three_fiber.js')`, the Vite-optimized-dep URL -- a bare `import('@react-three/fiber')` from page-context eval 404s, it only resolves inside already-bundled app code), identified by its distinctive 256x192 canvas size (`THUMB_W`/`THUMB_H`). Cycles through 3 catalog categories with real bundled GLTF-kind defs (Decor: book-set/ceramic-vase-slim/ceramic-vase-wide/potted-plant-leafy/potted-succulent/standing-photo-frame/tea-set; Lighting: desk-lamp-arm; Tables: 4 pool-table variants) 3 times, forcing 3x re-requests of already-cached AND newly-distinct urls through the single-item queue, then separately drives the compare tray (up to 3 concurrent `useBuiltinThumbnail` calls) with 3 distinct decor defs. Reports geometries/textures before vs after; a leak would show unbounded growth across repeat cycles (revisiting the SAME set of urls should never grow the count once each is cached), a non-leak plateaus after the first pass (first-seen unique urls only).",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "wait-catalog", "waitFor": { "css": ".panel.catalog" }, "timeout": 10000 },
+    {
+      "name": "define-thumb-gl-getter",
+      "eval": "(async () => { const fiber = await import('/node_modules/.vite/deps/@react-three_fiber.js'); window.__getThumbGl = () => { for (const [canvas, root] of fiber._roots.entries()) { if (canvas.width === 256 && canvas.height === 192) return root.store.getState().gl; } return null; }; window.__memSnap = () => { const gl = window.__getThumbGl(); if (!gl) return null; return { geometries: gl.info.memory.geometries, textures: gl.info.memory.textures }; }; window.__thumbContextLostCount = 0; window.__thumbContextRestoredCount = 0; const gl0 = window.__getThumbGl(); if (gl0) { gl0.domElement.addEventListener('webglcontextlost', () => { window.__thumbContextLostCount++; }); gl0.domElement.addEventListener('webglcontextrestored', () => { window.__thumbContextRestoredCount++; }); } })()"
+    },
+    {
+      "name": "assert-thumb-canvas-found",
+      "waitFor": { "store": "typeof window.__memSnap === 'function' && window.__memSnap() !== null" },
+      "timeout": 10000,
+      "failMessage": "could not locate the 256x192 thumbnail host canvas via r3f's _roots registry"
+    },
+    {
+      "name": "define-click-category",
+      "comment": "The category rail is a horizontally-scrollable row -- a tab can be scrolled out of view, and the harness's coordinate-based clickByText can mis-click when that happens (observed while authoring this probe: after several tab switches, a 'Decor' click landed on the wrong tab / a stray match). Click the exact CategoryTabs button via a DOM .click(), scroll-independent.",
+      "eval": "window.__clickCategory = (label) => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim().startsWith(label)); if (!b) throw new Error('category tab not found: ' + label + ' -- available chips: ' + [...document.querySelectorAll('nav button')].map(x=>x.textContent.trim()).join(', ')); b.click(); }"
+    },
+    { "name": "record-initial-snapshot", "eval": "window.__snap0 = window.__memSnap(); window.__log = ['initial: ' + JSON.stringify(window.__snap0)]" },
+    { "name": "click-decor-tab-1", "eval": "window.__clickCategory('Decor')" },
+    { "name": "settle-decor-1", "wait": 2500 },
+    { "name": "click-lighting-tab-1", "eval": "window.__clickCategory('Lighting')" },
+    { "name": "settle-lighting-1", "wait": 2000 },
+    { "name": "click-tables-tab-1", "eval": "window.__clickCategory('Tables')" },
+    { "name": "settle-tables-1", "wait": 2000 },
+    { "name": "snapshot-after-cycle-1", "eval": "window.__snap1 = window.__memSnap(); window.__log.push('after cycle 1: ' + JSON.stringify(window.__snap1))" },
+    { "name": "click-decor-tab-2", "eval": "window.__clickCategory('Decor')" },
+    { "name": "settle-decor-2", "wait": 2000 },
+    { "name": "click-lighting-tab-2", "eval": "window.__clickCategory('Lighting')" },
+    { "name": "settle-lighting-2", "wait": 1500 },
+    { "name": "click-tables-tab-2", "eval": "window.__clickCategory('Tables')" },
+    { "name": "settle-tables-2", "wait": 1500 },
+    { "name": "snapshot-after-cycle-2", "eval": "window.__snap2 = window.__memSnap(); window.__log.push('after cycle 2: ' + JSON.stringify(window.__snap2))" },
+    { "name": "click-decor-tab-3", "eval": "window.__clickCategory('Decor')" },
+    { "name": "settle-decor-3", "wait": 2000 },
+    { "name": "click-lighting-tab-3", "eval": "window.__clickCategory('Lighting')" },
+    { "name": "settle-lighting-3", "wait": 1500 },
+    { "name": "click-tables-tab-3", "eval": "window.__clickCategory('Tables')" },
+    { "name": "settle-tables-3", "wait": 1500 },
+    { "name": "snapshot-after-cycle-3", "eval": "window.__snap3 = window.__memSnap(); window.__log.push('after cycle 3: ' + JSON.stringify(window.__snap3))" },
+    {
+      "name": "enable-compare-mode",
+      "comment": "catalogCompare flag (check tier/default) -- force it on directly so the tray is reachable regardless of Simple/Pro mode (this rung is a measurement, not a gate proof).",
+      "eval": "window.__store.getState().setFeatureFlag('catalogCompare', true)"
+    },
+    { "name": "back-to-decor-for-compare", "eval": "window.__clickCategory('Decor')" },
+    { "name": "settle-decor-for-compare", "wait": 1500 },
+    {
+      "name": "open-compare-mode",
+      "eval": "(() => { const b = document.querySelector('[aria-label=\"Compare items\"]'); if (!b) throw new Error('Compare items button not found -- catalogCompare flag may not be resolving on'); b.click(); })()"
+    },
+    { "name": "wait-compare-mode", "waitFor": { "store": "[...document.querySelectorAll('.cat-card')].some(c => c.getAttribute('aria-pressed') !== null)" }, "timeout": 5000 },
+    {
+      "name": "select-3-decor-items-for-compare",
+      "comment": "Page 1 of Decor doesn't include the specific generatedCatalog.ts GLTF names (book-set/tea-set/etc land on a later page) -- rather than chasing pagination, just take the first 3 armable cards on whatever page is showing (Decor mixes real bundled GLTF items like 'Floor vase'/'Aquarium'/'Wall mirror' with parametric ones; either way this exercises the compare tray's concurrent useBuiltinThumbnail calls, the actual thing under test).",
+      "eval": "(() => { const cards = [...document.querySelectorAll('.cat-card.compare-armed')]; if (cards.length < 2) throw new Error('expected >=2 compare-armable cards, found ' + cards.length); const picked = cards.slice(0, 3); for (const c of picked) c.click(); window.__comparePicked = picked.length; window.__log.push('compare picks: ' + picked.map(c=>c.textContent.trim().slice(0,30)).join(' | ')); })()"
+    },
+    {
+      "name": "open-compare-tray",
+      "eval": "(() => { const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim() === 'Compare' && !x.disabled); if (!b) throw new Error('Compare confirm button not found/disabled'); b.click(); })()"
+    },
+    { "name": "wait-compare-tray", "waitFor": { "css": ".cmp-col" }, "timeout": 8000, "failMessage": "compare tray modal should mount a CompareColumn per selected def" },
+    { "name": "settle-compare-thumbs", "wait": 3000 },
+    { "name": "snapshot-after-compare-tray", "eval": "window.__snap4 = window.__memSnap(); window.__log.push('after compare tray (' + window.__comparePicked + ' concurrent GLTF requests): ' + JSON.stringify(window.__snap4))" },
+    { "name": "attempt-gc-pressure", "eval": "(() => { window.__log.push('window.gc available: ' + (typeof window.gc === 'function')); try { window.gc?.(); } catch {} })()" },
+    { "name": "settle-gc", "wait": 1500 },
+    { "name": "snapshot-final", "eval": "window.__snap5 = window.__memSnap(); window.__log.push('final (post-settle): ' + JSON.stringify(window.__snap5))" },
+    { "name": "report-context-events", "eval": "window.__log.push('thumbnail canvas contextlost events: ' + window.__thumbContextLostCount + ', contextrestored events: ' + window.__thumbContextRestoredCount)" },
+    {
+      "name": "report",
+      "eval": "(() => { throw new Error('MEASUREMENT REPORT:\\n' + window.__log.join('\\n')) })()"
+    }
+  ]
+}

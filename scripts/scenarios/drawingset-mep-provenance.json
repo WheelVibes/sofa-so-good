@@ -1,0 +1,40 @@
+{
+  "name": "drawingset-mep-provenance",
+  "description": "MEP layer G1 PR5 — the drawing set's electrical sheet prefers a persisted `electricalPoints` array (authored via the floor-plan MEP tool) over the furniture-derived heuristic: asserts the 'Points as designed' provenance note + an '@1200' mount-height suffix appear in the captured HTML once a point is added. openDrawingSet() opens a new window and calls document.write; window.open is intercepted (stub capturing the written HTML) so the real popup never spawns.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "boot-settled", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 60000 },
+    { "name": "settle-post-boot", "wait": 600 },
+
+    {
+      "name": "add-authored-point",
+      "eval": "window.__store.getState().addElectricalPoint({ x: 4.5, z: 1.2, kind: 'socket', mountHeightMm: 1200 })"
+    },
+    {
+      "name": "patch-window-open",
+      "eval": "window.__capturedHtml = null; window.__origWindowOpen = window.open; window.open = function () { return { document: { write: function (html) { window.__capturedHtml = html }, close: function () {} }, close: function () {}, focus: function () {}, print: function () {} }; };"
+    },
+    { "name": "open-file", "click": { "text": "File" } },
+    { "name": "file-panel-open", "waitFor": { "css": ".pop-panel" }, "timeout": 10000 },
+    { "name": "settle-file", "wait": 400 },
+    {
+      "name": "click-drawing-set",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.pop-panel button')].find(b => b.textContent.includes('Drawing set')); if (!btn) throw new Error('Drawing set button not found'); btn.click(); })()"
+    },
+    {
+      "name": "wait-html-captured",
+      "waitFor": { "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 0" },
+      "timeout": 15000,
+      "failMessage": "openDrawingSet() never wrote HTML via the intercepted window.open"
+    },
+    {
+      "name": "assert-as-designed-provenance",
+      "eval": "(function(){ if (!window.__capturedHtml.includes('Points as designed')) throw new Error('Drawing set HTML missing the \"Points as designed\" provenance note for a persisted electrical point'); if (!window.__capturedHtml.includes('@1200')) throw new Error('Drawing set HTML missing the @1200 mount-height suffix'); window.open = window.__origWindowOpen; })()"
+    },
+    { "name": "shot-drawing-set-as-designed", "screenshot": "drawingset-mep-as-designed" }
+  ]
+}

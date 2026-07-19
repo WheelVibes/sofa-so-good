@@ -64,6 +64,15 @@ function extOf(name: string): string {
   return m ? m[0] : ''
 }
 
+/** Map a file name/path to a model format by its extension alone (no byte
+ *  sniffing) — for callers that only have a name + bytes and not a `File`, e.g.
+ *  the `.sh3f` furniture-library importer resolving each catalog entry's model.
+ *  Returns `null` for a non-model extension (skipped by the caller). */
+export function modelFormatFromName(nameOrPath: string): ModelFormat | null {
+  const base = nameOrPath.split('/').pop() ?? nameOrPath
+  return EXT_TO_FORMAT[extOf(base)] ?? null
+}
+
 /** True for actual model entry files (any supported model extension). */
 export function isModelEntryFile(nameOrPath: string): boolean {
   const base = nameOrPath.split('/').pop() ?? nameOrPath

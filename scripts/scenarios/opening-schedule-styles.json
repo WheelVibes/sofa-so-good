@@ -1,0 +1,45 @@
+{
+  "name": "opening-schedule-styles",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "tall-viewport", "viewport": { "width": 1200, "height": 1400 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    {
+      "name": "make-same-size-different-style-doors",
+      "eval": "(() => { const s = window.__store.getState(); const doors = (s.floorPlan.openings || []).filter(o => o.kind === 'door'); if (doors.length < 2) throw new Error('need >=2 ground doors, got ' + doors.length); const W = 0.9; s.updateOpening(doors[0].id, { width: W, style: 'sliding', material: 'wood' }); s.updateOpening(doors[1].id, { width: W, style: 'panel', material: 'painted' }); window.__doorIds = [doors[0].id, doors[1].id]; })()"
+    },
+    {
+      "name": "intercept-window-open",
+      "eval": "window.open = () => ({ document: { write(h) { window.__capturedHtml = h }, close() {} }, close() {}, focus() {}, print() {} })"
+    },
+    { "name": "open-file-menu", "click": "button[aria-label=\"File\"]" },
+    { "name": "file-menu-open", "waitFor": { "css": ".menu-item" }, "timeout": 8000 },
+    { "name": "click-drawing-set", "click": { "text": "Drawing set" } },
+    {
+      "name": "drawing-set-captured",
+      "waitFor": {
+        "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 1000"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "assert-style-column-and-split",
+      "eval": "(() => { const html = window.__capturedHtml; const need = (re, label) => { if (!re.test(html)) throw new Error('missing: ' + label) }; need(/Style \\/ material/, 'Style / material column header'); need(/Sliding · Wood/, 'sliding+wood door style cell'); need(/Panel · Painted/, 'panel+painted door style cell'); need(/>D1</, 'D1 mark'); need(/>D2</, 'D2 mark (same-size split)'); window.__stylesOk = true; })()"
+    },
+    {
+      "name": "render-html-for-screenshot",
+      "eval": "document.open(); document.write(window.__capturedHtml); document.close();"
+    },
+    {
+      "name": "scroll-to-opening-schedule-sheet",
+      "eval": "(() => { const names = [...document.querySelectorAll('.tb-name')]; const nameEl = names.find((el) => el.textContent.trim() === 'Door & window schedule'); const target = nameEl && nameEl.closest('.sheet'); if (!target) throw new Error('opening schedule sheet not found in rendered document'); target.scrollIntoView(); })()"
+    },
+    { "name": "shot-opening-schedule-styles", "screenshot": "opening-schedule-styles" }
+  ]
+}

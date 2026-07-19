@@ -102,6 +102,18 @@ describe('buildPlanStatistics — edge cases', () => {
     expect(s.totalWallLengthM).toBeCloseTo(5, 6)
   })
 
+  it('honours an explicit room category over the name (RM1)', () => {
+    // "Ella's room" infers to 'other'; an explicit bedroom category wins and
+    // tallies it under bedroom. A name-only room stays byte-identical.
+    const rooms = [
+      { ...room('kr', "Ella's room", 3, 3), category: 'bedroom' as const }, // → bedroom 9
+      room('lr', 'Living', 4, 3), // → living 12
+    ]
+    const s = buildPlanStatistics(plan(rooms))
+    expect(s.byKind.map((k) => k.kind).sort()).toEqual(['bedroom', 'living'])
+    expect(s.byKind.find((k) => k.kind === 'bedroom')!.count).toBe(1)
+  })
+
   it('buckets rooms with no recognisable kind as "other"', () => {
     const rooms = [
       room('x', 'Zone Q', 2, 2), // unknown → other

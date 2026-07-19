@@ -1,4 +1,5 @@
 import type { PriceRules } from '../../analysis/renovationCost'
+import type { DrawingSetTemplate } from '../../export/drawingSetTemplate'
 import type { QuoteTemplate } from '../../export/quoteTemplate'
 import type { FloorPlan } from '../../floorplan/types'
 import type { FurnitureItem } from '../../furniture/types'
@@ -48,6 +49,8 @@ export interface HistorySnapshot {
   drawingCallouts: DrawingCallout[]
   /** Quote template settings — branding/tax/section changes are undoable. */
   quoteTemplate: QuoteTemplate
+  /** Drawing-set handover template — project/client/revision changes are undoable. */
+  drawingSetTemplate: DrawingSetTemplate
   /** Price-rule library — finish + carpentry rate changes are undoable. */
   priceRules: PriceRules
   /** Apartment master colour palette — explicitly documented as undoable design
@@ -68,7 +71,17 @@ export interface HistorySlice {
    *  ephemeral push timing into restored states. */
   _lastPushKey: string | null
   _lastPushAt: number
-  /** Capture current undoable state and clear redo stack. Always pushes. */
+  /** While true, `pushHistory`/`pushHistoryCoalesced` are no-ops. Set only by
+   *  `runWithoutHistory` — lets a batch that composes many individually-pushing
+   *  store actions (e.g. AI-draft plan build = newFloorPlan + N addWall/addRoom/
+   *  addOpening) collapse into a single undo step: the caller pushes once, then
+   *  runs the build inside `runWithoutHistory`. Not snapshotted (ephemeral). */
+  _suppressHistory: boolean
+  /** Run `fn` with history pushes suppressed, restoring the prior suppression
+   *  state afterward (even if `fn` throws), so nested calls compose. */
+  runWithoutHistory: (fn: () => void) => void
+  /** Capture current undoable state and clear redo stack. Always pushes
+   *  (unless suppressed via `runWithoutHistory`). */
   pushHistory: () => void
   /** Push only when `key` differs from the last call OR the coalesce
    *  window has elapsed. Use for streams of fine-grained edits (slider
@@ -108,6 +121,7 @@ function snapshot(s: RootState): HistorySnapshot {
     comments: s.comments,
     drawingCallouts: s.drawingCallouts,
     quoteTemplate: s.quoteTemplate,
+    drawingSetTemplate: s.drawingSetTemplate,
     priceRules: s.priceRules,
     masterPalette: s.masterPalette,
     roomPalettes: s.roomPalettes,
@@ -127,6 +141,7 @@ function snapshotMatchesState(snap: HistorySnapshot, s: RootState): boolean {
     snap.comments === s.comments &&
     snap.drawingCallouts === s.drawingCallouts &&
     snap.quoteTemplate === s.quoteTemplate &&
+    snap.drawingSetTemplate === s.drawingSetTemplate &&
     snap.priceRules === s.priceRules &&
     snap.masterPalette === s.masterPalette &&
     snap.roomPalettes === s.roomPalettes
@@ -161,25 +176,38 @@ function appendCapped(stack: HistorySnapshot[], snap: HistorySnapshot): HistoryS
 
 export const HISTORY_INITIAL: Pick<
   HistorySlice,
-  'past' | 'future' | '_lastPushKey' | '_lastPushAt'
+  'past' | 'future' | '_lastPushKey' | '_lastPushAt' | '_suppressHistory'
 > = {
   past: [],
   future: [],
   _lastPushKey: null,
   _lastPushAt: 0,
+  _suppressHistory: false,
 }
 
 export const createHistorySlice: SliceCreator<HistorySlice, RootState> = (set, get) => ({
   ...HISTORY_INITIAL,
-  pushHistory: () =>
+  runWithoutHistory: (fn) => {
+    const prev = get()._suppressHistory
+    set({ _suppressHistory: true })
+    try {
+      fn()
+    } finally {
+      set({ _suppressHistory: prev })
+    }
+  },
+  pushHistory: () => {
+    if (get()._suppressHistory) return
     set((s) => ({
       past: appendCapped(s.past, snapshot(s)),
       future: [],
       _lastPushKey: null,
       _lastPushAt: Date.now(),
-    })),
+    }))
+  },
   pushHistoryCoalesced: (key) => {
     const s = get()
+    if (s._suppressHistory) return
     const now = Date.now()
     if (s._lastPushKey === key && now - s._lastPushAt < COALESCE_MS) {
       set({ _lastPushAt: now })

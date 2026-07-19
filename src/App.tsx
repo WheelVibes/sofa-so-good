@@ -5,6 +5,7 @@ import { useNudge } from './controls/useNudge'
 import { useFeature } from './features/useFeature'
 import { consumeJustUpdated } from './pwa/swUpdate'
 import { FinishDragOverlay } from './scene/FinishDragOverlay'
+import { FinishEyedropperOverlay } from './scene/FinishEyedropperOverlay'
 import { MobileLongPress } from './scene/MobileLongPress'
 import { RoomEditorScene } from './scene/RoomEditorScene'
 import { Scene } from './scene/Scene'
@@ -19,12 +20,14 @@ import {
   CommentsPanel,
   ConfiguratorDialog,
   DaylightPanel,
+  DesignChatPanel,
   DesignScorePanel,
   DrawingCalloutsPanel,
   ElevationPanel,
   FlagsPanel,
   FloorPlanEditor,
   GlbDesignerDialog,
+  HandoverPanel,
   HistoryPanel,
   HqRenderModal,
   PanoramaModal,
@@ -33,6 +36,8 @@ import {
   PetCompliancePanel,
   ProductTour,
   RenderCompareModal,
+  RenoRulesPanel,
+  RenovationBudgetPanel,
   ShareModal,
   ShortcutsModal,
   SmartStartWizard,
@@ -40,6 +45,7 @@ import {
   StyleQuizModal,
   StyleTransferModal,
   TimeCompareModal,
+  VersionCompareModal,
   VersionsPanel,
 } from './ui/app/lazyComponents'
 import { preloadFeatureChunks } from './ui/app/preloadOnIdle'
@@ -110,6 +116,7 @@ export default function App() {
     hqRenderOpen: useStore((s) => s.hqRenderOpen),
     renderCompareOpen: useStore((s) => s.renderCompareOpen),
     stagingRevealOpen: useStore((s) => s.stagingRevealOpen),
+    versionCompareOpen: useStore((s) => s.versionCompareOpen),
     timeCompareOpen: useStore((s) => s.timeCompareOpen),
     styleTransferOpen: useStore((s) => s.styleTransferOpen),
     styleQuizOpen: useStore((s) => s.styleQuizOpen),
@@ -122,13 +129,17 @@ export default function App() {
     // Pro/analysis panels — lazy-loaded + gated so their chunks stay out of the
     // Simple-tier boot bundle (PERF-004). Each self-gated on the same flag before.
     budgetOpen: useStore((s) => s.budgetOpen),
+    renoBudgetOpen: useStore((s) => s.renoBudgetOpen),
     clearanceOpen: useStore((s) => s.clearancePanelOpen),
     daylightOpen: useStore((s) => s.daylightOpen),
     designScoreOpen: useStore((s) => s.designScoreOpen),
     commentsOpen: useStore((s) => s.commentsOpen),
+    designChatOpen: useStore((s) => s.designChatOpen),
     drawingCalloutsOpen: useStore((s) => s.drawingCalloutsOpen),
     accessibilityOpen: useStore((s) => s.accessibilityOpen),
     petComplianceOpen: useStore((s) => s.petComplianceOpen),
+    renoRulesOpen: useStore((s) => s.renoRulesOpen),
+    handoverOpen: useStore((s) => s.handoverOpen),
     flagsOpen: useStore((s) => s.flagsPanelOpen),
   }
   usePlacementController()
@@ -321,6 +332,8 @@ export default function App() {
           {/* Drop-target ring: shown while a finish drag is over the canvas
               (DOM overlay, outside R3F — works under frameloop="demand"). */}
           <FinishDragOverlay />
+          {/* Sampling-mode ring: shown while the finish eyedropper is armed. */}
+          <FinishEyedropperOverlay />
           <FpsCounter />
           <RoomEditorCaption />
           {roomEditorActive && (
@@ -380,6 +393,11 @@ export default function App() {
             <BudgetPanel />
           </Suspense>
         ) : null}
+        {lazyPanels.renoBudgetOpen ? (
+          <Suspense fallback={null}>
+            <RenovationBudgetPanel />
+          </Suspense>
+        ) : null}
         {lazyPanels.clearanceOpen ? (
           <Suspense fallback={null}>
             <ClearancePanel />
@@ -400,6 +418,11 @@ export default function App() {
             <CommentsPanel />
           </Suspense>
         ) : null}
+        {lazyPanels.designChatOpen ? (
+          <Suspense fallback={null}>
+            <DesignChatPanel />
+          </Suspense>
+        ) : null}
         {lazyPanels.drawingCalloutsOpen ? (
           <Suspense fallback={null}>
             <DrawingCalloutsPanel />
@@ -408,6 +431,16 @@ export default function App() {
         {lazyPanels.accessibilityOpen ? (
           <Suspense fallback={null}>
             <AccessibilityPanel />
+          </Suspense>
+        ) : null}
+        {lazyPanels.renoRulesOpen ? (
+          <Suspense fallback={null}>
+            <RenoRulesPanel />
+          </Suspense>
+        ) : null}
+        {lazyPanels.handoverOpen ? (
+          <Suspense fallback={null}>
+            <HandoverPanel />
           </Suspense>
         ) : null}
         {lazyPanels.petComplianceOpen ? (
@@ -445,6 +478,11 @@ export default function App() {
         {lazyPanels.stagingRevealOpen ? (
           <Suspense fallback={null}>
             <StagingRevealModal />
+          </Suspense>
+        ) : null}
+        {lazyPanels.versionCompareOpen ? (
+          <Suspense fallback={null}>
+            <VersionCompareModal />
           </Suspense>
         ) : null}
         {lazyPanels.timeCompareOpen ? (

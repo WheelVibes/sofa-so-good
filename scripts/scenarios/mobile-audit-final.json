@@ -1,0 +1,52 @@
+{
+  "name": "mobile-audit-final",
+  "description": "Mobile audit final pass: corrected touch sweep (accounts for ::after hit-expanders) on catalog + inspector + plan toolbar + finish tabs + share; plus lighting-moods row and plan hackability overlay legibility.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; (function(){ const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(19); s.setUiMode?.('pro'); s.reresolveFeatureFlags?.(); })()" },
+    { "name": "mobile", "viewport": { "width": 390, "height": 844 } },
+    { "name": "settle-mobile", "wait": 800 },
+
+    { "name": "enter-room", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "settle-enter", "wait": 1500 },
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "catalog-visible", "waitFor": { "css": ".panel.catalog, .catalog" }, "timeout": 8000 },
+    { "name": "settle-catalog", "wait": 1000 },
+    { "name": "sweep-catalog2", "eval": { "file": "scripts/scenarios/lib/touchSweep.mjs" } },
+    { "name": "shot-sweep-catalog2", "screenshot": "50-sweep-catalog-corrected" },
+    { "name": "clear-ov-c", "eval": "document.getElementById('__tt_overlay')?.remove()" },
+
+    { "name": "arm-and-select", "eval": "(() => { const s=window.__store.getState(); s.setCatalogOpen(false); const it=s.items.find(i=>true); if(it) s.selectItem(it.id); })()" },
+    { "name": "settle-insp", "wait": 900 },
+    { "name": "sweep-insp2", "eval": { "file": "scripts/scenarios/lib/touchSweep.mjs" } },
+    { "name": "shot-sweep-insp2", "screenshot": "51-sweep-inspector-corrected" },
+    { "name": "clear-ov-i", "eval": "document.getElementById('__tt_overlay')?.remove()" },
+
+    { "name": "open-scene-menu", "eval": "(() => { const s=window.__store.getState(); s.selectItem(null); s.exitRoomEditor?.(); })()" },
+    { "name": "settle-exit", "wait": 900 },
+    { "name": "open-menu", "eval": "(() => { const b=[...document.querySelectorAll('button')].find(x=>(x.className||'').includes('m-menu-btn')); if(b) b.click(); return !!b })()" },
+    { "name": "settle-menu", "wait": 700 },
+    { "name": "goto-lighting", "eval": "(() => { const rail=[...document.querySelectorAll('.m-rail button, .m-sheet-rail button, [role=tab], button')].map(b=>({b,l:(b.getAttribute('aria-label')||b.title||b.textContent||'')})); const hit=rail.find(x=>/light|scene|mood|palette|sun/i.test(x.l)); if(hit){ hit.b.click(); return hit.l } return 'RAIL:'+rail.slice(0,10).map(x=>x.l).join('|') })()" },
+    { "name": "settle-lighting", "wait": 900 },
+    { "name": "shot-lighting-moods", "screenshot": "52-lighting-moods" },
+    { "name": "sweep-lighting", "eval": { "file": "scripts/scenarios/lib/touchSweep.mjs" } },
+    { "name": "shot-sweep-lighting", "screenshot": "53-sweep-lighting" },
+    { "name": "clear-ov-l", "eval": "document.getElementById('__tt_overlay')?.remove()" },
+    { "name": "close-menu", "key": "Escape" },
+    { "name": "settle-close", "wait": 500 },
+
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-visible", "waitFor": { "css": ".plan-screen" }, "timeout": 30000 },
+    { "name": "settle-plan", "wait": 2000 },
+    { "name": "sweep-plan2", "eval": { "file": "scripts/scenarios/lib/touchSweep.mjs" } },
+    { "name": "shot-sweep-plan2", "screenshot": "54-sweep-plan-corrected" },
+    { "name": "clear-ov-p", "eval": "document.getElementById('__tt_overlay')?.remove()" },
+    { "name": "open-plan-tools", "eval": "(() => { const b=[...document.querySelectorAll('.plan-header button, button')].find(x=>(x.className||'').includes('m-menu-btn')); if(b){ b.click(); return 'menu-opened' } return 'NO-MENU-BTN' })()" },
+    { "name": "settle-tools", "wait": 700 },
+    { "name": "shot-plan-tools", "screenshot": "55-plan-tools-menu" },
+    { "name": "toggle-hack", "eval": "(() => { const b=[...document.querySelectorAll('button, [role=menuitem], [role=option]')].find(x=>/hackab|structur|demolish|load.?bearing/i.test((x.textContent||'')+(x.getAttribute('aria-label')||''))); if(b){ b.click(); return b.textContent||b.getAttribute('aria-label') } return 'HACK-NOT-FOUND' })()" },
+    { "name": "settle-hack", "wait": 1000 },
+    { "name": "shot-hack2", "screenshot": "56-plan-hackability" }
+  ]
+}

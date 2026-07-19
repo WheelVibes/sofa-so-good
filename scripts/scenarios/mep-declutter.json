@@ -1,0 +1,68 @@
+{
+  "name": "mep-declutter",
+  "description": "H-D1 fix + the SG-contractor re-review's circle-overlap follow-up — a WC-like cluster (soil-pipe + water-point ~0.1m apart) no longer renders overlapping symbol/label text on the plumbing sheet: labels fan out to distinct Y positions with leader lines back to their true circle, AND (new) a tight 3-point electrical cluster (socket+data+switch within ~0.1m, like a nightstand) has its symbol CIRCLES nudged to distinct centres too, each with a true-position tick + leader, via `mepLabelLayout.ts`. Captures the drawing set's plumbing + electrical sheet SVGs (window.open intercepted) and asserts distinct label Ys/leader lines (plumbing) and distinct circle centres + tick marks (electrical).",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "boot-settled", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 60000 },
+    { "name": "settle-post-boot", "wait": 600 },
+
+    {
+      "name": "add-wc-cluster",
+      "eval": "(() => { const s = window.__store.getState(); s.addPlumbingPoint({ x: 2.0, z: 2.0, kind: 'soil-pipe', label: 'WC' }); s.addPlumbingPoint({ x: 2.1, z: 2.0, kind: 'water-point', label: 'WC' }); })()"
+    },
+    {
+      "name": "add-nightstand-cluster",
+      "eval": "(() => { const s = window.__store.getState(); s.addElectricalPoint({ x: 3.0, z: 3.0, kind: 'socket', label: 'Nightstand' }); s.addElectricalPoint({ x: 3.05, z: 3.0, kind: 'data', label: 'Nightstand' }); s.addElectricalPoint({ x: 3.0, z: 3.05, kind: 'switch', label: 'Nightstand' }); })()"
+    },
+    {
+      "name": "patch-window-open",
+      "eval": "window.__capturedHtml = null; window.__origWindowOpen = window.open; window.open = function () { return { document: { write: function (html) { window.__capturedHtml = html }, close: function () {} }, close: function () {}, focus: function () {}, print: function () {} }; };"
+    },
+    { "name": "open-file", "click": { "text": "File" } },
+    { "name": "file-panel-open", "waitFor": { "css": ".pop-panel" }, "timeout": 10000 },
+    { "name": "settle-file", "wait": 400 },
+    {
+      "name": "click-drawing-set",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.pop-panel button')].find(b => b.textContent.includes('Drawing set')); if (!btn) throw new Error('Drawing set button not found'); btn.click(); })()"
+    },
+    {
+      "name": "wait-html-captured",
+      "waitFor": { "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 0" },
+      "timeout": 15000,
+      "failMessage": "openDrawingSet() never wrote HTML via the intercepted window.open"
+    },
+    {
+      "name": "assert-declutter",
+      "eval": "(function(){ window.open = window.__origWindowOpen; const html = window.__capturedHtml; const parser = new DOMParser(); const doc = parser.parseFromString(html, 'text/html'); const plumbSymbols = doc.querySelectorAll('.plumb-symbol'); if (plumbSymbols.length < 2) throw new Error('Expected at least 2 plumbing symbols in the captured HTML, got ' + plumbSymbols.length); const ys = [...plumbSymbols].map((g) => { const texts = g.querySelectorAll('text'); const last = texts[texts.length - 1]; return last ? last.getAttribute('y') : null; }).filter(Boolean); const distinctYs = new Set(ys); if (distinctYs.size < 2) throw new Error('Expected 2+ distinct label Y positions after decluttering, got: ' + JSON.stringify(ys)); const leaders = [...plumbSymbols].filter((g) => [...g.querySelectorAll('line')].some((l) => l.getAttribute('stroke-dasharray') === '2 1.5')); if (leaders.length < 1) throw new Error('Expected at least one leader line (stroke-dasharray 2 1.5) in the decluttered cluster'); window.__declutterYs = ys; window.__declutterLeaderCount = leaders.length; })()"
+    },
+    {
+      "name": "assert-circle-nudge-electrical",
+      "eval": "(function(){ const html = window.__capturedHtml; const parser = new DOMParser(); const doc = parser.parseFromString(html, 'text/html'); const elecSvg = [...doc.querySelectorAll('svg')].find((s) => s.querySelector('.elec-symbol')); if (!elecSvg) throw new Error('No electrical SVG found in the captured drawing-set HTML'); const elecSymbols = [...elecSvg.querySelectorAll('.elec-symbol')]; if (elecSymbols.length < 3) throw new Error('Expected at least 3 electrical symbols (the nightstand cluster), got ' + elecSymbols.length); const circles = elecSymbols.map((g) => g.querySelector('circle')).filter(Boolean); const centres = circles.map((c) => c.getAttribute('cx') + ',' + c.getAttribute('cy')); const distinctCentres = new Set(centres); if (distinctCentres.size < circles.length) throw new Error('Expected every circle centre in the tight cluster to be distinct, got: ' + JSON.stringify(centres)); const ticks = elecSymbols.filter((g) => [...g.querySelectorAll('line')].some((l) => l.getAttribute('stroke-width') === '0.75')); if (ticks.length < 2) throw new Error('Expected at least 2 symbols with a true-position tick+leader (stroke-width 0.75 line from true pos to nudged circle), got ' + ticks.length); window.__circleNudgeCentres = centres; window.__circleNudgeTickCount = ticks.length; })()"
+    },
+    {
+      "name": "render-plumbing-sheet-inline",
+      "eval": "(function(){ const html = window.__capturedHtml; const parser = new DOMParser(); const doc = parser.parseFromString(html, 'text/html'); const plumbSvg = [...doc.querySelectorAll('svg')].find((s) => s.querySelector('.plumb-symbol')); if (!plumbSvg) throw new Error('No plumbing SVG found in the captured drawing-set HTML'); const overlay = document.createElement('div'); overlay.id = '__mep_overlay'; overlay.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;'; overlay.innerHTML = plumbSvg.outerHTML; overlay.querySelector('svg').style.width = '900px'; overlay.querySelector('svg').style.height = 'auto'; document.body.appendChild(overlay); })()"
+    },
+    { "name": "wait-overlay", "wait": 200 },
+    { "name": "shot-plumbing-sheet", "screenshot": "mep-declutter-plumbing-sheet" },
+    { "name": "remove-overlay", "eval": "document.getElementById('__mep_overlay')?.remove()" },
+    {
+      "name": "render-electrical-sheet-inline",
+      "eval": "(function(){ const html = window.__capturedHtml; const parser = new DOMParser(); const doc = parser.parseFromString(html, 'text/html'); const elecSvg = [...doc.querySelectorAll('svg')].find((s) => s.querySelector('.elec-symbol')); if (!elecSvg) throw new Error('No electrical SVG found in the captured drawing-set HTML'); const overlay = document.createElement('div'); overlay.id = '__mep_elec_overlay'; overlay.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;'; overlay.innerHTML = elecSvg.outerHTML; overlay.querySelector('svg').style.width = '1400px'; overlay.querySelector('svg').style.height = 'auto'; document.body.appendChild(overlay); })()"
+    },
+    { "name": "wait-elec-overlay", "wait": 200 },
+    { "name": "shot-electrical-sheet", "screenshot": "mep-declutter-electrical-sheet" },
+    {
+      "name": "crop-electrical-cluster",
+      "eval": "(function(){ const overlay = document.getElementById('__mep_elec_overlay'); const svg = overlay.querySelector('svg'); if (!svg) throw new Error('electrical overlay svg missing'); const groups = [...svg.querySelectorAll('.elec-symbol')].filter((g) => g.textContent.includes('Nightstand')); if (groups.length < 3) throw new Error('cluster groups not found, got ' + groups.length); const rects = groups.map((g) => (g.querySelector('circle') || g).getBoundingClientRect()); const pad = 40; const minX = Math.min(...rects.map((r) => r.left)) - pad; const maxX = Math.max(...rects.map((r) => r.right)) + pad; const minY = Math.min(...rects.map((r) => r.top)) - pad; const maxY = Math.max(...rects.map((r) => r.bottom)) + pad; const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2; const w = maxX - minX, h = maxY - minY; const DISPLAY = 900; const scale = DISPLAY / Math.max(w, h); overlay.style.overflow = 'hidden'; overlay.style.transformOrigin = '0 0'; overlay.style.transform = 'translate(' + DISPLAY / 2 + 'px,' + DISPLAY / 2 + 'px) scale(' + scale + ') translate(' + -cx + 'px,' + -cy + 'px)'; window.__cropScale = scale; })()"
+    },
+    { "name": "wait-crop", "wait": 200 },
+    { "name": "shot-electrical-cluster-crop", "screenshot": "mep-declutter-electrical-cluster-crop" },
+    { "name": "remove-elec-overlay", "eval": "document.getElementById('__mep_elec_overlay')?.remove()" },
+    { "name": "shot-declutter", "screenshot": "mep-declutter" }
+  ]
+}

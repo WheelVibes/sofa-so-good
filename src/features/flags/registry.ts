@@ -41,6 +41,13 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: false,
     tier: 'simple',
   },
+  renoBudget: {
+    label: 'Renovation budget',
+    description: 'Whole-reno cost by trade/stage (BSJ-1)',
+    // Core decision support for the blank-slate owner — pure client, prod-safe.
+    default: true,
+    tier: 'simple',
+  },
   clearanceChecks: {
     label: 'Clearance checks',
     description: 'Door-swing / fit checks',
@@ -56,6 +63,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     // CLAUDE.md hard rule explicitly lists "versions" among the pro-tier
     // examples (alongside measure/checks/drawings/scores/AI), so it's hidden
     // in Simple mode.
+    tier: 'pro',
+  },
+  // Live 3D split-view compare against a saved version (sibling of `versions`,
+  // opened from a version row). Image-based (see versionCompare.ts docblock):
+  // captures the current view, then temporarily swaps the saved version's
+  // design into the live scene, captures it, and restores the exact prior
+  // state — reusing the renderCompare/stagingReveal reveal-divider UI rather
+  // than a live dual-scene render. Prod-safe pure code (same capture pipeline
+  // as those two), but a version-management surface → pro tier, same as
+  // `versions` itself.
+  versionCompareView: {
+    label: 'Compare version in 3D',
+    description: 'Split-view a saved version against the current design on a draggable divider',
+    default: true,
     tier: 'pro',
   },
   history: {
@@ -79,6 +100,14 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   smartStart: {
     label: 'Smart Start',
     description: 'One-click furnish wizard',
+    default: true,
+    tier: 'simple',
+  },
+  layoutReroll: {
+    label: 'Try another layout',
+    description: 'Reroll a room into a different valid auto-arrangement',
+    // Core arrange loop — a casual user exploring layout alternatives, so it
+    // ships in Simple mode (prod-safe, pure code).
     default: true,
     tier: 'simple',
   },
@@ -106,6 +135,18 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   renderPresets: {
     label: 'Render presets',
     description: 'One-tap sun + tone + exposure photo modes in the Scene menu',
+    default: true,
+    tier: 'simple',
+  },
+  // Lighting mood presets (UX round-3 #3, Coohom parity): a one-tap chip row
+  // (Reading / Movie night / Entertaining / Romantic + Normal reset) that
+  // adjusts placed fixtures' brightness + colour temperature scene-wide, on
+  // top of the existing `lightsMode` multiplier (`lighting/moodPresets.ts`,
+  // pure). Pure client-side code, no external assets → prod-safe; a core
+  // furnish/view delight like `renderPresets` above → simple tier.
+  lightMoodPresets: {
+    label: 'Lighting mood presets',
+    description: 'One-tap Reading / Movie night / Entertaining / Romantic lighting moods',
     default: true,
     tier: 'simple',
   },
@@ -184,6 +225,22 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  aiPlanGenerate: {
+    label: 'AI plan generation',
+    description: 'Text brief → editable floor plan (experimental)',
+    default: true,
+    tier: 'pro',
+  },
+  // Read-only, BYO-key advisor chat grounded in the live design's own computed
+  // numbers (design score / plan statistics) — mirrors aiWalls/aiPlanGenerate's
+  // BYO-key precedent (prod-safe: pure code + graceful no-key error, no bundled
+  // model/key). Pro tier — an analytical/advisory surface, not core-loop.
+  aiDesignChat: {
+    label: 'AI design chat',
+    description: 'Ask an LLM about your design, grounded in its live numbers (BYO key)',
+    default: true,
+    tier: 'pro',
+  },
   ikeaLive: {
     label: 'IKEA live scrape',
     description: 'Local scraper pack (needs a sidecar)',
@@ -235,6 +292,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Shareable style-board export',
     default: true,
     tier: 'pro',
+  },
+  // One-tap "hero card": the current 3D snapshot framed with the design's palette
+  // swatches + name + stat line + a "Sofa So Good" wordmark, as a single share-
+  // ready PNG (4:5). Closes the "share" stage of the core loop with a delight
+  // artifact → simple tier. Pure client-side canvas raster, no sidecar → prod-safe.
+  shareCard: {
+    label: 'Share card',
+    description: 'One-tap branded hero image (3D snapshot + palette + stats)',
+    default: true,
+    tier: 'simple',
   },
   paletteFromPhoto: {
     label: 'Palette from photo',
@@ -415,6 +482,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Eyedropper — sample a floor/wall's finish in the 3D scene, then paint it
+  // onto other surfaces. Pure prod-safe code, part of the core finish loop →
+  // simple tier (shown in both Simple and Pro).
+  finishEyedropper: {
+    label: 'Finish eyedropper',
+    description: "Sample a surface's finish in the 3D scene, then apply it to other walls/floors",
+    default: true,
+    tier: 'simple',
+  },
   // An authoring tool, prod-safe pure code. Surfaced in the default experience
   // (curated launch set) → simple tier.
   parametricFurniture: {
@@ -466,6 +542,18 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   timeCompare: {
     label: 'Time-of-day compare',
     description: 'Compare your design at two times of day on a draggable divider',
+    default: true,
+    tier: 'pro',
+  },
+  // Day → night animated render clip — while recording the saved-views
+  // walkthrough video, sweep the time-of-day slider across a chosen range so
+  // the exported clip transitions through lighting conditions (Coohom
+  // day-to-night video parity, see REFERENCES.md). Pure client code (drives the
+  // existing sun rig from tour progress), prod-safe, but a presentation
+  // flourish layered on the pro recording path → pro tier.
+  dayNightClip: {
+    label: 'Day → night clip',
+    description: 'Sweep the time of day across the recorded walkthrough video',
     default: true,
     tier: 'pro',
   },
@@ -597,6 +685,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Walk-mode point-to-point measure (WALK-MEASURE) — aim at a surface, set two
+  // points, read the live distance. This is the walk-mode counterpart to the
+  // existing orbit-mode `measure` (tape/area) tool, which is `simple` tier (a
+  // core "will this fit here?" HDB-sizing question, not an analytical extra) —
+  // mirrored here rather than defaulting to `pro`, so the "explore the space"
+  // measure affordance is available on the same footing in both view modes.
+  // Pure code, no external assets → prod-safe.
+  walkMeasure: {
+    label: 'Walk-mode measure',
+    description: 'Set two aimed points in walk mode and read the live distance between them',
+    default: true,
+    tier: 'simple',
+  },
   // Open/close a cabinet's doors + drawers (CABINET-OPEN): the inspector gains an
   // Open/Close toggle for cabinet-family primitives (kitchen cabinets, wardrobes,
   // sideboards, dressers) whose fronts then swing/slide with an eased ~0.4 s
@@ -674,6 +775,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   customBackdrop: {
     label: 'Custom backdrop photo',
     description: 'Upload your own photo as the walk-mode window view',
+    default: true,
+    tier: 'simple',
+  },
+  // Real-photo paint visualizer: upload a wall photo, trace a polygon mask and
+  // preview a paint swatch composited on with a luminance-preserving blend (Behr
+  // /Dulux precedent). Pure client-side canvas maths — the photo never leaves the
+  // device; no external assets/licensing → prod-safe. Simple tier — a casual
+  // "will this colour work on my wall" convenience in the core finish loop.
+  paintVisualizer: {
+    label: 'Paint visualizer',
+    description: 'Preview a paint colour on a photo of your real wall',
     default: true,
     tier: 'simple',
   },
@@ -835,6 +947,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Wall structural classification (TODO G7 — SG hacking-plan hardening): a
+  // user-declared load-bearing / RC partition / brick partition / drywall /
+  // unknown tag per wall, feeding the demolition sheet's classification
+  // rendering + "NOT PERMITTED" hard-stop for a load-bearing wall marked for
+  // demolition. Analytical/pro-only (like the `drawings` sheet it feeds) — a
+  // casual Simple-mode user furnishing a move-in default has no hacking plan
+  // to classify.
+  wallStructure: {
+    label: 'Wall structure',
+    description: 'Classify a wall load-bearing / RC / brick / drywall for the demolition sheet',
+    default: true,
+    tier: 'pro',
+  },
   // Flags walled-in floor with no room (red) in the 2D plan editor so the gap is
   // obvious to fix. Shown in both modes (a casual user should see it too) → simple
   // tier. The 3D fallback ground that fills the void is unconditional (not this).
@@ -954,6 +1079,53 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   catalogRoomAware: {
     label: 'Room-aware catalog default',
     description: 'Land the catalog on the category most relevant to the room being edited',
+    default: true,
+    tier: 'simple',
+  },
+  // Recently-placed quick-add row (CATALOG-RECENTS, UX-research pick). Surfaces
+  // the last handful of defs the user actually placed as a thin tap-to-place
+  // strip atop the catalog grid PLUS the fuller "Recent" pseudo-category tab —
+  // the far-more-frequent "the thing I just used" complement to the deliberate
+  // Favourites star. Automatic + item-level: `recentSlice` records a defId on
+  // every `addItem` commit, self-persisted per-device to localStorage (like
+  // favourites, out of the save schema). Pure client-side, no external assets →
+  // prod-safe. A core furnish-loop convenience a casual user leans on → simple
+  // tier, present in both modes.
+  catalogRecents: {
+    label: 'Recently placed',
+    description: 'Quick-add strip + tab of the catalog items you most recently placed',
+    default: true,
+    tier: 'simple',
+  },
+  // Side-by-side catalog item comparison tray (CATALOG-COMPARE, UX-research round
+  // 2 pick #3). A "Compare" toggle in the catalog header arms select-for-compare:
+  // tapping 2-3 same-category cards (a checkmark overlay, NOT a new per-card
+  // button — the src/ui/CLAUDE.md no-card-buttons rule) opens a modal tray with
+  // one column per item — thumbnail, W×D×H, footprint area, price (when the def
+  // carries one), and a "fits this room" verdict via the existing
+  // `itemFitsRoom`/`useActiveRoomFreeRects` machinery — each column's Place
+  // button reuses `useCatalogPlacement` so placement matches everywhere. Pure
+  // client-side (reuses existing footprint/price/fit data, no new geometry) →
+  // prod-safe. An HDB-scale core "which sofa actually fits" furnish-loop
+  // decision aid → simple tier, present in both modes.
+  catalogCompare: {
+    label: 'Compare items',
+    description: 'Select 2-3 same-category catalog items to compare size, price & room fit',
+    default: true,
+    tier: 'simple',
+  },
+  // Room-starter "essentials" chips (roomStarters, UX-research pick #5). When a
+  // user enters an EMPTY room, the empty-state offers a row of tap-to-add chips
+  // for that room-kind's key anchor pieces (bedroom → bed/wardrobe/nightstand,
+  // living → sofa/TV console/coffee table, …); each chip adds ONE sensibly
+  // wall-anchored piece. Fixes a Simple-tier dead-end — the room-kind guidance
+  // data exists but the analytical `suggestions` surface is Pro-only, so the
+  // casual persona got no concrete starting help. Pure client-side, built-in
+  // catalog only, no external assets → prod-safe. Core furnish-loop onboarding
+  // help for a first-time user → simple tier, present in both modes.
+  roomStarters: {
+    label: 'Room starter chips',
+    description: 'Tap-to-add starter pieces in the empty-room hint, tailored to the room',
     default: true,
     tier: 'simple',
   },
@@ -1084,6 +1256,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   importSh3d: {
     label: 'Import Sweet Home 3D',
     description: 'Import a Sweet Home 3D (.sh3d) plan — walls, rooms and furniture',
+    default: true,
+    tier: 'pro',
+  },
+  // Import a Sweet Home 3D `.sh3f` furniture LIBRARY (PARITY-SH3F). Pure
+  // client-side parse (unzip + Java-properties catalogs) + the existing upload
+  // conversion path (OBJ/DAE/3DS/… → GLB via GLTFExporter), no sidecar /
+  // licensing → prod-safe (default on). An import/interop surface beyond the
+  // core furnish loop → pro tier (hidden in Simple mode automatically).
+  importSh3f: {
+    label: 'Import Sweet Home 3D library',
+    description: 'Import a Sweet Home 3D (.sh3f) furniture library as user furniture',
     default: true,
     tier: 'pro',
   },
@@ -1460,11 +1643,272 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // "Suggest views" (SAVED-VIEWS-SUGGEST) — auto-computes a starter set of saved
+  // camera views (a corner three-quarter angle per major furnished room + one
+  // whole-flat overview) so the saved-views-consuming presentation family
+  // (Present…, Cinematic tour, Record walkthrough, Render all views, Day→night
+  // clip) has content without the user hand-authoring every bookmark. Pure
+  // client-side geometry over the existing plan/items state (`scene/cameras/
+  // suggestViews.ts`), prod-safe. Feeds the pro presentation family → pro tier,
+  // matching `presentation`/`batchRender` above.
+  suggestedViews: {
+    label: 'Suggest views',
+    description: 'Auto-generate a starter set of saved camera views (per room + an overview)',
+    default: true,
+    tier: 'pro',
+  },
   profiler: {
     label: 'Profiler',
     description: 'Dev-only detached-window performance profiler (live metrics + cost breakdown)',
     default: true,
     devOnly: true,
+    tier: 'pro',
+  },
+  // Native share sheet for the hero card (UX round-3 #1): on devices supporting
+  // the Web Share API Level 2 file-sharing (`navigator.canShare({ files })`),
+  // sharing the rendered hero-card PNG goes through `navigator.share({ files })`
+  // so mobile users get the OS share sheet (WhatsApp/Telegram/IG) instead of only
+  // a silent download. Pure client-side API, no sidecar → prod-safe; extends the
+  // core "share" stage of the loop → simple tier. The existing download stays as
+  // the fallback (unsupported/failed) and remains available alongside it.
+  shareCardNative: {
+    label: 'Native share sheet',
+    description: 'Share the hero card via the OS share sheet on supported devices',
+    default: true,
+    tier: 'simple',
+  },
+  // Per-instance notes & link (ITEM-META, 2026-07-18): an optional custom URL
+  // (product page/spec sheet), description, and special remarks ("existing —
+  // retain", "client to purchase", install notes) on EVERY placed item. Feeds
+  // personal annotation + the contractor handover FF&E schedule/spec book — a
+  // documentation/handover surface, not part of the core furnish/finish/view/
+  // share loop → pro tier (forced off in Simple). Pure text fields, no
+  // sidecar/licensing dependency → prod-safe.
+  itemMeta: {
+    label: 'Item notes & link',
+    description: 'Custom URL, description and remarks per placed item (for handover docs)',
+    default: true,
+    tier: 'pro',
+  },
+  // First-class MEP layer (G1): persisted, editable electrical/plumbing points
+  // (the 'mep' Tool, MepLayer, PlanInspector case and Suggest land in later
+  // PRs — this flag is the single gate for all of it). Pure geometry + no
+  // sidecar/licensing → prod-safe; an analytical contractor-handover authoring
+  // surface beyond the core furnish loop → pro tier (hidden in Simple).
+  mepEditor: {
+    label: 'MEP point editor',
+    description: 'Place and edit persisted electrical/plumbing points on the 2D plan',
+    default: true,
+    tier: 'pro',
+  },
+  // Lighting & switching schematic (BSJ-3): link each switch point to the light
+  // fixtures it controls (one/two-way) and emit the circuit tags + legend an
+  // electrician wires from, on the electrical plan sheet + DXF. Analytical
+  // handover content → pro tier, like the MEP editor it builds on.
+  switchCircuits: {
+    label: 'Switching schematic',
+    description:
+      'Link switches to the lights they control; circuit tags + legend on the electrical plan',
+    default: true,
+    tier: 'pro',
+  },
+  // Setting-out & datum dimensioning (TODO G3 — SG contractor handover): a
+  // datum marker + running face dimensions from it on the dimensioned-plan
+  // sheet, plus tile setting-out start-point crosses on the floor-plan sheet.
+  // Analytical drawing-set content → pro tier, like the sheet it extends.
+  settingOutDims: {
+    label: 'Setting-out dimensions',
+    description: 'Datum-referenced setting-out dimensions + tile start points on the drawing set',
+    default: true,
+    tier: 'pro',
+  },
+  // Carpentry/joinery elevations + sections (TODO G8 — the single most-cited
+  // DIY handover gap): a dimensioned front elevation + one section per
+  // distinct placed parametric piece, at a finer locked scale. Analytical
+  // drawing-set content → pro tier, like the sheet flags above it.
+  carpentrySheets: {
+    label: 'Carpentry sheets',
+    description: 'Dimensioned elevation + section per placed custom-size piece on the drawing set',
+    default: true,
+    tier: 'pro',
+  },
+  // Reflected ceiling plan (TODO H4 — SG contractor handover, canonical
+  // drawing #4): per-room false-ceiling/bulkhead zones with drop heights,
+  // ceiling-fixture positions dimensioned off the nearest walls, aircon
+  // points marked. Pure code, reuses the existing ceiling-geometry engine +
+  // lighting/electrical data — no new asset dependency, prod-safe. Analytical
+  // drawing-set content → pro tier, matching `settingOutDims`/`carpentrySheets`
+  // (the other sheet-level flags added for this same handover goal).
+  rcpSheet: {
+    label: 'Reflected ceiling plan',
+    description:
+      'False-ceiling zones, ceiling-fixture dimensions, and aircon points on the drawing set',
+    default: true,
+    tier: 'pro',
+  },
+  // Per-trade handover packs (blank-slate BSJ-5, the designed→ordered bridge):
+  // re-bundles the EXISTING drawing-set sheets/schedules into per-recipient
+  // packs (Tiler / Electrician / Plumber / Carpenter / Aircon / Curtains /
+  // Painter) — each a pack cover + the master sheets that recipient needs,
+  // reusing the master set's sheet numbering. Pure client-side composition over
+  // sheets the app already builds → prod-safe; an analytical handover surface
+  // → pro tier, matching the drawing-set sheet flags above it.
+  tradePacks: {
+    label: 'Trade handover packs',
+    description:
+      'Per-recipient bundles (tiler / electrician / carpenter / aircon / …) of the drawing set',
+    default: true,
+    tier: 'pro',
+  },
+  // Waterproofing-zone model (blank-slate BSJ-7): turns the wet-area
+  // waterproofing ADVISORY into a modeled zone per wet room (floor extent + wall
+  // upturn heights — 300 mm general, 1800 mm at shower walls) that feeds a
+  // diagonal wet-area hatch + a per-room zone table on the dimensioned plan, the
+  // tiler handover pack, and a waterproofing budget sub-line. Pure client-side
+  // over data the app already holds → prod-safe; an analytical/contractor
+  // surface → pro tier, matching the drawing-set sheet flags above it.
+  waterproofing: {
+    label: 'Waterproofing zones',
+    description: 'Wet-area membrane extent + wall upturn on the plan, tiler pack, and budget',
+    default: true,
+    tier: 'pro',
+  },
+  // Floor build-up / levels & transitions (blank-slate BSJ-8): a per-room
+  // finished-floor-level offset (`PlanRoom.floorLevelMm`) surfaced as FFL tags +
+  // doorway step/transition markers on the dimensioned/setting-out plan + tiler
+  // pack, a kerb/step advisory, and a floor-level field in the room inspector.
+  // Documentation-level in v1 (does NOT move the 3D floor mesh). Pure client →
+  // prod-safe; an analytical/contractor surface → pro tier.
+  floorLevels: {
+    label: 'Floor levels & transitions',
+    description: 'Per-room FFL offsets, doorway step markers, and a kerb/step advisory',
+    default: true,
+    tier: 'pro',
+  },
+  // Parametric staircase generator (TODO — UX research round 3, Homestyler v6
+  // precedent): the adjustable `staircase` catalog item (straight / L / U /
+  // spiral, width/rise-run/landing/handrail) that also feeds the multi-storey
+  // stair-connectivity advisory. A structural authoring tool for multi-level
+  // plans (Maisonette / loft / terrace) rather than the casual furnish loop →
+  // pro tier, hidden in Simple mode. Pure procedural geometry, no external
+  // asset → prod-safe. When off, the Staircase card is hidden from the catalog.
+  parametricStairs: {
+    label: 'Parametric staircase',
+    description: 'Adjustable staircase (straight / L / U / spiral) for multi-level plans',
+    default: true,
+    tier: 'pro',
+  },
+  // Parametric roof (TODO — UX research round 3, Homestyler v6 / Live Home 3D
+  // precedent): a roof slab derived from the top storey's footprint + a pitch
+  // (gable / hip / flat-parapet) with optional gable dormers, offered on
+  // landed / multi-storey plans (Maisonette / Terrace) + opt-in user plans. A
+  // structural authoring tool for whole-home shells rather than the casual
+  // furnish loop → pro tier, hidden in Simple mode. Pure procedural geometry,
+  // no external asset → prod-safe. When off, the Roof editor section + the 3D
+  // roof are hidden.
+  parametricRoof: {
+    label: 'Parametric roof',
+    description:
+      'Pitched roof (gable / hip / flat-parapet) + dormers over landed / multi-storey plans',
+    default: true,
+    tier: 'pro',
+  },
+  // Per-room aircon cooling-load (BTU) advisory (UX research round 4 R4-1): a
+  // per-room recommended cooling capacity from floor area × the SG rule-of-thumb
+  // BTU/m², with west/east-facing, high-ceiling and open-kitchen modifiers, plus
+  // a whole-flat total. Pure formula over existing area + orientation state,
+  // shaped like the daylight check → an analytical advisory, pro tier (alongside
+  // `daylight`/`designScore`/`accessibility`). Pure client code → prod-safe.
+  airconSizing: {
+    label: 'Aircon BTU sizing',
+    description: 'Per-room cooling-load (BTU) recommendation + whole-flat total',
+    default: true,
+    tier: 'pro',
+  },
+  // Aircon SYSTEM planner (blank-slate BSJ-2): groups the per-room BTU sizing
+  // into System-2/3/4 condenser proposals (which rooms share a condenser, load
+  // %, over-provisioning cap, HDB ledge-weight check) and places FCUs + the
+  // condenser(s) on the ledge. Pure client-side over data the app already
+  // computes → prod-safe; an analytical/professional planning surface → pro
+  // tier (rides alongside `airconSizing` in the Cooling-load section).
+  airconSystem: {
+    label: 'Aircon system planner',
+    description: 'Group rooms into System-2/3/4 condensers + place FCUs and the outdoor unit',
+    default: true,
+    tier: 'pro',
+  },
+  // False-ceiling clearance validator (UX research round 4 R4-2): warns when a
+  // dropped/cove ceiling zone leaves under the SG comfort/statutory finished
+  // clearance (≥2.4 m under a dropped ceiling; 2.6 m standard slab), and reports
+  // remaining headroom per zone. Pure rule over the existing ceiling model → an
+  // analytical check, pro tier (alongside the other checks). Prod-safe pure code.
+  ceilingClearance: {
+    label: 'Ceiling clearance check',
+    description: 'Warns when a false-ceiling zone leaves under 2.4 m finished headroom',
+    default: true,
+    tier: 'pro',
+  },
+  // Live hackability overlay in the 2D plan editor (UX research round 4 R4-7):
+  // tints walls by their user-declared `PlanWall.structure` classification —
+  // red (never hackable: load-bearing / RC), amber (permit required: brick /
+  // partition), neutral (unclassified) — with a legend, plus an inline "NOT
+  // PERMITTED" warning when deleting a load-bearing/RC wall. Surfaces the hack
+  // rules at edit time (they previously reached only the demolition sheet). Pure
+  // UX layer over existing data → prod-safe; pro tier (matches `wallStructure`).
+  hackabilityOverlay: {
+    label: 'Hackability overlay',
+    description: 'Tint walls by demolition permit status live in the 2D plan editor',
+    default: true,
+    tier: 'pro',
+  },
+  // BTO Optional Component Scheme (OCS) starter state (UX research round 4 R4-3):
+  // a "New BTO (with OCS)" starting point that pre-seeds the finishes + fittings
+  // HDB actually hands a BTO owner who opted into OCS — internal door leaves,
+  // vinyl (bedrooms) + polished-porcelain (living/dining) floor finishes, and
+  // wall-mounted basin + mixer / shower set sanitary fittings in the baths — so
+  // the owner designs from what they'll receive, not a blank shell. Pure data
+  // manifest over existing finish + furnish state; a core onboarding/default-
+  // state choice → SIMPLE tier, default on. Prod-safe pure code.
+  // Refs: qanvast.com/sg/articles/hdb-optional-component-scheme-ocs-is-it-worth-opting-in-1873
+  //       dollarsandsense.sg/complete-guide-hdbs-optional-components-scheme-ocs/
+  // BSJ-4: gates the whole "Starting state" group in Smart Start — bare BTO,
+  // BTO with OCS, resale as-is, and resale after strip-out. Keeps the historical
+  // `ocsStarter` flag id (back-compat: existing overrides / saved flag maps still
+  // resolve; no rename to migrate) now that it gates the broader intake family.
+  ocsStarter: {
+    label: 'Starting states',
+    description:
+      'Seed a real HDB/condo handover state: bare BTO, BTO+OCS, resale as-is, or strip-out',
+    default: true,
+    tier: 'simple',
+  },
+  // Floor-loading / raised-platform advisory (UX research round 4 R4-5): flags
+  // placed heavy items (bathtub, aquarium, marble/stone tables, piano, loaded
+  // bookcases) whose static weight density plausibly exceeds the HDB 150 kg/m²
+  // imposed-load guideline, plus a raised-platform reminder (concrete raises
+  // >50 mm need permits; use lightweight timber-joist platforms). A cited
+  // advisory group in the Checks panel → analytical, pro tier. Prod-safe pure code.
+  // Refs: homeanddecor.com.sg/design/renovation-guidelines-hdb-singapore/
+  //       floorrich.com/an-easy-to-understand-guide-to-hdb-flooring-guidelines/
+  floorLoading: {
+    label: 'Floor-loading advisory',
+    description: 'Flags heavy items vs the HDB 150 kg/m² slab-loading guideline',
+    default: true,
+    tier: 'pro',
+  },
+  // SG renovation-rules reference pack (UX research round 4 R4-6): one cited
+  // reference panel bundling the wet-area 3-year tile-hacking rule, window &
+  // grille compliance points, reno working-hours / noise limits, and the HDB
+  // DRC permit / paperwork checklist. A static reference surface → pro tier.
+  // Prod-safe pure code (rules as of 2026).
+  // Refs: elementsid.com.sg/can-you-hack-hdb-walls/
+  //       degrille.com.sg/article/are-invisible-grilles-approved-by-the-hdb/
+  //       renovationcontractorsingapore.com/blogs/news/hdb-renovation-noise-rules-working-hours-2026
+  //       propertyguru.com.sg/property-guides/hdb-renovation-permits-in-singapore-16702
+  renoRulesPack: {
+    label: 'SG renovation rules',
+    description: 'Cited reference pack: tile rule, grilles, working hours, permits',
+    default: true,
     tier: 'pro',
   },
 }

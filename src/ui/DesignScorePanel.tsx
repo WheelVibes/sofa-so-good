@@ -76,7 +76,13 @@ export function DesignScorePanel() {
         const def = merged[it.defId]
         if (def && pointInRoom(r, it.position[0], it.position[1])) cats.add(def.category)
       }
-      return { id: r.id, name: r.name, areaSqm: planRoomArea(r), itemCategories: [...cats] }
+      return {
+        id: r.id,
+        name: r.name,
+        areaSqm: planRoomArea(r),
+        itemCategories: [...cats],
+        ...(r.category ? { category: r.category } : {}),
+      }
     })
     return buildSuggestions({ rooms })
   }, [open, suggestEnabled, dragging, items, plan, catalogInputs])

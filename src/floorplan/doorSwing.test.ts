@@ -4,9 +4,13 @@ import {
   DEFAULT_DOOR_SWING,
   defaultDoorSwing,
   doorHinge,
+  doorPlanSymbol,
   doorSwing,
   doorSwingClearRect,
   doorSwingGeometry,
+  isDoubleDoor,
+  isSlidingDoor,
+  slidingParkDir,
 } from './doorSwing'
 import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from './types'
 
@@ -114,5 +118,82 @@ describe('doorSwingClearRect', () => {
   it('mirrors to the other side when the swing flips', () => {
     const r = doorSwingClearRect(wall, { ...base, swing: 'left' })!
     expect(r).toEqual({ x0: 1, z0: -1, x1: 2, z1: 0 })
+  })
+  it('sliding door contributes NO swing keep-out (null → only the approach strip)', () => {
+    expect(doorSwingClearRect(wall, { ...base, style: 'sliding' })).toBeNull()
+  })
+  it('double door keep-out is a conservative full-width rect (both quarters + gap)', () => {
+    // Full opening width (x 1→2) × half-width depth (0.5) into the +Z swing side.
+    const r = doorSwingClearRect(wall, { ...base, style: 'double' })!
+    expect(r).toEqual({ x0: 1, z0: 0, x1: 2, z1: 0.5 })
+  })
+})
+
+describe('door style predicates', () => {
+  it('isSlidingDoor / isDoubleDoor key off the door style', () => {
+    expect(isSlidingDoor({ ...base, style: 'sliding' })).toBe(true)
+    expect(isSlidingDoor({ ...base, style: 'double' })).toBe(false)
+    expect(isSlidingDoor(base)).toBe(false)
+    expect(isDoubleDoor({ ...base, style: 'double' })).toBe(true)
+    expect(isDoubleDoor({ ...base, style: 'sliding' })).toBe(false)
+    // A window that happens to carry the string is never a door.
+    expect(isSlidingDoor({ ...base, kind: 'window', style: 'sliding' })).toBe(false)
+  })
+})
+
+describe('doorPlanSymbol', () => {
+  it('a single-leaf door yields one swing leaf at the full width', () => {
+    const sym = doorPlanSymbol(wall, base)!
+    expect(sym.kind).toBe('swing')
+    if (sym.kind !== 'swing') throw new Error('expected swing')
+    expect(sym.leaves).toHaveLength(1)
+    const lf = sym.leaves[0]!
+    expect(lf.radius).toBe(1)
+    expect(lf.hinge).toEqual([1, 0])
+    expect(lf.leafTip).toEqual([1, 1])
+  })
+  it('a double door yields two half-width leaves hinged at both jambs', () => {
+    const sym = doorPlanSymbol(wall, { ...base, style: 'double' })!
+    expect(sym.kind).toBe('swing')
+    if (sym.kind !== 'swing') throw new Error('expected swing')
+    expect(sym.leaves).toHaveLength(2)
+    expect(sym.leaves[0]!.radius).toBe(0.5)
+    expect(sym.leaves[1]!.radius).toBe(0.5)
+    // Hinged at the two jambs; both tips reach the +Z swing side.
+    expect(sym.leaves[0]!.hinge).toEqual([1, 0])
+    expect(sym.leaves[1]!.hinge).toEqual([2, 0])
+    expect(sym.leaves[0]!.leafTip).toEqual([1, 0.5])
+    expect(sym.leaves[1]!.leafTip).toEqual([2, 0.5])
+  })
+  it('a sliding door yields a leaf bar + slide arrow (no swing arc)', () => {
+    const sym = doorPlanSymbol(wall, { ...base, style: 'sliding' })!
+    expect(sym.kind).toBe('sliding')
+    if (sym.kind !== 'sliding') throw new Error('expected sliding')
+    // Bar spans the opening, offset a hair to the +Z room side.
+    expect(sym.bar[0]).toEqual([1, 0.06])
+    expect(sym.bar[1]).toEqual([2, 0.06])
+    // Arrow parks toward the roomier side; here both sides are equal (1 m) so it
+    // ties to the wall start (−X).
+    expect(sym.arrow[0][0]).toBeGreaterThan(sym.arrow[1][0])
+  })
+  it('slide arrow follows the roomier side, NOT the hinge (regression)', () => {
+    // hinge=start but MORE free wall AFTER the opening (spaceAfter 1.5 > before
+    // 0.5): the 3D leaf parks toward the wall END (+X). The old hinge-keyed arrow
+    // pointed −X (toward the start jamb) — opposite the actual slide. The arrow
+    // must now point +X to agree with `PlanDoorLeaf`'s `slidingParkDir`.
+    const sym = doorPlanSymbol(wall, { ...base, offset: 0.5, style: 'sliding', hinge: 'start' })!
+    if (sym.kind !== 'sliding') throw new Error('expected sliding')
+    expect(sym.arrow[1][0]).toBeGreaterThan(sym.arrow[0][0])
+  })
+})
+
+describe('slidingParkDir', () => {
+  it('parks toward whichever adjacent segment has more room', () => {
+    // Wall length 3, width 1: more room after → +1 (toward the wall end).
+    expect(slidingParkDir(0.5, 1, 3)).toBe(1)
+    // More room before → -1 (toward the wall start).
+    expect(slidingParkDir(1.5, 1, 3)).toBe(-1)
+    // Exact tie → -1 (toward the start).
+    expect(slidingParkDir(1, 1, 3)).toBe(-1)
   })
 })

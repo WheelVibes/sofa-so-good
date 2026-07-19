@@ -123,7 +123,10 @@ export function ScalePlanModal({ open, onClose }: { open: boolean; onClose: () =
             <input
               className="input"
               type="number"
-              step={0.1}
+              // step="any": with a numeric step, the untouched DEFAULT value '2'
+              // fails native stepMismatch (0.01 + n×0.1 never equals 2) and the
+              // form's submit silently no-ops — the dialog's most common action.
+              step="any"
               min={0.01}
               value={factorStr}
               onChange={(e) => setFactorStr(e.target.value)}
@@ -157,7 +160,10 @@ export function ScalePlanModal({ open, onClose }: { open: boolean; onClose: () =
               <input
                 className="input"
                 type="number"
-                step={0.05}
+                // step="any": the seeded default is the wall's real length
+                // (w.len.toFixed(2), e.g. 3.47) which fails a 0.05 step's
+                // native validation the same way as the factor input above.
+                step="any"
                 min={0.05}
                 value={targetStr}
                 onChange={(e) => setTargetStr(e.target.value)}

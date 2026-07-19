@@ -13,6 +13,7 @@
 
 import { type RoomKind, roomKindFromName } from '../analysis/suggestions'
 import { GROUND_LEVEL_ID, planLevels } from '../floorplan/levels'
+import { toRoomKind } from '../floorplan/roomCategory'
 import { type FloorPlan, planRoomArea, pointInRoom } from '../floorplan/types'
 import { bleedMeanLux, type DoorOpenMap, interRoomDoorwaySources } from './doorwayBleed'
 import type { PlanLight } from './lightingPlan'
@@ -137,7 +138,9 @@ export function estimateRoomLux(
     for (const room of level.rooms) {
       const o = own.get(room.id)
       if (!o) continue
-      const kind = roomKindFromName(room.name)
+      // RM1: an explicit, user-set category wins; a room without one keeps the
+      // legacy name classifier so its lux band is byte-identical.
+      const kind = room.category ? toRoomKind(room.category) : roomKindFromName(room.name)
       const recommended = RECOMMENDED_LUX[kind]
       const borrowedLux = borrowed.get(room.id) ?? 0
       const lux = o.lux + borrowedLux

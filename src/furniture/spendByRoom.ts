@@ -25,7 +25,7 @@ export function spendByRoom(
     const def = catalog[it.defId]
     if (!def) continue
     const variant = typeof it.props.variant === 'string' ? it.props.variant : undefined
-    const each = itemPrice(def, def.category, variant)
+    const each = itemPrice(def, def.category, variant, it.meta?.price)
     const room = rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
     const key = room?.id ?? '__none'
     const cur = agg.get(key) ?? { amt: 0, count: 0 }

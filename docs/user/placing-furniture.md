@@ -54,6 +54,12 @@ a piece that only just squeezes in shows a plainer **"Tight fit"** note instead
 — both are just a heads‑up, you can still place it. (Pro) Tick **Fits only** at
 the top of the grid to hide the pieces flagged "Won't fit" while you browse.
 
+**Can't decide between two sofas?** Tap the **compare** button in the catalog
+header (next to the filter), then tap 2–3 similar pieces — each gets a checkmark
+— and hit **Compare**: a side‑by‑side tray shows their sizes, footprint areas,
+and whether each fits the open room, with a **Place** button under whichever
+wins. Tap the compare button again (or **Cancel**) to browse normally.
+
 ### Choosing a finish before you place it
 
 Some cards show a small **palette button** in the corner — tap it to open a
@@ -291,6 +297,34 @@ moves **Bring to front** / **Bring forward** / **Send backward** / **Send to
 back**, **group / ungroup**, lock / unlock, and delete. (Group appears when
 you have several pieces selected; Ungroup appears when the piece is already part
 of a group.)
+
+### Notes & link (Pro)
+
+Every placed piece can carry its own **handover notes** — personal reminders and
+the details a contractor or procurement team needs. Select a piece and open the
+**Notes & link** section in the inspector (a small book icon appears on the
+header once it holds anything) to set:
+
+- **Price override** — your own unit price (SGD), overriding the built‑in
+  estimate everywhere a price is shown or totalled (Budget panel, shopping
+  list, FF&E schedule/CSV, quote). Clear it to go back to the estimate.
+- **Brand**, **Model / SKU**, **Supplier** — the standard spec‑book fields.
+- **Product / spec URL** — a link to the retailer or spec page (must start
+  with `http://` or `https://`); an **Open** button appears once it's valid.
+- **Description** and **Special remarks** — free text, e.g. "existing —
+  retain" or "client to purchase".
+- **Custom fields** — your own field/value pairs for anything the fixed list
+  doesn't cover (fabric code, finish batch, install date, whatever your
+  workflow needs). **Add field** appends a blank row; type a field name and a
+  value (each commits as you tab out), and the **×** on a row removes it. Up
+  to 20 custom fields per piece.
+
+None of this affects how the piece looks or where it sits — it's purely
+annotation (except the price override, which feeds every price total). It
+travels with the design through save/load, share links, and design versions,
+and shows up in the **FF&E schedule** (report + CSV export — every custom
+field you've used becomes its own column) and the **shopping list** (your URL
+replaces the retailer link when set).
 
 ## Configure a product
 

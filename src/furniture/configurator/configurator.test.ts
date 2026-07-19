@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { composeProduct, transformPart } from './compose'
-import { type ConfigurableProduct, type ConfiguredPart, clampConfig } from './model'
+import {
+  type ConfigurableProduct,
+  type ConfiguredPart,
+  clampConfig,
+  offeredOptions,
+  productLabel,
+  selectedOption,
+} from './model'
 import {
   CONFIGURABLE_PRODUCTS,
   getConfigurableProduct,
@@ -74,6 +81,96 @@ describe('clampConfig (SLOT-101)', () => {
     // No mutex conflict (b empty); excludes only fires when both are present.
     expect(s.selections.a).toBe('a2')
     expect(s.selections.b).toBeNull()
+  })
+})
+
+/** A slot whose options carry `tags`, exercising `offeredOptions`'s `accepts`
+ *  tag filter — no shipped product uses `accepts` today. */
+const TAGGED_FIXTURE: ConfigurableProduct = {
+  id: 'tagged',
+  label: 'Tagged fixture',
+  category: 'seating',
+  base: { footprint: { w: 1, d: 1, h: 1 }, price: 0 },
+  slots: [
+    {
+      id: 'finish',
+      label: 'Finish',
+      anchor: { position: [0, 0, 0] },
+      defaultOptionId: 'wood',
+      accepts: ['premium'],
+      options: [
+        {
+          id: 'wood',
+          label: 'Wood',
+          price: 10,
+          footprint: { w: 1, d: 1, h: 1 },
+          tags: ['premium'],
+        },
+        { id: 'plastic', label: 'Plastic', price: 1, footprint: { w: 1, d: 1, h: 1 }, tags: [] },
+        {
+          id: 'marble',
+          label: 'Marble',
+          price: 50,
+          footprint: { w: 1, d: 1, h: 1 },
+          tags: ['premium', 'cold'],
+        },
+      ],
+    },
+  ],
+}
+
+describe('offeredOptions (accepts tag filter, SLOT-101)', () => {
+  it('with no accepts filter, returns every option unfiltered', () => {
+    expect(offeredOptions(mattress.slots[0]!)).toEqual(mattress.slots[0]!.options)
+  })
+
+  it('filters out options missing a required tag', () => {
+    const offered = offeredOptions(TAGGED_FIXTURE.slots[0]!)
+    expect(offered.map((o) => o.id)).toEqual(['wood', 'marble']) // plastic lacks 'premium'
+  })
+
+  it('an option must carry every required tag, not just one', () => {
+    const slot = { ...TAGGED_FIXTURE.slots[0]!, accepts: ['premium', 'cold'] }
+    expect(offeredOptions(slot).map((o) => o.id)).toEqual(['marble'])
+  })
+
+  it('clampConfig resolves an unoffered raw selection to the offered default/first', () => {
+    // 'plastic' is filtered out by accepts:['premium'] — must not survive clamping.
+    const s = clampConfig(TAGGED_FIXTURE, { selections: { finish: 'plastic' } })
+    expect(s.selections.finish).toBe('wood') // defaultOptionId is itself offered
+  })
+})
+
+describe('selectedOption / productLabel (SLOT-101)', () => {
+  it('selectedOption resolves the chosen option object for a filled slot', () => {
+    const spec = clampConfig(mattress, { selections: {} })
+    const slot = mattress.slots.find((s) => s.id === 'mattress')!
+    const opt = selectedOption(slot, spec)
+    expect(opt?.id).toBe(spec.selections.mattress)
+  })
+
+  it('selectedOption returns null for an empty optional slot', () => {
+    const spec = clampConfig(mattress, { selections: { headboard: null } })
+    const slot = mattress.slots.find((s) => s.id === 'headboard')!
+    expect(selectedOption(slot, spec)).toBeNull()
+  })
+
+  it('productLabel joins every filled slot label after the product label', () => {
+    const spec = clampConfig(mattress, { selections: { headboard: null } })
+    const label = productLabel(mattress, spec)
+    expect(label.startsWith(`${mattress.label} · `)).toBe(true)
+    expect(label).not.toContain('undefined')
+  })
+
+  it('productLabel is just the bare product label when every slot is empty', () => {
+    const allEmpty: ConfigurableProduct = {
+      ...mattress,
+      slots: mattress.slots.map((s) => ({ ...s, optional: true })),
+    }
+    const spec = clampConfig(allEmpty, {
+      selections: Object.fromEntries(allEmpty.slots.map((s) => [s.id, null])),
+    })
+    expect(productLabel(allEmpty, spec)).toBe(mattress.label)
   })
 })
 

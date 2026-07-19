@@ -1,0 +1,171 @@
+{
+  "name": "light-mood-simple",
+  "description": "Simple ladder for the lighting mood presets feature (UX round-3 #3, lightMoodPresets flag, simple tier): confirms it's on by default in Simple mode, places a table lamp + ceiling light in a night scene with Lights forced on, probes the live scene-graph PointLight intensities under Normal vs Movie night vs Romantic (proving the mood composes on top of lightsMode and dims the ceiling fixture harder than the lamp), screenshots each mood for pixel-level warmth/brightness comparison, then toggles the flag off via setFeatureFlag to confirm the Scene menu's Mood row disappears.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(21); s.setLightsMode?.('on'); })()"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "App did not boot in Simple mode"
+    },
+    {
+      "name": "verify-lightmoodpresets-flag-simple-tier",
+      "waitFor": { "store": "state.featureFlags.lightMoodPresets === true" },
+      "timeout": 5000,
+      "failMessage": "lightMoodPresets is tier:'simple' and default:true — expected true in Simple mode"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 10000
+    },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading?.()" },
+    { "name": "settle-editor", "wait": 800 },
+    {
+      "name": "place-lamp-and-ceiling-light",
+      "eval": "window.__store.getState().setItems([{id:'mood-lamp',defId:'table-lamp',position:[9.6,2.6],rotation:0,props:{}},{id:'mood-ceiling',defId:'ceiling-light',position:[9.6,2.6],rotation:0,props:{}}])"
+    },
+    {
+      "name": "exit-room-editor",
+      "store": { "action": "exitRoomEditor", "args": [] }
+    },
+    {
+      "name": "exit-loading-done",
+      "waitFor": { "store": "state.loading.active === false" },
+      "timeout": 10000
+    },
+    { "name": "settle-exit", "wait": 800 },
+    {
+      "name": "focus-lamps",
+      "eval": "window.__store.getState().focusOn?.([9.6,2.6])"
+    },
+    { "name": "settle-focus", "wait": 1500 },
+    {
+      "name": "verify-lightmood-default-none",
+      "waitFor": { "store": "state.lightMood === 'none'" },
+      "timeout": 3000,
+      "failMessage": "lightMood should default to 'none' (Normal)"
+    },
+    {
+      "name": "probe-baseline-intensities",
+      "eval": "(() => { const scene = window.__three.scene; let lamp = 0, ceiling = 0; scene.traverse((o) => { if (!o.isPointLight) return; if (Math.abs(o.position.x - 9.6) > 0.8 || Math.abs(o.position.z - 2.6) > 0.8) return; if (o.position.y < 1.5) lamp = o.intensity; else ceiling = o.intensity; }); window.__baseline = { lamp, ceiling }; console.log('MOODPROBE baseline ' + JSON.stringify(window.__baseline)); })()"
+    },
+    { "name": "shot-normal", "screenshot": "01-normal" },
+    {
+      "name": "set-mood-movie",
+      "eval": "window.__store.getState().setLightMood('movie')"
+    },
+    {
+      "name": "verify-store-mood-movie",
+      "waitFor": { "store": "state.lightMood === 'movie'" },
+      "timeout": 3000
+    },
+    { "name": "settle-movie", "wait": 600 },
+    {
+      "name": "probe-movie-intensities",
+      "eval": "(() => { const scene = window.__three.scene; let lamp = 0, ceiling = 0; scene.traverse((o) => { if (!o.isPointLight) return; if (Math.abs(o.position.x - 9.6) > 0.8 || Math.abs(o.position.z - 2.6) > 0.8) return; if (o.position.y < 1.5) lamp = o.intensity; else ceiling = o.intensity; }); window.__movie = { lamp, ceiling }; console.log('MOODPROBE movie ' + JSON.stringify(window.__movie)); })()"
+    },
+    {
+      "name": "verify-movie-dims-ceiling-harder-than-lamp",
+      "waitFor": {
+        "store": "(() => { const b = window.__baseline, m = window.__movie; if (!b || !m || b.lamp <= 0 || b.ceiling <= 0) return false; const lampRatio = m.lamp / b.lamp; const ceilingRatio = m.ceiling / b.ceiling; console.log('MOODPROBE ratios ' + JSON.stringify({ lampRatio, ceilingRatio })); return lampRatio < 1 && ceilingRatio < lampRatio; })()"
+      },
+      "timeout": 5000,
+      "failMessage": "Movie night should dim BOTH fixtures below Normal, and dim the ceiling fixture harder than the lamp"
+    },
+    { "name": "shot-movie", "screenshot": "02-movie-night" },
+    {
+      "name": "set-mood-romantic",
+      "eval": "window.__store.getState().setLightMood('romantic')"
+    },
+    {
+      "name": "verify-store-mood-romantic",
+      "waitFor": { "store": "state.lightMood === 'romantic'" },
+      "timeout": 3000
+    },
+    { "name": "settle-romantic", "wait": 600 },
+    { "name": "shot-romantic", "screenshot": "03-romantic" },
+    {
+      "name": "reset-mood-none",
+      "eval": "window.__store.getState().setLightMood('none')"
+    },
+    {
+      "name": "verify-lightoff-invariant-not-relit",
+      "comment": "The composition invariant: a per-item lightOn='no' item must NEVER be re-lit by a mood, in ANY mood.",
+      "eval": "window.__store.getState().setItems([...window.__store.getState().items, {id:'mood-off-lamp',defId:'table-lamp',position:[9.6,3.4],rotation:0,props:{lightOn:'no'}}]); window.__store.getState().setLightMood('entertaining')"
+    },
+    { "name": "settle-off-check", "wait": 600 },
+    {
+      "name": "verify-switched-off-lamp-stays-dark-under-entertaining",
+      "waitFor": {
+        "store": "(() => { const scene = window.__three.scene; let found = false; scene.traverse((o) => { if (o.isPointLight && Math.abs(o.position.x - 9.6) < 0.5 && Math.abs(o.position.z - 3.4) < 0.5) found = true; }); return !found; })()"
+      },
+      "timeout": 5000,
+      "failMessage": "A per-item lightOn='no' lamp must stay unlit under ANY mood (Entertaining), including the brighter presets"
+    },
+    {
+      "name": "reset-mood-none-2",
+      "eval": "window.__store.getState().setLightMood('none')"
+    },
+    {
+      "name": "open-scene-menu",
+      "click": "button[aria-label='Scene']"
+    },
+    {
+      "name": "mood-row-visible-flag-on",
+      "waitFor": { "css": "[aria-label='Lighting mood']" },
+      "timeout": 5000,
+      "failMessage": "Mood row should be visible in the Scene menu while lightMoodPresets is on"
+    },
+    { "name": "shot-menu-flag-on", "screenshot": "04-scene-menu-mood-row-visible" },
+    {
+      "name": "close-scene-menu",
+      "eval": "window.__three.gl.domElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))"
+    },
+    {
+      "name": "menu-closed",
+      "waitFor": { "store": "!document.querySelector('[role=\"menu\"]')" },
+      "timeout": 3000,
+      "failMessage": "Escape should close the Scene menu panel"
+    },
+    {
+      "name": "disable-flag",
+      "eval": "window.__store.getState().setFeatureFlag('lightMoodPresets', false)"
+    },
+    {
+      "name": "verify-flag-off",
+      "waitFor": { "store": "state.featureFlags.lightMoodPresets === false" },
+      "timeout": 3000
+    },
+    {
+      "name": "reopen-scene-menu",
+      "click": "button[aria-label='Scene']"
+    },
+    {
+      "name": "menu-reopened",
+      "waitFor": { "css": "[role=\"menu\"]" },
+      "timeout": 5000,
+      "failMessage": "Scene menu should be open again after clicking its trigger"
+    },
+    { "name": "settle-reopen", "wait": 300 },
+    {
+      "name": "mood-row-hidden-flag-off",
+      "waitFor": {
+        "store": "!!document.querySelector('[role=\"menu\"]') && !document.querySelector(\"[aria-label='Lighting mood']\")"
+      },
+      "timeout": 5000,
+      "failMessage": "Mood row should be hidden (with the menu genuinely open) once lightMoodPresets is turned off"
+    },
+    { "name": "shot-menu-flag-off", "screenshot": "05-scene-menu-mood-row-hidden" }
+  ]
+}

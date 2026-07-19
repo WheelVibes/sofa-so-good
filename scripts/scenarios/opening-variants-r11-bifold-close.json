@@ -1,0 +1,70 @@
+{
+  "name": "opening-variants-r11-bifold-close",
+  "url": "http://localhost:5211/",
+  "steps": [
+    {
+      "name": "viewport",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      }
+    },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.setOnboardingOpen?.(false); s.endTour?.(); s.dismissLocationPrompt?.(); s.setLocation?.({ lat: 1.3521, lon: 103.8198, label: 'SG' }); s.setManualHour?.(13); s.setQualityTier?.('high'); })()"
+    },
+    {
+      "name": "scene-ready",
+      "store": {
+        "action": "setSceneReady",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "translucent-walls",
+      "store": {
+        "action": "setWallRevealStrength",
+        "args": [
+          0.95
+        ]
+      }
+    },
+    {
+      "name": "set-door-bifold-vinyl",
+      "eval": "(() => { const st=window.__store.getState(); const fp=st.floorPlan; const door=fp.openings.find(o=>o.kind==='door'); if (door) st.updateOpening(door.id,{style:'bifold',material:'vinyl'}); return door ? door.id : null; })()"
+    },
+    {
+      "name": "camera-at-door",
+      "eval": "(() => { const st=window.__store.getState(); const fp=st.floorPlan; const door=fp.openings.find(o=>o.kind==='door'); const wall=fp.walls.find(w=>w.id===door.wallId); const len=Math.hypot(wall.end[0]-wall.start[0],wall.end[1]-wall.start[1]); const ux=(wall.end[0]-wall.start[0])/len, uz=(wall.end[1]-wall.start[1])/len; const cx=wall.start[0]+ux*(door.offset+door.width/2), cz=wall.start[1]+uz*(door.offset+door.width/2); const c=window.__three.controls; const cam=window.__three.camera; cam.position.set(cx-uz*2.4+ux*0.8, 1.6, cz+ux*2.4+uz*0.8); c.target.set(cx, 1.0, cz); c.update(); return [cx,cz]; })()"
+    },
+    {
+      "name": "settle",
+      "wait": 1500
+    },
+    {
+      "name": "shot-closed",
+      "screenshot": "bifold-vinyl-closed"
+    },
+    {
+      "name": "door-open",
+      "eval": "(() => { const st=window.__store.getState(); const fp=st.floorPlan; const door=fp.openings.find(o=>o.kind==='door'); st.toggleDoor(door.id); return door.id; })()"
+    },
+    {
+      "name": "wait-open",
+      "wait": 3500
+    },
+    {
+      "name": "shot-open",
+      "screenshot": "bifold-vinyl-open"
+    }
+  ]
+}

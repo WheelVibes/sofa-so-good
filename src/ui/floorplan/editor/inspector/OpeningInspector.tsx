@@ -1,4 +1,5 @@
 import { useFeature } from '../../../../features/useFeature'
+import { resolveDoorLeafMaterialKind } from '../../../../floorplan/doorMaterial'
 import { doorHinge, doorSwing } from '../../../../floorplan/doorSwing'
 import type { PlanLevel } from '../../../../floorplan/levels'
 import { defaultOpeningName } from '../../../../floorplan/planElementName'
@@ -167,13 +168,34 @@ export function OpeningInspector({
                   ['panel', 'Panelled'],
                   ['flush', 'Flush'],
                   ['glazed', 'Glazed'],
+                  ['bifold', 'Bifold'],
+                  ['sliding', 'Sliding'],
+                  ['double', 'Double'],
                 ]
               : [
                   ['plain', 'Plain glass'],
                   ['grille', 'Safety grille'],
+                  ['invisible-grille', 'Invisible grille'],
                   ['louvre', 'Louvre'],
                 ]
             ).map(([v, label]) => ({ value: v, label }))}
+          />
+        </div>
+      ) : null}
+      {openingStylesOn && o.kind === 'door' ? (
+        <div className="row" style={{ padding: '6px 0', alignItems: 'center' }}>
+          <span className="label">Material</span>
+          <Select
+            className="input"
+            style={{ marginLeft: 'auto', maxWidth: '56%' }}
+            value={resolveDoorLeafMaterialKind(o)}
+            onChange={(v) => a.updateOpening(o.id, { material: v }, levelId)}
+            ariaLabel="Material"
+            options={[
+              { value: 'painted', label: 'Painted' },
+              { value: 'wood', label: 'Timber / wood grain' },
+              { value: 'vinyl', label: 'Vinyl / PVC laminate' },
+            ]}
           />
         </div>
       ) : null}

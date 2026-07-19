@@ -1,0 +1,129 @@
+{
+  "name": "layout-reroll-simple",
+  "url": "http://localhost:5211/",
+  "description": "IXT-SUITES simple rung for `layoutReroll` (simple tier — 'Try another layout' button in the FinishPicker's Room layout section). Opens the FinishPicker for livingDining, snapshots the room's item transforms, clicks 'Try another layout' twice (asserting a distinct, collision-valid layout each time via `layoutVariants[roomId]` incrementing and item positions changing), undoes back to the original layout, then re-verifies the button is present after a Simple→Pro switch (layoutReroll is simple-tier, shown in both modes).",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "Expected uiMode=simple at boot"
+    },
+    {
+      "name": "verify-layoutreroll-on-in-simple",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.layoutReroll === true" },
+      "timeout": 10000,
+      "failMessage": "layoutReroll should be ON in Simple mode (it is simple-tier)"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 5000
+    },
+    { "name": "hide-loading", "eval": "window.__store.getState().hideLoading?.()" },
+    { "name": "wait-room-load", "wait": 1500 },
+    {
+      "name": "select-room",
+      "store": { "action": "selectRoom", "args": ["livingDining"] }
+    },
+    {
+      "name": "finish-picker-visible",
+      "waitFor": { "css": ".panel.inspector" },
+      "timeout": 15000,
+      "failMessage": "FinishPicker (.panel.inspector) did not appear after room selection"
+    },
+    {
+      "name": "record-baseline",
+      "eval": "(function(){ const s=window.__store.getState(); window.__baselineItems = JSON.stringify(s.items.map(i=>({id:i.id,p:i.position,r:i.rotation}))); })()"
+    },
+    {
+      "name": "reroll-button-visible",
+      "waitFor": { "css": "button[title^='Re-arrange this room into a different valid layout']" },
+      "timeout": 10000,
+      "failMessage": "'Try another layout' button did not render for a room with items (layoutReroll simple-tier)"
+    },
+    { "name": "shot-picker-before-reroll", "screenshot": "01-finish-picker-before-reroll" },
+    {
+      "name": "reroll-once",
+      "eval": "document.querySelector(\"button[title^='Re-arrange this room into a different valid layout']\").click()"
+    },
+    {
+      "name": "variant-1",
+      "waitFor": { "store": "(state.layoutVariants && state.layoutVariants['livingDining']) === 1" },
+      "timeout": 10000,
+      "failMessage": "layoutVariants['livingDining'] should be 1 after one reroll"
+    },
+    {
+      "name": "layout-changed-after-reroll-1",
+      "eval": "(function(){ const s=window.__store.getState(); const before=JSON.parse(window.__baselineItems); const changed = before.some(b => { const now = s.items.find(i=>i.id===b.id); return now && (Math.abs(now.position[0]-b.p[0])>1e-4 || Math.abs(now.position[1]-b.p[1])>1e-4 || now.rotation!==b.r); }); if (!changed) throw new Error('No item moved after the first reroll'); })()"
+    },
+    { "name": "shot-after-reroll-1", "screenshot": "02-after-reroll-1" },
+    {
+      "name": "reroll-twice",
+      "eval": "document.querySelector(\"button[title^='Re-arrange this room into a different valid layout']\").click()"
+    },
+    {
+      "name": "variant-2",
+      "waitFor": { "store": "(state.layoutVariants && state.layoutVariants['livingDining']) === 2" },
+      "timeout": 10000,
+      "failMessage": "layoutVariants['livingDining'] should be 2 after a second reroll"
+    },
+    { "name": "shot-after-reroll-2", "screenshot": "03-after-reroll-2" },
+    {
+      "name": "undo-second-reroll",
+      "eval": "window.__store.getState().undo()"
+    },
+    {
+      "name": "undo-first-reroll",
+      "eval": "window.__store.getState().undo()"
+    },
+    {
+      "name": "layout-restored",
+      "waitFor": {
+        "store": "(function(){ const before=JSON.parse(window.__baselineItems); return before.every(b => { const now = state.items.find(i=>i.id===b.id); return now && Math.abs(now.position[0]-b.p[0])<1e-4 && Math.abs(now.position[1]-b.p[1])<1e-4 && now.rotation===b.r; }); })()"
+      },
+      "timeout": 10000,
+      "failMessage": "Two undos should restore the room's original layout"
+    },
+    { "name": "shot-after-undo", "screenshot": "04-after-undo-restored" },
+    {
+      "name": "switch-to-pro",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "reresolve-flags-pro",
+      "eval": "window.__store.getState().reresolveFeatureFlags?.()"
+    },
+    {
+      "name": "verify-pro-mode",
+      "waitFor": { "store": "state.uiMode === 'pro'" },
+      "timeout": 5000
+    },
+    {
+      "name": "verify-layoutreroll-on-in-pro",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.layoutReroll === true" },
+      "timeout": 10000,
+      "failMessage": "layoutReroll should still be ON in Pro mode (simple-tier flags are shown in both modes)"
+    },
+    {
+      "name": "reroll-still-present-in-pro",
+      "waitFor": { "css": "button[title^='Re-arrange this room into a different valid layout']" },
+      "timeout": 10000,
+      "failMessage": "'Try another layout' button should still render in Pro mode"
+    },
+    { "name": "shot-pro-mode-reroll", "screenshot": "05-pro-mode-reroll-present" }
+  ]
+}

@@ -45,6 +45,7 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       {
@@ -141,6 +142,7 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       {
@@ -272,6 +274,7 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       {
@@ -372,6 +375,7 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       {
@@ -490,6 +494,7 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
@@ -553,6 +558,7 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       {
@@ -634,6 +640,7 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       {
@@ -700,6 +707,7 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       {
@@ -780,6 +788,7 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       {
@@ -839,6 +848,7 @@ export const SEATING_DEFS = {
         options: [
           { value: 'fabric', label: 'Fabric' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
           { value: 'leather', label: 'Leather' },
         ],
       },
@@ -921,6 +931,78 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'pattern',
+        label: 'Weave',
+        default: 'plain',
+        options: [
+          { value: 'plain', label: 'Plain' },
+          { value: 'striped', label: 'Striped' },
+          { value: 'herringbone', label: 'Herringbone' },
+          { value: 'checkered', label: 'Checkered' },
+          { value: 'plaid', label: 'Plaid' },
+          { value: 'dots', label: 'Dots' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    ],
+  },
+  // Banquette / built-in bench — an upholstered dining-nook bench that sits flush
+  // to a wall (backrest at the wall side). Parametric width; the material enum
+  // includes bouclé.
+  banquette: {
+    kind: 'parametric',
+    id: 'banquette',
+    name: 'Banquette',
+    keywords: [
+      'built-in bench',
+      'dining bench',
+      'dining nook',
+      'booth',
+      'bench seat',
+      'window seat',
+      'banquette seating',
+    ],
+    category: 'seating',
+    primitive: 'Banquette',
+    defaultFootprint: { w: 1.6, d: 0.55, h: 0.95 },
+    footprintParams: { w: 'width', d: 'depth' },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 1.0,
+        max: 2.4,
+        step: 0.1,
+        default: 1.6,
+        unit: 'm',
+      },
+      {
+        kind: 'number',
+        key: 'depth',
+        label: 'Depth',
+        min: 0.45,
+        max: 0.65,
+        step: 0.05,
+        default: 0.55,
+        unit: 'm',
+      },
+      { kind: 'color', key: 'color', label: 'Upholstery', default: '#a9b0a0' },
+      {
+        kind: 'enum',
+        key: 'material',
+        label: 'Material',
+        default: 'fabric',
+        options: [
+          { value: 'fabric', label: 'Fabric' },
+          { value: 'leather', label: 'Leather' },
+          { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       {

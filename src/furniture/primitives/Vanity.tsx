@@ -26,6 +26,7 @@ export function Vanity({ props }: { props: ParamProps }) {
 
   const tableH = VANITY_TABLE_H
   const wood = getSurfaceMaterial(finish, color, 1.4, sheen)
+  const brass = getSurfaceMaterial('brass', '#b8923f')
   const glass = { color: '#d6e0e6', roughness: 0.06, metalness: 0.9 } as const
   const bulb = {
     color: '#fff4d8',
@@ -64,9 +65,8 @@ export function Vanity({ props }: { props: ParamProps }) {
             material={wood}
             args={[p.w, p.h, p.d]}
           />
-          <mesh position={[p.x, p.y, p.z + p.d / 2 + 0.01]}>
+          <mesh position={[p.x, p.y, p.z + p.d / 2 + 0.01]} material={brass}>
             <sphereGeometry args={[0.014, 10, 8]} />
-            <meshStandardMaterial color="#b08d57" roughness={0.4} metalness={0.7} />
           </mesh>
         </group>
       ))}

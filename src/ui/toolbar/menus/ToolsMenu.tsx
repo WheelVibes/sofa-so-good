@@ -26,6 +26,7 @@ export function ToolsMenu() {
   const designScoreOpen = useStore((s) => s.designScoreOpen)
   const accessibilityOpen = useStore((s) => s.accessibilityOpen)
   const commentsOpen = useStore((s) => s.commentsOpen)
+  const designChatOpen = useStore((s) => s.designChatOpen)
   const commentMode = useStore((s) => s.commentMode)
   const commentCount = useStore((s) => s.comments.length)
   const drawingCalloutsOpen = useStore((s) => s.drawingCalloutsOpen)
@@ -76,7 +77,8 @@ export function ToolsMenu() {
     tapeMode ||
     commentsOpen ||
     commentMode ||
-    drawingCalloutsOpen
+    drawingCalloutsOpen ||
+    designChatOpen
 
   // Per-feature gates for the bespoke rows. The Analyse + Review rows are gated
   // inside the registry (`visibleToolActions`), so they need no flags here.

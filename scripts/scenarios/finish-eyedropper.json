@@ -1,0 +1,109 @@
+{
+  "name": "finish-eyedropper",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true || state.bootPhase === 'ready'"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "select-room",
+      "eval": "window.__store.getState().selectRoom('livingDining')"
+    },
+    {
+      "name": "picker-open",
+      "waitFor": {
+        "css": ".finish-picker"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "overlay-clear",
+      "waitFor": {
+        "store": "!state.loading || state.loading.active === false"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "arm",
+      "eval": "(() => { const b = document.querySelector('.finish-picker button[aria-label*=\"yedropper\"], .finish-picker button[title*=\"yedropper\"], .finish-picker button[aria-label*=\"ample\"]'); if (!b) throw new Error('no eyedropper button: ' + [...document.querySelectorAll('.finish-picker .icon-btn, .finish-picker header button')].map(x => x.getAttribute('aria-label') || x.getAttribute('title') || x.textContent.trim()).join('|')); b.click(); })()"
+    },
+    {
+      "name": "armed",
+      "waitFor": {
+        "store": "state.eyedropperArmed === true"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "hint-visible",
+      "waitFor": {
+        "css": ".eyedrop-hint"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "settle",
+      "wait": 800
+    },
+    {
+      "name": "shot-armed",
+      "screenshot": "eyedropper-armed"
+    },
+    {
+      "name": "simulate-sample",
+      "eval": "(async () => { const m = await import('/src/materials/sampleFinish.ts'); const s = window.__store.getState(); const sample = m.resolveSampledFinish({ kind: 'wall', roomId: 'livingDining' }, s.finishes, s.floorPlan); s.setSampledFinish(sample); window.__sampled = sample; })()"
+    },
+    {
+      "name": "chip-visible",
+      "waitFor": {
+        "store": "state.sampledFinish != null"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "settle2",
+      "wait": 800
+    },
+    {
+      "name": "shot-held",
+      "screenshot": "eyedropper-held"
+    },
+    {
+      "name": "apply-elsewhere",
+      "eval": "(async () => { const fd = await import('/src/materials/finishDrop.ts'); const ap = await import('/src/state/finishDropApply.ts'); ap.applyFinishDropAction(fd.resolveFinishDrop({ kind: 'wall', roomId: 'mainBedroom' }, { finishId: window.__sampled.finishId })); })()"
+    },
+    {
+      "name": "applied",
+      "waitFor": {
+        "store": "state.finishes.walls.mainBedroom === window.__sampled.finishId"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "escape-disarms",
+      "key": "Escape"
+    },
+    {
+      "name": "disarmed",
+      "waitFor": {
+        "store": "state.eyedropperArmed === false"
+      },
+      "timeout": 10000
+    }
+  ]
+}

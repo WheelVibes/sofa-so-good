@@ -1,0 +1,55 @@
+{
+  "name": "catb-furniture-r11",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "viewport", "viewport": { "width": 1280, "height": 900 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.setOnboardingOpen?.(false); s.endTour?.(); s.dismissLocationPrompt?.(); s.setLocation?.({ lat: 1.3521, lon: 103.8198, label: 'SG' }); s.setManualHour?.(13); s.setLightsMode?.('on'); s.setQualityTier?.('medium'); })()"
+    },
+    { "name": "scene-ready", "store": { "action": "setSceneReady", "args": [true] } },
+    { "name": "warm-quality", "wait": 8000 },
+    {
+      "name": "place-catb-items",
+      "eval": "(() => { const s=window.__store.getState(); const Z=-7; const X0=3, DX=4.5; const defs=[ {defId:'dining-table-4',props:{seats:'6',shape:'rect',leaf:'extended',finish:'wood',topColor:'#a9835a'}}, {defId:'altar-cabinet',props:{width:0.9,style:'cabinet',color:'#7a3b2e'}}, {defId:'banquette',props:{width:1.6,material:'boucle',color:'#cbb9a2'}}, {defId:'bed-queen',props:{baseStyle:'hydraulic'}}, {defId:'water-heater',props:{width:0.5,mountHeight:1.5,color:'#f2f2ee'}}, {defId:'fluted-partition',props:{width:1.4,height:2.1,frameColor:'#2b2b2b',glassColor:'#dfe7e6'}} ]; const items=defs.map((d,i)=>({id:'catb-'+i,defId:d.defId,position:[X0+i*DX,Z],rotation:0,props:d.props})); window.__catb={items:items.map(it=>({id:it.id,x:it.position[0],z:it.position[1],defId:it.defId}))}; s.setItems(items); return window.__catb.items.map(i=>i.defId); })()"
+    },
+    { "name": "settle-place", "wait": 3000 },
+    {
+      "name": "cam-dining",
+      "eval": "(() => { const it=window.__catb.items[0]; const c=window.__three.controls, cam=window.__three.camera; cam.position.set(it.x+1.4, 1.3, it.z+3.0); c.target.set(it.x, 0.45, it.z); c.update(); return it.defId; })()"
+    },
+    { "name": "settle-dining", "wait": 1200 },
+    { "name": "shot-dining-extended", "screenshot": "01-dining-table-extended-leaf" },
+    {
+      "name": "cam-altar",
+      "eval": "(() => { const it=window.__catb.items[1]; const c=window.__three.controls, cam=window.__three.camera; cam.position.set(it.x+1.1, 1.35, it.z+2.6); c.target.set(it.x, 0.85, it.z); c.update(); return it.defId; })()"
+    },
+    { "name": "settle-altar", "wait": 1200 },
+    { "name": "shot-altar", "screenshot": "02-altar-cabinet" },
+    {
+      "name": "cam-banquette",
+      "eval": "(() => { const it=window.__catb.items[2]; const c=window.__three.controls, cam=window.__three.camera; cam.position.set(it.x+1.1, 1.1, it.z+2.6); c.target.set(it.x, 0.5, it.z); c.update(); return it.defId; })()"
+    },
+    { "name": "settle-banquette", "wait": 1200 },
+    { "name": "shot-banquette", "screenshot": "03-banquette-boucle" },
+    {
+      "name": "cam-bed",
+      "eval": "(() => { const it=window.__catb.items[3]; const c=window.__three.controls, cam=window.__three.camera; cam.position.set(it.x+1.8, 1.3, it.z+3.2); c.target.set(it.x, 0.35, it.z); c.update(); return it.defId; })()"
+    },
+    { "name": "settle-bed", "wait": 1200 },
+    { "name": "shot-bed", "screenshot": "04-bed-hydraulic-storage" },
+    {
+      "name": "cam-heater",
+      "eval": "(() => { const it=window.__catb.items[4]; const c=window.__three.controls, cam=window.__three.camera; cam.position.set(it.x+0.5, 1.68, it.z+1.5); c.target.set(it.x, 1.5, it.z); c.update(); return it.defId; })()"
+    },
+    { "name": "settle-heater", "wait": 1200 },
+    { "name": "shot-heater", "screenshot": "05-water-heater" },
+    {
+      "name": "cam-fluted",
+      "eval": "(() => { const it=window.__catb.items[5]; const c=window.__three.controls, cam=window.__three.camera; cam.position.set(it.x+1.0, 1.3, it.z+3.0); c.target.set(it.x, 1.05, it.z); c.update(); return it.defId; })()"
+    },
+    { "name": "settle-fluted", "wait": 1200 },
+    { "name": "shot-fluted", "screenshot": "06-fluted-glass-partition" }
+  ]
+}

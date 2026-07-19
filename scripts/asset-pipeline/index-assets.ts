@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { basename, join, relative } from 'node:path'
 import { type CreditEntry, emitCredits } from './emit-credits'
+import { inferMaterialSidecar } from './materialChannels'
 import { deriveBoundingBox } from './process-glb'
 import {
   type FurnitureSidecar,
@@ -128,8 +129,31 @@ export async function indexAssets(opts: IndexOptions): Promise<void> {
   const materialLits: string[] = []
   const materialCredits: CreditEntry[] = []
   for (const md of materialDirs) {
-    const meta = readSidecar<MaterialSidecar>(join(md, 'material'))
-    if (!meta) continue
+    // A hand-authored sidecar always wins. When none exists, fall back to
+    // auto-detecting the PBR channel map from the texture filenames so a bare
+    // Poly Haven / ambientCG download folder "just works" (see materialChannels).
+    let meta = readSidecar<MaterialSidecar>(join(md, 'material'))
+    if (!meta) {
+      const files = readdirSync(md).filter((n) => statSync(join(md, n)).isFile())
+      const folderName = basename(md)
+      const { sidecar, detection } = inferMaterialSidecar(folderName, files)
+      for (const w of detection.warnings) {
+        console.warn(`[index-assets] material "${folderName}": ${w}`)
+      }
+      for (const ig of detection.ignored) {
+        console.warn(
+          `[index-assets] material "${folderName}": ignoring ${ig.channel} map "${ig.file}" (runtime binds only albedo/normal/roughness/ao)`,
+        )
+      }
+      if (!sidecar) continue
+      const inferred = Object.entries(sidecar.channels)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(', ')
+      console.log(
+        `[index-assets] auto-detected material "${sidecar.id}" (${sidecar.category}): ${inferred}`,
+      )
+      meta = sidecar
+    }
     if (matSeen.has(meta.id)) throw new Error(`duplicate id "${meta.id}" in ${md}`)
     matSeen.add(meta.id)
     const baseDir = relative(join(root, 'public'), md).replace(/\\/g, '/')

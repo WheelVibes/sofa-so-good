@@ -263,3 +263,23 @@ describe('parseHomeXml — door/window opening flag', () => {
     expect(sofa.category).toBe('seating')
   })
 })
+
+describe('parseHomeXml — window elevation (SH3D sill)', () => {
+  const xml = `<?xml version="1.0"?>
+<home wallHeight="250">
+  <wall id="w1" xStart="0" yStart="0" xEnd="400" yEnd="0" thickness="20"/>
+  <doorOrWindow id="w1o" name="Raised window" x="200" y="0" width="120" depth="20" height="80" elevation="120"/>
+  <doorOrWindow id="d1" name="Front door" x="300" y="0" width="90" depth="20" height="205" elevation="0"/>
+</home>`
+  const result = parseHomeXml(xml)
+
+  it('carries the elevation attribute through in metres', () => {
+    const win = result.items.find((i) => i.id === 'w1o')!
+    expect(win.elevation).toBeCloseTo(1.2, 3)
+  })
+
+  it('defaults elevation to 0 when the attribute is absent', () => {
+    const door = result.items.find((i) => i.id === 'd1')!
+    expect(door.elevation).toBe(0)
+  })
+})

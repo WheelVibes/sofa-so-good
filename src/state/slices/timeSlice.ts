@@ -1,3 +1,8 @@
+import {
+  DEFAULT_CLIP_END_HOUR,
+  DEFAULT_CLIP_START_HOUR,
+  sweepHourAt,
+} from '../../scene/cameras/dayNightSweep'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
@@ -29,11 +34,48 @@ export interface TimeSlice {
   setManualHour: (h: number) => void
   setPresetTime: (preset: TimePreset) => void
   cyclePresetTime: () => void
+
+  // Day → night clip sweep (DAY-NIGHT-CLIP). Config for animating the
+  // time-of-day slider along the recorded saved-views walkthrough so the
+  // exported video transitions through lighting conditions. Session-only —
+  // NOT part of the save schema (like `recording`).
+  /** When on, the walkthrough tour sweeps time-of-day from start→end hour. */
+  clipTimeSweep: boolean
+  /** Sweep start hour [0, 24) — the look at the clip's first frame. */
+  clipSweepStartHour: number
+  /** Sweep end hour [0, 24) — the look at the clip's last frame. */
+  clipSweepEndHour: number
+  setClipTimeSweep: (v: boolean) => void
+  setClipSweepStartHour: (h: number) => void
+  setClipSweepEndHour: (h: number) => void
+  /** Transient snapshot of the pre-sweep time, restored when the clip ends.
+   *  Non-null iff a sweep is currently driving the clock (the active flag). */
+  timeSweepRestore: { timeMode: TimeMode; manualHour: number } | null
+  /** Snapshot the current time + pin the clock to the sweep start (no-op when
+   *  `clipTimeSweep` is off, or when a sweep is already active). */
+  beginTimeSweep: () => void
+  /** Drive the clock to the sweep hour for clip `progress` (0→1). No-op unless
+   *  a sweep is active (`beginTimeSweep` ran). */
+  applyTimeSweepProgress: (progress: number) => void
+  /** Restore the pre-sweep time + clear the active snapshot (no-op if idle). */
+  endTimeSweep: () => void
 }
 
-export const TIME_INITIAL: Pick<TimeSlice, 'timeMode' | 'manualHour'> = {
+export const TIME_INITIAL: Pick<
+  TimeSlice,
+  | 'timeMode'
+  | 'manualHour'
+  | 'clipTimeSweep'
+  | 'clipSweepStartHour'
+  | 'clipSweepEndHour'
+  | 'timeSweepRestore'
+> = {
   timeMode: 'system',
   manualHour: 12,
+  clipTimeSweep: false,
+  clipSweepStartHour: DEFAULT_CLIP_START_HOUR,
+  clipSweepEndHour: DEFAULT_CLIP_END_HOUR,
+  timeSweepRestore: null,
 }
 
 /** Wrap any real number into [0, 24). Negative inputs wrap backwards
@@ -67,5 +109,33 @@ export const createTimeSlice: SliceCreator<TimeSlice, RootState> = (set, get) =>
     } else {
       set({ timeMode: 'manual', manualHour: PRESET_HOURS[next] })
     }
+  },
+  setClipTimeSweep: (v) => set({ clipTimeSweep: !!v }),
+  setClipSweepStartHour: (h) => set({ clipSweepStartHour: wrapHour(h) }),
+  setClipSweepEndHour: (h) => set({ clipSweepEndHour: wrapHour(h) }),
+  beginTimeSweep: () => {
+    const s = get()
+    // Off, or already sweeping → no-op (never re-snapshot over an active sweep,
+    // which would capture the swept clock as the "original" to restore to).
+    if (!s.clipTimeSweep || s.timeSweepRestore) return
+    set({
+      timeSweepRestore: { timeMode: s.timeMode, manualHour: s.manualHour },
+      // Pin the clock to the start hour immediately (progress 0).
+      timeMode: 'manual',
+      manualHour: wrapHour(s.clipSweepStartHour),
+    })
+  },
+  applyTimeSweepProgress: (progress) => {
+    const s = get()
+    if (!s.timeSweepRestore) return // only while a sweep is active
+    set({
+      timeMode: 'manual',
+      manualHour: sweepHourAt(progress, s.clipSweepStartHour, s.clipSweepEndHour),
+    })
+  },
+  endTimeSweep: () => {
+    const snap = get().timeSweepRestore
+    if (!snap) return
+    set({ timeMode: snap.timeMode, manualHour: snap.manualHour, timeSweepRestore: null })
   },
 })

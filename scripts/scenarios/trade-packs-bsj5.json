@@ -1,0 +1,66 @@
+{
+  "name": "trade-packs-bsj5",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "tall-viewport", "viewport": { "width": 1200, "height": 1500 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()"
+    },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    {
+      "name": "seed-mep-circuits-aircon",
+      "eval": "(() => { const s = window.__store.getState(); s.suggestMepPoints?.(); s.suggestSwitchCircuits?.(); s.planAircon?.(); })()"
+    },
+    { "name": "let-state-settle", "wait": 400 },
+    {
+      "name": "intercept-window-open",
+      "eval": "window.open = () => ({ document: { write(h) { window.__lastHtml = h }, close() {} }, close() {}, focus() {}, print() {} })"
+    },
+    {
+      "name": "build-packs-via-open-flow",
+      "eval": "(async () => { const { openTradePack } = await import('/src/ui/openTradePack.ts'); window.__packs = {}; for (const id of ['tiler','electrician','aircon','painter']) { window.__lastHtml = null; await openTradePack(id); window.__packs[id] = window.__lastHtml; } })()"
+    },
+    {
+      "name": "packs-captured",
+      "waitFor": { "store": "window.__packs && typeof window.__packs.tiler === 'string' && window.__packs.tiler.length > 1000 && typeof window.__packs.aircon === 'string'" },
+      "timeout": 20000
+    },
+    {
+      "name": "assert-pack-content",
+      "eval": "(() => { const p = window.__packs; const need = (html, re, label) => { if (!re.test(html)) throw new Error('missing in ' + label + ': ' + re); }; need(p.tiler, /Tiler &amp; wet works/, 'tiler recipient'); need(p.tiler, /Finishes schedule/, 'tiler finishes'); need(p.tiler, /Wet-area notes/, 'tiler wet notes'); if (/FF&amp;E schedule/.test(p.tiler)) throw new Error('tiler must NOT contain FF&E'); need(p.tiler, /Sheet numbers below are the MASTER/, 'numbering note'); need(p.electrician, /Electrician/, 'electrician recipient'); need(p.electrician, /Electrical plan/, 'electrician sheet'); need(p.electrician, /Mount-height conventions/, 'mount heights'); need(p.electrician, /SP Group/, 'DB note'); need(p.aircon, /Proposed multi-split systems/, 'aircon systems'); need(p.aircon, /System-\\d|Single split/, 'aircon system label'); need(p.painter, /Paint-area quantity basis/, 'painter basis'); window.__assertOk = true; })()"
+    },
+    {
+      "name": "render-electrician",
+      "eval": "document.open(); document.write(window.__packs.electrician); document.close();"
+    },
+    { "name": "wait-elec-render", "waitFor": { "css": ".sheet" }, "timeout": 8000 },
+    { "name": "shot-electrician-cover", "screenshot": "bsj5/01-electrician-cover" },
+    {
+      "name": "scroll-to-electrical-sheet",
+      "eval": "(() => { const names = [...document.querySelectorAll('.tb-name')]; const el = names.find((n) => n.textContent.trim().startsWith('Electrical plan')); const sheet = el && el.closest('.sheet'); if (!sheet) throw new Error('electrical sheet not found'); sheet.scrollIntoView(); })()"
+    },
+    { "name": "shot-electrician-electrical", "screenshot": "bsj5/02-electrician-electrical-sheet" },
+    {
+      "name": "render-tiler",
+      "eval": "document.open(); document.write(window.__packs.tiler); document.close(); window.scrollTo(0, 0);"
+    },
+    { "name": "wait-tiler-render", "waitFor": { "css": ".sheet" }, "timeout": 8000 },
+    { "name": "tiler-scroll-top", "eval": "window.scrollTo(0, 0)" },
+    { "name": "shot-tiler-cover", "screenshot": "bsj5/03-tiler-cover" },
+    {
+      "name": "scroll-to-tiler-finishes",
+      "eval": "(() => { const names = [...document.querySelectorAll('.tb-name')]; const el = names.find((n) => n.textContent.trim().startsWith('Finishes schedule')); const sheet = el && el.closest('.sheet'); if (!sheet) throw new Error('finishes sheet not found'); sheet.scrollIntoView(); })()"
+    },
+    { "name": "shot-tiler-finishes", "screenshot": "bsj5/04-tiler-finishes-sheet" },
+    {
+      "name": "render-aircon",
+      "eval": "document.open(); document.write(window.__packs.aircon); document.close(); window.scrollTo(0, 0);"
+    },
+    { "name": "wait-aircon-render", "waitFor": { "css": ".sheet" }, "timeout": 8000 },
+    { "name": "aircon-scroll-top", "eval": "window.scrollTo(0, 0)" },
+    { "name": "shot-aircon-cover", "screenshot": "bsj5/05-aircon-cover" }
+  ]
+}

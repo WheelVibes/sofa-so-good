@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import { resolvePlanRoomFloor, resolvePlanRoomWall } from '../floorplan/roomFinishes'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
-import { applySerialized, preserveUnresolvedItems, SerializedStateZ, serialize } from './schema'
+import {
+  applySerialized,
+  FloorPlanZ,
+  preserveUnresolvedItems,
+  SerializedStateZ,
+  serialize,
+} from './schema'
 import { useStore } from './store'
 
 describe('schema', () => {
@@ -18,6 +24,304 @@ describe('schema', () => {
       expect(round.data.manualHour).toBe(18)
       expect(round.data.items.length).toBeGreaterThan(0)
     }
+  })
+
+  it('round-trips the key-collection date for the DLP tracker (R4-8)', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().setKeyCollectionDate('2026-07-19')
+    const saved = serialize(useStore.getState())
+    const parsed = SerializedStateZ.safeParse(saved)
+    expect(parsed.success).toBe(true)
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.keyCollectionDate).toBe('2026-07-19')
+  })
+
+  it("round-trips a door's absent-leaf flag (BSJ-4 bare BTO / strip-out)", () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().applyBareBto()
+    const saved = serialize(useStore.getState())
+    const parsed = SerializedStateZ.safeParse(saved)
+    expect(parsed.success).toBe(true)
+    if (parsed.success) {
+      expect(parsed.data.doors['door-mainBedroom']?.leaf).toBe('none')
+      expect(parsed.data.doors['door-mainBedroom']?.open).toBe(true)
+      // A provided door has no leaf flag.
+      expect(parsed.data.doors['door-main']?.leaf).toBeUndefined()
+    }
+  })
+
+  it('defaults the key-collection date to null when absent', () => {
+    useStore.getState().__resetForTest()
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.keyCollectionDate).toBeNull()
+  })
+
+  it('round-trips per-item handover metadata (ITEM-META: url/price/brand/model/supplier/description/remarks/custom)', () => {
+    useStore.getState().__resetForTest()
+    const id = useStore
+      .getState()
+      .addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    useStore.getState().setItemMeta(id, {
+      url: 'https://example.com/product',
+      price: 249,
+      brand: 'Acme',
+      model: 'X-100',
+      supplier: 'Acme Direct',
+      description: 'A description',
+      remarks: 'existing — retain',
+      custom: [
+        { key: 'Fabric', value: 'Linen' },
+        { key: 'Warranty', value: '2 years' },
+      ],
+    })
+    const saved = serialize(useStore.getState())
+    const parsed = SerializedStateZ.safeParse(saved)
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) return
+    const knownDefIds = new Set(Object.keys(BUILTIN_CATALOG))
+    const patch = applySerialized(parsed.data, knownDefIds)
+    const item = patch.items?.find((i) => i.id === id)
+    expect(item?.meta).toEqual({
+      url: 'https://example.com/product',
+      price: 249,
+      brand: 'Acme',
+      model: 'X-100',
+      supplier: 'Acme Direct',
+      description: 'A description',
+      remarks: 'existing — retain',
+      custom: [
+        { key: 'Fabric', value: 'Linen' },
+        { key: 'Warranty', value: '2 years' },
+      ],
+    })
+  })
+
+  it('clamps item-meta custom entries on import: caps count, truncates length, drops malformed entries (SEC-001-style neutralize)', () => {
+    const base = {
+      version: 2,
+      apartmentId: 'serangoon-north-vista-4r',
+      doors: {},
+      finishes: { floor: {}, walls: {} },
+      userFurniture: [],
+      userMaterials: [],
+      timeMode: 'system',
+      manualHour: 12,
+      cameraMode: 'orbit',
+      savedAt: new Date().toISOString(),
+    } as const
+    // Over the 20-entry cap, plus over-long key/value, plus malformed shapes.
+    const many = Array.from({ length: 25 }, (_, i) => ({ key: `k${i}`, value: `v${i}` }))
+    const parsed = SerializedStateZ.safeParse({
+      ...base,
+      items: [
+        {
+          id: 'a',
+          defId: 'dining-chair',
+          position: [0, 0],
+          rotation: 0,
+          props: {},
+          meta: {
+            custom: [...many, { key: 'k'.repeat(60), value: 'v'.repeat(600) }, 'not-an-object', 42],
+          },
+        },
+      ],
+    })
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) return
+    const custom = parsed.data.items[0].meta?.custom
+    expect(custom).toBeDefined()
+    // Malformed trailing entries ('not-an-object', 42) and the 26th
+    // well-formed one are dropped by the 20-entry cap.
+    expect(custom).toHaveLength(20)
+    expect(custom?.[0]).toEqual({ key: 'k0', value: 'v0' })
+  })
+
+  it('drops a fully-malformed item-meta `custom` (non-array) rather than rejecting the record', () => {
+    const parsed = SerializedStateZ.safeParse({
+      version: 2,
+      apartmentId: 'serangoon-north-vista-4r',
+      items: [
+        {
+          id: 'a',
+          defId: 'dining-chair',
+          position: [0, 0],
+          rotation: 0,
+          props: {},
+          meta: { custom: 'not-an-array', remarks: 'kept' },
+        },
+      ],
+      doors: {},
+      finishes: { floor: {}, walls: {} },
+      userFurniture: [],
+      userMaterials: [],
+      timeMode: 'system',
+      manualHour: 12,
+      cameraMode: 'orbit',
+      savedAt: new Date().toISOString(),
+    })
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) return
+    expect(parsed.data.items[0].meta?.custom).toBeUndefined()
+    expect(parsed.data.items[0].meta?.remarks).toBe('kept')
+  })
+
+  it('loads an old save with no `meta` field on its items fine (back-compat)', () => {
+    useStore.getState().__resetForTest()
+    const id = useStore
+      .getState()
+      .addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    const saved = serialize(useStore.getState())
+    // Simulate a legacy save: items never carried a `meta` key.
+    const legacy = { ...saved, items: saved.items.map(({ meta: _drop, ...rest }) => rest) }
+    const parsed = SerializedStateZ.safeParse(legacy)
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) return
+    const knownDefIds = new Set(Object.keys(BUILTIN_CATALOG))
+    const patch = applySerialized(parsed.data, knownDefIds)
+    const item = patch.items?.find((i) => i.id === id)
+    expect(item?.meta).toBeUndefined()
+  })
+
+  it('round-trips the drawing-set handover template, incl. paper size + orientation (TODO G2/G5)', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().setDrawingSetTemplate({
+      projectName: 'Reno Project',
+      projectAddress: '1 Example Ave',
+      client: 'The Tans',
+      drawnBy: 'A. Designer',
+      checkedBy: 'B. Reviewer',
+      revision: 'C',
+      revisionNote: 'For construction',
+      paperSize: 'a3',
+      orientation: 'portrait',
+    })
+    const saved = serialize(useStore.getState())
+    const parsed = SerializedStateZ.safeParse(saved)
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) return
+    const knownDefIds = new Set(Object.keys(BUILTIN_CATALOG))
+    const patch = applySerialized(parsed.data, knownDefIds)
+    expect(patch.drawingSetTemplate).toEqual({
+      projectName: 'Reno Project',
+      projectAddress: '1 Example Ave',
+      client: 'The Tans',
+      drawnBy: 'A. Designer',
+      checkedBy: 'B. Reviewer',
+      revision: 'C',
+      revisionNote: 'For construction',
+      paperSize: 'a3',
+      orientation: 'portrait',
+    })
+  })
+
+  it('defaults an old save with no paperSize/orientation to a4/landscape (back-compat)', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().setDrawingSetTemplate({
+      projectName: 'Legacy Project',
+      projectAddress: '',
+      client: '',
+      drawnBy: '',
+      checkedBy: '',
+      revision: 'A',
+      revisionNote: '',
+      paperSize: 'a4',
+      orientation: 'landscape',
+    })
+    const saved = serialize(useStore.getState())
+    // Simulate a legacy save predating paperSize/orientation.
+    const legacy = {
+      ...saved,
+      drawingSetTemplate: saved.drawingSetTemplate
+        ? (({ paperSize: _p, orientation: _o, ...rest }) => rest)(saved.drawingSetTemplate)
+        : undefined,
+    }
+    const parsed = SerializedStateZ.safeParse(legacy)
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) return
+    const knownDefIds = new Set(Object.keys(BUILTIN_CATALOG))
+    const patch = applySerialized(parsed.data, knownDefIds)
+    expect(patch.drawingSetTemplate?.paperSize).toBe('a4')
+    expect(patch.drawingSetTemplate?.orientation).toBe('landscape')
+  })
+
+  it('neutralizes an invalid item-meta price (negative/NaN/wrong-type) on import', () => {
+    const base = {
+      version: 2,
+      apartmentId: 'serangoon-north-vista-4r',
+      doors: {},
+      finishes: { floor: {}, walls: {} },
+      userFurniture: [],
+      userMaterials: [],
+      timeMode: 'system',
+      manualHour: 12,
+      cameraMode: 'orbit',
+      savedAt: new Date().toISOString(),
+    } as const
+    for (const badPrice of [-5, Number.NaN, 'free', null]) {
+      const parsed = SerializedStateZ.safeParse({
+        ...base,
+        items: [
+          {
+            id: 'a',
+            defId: 'dining-chair',
+            position: [0, 0],
+            rotation: 0,
+            props: {},
+            meta: { price: badPrice, remarks: 'kept' },
+          },
+        ],
+      })
+      expect(parsed.success).toBe(true)
+      if (!parsed.success) continue
+      expect(parsed.data.items[0].meta?.price).toBeUndefined()
+      expect(parsed.data.items[0].meta?.remarks).toBe('kept')
+    }
+    // A valid, non-negative price passes through untouched.
+    const good = SerializedStateZ.safeParse({
+      ...base,
+      items: [
+        {
+          id: 'a',
+          defId: 'dining-chair',
+          position: [0, 0],
+          rotation: 0,
+          props: {},
+          meta: { price: 0 },
+        },
+      ],
+    })
+    expect(good.success).toBe(true)
+    if (good.success) expect(good.data.items[0].meta?.price).toBe(0)
+  })
+
+  it('drops a javascript: URL from item meta on import (SEC-001 trust boundary)', () => {
+    const parsed = SerializedStateZ.safeParse({
+      version: 2,
+      apartmentId: 'serangoon-north-vista-4r',
+      items: [
+        {
+          id: 'a',
+          defId: 'dining-chair',
+          position: [0, 0],
+          rotation: 0,
+          props: {},
+          meta: { url: 'javascript:alert(1)', remarks: 'kept' },
+        },
+      ],
+      doors: {},
+      finishes: { floor: {}, walls: {} },
+      userFurniture: [],
+      userMaterials: [],
+      timeMode: 'system',
+      manualHour: 12,
+      cameraMode: 'orbit',
+      savedAt: new Date().toISOString(),
+    })
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) return
+    expect(parsed.data.items[0].meta?.url).toBeUndefined()
+    expect(parsed.data.items[0].meta?.remarks).toBe('kept')
   })
 
   it('round-trips a polygon (free-form / Auto-room) room shape on a custom plan', () => {
@@ -45,6 +349,29 @@ describe('schema', () => {
     const patch = applySerialized(saved, new Set<string>())
     const room = patch.floorPlan?.rooms.find((r) => r.id === 'L')
     expect(room?.polygon).toEqual(polygon)
+  })
+
+  it('round-trips a room floor-level offset (BSJ-8) on a custom plan', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        id: 'ffl-plan',
+        name: 'FFL',
+        ceilingHeight: 2.6,
+        extent: [4.2, 4.2],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [4.1, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [
+          { id: 'bath', name: 'Bath', origin: [0.2, 0.2], width: 2, depth: 2, floorLevelMm: -50 },
+          { id: 'bed', name: 'Bed', origin: [2.2, 0.2], width: 2, depth: 2 },
+        ],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.floorPlan?.rooms.find((r) => r.id === 'bath')?.floorLevelMm).toBe(-50)
+    // An unset room stays unset (not coerced to 0).
+    expect(patch.floorPlan?.rooms.find((r) => r.id === 'bed')?.floorLevelMm).toBeUndefined()
   })
 
   it('round-trips plan notes (PARITY-DIMTEXT) on a custom plan', () => {
@@ -118,6 +445,123 @@ describe('schema', () => {
     const saved = serialize(useStore.getState())
     const patch = applySerialized(saved, new Set<string>())
     expect(patch.floorPlan?.polylines).toEqual([polyline])
+  })
+
+  it('round-trips a parametric roof incl. dormers through FloorPlanZ (additive, back-compat)', () => {
+    useStore.getState().__resetForTest()
+    const roof = {
+      style: 'gable' as const,
+      pitchDeg: 32,
+      overhang: 0.4,
+      ridgeAxis: 'auto' as const,
+      material: 'metal-seam' as const,
+      dormers: [{ wallSide: 'S' as const, offset: 1.2, width: 1.4 }],
+    }
+    useStore.setState({
+      floorPlan: {
+        id: 'roof-plan',
+        name: 'Roofed',
+        ceilingHeight: 2.6,
+        extent: [6.2, 10.2],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [6.1, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [{ id: 'R', name: 'Room', origin: [0.2, 0.2], width: 3.8, depth: 3.8 }],
+        roof,
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    // Exercise the real zod parse path (storage load), not just applySerialized.
+    const parsed = FloorPlanZ.parse(saved.floorPlan)
+    expect(parsed.roof).toEqual(roof)
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.floorPlan?.roof).toEqual(roof)
+  })
+
+  it('loads a plan with no roof field fine (back-compat)', () => {
+    const parsed = FloorPlanZ.parse({
+      id: 'no-roof',
+      name: 'Plain',
+      ceilingHeight: 2.6,
+      extent: [4, 4],
+      walls: [],
+      openings: [],
+      rooms: [],
+    })
+    expect(parsed.roof).toBeUndefined()
+  })
+
+  it('round-trips electrical + plumbing points (MEP layer, G1) on a custom plan', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        id: 'mep-plan',
+        name: 'MEP',
+        ceilingHeight: 2.6,
+        extent: [4.2, 4.2],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [4.1, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [{ id: 'R', name: 'Room', origin: [0.2, 0.2], width: 3.8, depth: 3.8 }],
+        electricalPoints: [
+          { id: 'ep1', x: 1, z: 1, kind: 'socket', mountHeightMm: 300, label: 'Fridge' },
+          { id: 'ep2', x: 2, z: 2, kind: 'switch', levelId: 'lvl-2' },
+        ],
+        plumbingPoints: [
+          { id: 'pp1', x: 1.5, z: 1.5, kind: 'water-point', mountHeightMm: 600 },
+          { id: 'pp2', x: 2.5, z: 0.5, kind: 'floor-trap', levelId: 'lvl-2' },
+        ],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.floorPlan?.electricalPoints).toEqual([
+      { id: 'ep1', x: 1, z: 1, kind: 'socket', mountHeightMm: 300, label: 'Fridge' },
+      { id: 'ep2', x: 2, z: 2, kind: 'switch', levelId: 'lvl-2' },
+    ])
+    expect(patch.floorPlan?.plumbingPoints).toEqual([
+      { id: 'pp1', x: 1.5, z: 1.5, kind: 'water-point', mountHeightMm: 600 },
+      { id: 'pp2', x: 2.5, z: 0.5, kind: 'floor-trap', levelId: 'lvl-2' },
+    ])
+  })
+
+  it('MEP points are absent on a plan that predates them (back-compat)', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        id: 'legacy-plan',
+        name: 'Legacy',
+        ceilingHeight: 2.6,
+        extent: [4.2, 4.2],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [4.1, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [{ id: 'R', name: 'Room', origin: [0.2, 0.2], width: 3.8, depth: 3.8 }],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.floorPlan?.electricalPoints).toBeUndefined()
+    expect(patch.floorPlan?.plumbingPoints).toBeUndefined()
+  })
+
+  it('rejects an unknown electrical/plumbing kind on a point record', () => {
+    const base = {
+      id: 'mep-bad-plan',
+      name: 'Bad MEP',
+      ceilingHeight: 2.6,
+      extent: [4.2, 4.2] as [number, number],
+      walls: [],
+      openings: [],
+      rooms: [],
+    }
+    const badElectrical = FloorPlanZ.safeParse({
+      ...base,
+      electricalPoints: [{ id: 'ep1', x: 1, z: 1, kind: 'not-a-kind' }],
+    })
+    expect(badElectrical.success).toBe(false)
+    const badPlumbing = FloorPlanZ.safeParse({
+      ...base,
+      plumbingPoints: [{ id: 'pp1', x: 1, z: 1, kind: 'not-a-kind' }],
+    })
+    expect(badPlumbing.success).toBe(false)
   })
 
   it('round-trips per-room floor + wall finishes on a custom plan', () => {
@@ -500,6 +944,50 @@ describe('schema', () => {
     }
   })
 
+  it('round-trips the additive Landed housing type (SG1)', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        ...useStore.getState().floorPlan,
+        id: 'custom-landed',
+        category: {
+          housingType: 'Landed',
+          projectName: 'My Terrace',
+          apartmentType: 'Terrace House',
+        },
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const patch = applySerialized(round.data, new Set())
+      expect(patch.floorPlan?.category).toEqual({
+        housingType: 'Landed',
+        projectName: 'My Terrace',
+        apartmentType: 'Terrace House',
+      })
+    }
+  })
+
+  it('back-compat: a serialized plan with no category still parses + keeps housingType absent', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        ...useStore.getState().floorPlan,
+        id: 'no-category',
+        category: undefined,
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const patch = applySerialized(round.data, new Set())
+      expect(patch.floorPlan?.category).toBeUndefined()
+    }
+  })
+
   it('round-trips a per-wall baseboard override (PARITY-BASEBOARD)', () => {
     useStore.getState().__resetForTest()
     useStore.setState({
@@ -524,6 +1012,65 @@ describe('schema', () => {
       const patch = applySerialized(round.data, new Set())
       const wall = patch.floorPlan?.walls.find((w) => w.id === 'w1')
       expect(wall?.baseboard).toEqual({ height: 0.25, color: '#3a2a1a', hidden: false })
+    }
+  })
+
+  it('round-trips a per-wall structural classification (TODO G7)', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        ...useStore.getState().floorPlan,
+        id: 'custom-structure',
+        walls: [
+          {
+            id: 'w1',
+            start: [0, 0],
+            end: [4, 0],
+            thickness: 'external',
+            structure: 'load-bearing',
+          },
+          { id: 'w2', start: [4, 0], end: [4, 3], thickness: 'internal' },
+        ],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const patch = applySerialized(round.data, new Set())
+      expect(patch.floorPlan?.walls.find((w) => w.id === 'w1')?.structure).toBe('load-bearing')
+      // Absent structure survives as absent (defaults to 'unknown' at read sites).
+      expect(patch.floorPlan?.walls.find((w) => w.id === 'w2')?.structure).toBeUndefined()
+    }
+  })
+
+  it('round-trips a per-room explicit category (RM1)', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        ...useStore.getState().floorPlan,
+        id: 'custom-category',
+        rooms: [
+          {
+            id: 'r1',
+            name: "Ella's room",
+            origin: [0, 0],
+            width: 3,
+            depth: 3,
+            category: 'bedroom',
+          },
+          { id: 'r2', name: 'Kitchen', origin: [3, 0], width: 2, depth: 2 },
+        ],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const patch = applySerialized(round.data, new Set())
+      expect(patch.floorPlan?.rooms.find((r) => r.id === 'r1')?.category).toBe('bedroom')
+      // Absent category survives as absent (falls back to name inference).
+      expect(patch.floorPlan?.rooms.find((r) => r.id === 'r2')?.category).toBeUndefined()
     }
   })
 
@@ -623,6 +1170,23 @@ describe('schema', () => {
       new Set(['bed-double']),
     )
     expect((patch as { lightsMode?: string }).lightsMode).toBe('auto')
+  })
+
+  it('round-trips lightMood and defaults to none when absent', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().setLightMood('movie')
+    const out = serialize(useStore.getState())
+    expect(out.lightMood).toBe('movie')
+    const parsed = SerializedStateZ.safeParse(out)
+    expect(parsed.success).toBe(true)
+    // Absent (legacy, pre-mood-presets) → applySerialized defaults to 'none'.
+    const legacy = { ...out } as Record<string, unknown>
+    delete legacy.lightMood
+    const patch = applySerialized(
+      legacy as unknown as Parameters<typeof applySerialized>[0],
+      new Set(['bed-double']),
+    )
+    expect((patch as { lightMood?: string }).lightMood).toBe('none')
   })
 
   it('round-trips pinned measurement annotations', () => {

@@ -57,6 +57,7 @@ always active; see [General](#general) above.)
 | Look around | click the scene, then move the mouse |
 | Release the mouse | <kbd>Esc</kbd> |
 | Open / close a door | <kbd>E</kbd> |
+| Set a measure point (aim first) | <kbd>G</kbd> |
 | Back to orbit | <kbd>V</kbd> |
 
 > On touch devices there's no keyboard: use the on‑screen joystick to move and

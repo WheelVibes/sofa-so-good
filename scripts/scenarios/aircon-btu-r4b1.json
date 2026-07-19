@@ -1,0 +1,55 @@
+{
+  "name": "aircon-btu-r4b1",
+  "url": "http://localhost:5211/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "pro-mode",
+      "eval": "(() => { const s = window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags(); })()"
+    },
+    {
+      "name": "open-daylight",
+      "eval": "window.__store.getState().setDaylightOpen(true)"
+    },
+    {
+      "name": "panel-visible",
+      "waitFor": {
+        "css": "#daylightPanel"
+      },
+      "timeout": 15000
+    },
+    {
+      "name": "cooling-visible",
+      "waitFor": {
+        "text": "Cooling load"
+      },
+      "timeout": 8000
+    },
+    {
+      "name": "settle",
+      "wait": 400
+    },
+    {
+      "name": "scroll-to-cooling",
+      "eval": "(() => { const els=[...document.querySelectorAll('.sec-h')]; const t=els.find(e=>/cooling/i.test(e.textContent)); if (t) t.scrollIntoView({block:'start'}); return t ? 'found' : 'missing'; })()"
+    },
+    {
+      "name": "wait-scroll",
+      "wait": 600
+    },
+    {
+      "name": "shot-cooling",
+      "screenshot": "aircon-btu-cooling"
+    }
+  ]
+}

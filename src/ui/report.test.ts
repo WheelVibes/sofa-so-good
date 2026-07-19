@@ -136,6 +136,29 @@ describe('buildReportHtml', () => {
     expect(html).toMatch(/permit-sensitive/)
   })
 
+  it('gates the HDB-compliance section to housingType==="HDB" (SG1)', () => {
+    // No category (back-compat) keeps the prior default: full HDB section.
+    expect(buildReportHtml(plan, items, BUILTIN_CATALOG, null)).toContain('HDB compliance hints')
+
+    const condo = {
+      ...plan,
+      category: { housingType: 'Condominium' as const, projectName: 'p', apartmentType: 'a' },
+    }
+    const condoHtml = buildReportHtml(condo, items, BUILTIN_CATALOG, null)
+    expect(condoHtml).not.toContain('HDB compliance hints')
+    expect(condoHtml).toContain('Renovation compliance notes')
+    expect(condoHtml).toContain('MCST')
+
+    const landed = {
+      ...plan,
+      category: { housingType: 'Landed' as const, projectName: 'p', apartmentType: 'a' },
+    }
+    const landedHtml = buildReportHtml(landed, items, BUILTIN_CATALOG, null)
+    expect(landedHtml).not.toContain('HDB compliance hints')
+    expect(landedHtml).toContain('Renovation compliance notes')
+    expect(landedHtml).toContain('BCA')
+  })
+
   it('surfaces the stair-connectivity advisory for a stair-less multi-storey plan', () => {
     const multi = {
       ...plan,
@@ -254,13 +277,11 @@ describe('buildReportHtml', () => {
       walls: { livingDining: 'wall-paint-white' },
     }
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null, 'metric', finishes)
-    expect(html).toContain('Finishes by room')
+    expect(html).toContain('Finishes schedule')
     expect(html).toMatch(/Oak|oak/) // the resolved floor material name
-    expect(html).toContain('class="msw"') // colour swatch chip next to the finish
-    // Flooring schedule: total area per floor finish.
-    expect(html).toContain('Flooring schedule')
-    // Wall finish schedule: gross wall area per wall finish (perimeter × height).
-    expect(html).toContain('Wall finish schedule')
+    // Material codes + verify-on-site caveat (G4 — finish schedule depth).
+    expect(html).toMatch(/FL-01/)
+    expect(html).toMatch(/verify on site/i)
     // Renovation estimate: finishes subtotal + a combined furniture+finishes line.
     expect(html).toContain('Renovation estimate')
     expect(html).toContain('Finishes subtotal')
@@ -275,7 +296,7 @@ describe('buildReportHtml', () => {
 
   it('omits the Finishes section when no finishes are supplied', () => {
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
-    expect(html).not.toContain('Finishes by room')
+    expect(html).not.toContain('Finishes schedule')
   })
 
   it('includes + escapes a project note when supplied', () => {
@@ -299,11 +320,33 @@ describe('buildReportHtml', () => {
     expect(html).not.toMatch(/Furnishing per/)
   })
 
-  it('flags blocking items from the curated default layout', () => {
-    // The move-in layout has pieces that sit in a doorway path (the same the
-    // in-app Checks overlay flags) — the report surfaces them.
+  it('reports the curated default layout as clear (UXW-P2-3)', () => {
+    // The move-in layout used to ship a basin inside a door swing; since
+    // v0.22.2.85 the default tables are clearance-clean (pinned by
+    // furniture/defaultFlatClearance.test.ts) and the report reflects that.
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
     expect(html).toContain('Clearance &amp; fit')
+    expect(html).not.toContain('block a doorway')
+  })
+
+  it('flags an item parked squarely in a doorway path', () => {
+    // A wardrobe centred on a door opening — the report surfaces the same
+    // blocker the in-app Checks overlay flags.
+    const door = plan.openings.find((o) => o.kind === 'door')!
+    const wall = plan.walls.find((w) => w.id === door.wallId)!
+    const len = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1])
+    const ux = (wall.end[0] - wall.start[0]) / len
+    const uz = (wall.end[1] - wall.start[1]) / len
+    const cx = wall.start[0] + ux * (door.offset + door.width / 2)
+    const cz = wall.start[1] + uz * (door.offset + door.width / 2)
+    const blocker = {
+      id: 'blocker',
+      defId: 'wardrobe-3door',
+      position: [cx, cz] as [number, number],
+      rotation: 0,
+      props: {},
+    }
+    const html = buildReportHtml(plan, [blocker], BUILTIN_CATALOG, null)
     expect(html).toContain('block a doorway')
   })
 
@@ -623,5 +666,48 @@ describe('buildReportHtml — electrical points (PARITY-ELECTRICAL-SCHED)', () =
     const noRooms = { ...plan, rooms: [] }
     const html = buildReportHtml(noRooms, [], BUILTIN_CATALOG, null)
     expect(html).not.toContain('Electrical points (indicative)')
+  })
+})
+
+describe('buildReportHtml — electrical points, persisted design overrides the heuristic (H-D3)', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+
+  it('uses the designed points ("as designed") instead of the heuristic when any exist', () => {
+    const room = plan.rooms[0]!
+    const designed = {
+      ...plan,
+      electricalPoints: [
+        {
+          id: 'e1',
+          x: room.origin[0] + room.width / 2,
+          z: room.origin[1] + room.depth / 2,
+          kind: 'socket' as const,
+          mountHeightMm: 300,
+        },
+        {
+          id: 'e2',
+          x: room.origin[0] + room.width / 2 + 0.2,
+          z: room.origin[1] + room.depth / 2,
+          kind: 'switch' as const,
+          mountHeightMm: 1200,
+        },
+      ],
+    }
+    const html = buildReportHtml(designed, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('Electrical points (as designed)')
+    expect(html).not.toContain('Electrical points (indicative)')
+    expect(html).toContain('2 points as placed in the plan')
+    expect(html).toContain('300mm × 1')
+    expect(html).toContain('1200mm × 1')
+  })
+
+  it('falls back to the heuristic "(indicative)" section when no points are designed yet', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('Electrical points (indicative)')
+    expect(html).not.toContain('Electrical points (as designed)')
   })
 })

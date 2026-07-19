@@ -116,6 +116,62 @@ export const DECOR_DEFS = {
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
+  // Fluted glass partition — a floor-standing framed screen glazed with fluted
+  // (vertically ribbed) translucent glass; the modern zoning staple.
+  'fluted-partition': {
+    kind: 'parametric',
+    id: 'fluted-partition',
+    name: 'Fluted glass partition',
+    category: 'decor',
+    keywords: [
+      'fluted glass',
+      'glass partition',
+      'reeded glass',
+      'screen',
+      'partition',
+      'privacy screen',
+      'glass screen',
+    ],
+    primitive: 'FlutedPartition',
+    defaultFootprint: { w: 1.2, d: 0.06, h: 2.1 },
+    footprintParams: { w: 'width' },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 0.8,
+        max: 3.0,
+        step: 0.1,
+        default: 1.2,
+        unit: 'm',
+      },
+      {
+        kind: 'number',
+        key: 'height',
+        label: 'Height',
+        min: 1.6,
+        max: 2.4,
+        step: 0.1,
+        default: 2.1,
+        unit: 'm',
+      },
+      { kind: 'color', key: 'frameColor', label: 'Frame', default: '#2b2b2b' },
+      {
+        kind: 'enum',
+        key: 'frameFinish',
+        label: 'Frame finish',
+        default: 'painted',
+        options: [
+          { value: 'painted', label: 'Painted' },
+          { value: 'wood', label: 'Wood' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+      { kind: 'color', key: 'glassColor', label: 'Glass', default: '#dfe7e6' },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0.2 },
+    ],
+  },
   // ── Decor ───────────────────────────────────────────────────────────────
   'tabletop-decor': {
     kind: 'parametric',
@@ -251,6 +307,8 @@ export const DECOR_DEFS = {
         options: [
           { value: 'roller', label: 'Roller' },
           { value: 'venetian', label: 'Venetian slats' },
+          { value: 'zebra', label: 'Zebra / combi' },
+          { value: 'roman', label: 'Roman (fabric folds)' },
         ],
       },
     ],

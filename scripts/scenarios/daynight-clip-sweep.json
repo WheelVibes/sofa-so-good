@@ -1,0 +1,121 @@
+{
+  "name": "daynight-clip-sweep",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setUiMode?.('pro'); s.reresolveFeatureFlags?.(); s.setQualityTier?.('medium'); })()"
+    },
+    {
+      "name": "flag-on-in-pro",
+      "waitFor": {
+        "store": "state.featureFlags.dayNightClip === true"
+      }
+    },
+    {
+      "name": "settle-tier",
+      "wait": 4000
+    },
+    {
+      "name": "sweep-config",
+      "eval": "(() => { const s = window.__store.getState(); s.setClipTimeSweep(true); s.setClipSweepStartHour(8); s.setClipSweepEndHour(22); s.beginTimeSweep(); })()"
+    },
+    {
+      "name": "assert-pinned-start",
+      "waitFor": {
+        "store": "Math.abs(state.manualHour - 8) < 0.01"
+      }
+    },
+    {
+      "name": "settle-day",
+      "wait": 2500
+    },
+    {
+      "name": "shot-day",
+      "screenshot": "sweep-p0-0800"
+    },
+    {
+      "name": "mid",
+      "eval": "window.__store.getState().applyTimeSweepProgress(0.5)"
+    },
+    {
+      "name": "assert-mid",
+      "waitFor": {
+        "store": "Math.abs(state.manualHour - 15) < 0.01"
+      }
+    },
+    {
+      "name": "settle-mid",
+      "wait": 2500
+    },
+    {
+      "name": "shot-mid",
+      "screenshot": "sweep-p50-1500"
+    },
+    {
+      "name": "end",
+      "eval": "window.__store.getState().applyTimeSweepProgress(1)"
+    },
+    {
+      "name": "assert-end",
+      "waitFor": {
+        "store": "Math.abs(state.manualHour - 22) < 0.01"
+      }
+    },
+    {
+      "name": "settle-night",
+      "wait": 2500
+    },
+    {
+      "name": "shot-night",
+      "screenshot": "sweep-p100-2200"
+    },
+    {
+      "name": "restore",
+      "eval": "(() => { window.__store.getState().endTimeSweep(); })()"
+    },
+    {
+      "name": "assert-restored",
+      "waitFor": {
+        "store": "state.timeSweepRestore === null || state.timeSweepRestore === undefined"
+      }
+    },
+    {
+      "name": "open-view-menu",
+      "eval": "(() => { const b = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'View ▾'); if (!b) throw new Error('View menu trigger not found'); b.click(); })()"
+    },
+    {
+      "name": "menu-settle",
+      "wait": 800
+    },
+    {
+      "name": "shot-view-menu-pro",
+      "screenshot": "view-menu-pro"
+    },
+    {
+      "name": "probe-toggle",
+      "eval": "(() => { const has = document.body.textContent.includes('Day → night sweep'); return 'desktop toggle present: ' + has; })()"
+    },
+    {
+      "name": "close-menu",
+      "key": "Escape"
+    },
+    {
+      "name": "to-simple",
+      "eval": "(() => { const s = window.__store.getState(); s.setUiMode('simple'); s.reresolveFeatureFlags?.(); })()"
+    },
+    {
+      "name": "flag-off-in-simple",
+      "waitFor": {
+        "store": "state.featureFlags.dayNightClip === false"
+      }
+    }
+  ]
+}

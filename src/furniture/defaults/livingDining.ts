@@ -22,7 +22,7 @@ export const livingDining: LayoutEntry[] = [
     defId: 'tv-console',
     position: [12.1, 2.45],
     rotation: -Math.PI / 2,
-    props: { width: 1.6 },
+    props: { width: 1.8 },
   },
   {
     id: 'default-ld-dining-table',
@@ -92,17 +92,18 @@ export const livingDining: LayoutEntry[] = [
     rotation: 0,
     props: { size: 'large', type: 'snake' },
   },
-  { id: 'default-ld-lamp', defId: 'floor-lamp', position: [12.3, 3.55], rotation: 0, props: {} },
-  // Footstool pouf by the floor lamp — a reading-nook accent in the SE lounge.
+  { id: 'default-ld-lamp', defId: 'floor-lamp', position: [12.2, 3.85], rotation: 0, props: {} },
+  // Ottoman in front of the sofa — pairs with the 3-seater as a sofa+ottoman
+  // lounge (RM4), a footstool within reach of the seating.
   {
     id: 'default-ld-ottoman',
     defId: 'ottoman',
-    position: [11.55, 3.5],
+    position: [10.7, 3.5],
     rotation: 0,
     props: {
       shape: 'round',
-      width: 0.5,
-      depth: 0.5,
+      width: 0.7,
+      depth: 0.7,
       color: '#9b8f7e',
       material: 'fabric',
       tufting: 'buttons',

@@ -1,0 +1,35 @@
+{
+  "name": "mobile-audit-plan",
+  "description": "Mobile-depth audit of the 2D plan editor at 390x844: plan toolbar touch targets, room-type set, add opening, socket captions + hackability overlay legibility at phone zoom, MEP point placement.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; (function(){ const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setUiMode?.('pro'); s.reresolveFeatureFlags?.(); })()" },
+    { "name": "mobile", "viewport": { "width": 390, "height": 844 } },
+    { "name": "settle-mobile", "wait": 800 },
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-visible", "waitFor": { "css": ".plan-screen" }, "timeout": 30000 },
+    { "name": "settle-plan", "wait": 2000 },
+    { "name": "shot-plan-default", "screenshot": "20-plan-default" },
+    { "name": "sweep-plan", "eval": { "file": "scripts/scenarios/lib/touchSweep.mjs" } },
+    { "name": "shot-sweep-plan", "screenshot": "21-sweep-plan" },
+    { "name": "clear-overlay-p1", "eval": "document.getElementById('__tt_overlay')?.remove()" },
+
+    { "name": "sockets-legibility", "eval": "(function(){ const svg=document.querySelector('.plan-screen svg'); const texts=[...(svg?document.querySelectorAll('.plan-screen text'):[])]; const sizes=texts.map(t=>parseFloat(getComputedStyle(t).fontSize)); const min=Math.min(...sizes); const anno=texts.filter(t=>/socket|MEP|\\/\\d/i.test(t.textContent||'')).length; window.__planTextMin=min; window.__planTextCount=texts.length; })()" },
+    { "name": "shot-sockets", "screenshot": "22-plan-socket-captions" },
+
+    { "name": "set-room-type", "eval": "(function(){ const s=window.__store.getState(); const rooms=s.floorPlan?.rooms||[]; const r=rooms[0]; if(r){ s.updateRoom(r.id,{category:'study'}); window.__setRoom=r.name; } return rooms.length })()" },
+    { "name": "settle-roomtype", "wait": 800 },
+    { "name": "shot-roomtype", "screenshot": "23-plan-room-type" },
+
+    { "name": "toggle-hackability", "eval": "(function(){ const btns=[...document.querySelectorAll('.plan-screen button, .plan-toolbar button, button')]; const b=btns.find(x=>/hackab|structur|demolish/i.test((x.textContent||'')+(x.getAttribute('aria-label')||''))); if(b){ b.click(); window.__hackClicked=(b.textContent||b.getAttribute('aria-label')); } else { window.__hackClicked='NOT-FOUND'; } })()" },
+    { "name": "settle-hack", "wait": 900 },
+    { "name": "shot-hackability", "screenshot": "24-plan-hackability" },
+
+    { "name": "add-socket", "eval": "(function(){ const s=window.__store.getState(); const rooms=s.floorPlan?.rooms||[]; const r=rooms[0]; if(r){ const cx=(r.outline||[]).reduce((a,p)=>a+p.x,0)/(r.outline?.length||1); const cz=(r.outline||[]).reduce((a,p)=>a+p.z,0)/(r.outline?.length||1); s.addElectricalPoint({x:cx||2,z:cz||2,kind:'socket-double'}); } })()" },
+    { "name": "settle-socket", "wait": 900 },
+    { "name": "shot-mep", "screenshot": "25-plan-mep-point" },
+    { "name": "sweep-plan-mep", "eval": { "file": "scripts/scenarios/lib/touchSweep.mjs" } },
+    { "name": "shot-sweep-plan-mep", "screenshot": "26-sweep-plan-mep" }
+  ]
+}

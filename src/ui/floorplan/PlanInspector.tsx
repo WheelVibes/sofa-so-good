@@ -1,19 +1,28 @@
 import { useState } from 'react'
 import { useFeature } from '../../features/useFeature'
-import { levelById, levelOfItem } from '../../floorplan/levels'
+import { GROUND_LEVEL_ID, levelById, levelOfItem } from '../../floorplan/levels'
+import { electricalMountDefaultMm, plumbingMountDefaultMm } from '../../floorplan/mepPoints'
 import { polylineLength } from '../../floorplan/polyline'
-import { DEFAULT_PLAN_WALL_COLOR } from '../../floorplan/types'
+import {
+  DEFAULT_PLAN_WALL_COLOR,
+  type ElectricalKind,
+  type PlumbingKind,
+} from '../../floorplan/types'
 import { useStore } from '../../state/store'
 import { formatLength } from '../../utils/measurement'
 import { ColorPicker } from '../controls/ColorPicker'
+import { Select } from '../controls/Select'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 import { OpeningInspector } from './editor/inspector/OpeningInspector'
 import { RoomInspector } from './editor/inspector/RoomInspector'
+import { SwitchControlsSection } from './editor/inspector/SwitchControlsSection'
 import { ActBtn, DeleteBtn, Num } from './editor/inspector/shared'
-import { WallInspector } from './editor/inspector/WallInspector'
+import { STRUCTURE_OPTIONS, WallInspector } from './editor/inspector/WallInspector'
+import { ELECTRICAL_MEP_KINDS, PLUMBING_MEP_KINDS } from './editor/mepToolKinds'
 import { PlanFurnitureInspector } from './PlanFurnitureInspector'
 import { PlanMultiSelectActions } from './PlanMultiSelectActions'
+import { planRoofEligible, RoofSettings } from './RoofSettings'
 
 // `Num` re-exported for callers that import it from this module (e.g.
 // `PlanFurnitureInspector`) — its definition now lives in the shared module.
@@ -59,9 +68,13 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const furnSelCount = useStore((s) => s.selectedItemIds.length)
   const plan = useStore((s) => s.floorPlan)
   const units = useStore((s) => s.units)
+  const fMep = useFeature('mepEditor')
+  const fSwitchCircuits = useFeature('switchCircuits')
   const a = useStore.getState()
   const isMobile = useIsMobile()
   const wallThicknessOn = useFeature('wallThickness')
+  const wallStructureOn = useFeature('wallStructure')
+  const roofOn = useFeature('parametricRoof')
   // The active storey's geometry — selection ids come from the editor canvas,
   // which only ever shows (so only ever selects) active-level elements.
   const level = levelById(plan, levelId)
@@ -181,6 +194,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
           </span>
         </div>
       ) : null}
+      {roofOn && planRoofEligible(plan) ? <RoofSettings plan={plan} /> : null}
       <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
         Pick a tool and draw on the canvas, or select an element to edit it.
         <br />
@@ -208,6 +222,10 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
     const selWalls = level.walls.filter((w) => wallSelIds.includes(w.id))
     const allLocked = selWalls.every((w) => w.locked)
     const lockedCount = selWalls.filter((w) => w.locked).length
+    // Bulk structural classification (TODO G7) — shows the shared value when
+    // every selected wall agrees, else a "Mixed" placeholder (no value forced).
+    const structureValues = new Set(selWalls.map((w) => w.structure ?? 'unknown'))
+    const commonStructure = structureValues.size === 1 ? [...structureValues][0] : undefined
     body = (
       <div className="space-y-2">
         <div className="sec-h">
@@ -239,6 +257,22 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
             onClick={() => a.removeWalls(wallSelIds, levelId)}
           />
         </div>
+        {wallStructureOn ? (
+          <div className="row" style={{ padding: '6px 0', alignItems: 'center' }}>
+            <span className="label">Structure (all)</span>
+            <Select
+              className="input"
+              style={{ marginLeft: 'auto', maxWidth: '56%' }}
+              value={commonStructure ?? ''}
+              placeholder="Mixed"
+              onChange={(v) =>
+                a.setWallsStructure(wallSelIds, v as (typeof STRUCTURE_OPTIONS)[number][0], levelId)
+              }
+              ariaLabel="Structure (all selected walls)"
+              options={STRUCTURE_OPTIONS.map(([value, label]) => ({ value, label }))}
+            />
+          </div>
+        ) : null}
         <button
           type="button"
           className="btn btn-soft btn-block"
@@ -282,6 +316,123 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
             />
           </label>
           <DeleteBtn onClick={() => a.removeNote(note.id)} label="Delete note" />
+        </div>
+      )
+    }
+  } else if (sel?.type === 'mep' && fMep) {
+    const { family } = sel
+    // Level-scope the lookup like the room/wall/opening branches above — the
+    // canvas MepLayer is level-filtered, so a stale cross-storey selection
+    // must go blank here too, not silently edit/delete an off-screen point
+    // on another storey (bug-hunt 2026-07-18 finding #1).
+    const onLevel = (x: { levelId?: string }) =>
+      (x.levelId ?? GROUND_LEVEL_ID) === (levelId ?? GROUND_LEVEL_ID)
+    const elecPoint =
+      family === 'electrical'
+        ? (plan.electricalPoints ?? []).find((x) => x.id === sel.id && onLevel(x))
+        : null
+    const plumbPoint =
+      family === 'plumbing'
+        ? (plan.plumbingPoints ?? []).find((x) => x.id === sel.id && onLevel(x))
+        : null
+    const p = elecPoint ?? plumbPoint
+    if (p) {
+      const kindOptions = (family === 'electrical' ? ELECTRICAL_MEP_KINDS : PLUMBING_MEP_KINDS).map(
+        (x) => ({ value: x.kind, label: x.title }),
+      )
+      const defaultMm =
+        family === 'electrical'
+          ? electricalMountDefaultMm(p.kind as ElectricalKind)
+          : plumbingMountDefaultMm(p.kind as PlumbingKind)
+      const setMountHeight = (mm: number) =>
+        family === 'electrical'
+          ? a.updateElectricalPoint(p.id, { mountHeightMm: mm })
+          : a.updatePlumbingPoint(p.id, { mountHeightMm: mm })
+      // Preset chips are electrical-only (skirting/switch/aircon/screen
+      // heights the plan doc names) — plumbing mount heights are per-kind
+      // fixed conventions (floor-level traps, 600mm water points) with no
+      // equivalent "pick one of a few common heights" spread.
+      const presets = family === 'electrical' ? [300, 1050, 1200, 2400] : []
+      body = (
+        <div className="space-y-2">
+          <div className="sec-h">
+            <span>{family === 'electrical' ? 'Electrical point' : 'Plumbing point'}</span>
+          </div>
+          <div className="row" style={{ padding: '6px 0', alignItems: 'center' }}>
+            <span className="label">Kind</span>
+            <Select
+              className="input"
+              style={{ marginLeft: 'auto', maxWidth: '65%' }}
+              value={p.kind}
+              onChange={(v) =>
+                family === 'electrical'
+                  ? a.updateElectricalPoint(p.id, { kind: v as ElectricalKind })
+                  : a.updatePlumbingPoint(p.id, { kind: v as PlumbingKind })
+              }
+              ariaLabel="MEP point kind"
+              options={kindOptions}
+            />
+          </div>
+          <Num
+            label="Mount height (mm AFFL)"
+            value={p.mountHeightMm}
+            step={50}
+            min={0}
+            placeholder={String(defaultMm)}
+            onChange={setMountHeight}
+          />
+          {presets.length > 0 && (
+            <div className="quick-finish">
+              <span className="quick-finish-h">Standard heights</span>
+              {/* biome-ignore lint/a11y/useSemanticElements: a <fieldset> needs a
+                  <legend> and adds default browser border/padding — role="group"
+                  + aria-label is the non-visual equivalent (mirrors
+                  MountHeightPresets). */}
+              <div className="quick-finish-row" role="group" aria-label="Standard heights">
+                {presets.map((mm) => {
+                  const isActive = (p.mountHeightMm ?? defaultMm) === mm
+                  return (
+                    <button
+                      key={mm}
+                      type="button"
+                      className={`chip${isActive ? ' on' : ''}`}
+                      title={`Set mount height to ${mm}mm AFFL`}
+                      aria-pressed={isActive}
+                      onClick={() => setMountHeight(mm)}
+                    >
+                      {mm}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          <label className="flex items-center gap-2 text-xs">
+            <span className="label" style={{ whiteSpace: 'nowrap' }}>
+              Label
+            </span>
+            <input
+              type="text"
+              value={p.label ?? ''}
+              aria-label="Point label"
+              placeholder="e.g. fridge, WC"
+              onChange={(e) =>
+                family === 'electrical'
+                  ? a.updateElectricalPoint(p.id, { label: e.target.value || undefined })
+                  : a.updatePlumbingPoint(p.id, { label: e.target.value || undefined })
+              }
+              className="input"
+            />
+          </label>
+          {family === 'electrical' && p.kind === 'switch' && fSwitchCircuits && elecPoint ? (
+            <SwitchControlsSection point={elecPoint} levelId={levelId} />
+          ) : null}
+          <DeleteBtn
+            onClick={() =>
+              family === 'electrical' ? a.removeElectricalPoint(p.id) : a.removePlumbingPoint(p.id)
+            }
+            label={family === 'electrical' ? 'Delete electrical point' : 'Delete plumbing point'}
+          />
         </div>
       )
     }

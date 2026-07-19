@@ -7,10 +7,17 @@
 import { buildAccessibilityReport } from '../analysis/accessibility'
 import { buildDaylightReport, DAYLIGHT_MIN_RATIO, VENT_MIN_RATIO } from '../analysis/daylight'
 import { buildDesignScore } from '../analysis/designScore'
-import { buildElectricalSchedule } from '../analysis/electricalSchedule'
+import {
+  buildDesignedElectricalSchedule,
+  buildElectricalSchedule,
+} from '../analysis/electricalSchedule'
 import { buildHandoverChecklist } from '../analysis/handoverChecklist'
 import { buildComplianceReport } from '../analysis/hdbCompliance'
-import { buildOpeningSchedule } from '../analysis/openingSchedule'
+import {
+  buildOpeningSchedule,
+  openingRoomsLabel,
+  openingStyleMaterialLabel,
+} from '../analysis/openingSchedule'
 import { buildPetCompliance, PET_TYPE_LABEL, type PetType } from '../analysis/petCompliance'
 import { buildPlanStatistics, roomKindLabel } from '../analysis/planStatistics'
 import { buildRenoTimeline } from '../analysis/renoTimeline'
@@ -19,7 +26,6 @@ import { buildStairAdvisories } from '../analysis/stairConnectivity'
 import { buildSuggestions } from '../analysis/suggestions'
 import { buildThermalReport, thermalKindLabel } from '../analysis/thermalAnalysis'
 import { ceilingStyleLabel } from '../apartment/ceiling/ceilingModel'
-import { ROOMS } from '../apartment/constants'
 import { findWallClipsByLevel } from '../collision/levelWallClips'
 import { obbCorners } from '../collision/obb'
 import { findItemOverlaps, itemFootprint } from '../collision/placement'
@@ -30,6 +36,7 @@ import { buildFfeSchedule } from '../ffe/ffeSchedule'
 import { dimensionSvg } from '../floorplan/autoDimensionSvg'
 import { diffWalls, diffWallsByLevel, type LevelWallDiff } from '../floorplan/demolitionPlan'
 import { demolitionSvg } from '../floorplan/demolitionPlanSvg'
+import { buildFinishSchedule } from '../floorplan/finishSchedule'
 import {
   allPlanRooms,
   isMultiLevel,
@@ -53,8 +60,10 @@ import { estimateRoomLux } from '../lighting2d/roomLux'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
 import { formatArea, formatDims, formatLength, type UnitSystem } from '../utils/measurement'
+import { safeUrl } from '../utils/safeUrl'
 import { elevationCaption, elevationSvg } from './elevation/elevationSvg'
 import { sectionSilhouettes } from './elevation/sectionFigure'
+import { finishScheduleHtml } from './finishScheduleHtml'
 import { lightingPlanSvg, roomLuxTableHtml } from './lighting2d/lightingPlanSvg'
 import {
   CAT_LABEL,
@@ -89,6 +98,7 @@ export function buildReportHtml(
   baselinePlan?: FloorPlan,
   priceRules?: PriceRules,
   petTypes: readonly PetType[] = [],
+  keyCollectionDate?: string | null,
 ): string {
   // Multi-storey fan-out (F13): on a multi-level plan every plan-derived
   // diagram (floor plan, dimensioned plan, hacking plan, lighting plan) renders
@@ -120,40 +130,21 @@ export function buildReportHtml(
     const chip = sw ? `<span class="msw" style="background:${esc(sw)}"></span>` : ''
     return `${chip}${esc(matName(id))}`
   }
-  // Iterate the ACTIVE plan's rooms (not the default ROOMS constant) so custom
-  // floor plans show their own rooms + finishes; skip only the default plan's
-  // external (non-finishable) ledges. Finishes are keyed by room id.
   const floorOf = finishes?.floor as Record<string, string> | undefined
   const wallOf = finishes?.walls as Record<string, string> | undefined
-  const finishRows = finishes
-    ? plan.rooms
-        .filter((r) => !ROOMS[r.id as keyof typeof ROOMS]?.external)
-        .map(
-          (r) =>
-            `<tr><td>${esc(r.name)}</td><td>${matCell(floorOf?.[r.id])}</td><td>${matCell(wallOf?.[r.id])}</td></tr>`,
-        )
-        .join('')
-    : ''
-  // Per-finish floor + wall areas — shared by the flooring/wall schedules AND the
-  // renovation estimate below (computed once).
+  // Contractor-grade finish schedule (G4): per-room floor/wall/ceiling finish,
+  // each with a stable material code (FL-01/WL-01/CL-01) + area quantity (wall
+  // net of door/window openings), accent-wall callouts, and per-code totals —
+  // ONE pure builder shared with the drawing set's "Finishes schedule" sheet.
+  const finishSchedule = finishes
+    ? buildFinishSchedule(plan, finishes, (id) => BUILTIN_MATERIALS[id]?.name ?? id)
+    : null
+  const finishScheduleBody = finishSchedule ? finishScheduleHtml(finishSchedule, units) : ''
+  // Per-finish floor + wall areas (GROSS — the safe over-order estimate) —
+  // feeds the renovation cost estimate below (computed once). Distinct from
+  // the finish schedule's NET-of-openings quantities above.
   const floorAreas = finishes ? floorAreaByFinish(plan, floorOf) : []
   const wallAreas = finishes ? wallAreaByFinish(plan, wallOf, plan.ceilingHeight) : []
-  // Flooring schedule: total floor area per finish — the "how much to order"
-  // procurement view (only when finishes are supplied + at least one finish set).
-  const flooringRows = floorAreas
-    .map(
-      (f) =>
-        `<tr><td>${matCell(f.id)}</td><td class="num">${esc(formatArea(f.area, units))}</td></tr>`,
-    )
-    .join('')
-  // Wall-finish schedule: gross wall area per finish (perimeter × ceiling height),
-  // the paint/tile procurement counterpart to the flooring schedule.
-  const wallRows = wallAreas
-    .map(
-      (f) =>
-        `<tr><td>${matCell(f.id)}</td><td class="num">${esc(formatArea(f.area, units))}</td></tr>`,
-    )
-    .join('')
   // Rooms (skip external ledges with ~0 interior use are still listed). Plain
   // rectangular rooms show their W×D dimensions (a room schedule detail); L-shape
   // / polygon rooms omit them (a bounding box would mislead) — area only.
@@ -237,11 +228,15 @@ export function buildReportHtml(
     const def = catalog[it.defId]
     if (!def) continue
     const variant = typeof it.props['variant'] === 'string' ? it.props['variant'] : undefined
-    const each = itemPrice(def, def.category, variant)
+    const each = itemPrice(def, def.category, variant, it.meta?.price)
     budget += each
     if (!byCat.has(def.category)) byCat.set(def.category, new Map())
     const m = byCat.get(def.category)!
-    const lineKey = variant ? `${it.defId}::${variant}` : it.defId
+    // A custom price override (ITEM-META) joins the grouping key — two
+    // instances of the same def/variant with different overridden prices
+    // must stay separate lines (see `shoppingGroups.ts` for the same fix).
+    let lineKey = variant ? `${it.defId}::${variant}` : it.defId
+    if (it.meta?.price !== undefined) lineKey += `::price:${it.meta.price}`
     const ex = m.get(lineKey)
     if (ex) ex.count += 1
     else m.set(lineKey, { name: def.name, count: 1, each })
@@ -457,7 +452,13 @@ export function buildReportHtml(
       const def = catalog[it.defId]
       if (def && pointInRoom(r, it.position[0], it.position[1])) cats.add(def.category)
     }
-    return { id: r.id, name: r.name, areaSqm: planRoomArea(r), itemCategories: [...cats] }
+    return {
+      id: r.id,
+      name: r.name,
+      areaSqm: planRoomArea(r),
+      itemCategories: [...cats],
+      ...(r.category ? { category: r.category } : {}),
+    }
   })
   const suggestions = buildSuggestions({ rooms: suggestionRooms })
   // Group the flat suggestion list by room, preserving plan room order, so each room
@@ -575,11 +576,11 @@ export function buildReportHtml(
       <h2>Openings schedule</h2>
       <div class="subtotal"><span>Doors &amp; windows</span><span>${openSched.doorCount} door${openSched.doorCount === 1 ? '' : 's'} · ${openSched.windowCount} window${openSched.windowCount === 1 ? '' : 's'}</span></div>
       <table style="margin-top:6px">
-        <tr class="cat"><td>Mark</td><td>Type</td><td class="num">Qty</td><td class="num">Size (W×H)</td><td class="num">Sill</td><td>Hinge / swing</td><td>Rooms</td></tr>
+        <tr class="cat"><td>Mark</td><td>Type</td><td>Style / material</td><td class="num">Qty</td><td class="num">Size (W×H)</td><td class="num">Sill</td><td>Hinge / swing</td><td>Rooms</td></tr>
         ${openSched.marks
           .map(
             (m) =>
-              `<tr><td>${esc(m.mark)}</td><td>${m.kind === 'door' ? 'Door' : 'Window'}</td><td class="num">×${m.count}</td><td class="num">${esc(formatLength(m.width, units))} × ${esc(formatLength(m.height, units))}</td><td class="num">${esc(formatLength(m.sill, units))}</td><td>${m.kind === 'door' ? esc(swingLabel(m)) : '—'}</td><td>${esc(m.rooms.join(', '))}</td></tr>`,
+              `<tr><td>${esc(m.mark)}</td><td>${m.kind === 'door' ? 'Door' : 'Window'}</td><td>${esc(openingStyleMaterialLabel(m))}</td><td class="num">×${m.count}</td><td class="num">${esc(formatLength(m.width, units))} × ${esc(formatLength(m.height, units))}</td><td class="num">${esc(formatLength(m.sill, units))}</td><td>${m.kind === 'door' ? esc(swingLabel(m)) : '—'}</td><td>${esc(openingRoomsLabel(m))}</td></tr>`,
           )
           .join('')}
       </table>
@@ -674,6 +675,9 @@ export function buildReportHtml(
     demolished: '#dc2626',
     added: '#16a34a',
     ink: '#374151',
+    // Hard-stop danger treatment (G7) for a load-bearing wall marked for
+    // demolition — darker/more alarming than the ordinary "demolished" red.
+    danger: '#7f1d1d',
   }
   const hackingMulti = baselinePlan != null && (multi || isMultiLevel(baselinePlan))
   const levelDiffs: LevelWallDiff[] = hackingMulti
@@ -704,7 +708,7 @@ export function buildReportHtml(
                       : 'Entire storey removed — it existed only in the original layout.'
                   }</div>`
                 : ''
-            }${demolitionSvg(r.diff, { palette: DEMO_PALETTE, widthPx: 700 })}</div>`,
+            }${demolitionSvg(r.diff, { palette: DEMO_PALETTE, widthPx: 700, housingType: plan.category?.housingType })}</div>`,
         )
         .join('')}</div>`
       : ''
@@ -714,6 +718,7 @@ export function buildReportHtml(
       <div class="plan-wrap">${demolitionSvg(wallDiff, {
         palette: DEMO_PALETTE,
         widthPx: 700,
+        housingType: plan.category?.housingType,
       })}</div></div>`
       : ''
 
@@ -742,21 +747,46 @@ export function buildReportHtml(
   // HDB renovation compliance hints — rule-based advisories (permit / caution /
   // info) over the plan; a trust feature for the SG renovation workflow. On
   // multi-storey plans the stair-connectivity advisory (ML6b) joins the list:
-  // any upper storey no staircase reaches gets a caution.
-  const compliance = buildComplianceReport(plan)
+  // any upper storey no staircase reaches gets a caution. `buildComplianceReport`
+  // encodes HDB-specific rules (HDB Renovation Guidelines cites) — a
+  // Condominium/Landed plan gets a one-line pointer to its own approval path
+  // instead (SG1; never silence), while the housing-type-agnostic stair
+  // advisory still applies to any multi-storey plan. Absent `category`
+  // (older saved plans/templates) keeps the prior default HDB behaviour.
+  const housingType = plan.category?.housingType
+  const isHdbPlan = housingType == null || housingType === 'HDB'
+  const compliance = isHdbPlan
+    ? buildComplianceReport(plan)
+    : { advisories: [], permitCount: 0, cautionCount: 0 }
   const stairAdvisories = buildStairAdvisories(plan, items, (id) => catalog[id])
   const allAdvisories = [...compliance.advisories, ...stairAdvisories]
   const cautionCount = compliance.cautionCount + stairAdvisories.length
   const compBadge = (sev: string) =>
     sev === 'permit' ? '#b91c1c' : sev === 'caution' ? '#b45309' : '#6b7280'
-  const complianceSection =
-    allAdvisories.length === 0
+  const otherPathNote =
+    housingType === 'Condominium'
+      ? 'This is a Condominium plan — renovation approval comes from the MCST / building management (not HDB); structural work additionally needs BCA/PE involvement.'
+      : housingType === 'Landed'
+        ? 'This is a Landed-property plan — there is no HDB/MCST approval step; structural work goes direct to BCA with a Professional Engineer (PE).'
+        : ''
+  const complianceSection = isHdbPlan
+    ? allAdvisories.length === 0
       ? ''
       : `<div class="room-cost">
       <h2>HDB compliance hints</h2>
       <div class="${compliance.permitCount > 0 ? 'warn' : 'ok'}">
         ${compliance.permitCount} permit-sensitive · ${cautionCount} caution — guidance only, confirm with HDB / your contractor.
       </div>
+      ${allAdvisories
+        .map(
+          (a) =>
+            `<div class="ci-detail" style="margin-top:6px"><span class="badge" style="background:${compBadge(a.severity)};color:#fff">${esc(a.severity)}</span> <strong>${esc(a.title)}</strong><br>${esc(a.detail)} <span style="color:#9ca3af">(${esc(a.cite)})</span></div>`,
+        )
+        .join('')}
+    </div>`
+    : `<div class="room-cost">
+      <h2>Renovation compliance notes</h2>
+      <div class="ok">${esc(otherPathNote)}</div>
       ${allAdvisories
         .map(
           (a) =>
@@ -771,7 +801,7 @@ export function buildReportHtml(
   // placed, plus the generic keys/meters/documents bucket. Pure
   // (analysis/handoverChecklist); rides the existing `report` flag (additive
   // section). Always renders — an empty plan still yields the generic group.
-  const handover = buildHandoverChecklist(plan, items, catalog)
+  const handover = buildHandoverChecklist(plan, items, catalog, keyCollectionDate)
   const handoverSection = `<div class="room-cost">
       <h2>Move-in checklist</h2>
       <div class="foot" style="margin-bottom:6px">${handover.totalItems} item${handover.totalItems === 1 ? '' : 's'} to walk through on collection / handover — tick each off on site.</div>
@@ -883,19 +913,43 @@ export function buildReportHtml(
         ${roomLux.length ? `<div class="foot" style="margin-top:6px">Estimated average illuminance per room (lumen method, utilisation factor 0.45) vs recommended residential levels.</div>` : ''}</div>`
     : ''
 
-  // Electrical points (PARITY-ELECTRICAL-SCHED) — a consolidated, room-by-room
-  // count of lighting points (the same light emitters the lighting plan plots)
-  // and indicative power points / sockets (inferred from the powered furniture
-  // categories present + a per-room-kind floor), with a grand total. The rough
-  // socket/point tally an electrician quotes against early on; distinct from the
-  // lighting plan + fixture schedule above. Pure (analysis/electricalSchedule);
-  // rides the existing `report` flag (additive section). Omitted when empty (a
-  // bare shell with no rooms / no fixtures) so an all-zero table never shows.
-  const electrical = buildElectricalSchedule(plan, items, catalog)
+  // Electrical points (PARITY-ELECTRICAL-SCHED, fixed H-D3) — prefer the
+  // user's own PERSISTED MEP points (`plan.electricalPoints`, MEP layer G1)
+  // when any exist, the SAME routing `openDrawingSet.ts` uses for the drawing
+  // set's electrical sheet — otherwise the two documents contradicted each
+  // other with two different point counts/derivations. Only when nothing's
+  // been authored yet does this fall back to the furniture-derived heuristic
+  // (a consolidated, room-by-room count of lighting points + indicative power
+  // points inferred from powered furniture categories + a per-room-kind
+  // floor), kept labelled "(indicative)" since it's a rough planning estimate.
+  // Pure (analysis/electricalSchedule); rides the existing `report` flag
+  // (additive section). Omitted when empty (a bare shell with no rooms/no
+  // fixtures/no designed points) so an all-zero table never shows.
+  const designedElectricalPoints = plan.electricalPoints ?? []
   const electricalSection =
-    electrical.rooms.length === 0
-      ? ''
-      : `<div class="room-cost">
+    designedElectricalPoints.length > 0
+      ? (() => {
+          const designed = buildDesignedElectricalSchedule(plan, designedElectricalPoints)
+          if (designed.rooms.length === 0) return ''
+          const heightsSummary = designed.heights
+            .map((h) => `${h.heightMm}mm × ${h.count}`)
+            .join(', ')
+          return `<div class="room-cost">
+      <h2>Electrical points (as designed)</h2>
+      <div class="foot" style="margin-bottom:6px">${designed.total} point${designed.total === 1 ? '' : 's'} as placed in the plan.${heightsSummary ? ` Heights (mm AFFL): ${heightsSummary}.` : ''}</div>
+      <table>
+        <tr class="cat"><td>Room</td><td class="num">Points</td></tr>
+        ${designed.rooms
+          .map((r) => `<tr><td>${esc(r.roomName)}</td><td class="num">${r.count}</td></tr>`)
+          .join('')}
+        <tr class="cat"><td>Total</td><td class="num">${designed.total}</td></tr>
+      </table>
+    </div>`
+        })()
+      : (() => {
+          const electrical = buildElectricalSchedule(plan, items, catalog)
+          if (electrical.rooms.length === 0) return ''
+          return `<div class="room-cost">
       <h2>Electrical points (indicative)</h2>
       <div class="foot" style="margin-bottom:6px">${electrical.total} point${electrical.total === 1 ? '' : 's'} — ${electrical.totalLighting} lighting · ${electrical.totalPower} power. A rough planning aid for an electrician to quote against, not a certified electrical layout (no circuits, loads or cable runs).</div>
       <table>
@@ -909,21 +963,40 @@ export function buildReportHtml(
         <tr class="cat"><td>Total</td><td class="num">${electrical.totalLighting}</td><td class="num">${electrical.totalPower}</td><td class="num">${electrical.total}</td></tr>
       </table>
     </div>`
+        })()
 
   // FF&E schedule — the item-level procurement table (room · item · source · SKU
-  // · size · qty · pricing), the central designer hand-off. Full width.
+  // · size · qty · pricing), the central designer hand-off. Full width. "Unit"
+  // already reflects a per-instance custom price override (ITEM-META, resolved
+  // by `itemPrice()`) transparently. The rest of ITEM-META (Brand/Model/
+  // Supplier/URL/Remarks) is appended as ONE block ONLY when at least one row
+  // carries any of it, so a design with no per-instance metadata keeps the
+  // plain, narrower table.
   const ffe = hasItems ? buildFfeSchedule(plan, items, catalog) : []
   const dim = (n: number) => esc(formatLength(n, units))
+  const ffeWithMeta = ffe.some((r) => r.url || r.remarks || r.brand || r.model || r.supplier)
+  const ffeMetaHead = ffeWithMeta
+    ? '<td>Brand</td><td>Model</td><td>Supplier</td><td>URL</td><td>Remarks</td>'
+    : ''
+  const ffeMetaFoot = ffeWithMeta ? '<td></td><td></td><td></td><td></td><td></td>' : ''
+  const ffeMetaCell = (r: (typeof ffe)[number]) => {
+    if (!ffeWithMeta) return ''
+    const safeHref = safeUrl(r.url)
+    const link = safeHref
+      ? `<a href="${esc(safeHref)}" target="_blank" rel="noopener noreferrer">${esc(r.url)}</a>`
+      : esc(r.url)
+    return `<td>${esc(r.brand)}</td><td>${esc(r.model)}</td><td>${esc(r.supplier)}</td><td>${link}</td><td>${esc(r.remarks)}</td>`
+  }
   const ffeSection = ffe.length
     ? `<div class="elev-section"><h2>FF&amp;E schedule</h2>
-        <table class="ffe"><tr class="cat"><td>Room</td><td>Item</td><td>Source</td><td>SKU</td><td>Size (W×D×H)</td><td class="num">Qty</td><td class="num">Unit</td><td class="num">Total</td></tr>${ffe
+        <table class="ffe"><tr class="cat"><td>Room</td><td>Item</td><td>Source</td><td>SKU</td><td>Size (W×D×H)</td><td class="num">Qty</td><td class="num">Unit</td><td class="num">Total</td>${ffeMetaHead}</tr>${ffe
           .map(
             (r) =>
-              `<tr><td>${esc(r.room)}</td><td>${esc(r.name)}</td><td>${esc(r.source)}</td><td>${esc(r.sku || '—')}</td><td>${dim(r.w)} × ${dim(r.d)} × ${dim(r.h)}</td><td class="num">${r.qty}</td><td class="num">${sgd(r.unit)}</td><td class="num">${sgd(r.total)}</td></tr>`,
+              `<tr><td>${esc(r.room)}</td><td>${esc(r.name)}</td><td>${esc(r.source)}</td><td>${esc(r.sku || '—')}</td><td>${dim(r.w)} × ${dim(r.d)} × ${dim(r.h)}</td><td class="num">${r.qty}</td><td class="num">${sgd(r.unit)}</td><td class="num">${sgd(r.total)}</td>${ffeMetaCell(r)}</tr>`,
           )
           .join('')}<tr class="cat"><td colspan="7">Total</td><td class="num">${sgd(
           ffe.reduce((s, r) => s + r.total, 0),
-        )}</td></tr></table></div>`
+        )}</td>${ffeMetaFoot}</tr></table></div>`
     : ''
 
   // Only embed a validated data-image URL (defence-in-depth: matches
@@ -985,26 +1058,10 @@ export function buildReportHtml(
       : ''
   }
   ${
-    finishRows
-      ? `<div class="room-cost">
-      <h2>Finishes by room</h2>
-      <table><tr class="cat"><td>Room</td><td>Floor</td><td>Walls</td></tr>${finishRows}</table>
-    </div>`
-      : ''
-  }
-  ${
-    flooringRows
-      ? `<div class="room-cost">
-      <h2>Flooring schedule</h2>
-      <table><tr class="cat"><td>Finish</td><td class="num">Floor area</td></tr>${flooringRows}</table>
-    </div>`
-      : ''
-  }
-  ${
-    wallRows
-      ? `<div class="room-cost">
-      <h2>Wall finish schedule</h2>
-      <table><tr class="cat"><td>Finish</td><td class="num">Wall area</td></tr>${wallRows}</table>
+    finishScheduleBody
+      ? `<div class="fin-wrap">
+      <h2>Finishes schedule</h2>
+      ${finishScheduleBody}
     </div>`
       : ''
   }

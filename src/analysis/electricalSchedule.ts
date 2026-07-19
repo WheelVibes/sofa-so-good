@@ -23,7 +23,9 @@
  * category — the report (and a future CSV) render it.
  */
 import { allPlanRooms } from '../floorplan/levels'
-import { type FloorPlan, pointInRoom } from '../floorplan/types'
+import { electricalMountDefaultMm } from '../floorplan/mepPoints'
+import { toRoomKind } from '../floorplan/roomCategory'
+import { type FloorPlan, type PlanElectricalPoint, pointInRoom } from '../floorplan/types'
 import { isItemEmitter } from '../furniture/lightEmitters'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { type RoomKind, roomKindFromName } from './suggestions'
@@ -145,7 +147,9 @@ export function buildElectricalSchedule(
 
   for (const r of rooms) {
     const t = tally.get(r.id) ?? { lighting: 0, power: 0 }
-    const kind = roomKindFromName(r.name)
+    // RM1: an explicit, user-set category wins; a room without one keeps the
+    // legacy name classifier so the socket floor is byte-identical.
+    const kind = r.category ? toRoomKind(r.category) : roomKindFromName(r.name)
     // Floor habitable rooms to a baseline socket count; never below the inferred.
     const power = Math.max(t.power, MIN_SOCKETS_BY_KIND[kind] ?? 0)
     const row: ElectricalRoomRow = {
@@ -184,4 +188,79 @@ export function buildElectricalSchedule(
     totalPower,
     total: totalLighting + totalPower,
   }
+}
+
+/** Per-room line in the DESIGNED-points schedule (H-D3). */
+interface DesignedElectricalRoomRow {
+  roomId: string
+  roomName: string
+  count: number
+}
+
+/** One distinct mount height among the designed points, with how many points
+ *  sit at it — summarized ("300mm × 18, 1200mm × 4") rather than listing every
+ *  point individually. */
+interface DesignedElectricalHeightRow {
+  heightMm: number
+  count: number
+}
+
+export interface DesignedElectricalSchedule {
+  rooms: DesignedElectricalRoomRow[]
+  total: number
+  heights: DesignedElectricalHeightRow[]
+}
+
+/**
+ * Build the "as designed" electrical-points schedule from the user's own
+ * PERSISTED MEP points (H-D3 fix) — the same points the drawing set's
+ * electrical sheet plots (`openDrawingSet.ts`), so the report and the drawing
+ * set never contradict each other with two different point counts. Unlike
+ * {@link buildElectricalSchedule} (a furniture-derived heuristic used only
+ * when nothing's been authored yet), this has no lighting/power split — a
+ * designed point already carries its own `kind` — just a per-room point count
+ * + a summary of the mount heights present (falling back to each kind's
+ * default height when a point has none, same as the exported sheet's `@mm`
+ * suffix logic conceptually implies).
+ *
+ * Pure + deterministic. Room attribution mirrors `buildElectricalSchedule`
+ * (first room across all storeys whose footprint contains the point;
+ * unattributed points collect under a synthetic "Unassigned" row).
+ */
+export function buildDesignedElectricalSchedule(
+  plan: FloorPlan,
+  points: PlanElectricalPoint[],
+): DesignedElectricalSchedule {
+  const rooms = allPlanRooms(plan)
+  const tally = new Map<string, number>()
+  const heightTally = new Map<number, number>()
+  const UNASSIGNED = ' unassigned'
+
+  for (const p of points) {
+    const room = rooms.find((r) => pointInRoom(r, p.x, p.z))
+    const id = room?.id ?? UNASSIGNED
+    tally.set(id, (tally.get(id) ?? 0) + 1)
+    const h = Math.round(p.mountHeightMm ?? electricalMountDefaultMm(p.kind))
+    heightTally.set(h, (heightTally.get(h) ?? 0) + 1)
+  }
+
+  const out: DesignedElectricalRoomRow[] = []
+  let total = 0
+  for (const r of rooms) {
+    const count = tally.get(r.id) ?? 0
+    if (count === 0) continue
+    out.push({ roomId: r.id, roomName: r.name, count })
+    total += count
+  }
+  const un = tally.get(UNASSIGNED)
+  if (un) {
+    out.push({ roomId: '', roomName: 'Unassigned', count: un })
+    total += un
+  }
+
+  const heights = [...heightTally.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([heightMm, count]) => ({ heightMm, count }))
+
+  return { rooms: out, total, heights }
 }

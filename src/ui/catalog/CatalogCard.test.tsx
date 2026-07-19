@@ -163,6 +163,36 @@ describe('CatalogCard', () => {
     })
   })
 
+  // CATALOG-COMPARE: while compare mode is armed, a card click selects-for-
+  // compare instead of placing (a checkmark overlay, not a new per-card button).
+  describe('compare mode (CATALOG-COMPARE)', () => {
+    it('clicking the card toggles compare selection instead of arming placement', () => {
+      const onToggleCompare = vi.fn()
+      render(<CatalogCard def={SOFA_DEF} compareMode onToggleCompare={onToggleCompare} />)
+      fireEvent.click(screen.getByRole('button', { name: /to compare/ }))
+      expect(onToggleCompare).toHaveBeenCalledTimes(1)
+      expect(useStore.getState().activeDefId).toBeNull()
+    })
+
+    it('shows a checkmark overlay badge (not a button) when selected', () => {
+      const { unmount } = render(<CatalogCard def={SOFA_DEF} compareMode compareSelected={false} />)
+      expect(document.querySelector('.cmp-badge.on')).toBeNull()
+      unmount()
+      render(<CatalogCard def={SOFA_DEF} compareMode compareSelected />)
+      const badge = document.querySelector('.cmp-badge')
+      expect(badge?.className).toContain('on')
+      // The badge itself is not an interactive element — the card is the
+      // single click target (no-card-buttons rule).
+      expect(badge?.tagName).not.toBe('BUTTON')
+    })
+
+    it('normal (non-compare) click still arms placement as before', () => {
+      render(<CatalogCard def={SOFA_DEF} />)
+      fireEvent.click(screen.getByRole('button', { name: `Place ${SOFA_DEF.name}` }))
+      expect(useStore.getState().activeDefId).toBe(SOFA_DEF.id)
+    })
+  })
+
   describe('favourite heart', () => {
     it('toggles favourite state and marks the button pressed when saved', () => {
       render(<CatalogCard def={SOFA_DEF} />)

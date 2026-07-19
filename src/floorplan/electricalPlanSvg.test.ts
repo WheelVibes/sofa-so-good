@@ -57,6 +57,59 @@ describe('electricalSvg', () => {
     expect(svg).toContain('>WH<')
   })
 
+  it('renders the switching schematic when lights are supplied (BSJ-3)', () => {
+    // A switch controlling two lights → circuit tag on the switch label, L-marks
+    // + circuit tag on the light markers, and a "Lighting circuits" legend row.
+    const roomPlan: FloorPlan = {
+      ...plan(box),
+      rooms: [{ id: 'r', name: 'Living', origin: [0, 0], width: 4, depth: 4 }],
+    }
+    const sw: ElectricalPoint[] = [
+      { id: 's1', x: 0.2, z: 2, kind: 'switch', controls: ['la', 'lb'] },
+    ]
+    const elec = buildElectricalPlan(roomPlan, sw)
+    const svg = electricalSvg(roomPlan, elec, {
+      palette,
+      lights: [
+        { id: 'la', x: 1, z: 1, type: 'ceiling-light' },
+        { id: 'lb', x: 3, z: 1, type: 'ceiling-light' },
+      ],
+    })
+    // Circuit tag suffixed on the switch label.
+    expect(svg).toContain('[S1]')
+    // Controlled-light markers with L-marks + controlling circuit tag.
+    expect(svg).toContain('class="light-marker"')
+    expect(svg).toContain('L1 [S1]')
+    expect(svg).toContain('L2 [S1]')
+    // Legend section + a row describing the circuit.
+    expect(svg).toContain('Lighting circuits')
+    expect(svg).toContain('S1 — Living downlights — controls L1, L2')
+  })
+
+  it('surfaces unswitched-light / empty-switch advisory lines (BSJ-3)', () => {
+    const roomPlan: FloorPlan = {
+      ...plan(box),
+      rooms: [{ id: 'r', name: 'Living', origin: [0, 0], width: 4, depth: 4 }],
+    }
+    const sw: ElectricalPoint[] = [{ id: 's1', x: 0.2, z: 2, kind: 'switch' }] // controls nothing
+    const elec = buildElectricalPlan(roomPlan, sw)
+    const svg = electricalSvg(roomPlan, elec, {
+      palette,
+      lights: [{ id: 'la', x: 1, z: 1, type: 'ceiling-light' }],
+    })
+    expect(svg).toContain('1 light has no switch assigned')
+    expect(svg).toContain('1 switch control no lights')
+  })
+
+  it('is byte-identical to the pre-BSJ-3 sheet when no lights are supplied', () => {
+    const sw: ElectricalPoint[] = [{ id: 's1', x: 0.2, z: 2, kind: 'switch', controls: ['la'] }]
+    const elec = buildElectricalPlan(plan(box), sw)
+    const withoutLights = electricalSvg(plan(box), elec, { palette })
+    expect(withoutLights).not.toContain('[S1]')
+    expect(withoutLights).not.toContain('light-marker')
+    expect(withoutLights).not.toContain('Lighting circuits')
+  })
+
   it('injects palette colours and nothing hardcoded', () => {
     const elec = buildElectricalPlan(plan(box), points)
     const svg = electricalSvg(plan(box), elec, { palette })
@@ -108,6 +161,22 @@ describe('electricalSvg', () => {
     const elec = buildElectricalPlan(plan(box), [{ x: 999, z: 999, kind: 'socket' }])
     const svg = electricalSvg(plan(box), elec, { palette })
     expect((svg.match(/class="elec-symbol"/g) ?? []).length).toBeGreaterThan(0)
+  })
+
+  it('renders an "@mm" mount-height suffix + a legend line when a point carries one (MEP layer, G1 PR5)', () => {
+    const elec = buildElectricalPlan(plan(box), [
+      { x: 1, z: 1, kind: 'socket', mountHeightMm: 1200 },
+    ])
+    const svg = electricalSvg(plan(box), elec, { palette })
+    expect(svg).toContain('@1200')
+    expect(svg).toContain('Heights in mm AFFL')
+  })
+
+  it('omits the height legend line when no point carries a mount height', () => {
+    const elec = buildElectricalPlan(plan(box), [{ x: 1, z: 1, kind: 'socket' }])
+    const svg = electricalSvg(plan(box), elec, { palette })
+    expect(svg).not.toContain('Heights in mm AFFL')
+    expect(svg).not.toMatch(/@\d/)
   })
 
   it('escapes a malicious label with no breakout', () => {

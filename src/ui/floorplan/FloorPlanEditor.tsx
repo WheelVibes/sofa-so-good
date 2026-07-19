@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { buildSocketAdvisory } from '../../analysis/socketAdvisory'
 import { canPlace, itemFootprint } from '../../collision/placement'
 import { placementWalls } from '../../collision/placementWalls'
 import { isAnyModalOpen } from '../../controls/modalGuard'
@@ -9,11 +10,14 @@ import { useFeature } from '../../features/useFeature'
 import { defaultDoorSwing } from '../../floorplan/doorSwing'
 import { traceBuildingOutline } from '../../floorplan/footprint'
 import { GROUND_LEVEL_ID, levelAsPlan, levelById, levelOfItem } from '../../floorplan/levels'
+import { electricalMountDefaultMm, plumbingMountDefaultMm } from '../../floorplan/mepPoints'
+import { planWallThickness } from '../../floorplan/planGeometry'
 import { planIntegrityFlags } from '../../floorplan/planIntegrity'
 import { roomLabelPoint } from '../../floorplan/roomCentroid'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
 import { isSlopedWall, slopedWallHeights } from '../../floorplan/slopedWall'
 import { snapToGuides } from '../../floorplan/snapToGuides'
+import type { ElectricalKind, PlumbingKind } from '../../floorplan/types'
 import { planBounds, planTotalArea, pointInRoom, wallLength } from '../../floorplan/types'
 import { arcFromMidpoint, isCurvedWall, wallArcLength } from '../../floorplan/wallArc'
 import { useCatalogGetter } from '../../furniture/catalog'
@@ -44,6 +48,8 @@ import { DimensionsLayer } from './editor/layers/DimensionsLayer'
 import { DraftOverlayLayer } from './editor/layers/DraftOverlayLayer'
 import { FurnitureLayer } from './editor/layers/FurnitureLayer'
 import { FurnitureRotateHandle } from './editor/layers/FurnitureRotateHandle'
+import { HackabilityLayer } from './editor/layers/HackabilityLayer'
+import { MepLayer, type MovingMepPoint } from './editor/layers/MepLayer'
 import { NotesLayer } from './editor/layers/NotesLayer'
 import { OpeningsLayer } from './editor/layers/OpeningsLayer'
 import { OtherLevelsUnderlay } from './editor/layers/OtherLevelsUnderlay'
@@ -52,10 +58,12 @@ import { PlacementGhostLayer } from './editor/layers/PlacementGhostLayer'
 import { PlanGuidesLayer } from './editor/layers/PlanGuidesLayer'
 import { PolylinesLayer } from './editor/layers/PolylinesLayer'
 import { RoomsLayer } from './editor/layers/RoomsLayer'
+import { SwitchLinksLayer } from './editor/layers/SwitchLinksLayer'
 import { TourStopsLayer } from './editor/layers/TourStopsLayer'
 import { WallHandlesLayer } from './editor/layers/WallHandlesLayer'
 import { WallsLayer } from './editor/layers/WallsLayer'
 import { type MarqueeItem, type MarqueeRect, marqueeSelect } from './editor/marqueeSelect'
+import { snapMepPointToWall } from './editor/mepPlacement'
 import { PlanDefaultsFields } from './editor/PlanDefaultsFields'
 import { PlanEditorHeader } from './editor/PlanEditorHeader'
 import { PlanLibrary } from './editor/PlanLibrary'
@@ -92,6 +100,7 @@ import {
   wallTapCommits,
 } from './editor/toolDraftReducer'
 import { UndoRedoButtons } from './editor/UndoRedoButtons'
+import { usePlanAiGenerate } from './editor/usePlanAiGenerate'
 import { usePlanAiWalls } from './editor/usePlanAiWalls'
 import { usePlanBackdrop } from './editor/usePlanBackdrop'
 import { usePlanLevel } from './editor/usePlanLevel'
@@ -308,6 +317,20 @@ export function FloorPlanEditor() {
   const [movingStop, setMovingStop] = useState<{ id: string; gx: number; gz: number } | null>(null)
   // Active note drag (select tool): grab offset from the note's position.
   const [movingNote, setMovingNote] = useState<{ id: string; gx: number; gz: number } | null>(null)
+  // Active MEP-point drag (select tool, MEP layer G1 PR3): grab offset from
+  // the point's position, tagged with its family (electrical/plumbing) since
+  // the two are separate plan arrays.
+  const [movingMep, setMovingMep] = useState<MovingMepPoint | null>(null)
+  // Editor-local armed kind for the 'mep' tool (default socket — the most
+  // common electrical point); the DrawToolPalette MEP group's buttons arm
+  // BOTH `tool='mep'` and this in one click.
+  const [mepPick, setMepPick] = useState<{
+    family: 'electrical' | 'plumbing'
+    kind: ElectricalKind | PlumbingKind
+  }>({ family: 'electrical', kind: 'socket' })
+  const fMep = useFeature('mepEditor')
+  const fSwitchCircuits = useFeature('switchCircuits')
+  const fHackability = useFeature('hackabilityOverlay')
   // Active room-name-label drag (select tool): grab offset from the label's
   // current world position (PARITY-ROOMLABEL).
   const [movingRoomLabel, setMovingRoomLabel] = useState<{
@@ -334,8 +357,10 @@ export function FloorPlanEditor() {
     setTool,
     plan,
   )
-  const { aiBusy, runAiWalls } = usePlanAiWalls(backdrop)
+  const { aiBusy, runAiWalls } = usePlanAiWalls(backdrop, setBackdrop)
   const aiWalls = useFeature('aiWalls')
+  const { genBusy, runAiGenerate } = usePlanAiGenerate()
+  const fAiPlanGen = useFeature('aiPlanGenerate')
   // Persistent wall-length labels (on by default; toggle in the editor header).
   // Dimensions default OFF — they're the densest overlay and collide with walls
   // when zoomed out; the toolbar "Dims" toggle turns them on. When on, callouts
@@ -355,6 +380,14 @@ export function FloorPlanEditor() {
   // the way of (or get accidentally grabbed while) editing walls/rooms. The
   // "Furniture" toggle shows them; while hidden they can't be selected or moved.
   const [showFurniture, setShowFurniture] = useState(false)
+  // MEP points (MEP layer, G1 PR3) are visible by default — unlike furniture
+  // footprints (which duplicate the live 3D layout), the electrical/plumbing
+  // points ARE plan elements authored directly in this editor, so hiding them
+  // by default would hide what the user just placed.
+  const [showMep, setShowMep] = useState(true)
+  // R4-7 hackability overlay: OFF by default so it doesn't tint the plan until a
+  // user asks for it (a specialised demolition-planning view, not the norm).
+  const [showHackability, setShowHackability] = useState(false)
   // Show the OTHER storeys' walls as a dimmed underlay (SH3D "all levels"), so
   // you can stack walls / line up stairs between floors. Off by default.
   const [showOtherLevels, setShowOtherLevels] = useState(false)
@@ -428,6 +461,23 @@ export function FloorPlanEditor() {
   const planCentrePx: [number, number] = [toPx(ew / 2), toPx(ed / 2)]
   const dimFont = dimFontPx(PX)
   const roomFont = roomFontPx(PX)
+
+  // Per-room socket-shortfall advisory (R4-4), scoped to the active storey's
+  // under-provisioned rooms — but ONLY when the MEP view is on. Passed into
+  // `RoomsLayer` so the "N/M sockets" caption stacks under the room label
+  // block instead of colliding with the perimeter line (UXW-P2-1). Empty map
+  // (no lines) whenever MEP is hidden.
+  const socketShortfall = useMemo(() => {
+    const m = new Map<string, { placed: number; target: number }>()
+    if (!fMep || !showMep) return m
+    const activeRoomIds = new Set(levelPlan.rooms.map((r) => r.id))
+    for (const row of buildSocketAdvisory(plan).rooms) {
+      if (row.underProvisioned && activeRoomIds.has(row.roomId)) {
+        m.set(row.roomId, { placed: row.placed, target: row.target })
+      }
+    }
+    return m
+  }, [fMep, showMep, plan, levelPlan.rooms])
 
   /** Close an in-progress polygon into a room (bbox → origin/width/depth + the
    *  explicit polygon for area/render/containment) on the active storey. */
@@ -555,7 +605,10 @@ export function FloorPlanEditor() {
           else if (sel.type === 'note') st.removeNote(sel.id)
           else if (sel.type === 'dim') st.removeDimension(sel.id)
           else if (sel.type === 'polyline') st.removePolyline(sel.id)
-          else if (!lvl.openings.find((o) => o.id === sel.id)?.locked)
+          else if (sel.type === 'mep') {
+            if (sel.family === 'electrical') st.removeElectricalPoint(sel.id)
+            else st.removePlumbingPoint(sel.id)
+          } else if (!lvl.openings.find((o) => o.id === sel.id)?.locked)
             st.removeOpening(sel.id, levelId)
         }
       }
@@ -993,6 +1046,7 @@ export function FloorPlanEditor() {
         setMovingOpening(null)
         setMovingStop(null)
         setMovingNote(null)
+        setMovingMep(null)
         setMovingRoomLabel(null)
         return
       }
@@ -1222,6 +1276,39 @@ export function FloorPlanEditor() {
         })
         st.setPlanSelection({ type: 'note', id })
       })()
+    } else if (tool === 'mep') {
+      // Place an electrical/plumbing point (MEP layer, G1 PR3): wall-face snap
+      // (pure decision in `mepPlacement.ts`) on top of the already grid/guide-
+      // snapped click, then add to the family the armed kind belongs to. The
+      // tool STAYS armed (like door/window) so several points place in a row.
+      const hit = nearestWall(wx, wz)
+      const wallSnap = snapMepPointToWall(
+        [wx, wz],
+        hit,
+        hit ? planWallThickness(hit.wall, st.floorPlan) : 0,
+      )
+      const base = {
+        x: wallSnap.x,
+        z: wallSnap.z,
+        ...(levelId !== GROUND_LEVEL_ID ? { levelId } : {}),
+      }
+      if (mepPick.family === 'electrical') {
+        const kind = mepPick.kind as ElectricalKind
+        const id = st.addElectricalPoint({
+          ...base,
+          kind,
+          mountHeightMm: electricalMountDefaultMm(kind),
+        })
+        st.setPlanSelection({ type: 'mep', family: 'electrical', id })
+      } else {
+        const kind = mepPick.kind as PlumbingKind
+        const id = st.addPlumbingPoint({
+          ...base,
+          kind,
+          mountHeightMm: plumbingMountDefaultMm(kind),
+        })
+        st.setPlanSelection({ type: 'mep', family: 'plumbing', id })
+      }
     } else {
       // The press landed on a selectable element (its handler already ran and
       // set the selection, then let the event bubble here). Don't start a
@@ -1293,6 +1380,14 @@ export function FloorPlanEditor() {
       useStore
         .getState()
         .updateNote(movingNote.id, { x: snap(wx - movingNote.gx), z: snap(wz - movingNote.gz) })
+      return
+    }
+    if (movingMep) {
+      const [wx, wz] = pointerWorld(e)
+      const patch = { x: snap(wx - movingMep.gx), z: snap(wz - movingMep.gz) }
+      const st = useStore.getState()
+      if (movingMep.family === 'electrical') st.updateElectricalPoint(movingMep.id, patch)
+      else st.updatePlumbingPoint(movingMep.id, patch)
       return
     }
     if (movingRoomLabel) {
@@ -1660,6 +1755,10 @@ export function FloorPlanEditor() {
       setMovingNote(null)
       return
     }
+    if (movingMep) {
+      setMovingMep(null)
+      return
+    }
     if (movingRoomLabel) {
       setMovingRoomLabel(null)
       return
@@ -1743,6 +1842,9 @@ export function FloorPlanEditor() {
                       anchorX,
                       anchorZ,
                     ),
+                    // Mark as manually calibrated so AI recognition won't
+                    // overwrite this scale with its own estimate.
+                    scaleCalibrated: true,
                   }
                 : b,
             )
@@ -1823,19 +1925,31 @@ export function FloorPlanEditor() {
     'text',
     'dimension',
     ...(fPolyline ? (['polyline'] as Tool[]) : []),
+    ...(fMep ? (['mep'] as Tool[]) : []),
   ]
   const toolLabel = (t: Tool): string =>
     t === 'polyroom'
       ? 'Polygon room'
       : t === 'autoroom'
         ? 'Auto room'
-        : t.charAt(0).toUpperCase() + t.slice(1)
+        : t === 'mep'
+          ? 'MEP'
+          : t.charAt(0).toUpperCase() + t.slice(1)
   const pickTool = (t: Tool) => {
     setPolyDraft([])
     setPolylineDraft([])
     setDraft(null) // drop any in-progress wall tap-chain / draft
     setTool(t)
     setEditMode('edit') // choosing a tool implies you want to edit
+  }
+  // MEP group buttons (DrawToolPalette / PlanToolsSheet) arm BOTH the 'mep'
+  // tool AND the specific kind in one click.
+  const pickMep = (selMep: {
+    family: 'electrical' | 'plumbing'
+    kind: ElectricalKind | PlumbingKind
+  }) => {
+    setMepPick(selMep)
+    pickTool('mep')
   }
 
   // View ⇄ Edit toggle. View = pan/zoom + tap-to-inspect (safe one-finger pan on
@@ -1858,7 +1972,16 @@ export function FloorPlanEditor() {
   // a pointer icon, Wall/Split are direct buttons, and the related tools collapse
   // into labelled dropdowns (Room / Opening / Markup). The mobile bar keeps its
   // single `PlanToolMenu` picker.
-  const toolPalette = <DrawToolPalette tool={tool} onPick={pickTool} fPolyline={fPolyline} />
+  const toolPalette = (
+    <DrawToolPalette
+      tool={tool}
+      onPick={pickTool}
+      fPolyline={fPolyline}
+      fMep={fMep}
+      mep={mepPick}
+      onPickMep={pickMep}
+    />
+  )
 
   // Live how-to-finish hint for the multi-click drawing tools (the "how do I
   // close it?" gap) — shown while the Polygon-room / Polyline tool is active.
@@ -1905,6 +2028,20 @@ export function FloorPlanEditor() {
       <button type="button" onClick={() => a.resetFloorPlan()} className="btn btn-sm">
         Reset to HDB
       </button>
+      {/* Text brief → editable floor plan via a BYO-key LLM (marquee L). Lands as
+          an undoable draft (blank plan → walls/openings/rooms), exactly like AI
+          wall drafting. Gated by the `aiPlanGenerate` pro flag (hidden in Simple). */}
+      {fAiPlanGen ? (
+        <button
+          type="button"
+          onClick={runAiGenerate}
+          disabled={genBusy}
+          title="Experimental: describe a home in words and let an LLM draft an editable plan (your API key)"
+          className="btn btn-sm"
+        >
+          {genBusy ? 'Generating…' : 'Generate plan with AI…'}
+        </button>
+      ) : null}
       {/* Mirror the whole plan (walls + rooms + openings + furniture) about its
           centre-X — for mirror-image HDB stacks / condo pairs
           (PARITY-PLAN-MIRROR-REGION), gated by the `planMirrorRegion` pro flag
@@ -2013,6 +2150,60 @@ export function FloorPlanEditor() {
             Bevel corner
           </button>
         </>
+      ) : null}
+      {/* Derive a starting electrical + plumbing layout from the current
+          furniture + doors (MEP layer, G1 PR4), gated by `mepEditor` (pro,
+          hidden in Simple). One undoable action; the drawing-set export uses
+          the same heuristic as its fallback until points are authored. */}
+      {fMep ? (
+        <button
+          type="button"
+          onClick={() => {
+            const { electrical, plumbing } = a.suggestMepPoints()
+            if (electrical === 0 && plumbing === 0) {
+              a.notify.start({
+                title: 'No new MEP points to suggest',
+                kind: 'info',
+                message: 'Everything the current layout implies has already been added.',
+              })
+            } else {
+              a.notify.start({
+                title: `Added ${electrical} electrical + ${plumbing} plumbing points`,
+                message: 'Drag to refine.',
+              })
+            }
+          }}
+          title="Derive a starting electrical + plumbing layout from the current furniture and doors"
+          className="btn btn-sm"
+        >
+          Suggest MEP points
+        </button>
+      ) : null}
+      {/* Auto-link each room's door-nearest switch to that room's lights
+          (BSJ-3), gated by `switchCircuits` (pro). One undoable action. */}
+      {fMep && fSwitchCircuits ? (
+        <button
+          type="button"
+          onClick={() => {
+            const { linked } = a.suggestSwitchCircuits()
+            if (linked === 0) {
+              a.notify.start({
+                title: 'No switch circuits to suggest',
+                kind: 'info',
+                message: 'Add switch points and light fixtures to each room first.',
+              })
+            } else {
+              a.notify.start({
+                title: `Linked ${linked} switch${linked === 1 ? '' : 'es'} to their room lights`,
+                message: 'Select a switch to review or refine its lights.',
+              })
+            }
+          }}
+          title="Link each room's switch (nearest its door) to that room's light fixtures"
+          className="btn btn-sm"
+        >
+          Suggest circuits
+        </button>
       ) : null}
       {/* Reference photo — trace walls over a floor-plan image / room scan.
           Gated by the `planTraceBackdrop` pro flag (hidden in Simple mode). */}
@@ -2170,6 +2361,12 @@ export function FloorPlanEditor() {
       onToggleWallDims={() => setShowWallDims((v) => !v)}
       showFurniture={showFurniture}
       onToggleFurniture={() => setShowFurniture((v) => !v)}
+      fMep={fMep}
+      showMep={showMep}
+      onToggleMep={() => setShowMep((v) => !v)}
+      fHackability={fHackability}
+      showHackability={showHackability}
+      onToggleHackability={() => setShowHackability((v) => !v)}
       skeleton={skeleton}
       onToggleSkeleton={() => setSkeleton((v) => !v)}
       isMultiLevel={isMultiLevel}
@@ -2260,6 +2457,7 @@ export function FloorPlanEditor() {
               active={
                 showWallDims ||
                 showFurniture ||
+                (fMep && !showMep) ||
                 skeleton ||
                 labelsOn ||
                 showOtherLevels ||
@@ -2296,6 +2494,9 @@ export function FloorPlanEditor() {
             setToolsMenuOpen(false)
             openDocs()
           }}
+          fMep={fMep}
+          mep={mepPick}
+          onPickMep={pickMep}
         />
       )}
 
@@ -2444,6 +2645,12 @@ export function FloorPlanEditor() {
               if (st.selectedItemIds.length > 0) {
                 const id = st.selectedItemId ?? st.selectedItemIds[st.selectedItemIds.length - 1]
                 menuTarget = { kind: 'item', id }
+              } else if (st.planSelection?.type === 'mep') {
+                menuTarget = {
+                  kind: 'mep',
+                  family: st.planSelection.family,
+                  id: st.planSelection.id,
+                }
               } else if (st.planSelection) {
                 menuTarget = { kind: st.planSelection.type, id: st.planSelection.id }
               }
@@ -2537,6 +2744,7 @@ export function FloorPlanEditor() {
                 showRoomLabels={showRoomLabels}
                 roomFont={roomFont}
                 units={units}
+                socketShortfall={socketShortfall}
                 svgRef={svgRef}
                 setPlanSelection={a.setPlanSelection}
                 beginElementDrag={beginElementDrag}
@@ -2620,6 +2828,43 @@ export function FloorPlanEditor() {
                 setMovingNote={setMovingNote}
               />
 
+              {/* Electrical/plumbing points (active storey) — MEP layer, G1
+                PR3. Click (select tool) to select + drag; edit/delete in the
+                inspector. Hidden via the "MEP" View toggle (shown by default). */}
+              {fMep && showMep && (
+                <MepLayer
+                  electrical={(plan.electricalPoints ?? []).filter(
+                    (p) => (p.levelId ?? GROUND_LEVEL_ID) === levelId,
+                  )}
+                  plumbing={(plan.plumbingPoints ?? []).filter(
+                    (p) => (p.levelId ?? GROUND_LEVEL_ID) === levelId,
+                  )}
+                  sel={sel}
+                  toPx={toPx}
+                  tool={tool}
+                  beginElementDrag={beginElementDrag}
+                  pointerWorld={pointerWorld}
+                  setMovingMep={setMovingMep}
+                />
+              )}
+
+              {/* Switch→light circuit leader lines (BSJ-3): while a switch point
+                is selected in MEP mode, dash a line to each light it controls +
+                ring the fixture. Gated by `switchCircuits` (pro). */}
+              {fMep && fSwitchCircuits && showMep && (
+                <SwitchLinksLayer
+                  switchPoint={
+                    sel?.type === 'mep' && sel.family === 'electrical'
+                      ? ((plan.electricalPoints ?? []).find(
+                          (p) => p.id === sel.id && p.kind === 'switch',
+                        ) ?? null)
+                      : null
+                  }
+                  items={levelItems}
+                  toPx={toPx}
+                />
+              )}
+
               {/* Dimension lines (active storey) — PARITY-DIMTEXT. Drawn with the
                 Dimension tool; click to select, delete in the inspector. */}
               <DimensionsLayer
@@ -2666,6 +2911,14 @@ export function FloorPlanEditor() {
                 setMovingWall={setMovingWall}
                 setMovingBulge={setMovingBulge}
               />
+
+              {/* Live hackability overlay (active storey) — R4-7. Tints each wall
+                by its demolition-permit class over the walls; pointer-events
+                none so WallsLayer still owns selection. Off by default, shown
+                via the "Hackability" View toggle. */}
+              {fHackability && showHackability && (
+                <HackabilityLayer walls={levelPlan.walls} toPx={toPx} />
+              )}
 
               {/* Persistent wall-length + opening-width dimensions (a staple of
                 pro floor planners), gated by the "Dims" toggle. */}

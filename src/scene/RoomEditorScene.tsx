@@ -20,6 +20,7 @@ import { DragController } from './DragController'
 import { deselectOnMiss } from './deselectOnMiss'
 import { Effects } from './Effects'
 import { FinishDropSurface } from './FinishDropSurface'
+import { FinishEyedropperSurface } from './FinishEyedropperSurface'
 import { FrameRenderedNotifier } from './FrameRenderedNotifier'
 import { GridOverlay } from './GridOverlay'
 import { CurtainLightController } from './lighting/CurtainLightController'
@@ -77,6 +78,11 @@ export function RoomEditorScene() {
   const gridRects = shell.rects
   return (
     <Canvas
+      // A11Y: labels the actual interactive surface for a screen reader (see
+      // the matching note on the main orbit Canvas in scene/Scene.tsx) —
+      // forwarded to the wrapping div by r3f's CanvasProps.
+      role="img"
+      aria-label="3D view of this room — drag to orbit, scroll to zoom"
       // Demand mode + RenderPump, exactly like the main orbit Canvas: the scene
       // draws 0 frames when idle and continuously only while something animates.
       frameloop="demand"
@@ -145,6 +151,7 @@ export function RoomEditorScene() {
       <PlacementDropAnimator />
       <DragController />
       <FinishDropSurface />
+      <FinishEyedropperSurface />
       <MarqueeCameraTracker />
       <CameraRig />
       <CameraForwardTracker />

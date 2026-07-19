@@ -54,16 +54,23 @@ export const bathrooms: LayoutEntry[] = [
   {
     id: 'default-bath2-basin',
     defId: 'bathroom-sink',
-    // Against east wall (rotation=-π/2); center x=5.95−0.25=5.70. Near north wall z=5.10+0.05+0.31=5.46.
-    position: [5.7, 5.46],
-    rotation: -Math.PI / 2,
+    // Against the WEST wall (the bath1/bath2 partition, inner face x≈3.95),
+    // NOT the east wall — bath2's door sits on the north wall right at the
+    // east corner (offset 4.95, spans x≈5.05–5.85), so an east-wall basin
+    // parked in the NE corner blocked the door swing (UXW-P2-3). The west
+    // wall backs onto bath1's own wet wall, so basin plumbing stays shared.
+    // rotation=+π/2 → w=0.62 along Z, d=0.5 along X; center x=3.95+0.25=4.20;
+    // center z=5.10+0.05+0.31=5.46 (near north wall).
+    position: [4.2, 5.46],
+    rotation: Math.PI / 2,
     props: {},
   },
   {
     id: 'default-bath2-mirror',
     defId: 'bathroom-mirror',
-    position: [5.93, 5.46],
-    rotation: -Math.PI / 2,
+    // Mounted on the west wall face above the relocated basin.
+    position: [3.97, 5.46],
+    rotation: Math.PI / 2,
     props: { width: 0.5, height: 0.7, mountHeight: 1.5 },
   },
   {

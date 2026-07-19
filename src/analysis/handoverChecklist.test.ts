@@ -5,12 +5,13 @@ import { buildHandoverChecklist } from './handoverChecklist'
 
 // --- Minimal fixtures -------------------------------------------------------
 
-const room = (id: string, name: string): PlanRoom => ({
+const room = (id: string, name: string, extra: Partial<PlanRoom> = {}): PlanRoom => ({
   id,
   name,
   origin: [0, 0],
   width: 3,
   depth: 3,
+  ...extra,
 })
 
 const planWith = (rooms: PlanRoom[]): FloorPlan =>
@@ -89,6 +90,24 @@ describe('buildHandoverChecklist', () => {
     expect(labels([roomGroup]).some((l) => /Walls & ceiling/i.test(l))).toBe(true)
   })
 
+  it('honours an explicit room category over the name (RM1)', () => {
+    // "Ella's room" infers to 'other' (common rules only); an explicit bedroom
+    // category pulls the bedroom snag rules (aircon + wardrobe).
+    const withCat = buildHandoverChecklist(
+      planWith([{ ...room('kr', "Ella's room"), category: 'bedroom' }]),
+      [],
+      {},
+    )
+    const kids = withCat.groups.find((g) => g.title === "Ella's room")!
+    expect(labels([kids]).some((l) => /wardrobe/i.test(l))).toBe(true)
+    expect(labels([kids]).some((l) => /aircon/i.test(l))).toBe(true)
+
+    // Without the category the same name gets only the common rules (unchanged).
+    const plain = buildHandoverChecklist(planWith([room('kr', "Ella's room")]), [], {})
+    const plainGrp = plain.groups.find((g) => g.title === "Ella's room")!
+    expect(plainGrp.items).toHaveLength(4)
+  })
+
   it('adds appliance-activation items for the appliance categories actually present', () => {
     const catalog: Record<string, FurnitureDef> = {
       washer: def('washer', 'laundry'),
@@ -162,5 +181,24 @@ describe('buildHandoverChecklist', () => {
     )
     const ids = result.groups.flatMap((g) => g.items.map((i) => i.id))
     expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('adds a warranty-dates group only when a key-collection date is given (R4-8)', () => {
+    const plan = planWith([room('l', 'Living')])
+    const without = buildHandoverChecklist(plan, [], {})
+    expect(without.groups.some((g) => g.title === 'Warranty & defect dates')).toBe(false)
+
+    const withDate = buildHandoverChecklist(plan, [], {}, '2026-07-19')
+    const dates = withDate.groups.find((g) => g.title === 'Warranty & defect dates')
+    expect(dates).toBeDefined()
+    expect(dates?.items).toHaveLength(3)
+    // The computed DLP end (+1yr) appears in a line.
+    expect(dates?.items.some((i) => i.label.includes('19 Jul 2027'))).toBe(true)
+  })
+
+  it('ignores a malformed key-collection date', () => {
+    const plan = planWith([room('l', 'Living')])
+    const r = buildHandoverChecklist(plan, [], {}, 'not-a-date')
+    expect(r.groups.some((g) => g.title === 'Warranty & defect dates')).toBe(false)
   })
 })

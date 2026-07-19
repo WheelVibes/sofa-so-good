@@ -1,0 +1,64 @@
+{
+  "name": "finish-schedule-simple",
+  "description": "G4 — finish schedule depth. Captures the printable 'Report' window's HTML (report.ts's Finishes schedule section, built by the pure floorplan/finishSchedule.ts + shared finishScheduleHtml.ts renderer) via the window.open capture-sink intercept, and asserts the contractor-grade quantities: a keyed material code (FL-01), an area value (m²), the per-code totals table, and the verify-on-site caveat. Then repeats the same capture for the Drawing set's 'Finishes schedule' sheet (same pure builder + renderer) to prove the two documents never drift.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "boot-settled",
+      "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" },
+      "timeout": 60000
+    },
+    { "name": "settle-post-boot", "wait": 800 },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "mode-settle", "wait": 600 },
+    {
+      "name": "patch-window-open",
+      "eval": "window.__capturedHtml = null; window.__origWindowOpen = window.open; window.open = function () { return { document: { write: function (html) { window.__capturedHtml = html }, close: function () {} }, close: function () {}, focus: function () {}, print: function () {} }; };"
+    },
+    { "name": "open-file", "click": { "text": "File" } },
+    { "name": "file-panel-open", "waitFor": { "css": ".pop-panel" }, "timeout": 10000 },
+    { "name": "settle-menu", "wait": 400 },
+    {
+      "name": "click-report",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.pop-panel button')].find(b => b.textContent.includes('Report')); if (!btn) throw new Error('Report button not found'); btn.click(); })()"
+    },
+    {
+      "name": "wait-report-captured",
+      "waitFor": { "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 0" },
+      "timeout": 15000,
+      "failMessage": "openDesignReport() never wrote HTML via the intercepted window.open"
+    },
+    {
+      "name": "assert-report-finish-schedule",
+      "eval": "(function(){ const html = window.__capturedHtml; if (!html.includes('Finishes schedule')) throw new Error('Report HTML has no Finishes schedule section'); if (!/FL-01/.test(html)) throw new Error('Report finish schedule has no FL-01 material code'); if (!/m²/.test(html)) throw new Error('Report finish schedule has no m² area value'); if (!html.includes('Totals by material code')) throw new Error('Report finish schedule has no totals-by-code table'); if (!/verify on site/i.test(html)) throw new Error('Report finish schedule is missing the verify-on-site caveat'); })()"
+    },
+    { "name": "shot-report-captured", "screenshot": "01-report-finish-schedule-captured" },
+    { "name": "close-file-1", "key": "Escape" },
+    { "name": "close-settle-1", "wait": 300 },
+    { "name": "reset-captured-html", "eval": "window.__capturedHtml = null" },
+    { "name": "open-file-2", "click": { "text": "File" } },
+    { "name": "file-panel-open-2", "waitFor": { "css": ".pop-panel" }, "timeout": 10000 },
+    { "name": "settle-menu-2", "wait": 400 },
+    {
+      "name": "click-drawing-set",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.pop-panel button')].find(b => b.textContent.includes('Drawing set')); if (!btn) throw new Error('Drawing set button not found'); btn.click(); })()"
+    },
+    {
+      "name": "wait-drawingset-captured",
+      "waitFor": { "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 0" },
+      "timeout": 15000,
+      "failMessage": "openDrawingSet() never wrote HTML via the intercepted window.open"
+    },
+    {
+      "name": "assert-drawingset-finish-schedule",
+      "eval": "(function(){ const html = window.__capturedHtml; if (!html.includes('Finishes schedule')) throw new Error('Drawing set HTML has no Finishes schedule sheet'); if (!/FL-01/.test(html)) throw new Error('Drawing set finish schedule has no FL-01 material code'); if (!/m²/.test(html)) throw new Error('Drawing set finish schedule has no m² area value'); if (!html.includes('Totals by material code')) throw new Error('Drawing set finish schedule has no totals-by-code table'); if (!/verify on site/i.test(html)) throw new Error('Drawing set finish schedule is missing the verify-on-site caveat'); window.open = window.__origWindowOpen; })()"
+    },
+    { "name": "shot-drawingset-captured", "screenshot": "02-drawingset-finish-schedule-captured" }
+  ]
+}

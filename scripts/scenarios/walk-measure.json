@@ -1,0 +1,99 @@
+{
+  "name": "walk-measure",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": {
+        "store": "state.sceneReady === true || state.bootPhase === 'ready'"
+      },
+      "timeout": 90000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "enter-walk",
+      "eval": "window.__store.getState().setCameraMode('firstPerson')"
+    },
+    {
+      "name": "walk-hud",
+      "waitFor": {
+        "css": ".walk-hud"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "overlay-clear",
+      "waitFor": {
+        "store": "!state.loading || state.loading.active === false"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "settle",
+      "wait": 2000
+    },
+    {
+      "name": "press-g-A",
+      "key": "g"
+    },
+    {
+      "name": "point-a-set",
+      "waitFor": {
+        "store": "state.walkMeasureA != null"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "pitch-down",
+      "eval": "window.__walkLook.setPitch(-0.9)"
+    },
+    {
+      "name": "settle2",
+      "wait": 1000
+    },
+    {
+      "name": "press-g-B",
+      "key": "g"
+    },
+    {
+      "name": "point-b-set",
+      "waitFor": {
+        "store": "state.walkMeasureB != null"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "assert-distance",
+      "eval": "(() => { const s = window.__store.getState(); const a = s.walkMeasureA, b = s.walkMeasureB; const d = Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2]); if (!(d > 0.2)) throw new Error('degenerate distance ' + d); return 'distance ' + d.toFixed(2) + ' m'; })()"
+    },
+    {
+      "name": "settle3",
+      "wait": 1500
+    },
+    {
+      "name": "shot-measure",
+      "screenshot": "walk-measure"
+    },
+    {
+      "name": "third-g-resets",
+      "key": "g"
+    },
+    {
+      "name": "cycle-reset",
+      "waitFor": {
+        "store": "state.walkMeasureB == null"
+      },
+      "timeout": 10000
+    }
+  ]
+}

@@ -118,4 +118,28 @@ describe('per-element colour persistence (schema round-trip)', () => {
     expect(parsed.openings[0].color).toBe('#3366cc')
     expect(parsed.openings[1].color).toBe('#88ddff')
   })
+
+  it('round-trips the new bifold door style and invisible-grille window style', () => {
+    const parsed = FloorPlanZ.parse({
+      ...plan,
+      openings: [
+        { ...plan.openings[0], style: 'bifold' },
+        { ...plan.openings[1], style: 'invisible-grille' },
+      ],
+    })
+    expect(parsed.openings[0].style).toBe('bifold')
+    expect(parsed.openings[1].style).toBe('invisible-grille')
+  })
+
+  it('round-trips the new door leaf material axis (painted/wood/vinyl)', () => {
+    const parsed = FloorPlanZ.parse({
+      ...plan,
+      openings: [
+        { ...plan.openings[0], style: 'bifold', material: 'vinyl' },
+        { ...plan.openings[1], material: undefined },
+      ],
+    })
+    expect(parsed.openings[0].material).toBe('vinyl')
+    expect(parsed.openings[1].material).toBeUndefined()
+  })
 })

@@ -182,6 +182,89 @@ export function checkerFields(base: [number, number, number], seed: number, S: n
 }
 
 /**
+ * Peranakan / Nyonya majolica encaustic tile (the named 2026 SG heritage trend).
+ * A 2×2 grid of identical, four-fold-symmetric cement tiles: a cream medallion
+ * carrying an eight-petal rosette in the tile's field colour with a contrasting
+ * accent centre, framed by a field-colour border, and a quarter-fan at every
+ * corner (so four tiles meeting complete a full circle). Colours are derived
+ * from the single `base` swatch — `base` is the field/flower, `cream` a fixed
+ * near-white ground, and `accent` a channel-rotated hue of `base` for the
+ * characteristic multi-colour majolica contrast (jade↔plum, cobalt↔rust, …).
+ * Matte CEMENT finish (high roughness, flush inlay — no glossy glaze) which is
+ * what visually separates it from the glossy ceramic `tile`/`subway` painters.
+ * Seamless: the motif is fully contained per tile and the corner fans are
+ * centred exactly on the shared tile corners, so the periodic grid wraps.
+ */
+export function peranakanFields(base: [number, number, number], seed: number, S: number): Fields {
+  const f = blank(S)
+  f.normalStrength = 7
+  const tilesPerRow = 2
+  const cell = S / tilesPerRow
+  const groutW = S * 0.012
+  const grain = makeFbm(seed + 11, 3, 60)
+  const cream: [number, number, number] = [242, 238, 228]
+  // Channel-rotated hue of the field colour → a reliable contrasting accent.
+  const accent: [number, number, number] = [base[2], base[0], base[1]]
+  const grout: [number, number, number] = [base[0] * 0.5, base[1] * 0.5, base[2] * 0.5]
+  const outline: [number, number, number] = [base[0] * 0.3, base[1] * 0.3, base[2] * 0.32]
+  const near = (a: number, b: number, w: number) => Math.abs(a - b) < w
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const cx = Math.floor(x / cell)
+      const cy = Math.floor(y / cell)
+      const inX = x - cx * cell
+      const inY = y - cy * cell
+      const distEdge = Math.min(inX, cell - inX, inY, cell - inY)
+      const i = y * S + x
+      const g = (grain(x / S, y / S) - 0.5) * 0.05
+      if (distEdge < groutW) {
+        // Recessed matte cement grout joint between tiles.
+        setPx(f, i, grout[0], grout[1], grout[2], 0.12, 0.85)
+        continue
+      }
+      // Tile-local normalised coords in [-1, 1] from the tile centre.
+      const nx = (inX / cell) * 2 - 1
+      const ny = (inY / cell) * 2 - 1
+      const r = Math.hypot(nx, ny)
+      const ang = Math.atan2(ny, nx)
+      // Distance to the nearest tile corner (±1, ±1) for the corner fans.
+      const cd = Math.hypot(1 - Math.abs(nx), 1 - Math.abs(ny))
+      let col = cream
+      let height = 0.5
+      const rough = 0.62
+      if (cd < 0.42) {
+        // Corner quarter-fan — accent field with a thin outline rim + a cream eye.
+        col = cd < 0.14 ? cream : accent
+        if (near(cd, 0.42, 0.02) || near(cd, 0.14, 0.02)) {
+          col = outline
+          height = 0.4
+        }
+      } else if (r > 0.74) {
+        // Field / border band around the medallion.
+        col = near(r, 0.74, 0.02) ? outline : base
+        if (col === outline) height = 0.4
+      } else {
+        // Central medallion: eight-petal rosette over a cream ground.
+        const petalOuter = 0.34 + 0.22 * Math.abs(Math.cos(4 * ang))
+        if (r < 0.13) {
+          col = accent // accent centre disc
+        } else if (near(r, 0.13, 0.015) || near(r, petalOuter, 0.02)) {
+          col = outline
+          height = 0.4
+        } else if (r < petalOuter) {
+          col = base // coloured petals matching the field
+        } else {
+          col = cream // medallion ground
+        }
+      }
+      const factor = 1 + g
+      setPx(f, i, col[0] * factor, col[1] * factor, col[2] * factor, height, rough)
+    }
+  }
+  return f
+}
+
+/**
  * Basketweave parquet: a grid of square blocks, each holding K parallel wood
  * planks, with block orientation alternating like a checkerboard (horizontal /
  * vertical). Seamless because the block grid divides the tile evenly. The plank

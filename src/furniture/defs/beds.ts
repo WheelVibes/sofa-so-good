@@ -50,6 +50,7 @@ export const BEDS_DEFS = {
           { value: 'standard', label: 'Standard frame' },
           { value: 'platform', label: 'Platform' },
           { value: 'storage', label: 'Storage drawers' },
+          { value: 'hydraulic', label: 'Hydraulic lift storage' },
         ],
       },
       {
@@ -114,6 +115,7 @@ export const BEDS_DEFS = {
           { value: 'standard', label: 'Standard frame' },
           { value: 'platform', label: 'Platform' },
           { value: 'storage', label: 'Storage drawers' },
+          { value: 'hydraulic', label: 'Hydraulic lift storage' },
         ],
       },
       {
@@ -177,6 +179,7 @@ export const BEDS_DEFS = {
           { value: 'standard', label: 'Standard frame' },
           { value: 'platform', label: 'Platform' },
           { value: 'storage', label: 'Storage drawers' },
+          { value: 'hydraulic', label: 'Hydraulic lift storage' },
         ],
       },
       {
@@ -240,6 +243,7 @@ export const BEDS_DEFS = {
           { value: 'standard', label: 'Standard frame' },
           { value: 'platform', label: 'Platform' },
           { value: 'storage', label: 'Storage drawers' },
+          { value: 'hydraulic', label: 'Hydraulic lift storage' },
         ],
       },
       {

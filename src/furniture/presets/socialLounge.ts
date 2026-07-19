@@ -2,6 +2,7 @@ import type { LayoutPreset } from './types'
 
 export const socialLounge: LayoutPreset = {
   id: 'social-lounge',
+  group: 'layout',
   name: 'Social Lounge',
   description: 'Re-modelled L/D: a conversation grouping — sofa + two angled armchairs.',
   dryFloor: 'floor-wood-teak',

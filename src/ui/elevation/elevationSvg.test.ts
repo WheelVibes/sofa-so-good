@@ -19,23 +19,58 @@ const el: WallElevation = {
 }
 
 describe('elevationSvg', () => {
-  it('draws a door as a framed leaf with a handle (not a dashed cut-out)', () => {
+  it('draws a door as a framed leaf with a handle + a conventional swing triangle (not the plan arc)', () => {
     const withDoor: WallElevation = {
       ...el,
-      openings: [{ kind: 'door', x0: 0.5, x1: 1.4, sill: 0, head: 2.05 }],
+      openings: [{ kind: 'door', x0: 0.5, x1: 1.4, sill: 0, head: 2.05, style: 'panel' }],
       items: [],
     }
     const svg = elevationSvg(withDoor, { palette, dimensions: false })
     // No legacy dashed cut-out; has a handle dot (a small filled circle).
-    // The only dashed stroke is the door swing ARC (drafting symbol) — the
-    // legacy dashed cut-out <rect> must not return.
     expect(svg).not.toMatch(/<rect[^>]*stroke-dasharray/)
-    // Leaf line on the hinge jamb + dashed quarter swing arc (EL5).
-    expect(svg).toMatch(/<path[^>]*stroke-dasharray/)
-    expect(svg).toContain(' A ') // quarter-arc command
+    // Swing shown as the ELEVATION triangle marker, dashed — NOT the plan
+    // quarter-arc (no ' A ' arc command any more, re-review P3).
+    expect(svg).toMatch(
+      /<path[^>]*data-swing="1"[^>]*stroke-dasharray|<path[^>]*stroke-dasharray[^>]*data-swing="1"/,
+    )
+    expect(svg).not.toContain(' A ') // plan quarter-arc removed
     expect(svg).toContain('<circle')
     // The door panel rect spans the opening (0.9 wide).
     expect(svg).toContain('width="0.900"')
+  })
+
+  it('draws the swing marker for a swinging (panel) door but NOT for a sliding door', () => {
+    const base: WallElevation = { ...el, items: [] }
+    const panel = elevationSvg(
+      {
+        ...base,
+        openings: [{ kind: 'door', x0: 0.5, x1: 1.4, sill: 0, head: 2.05, style: 'panel' }],
+      },
+      { palette, dimensions: false },
+    )
+    const sliding = elevationSvg(
+      {
+        ...base,
+        openings: [{ kind: 'door', x0: 0.5, x1: 1.4, sill: 0, head: 2.05, style: 'sliding' }],
+      },
+      { palette, dimensions: false },
+    )
+    expect(panel).toContain('data-swing="1"')
+    expect(sliding).not.toContain('data-swing="1"')
+    // Both still draw the leaf panel (0.9 wide) — only the swing symbol differs.
+    expect(sliding).toContain('width="0.900"')
+  })
+
+  it('draws two swing triangles for a double door (apex at each jamb)', () => {
+    const dbl = elevationSvg(
+      {
+        ...el,
+        items: [],
+        openings: [{ kind: 'door', x0: 0.5, x1: 2.1, sill: 0, head: 2.05, style: 'double' }],
+      },
+      { palette, dimensions: false },
+    )
+    expect(dbl.match(/data-swing="1"/g)?.length).toBe(2)
   })
 
   it('emits an svg sized to the wall with a floor-anchored item + window pane', () => {
@@ -62,6 +97,83 @@ describe('elevationSvg', () => {
     expect(svg).toContain('>1.00 m</text>')
     // Extra left/bottom padding is reserved for the dim lines.
     expect(svg).toContain('viewBox="-0.950 -0.350 5.300 4.100"')
+  })
+
+  it('annotates a mounted TV with its AFFL mount height (H3)', () => {
+    const withTv: WallElevation = {
+      ...el,
+      items: [{ id: 'tv', label: 'TV', x0: 1.5, x1: 2.7, height: 0.7, depth: 0, mountHeight: 1.1 }],
+    }
+    const svg = elevationSvg(withTv, { palette, units: 'metric', dimensions: true })
+    expect(svg).toContain('1100 AFFL')
+  })
+
+  it('annotates a mounted sconce with its own mount height', () => {
+    const withSconce: WallElevation = {
+      ...el,
+      items: [
+        { id: 'sc', label: 'Sconce', x0: 3.0, x1: 3.2, height: 0.3, depth: 0, mountHeight: 1.45 },
+      ],
+    }
+    const svg = elevationSvg(withSconce, { palette, units: 'metric', dimensions: true })
+    expect(svg).toContain('1450 AFFL')
+  })
+
+  it('does not annotate a floor-standing item (no mountHeight — no clutter)', () => {
+    const floorSofa: WallElevation = {
+      ...el,
+      items: [{ id: 'sofa', label: 'Sofa', x0: 0.5, x1: 2.5, height: 0.85, depth: 0 }],
+    }
+    const svg = elevationSvg(floorSofa, { palette, units: 'metric', dimensions: true })
+    expect(svg).not.toMatch(/AFFL/)
+  })
+
+  it('declutters two mounted items sharing a wall closely (both heights still legible)', () => {
+    const twoMounted: WallElevation = {
+      ...el,
+      items: [
+        { id: 'a', label: 'TV', x0: 1.0, x1: 2.2, height: 0.7, depth: 0, mountHeight: 1.1 },
+        {
+          id: 'b',
+          label: 'Soundbar',
+          x0: 1.05,
+          x1: 1.95,
+          height: 0.1,
+          depth: 0,
+          mountHeight: 1.05,
+        },
+      ],
+    }
+    const svg = elevationSvg(twoMounted, { palette, units: 'metric', dimensions: true })
+    // Both AFFL heights are present in the markup — neither dim was dropped.
+    expect(svg).toContain('1100 AFFL')
+    expect(svg).toContain('1050 AFFL')
+    // Two distinct <line> x1 anchors for the colliding pair (fanned to
+    // different columns) rather than both drawn at the identical x.
+    const dimLineXs = [...svg.matchAll(/<line x1="([\d.]+)" y1="[\d.]+" x2="\1"/g)].map((m) => m[1])
+    expect(new Set(dimLineXs).size).toBeGreaterThan(1)
+  })
+
+  it('renders an item semi-transparent when it substantially overlaps an opening (legacy overlap defense)', () => {
+    // A door opening spans floor to head (x=[0.5,1.4], sill=0, head=2.05) — a
+    // floor-standing item (drawn floor→height, same as the door) whose box
+    // sits almost entirely inside it is a corrupt/legacy placement (it now
+    // stands astride a door it predates) and must render semi-transparent so
+    // the door leaf/swing stays readable through it.
+    const overlapping: WallElevation = {
+      ...el,
+      openings: [{ kind: 'door', x0: 0.5, x1: 1.4, sill: 0, head: 2.05 }],
+      items: [{ id: 'x', label: 'Shelf', x0: 0.6, x1: 1.3, height: 1.9, depth: 0 }],
+    }
+    const svg = elevationSvg(overlapping, { palette, dimensions: false })
+    expect(svg).toContain('fill-opacity="0.3"')
+    expect(svg).not.toContain('fill-opacity="0.85"')
+  })
+
+  it('keeps a normal, non-overlapping item at full opacity', () => {
+    const svg = elevationSvg(el, { palette, dimensions: false })
+    expect(svg).toContain('fill-opacity="0.85"')
+    expect(svg).not.toContain('fill-opacity="0.3"')
   })
 
   it('escapes a malicious item label (no markup injection)', () => {

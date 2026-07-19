@@ -1,8 +1,10 @@
 import { useFeature } from '../../../../features/useFeature'
+import { ROOM_CATEGORY_LABELS, roomCategoryFromName } from '../../../../floorplan/roomCategory'
 import type { PlanRoom } from '../../../../floorplan/types'
-import { planRoomArea } from '../../../../floorplan/types'
+import { planRoomArea, ROOM_CATEGORIES } from '../../../../floorplan/types'
 import { useStore } from '../../../../state/store'
 import { formatArea, formatLength } from '../../../../utils/measurement'
+import { Select } from '../../../controls/Select'
 import { Icon } from '../../../toolbar/icons'
 import { ActBtn, CeilingControls, DeleteBtn, Num } from './shared'
 
@@ -15,6 +17,7 @@ export function RoomInspector({ room: r, levelId }: { room: PlanRoom; levelId?: 
   const ceilingDesignOn = useFeature('ceilingDesign')
   const floorTextureOn = useFeature('floorTexture')
   const roomInsetOn = useFeature('roomInset')
+  const floorLevelsOn = useFeature('floorLevels')
   return (
     <div className="space-y-2">
       <label className="flex flex-col gap-1 text-xs">
@@ -28,6 +31,27 @@ export function RoomInspector({ room: r, levelId }: { room: PlanRoom; levelId?: 
           Drag the name on the plan to reposition it.
         </span>
       </label>
+      <div className="row" style={{ padding: 'var(--s-2) 0', alignItems: 'center' }}>
+        <span className="label">Room type</span>
+        <Select
+          className="input"
+          style={{ marginLeft: 'auto', maxWidth: '60%' }}
+          value={r.category ?? '__auto__'}
+          onChange={(v) =>
+            a.updateRoom(r.id, {
+              category: v === '__auto__' ? undefined : (v as PlanRoom['category']),
+            })
+          }
+          ariaLabel="Room type"
+          options={[
+            {
+              value: '__auto__',
+              label: `Auto — ${ROOM_CATEGORY_LABELS[roomCategoryFromName(r.name)]}`,
+            },
+            ...ROOM_CATEGORIES.map((c) => ({ value: c, label: ROOM_CATEGORY_LABELS[c] })),
+          ]}
+        />
+      </div>
       {r.labelOffset ? (
         <button
           type="button"
@@ -109,6 +133,24 @@ export function RoomInspector({ room: r, levelId }: { room: PlanRoom; levelId?: 
           </button>
         )}
       </div>
+      {floorLevelsOn ? (
+        <div className="flex flex-col gap-1">
+          <Num
+            label="Floor level (mm)"
+            value={r.floorLevelMm ?? 0}
+            step={5}
+            onChange={(v) => {
+              if (!Number.isFinite(v)) return
+              const mm = Math.round(v)
+              a.updateRoom(r.id, { floorLevelMm: mm === 0 ? undefined : mm })
+            }}
+          />
+          <span className="text-xs" style={{ color: 'var(--text-3)' }}>
+            Offset vs the main floor datum — e.g. bath −50, balcony −50. Documentation only (tags
+            the plan + tiler pack; doesn’t move the 3D floor).
+          </span>
+        </div>
+      ) : null}
       {ceilingDesignOn ? (
         <CeilingControls roomId={r.id} style={r.ceiling?.style ?? 'flat'} config={r.ceiling} />
       ) : null}

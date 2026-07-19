@@ -13,6 +13,8 @@
  * Self-contained: imports only `./plumbingPlan` and `./types`.
  */
 
+import { symbolPrintScale } from './drawingScale'
+import { layoutMepLabels } from './mepLabelLayout'
 import type { PlumbingKind, PlumbingPlan } from './plumbingPlan'
 import { plumbingKindLabel } from './plumbingPlan'
 import type { FloorPlan, PlanWall } from './types'
@@ -32,14 +34,22 @@ export interface PlumbingSvgOpts {
   palette: PlumbingPalette
   /** Target SVG width in pixels (height derives from plan aspect). Default 800. */
   widthPx?: number
+  /** When set (mm printed per metre of real-world extent, from
+   *  `drawingScale.ts:pickDrawingScale`), sizes the returned `<svg>` with
+   *  explicit `width`/`height` in mm instead of pixels — print-true (TODO G2). */
+  printMmPerM?: number
 }
 
 const PAD = 0.5
-const SYM_R = 9
+/** Base symbol radius/font, pixels; `SYM_R`/`SYM_FONT` are bumped per-call at
+ *  small paper formats for print legibility (P3), reset each `plumbingSvg`. */
+const BASE_SYM_R = 9
+const BASE_SYM_FONT = 8
+let SYM_R = BASE_SYM_R
+let SYM_FONT = BASE_SYM_FONT
 const LEGEND_PAD = 12
 const LEGEND_ROW = 22
 const FONT = 12
-const SYM_FONT = 8
 
 function esc(s: string): string {
   return s
@@ -79,8 +89,10 @@ function wallBounds(walls: PlanWall[]): Bounds {
   return { minX, minZ, maxX, maxZ }
 }
 
-/** Short marking text drawn inside a symbol circle. */
-const SYM_TEXT: Record<PlumbingKind, string> = {
+/** Short marking text drawn inside a symbol circle. Exported (MEP layer, G1
+ *  PR3) so the 2D editor's `MepLayer` renders the same glyph vocabulary as
+ *  the exported sheet — one symbol set, not two. */
+export const PLUMB_SYM_TEXT: Record<PlumbingKind, string> = {
   'water-point': 'W',
   drainage: 'D',
   'floor-trap': 'FT',
@@ -109,20 +121,33 @@ export function plumbingSvg(
   const worldW = Math.max(b.maxX - b.minX + PAD * 2, 1)
   const worldH = Math.max(b.maxZ - b.minZ + PAD * 2, 1)
   const scale = widthPx / worldW
+  // Small-format legibility bump (P3) — see electricalPlanSvg for the rationale.
+  const symScale = symbolPrintScale(BASE_SYM_R, scale, opts.printMmPerM)
+  SYM_R = BASE_SYM_R * symScale
+  SYM_FONT = BASE_SYM_FONT * symScale
   const planH = worldH * scale
 
   const px = (x: number) => (x - b.minX + PAD) * scale
   const py = (z: number) => (z - b.minZ + PAD) * scale
 
-  const legendRows = Math.max(schedule.length, 1)
+  const anyHeights = points.some((p) => typeof p.mountHeightMm === 'number')
+  const legendRows = Math.max(schedule.length, 1) + (anyHeights ? 1 : 0)
   const legendH = LEGEND_PAD * 2 + LEGEND_ROW * legendRows
   const heightPx = planH + legendH
 
   const parts: string[] = []
+  // Print-true sizing (TODO G2): 1 viewBox unit already equals `1/scale`
+  // metres, so `width/height px × (mmPerM / scale)` mm is the sheet's exact
+  // printed size at the locked scale. An inline `style` (not the plain
+  // `width`/`height` attribute) is required: presentational attributes have
+  // the LOWEST CSS priority, so a plain attribute would be silently
+  // overridden by the drawing-set's `.draw svg { width:100% }` rule.
+  const sizeStyle =
+    opts.printMmPerM != null
+      ? ` style="width:${n(widthPx * (opts.printMmPerM / scale))}mm;height:${n(heightPx * (opts.printMmPerM / scale))}mm"`
+      : ''
   parts.push(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${n(widthPx)}" height="${n(
-      heightPx,
-    )}" viewBox="0 0 ${n(widthPx)} ${n(heightPx)}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${n(widthPx)}" height="${n(heightPx)}"${sizeStyle} viewBox="0 0 ${n(widthPx)} ${n(heightPx)}">`,
   )
 
   for (const w of drawn) {
@@ -133,47 +158,104 @@ export function plumbingSvg(
     )
   }
 
-  for (const p of points) {
-    parts.push(symbol(p.kind, px(p.x), py(p.z), palette, p.label))
-  }
+  // Points whose circles collide (e.g. a WC's soil-pipe + water-point a few cm
+  // apart) have BOTH their circle centres nudged apart (with a tick + leader
+  // back to the true spot) AND their labels fanned out relative to the
+  // nudged circles — see `mepLabelLayout.ts` (H-D1 + the SG-contractor
+  // re-review's circle-overlap follow-up).
+  const labelLayout = layoutMepLabels(
+    points.map((p, i) => ({ id: String(i), cx: px(p.x), cy: py(p.z) })),
+    SYM_R + 2,
+  )
+  points.forEach((p, i) => {
+    const placement = labelLayout.find((l) => l.id === String(i))!
+    parts.push(
+      symbol(p.kind, placement.cx, placement.cy, palette, p.label, p.mountHeightMm, placement, {
+        trueCx: placement.trueCx,
+        trueCy: placement.trueCy,
+        hasCircleNudge: placement.hasCircleNudge,
+      }),
+    )
+  })
 
-  parts.push(legend(schedule, planH, palette))
+  // Legend / schedule — an extra "heights in mm AFFL" line when any point on
+  // this sheet carries a persisted mount height (MEP layer, G1 PR5).
+  parts.push(legend(schedule, planH, palette, anyHeights))
   parts.push('</svg>')
   return parts.join('\n')
 }
 
-/** A single plumbing symbol glyph centred at (cx,cy). */
+/** A single plumbing symbol glyph centred at (cx,cy) — the circle's RENDERED
+ *  position, already nudged off `truePos` when it collided with another
+ *  circle in its cluster (`layoutMepLabels`'s circle-nudge pass, SG-
+ *  contractor re-review follow-up to H-D1). When `truePos` is given, a small
+ *  × tick is drawn at the true position + a thin solid leader from it to the
+ *  rendered circle, so the actual location stays readable (drafting
+ *  convention: symbol displaced for clarity, tick marks the real spot). When
+ *  `labelPlacement` carries a nudged label position (`hasLeader`), the side
+ *  label is drawn there instead of the default `(cx + SYM_R + 2, cy)`, with a
+ *  short dashed leader back to the (possibly nudged) circle centre. */
 function symbol(
   kind: PlumbingKind,
   cx: number,
   cy: number,
   palette: PlumbingPalette,
   label: string | undefined,
+  mountHeightMm?: number,
+  labelPlacement?: { labelX: number; labelY: number; hasLeader: boolean },
+  truePos?: { trueCx: number; trueCy: number; hasCircleNudge: boolean },
 ): string {
   const out: string[] = [`<g class="plumb-symbol" data-kind="${esc(kind)}">`]
+  if (truePos?.hasCircleNudge) {
+    const { trueCx, trueCy } = truePos
+    const tick = SYM_R * 0.3
+    out.push(
+      `<line x1="${n(trueCx)}" y1="${n(trueCy)}" x2="${n(cx)}" y2="${n(cy)}" ` +
+        `stroke="${esc(palette.symbol)}" stroke-width="0.75" />`,
+      `<line x1="${n(trueCx - tick)}" y1="${n(trueCy - tick)}" x2="${n(trueCx + tick)}" y2="${n(trueCy + tick)}" ` +
+        `stroke="${esc(palette.symbol)}" stroke-width="1" />`,
+      `<line x1="${n(trueCx - tick)}" y1="${n(trueCy + tick)}" x2="${n(trueCx + tick)}" y2="${n(trueCy - tick)}" ` +
+        `stroke="${esc(palette.symbol)}" stroke-width="1" />`,
+    )
+  }
   out.push(
     `<circle cx="${n(cx)}" cy="${n(cy)}" r="${SYM_R}" fill="none" ` +
       `stroke="${esc(palette.symbol)}" stroke-width="1.5" />`,
   )
   out.push(
     `<text x="${n(cx)}" y="${n(cy)}" font-size="${SYM_FONT}" text-anchor="middle" ` +
-      `dominant-baseline="central" fill="${esc(palette.ink)}">${esc(SYM_TEXT[kind])}</text>`,
+      `dominant-baseline="central" fill="${esc(palette.ink)}">${esc(PLUMB_SYM_TEXT[kind])}</text>`,
   )
-  if (label) {
+  // "@1050" mount-height suffix beside the label (MEP layer, G1 PR5) — omitted
+  // for heuristic-derived points (no persisted `mountHeightMm`).
+  const heightSuffix = typeof mountHeightMm === 'number' ? `@${Math.round(mountHeightMm)}` : ''
+  const sideText = [label, heightSuffix].filter(Boolean).join(' ')
+  if (sideText) {
+    const labelX = labelPlacement?.labelX ?? cx + SYM_R + 2
+    const labelY = labelPlacement?.labelY ?? cy
+    if (labelPlacement?.hasLeader) {
+      out.push(
+        `<line x1="${n(cx)}" y1="${n(cy)}" x2="${n(labelX)}" y2="${n(labelY)}" ` +
+          `stroke="${esc(palette.symbol)}" stroke-width="0.5" stroke-dasharray="2 1.5" />`,
+      )
+    }
     out.push(
-      `<text x="${n(cx + SYM_R + 2)}" y="${n(cy)}" font-size="${SYM_FONT}" ` +
-        `dominant-baseline="central" fill="${esc(palette.ink)}">${esc(label)}</text>`,
+      `<text x="${n(labelX)}" y="${n(labelY)}" font-size="${SYM_FONT}" ` +
+        `dominant-baseline="central" fill="${esc(palette.ink)}">${esc(sideText)}</text>`,
     )
   }
   out.push('</g>')
   return out.join('\n')
 }
 
-/** Schedule legend: one row per kind, with a miniature symbol + count + label. */
+/** Schedule legend: one row per kind, with a miniature symbol + count + label,
+ *  plus (when any point on the sheet carries a persisted mount height) a
+ *  trailing "Heights in mm AFFL" line explaining the `@mm` suffix. */
 function legend(
   schedule: PlumbingPlan['schedule'],
   planH: number,
   palette: PlumbingPalette,
+  anyHeights = false,
 ): string {
   const out: string[] = ['<g class="legend">']
   let y = planH + LEGEND_PAD + LEGEND_ROW / 2
@@ -192,6 +274,12 @@ function legend(
         `dominant-baseline="middle" fill="${esc(palette.ink)}">${esc(text)}</text>`,
     )
     y += LEGEND_ROW
+  }
+  if (anyHeights) {
+    out.push(
+      `<text x="${LEGEND_PAD}" y="${n(y)}" font-size="${SYM_FONT}" font-style="italic" ` +
+        `dominant-baseline="middle" fill="${esc(palette.ink)}">Heights in mm AFFL</text>`,
+    )
   }
   out.push('</g>')
   return out.join('\n')

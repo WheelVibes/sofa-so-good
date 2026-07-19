@@ -1,11 +1,17 @@
 import type { LayoutPreset } from './types'
 
+/**
+ * RM2 retune (2026-07-19): "Cozy Tropical" becomes "Tropical Biophilic" —
+ * same teak/sage/terracotta palette, plus extra greenery via `extraItems`.
+ */
 export const cozyTropical: LayoutPreset = {
   id: 'cozy-tropical',
-  name: 'Cozy Tropical',
-  description: 'Teak floors, sage walls, greens and terracotta accents.',
+  group: 'theme',
+  name: 'Tropical Biophilic',
+  description: 'Teak floors, sage walls, lush greenery and terracotta accents.',
   dryFloor: 'floor-wood-teak',
   wall: 'wall-paint-sage',
+  paletteId: 'sage-cream',
   style: {
     'sofa-3seat': {
       color: '#3f6b5e',
@@ -36,4 +42,25 @@ export const cozyTropical: LayoutPreset = {
     'potted-plant': { type: 'fiddle', size: 'large', leafColor: '#3f7a3f' },
     curtains: { color: '#cfd3b8' },
   },
+  // Bedrooms keep the warm wood + terracotta throw but drop the living room's
+  // saturated sofa green, reading calmer under the same theme (RM2).
+  categoryStyle: {
+    bedroom: {
+      'bed-queen': { beddingColor: '#e2dcc8' },
+    },
+    masterBedroom: {
+      'bed-queen': { beddingColor: '#e2dcc8' },
+    },
+  },
+  // Biophilic touch: an extra potted plant in the main bedroom (living/dining
+  // already has one at `default-ld-plant`).
+  extraItems: [
+    {
+      id: 'cozy-plant-bedroom',
+      defId: 'potted-plant',
+      position: [2.6, 3.2],
+      rotation: 0,
+      props: { type: 'fiddle', size: 'medium', leafColor: '#3f7a3f' },
+    },
+  ],
 }

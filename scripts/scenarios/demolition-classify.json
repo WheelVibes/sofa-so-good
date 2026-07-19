@@ -1,0 +1,52 @@
+{
+  "name": "demolition-classify",
+  "description": "TODO G7 — SG demolition/hacking-plan hardening. Classifies a baseline wall load-bearing and one unclassified, then demolishes both (removed from the live plan, still present in `baselinePlan`) so the drawing set's demolition sheet must render a hard 'NOT PERMITTED — load-bearing' danger callout for the classified wall and a '⚠ Structure unverified' warning for the unknown one, plus the concise SG permit-note block. openDrawingSet() opens a new window and calls document.write; window.open is intercepted (stub capturing the written HTML) so the real popup never spawns.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "boot-settled", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 60000 },
+    { "name": "settle-post-boot", "wait": 600 },
+
+    { "name": "seed-plan", "store": { "action": "newFloorPlan", "args": ["G7 hacking demo"] } },
+
+    {
+      "name": "add-classified-walls",
+      "eval": "(function(){ const s = window.__store.getState(); const lbWall = { id: 'g7-lb', start: [0,0], end: [3,0], thickness: 'internal', structure: 'load-bearing' }; const unkWall = { id: 'g7-unk', start: [3,0], end: [3,3], thickness: 'internal' }; const withWalls = (plan) => ({ ...plan, walls: [...plan.walls, lbWall, unkWall] }); window.__store.setState({ floorPlan: withWalls(window.__store.getState().floorPlan), baselinePlan: withWalls(window.__store.getState().baselinePlan) }); })()"
+    },
+    {
+      "name": "assert-classified-on-live-wall",
+      "eval": "(function(){ const w = window.__store.getState().floorPlan.walls.find((w) => w.id === 'g7-lb'); if (!w || w.structure !== 'load-bearing') throw new Error('load-bearing classification did not stick on the live wall'); })()"
+    },
+
+    {
+      "name": "demolish-classified-walls",
+      "eval": "(function(){ const s = window.__store.getState(); window.__store.setState({ floorPlan: { ...s.floorPlan, walls: s.floorPlan.walls.filter((w) => w.id !== 'g7-lb' && w.id !== 'g7-unk') } }); })()"
+    },
+
+    {
+      "name": "patch-window-open",
+      "eval": "window.__capturedHtml = null; window.__origWindowOpen = window.open; window.open = function () { return { document: { write: function (html) { window.__capturedHtml = html }, close: function () {} }, close: function () {}, focus: function () {}, print: function () {} }; };"
+    },
+    { "name": "open-file", "click": { "text": "File" } },
+    { "name": "file-panel-open", "waitFor": { "css": ".pop-panel" }, "timeout": 10000 },
+    { "name": "settle-file", "wait": 400 },
+    {
+      "name": "click-drawing-set",
+      "eval": "(function(){ const btn = [...document.querySelectorAll('.pop-panel button')].find(b => b.textContent.includes('Drawing set')); if (!btn) throw new Error('Drawing set button not found'); btn.click(); })()"
+    },
+    {
+      "name": "wait-html-captured",
+      "waitFor": { "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 0" },
+      "timeout": 15000,
+      "failMessage": "openDrawingSet() never wrote HTML via the intercepted window.open"
+    },
+    {
+      "name": "assert-demolition-classification",
+      "eval": "(function(){ const html = window.__capturedHtml; window.open = window.__origWindowOpen; if (!html.includes('NOT PERMITTED')) throw new Error('missing NOT PERMITTED danger callout for the load-bearing demolished wall'); if (!html.includes('NOT PERMITTED \\u2014 load-bearing')) throw new Error('missing the load-bearing NOT PERMITTED legend row text'); if (!html.includes('\\u26A0')) throw new Error('missing the \\u26A0 warning marker for the unverified demolished wall'); if (!html.includes('Structure unverified')) throw new Error('missing the unverified-structure legend note'); if (!html.includes('class=\"permit-notes\"')) throw new Error('missing the permit-notes block'); if (!html.includes('HDB permit')) throw new Error('missing the HDB permit note text'); if (!html.includes('Professional Engineer') && !html.includes('PE endorsement')) throw new Error('missing the PE endorsement note text'); if (!html.includes('user-declared')) throw new Error('missing the user-declared verification caveat'); if (!html.includes('class=\"legend\"')) throw new Error('missing the demolition legend'); })()"
+    },
+    { "name": "shot-demolition-classify", "screenshot": "demolition-classify" }
+  ]
+}

@@ -4,6 +4,7 @@ import {
   ClearancePanel,
   CommentsPanel,
   DaylightPanel,
+  DesignChatPanel,
   DesignScorePanel,
   DrawingCalloutsPanel,
   ElevationPanel,
@@ -17,8 +18,10 @@ import {
   ParametricDialog,
   ProductTour,
   RenderCompareModal,
+  RenovationBudgetPanel,
   ShareModal,
   SmartStartWizard,
+  VersionCompareModal,
   VersionsPanel,
 } from './lazyComponents'
 
@@ -55,14 +58,17 @@ const PRELOAD_ORDER: Preloadable[] = [
   PanoTourModal,
   HqRenderModal,
   RenderCompareModal,
+  VersionCompareModal,
   ProductTour,
   // Pro/analysis panels (PERF-004): out of the boot bundle, idle-warmed so they
   // open instantly + are offline-ready, like every other on-demand chunk.
   BudgetPanel,
+  RenovationBudgetPanel,
   ClearancePanel,
   DaylightPanel,
   DesignScorePanel,
   CommentsPanel,
+  DesignChatPanel,
   DrawingCalloutsPanel,
   AccessibilityPanel,
   FlagsPanel,

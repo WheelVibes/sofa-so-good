@@ -1,0 +1,18 @@
+{
+  "name": "tap-pass-desktop",
+  "description": "Desktop spot-check (1280x900, no touch) that the mobile tap-target rules did not grow desktop controls.",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; (function(){ const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); s.setUiMode?.('pro'); s.reresolveFeatureFlags?.(); })()" },
+    { "name": "desktop", "viewport": { "width": 1280, "height": 900 } },
+    { "name": "settle", "wait": 1500 },
+    { "name": "enter-room", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "settle-enter", "wait": 1500 },
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "catalog-visible", "waitFor": { "css": ".catalog" }, "timeout": 8000 },
+    { "name": "settle-catalog", "wait": 1200 },
+    { "name": "measure-catalog", "eval": "(() => { const chip=document.querySelector('.catalog .chip'); const tab=document.querySelector('.catalog .tab'); const pg=document.querySelector('.catalog .pager button'); const srch=document.querySelector('.catalog .cat-search .input'); const h=el=>el?Math.round(el.getBoundingClientRect().height):'n/a'; const o=document.createElement('div'); o.style.cssText='position:fixed;top:8px;left:8px;z-index:2147483647;background:#111;color:#0f0;font:13px monospace;padding:8px 12px;border-radius:6px'; o.textContent='DESKTOP catalog heights → chip:'+h(chip)+' tab:'+h(tab)+' pager:'+h(pg)+' search:'+h(srch)+' px'; document.body.appendChild(o); })()" },
+    { "name": "shot-catalog", "screenshot": "d1-catalog-desktop" }
+  ]
+}

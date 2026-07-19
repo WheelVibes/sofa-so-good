@@ -11,6 +11,18 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   to either. Only `nearbyFixtureId` (which item the walk-mode reticle is aimed at) is slice-local
   session state, mirroring `doorsSlice.nearbyDoorId` — never persisted. Contrast with `doorsSlice`,
   which DOES need its own persisted `doors: Record<id, {open}>` because doors aren't `PlacedItem`s.
+- **`doorsSlice.DoorState.leaf: 'none'`** (BSJ-4 bare-BTO / resale strip-out) marks a door leaf
+  ABSENT — the opening + wall cutout stay, only the swinging leaf is gone. It rides the existing
+  `doors` record (already in `serialize()`, the autosave watch-list, and the history snapshot), so it
+  needs **no** new persisted field — set it by patching `doors`, exactly like the
+  `windowFixtureSlice` open/closed value below. It's keyed by door/opening id, so ONE field covers
+  BOTH the fixed default flat (`Door.tsx`, `DoorSpec` ids) and custom plans (`PlanDoorLeaf.tsx`,
+  opening ids); both render `null` when the leaf is absent while the 2D plan symbol still draws the
+  opening (it reads `plan.openings`, not `doors`). An absent leaf is also set `open:true` (a permanent
+  passage) so walk-mode collision stays honest. Chosen over a `PlanOpening.leaf` plan field precisely
+  because the fixed flat's doors aren't plan openings — the doors record is the one representation both
+  paths share. The `resetSlice` intake actions (`applyBareBto`/`applyResaleStripout`) set it via
+  `intakeStates.absentLeafDoorIds`; `applyResaleAsIs` clears it (leaves restored).
 - **`screenInteractSlice`/`lightInteractSlice`** (WALK-SCREEN-INTERACT/WALK-LIGHT-INTERACT) follow
   the exact same `windowFixtureSlice` shape — each just `nearby*Id` (session-only, set by
   `FirstPersonCamera`'s aim loop, cleared on leaving walk mode) + a single toggle action
