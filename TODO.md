@@ -436,13 +436,16 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
   "Warranty & defect dates" group, `HandoverPanel` (Tools → Handover & DLP) with a persisted
   `keyCollectionDate` input + countdowns (additive zod + autosave). Rides the `report` flag.
 
-## Blank-slate journey queue (2026-07-19 goal)
+## Blank-slate journey queue (2026-07-19 goal) — ✅ FULLY SHIPPED (BSJ-1…BSJ-8)
+> All eight ranked items shipped. Only two follow-ups remain open below (BSJ-2 3D
+> trunking route + BSJ-8 3D floor-level representation) — both deliberate deferrals
+> with an approach sentence; the near-misses list stays as a don't-re-propose record.
 > Goal (product owner): serve new SG HDB/condo buyers designing their home fully from a
 > blank slate WITHOUT an interior designer. Full walk of bare-handover → fully-designed
 > journey + per-stage coverage verdicts + near-misses cleared:
 > `docs/research/2026-07-19-blank-slate-gap-analysis.md`. Ranked by how badly each blocks
 > the "no ID needed" promise. Each verified absent against the flag registry +
-> `analysis/`/`floorplan/`/`furniture/defs/` this pass. NOT yet started.
+> `analysis/`/`floorplan/`/`furniture/defs/` this pass. All eight shipped (see items below).
 - [x] **BSJ-1 — Whole-reno budget allocator (by trade/stage)** (M, simple) — DONE (v0.22.2.x):
   pure `analysis/renovationAllocator.ts` derives a full SG trade breakdown (hacking/tiling/flooring/
   carpentry/ceiling/painting/M&E/aircon/glass/fixtures + contingency + SG benchmark band) from the
@@ -506,14 +509,28 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
   `MixerTap` (standalone counter/basin mixer, `mixer-tap`) — following the floor-anchored/+Z/real-
   Material conventions; picked up by the structural-soundness sweep. Prices/keywords added; verified
   in `wet-area-catalog-bsj6.json`.
-- [ ] **BSJ-7 — Waterproofing-zone model** (S/M, pro) — turn the wet-area waterproofing
-  ADVISORY (`hdbCompliance.ts` + `renoTimeline` + `renoRulesPack`) into a modeled zone per wet
-  room (floor extent + wall upturn height) feeding the finish schedule + the tiler pack (BSJ-5).
-  Pure client.
-- [ ] **BSJ-8 — Floor build-up / level & transition-strip model** (S/M, pro) — per-room floor
-  finish thickness/level so finish transitions, door undercut, and the bathroom kerb/step-down
-  are representable; emit a transitions schedule (also refines floor-loading). No floor-level
-  model exists today. Pure client.
+- [x] **BSJ-7 — Waterproofing-zone model** (S/M, pro) — DONE (`waterproofing` flag): pure
+  `floorplan/waterproofing.ts` (`buildWaterproofingZones` → per wet/hard-service room, floor area +
+  300 mm general / 1800 mm shower-wall upturn — shower localized from placed `shower`/`shower-screen`
+  items, else full bath perimeter conservatively — + total membrane area). Fed to a diagonal wet-area
+  hatch + zone table on the Dimensioned plan (`autoDimensionSvg.ts` overlay), the Tiler handover pack,
+  an unconditional "waterproofing membrane below" note on the finish schedule's wet floor rows, and an
+  additive `waterproofing` budget sub-line (`renovationAllocator.ts`, `trades.waterproofingPerM2`).
+  Tests: `waterproofing.test.ts`, `renovationAllocator.waterproofing.test.ts`, both-modes flag test.
+- [x] **BSJ-8 — Floor build-up / level & transition model** (S/M, pro) — DONE (`floorLevels` flag):
+  additive `PlanRoom.floorLevelMm?` (schema ⇄ types parity, round-trip test) — DOCUMENTATION-level
+  (does NOT move the 3D floor; 3D representation filed as a follow-up below). Pure
+  `floorplan/floorLevels.ts` derives per-room FFL tags, doorway step/transition markers (between
+  rooms at different levels), and a kerb/step advisory (wet room level with an adjacent dry room).
+  Rendered as FFL pills + step diamonds + legend on the Dimensioned plan (same overlay) + Tiler pack;
+  RoomInspector "Floor level (mm)" field (pro-gated). Intake states don't seed it (documented —
+  default-flat mutations are session-only). Tests: `floorLevels.test.ts`, schema round-trip, both-modes.
+- [ ] **BSJ-8 follow-up — 3D floor-level representation** (M, pro) — v1 is documentation-only. A future
+  pass could lower the 3D floor mesh + skirting to a room's `floorLevelMm` and add a real threshold
+  step/ramp at each transition. Approach: offset the room's floor plane (and its furniture Y baseline)
+  by `floorLevelMm/1000` in the plan-room shell + `PlanRoomCeiling`/floor renderers, re-seat items on
+  the lowered plane, and model the doorway step as a short vertical face. Deferred because it ripples
+  through furniture Y-placement, walk-mode collision, and stair/level math — needs its own careful pass.
 - [ ] **BSJ-2 follow-up — 3D refrigerant-trunking route** (S/M, pro) — the aircon system planner
   (BSJ-2) currently emits a one-line trunking ADVISORY per system ("runs from the AC ledge along
   the corridor ceiling — confirm with installer") rather than a modeled route. Approach when built:

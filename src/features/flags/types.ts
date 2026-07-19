@@ -200,6 +200,8 @@ export type FeatureFlag =
   | 'floorLoading'
   | 'renoRulesPack'
   | 'renoBudget'
+  | 'waterproofing'
+  | 'floorLevels'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

@@ -15,6 +15,7 @@
 
 import { allPlanRooms, type PlanLevel, planLevels } from './levels'
 import { openingProbePoints } from './openingProbe'
+import { roomCategory } from './roomCategory'
 import {
   type RoomFinishMaps,
   resolvePlanRoomCeiling,
@@ -23,6 +24,7 @@ import {
 } from './roomFinishes'
 import type { CeilingConfig, FloorPlan, PlanOpening, PlanRoom, PlanWall } from './types'
 import { planRoomArea, planRoomPerimeter, pointInRoom, wallLength } from './types'
+import { WATERPROOF_CATEGORIES } from './waterproofing'
 
 /** Shown when a room never had a wall finish picked (neutral plaster shell). */
 export const NEUTRAL_WALL = 'Plaster (neutral)'
@@ -205,9 +207,20 @@ function wallOrientation(w: PlanWall): string {
  *  physical size (no base tile dimension is stored anywhere in the model) —
  *  show the factor, never invent a mm size. Omitted for the default scale (1). */
 function floorSpec(room: PlanRoom): string | undefined {
+  const parts: string[] = []
   const scale = room.floorTexScale
-  if (scale === undefined || Math.abs(scale - 1) < 1e-3) return undefined
-  return `×${Math.round(scale * 100) / 100} tile scale (base tile size not modelled)`
+  if (scale !== undefined && Math.abs(scale - 1) >= 1e-3) {
+    parts.push(`×${Math.round(scale * 100) / 100} tile scale (base tile size not modelled)`)
+  }
+  // Wet rooms (bath / powder / kitchen / service yard / balcony) carry a
+  // waterproofing membrane below the tiled floor (BSJ-7) — an honest finishing
+  // note the tiler/waterproofer needs, always shown (factual, like the tiling
+  // scale). The modeled membrane extent + upturn heights live on the dimensioned
+  // plan + tiler pack.
+  if (WATERPROOF_CATEGORIES.has(roomCategory(room))) {
+    parts.push('waterproofing membrane below')
+  }
+  return parts.length > 0 ? parts.join(' · ') : undefined
 }
 
 /** Ceiling-treatment note: a flat ceiling's area IS the floor footprint; a

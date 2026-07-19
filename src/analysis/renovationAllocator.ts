@@ -32,6 +32,7 @@
 import { diffWalls } from '../floorplan/demolitionPlan'
 import { roomCategory } from '../floorplan/roomCategory'
 import { type FloorPlan, type PlanRoom, planRoomArea, planRoomPerimeter } from '../floorplan/types'
+import { buildWaterproofingZones, totalMembraneAreaM2 } from '../floorplan/waterproofing'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildAirconSystemPlan } from './airconSystem'
 import type { PriceRules, TradeRates } from './renovationCost'
@@ -95,6 +96,9 @@ export interface RenoAllocatorInput {
   orientationDeg?: number
   /** The user's budget target (SGD); enables the over/under comparison. */
   budgetTarget?: number
+  /** Add the waterproofing membrane sub-line (BSJ-7, `waterproofing` flag). When
+   *  false/absent the wet-works lines are unchanged (no regression). */
+  waterproofing?: boolean
 }
 
 /** Wet-work room categories: floors + walls are tiled + waterproofed. */
@@ -258,6 +262,21 @@ export function buildRenovationAllocation(input: RenoAllocatorInput): RenoAlloca
     tilingCost,
     'Tiling & waterproofing',
   )
+
+  // Waterproofing membrane sub-line (BSJ-7): the modeled wet-area zone area
+  // (floor + wall upturn), priced at the additive `trades.waterproofingPerM2`
+  // rate. Gated by the `waterproofing` flag so it's a no-op regression when off.
+  if (input.waterproofing) {
+    const membraneArea = totalMembraneAreaM2(buildWaterproofingZones(plan, items))
+    push(
+      'waterproofing',
+      'Waterproofing membrane (wet areas)',
+      membraneArea,
+      'm²',
+      membraneArea * trades.waterproofingPerM2,
+      'Tiling & waterproofing',
+    )
+  }
 
   let dryFloorArea = 0
   let dryFloorCost = 0

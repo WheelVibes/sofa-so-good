@@ -51,6 +51,7 @@ import { buildSection } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, planRoomArea } from '../floorplan/types'
+import { buildWaterproofingZones } from '../floorplan/waterproofing'
 import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
@@ -567,13 +568,20 @@ export function buildDrawingSheets(
     })
   }
 
-  // Dimensioned plan — overall + per-room running dimensions, per storey.
+  // Dimensioned plan — overall + per-room running dimensions, per storey. Also
+  // hosts the waterproofing hatch (BSJ-7) + floor-level FFL tags / step markers
+  // (BSJ-8), each gated by its own flag.
+  const showWaterproofing = isFeatureEnabled('waterproofing')
+  const showFloorLevels = isFeatureEnabled('floorLevels')
   if (layerOn(layers, 'dimensions')) {
     for (const level of levels) {
       if (!Array.isArray(level.walls) || level.walls.length === 0) continue
       const levelPlan = levelAsPlan(plan, level)
       const [pw, pd] = planBounds(levelPlan)
       const scale = planScale(pw, pd, template.paperSize, template.orientation)
+      const waterproofingZones = showWaterproofing
+        ? buildWaterproofingZones(levelPlan, itemsOnLevel(items, level.id))
+        : undefined
       sheets.push({
         name: cap('Dimensioned plan', level),
         body: `<div class="draw">${dimensionSvg(levelPlan, {
@@ -582,6 +590,8 @@ export function buildDrawingSheets(
           units,
           printMmPerM: scale.mmPerM,
           settingOut: showSettingOut,
+          waterproofingZones,
+          floorLevels: showFloorLevels,
         })}</div>${northIndicatorSvg(orientationDeg)}`,
         calloutGroup: 'dimensions',
         scaleLabel: scale.label,

@@ -1247,6 +1247,24 @@ same change that reshapes a system.
   (`reportPlanSvg.ts`'s `showTileMarks`, gated to when the finishes sheet is also
   included). `FloorPlan.datum?: {x,z}` is an additive optional override reserved for
   a future placement UI (unused by any editor in this pass).
+  **Waterproofing zones (BSJ-7, `waterproofing` flag, pro):** `floorplan/waterproofing.ts`
+  (pure → `buildWaterproofingZones(plan, items)`) models a zone per wet/hard-service room
+  (bath/powder/kitchen/serviceYard/balcony) = floor area + wall upturn (300 mm general,
+  1800 mm at shower walls — localized from a placed `shower`/`shower-screen`, else the full
+  bath perimeter conservatively) + a total membrane area (m²). Fed to: a diagonal wet-area
+  hatch + zone table on the dimensioned plan (`autoDimensionSvg.ts` overlay), the tiler
+  handover pack (`ui/tradePacks.ts`), a "waterproofing membrane below" note on wet floor rows
+  of the finish schedule (unconditional — factual), and an additive `waterproofing` budget
+  sub-line (`renovationAllocator.ts`, `trades.waterproofingPerM2`, gated by the flag).
+  **Floor levels & transitions (BSJ-8, `floorLevels` flag, pro):** additive
+  `PlanRoom.floorLevelMm?` (mm vs the FFL datum; schema.ts ⇄ types.ts parity) is
+  DOCUMENTATION-level — it does NOT move the 3D floor mesh (follow-up). `floorplan/floorLevels.ts`
+  (pure) derives per-room FFL tags (`buildRoomFflTags`, only where set), doorway step markers
+  between rooms at different levels (`buildFloorTransitions`, via `openingProbe.roomsAcrossOpening`),
+  and a kerb/step advisory (`buildKerbAdvisories` — a bath/powder level with its adjacent dry room).
+  Rendered as FFL pills + step diamonds + a legend on the dimensioned plan (same `autoDimensionSvg.ts`
+  overlay) and in the tiler pack; edited via the RoomInspector "Floor level (mm)" field. Intake
+  states deliberately don't seed it (see `intakeStates.ts` note).
   **Carpentry/joinery elevations + sections (TODO G8, `carpentrySheets` flag, pro):**
   the single most-cited DIY-handover gap — a dimensioned front elevation + one
   representative section per distinct PLACED parametric piece (bookshelf/wardrobe/

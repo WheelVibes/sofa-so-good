@@ -188,6 +188,17 @@ export interface PlanRoom {
   polygon?: PlanVec2[]
   /** Optional per-room ceiling height. */
   ceilingHeight?: number
+  /** Optional finished-floor-level offset (mm) vs the main FFL datum (BSJ-8 —
+   *  `floorLevels` pro flag). Negative = below the datum (a bathroom is
+   *  typically −25/−50 mm below the adjacent dry rooms so water can't run out; a
+   *  balcony −50 mm). Absent → level with the datum (0). This is a
+   *  DOCUMENTATION-level field in v1: it drives per-room FFL tags + doorway
+   *  step/transition markers on the dimensioned/setting-out plan, the kerb/step
+   *  advisory, and the tiler pack — it does NOT move the 3D floor mesh (that
+   *  would ripple through furniture Y-placement; filed as a follow-up). Set from
+   *  the floor-plan editor's `RoomInspector` "Floor level" field. Additive +
+   *  optional — no schema-version bump. */
+  floorLevelMm?: number
   /** Optional floor finish (catalog material id); defaults to oak in the shell. */
   floor?: string
   /** Optional wall finish (catalog material id); plain plaster when unset. */

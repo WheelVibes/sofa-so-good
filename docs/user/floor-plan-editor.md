@@ -430,6 +430,19 @@ You can **drag a room's name** on the plan to nudge it clear of furniture or a t
 room — it prints in the new spot on the Report and Drawing set too. The inspector's
 **Reset label position** button recentres it.
 
+**Floor level (mm)** *(Pro)* — a selected room's inspector has a **Floor level**
+field: the finished-floor offset in millimetres versus your home's main floor
+datum (e.g. a bathroom **−50**, a balcony **−50**, so water can't run out into the
+dry rooms). It's documentation only — it tags the **Dimensioned plan** and the
+**Tiler** handover pack with an "FFL −50" marker, and draws a **step / transition
+strip** marker at any doorway where two rooms sit at different levels; it does *not*
+move the 3D floor. Rooms you leave at 0 sit level with the datum and get no tag.
+
+Wet rooms (bathrooms, powder rooms, kitchen, service yard, balcony) also print a
+diagonal **waterproofing hatch** on the Dimensioned plan and a per-room
+waterproofing zone table (floor area + wall upturn heights) in the Tiler pack —
+see [Design tools → Drawing set](design-tools.md).
+
 **Duplicate room** — at the bottom of a selected room's inspector, **Duplicate
 room** drops a complete copy beside the original: its shape (rectangle, L‑shape
 or free‑form polygon), its floor and wall finishes, and its own boundary walls

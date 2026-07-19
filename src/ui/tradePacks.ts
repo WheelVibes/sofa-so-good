@@ -29,11 +29,17 @@ import { buildSocketAdvisory, DB_LOAD_NOTE } from '../analysis/socketAdvisory'
 import { DEFAULT_DRAWING_SET_TEMPLATE, type DrawingSetTemplate } from '../export/drawingSetTemplate'
 import type { ElectricalPoint } from '../floorplan/electricalPlan'
 import { buildFinishSchedule, type FinishSchedule } from '../floorplan/finishSchedule'
+import {
+  buildFloorTransitions,
+  buildKerbAdvisories,
+  buildRoomFflTags,
+} from '../floorplan/floorLevels'
 import { allPlanRooms } from '../floorplan/levels'
 import { ELECTRICAL_MOUNT_DEFAULTS_MM } from '../floorplan/mepPoints'
 import type { PlumbingPoint } from '../floorplan/plumbingPlan'
 import { buildSwitchCircuits } from '../floorplan/switchCircuits'
 import { type FloorPlan, pointInRoom } from '../floorplan/types'
+import { buildWaterproofingZones, upturnLabel } from '../floorplan/waterproofing'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
@@ -222,8 +228,8 @@ function schedTable(headers: string[], rows: string[]): string {
 }
 
 /** Wet-area notes carried on the tiler pack cover (SG waterproofing/tiling
- *  handover conventions). Text-only — the modelled waterproofing zone is a
- *  separate future item (BSJ-7). */
+ *  handover conventions). The modeled waterproofing zone TABLE + floor-level
+ *  tags (BSJ-7/8) are appended after these notes by `packAdvisory`. */
 const WET_AREA_NOTES = [
   'Waterproofing membrane to every wet area (bath / WC / kitchen / service yard) — floor + a wall upturn (typically ≥150 mm, ≥1.8 m at shower walls); confirm the system + warranty.',
   'Fall the wet-area floor to the floor trap; kerb / step-down at the bath threshold.',
@@ -259,9 +265,53 @@ function packAdvisory(id: TradePackId, input: TradePackInput, exclusions: string
     rooms.find((r) => pointInRoom(r, x, z))?.name
 
   if (id === 'tiler') {
+    // Modeled waterproofing zones (BSJ-7): per wet room, the floor area +
+    // upturn heights + total membrane area a waterproofer prices from.
+    const zones = buildWaterproofingZones(plan, items)
+    const zoneRows = zones.map(
+      (z) =>
+        `<tr><td>${esc(z.roomName)}</td><td class="n">${sqm(z.floorAreaM2, units)}</td><td>${esc(upturnLabel(z))}</td><td class="n">${sqm(z.membraneAreaM2, units)}</td></tr>`,
+    )
+    const zoneTable =
+      zoneRows.length > 0
+        ? `<h3 class="fin-h3">Waterproofing zones</h3>${schedTable(
+            ['Wet area', 'Floor', 'Wall upturn', 'Membrane area'],
+            zoneRows,
+          )}<div class="fin-caveat">Membrane area = floor + wall-upturn bands; verify the system + warranty on site.</div>`
+        : ''
+
+    // Floor levels / transitions (BSJ-8): FFL tags where set, doorway steps, and
+    // the kerb advisory — the same derivation the dimensioned plan tags.
+    const ffl = buildRoomFflTags(plan)
+    const fflRows = ffl.map(
+      (t) => `<tr><td>${esc(t.roomName)}</td><td class="n">${esc(t.tag)}</td></tr>`,
+    )
+    const fflTable =
+      fflRows.length > 0
+        ? `<h3 class="fin-h3">Finished floor levels (vs datum)</h3>${schedTable(
+            ['Room', 'FFL'],
+            fflRows,
+          )}`
+        : ''
+    const transitions = buildFloorTransitions(plan)
+    const kerbs = buildKerbAdvisories(plan)
+    const levelNotes = [
+      ...transitions.map(
+        (t) => `Threshold ${esc(t.roomAName)} ↔ ${esc(t.roomBName)}: ${esc(t.note)}.`,
+      ),
+      ...kerbs.map((k) => esc(k.note)),
+    ]
+    const levelNotesHtml =
+      levelNotes.length > 0
+        ? `<ol class="notes-ol">${levelNotes.map((n) => `<li>${n}</li>`).join('')}</ol>`
+        : ''
+
     return (
       `<h3 class="fin-h3">Wet-area notes</h3>` +
-      `<ol class="notes-ol">${WET_AREA_NOTES.map((n) => `<li>${esc(n)}</li>`).join('')}</ol>`
+      `<ol class="notes-ol">${WET_AREA_NOTES.map((n) => `<li>${esc(n)}</li>`).join('')}</ol>` +
+      zoneTable +
+      fflTable +
+      levelNotesHtml
     )
   }
 

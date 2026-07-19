@@ -1760,6 +1760,31 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Waterproofing-zone model (blank-slate BSJ-7): turns the wet-area
+  // waterproofing ADVISORY into a modeled zone per wet room (floor extent + wall
+  // upturn heights — 300 mm general, 1800 mm at shower walls) that feeds a
+  // diagonal wet-area hatch + a per-room zone table on the dimensioned plan, the
+  // tiler handover pack, and a waterproofing budget sub-line. Pure client-side
+  // over data the app already holds → prod-safe; an analytical/contractor
+  // surface → pro tier, matching the drawing-set sheet flags above it.
+  waterproofing: {
+    label: 'Waterproofing zones',
+    description: 'Wet-area membrane extent + wall upturn on the plan, tiler pack, and budget',
+    default: true,
+    tier: 'pro',
+  },
+  // Floor build-up / levels & transitions (blank-slate BSJ-8): a per-room
+  // finished-floor-level offset (`PlanRoom.floorLevelMm`) surfaced as FFL tags +
+  // doorway step/transition markers on the dimensioned/setting-out plan + tiler
+  // pack, a kerb/step advisory, and a floor-level field in the room inspector.
+  // Documentation-level in v1 (does NOT move the 3D floor mesh). Pure client →
+  // prod-safe; an analytical/contractor surface → pro tier.
+  floorLevels: {
+    label: 'Floor levels & transitions',
+    description: 'Per-room FFL offsets, doorway step markers, and a kerb/step advisory',
+    default: true,
+    tier: 'pro',
+  },
   // Parametric staircase generator (TODO — UX research round 3, Homestyler v6
   // precedent): the adjustable `staircase` catalog item (straight / L / U /
   // spiral, width/rise-run/landing/handrail) that also feeds the multi-storey

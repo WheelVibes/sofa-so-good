@@ -1,0 +1,71 @@
+{
+  "name": "waterproofing-floorlevels-bsj78",
+  "description": "BSJ-7/8 visual verification: (a) the dimensioned plan sheet with waterproofing hatch + zone-derived FFL tags + a doorway step marker + legend (captured drawing-set HTML injected + scrolled to the Dimensioned plan sheet); (b) the room inspector Floor level field in the plan editor. Runs in Pro (both flags are pro-tier).",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "switch-to-pro", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "boot-settled", "waitFor": { "store": "state.bootPhase === 'ready' && state.sceneReady === true" }, "timeout": 60000 },
+    { "name": "settle-post-boot", "wait": 600 },
+
+    {
+      "name": "seed-floor-levels",
+      "eval": "(() => { const s=window.__store.getState(); const rooms=s.floorPlan.rooms; const isBath=(r)=>r.category==='bath'||r.category==='powder'||/bath|toilet|\\bwc\\b/i.test(r.name); const baths=rooms.filter(isBath); if(!baths.length) throw new Error('no bath room in default flat'); s.updateRoom(baths[0].id,{floorLevelMm:-50}); if(baths[1]) s.updateRoom(baths[1].id,{floorLevelMm:-25}); window.__bathId=baths[0].id; window.__bathName=baths[0].name; })()"
+    },
+
+    { "name": "open-editor", "eval": "window.__store.getState().setFloorPlanEditing(true)" },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 30000 },
+    { "name": "settle-editor", "wait": 1500 },
+    {
+      "name": "select-bath-room",
+      "eval": "window.__store.getState().setPlanSelection({ type: 'room', id: window.__bathId })"
+    },
+    { "name": "inspector-visible", "waitFor": { "text": "Floor level (mm)" }, "timeout": 10000 },
+    {
+      "name": "scroll-to-floor-level",
+      "eval": "(() => { const lbl=[...document.querySelectorAll('.label,span')].find(e=>/Floor level \\(mm\\)/.test(e.textContent||'')); lbl?.scrollIntoView({block:'center'}); })()"
+    },
+    { "name": "settle-inspector", "wait": 500 },
+    { "name": "shot-room-inspector-floor-level", "screenshot": "room-inspector-floor-level" },
+
+    { "name": "close-editor", "eval": "window.__store.getState().setFloorPlanEditing(false)" },
+    { "name": "back-to-scene", "waitFor": { "css": ".toolbar" }, "timeout": 20000 },
+    { "name": "settle-scene", "wait": 800 },
+
+    {
+      "name": "patch-window-open",
+      "eval": "window.__capturedHtml=null; window.__origWindowOpen=window.open; window.open=function(){ return { document:{ write:function(html){ window.__capturedHtml=html }, close:function(){} }, close:function(){}, focus:function(){}, print:function(){} }; };"
+    },
+    { "name": "open-file", "click": { "text": "File" } },
+    { "name": "file-panel-open", "waitFor": { "css": ".pop-panel" }, "timeout": 10000 },
+    { "name": "settle-file", "wait": 400 },
+    {
+      "name": "click-drawing-set",
+      "eval": "(function(){ const btn=[...document.querySelectorAll('.pop-panel button')].find(b=>/Drawing set/.test(b.textContent||'')); if(!btn) throw new Error('Drawing set button not found'); btn.click(); })()"
+    },
+    {
+      "name": "wait-html-captured",
+      "waitFor": { "store": "typeof window.__capturedHtml === 'string' && window.__capturedHtml.length > 0" },
+      "timeout": 20000,
+      "failMessage": "openDrawingSet() never wrote HTML via the intercepted window.open"
+    },
+    {
+      "name": "assert-overlay-content",
+      "eval": "(function(){ const h=window.__capturedHtml; for (const needle of ['Waterproofing zone','FFL','step + transition strip']) { if(!h.includes(needle)) throw new Error('drawing-set HTML missing: '+needle); } })()"
+    },
+    { "name": "set-tall-viewport", "viewport": { "width": 1300, "height": 1750 } },
+    {
+      "name": "inject-drawing-set",
+      "eval": "(function(){ document.open(); document.write(window.__capturedHtml); document.close(); })()"
+    },
+    { "name": "settle-injected", "wait": 900 },
+    {
+      "name": "scroll-to-dimensioned-plan",
+      "eval": "(function(){ const g=document.querySelector('.wp-levels-overlay'); if(!g) throw new Error('waterproofing/levels overlay not found in injected HTML'); const svg=g.closest('svg')||g; svg.scrollIntoView({block:'center'}); })()"
+    },
+    { "name": "settle-scroll", "wait": 600 },
+    { "name": "shot-dimensioned-plan-overlay", "screenshot": "dimensioned-plan-overlay" }
+  ]
+}

@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.100 — BSJ-7/8: waterproofing zones + floor levels (blank-slate queue COMPLETE)
+
+BSJ-7 `floorplan/waterproofing.ts`: derived membrane zones per wet room —
+floor area + wall upturn (300 mm general, 1800 mm at shower walls localized
+from placed shower/screen items; conservative full perimeter otherwise) —
+hatched with a zone table on the dimensioned plan, enriched into the tiler
+pack + finish schedule wet rows, and costed as a waterproofing sub-line in
+the renovation budget (`trades.waterproofingPerM2`). BSJ-8: additive
+`PlanRoom.floorLevelMm` with a pro-gated inspector field — FFL pills +
+doorway step markers ("50 mm step + transition strip") + kerb advisories on
+the dimensioned plan and tiler notes; deliberately documentation-level (3D
+floor offset filed with an approach note — it ripples through furniture Y,
+walk collision, stair math). Flags `waterproofing` + `floorLevels` (pro).
+1,527 targeted tests; plan overlay + inspector GPU-verified. All eight
+blank-slate journey items (BSJ-1..8) are now SHIPPED.
+
 ## v0.22.2.99 — BSJ-5: per-trade handover packs (designed → ordered)
 
 File → Trade packs (pro, `tradePacks`): seven per-recipient bundles —

@@ -35,6 +35,15 @@
  *    waterproofing note does (surfaced by `renoRulesPack` / `renoTimeline`).
  *      Refs (2025-26): RCS — HDB renovation budget 2026 (hacking $2-5k; old
  *      wiring/plumbing replacement $3-8k); 9creation — strip-out scope.
+ *
+ * NOTE (BSJ-8): the intake states deliberately do NOT seed `PlanRoom.floorLevelMm`
+ * (e.g. a bare-BTO bath at −50 mm). Seeding it would mean mutating plan room
+ * objects inside `resetSlice` — and on the fixed default flat those mutations are
+ * session-only (the default plan isn't serialized, same caveat BSJ-4's plumbing
+ * provisions carry), so the value would silently vanish on reload for the most
+ * common case. The bath step-down is instead surfaced honestly by the BSJ-8
+ * kerb/step ADVISORY (`floorLevels.ts:buildKerbAdvisories`), and the owner sets an
+ * explicit level per room via the RoomInspector "Floor level" field.
  */
 
 import { planLevels } from '../floorplan/levels'

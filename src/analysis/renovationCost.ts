@@ -79,6 +79,8 @@ export type TradeRateKey =
   | 'glassPerM2'
   /** Sanitary / plumbing fixture install, SGD each. */
   | 'plumbingFixtureEach'
+  /** Waterproofing membrane (wet-area floor + wall upturn, BSJ-7), SGD per m². */
+  | 'waterproofingPerM2'
   /** Contingency, percent of the trade subtotal (0–100). */
   | 'contingencyPct'
 
@@ -94,6 +96,7 @@ export const DEFAULT_TRADE_RATES: TradeRates = {
   airconPerUnit: 1800,
   glassPerM2: 240,
   plumbingFixtureEach: 150,
+  waterproofingPerM2: 35,
   contingencyPct: 10,
 }
 

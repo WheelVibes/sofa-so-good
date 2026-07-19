@@ -459,6 +459,22 @@ Print or save as PDF for
   Finishes schedule is also included), a small violet **+** marks each room's tile
   setting-out start point (its centre), with a one-line note explaining the
   convention: **"start laying here, verify joints on site"**.
+- **Waterproofing zones (Pro).** The **Dimensioned plan** also hatches every wet /
+  hard-service room (bathroom, powder room, kitchen, service yard, balcony) with a
+  diagonal **waterproofing** pattern, and the **Tiler** handover pack lists a
+  per-room zone table — floor area, wall upturn heights (**300 mm** general, **1800
+  mm** at shower walls, taken over the full bathroom perimeter when no shower is
+  placed), and the total membrane area a waterproofer prices from. Wet floor rows
+  of the finish schedule note **"waterproofing membrane below"**, and the
+  Renovation budget gains a **Waterproofing membrane** line (its own editable rate
+  in the Quote template).
+- **Floor levels & transitions (Pro).** If you set a room's **Floor level (mm)** in
+  the plan editor (a bathroom **−50**, a balcony **−50**…), the Dimensioned plan and
+  Tiler pack tag it with an **"FFL −50"** marker and draw a **step + transition
+  strip** marker at each doorway between rooms at different levels, with a legend. A
+  wet room left *level* with an adjacent dry room raises a **kerb/step advisory**
+  ("no step/kerb between bath and bedroom — verify hob/kerb with contractor"). This
+  is documentation for your tiler — it doesn't move the 3D floor.
 - **Door & window schedule.** A typed-marks table (**D1, D2…** for doors, **W1,
   W2…** for windows — every opening of the same kind/width/height **and style/
   material** sharing one mark, so a sliding door and a swing door of the same

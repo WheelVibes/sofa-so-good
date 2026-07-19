@@ -6,6 +6,7 @@
  */
 
 import { buildRenovationAllocation, type RenoAllocation } from '../analysis/renovationAllocator'
+import { isFeatureEnabled } from '../features/featureFlags'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import type { FloorPlan } from '../floorplan/types'
 import { buildMergedCatalog } from '../furniture/catalog'
@@ -42,6 +43,7 @@ export function assembleRenoAllocation(state: RootState): RenoAllocation {
     baselinePlan: state.baselinePlan,
     orientationDeg: state.orientationDeg,
     budgetTarget: state.budgetTarget ?? undefined,
+    waterproofing: isFeatureEnabled('waterproofing'),
   })
 }
 

@@ -333,6 +333,9 @@ const PlanRoomZ = z.object({
   // silently reverts to its bounding rectangle on reload.
   polygon: z.array(Vec2Z).optional(),
   ceilingHeight: z.number().optional(),
+  // Finished-floor-level offset (mm) vs the main FFL datum (BSJ-8, `floorLevels`
+  // flag). Optional + additive → no schema-version bump; absent = level (0).
+  floorLevelMm: z.number().optional(),
   floor: z.string().optional(),
   // Per-room wall finish (optional + additive → no schema-version bump).
   wall: z.string().optional(),

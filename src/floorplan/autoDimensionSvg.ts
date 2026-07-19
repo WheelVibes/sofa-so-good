@@ -24,8 +24,10 @@
 
 import { formatLength, type UnitSystem } from '../utils/measurement'
 import { buildDimensions, type Dimension } from './autoDimension'
+import { buildFloorTransitions, buildRoomFflTags } from './floorLevels'
 import { type SettingOutFace, settingOutDimensions } from './settingOut'
-import { type FloorPlan, planBounds } from './types'
+import { type FloorPlan, planBounds, roomPolygon } from './types'
+import type { WaterproofingZone } from './waterproofing'
 
 interface DimensionSvgPalette {
   /** Strong foreground (dimension lines, ticks, labels). */
@@ -50,6 +52,13 @@ export interface DimensionSvgOpts {
   /** Draw the setting-out datum + running dimension rows (`settingOutDims`
    *  flag, TODO G3). Default false (existing callers are unaffected). */
   settingOut?: boolean
+  /** Waterproofing zones (BSJ-7, `waterproofing` flag) to hatch on the plan +
+   *  list in a legend. Built by the caller from the plan + placed items. Absent
+   *  / empty → no wet-area overlay. */
+  waterproofingZones?: readonly WaterproofingZone[]
+  /** Draw per-room FFL tags + doorway step/transition markers (BSJ-8,
+   *  `floorLevels` flag), derived from `PlanRoom.floorLevelMm`. Default false. */
+  floorLevels?: boolean
 }
 
 /** Padding (metres) around the plan bounds so offset dimension lines fit. */
@@ -148,6 +157,13 @@ export function dimensionSvg(plan: FloorPlan, opts: DimensionSvgOpts): string {
   // the auto-dims above, sharing this sheet's exact scale/transform.
   if (showSettingOut) {
     parts.push(settingOutMarkup(plan, px, py, palette, units))
+  }
+
+  // Waterproofing hatch (BSJ-7) + floor-level FFL tags & step markers (BSJ-8) —
+  // a documentation overlay for the tiler, sharing this sheet's scale/transform.
+  const zones = opts.waterproofingZones ?? []
+  if (zones.length > 0 || opts.floorLevels) {
+    parts.push(wetAndLevelsOverlay(plan, zones, opts.floorLevels === true, px, py, heightPx))
   }
 
   parts.push('</svg>')
@@ -300,6 +316,108 @@ function hTickLabel(cx: number, cy: number, label: string, color: string, row = 
     `<line x1="${n(cx - TICK)}" y1="${n(cy)}" x2="${n(cx + TICK)}" y2="${n(cy)}" stroke="${esc(color)}" stroke-width="1"/>` +
     `<text x="${n(cx - TICK - 3 - row * LABEL_ROW_GAP)}" y="${n(cy)}" font-size="${FONT - 2}" text-anchor="end" dominant-baseline="middle" fill="${esc(color)}">${esc(label)}</text>`
   )
+}
+
+// --- Waterproofing + floor-level overlay (BSJ-7 / BSJ-8) --------------------
+/** Waterproofing hatch colour (print sheet, not a themed DOM surface). */
+const WP_COLOR = '#0891b2'
+/** Floor-level step / FFL tag colour. */
+const FFL_COLOR = '#b45309'
+
+/**
+ * Wet-area waterproofing hatch (BSJ-7) + per-room FFL tags and doorway step
+ * markers (BSJ-8), drawn in the SAME pixel transform as the dimensioned plan.
+ * A small bottom-left legend explains the symbols. Pure string generation.
+ */
+function wetAndLevelsOverlay(
+  plan: FloorPlan,
+  zones: readonly WaterproofingZone[],
+  floorLevels: boolean,
+  px: (x: number) => number,
+  py: (z: number) => number,
+  heightPx: number,
+): string {
+  const parts: string[] = []
+  const legend: { swatch: string; text: string }[] = []
+
+  // --- Waterproofing zone hatch (BSJ-7) ---
+  if (zones.length > 0) {
+    parts.push(
+      `<defs><pattern id="wp-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">` +
+        `<line x1="0" y1="0" x2="0" y2="8" stroke="${WP_COLOR}" stroke-width="1.1" stroke-opacity="0.5"/></pattern></defs>`,
+    )
+    const roomById = new Map(plan.rooms.map((r) => [r.id, r] as const))
+    for (const z of zones) {
+      const room = roomById.get(z.roomId)
+      if (!room) continue
+      const poly = roomPolygon(room)
+      if (poly.length < 3) continue
+      const pts = poly.map(([x, zz]) => `${n(px(x))},${n(py(zz))}`).join(' ')
+      parts.push(
+        `<polygon points="${pts}" fill="url(#wp-hatch)" stroke="${WP_COLOR}" stroke-width="0.8" stroke-opacity="0.6"/>`,
+      )
+    }
+    legend.push({ swatch: 'hatch', text: 'Waterproofing zone (floor + wall upturn)' })
+  }
+
+  // --- Floor-level FFL tags + doorway step markers (BSJ-8) ---
+  if (floorLevels) {
+    for (const t of buildRoomFflTags(plan)) {
+      const cx = px(t.labelPos[0])
+      const cy = py(t.labelPos[1]) + FONT + 4 // just below the room centre
+      const w = t.tag.length * (FONT - 2) * 0.62 + 8
+      parts.push(
+        `<g class="ffl-tag">` +
+          `<rect x="${n(cx - w / 2)}" y="${n(cy - FONT + 1)}" width="${n(w)}" height="${n(FONT + 4)}" rx="3" fill="#ffffff" fill-opacity="0.9" stroke="${FFL_COLOR}" stroke-width="0.8"/>` +
+          `<text x="${n(cx)}" y="${n(cy)}" font-size="${FONT - 1}" font-weight="700" text-anchor="middle" dominant-baseline="middle" fill="${FFL_COLOR}">${esc(t.tag)}</text>` +
+          `</g>`,
+      )
+    }
+    let anyStep = false
+    for (const tr of buildFloorTransitions(plan)) {
+      anyStep = true
+      const cx = px(tr.center[0])
+      const cy = py(tr.center[1])
+      const r = 6
+      // A filled diamond at the doorway + a white-backed caption above it.
+      parts.push(
+        `<g class="ffl-step">` +
+          `<path d="M ${n(cx)} ${n(cy - r)} L ${n(cx + r)} ${n(cy)} L ${n(cx)} ${n(cy + r)} L ${n(cx - r)} ${n(cy)} Z" fill="${FFL_COLOR}" stroke="#ffffff" stroke-width="1"/>`,
+      )
+      const cap = tr.note
+      const cw = cap.length * (FONT - 3) * 0.56 + 6
+      parts.push(
+        `<rect x="${n(cx - cw / 2)}" y="${n(cy - r - FONT - 3)}" width="${n(cw)}" height="${n(FONT + 2)}" rx="2" fill="#ffffff" fill-opacity="0.9"/>` +
+          `<text x="${n(cx)}" y="${n(cy - r - 4)}" font-size="${FONT - 3}" font-weight="600" text-anchor="middle" fill="${FFL_COLOR}">${esc(cap)}</text>` +
+          `</g>`,
+      )
+    }
+    legend.push({ swatch: 'ffl', text: 'FFL n = finished floor level vs datum (mm)' })
+    if (anyStep) legend.push({ swatch: 'step', text: 'Floor-level step at doorway' })
+  }
+
+  // --- Legend (bottom-left) ---
+  if (legend.length > 0) {
+    const lineH = 14
+    const baseY = heightPx - 6 - (legend.length - 1) * lineH
+    legend.forEach((row, i) => {
+      const y = baseY + i * lineH
+      let mark: string
+      if (row.swatch === 'hatch') {
+        mark = `<rect x="4" y="${n(y - 8)}" width="12" height="10" fill="url(#wp-hatch)" stroke="${WP_COLOR}" stroke-width="0.8"/>`
+      } else if (row.swatch === 'step') {
+        mark = `<path d="M 10 ${n(y - 8)} L 16 ${n(y - 3)} L 10 ${n(y + 2)} L 4 ${n(y - 3)} Z" fill="${FFL_COLOR}"/>`
+      } else {
+        mark = `<rect x="4" y="${n(y - 8)}" width="12" height="10" rx="2" fill="#ffffff" stroke="${FFL_COLOR}" stroke-width="0.8"/>`
+      }
+      const color = row.swatch === 'hatch' ? WP_COLOR : FFL_COLOR
+      parts.push(
+        `${mark}<text x="20" y="${n(y)}" font-size="${FONT - 2}" fill="${color}">${esc(row.text)}</text>`,
+      )
+    })
+  }
+
+  return `<g class="wp-levels-overlay">${parts.join('')}</g>`
 }
 
 /** SVG for a single dimension: the line, two end ticks, and a centred label. */

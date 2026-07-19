@@ -351,6 +351,29 @@ describe('schema', () => {
     expect(room?.polygon).toEqual(polygon)
   })
 
+  it('round-trips a room floor-level offset (BSJ-8) on a custom plan', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        id: 'ffl-plan',
+        name: 'FFL',
+        ceilingHeight: 2.6,
+        extent: [4.2, 4.2],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [4.1, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [
+          { id: 'bath', name: 'Bath', origin: [0.2, 0.2], width: 2, depth: 2, floorLevelMm: -50 },
+          { id: 'bed', name: 'Bed', origin: [2.2, 0.2], width: 2, depth: 2 },
+        ],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.floorPlan?.rooms.find((r) => r.id === 'bath')?.floorLevelMm).toBe(-50)
+    // An unset room stays unset (not coerced to 0).
+    expect(patch.floorPlan?.rooms.find((r) => r.id === 'bed')?.floorLevelMm).toBeUndefined()
+  })
+
   it('round-trips plan notes (PARITY-DIMTEXT) on a custom plan', () => {
     useStore.getState().__resetForTest()
     useStore.setState({

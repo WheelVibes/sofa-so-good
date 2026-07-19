@@ -333,3 +333,27 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   `updateRoom`). `templates/shared.ts`'s `room()` builder takes an optional trailing `category`
   param — seeded across the HDB + condo starter templates. See `docs/ARCHITECTURE.md` for the
   full list of RM1-migrated consumers.
+- **Waterproofing zones (BSJ-7, `waterproofing` pro flag): `waterproofing.ts`** (pure) is the ONE
+  builder — `buildWaterproofingZones(plan, items)` → one zone per wet/hard-service room
+  (`WATERPROOF_CATEGORIES` = bath/powder/kitchen/serviceYard/balcony) = floor area + wall upturn
+  (`GENERAL_UPTURN_MM` 300 on every wall; `SHOWER_UPTURN_MM` 1800 at shower walls, bath/powder only)
+  + a total `membraneAreaM2` (floor + upturn bands). **Shower detection:** a placed item whose defId
+  matches `/shower/` and whose centre is `pointInRoom` LOCALIZES the 1800 mm run (`showerDetected`,
+  a nominal two-wall run); a bath with NO placed shower uses the FULL perimeter at 1800 mm
+  conservatively. Kitchen/yard/balcony get the 300 mm general upturn only (no modeled sink-run
+  geometry — documented). Items are a minimal `{ defId, position }` shape so this stays free of the
+  furniture types; `it.position` is guarded (fixtures cast in tests may omit it). Consumed by the
+  dimensioned-plan hatch (`autoDimensionSvg.ts`), the tiler pack (`ui/tradePacks.ts`), and the budget
+  allocator's `waterproofing` sub-line. The finish schedule's wet floor rows carry an UNCONDITIONAL
+  "waterproofing membrane below" note (factual, not flag-gated).
+- **Floor levels & transitions (BSJ-8, `floorLevels` pro flag): `floorLevels.ts`** (pure) over the
+  additive `PlanRoom.floorLevelMm?` (mm vs the FFL datum; schema.ts ⇄ types.ts parity, no version
+  bump). **DOCUMENTATION-level only** — it does NOT move the 3D floor mesh (that would ripple through
+  furniture Y-placement; filed as a follow-up). `roomFloorLevelMm` (absent/NaN → 0), `fflTag`
+  (`FFL ±0`/`FFL +25`/`FFL −50`), `buildRoomFflTags` (tags only rooms with an EXPLICIT level, at their
+  `roomLabelPosition`), `buildFloorTransitions` (doorway steps between rooms at different levels, via
+  `openingProbe.roomsAcrossOpening`), `buildKerbAdvisories` (a bath/powder level with an adjacent dry
+  room → "verify hob/kerb"). Rendered as FFL pills + step diamonds + a legend on the dimensioned plan
+  (`autoDimensionSvg.ts` overlay, same sheet as setting-out) and in the tiler pack; edited in the
+  `RoomInspector` "Floor level (mm)" field (pro-gated). `intakeStates.ts` deliberately does NOT seed a
+  default level (see its module note — default-flat mutations are session-only).

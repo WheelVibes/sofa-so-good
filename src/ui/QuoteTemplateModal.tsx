@@ -44,6 +44,7 @@ const TRADE_RATE_META: Record<keyof TradeRates, { label: string; unit: string }>
   airconPerUnit: { label: 'Aircon (indoor unit)', unit: '/unit' },
   glassPerM2: { label: 'Glass & aluminium', unit: '/m²' },
   plumbingFixtureEach: { label: 'Plumbing fixture install', unit: '/no.' },
+  waterproofingPerM2: { label: 'Waterproofing membrane', unit: '/m²' },
   contingencyPct: { label: 'Contingency', unit: '%' },
 }
 
