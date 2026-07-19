@@ -86,6 +86,7 @@ export type FeatureFlag =
   | 'walkCameraControls'
   | 'replaceSimilar'
   | 'customBackdrop'
+  | 'paintVisualizer'
   | 'planLabels'
   | 'plumbingPlan'
   | 'itemAsLight'

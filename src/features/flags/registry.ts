@@ -771,6 +771,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Real-photo paint visualizer: upload a wall photo, trace a polygon mask and
+  // preview a paint swatch composited on with a luminance-preserving blend (Behr
+  // /Dulux precedent). Pure client-side canvas maths — the photo never leaves the
+  // device; no external assets/licensing → prod-safe. Simple tier — a casual
+  // "will this colour work on my wall" convenience in the core finish loop.
+  paintVisualizer: {
+    label: 'Paint visualizer',
+    description: 'Preview a paint colour on a photo of your real wall',
+    default: true,
+    tier: 'simple',
+  },
   // 2D-plan furniture name/price labels (Sweet Home 3D parity). Pure code, no
   // external assets → prod-safe. Surfaced in the default experience → simple tier.
   planLabels: {

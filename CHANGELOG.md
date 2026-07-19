@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.74 — Real-photo paint visualizer (simple tier)
+
+"Try on my wall photo" button on the FinishPicker Walls tab opens a lazy,
+self-contained modal: upload a photo (client-side only — stated in the UI),
+tap to trace a polygon over the wall, pick from the existing wall paint
+palette, and the masked pixels recolour via the W3C "color" non-separable
+blend (photo luminance kept, swatch hue+saturation applied) so shadows and
+texture read as real paint, not a sticker. Coverage slider lerps sheer→
+solid; Undo point / Reset mask / Replace / Download PNG. Touch + mouse
+pointer events; `paintVisualizer` simple-tier flag (default true) with
+Simple/Pro/off gating tests. Pure blend/geometry module
+(`ui/paintViz/composite.ts`) unit-tested on light AND dark walls (28 new
+tests); scenario with synthetic gradient-wall photo reviewed on GPU across
+two swatches + low coverage + mobile viewport.
+
 ## v0.22.2.73 — Lighting moods: verification closeout (feature shipped v0.22.2.40)
 
 The UX-round-3 "Lighting mood presets" TODO item was stale — the feature

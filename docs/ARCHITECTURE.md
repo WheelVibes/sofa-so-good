@@ -1714,7 +1714,12 @@ same change that reshapes a system.
   state reuses the persisted `lastSurface` (`LAST_SURFACE_KEY`, extended to `'ceiling'`) that also drives
   the Browse target. The `.finish-picker .sec-h` scoped rule flattens
   the picker's section-header strips (static/transparent/no hairline) without touching the base sticky
-  `.sec-h`;
+  `.sec-h`; the Walls tab also opens the **real-photo paint visualizer** (`paintVisualizer` flag, simple
+  tier): `ui/paintViz/PaintVizModal.tsx` — a self-contained modal (lazy-loaded, all state
+  component-local) that composites a chosen wall swatch onto an uploaded wall photo via the pure
+  `ui/paintViz/composite.ts` (point-in-polygon mask + a W3C "color" luminance-preserving blend, so the
+  photo's shading/texture survive). Client-side only (photo never leaves the device); reuses the wall
+  paint swatches (`groups.wall`) as its colour source;
   the finish setters write through to the active plan and plan activation prunes stale
   custom-room keys; `PlanRoomShell` paints plan walls via `apartment/walls/PlanWallFinishFace`. **Split / Reverse / Join** (pure `wallOps.ts` — openings re-homed) + **exact length/angle** inspector
   fields (`wallOps.ts` `endForLength`/`endForAngle`/`wallAngleDeg` — PARITY-WALLDIM) + draggable endpoint handles (`moveWallVertex`) +

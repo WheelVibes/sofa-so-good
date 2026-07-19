@@ -217,9 +217,13 @@ ruling), AI photo→plan (= aiWalls), shelf-lift gesture (= surfaceDrop).
   `uiSlice` (persisted via schema/autosave, mirrors `lightsMode`), Scene-menu + mobile Mood row
   gated by the `lightMoodPresets` flag (simple tier), composed in `FurnitureLights.tsx` on top of
   `lightsMode`. Scenario `scripts/scenarios/light-moods-r11.json`.
-- [ ] **Real-photo paint visualizer** (M, simple) — upload a wall photo, drag a polygon mask,
+- [x] **Real-photo paint visualizer** (M, simple) — upload a wall photo, drag a polygon mask,
   composite a finish swatch via canvas blend (no AI seg for v1; Behr/Dulux precedent). Pairs the
-  customBackdrop upload path with swatch data.
+  customBackdrop upload path with swatch data. DONE: `paintVisualizer` flag (simple, default on);
+  `ui/paintViz/PaintVizModal.tsx` + pure `ui/paintViz/composite.ts` (point-in-polygon + W3C "color"
+  luminance-preserving blend); entry via the FinishPicker Walls tab "Try on my wall photo"; fully
+  client-side (photo never uploaded); reuses `groups.wall` swatches. Scenario
+  `scripts/scenarios/paint-visualizer-simple.json`.
 - [ ] **Parametric staircase generator** (M/L, pro) — real adjustable stairs (width/rise-run/
   landing/handrail; Homestyler v6 precedent) placed as furniture with a levelId span, feeding the
   existing stairConnectivity advisory.

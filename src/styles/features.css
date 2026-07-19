@@ -602,3 +602,54 @@ body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
 .arr-pick { display: flex; align-items: center; gap: 6px; padding: 2px 6px 4px; }
 .arr-select { flex: 1; min-width: 0; height: 30px; font-size: var(--t-xs); }
 .arr-apply { flex: none; height: 30px; padding: 0 12px; }
+
+/* ---- Real-photo paint visualizer (PaintVizModal) ---------------- */
+.paint-viz { display: flex; flex-direction: column; gap: var(--s-3); }
+.paint-viz-privacy {
+  display: flex; align-items: center; gap: var(--s-1);
+  margin: 0; font-size: var(--t-xs); font-weight: 600; color: var(--text-3);
+}
+.paint-viz-drop {
+  display: flex; flex-direction: column; align-items: center; gap: var(--s-2);
+  padding: var(--s-6) var(--s-3); text-align: center;
+  border: 1px dashed var(--border); border-radius: var(--r-2);
+  background: var(--surface-2); color: var(--text-2);
+}
+.paint-viz-drop p { margin: 0; font-size: var(--t-sm); }
+.paint-viz-stage {
+  display: flex; justify-content: center;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--r-2); overflow: hidden;
+}
+.paint-viz-canvas {
+  display: block; max-width: 100%; max-height: 340px; width: auto; height: auto;
+  cursor: crosshair; touch-action: none;
+}
+.paint-viz-hint {
+  margin: 0; font-size: var(--t-xs); color: var(--text-3); text-align: center;
+}
+.paint-viz-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.paint-viz-actions .btn { flex: 1 1 auto; justify-content: center; }
+.paint-viz-strength {
+  display: flex; align-items: center; gap: var(--s-3);
+  font-size: var(--t-xs); font-weight: 600; color: var(--text-2);
+}
+.paint-viz-strength .slider { flex: 1; }
+.paint-viz-swatches {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: var(--s-2);
+}
+.paint-viz-swatch {
+  display: flex; flex-direction: column; align-items: stretch; gap: 4px;
+  padding: 4px; border: 1px solid var(--border); border-radius: var(--r-2);
+  background: var(--surface-2); cursor: pointer; min-width: 0;
+  transition: border-color var(--dur) var(--ease);
+}
+.paint-viz-swatch:hover { border-color: var(--border-2); }
+.paint-viz-swatch.on { border-color: var(--accent); }
+.paint-viz-chip { height: 34px; border-radius: 4px; border: 1px solid var(--border); }
+.paint-viz-name {
+  font-size: var(--t-2xs); font-weight: 600; color: var(--text-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
+}
+.paint-viz-error { margin: 0; font-size: var(--t-xs); color: var(--danger); }

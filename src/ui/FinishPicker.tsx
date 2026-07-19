@@ -49,6 +49,12 @@ const UploadMaterialDialog = lazyWithRetry(() =>
   import('./upload/UploadMaterialDialog').then((m) => ({ default: m.UploadMaterialDialog })),
 )
 
+// Lazy-loaded: the real-photo paint visualizer (its own canvas compositing) only
+// loads once the user opens it — resets on close, so mount-gating is identical.
+const PaintVizModal = lazyWithRetry(() =>
+  import('./paintViz/PaintVizModal').then((m) => ({ default: m.PaintVizModal })),
+)
+
 /** Filter finishes by a free-text query against the material name (empty query
  *  passes everything). Keeps the picker scannable as the catalog grows. */
 function filterFinishes(mats: MaterialDef[], query: string): MaterialDef[] {
@@ -291,6 +297,7 @@ export function FinishPicker() {
   const fRecolor = useFeature('finishRecolor')
   const fLayoutReroll = useFeature('layoutReroll')
   const fEyedropper = useFeature('finishEyedropper')
+  const fPaintViz = useFeature('paintVisualizer')
   const eyedropperArmed = useStore((s) => s.eyedropperArmed)
   const sampledFinish = useStore((s) => s.sampledFinish)
   const toggleEyedropper = useStore((s) => s.toggleEyedropper)
@@ -323,6 +330,7 @@ export function FinishPicker() {
       .notify.start({ title: `Saved "${name}" to your materials`, kind: 'success' })
   }
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [paintVizOpen, setPaintVizOpen] = useState(false)
   const [finishQuery, setFinishQuery] = useState('')
   const [view, setView] = useState<View>('swatch')
   // Remember which surface was last finished, across sessions, so Browse opens
@@ -653,6 +661,18 @@ export function FinishPicker() {
               >
                 Apply walls to all rooms
               </button>
+              {fPaintViz ? (
+                <button
+                  type="button"
+                  className="btn btn-soft btn-block"
+                  style={{ marginTop: 'var(--s-2)' }}
+                  onClick={() => setPaintVizOpen(true)}
+                  title="See a paint colour on a photo of your own wall — the photo stays on your device"
+                >
+                  <Icon.Palette width={14} height={14} />
+                  Try on my wall photo
+                </button>
+              ) : null}
               {fComposer ? (
                 <MaterialComposer
                   label="Walls"
@@ -957,6 +977,15 @@ export function FinishPicker() {
           {uploadOpen && (
             <Suspense fallback={null}>
               <UploadMaterialDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
+            </Suspense>
+          )}
+          {fPaintViz && paintVizOpen && (
+            <Suspense fallback={null}>
+              <PaintVizModal
+                open={paintVizOpen}
+                onClose={() => setPaintVizOpen(false)}
+                swatches={groups.wall.map((m) => ({ id: m.id, name: m.name, hex: m.swatch }))}
+              />
             </Suspense>
           )}
         </div>

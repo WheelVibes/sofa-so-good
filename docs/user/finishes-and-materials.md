@@ -30,6 +30,28 @@ the picks are saved with the plan.
 
 ![The finish picker open on a room](/screenshots/finish-picker.png)
 
+## Try a paint colour on a photo of your real wall
+
+Not sure a colour will work in your actual home? On the **Walls** tab, press
+**Try on my wall photo** to open the **Preview paint on your photo** window and
+see a colour on a real wall before you commit:
+
+1. **Upload a photo** of the wall you want to repaint. *Your photo stays on your
+   device — nothing is uploaded to any server.*
+2. **Tap (or click) around the wall** to trace a shape over it — three or more
+   points close the mask. **Undo point** removes the last one; **Reset mask**
+   starts the outline over.
+3. **Pick a colour** from the swatches (the same paint palette as the finish
+   picker) to preview it instantly on the traced area. The recolour keeps the
+   photo's own shadows, highlights and texture, so it looks like a real coat of
+   paint rather than a flat sticker.
+4. Slide **Coverage** down for a sheer, translucent wash or up for full,
+   solid coverage.
+5. Press **Download** to save the composited preview as a PNG to share.
+
+It works with touch and mouse, so you can trace the wall on a phone as easily as
+on a desktop. **Replace** swaps in a different photo at any time.
+
 ## Recolour any finish — colour and texture are independent
 
 Colour, texture/pattern, and material behave as separate, mix‑and‑match choices:
