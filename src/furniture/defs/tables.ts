@@ -1,6 +1,6 @@
 import { ellipseFootprintParts } from '../footprintShapes'
 import type { FurnitureDef } from '../types'
-import { diningSeatDim } from './diningSeatDims'
+import { diningLeafExtension, diningSeatDim } from './diningSeatDims'
 import { nestFootprint } from './nestingTables'
 
 /** tables furniture definitions. Part of the built-in catalog (see ../builtinCatalog.ts). */
@@ -24,7 +24,10 @@ export const TABLES_DEFS = {
     footprintParts: (props) => {
       const { w, d } = diningSeatDim(props)
       const shape = props.shape
-      if (shape !== 'round' && shape !== 'oval') return [{ dx: 0, dz: 0, w, d }]
+      // Extendable rect top: add the centre-leaf width so the collision box grows
+      // with the extended state (round/oval never extend — see diningLeafExtension).
+      if (shape !== 'round' && shape !== 'oval')
+        return [{ dx: 0, dz: 0, w: w + diningLeafExtension(props), d }]
       return ellipseFootprintParts(w, d)
     },
     paramSchema: [
@@ -48,6 +51,18 @@ export const TABLES_DEFS = {
           { value: 'rect', label: 'Rectangular' },
           { value: 'round', label: 'Round' },
           { value: 'oval', label: 'Oval' },
+        ],
+      },
+      {
+        // Drop-in centre leaf (rect only). 'extended' widens the top + the
+        // collision footprint by DINING_LEAF_WIDTH (see diningLeafExtension).
+        kind: 'enum',
+        key: 'leaf',
+        label: 'Leaf',
+        default: 'none',
+        options: [
+          { value: 'none', label: 'Standard' },
+          { value: 'extended', label: 'Extended (+ centre leaf)' },
         ],
       },
       { kind: 'color', key: 'topColor', label: 'Top', default: '#9e7b53' },

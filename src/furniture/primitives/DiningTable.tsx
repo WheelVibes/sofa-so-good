@@ -1,5 +1,5 @@
 import { getSurfaceMaterial, getWoodMaterial } from '../../materials/furnitureMaterials'
-import { DINING_SEAT_DIMENSIONS } from '../defs/diningSeatDims'
+import { DINING_SEAT_DIMENSIONS, diningLeafExtension } from '../defs/diningSeatDims'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
@@ -22,8 +22,12 @@ export function DiningTable({ props }: DiningTableProps) {
   // width/depth params, so it always falls back to the seat dimensions.
   const wProp = props.width
   const dProp = props.depth
+  // Extendable rect top: a drop-in centre leaf widens the top by
+  // `diningLeafExtension` (0 unless `leaf: 'extended'` on a rect shape). The def's
+  // `footprintParts` adds the same amount so collision tracks the extended width.
+  const leafExt = diningLeafExtension(props)
   const dim = {
-    w: typeof wProp === 'number' ? wProp : seatDim.w,
+    w: (typeof wProp === 'number' ? wProp : seatDim.w) + leafExt,
     d: typeof dProp === 'number' ? dProp : seatDim.d,
   }
   const topColor = readStr(props, 'topColor', '#9e7b53')
@@ -135,6 +139,19 @@ export function DiningTable({ props }: DiningTableProps) {
         material={topMat}
         args={[dim.w, topThickness, dim.d]}
       />
+      {/* Extendable centre leaf: two parting-line seams marking where the drop-in
+          leaf meets the two fixed halves (each 1 mm proud of the top so they read
+          as grooves without a coplanar tie against the top face). */}
+      {leafExt > 0 &&
+        [-1, 1].map((s) => (
+          <mesh
+            key={`seam${s}`}
+            position={[s * (leafExt / 2), totalH - topThickness / 2 + 0.001, 0]}
+            material={legMat}
+          >
+            <boxGeometry args={[0.006, topThickness + 0.004, dim.d - 0.02]} />
+          </mesh>
+        ))}
       {legPositions.map((p, i) => (
         <BeveledBox
           key={i}

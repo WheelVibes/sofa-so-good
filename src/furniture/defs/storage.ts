@@ -1129,4 +1129,62 @@ export const STORAGE_DEFS = {
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
+  // Altar / prayer cabinet (神台) — a common SG household fitting: a lower storage
+  // cabinet (doors or drawers) carrying a raised open display shelf for
+  // deities/offerings. Depth is fixed by the primitive (0.5 m); width tracks the
+  // collision footprint.
+  'altar-cabinet': {
+    kind: 'parametric',
+    id: 'altar-cabinet',
+    name: 'Altar cabinet',
+    keywords: [
+      'altar',
+      'prayer',
+      'ancestral',
+      'shrine',
+      'deity',
+      'joss',
+      'prayer cabinet',
+      'altar table',
+    ],
+    category: 'storage',
+    primitive: 'AltarCabinet',
+    defaultFootprint: { w: 0.9, d: 0.5, h: 1.5 },
+    footprintParams: { w: 'width' },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 0.7,
+        max: 1.2,
+        step: 0.05,
+        default: 0.9,
+        unit: 'm',
+      },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Lower section',
+        default: 'cabinet',
+        options: [
+          { value: 'cabinet', label: 'Cabinet doors' },
+          { value: 'drawers', label: 'Drawers' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Wood', default: '#6e3b2e' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss (lacquer)' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0.1 },
+    ],
+  },
 } satisfies Record<string, FurnitureDef>

@@ -28,6 +28,20 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   Set `verticalSpan`/`mounted`/`noClip` for non-floor items; `lightEmitters.ts` to emit light
   at night; add to `defaults/` to ship in the move-in flat (collision-checked by
   `defaultLayout.test.ts`).
+- **Extendable-table leaf keeps render + footprint in lock-step (CAT-B).** A drop-in leaf that
+  widens a piece must widen its collision box by the SAME amount, or the extended top clips through
+  neighbours. `defs/diningSeatDims.ts:diningLeafExtension(props)` is the single shared source of the
+  extra width (0 unless `leaf:'extended'` on a rect top) — the `DiningTable` primitive adds it to the
+  rendered top width AND the `dining-table-4` def's `footprintParts` adds it to the OBB. Never compute
+  a leaf/extension delta in only one of the two; route both through one pure helper (the same
+  render↔collision discipline the `seats` enum already uses via `diningSeatDim`).
+- **Translucent fluted glass (CAT-B `FlutedPartition`).** A floor-standing fluted-glass screen reuses
+  two existing pieces rather than new art: the vertical rib layout comes from
+  `primitives/slatLayout.ts` (`battenCount`/`battenStep`/`battenOffset`, same as `RoomDivider`), and
+  the panes/ribs share ONE `getGlassMaterial(tier, …)` instance (tier read from `useStore`, cheap
+  transparent pane on Performance/Medium → real transmission on High/Max, like `GlassMaterial`). The
+  half-round ribs are cylinders (`thetaLength: Math.PI`) so they never trigger the coplanar detector;
+  the frame is one `InstancedBoxes` draw call.
 - **Round/oval footprints (`footprintShapes.ts:ellipseFootprintParts`).** `footprintParts` is a
   UNION of OBBs — it can only add area, never carve a rectangle down to a disc — so a true
   circle/ellipse isn't representable exactly. `ellipseFootprintParts(width, depth, steps=4)`

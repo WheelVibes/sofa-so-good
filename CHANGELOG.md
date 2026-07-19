@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.70 — CAT-B: SG furniture round (altar cabinet, banquette, lift bed, water heater, fluted partition, table leaf)
+
+Six research-ranked SG-home furniture gaps, all procedural. Extendable
+dining table: `leaf` option on dining-table-4 — `diningLeafExtension` widens
+the rendered top (centre-leaf seams) and the def's footprint in lock-step so
+collision stays honest. NEW primitives: AltarCabinet (two-tier prayer/
+ancestral cabinet, ~0.9×0.5×1.5, findable via altar/prayer/shrine/joss
+keywords), Banquette (wall-flush upholstered bench with tufted backrest,
+bouclé option), WaterHeater (mounted SG-universal bathroom storage heater
+with pipe drops), FlutedPartition (black-framed translucent fluted glass
+screen reusing slatLayout + getGlassMaterial). `baseStyle: 'hydraulic'` on
+all four beds (legless ottoman base + lift-deck seam). Structural-soundness
+suite for all variants; catalog entries with prices/licenses; visual
+scenario reviewed on GPU piece by piece.
+
 ## v0.22.2.69 — CAT-A: SG materials round (Peranakan tile, bouclé, sintered stone, brass, limewash)
 
 Six research-ranked material gaps for modern SG homes, all procedural/CC0.

@@ -53,11 +53,25 @@ when an item ships it is **removed from this file entirely**. Maintainability re
   - [x] Limewash wall finish — VERIFY VERDICT: a microcement variant existed (`concrete` pattern) but
     no true limewash, so a dedicated `pattern: 'limewash'` (`patterns/wall.ts:limewashFields`, cloudy
     mineral wash) was added + white/greige/clay/terracotta colourways.
-- [ ] **CAT-B furniture round** (S/M): extendable dining table (leaf visual on DiningTable),
-  altar/prayer cabinet (new primitive — common SG household fitting, absent), banquette/built-in
-  bench (condo dining nooks), hydraulic-lift storage bed variant (beds.ts option), wall-mounted
-  water heater (SG-universal bathroom fitting, absent), fluted glass partition (fluted pattern +
-  translucent glass).
+- [x] **CAT-B furniture round** (S/M) — shipped 2026-07-19:
+  - [x] Extendable dining table — `leaf` enum on `dining-table-4` (rect only); the shared
+    `diningLeafExtension` widens BOTH the rendered top (+ two centre-leaf seams) and the def's
+    `footprintParts` in lock-step (round/oval never extend).
+  - [x] Altar/prayer cabinet — new `AltarCabinet` primitive + `altar-cabinet` def (storage): two-tier
+    (lower doors/drawers cabinet on a recessed plinth + raised open display shelf w/ canopy);
+    keywords altar/prayer/ancestral/shrine/deity/joss.
+  - [x] Banquette/built-in bench — new `Banquette` primitive + `banquette` def (seating): upholstered
+    plinth + seat cushion + tufted backrest (wall side); `material` enum incl. bouclé.
+  - [x] Hydraulic-lift storage bed — `baseStyle: 'hydraulic'` on all bed defs; legless ottoman base
+    (floor plinth + inset lift deck reveal seam + satin gas-strut hint).
+  - [x] Wall-mounted water heater — new `WaterHeater` primitive + `water-heater` def (bathroom,
+    `mounted`): enamel box + temp dial + indicator + pipe drops; keywords water heater/geyser/joven.
+  - [x] Fluted glass partition — new `FlutedPartition` primitive + `fluted-partition` def (decor):
+    framed floor screen, translucent fluted (half-round glass ribs via `slatLayout` battens +
+    `getGlassMaterial`).
+  - Tests: `primitives/catBFurniture.test.tsx` (structural soundness + leaf-footprint maths);
+    covered by the whole-catalog `structuralSoundness.test.tsx` too. Scenario:
+    `scripts/scenarios/catb-furniture-r11.json` (product-shot ladder, visually reviewed).
 - Skip rulings: undermount sink (prop variant not worth a primitive), KompacPlus branding
   (generic laminate covers it), brand ceiling fans, aircon (exists as MEP).
 

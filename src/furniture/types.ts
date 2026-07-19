@@ -203,6 +203,10 @@ export type PrimitiveKind =
   | 'TrestleDesk'
   | 'StorageBench'
   | 'BayDaybed'
+  | 'AltarCabinet'
+  | 'Banquette'
+  | 'WaterHeater'
+  | 'FlutedPartition'
 
 export type ParamField =
   | {

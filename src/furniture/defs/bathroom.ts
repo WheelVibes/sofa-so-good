@@ -289,4 +289,51 @@ export const BATHROOM_DEFS = {
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#c9ccd1' },
     ],
   },
+  // Wall-mounted storage water heater — the SG-universal bathroom fitting.
+  // `mounted` (offset up the wall). Depth fixed by the primitive; width tracks
+  // the floor-projection footprint.
+  'water-heater': {
+    kind: 'parametric',
+    id: 'water-heater',
+    name: 'Water heater',
+    keywords: [
+      'water heater',
+      'storage heater',
+      'hot water',
+      'geyser',
+      'boiler',
+      'joven',
+      'rheem',
+      'water tank',
+    ],
+    category: 'bathroom',
+    primitive: 'WaterHeater',
+    defaultFootprint: { w: 0.5, d: 0.3, h: 0.35 },
+    mounted: true,
+    verticalSpan: { base: 1.7, top: 2.35 },
+    footprintParams: { w: 'width' },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 0.4,
+        max: 0.65,
+        step: 0.05,
+        default: 0.5,
+        unit: 'm',
+      },
+      {
+        kind: 'number',
+        key: 'mountHeight',
+        label: 'Mount height',
+        min: 1.6,
+        max: 2.2,
+        step: 0.05,
+        default: 1.95,
+        unit: 'm',
+      },
+      { kind: 'color', key: 'color', label: 'Body', default: '#f4f4f0' },
+    ],
+  },
 } satisfies Record<string, FurnitureDef>

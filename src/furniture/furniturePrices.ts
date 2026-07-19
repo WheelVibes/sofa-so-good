@@ -41,6 +41,7 @@ export const ITEM_PRICE: Record<string, number> = {
   'sofa-bed': 899,
   'bay-daybed': 549,
   recliner: 649,
+  banquette: 420,
   // Beds
   'bed-single': 450,
   'bed-double': 700,
@@ -77,6 +78,7 @@ export const ITEM_PRICE: Record<string, number> = {
   pegboard: 59,
   'utility-cabinet': 329,
   'storage-bench': 229,
+  'altar-cabinet': 480,
   'kitchen-counter': 1400,
   'room-divider': 300,
   // Appliances
@@ -96,6 +98,7 @@ export const ITEM_PRICE: Record<string, number> = {
   'bathroom-sink': 280,
   shower: 600,
   'floor-mirror': 180,
+  'water-heater': 350,
   // Lighting
   'ceiling-light': 120,
   'ceiling-fan': 280,
@@ -111,6 +114,7 @@ export const ITEM_PRICE: Record<string, number> = {
   rug: 240,
   curtains: 160,
   'roller-blind': 120,
+  'fluted-partition': 420,
   'wall-clock': 45,
   'wall-shelf': 60,
   // Previously fell back to the (often wildly off) per-category base.
