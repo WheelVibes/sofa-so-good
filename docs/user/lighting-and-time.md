@@ -47,9 +47,9 @@ colour-temperature mood for every lit fixture in one tap:
 
 - **Normal** — no adjustment (the reset).
 - **Reading** — bright, crisp task light.
-- **Movie night** — dim and warm; ceiling lights dim harder than lamps, for a
+- **Movie** — dim and warm; ceiling lights dim harder than lamps, for a
   cinema-like room.
-- **Entertaining** — bright and warm, a sociable wash for guests.
+- **Party** — bright and warm, a sociable wash for guests.
 - **Romantic** — low and warm, with the ceiling fixtures nearly off.
 
 A mood layers on top of the Lights toggle above (it never turns a light on or

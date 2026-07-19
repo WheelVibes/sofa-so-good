@@ -5,7 +5,7 @@ import type { LayoutPreset } from '../../furniture/layoutPresets'
 import { LAYOUT_PRESETS } from '../../furniture/layoutPresets'
 import { OCS_INFO_NOTE } from '../../furniture/ocsStarter'
 import { BUILTIN_MATERIALS } from '../../materials/builtinCatalog'
-import type { ThemeName } from '../../state/slices/appearanceSlice'
+import { THEME_META, type ThemeName } from '../../state/slices/appearanceSlice'
 import { useStore } from '../../state/store'
 import { Modal } from '../Modal'
 
@@ -210,9 +210,12 @@ export function SmartStartWizard() {
           </div>
         </div>
       ) : null}
-      <p className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0, marginTop: 4 }}>
-        Styles
-      </p>
+      {/* Two labelled sections (UXW-P2-2): whole-flat palette THEMES vs.
+          living/dining LAYOUT remodels — conceptually different jobs that
+          read as peers when flat, so the RM2 `group` field splits them. */}
+      <div className="sec-h" style={{ marginTop: 'var(--s-2)' }}>
+        Design themes
+      </div>
       <div className="ss-grid">
         {themePresets.map((p) => (
           <PresetCard key={p.id} preset={p} picked={picked} onPick={setPicked} />
@@ -220,12 +223,9 @@ export function SmartStartWizard() {
       </div>
       {layoutPresets.length > 0 ? (
         <>
-          <p
-            className="panel-sub"
-            style={{ textTransform: 'none', letterSpacing: 0, marginTop: 12 }}
-          >
-            Layouts (re-modelled living/dining arrangements)
-          </p>
+          <div className="sec-h" style={{ marginTop: 'var(--s-3)' }}>
+            Layout ideas
+          </div>
           <div className="ss-grid">
             {layoutPresets.map((p) => (
               <PresetCard key={p.id} preset={p} picked={picked} onPick={setPicked} />
@@ -237,7 +237,8 @@ export function SmartStartWizard() {
         className="panel-sub"
         style={{ textTransform: 'none', letterSpacing: 0, marginTop: 10, opacity: 0.7 }}
       >
-        Applies to the current apartment shell. Theme: <b>{PRESET_THEME[picked] ?? current}</b>.
+        Applies to the current apartment shell. Theme:{' '}
+        <b>{THEME_META[PRESET_THEME[picked] ?? current]?.name ?? THEME_META[current].name}</b>.
       </p>
     </Modal>
   )

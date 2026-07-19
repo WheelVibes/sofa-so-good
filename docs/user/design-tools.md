@@ -89,7 +89,7 @@ the design report.
 **Checks** validates door‑swing clearance and flags any piece blocking a door,
 any two pieces that **overlap** (occupy the same floor space), and any piece
 left **inside a wall** (e.g. after the floor plan was edited around it). The
-panel shows a Blocking / Overlapping / In‑wall / Clear summary and a card per
+panel shows a Blocking / Overlaps / In‑wall / Walkways / Clear summary and a card per
 issue with fix hints; clicking a card selects and frames the offending piece
 (both pieces, for an overlap). Stacked items (a mattress on its frame, decor on
 a surface), rugs, and wall‑mounted items are never flagged.
@@ -176,7 +176,8 @@ panel computes the concrete deadline dates with a countdown:
 - **Spalling‑concrete window ends** (+10 years) — structural rectification support.
 
 Below the dates is the room‑by‑room move‑in snagging checklist (also included in
-the exported **report**). The key‑collection date is saved with your design.
+the exported **report**). **Tick items off as you check them on collection day** —
+the ticks are saved with your design, alongside the key‑collection date.
 
 ## Drawings — elevations & lighting plan
 

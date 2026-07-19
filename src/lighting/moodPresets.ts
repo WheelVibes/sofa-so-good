@@ -41,7 +41,12 @@ export const LIGHT_MOODS: readonly LightMood[] = [
 
 export interface MoodPreset {
   id: LightMood
+  /** Full descriptive label (menus, readouts). */
   label: string
+  /** Compact chip label for the space-tight Segmented mood control (UXW-P3-3) —
+   *  the full `label` wouldn't fit 5 chips across the Scene menu / mobile sheet
+   *  without wrapping/ellipsis. Falls back to `label` when identical. */
+  shortLabel: string
   /** Brightness multiplier for accent fixtures (lamps, sconces, etc.) on top
    *  of the existing `lightsMode` level. `1` = unchanged. */
   intensity: number
@@ -73,6 +78,7 @@ export const MOOD_PRESETS: Record<LightMood, MoodPreset> = {
   none: {
     id: 'none',
     label: 'Normal',
+    shortLabel: 'Normal',
     intensity: 1,
     ceilingIntensity: 1,
     tint: [1, 1, 1],
@@ -83,6 +89,7 @@ export const MOOD_PRESETS: Record<LightMood, MoodPreset> = {
     // is usually a lamp, not the room wash).
     id: 'reading',
     label: 'Reading',
+    shortLabel: 'Reading',
     intensity: 1.25,
     ceilingIntensity: 1,
     tint: [0.97, 0.99, 1],
@@ -93,6 +100,7 @@ export const MOOD_PRESETS: Record<LightMood, MoodPreset> = {
     // as low ambient fill so the room doesn't go pitch black.
     id: 'movie',
     label: 'Movie night',
+    shortLabel: 'Movie',
     intensity: 0.35,
     ceilingIntensity: 0.12,
     tint: [1, 0.8, 0.58],
@@ -102,6 +110,7 @@ export const MOOD_PRESETS: Record<LightMood, MoodPreset> = {
     // brighter than normal across the board.
     id: 'entertaining',
     label: 'Entertaining',
+    shortLabel: 'Party',
     intensity: 1.15,
     ceilingIntensity: 1.1,
     tint: [1, 0.93, 0.82],
@@ -110,6 +119,7 @@ export const MOOD_PRESETS: Record<LightMood, MoodPreset> = {
     // Low and warm, ceiling nearly off — candle-like accent-only glow.
     id: 'romantic',
     label: 'Romantic',
+    shortLabel: 'Romantic',
     intensity: 0.5,
     ceilingIntensity: 0.15,
     tint: [1, 0.72, 0.55],

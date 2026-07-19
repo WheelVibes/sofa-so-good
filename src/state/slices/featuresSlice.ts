@@ -152,6 +152,11 @@ export interface FeaturesSlice {
   /** Optional key-collection / TOP date (`yyyy-mm-dd`) driving the DLP /
    *  warranty date tracker (R4-8). Persisted with the design. `null` = unset. */
   keyCollectionDate: string | null
+  /** Ticked move-in checklist items (checklist item id → true), so a user can
+   *  tick items off on collection day and have it survive a reload (UXW-P3-6).
+   *  Persisted with the design, additively — like `keyCollectionDate`; not an
+   *  undoable edit, so it's out of the history snapshot. */
+  handoverChecked: Record<string, boolean>
   setCmdkOpen: (open: boolean) => void
   toggleCmdk: () => void
   setLeftMode: (mode: 'catalog' | 'layers') => void
@@ -214,6 +219,8 @@ export interface FeaturesSlice {
   setRenoRulesOpen: (open: boolean) => void
   /** Set / clear the key-collection date (`yyyy-mm-dd`, or `null`). */
   setKeyCollectionDate: (date: string | null) => void
+  /** Toggle a move-in checklist item's ticked state (UXW-P3-6). */
+  toggleHandoverCheck: (id: string) => void
 }
 
 export const FEATURES_INITIAL = {
@@ -266,6 +273,7 @@ export const FEATURES_INITIAL = {
   handoverOpen: false,
   renoRulesOpen: false,
   keyCollectionDate: null as string | null,
+  handoverChecked: {} as Record<string, boolean>,
 }
 
 export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set) => ({
@@ -342,4 +350,13 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setRenoRulesOpen: (renoRulesOpen) => set({ renoRulesOpen }),
   setKeyCollectionDate: (keyCollectionDate) =>
     set({ keyCollectionDate: keyCollectionDate || null }),
+  toggleHandoverCheck: (id) =>
+    set((s) => {
+      // Replace the object (new reference) so the autosave reference-compare
+      // detects the change; drop the key when un-ticking to keep saves lean.
+      const next = { ...s.handoverChecked }
+      if (next[id]) delete next[id]
+      else next[id] = true
+      return { handoverChecked: next }
+    }),
 })

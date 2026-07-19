@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { buildSocketAdvisory } from '../../analysis/socketAdvisory'
 import { canPlace, itemFootprint } from '../../collision/placement'
 import { placementWalls } from '../../collision/placementWalls'
 import { isAnyModalOpen } from '../../controls/modalGuard'
@@ -458,6 +459,23 @@ export function FloorPlanEditor() {
   const planCentrePx: [number, number] = [toPx(ew / 2), toPx(ed / 2)]
   const dimFont = dimFontPx(PX)
   const roomFont = roomFontPx(PX)
+
+  // Per-room socket-shortfall advisory (R4-4), scoped to the active storey's
+  // under-provisioned rooms — but ONLY when the MEP view is on. Passed into
+  // `RoomsLayer` so the "N/M sockets" caption stacks under the room label
+  // block instead of colliding with the perimeter line (UXW-P2-1). Empty map
+  // (no lines) whenever MEP is hidden.
+  const socketShortfall = useMemo(() => {
+    const m = new Map<string, { placed: number; target: number }>()
+    if (!fMep || !showMep) return m
+    const activeRoomIds = new Set(levelPlan.rooms.map((r) => r.id))
+    for (const row of buildSocketAdvisory(plan).rooms) {
+      if (row.underProvisioned && activeRoomIds.has(row.roomId)) {
+        m.set(row.roomId, { placed: row.placed, target: row.target })
+      }
+    }
+    return m
+  }, [fMep, showMep, plan, levelPlan.rooms])
 
   /** Close an in-progress polygon into a room (bbox → origin/width/depth + the
    *  explicit polygon for area/render/containment) on the active storey. */
@@ -2698,6 +2716,7 @@ export function FloorPlanEditor() {
                 showRoomLabels={showRoomLabels}
                 roomFont={roomFont}
                 units={units}
+                socketShortfall={socketShortfall}
                 svgRef={svgRef}
                 setPlanSelection={a.setPlanSelection}
                 beginElementDrag={beginElementDrag}

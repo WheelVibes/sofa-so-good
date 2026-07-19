@@ -299,29 +299,32 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
 ## UX walkthrough audit round (2026-07-19)
 First-time-user end-to-end walkthrough on the GPU harness. Full write-up + screenshot refs:
 `docs/research/2026-07-19-ux-walkthrough-audit.md` (P1=0, P2=3, P3=7; one P3 already fixed inline).
-- [ ] **UXW-P2-1 — plan-editor room labels collide with the socket advisory.** `MepLayer.tsx`
-  draws each room's "N/M sockets" (R4-4) at `y = toPx(wz)+16`, which lands on `RoomsLayer`'s
-  perimeter "P xx m" line (3-line label block centred on the same anchor) → both unreadable.
-  On by default (`showMep` defaults true), so every Pro plan-editor open shows it. Fix: fold the
-  socket count into the `RoomsLayer` label block as a 4th line, OR offset the MepLayer text by the
-  measured block height instead of a fixed `+16`.
-- [ ] **UXW-P2-2 — Smart Start "Styles" mixes palette themes and room-layout remodels.** Whole-flat
-  palettes (Modern Contemporary, Scandi Calm, Japandi…) and room remodels (Work-From-Home,
-  Broken-Plan Living, Boutique Suite, Family Nursery — all "Re-modelled L/D: …") sit in one
-  ungrouped list; a newcomer can't tell a colour theme from a furniture layout. Split into two
-  labelled sub-sections, or badge palette-only vs layout-changing presets.
-- [ ] **UXW-P2-3 — the shipped default + Smart-Start furnishing fails the app's own advisories.**
-  Design score 59/100 with Circulation 0/100; Clearance checks flags 1 BLOCKING ("Basin blocks a
-  door swing") + dozens of narrow walkways on the move-in default. Reconcile the default layout /
-  `moveIn` preset with the clearance/score thresholds (clear the door-swing block; lift Circulation
-  off 0) — or confirm the thresholds are intentionally strict. Product decision.
-- [ ] **UXW-P3 batch (polish, see audit doc for shots):** clearance summary stat-tile labels clipped
-  ("OVERLAPP"/"WALKWAY", `ClearancePanel.tsx`); MOOD segmented row overflows its 5 labels (desktop
-  wraps "Romantic", mobile truncates); desktop Scene-menu "Ceiling fixtures: Hidden"/"Motion: On"
-  state labels ambiguous (mobile already adds subtext — port it); Elevation panel preview dimension
-  labels cramped; Handover date is a native US mm/dd/yyyy input (SG expects dd/mm/yyyy; violates the
-  custom-controls rule) and the move-in checklist has no tick affordance; Smart Start footer leaks the
-  raw palette token "Theme: clay". (P3-1 tour "7-step"→"9-step" copy already fixed.)
+- [x] **UXW-P2-1 — plan-editor room labels collide with the socket advisory.** FIXED: the socket
+  count is now folded into `RoomsLayer`'s label block as a trailing line (respecting the label
+  anchor + `labelOffset`), computed from a `socketShortfall` map `FloorPlanEditor` passes in
+  (only when the MEP view is on). `MepLayer` no longer draws it. Verified: no overlap in the
+  plan-editor shots.
+- [x] **UXW-P2-2 — Smart Start "Styles" mixes palette themes and room-layout remodels.** FIXED:
+  the gallery is now two `.sec-h` sections — "Design themes" (`group: 'theme'`) and "Layout ideas"
+  (`group: 'layout'`). P3-7 footer token also fixed — "Theme: clay" now humanises via `THEME_META`
+  ("Theme: Clay"). Verified in the SmartStart gallery shots.
+- [x] **UXW-P2-3 — the shipped default + Smart-Start furnishing fails the app's own advisories.**
+  FIXED. Root cause: the default flat furnishes from FIXED tables (`defaultLayout`/`buildPresetItems`),
+  bypassing the arranger's door keep-outs that the RM3 property test covers — a bath2 basin sat in
+  its door swing. Moved the bath2 basin+mirror to the west wall (clear of the door); moved the
+  family-nursery floor lamp out of bedroom 3's door path. Also reconciled circulation SCORING
+  (`designScore.ts`): `findNarrowGaps` is an inclusive advisory finder (per `layoutPresets.test`),
+  so scoring now only fails on genuinely impassable pinches (<0.5 m between two large obstacles) and
+  treats snug adjacencies as gently-capped advisories. Regression test:
+  `defaultFlatClearance.test.ts`. Before→after: overall 59(F)→76(C); clearance 78→100 (BLOCKING
+  1→0); circulation 0→58.
+- [x] **UXW-P3 batch (polish):** DONE — clearance stat-tile labels ("Overlapping"→"Overlaps" +
+  no-wrap label CSS); MOOD segmented uses compact `shortLabel`s (Movie/Party) at natural width, no
+  ellipsis (wraps cleanly); desktop Scene-menu Ceiling-fixtures/Motion toggles got the mobile
+  clarifying subtext (`.scene-field-sub`); Handover date shows an SG-readable "Collection day: 12 Jul
+  2027" + format hint, and the move-in checklist rows are now tickable + persisted (`handoverChecked`,
+  schema+autosave); Smart Start footer token humanised (see P2-2). (P3-1 tour copy + P3-5 elevation
+  preview left as-is: P3-5 is the print thumbnail, out of this batch's scope.)
 
 ## Open — UI/UX polish follow-ups
 - [ ] **P37 List virtualization — DEFERRED (2026-07-03 ruling).** Not justified now: the

@@ -24,7 +24,7 @@ const LIGHTS_MODES: { key: LightsMode; label: string }[] = [
   { key: 'off', label: 'Off' },
 ]
 
-const MOOD_OPTIONS = LIGHT_MOODS.map((m) => ({ value: m, label: MOOD_PRESETS[m].label }))
+const MOOD_OPTIONS = LIGHT_MOODS.map((m) => ({ value: m, label: MOOD_PRESETS[m].shortLabel }))
 
 const WALL_REVEAL_SCOPES: { key: 'exterior' | 'all'; label: string }[] = [
   { key: 'exterior', label: 'Exterior only' },
@@ -140,6 +140,7 @@ export function SceneMenu() {
           >
             {showCeilingFixtures ? 'Visible' : 'Hidden'}
           </button>
+          <small className="scene-field-sub">3D geometry; illumination stays on</small>
         </label>
 
         {/* ---- Furniture motion (fan blades) — bug #15 ---- */}
@@ -156,6 +157,9 @@ export function SceneMenu() {
               >
                 {motionEnabled ? 'On' : 'Paused'}
               </button>
+              <small className="scene-field-sub">
+                Animate fan blades and other moving furniture
+              </small>
             </label>
           </>
         )}

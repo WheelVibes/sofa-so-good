@@ -1,13 +1,12 @@
 import type React from 'react'
-import { buildSocketAdvisory } from '../../../../analysis/socketAdvisory'
 import { ELEC_SYM_TEXT } from '../../../../floorplan/electricalPlanSvg'
-import { GROUND_LEVEL_ID, levelById } from '../../../../floorplan/levels'
 import { PLUMB_SYM_TEXT } from '../../../../floorplan/plumbingPlanSvg'
-import { roomLabelPoint } from '../../../../floorplan/roomCentroid'
 import type { PlanElectricalPoint, PlanPlumbingPoint } from '../../../../floorplan/types'
 import type { PlanSelection } from '../../../../state/slices/floorPlanSlice'
 import { useStore } from '../../../../state/store'
 import type { Tool } from '../planConstants'
+// NOTE: the per-room socket-shortfall advisory (R4-4) is rendered by
+// `RoomsLayer` (folded into the room label block, UXW-P2-1), not here.
 
 /** A point being dragged: which family/id, plus the pointer-to-point offset
  *  (grabbed anywhere on the symbol, not just its centre) — same shape as
@@ -54,21 +53,6 @@ export function MepLayer({
   pointerWorld,
   setMovingMep,
 }: MepLayerProps) {
-  // Socket-count advisory (R4-4): a compact, unobtrusive per-room shortfall
-  // readout on each under-provisioned room of the ACTIVE storey. Built from the
-  // whole plan (multi-storey aware); the active storey is inferred from the
-  // level-filtered `electrical` points this layer already receives (falling
-  // back to ground when none are placed yet). Read-only annotation — no
-  // pointer events, so it never intercepts point selection/drag.
-  const plan = useStore((s) => s.floorPlan)
-  const activeLevelId = electrical[0]?.levelId ?? GROUND_LEVEL_ID
-  const advisory = buildSocketAdvisory(plan)
-  const activeRoomIds = new Set(levelById(plan, activeLevelId).rooms.map((r) => r.id))
-  const shortfallRows = advisory.rooms.filter(
-    (r) => r.underProvisioned && activeRoomIds.has(r.roomId),
-  )
-  const roomById = new Map(levelById(plan, activeLevelId).rooms.map((r) => [r.id, r]))
-
   const point = (
     family: 'electrical' | 'plumbing',
     p: PlanElectricalPoint | PlanPlumbingPoint,
@@ -137,32 +121,6 @@ export function MepLayer({
 
   return (
     <>
-      {shortfallRows.map((r) => {
-        const room = roomById.get(r.roomId)
-        if (!room) return null
-        const [wx, wz] = roomLabelPoint(room)
-        return (
-          <text
-            key={`socket-advisory-${r.roomId}`}
-            x={toPx(wx)}
-            y={toPx(wz) + 16}
-            textAnchor="middle"
-            dominantBaseline="central"
-            style={{
-              pointerEvents: 'none',
-              fontSize: 9,
-              fontWeight: 600,
-              fill: 'var(--text-3)',
-              paintOrder: 'stroke',
-              stroke: 'var(--surface)',
-              strokeWidth: 3,
-              strokeLinejoin: 'round',
-            }}
-          >
-            {`${r.placed}/${r.target} sockets`}
-          </text>
-        )
-      })}
       {electrical.map((p) => point('electrical', p, ELEC_SYM_TEXT[p.kind]))}
       {plumbing.map((p) => point('plumbing', p, PLUMB_SYM_TEXT[p.kind]))}
     </>

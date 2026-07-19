@@ -15,7 +15,7 @@ import { BackdropUpload } from '../../scene/BackdropUpload'
 import { TimeOfDaySlider } from '../../scene/TimeOfDaySlider'
 import { Item, LIGHTS_LABEL, Section } from './parts'
 
-const MOOD_OPTIONS = LIGHT_MOODS.map((m) => ({ value: m, label: MOOD_PRESETS[m].label }))
+const MOOD_OPTIONS = LIGHT_MOODS.map((m) => ({ value: m, label: MOOD_PRESETS[m].shortLabel }))
 
 /** Scene — time of day, lights, render preset, sun, wall reveal, backdrops, HDRI. */
 export function SceneSection({

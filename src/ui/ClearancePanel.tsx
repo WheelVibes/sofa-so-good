@@ -142,7 +142,7 @@ export function ClearancePanel() {
           </div>
           <div className="clr-stat warn">
             <div className="n">{overlapCount}</div>
-            <div className="l">Overlapping</div>
+            <div className="l">Overlaps</div>
           </div>
           <div className="clr-stat err">
             <div className="n">{wallClipCount}</div>

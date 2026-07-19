@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.85 — UXW fix round: default flat clears its own checks (59→76), label fixes, handover polish
+
+All audit findings closed. The headline (UXW-P2-3): the fixed default flat
+furnishes from static tables that bypass the arranger's door keep-outs —a
+bathroom basin sat in door-bath2's swing and escaped every guard. Basin +
+mirror moved to the west wall (familyNursery floor lamp likewise), and
+circulation SCORING now separates genuinely impassable pinches (<0.5 m
+between large obstacles) from snug-adjacency advisories. New regression
+suite defaultFlatClearance.test.ts pins default flat + EVERY preset ⇒ zero
+blocked doors, circulation ≥40, overall ≥70. Live before→after: score 59
+(F)→76 (C), clearance 78→100 (blocking 1→0), circulation 0→58. Also:
+socket captions folded into the RoomsLayer label stack (no more collision),
+Smart Start sectioned into "Design themes" / "Layout ideas" (+ humanized
+footer token), clearance stat-tile clipping fixed, mood labels compacted
+(Movie/Party), desktop Scene-menu toggles get clarifying subtext, handover
+date shows SG-readable format + the checklist rows are now tickable and
+persisted. 1,105 targeted tests; every surface re-verified on GPU.
+
 ## v0.22.2.84 — First-time-user UX walkthrough audit (0 P1 / 3 P2 / 7 P3)
 
 Adversarial end-to-end walkthrough on the GPU harness (cold start, Simple

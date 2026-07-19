@@ -70,8 +70,33 @@ const WEIGHTS: Record<ScoreCategoryId, number> = {
 
 /** Per-issue penalties for the clearance category. */
 const CLEARANCE_PENALTY = { overlap: 16, wallClip: 12, blockedDoor: 22 }
-/** Per-issue penalties for the circulation category. */
-const CIRCULATION_PENALTY = { tight: 14, subIdeal: 6 }
+/**
+ * Circulation scoring bands. `findNarrowGaps` is deliberately an INCLUSIVE
+ * advisory finder — it flags every snug adjacency (a nightstand by a bed, a
+ * plant by a wall, a coffee table at arm's reach from the sofa) so the Checks
+ * overlay can hint them (see `layout/walkway.ts` + `layoutPresets.test.ts`). A
+ * real compact SG flat is FULL of these by design, so scoring every advisory
+ * hint as a heavy penalty hard-zeroed the app's own well-furnished starter
+ * layouts (UXW-P2-3). Circulation now distinguishes a genuinely IMPASSABLE
+ * pinch — a tight route between two real obstacles you must walk around — from
+ * those advisory adjacencies: only the former can fail the category; the latter
+ * erode it gently under a cap.
+ */
+const CIRCULATION = {
+  /** A gap this small (m) between two obstacles is a route you can't walk through. */
+  impassableGap: 0.5,
+  /** Footprint area (m²) for a piece to count as a circulation OBSTACLE — matches
+   *  `layoutPresets.test`'s "large piece" bar. Below it (lamps, plants, stools,
+   *  a monitor) you step around; it never defines a walkway. */
+  obstacleArea: 0.5,
+  /** Penalty per genuinely impassable pinch (a broken route). */
+  severe: 20,
+  /** Penalty per advisory snug-adjacency hint. */
+  advisory: 3,
+  /** Cap on the summed advisory penalty — snug adjacencies dent the score but,
+   *  unlike an impassable pinch, never zero a livable dense flat. */
+  advisoryCap: 42,
+}
 
 /** Furnishing coverage = furniture footprint area / room floor area. The bands
  *  below describe a comfortably-furnished room (interior-design rule of thumb:
@@ -190,19 +215,44 @@ function circulationCategory(
   plan: FloorPlan,
 ): ScoreCategory {
   const gaps = findNarrowGaps(items, defs, plan)
+  const areaById = new Map<string, number>()
+  for (const it of items) {
+    const def = defs[it.defId]
+    if (def) areaById.set(it.id, def.defaultFootprint.w * def.defaultFootprint.d)
+  }
+  const isObstacle = (id: string) => (areaById.get(id) ?? 0) >= CIRCULATION.obstacleArea
+  // A genuinely impassable pinch: a tight item↔item gap under `impassableGap`
+  // between two real obstacles you must walk AROUND — a broken route, not a
+  // snug adjacency. Everything else the finder reports is an advisory hint.
+  const impassable = gaps.filter(
+    (g) =>
+      !g.wall &&
+      g.severity === 'tight' &&
+      g.gap < CIRCULATION.impassableGap &&
+      isObstacle(g.a) &&
+      isObstacle(g.b),
+  ).length
   const tight = gaps.filter((g) => g.severity === 'tight').length
   const sub = gaps.filter((g) => g.severity === 'sub-ideal').length
-  const penalty = tight * CIRCULATION_PENALTY.tight + sub * CIRCULATION_PENALTY.subIdeal
+  const advisory = gaps.length - impassable
+  const penalty =
+    impassable * CIRCULATION.severe +
+    Math.min(CIRCULATION.advisoryCap, advisory * CIRCULATION.advisory)
   const issues: ScoreIssue[] = []
-  if (tight > 0)
+  if (impassable > 0)
     issues.push({
       severity: 'warning',
-      message: `${tight} walkway ${plural(tight, 'pinch-point')} under 0.6 m — widen for comfortable passage.`,
+      message: `${impassable} impassable ${plural(impassable, 'pinch-point')} under 0.5 m between large pieces — widen the route.`,
+    })
+  if (tight > 0)
+    issues.push({
+      severity: 'info',
+      message: `${tight} snug ${plural(tight, 'gap')} under 0.6 m (advisory).`,
     })
   if (sub > 0)
     issues.push({
       severity: 'info',
-      message: `${sub} walkway ${plural(sub, 'gap')} under the ideal 0.9 m.`,
+      message: `${sub} ${plural(sub, 'gap')} under the ideal 0.9 m (advisory).`,
     })
   if (issues.length === 0)
     issues.push({ severity: 'info', message: 'Walkways are comfortably wide.' })

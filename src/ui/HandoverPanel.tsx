@@ -1,7 +1,12 @@
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { buildHandoverChecklist } from '../analysis/handoverChecklist'
-import { buildHandoverDates, daysUntil, formatHandoverDate } from '../analysis/handoverDates'
+import {
+  buildHandoverDates,
+  daysUntil,
+  formatHandoverDate,
+  parseKeyDate,
+} from '../analysis/handoverDates'
 import { buildMergedCatalog } from '../furniture/catalog'
 import { useStore } from '../state/store'
 import { AuxPanelHead } from './AuxPanelHead'
@@ -27,6 +32,8 @@ export function HandoverPanel() {
   const items = useStore((s) => s.items)
   const keyDate = useStore((s) => s.keyCollectionDate)
   const setKeyDate = useStore((s) => s.setKeyCollectionDate)
+  const checked = useStore((s) => s.handoverChecked)
+  const toggleCheck = useStore((s) => s.toggleHandoverCheck)
   const catalogInputs = useStore(
     useShallow((s) => ({
       userFurniture: s.userFurniture,
@@ -72,6 +79,15 @@ export function HandoverPanel() {
           onChange={(e) => setKeyDate(e.target.value || null)}
           style={{ width: '100%' }}
         />
+        {/* SG-readable confirmation of the picked date (the native control
+            renders in the browser's own locale, which may show US m/d/y —
+            UXW-P3-6). `12 Jul 2027` (en-GB) is unambiguous either way. */}
+        <div className="ho-date-note">
+          {(() => {
+            const d = parseKeyDate(keyDate)
+            return d ? `Collection day: ${formatHandoverDate(d)}` : 'Format: day / month / year'
+          })()}
+        </div>
 
         {dates ? (
           <>
@@ -125,26 +141,30 @@ export function HandoverPanel() {
         <div
           style={{ color: 'var(--text-3)', fontSize: 'var(--t-2xs)', marginBottom: 'var(--s-2)' }}
         >
-          {checklist.totalItems} item{checklist.totalItems === 1 ? '' : 's'} to walk through on
-          collection.
+          {(() => {
+            const done = checklist.groups.reduce(
+              (n, g) => n + g.items.filter((i) => checked[i.id]).length,
+              0,
+            )
+            return `${done} of ${checklist.totalItems} checked — tick items off on collection day.`
+          })()}
         </div>
         {checklist.groups.map((g) => (
           <div key={g.title} style={{ marginBottom: 'var(--s-3)' }}>
             <div style={{ fontWeight: 700, fontSize: 'var(--t-sm)', marginBottom: 'var(--s-1)' }}>
               {g.title}
             </div>
-            <ul
-              style={{
-                margin: 0,
-                paddingLeft: 'var(--s-4)',
-                color: 'var(--text-2)',
-                fontSize: 'var(--t-sm)',
-                lineHeight: 'var(--lh-body)',
-              }}
-            >
+            <ul className="ho-checklist">
               {g.items.map((i) => (
-                <li key={i.id} style={{ marginBottom: 'var(--s-1)' }}>
-                  {i.label}
+                <li key={i.id}>
+                  <label className="ho-check">
+                    <input
+                      type="checkbox"
+                      checked={!!checked[i.id]}
+                      onChange={() => toggleCheck(i.id)}
+                    />
+                    <span className={checked[i.id] ? 'done' : undefined}>{i.label}</span>
+                  </label>
                 </li>
               ))}
             </ul>

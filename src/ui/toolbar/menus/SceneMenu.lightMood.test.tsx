@@ -4,8 +4,9 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { useStore } from '../../../state/store'
 import { SceneMenu } from './SceneMenu'
 
-/** UX round-3 #3: the Scene menu's one-tap lighting-mood chip row
- *  (Reading / Movie night / Entertaining / Romantic + Normal), gated by the
+/** UX round-3 #3: the Scene menu's one-tap lighting-mood chip row. The chips
+ *  render the COMPACT `shortLabel` (Normal / Reading / Movie / Party /
+ *  Romantic) so all five fit one row without wrapping (UXW-P3-3); gated by the
  *  `lightMoodPresets` flag (simple tier — on by default in both modes). */
 describe('SceneMenu lighting mood presets (lightMoodPresets)', () => {
   beforeEach(() => {
@@ -21,7 +22,7 @@ describe('SceneMenu lighting mood presets (lightMoodPresets)', () => {
     useStore.getState().setFeatureFlag('lightMoodPresets', true)
     openMenu()
     expect(screen.getByText('Mood')).toBeInTheDocument()
-    for (const label of ['Normal', 'Reading', 'Movie night', 'Entertaining', 'Romantic']) {
+    for (const label of ['Normal', 'Reading', 'Movie', 'Party', 'Romantic']) {
       expect(screen.getByText(label)).toBeInTheDocument()
     }
   })
@@ -36,7 +37,7 @@ describe('SceneMenu lighting mood presets (lightMoodPresets)', () => {
     useStore.getState().setFeatureFlag('lightMoodPresets', true)
     openMenu()
     expect(useStore.getState().lightMood).toBe('none')
-    fireEvent.click(screen.getByText('Movie night'))
+    fireEvent.click(screen.getByText('Movie'))
     expect(useStore.getState().lightMood).toBe('movie')
   })
 })
