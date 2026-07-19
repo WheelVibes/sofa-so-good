@@ -1,7 +1,8 @@
+import { useMemo } from 'react'
 import { getGlassMaterial, getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import { useStore } from '../../state/store'
 import type { ParamProps } from '../types'
-import { type BoxInstance, InstancedBoxes } from './InstancedBoxes'
+import { type BoxInstance, InstancedBoxes, InstancedCylinders } from './InstancedBoxes'
 import { readNum, readStr } from './shared'
 import { battenCount, battenOffset, battenStep } from './slatLayout'
 
@@ -40,11 +41,24 @@ export function FlutedPartition({ props }: { props: ParamProps }) {
     { position: [0, height - frameT / 2, 0], size: [width - frameT * 2, frameT, depth] },
   ]
 
-  // Rib layout (half-round vertical flutes) across the inner width.
+  // Rib layout (half-round vertical flutes) across the inner width. Every rib is
+  // an identical half-cylinder (radius ribR, height innerH) sharing ONE glass
+  // material → one `InstancedCylinders` draw call, exactly like the drying-rack
+  // rods (previously one mesh per rib — a wide screen ran to ~30 draw calls).
+  // A unit cylinder scaled `[ribR, innerH, ribR]` with `thetaLength={PI}` is the
+  // byte-exact equivalent of the old `cylinderGeometry(ribR, ribR, innerH, 10, 1,
+  // false, 0, PI)` mesh at `position={[x, height/2, depth*0.22]}` (no rotation,
+  // uniform radius scale preserves the half-round cross-section).
   const ribR = 0.016
   const gap = 0.006
-  const nRibs = battenCount(innerW, ribR * 2, gap)
-  const ribStep = battenStep(innerW, ribR * 2, nRibs)
+  const ribInstances = useMemo<BoxInstance[]>(() => {
+    const n = battenCount(innerW, ribR * 2, gap)
+    const step = battenStep(innerW, ribR * 2, n)
+    return Array.from({ length: n }, (_, i) => ({
+      position: [battenOffset(innerW, ribR * 2, step, i), height / 2, depth * 0.22],
+      size: [ribR, innerH, ribR],
+    }))
+  }, [innerW, innerH, height])
 
   return (
     <group>
@@ -55,15 +69,15 @@ export function FlutedPartition({ props }: { props: ParamProps }) {
       <mesh position={[0, height / 2, 0]} material={glass}>
         <boxGeometry args={[innerW, innerH, depth * 0.45]} />
       </mesh>
-      {/* Half-round glass ribs proud of the pane front (the flutes). */}
-      {Array.from({ length: nRibs }, (_, i) => {
-        const x = battenOffset(innerW, ribR * 2, ribStep, i)
-        return (
-          <mesh key={i} castShadow position={[x, height / 2, depth * 0.22]} material={glass}>
-            <cylinderGeometry args={[ribR, ribR, innerH, 10, 1, false, 0, Math.PI]} />
-          </mesh>
-        )
-      })}
+      {/* Half-round glass ribs proud of the pane front (the flutes) — one draw call. */}
+      <InstancedCylinders
+        instances={ribInstances}
+        radialSegments={10}
+        thetaLength={Math.PI}
+        castShadow
+      >
+        <primitive object={glass} attach="material" />
+      </InstancedCylinders>
     </group>
   )
 }

@@ -244,6 +244,53 @@ evaluated and deliberately not done, so we don't re-investigate.
   forward; the gain is a handful of cheap matrix reads/frame. Marginal value vs the added coupling —
   parked.
 
+### R11 GPU-additions regression check (2026-07-19)
+Relative draw-call/triangle sweep on this session's GPU-relevant additions (parametric roof,
+staircase, zebra/roman blinds, invisible grilles, fluted partition, door leaves, hackability
+overlay). Harness: `scripts/perf-drawcalls.mjs` (baseline) + a sibling isolation script driving
+the Terrace template with pro flags on, clearing the move-in furniture so the plan+features are
+the only variable; scene-graph mesh/instancedMesh tally alongside `gl.info` per-frame calls/tris.
+Numbers at `high` tier (frozen-shadow autoRotate span), items cleared:
+| state | meshes | instanced | calls/frame | tris/frame |
+|---|---|---|---|---|
+| Terrace shell, roof OFF | 254 | 0 | 21.6 | 5565 |
+| Terrace shell, roof ON | 255 | 0 | 22.4 | 5745 |
+| + staircase + zebra blind + fluted partition (before) | 343 | 3 | 33.1 | 7341 |
+| + same 3 (after fluted-rib instancing) | 310 | 4 | 29.4 | 7203 |
+(baseline furnished 4-room, 82 items: performance 1230 calls/287k tris; high 467.5 calls/127k tris.)
+
+- **Roof = 1 mesh** (`Roof.tsx` `planesGeometry` fan-triangulates all pitched planes into ONE merged
+  `BufferGeometry`; +1 mesh each per parapet/dormer). **Proportionate.**
+- **Zebra blind** — 2 `InstancedBoxes` buckets + cassette/rail/cord (3 small meshes). **Roman** — 4
+  `RoundedBox` folds + 1 panel. **Proportionate** (matches furniture/CLAUDE.md).
+- **Fluted partition (FIXED, 2026-07-19)** — the frame was already 1 `InstancedBoxes`, but the ribs
+  rendered as **one `<mesh>` per rib** (~33 half-cylinders on a 1.6 m screen). Collapsed to ONE
+  `InstancedCylinders` draw call (extended it with `thetaStart`/`thetaLength` for the half-round arc;
+  additive, existing callers unchanged). AE=0 equivalence unit-tested (`InstancedBoxes.test.ts`:
+  baked unit half-cylinder scaled `[ribR,innerH,ribR]` == old `cylinderGeometry(ribR,ribR,innerH,10,
+  1,false,0,PI)` mesh, max vertex error < 1e-6). Measured: −33 meshes, −3.7 calls/frame. Visually
+  verified (flutes render identically, no z-fighting).
+- **Staircase (OPEN, filed — medium risk)** — `Staircase.tsx` renders **one mesh per part** (~40 for a
+  default 13-step straight run: 13 `BeveledBox` treads + 13 box risers + railing posts + handrail).
+  Treads are beveled (no `InstancedBeveledBox` primitive exists) and materials differ (tread/riser/
+  metal), so it isn't the clean single-bucket case the fluted ribs were. A worthwhile follow-up:
+  instance the risers (box, one material) and railing posts (box, metal) as 2 `InstancedBoxes`
+  buckets → ~26 meshes saved, leaving treads as beveled meshes. Deferred (not the zero-risk frontier;
+  pro-flag loft item, ~1 per plan).
+- **Window grille / louvre / invisible-grille (OPEN, filed — low/medium risk)** — `PlanShell.tsx`'s
+  `FadeWindow` renders **one `<mesh>` per bar/cable** (an invisible grille on a 1.5 m window ≈ 15
+  cables, each its own `<meshStandardMaterial>`). Identical geometry + one colour per window → an
+  `InstancedBoxes` (bars/louvres) / `InstancedCylinders` (cables) per window would collapse each to 1
+  draw call. Deferred: it lives in a hot reveal-fade file (per-frame opacity useFrame on the window
+  material) so the refactor needs care to keep the fade material shared; multiplies with grilled
+  window count (custom plans), so worth doing if a plan with many grilles shows up.
+- **Hackability / MEP SVG overlays (step 5) — NO regression.** `HackabilityLayer`/`MepLayer` are
+  gated (`fHackability && showHackability`, default OFF; `fMep && showMep`, a small point set), take
+  stable `walls`/`toPx` props (`toPx` from `usePlanViewport`, unchanged across pointer moves), and are
+  **not** memoized — but neither is ANY sibling plan layer, so they follow the established pattern and
+  add no new per-pointermove re-render blast radius. (Memoizing the static plan layers is a
+  pre-existing whole-editor opportunity, not an R11 regression.)
+
 ## Active — asset pipeline (2026-07-02, user goal)
 See `docs/research/2026-07-02-local-asset-db-and-scraper-plan.md` for the full design.
 - **Local dev asset DB (Part 1, in progress).** Drop GLBs in `local-assets/` → auto-loaded into

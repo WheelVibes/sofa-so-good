@@ -55,8 +55,10 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   `primitives/slatLayout.ts` (`battenCount`/`battenStep`/`battenOffset`, same as `RoomDivider`), and
   the panes/ribs share ONE `getGlassMaterial(tier, …)` instance (tier read from `useStore`, cheap
   transparent pane on Performance/Medium → real transmission on High/Max, like `GlassMaterial`). The
-  half-round ribs are cylinders (`thetaLength: Math.PI`) so they never trigger the coplanar detector;
-  the frame is one `InstancedBoxes` draw call.
+  half-round ribs are cylinders (`thetaLength: Math.PI`) so they never trigger the coplanar detector,
+  and collapse to **one `InstancedCylinders` draw call** (unit half-cylinder scaled `[ribR,innerH,ribR]`
+  — `InstancedCylinders` takes optional `thetaStart`/`thetaLength` for the arc, AE=0-equivalent to the
+  old per-rib mesh, verified in `InstancedBoxes.test.ts`); the frame is one `InstancedBoxes` draw call.
 - **Round/oval footprints (`footprintShapes.ts:ellipseFootprintParts`).** `footprintParts` is a
   UNION of OBBs — it can only add area, never carve a rectangle down to a disc — so a true
   circle/ellipse isn't representable exactly. `ellipseFootprintParts(width, depth, steps=4)`

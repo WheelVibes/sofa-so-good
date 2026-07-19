@@ -106,16 +106,23 @@ export function InstancedBoxes({
  * as a child (`<primitive object={mat} attach="material" />`). Only cylinders
  * with equal top/bottom radius are representable (a unit cylinder scaled) — that
  * covers every plain rod. `radialSegments` fixes the tessellation for all.
+ * `thetaStart`/`thetaLength` cut a partial arc shared by every instance — e.g.
+ * `thetaLength={Math.PI}` for half-round flutes (the fluted-partition ribs),
+ * matching a per-mesh `cylinderGeometry(r, r, h, seg, 1, false, 0, Math.PI)`.
  */
 export function InstancedCylinders({
   instances,
   radialSegments = 8,
+  thetaStart = 0,
+  thetaLength = Math.PI * 2,
   castShadow,
   receiveShadow,
   children,
 }: {
   instances: BoxInstance[]
   radialSegments?: number
+  thetaStart?: number
+  thetaLength?: number
   castShadow?: boolean
   receiveShadow?: boolean
   children: React.ReactNode
@@ -150,7 +157,7 @@ export function InstancedCylinders({
       castShadow={castShadow}
       receiveShadow={receiveShadow}
     >
-      <cylinderGeometry args={[1, 1, 1, radialSegments]} />
+      <cylinderGeometry args={[1, 1, 1, radialSegments, 1, false, thetaStart, thetaLength]} />
       {children}
     </instancedMesh>
   )

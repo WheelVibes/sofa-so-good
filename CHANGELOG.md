@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.91 — Perf regression check on R11 GPU additions + fluted-rib instancing
+
+Deterministic draw-call/triangle audit (gl.info over a frozen-shadow orbit
+span, high tier, feature-isolated on the Terrace shell). Verdicts: roof +1
+mesh/+0.8 calls (proportionate), zebra/roman blinds instanced per docs,
+SVG overlays no re-render regression. NOT proportionate: the fluted
+partition rendered ~33 per-rib half-cylinder meshes — now ONE
+InstancedCylinders draw call (additive thetaStart/thetaLength on the
+instancing helper; drying-rack caller unchanged; AE=0 equivalence
+unit-tested; −33 meshes, −3.7 calls/frame, triangles unchanged, visually
+identical). Filed with numbers: staircase ~40 per-part meshes (medium
+risk: bevels + 3 materials), window grille per-bar meshes (hot reveal-fade
+file). Perf logs + methodology in the TODO perf section.
+
 ## v0.22.2.90 — Mobile tap-target pass 2: every editing sheet + plan toolbar hits 44 px
 
 Coordinated body.mobile-scoped lift (desktop measured unchanged): shared
