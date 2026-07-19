@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.76 — Parametric roof + dormers (pro): gable/hip/flat-parapet over landed templates
+
+Additive `FloorPlan.roof` (style gable/hip/flat-parapet, pitch 15-45°,
+overhang, ridge axis, clay-tile/metal-seam material, gable dormers). Pure
+`roofModel.ts:buildRoofModel` derives planes from the top storey's outer
+wall AABB + eave elevation (gable = 2 slopes + 2 end gables; hip collapses
+to a pyramid on square spans; flat-parapet = slab + 4 parapets; degenerate
+footprint → no roof). `apartment/Roof.tsx` mounts in PlanShell and fades
+the whole roof (dormers included) when the orbit camera looks down into the
+dollhouse, so the interior always stays visible. "Roof" section in the plan
+inspector, offered only on landed/multi-level plans; `parametricRoof` pro
+flag (default true) with both-modes tests. Maisonette + Terrace templates
+ship a 30° gable by default. v1 limits documented: bounding-rect roof on
+L/U plans, dormer window is visual-only. 214 targeted tests; 5 GPU shots
+reviewed (flush eaves, dormers seated, interior visible in orbit/top-down).
+
 ## v0.22.2.75 — Staircase hardening: pro flag, honest L/U footprints, continuous handrail
 
 The UX-round-3 staircase item was mostly shipped (C171 primitive + C232

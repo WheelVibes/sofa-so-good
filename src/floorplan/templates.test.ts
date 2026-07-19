@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildDefaultPlan } from './defaultPlan'
+import { planLevels } from './levels'
+import { buildRoofModel, outerFootprintBounds } from './roofModel'
 import { PLAN_TEMPLATES } from './templates'
 import { type FloorPlan, planBounds, planRoomArea, wallLength } from './types'
 
@@ -72,5 +74,37 @@ describe('built-in floor plans', () => {
       expect(bz).toBeGreaterThan(0)
       expect(Number.isFinite(bx) && Number.isFinite(bz)).toBe(true)
     })
+  })
+})
+
+describe('parametric roof defaults (UX research round 3)', () => {
+  const byType = (t: string) =>
+    PLAN_TEMPLATES.find((p) => p.category?.apartmentType === t) as FloorPlan
+
+  it('the landed Terrace House ships a default gable roof', () => {
+    const terrace = byType('Terrace House')
+    expect(terrace.roof).toBeTruthy()
+    expect(terrace.roof?.style).toBe('gable')
+    expect(terrace.roof?.pitchDeg).toBeGreaterThanOrEqual(15)
+    expect(terrace.roof?.pitchDeg).toBeLessThanOrEqual(45)
+  })
+
+  it('the HDB Executive Maisonette ships a default gable roof', () => {
+    const mais = byType('Executive Maisonette')
+    expect(mais.roof).toBeTruthy()
+    expect(mais.roof?.style).toBe('gable')
+  })
+
+  it('each seeded roof builds real (non-fallback) geometry over its top storey', () => {
+    for (const type of ['Terrace House', 'Executive Maisonette']) {
+      const plan = byType(type)
+      const levels = planLevels(plan)
+      const top = levels[levels.length - 1]
+      const bounds = outerFootprintBounds(top.walls)
+      const baseY = top.elevation + (top.ceilingHeight ?? plan.ceilingHeight)
+      const model = buildRoofModel(bounds, baseY, plan.roof as NonNullable<FloorPlan['roof']>)
+      expect(model.fallback, `${type} roof`).toBe(false)
+      expect(model.planes.length).toBeGreaterThan(0)
+    }
   })
 })

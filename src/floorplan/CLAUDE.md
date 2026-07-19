@@ -95,6 +95,26 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   drafting convention. The sheet prints a concise SG permit-note block alongside the legend
   (HDB permit required for any demolition, PE endorsement when RC is touched, load-bearing
   off-limits, classification is user-declared, weekday-only working hours).
+- **Parametric roof (UX research round 3, `parametricRoof` pro flag): `PlanRoof` on
+  `FloorPlan` + pure `roofModel.ts`.** `roof?: PlanRoof` (`style`
+  `gable`/`hip`/`flat-parapet`, `pitchDeg` 15–45, `overhang` 0–0.6, `ridgeAxis`
+  `auto`/`x`/`z`, optional `material` clay-tile/metal-seam + `dormers`) is additive/optional —
+  no version bump; the schema enums MUST stay in parity with `RoofStyle`/`RoofMaterialKind`/
+  `RoofDormerSide` in `types.ts` (adding a value needs both files). `roofModel.ts:buildRoofModel`
+  is the ONE pure builder: it takes the top storey's outer footprint **bounding box**
+  (`outerFootprintBounds` over the level's external walls — v1 roofs the AABB, so an L/U plan
+  gets a clean rectangular roof; documented in the module header) + the eave world Y
+  (`level.elevation + level.ceilingHeight`) and emits triangulatable `RoofPlane`s (gable: 2 slopes
+  + 2 end gables; hip: 2 trapezoids + 2 hip triangles; flat-parapet: 1 slab + a `ParapetBox` ring)
+  plus positioned `DormerBox`es (gable dormers on the two main planes; a dormer on a non-facing
+  side for the resolved ridge axis is dropped). Clamps pitch/overhang; `rise = halfSpan ×
+  tan(pitch)`; a degenerate footprint → `{ fallback: true }` (no roof). Rendered by
+  `apartment/Roof.tsx` (world-space, mounted in `PlanShell`), which **fades the whole roof out
+  when the orbit camera looks down into the dollhouse** (`camera forward.y < −0.35`) so the
+  interior stays visible, and keeps it solid (DoubleSide) for a shallow exterior orbit + walk mode.
+  Edited via `ui/floorplan/RoofSettings.tsx` in the plan-defaults panel, shown only when
+  `planRoofEligible` (landed `housingType` OR multi-level). The Terrace + Maisonette templates seed
+  a default 30° gable.
 - Geometry stays **pure + unit-tested** here (no three/React imports beyond types).
 - **Ruler guides (PARITY-PLAN-GUIDES): `plan.guides: {axis:'x'|'z',pos}[]`** are plan-wide reference
   lines (not level-tagged) the 2D editor snaps points to. Pure `snapToGuides.ts`

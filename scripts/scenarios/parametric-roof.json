@@ -1,0 +1,39 @@
+{
+  "name": "parametric-roof",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "viewport", "viewport": { "width": 1280, "height": 900 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.setOnboardingOpen?.(false); s.endTour?.(); s.dismissLocationPrompt?.(); s.setLocation?.({ lat: 1.3521, lon: 103.8198, label: 'SG' }); s.setManualHour?.(11); s.setQualityTier?.('high'); s.setUiMode?.('pro'); s.reresolveFeatureFlags?.(); })()" },
+    { "name": "scene-ready", "store": { "action": "setSceneReady", "args": [true] } },
+
+    { "name": "load-terrace", "eval": "import('/src/floorplan/templates/condo.ts').then(m => window.__store.getState().setFloorPlan(JSON.parse(JSON.stringify(m.condoTerrace()))))" },
+    { "name": "terrace-loaded", "waitFor": { "store": "window.__store.getState().floorPlan.id === 'tpl-terrace-ground' && !!window.__store.getState().floorPlan.roof" }, "timeout": 20000 },
+    { "name": "orbit-mode", "eval": "window.__store.getState().setCameraMode('orbit')" },
+    { "name": "settle-load", "wait": 1800 },
+
+    { "name": "pose-exterior-gable", "eval": "(() => { const t=window.__three; if(!t) return 'no __three'; const cam=t.camera; cam.position.set(16.2, 7.0, 24.0); if(t.controls){ t.controls.target.set(3.2, 4.2, 7.0); t.controls.update(); } cam.updateMatrixWorld(); window.__store.getState().markDirty?.(); return [cam.position.x, cam.position.y, cam.position.z]; })()" },
+    { "name": "settle-gable", "wait": 1200 },
+    { "name": "shot-gable", "screenshot": "roof-a-gable-exterior" },
+
+    { "name": "switch-hip", "eval": "(() => { const fp=window.__store.getState().floorPlan; window.__store.getState().updateFloorPlanMeta({ roof: { ...fp.roof, style: 'hip' } }); })()" },
+    { "name": "wait-hip", "wait": 1000 },
+    { "name": "pose-exterior-hip", "eval": "(() => { const t=window.__three; const cam=t.camera; cam.position.set(16.2, 7.0, 24.0); if(t.controls){ t.controls.target.set(3.2, 4.2, 7.0); t.controls.update(); } cam.updateMatrixWorld(); window.__store.getState().markDirty?.(); })()" },
+    { "name": "settle-hip", "wait": 1200 },
+    { "name": "shot-hip", "screenshot": "roof-b-hip-exterior" },
+
+    { "name": "back-to-gable-add-dormers", "eval": "(() => { const fp=window.__store.getState().floorPlan; window.__store.getState().updateFloorPlanMeta({ roof: { ...fp.roof, style: 'gable', ridgeAxis: 'z', dormers: [ { wallSide: 'E', offset: 3.5, width: 1.6 }, { wallSide: 'E', offset: 8.5, width: 1.6 } ] } }); })()" },
+    { "name": "wait-dormers", "wait": 1000 },
+    { "name": "pose-exterior-dormers", "eval": "(() => { const t=window.__three; const cam=t.camera; cam.position.set(17.5, 7.5, 8.0); if(t.controls){ t.controls.target.set(3.2, 4.2, 7.0); t.controls.update(); } cam.updateMatrixWorld(); window.__store.getState().markDirty?.(); })()" },
+    { "name": "settle-dormers", "wait": 1200 },
+    { "name": "shot-dormers", "screenshot": "roof-c-dormers-exterior" },
+
+    { "name": "home-view-interior", "store": { "action": "requestHomeView", "args": [] } },
+    { "name": "settle-home", "wait": 1800 },
+    { "name": "shot-orbit-interior", "screenshot": "roof-d-orbit-interior-visible" },
+
+    { "name": "top-view-interior", "store": { "action": "requestTopView", "args": [] } },
+    { "name": "settle-top", "wait": 1500 },
+    { "name": "shot-top-interior", "screenshot": "roof-e-top-interior-visible" }
+  ]
+}

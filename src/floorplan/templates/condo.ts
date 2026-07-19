@@ -518,6 +518,10 @@ export function condoTerrace(): FloorPlan {
       room('ct-yard', 'Service Yard', 0.2, 12.1, 6.0, 1.7, 'floor-tile-grey', 'serviceYard'),
     ],
     upperLevels: [upper],
+    // Default pitched roof so the parametric-roof feature is visible out of the
+    // box on this landed template (UX research round 3). Additive — a gable at a
+    // typical ~30° pitch with a modest eave overhang.
+    roof: { style: 'gable', pitchDeg: 30, overhang: 0.4, ridgeAxis: 'auto' },
   }
 }
 

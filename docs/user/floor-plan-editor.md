@@ -414,6 +414,32 @@ Bathrooms keep their lower dropped ceiling. The height is saved with your design
 Below it, a **Wall colour** picker repaints every wall of a custom plan (Reset
 returns the default warm off‑white). It's saved with the plan too.
 
+## Roof *(Pro)*
+
+Landed and multi‑storey plans (the **Terrace House** and **Executive
+Maisonette** templates ship with one already, and any plan with an upper storey
+qualifies) get a **Roof** section in the same no‑selection inspector. Press
+**Add roof** to place a pitched roof over the top storey, or **Remove** to take
+it away. When a roof is present you can set:
+
+- **Style** — **Gable** (two slopes meeting at a ridge, with triangular end
+  gables), **Hip** (four slopes running down to all four eaves), or
+  **Flat + parapet** (a flat top ringed by a low parapet wall).
+- **Pitch (°)** — how steep the slopes are, 15–45° (gable/hip only).
+- **Ridge** — which way the ridge runs: **Auto (longer side)**, **East–West**,
+  or **North–South** (gable/hip only).
+- **Overhang (m)** — how far the eaves project past the walls, 0–0.6 m.
+- **Material** — **Clay tile** or **Metal seam**.
+- **Dormers** — press **Add dormer** to break a slope with a small gabled dormer
+  (gable/hip only). Each dormer has a **Side** (limited to the sides the roof
+  actually faces), an **Offset (m)** along that side, and a **Width (m)**.
+
+The roof is built over the top storey's outer footprint (its bounding rectangle,
+so an L‑shaped plan gets a clean rectangular roof enclosing it). It shows from
+the outside and **fades away automatically when you orbit down into the home**,
+so it never blocks your view of the rooms. Everything here is saved with the
+plan.
+
 ## Panning & zoom
 
 The canvas is an open grid that extends in every direction — **scroll** (or

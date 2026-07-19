@@ -1741,6 +1741,21 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Parametric roof (TODO — UX research round 3, Homestyler v6 / Live Home 3D
+  // precedent): a roof slab derived from the top storey's footprint + a pitch
+  // (gable / hip / flat-parapet) with optional gable dormers, offered on
+  // landed / multi-storey plans (Maisonette / Terrace) + opt-in user plans. A
+  // structural authoring tool for whole-home shells rather than the casual
+  // furnish loop → pro tier, hidden in Simple mode. Pure procedural geometry,
+  // no external asset → prod-safe. When off, the Roof editor section + the 3D
+  // roof are hidden.
+  parametricRoof: {
+    label: 'Parametric roof',
+    description:
+      'Pitched roof (gable / hip / flat-parapet) + dormers over landed / multi-storey plans',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

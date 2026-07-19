@@ -405,6 +405,10 @@ export function hdbMaisonette(): FloorPlan {
       room('em-study', 'Family Area', 0.2, 6.8, 3.0, 2.4, 'floor-wood-oak', 'living'),
     ],
     upperLevels: [upper],
+    // Default pitched roof so the parametric-roof feature is visible out of the
+    // box on this multi-storey template (UX research round 3). Additive — a
+    // gable at a typical ~30° pitch with a modest eave overhang.
+    roof: { style: 'gable', pitchDeg: 30, overhang: 0.4, ridgeAxis: 'auto' },
   }
 }
 

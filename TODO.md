@@ -230,8 +230,15 @@ ruling), AI photo→plan (= aiWalls), shelf-lift gesture (= surfaceDrop).
   (`primitives/staircaseModel.ts`), honest L/U `footprintParts`, continuous sloped handrail,
   `parametricStairs` pro flag (hidden in Simple). `isStaircaseItem` recognises it by def id or
   primitive. Scenario `scripts/scenarios/staircase-r-verify.mjs`.
-- [ ] **Parametric roof + dormers** (L, pro) — roof slab from the outer wall polygon + pitch,
+- [x] **Parametric roof + dormers** (L, pro) — roof slab from the outer wall polygon + pitch,
   dormer cutouts; only offered on Maisonette/terrace templates (Homestyler v6 / Live Home 3D).
+  Shipped: `FloorPlan.roof` (`PlanRoof`) + pure `floorplan/roofModel.ts` (gable / hip /
+  flat-parapet over the top-storey footprint AABB + gable dormers; `rise = halfSpan·tan(pitch)`,
+  degenerate → fallback), rendered by `apartment/Roof.tsx` (world-space, fades out when orbiting
+  down inside so the interior stays visible, DoubleSide underside in walk). `parametricRoof` pro
+  flag; editor UI `ui/floorplan/RoofSettings.tsx` (shown only for landed / multi-level plans);
+  Terrace + Maisonette seed a 30° gable. Scenario `scripts/scenarios/parametric-roof.json`. v1
+  limitation: roofs the footprint bounding rectangle (documented in `roofModel.ts`).
 
 ## Open — UI/UX polish follow-ups
 - [ ] **P37 List virtualization — DEFERRED (2026-07-03 ruling).** Not justified now: the

@@ -468,6 +468,28 @@ export const FloorPlanZ = z.object({
   // Optional explicit setting-out datum (TODO G3). Optional + additive — no
   // schema-version bump; absent → the computed default corner.
   datum: z.object({ x: z.number(), z: z.number() }).optional(),
+  // Parametric roof (UX research round 3, `parametricRoof` pro flag). Optional
+  // + additive — no schema-version bump; absent → no roof. The enums MUST stay
+  // in parity with `RoofStyle`/`RoofMaterialKind`/`RoofDormerSide` in
+  // `floorplan/types.ts` (adding a value needs both files).
+  roof: z
+    .object({
+      style: z.enum(['gable', 'hip', 'flat-parapet']),
+      pitchDeg: z.number(),
+      overhang: z.number(),
+      ridgeAxis: z.enum(['auto', 'x', 'z']),
+      material: z.enum(['clay-tile', 'metal-seam']).optional(),
+      dormers: z
+        .array(
+          z.object({
+            wallSide: z.enum(['N', 'S', 'E', 'W']),
+            offset: z.number(),
+            width: z.number(),
+          }),
+        )
+        .optional(),
+    })
+    .optional(),
 })
 
 /** Serialised quote template — all fields optional for backward compatibility.

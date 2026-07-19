@@ -206,7 +206,7 @@ export interface FloorPlanSlice {
     patch: Partial<
       Pick<
         FloorPlan,
-        'name' | 'ceilingHeight' | 'extent' | 'wallColor' | 'category' | 'wallThickness'
+        'name' | 'ceilingHeight' | 'extent' | 'wallColor' | 'category' | 'wallThickness' | 'roof'
       >
     >,
   ) => void

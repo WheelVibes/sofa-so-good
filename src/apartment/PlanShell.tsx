@@ -45,6 +45,7 @@ import { PlanRoomFloor } from './floor/PlanRoomFloor'
 import { planThresholdRects } from './floor/planThresholdRects'
 import type { ThresholdRect } from './floor/thresholdRects'
 import { PlanDoorLeaf } from './PlanDoorLeaf'
+import { Roof } from './Roof'
 import { getWallOwnStrength, setWallOwnStrength } from './walls/wallReveal'
 import {
   cornerNeighbors,
@@ -497,6 +498,10 @@ export function PlanShell() {
           <PlanLevelShell plan={plan} level={level} wallColor={wallColor} cx={ew / 2} cz={ed / 2} />
         </group>
       ))}
+      {/* Parametric roof over the top storey (world-space; fades in orbit so the
+          dollhouse stays visible). Renders nothing when the plan has no roof or
+          the `parametricRoof` flag is off. */}
+      <Roof plan={plan} />
     </group>
   )
 }

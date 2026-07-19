@@ -393,6 +393,49 @@ describe('schema', () => {
     expect(patch.floorPlan?.polylines).toEqual([polyline])
   })
 
+  it('round-trips a parametric roof incl. dormers through FloorPlanZ (additive, back-compat)', () => {
+    useStore.getState().__resetForTest()
+    const roof = {
+      style: 'gable' as const,
+      pitchDeg: 32,
+      overhang: 0.4,
+      ridgeAxis: 'auto' as const,
+      material: 'metal-seam' as const,
+      dormers: [{ wallSide: 'S' as const, offset: 1.2, width: 1.4 }],
+    }
+    useStore.setState({
+      floorPlan: {
+        id: 'roof-plan',
+        name: 'Roofed',
+        ceilingHeight: 2.6,
+        extent: [6.2, 10.2],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [6.1, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [{ id: 'R', name: 'Room', origin: [0.2, 0.2], width: 3.8, depth: 3.8 }],
+        roof,
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    // Exercise the real zod parse path (storage load), not just applySerialized.
+    const parsed = FloorPlanZ.parse(saved.floorPlan)
+    expect(parsed.roof).toEqual(roof)
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.floorPlan?.roof).toEqual(roof)
+  })
+
+  it('loads a plan with no roof field fine (back-compat)', () => {
+    const parsed = FloorPlanZ.parse({
+      id: 'no-roof',
+      name: 'Plain',
+      ceilingHeight: 2.6,
+      extent: [4, 4],
+      walls: [],
+      openings: [],
+      rooms: [],
+    })
+    expect(parsed.roof).toBeUndefined()
+  })
+
   it('round-trips electrical + plumbing points (MEP layer, G1) on a custom plan', () => {
     useStore.getState().__resetForTest()
     useStore.setState({

@@ -270,6 +270,49 @@ interface PlanCategory {
   apartmentType: string
 }
 
+/** Roof style for the parametric roof (UX research round 3, `parametricRoof`
+ *  pro flag). `gable` = two pitched planes + triangular end gables; `hip` =
+ *  four planes sloping to all four eaves; `flat-parapet` = a flat slab ringed
+ *  by a low parapet wall. See `roofModel.ts` for the geometry + v1 limitations. */
+export type RoofStyle = 'gable' | 'hip' | 'flat-parapet'
+
+/** Roof surface finish — a procedural clay-tile colour or a standing-seam metal
+ *  colour (no external asset). Absent = clay tile. */
+export type RoofMaterialKind = 'clay-tile' | 'metal-seam'
+
+/** Compass side of the roof a dormer sits on. Only the two sides the main roof
+ *  planes FACE are valid for a given ridge axis (ridge along X ⇒ N/S dormers;
+ *  ridge along Z ⇒ E/W dormers); a dormer on a non-facing side is skipped. */
+export type RoofDormerSide = 'N' | 'S' | 'E' | 'W'
+
+/** A gable dormer on one of the main roof planes: a small box + tiny gable that
+ *  breaks the slope for a window. `offset` is metres along that wall from its
+ *  minimum corner; `width` is the dormer's span (m). Window is visual only. */
+export interface PlanRoofDormer {
+  wallSide: RoofDormerSide
+  offset: number
+  width: number
+}
+
+/** Parametric roof over the top storey's footprint (UX research round 3, L,
+ *  `parametricRoof` pro flag). Additive + optional — a plan with no `roof`
+ *  renders exactly as before. Offered on landed/multi-storey plans. See
+ *  `roofModel.ts:buildRoofModel` for the pure geometry. */
+export interface PlanRoof {
+  style: RoofStyle
+  /** Roof pitch in degrees, clamped to [15, 45] by the geometry builder. */
+  pitchDeg: number
+  /** Eave overhang past the wall face (m), clamped to [0, 0.6]. */
+  overhang: number
+  /** Ridge direction: `auto` runs the ridge along the longer footprint axis;
+   *  `x`/`z` force it along that world axis. Ignored by `flat-parapet`. */
+  ridgeAxis: 'auto' | 'x' | 'z'
+  /** Surface finish; absent = clay tile. */
+  material?: RoofMaterialKind
+  /** Gable dormers on the main roof planes (gable/hip only). */
+  dormers?: PlanRoofDormer[]
+}
+
 export interface FloorPlan {
   id: string
   name: string
@@ -326,6 +369,11 @@ export interface FloorPlan {
    *  (`settingOut.ts:datumPoint`), which is what every setting-out plan uses
    *  in practice. Additive + optional. */
   datum?: { x: number; z: number }
+  /** Optional parametric roof over the top storey (UX research round 3,
+   *  `parametricRoof` pro flag). Additive + optional — absent = no roof (the
+   *  prior behaviour). Rendered by `apartment/Roof.tsx` from the pure
+   *  `roofModel.ts` geometry. */
+  roof?: PlanRoof
 }
 
 /** A persistent axis-aligned reference guide: a vertical line at `x = pos`

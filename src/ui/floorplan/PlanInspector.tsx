@@ -21,6 +21,7 @@ import { STRUCTURE_OPTIONS, WallInspector } from './editor/inspector/WallInspect
 import { ELECTRICAL_MEP_KINDS, PLUMBING_MEP_KINDS } from './editor/mepToolKinds'
 import { PlanFurnitureInspector } from './PlanFurnitureInspector'
 import { PlanMultiSelectActions } from './PlanMultiSelectActions'
+import { planRoofEligible, RoofSettings } from './RoofSettings'
 
 // `Num` re-exported for callers that import it from this module (e.g.
 // `PlanFurnitureInspector`) — its definition now lives in the shared module.
@@ -71,6 +72,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const isMobile = useIsMobile()
   const wallThicknessOn = useFeature('wallThickness')
   const wallStructureOn = useFeature('wallStructure')
+  const roofOn = useFeature('parametricRoof')
   // The active storey's geometry — selection ids come from the editor canvas,
   // which only ever shows (so only ever selects) active-level elements.
   const level = levelById(plan, levelId)
@@ -190,6 +192,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
           </span>
         </div>
       ) : null}
+      {roofOn && planRoofEligible(plan) ? <RoofSettings plan={plan} /> : null}
       <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
         Pick a tool and draw on the canvas, or select an element to edit it.
         <br />

@@ -151,6 +151,12 @@ same change that reshapes a system.
   `wallBoxes`/`planCollisionWalls`/room detection; 2D bulge handle; `curvedWalls` flag, openings
   disabled on curves), `slopedWall.ts` (sloping walls — `PlanWall.topHeightEnd` → a prism rendered by
   PlanShell's `SlopedWallMesh`; `slopingWalls` flag, openings disabled),
+  `roofModel.ts` (parametric roof — pure `buildRoofModel` turns the top storey's footprint
+  bounding box + `FloorPlan.roof` `{style gable|hip|flat-parapet, pitchDeg, overhang, ridgeAxis,
+  material?, dormers?}` into triangulatable roof planes + parapet/dormer boxes, rendered by
+  `apartment/Roof.tsx` which fades the roof out when the orbit camera looks down inside;
+  `parametricRoof` Pro flag, edited via `ui/floorplan/RoofSettings.tsx`, seeded on the Terrace +
+  Maisonette templates — UX-round-3),
   `mirrorPlanRegion.ts` (whole-plan left↔right reflection about a vertical axis `x` — every wall/room/
   opening/annotation + all storeys + furniture, for mirror-image HDB stacks; flips opening hinge/swing
   handedness + wall `arc` sign + furniture yaw/`flipX`; pure + composable, double-mirror = identity;
