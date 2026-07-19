@@ -400,6 +400,7 @@ export const TABLES_DEFS = {
           { value: 'gloss', label: 'Gloss' },
           { value: 'marble', label: 'Marble' },
           { value: 'concrete', label: 'Concrete' },
+          { value: 'brass', label: 'Brushed brass' },
         ],
       },
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },

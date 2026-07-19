@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.69 — CAT-A: SG materials round (Peranakan tile, bouclé, sintered stone, brass, limewash)
+
+Six research-ranked material gaps for modern SG homes, all procedural/CC0.
+`pattern: 'peranakan'` — four-fold-symmetric matte-cement encaustic tiles
+(medallion + rosette + corner fans, colours derived from one swatch) with
+jade/cobalt/rose floor + wall-accent colourways. `getBoucleMaterial` nubby
+"quiet luxury" upholstery via `getUpholsteryMaterial('boucle')` + the
+seating material enum. Sintered-stone `worktopFinish` on kitchen counters/
+islands. `brushed-brass` MetalFinish preset + side-table top finish.
+Heritage checkerboard jade/cobalt colourways. `pattern: 'limewash'`
+(cloudier mineral wash than plaster; microcement existed, true limewash
+didn't) in white/greige/clay/terracotta. Two new unit suites; user finishes
+doc updated; 4 visual scenarios reviewed on GPU. Deferred: re-routing
+hardcoded brass in existing primitives (BarCart/TowelLadder) to the new
+preset.
+
 ## v0.22.2.68 — RM4: modern SG 4-room BTO default layout + shallow-room template fixes
 
 The move-in default flat now reads like a 2025-26 SG BTO. Living/dining:

@@ -277,3 +277,27 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   into the shared `PATTERN_FN` dispatch inside `generators.ts` (not a separate worker-only file).
   The `RenderPump` subscribes to `subscribeProceduralSwap` — do not add more subscribers
   elsewhere; the signal is intentionally not a store slice (avoids re-render overhead).
+- **CAT-A 2026-trend materials round**: procedural additions for modern SG homes, all pure/CC0.
+  Two new painters + `ProceduralPattern` members: **`peranakan`** (`patterns/tile.ts:peranakanFields`
+  — Nyonya majolica ENCAUSTIC tile: a 2×2 grid of four-fold-symmetric cement tiles, cream medallion
+  + eight-petal rosette + corner fans, MATTE cement (not the glossy `tile`/`subway` glaze); colours
+  derived from the single `base` swatch — cream ground + `base` field/flower + a channel-rotated
+  `accent` for majolica contrast) and **`limewash`** (`patterns/wall.ts:limewashFields` — cloudy
+  mineral-wash matte paint: a broad low-freq tonal wash (±~0.1, deliberately stronger than
+  `plaster`'s ±~0.02) + faint diagonal brush-drag, near-flat + high-roughness). Both wired into
+  `generators.ts` `PATTERN_FN`/`PATTERN_SIZE_CAP` (peranakan 512, limewash 256) + `composeMaterial.ts`
+  `COMPOSE_TEXTURES`, with builtin catalog colourways (peranakan jade/cobalt/rose floors + jade/cobalt
+  wall accents; limewash white/greige/clay/terracotta walls; heritage checker jade/cobalt reuse the
+  existing `checker` painter). **Limewash verify verdict:** a microcement variant already existed
+  (`concrete` pattern → `Microcement (light/grey/charcoal)`), but no true limewash — its cloudy tonal
+  wash isn't captured by `plaster` or `concrete`, so a dedicated painter was added.
+  Furniture-material additions (all in `furnitureMaterials.ts`): **`getBoucleMaterial`** (nubby looped-
+  wool "quiet luxury" upholstery — a shared blob-rounded loop normal singleton cloned+repeated per
+  material, matte, kept on ALL tiers since the nub relief IS the material; selectable via
+  `getUpholsteryMaterial('boucle', …)` + the seating `material` enum), **sintered-stone worktop**
+  (`getSurfaceMaterial('sintered')` → satin `getStoneMaterial`, matter than mirror-marble/glossier
+  than concrete; a `worktopFinish` enum option on kitchen island + counter), and **`brushed-brass`**
+  `MetalFinish` (warm brushed gold hardware preset mirroring `black-steel`; routed via
+  `getSurfaceMaterial('brass')` with a canonical brass tint + exposed as a side-table top finish).
+  Tests: `procedural/patterns/heritagePatterns.test.ts` (peranakan multi-colour/matte + limewash
+  cloudier-than-plaster) and `catAMaterials.test.ts` (bouclé/sintered/brass, both `pbrSurfaces` modes).

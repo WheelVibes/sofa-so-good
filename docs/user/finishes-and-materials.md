@@ -93,10 +93,14 @@ matter how big the surface is:
 - **Floors & walls** — wood planks, **parquet** (basketweave) and **herringbone**
   (premium 45° interlocking planks, in oak or walnut), square tile, **hexagon
   tile** (honeycomb), marble, carpet, concrete, terrazzo, plaster.
+- **Heritage tiles** — **Peranakan / Nyonya majolica** encaustic tiles (jade,
+  cobalt, rose) as a floor or backsplash accent, and **heritage checkerboard**
+  colourways (jade, cobalt) alongside the mono / terracotta checker.
 - **Wall treatments** — wallpapers (stripe / grasscloth), checker, exposed brick,
-  glossy **subway / metro tile** (kitchen backsplash + bathroom), and **fluted /
-  reeded panels** (oak / walnut / plaster feature walls), plus a **wall accent**
-  picker for a single feature wall.
+  glossy **subway / metro tile** (kitchen backsplash + bathroom), **fluted /
+  reeded panels** (oak / walnut / plaster feature walls), **microcement**, and
+  **limewash** (a soft cloudy mineral‑wash paint, in soft white / greige / clay /
+  terracotta), plus a **wall accent** picker for a single feature wall.
 
 ## Browse the online library *(Pro)*
 
@@ -121,6 +125,12 @@ one and the piece re‑renders with that material. Below the dropdown, a **Quick
 finishes** row offers common woods + marble (oak, walnut, teak, ash, ebony,
 marble) as one‑tap swatches, and **Apply finish to all** copies the piece's
 finish to every other item of the same type.
+
+Some pieces expose their own material options in the inspector: seating adds a
+**Bouclé** upholstery option (the nubby looped‑wool "quiet luxury" fabric)
+alongside Fabric / Leather / Velvet; kitchen counters and islands add a
+**Sintered stone** worktop material; and a side table's top finish adds
+**Brushed brass** (a warm brushed‑gold accent).
 
 ## Ceilings, floor texture & trim
 

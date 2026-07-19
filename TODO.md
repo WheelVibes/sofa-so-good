@@ -39,13 +39,20 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 > Research verdict: most SG staples already covered (shoe cabinet, ceiling fan, vinyl floor,
 > terrazzo/checker, fluted panels, rattan, storage beds, WFH desks, bar pieces — verified, don't
 > re-propose). Genuine gaps, cited (Qanvast/LemonFridge/RCS/Livspace 2026 trend sources):
-- [ ] **CAT-A materials round** (mostly S): Peranakan/Nyonya majolica tile pattern (new
-  `pattern: 'peranakan'` in procedural patterns + colourway entries in builtinCatalog — the
-  named 2026 heritage trend; M), bouclé fabric variant (getFabricMaterial nubby loop texture +
-  seating pattern options; the "quiet luxury" staple), sintered-stone worktop option
-  (kitchen.ts worktopFinish enum), brushed gold/brass hardware finish (metal preset mirroring
-  matte black), heritage checkerboard colourways (jade/cobalt — near-zero code), limewash wall
-  finish (verify microcement wall variant exists first).
+- [x] **CAT-A materials round** (DONE 2026-07-19) — all procedural/CC0, unit-tested, visually verified:
+  - [x] Peranakan/Nyonya majolica tile — new `pattern: 'peranakan'` (`patterns/tile.ts:peranakanFields`,
+    matte encaustic) + jade/cobalt/rose floor + jade/cobalt wall-accent catalog entries.
+  - [x] Bouclé fabric — `getBoucleMaterial` (nubby loop normal) + `getUpholsteryMaterial('boucle')`
+    + seating `material` enum option.
+  - [x] Sintered-stone worktop — `worktopFinish` enum option (kitchen island + counter) →
+    `getSurfaceMaterial('sintered')` (satin stone).
+  - [x] Brushed gold/brass — `brushed-brass` `MetalFinish` preset (mirrors `black-steel`) +
+    `getSurfaceMaterial('brass')` + side-table top-finish option. (Note: primitives were out of the
+    task's allowed scope, so existing hardcoded brass hardware wasn't re-routed to it — deferred.)
+  - [x] Heritage checkerboard jade/cobalt colourways (reuse `checker` painter).
+  - [x] Limewash wall finish — VERIFY VERDICT: a microcement variant existed (`concrete` pattern) but
+    no true limewash, so a dedicated `pattern: 'limewash'` (`patterns/wall.ts:limewashFields`, cloudy
+    mineral wash) was added + white/greige/clay/terracotta colourways.
 - [ ] **CAT-B furniture round** (S/M): extendable dining table (leaf visual on DiningTable),
   altar/prayer cabinet (new primitive — common SG household fitting, absent), banquette/built-in
   bench (condo dining nooks), hydraulic-lift storage bed variant (beds.ts option), wall-mounted

@@ -1,0 +1,50 @@
+{
+  "name": "cat-a-materials",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "viewport", "viewport": { "width": 1400, "height": 950 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.setOnboardingOpen?.(false); s.endTour?.(); s.dismissLocationPrompt?.(); s.setLocation?.({ lat: 1.3521, lon: 103.8198, label: 'SG' }); s.setManualHour?.(13); s.setQualityTier?.('high'); })()"
+    },
+    { "name": "scene-ready", "store": { "action": "setSceneReady", "args": [true] } },
+    { "name": "wait-furnished", "wait": 3000 },
+    {
+      "name": "boucle-sofa-and-sintered-worktop",
+      "eval": "(() => { const s=window.__store.getState(); const items=s.items||[]; let sofa=0,wt=0; for(const it of items){ const d=(it.defId||'').toLowerCase(); if(/sofa|sectional|loveseat|armchair/.test(d)){ s.updateItemProps(it.id,{material:'boucle',color:'#cabfa9'}); sofa++; } if(/kitchen-counter|kitchen-island|counter/.test(d)){ s.updateItemProps(it.id,{worktopFinish:'sintered',worktopColor:'#e8e4dc'}); wt++; } } return 'sofa='+sofa+' worktop='+wt; })()"
+    },
+    {
+      "name": "floor-peranakan-jade",
+      "store": { "action": "setAllFloorFinish", "args": ["floor-peranakan-jade"] }
+    },
+    {
+      "name": "wall-limewash-clay",
+      "store": { "action": "setAllWallFinish", "args": ["wall-limewash-clay"] }
+    },
+    { "name": "wait-gen-1", "wait": 4500 },
+    { "name": "shot-peranakan-limewash", "screenshot": "cat-a-peranakan-floor-limewash-wall" },
+    {
+      "name": "floor-peranakan-cobalt",
+      "store": { "action": "setAllFloorFinish", "args": ["floor-peranakan-cobalt"] }
+    },
+    { "name": "wait-gen-2", "wait": 4000 },
+    { "name": "shot-peranakan-cobalt", "screenshot": "cat-a-peranakan-cobalt-floor" },
+    {
+      "name": "floor-checker-jade",
+      "store": { "action": "setAllFloorFinish", "args": ["floor-checker-jade"] }
+    },
+    { "name": "wait-gen-3", "wait": 4000 },
+    { "name": "shot-checker-jade", "screenshot": "cat-a-heritage-checker-jade" },
+    {
+      "name": "wall-limewash-white",
+      "store": { "action": "setAllWallFinish", "args": ["wall-limewash-white"] }
+    },
+    {
+      "name": "floor-checker-cobalt",
+      "store": { "action": "setAllFloorFinish", "args": ["floor-checker-cobalt"] }
+    },
+    { "name": "wait-gen-4", "wait": 4000 },
+    { "name": "shot-checker-cobalt", "screenshot": "cat-a-heritage-checker-cobalt-limewash-white" }
+  ]
+}

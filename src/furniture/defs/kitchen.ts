@@ -166,6 +166,7 @@ export const KITCHEN_DEFS = {
         default: 'marble',
         options: [
           { value: 'marble', label: 'Stone / marble' },
+          { value: 'sintered', label: 'Sintered stone' },
           { value: 'concrete', label: 'Concrete' },
           { value: 'wood', label: 'Butcher block' },
           { value: 'gloss', label: 'Gloss / solid' },
@@ -236,6 +237,7 @@ export const KITCHEN_DEFS = {
         options: [
           { value: 'solid', label: 'Solid (laminate)' },
           { value: 'marble', label: 'Stone / marble' },
+          { value: 'sintered', label: 'Sintered stone' },
           { value: 'concrete', label: 'Concrete' },
           { value: 'wood', label: 'Butcher block' },
         ],

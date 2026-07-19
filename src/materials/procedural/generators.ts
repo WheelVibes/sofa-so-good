@@ -21,10 +21,11 @@ import {
   brickFields,
   checkerFields,
   hexagonFields,
+  peranakanFields,
   subwayFields,
   tileFields,
 } from './patterns/tile'
-import { battenFields, flutedFields, plasterFields } from './patterns/wall'
+import { battenFields, flutedFields, limewashFields, plasterFields } from './patterns/wall'
 import { herringboneFields, parquetFields, woodFields } from './patterns/wood'
 export interface ProceduralResult {
   albedo: Texture
@@ -91,6 +92,7 @@ export const PATTERN_SIZE_CAP: Record<ProceduralPattern, 256 | 512> = {
   batten: 256,
   fluted: 256,
   plaster: 256,
+  limewash: 256,
   // High-frequency geometric — needs 512 on Medium+ for crisp edges/grain
   wood: 512,
   tile: 512,
@@ -102,6 +104,7 @@ export const PATTERN_SIZE_CAP: Record<ProceduralPattern, 256 | 512> = {
   brick: 512,
   grasscloth: 512,
   stripe: 512,
+  peranakan: 512,
 }
 
 /**
@@ -159,6 +162,8 @@ const PATTERN_FN: Record<
   hexagon: hexagonFields,
   subway: subwayFields,
   fluted: flutedFields,
+  peranakan: peranakanFields,
+  limewash: limewashFields,
 }
 
 /** Raw PBR pixel data returned by {@link generateProceduralRaw} — no DOM

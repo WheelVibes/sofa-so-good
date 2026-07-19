@@ -615,6 +615,58 @@ export function getFabricMaterial(
   return m
 }
 
+let boucleNormal: Texture | null = null
+/** Shared nubby-loop bouclé normal (one 256² singleton, cloned + repeated per
+ *  material). Dense rounded wool loops: a mid-frequency value-noise field
+ *  rounded into raised blobs (the loops) with a finer fibre fuzz on top. */
+function getBoucleNormal(): Texture {
+  if (boucleNormal) return boucleNormal
+  const blob = makeFbm(0x8ac1, 3, 34) // loop clusters
+  const fibre = makeFbm(0x2f5e, 4, 96) // fine fibre fuzz
+  const height = new Float32Array(N * N)
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const u = x / N
+      const v = y / N
+      const b = clamp01(blob(u, v))
+      // Smoothstep rounding turns the noise into bulging rounded loops (peaks
+      // bulge proud, valleys flatten) — the pebbled bouclé surface.
+      const loop = b * b * (3 - 2 * b)
+      height[y * N + x] = loop * 0.82 + fibre(u, v) * 0.18
+    }
+  }
+  boucleNormal = canvasFrom(heightToNormalRGBA(height, N, 3.6))
+  return boucleNormal
+}
+
+/** Bouclé upholstery — the nubby looped-wool "quiet luxury" staple. A matte,
+ *  low-metalness cloth carrying the dense rounded-loop normal (kept on ALL
+ *  tiers — the nub relief IS the material's identity) with a faint wool sheen.
+ *  `repeat` tiles the loop field denser than 1× so the nubs read small/dense on
+ *  a large seat; cached per (color, rough, repeat). */
+export function getBoucleMaterial(color: string, rough = 0.9, repeat = 4): MeshStandardMaterial {
+  const r = Math.round(repeat * 100) / 100
+  const key = `boucle:${color}:${rough.toFixed(2)}:${r}`
+  const hit = cache.get(key)
+  if (hit) return hit
+  const normal = own(applyAnisotropy(getBoucleNormal().clone()))
+  normal.repeat.set(r, r)
+  normal.needsUpdate = true
+  const m = new MeshPhysicalMaterial({
+    color,
+    roughness: rough,
+    metalness: 0,
+    normalMap: normal,
+    envMapIntensity: GLOSSY_ENV_INTENSITY,
+  })
+  // Pronounced nub relief (deeper than a flat weave) so it reads clearly nubby.
+  m.normalScale.set(1.0, 1.0)
+  const sheen = sheenLayer('fabric')
+  if (sheen) applySheen(m, color, sheen)
+  cache.set(key, m)
+  return m
+}
+
 /** Woven fabric with a diagonal two-colour gradient (ombre) albedo, tinted
  *  full-colour by the gradient itself. Shares the fabric weave normal. */
 export function getGradientFabricMaterial(a: string, b: string): MeshStandardMaterial {
@@ -778,7 +830,7 @@ export function getVelvetMaterial(
 }
 
 /** Dispatch upholstery material by finish kind ('fabric' | 'leather' |
- *  'velvet'), tinted to `color`. `sheen` (0..1) tunes matte → glossy.
+ *  'velvet' | 'boucle'), tinted to `color`. `sheen` (0..1) tunes matte → glossy.
  *  `pattern` ('plain' | 'striped' | 'herringbone') applies a tone-on-tone
  *  weave to woven fabric only (leather/velvet ignore it). */
 export function getUpholsteryMaterial(
@@ -790,6 +842,7 @@ export function getUpholsteryMaterial(
   if (kind === 'leather')
     return getLeatherMaterial(color, sheen > 0 ? sheenRough(0.42, sheen) : 0.42)
   if (kind === 'velvet') return getVelvetMaterial(color, sheen > 0 ? sheenRough(0.62, sheen) : 0.62)
+  if (kind === 'boucle') return getBoucleMaterial(color, sheen > 0 ? sheenRough(0.9, sheen) : 0.9)
   return getFabricMaterial(color, sheen > 0 ? sheenRough(0.95, sheen) : 0.95, pattern)
 }
 
@@ -1023,10 +1076,17 @@ export function getSurfaceMaterial(
     return getPaintedMaterial(color, true, sheen > 0 ? sheenRough(0.16, sheen) : undefined)
   if (kind === 'marble' || kind === 'stone')
     return getStoneMaterial(color, repeat, sheen > 0 ? sheenRough(0.12, sheen) : 0.12)
+  // Sintered stone (porcelain slab): dense, low-porosity — a satin polish, a
+  // touch matter than a mirror-marble, over the shared stone veining.
+  if (kind === 'sintered')
+    return getStoneMaterial(color, repeat, sheen > 0 ? sheenRough(0.22, sheen) : 0.22)
   if (kind === 'rattan') return getRattanMaterial(color, repeat * 3)
   if (kind === 'concrete')
     return getConcreteMaterial(color, repeat, sheen > 0 ? sheenRough(0.85, sheen) : 0.85)
   if (kind === 'metal') return getMetalMaterial(color, 'satin', repeat)
+  // Brushed gold/brass hardware finish — a canonical warm brass tone (like the
+  // primitives that hardcode a brass tint), brushed via the dedicated preset.
+  if (kind === 'brass') return getMetalMaterial('#b8923f', 'brushed-brass', repeat)
   return getWoodMaterial(color, repeat, sheen > 0 ? sheenRough(0.5, sheen) : 0.5)
 }
 
@@ -1200,11 +1260,13 @@ export const applianceFinish = applianceFinishLogic
 // the finish's metalness/roughness (the legacy `applianceFinish` look) so the
 // flat Performance tier never pays for the brush maps and reads sensible.
 
-/** The three metal finishes a steel body can take. `stainless` is the bright
- *  brushed appliance default; `satin` is a softer, slightly rougher sheen;
- *  `black-steel` is the dark matte-stainless trend finish (its dark body comes
- *  from the caller's tint — the maps are tint-independent greyscale). */
-export type MetalFinish = 'stainless' | 'satin' | 'black-steel'
+/** The metal finishes a steel body / hardware can take. `stainless` is the
+ *  bright brushed appliance default; `satin` is a softer, slightly rougher
+ *  sheen; `black-steel` is the dark matte-stainless trend finish; `brushed-brass`
+ *  is the warm brushed gold/brass hardware trend (mirrors `black-steel` — a
+ *  finish preset, the gold body comes from the caller's warm tint, maps are
+ *  tint-independent greyscale). */
+export type MetalFinish = 'stainless' | 'satin' | 'black-steel' | 'brushed-brass'
 
 /** Base metalness/roughness + brush intensity per finish. The brush maps tune
  *  the directional grain; `anisotropy` is the swept-highlight strength. */
@@ -1222,6 +1284,10 @@ function metalFinishPreset(finish: MetalFinish): {
       // Dark matte stainless: matter, slightly stronger grain (reads on the dark
       // body), subtler highlight so it doesn't sparkle.
       return { roughness: 0.5, metalness: 0.82, streak: 0.55, anisotropy: 0.35 }
+    case 'brushed-brass':
+      // Warm brushed brass/gold hardware: fully metallic with a satin brushed
+      // sheen (a touch glossier than satin steel) + a soft directional sweep.
+      return { roughness: 0.36, metalness: 0.95, streak: 0.45, anisotropy: 0.45 }
     default: // 'stainless' — bright brushed appliance steel.
       return {
         roughness: 0.3,

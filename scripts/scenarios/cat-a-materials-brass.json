@@ -1,0 +1,23 @@
+{
+  "name": "cat-a-materials-brass",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "viewport", "viewport": { "width": 1400, "height": 950 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.setOnboardingOpen?.(false); s.endTour?.(); s.dismissLocationPrompt?.(); s.setLocation?.({ lat: 1.3521, lon: 103.8198, label: 'SG' }); s.setManualHour?.(13); s.setQualityTier?.('high'); })()"
+    },
+    { "name": "scene-ready", "store": { "action": "setSceneReady", "args": [true] } },
+    { "name": "wait-furnished", "wait": 3000 },
+    {
+      "name": "apply-materials",
+      "eval": "(() => { const s=window.__store.getState(); for(const it of (s.items||[])){ const d=(it.defId||'').toLowerCase(); if(/sofa|sectional|loveseat/.test(d)) s.updateItemProps(it.id,{material:'boucle',color:'#c7654f'}); if(/dining-table|coffee-table/.test(d)) s.updateItemProps(it.id,{finish:'brass'}); } })()"
+    },
+    { "name": "floor-oak", "store": { "action": "setAllFloorFinish", "args": ["floor-wood-oak"] } },
+    { "name": "wall-limewash-white", "store": { "action": "setAllWallFinish", "args": ["wall-limewash-white"] } },
+    { "name": "enter-living", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "wait-living", "wait": 7000 },
+    { "name": "shot-brass-boucle", "screenshot": "cat-a-brass-table-boucle-sofa" }
+  ]
+}

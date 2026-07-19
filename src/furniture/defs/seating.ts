@@ -45,6 +45,7 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       {
@@ -141,6 +142,7 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       {
@@ -272,6 +274,7 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       {
@@ -372,6 +375,7 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       {
@@ -490,6 +494,7 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
@@ -553,6 +558,7 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       {
@@ -634,6 +640,7 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       {
@@ -700,6 +707,7 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       {
@@ -780,6 +788,7 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       {
@@ -839,6 +848,7 @@ export const SEATING_DEFS = {
         options: [
           { value: 'fabric', label: 'Fabric' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
           { value: 'leather', label: 'Leather' },
         ],
       },
@@ -921,6 +931,7 @@ export const SEATING_DEFS = {
           { value: 'fabric', label: 'Fabric' },
           { value: 'leather', label: 'Leather' },
           { value: 'velvet', label: 'Velvet' },
+          { value: 'boucle', label: 'Bouclé' },
         ],
       },
       {
