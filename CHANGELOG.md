@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.23.0.0 — Round 11 ships: SG blank-slate journey, presets, variants, catalog, audits
+
+Minor bump for the r11 PR to staging (43 commits this round, v0.22.2.64+).
+Headlines: user-settable room categories flowing through every classifier;
+the 2025-26 SG theme gallery with per-category styling; placement soundness
+(window/door keep-outs, SG bed rules) property-tested across all templates;
+opening variants (zebra/roman/invisible-grille/bifold/sliding/double +
+door materials); CAT-A/B SG materials + furniture; parametric stairs
+hardening + roof; paint visualizer; the full blank-slate journey (intake
+states, whole-reno budget, aircon system planner, switching schematic,
+per-trade packs, waterproofing zones, floor levels) validated end-to-end;
+style-aware schedule marks; four audits (bug comb, UX, contractor SHIP IT,
+mobile) with all findings closed; perf instancing wins. Suite: 8,398 tests.
+
 ## v0.22.2.104 — RM1 migration complete: every room classifier honors the explicit category
 
 The five deferred RM1 consumers (suggestions, roomLux, planStatistics,
