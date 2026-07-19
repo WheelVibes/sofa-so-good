@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.92 — Staircase + window-grille instancing (both filed wins landed)
+
+Staircase risers/posts/rails/newels collapse to 2 InstancedBoxes buckets
+(rail rake baked T·R·S; treads/landings deliberately stay BeveledBox — the
+chamfer catches light on the most prominent surface and no instanced bevel
+primitive exists). Window grille bars / louvre slats / invisible-grille
+cables collapse to one InstancedMesh per window (fade caution resolved by
+reading the code: only the glass pane's material fades — bars never did).
+58 member meshes → 4 instanced nodes on the loft state; staircase 40→15
+draws; two grille windows 31→2. AE<1e-6 equivalence suites across all four
+stair styles + all three grille kinds; staircase close-up pixel-identical;
+fade behaviour byte-identical. 3,075 targeted tests.
+
 ## v0.22.2.91 — Perf regression check on R11 GPU additions + fluted-rib instancing
 
 Deterministic draw-call/triangle audit (gl.info over a frozen-shadow orbit

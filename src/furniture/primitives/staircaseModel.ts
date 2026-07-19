@@ -15,6 +15,8 @@
  * spiral treads).
  */
 
+import type { BoxInstance } from './InstancedBoxes'
+
 type StaircasePartKind = 'tread' | 'riser' | 'landing' | 'post' | 'rail' | 'newel'
 
 export interface StaircasePart {
@@ -351,6 +353,43 @@ export function buildStaircase(spec: StaircaseSpec): StaircasePart[] {
  *  with the builder on the effective dimensions. */
 export function sanitizeStaircase(spec: StaircaseSpec): Required<StaircaseSpec> {
   return sanitize(spec)
+}
+
+/** A staircase part as one instance transform: its Euler rotation is the SAME
+ *  `[pitch, rot, roll]` the per-mesh renderer applied, baked by
+ *  `bakeInstanceMatrix` as `T · R · S` — byte-identical to a `<mesh position
+ *  rotation>` wrapping a `size`-dimensioned box (AE=0, unit-tested). */
+function partToInstance(p: StaircasePart): BoxInstance {
+  return {
+    position: p.position,
+    size: p.size,
+    rotation: [p.pitch ?? 0, p.rot ?? 0, p.roll ?? 0],
+  }
+}
+
+/** Buckets a staircase's parts for instanced rendering: plain-box `risers`
+ *  (one surface material) and `metal` members — `post`/`rail`/`newel` (one
+ *  brushed-metal material) — each collapse to ONE `InstancedBoxes` draw call.
+ *  `treads` + `landings` stay as `meshParts`: they render through `BeveledBox`
+ *  (a small chamfer catches light on the horizontal surface a foot lands on)
+ *  and there is no instanced beveled-box primitive, so instancing them would
+ *  either drop the chamfer (a visible flat-cardboard regression on the most
+ *  prominent stair surface) or need new geometry — deferred, not worth the risk.
+ *  Rails carry the pitch/roll rake, which `partToInstance` preserves. */
+export function staircaseInstanceBuckets(parts: StaircasePart[]): {
+  risers: BoxInstance[]
+  metal: BoxInstance[]
+  meshParts: StaircasePart[]
+} {
+  const risers: BoxInstance[] = []
+  const metal: BoxInstance[] = []
+  const meshParts: StaircasePart[] = []
+  for (const p of parts) {
+    if (p.kind === 'tread' || p.kind === 'landing') meshParts.push(p)
+    else if (p.kind === 'riser') risers.push(partToInstance(p))
+    else metal.push(partToInstance(p))
+  }
+  return { risers, metal, meshParts }
 }
 
 /** One box of the plan-projected (XZ) footprint, in the SAME local frame the

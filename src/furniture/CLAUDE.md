@@ -32,7 +32,17 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   `primitives/staircaseModel.ts` (`buildStaircase` → treads/risers/landings/posts + rail/newel;
   `Staircase.tsx` only maps parts → boxes), like `cabinetModel.ts`. Straight / L / U / spiral;
   each step is a solid box stacked on the one below (closed stringer, grounded to the floor — no
-  floating). **Handrail is ONE continuous sloped rail per flight** (first→last post), tilted up the
+  floating). **Instanced buckets (PERF):** `staircaseInstanceBuckets(parts)` (pure, in
+  `staircaseModel.ts`) splits the ~40 per-part meshes into `risers` (one surface material) +
+  `metal` (`post`/`rail`/`newel`, one brushed-metal material) — each ONE `InstancedBoxes` draw
+  call — leaving `treads`+`landings` as `BeveledBox` meshes (their subtle chamfer catches light on
+  the horizontal surface a foot lands on; there is no instanced beveled-box primitive, so
+  instancing them would drop the chamfer — a visible regression on the most prominent surface).
+  Rotation (incl. the rail's pitch/roll rake) bakes into the instance matrix as T·R·S, AE=0 vs. the
+  old per-mesh `rotation={[pitch, rot, roll]}` (unit-tested, `staircaseModel.test.ts`). The
+  per-item ghost/opacity path (`Furniture.tsx`) clones each mesh's material per-node, so it applies
+  to the shared cached instanced material without mutating other staircases — unchanged behaviour.
+  **Handrail is ONE continuous sloped rail per flight** (first→last post), tilted up the
   rake via a `pitch` (X, for Z-running flights) or `roll` (Z, for the turned X-running flight) field
   on `StaircasePart` — the renderer applies `rotation={[pitch, rot, roll]}`; NEVER a short
   horizontal cap per tread (that leaves per-step vertical gaps — a visual FAIL). Balusters/rail are

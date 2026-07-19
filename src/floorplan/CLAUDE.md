@@ -58,7 +58,12 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   mirror rotations, the SG condo main-door / large master-bedroom norm) and `PlanShell`'s `FadeWindow`
   (grille/invisible-grille/louvre bars — invisible-grille is hair-thin near-transparent cables vs.
   grille's chunky visible bars; the vertical-bar/louvre-slat layout maths lives in
-  `windowGrilleLayout.ts`, pure + unit-tested); same additive schema shape as `color`. A door ALSO
+  `windowGrilleLayout.ts`, pure + unit-tested. **Each window's members collapse to ONE InstancedMesh
+  per bucket (PERF):** `grilleBarInstances`/`louvreSlatInstances` → one `InstancedBoxes`,
+  `invisibleGrilleCableInstances` → one `InstancedCylinders` (AE=0 vs. the old per-bar/per-cable
+  mesh, unit-tested). Each bucket keeps its OWN material — the wall-reveal fade touches only the
+  glass pane (`FadeWindow`'s `ref`), NOT the grille members (they were never faded), so instancing
+  is byte-identical to the prior reveal behaviour); same additive schema shape as `color`. A door ALSO
   carries `PlanOpening.material` (`painted`/`wood`/`vinyl`, `doorMaterial.ts:
   resolveDoorLeafMaterialKind` — defaults to `vinyl` for `bifold`, `painted` otherwise) selecting its
   leaf's real finish via `materials/furnitureMaterials.ts` (`getPaintedMaterial`/`getWoodMaterial`/

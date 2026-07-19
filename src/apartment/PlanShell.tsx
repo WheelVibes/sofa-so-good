@@ -28,8 +28,14 @@ import {
   wallLength,
 } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
-import { louvreSlatOffsets, verticalBarOffsets } from '../floorplan/windowGrilleLayout'
+import {
+  type GrilleMemberInstance,
+  grilleBarInstances,
+  invisibleGrilleCableInstances,
+  louvreSlatInstances,
+} from '../floorplan/windowGrilleLayout'
 import { BeveledBox } from '../furniture/primitives/BeveledBox'
+import { InstancedBoxes, InstancedCylinders } from '../furniture/primitives/InstancedBoxes'
 import {
   GLASS_SKYCATCH_COLOR,
   glassSkyCatchIntensity,
@@ -958,26 +964,22 @@ function FadeWindow({
   // invisible grille (hair-thin cables) over the glass — pure thin geometry in
   // the window plane (local Z = width, Y = height); the layout maths lives in
   // `windowGrilleLayout.ts` so it's unit-testable without a GPU.
+  // Members collapse to ONE InstancedMesh per window (bars/slats → InstancedBoxes,
+  // cables → InstancedCylinders) — each bucket keeps its OWN material instance,
+  // never the glass pane's fade material (only `ref`'s pane fades via the useFrame
+  // above), so the wall-reveal behaviour is byte-identical to the old per-mesh grille.
   const style = win.style ?? 'plain'
-  const bars: { pos: [number, number, number]; size: [number, number, number] }[] = []
-  const cables: { pos: [number, number, number] }[] = []
-  if (style === 'grille') {
-    for (const z of verticalBarOffsets(win.width, 0.16)) {
-      bars.push({ pos: [0, 0, z], size: [0.018, win.height * 0.98, 0.012] })
-    }
-  } else if (style === 'louvre') {
-    for (const y of louvreSlatOffsets(win.height, 0.14)) {
-      bars.push({ pos: [0, y, 0], size: [0.05, 0.02, win.width * 0.98] })
-    }
-  } else if (style === 'invisible-grille') {
-    // Modern "invisible grille" convention: hair-thin stainless cables spaced
-    // ~10 cm apart, near-transparent so they barely register at a glance
-    // (unlike the chunky visible `grille` bars) while still reading as a
-    // safety barrier close-up.
-    for (const z of verticalBarOffsets(win.width, 0.1)) {
-      cables.push({ pos: [0, 0, z] })
-    }
-  }
+  const bars: GrilleMemberInstance[] =
+    style === 'grille'
+      ? grilleBarInstances(win.width, win.height)
+      : style === 'louvre'
+        ? louvreSlatInstances(win.width, win.height)
+        : []
+  // Modern "invisible grille" convention: hair-thin stainless cables spaced
+  // ~10 cm apart, near-transparent so they barely register at a glance (unlike
+  // the chunky visible `grille` bars) while still reading as a safety barrier.
+  const cables: GrilleMemberInstance[] =
+    style === 'invisible-grille' ? invisibleGrilleCableInstances(win.width, win.height) : []
   return (
     <group position={[win.cx, win.cy, win.cz]} rotation={[0, win.angle, 0]}>
       <mesh ref={ref}>
@@ -1009,15 +1011,13 @@ function FadeWindow({
           />
         )}
       </mesh>
-      {bars.map((b, i) => (
-        <mesh key={i} position={b.pos} castShadow>
-          <boxGeometry args={b.size} />
+      {bars.length > 0 && (
+        <InstancedBoxes instances={bars} castShadow>
           <meshStandardMaterial color="#cfd2d4" roughness={0.5} metalness={0.4} />
-        </mesh>
-      ))}
-      {cables.map((c, i) => (
-        <mesh key={i} position={c.pos}>
-          <cylinderGeometry args={[0.004, 0.004, win.height * 0.98, 6]} />
+        </InstancedBoxes>
+      )}
+      {cables.length > 0 && (
+        <InstancedCylinders instances={cables} radialSegments={6}>
           <meshStandardMaterial
             color="#d7dade"
             roughness={0.3}
@@ -1025,8 +1025,8 @@ function FadeWindow({
             transparent
             opacity={0.4}
           />
-        </mesh>
-      ))}
+        </InstancedCylinders>
+      )}
     </group>
   )
 }

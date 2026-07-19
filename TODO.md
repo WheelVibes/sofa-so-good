@@ -270,20 +270,34 @@ Numbers at `high` tier (frozen-shadow autoRotate span), items cleared:
   baked unit half-cylinder scaled `[ribR,innerH,ribR]` == old `cylinderGeometry(ribR,ribR,innerH,10,
   1,false,0,PI)` mesh, max vertex error < 1e-6). Measured: −33 meshes, −3.7 calls/frame. Visually
   verified (flutes render identically, no z-fighting).
-- **Staircase (OPEN, filed — medium risk)** — `Staircase.tsx` renders **one mesh per part** (~40 for a
-  default 13-step straight run: 13 `BeveledBox` treads + 13 box risers + railing posts + handrail).
-  Treads are beveled (no `InstancedBeveledBox` primitive exists) and materials differ (tread/riser/
-  metal), so it isn't the clean single-bucket case the fluted ribs were. A worthwhile follow-up:
-  instance the risers (box, one material) and railing posts (box, metal) as 2 `InstancedBoxes`
-  buckets → ~26 meshes saved, leaving treads as beveled meshes. Deferred (not the zero-risk frontier;
-  pro-flag loft item, ~1 per plan).
-- **Window grille / louvre / invisible-grille (OPEN, filed — low/medium risk)** — `PlanShell.tsx`'s
-  `FadeWindow` renders **one `<mesh>` per bar/cable** (an invisible grille on a 1.5 m window ≈ 15
-  cables, each its own `<meshStandardMaterial>`). Identical geometry + one colour per window → an
-  `InstancedBoxes` (bars/louvres) / `InstancedCylinders` (cables) per window would collapse each to 1
-  draw call. Deferred: it lives in a hot reveal-fade file (per-frame opacity useFrame on the window
-  material) so the refactor needs care to keep the fade material shared; multiplies with grilled
-  window count (custom plans), so worth doing if a plan with many grilles shows up.
+- **Staircase (DONE, 2026-07-19)** — `staircaseModel.ts:staircaseInstanceBuckets` splits the ~40
+  per-part meshes into `risers` (one surface material) + `metal` (post/rail/newel, one brushed-metal
+  material) → **2 `InstancedBoxes` draw calls**; `treads`+`landings` stay as `BeveledBox` meshes (no
+  instanced beveled primitive; instancing them would drop the light-catching chamfer on the most
+  prominent surface — deliberately NOT done, the correct no-op). Rail pitch/roll rake bakes into the
+  instance matrix as T·R·S, **AE<1e-6** vs. the old per-mesh `rotation={[pitch,rot,roll]}` across
+  straight/spiral/L/U styles (`staircaseModel.test.ts`). Default straight 13-step (side rail): **40
+  part-meshes → 13 tread meshes + 2 instanced** (−27 meshes, +2 instanced, −25 in-frustum draw
+  calls). Fade-safe: the `Furniture.tsx` per-item ghost path clones each node's material, so it
+  applies to the shared instanced material without mutating other staircases. Visual A/B
+  (`staircase-r-verify`, GPU): straight close-up **pixel-identical**, L/U rake rails render correctly.
+- **Window grille / louvre / invisible-grille (DONE, 2026-07-19)** — each window's members collapse
+  to ONE `InstancedMesh` per bucket via pure builders in `windowGrilleLayout.ts`:
+  `grilleBarInstances`/`louvreSlatInstances` → one `InstancedBoxes`, `invisibleGrilleCableInstances`
+  → one `InstancedCylinders(radialSegments=6)`; consumed by `PlanShell`'s `FadeWindow`. The audit's
+  fade caution was resolved by reading the code: **the reveal fade only mutates the glass pane's
+  material** (`FadeWindow`'s `ref`) — the bars/cables always had their OWN static materials and were
+  **never** faded, so instancing them (one shared material per window, still un-faded) is byte-identical
+  to the reveal behaviour. **AE<1e-6** vs. the old per-bar/cable geometry (`windowGrilleLayout.test.ts`).
+  Measured (Terrace, items cleared, one grille + one invisible-grille window): the two windows'
+  members (12 bars + 19 cables) collapse **31 meshes → 2 draw calls**. Visual A/B
+  (`opening-variants-r11-openings`, faded-wall dollhouse, GPU): grille + faded walls render identically
+  to the pre-change reference (the small front-wall translucency delta is fade-lerp capture timing,
+  not from this change — no code path from grille instancing to wall/glass opacity).
+  **Combined deterministic tally** (Terrace shell + staircase + 2 grille windows, items cleared, high
+  tier): **336 mesh-nodes → 282** (58 collapsed members → 4 `InstancedMesh` draw-call nodes). Per-frame
+  `gl.info` calls are frustum-culling-noisy under swiftshader (~33 calls/frame) — the scene-graph tally
+  is the deterministic metric, per the audit methodology.
 - **Hackability / MEP SVG overlays (step 5) — NO regression.** `HackabilityLayer`/`MepLayer` are
   gated (`fHackability && showHackability`, default OFF; `fMep && showMep`, a small point set), take
   stable `walls`/`toPx` props (`toPx` from `usePlanViewport`, unchanged across pointer moves), and are

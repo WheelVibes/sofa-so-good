@@ -44,3 +44,60 @@ export function louvreSlatOffsets(height: number, pitch: number, min = 3): numbe
   for (let i = 0; i < n; i++) offsets.push(-height / 2 + (height * (i + 0.5)) / n)
   return offsets
 }
+
+// ── Instanced-member transforms ──────────────────────────────────────────────
+// Each of the three window styles collapses its identical, axis-aligned members
+// (vertical bars / horizontal slats / hair-thin cables) into ONE InstancedMesh
+// per window in `PlanShell`'s `FadeWindow` — the bars/cables were previously one
+// `<mesh>` each. These builders describe the members render-agnostically so the
+// layout stays unit-testable without a GPU (the AE=0 equivalence bar, matching
+// `slatLayout.ts`). Every member is in the window-local frame (local Z = width,
+// Y = height); the box/cylinder scale is `[w, h, d]` — for a cable this is the
+// unit-cylinder `[radius, length, radius]`. No rotation: grille members are all
+// axis-aligned in that frame, so the transform is a pure translate + scale.
+
+/** One instanced grille member: window-local centre + box/cylinder scale.
+ *  Structurally a furniture `BoxInstance` (no rotation) so `PlanShell` can feed
+ *  it straight to `InstancedBoxes` / `InstancedCylinders`. */
+export interface GrilleMemberInstance {
+  position: [number, number, number]
+  size: [number, number, number]
+}
+
+/** Visible safety-grille bar cross-section (m) — chunky, reads at a glance. */
+const GRILLE_BAR_W = 0.018
+const GRILLE_BAR_D = 0.012
+/** Hair-thin invisible-grille cable radius (m). */
+const INVISIBLE_CABLE_R = 0.004
+
+/** Chunky vertical safety-grille bars, one `InstancedBoxes` bucket. Each bar is
+ *  a `[GRILLE_BAR_W, height*0.98, GRILLE_BAR_D]` box at the interior bay
+ *  boundary — byte-identical to the old per-bar mesh. */
+export function grilleBarInstances(width: number, height: number): GrilleMemberInstance[] {
+  return verticalBarOffsets(width, 0.16).map((z) => ({
+    position: [0, 0, z],
+    size: [GRILLE_BAR_W, height * 0.98, GRILLE_BAR_D],
+  }))
+}
+
+/** Horizontal louvre slats, one `InstancedBoxes` bucket. Each slat is a
+ *  `[0.05, 0.02, width*0.98]` box centred in its band. */
+export function louvreSlatInstances(width: number, height: number): GrilleMemberInstance[] {
+  return louvreSlatOffsets(height, 0.14).map((y) => ({
+    position: [0, y, 0],
+    size: [0.05, 0.02, width * 0.98],
+  }))
+}
+
+/** Hair-thin invisible-grille cables, one `InstancedCylinders` bucket. Each
+ *  cable scales the unit cylinder as `[radius, length, radius]` — equivalent to
+ *  the old `cylinderGeometry(r, r, height*0.98, 6)` per-cable mesh. */
+export function invisibleGrilleCableInstances(
+  width: number,
+  height: number,
+): GrilleMemberInstance[] {
+  return verticalBarOffsets(width, 0.1).map((z) => ({
+    position: [0, 0, z],
+    size: [INVISIBLE_CABLE_R, height * 0.98, INVISIBLE_CABLE_R],
+  }))
+}

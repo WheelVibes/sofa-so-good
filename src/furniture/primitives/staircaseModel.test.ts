@@ -1,10 +1,13 @@
+import { BoxGeometry, Object3D } from 'three'
 import { describe, expect, it } from 'vitest'
+import { bakeInstanceMatrix } from './InstancedBoxes'
 import {
   buildStaircase,
   type StaircasePart,
   type StaircaseSpec,
   sanitizeStaircase,
   staircaseFootprintParts,
+  staircaseInstanceBuckets,
 } from './staircaseModel'
 
 const base: StaircaseSpec = {
@@ -269,6 +272,59 @@ describe('staircaseFootprintParts', () => {
       const parts = staircaseFootprintParts(spec)
       for (const t of treads(buildStaircase(spec))) {
         expect(inParts(parts, t.position[0], t.position[2], 1e-3)).toBe(true)
+      }
+    }
+  })
+})
+
+describe('staircaseInstanceBuckets', () => {
+  it('partitions parts: risers, metal (post/rail/newel), and mesh treads+landings', () => {
+    // U-shape with both-side rails exercises every kind (incl. landings + rake rails).
+    const spec: StaircaseSpec = { ...base, style: 'ushape', railing: 'both' }
+    const parts = buildStaircase(spec)
+    const { risers, metal, meshParts } = staircaseInstanceBuckets(parts)
+    expect(risers).toHaveLength(parts.filter((p) => p.kind === 'riser').length)
+    expect(metal).toHaveLength(
+      parts.filter((p) => p.kind === 'post' || p.kind === 'rail' || p.kind === 'newel').length,
+    )
+    expect(meshParts).toHaveLength(
+      parts.filter((p) => p.kind === 'tread' || p.kind === 'landing').length,
+    )
+    // Every part is accounted for exactly once.
+    expect(risers.length + metal.length + meshParts.length).toBe(parts.length)
+  })
+
+  it('AE=0: each instanced riser/metal matrix equals the old per-mesh box transform', () => {
+    // Include a spiral (rot on every part) + straight both-side rails (rake pitch)
+    // so the pitch/rot/roll → T·R·S baking is covered across styles.
+    for (const style of ['straight', 'spiral', 'lshape', 'ushape'] as const) {
+      const spec: StaircaseSpec = { ...base, style, railing: 'both' }
+      const parts = buildStaircase(spec)
+      const instanced = parts.filter((p) => p.kind !== 'tread' && p.kind !== 'landing')
+      const { risers, metal } = staircaseInstanceBuckets(parts)
+      const all = [...risers, ...metal]
+      expect(all).toHaveLength(instanced.length)
+      for (const p of instanced) {
+        // Old path: a real-sized box at position, rotated [pitch, rot, roll].
+        const dummy = new Object3D()
+        dummy.position.set(...p.position)
+        dummy.rotation.set(p.pitch ?? 0, p.rot ?? 0, p.roll ?? 0)
+        dummy.updateMatrix()
+        const old = new BoxGeometry(p.size[0], p.size[1], p.size[2])
+        old.applyMatrix4(dummy.matrix)
+        // New path: unit box baked by the instance matrix.
+        const inst = {
+          position: p.position,
+          size: p.size,
+          rotation: [p.pitch ?? 0, p.rot ?? 0, p.roll ?? 0] as [number, number, number],
+        }
+        const unit = new BoxGeometry(1, 1, 1)
+        unit.applyMatrix4(bakeInstanceMatrix(inst, new Object3D()))
+        const a = old.getAttribute('position').array
+        const b = unit.getAttribute('position').array
+        let err = 0
+        for (let i = 0; i < a.length; i++) err = Math.max(err, Math.abs(a[i] - b[i]))
+        expect(err).toBeLessThan(1e-6)
       }
     }
   })

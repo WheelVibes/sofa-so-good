@@ -2,12 +2,14 @@ import { useMemo } from 'react'
 import { getSolidMaterial, getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { InstancedBoxes } from './InstancedBoxes'
 import { readNum, readStr } from './shared'
 import {
   buildStaircase,
   type StaircasePart,
   type StaircaseRailing,
   type StaircaseStyle,
+  staircaseInstanceBuckets,
 } from './staircaseModel'
 
 const STYLES: readonly StaircaseStyle[] = ['straight', 'lshape', 'ushape', 'spiral']
@@ -49,45 +51,41 @@ export function Staircase({ props }: { props: ParamProps }) {
   const riserMat = getSurfaceMaterial(material, color, 1.2, 0)
   const metalMat = getSolidMaterial('#c2c7cb', 0.3, 0.8)
 
+  // Bucket parts for instancing: risers (one surface material) and metal members
+  // (posts/rails/newel, one brushed-metal material) each collapse to ONE
+  // InstancedBoxes draw call — ~26 per-part meshes → 2 for a default flight.
+  // Treads + landings stay as BeveledBox meshes: their subtle chamfer catches
+  // light on the visible horizontal surface, and there is no instanced
+  // beveled-box primitive (instancing them would drop the chamfer — a visible
+  // regression on the most prominent stair surface). Rotation (incl. the rail's
+  // pitch/roll rake) is baked into the instance matrix as T·R·S, exactly
+  // matching the old per-mesh `rotation={[pitch, rot, roll]}` (AE=0, unit-tested).
+  const { risers, metal, meshParts } = useMemo(() => staircaseInstanceBuckets(parts), [parts])
+
   return (
     <group>
-      {parts.map((p, i) => {
-        const mat =
-          p.kind === 'tread' || p.kind === 'landing'
-            ? treadMat
-            : p.kind === 'riser'
-              ? riserMat
-              : metalMat
-        // Bevel treads and landings — the visible horizontal surfaces where a
-        // subtle chamfer catches light naturally. Risers and railing posts stay
-        // as sharp boxes (thin structural members; bevel would be imperceptible
-        // or clip into adjacent parts).
-        if (p.kind === 'tread' || p.kind === 'landing') {
-          return (
-            <BeveledBox
-              key={i}
-              castShadow
-              receiveShadow
-              position={p.position}
-              rotation={[p.pitch ?? 0, p.rot ?? 0, p.roll ?? 0]}
-              material={mat}
-              args={p.size}
-            />
-          )
-        }
-        return (
-          <mesh
-            key={i}
-            castShadow
-            receiveShadow
-            position={p.position}
-            rotation={[p.pitch ?? 0, p.rot ?? 0, p.roll ?? 0]}
-            material={mat}
-          >
-            <boxGeometry args={p.size} />
-          </mesh>
-        )
-      })}
+      {meshParts.map((p, i) => (
+        <BeveledBox
+          // biome-ignore lint/suspicious/noArrayIndexKey: parts list is stable per spec
+          key={i}
+          castShadow
+          receiveShadow
+          position={p.position}
+          rotation={[p.pitch ?? 0, p.rot ?? 0, p.roll ?? 0]}
+          material={treadMat}
+          args={p.size}
+        />
+      ))}
+      {risers.length > 0 && (
+        <InstancedBoxes instances={risers} castShadow receiveShadow>
+          <primitive object={riserMat} attach="material" />
+        </InstancedBoxes>
+      )}
+      {metal.length > 0 && (
+        <InstancedBoxes instances={metal} castShadow receiveShadow>
+          <primitive object={metalMat} attach="material" />
+        </InstancedBoxes>
+      )}
     </group>
   )
 }
