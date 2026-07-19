@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.86 — Test: report expectation updated for the now-clean default layout
+
+The full gate caught `report.test.ts` still asserting the default layout
+HAS a doorway blocker — the premise v0.22.2.85 fixed. The test now asserts
+the curated layout reads CLEAR, and a new sibling test constructs an
+explicit blocker (wardrobe centred on a door) to keep the report's
+"block a doorway" path covered.
+
 ## v0.22.2.85 — UXW fix round: default flat clears its own checks (59→76), label fixes, handover polish
 
 All audit findings closed. The headline (UXW-P2-3): the fixed default flat

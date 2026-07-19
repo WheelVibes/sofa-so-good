@@ -320,11 +320,33 @@ describe('buildReportHtml', () => {
     expect(html).not.toMatch(/Furnishing per/)
   })
 
-  it('flags blocking items from the curated default layout', () => {
-    // The move-in layout has pieces that sit in a doorway path (the same the
-    // in-app Checks overlay flags) — the report surfaces them.
+  it('reports the curated default layout as clear (UXW-P2-3)', () => {
+    // The move-in layout used to ship a basin inside a door swing; since
+    // v0.22.2.85 the default tables are clearance-clean (pinned by
+    // furniture/defaultFlatClearance.test.ts) and the report reflects that.
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
     expect(html).toContain('Clearance &amp; fit')
+    expect(html).not.toContain('block a doorway')
+  })
+
+  it('flags an item parked squarely in a doorway path', () => {
+    // A wardrobe centred on a door opening — the report surfaces the same
+    // blocker the in-app Checks overlay flags.
+    const door = plan.openings.find((o) => o.kind === 'door')!
+    const wall = plan.walls.find((w) => w.id === door.wallId)!
+    const len = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1])
+    const ux = (wall.end[0] - wall.start[0]) / len
+    const uz = (wall.end[1] - wall.start[1]) / len
+    const cx = wall.start[0] + ux * (door.offset + door.width / 2)
+    const cz = wall.start[1] + uz * (door.offset + door.width / 2)
+    const blocker = {
+      id: 'blocker',
+      defId: 'wardrobe-3door',
+      position: [cx, cz] as [number, number],
+      rotation: 0,
+      props: {},
+    }
+    const html = buildReportHtml(plan, [blocker], BUILTIN_CATALOG, null)
     expect(html).toContain('block a doorway')
   })
 
