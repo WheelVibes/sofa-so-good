@@ -1341,6 +1341,12 @@ same change that reshapes a system.
   (pro, default true) gates it — analytical drawing-set content, same category as
   `settingOutDims`/`carpentrySheets` (NOT the pre-existing `drawings` flag, which gates the
   separate live in-app Drawings panel — elevations + lighting — an unrelated feature).
+  **False-ceiling clearance validator (R4-2):** `floorplan/ceilingClearance.ts:buildCeilingClearance(plan)`
+  (pure) reuses `buildCeiling(...).lowestY` as the finished clearance per treated room and warns below
+  `MIN_FINISHED_CLEARANCE_M` (2.4 m; `STANDARD_SLAB_M` 2.6, `CORNICE_MIN_M` 2.1). `rcp.ts` attaches the
+  per-zone clearance (headroom mm + warn/belowCornice) only when `isFeatureEnabled('ceilingClearance')`
+  (the `ceilingClearance` pro flag), and `rcpSvg.ts` prints it as a "⚠ …mm under 2400mm min headroom"
+  marking (or a passing clearance readout) in each zone note.
   **Elevation sheet grouping (TODO H6):** a 4-room HDB flat produced ~20 one-per-wall elevation
   sheets, most bare. `ui/drawingSet.ts`'s elevation loop now partitions `projectAllElevations`'
   output (tagged with its ORIGINAL index so "Wall N" captions never repeat across the two kinds
@@ -1516,6 +1522,14 @@ same change that reshapes a system.
   (multi-storey aware, strays → "Unassigned"). An *indicative* rough quote aid, not a certified electrical
   layout. Rendered as the "Electrical points (indicative)" report section (rides the `report` flag, additive
   block — distinct from the lighting plan + fixture schedule). PARITY-ELECTRICAL-SCHED.
+- **Socket-count & DB-load advisory** (`analysis/socketAdvisory.ts` pure → `buildSocketAdvisory(plan)`:
+  per-room recommended outlet targets `TARGET_SOCKETS_BY_CATEGORY` (living 8 / kitchen 10 / masterBedroom
+  6 / bedroom 4 / study 6 / dining 4 / bath 2 / powder 1 / serviceYard 2, keyed via `roomCategory`) vs the
+  placed `electricalPoints` attributed by room — `socket`=1, `socket-double`=2 outlets; `data`/`tv-point`
+  counted separately — flagging under-provisioned rooms, plus the static `DB_LOAD_NOTE` (40 A common in
+  older blocks; 63 A upgrade needs SP Group approval)). Surfaces on the electrical plan sheet's notes
+  block (`electricalPlanSvg.ts`, under the `electricalPlan` flag) + a per-room "N/target sockets"
+  shortfall tag in the editor's `MepLayer.tsx` (under `mepEditor`) — no new flag (R4-4).
 - **IES photometric profiles** (`src/lighting/ies/`, pure + render-agnostic — PC-IES-LIGHT, Coohom
   parity): `parseIes.ts` parses an IESNA LM-63 ASCII `.ies` file (header keywords, TILT line incl.
   inline `TILT=INCLUDE`, the 10 photometric params, vertical/horizontal angle arrays, candela grid ×
@@ -1596,6 +1610,14 @@ same change that reshapes a system.
   `VENT_MIN_RATIO` (0.05); windows attributed to rooms by a wall-midpoint probe, `OPENABLE_FRACTION`
   for sliding windows; level-gated for multi-storey). `ui/DaylightPanel.tsx` + the report's
   "Daylight & ventilation" section (PARITY-DAYLIGHT-DIGEST; skipped when no room has a window).
+- **Aircon cooling-load (BTU) advisory** (`analysis/airconSizing.ts` pure → `buildAirconSizing(plan,
+  orientationDeg)`: per-room recommended BTU = floor area × `BTU_PER_SQM` (600, the ~50–60 BTU/ft²
+  SG rule-of-thumb mid) × modifiers — `+15%` for an exterior window facing W/E (room-side compass ⊕
+  `orientationDeg`, via `planRoomShell`), `+20%` for a ceiling > 3 m — plus `+4000 BTU` on a
+  living/dining zone an open (≥1.8 m opening) kitchen vents into (`roomsAcrossOpening` + `roomCategory`);
+  rounded up to a standard split size `[9k,12k,18k,24k]`, external rooms skipped, whole-flat total).
+  Rides the Daylight & ventilation panel (`ui/DaylightPanel.tsx` "Cooling load" section) gated by the
+  `airconSizing` pro flag (R4-1).
 - **Door & window schedule** (`analysis/openingSchedule.ts` pure → `buildOpeningSchedule(plan)`:
   walks `plan.openings` across all storeys, resolves each opening's room(s) by a wall-midpoint probe
   (`PROBE_OFFSET`, as in `daylight.ts`), and groups openings with identical (kind, width, head−sill)
@@ -1618,6 +1640,15 @@ same change that reshapes a system.
   (MCST/BCA) plus any stair advisories (SG1). `floorplan/permitNotes.ts:permitNotes(housingType)`
   is the single source of the HDB-permit / Condominium-MCST / Landed-BCA note text, read by the
   demolition-plan sheet (`demolitionPlanSvg.ts`) and the drawing-set cover sheet's general notes.
+  **Live hackability overlay (R4-7):** `floorplan/wallHackability.ts` is the one classifier —
+  `wallHackability(structure)` → `'no'` (load-bearing/RC, demolition NOT permitted) / `'permit'`
+  (brick/dry partition, permit required) / `'unknown'` (unclassified) + `hackClassLabel`/
+  `hackClassDescription`/`isDemolitionRestricted`. `ui/floorplan/editor/layers/HackabilityLayer.tsx`
+  tints each current-storey wall by class (`--danger`/`--sun`/`--text-3`) with a legend, mounted under
+  a "Hackability" toggle in the plan editor's View ▾ menu (`PlanViewMenuActions.tsx` + `FloorPlanEditor.tsx`
+  `showHackability` state), gated by the `hackabilityOverlay` pro flag. Deleting a load-bearing/RC wall in
+  `WallInspector.tsx` first raises a `confirmAction({ danger })` "NOT PERMITTED" warning (warns, doesn't
+  block). Layer registered in `inlinePxGuard`'s grandfathered list like `MepLayer`.
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
   walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
   rule across the whole design (frame-scoped memo: same items/defs identities within

@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.81 — R4 batch 1: aircon BTU, ceiling clearance, socket advisory, hackability overlay
+
+Four SG advisories over data the app already has (sources cited in-module
+from the round-4 research). R4-1 `analysis/airconSizing.ts`: per-room
+cooling load (area × 50-60 BTU/ft², +E/W-sun via plan orientation, +tall
+ceiling, +open-kitchen) with the snapped standard unit size (9k/12k/18k…)
+shown as a "Cooling load" section in the Daylight panel (`airconSizing` pro
+flag). R4-2 `floorplan/ceilingClearance.ts`: finished-headroom readout +
+<2400 mm (cornice <2100 mm) warnings on the RCP sheet (`ceilingClearance`
+pro flag). R4-4 `analysis/socketAdvisory.ts`: per-room-category socket
+targets vs placed MEP points — "2/6 sockets" captions on the plan editor +
+under-provision notes and the 40 A/63 A DB advisory on the electrical sheet
+(rides the mepEditor gating). R4-7 `floorplan/wallHackability.ts` +
+`HackabilityLayer`: plan-editor overlay tinting walls red (load-bearing/RC/
+shelter — never hackable) / amber (permit required) with legend + a warning
+on deleting a protected wall (`hackabilityOverlay` pro flag). 783 targeted
+tests; three GPU-verified scenarios.
+
 ## v0.22.2.80 — UX research round 4: 8 ranked SG proposals; competitor parity confirmed
 
 Research round (docs/research/2026-07-19-ux-research-round-4.md + TODO

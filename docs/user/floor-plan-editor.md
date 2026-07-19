@@ -105,6 +105,14 @@ furniture inspector — a **Name** field on top, then a grid of quick actions:
   **user-declared, not verified** — confirm against HDB/BCA as-built records (or
   a PE) before hacking, since an older HDB block can hide a load-bearing
   beam-and-column wall behind what looks like a plain partition on plan.
+  Turn on the **Hackability** toggle in the **View ▾** menu (Pro) to tint every
+  wall live by its demolition-permit status while you edit — **red** = never
+  hackable (load-bearing / RC), **amber** = permit required (brick / dry
+  partition), **muted** = still unclassified — with a small legend above the
+  plan. It's driven straight off each wall's **Structure** tag, so classify your
+  walls to see it work. Deleting a wall you've tagged load-bearing/RC first
+  raises a **"NOT PERMITTED under HDB rules"** confirmation — it warns, it doesn't
+  block (you can still remove it from the drawing).
 - **Doors / windows** — *Flip hinge* and *Flip swing* (doors), *Duplicate*,
   *Lock* and *Delete*, plus the offset / width / sill / head fields. A **Style**
   picker sets a **door** style (**Panelled**, **Flush**, **Glazed**,
@@ -248,7 +256,10 @@ the exported sheets:
   (e.g. "fridge", "WC"), and **Delete**.
 - The **MEP** toggle in the **View ▾** menu shows/hides the points layer
   (shown by default); <kbd>Delete</kbd>/<kbd>Backspace</kbd> removes the
-  selected point.
+  selected point. While the layer is on, any room short of the recommended
+  socket count for its type shows a small **"3/8 sockets"** shortfall tag at its
+  centre, so you can see the gap as you place points (the full advisory + DB-load
+  note print on the exported Electrical plan sheet).
 - Don't want to place every point by hand? **Plan ▾ → Suggest MEP points**
   (also in the phone Plan-tools sheet) looks at your placed furniture and
   doors and adds a starting layout — a socket by every appliance, a switch

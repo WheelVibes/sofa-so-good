@@ -23,6 +23,9 @@ export function PlanViewMenuActions({
   fMep,
   showMep,
   onToggleMep,
+  fHackability,
+  showHackability,
+  onToggleHackability,
   skeleton,
   onToggleSkeleton,
   isMultiLevel,
@@ -43,6 +46,9 @@ export function PlanViewMenuActions({
   fMep: boolean
   showMep: boolean
   onToggleMep: () => void
+  fHackability: boolean
+  showHackability: boolean
+  onToggleHackability: () => void
   skeleton: boolean
   onToggleSkeleton: () => void
   isMultiLevel: boolean
@@ -99,6 +105,17 @@ export function PlanViewMenuActions({
           aria-pressed={showMep}
         >
           MEP
+        </button>
+      )}
+      {fHackability && (
+        <button
+          type="button"
+          onClick={onToggleHackability}
+          className={`btn btn-sm${showHackability ? ' btn-accent' : ''}`}
+          title="Toggle the wall hackability overlay — tints walls by demolition-permit status (red = not permitted, amber = permit required, muted = unclassified)"
+          aria-pressed={showHackability}
+        >
+          Hackability
         </button>
       )}
       <button

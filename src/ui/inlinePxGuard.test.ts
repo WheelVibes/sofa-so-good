@@ -57,6 +57,9 @@ const GRANDFATHERED = new Set<string>([
   // MEP glyph text sizes are SVG user units inside the zooming plan canvas
   // (same class as the sibling layers above), not CSS px.
   'floorplan/editor/layers/MepLayer.tsx',
+  // Hackability overlay legend text size is an SVG user unit inside the same
+  // zooming plan canvas (same class as the sibling layers above), not CSS px.
+  'floorplan/editor/layers/HackabilityLayer.tsx',
   'floorplan/editor/layers/NotesLayer.tsx',
   'floorplan/editor/layers/TourStopsLayer.tsx',
   'glbEditor/GlbDesignerDialog.tsx',

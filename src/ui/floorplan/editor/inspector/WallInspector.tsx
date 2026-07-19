@@ -1,6 +1,7 @@
 import { useFeature } from '../../../../features/useFeature'
 import { defaultWallName } from '../../../../floorplan/planElementName'
 import { DEFAULT_PLAN_WALL_COLOR, type PlanWall, wallLength } from '../../../../floorplan/types'
+import { isDemolitionRestricted } from '../../../../floorplan/wallHackability'
 import { endForAngle, endForLength, wallAngleDeg } from '../../../../floorplan/wallOps'
 import { useStore } from '../../../../state/store'
 import { ColorPicker } from '../../../controls/ColorPicker'
@@ -79,7 +80,22 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
           icon={<Icon.Trash width={16} height={16} />}
           danger
           disabled={w.locked}
-          onClick={() => a.removeWall(w.id, levelId)}
+          onClick={async () => {
+            // R4-7: warn (don't block) before removing a load-bearing / RC wall
+            // — its demolition is NOT PERMITTED under HDB rules, but removing it
+            // from the drawing is allowed. Non-restricted walls delete as before.
+            if (isDemolitionRestricted(w.structure)) {
+              const ok = await a.confirmAction({
+                title: 'Not permitted to demolish',
+                message:
+                  'Demolishing a load-bearing / RC wall is NOT PERMITTED under HDB rules. Delete it from the plan anyway?',
+                confirmLabel: 'Delete anyway',
+                danger: true,
+              })
+              if (!ok) return
+            }
+            a.removeWall(w.id, levelId)
+          }}
         />
       </div>
       <div className="seg accent" style={{ display: 'flex' }}>

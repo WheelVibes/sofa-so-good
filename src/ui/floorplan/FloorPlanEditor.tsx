@@ -47,6 +47,7 @@ import { DimensionsLayer } from './editor/layers/DimensionsLayer'
 import { DraftOverlayLayer } from './editor/layers/DraftOverlayLayer'
 import { FurnitureLayer } from './editor/layers/FurnitureLayer'
 import { FurnitureRotateHandle } from './editor/layers/FurnitureRotateHandle'
+import { HackabilityLayer } from './editor/layers/HackabilityLayer'
 import { MepLayer, type MovingMepPoint } from './editor/layers/MepLayer'
 import { NotesLayer } from './editor/layers/NotesLayer'
 import { OpeningsLayer } from './editor/layers/OpeningsLayer'
@@ -326,6 +327,7 @@ export function FloorPlanEditor() {
     kind: ElectricalKind | PlumbingKind
   }>({ family: 'electrical', kind: 'socket' })
   const fMep = useFeature('mepEditor')
+  const fHackability = useFeature('hackabilityOverlay')
   // Active room-name-label drag (select tool): grab offset from the label's
   // current world position (PARITY-ROOMLABEL).
   const [movingRoomLabel, setMovingRoomLabel] = useState<{
@@ -380,6 +382,9 @@ export function FloorPlanEditor() {
   // points ARE plan elements authored directly in this editor, so hiding them
   // by default would hide what the user just placed.
   const [showMep, setShowMep] = useState(true)
+  // R4-7 hackability overlay: OFF by default so it doesn't tint the plan until a
+  // user asks for it (a specialised demolition-planning view, not the norm).
+  const [showHackability, setShowHackability] = useState(false)
   // Show the OTHER storeys' walls as a dimmed underlay (SH3D "all levels"), so
   // you can stack walls / line up stairs between floors. Off by default.
   const [showOtherLevels, setShowOtherLevels] = useState(false)
@@ -2313,6 +2318,9 @@ export function FloorPlanEditor() {
       fMep={fMep}
       showMep={showMep}
       onToggleMep={() => setShowMep((v) => !v)}
+      fHackability={fHackability}
+      showHackability={showHackability}
+      onToggleHackability={() => setShowHackability((v) => !v)}
       skeleton={skeleton}
       onToggleSkeleton={() => setSkeleton((v) => !v)}
       isMultiLevel={isMultiLevel}
@@ -2839,6 +2847,14 @@ export function FloorPlanEditor() {
                 setMovingWall={setMovingWall}
                 setMovingBulge={setMovingBulge}
               />
+
+              {/* Live hackability overlay (active storey) — R4-7. Tints each wall
+                by its demolition-permit class over the walls; pointer-events
+                none so WallsLayer still owns selection. Off by default, shown
+                via the "Hackability" View toggle. */}
+              {fHackability && showHackability && (
+                <HackabilityLayer walls={levelPlan.walls} toPx={toPx} />
+              )}
 
               {/* Persistent wall-length + opening-width dimensions (a staple of
                 pro floor planners), gated by the "Dims" toggle. */}

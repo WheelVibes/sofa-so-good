@@ -176,10 +176,22 @@ export function rcpSvg(plan: FloorPlan, rcp: ReflectedCeilingPlan, opts: RcpSvgO
     const zs = z.outline.map((p) => p[1])
     const cx = px((Math.min(...xs) + Math.max(...xs)) / 2)
     const cz = py((Math.min(...zs) + Math.max(...zs)) / 2)
+    // Finished-headroom clearance readout + warning marking (R4-2), only when
+    // the `ceilingClearance` flag is on (rcp.ts attaches `z.clearance` then).
+    // Uses palette.dim for a passing readout and palette.ink for the warning so
+    // it reads as an alert against the dim note — no hardcoded colour.
+    const c = z.clearance
+    const warnTspan = c
+      ? c.warn
+        ? `<tspan x="${n(cx)}" dy="11" font-weight="bold" fill="${esc(palette.ink)}">` +
+          `⚠ ${c.headroomMm}mm ${c.belowCornice ? 'below 2100mm cornice min' : 'under 2400mm min headroom'}</tspan>`
+        : `<tspan x="${n(cx)}" dy="11" fill="${esc(palette.dim)}">` +
+          `clearance ${c.headroomMm}mm ≥ 2400mm min</tspan>`
+      : ''
     parts.push(
       `<text x="${n(cx)}" y="${n(cz)}" font-size="${ZONE_FONT}" text-anchor="middle" ` +
         `fill="${esc(palette.zone)}"><tspan x="${n(cx)}" dy="-5">${esc(z.roomName)}</tspan>` +
-        `<tspan x="${n(cx)}" dy="11" font-style="italic">${esc(z.note)}</tspan></text>`,
+        `<tspan x="${n(cx)}" dy="11" font-style="italic">${esc(z.note)}</tspan>${warnTspan}</text>`,
     )
   }
 

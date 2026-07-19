@@ -1756,6 +1756,42 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Per-room aircon cooling-load (BTU) advisory (UX research round 4 R4-1): a
+  // per-room recommended cooling capacity from floor area × the SG rule-of-thumb
+  // BTU/m², with west/east-facing, high-ceiling and open-kitchen modifiers, plus
+  // a whole-flat total. Pure formula over existing area + orientation state,
+  // shaped like the daylight check → an analytical advisory, pro tier (alongside
+  // `daylight`/`designScore`/`accessibility`). Pure client code → prod-safe.
+  airconSizing: {
+    label: 'Aircon BTU sizing',
+    description: 'Per-room cooling-load (BTU) recommendation + whole-flat total',
+    default: true,
+    tier: 'pro',
+  },
+  // False-ceiling clearance validator (UX research round 4 R4-2): warns when a
+  // dropped/cove ceiling zone leaves under the SG comfort/statutory finished
+  // clearance (≥2.4 m under a dropped ceiling; 2.6 m standard slab), and reports
+  // remaining headroom per zone. Pure rule over the existing ceiling model → an
+  // analytical check, pro tier (alongside the other checks). Prod-safe pure code.
+  ceilingClearance: {
+    label: 'Ceiling clearance check',
+    description: 'Warns when a false-ceiling zone leaves under 2.4 m finished headroom',
+    default: true,
+    tier: 'pro',
+  },
+  // Live hackability overlay in the 2D plan editor (UX research round 4 R4-7):
+  // tints walls by their user-declared `PlanWall.structure` classification —
+  // red (never hackable: load-bearing / RC), amber (permit required: brick /
+  // partition), neutral (unclassified) — with a legend, plus an inline "NOT
+  // PERMITTED" warning when deleting a load-bearing/RC wall. Surfaces the hack
+  // rules at edit time (they previously reached only the demolition sheet). Pure
+  // UX layer over existing data → prod-safe; pro tier (matches `wallStructure`).
+  hackabilityOverlay: {
+    label: 'Hackability overlay',
+    description: 'Tint walls by demolition permit status live in the 2D plan editor',
+    default: true,
+    tier: 'pro',
+  },
 }
 
 export const FEATURE_FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlag[]

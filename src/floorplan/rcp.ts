@@ -21,6 +21,8 @@
  * `lighting2d/lightingPlan`'s `PlanLight` type. No three/React imports.
  */
 import { buildCeiling, ceilingStyleLabel } from '../apartment/ceiling/ceilingModel'
+import { isFeatureEnabled } from '../features/featureFlags'
+import { CORNICE_MIN_M, MIN_FINISHED_CLEARANCE_M } from './ceilingClearance'
 import { electricalMountDefaultMm } from './mepPoints'
 import type { CeilingStyle, FloorPlan, PlanRoom, PlanVec2, PlanWall } from './types'
 import { roomPolygon, wallLength } from './types'
@@ -90,6 +92,20 @@ export interface RcpZone {
   }
   /** e.g. "FFL to clg: 2600mm" (flat) or "FFL to false ceiling: 2450mm (Tray)". */
   note: string
+  /** Finished-headroom clearance check (R4-2), attached ONLY when the
+   *  `ceilingClearance` feature flag is on AND the room has a real (non-flat,
+   *  non-fallback) treatment — so the sheet can print a headroom readout and a
+   *  warning marking when the finished clearance falls below the SG minimum.
+   *  Absent for flat / untreated / fallback zones (nothing to warn). */
+  clearance?: {
+    /** Finished clearance under the treatment's lowest surface (mm AFFL) —
+     *  equal to `treatment.dropToMm`. */
+    headroomMm: number
+    /** Below the 2.4 m SG minimum finished clearance. */
+    warn: boolean
+    /** Below even the ~2.1 m cornice floor. */
+    belowCornice: boolean
+  }
 }
 
 /** One ceiling fixture, positioned + dimensioned off the nearest wall on each
@@ -160,8 +176,25 @@ function nearestAxisWall(
   return best
 }
 
-/** Build one room's ceiling zone via the shared 3D geometry engine. */
-function buildZone(room: PlanRoom, defaultCeilingHeightM: number): RcpZone {
+const MIN_FINISHED_CLEARANCE_MM = Math.round(MIN_FINISHED_CLEARANCE_M * 1000)
+const CORNICE_MIN_MM = Math.round(CORNICE_MIN_M * 1000)
+
+/** The clearance sub-object for a treated zone, or `undefined` when the
+ *  `ceilingClearance` flag is off (so the annotation stays feature-gated
+ *  without touching this sheet's caller). `dropToMm` is the finished clearance
+ *  (mm AFFL) under the treatment's lowest surface. */
+function clearanceOf(withClearance: boolean, dropToMm: number): RcpZone['clearance'] {
+  if (!withClearance) return undefined
+  return {
+    headroomMm: dropToMm,
+    warn: dropToMm < MIN_FINISHED_CLEARANCE_MM,
+    belowCornice: dropToMm < CORNICE_MIN_MM,
+  }
+}
+
+/** Build one room's ceiling zone via the shared 3D geometry engine.
+ *  `withClearance` gates the R4-2 finished-headroom check annotation. */
+function buildZone(room: PlanRoom, defaultCeilingHeightM: number, withClearance: boolean): RcpZone {
   const ceilM = typeof room.ceilingHeight === 'number' ? room.ceilingHeight : defaultCeilingHeightM
   const ceilingHeightMm = Math.round(ceilM * 1000)
   const outline = roomPolygon(room)
@@ -193,6 +226,7 @@ function buildZone(room: PlanRoom, defaultCeilingHeightM: number): RcpZone {
       ...flat,
       treatment: { style: 'sloped', dropToMm },
       note: `FFL to clg: ${ceilingHeightMm}mm at high edge, ${dropToMm}mm at low edge (${label})`,
+      clearance: clearanceOf(withClearance, dropToMm),
     }
   }
 
@@ -218,6 +252,7 @@ function buildZone(room: PlanRoom, defaultCeilingHeightM: number): RcpZone {
       beams: beams?.map((b) => ({ cx: b.cx, cz: b.cz, w: b.w, d: b.d })),
     },
     note: `FFL to false ceiling: ${dropToMm}mm (${label})`,
+    clearance: clearanceOf(withClearance, dropToMm),
   }
 }
 
@@ -238,7 +273,10 @@ export function buildReflectedCeilingPlan(
   const walls = Array.isArray(plan.walls) ? plan.walls : []
   const defaultCeilingHeightM = typeof plan.ceilingHeight === 'number' ? plan.ceilingHeight : 2.6
 
-  const zones = rooms.map((r) => buildZone(r, defaultCeilingHeightM))
+  // R4-2 finished-headroom check is feature-gated here (not in the caller): the
+  // clearance annotation data is only attached when `ceilingClearance` is on.
+  const withClearance = isFeatureEnabled('ceilingClearance')
+  const zones = rooms.map((r) => buildZone(r, defaultCeilingHeightM, withClearance))
 
   const ceilingFixtures: RcpFixture[] = (Array.isArray(fixtures) ? fixtures : [])
     .filter((f) => CEILING_FIXTURE_TYPES.has(f.type))

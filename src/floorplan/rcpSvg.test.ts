@@ -1,7 +1,20 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { FEATURE_FLAGS } from '../features/flags/registry'
+import { resolveFlags, setResolvedFlags } from '../features/flags/resolve'
+import type { FeatureFlag } from '../features/flags/types'
 import { buildReflectedCeilingPlan, type RcpFixtureInput } from './rcp'
 import { rcpSvg } from './rcpSvg'
 import type { FloorPlan, PlanElectricalPoint, PlanRoom } from './types'
+
+function withFlags(uiMode: 'simple' | 'pro'): void {
+  setResolvedFlags(resolveFlags(false, {}, false, uiMode))
+}
+const allOff = () =>
+  setResolvedFlags(
+    Object.fromEntries(
+      (Object.keys(FEATURE_FLAGS) as FeatureFlag[]).map((k) => [k, false]),
+    ) as Record<FeatureFlag, boolean>,
+  )
 
 const palette = { wall: '#111', ink: '#222', symbol: '#c33', zone: '#4c1', dim: '#06c' }
 
@@ -88,5 +101,58 @@ describe('rcpSvg', () => {
     const rcp = buildReflectedCeilingPlan(testPlan, fixtures, aircon)
     const svg = rcpSvg(testPlan, rcp, { palette, printMmPerM: 20 })
     expect(svg).toContain('mm;height:')
+  })
+})
+
+const lowRoom: PlanRoom = {
+  id: 'r2',
+  name: 'Low',
+  origin: [0, 0],
+  width: 4,
+  depth: 4,
+  // 2.6 m slab, 0.35 m drop → 2.25 m finished = 2250 mm < 2400 mm min.
+  ceiling: { style: 'dropped', drop: 0.35, margin: 0.3 },
+}
+
+describe('rcpSvg — ceilingClearance gating (R4-2)', () => {
+  afterEach(() => {
+    // Restore the default (pro) snapshot so other suites see the real flags.
+    setResolvedFlags(resolveFlags(false, {}, false, 'pro'))
+  })
+
+  it('renders a clearance warning marking when a zone is below 2.4 m (flag on)', () => {
+    withFlags('pro')
+    const testPlan = plan([lowRoom])
+    const rcp = buildReflectedCeilingPlan(testPlan, [], [])
+    expect(rcp.zones[0].clearance).toEqual({
+      headroomMm: 2250,
+      warn: true,
+      belowCornice: false,
+    })
+    const svg = rcpSvg(testPlan, rcp, { palette })
+    expect(svg).toContain('under 2400mm min headroom')
+    expect(svg).toContain('2250mm')
+  })
+
+  it('omits the clearance annotation entirely when the flag is off', () => {
+    allOff()
+    const testPlan = plan([lowRoom])
+    const rcp = buildReflectedCeilingPlan(testPlan, [], [])
+    expect(rcp.zones[0].clearance).toBeUndefined()
+    const svg = rcpSvg(testPlan, rcp, { palette })
+    expect(svg).not.toContain('min headroom')
+  })
+
+  it('shows a passing readout for a zone with ≥ 2.4 m clearance (flag on)', () => {
+    withFlags('pro')
+    const testPlan = plan([trayRoom])
+    const rcp = buildReflectedCeilingPlan(testPlan, [], [])
+    expect(rcp.zones[0].clearance).toEqual({
+      headroomMm: 2450,
+      warn: false,
+      belowCornice: false,
+    })
+    const svg = rcpSvg(testPlan, rcp, { palette })
+    expect(svg).toContain('≥ 2400mm min')
   })
 })

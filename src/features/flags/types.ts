@@ -190,6 +190,9 @@ export type FeatureFlag =
   | 'rcpSheet'
   | 'parametricStairs'
   | 'parametricRoof'
+  | 'airconSizing'
+  | 'ceilingClearance'
+  | 'hackabilityOverlay'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

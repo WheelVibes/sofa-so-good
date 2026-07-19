@@ -255,11 +255,13 @@ variant + `photo-frame-cluster`), parametric K&B (`kitchenCabinets`), 720° tour
 custom-furniture module (`glbDesigner`), camera-path video (`walkthrough`/`recordViewTour`/
 `dayNightClip`), Smart Wizard (`smartStart`/`aiLayout`), 4K/16K render (local path tracer),
 imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window schedules.
-- [ ] **R4-1 — SG aircon BTU sizing per room** (S, pro) — per-room cooling-load badge from
+- [x] **R4-1 — SG aircon BTU sizing per room** (S, pro) — SHIPPED: `analysis/airconSizing.ts` +
+  Cooling-load section in `DaylightPanel`, `airconSizing` flag. Per-room cooling-load badge from
   area × ~50-60 BTU/ft² + modifiers (W/E sun via `orientationDeg`, ceiling >3 m, open
   kitchen) → recommended system size + whole-flat total. Pure formula over existing area +
   orientation, shaped like `daylight.ts`. Absent: no `btu` anywhere.
-- [ ] **R4-2 — Ceiling-height & false-ceiling clearance validator** (S, pro) — checks
+- [x] **R4-2 — Ceiling-height & false-ceiling clearance validator** (S, pro) — SHIPPED:
+  `floorplan/ceilingClearance.ts` + RCP-sheet zone warnings, `ceilingClearance` flag. Checks
   false-ceiling/bulkhead drops (`ceilingDesign`/RCP zones) against SG norms (2.6 m standard,
   ≥2.4 m finished clearance, cornices to 2.1 m) and warns/reports per-zone headroom. Pure
   logic over existing ceiling data. Absent: no ceiling-clearance check.
@@ -267,7 +269,9 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
   (OCS)" start point pre-seeding the finishes/fittings HDB hands over (internal doors,
   vinyl/porcelain floors, sanitary fittings) so a BTO owner designs from what they'll
   receive. Pure data manifest seeding existing finish/opening state. Absent: no OCS reference.
-- [ ] **R4-4 — Electrical points & DB-load advisory** (S, pro) — extends the existing MEP
+- [x] **R4-4 — Electrical points & DB-load advisory** (S, pro) — SHIPPED: `analysis/socketAdvisory.ts`
+  + electrical-sheet notes block + MepLayer shortfall tags (reuses `electricalPlan`/`mepEditor`).
+  Extends the existing MEP
   layer with per-room recommended socket/data counts (4-room ≈ 25-40) vs placed points +
   shortfall cue + DB 40 A/63 A note. Net-new advisory (placement already ships).
 - [ ] **R4-5 — Floor-loading / raised-platform advisory** (S, pro) — warns when a raised
@@ -278,7 +282,9 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
   bundling wet-area 3-year tile-hacking rule, window/grille compliance (BCA AWC, 304-grade
   rivets, approved invisible-grille designs), reno working-hours/noise limits, and the static
   HDB DRC contractor/permit paperwork checklist. Consolidates the small rules. Absent.
-- [ ] **R4-7 — Live hackability overlay in the 2D plan editor** (S, pro) — red/green wall
+- [x] **R4-7 — Live hackability overlay in the 2D plan editor** (S, pro) — SHIPPED:
+  `floorplan/wallHackability.ts` + `HackabilityLayer` + View-menu toggle + load-bearing delete
+  warning, `hackabilityOverlay` flag. Red/green wall
   tint + inline "NOT PERMITTED / permit required" shown live as the user tags walls, driven
   by the existing `PlanWall.structure`. Net-new editor UX over existing data (currently only
   reaches the demolition sheet).

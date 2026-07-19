@@ -19,9 +19,11 @@
  * Self-contained: imports only `./electricalPlan` and `./types`.
  */
 
+import { buildSocketAdvisory, type SocketAdvisory } from '../analysis/socketAdvisory'
 import type { ElectricalKind, ElectricalPlan } from './electricalPlan'
 import { electricalKindLabel } from './electricalPlan'
 import { layoutMepLabels } from './mepLabelLayout'
+import { ROOM_CATEGORY_LABELS } from './roomCategory'
 import type { FloorPlan, PlanWall } from './types'
 import { wallLength } from './types'
 
@@ -54,6 +56,10 @@ const LEGEND_PAD = 12
 const LEGEND_ROW = 22
 const FONT = 12
 const SYM_FONT = 8
+/** Socket-advisory NOTES block layout, pixels. */
+const NOTES_PAD = 12
+const NOTES_ROW = 16
+const NOTES_FONT = 11
 
 /** Full XML-attribute / text escaping for injected strings (5 entities). */
 function esc(s: string): string {
@@ -137,7 +143,14 @@ export function electricalSvg(
   const anyHeights = points.some((p) => typeof p.mountHeightMm === 'number')
   const legendRows = Math.max(schedule.length, 1) + (anyHeights ? 1 : 0)
   const legendH = LEGEND_PAD * 2 + LEGEND_ROW * legendRows
-  const heightPx = planH + legendH
+
+  // Socket-count & DB-load advisory (R4-4): computed INSIDE this pure builder
+  // from the plan it already receives, so the sheet's notes never drift from a
+  // separately-computed number. Rendered as a NOTES block below the legend.
+  const advisory = plan ? buildSocketAdvisory(plan) : null
+  const notesLines = advisory ? socketAdvisoryLines(advisory, widthPx) : []
+  const notesH = notesLines.length > 0 ? NOTES_PAD * 2 + NOTES_ROW * notesLines.length : 0
+  const heightPx = planH + legendH + notesH
 
   const parts: string[] = []
   // Print-true sizing (TODO G2): 1 viewBox unit already equals `1/scale`
@@ -188,8 +201,69 @@ export function electricalSvg(
   // this sheet carries a persisted mount height (MEP layer, G1 PR5).
   parts.push(legend(schedule, planH, palette, anyHeights))
 
+  // Socket-count & DB-load advisory NOTES block (R4-4), below the legend.
+  if (notesLines.length > 0) parts.push(notes(notesLines, planH + legendH, palette))
+
   parts.push('</svg>')
   return parts.join('\n')
+}
+
+/** Word-wrap a string to lines of at most `maxChars` characters (greedy). A
+ *  single over-long word is left on its own line rather than split. */
+function wrapWords(text: string, maxChars: number): string[] {
+  const words = text.split(/\s+/).filter(Boolean)
+  const lines: string[] = []
+  let cur = ''
+  for (const w of words) {
+    if (cur.length === 0) cur = w
+    else if (cur.length + 1 + w.length <= maxChars) cur += ` ${w}`
+    else {
+      lines.push(cur)
+      cur = w
+    }
+  }
+  if (cur) lines.push(cur)
+  return lines
+}
+
+/** The display lines of the socket advisory NOTES block: a heading, one line
+ *  per under-provisioned room ("Living: 3/8 sockets — under target"), or an
+ *  all-clear line, then the wrapped DB-load note. Returns `[]` only when there
+ *  is nothing at all to say (no rooms with a target AND no DB note — which never
+ *  happens since the DB note is static, so the block always shows). */
+function socketAdvisoryLines(advisory: SocketAdvisory, widthPx: number): string[] {
+  const maxChars = Math.max(24, Math.floor(widthPx / (NOTES_FONT * 0.55)))
+  const lines: string[] = ['Socket advisory (indicative)']
+  const under = advisory.rooms.filter((r) => r.underProvisioned)
+  if (advisory.rooms.length === 0) {
+    lines.push('No rooms with a socket target.')
+  } else if (under.length === 0) {
+    lines.push('All rooms meet their socket target.')
+  } else {
+    for (const r of under) {
+      const cat = ROOM_CATEGORY_LABELS[r.category]
+      lines.push(`${r.roomName} (${cat}): ${r.placed}/${r.target} sockets — under target`)
+    }
+  }
+  lines.push(...wrapWords(`DB load: ${advisory.dbNote}`, maxChars))
+  return lines
+}
+
+/** Render the socket-advisory NOTES block starting at `startY` (px). The first
+ *  line is a bold heading; the rest are plain notes — all in `palette.ink`. */
+function notes(lines: string[], startY: number, palette: ElectricalPalette): string {
+  const out: string[] = ['<g class="socket-advisory">']
+  let y = startY + NOTES_PAD + NOTES_ROW / 2
+  lines.forEach((line, i) => {
+    const weight = i === 0 ? ' font-weight="700"' : ''
+    out.push(
+      `<text x="${LEGEND_PAD}" y="${n(y)}" font-size="${NOTES_FONT}"${weight} ` +
+        `dominant-baseline="middle" fill="${esc(palette.ink)}">${esc(line)}</text>`,
+    )
+    y += NOTES_ROW
+  })
+  out.push('</g>')
+  return out.join('\n')
 }
 
 /** A single electrical symbol glyph centred at (cx,cy) — the circle's

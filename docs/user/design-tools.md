@@ -112,6 +112,19 @@ Turning‑space pass count and a row per door and room, with what to widen — h
 for aging‑in‑place and barrier‑free designs. It works on a bare shell (no
 furniture needed).
 
+## Cooling load — aircon sizing (Pro)
+
+The **Daylight & ventilation** check panel also carries a **Cooling load**
+section: a per‑room aircon **BTU** recommendation, using the Singapore rule of
+thumb (~50–60 BTU/ft² of floor area) with the uplifts installers add — **+15%**
+for a room whose window faces **west or east** (worst afternoon/morning sun,
+read off your plan's North orientation), **+20%** for a **ceiling above 3 m**,
+and **+4000 BTU** on a living/dining room that an **open (door‑less) kitchen**
+vents its cooking heat into. Each room shows a recommended standard split size
+(**9k / 12k / 18k / 24k BTU**) and the raw figure, and the panel totals a
+whole‑home installed capacity for a multi‑split system. It's sizing guidance to
+take to your aircon installer, not a substitute for a full heat‑load survey.
+
 ## Drawings — elevations & lighting plan
 
 **Drawings** (Tools menu) opens a panel with two professional 2D views, toggled
@@ -358,7 +371,12 @@ Print or save as PDF for
   off the two nearest walls — the standard "how far off that wall" a
   contractor checks a fixture against on install. Aircon points are marked too
   (for cross-reference; their full schedule lives on the Electrical plan).
-  Toggle it off in the **Include sheets** checklist if you don't need it.
+  Where a dropped/false ceiling zone leaves less than the **2.4 m** finished
+  headroom SG homes keep under a false ceiling (2.6 m is the standard slab),
+  the zone note escalates to a **"⚠ …mm under 2400mm min headroom"** warning
+  (and flags anything under the ~2.1 m cornice minimum); a passing zone just
+  prints its remaining clearance. Toggle it off in the **Include sheets**
+  checklist if you don't need it.
 - **Electrical/plumbing sheet provenance.** Once you've placed points with the
     floor-plan editor's **MEP** tool (see *Electrical & plumbing points* in the
     Floor plan editor guide), the electrical/plumbing sheets note **"Points as
@@ -366,6 +384,14 @@ Print or save as PDF for
     each symbol (e.g. **"@1200"**), plus a "Heights in mm AFFL" legend line. A plan
     with no authored points yet falls back to the furniture-based estimate, noted
     **"Indicative — derived from the furniture layout; verify on site"**.
+- **Socket-count advisory.** The Electrical plan sheet also prints a short
+    **socket advisory**: any room under the recommended outlet count for its type
+    (Living 8, Kitchen 10, Master bedroom 6, Bedroom 4, Study 6, Dining 4, Bath 2,
+    …) is listed as **"Living: 3/8 sockets — under target"**, followed by a
+    standing **DB load** note (40 A single-phase is common in older HDB blocks;
+    upgrading to 63 A needs SP Group approval). The same **"3/8 sockets"** shortfall
+    tag shows live on each under-provisioned room in the floor-plan editor's **MEP**
+    layer, so you see the gap while you place points.
 - **Carpentry sheets (Pro).** The most-cited gap in a DIY handover is missing
   carpentry detail — exact internal shelf heights, carcass depths, what the
   carpenter actually cuts to. Every **custom-size piece you generate + place**
