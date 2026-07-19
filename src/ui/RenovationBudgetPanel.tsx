@@ -91,7 +91,7 @@ export function RenovationBudgetPanel() {
               {alloc.lines.map((l) => {
                 const pct = Math.round((l.subtotal / total) * 100)
                 return (
-                  <div key={l.id} style={{ marginBottom: 7 }}>
+                  <div key={l.id} style={{ marginBottom: 'var(--s-2)' }}>
                     <div
                       style={{
                         display: 'flex',
@@ -122,7 +122,7 @@ export function RenovationBudgetPanel() {
                         borderRadius: 999,
                         background: 'var(--surface-2)',
                         overflow: 'hidden',
-                        marginTop: 2,
+                        marginTop: 'var(--s-05, 2px)',
                       }}
                     >
                       <div
@@ -161,7 +161,11 @@ export function RenovationBudgetPanel() {
             <div className="bud-breakdown" style={{ marginTop: 'var(--s-3)' }}>
               <div
                 className="label"
-                style={{ fontSize: 'var(--t-2xs)', marginBottom: 4, color: 'var(--text-3)' }}
+                style={{
+                  fontSize: 'var(--t-2xs)',
+                  marginBottom: 'var(--s-1)',
+                  color: 'var(--text-3)',
+                }}
               >
                 Indicative SG reference
               </div>
@@ -173,7 +177,7 @@ export function RenovationBudgetPanel() {
                     justifyContent: 'space-between',
                     fontSize: 'var(--t-2xs)',
                     color: 'var(--text-3)',
-                    marginBottom: 2,
+                    marginBottom: 'var(--s-05, 2px)',
                   }}
                 >
                   <span>{b.label}</span>

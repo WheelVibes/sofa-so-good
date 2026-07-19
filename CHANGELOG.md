@@ -5,6 +5,12 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.22.2.95 — Guard fix: RenovationBudgetPanel margins tokenized
+
+The full gate caught literal px margins in the new budget panel
+(inlinePxGuard) — replaced with --s-N tokens. Everything else in the
+8,263-test suite passed.
+
 ## v0.22.2.94 — BSJ batch 1: whole-reno budget allocator + wet-area fittings
 
 BSJ-1 (the blank-slate queue's #1): File → Budget & costs → "Renovation
