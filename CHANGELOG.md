@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.24.0.0 — Round 12 ships: SNV default-plan accuracy line + GPU-STARVE white-flash fix
+
+Release bump for the r12 staging PR (minor per the versioning rule — multi-feature). Carries
+v0.23.1.0–.13 below: the to-scale SNV HDB 4-room default plan (structural wall classification,
+window types, curtains, spec-sheet finishes/doors/fittings) and the Maximum-tier white-flash
+fix (interactive resolution degrade + context-restore rebuild).
+
 ## v0.23.1.13 — GPU-STARVE: fix white flashes while panning at Maximum (interactive degrade + context-restore rebuild)
 
 Root cause (instrumented on real GPU, ANGLE D3D12): at High/Maximum a single pan frame
