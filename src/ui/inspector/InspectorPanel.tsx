@@ -93,7 +93,7 @@ export function InspectorPanel() {
             <div className="panel-body">
               <label
                 className="flex items-center gap-2 text-xs"
-                style={{ marginBottom: 'var(--s-2)' }}
+                style={{ margin: 'var(--s-3) 0 var(--s-2)' }}
               >
                 <span className="label" style={{ whiteSpace: 'nowrap' }}>
                   Name

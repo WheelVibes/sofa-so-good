@@ -24,10 +24,15 @@ import {
   mergeTemplate,
 } from '../export/quoteTemplate'
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
-import { allPlanRooms } from '../floorplan/levels'
+import { allPlanRooms, GROUND_LEVEL_ID, levelAsPlan, planLevels } from '../floorplan/levels'
 import { isDefaultPlan } from '../floorplan/planGeometry'
+import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
+import { defaultLayout } from '../furniture/defaultLayout'
 import { clampCustomMetaEntries } from '../furniture/itemMetaLimits'
+import { snapToNearestWindow } from '../furniture/placement/windowSnap'
+import { defaultParamProps } from '../furniture/types'
 import { safeUrl } from '../utils/safeUrl'
+import { normalizeLightsMode } from './slices/uiSlice'
 import type { RootState } from './store'
 
 /** Zod transform: neutralize an unsafe-scheme URL (javascript:/data:/…) into
@@ -257,6 +262,8 @@ const PlanWallZ = z.object({
   // Optional per-wall explicit thickness (m) override — additive, back-compat.
   thicknessM: z.number().optional(),
   topHeight: z.number().optional(),
+  // Optional open-railing render override for a topHeight wall — additive, back-compat.
+  railing: z.boolean().optional(),
   // Optional sloping-wall end height (PARITY-SLOPEWALL) — additive, back-compat.
   topHeightEnd: z.number().optional(),
   // Optional curvature bulge (m) — additive, back-compat (PARITY-CURVEDWALL).
@@ -274,7 +281,7 @@ const PlanWallZ = z.object({
   // Optional user-declared structural classification (TODO G7, wallStructure) —
   // additive, back-compat. Absent = 'unknown'.
   structure: z
-    .enum(['load-bearing', 'rc-partition', 'brick-partition', 'drywall', 'unknown'])
+    .enum(['load-bearing', 'rc-partition', 'brick-partition', 'drywall', 'gable-end', 'unknown'])
     .optional(),
 })
 const PlanOpeningZ = z.object({
@@ -574,7 +581,8 @@ const RawSerializedStateZ = z.object({
   timeMode: z.enum(['system', 'manual']),
   manualHour: z.number().min(0).max(24),
   // Optional (added later): fixture-lights mode, so a saved lighting mood's
-  // on/off state round-trips. Absent → 'auto' on load.
+  // on/off state round-trips. 'auto' is still ACCEPTED for legacy saves (the
+  // follow-the-sun mode removed 2026-07-24) but normalizes to 'off' on load.
   lightsMode: z.enum(['auto', 'on', 'off']).optional(),
   // Optional (added later): the one-tap lighting mood preset (UX round-3 #3),
   // so a saved reading/movie/entertaining/romantic mood round-trips. Absent →
@@ -680,6 +688,10 @@ const RawSerializedStateZ = z.object({
   // Optional + additive — absent → DEFAULT_PRICE_RULES on load.
   priceRules: PriceRulesZ,
   savedAt: z.string(),
+  // Defaults-layout revision this save has seen (see CURRENT_DEFAULTS_REV in
+  // applySerialized). Optional + additive — absent (older saves) → 0, which
+  // makes the loader backfill any default items introduced since.
+  defaultsRev: z.number().optional(),
 })
 
 const LEGACY_TIME_HOUR: Record<string, number> = {
@@ -829,6 +841,7 @@ export function serialize(state: RootState): SerializedState {
     // Persist the price-rule library only when the user has changed a rate.
     ...(isNonDefaultPriceRules(state.priceRules) ? { priceRules: state.priceRules } : {}),
     savedAt: new Date().toISOString(),
+    defaultsRev: CURRENT_DEFAULTS_REV,
   }
 }
 
@@ -864,6 +877,11 @@ function hasFiniteItemTransform(it: SerializedState['items'][number]): boolean {
  *  remove (BUG-2). Those two callers re-merge the dropped-for-unknown-def
  *  items back into this function's `items` output (using
  *  `hasFiniteItemTransform` to keep genuinely corrupt items dropped). */
+/** Bump when the curated default layout gains NEW items that existing
+ *  default-flat saves should receive on load (list their ids below). */
+const CURRENT_DEFAULTS_REV = 1
+const DEFAULTS_BACKFILL_IDS = new Set(['default-b2-curtain', 'default-b3-curtain'])
+
 export function applySerialized(
   state: SerializedState,
   knownDefIds: Set<string>,
@@ -889,12 +907,112 @@ export function applySerialized(
   for (const [k, v] of Object.entries(state.finishes.ceiling ?? {})) {
     if (validRoom(k)) ceiling[k] = v
   }
+  // Re-home ORPHANED window-bound fixtures (curtains/blinds/mesh screens):
+  // a fixture is only ever PLACED snapped to a window, but a later plan change
+  // (or a default-flat geometry revision — e.g. the removed MB west window)
+  // can leave a persisted fixture hanging on a now-solid wall. On load, any
+  // window-bound item further than ~0.3 m from every window on its storey is
+  // re-snapped to the nearest window (keeping its props); if its storey has no
+  // windows at all it is dropped rather than left floating mid-wall.
+  const levelPlans = new Map(planLevels(plan).map((l) => [l.id, levelAsPlan(plan, l)]))
+  // Re-home items STRANDED OUTSIDE the flat: a plan change (or a default-flat
+  // geometry revision) can leave a persisted item's centre outside every room
+  // of its storey — e.g. the old service-yard washer sitting in what is now a
+  // void strip. Such an item is clamped to the nearest point inside its
+  // nearest room (inset 0.3 m so its body lands inside too). Items inside any
+  // room (with a small tolerance for wall-flush placement) are untouched.
+  const OUT_TOL = 0.2
+  const rehomeStranded = (
+    it: SerializedState['items'][number],
+  ): SerializedState['items'][number] => {
+    const def = BUILTIN_CATALOG[it.defId]
+    if (def?.mounted || def?.noClip) return it
+    const lp = levelPlans.get(it.levelId ?? GROUND_LEVEL_ID) ?? levelPlans.get(GROUND_LEVEL_ID)
+    if (!lp || lp.rooms.length === 0) return it
+    const [x, z] = it.position
+    const rects = lp.rooms.flatMap((r) => {
+      const main = {
+        x0: r.origin[0],
+        z0: r.origin[1],
+        x1: r.origin[0] + r.width,
+        z1: r.origin[1] + r.depth,
+      }
+      if (!r.extension) return [main]
+      const ex = r.origin[0] + r.extension.offset[0]
+      const ez = r.origin[1] + r.extension.offset[1]
+      return [main, { x0: ex, z0: ez, x1: ex + r.extension.width, z1: ez + r.extension.depth }]
+    })
+    const inside = rects.some(
+      (rc) =>
+        x >= rc.x0 - OUT_TOL &&
+        x <= rc.x1 + OUT_TOL &&
+        z >= rc.z0 - OUT_TOL &&
+        z <= rc.z1 + OUT_TOL,
+    )
+    if (inside) return it
+    // Clamp to the nearest room rect, inset so the item's body lands inside.
+    let best: [number, number] | null = null
+    let bestD = Number.POSITIVE_INFINITY
+    for (const rc of rects) {
+      const inset = Math.min(0.3, (rc.x1 - rc.x0) / 2, (rc.z1 - rc.z0) / 2)
+      const cx = Math.min(Math.max(x, rc.x0 + inset), rc.x1 - inset)
+      const cz = Math.min(Math.max(z, rc.z0 + inset), rc.z1 - inset)
+      const d = Math.hypot(cx - x, cz - z)
+      if (d < bestD) {
+        bestD = d
+        best = [cx, cz]
+      }
+    }
+    return best ? { ...it, position: best } : it
+  }
+  const rehomeWindowBound = (
+    it: SerializedState['items'][number],
+  ): SerializedState['items'][number] | null => {
+    if (!BUILTIN_CATALOG[it.defId]?.windowBound) return it
+    const lp = levelPlans.get(it.levelId ?? GROUND_LEVEL_ID) ?? levelPlans.get(GROUND_LEVEL_ID)
+    if (!lp) return it
+    const snap = snapToNearestWindow(lp.walls, lp.openings, [it.position[0], it.position[1]])
+    if (!snap) return null
+    const drift = Math.hypot(snap.position[0] - it.position[0], snap.position[1] - it.position[1])
+    if (drift <= 0.3) return it
+    return { ...it, position: [snap.position[0], snap.position[1]], rotation: snap.rotation }
+  }
+  // Drop items whose transform isn't finite (see `hasFiniteItemTransform`) —
+  // `z.number()` admits NaN/Infinity, so a corrupt or hand-edited save could
+  // otherwise feed NaN into the Three.js matrices and break (or crash-loop)
+  // the whole renderer.
+  const items = state.items
+    .filter((it) => knownDefIds.has(it.defId) && hasFiniteItemTransform(it))
+    .map(rehomeWindowBound)
+    .filter((it): it is SerializedState['items'][number] => it != null)
+    .map(rehomeStranded)
+  // Backfill default-layout items a NEWER defaults revision introduced (e.g.
+  // the W1 bedroom curtains): only for saves of the DEFAULT flat that still
+  // carry default-layout furnishing, and only for revisions this save hasn't
+  // seen (the stamped `defaultsRev` makes a user's later deletion stick —
+  // re-saving records the current revision, so the item is never re-added).
+  if (isDefaultPlan(plan) && (state.defaultsRev ?? 0) < CURRENT_DEFAULTS_REV) {
+    const have = new Set(items.map((i) => i.id))
+    if (items.some((it) => it.id?.startsWith('default-'))) {
+      for (const entry of defaultLayout()) {
+        if (!DEFAULTS_BACKFILL_IDS.has(entry.id) || have.has(entry.id)) continue
+        const def = BUILTIN_CATALOG[entry.defId]
+        const props =
+          def?.kind === 'parametric'
+            ? { ...defaultParamProps(def), ...entry.props }
+            : { ...entry.props }
+        items.push({
+          id: entry.id,
+          defId: entry.defId,
+          position: [entry.position[0], entry.position[1]],
+          rotation: entry.rotation,
+          props,
+        })
+      }
+    }
+  }
   return {
-    // Drop items whose transform isn't finite (see `hasFiniteItemTransform`) —
-    // `z.number()` admits NaN/Infinity, so a corrupt or hand-edited save could
-    // otherwise feed NaN into the Three.js matrices and break (or crash-loop)
-    // the whole renderer.
-    items: state.items.filter((it) => knownDefIds.has(it.defId) && hasFiniteItemTransform(it)),
+    items,
     // A loaded/restored design has no relation to the current session's
     // selection or hidden set — reset both so the inspector and the Layers
     // "(N hidden)" count never reference items that are no longer present.
@@ -914,7 +1032,7 @@ export function applySerialized(
     roomPalettes: state.roomPalettes ?? {},
     timeMode: state.timeMode,
     manualHour: state.manualHour,
-    lightsMode: state.lightsMode ?? 'auto',
+    lightsMode: normalizeLightsMode(state.lightsMode),
     lightMood: state.lightMood ?? 'none',
     annotations: state.annotations ?? [],
     comments: state.comments ?? [],

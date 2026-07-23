@@ -30,6 +30,9 @@
      tablet (≤1024) width. Replaces the hand-tuned 326/300/312 + 300/284/296. */
   --panel-w: 320px;
   --panel-w-compact: 288px;
+  /* Wider width for the inspector + its right-dock rail — 320px crushed the
+     header (6 icon buttons + thumb + title) and the multi-field sections. */
+  --panel-w-wide: 360px;
 
   /* Type scale */
   --t-2xs: 10px;

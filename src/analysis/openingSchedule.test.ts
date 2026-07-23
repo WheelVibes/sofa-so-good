@@ -442,7 +442,7 @@ describe('opening style/material grouping (openingStyles axes)', () => {
     expect(sched.marks.map((m) => m.material)).toEqual(['painted', 'wood'])
   })
 
-  it('splits a grille window from a plain window of identical size (windows carry no material)', () => {
+  it('splits a grille window from a plain window of identical size (legacy: both group as clear glass)', () => {
     const sched = buildOpeningSchedule(
       plan(
         [room],
@@ -455,7 +455,24 @@ describe('opening style/material grouping (openingStyles axes)', () => {
     )
     expect(sched.marks.map((m) => m.mark)).toEqual(['W1', 'W2'])
     expect(sched.marks.map((m) => m.style)).toEqual(['plain', 'grille'])
-    expect(sched.marks.every((m) => m.material === undefined)).toBe(true)
+    // Legacy no-material windows normalise to 'clear' (byte-identical grouping
+    // to before the GLASS-KINDS material axis — only style splits these two).
+    expect(sched.marks.every((m) => m.material === 'clear')).toBe(true)
+  })
+
+  it('splits a frosted window from a clear window of identical size (GLASS-KINDS)', () => {
+    const sched = buildOpeningSchedule(
+      plan(
+        [room],
+        [wall],
+        [
+          win('clear', 'w-n', 0, 1.2, 0.9, 2.1),
+          win('frosted', 'w-n', 2, 1.2, 0.9, 2.1, { material: 'frosted' }),
+        ],
+      ),
+    )
+    expect(sched.marks).toHaveLength(2)
+    expect(sched.marks.map((m) => m.material)).toEqual(['clear', 'frosted'])
   })
 
   it('produces readable Style / material labels', () => {
@@ -466,11 +483,13 @@ describe('opening style/material grouping (openingStyles axes)', () => {
         [
           door('slide', 'w-n', 0, 0.9, 2.1, { style: 'sliding', material: 'wood' }),
           win('grille', 'w-n', 2, 1.2, 0.9, 2.1, { style: 'invisible-grille' }),
+          win('bath', 'w-n', 4, 1.2, 0.9, 2.1, { style: 'awning', material: 'frosted' }),
         ],
       ),
     )
     expect(openingStyleMaterialLabel(sched.marks[0])).toBe('Sliding · Wood')
-    expect(openingStyleMaterialLabel(sched.marks[1])).toBe('Invisible grille')
+    expect(openingStyleMaterialLabel(sched.marks[1])).toBe('Invisible grille · Clear')
+    expect(openingStyleMaterialLabel(sched.marks[2])).toBe('Awning · Frosted')
   })
 })
 

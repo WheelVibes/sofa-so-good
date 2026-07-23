@@ -15,7 +15,6 @@ export const COST_SWEEP: SweepStep[] = [
   { key: 'ibl', label: 'IBL reflections', disabledValue: false },
   { key: 'dof', label: 'Depth of field', disabledValue: false },
   { key: 'contactShadows', label: 'Contact shadows', disabledValue: false },
-  { key: 'cornerAo', label: 'Corner AO', disabledValue: false },
   { key: 'maxFixtureLights', label: 'Fixture lights', disabledValue: 0 },
   { key: 'geometryDetail', label: 'Geometry detail', disabledValue: 0.5 },
   { key: 'dprMax', label: 'Pixel ratio (DPR)', disabledValue: 1 },

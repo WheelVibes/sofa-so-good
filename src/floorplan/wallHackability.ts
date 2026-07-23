@@ -28,9 +28,13 @@ export type HackClass = 'no' | 'permit' | 'unknown'
 
 /**
  * Map a wall's declared `structure` to its demolition class.
- * - `'load-bearing'` / `'rc-partition'` ⇒ `'no'` — structural; demolition is
- *   NOT PERMITTED under HDB rules (never merely "needs a permit"). Household-
- *   shelter walls are declared load-bearing so they land here too.
+ * - `'load-bearing'` / `'rc-partition'` / `'gable-end'` ⇒ `'no'` — structural;
+ *   demolition is NOT PERMITTED under HDB rules (never merely "needs a
+ *   permit"). Household-shelter walls are declared load-bearing so they land
+ *   here too; `'gable-end'` is the block's exposed external end wall
+ *   (walls.jpg legend #3) — reinforced-concrete and structural exactly like
+ *   `'load-bearing'`, just tagged separately so rendering can draw its
+ *   distinct lining symbol.
  * - `'brick-partition'` / `'drywall'` ⇒ `'permit'` — non-structural partitions
  *   are removable WITH an HDB renovation permit.
  * - `undefined` / `'unknown'` ⇒ `'unknown'` — unclassified; advise confirming
@@ -39,9 +43,11 @@ export type HackClass = 'no' | 'permit' | 'unknown'
 export function wallHackability(structure?: PlanWall['structure']): HackClass {
   switch (structure) {
     // Structural — absolutely not permitted (HDB "important information";
-    // elementsid load-bearing/RC + household-shelter guidance).
+    // elementsid load-bearing/RC + household-shelter guidance). Gable-end is
+    // the block's structural exposed end wall — equally never-hackable.
     case 'load-bearing':
     case 'rc-partition':
+    case 'gable-end':
       return 'no'
     // Non-structural partitions — removable with an HDB renovation permit.
     case 'brick-partition':

@@ -39,6 +39,11 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   (`PlanWallZ`/`PlanOpeningZ`), and rendered by `PlanShell` (`FadeWall`/`SlopedWallMesh`/`FadeWindow`) +
   `PlanDoorLeaf`. Adding another per-element appearance field follows the same additive shape (no
   version bump).
+- **Open railings (`PlanWall.railing`):** same additive shape as `topHeight` (no version bump) —
+  when true alongside a set `topHeight`, the wall renders as an open metal railing (top rail +
+  posts + balusters, pure layout in `railingLayout.ts`) instead of a solid half-wall/parapet;
+  edited in `WallInspector` (shown only when `topHeight` is set), rendered by the curated flat's
+  `WallSegment.tsx` and `PlanShell`'s wall loop.
 - **Per-room ceiling finish (`ceilingFinish`):** a room's ceiling can be painted/textured with any
   catalog material, mirroring floor/wall finish. Stored in the finishes slice (`finishes.ceiling`,
   keyed by room id) with write-through to the plan room's `ceilingFinish` field; resolved by
@@ -64,10 +69,14 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   mesh, unit-tested). Each bucket keeps its OWN material — the wall-reveal fade touches only the
   glass pane (`FadeWindow`'s `ref`), NOT the grille members (they were never faded), so instancing
   is byte-identical to the prior reveal behaviour); same additive schema shape as `color`. A door ALSO
-  carries `PlanOpening.material` (`painted`/`wood`/`vinyl`, `doorMaterial.ts:
+  carries `PlanOpening.material` (`painted`/`wood`/`vinyl`/`metal`, `doorMaterial.ts:
   resolveDoorLeafMaterialKind` — defaults to `vinyl` for `bifold`, `painted` otherwise) selecting its
   leaf's real finish via `materials/furnitureMaterials.ts` (`getPaintedMaterial`/`getWoodMaterial`/
-  `getVinylMaterial`); windows ignore it. Same additive schema shape as `style`. The **2D plan
+  `getVinylMaterial`/`getMetalMaterial` — `metal` is the HDB household-shelter blast door /
+  aluminium-framed yard door finish, SNV spec v0.23.1.5); windows ignore it. The FIXED flat's
+  `DoorSpec` (apartment/constants.ts) carries the same `style`/`material`/`color` axes (+ `gate` for
+  the entrance's HDB metal security gate), rendered by `Door.tsx` and mirrored onto the plan
+  openings by `buildDefaultPlan` so 2D/3D/schedule never disagree. Same additive schema shape as `style`. The **2D plan
   symbol** is built ONCE by `doorSwing.ts:doorPlanSymbol(wall, o)` (world metres) and shared by every
   consumer — `OpeningsLayer` (editor), `reportPlanSvg` (report/drawing set); DXF export draws a door
   as a plain gap LINE for ALL styles (the geometry is style-agnostic), **but** the door/window
@@ -86,29 +95,55 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   `style` stays a FREE string (no closed zod enum) in `types.ts` + `schema.ts` — adding a style needs
   no version bump; keep the two files' documented value list in parity.
 - **Wall structural classification (TODO G7, `wallStructure` pro flag):**
-  `PlanWall.structure?: 'load-bearing'|'rc-partition'|'brick-partition'|'drywall'|'unknown'`
+  `PlanWall.structure?: 'load-bearing'|'rc-partition'|'brick-partition'|'drywall'|'gable-end'|'unknown'`
   (absent = `'unknown'`) is **user-declared, never verified** — the app cannot tell a
   load-bearing beam-and-column wall from a non-structural precast/Ferrolite partition from
   plan geometry alone (a documented HDB hacking-plan failure mode; see
-  `docs/research/2026-07-18-contractor-handover-research.md`). Same additive schema shape as
-  `color`/`style` above. Edited per-wall in `WallInspector` (a `Select`, with an inline
-  "confirm against HDB/BCA records" hint) or in bulk across a multi-wall selection via
-  `floorPlanSlice.setWallsStructure` (`PlanInspector`'s multi-wall panel — "Mixed" placeholder
-  when the selection disagrees). `diffWalls`/`diffWallsByLevel` (`demolitionPlan.ts`) never
-  clone wall objects — they just bucket references into `kept`/`demolished`/`added` — so
-  `structure` rides straight through into `WallDiff` with no extra plumbing.
-  `demolitionPlanSvg.ts` reads it directly, deciding "demolition-restricted?" via the ONE
-  shared classifier (`wallHackability.ts:isDemolitionRestricted`) so the sheet can NEVER diverge
-  from the live hackability overlay + wall-delete guard: a **structural** wall — `'load-bearing'`
-  **OR** `'rc-partition'` (reinforced-concrete partition) — always renders heavy/solid (+ a
-  "Structural — load-bearing / RC" legend row); a structural wall marked for demolition escalates
-  to a hard danger treatment + an inline "NOT PERMITTED" label ("structural (load-bearing / RC)"
-  — off-limits under SG rules, never just "needs a permit"); an `'unknown'`
+  `docs/research/2026-07-18-contractor-handover-research.md`). `'gable-end'` is the flat block's
+  exposed external END wall (walls.jpg legend #3 — a thick wall with its own distinct lining
+  symbol, distinct from the plain solid-black structural wall #1/#2's hollow double-line normal
+  wall) — RC/structural exactly like `'load-bearing'`/`'rc-partition'` (`wallHackability`
+  classifies it `'no'`, never hackable), tagged separately purely so 2D/3D rendering can draw its
+  distinct symbol. **Exception: the curated default flat seeds it** — `apartment/constants.ts`'s
+  `WALLS` carry a `structure` traced from the official plan's line types
+  (`assets/floor_plan/default.png` legend: solid black → `'load-bearing'`, hollow double lines →
+  `'brick-partition'`; `assets/floor_plan/walls.jpg` legend: the gable-end symbol on the west wall
+  → `'gable-end'`, seeded on `wall-ext-W`), copied through by `buildDefaultPlan`; the
+  household-shelter RC ring and the B3/LD column stub are separate walls
+  (`wall-int-hs-N`/`wall-int-hs-S`/`wall-int-b3-LD-col`) so the never-hackable classification
+  doesn't spill onto adjacent normal partitions. Same additive schema shape as `color`/`style`
+  above. Edited per-wall in `WallInspector` (a `Select`, with an inline "confirm against HDB/BCA
+  records" hint) or in bulk across a multi-wall selection via `floorPlanSlice.setWallsStructure`
+  (`PlanInspector`'s multi-wall panel — "Mixed" placeholder when the selection disagrees).
+  `diffWalls`/`diffWallsByLevel` (`demolitionPlan.ts`) never clone wall objects — they just bucket
+  references into `kept`/`demolished`/`added` — so `structure` rides straight through into
+  `WallDiff` with no extra plumbing. `demolitionPlanSvg.ts` reads it directly, deciding
+  "demolition-restricted?" via the ONE shared classifier (`wallHackability.ts:
+  isDemolitionRestricted`) so the sheet can NEVER diverge from the live hackability overlay +
+  wall-delete guard: a **structural** wall — `'load-bearing'`, `'rc-partition'` (reinforced-
+  concrete partition), **OR** `'gable-end'` — always renders heavy/solid (+ a "Structural —
+  load-bearing / RC / gable-end" legend row); a structural wall marked for demolition escalates
+  to a hard danger treatment + an inline "NOT PERMITTED" label ("structural (load-bearing / RC /
+  gable-end)" — off-limits under SG rules, never just "needs a permit"); an `'unknown'`
   (or unset) wall being demolished gets an inline "⚠" + a "confirm with HDB/PE" legend note.
   Demolished walls also get a real diagonal-hatch tick pattern (not just a dashed colour) per
   drafting convention. The sheet prints a concise SG permit-note block alongside the legend
   (HDB permit required for any demolition, PE endorsement when RC is touched, load-bearing
   off-limits, classification is user-declared, weekday-only working hours).
+  **2D plan editor structure-driven rendering (`WallsLayer.tsx`, unconditional — the HDB plan
+  drawing convention, not a toggle):** the wall BODY stroke strengthens for any structural wall
+  (`isDemolitionRestricted`) — strongest ink (`var(--text)`) + a heavier body width — and a
+  `'gable-end'` wall additionally overlays a thin dashed lengthwise lining stripe
+  (`var(--surface)`, `6 4` dash) reading as its distinct plan symbol; non-structural/unknown walls
+  keep today's look. Selection/stray halos, the hit target, skeleton mode, and the bulge handle are
+  unchanged. `ui/reportPlanSvg.ts`'s drawing-set floor plan mirrors the structural=heavier-stroke
+  treatment (a small localized change — no gable-end lining stripe there, since that sheet strokes
+  every wall as a plain `<line>`).
+  **3D wall-types overlay (`wallTypes3d` pro flag):** a View-menu toggle (`showWallTypes` on
+  `uiSlice`, session-only, mirrors `clearanceOn`) tints each wall's translucent overlay jacket by
+  `structure` in BOTH the whole-flat orbit view and the per-room editor — see
+  `docs/ARCHITECTURE.md`'s wall-structure section for the render-site details
+  (`wallTypeColor.ts`/`WallTypeOverlayJacket`).
 - **Parametric roof (UX research round 3, `parametricRoof` pro flag): `PlanRoof` on
   `FloorPlan` + pure `roofModel.ts`.** `roof?: PlanRoof` (`style`
   `gable`/`hip`/`flat-parapet`, `pitchDeg` 15–45, `overhang` 0–0.6, `ridgeAxis`

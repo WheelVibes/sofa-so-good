@@ -12,7 +12,7 @@
  * `'yes'`/absent (on) and `'no'` (off) — mirroring curtains/blinds' binary
  * `drawAmount`/`lower` flip, not a brightness slider. See `lightEmitters.ts`
  * `isItemEmitter`/`resolveEmitterSpec` for how this composes with the
- * scene-wide `lightsMode` ('auto'/'on'/'off') brightness multiplier: the
+ * scene-wide `lightsMode` ('on'/'off') brightness multiplier: the
  * per-item toggle decides *whether* an item is in the active-lights set at
  * all; `lightsMode` only scales the brightness of whichever items already
  * passed that gate. Per-item wins in every `lightsMode`.

@@ -31,9 +31,9 @@ describe('occluderRectsForPlan', () => {
     expect(bedroom).toBeTruthy()
     const rect = occluderRectsForPlan(plan).find((r) => r.id === 'bedroom2')
     expect(rect).toBeTruthy()
-    // bedroom2 origin [3.15, 0.2], 2.85 x 3.4 → centre (4.575, 1.9).
-    expect(rect?.cx).toBeCloseTo(3.15 + 2.85 / 2, 3)
-    expect(rect?.cz).toBeCloseTo(0.2 + 3.4 / 2, 3)
+    // bedroom2 origin [3.38, 0.2], 2.76 x 3.525 → centre (4.76, 1.9625).
+    expect(rect?.cx).toBeCloseTo(3.38 + 2.76 / 2, 3)
+    expect(rect?.cz).toBeCloseTo(0.2 + 3.525 / 2, 3)
   })
 
   it('returns an empty array for a plan with no rooms', () => {

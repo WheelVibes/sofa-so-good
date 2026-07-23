@@ -1,0 +1,41 @@
+{
+  "name": "context-restore-rebuild",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": { "store": "state.sceneReady === true && state.bootPhase === 'ready'" },
+      "timeout": 90000
+    },
+    { "name": "set-medium", "store": { "action": "setQualityTier", "args": ["medium"] } },
+    {
+      "name": "tier-applied",
+      "waitFor": { "store": "state.qualityTier === 'medium' && !state.loading.active" },
+      "timeout": 60000
+    },
+    { "name": "settle", "wait": 6000 },
+    { "name": "shot-before", "screenshot": "before-loss" },
+    {
+      "name": "force-loss-then-restore",
+      "eval": "(() => { const ext = window.__three.gl.getContext().getExtension('WEBGL_lose_context'); ext.loseContext(); setTimeout(() => ext.restoreContext(), 800); window.__envAfter = null; setTimeout(() => { window.__envAfter = !!window.__three.scene.environment }, 6000); })()"
+    },
+    {
+      "name": "wait-rebuild",
+      "waitFor": { "store": "window.__envAfter !== null" },
+      "timeout": 30000
+    },
+    {
+      "name": "assert-env-rebuilt",
+      "waitFor": { "store": "window.__envAfter === true" },
+      "timeout": 5000,
+      "failMessage": "scene.environment not rebuilt after context restore (GPU-STARVE-2 regression)"
+    },
+    { "name": "settle2", "wait": 2000 },
+    { "name": "shot-after", "screenshot": "after-loss-restore" }
+  ]
+}

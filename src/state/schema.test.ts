@@ -1030,6 +1030,13 @@ describe('schema', () => {
             structure: 'load-bearing',
           },
           { id: 'w2', start: [4, 0], end: [4, 3], thickness: 'internal' },
+          {
+            id: 'w3',
+            start: [4, 3],
+            end: [4, 6],
+            thickness: 'external',
+            structure: 'gable-end',
+          },
         ],
       },
     } as never)
@@ -1041,6 +1048,8 @@ describe('schema', () => {
       expect(patch.floorPlan?.walls.find((w) => w.id === 'w1')?.structure).toBe('load-bearing')
       // Absent structure survives as absent (defaults to 'unknown' at read sites).
       expect(patch.floorPlan?.walls.find((w) => w.id === 'w2')?.structure).toBeUndefined()
+      // 'gable-end' (the exposed external end wall symbol) round-trips too.
+      expect(patch.floorPlan?.walls.find((w) => w.id === 'w3')?.structure).toBe('gable-end')
     }
   })
 
@@ -1157,19 +1166,26 @@ describe('schema', () => {
     }
   })
 
-  it('round-trips lightsMode and defaults to auto when absent', () => {
+  it('round-trips lightsMode, normalizing absent/legacy-auto to off', () => {
     useStore.getState().__resetForTest()
     useStore.getState().setLightsMode('on')
     const out = serialize(useStore.getState())
     expect(out.lightsMode).toBe('on')
-    // Absent (legacy) → applySerialized defaults to 'auto'.
+    // Absent (legacy) → applySerialized defaults to 'off'.
     const legacy = { ...out } as Record<string, unknown>
     delete legacy.lightsMode
     const patch = applySerialized(
       legacy as unknown as Parameters<typeof applySerialized>[0],
       new Set(['bed-double']),
     )
-    expect((patch as { lightsMode?: string }).lightsMode).toBe('auto')
+    expect((patch as { lightsMode?: string }).lightsMode).toBe('off')
+    // The removed follow-the-sun 'auto' mode in an old save also loads as 'off'.
+    const legacyAuto = { ...out, lightsMode: 'auto' } as Record<string, unknown>
+    const patchAuto = applySerialized(
+      legacyAuto as unknown as Parameters<typeof applySerialized>[0],
+      new Set(['bed-double']),
+    )
+    expect((patchAuto as { lightsMode?: string }).lightsMode).toBe('off')
   })
 
   it('round-trips lightMood and defaults to none when absent', () => {
@@ -1574,5 +1590,120 @@ describe('multi-level plans (F13 / ML1)', () => {
     const safe = applySerialized(corrupt as typeof saved, new Set<string>())
     expect(safe.priceRules?.floor.wood).toBeGreaterThan(0)
     expect(safe.priceRules?.carpentryPerM).toBeGreaterThan(0)
+  })
+})
+
+describe('window-bound + stranded item re-homing on load (plan-revision healing)', () => {
+  const base = () => serialize(useStore.getState() as never)
+
+  it('re-snaps an orphaned window-bound curtain to the nearest window', () => {
+    const s = base()
+    // The old default flat had an MB WEST window at x=0.28; the revised plan's
+    // west wall is solid — the persisted curtain must migrate to a real window
+    // (the MB north window is nearest).
+    s.items = [
+      {
+        id: 'legacy-west-curtain',
+        defId: 'curtains',
+        position: [0.28, 2.6],
+        rotation: Math.PI / 2,
+        props: { width: 2.9 },
+      },
+    ] as never
+    const out = applySerialized(s, new Set(['curtains']))
+    const curtain = out.items?.find((i) => i.id === 'legacy-west-curtain')
+    expect(curtain).toBeDefined()
+    // MB north window centre is (1.7, ~0.1 wall line) — well away from x=0.28.
+    expect(curtain!.position[0]).toBeGreaterThan(0.7)
+    expect(curtain!.position[1]).toBeLessThan(0.5)
+  })
+
+  it('keeps a window-bound fixture already on a window', () => {
+    const s = base()
+    s.items = [
+      {
+        id: 'ok-curtain',
+        defId: 'curtains',
+        position: [1.7, 0.1],
+        rotation: 0,
+        props: {},
+      },
+    ] as never
+    const out = applySerialized(s, new Set(['curtains']))
+    expect(out.items?.find((i) => i.id === 'ok-curtain')?.position).toEqual([1.7, 0.1])
+  })
+
+  it('clamps an item stranded outside every room into the nearest room', () => {
+    const s = base()
+    // The old service yard footprint included what is now a void strip between
+    // the AC ledge and the yard — a persisted washer there must come home.
+    s.items = [
+      {
+        id: 'legacy-washer',
+        defId: 'washing-machine',
+        position: [4.3, 8.6],
+        rotation: Math.PI / 2,
+        props: {},
+      },
+    ] as never
+    const out = applySerialized(s, new Set(['washing-machine']))
+    const washer = out.items?.find((i) => i.id === 'legacy-washer')
+    expect(washer).toBeDefined()
+    // Service yard interior is [4.705, 6.875] → [6.125, 9.125].
+    expect(washer!.position[0]).toBeGreaterThanOrEqual(4.705)
+    expect(washer!.position[0]).toBeLessThanOrEqual(6.125)
+    expect(washer!.position[1]).toBeGreaterThanOrEqual(6.875)
+    expect(washer!.position[1]).toBeLessThanOrEqual(9.125)
+  })
+
+  it('leaves an in-room item untouched', () => {
+    const s = base()
+    s.items = [
+      {
+        id: 'ok-item',
+        defId: 'washing-machine',
+        position: [5.5, 8.5],
+        rotation: 0,
+        props: {},
+      },
+    ] as never
+    const out = applySerialized(s, new Set(['washing-machine']))
+    expect(out.items?.find((i) => i.id === 'ok-item')?.position).toEqual([5.5, 8.5])
+  })
+})
+
+describe('defaults-revision backfill (new default items reach old default-flat saves)', () => {
+  it('injects the W1 bedroom curtains into a pre-revision default-flat save', () => {
+    const s = serialize(useStore.getState() as never)
+    s.defaultsRev = undefined
+    // A legacy default-flat furnishing: has default items but predates the
+    // bedroom curtains.
+    s.items = [
+      { id: 'default-b2-bed', defId: 'bed-queen', position: [4.5, 1.2], rotation: 0, props: {} },
+    ] as never
+    const out = applySerialized(s, new Set(['bed-queen', 'curtains']))
+    const ids = new Set(out.items?.map((i) => i.id))
+    expect(ids.has('default-b2-curtain')).toBe(true)
+    expect(ids.has('default-b3-curtain')).toBe(true)
+  })
+
+  it('does NOT re-add a curtain to a save already stamped with the current revision', () => {
+    const s = serialize(useStore.getState() as never)
+    // serialize() stamps the CURRENT revision — a deliberate deletion sticks.
+    s.items = [
+      { id: 'default-b2-bed', defId: 'bed-queen', position: [4.5, 1.2], rotation: 0, props: {} },
+    ] as never
+    const out = applySerialized(s, new Set(['bed-queen', 'curtains']))
+    expect(out.items?.some((i) => i.id === 'default-b2-curtain')).toBe(false)
+  })
+
+  it('does not backfill into a non-default (custom/emptied) furnishing', () => {
+    const s = serialize(useStore.getState() as never)
+    s.defaultsRev = undefined
+    s.items = [
+      { id: 'my-sofa', defId: 'sofa-3seat', position: [10, 3], rotation: 0, props: {} },
+    ] as never
+    const out = applySerialized(s, new Set(['sofa-3seat', 'curtains']))
+    expect(out.items?.some((i) => i.id.startsWith('default-b'))).toBe(false)
   })
 })

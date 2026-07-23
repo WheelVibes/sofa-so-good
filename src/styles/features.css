@@ -566,16 +566,11 @@ body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
 .tod-system:hover { background: var(--surface-3); color: var(--text); }
 .tod-system.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .scene-sep { height: 1px; background: var(--border); margin: 6px 0; }
-.scene-seg {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; margin: 0 6px 4px;
-  padding: 3px; background: var(--surface-2); border-radius: var(--r-2);
-}
-.scene-seg button {
-  min-height: 28px; border-radius: calc(var(--r-2) - 2px);
-  font-size: var(--t-xs); font-weight: 600; color: var(--text-2);
-}
-.scene-seg button.on { background: var(--accent); color: var(--on-accent); }
 .scene-field { display: block; padding: 0 6px 4px; }
+/* A scene-field row whose control is a `.switch` toggle: label left, switch
+   right, vertically centred (bigger tap row than the bare 34×20 switch). */
+.scene-field.switch-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-height: 32px; }
+.scene-field.switch-row > span { padding: 0; }
 .scene-field > span { display: block; font-size: var(--t-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); padding: 2px 0 4px; }
 /* Clarifying subtext under a single-state toggle (UXW-P3-4) — mirrors the
    mobile Scene sheet's `sub` so "Hidden"/"On" reads as a state description,

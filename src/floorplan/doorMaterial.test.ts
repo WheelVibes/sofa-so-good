@@ -29,4 +29,9 @@ describe('resolveDoorLeafMaterialKind', () => {
   it('falls back to painted for a garbage/legacy material value', () => {
     expect(resolveDoorLeafMaterialKind({ material: 'chrome' as never })).toBe('painted')
   })
+
+  it('resolves an explicit metal material (blast door / aluminium-framed glazed door)', () => {
+    expect(resolveDoorLeafMaterialKind({ material: 'metal' })).toBe('metal')
+    expect(resolveDoorLeafMaterialKind({ style: 'glazed', material: 'metal' })).toBe('metal')
+  })
 })

@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'vitest'
+import { isDemolitionRestricted } from '../floorplan/wallHackability'
 import { DOORS, INTERIOR_AREA_M2, ROOMS, WALLS, WINDOWS } from './constants'
 
 describe('apartment constants', () => {
-  it('total internal area is within 0.5 m² of 90 (excluding AC ledge)', () => {
-    // Strata interior excludes only the AC ledge (external annex south of bath1).
-    // Service yard is counted as interior, including its small enclosed strip
-    // west of the SY-W partition. Total is ~90 m².
+  it('total internal area is within 0.5 m² of 87.8 (excluding AC ledge)', () => {
+    // Strata interior excludes only the AC ledge (external annex south of the
+    // baths). The plan states 90 m² internal measured on wall CENTRE-lines;
+    // the rect sum landed within tolerance of that through v0.23.1.7. v0.23.1.8
+    // thickened every remaining full-black-run wall (the household-shelter RC
+    // ring + wall-int-b3-LD-col, wall-ext-bath1-W, wall-ext-SE-jog-W,
+    // wall-ext-SE-step, wall-ext-W) from the flat's usual 100 mm internal /
+    // 200 mm external gauge to the real 300 mm RC/gable-end gauge — a
+    // legitimate further loss (~2.37 m², mostly the household shelter, now
+    // correctly modeled at 300 mm RC on all four sides), landing the honest
+    // rect sum at ≈87.8 m² (see apartment/constants.ts's INTERIOR_AREA_M2
+    // comment for the accounting).
     const sum = Object.values(ROOMS)
       .filter((r) => !r.external)
       .reduce((acc, r) => {
@@ -13,7 +22,7 @@ describe('apartment constants', () => {
         const ext = r.extension ? r.extension.width * r.extension.depth : 0
         return acc + main + ext
       }, 0)
-    expect(Math.abs(sum - 90)).toBeLessThan(0.5)
+    expect(Math.abs(sum - 87.8)).toBeLessThan(0.5)
     expect(Math.abs(INTERIOR_AREA_M2 - sum)).toBeLessThan(0.01)
   })
 
@@ -51,5 +60,80 @@ describe('apartment constants', () => {
       )
       expect(matching, `window ${w.id} has no matching cutout on ${w.wallId}`).toBeDefined()
     }
+  })
+
+  it('every cutout stays inside its wall span', () => {
+    for (const w of WALLS) {
+      const len = Math.hypot(w.end[0] - w.start[0], w.end[1] - w.start[1])
+      for (const c of w.cutouts) {
+        expect(c.offset, `${w.id} cutout starts before the wall`).toBeGreaterThanOrEqual(0)
+        expect(c.offset + c.width, `${w.id} cutout overruns the wall`).toBeLessThanOrEqual(
+          len + 0.001,
+        )
+      }
+    }
+  })
+
+  describe('structural classification (assets/floor_plan/default.png legend)', () => {
+    const byId = new Map(WALLS.map((w) => [w.id, w]))
+
+    it('the household-shelter RC ring is load-bearing on all four sides', () => {
+      for (const id of [
+        'wall-int-hs-N',
+        'wall-int-hs-S',
+        'wall-int-bath2-hs',
+        'wall-int-shelter-LD',
+      ])
+        expect(byId.get(id)?.structure, id).toBe('load-bearing')
+    })
+
+    it('solid-black external runs are load-bearing; parapets/railings stay unclassified', () => {
+      for (const w of WALLS.filter((x) => x.thickness === 'external')) {
+        if (w.topHeight != null) {
+          // AC-ledge parapets + service-yard half wall — open-air, not room walls.
+          expect(w.structure, w.id).toBeUndefined()
+        } else if (w.id === 'wall-ext-W') {
+          // The gable-end symbol wall (walls.jpg legend #3) — structural, but
+          // tagged separately from the plain solid-black 'load-bearing' walls.
+          expect(w.structure, w.id).toBe('gable-end')
+        } else {
+          expect(w.structure, w.id).toBe('load-bearing')
+        }
+      }
+    })
+
+    it('the gable-end west wall is structural (never hackable)', () => {
+      const w = byId.get('wall-ext-W')!
+      expect(w.structure).toBe('gable-end')
+      expect(isDemolitionRestricted(w.structure)).toBe(true)
+    })
+
+    it('normal hollow-line internal partitions are brick-partition', () => {
+      for (const id of [
+        'wall-int-mb-b2',
+        'wall-int-b2-b3',
+        'wall-int-bedroom-S',
+        'wall-int-mb-foyer-E',
+        'wall-int-b3-LD',
+        'wall-int-corridor-S',
+        'wall-int-bath1-bath2',
+        'wall-int-bath1-acLedge',
+        'wall-int-mid-S',
+        'wall-int-shelter-E',
+      ])
+        expect(byId.get(id)?.structure, id).toBe('brick-partition')
+    })
+
+    it('the B3/LD RC column stub is load-bearing and abuts the partition below it', () => {
+      const col = byId.get('wall-int-b3-LD-col')!
+      const rest = byId.get('wall-int-b3-LD')!
+      expect(col.structure).toBe('load-bearing')
+      expect(col.end).toEqual(rest.start)
+    })
+
+    it('the HS splits abut their neighbours with no gap', () => {
+      expect(byId.get('wall-int-corridor-S')!.end).toEqual(byId.get('wall-int-hs-N')!.start)
+      expect(byId.get('wall-int-mid-S')!.end).toEqual(byId.get('wall-int-hs-S')!.start)
+    })
   })
 })

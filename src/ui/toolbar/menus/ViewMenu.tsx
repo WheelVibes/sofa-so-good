@@ -26,6 +26,8 @@ export function ViewMenu() {
   const toggleVerticalLock = useStore((s) => s.toggleVerticalLock)
   const parallelProjection = useStore((s) => s.parallelProjection)
   const toggleParallelProjection = useStore((s) => s.toggleParallelProjection)
+  const showWallTypes = useStore((s) => s.showWallTypes)
+  const toggleWallTypes = useStore((s) => s.toggleWallTypes)
   const proMode = useStore((s) => s.uiMode === 'pro')
   const plan = useStore((s) => s.floorPlan)
   const viewLevelId = useStore((s) => s.viewLevelId)
@@ -35,6 +37,7 @@ export function ViewMenu() {
   const fVr = useFeature('vrWalkthrough')
   const fTwoPointPerspective = useFeature('twoPointPerspective')
   const fParallelProjection = useFeature('parallelProjection')
+  const fWallTypes3d = useFeature('wallTypes3d')
   const [vrSupported, setVrSupported] = useState(false)
   useEffect(() => {
     if (!fVr) return
@@ -86,6 +89,18 @@ export function ViewMenu() {
             void enterVr()
           }}
         />
+      ) : null}
+      {isOrbit && fWallTypes3d ? (
+        <>
+          <MenuLabel>Structure</MenuLabel>
+          <MenuItem
+            icon="Layers"
+            label="Wall types"
+            sub="Tint walls by structural type — structural / gable-end / permit"
+            active={showWallTypes}
+            onClick={toggleWallTypes}
+          />
+        </>
       ) : null}
       {isMultiLevel(plan) ? (
         <>

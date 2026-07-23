@@ -11,9 +11,8 @@ import { useStore } from '../../state/store'
 import { useQuality } from '../useQuality'
 import { chooseEmitters } from './chooseEmitters'
 import { setFixtureGlow } from './fixtureGlow'
-import { useSunPosition } from './useSunPosition'
 
-/** Below this darkness the room is daylit — render no fixture lights at all. */
+/** Below this level the fixtures are off — render no fixture lights at all. */
 const MIN_DARKNESS = 0.04
 /** Camera-move (squared metres) below which the nearest-lights ranking can't have
  *  meaningfully changed — skip the rebuild+sort entirely. */
@@ -36,17 +35,14 @@ interface ActiveLight {
 
 /**
  * Drives real point lights from light-emitting furniture (lamps, pendants).
- * Lights fade in as the sun sets and cast no shadows; daytime renders nothing
- * (zero cost). The live set is capped to the nearest emitters within the tier's
+ * Lights are all on or all off (`lightsMode`) and cast no shadows; while off,
+ * nothing renders (zero cost). The live set is capped to the nearest emitters within the tier's
  * `maxFixtureLights` budget in BOTH view modes (`chooseEmitters`, PERF-002):
  * walk caps to N, orbit to a larger but still bounded `N * multiplier` — instead
  * of the old orbit path that lit every emitter (30–50 live lights in a furnished
  * night home). The nearest-N rank + camera-move/items/mode gate keep the pick
  * off the per-frame path.
  */
-/** Radians per degree. */
-const DEG = Math.PI / 180
-
 export function FurnitureLights() {
   const items = useStore(useShallow((s) => s.items))
   const lightsMode = useStore((s) => s.lightsMode)
@@ -60,7 +56,6 @@ export function FurnitureLights() {
   const moodEnabled = useFeature('lightMoodPresets')
   const lightMoodRaw = useStore((s) => s.lightMood)
   const lightMood = moodEnabled ? lightMoodRaw : 'none'
-  const sun = useSunPosition()
   const { camera } = useThree()
   const levelRef = useRef(0)
   const [active, setActive] = useState<ActiveLight[]>([])
@@ -75,10 +70,8 @@ export function FurnitureLights() {
   // camera or touching `items` — needs its own change check.
   const lastMoodRef = useRef(lightMood)
 
-  // Auto: lights only turn on after sunset (altitude < 0). Ramp from 0 at horizon
-  // to fully on at -6 degrees civil twilight. On/off modes override completely.
-  const darkness = sun.altitude >= 0 ? 0 : Math.min(1, Math.max(0, -sun.altitude / (6 * DEG)))
-  const level = lightsMode === 'on' ? 1 : lightsMode === 'off' ? 0 : darkness
+  // Binary all-on / all-off (the sun-following 'auto' mode was removed).
+  const level = lightsMode === 'on' ? 1 : 0
   levelRef.current = level
 
   useFrame(() => {

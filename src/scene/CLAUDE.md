@@ -51,6 +51,24 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   and pulses no signal, so the frozen (byte-identical) map is reused — zero visual change. Any new
   shadow-casting furniture that animates its transform without a store change must call
   `pulseShadowRefreshForMotion()` each moving frame, exactly like the fans/blinds.
+- **No frame may approach the OS GPU watchdog (GPU-STARVE).** At High/Maximum a pan frame
+  (DPR 2 × full-res N8AO × bloom × SMAA × transmission) can hit seconds on an iGPU; frames
+  crossing the watchdog (~2 s Windows TDR) reset the driver → WebGL context loss → the canvas
+  blanks white ("white flash while panning"). Two mechanisms, keep both intact:
+  (1) `InteractiveDprController` (both Canvases, `interactiveDegrade` flag) halves the pixel
+  ratio while a camera gesture is held (`cameraMotionSignal.ts` ← OrbitControls
+  `onStart`/`onEnd`) and for 3 s after any >250 ms rendered frame (pure, unit-tested decision
+  in `interactiveDegrade.ts`; never during recording). Any change to DPR must go through r3f
+  `setDpr` **plus a same-value `setSize` nudge** — `@react-three/postprocessing`'s composer
+  only re-sizes its buffers on a `size` identity change, so a bare `setPixelRatio` leaves the
+  post stack rendering at the old resolution. New camera-control surfaces must publish their
+  gestures to `cameraMotionSignal`. (2) `ContextLossGuard` (both Canvases) rebuilds after a
+  restore: shadow-refresh pulse (the frozen map would stay stale forever) + `contextRestoreSignal`
+  bump (`SceneEnvironment` keys `<Environment>` on it — render-target-only resources don't
+  survive a loss) + a frame-COUNTED pump hold (≥8 frames AND ≥1.5 s; a timed hold can elapse
+  before a slow renderer's bake frame ever runs). Guard scenario:
+  `scripts/scenarios/context-restore-rebuild.json`. Any new render-target-backed bake (probes,
+  PMREM, accumulation) must subscribe to `contextRestoreSignal` or it will come back black.
 - **Bloom only blooms genuine HDR emitters, never broad daytime surfaces** (RD-409). The
   Bloom `luminanceThreshold` (`look.BLOOM.luminanceThreshold`, 1.35) sits **above** sunlit
   white walls/ceilings under the day IBL + ~1.2 graded exposure and **below** the night
@@ -72,14 +90,13 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 - **Cheap baked AO on the flat tier.** With no SSAO on Performance/Medium, grounding is
   faked with shared-texture alpha decals: `ContactShadow.tsx` (under-furniture blob, RZ1; also a
   fainter/tighter **surface decal under small decor** resting on a table/shelf — PC2-CONTACT-AO-DECOR,
-  qualified by the pure `furniture/surfaceDecal.ts` and rendered from `furniture/Furniture.tsx`)
-  and `CornerAO.tsx` `WallFloorAO` (wall/floor corner strip, RD-403). Both use ONE shared
-  `CanvasTexture`, a single transparent plane each, `depthWrite:false` + `polygonOffset` +
-  small `+Y`. Corner AO mounts inside the wall's local frame in `WallSegment.tsx` (follows
-  wall edits) and is gated **on** for `performance`/`medium` only via the `cornerAo`
-  `QualitySettings` flag (off on High+ so it never double-darkens the post stack's SSAO);
-  sizing/gating logic is pure in `cornerAoMath.ts`. When adding a new baked-AO cue, follow
-  this pattern (shared texture, tier-gate off where real AO runs) — never per-instance textures.
+  qualified by the pure `furniture/surfaceDecal.ts` and rendered from `furniture/Furniture.tsx`).
+  One shared `CanvasTexture`, a single transparent plane each, `depthWrite:false` +
+  `polygonOffset` + small `+Y`. When adding a new baked-AO cue, follow this pattern (shared
+  texture, tier-gate off where real AO runs) — never per-instance textures. The wall/floor
+  **corner-AO strip is retired** (RD-403, removed v0.23.1.11): from a top-down/plan camera the
+  0.32 m gradient read as a hard black outline hugging every wall base, and it only ever ran on
+  the tiers with no SSAO — don't reintroduce a baked wall-base darkening decal.
 - **Tone mapping is context-aware** (`toneContext.ts`, pure + unit-tested). The stored user
   setting is `ToneMappingSetting` (`auto` | filmic | agx | neutral); `Lighting` resolves the
   concrete operator each frame via `resolveToneMapping(setting, ctx)` — never read `st.toneMapping`

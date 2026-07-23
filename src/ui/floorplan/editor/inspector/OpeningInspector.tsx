@@ -177,8 +177,31 @@ export function OpeningInspector({
                   ['grille', 'Safety grille'],
                   ['invisible-grille', 'Invisible grille'],
                   ['louvre', 'Louvre'],
+                  ['sliding', 'Sliding'],
+                  ['casement', 'Casement'],
+                  ['awning', 'Awning (top-hung vent)'],
+                  ['hopper', 'Hopper (bottom-hung)'],
+                  ['transom', 'Transom vent'],
                 ]
             ).map(([v, label]) => ({ value: v, label }))}
+          />
+        </div>
+      ) : null}
+      {openingStylesOn && o.kind === 'window' ? (
+        <div className="row" style={{ padding: '6px 0', alignItems: 'center' }}>
+          <span className="label">Glass</span>
+          <Select
+            className="input"
+            style={{ marginLeft: 'auto', maxWidth: '56%' }}
+            value={o.material ?? 'clear'}
+            onChange={(v) => a.updateOpening(o.id, { material: v }, levelId)}
+            ariaLabel="Glass"
+            options={[
+              { value: 'clear', label: 'Clear' },
+              { value: 'frosted', label: 'Frosted' },
+              { value: 'textured', label: 'Textured / patterned' },
+              { value: 'glass-block', label: 'Glass blocks' },
+            ]}
           />
         </div>
       ) : null}
@@ -195,6 +218,7 @@ export function OpeningInspector({
               { value: 'painted', label: 'Painted' },
               { value: 'wood', label: 'Timber / wood grain' },
               { value: 'vinyl', label: 'Vinyl / PVC laminate' },
+              { value: 'metal', label: 'Metal / aluminium' },
             ]}
           />
         </div>

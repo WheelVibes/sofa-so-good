@@ -61,6 +61,18 @@ parallel** when the camera is pitched up or down, instead of letting them conver
 — the classic two‑point‑perspective look architects use so walls don't appear to
 lean. Great for a clean, upright hero shot.
 
+### Wall types (Pro)
+
+The **View** menu's **Wall types** toggle tints every wall by its structural
+classification, right in the 3D view (it works in the whole‑home overview *and*
+the room editor): **red** = structural (load‑bearing / reinforced concrete —
+never hackable), **blue** = gable‑end (the block's exposed external end wall,
+also structural), **amber** = a normal partition (removable with an HDB
+renovation permit). Unclassified walls stay untinted. It reads from the same
+per‑wall **Structure** setting you declare in the floor‑plan editor's wall
+inspector — the same data behind the plan editor's Hackability overlay and the
+demolition sheet.
+
 ## Walk mode
 
 Switch to walk (<kbd>V</kbd>) to feel the real scale of the flat at eye level.

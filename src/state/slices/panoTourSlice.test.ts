@@ -12,13 +12,13 @@ describe('panoTourSlice', () => {
 
   it('adds a stop at the orbit pivot with a room-derived label', () => {
     // The default HDB plan's Living/Dining room contains this point.
-    cameraPose.tx = 9
+    cameraPose.tx = 10.5
     cameraPose.tz = 3
     const id = useStore.getState().addPanoTourStopHere()
     const s = useStore.getState()
     expect(id).toBeTruthy()
     const added = s.panoTourStops.find((t) => t.id === id)
-    expect(added?.position).toEqual([9, 3])
+    expect(added?.position).toEqual([10.5, 3])
     expect(added?.label).toBe(s.floorPlan.rooms.find((r) => r.id === 'livingDining')?.name)
     expect(added?.levelId).toBeUndefined()
     // The new stop becomes the active one in the viewer.
@@ -26,10 +26,10 @@ describe('panoTourSlice', () => {
   })
 
   it('numbers a second capture in the same room', () => {
-    cameraPose.tx = 9
+    cameraPose.tx = 10.5
     cameraPose.tz = 3
     useStore.getState().addPanoTourStopHere()
-    cameraPose.tx = 9.5
+    cameraPose.tx = 11
     useStore.getState().addPanoTourStopHere()
     const labels = useStore.getState().panoTourStops.map((t) => t.label)
     expect(labels[1]).toBe(`${labels[0]} 2`)
@@ -58,7 +58,7 @@ describe('panoTourSlice', () => {
     cameraPose.tx = 2
     cameraPose.tz = 2
     const a = useStore.getState().addPanoTourStopHere()
-    cameraPose.tx = 9
+    cameraPose.tx = 10.5
     cameraPose.tz = 3
     const b = useStore.getState().addPanoTourStopHere()
     expect(useStore.getState().panoTourActiveId).toBe(b)

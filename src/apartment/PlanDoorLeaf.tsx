@@ -7,6 +7,7 @@ import type { PlanOpening, PlanWall } from '../floorplan/types'
 import { wallLength } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
 import {
+  getMetalMaterial,
   getPaintedMaterial,
   getVinylMaterial,
   getWoodMaterial,
@@ -134,7 +135,9 @@ export function PlanDoorLeaf({
         ? getVinylMaterial(leafColor)
         : leafMaterialKind === 'wood'
           ? getWoodMaterial(leafColor, 1, 0.45)
-          : getPaintedMaterial(leafColor)
+          : leafMaterialKind === 'metal'
+            ? getMetalMaterial(leafColor, 'satin')
+            : getPaintedMaterial(leafColor)
     return base.clone()
   }, [leafMaterialKind, leafColor])
   useEffect(() => () => leafMat.dispose(), [leafMat])

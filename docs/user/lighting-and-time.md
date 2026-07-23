@@ -33,12 +33,11 @@ Haven and need a higher graphics tier (Medium or above) to show. Leave it on
 
 ## Light fixtures
 
-Lamps, pendants, and ceiling lights **glow and cast light at night**, and fade
-out in daylight. You control this with the **Lights** toggle in the toolbar:
-
-- **Auto** — fixtures follow the day/night cycle (on at night, off in day).
-- **On** — force fixtures on (useful for a windowless room in daylight).
-- **Off** — keep them dark.
+Lamps, pendants, and ceiling lights **glow and cast light** while switched on.
+You control this with the **Lights** switch in the toolbar (also in the Scene
+menu): flip it **on** to light every fixture (useful for a windowless room in
+daylight, or any night scene), or **off** to keep them all dark. It is
+independent of the time of day.
 
 ## Lighting mood presets
 

@@ -4,6 +4,30 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## New default floor plan (v0.23.1.0, 2026-07-23)
+- [ ] **`socialLounge` preset: TV cluster sits over the L/D east window.** The new plan put the
+  main window band on the L/D east wall; every other preset moved its media wall to the solid
+  west partition, but socialLounge's windowless wall is fully occupied by its conversation
+  grouping, so its wall-mounted TV was left on the (now windowed) east wall as a documented
+  judgment call. Visually review in 3D and either restage the grouping or accept as a
+  feature-panel look.
+- [ ] **Default-plan interior windows not modeled.** The source plan (`assets/floor_plan/
+  default.png`) shows two small glazed panels on the service-yard/kitchen partition flanking
+  the SY door; skipped in the constants rewrite (internal windows are supported by the plan
+  model — add if the kitchen reads too closed off).
+- [ ] **Per-room skirting nuance (SNV spec, deferred from v0.23.1.5).** The spec sheet gives
+  vinyl rooms a laminated UPVC skirting (rendered — the existing white strip is a fine stand-in),
+  a TILE skirting at the service yard, and NO skirting in the wall-tiled kitchen/baths (wall
+  tiles run to the floor). `Skirting.tsx` is wall-based, not room-aware, so all walls currently
+  get the UPVC strip; making it room-aware (drop strips on bath/kitchen faces, tile-look at the
+  SY) needs a wall-face→room resolution pass — small visual payoff, deferred.
+- [ ] **Plan's discrete black structural COLUMNS not modeled.** Only `wall-ext-S`'s full-run 300 mm
+  thickening (kitchen/SY south band) is in. The official plan also shows discrete black structural
+  patches at several corners/jogs (NE corner, NE notch, the SE jog) that read as columns, not a
+  thickened wall run — these are still modeled at the flat's normal 200 mm gauge. Needs a real
+  column primitive (or a short thick wall-stub pass at each patch) rather than another whole-wall
+  `thicknessM` override.
+
 ## Mobile audit round (2026-07-19)
 > Mobile-depth UX audit at 390×844 + `SHOT_TOUCH`. Full report + shots:
 > `docs/research/2026-07-19-mobile-audit.md`. P1=0, P2=3 (1 fixed inline), P3=4.
@@ -206,6 +230,18 @@ geometryDetail 1.8, envResolution 256) are deliberate quality knobs — reducing
 discrete-edit shadow re-render have all been reclaimed (PERF-MAX-1..5). **No open items** — the
 zero-regression-risk frontier for this goal is reached; the parked findings below record what was
 evaluated and deliberately not done, so we don't re-investigate.
+
+**GPU-STARVE shipped (v0.23.1.13, 2026-07-24).** The "random white flashes while panning at
+Maximum" report was the OS GPU watchdog (~2 s Windows TDR) resetting the driver on a >2 s pan
+frame → WebGL context loss → blank-white canvas until restore. Fixed by (1) the interactive
+resolution degrade (`interactiveDegrade` flag: half DPR during camera gestures + for 3 s after
+any >250 ms frame, `scene/interactiveDegrade.ts`) and (2) the context-restore rebuild in
+`ContextLossGuard` (shadow pulse + `contextRestoreSignal` env re-bake + frame-counted pump
+hold). Known intended behaviour: on a GPU that genuinely can't render Maximum interactively,
+the governor holds/oscillates at half resolution (a full-DPR frame is retried every 3 s) —
+that IS the fix; don't "optimize" the oscillation away by pinning full DPR. Deferred: walk-mode
+WASD motion has no gesture signal (covered only by the long-frame governor); wire
+`FirstPersonCamera` movement into `cameraMotionSignal` if walk-mode flashes are ever reported.
 
 ### Investigated + parked (findings recorded so we don't re-investigate)
 - **PERF6 tail — antialias/preserveDrawingBuffer context-attr toggle: REJECTED, no recreate

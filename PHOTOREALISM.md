@@ -87,8 +87,8 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
   sun shadows cleanly — **no light bleeding, no boxy blur, no shadow acne, no peter-panning** — and
   grounding is consistent across tiers. Sun shadows are **subtle indoors by design**: the ORBIT-CEILING
   virtual-ceiling occluder gates direct sun to windows, so the dominant grounding cues are the
-  contact-shadow blobs (`ContactShadow.tsx`, resolution-independent) + baked corner-AO on Medium
-  (`CornerAO`) / real SSAO on High+ — and these do **not** visibly double-darken under the (subtle)
+  contact-shadow blobs (`ContactShadow.tsx`, resolution-independent) + real SSAO on High+ (the
+  baked corner-AO strip was removed in v0.23.1.11) — and these do **not** visibly double-darken under the (subtle)
   sun shadows (contact blobs sit under wall-flush furniture the raking sun barely reaches). **PCSS
   REJECTED:** an `onBeforeCompile` distance-dependent-penumbra patch is in scope ONLY if VSM's
   uniform blur is *visibly* wrong; it is not — with sun shadows this subtle and window-gated, the

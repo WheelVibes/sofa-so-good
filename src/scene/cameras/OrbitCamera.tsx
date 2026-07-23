@@ -10,6 +10,7 @@ import { isDefaultPlan } from '../../floorplan/planGeometry'
 import { type FloorPlan, planBounds, planRoomArea } from '../../floorplan/types'
 import { useStore } from '../../state/store'
 import { useIsMobile } from '../../ui/useIsMobile'
+import { beginCameraGesture, endCameraGesture } from '../cameraMotionSignal'
 import { getRoomEditorShell } from '../roomEditorShell'
 import { cameraPose } from './cameraForward'
 import { flyDurationFor, flyPose, smoothstep as smooth } from './cameraTween'
@@ -759,6 +760,11 @@ export function OrbitCamera() {
         ref={controlsRef}
         makeDefault
         enabled={controlsEnabled}
+        // GPU-STARVE-1: publish rotate/pan/dolly gestures to the camera-motion
+        // signal so InteractiveDprController can shed resolution while the
+        // camera is driven (High/Maximum frame cost vs the GPU watchdog).
+        onStart={beginCameraGesture}
+        onEnd={endCameraGesture}
         autoRotate={autoRotate}
         autoRotateSpeed={0.6}
         enableDamping

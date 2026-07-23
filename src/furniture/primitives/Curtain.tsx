@@ -5,6 +5,7 @@ import { draperyOpacityLevel, draperyVisualOpacity } from '../../materials/drape
 import { getDraperyMaterial } from '../../materials/furnitureMaterials'
 import { registerAnimatedSource } from '../../scene/animatedSources'
 import { pulseShadowRefreshForMotion } from '../../scene/shadowRefreshSignal'
+import { CURTAIN_SILL_STANDOFF } from '../placement/windowSnap'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
 
@@ -105,10 +106,13 @@ export function Curtain({ props }: { props: ParamProps }) {
   // Standoff from the wall (m): the snap plants the panel on the wall centre-line,
   // but a typical HDB window has an interior sill/frame that projects ~0.14 m into
   // the room (see `apartment/Window.tsx`), which used to poke through the fabric's
-  // fold troughs. Placement sets a standoff (via `windowFixtureProps`) so the panel
-  // — troughs and all — clears the sill. Free-placed curtains keep the flush look
-  // (default 0). The rod/finials shift with the panels so the drape hangs plumb.
-  const standoff = readNum(props, 'standoff', 0)
+  // fold troughs. Placement sets a standoff (via `windowFixtureProps`); the DEFAULT
+  // for an item with no `standoff` prop (legacy saves from before the prop existed)
+  // is the same sill-clearing value — curtains are window-bound, so there is no
+  // "free-placed against a bare wall" case where flush would be safe; a 0 default
+  // left legacy curtains' folds embedded in the wall/sill (the living-room bug).
+  // The rod/finials shift with the panels so the drape hangs plumb.
+  const standoff = readNum(props, 'standoff', CURTAIN_SILL_STANDOFF)
   const panelZ = 0.05 + standoff
   const rodZ = 0.04 + standoff
 

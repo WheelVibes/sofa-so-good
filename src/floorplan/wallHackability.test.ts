@@ -12,6 +12,7 @@ describe('wallHackability', () => {
   const cases: Array<[PlanWall['structure'], HackClass]> = [
     ['load-bearing', 'no'],
     ['rc-partition', 'no'],
+    ['gable-end', 'no'],
     ['brick-partition', 'permit'],
     ['drywall', 'permit'],
     ['unknown', 'unknown'],
@@ -43,6 +44,7 @@ describe('wallHackability', () => {
   it('flags only structural walls as demolition-restricted', () => {
     expect(isDemolitionRestricted('load-bearing')).toBe(true)
     expect(isDemolitionRestricted('rc-partition')).toBe(true)
+    expect(isDemolitionRestricted('gable-end')).toBe(true)
     expect(isDemolitionRestricted('brick-partition')).toBe(false)
     expect(isDemolitionRestricted('drywall')).toBe(false)
     expect(isDemolitionRestricted('unknown')).toBe(false)

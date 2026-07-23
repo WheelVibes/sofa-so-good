@@ -8,10 +8,17 @@ import type { DrawingLayer, DrawingLayerVisibility } from '../../ui/drawingLayer
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
-/** Whether furniture fixture lights are driven automatically by the day/night
- *  cycle ('auto'), forced on (so windowless rooms read well in daylight), or
- *  forced off. */
-export type LightsMode = 'auto' | 'on' | 'off'
+/** Whether furniture fixture lights are all on or all off. (The old 'auto'
+ *  follow-the-sun mode was removed 2026-07-24 — users found lights turning
+ *  themselves on surprising; legacy saves normalize via
+ *  {@link normalizeLightsMode}.) */
+export type LightsMode = 'on' | 'off'
+
+/** Coerce a persisted lights mode (which may be the legacy 'auto', or junk)
+ *  to the binary mode. Legacy 'auto' → 'off' (auto's daytime state). */
+export function normalizeLightsMode(v: unknown): LightsMode {
+  return v === 'on' ? 'on' : 'off'
+}
 
 /** Selectable 3D scene surroundings (see `scene/SceneBackdrop`). `sky` is the
  *  sun-driven procedural sky (RD-412), gated by the `proceduralSky` feature. */
@@ -60,7 +67,7 @@ export interface UiSlice {
   /** User exposure (brightness) multiplier on top of auto-exposure. Per-device,
    *  persisted via qualityPrefs. 1 = neutral. */
   exposure: number
-  /** Fixture lights mode (auto / forced on / forced off). */
+  /** Fixture lights mode (all on / all off). */
   lightsMode: LightsMode
   /** Lighting mood preset (UX round-3 #3): one-tap brightness + colour-temperature
    *  adjustment layered on top of `lightsMode` (`lighting/moodPresets.ts`).
@@ -130,6 +137,11 @@ export interface UiSlice {
   renoBudgetOpen: boolean
   /** Whether clearance checks (door-swing blocking) are shown. */
   clearanceOn: boolean
+  /** Wall-types 3D overlay (`wallTypes3d` pro flag) — tints each wall by its
+   *  structural classification (`wallTypeColor.ts`) in the orbit view AND the
+   *  room editor. Session-only view toggle, like `clearanceOn` — never
+   *  persisted, never in the save schema. */
+  showWallTypes: boolean
   /** True while recording the canvas to a downloadable video clip. */
   recording: boolean
   /** Recently-used custom finish colours (hex), most-recent first. Ephemeral. */
@@ -221,6 +233,7 @@ export interface UiSlice {
   /** Toggle the whole-renovation budget allocator panel (BSJ-1). */
   toggleRenoBudget: () => void
   toggleClearance: () => void
+  toggleWallTypes: () => void
   setRecording: (v: boolean) => void
   /** Record a custom colour as recently-used (deduped, newest-first, capped at 10). */
   pushRecentColor: (hex: string) => void
@@ -258,6 +271,7 @@ export const UI_INITIAL: Pick<
   | 'budgetOpen'
   | 'renoBudgetOpen'
   | 'clearanceOn'
+  | 'showWallTypes'
   | 'recording'
   | 'recentColors'
   | 'recentFinishes'
@@ -279,7 +293,7 @@ export const UI_INITIAL: Pick<
   assetTier: null,
   toneMapping: DEFAULT_TONE_MAPPING_SETTING,
   exposure: DEFAULT_EXPOSURE,
-  lightsMode: 'auto',
+  lightsMode: 'off',
   lightMood: 'none' as LightMood,
   showCeilingFixtures: false,
   wallRevealStrength: DEFAULT_WALL_REVEAL_STRENGTH,
@@ -298,6 +312,7 @@ export const UI_INITIAL: Pick<
   budgetOpen: false,
   renoBudgetOpen: false,
   clearanceOn: false,
+  showWallTypes: false,
   recording: false,
   recentColors: [],
   recentFinishes: [],
@@ -316,7 +331,7 @@ export const UI_INITIAL: Pick<
 export const GRID_SIZES = [0.025, 0.05, 0.1, 0.25, 0.5, 1] as const
 
 const CYCLE: RenderTier[] = RENDER_TIERS
-const LIGHTS_CYCLE: LightsMode[] = ['auto', 'on', 'off']
+const LIGHTS_CYCLE: LightsMode[] = ['on', 'off']
 
 export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   ...UI_INITIAL,
@@ -435,6 +450,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   toggleBudget: () => set((s) => ({ budgetOpen: !s.budgetOpen })),
   toggleRenoBudget: () => set((s) => ({ renoBudgetOpen: !s.renoBudgetOpen })),
   toggleClearance: () => set((s) => ({ clearanceOn: !s.clearanceOn })),
+  toggleWallTypes: () => set((s) => ({ showWallTypes: !s.showWallTypes })),
   setRecording: (v) => set({ recording: v }),
   pushRecentColor: (hex) =>
     set((s) => ({

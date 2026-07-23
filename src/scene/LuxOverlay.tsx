@@ -101,11 +101,10 @@ export function LuxOverlay() {
   }, [luxPlaying])
 
   const show = enabled && on
-  // Same day/night balance FurnitureLights drives the real point lights with:
-  // fixtures fade in as the sun sets; the lights-mode override forces them.
+  // Same fixture level FurnitureLights drives the real point lights with:
+  // binary all-on / all-off. Daylight still follows the sun.
   const sunLevel = lightingFromAltitude(sun.altitude).sun
-  const darkness = Math.min(1, Math.max(0, 1 - sunLevel / 0.85))
-  const fixtureLevel = lightsMode === 'on' ? 1 : lightsMode === 'off' ? 0 : darkness
+  const fixtureLevel = lightsMode === 'on' ? 1 : 0
   const daylightLevel = Math.min(1, Math.max(0, sunLevel / 0.85))
   // Quantised so sub-percent sun drift doesn't churn the memo.
   const fq = Math.round(fixtureLevel * 100) / 100

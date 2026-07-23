@@ -98,6 +98,20 @@ GPU-session gotchas (2026-07-11 sweep):
   coords with no recentring — a pose at z≈1.5 embeds the camera inside the north window (sill/
   grille fills the foreground). Aim by reading item positions from `__store.getState().items`
   and stand ~1–1.5 m INTO the room.
+- **`focusOn([x,z])` is unreliable for framing SMALL rooms (bedrooms/baths).** It keeps the
+  current view angle and dollies to ≤4.5 m, so from the boot overview angle the camera routinely
+  ends inside a neighbouring wall or on top of the bed; a follow-up `wheel` zoom-out doesn't
+  rescue it (still wall-filled close-ups — burned in the 2026-07-23 default-plan verification).
+  For "is every item placed correctly in its room" checks, don't orbit at all: open the 2D plan
+  editor and click **Furnish** (`setFloorPlanEditing(true)` → `click {"text": "Furnish"}`) — the
+  furniture layer draws every footprint over the plan in one screenshot. Reserve orbit close-ups
+  for rooms on the flat's outer edge framed from outside-in (living/dining, kitchen).
+  For a clean 3D LOOK at a small interior room (finishes/fittings), use the per-room editor
+  instead: `enterRoomEditor('<roomId>')` frames the room from a fixed 3/4 pose with the near
+  walls faded — but give it a **≥5 s settle on GPU** (the "Entering room…" overlay lingers;
+  2–2.5 s captures the loader, burned twice in the 2026-07-23 SNV verification), and do NOT
+  mutate `items` (`setItems`) in the same scenario step-run before entering — that stalled the
+  room-editor transition on the loader indefinitely.
 - **Don't switch quality tiers repeatedly in one GPU session — A/B one tier per fresh session.**
   On this iGPU (ANGLE D3D12 Intel UHD), tearing down and rebuilding the shadow map + post stack on
   each `setQualityTier` — especially to/from Maximum's 4096² map — exhausts the WebGL context; after
@@ -111,6 +125,22 @@ GPU-session gotchas (2026-07-11 sweep):
   lighting-only store change (C275 curtain dim) is present in the immediately-captured frame
   (measured 94.5 → 64.4 mean luminance with no wait/nudge step) — keep the no-op-nudge trick
   only for software-WebGL runs.
+- **Verify WebGL context-loss/restore logic on SwiftShader, not this GPU** (GPU-STARVE-2 sweep,
+  2026-07-24). Force a loss deterministically with
+  `__three.gl.getContext().getExtension('WEBGL_lose_context')` → `loseContext()` +
+  `setTimeout(restoreContext, 800)` (guard scenario `context-restore-rebuild.json`, medium tier).
+  On the real ANGLE D3D12 iGPU a restore at Maximum re-loses ~30 s later under the rebuild load
+  (4096² shadow + probe re-bake + full program recompile) and a screenshot mid-re-loss captures a
+  blank page-background frame — same class as the documented tier-switch context exhaustion. The
+  restore *logic* (env re-bake, shadow pulse, pump hold) asserts cleanly on SwiftShader.
+- **Getting structured probe data OUT of a scenario: POST it to a throwaway local HTTP sink.**
+  `eval` step return values are not printed and page console is only dumped on step FAILURE — for
+  per-frame instrumentation (DPR/luminance/context events sampled in a page rAF loop), run
+  `node -e 'http server appending request bodies to a file'` on a spare port (CORS `*`) and end
+  the scenario with an `eval` that `fetch(..., {method:'POST', body: JSON.stringify(summary)})`s
+  the compressed result + a short `wait` so the request lands. Used to diagnose GPU-STARVE
+  (white-flash) and verify the interactive-DPR degrade; keep summaries compressed (record only
+  change points, not every frame).
 
 ## Scenario mode (recommended — use this for anything multi-step)
 
@@ -1353,16 +1383,15 @@ back to orbit (config persists). Gotchas learned here:
   baked-strip fallback). Open the candidate file and check what it actually asserts before
   crossing a flag off the uncovered list.
 - **A `mesh`/`material` pair with a stable, distinctive numeric property is a clean scene-graph
-  oracle for an otherwise-invisible-from-orbit render toggle.** `cornerAo`'s baked wall/floor AO
-  strips (`scene/CornerAO.tsx`) are subtle (a soft dark gradient hugging the skirting) and easy to
-  miss in a whole-flat orbit screenshot, but `WallFloorAO` renders a `meshBasicMaterial` with
-  `opacity === CORNER_AO_OPACITY` (0.42) on a `PlaneGeometry` — traversing `window.__three.scene`
-  and counting meshes matching that exact opacity is a reliable presence/absence proof
-  (present at default `performance` quality tier, count drops to exactly 0 on
-  `setFeatureFlag('cornerAo', false)`, returns on restore) independent of camera framing or
-  pixel-diffing. Since `cornerAo` is `tier: 'simple'` (resolves the same in both Simple and Pro),
-  the three-part proof from the batch-7 gotcha applies verbatim: present in Simple, present in
-  Pro (and the mesh COUNT must be identical across the mode switch — a differing count would mean
+  oracle for an otherwise-invisible-from-orbit render toggle.** The worked example was `cornerAo`'s
+  baked wall/floor AO strips (feature since removed in v0.23.1.11, along with its
+  `corner-ao-simple.json` scenario): the strips were subtle and easy to miss in a whole-flat orbit
+  screenshot, but they rendered a `meshBasicMaterial` with a distinctive exact `opacity` (0.42) on
+  a `PlaneGeometry` — traversing `window.__three.scene` and counting meshes matching that opacity
+  was a reliable presence/absence proof (count drops to exactly 0 on the flag-off override,
+  returns on restore) independent of camera framing or pixel-diffing. For a simple-tier flag the
+  three-part proof from the batch-7 gotcha applies verbatim: present in Simple, present in Pro
+  (and the mesh COUNT must be identical across the mode switch — a differing count would mean
   something else moved, not just narrated as "still on"), then a direct override hides/restores it.
 - **A stray-element warning badge needs a genuine defect, not just the flag on.** `planIntegrity`'s
   `PlanTotalLabel` only shows `⚠ N stray` when `planIntegrityFlags()` actually finds something

@@ -152,13 +152,13 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 }
 @media (min-width: 641px) {
   .app-shell:has(.dock-panel) {
-    --right-rail: 320px;
+    --right-rail: var(--panel-w-wide);
   }
   .app-shell:has(.dock-panel) .dock-panel {
     top: 0;
     right: 0;
     bottom: 0;
-    width: 320px;
+    width: var(--panel-w-wide);
     max-height: none;
     border-top: 0;
     border-right: 0;

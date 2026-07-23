@@ -87,6 +87,14 @@ export function setFlatWallThicknessOverrides(
 export function wallThicknessMetres(wall: WallSpec): number {
   const o = perWallOverride[wall.id]
   if (o != null) return o
+  // Fall back to the wall's OWN static override (mirrors `PlanWall.thicknessM`
+  // — `buildDefaultPlan` copies it through 1:1, and the live app's store
+  // subscription re-populates `perWallOverride` from that copy, but a bare
+  // unit test that imports `WALLS`/calls this directly without touching the
+  // store never runs that subscription). Reading it here makes a curated
+  // flat wall's declared thickness (e.g. `wall-ext-S`/the household-shelter
+  // ring, both 300 mm RC) correct with or without store initialization.
+  if (wall.thicknessM != null && wall.thicknessM > 0) return wall.thicknessM
   return wall.thickness === 'external' ? externalT : internalT
 }
 

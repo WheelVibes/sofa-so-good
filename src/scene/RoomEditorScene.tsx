@@ -23,6 +23,7 @@ import { FinishDropSurface } from './FinishDropSurface'
 import { FinishEyedropperSurface } from './FinishEyedropperSurface'
 import { FrameRenderedNotifier } from './FrameRenderedNotifier'
 import { GridOverlay } from './GridOverlay'
+import { InteractiveDprController } from './InteractiveDprController'
 import { CurtainLightController } from './lighting/CurtainLightController'
 import { FurnitureLights } from './lighting/FurnitureLights'
 import { Lighting } from './lighting/Lighting'
@@ -115,6 +116,7 @@ export function RoomEditorScene() {
       <RenderPump />
       <AnisotropyController />
       <RendererTierController />
+      <InteractiveDprController />
       {/* Neutral dollhouse backdrop (ROOM-EDITOR-BACKDROP): the isolated room is
           an authoring "dollhouse", so we do NOT paint the time-of-day <Sky/> as
           the background here. A faded exterior wall in an isolated room reveals

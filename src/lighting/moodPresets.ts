@@ -7,7 +7,7 @@
  * matching the `src/lighting/` area rule) so it's cheaply unit-testable.
  *
  * ## Composition (WALK-LIGHT-INTERACT invariant, must never regress)
- * A mood preset composes ON TOP of the existing `lightsMode` ('auto'|'on'|'off')
+ * A mood preset composes ON TOP of the existing `lightsMode` ('on'|'off')
  * brightness multiplier — it never re-derives whether an item is lit at all.
  * Concretely: `finalIntensity = baseIntensity * lightsModeLevel *
  * moodIntensityMultiplier(mood, defId)`. It is applied by the renderer

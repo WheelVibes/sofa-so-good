@@ -1,6 +1,7 @@
 import type React from 'react'
 import type { PlanWall } from '../../../../floorplan/types'
 import { wallCurveMidpoint, wallSvgPath } from '../../../../floorplan/wallArc'
+import { isDemolitionRestricted } from '../../../../floorplan/wallHackability'
 import type { PlanSelection } from '../../../../state/slices/floorPlanSlice'
 import type { Tool } from '../planConstants'
 
@@ -65,16 +66,34 @@ export function WallsLayer({
         const inSel = selectedWalls.has(w.id) // primary OR a multi-select extra
         const stray = strayWalls.has(w.id) // joined to no other wall
         const d = wallSvgPath(w, toPx)
+        // Structural walls (load-bearing / RC / gable-end) always draw with the
+        // strongest ink + a heavier body, matching the HDB plan drawing
+        // convention (solid-black fill for structural walls) — unconditional,
+        // not a toggle, since it's how these plans are always read. Skeleton
+        // mode stays a uniform thin stroke (its whole point is exposing
+        // corner gaps/overlaps regardless of wall type).
+        const structural = !skeleton && isDemolitionRestricted(w.structure)
+        const gableEnd = !skeleton && w.structure === 'gable-end'
         const stroke = inSel
           ? 'var(--accent)'
           : stray
             ? 'var(--danger)'
-            : w.thickness === 'external'
-              ? 'var(--plan-wall)'
-              : 'var(--text-3)'
+            : structural
+              ? 'var(--text)'
+              : w.thickness === 'external'
+                ? 'var(--plan-wall)'
+                : 'var(--text-3)'
         // Skeleton view draws every wall at one thin stroke so corner
         // connections (gaps / overlaps) are obvious regardless of thickness.
-        const bodyW = skeleton ? 2 : w.thickness === 'external' ? 7 : 4
+        const bodyW = skeleton
+          ? 2
+          : structural
+            ? w.thickness === 'external'
+              ? 9
+              : 6
+            : w.thickness === 'external'
+              ? 7
+              : 4
         const onWallDown = (e: React.PointerEvent) => {
           if (tool !== 'select') return
           // Additive select (Shift/⌘/Ctrl-click, or the touch "Select more"
@@ -146,6 +165,21 @@ export function WallsLayer({
               onPointerDown={onWallDown}
               style={{ cursor: tool === 'select' ? 'pointer' : 'crosshair' }}
             />
+            {/* Gable-end lining symbol (walls.jpg legend #3) — a thin dashed
+                lengthwise stripe over the heavy structural body so a gable-end
+                wall reads distinctly from a plain structural wall, matching
+                the plan drawing convention. Not selectable/interactive. */}
+            {gableEnd && (
+              <path
+                d={d}
+                fill="none"
+                stroke="var(--surface)"
+                strokeWidth={1.5}
+                strokeDasharray="6 4"
+                strokeLinecap="round"
+                style={{ pointerEvents: 'none' }}
+              />
+            )}
             {bulge ? (
               <circle
                 data-wall-bulge={w.id}

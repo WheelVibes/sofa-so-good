@@ -34,7 +34,12 @@ function overlaps(a: Rect, b: Rect): boolean {
 
 describe('placement soundness across every built-in template (RM3)', () => {
   for (const template of PLAN_TEMPLATES) {
-    it(`${template.name}: no window-blocking or door-blocking furniture`, () => {
+    // 15 s: furnishing the biggest multi-storey templates (Executive
+    // Maisonette) brushes the default 5 s under full-suite parallel load —
+    // observed 5.6 s; passes in ~2 s isolated. Headroom, not a slow test.
+    it(`${template.name}: no window-blocking or door-blocking furniture`, {
+      timeout: 15000,
+    }, () => {
       const items = furnishPlanItems(template, moveIn, BUILTIN_CATALOG, {})
       expect(items.length).toBeGreaterThan(0)
 
@@ -92,7 +97,8 @@ describe('placement soundness across every built-in template (RM3)', () => {
 describe('furnishing leaves ZERO in-wall items (dropWallClippers)', () => {
   const plans = [buildDefaultPlan(), ...PLAN_TEMPLATES]
   for (const plan of plans) {
-    it(`${plan.name}: no furniture embedded in a wall`, () => {
+    // Same 15 s headroom as the template loop above (full-suite load flake).
+    it(`${plan.name}: no furniture embedded in a wall`, { timeout: 15000 }, () => {
       const items = furnishPlanItems(plan, moveIn, BUILTIN_CATALOG, {})
       expect(items.length).toBeGreaterThan(0)
       const groundWalls = planCollisionWalls(plan, {})

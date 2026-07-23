@@ -30,6 +30,7 @@ import { FinishEyedropperSurface } from './FinishEyedropperSurface'
 import { FrameRenderedNotifier } from './FrameRenderedNotifier'
 import { GridOverlay } from './GridOverlay'
 import { HqRenderController } from './HqRenderController'
+import { InteractiveDprController } from './InteractiveDprController'
 import { LuxOverlay } from './LuxOverlay'
 import { CurtainLightController } from './lighting/CurtainLightController'
 import { FurnitureLights } from './lighting/FurnitureLights'
@@ -169,6 +170,7 @@ export function Scene() {
         {import.meta.env.DEV && profilerEnabled ? <ProfilerProbe /> : null}
         <AnisotropyController />
         <RendererTierController />
+        <InteractiveDprController />
         <ScreenshotController />
         <SceneExportController />
         <PanoramaController />

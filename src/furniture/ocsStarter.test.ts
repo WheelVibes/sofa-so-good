@@ -46,13 +46,13 @@ describe('OCS fitting manifest', () => {
 })
 
 describe('buildOcsFloorFinishesForDefault', () => {
-  it('sets vinyl in the three bedrooms and porcelain in living/dining + corridor', () => {
+  it('sets vinyl across the bedrooms + living/dining + corridor (SNV OCS sheet)', () => {
     const f = buildOcsFloorFinishesForDefault()
     expect(f.mainBedroom).toBe(OCS_VINYL)
     expect(f.bedroom2).toBe(OCS_VINYL)
     expect(f.bedroom3).toBe(OCS_VINYL)
-    expect(f.livingDining).toBe(OCS_PORCELAIN)
-    expect(f.corridor).toBe(OCS_PORCELAIN)
+    expect(f.livingDining).toBe(OCS_VINYL)
+    expect(f.corridor).toBe(OCS_VINYL)
     // Wet / utility rooms are not re-finished.
     expect(f.kitchen).toBeUndefined()
     expect(f.bath1).toBeUndefined()

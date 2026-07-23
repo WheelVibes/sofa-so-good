@@ -113,9 +113,16 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 /** Curtain overhang past each side of the glass (m) so it covers the window. */
 const CURTAIN_OVERHANG = 0.18
 /** Curtain standoff from the wall (m) so its fold troughs clear the interior
- *  sill/frame (which projects ~0.14 m past the wall — `apartment/Window.tsx`).
- *  Sized above the sill projection + the fullest fold depth. */
-const CURTAIN_SILL_STANDOFF = 0.16
+ *  sill/frame. The snap plants the origin on the wall CENTRE-line, the panel
+ *  plane sits at `0.05 + standoff`, and the fullest folds dig `0.05 × 1.8 =
+ *  0.09` back from it (`primitives/Curtain.tsx`), while the sill ledge projects
+ *  ~0.14 m past the centre-line (`apartment/Window.tsx`). Clearing the sill
+ *  therefore needs `standoff ≥ 0.14 + 0.09 − 0.05` — 0.20 leaves a 0.02 margin.
+ *  (The old 0.16 left the deepest troughs 0.02 INSIDE the sill ledge, which
+ *  read as the curtain embedded in the wall/window.) Also the `Curtain`
+ *  primitive's default when a placed item carries no `standoff` prop, so
+ *  legacy saves render clear too. */
+export const CURTAIN_SILL_STANDOFF = 0.2
 /** Blind overhang past each side of the glass (m) — slightly bigger than the window. */
 const BLIND_OVERHANG = 0.06
 

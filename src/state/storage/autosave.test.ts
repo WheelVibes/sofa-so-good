@@ -234,8 +234,9 @@ describe('autosave ⊇ serialize() invariant', () => {
   afterEach(clearPersisted)
 
   /** serialize() output keys that are persistence metadata, not store fields —
-   *  they always exist and don't need a watch-list entry. */
-  const META_KEYS = new Set(['version', 'apartmentId', 'savedAt'])
+   *  they always exist and don't need a watch-list entry. (`defaultsRev` is the
+   *  constant defaults-revision stamp — see schema.ts's CURRENT_DEFAULTS_REV.) */
+  const META_KEYS = new Set(['version', 'apartmentId', 'savedAt', 'defaultsRev'])
   /** serialize() emits some fields under a different key than the store slice
    *  they read from. Map serialize-key → the watch-list (store) key. */
   const SERIALIZE_TO_STORE: Record<string, string> = { note: 'designNote' }
