@@ -36,8 +36,10 @@ import type { MaterialId } from '../materials/types'
 import type { KitPiece } from './furnishPlan'
 
 /** Vinyl strip flooring — the OCS bedroom/study finish. */
-export const OCS_VINYL: MaterialId = 'floor-vinyl-light'
-/** Polished porcelain tile — the OCS living/dining finish. */
+export const OCS_VINYL: MaterialId = 'floor-vinyl-oak'
+/** Polished porcelain tile — the OCS living/dining finish (generic category
+ *  map below; the SNV fixed-flat default gets vinyl instead, see
+ *  `OCS_FLOOR_DEFAULT`). */
 export const OCS_PORCELAIN: MaterialId = 'floor-tile-grey'
 
 /**
@@ -45,13 +47,19 @@ export const OCS_PORCELAIN: MaterialId = 'floor-tile-grey'
  * `DEFAULT_ROOM_FLOOR`). Only the rooms OCS actually re-finishes are listed:
  * bedrooms + living/dining/corridor. Kitchen / baths / utility keep their own
  * tiled or hard-wearing floors (always HDB-tiled regardless of OCS).
+ *
+ * The built-in flat models the Serangoon North Vista (SNV) 4-room OCS sheet
+ * (assets/ocs/photo_7), which shows VINYL — not porcelain — across
+ * living/dining/bedrooms alike for 4-/5-room flats; the generic
+ * category map (`OCS_FLOOR_BY_CATEGORY`) keeps porcelain for other projects
+ * that do give a porcelain living room.
  */
 const OCS_FLOOR_DEFAULT: Partial<Record<RoomId, MaterialId>> = {
   mainBedroom: OCS_VINYL,
   bedroom2: OCS_VINYL,
   bedroom3: OCS_VINYL,
-  livingDining: OCS_PORCELAIN,
-  corridor: OCS_PORCELAIN,
+  livingDining: OCS_VINYL,
+  corridor: OCS_VINYL,
 }
 
 /**
@@ -82,7 +90,7 @@ export function ocsFloorForCategory(category: RoomCategory): MaterialId | undefi
  */
 export const OCS_BATH_KIT: readonly KitPiece[] = [
   { defId: 'toilet' },
-  { defId: 'bathroom-sink' },
+  { defId: 'bathroom-sink', props: { style: 'wall-hung' } },
   { defId: 'shower' },
   { defId: 'water-heater' },
   { defId: 'bathroom-mirror', props: { mountHeight: 1.4 } },

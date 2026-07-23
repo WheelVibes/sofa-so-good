@@ -83,11 +83,12 @@ describe('wallEndAbutmentThickness (corner coverage)', () => {
 
 // ── Default kitchen fixture placement ──────────────────────────────────────
 
-// Kitchen room: origin=[6.40, 6.80], 3.70 × 2.35 m.
-const KIT_X0 = 6.4
-const KIT_Z0 = 6.8
-const KIT_X1 = 6.4 + 3.7 // 10.10
-const KIT_Z1 = 6.8 + 2.35 // 9.15
+// Kitchen room (v0.23.1.8: north wall thickened to 300 mm RC, moving the
+// north face 6.875 → 6.975): origin=[6.225, 6.975], 3.505 × 2.1 m.
+const KIT_X0 = 6.225
+const KIT_Z0 = 6.975
+const KIT_X1 = 6.225 + 3.505 // 9.73
+const KIT_Z1 = 6.975 + 2.1 // 9.075
 
 // Allow up to half the item depth beyond the wall gap (item centre is inside the room).
 const ITEM_TOL = 0.5
@@ -121,11 +122,12 @@ describe('default kitchen fixture positions', () => {
     expect(backFaceZ).toBeLessThanOrEqual(KIT_Z0 + CLEARANCE.wallGap + 0.1)
   })
 
-  it('fridge back face is within CLEARANCE.wallGap of the kitchen south wall', () => {
+  it('fridge back face is within CLEARANCE.wallGap of the kitchen north wall', () => {
     const fridge = kitchen.find((i) => i.id === 'default-k-fridge')!
-    // Fridge depth 0.7 m; rotation=π means back is at z + 0.35.
-    const backFaceZ = fridge.position[1] + 0.35
-    expect(Math.abs(backFaceZ - KIT_Z1)).toBeLessThanOrEqual(CLEARANCE.wallGap + 0.1)
+    // Fridge depth 0.7 m; rotation=0 means back is at z − 0.35 (it backs onto
+    // the north wall — the service-yard door now swings on the west wall).
+    const backFaceZ = fridge.position[1] - 0.35
+    expect(Math.abs(backFaceZ - KIT_Z0)).toBeLessThanOrEqual(CLEARANCE.wallGap + 0.1)
   })
 
   it('stove back face is within CLEARANCE.wallGap of the kitchen south wall', () => {

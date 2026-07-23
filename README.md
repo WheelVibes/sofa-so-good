@@ -9,7 +9,7 @@ it, and **share or export** the result — all in the browser, no account, and *
 offline** once loaded. The move-in default is a ready-furnished 4-room HDB, so you can
 start designing immediately.
 
-![A furnished flat](docs/reference/floor-plan.svg)
+![The default HDB 4-room floor plan](assets/floor_plan/default.png)
 
 📖 **[Read the user guide →](docs/user/getting-started.md)**
 

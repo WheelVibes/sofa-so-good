@@ -41,7 +41,11 @@ describe('UXW-P2-3 default flat clearance + score', () => {
     expect(blocked, blocked.join(', ')).toEqual([])
   })
 
-  it('every Smart Start preset blocks NO door swing on the default flat', () => {
+  // 15 s: the all-presets loop brushes the default 5 s under full-suite/parallel
+  // load (passes in ~2 s isolated) — headroom, same as placementSoundness.
+  it('every Smart Start preset blocks NO door swing on the default flat', {
+    timeout: 15000,
+  }, () => {
     for (const preset of LAYOUT_PRESETS) {
       const items = buildPresetItems(preset)
       const blocked = blockedDoorItems(items, BUILTIN_CATALOG, plan)
@@ -57,7 +61,11 @@ describe('UXW-P2-3 default flat clearance + score', () => {
     expect(clips, clips.join(', ')).toEqual([])
   })
 
-  it('every Smart Start preset has ZERO in-wall items on the default flat', () => {
+  // 15 s: the all-presets loop brushes the default 5 s under full-suite/parallel
+  // load (passes in ~2 s isolated) — headroom, same as placementSoundness.
+  it('every Smart Start preset has ZERO in-wall items on the default flat', {
+    timeout: 15000,
+  }, () => {
     for (const preset of LAYOUT_PRESETS) {
       const items = buildPresetItems(preset)
       const clips = findWallClips(items, BUILTIN_CATALOG, walls)

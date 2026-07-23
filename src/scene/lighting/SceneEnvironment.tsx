@@ -1,7 +1,9 @@
 import { Environment, Lightformer } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
+import { useSyncExternalStore } from 'react'
 import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
+import { contextRestoreVersion, subscribeContextRestore } from '../contextRestoreSignal'
 import { useQuality } from '../useQuality'
 import { lightingFromAltitude } from './altitudeCurve'
 import { hdriById } from './hdriCatalog'
@@ -29,6 +31,10 @@ export function SceneEnvironment() {
   const hdriOn = useFeature('hdriEnvironment')
   const hdriId = useStore((s) => s.hdriId)
   const hdri = hdriOn ? hdriById(hdriId) : null
+  // GPU-STARVE-2: the probe lives ONLY in a render target (the Lightformer bake
+  // / a file HDRI's PMREM), which a WebGL context loss destroys — remount the
+  // <Environment> after every restore so it re-bakes instead of staying black.
+  const restoreVersion = useSyncExternalStore(subscribeContextRestore, contextRestoreVersion)
 
   useFrame(() => {
     if (!enabled) return
@@ -44,10 +50,22 @@ export function SceneEnvironment() {
   // A real captured HDRI (drei loads the .hdr via RGBELoader + PMREM); shown as
   // IBL only (`background={false}` — the walk-mode backdrop owns scene.background).
   if (hdri) {
-    return <Environment files={hdri.url} resolution={quality.envResolution} background={false} />
+    return (
+      <Environment
+        key={restoreVersion}
+        files={hdri.url}
+        resolution={quality.envResolution}
+        background={false}
+      />
+    )
   }
   return (
-    <Environment resolution={quality.envResolution} frames={1} background={false}>
+    <Environment
+      key={restoreVersion}
+      resolution={quality.envResolution}
+      frames={1}
+      background={false}
+    >
       {/* Bright sky cap + cooler horizon for a soft top-down gradient. */}
       <Lightformer
         form="rect"

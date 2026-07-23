@@ -15,6 +15,7 @@ export const STRUCTURE_OPTIONS = [
   ['unknown', 'Unknown / not verified'],
   ['load-bearing', 'Load-bearing'],
   ['rc-partition', 'RC partition'],
+  ['gable-end', 'Gable end (structural)'],
   ['brick-partition', 'Brick partition'],
   ['drywall', 'Dry partition (Ferrolite / steel-stud)'],
 ] as const
@@ -224,6 +225,18 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
             </button>
           ) : null}
         </div>
+      ) : null}
+      {w.topHeight != null ? (
+        <label className="flex items-center gap-2 text-xs" style={{ marginTop: 'var(--s-1)' }}>
+          <input
+            type="checkbox"
+            checked={!!w.railing}
+            onChange={(e) =>
+              a.updateWall(w.id, { railing: e.target.checked || undefined }, levelId)
+            }
+          />
+          <span>Render as open railing (top rail + balusters)</span>
+        </label>
       ) : null}
       {wallBaseboardOn ? (
         <div className="space-y-1" style={{ marginTop: 'var(--s-1)' }}>

@@ -16,6 +16,7 @@ import { useFeature } from '../features/useFeature'
 import { traceBuildingOutline, type WallSeg } from '../floorplan/footprint'
 import { levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
 import { planWallThickness, type WallBox, wallBoxes } from '../floorplan/planGeometry'
+import { railingMemberInstances } from '../floorplan/railingLayout'
 import { resolvePlanRoomCeiling, resolvePlanRoomFloor } from '../floorplan/roomFinishes'
 import { isSlopedWall, slopedWallHeights, slopedWallTriangles } from '../floorplan/slopedWall'
 import {
@@ -28,11 +29,16 @@ import {
   wallLength,
 } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
+import { wallTypeOverlayColor } from '../floorplan/wallTypeColor'
 import {
   type GrilleMemberInstance,
+  glassBlockInstances,
   grilleBarInstances,
   invisibleGrilleCableInstances,
   louvreSlatInstances,
+  sashFrameInstances,
+  sashOpenTilt,
+  windowGlassKindParams,
 } from '../floorplan/windowGrilleLayout'
 import { BeveledBox } from '../furniture/primitives/BeveledBox'
 import { InstancedBoxes, InstancedCylinders } from '../furniture/primitives/InstancedBoxes'
@@ -221,6 +227,7 @@ function FadeWall({
   isExterior,
   isInterior,
   neighborIds,
+  overlayColor,
 }: {
   box: WallBox
   cx: number
@@ -233,6 +240,12 @@ function FadeWall({
   isInterior: (x: number, z: number) => boolean
   /** Corner-neighbour wall ids for the reveal corner-spread. */
   neighborIds: readonly string[]
+  /** Wall-types 3D overlay tint (`wallTypeColor.ts`), or `null`/absent for an
+   *  unclassified wall / when the overlay is off. Rendered as a translucent
+   *  jacket over the body, kept simple (not fade-linked to the reveal — it
+   *  just always renders at a fixed opacity when set, per the simplest
+   *  acceptable read for a tint overlay). */
+  overlayColor?: string | null
 }) {
   const ref = useRef<Mesh>(null)
   const { camera, invalidate } = useThree()
@@ -280,16 +293,31 @@ function FadeWall({
     if (Math.abs(mat.opacity - target) > 0.005) invalidate()
   })
   return (
-    <mesh
-      ref={ref}
-      position={[box.cx, box.cy, box.cz]}
-      rotation={[0, box.angle, 0]}
-      castShadow
-      receiveShadow
-    >
-      <boxGeometry args={[box.thickness, box.height, box.length]} />
-      <meshStandardMaterial color={color} roughness={0.9} transparent opacity={1} />
-    </mesh>
+    <>
+      <mesh
+        ref={ref}
+        position={[box.cx, box.cy, box.cz]}
+        rotation={[0, box.angle, 0]}
+        castShadow
+        receiveShadow
+      >
+        <boxGeometry args={[box.thickness, box.height, box.length]} />
+        <meshStandardMaterial color={color} roughness={0.9} transparent opacity={1} />
+      </mesh>
+      {overlayColor && (
+        <mesh position={[box.cx, box.cy, box.cz]} rotation={[0, box.angle, 0]} raycast={() => null}>
+          <boxGeometry args={[box.thickness * 1.01, box.height * 1.01, box.length * 1.01]} />
+          <meshBasicMaterial
+            color={overlayColor}
+            transparent
+            opacity={0.35}
+            depthWrite={false}
+            polygonOffset
+            polygonOffsetFactor={-1}
+          />
+        </mesh>
+      )}
+    </>
   )
 }
 
@@ -546,6 +574,11 @@ function PlanLevelShell({
 }) {
   const finishes = useStore((s) => s.finishes)
   const crownMolding = useFeature('crownMolding')
+  // Wall-types 3D overlay (`wallTypes3d` pro flag) — tints each wall by its
+  // structural classification (mirrors `WallSegment`'s default-flat treatment).
+  const wallTypes3dFlag = useFeature('wallTypes3d')
+  const showWallTypesToggle = useStore((s) => s.showWallTypes)
+  const showWallTypes = wallTypes3dFlag && showWallTypesToggle
   const lp = useMemo(() => levelAsPlan(plan, level), [plan, level])
 
   // Point-in-room test for this storey, used to orient each wall's "outward"
@@ -566,16 +599,27 @@ function PlanLevelShell({
   // so the room layout reads clearly), matching the default flat's WallSegment.
   const boxes = useMemo(
     () =>
-      lp.walls.flatMap((w) =>
-        wallBoxes(lp, w).map((box) => ({
-          box,
-          isExterior: w.thickness === 'external',
-          // Per-wall paint colour override (elementColors), else the plan default.
-          color: w.color ?? wallColor,
-        })),
-      ),
+      lp.walls
+        // Railing walls (open parapet) render as an InstancedBoxes railing
+        // below, not a solid box.
+        .filter((w) => !(w.railing && w.topHeight))
+        .flatMap((w) =>
+          wallBoxes(lp, w).map((box) => ({
+            box,
+            isExterior: w.thickness === 'external',
+            // Per-wall paint colour override (elementColors), else the plan default.
+            color: w.color ?? wallColor,
+            // Wall-types 3D overlay tint (`wallTypes3d` flag) — null when
+            // unclassified; resolved once here rather than in the render loop.
+            overlayColor: wallTypeOverlayColor(w.structure),
+          })),
+        ),
     [lp, wallColor],
   )
+
+  // Walls with `railing` set: render an open metal railing (top rail + posts
+  // + balusters) up to `topHeight` instead of the solid box above.
+  const railingWalls = useMemo(() => lp.walls.filter((w) => w.railing && w.topHeight), [lp])
 
   // Skirting strips along floor-reaching wall spans, carrying each wall's
   // optional per-wall baseboard override (PARITY-BASEBOARD): height + colour, or
@@ -646,8 +690,12 @@ function PlanLevelShell({
           revealable: wall.thickness === 'external',
           // Optional per-window glass tint (elementColors); absent = cool default.
           glassTint: o.color,
-          // Optional window style (openingStyles): plain / grille / louvre.
+          // Optional window style (openingStyles): plain / grille / louvre /
+          // invisible-grille / casement / awning / hopper / transom.
           style: o.style,
+          // Optional window GLASS kind (openingStyles, reuses `material`):
+          // clear (default) / frosted / textured / glass-block.
+          glass: o.material,
         }
       })
       .filter((x): x is NonNullable<typeof x> => x != null)
@@ -754,7 +802,7 @@ function PlanLevelShell({
 
       {/* Walls — external walls fade when between the orbit camera and the plan
           centre; internal partitions stay solid. */}
-      {boxes.map(({ box, isExterior, color }, i) => (
+      {boxes.map(({ box, isExterior, color, overlayColor }, i) => (
         <FadeWall
           key={i}
           box={box}
@@ -764,8 +812,34 @@ function PlanLevelShell({
           isExterior={isExterior}
           isInterior={isInterior}
           neighborIds={neighbors.get(box.wallId) ?? NO_NEIGHBORS}
+          overlayColor={showWallTypes ? overlayColor : null}
         />
       ))}
+
+      {/* Open railings (parapet override): top rail + posts + balusters up to
+          `topHeight`, one InstancedBoxes draw call per wall — no wall-reveal
+          fade (mirrors window grille members, never faded). */}
+      {railingWalls.map((w) => {
+        const wLen = wallLength(w)
+        if (wLen === 0) return null
+        const wdx = w.end[0] - w.start[0]
+        const wdz = w.end[1] - w.start[1]
+        // The helper's local frame is x = along-wall (see railingLayout.ts) —
+        // matching `WallSegment`'s own body-outline frame, NOT `wallBoxes`'
+        // x=thickness/z=length box convention. `angle = atan2(dz, dx)` +
+        // `rotation=[0, -angle, 0]` maps the local +X axis onto the wall's
+        // (dx, dz) direction (same derivation as `WallSegment`).
+        const wAngle = Math.atan2(wdz, wdx)
+        const wMidX = (w.start[0] + w.end[0]) / 2
+        const wMidZ = (w.start[1] + w.end[1]) / 2
+        return (
+          <group key={w.id} position={[wMidX, 0, wMidZ]} rotation={[0, -wAngle, 0]}>
+            <InstancedBoxes instances={railingMemberInstances(wLen, w.topHeight ?? 1)} castShadow>
+              <meshStandardMaterial color="#cfd2d4" roughness={0.5} metalness={0.4} />
+            </InstancedBoxes>
+          </group>
+        )
+      })}
 
       {/* Sloping-top walls: the rectangular lower band [0, minTop] is drawn as
           boxes above (so it cuts openings like a flat wall); this prism is the
@@ -885,6 +959,7 @@ function FadeWindow({
     revealable: boolean
     glassTint?: string
     style?: string
+    glass?: string
   }
   cx: number
   cz: number
@@ -900,11 +975,17 @@ function FadeWindow({
   // that the cheap transparent pane stays byte-identical (null here).
   const glassPhysical = windowGlassPhysical(useStore((s) => s.qualityTier))
   // A custom glass tint replaces the cool default for the daylight colour; the
-  // night blend toward dark reflective glass is preserved either way.
+  // night blend toward dark reflective glass is preserved either way. Only the
+  // `clear` glass kind (default) tells the day/night story with colour — a
+  // non-clear kind (frosted/textured/glass-block) shouldn't turn dark blue at
+  // night, so it keeps a static params colour instead (GLASS-KINDS).
   const dayColor = useMemo(
     () => (win.glassTint ? new Color(win.glassTint) : GLASS_DAY),
     [win.glassTint],
   )
+  const isClearGlass = !win.glass || win.glass === 'clear'
+  const isGlassBlock = win.glass === 'glass-block'
+  const glassParams = useMemo(() => windowGlassKindParams(win.glass), [win.glass])
   useFrame(() => {
     const mesh = ref.current
     if (!mesh) return
@@ -913,11 +994,20 @@ function FadeWindow({
     // clear sky-lit pane by day → dark reflective at night, via an emissive
     // sky-catch (cheap, all tiers) + a day/night colour + opacity blend.
     const d = getFixtureGlow() // 1 at night, 0 in daylight
-    mat.color.lerpColors(dayColor, GLASS_NIGHT, d)
+    if (isClearGlass) {
+      mat.color.lerpColors(dayColor, GLASS_NIGHT, d)
+    } else {
+      mat.color.set(glassParams.color)
+    }
     mat.emissiveIntensity = glassSkyCatchIntensity(1 - d)
     // Transmission tiers keep alpha at 1 (opacity is reserved for the wall-fade
     // compose) and blend day/night through transmission instead (PHOTO-GLASS).
-    if (glassPhysical) (mat as MeshPhysicalMaterial).transmission = windowTransmission(1 - d)
+    // Scaled by the glass kind's own transmission cap relative to the clear
+    // default (0.9) — a factor of 1 for `clear`, keeping it byte-identical.
+    if (glassPhysical) {
+      ;(mat as MeshPhysicalMaterial).transmission =
+        windowTransmission(1 - d) * (glassParams.transmission / 0.9)
+    }
     const base = glassPhysical ? 1 : 0.28 + d * 0.45 // more opaque at night (cheap tiers)
     let factor = 1
     const st = useStore.getState()
@@ -956,7 +1046,10 @@ function FadeWindow({
       }
       factor = revealTargetOpacityForFade(fade, s)
     }
-    const target = base * factor
+    // Glass-block glazing reads via the InstancedBoxes block grid, not this
+    // backing pane — shrink it to near-invisible rather than the normal
+    // clear/frosted/textured opacity story.
+    const target = (isGlassBlock ? 0.12 : base) * factor
     mat.opacity += (target - mat.opacity) * 0.18
     if (Math.abs(mat.opacity - target) > 0.003) invalidate()
   })
@@ -980,13 +1073,38 @@ function FadeWindow({
   // the chunky visible `grille` bars) while still reading as a safety barrier.
   const cables: GrilleMemberInstance[] =
     style === 'invisible-grille' ? invisibleGrilleCableInstances(win.width, win.height) : []
-  return (
-    <group position={[win.cx, win.cy, win.cz]} rotation={[0, win.angle, 0]}>
+  // Sash-type windows (casement/awning/hopper/transom): a perimeter sash frame
+  // (+ casement stile / transom rail). `sashFrameInstances`/`glassBlockInstances`
+  // use the `x=width, y=height, z=depth` convention (see `windowGrilleLayout.ts`
+  // header) — this window's own frame is `x=depth, y=height, z=width`, so the
+  // x/z components of both position and size are swapped when feeding them in.
+  const sashMembers: GrilleMemberInstance[] = sashFrameInstances(win.width, win.height, style).map(
+    (m) => ({
+      position: [m.position[2], m.position[1], m.position[0]],
+      size: [m.size[2], m.size[1], m.size[0]],
+    }),
+  )
+  // `glass-block` glazing kind: a grid of thick translucent blocks instead of
+  // the usual pane read (the backing pane shrinks to near-invisible above).
+  const blocks: GrilleMemberInstance[] = isGlassBlock
+    ? glassBlockInstances(win.width, win.height).map((m) => ({
+        position: [m.position[2], m.position[1], m.position[0]],
+        size: [m.size[2], m.size[1], m.size[0]],
+      }))
+    : []
+  // An "open" sash (awning/hopper) tilts about its hinge edge — a group
+  // pivoted at the hinge (`pivotY * height/2`), with the pane + members
+  // offset back inside so they carry the tilt. Closed styles skip this
+  // wrapper entirely (zero-diff for the pre-existing plain/grille/louvre/
+  // invisible-grille styles, and for casement/transom which don't tilt).
+  const tilt = sashOpenTilt(style)
+  const paneAndMembers = (
+    <>
       <mesh ref={ref}>
         <boxGeometry args={[0.03, win.height, win.width]} />
         {glassPhysical ? (
           <meshPhysicalMaterial
-            color="#bcd4e6"
+            color={glassParams.color}
             emissive={GLASS_SKYCATCH_COLOR}
             emissiveIntensity={0.4}
             transmission={0.9}
@@ -996,17 +1114,17 @@ function FadeWindow({
             attenuationDistance={glassPhysical.attenuationDistance}
             transparent
             opacity={1}
-            roughness={glassPhysical.roughness}
+            roughness={Math.max(glassPhysical.roughness, glassParams.roughness)}
             metalness={glassPhysical.metalness}
           />
         ) : (
           <meshStandardMaterial
-            color="#bcd4e6"
+            color={glassParams.color}
             emissive={GLASS_SKYCATCH_COLOR}
             emissiveIntensity={0.4}
             transparent
-            opacity={0.32}
-            roughness={0.1}
+            opacity={glassParams.opacityCheap}
+            roughness={glassParams.roughness}
             metalness={0}
           />
         )}
@@ -1026,6 +1144,35 @@ function FadeWindow({
             opacity={0.4}
           />
         </InstancedCylinders>
+      )}
+      {sashMembers.length > 0 && (
+        <InstancedBoxes instances={sashMembers} castShadow>
+          <meshStandardMaterial color="#e6e7e4" roughness={0.45} metalness={0.35} />
+        </InstancedBoxes>
+      )}
+      {blocks.length > 0 && (
+        <InstancedBoxes instances={blocks} castShadow>
+          <meshStandardMaterial
+            color={glassParams.color}
+            roughness={glassParams.roughness}
+            transparent
+            opacity={0.75}
+          />
+        </InstancedBoxes>
+      )}
+    </>
+  )
+  return (
+    <group position={[win.cx, win.cy, win.cz]} rotation={[0, win.angle, 0]}>
+      {tilt ? (
+        <group
+          position={[0, (tilt.pivotY * win.height) / 2, 0]}
+          rotation={[0, 0, -tilt.pivotY * tilt.angleRad]}
+        >
+          <group position={[0, (-tilt.pivotY * win.height) / 2, 0]}>{paneAndMembers}</group>
+        </group>
+      ) : (
+        paneAndMembers
       )}
     </group>
   )

@@ -27,6 +27,7 @@ export function ViewSection({
   const autoRotate = useStore((st) => st.autoRotate)
   const verticalLock = useStore((st) => st.verticalLock)
   const parallelProjection = useStore((st) => st.parallelProjection)
+  const showWallTypes = useStore((st) => st.showWallTypes)
   const roomEditorActive = useStore((st) => st.roomEditor.active)
   const savedViews = useStore((st) => st.savedViews)
 
@@ -36,6 +37,7 @@ export function ViewSection({
   const fPanoTour = useFeature('panoTour')
   const fTwoPointPerspective = useFeature('twoPointPerspective')
   const fParallelProjection = useFeature('parallelProjection')
+  const fWallTypes3d = useFeature('wallTypes3d')
   const fDayNightClip = useFeature('dayNightClip')
   const fSuggestedViews = useFeature('suggestedViews')
 
@@ -66,6 +68,18 @@ export function ViewSection({
             void enterVr()
           })}
         />
+      ) : null}
+      {cameraMode === 'orbit' && fWallTypes3d ? (
+        <>
+          <div className="m-sub-h">Structure</div>
+          <Item
+            icon="Layers"
+            label="Wall types"
+            sub="Tint walls by structural type"
+            on={showWallTypes}
+            onClick={act(() => s.getState().toggleWallTypes(), { keep: true })}
+          />
+        </>
       ) : null}
       {isMultiLevel(mobilePlan) ? (
         <>

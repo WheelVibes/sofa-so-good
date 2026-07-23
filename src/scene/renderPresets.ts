@@ -55,7 +55,7 @@ export const RENDER_PRESETS: RenderPreset[] = [
     time: 'dusk',
     toneMapping: 'filmic',
     exposure: 1,
-    lights: 'auto',
+    lights: 'on',
   },
   {
     id: 'cozy-evening',

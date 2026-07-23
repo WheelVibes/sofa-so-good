@@ -53,6 +53,10 @@ export interface PlanWall {
   thicknessM?: number
   /** Optional cap on solid-wall height (parapets on balconies); floor→ceiling when unset. */
   topHeight?: number
+  /** When true, render an open railing (top rail + balusters) up to `topHeight`
+   *  instead of a solid half-wall — only meaningful alongside `topHeight`.
+   *  Additive, back-compat — same shape as `topHeight`, no version bump. */
+  railing?: boolean
   /** Optional top height at the wall's `end` (SweetHome3DJS sloping-wall parity):
    *  when set, the wall top ramps linearly from `topHeight` (or ceiling) at start
    *  to this at end — a shed/mono-pitch wall. A sloped wall renders as a
@@ -83,8 +87,22 @@ export interface PlanWall {
    *  `'load-bearing'` walls get a heavy/solid treatment (and a hard "NOT
    *  PERMITTED" danger callout if marked for demolition); `'unknown'` walls
    *  being demolished get a ⚠ warning marker. Edited in the 2D plan inspector
-   *  (`wallStructure`). */
-  structure?: 'load-bearing' | 'rc-partition' | 'brick-partition' | 'drywall' | 'unknown'
+   *  (`wallStructure`).
+   *
+   *  `'gable-end'` — the flat block's exposed external END wall (walls.jpg
+   *  legend #3: a thick wall with its own distinct lining symbol, distinct
+   *  from the plain solid-black structural wall #1). Reinforced-concrete and
+   *  structural like `'load-bearing'`/`'rc-partition'` — `wallHackability`
+   *  classifies it `'no'` (never hackable) — but tagged separately so 2D/3D
+   *  rendering can draw its distinct gable lining symbol instead of the
+   *  ordinary heavy structural line. */
+  structure?:
+    | 'load-bearing'
+    | 'rc-partition'
+    | 'brick-partition'
+    | 'drywall'
+    | 'gable-end'
+    | 'unknown'
 }
 
 export interface PlanOpening {
@@ -129,14 +147,25 @@ export interface PlanOpening {
    *  master bedrooms). Windows: `plain` (default glass) / `grille`
    *  (vertical safety bars) / `louvre` (horizontal slats) / `invisible-grille`
    *  (hair-thin steel cables in place of visible bars — the modern
-   *  near-invisible safety-grille convention). Absent = the default for the
-   *  kind. */
+   *  near-invisible safety-grille convention) / `casement` (perimeter sash
+   *  frame + a central stile on a wide window — two side-hinged panels) /
+   *  `awning` (top-hinged, opens by tilting the bottom outward) / `hopper`
+   *  (bottom-hinged, opens by tipping the top inward) / `transom` (a fixed
+   *  top vent pane over the main pane, framed by a horizontal rail) /
+   *  `sliding` (two overlapping sashes meeting at a double-depth centre
+   *  stile — the SG sliding-window norm; for windows this is distinct from
+   *  the door `sliding` style, disambiguated by `kind`). Absent = the
+   *  default for the kind. */
   style?: string
-  /** Doors only: leaf surface finish (`openingStyles`) — `painted` (default for
+  /** Doors: leaf surface finish (`openingStyles`) — `painted` (default for
    *  `panel`/`flush`/`glazed`, flat colour via `color`), `wood` (procedural
    *  wood grain tinted by `color`), or `vinyl` (smooth PVC laminate — the
    *  standard SG toilet/utility door finish; the default for `style: 'bifold'`
-   *  when unset). Absent on a window has no effect. */
+   *  when unset). Windows (GLASS-KINDS): reused for the GLASS kind instead —
+   *  `clear` (default, the pre-existing cool-glass look) / `frosted` /
+   *  `textured` (patterned, both privacy glazing) / `glass-block` (a grid of
+   *  thick translucent blocks in place of a plain pane — a bathroom/stairwell
+   *  convention). Absent = the default for the kind. */
   material?: string
 }
 

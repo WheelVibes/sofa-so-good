@@ -46,15 +46,19 @@ describe('arrangeRoom', () => {
     assertValid(out)
   })
 
-  it('orients the living-room sofa to face the east TV wall', () => {
+  it('orients the living-room sofa to face the west TV wall', () => {
+    // RM: the geometry refresh put a 3.4 m window on the L/D's east wall (sill
+    // 0.45 m — too low for a wall-mounted TV) and a 2.45 m window on the north
+    // wall, leaving the B3/household-shelter partition on the WEST as the only
+    // windowless (TV) wall — the focal wall moved from east to west.
     const out = arrangeRoom('livingDining', hydrate(), BUILTIN_CATALOG, {})
     const sofa = out.find((i) => i.defId === 'sofa-3seat' && roomOf(i.position) === 'livingDining')
     expect(sofa).toBeDefined()
-    // Facing +X (east) ≈ rotation PI/2.
-    expect(Math.abs(Math.sin(sofa!.rotation) - 1)).toBeLessThan(0.1)
-    // Sofa sits west of the TV.
+    // Facing -X (west) ≈ rotation -PI/2.
+    expect(Math.abs(Math.sin(sofa!.rotation) + 1)).toBeLessThan(0.1)
+    // Sofa sits east of the TV.
     const tv = out.find((i) => i.defId === 'tv-wall')
-    expect(sofa!.position[0]).toBeLessThan(tv!.position[0])
+    expect(sofa!.position[0]).toBeGreaterThan(tv!.position[0])
   })
 
   it('keeps bedrooms collision-valid and beds against a wall', () => {
@@ -328,9 +332,9 @@ describe('locked items are treated as fixed obstacles (BUG: reroll/tidy moved lo
     assertValid(out)
     const sofa = out.find((i) => i.defId === 'sofa-3seat' && roomOf(i.position) === 'livingDining')
     expect(sofa).toBeDefined()
-    // Facing +X (east) ≈ rotation PI/2 — same as the pre-fix behaviour asserted
-    // in the 'orients the living-room sofa to face the east TV wall' test above.
-    expect(Math.abs(Math.sin(sofa!.rotation) - 1)).toBeLessThan(0.1)
+    // Facing -X (west) ≈ rotation -PI/2 — same as the pre-fix behaviour asserted
+    // in the 'orients the living-room sofa to face the west TV wall' test above.
+    expect(Math.abs(Math.sin(sofa!.rotation) + 1)).toBeLessThan(0.1)
   })
 })
 

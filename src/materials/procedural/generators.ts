@@ -22,11 +22,12 @@ import {
   checkerFields,
   hexagonFields,
   peranakanFields,
+  porcelainFields,
   subwayFields,
   tileFields,
 } from './patterns/tile'
 import { battenFields, flutedFields, limewashFields, plasterFields } from './patterns/wall'
-import { herringboneFields, parquetFields, woodFields } from './patterns/wood'
+import { herringboneFields, parquetFields, vinylFields, woodFields } from './patterns/wood'
 export interface ProceduralResult {
   albedo: Texture
   normal: Texture
@@ -95,12 +96,14 @@ export const PATTERN_SIZE_CAP: Record<ProceduralPattern, 256 | 512> = {
   limewash: 256,
   // High-frequency geometric — needs 512 on Medium+ for crisp edges/grain
   wood: 512,
+  vinyl: 512,
   tile: 512,
   hexagon: 512,
   checker: 512,
   parquet: 512,
   herringbone: 512,
   subway: 512,
+  porcelain: 512,
   brick: 512,
   grasscloth: 512,
   stripe: 512,
@@ -146,6 +149,7 @@ const PATTERN_FN: Record<
   (base: [number, number, number], seed: number, S: number) => Fields
 > = {
   wood: woodFields,
+  vinyl: vinylFields,
   checker: checkerFields,
   tile: tileFields,
   carpet: carpetFields,
@@ -161,6 +165,7 @@ const PATTERN_FN: Record<
   batten: battenFields,
   hexagon: hexagonFields,
   subway: subwayFields,
+  porcelain: porcelainFields,
   fluted: flutedFields,
   peranakan: peranakanFields,
   limewash: limewashFields,

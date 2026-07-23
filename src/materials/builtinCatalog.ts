@@ -59,7 +59,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'floor-tile-white': floor('floor-tile-white', 'White tiles', '#e6e3dc', 'tile', [0.6, 0.6]),
   'floor-tile-marble': floor('floor-tile-marble', 'Marble', '#dcd6c8', 'marble', [1.6, 1.6]),
   'floor-carpet-grey': floor('floor-carpet-grey', 'Grey carpet', '#7a7c7e', 'carpet', [1.5, 1.5]),
-  'floor-vinyl-light': floor('floor-vinyl-light', 'Light vinyl', '#c9b99c', 'wood', [1.4, 0.9]),
+  'floor-vinyl-light': floor('floor-vinyl-light', 'Light vinyl', '#c9b99c', 'vinyl', [1.4, 0.9]),
   'floor-terrazzo': floor('floor-terrazzo', 'Terrazzo', '#d7d2c6', 'terrazzo', [1.0, 1.0]),
   // Honeycomb hex tile — a kitchen/bath staple (Coohom/Planner-5D parity).
   'floor-tile-hex': floor('floor-tile-hex', 'Hexagon tiles', '#e4e0d6', 'hexagon', [0.5, 0.5]),
@@ -177,6 +177,50 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     '#b3a89a',
     'carpet',
     [1.5, 1.5],
+  ),
+  // ── Serangoon North Vista (SNV) 4-room HDB spec finishes ──────────────────
+  // Sourced from the HDB sales/handover doc (assets/guidelines/specs.png).
+  // Timber-look vinyl strip flooring — living/dining/bedroom/corridor. Real
+  // strips run ~1.2 m × 0.18 m; the `wood` painter stacks 6 planks per tile,
+  // so plank height = uvScaleY / 6 = 0.18 → uvScaleY 1.08, plank length =
+  // uvScaleX = 1.2 (distinct from `floor-vinyl-light`'s [1.4, 0.9] wide-board
+  // read — these are narrower, shorter strips, lighter oak tone).
+  // Tint sampled from the SNV OCS sample board (light grey-washed oak,
+  // surface tone ≈ #bcb4a9): the `vinyl` painter multiplies the base down by
+  // ~0.85 on average (grain bands + grooves), so the base sits ~1/0.85 above
+  // the sampled tone to RENDER at it. Uniform per-strip colour (printed
+  // laminate) via the dedicated `vinyl` pattern — the default L/D + corridor
+  // + bedroom finish, paired with the laminated-UPVC skirting
+  // (`apartment/Skirting.tsx`).
+  'floor-vinyl-oak': floor(
+    'floor-vinyl-oak',
+    'Timber vinyl strips',
+    '#d9cfc2',
+    'vinyl',
+    [1.2, 1.08],
+  ),
+  // Beige glazed porcelain, 600×600 — kitchen / household shelter / service
+  // yard floor. `tile` painter holds 2×2 tiles per texture; [0.6, 0.6] matches
+  // the existing `floor-tile-white` scale (tile = uvScale / 2 = 0.3 m... this
+  // repeats the sibling default's convention rather than re-deriving it).
+  'floor-tile-beige': floor(
+    'floor-tile-beige',
+    'Beige glazed porcelain (600×600)',
+    '#cfc5b0',
+    'tile',
+    [0.6, 0.6],
+  ),
+  // Mottled grey-green glazed porcelain, 300×600 — bathroom floor. The
+  // `porcelain` painter is the large-format running-bond variant (2 cols ×
+  // 4 rows per texture with scale-tuned bevel/normal); a 0.6 × 0.3 m tile
+  // needs uvScale = tileSize × coursesPerAxis = [1.2, 1.2]
+  // (tile width = 1.2/2 = 0.6 m, tile height = 1.2/4 = 0.3 m).
+  'floor-tile-bath-green': floor(
+    'floor-tile-bath-green',
+    'Grey-green glazed porcelain (300×600)',
+    '#a8aca1',
+    'porcelain',
+    [1.2, 1.2],
   ),
 
   // ── Walls ───────────────────────────────────────────────────────────────
@@ -340,6 +384,28 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     swatch: '#b3bca9',
     uvScale: [0.7, 0.7],
   },
+  // ── SNV 4-room HDB wall tiles (assets/guidelines/specs.png) ────────────────
+  // Glazed porcelain wall tile, 300×600 — same `porcelain` painter/uvScale
+  // derivation as `floor-tile-bath-green` above (0.6 × 0.3 m tile → [1.2, 1.2]),
+  // distinct from the [0.7, 0.7] small-metro `wall-subway-*` pair.
+  'wall-tile-white': {
+    id: 'wall-tile-white',
+    name: 'Glazed porcelain tile (white, 300×600)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'porcelain',
+    swatch: '#ede8dc',
+    uvScale: [1.2, 1.2],
+  },
+  'wall-tile-grey': {
+    id: 'wall-tile-grey',
+    name: 'Glazed porcelain tile (grey, 300×600)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'porcelain',
+    swatch: '#c9cac6',
+    uvScale: [1.2, 1.2],
+  },
   // Fluted / reeded feature-wall panels (close-packed rounded ribs).
   'wall-fluted-oak': {
     id: 'wall-fluted-oak',
@@ -468,28 +534,35 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
 export const DEFAULT_FLOOR: MaterialId = 'floor-wood-oak'
 export const DEFAULT_WALL: MaterialId = 'wall-paint-white'
 
-/** Sensible move-in-ready finishes per room: wood through the living spaces
- *  and bedrooms, tile in the wet rooms and kitchen, hard-wearing surfaces in
- *  utility spaces. Rooms not listed fall back to DEFAULT_FLOOR. */
+/** Move-in-ready finishes per room, matching the Serangoon North Vista (SNV)
+ *  4-room HDB sales/handover spec (assets/guidelines/specs.png): timber-look
+ *  vinyl strips through the living/dining/bedrooms/corridor, beige glazed
+ *  porcelain in the kitchen + household shelter + service yard, mottled
+ *  grey-green glazed porcelain in both bathrooms. Rooms not listed fall back
+ *  to DEFAULT_FLOOR. */
 export const DEFAULT_ROOM_FLOOR: Partial<Record<RoomId, MaterialId>> = {
-  mainBedroom: 'floor-wood-oak',
-  bedroom2: 'floor-wood-oak',
-  bedroom3: 'floor-wood-oak',
-  livingDining: 'floor-wood-oak',
-  corridor: 'floor-wood-oak',
-  kitchen: 'floor-tile-white',
-  bath1: 'floor-tile-white',
-  bath2: 'floor-tile-white',
-  householdShelter: 'floor-vinyl-light',
-  serviceYard: 'floor-concrete',
+  mainBedroom: 'floor-vinyl-oak',
+  bedroom2: 'floor-vinyl-oak',
+  bedroom3: 'floor-vinyl-oak',
+  livingDining: 'floor-vinyl-oak',
+  corridor: 'floor-vinyl-oak',
+  kitchen: 'floor-tile-beige',
+  bath1: 'floor-tile-bath-green',
+  bath2: 'floor-tile-bath-green',
+  householdShelter: 'floor-tile-beige',
+  serviceYard: 'floor-tile-beige',
   acLedge: 'floor-concrete',
 }
 
+/** SNV spec wall finishes: glazed porcelain wall tile in the kitchen
+ *  (off-white/beige) and both bathrooms (light grey); everything else stays
+ *  painted plaster (skim-coat + paint, per spec) — livingDining keeps its
+ *  existing warm-paint override. */
 export const DEFAULT_ROOM_WALL: Partial<Record<RoomId, MaterialId>> = {
   livingDining: 'wall-paint-warm',
-  bath1: 'wall-paint-blue',
-  bath2: 'wall-paint-blue',
-  kitchen: 'wall-paint-white',
+  bath1: 'wall-tile-grey',
+  bath2: 'wall-tile-grey',
+  kitchen: 'wall-tile-white',
 }
 
 export const BUILTIN_MATERIALS_BY_CATEGORY: Readonly<Record<MaterialCategory, MaterialDef[]>> =

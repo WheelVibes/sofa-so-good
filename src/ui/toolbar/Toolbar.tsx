@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { QUALITY_LABEL } from '../../scene/quality'
-import { GRID_SIZES, type LightsMode } from '../../state/slices/uiSlice'
+import { GRID_SIZES } from '../../state/slices/uiSlice'
 import { useStore } from '../../state/store'
-import { Segmented } from '../controls/Segmented'
 import { Select } from '../controls/Select'
 import { GraphicsSettings } from '../GraphicsSettings'
 import { useIsMobile } from '../useIsMobile'
@@ -24,13 +23,6 @@ import { shortcutLabel } from './shortcuts'
 function Divider() {
   return <div className="tool-divider" />
 }
-
-/** Lights segmented options (TB-8: all 3 states visible, one click each). */
-const LIGHTS_OPTIONS = [
-  { value: 'auto', label: 'Auto', title: 'Lights: Auto — follow the time of day' },
-  { value: 'on', label: 'On', title: 'Lights: always on' },
-  { value: 'off', label: 'Off', title: 'Lights: always off' },
-]
 
 /** The icon-island toolbar. Frequent actions are direct icon buttons; busy
  *  clusters collapse into labelled portaled dropdown menus. Editing clusters
@@ -259,15 +251,19 @@ export function Toolbar() {
             {proMode && <ToolsMenu />}
 
             <Divider />
-            {/* Lights — segmented, not a cycle button (TB-8): all 3 states are
-                visible and one click away, so no next-state tooltip is needed. */}
-            <div className="tool-seg" title="Lights">
+            {/* Lights — binary all-on / all-off, rendered as a toggle switch. */}
+            <div
+              className="tool-seg"
+              title={lightsMode === 'on' ? 'All lights on' : 'All lights off'}
+            >
               <Icon.Lights width={16} height={16} className="icn" />
-              <Segmented
-                ariaLabel="Lights"
-                value={lightsMode}
-                onChange={(v) => setLightsMode(v as LightsMode)}
-                options={LIGHTS_OPTIONS}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={lightsMode === 'on'}
+                aria-label="Lights"
+                onClick={() => setLightsMode(lightsMode === 'on' ? 'off' : 'on')}
+                className={`switch${lightsMode === 'on' ? ' on' : ''}`}
               />
             </div>
 

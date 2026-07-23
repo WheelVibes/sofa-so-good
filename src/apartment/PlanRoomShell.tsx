@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { Suspense, useEffect, useMemo, useRef } from 'react'
 import { type Group, Mesh, MeshStandardMaterial, Vector2 } from 'three'
+import { useFeature } from '../features/useFeature'
 import {
   type PlanClippedWall,
   type PlanRoomOpening,
@@ -8,6 +9,7 @@ import {
   type PlanRoomShell as Shell,
 } from '../floorplan/planRoomShell'
 import { resolvePlanRoomFloor, resolvePlanRoomWall } from '../floorplan/roomFinishes'
+import { wallTypeOverlayColor } from '../floorplan/wallTypeColor'
 import type {
   MaterialId,
   ProceduralMaterialDef,
@@ -27,6 +29,7 @@ import { PlanRoomFloor } from './floor/PlanRoomFloor'
 import { roomShellThresholdRects } from './floor/planThresholdRects'
 import type { ThresholdRect } from './floor/thresholdRects'
 import { useWallReveal } from './walls/useWallReveal'
+import { WallTypeOverlayJacket } from './walls/WallSegment'
 import { extrudeWallBody } from './walls/wallBodyGeometry'
 import {
   OPENING_CLEARANCE,
@@ -78,6 +81,14 @@ function WallBoxBody({
   const midX = (sx + ex) / 2
   const midZ = (sz + ez) / 2
 
+  // Wall-types 3D overlay (`wallTypes3d` pro flag) — same tint as the default
+  // flat's `WallSegment`/`RoomShell`, so a custom plan's room editor shows the
+  // classification too.
+  const wallTypes3dFlag = useFeature('wallTypes3d')
+  const showWallTypesToggle = useStore((s) => s.showWallTypes)
+  const overlayColor =
+    wallTypes3dFlag && showWallTypesToggle ? wallTypeOverlayColor(wall.structure) : null
+
   // Outward (away-from-room-centre) normal — a general perpendicular so
   // diagonal clipped walls resolve the same way as axis-aligned ones.
   const toMid = new Vector2(midX - center[0], midZ - center[1])
@@ -111,17 +122,29 @@ function WallBoxBody({
   if (len < 1e-6) return null
   const angle = Math.atan2(ez - sz, ex - sx)
   return (
-    <mesh
-      ref={ref}
-      position={[midX, 0, midZ]}
-      rotation={[0, -angle, 0]}
-      castShadow={false}
-      material={material}
-      geometry={bodyGeometry}
-      // In the isolated room editor every clipped wall belongs to this room, so
-      // tag it as a wall drop target (scene/finishDropTarget.ts).
-      userData={finishSurfaceUserData('wall', roomId)}
-    />
+    <>
+      <mesh
+        ref={ref}
+        position={[midX, 0, midZ]}
+        rotation={[0, -angle, 0]}
+        castShadow={false}
+        material={material}
+        geometry={bodyGeometry}
+        // In the isolated room editor every clipped wall belongs to this room, so
+        // tag it as a wall drop target (scene/finishDropTarget.ts).
+        userData={finishSurfaceUserData('wall', roomId)}
+      />
+      {/* Wall-types 3D overlay (`wallTypes3d` pro flag) — a SIBLING of the
+          ref'd mesh above (never a child; `useWallReveal` reads `ref.current`
+          directly, a leaf mesh with no children here, so this doesn't
+          interfere either way, but siblings keep the pattern identical to
+          `WallSegment`/`RoomShell`). */}
+      {overlayColor && (
+        <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
+          <WallTypeOverlayJacket length={len} height={h} thickness={t} color={overlayColor} />
+        </group>
+      )}
+    </>
   )
 }
 

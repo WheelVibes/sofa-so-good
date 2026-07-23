@@ -7,10 +7,10 @@ describe('roomRects', () => {
   it('returns one rect for a plain rectangular room', () => {
     const rects = roomRects(ROOMS.bedroom2)
     expect(rects).toHaveLength(1)
-    // bedroom2 interior origin [3.15,0.20], 2.85 x 3.40
-    expect(rects[0]).toMatchObject({ x0: 3.15, z0: 0.2 })
-    expect(rects[0].x1).toBeCloseTo(6.0, 5)
-    expect(rects[0].z1).toBeCloseTo(3.6, 5)
+    // bedroom2 interior origin [3.38,0.20], 2.76 x 3.525
+    expect(rects[0]).toMatchObject({ x0: 3.38, z0: 0.2 })
+    expect(rects[0].x1).toBeCloseTo(6.14, 5)
+    expect(rects[0].z1).toBeCloseTo(3.725, 5)
   })
 
   it('returns two rects for an L-shaped room with an extension', () => {
@@ -22,20 +22,20 @@ describe('roomRects', () => {
 describe('roomShell', () => {
   it('includes the room north wall for a north-band bedroom', () => {
     const shell = roomShell('bedroom2')
-    expect(shell.walls.map((w) => w.wallId)).toContain('wall-ext-N')
+    expect(shell.walls.map((w) => w.wallId)).toContain('wall-ext-N-west')
     expect(shell.rects.length).toBeGreaterThan(0)
   })
 
   it('clips a shared wall to the room footprint span', () => {
     const shell = roomShell('bedroom2')
-    const n = shell.walls.find((w) => w.wallId === 'wall-ext-N')
+    const n = shell.walls.find((w) => w.wallId === 'wall-ext-N-west')
     expect(n).toBeDefined()
-    // bedroom2 interior x-span is [3.15, 6.0]; the clipped north wall must not
-    // run the full [0.10, 9.05] of the shared segment.
+    // bedroom2 interior x-span is [3.38, 6.14]; the clipped north wall must not
+    // run the full [0.10, 9.175] of the shared segment.
     const lo = Math.min(n!.start[0], n!.end[0])
     const hi = Math.max(n!.start[0], n!.end[0])
-    expect(lo).toBeGreaterThan(3.0)
-    expect(hi).toBeLessThan(6.1)
+    expect(lo).toBeGreaterThan(3.2)
+    expect(hi).toBeLessThan(6.2)
   })
 
   it('attributes only the room own north window (not neighbours)', () => {

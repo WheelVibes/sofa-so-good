@@ -99,9 +99,13 @@ furniture inspector — a **Name** field on top, then a grid of quick actions:
   section sets this wall's skirting **height** and **colour** (or hides
   it), and a **Wall colour** picker recolours just this one wall (with a *reset*).
   A **Structure** picker (Pro) classifies this wall — **Unknown / not verified**
-  (the default), **Load-bearing**, **RC partition**, **Brick partition** or
-  **Dry partition (Ferrolite / steel-stud)** — for the Drawing set's
-  demolition/hacking sheet; a note underneath reminds you this is
+  (the default), **Load-bearing**, **RC partition**, **Brick partition**,
+  **Dry partition (Ferrolite / steel-stud)** or **Gable end (structural)** (the
+  block's exposed external end wall) — for the Drawing set's
+  demolition/hacking sheet. The plan itself draws walls the way an HDB floor
+  plan does: structural walls (load-bearing / RC / gable end) print in the
+  strongest ink with a heavier body — gable-end walls also carry a dashed
+  lining stripe — while normal partitions stay thin; a note underneath reminds you this is
   **user-declared, not verified** — confirm against HDB/BCA as-built records (or
   a PE) before hacking, since an older HDB block can hide a load-bearing
   beam-and-column wall behind what looks like a plain partition on plan.

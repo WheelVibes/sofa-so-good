@@ -960,6 +960,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Wall-types 3D overlay: tints each wall by its `structure` classification
+  // (`wallTypeColor.ts` — structural red, gable-end blue, permit-required
+  // amber, unclassified untinted) in the whole-flat orbit view AND the
+  // per-room editor, so the same classification `wallStructure` records is
+  // visible outside the 2D plan editor. A view toggle (View menu, desktop +
+  // mobile), not an edit surface; pure client-side render tint, no assets →
+  // prod-safe. Analytical/pro-only (matches `wallStructure`, the flag it
+  // visualises) — hidden in Simple mode.
+  wallTypes3d: {
+    label: 'Wall types overlay (3D)',
+    description: 'Tint walls by structural type (structural / gable-end / permit) in 3D',
+    default: true,
+    tier: 'pro',
+  },
   // Flags walled-in floor with no room (red) in the 2D plan editor so the gap is
   // obvious to fix. Shown in both modes (a casual user should see it too) → simple
   // tier. The 3D fallback ground that fills the void is unconditional (not this).
@@ -1140,16 +1154,14 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
-  // Cheap baked wall/floor corner ambient-occlusion strips (RD-403). A shared
-  // gradient texture + one transparent floor quad along each interior wall base —
-  // pure fill-rate overdraw, no shadow map / SSAO — so corners read grounded on
-  // the flat Performance tier (and Medium) where no post-processing AO exists.
-  // The per-tier quality setting suppresses it on High+ (the post stack's SSAO
-  // already darkens corners) to avoid double-darkening. Pure code, no external
-  // assets → prod-safe. A core realism cue everyone sees → simple tier.
-  cornerAo: {
-    label: 'Corner shading',
-    description: 'Soft baked ambient-occlusion darkening where walls meet the floor',
+  // GPU-STARVE-1: halves the render resolution while the camera is actively
+  // driven at High/Maximum so no frame can approach the OS GPU watchdog (whose
+  // driver reset drops the WebGL context — the "white flash while panning"
+  // report). Pure code, prod-safe; part of the core view loop → simple tier.
+  interactiveDegrade: {
+    label: 'Smooth camera motion',
+    description:
+      'Temporarily lowers render resolution while the camera moves at High/Maximum quality (prevents GPU stalls)',
     default: true,
     tier: 'simple',
   },

@@ -58,7 +58,7 @@ export const cozyTropical: LayoutPreset = {
     {
       id: 'cozy-plant-bedroom',
       defId: 'potted-plant',
-      position: [2.6, 3.2],
+      position: [2.9, 1.0],
       rotation: 0,
       props: { type: 'fiddle', size: 'medium', leafColor: '#3f7a3f' },
     },

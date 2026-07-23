@@ -8,6 +8,16 @@ export const socialLounge: LayoutPreset = {
   dryFloor: 'floor-wood-teak',
   wall: 'wall-paint-warm',
   style: {},
+  // Room geometry (2026-07-23 default-flat revision): the conversation
+  // grouping sits entirely in the north strip (x>=9.225), which still fits
+  // unchanged (the room grew, not shrank, here). The TV/console/feature
+  // cluster stays on the east wall — that wall now carries the L/D's main
+  // window, but with the armchair already flush against the ONE windowless
+  // wall available in this strip (x=9.225), there's no room left there for
+  // the media wall too; left on the east wall as a `mounted` fixture (no
+  // collision impact, a minor visual trade-off vs the fully re-walled
+  // presets) rather than reworking this preset's whole conversation-grouping
+  // concept.
   livingDining: [
     // ── Conversation grouping (north) — sofa flanked by two angled chairs ──
     {
@@ -28,7 +38,7 @@ export const socialLounge: LayoutPreset = {
     {
       id: 'sl-arm-l',
       defId: 'armchair',
-      position: [9.65, 3.65],
+      position: [9.75, 3.65],
       rotation: Math.PI,
       props: { style: 'wingback', material: 'velvet', color: '#3f6b5e', sheen: 0.3 },
     },
@@ -96,7 +106,7 @@ export const socialLounge: LayoutPreset = {
     {
       id: 'sl-lamp',
       defId: 'floor-lamp',
-      position: [9.4, 3.0],
+      position: [9.5, 3.0],
       rotation: 0,
       props: { base: 'arc', shade: 'drum', poleColor: '#1c1c1e' },
     },
@@ -112,9 +122,9 @@ export const socialLounge: LayoutPreset = {
     {
       id: 'sl-curtain',
       defId: 'curtains',
-      position: [10.85, 1.5],
+      position: [10.85, 1.42],
       rotation: 0,
-      props: { width: 2.8, height: 2.3, color: '#cfc3a8' },
+      props: { width: 2.8, height: 2.55, color: '#cfc3a8' },
     },
     // ── Dining (south) — proven default positions ──
     {
@@ -160,9 +170,13 @@ export const socialLounge: LayoutPreset = {
       props: { style: 'pendant', shade: 'cone' },
     },
     {
+      // Nudged west 0.03 m (v0.23.2.0): the east wall's SE structural
+      // segment (`wall-ext-E-col2`, z=[6.5,8.235]) thickened to 300 mm —
+      // its interior face moved 12.525→12.475, clipping this cabinet's old
+      // flush back edge (12.5) by 0.025 m. New back edge 12.47, clear.
       id: 'sl-shoe',
       defId: 'shoe-cabinet',
-      position: [12.35, 7.45],
+      position: [12.32, 7.45],
       rotation: -Math.PI / 2,
       props: { width: 0.9, depth: 0.3 },
     },

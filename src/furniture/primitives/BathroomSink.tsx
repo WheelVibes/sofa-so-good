@@ -76,20 +76,35 @@ export function BathroomSink({ props }: { props: ParamProps }) {
   }
 
   if (style === 'wall-hung') {
+    // Boxy rectangular basin (~0.58×0.44, per the reference wall-hung basin —
+    // a straight-edged ceramic box, not a rounded bowl) with a sunken deck
+    // recess and the shared chrome tap mixer on top. A slim white ceramic
+    // pedestal/bottle-trap shroud runs floor→basin-underside (the reference's
+    // concealed trap column), keeping the assembly floor-connected even
+    // though the def itself renders at mount height (FLOOR_EXEMPT).
+    const basinW = 0.58
+    const basinD = 0.44
+    const basinH = 0.14
+    const shroudH = basinY - basinH / 2
     return (
       <group>
-        {/* Basin bowl floating at counter height */}
+        {/* Rectangular ceramic basin box */}
         <mesh castShadow receiveShadow position={[0, basinY, 0]}>
-          <cylinderGeometry args={[0.24, 0.18, 0.16, seg(28, detail)]} />
+          <boxGeometry args={[basinW, basinH, basinD]} />
           <meshStandardMaterial {...porcelain} />
         </mesh>
-        <mesh position={[0, basinY + 0.04, 0]}>
-          <cylinderGeometry args={[0.2, 0.13, 0.1, seg(28, detail)]} />
+        {/* Sunken bowl recess in the deck — top set 4 mm below the basin's own
+            rim face (the aircon proud/inset pattern) so the two same-normal
+            faces don't share an exact plane and z-fight. */}
+        <mesh position={[0, basinY + basinH / 2 - 0.019, 0]}>
+          <boxGeometry args={[basinW - 0.09, 0.03, basinD - 0.12]} />
           <meshStandardMaterial color="#e2e2de" roughness={0.2} />
         </mesh>
-        {/* Chrome bottle trap below */}
-        <mesh castShadow position={[0, basinY - 0.16, -0.04]} material={chromeMat}>
-          <cylinderGeometry args={[0.02, 0.02, 0.2, 12]} />
+        {/* Slim white pedestal/bottle-trap shroud, floor-anchored to the
+            basin's underside */}
+        <mesh castShadow receiveShadow position={[0, shroudH / 2, -0.06]}>
+          <boxGeometry args={[0.11, shroudH, 0.11]} />
+          <meshStandardMaterial {...porcelain} />
         </mesh>
         {tap}
       </group>

@@ -3,7 +3,10 @@ import { memo, Suspense, useEffect, useMemo, useRef } from 'react'
 import { Color, type Group, Mesh, type MeshStandardMaterial, Vector3 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../../features/useFeature'
+import { railingMemberInstances } from '../../floorplan/railingLayout'
+import { wallTypeOverlayColor } from '../../floorplan/wallTypeColor'
 import { BeveledBox } from '../../furniture/primitives/BeveledBox'
+import { InstancedBoxes } from '../../furniture/primitives/InstancedBoxes'
 import type {
   MaterialId,
   ProceduralMaterialDef,
@@ -18,11 +21,9 @@ import {
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry } from '../../materials/worldUv'
 import { registerAnimatedSource } from '../../scene/animatedSources'
-import { WallFloorAO } from '../../scene/CornerAO'
 import { finishSurfaceUserData } from '../../scene/finishDropTarget'
 import { useDisposeGeometry } from '../../scene/geometryUtil'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
-import { useQuality } from '../../scene/useQuality'
 import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
 import { APARTMENT_EXT_D, APARTMENT_EXT_W, FLAT, ROOMS, WALLS } from '../constants'
@@ -274,7 +275,7 @@ interface WallSegmentProps {
 /** Renders one wall as: a generic body box per render-segment (structural
  *  concrete look) plus up to two interior face planes per segment, each
  *  painted with the adjacent room's wall finish. Sides are sampled per
- *  segment because some walls (e.g. wall-int-mid-S, wall-int-corridor-S)
+ *  segment because some walls (e.g. wall-int-corridor-S, wall-int-hs-S)
  *  span multiple rooms — each segment's face must pick up its own room's
  *  finish, not the room that happens to sit at the whole-wall midpoint.
  *  External faces (no adjacent interior room) skip rendering. */
@@ -285,6 +286,47 @@ const FWD = new Vector3()
 // Light neutral a faded wall is lifted toward so it doesn't dim the rooms seen
 // through it (REVEAL-THROUGH-TINT). Shared, read-only.
 const REVEAL_EMISSIVE = new Color('#eceae4')
+
+/** Wall-types 3D overlay (`wallTypes3d` pro flag) — a translucent tinted "jacket"
+ *  box laid over a whole wall (view-only, no pointer events) so the plan's
+ *  `structure` classification is visible outside the 2D editor. A single box
+ *  spanning the wall's full length/height/thickness (not per-segment, not
+ *  carved around openings) is the simplest acceptable read for a tint overlay;
+ *  scaled ~1% larger than the wall body + `polygonOffset` avoids z-fighting.
+ *  Shared by the default-flat (`WallSegment`), the room editor (`RoomShell`),
+ *  and custom-plan (`PlanShell`/`PlanRoomShell`) renderers — reused verbatim
+ *  rather than reimplemented per surface. Local wall frame: length along local
+ *  X, thickness along local Z (matches `FacePlane`/the extruded body). */
+export function WallTypeOverlayJacket({
+  length,
+  height,
+  thickness,
+  color,
+  centerY = height / 2,
+}: {
+  length: number
+  height: number
+  thickness: number
+  color: string
+  /** Vertical centre of the jacket in the wall's LOCAL frame (floor at y=0).
+   *  Defaults to `height / 2` (a floor-anchored wall); pass an explicit value
+   *  for a wall segment that doesn't start at the floor. */
+  centerY?: number
+}) {
+  return (
+    <mesh position={[0, centerY, 0]} raycast={() => null}>
+      <boxGeometry args={[length * 1.01, height * 1.01, thickness * 1.01]} />
+      <meshBasicMaterial
+        color={color}
+        transparent
+        opacity={0.35}
+        depthWrite={false}
+        polygonOffset
+        polygonOffsetFactor={-1}
+      />
+    </mesh>
+  )
+}
 
 function WallSegmentInner({ wall }: WallSegmentProps) {
   const dx = wall.end[0] - wall.start[0]
@@ -558,8 +600,8 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   )
 
   // Subdivide each render segment further by room boundary projections
-  // so a wall like wall-int-mid-S (which spans bath2/SY/HS on its north
-  // face with no cutouts) gets one face-span per backing room.
+  // so a wall like wall-int-corridor-S (which spans bath1/bath2 on its south
+  // face with no cutouts between the doors) gets one face-span per backing room.
   type FaceSpan = WallSegmentSpan & { positive: RoomId | null; negative: RoomId | null }
   const faceSpans: FaceSpan[] = []
   for (const s of segments) {
@@ -595,11 +637,14 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   const selectedWall = useStore((s) => s.selectedWall)
   const crownMolding = useFeature('crownMolding')
   const accentWalls = useFeature('wallAccentPicker')
-  // Cheap baked wall/floor corner AO (RD-403): feature flag AND the per-tier
-  // quality setting (on for performance/medium, off on high+ where SSAO runs).
-  const cornerAoFlag = useFeature('cornerAo')
-  const cornerAoQuality = useQuality().cornerAo
-  const cornerAoOn = cornerAoFlag && cornerAoQuality
+  // Wall-types 3D overlay (`wallTypes3d` pro flag): tints this wall's overlay
+  // jacket by its structural classification when the view toggle is on and the
+  // wall carries a classified `structure`. Narrow store subscription (just the
+  // one boolean) so this doesn't add a re-render dependency on unrelated state.
+  const wallTypes3dFlag = useFeature('wallTypes3d')
+  const showWallTypes = useStore((s) => s.showWallTypes)
+  const wallTypeColor = wallTypeOverlayColor(wall.structure)
+  const showWallTypeJacket = wallTypes3dFlag && showWallTypes && wallTypeColor !== null
   // Accent-wall finishing is editing, so it's only reachable inside the room
   // editor (orbit) AND when the `wallAccentPicker` feature is on. Otherwise a
   // wall-face click does nothing (view-only / feature disabled).
@@ -607,187 +652,210 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     if (accentWalls && canEditScene(useStore.getState())) selectWall(wallId, roomId)
   }
 
+  // Open railing (parapet override, e.g. the AC-ledge walls): render a top
+  // rail + posts + balusters up to `topHeight` INSTEAD of the extruded solid
+  // body/face planes. No wall-reveal fade here (mirrors window grille members
+  // — never faded) — the reveal `useFrame`/hooks above still ran (unconditional
+  // hook order), they just have no group to act on since `groupRef` is never
+  // attached below.
+  if (wall.railing && wall.topHeight) {
+    const railingMembers = railingMemberInstances(length, wall.topHeight)
+    return (
+      <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
+        <InstancedBoxes instances={railingMembers} castShadow>
+          <meshStandardMaterial color="#cfd2d4" roughness={0.5} metalness={0.4} />
+        </InstancedBoxes>
+        {showWallTypeJacket && (
+          <WallTypeOverlayJacket
+            length={length}
+            height={wall.topHeight}
+            thickness={thickness}
+            color={wallTypeColor!}
+          />
+        )}
+      </group>
+    )
+  }
+
   return (
-    <group ref={groupRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
-      {/* Body — a single watertight extruded shape (wall outline minus window
+    <>
+      <group ref={groupRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
+        {/* Body — a single watertight extruded shape (wall outline minus window
           holes / door notches), extended at each end by the abutting wall's
           half-thickness so outside corners close flush. One mesh = no internal
           seams when the wall fades translucent for the dollhouse reveal. */}
-      <mesh geometry={bodyGeometry} castShadow receiveShadow>
-        <meshStandardMaterial
-          color={WALL_STRUCTURE_COLOR}
-          roughness={0.95}
-          polygonOffset
-          polygonOffsetFactor={0}
-          polygonOffsetUnits={bodyBias}
-        />
-      </mesh>
-      {/* Interior face planes — one per (face-span, side), each painted
+        <mesh geometry={bodyGeometry} castShadow receiveShadow>
+          <meshStandardMaterial
+            color={WALL_STRUCTURE_COLOR}
+            roughness={0.95}
+            polygonOffset
+            polygonOffsetFactor={0}
+            polygonOffsetUnits={bodyBias}
+          />
+        </mesh>
+        {/* Interior face planes — one per (face-span, side), each painted
           with the room actually backing that span. Spans that touch the
           wall's absolute start/end are extended outward by the abutting
           wall's half-thickness so the finish reaches the outer corner edge
           (matching the body extension above). The extra portion sits inside
           the perpendicular wall's body and is hidden from view; visible
           finishes from adjacent walls now meet flush at the outer corner. */}
-      {faceSpans.map((span, i) => {
-        const segHeight = span.top - span.bottom
-        const segMidY = span.bottom + segHeight / 2
-        // Per-SIDE along-axis extent. A mitred end cuts the two sides along the
-        // diagonal `a = ±halfLen + slope·z`, so each face plane's end lands exactly
-        // on the body's mitred edge at that face's z (= side·thickness/2): the long
-        // side extends, the other retracts. Correct for convex, concave and unequal
-        // thickness alike (the slope carries all of it). Non-mitred ends use the
-        // body's buried abut for both sides.
-        const endExt = (atStartEnd: boolean, side: 1 | -1): number => {
-          const touches = atStartEnd ? span.start < 1e-6 : span.end > length - 1e-6
-          if (!touches) return 0
-          const cm = atStartEnd ? startCM : endCM
-          if (cm.slope !== null) {
-            const half = cm.slope * side * (thickness / 2)
-            return atStartEnd ? -half : half
+        {faceSpans.map((span, i) => {
+          const segHeight = span.top - span.bottom
+          const segMidY = span.bottom + segHeight / 2
+          // Per-SIDE along-axis extent. A mitred end cuts the two sides along the
+          // diagonal `a = ±halfLen + slope·z`, so each face plane's end lands exactly
+          // on the body's mitred edge at that face's z (= side·thickness/2): the long
+          // side extends, the other retracts. Correct for convex, concave and unequal
+          // thickness alike (the slope carries all of it). Non-mitred ends use the
+          // body's buried abut for both sides.
+          const endExt = (atStartEnd: boolean, side: 1 | -1): number => {
+            const touches = atStartEnd ? span.start < 1e-6 : span.end > length - 1e-6
+            if (!touches) return 0
+            const cm = atStartEnd ? startCM : endCM
+            if (cm.slope !== null) {
+              const half = cm.slope * side * (thickness / 2)
+              return atStartEnd ? -half : half
+            }
+            return cm.abut
           }
-          return cm.abut
-        }
-        const sideSeg = (side: 1 | -1) => {
-          const a = span.start - endExt(true, side)
-          const b = span.end + endExt(false, side)
-          return { segLen: b - a, segMid: (a + b) / 2 - length / 2 }
-        }
-        const posSeg = sideSeg(1)
-        const negSeg = sideSeg(-1)
-        const positiveMat = span.positive ? wallFinishes[span.positive] : null
-        const negativeMat = span.negative ? wallFinishes[span.negative] : null
-        // Skirting boards only on spans that reach the floor.
-        const onFloor = span.bottom < 0.01
-        // Crown molding only on full-height spans (span top at or near ceiling).
-        // The 0.01 m tolerance absorbs floating-point differences. The same
-        // abutment-extended segLen already closes mitre corners correctly.
-        const atCeiling = crownMolding && span.top >= ceilingHeight - 0.01
-        return (
-          <group key={i}>
-            {/* Baked corner-AO strips along the floor edge of each room-facing
-                side — independent of whether a wall finish is set, so the
-                grounding cue is present on bare plaster too (RD-403). */}
-            {cornerAoOn && onFloor && span.positive && (
-              <WallFloorAO
-                segLen={posSeg.segLen}
-                segMid={posSeg.segMid}
-                thickness={thickness}
-                sign={1}
-              />
-            )}
-            {cornerAoOn && onFloor && span.negative && (
-              <WallFloorAO
-                segLen={negSeg.segLen}
-                segMid={negSeg.segMid}
-                thickness={thickness}
-                sign={-1}
-              />
-            )}
-            {positiveMat ? (
-              <>
-                <SilentErrorBoundary resetKey={positiveMat}>
-                  <Suspense fallback={null}>
-                    <SegmentFace
+          const sideSeg = (side: 1 | -1) => {
+            const a = span.start - endExt(true, side)
+            const b = span.end + endExt(false, side)
+            return { segLen: b - a, segMid: (a + b) / 2 - length / 2 }
+          }
+          const posSeg = sideSeg(1)
+          const negSeg = sideSeg(-1)
+          const positiveMat = span.positive ? wallFinishes[span.positive] : null
+          const negativeMat = span.negative ? wallFinishes[span.negative] : null
+          // Skirting boards only on spans that reach the floor.
+          const onFloor = span.bottom < 0.01
+          // Crown molding only on full-height spans (span top at or near ceiling).
+          // The 0.01 m tolerance absorbs floating-point differences. The same
+          // abutment-extended segLen already closes mitre corners correctly.
+          const atCeiling = crownMolding && span.top >= ceilingHeight - 0.01
+          return (
+            <group key={i}>
+              {positiveMat ? (
+                <>
+                  <SilentErrorBoundary resetKey={positiveMat}>
+                    <Suspense fallback={null}>
+                      <SegmentFace
+                        segLen={posSeg.segLen}
+                        segHeight={segHeight}
+                        segMid={posSeg.segMid}
+                        segMidY={segMidY}
+                        thickness={thickness}
+                        sign={1}
+                        materialId={positiveMat}
+                        roomId={span.positive ?? undefined}
+                        onSelect={
+                          span.positive && accentWalls
+                            ? () => selectWallIfEditing(wall.id, span.positive!)
+                            : undefined
+                        }
+                      />
+                    </Suspense>
+                  </SilentErrorBoundary>
+                  {onFloor && (
+                    <Baseboard
+                      segLen={posSeg.segLen}
+                      segMid={posSeg.segMid}
+                      thickness={thickness}
+                      sign={1}
+                    />
+                  )}
+                  {atCeiling && (
+                    <CrownMolding
+                      segLen={posSeg.segLen}
+                      segMid={posSeg.segMid}
+                      segTop={span.top}
+                      thickness={thickness}
+                      sign={1}
+                    />
+                  )}
+                  {selectedWall?.wallId === wall.id && selectedWall.roomId === span.positive && (
+                    <FaceHighlight
                       segLen={posSeg.segLen}
                       segHeight={segHeight}
                       segMid={posSeg.segMid}
                       segMidY={segMidY}
                       thickness={thickness}
                       sign={1}
-                      materialId={positiveMat}
-                      roomId={span.positive ?? undefined}
-                      onSelect={
-                        span.positive && accentWalls
-                          ? () => selectWallIfEditing(wall.id, span.positive!)
-                          : undefined
-                      }
                     />
-                  </Suspense>
-                </SilentErrorBoundary>
-                {onFloor && (
-                  <Baseboard
-                    segLen={posSeg.segLen}
-                    segMid={posSeg.segMid}
-                    thickness={thickness}
-                    sign={1}
-                  />
-                )}
-                {atCeiling && (
-                  <CrownMolding
-                    segLen={posSeg.segLen}
-                    segMid={posSeg.segMid}
-                    segTop={span.top}
-                    thickness={thickness}
-                    sign={1}
-                  />
-                )}
-                {selectedWall?.wallId === wall.id && selectedWall.roomId === span.positive && (
-                  <FaceHighlight
-                    segLen={posSeg.segLen}
-                    segHeight={segHeight}
-                    segMid={posSeg.segMid}
-                    segMidY={segMidY}
-                    thickness={thickness}
-                    sign={1}
-                  />
-                )}
-              </>
-            ) : null}
-            {negativeMat ? (
-              <>
-                <SilentErrorBoundary resetKey={negativeMat}>
-                  <Suspense fallback={null}>
-                    <SegmentFace
+                  )}
+                </>
+              ) : null}
+              {negativeMat ? (
+                <>
+                  <SilentErrorBoundary resetKey={negativeMat}>
+                    <Suspense fallback={null}>
+                      <SegmentFace
+                        segLen={negSeg.segLen}
+                        segHeight={segHeight}
+                        segMid={negSeg.segMid}
+                        segMidY={segMidY}
+                        thickness={thickness}
+                        sign={-1}
+                        materialId={negativeMat}
+                        roomId={span.negative ?? undefined}
+                        onSelect={
+                          span.negative && accentWalls
+                            ? () => selectWallIfEditing(wall.id, span.negative!)
+                            : undefined
+                        }
+                      />
+                    </Suspense>
+                  </SilentErrorBoundary>
+                  {onFloor && (
+                    <Baseboard
+                      segLen={negSeg.segLen}
+                      segMid={negSeg.segMid}
+                      thickness={thickness}
+                      sign={-1}
+                    />
+                  )}
+                  {atCeiling && (
+                    <CrownMolding
+                      segLen={negSeg.segLen}
+                      segMid={negSeg.segMid}
+                      segTop={span.top}
+                      thickness={thickness}
+                      sign={-1}
+                    />
+                  )}
+                  {selectedWall?.wallId === wall.id && selectedWall.roomId === span.negative && (
+                    <FaceHighlight
                       segLen={negSeg.segLen}
                       segHeight={segHeight}
                       segMid={negSeg.segMid}
                       segMidY={segMidY}
                       thickness={thickness}
                       sign={-1}
-                      materialId={negativeMat}
-                      roomId={span.negative ?? undefined}
-                      onSelect={
-                        span.negative && accentWalls
-                          ? () => selectWallIfEditing(wall.id, span.negative!)
-                          : undefined
-                      }
                     />
-                  </Suspense>
-                </SilentErrorBoundary>
-                {onFloor && (
-                  <Baseboard
-                    segLen={negSeg.segLen}
-                    segMid={negSeg.segMid}
-                    thickness={thickness}
-                    sign={-1}
-                  />
-                )}
-                {atCeiling && (
-                  <CrownMolding
-                    segLen={negSeg.segLen}
-                    segMid={negSeg.segMid}
-                    segTop={span.top}
-                    thickness={thickness}
-                    sign={-1}
-                  />
-                )}
-                {selectedWall?.wallId === wall.id && selectedWall.roomId === span.negative && (
-                  <FaceHighlight
-                    segLen={negSeg.segLen}
-                    segHeight={segHeight}
-                    segMid={negSeg.segMid}
-                    segMidY={segMidY}
-                    thickness={thickness}
-                    sign={-1}
-                  />
-                )}
-              </>
-            ) : null}
-          </group>
-        )
-      })}
-    </group>
+                  )}
+                </>
+              ) : null}
+            </group>
+          )
+        })}
+      </group>
+      {/* Jacket is a SIBLING of the `groupRef`-tracked group above, never a
+          child — the per-frame reveal `useFrame` traverses that group and
+          would otherwise apply the wall-fade opacity/emissive logic to this
+          mesh's MeshBasicMaterial (which has no `emissive`), stomping the
+          overlay's own fixed 0.35 opacity (or throwing). */}
+      {showWallTypeJacket && (
+        <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
+          <WallTypeOverlayJacket
+            length={length}
+            height={wallTop}
+            thickness={thickness}
+            color={wallTypeColor!}
+          />
+        </group>
+      )}
+    </>
   )
 }
 

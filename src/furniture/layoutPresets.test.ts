@@ -19,7 +19,9 @@ describe('layoutPresets', () => {
     }
   })
 
-  it('every preset produces a collision-valid layout', () => {
+  // 15 s: the all-presets loop brushes the default 5 s under full-suite/parallel
+  // load (passes in ~2 s isolated) — headroom, same as placementSoundness.
+  it('every preset produces a collision-valid layout', { timeout: 15000 }, () => {
     for (const preset of LAYOUT_PRESETS) {
       const items = buildPresetItems(preset)
       const placed: typeof items = []

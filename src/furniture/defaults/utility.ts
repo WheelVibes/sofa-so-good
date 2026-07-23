@@ -8,27 +8,31 @@ import type { LayoutEntry } from './types'
  *  no longer flags them as unlit. Ceiling lights are `mounted`+`noClip`, so they
  *  never clip a wall or block a door — placement guards ignore them. */
 export const utility: LayoutEntry[] = [
-  // Corridor — origin (4.35, 3.70), 4.75 × 1.30 m → centre (6.73, 4.35).
+  // Corridor — [3.525,3.825]→[9.125,4.825] → centre (6.325, 4.325).
   {
     id: 'default-corr-light',
     defId: 'ceiling-light',
-    position: [6.73, 4.35],
+    position: [6.325, 4.325],
     rotation: 0,
     props: { style: 'flush' },
   },
-  // Household Shelter — origin (6.10, 5.10), 2.35 × 1.60 m → centre (7.28, 5.90).
+  // Household Shelter — [5.915,5.025]→[8.065,6.675] (the RC ring thickened to
+  // 300 mm on all four sides, shrinking 2.35×1.85 → 2.15×1.65) → centre
+  // unchanged at (6.99, 5.85) since the shrink is symmetric on each axis.
   {
     id: 'default-hs-light',
     defId: 'ceiling-light',
-    position: [7.28, 5.9],
+    position: [6.99, 5.85],
     rotation: 0,
     props: { style: 'flush' },
   },
-  // Service Yard — origin (3.90, 6.80), 2.40 × 2.35 m → centre (5.10, 7.98).
+  // Service Yard — [4.705,6.875]→[6.125,9.075] → centre (5.415, 7.975). South
+  // wall is 300 mm thick (see apartment/constants.ts wall-ext-S derivation),
+  // moving the interior face 9.125 → 9.075.
   {
     id: 'default-sy-light',
     defId: 'ceiling-light',
-    position: [5.1, 7.6],
+    position: [5.415, 7.975],
     rotation: 0,
     props: { style: 'flush' },
   },

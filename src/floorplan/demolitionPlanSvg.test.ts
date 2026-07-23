@@ -104,7 +104,7 @@ describe('demolitionSvg', () => {
       }
       const svg = demolitionSvg(diff, { palette: PALETTE })
       expect(svg).toContain('stroke-width="5"')
-      expect(svg).toContain('Structural — load-bearing / RC (heavy line)')
+      expect(svg).toContain('Structural — load-bearing / RC / gable-end (heavy line)')
     })
 
     it('escalates a load-bearing wall marked for demolition to a danger treatment', () => {
@@ -118,7 +118,7 @@ describe('demolitionSvg', () => {
       const svg = demolitionSvg(diff, { palette: PALETTE })
       expect(svg).toContain(PALETTE.danger)
       expect(svg).toContain('NOT PERMITTED')
-      expect(svg).toContain('NOT PERMITTED — structural (load-bearing / RC) (1)')
+      expect(svg).toContain('NOT PERMITTED — structural (load-bearing / RC / gable-end) (1)')
     })
 
     it('treats a reinforced-concrete partition (rc-partition) as NOT PERMITTED too — matching the hackability overlay', () => {
@@ -131,7 +131,7 @@ describe('demolitionSvg', () => {
       }
       const svg = demolitionSvg(diff, { palette: PALETTE })
       expect(svg).toContain(PALETTE.danger)
-      expect(svg).toContain('NOT PERMITTED — structural (load-bearing / RC) (1)')
+      expect(svg).toContain('NOT PERMITTED — structural (load-bearing / RC / gable-end) (1)')
       // An RC partition is structural, so it must NOT be mislabelled as a mere
       // "unverified" partition demolition.
       expect(svg).not.toContain('Structure unverified')
@@ -178,7 +178,7 @@ describe('demolitionSvg', () => {
       const svg = demolitionSvg(sampleDiff(), { palette: PALETTE })
       // The permit-note block always mentions "load-bearing" generically — only
       // the classification-specific rows/markers should be absent.
-      expect(svg).not.toContain('Structural — load-bearing / RC (heavy line)')
+      expect(svg).not.toContain('Structural — load-bearing / RC / gable-end (heavy line)')
       expect(svg).not.toContain('NOT PERMITTED')
       expect(svg).not.toContain('⚠')
     })

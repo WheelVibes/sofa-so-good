@@ -271,15 +271,20 @@ export function peranakanFields(base: [number, number, number], seed: number, S:
  * shading reuses the wood look (warped latewood bands + tinted boards + recessed
  * grooves at plank/block edges), oriented per block.
  */
-export function subwayFields(base: [number, number, number], seed: number, S: number): Fields {
+export function subwayFields(
+  base: [number, number, number],
+  seed: number,
+  S: number,
+  opts?: { cols?: number; rows?: number; normalStrength?: number; bevelDiv?: number },
+): Fields {
   const f = blank(S)
-  f.normalStrength = 14
-  const cols = 4
+  f.normalStrength = opts?.normalStrength ?? 14
+  const cols = opts?.cols ?? 4
   const tw = S / cols // tile width
-  const rows = 8 // even → half-offset running bond wraps; 2:1 tiles (tw = 2·th)
+  const rows = opts?.rows ?? 8 // even → half-offset running bond wraps; 2:1 tiles (tw = 2·th)
   const th = S / rows
   const grout = Math.max(2, Math.round(S / 150)) // thin joint
-  const bevel = Math.max(3, Math.round(S / 90)) // soft edge bevel band
+  const bevel = Math.max(3, Math.round(S / (opts?.bevelDiv ?? 90))) // soft edge bevel band
   const groutRgb: [number, number, number] = [218, 214, 206]
   const speck = makeFbm(seed + 7, 3, 60)
   const groutDirt = makeFbm(seed + 17, 3, 7) // aged-grout dirt (RZ4)
@@ -326,6 +331,19 @@ export function subwayFields(base: [number, number, number], seed: number, S: nu
     }
   }
   return f
+}
+
+/**
+ * Large-format glazed porcelain — the SNV/HDB 300×600 mm running-bond wall/
+ * floor tile (assets/ocs photos 6/9). Reuses the subway painter's running-bond
+ * layout at 2 cols × 4 rows per repeat, so a `uvScale` of `[1.2, 1.2]` renders
+ * true 0.6 × 0.3 m tiles — with the pixel-proportioned details re-tuned for
+ * that physical scale: a gentler bevel band (`S/180` ≈ 7 mm at 1.2 m, vs the
+ * metro tile's `S/90` which blows up to ~27 mm and reads as glass block) and a
+ * softer normal so the face stays flat glazed porcelain, not chunky masonry.
+ */
+export function porcelainFields(base: [number, number, number], seed: number, S: number): Fields {
+  return subwayFields(base, seed, S, { cols: 2, rows: 4, normalStrength: 8, bevelDiv: 180 })
 }
 
 export function brickFields(base: [number, number, number], seed: number, S: number): Fields {

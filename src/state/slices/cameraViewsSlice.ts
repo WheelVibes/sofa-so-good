@@ -2,7 +2,7 @@ import { cameraPose } from '../../scene/cameras/cameraForward'
 import { suggestViews } from '../../scene/cameras/suggestViews'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
-import type { LightsMode } from './uiSlice'
+import { type LightsMode, normalizeLightsMode } from './uiSlice'
 
 /** A saved orbit-camera bookmark: a named position + look-at target, plus the
  *  lighting state so a "shot" reproduces the full look (angle + ambiance). */
@@ -77,15 +77,20 @@ function loadViews(): SavedView[] {
     const raw = localStorage.getItem(LS_KEY)
     const parsed = raw ? JSON.parse(raw) : null
     if (!Array.isArray(parsed)) return []
-    return parsed.filter(
-      (v): v is SavedView =>
-        v &&
-        typeof v.id === 'string' &&
-        typeof v.name === 'string' &&
-        Array.isArray(v.pos) &&
-        v.pos.length === 3 &&
-        Array.isArray(v.target) &&
-        v.target.length === 3,
+    return (
+      parsed
+        .filter(
+          (v): v is SavedView =>
+            v &&
+            typeof v.id === 'string' &&
+            typeof v.name === 'string' &&
+            Array.isArray(v.pos) &&
+            v.pos.length === 3 &&
+            Array.isArray(v.target) &&
+            v.target.length === 3,
+        )
+        // A pre-2026-07-24 persisted view may hold the removed 'auto' lights mode.
+        .map((v) => (v.lights ? { ...v, lights: normalizeLightsMode(v.lights) } : v))
     )
   } catch {
     return []

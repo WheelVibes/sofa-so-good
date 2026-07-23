@@ -5,12 +5,6 @@ import { useNewBadge } from '../../newBadges'
 import { Icon, type IconName } from '../icons'
 import { MenuLabel } from '../ToolbarMenu'
 
-export const LIGHTS_LABEL: Record<'auto' | 'on' | 'off', string> = {
-  auto: 'Auto',
-  on: 'On',
-  off: 'Off',
-}
-
 /** A tappable row inside an accordion section: icon + label (+ sub) + On badge.
  *  `tourId` tags the row with `data-tour` so the product tour can spotlight it. */
 export function Item({

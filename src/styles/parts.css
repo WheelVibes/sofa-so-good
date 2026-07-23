@@ -327,9 +327,25 @@
 [data-mode='dark'] .pack-notice { color: oklch(0.82 0.12 78); }
 
 /* ---- Inspector (right) --------------------------------------- */
-.inspector { right: var(--s-4); top: var(--s-4); width: var(--panel-w); max-height: calc(100vh - 32px); }
+.inspector { right: var(--s-4); top: var(--s-4); width: var(--panel-w-wide); max-height: calc(100vh - 32px); }
 /* Minimize/close button cluster in the header. */
 .insp-head-btns { display: flex; align-items: center; gap: 2px; flex: none; }
+/* Desktop: the full cluster is up to 6 icon buttons — on one line it crushed
+   the title ("Aircon (w…"). Wrap into a 3-per-row grid so the name keeps most
+   of the header width. Mobile keeps the single row (full-width bottom sheet). */
+@media (min-width: 641px) {
+  .inspector .insp-head-btns {
+    display: grid;
+    grid-template-columns: repeat(3, max-content);
+    justify-items: end;
+    justify-content: end;
+  }
+}
+/* The inspector's collapsible sections sit on a translucent glass panel — the
+   sticky `.sec-h` strip double-composites `--surface` over it and read as
+   bright WHITE bars ("Properties"/"Size"). Match the finish-picker treatment:
+   static + transparent (the `.sec` border-top already separates sections). */
+.inspector .sec-h { position: static; background: transparent; box-shadow: none; }
 /* Minimized: just the header bar, so it stops blocking the furniture. */
 .inspector.minimized { max-height: none; }
 .inspector.minimized .panel-head { padding-bottom: var(--s-3); }

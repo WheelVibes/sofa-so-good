@@ -19,6 +19,10 @@ export interface PlanClippedWall {
   end: [number, number]
   thickness: PlanWall['thickness']
   topHeight?: number
+  /** Carried through from the source `PlanWall.structure` (wall-types 3D
+   *  overlay — `wallTypeColor.ts`) so the room editor can tint a clipped wall
+   *  the same way the whole-flat orbit view does. */
+  structure?: PlanWall['structure']
 }
 
 /** An opening attributed to a room, with its world placement resolved (so a
@@ -182,6 +186,7 @@ export function planRoomShell(plan: FloorPlan, roomId: string): PlanRoomShell | 
         end: clip.end,
         thickness: w.thickness,
         topHeight: w.topHeight,
+        structure: w.structure,
       })
     }
   }

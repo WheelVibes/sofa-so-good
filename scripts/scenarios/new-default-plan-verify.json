@@ -1,0 +1,29 @@
+{
+  "name": "new-default-plan-verify",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "perf-tier", "eval": "window.__store.getState().setQualityTier('performance')" },
+    { "name": "midday", "eval": "window.__store.getState().setManualHour(13)" },
+    { "name": "settle-boot", "wait": 2000 },
+    { "name": "shot-overview", "screenshot": "01-orbit-overview" },
+    { "name": "focus-ld", "eval": "window.__store.getState().focusOn([10.6, 4.2])" },
+    { "name": "settle-ld", "wait": 1500 },
+    { "name": "shot-living", "screenshot": "02-living-dining" },
+    { "name": "focus-kitchen", "eval": "window.__store.getState().focusOn([8.0, 8.0])" },
+    { "name": "settle-k", "wait": 1200 },
+    { "name": "shot-kitchen", "screenshot": "03-kitchen-sy" },
+    { "name": "focus-mb", "eval": "window.__store.getState().focusOn([1.7, 2.4])" },
+    { "name": "settle-mb", "wait": 1200 },
+    { "name": "shot-mainbedroom", "screenshot": "04-main-bedroom" },
+    { "name": "focus-baths", "eval": "window.__store.getState().focusOn([3.6, 5.8])" },
+    { "name": "settle-baths", "wait": 1200 },
+    { "name": "shot-baths", "screenshot": "05-baths-shelter" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "settle-plan", "wait": 800 },
+    { "name": "shot-plan-editor", "screenshot": "06-plan-editor" }
+  ]
+}

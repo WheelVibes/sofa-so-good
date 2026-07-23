@@ -44,6 +44,9 @@ export function Skirting() {
   const strips = useMemo<Strip[]>(() => {
     const out: Strip[] = []
     for (const wall of WALLS) {
+      // A railing (open metal parapet) has no floor-level solid face — skip
+      // its skirting strip.
+      if (wall.railing) continue
       const len = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1])
       if (len === 0) continue
       const ux = (wall.end[0] - wall.start[0]) / len
@@ -104,7 +107,10 @@ export function Skirting() {
       {strips.map((s, i) => (
         <mesh key={i} position={[s.cx, s.cy, s.cz]} rotation={[0, s.angle, 0]} receiveShadow>
           <boxGeometry args={[s.thickness, s.height, s.length]} />
-          <meshStandardMaterial color="#eceae4" roughness={0.7} metalness={0} />
+          {/* Laminated UPVC skirting (SNV spec) — supplied colour-matched to
+              the vinyl strip flooring's grey-washed laminate, a shade deeper
+              than the floor swatch so the board reads as trim, not floor. */}
+          <meshStandardMaterial color="#aca192" roughness={0.65} metalness={0} />
         </mesh>
       ))}
     </group>

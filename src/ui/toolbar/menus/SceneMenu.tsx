@@ -7,7 +7,6 @@ import { applyRenderPreset, RENDER_PRESETS } from '../../../scene/renderPresets'
 import type { BackdropKind } from '../../../scene/SceneBackdrop'
 import { BACKDROPS } from '../../../scene/SceneBackdrop'
 import { PRESET_HOURS } from '../../../state/slices/timeSlice'
-import type { LightsMode } from '../../../state/slices/uiSlice'
 import { useStore } from '../../../state/store'
 import { Segmented } from '../../controls/Segmented'
 import { Select } from '../../controls/Select'
@@ -17,12 +16,6 @@ import { BackdropUpload } from '../../scene/BackdropUpload'
 import { TimeOfDaySlider } from '../../scene/TimeOfDaySlider'
 import { CompassModal } from '../CompassModal'
 import { ToolbarMenu } from '../ToolbarMenu'
-
-const LIGHTS_MODES: { key: LightsMode; label: string }[] = [
-  { key: 'auto', label: 'Auto' },
-  { key: 'on', label: 'On' },
-  { key: 'off', label: 'Off' },
-]
 
 const MOOD_OPTIONS = LIGHT_MOODS.map((m) => ({ value: m, label: MOOD_PRESETS[m].shortLabel }))
 
@@ -52,8 +45,8 @@ function useActivePresetId(): string {
   return 'none'
 }
 
-/** Scene cluster: time of day (slider + snap checkpoints), lights (off/on/auto —
- *  independent of the time of day), backdrop, and sun direction. */
+/** Scene cluster: time of day (slider + snap checkpoints), lights (all on / all
+ *  off toggle — independent of the time of day), backdrop, and sun direction. */
 export function SceneMenu() {
   const orientationDeg = useStore((s) => s.orientationDeg)
   const lightsMode = useStore((s) => s.lightsMode)
@@ -92,21 +85,17 @@ export function SceneMenu() {
 
         {/* ---- Lights (independent of the sun / time of day) ---- */}
         <div className="scene-sep" />
-        <div className="scene-row-head">
+        <div className="scene-row-head" onClick={(e) => e.stopPropagation()}>
           <span>Lights</span>
-        </div>
-        <div className="scene-seg" onClick={(e) => e.stopPropagation()}>
-          {LIGHTS_MODES.map((m) => (
-            <button
-              key={m.key}
-              type="button"
-              className={lightsMode === m.key ? 'on' : ''}
-              onClick={() => setLightsMode(m.key)}
-              title={`Light fixtures: ${m.label}`}
-            >
-              {m.label}
-            </button>
-          ))}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={lightsMode === 'on'}
+            aria-label="Lights"
+            title={lightsMode === 'on' ? 'All lights on' : 'All lights off'}
+            onClick={() => setLightsMode(lightsMode === 'on' ? 'off' : 'on')}
+            className={`switch${lightsMode === 'on' ? ' on' : ''}`}
+          />
         </div>
 
         {/* ---- Lighting mood presets (UX round-3 #3): one-tap brightness +

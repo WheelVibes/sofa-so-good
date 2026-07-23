@@ -55,6 +55,7 @@ __pycache__/
 local-assets/
 
 # Scraped CC0/CC-BY/PD asset corpus (dev-only, not shipped)
+dataset/
 scraped_assets/
 
 # Desktop packaging output (electron-builder) + generated build resources (icon)
@@ -69,3 +70,8 @@ workers/**/.wrangler/
 # CodeGraph / graphify local index artifacts (tooling, never committed)
 .codegraph/
 src/graphify-out/
+
+# Reference images
+assets/floor_plan/
+assets/guidelines/
+assets/ocs/

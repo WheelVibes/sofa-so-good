@@ -4,8 +4,8 @@ import { useStore } from '../store'
 describe('uiSlice lights mode', () => {
   beforeEach(() => useStore.getState().__resetForTest())
 
-  it('defaults to auto', () => {
-    expect(useStore.getState().lightsMode).toBe('auto')
+  it('defaults to off', () => {
+    expect(useStore.getState().lightsMode).toBe('off')
   })
 
   it('setLightsMode sets the mode directly', () => {
@@ -15,15 +15,13 @@ describe('uiSlice lights mode', () => {
     expect(useStore.getState().lightsMode).toBe('off')
   })
 
-  it('cycleLightsMode cycles auto → on → off → auto', () => {
+  it('cycleLightsMode toggles off → on → off', () => {
     const cycle = () => useStore.getState().cycleLightsMode()
-    expect(useStore.getState().lightsMode).toBe('auto')
+    expect(useStore.getState().lightsMode).toBe('off')
     cycle()
     expect(useStore.getState().lightsMode).toBe('on')
     cycle()
     expect(useStore.getState().lightsMode).toBe('off')
-    cycle()
-    expect(useStore.getState().lightsMode).toBe('auto')
   })
 
   it('picking a tier manually clears the adaptive shadow-shed fallback', () => {
@@ -122,5 +120,20 @@ describe('uiSlice asset quality', () => {
     useStore.getState().setAssetTier('high')
     useStore.getState().autoSetQualityTier('performance')
     expect(useStore.getState().assetTier).toBe('high')
+  })
+})
+
+describe('uiSlice wall-types 3D overlay toggle', () => {
+  beforeEach(() => useStore.getState().__resetForTest())
+
+  it('defaults to off', () => {
+    expect(useStore.getState().showWallTypes).toBe(false)
+  })
+
+  it('toggleWallTypes flips the flag on and off', () => {
+    useStore.getState().toggleWallTypes()
+    expect(useStore.getState().showWallTypes).toBe(true)
+    useStore.getState().toggleWallTypes()
+    expect(useStore.getState().showWallTypes).toBe(false)
   })
 })

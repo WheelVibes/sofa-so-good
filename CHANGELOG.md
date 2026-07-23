@@ -5,6 +5,331 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.23.1.13 — GPU-STARVE: fix white flashes while panning at Maximum (interactive degrade + context-restore rebuild)
+
+Root cause (instrumented on real GPU, ANGLE D3D12): at High/Maximum a single pan frame
+(DPR 2 × full-res N8AO × bloom × SMAA × transmission) can exceed the OS GPU watchdog
+(Windows TDR ≈ 2 s) → driver reset → WebGL context lost → the canvas blanks to the page
+background until restore = a random full-screen white flash. Three-part fix:
+
+1. **Interactive resolution degrade (GPU-STARVE-1, new `interactiveDegrade` flag, simple
+   tier, default on).** While an orbit rotate/pan/dolly gesture is held (OrbitControls
+   start/end → `cameraMotionSignal.ts`) — plus a 350 ms release debounce — at a post-stack
+   tier, `InteractiveDprController` (mounted in BOTH Canvases) halves the pixel ratio
+   (¼ the frame cost, floor 0.5). A **long-frame governor** also engages it for 3 s after
+   any rendered frame >250 ms while frames are continuously driven (`interactiveDegrade.ts`,
+   pure + unit-tested), so spike-prone views back off before the watchdog can fire, and
+   full resolution is retried every 3 s. Never degrades a recording. DPR changes go through
+   r3f `setDpr` + a same-value `setSize` nudge — `@react-three/postprocessing`'s composer
+   only re-sizes its buffers when the r3f `size` identity changes, so without the nudge the
+   post stack would keep rendering at the old resolution and the degrade would save nothing.
+2. **Context-restore rebuild (GPU-STARVE-2).** A bare `invalidate()` after
+   `webglcontextrestored` left the scene degraded (three re-uploads CPU-backed resources,
+   but render-target-only ones are gone): `ContextLossGuard` now pulses the shadow-refresh
+   signal (the PERF-MAX-1 frozen sun shadow map would otherwise stay stale forever), bumps
+   the new `contextRestoreSignal` (SceneEnvironment keys its `<Environment>` on it so the
+   IBL probe/PMREM re-bakes), and holds the RenderPump continuous until ≥8 frames AND
+   ≥1.5 s have passed (frame-COUNTED, not just timed — on a slow renderer a timed hold can
+   elapse before the bake frame ever runs), hard-capped at 15 s for hidden tabs.
+3. Verified on real GPU (drag steps 13–74 s → 6–7 s; drawing buffer 1600→800 during
+   gestures; full-DPR retry every 3 s; recovers) and SwiftShader (forced
+   `WEBGL_lose_context` loss/restore → `scene.environment` rebuilt, before/after pixels
+   identical — guard scenario `scripts/scenarios/context-restore-rebuild.json`).
+
+New: `scene/cameraMotionSignal.ts`, `scene/interactiveDegrade.ts` (+tests),
+`scene/InteractiveDprController.tsx`, `scene/contextRestoreSignal.ts` (+test). 8465 tests
+green, tsc + biome clean.
+
+## v0.23.1.12 — inspector polish; binary lights switch; curtain sill clearance made structural
+
+**Inspector panel (desktop) decramped** (user report). The right dock rail +
+`.inspector` widen 320 → 360 px (new `--panel-w-wide` token; `--right-rail`
+and `.dock-panel` width follow it). The 6-button header icon cluster wraps
+into a 3-per-row grid on desktop (mobile sheet keeps one row) so the item
+name is no longer crushed to "Aircon (w…". The collapsible-section headers
+("Properties"/"Size") dropped the sticky `--surface` strip that
+double-composited into bright WHITE bars on the glass panel — now static +
+transparent, matching the finish-picker precedent. The Name field gains a
+top margin off the header rule.
+
+**Lights are now a binary all-on/all-off iPhone-style switch** (user
+request). The follow-the-sun `'auto'` mode is removed: `LightsMode` is
+`'on' | 'off'` (default `'off'`), `FurnitureLights`/`LuxOverlay` drop the
+sun-darkness ramp, and the toolbar, desktop Scene menu, and mobile Scene
+sheet all render the shared `.switch` toggle (`role="switch"`) instead of
+the 3-way segmented control. Legacy saves/views holding `'auto'` normalize
+to `'off'` via `normalizeLightsMode` (schema load + saved-views load); the
+golden-hour render preset now sets lights `'on'`. Docs + tests updated.
+
+**Curtain sill clearance is structural, not per-item** (user report: living
+room curtain still embedded in the wall). Root cause: `standoff` defaulted
+to 0 in the `Curtain` primitive, so any curtain item WITHOUT the prop — the
+pre-0.23.1.11 committed defaults still living in users' autosaves — sank
+its fold troughs into the wall/sill; and even the snap's 0.16 left the
+deepest troughs 0.02 m INSIDE the sill ledge for a centre-line-snapped
+curtain. `CURTAIN_SILL_STANDOFF` bumps 0.16 → 0.20 (clears sill projection
+0.14 + max fold depth 0.09 − panel base 0.05, with margin), is exported,
+and becomes the primitive's DEFAULT when the prop is absent — legacy saves
+render clear with no migration. The four default-flat curtains reference
+the constant. Verified visually (room-editor + interior close-ups of
+living/dining and bedroom 3).
+
+## v0.23.1.11 — remove baked corner-AO strips; default curtains clear the window frame
+
+**Corner-AO removal (RD-403 retired).** The baked wall/floor corner-AO
+gradient strips — a fake-AO substitute that only ever rendered on the
+SSAO-less Performance/Medium tiers — read as hard black outlines hugging
+every wall base from top-down/plan camera angles (user report, verified by
+A/B flag toggle). Removed outright rather than softened: deleted
+`scene/CornerAO.tsx` + `scene/cornerAoMath.ts` (+ tests + the
+`corner-ao-simple.json` scenario), the `cornerAo` feature flag, the
+`cornerAo` `QualitySettings` field (all four tier presets), the
+`WallSegment.tsx` mounts, and the dev-profiler cost-sweep row. High/Maximum
+are unaffected — their corner darkening always came from the real
+post-processing SSAO pass, which stays. Docs updated (`scene/CLAUDE.md`
+now records the retirement + do-not-reintroduce rationale, ARCHITECTURE,
+PHOTOREALISM, visual-verification playbook).
+
+**Default curtains stood off the window frame.** The four hand-authored
+default-flat curtains (`default-ld-curtain` + all three bedrooms) sat flush
+against their walls with no `standoff` prop, so the fabric's fold troughs
+(±0.05 m sinusoidal displacement) sank into the window's ~0.14 m interior
+sill/frame projection — the living-room curtain visibly embedded in the
+north wall (user report). Added `standoff: 0.16` to all four, the same
+value live window-snap placement sets via `windowFixtureProps`, shifting
+rod + panels forward together; verified visually the LD curtain clears the
+wall, window frame, and the aircon's front face (taper math: troughs at the
+aircon's height reach z≈1.58 vs its face at 1.57 even fully open).
+
+## v0.23.1.8 — ALL full-black structural walls at 300 mm (user directive)
+
+Extends v0.23.1.7's south-wall fix to every wall the plan draws as a
+full-black structural run (`assets/floor_plan/default.png` legend): the
+household-shelter RC ring (all four walls), `wall-ext-bath1-W`, the NE RC
+column stub (`wall-int-b3-LD-col`), `wall-ext-SE-jog-W` + `wall-ext-SE-step`,
+and the `wall-ext-W` gable end — all `thicknessM: 0.3`. Mixed facades
+(black piers + double-line window infill on the north/east walls) stay
+200 mm; their discrete columns remain the deferred TODO. Room interiors
+re-derived from the centreline chains with plan cross-checks (bath1
+2350−150−50=2150 ✓, bath2 1950−50−150=1750 ✓, MB 3230−150−50=3030 ✓;
+shelter interior now 2.15×1.65 — real HDB shelter walls are 300 RC);
+`door-bath2` nudged 50 mm clear of the thicker ring; flush furniture +
+four presets' lounge clusters shifted with the moved faces. Interior
+rect-sum area 90.2 → 87.8 m² (clear-interior measure; HDB's 90 m² is
+centre-line computed). Root-cause fix: `wallThicknessMetres` now falls
+back to `WallSpec.thicknessM` when the store override map isn't populated
+(latent since v0.23.1.7 in pure/unit contexts). Full suite green (8457);
+GPU-verified: shelter ring, narrowed bath2, kitchen north face, top-down
+floor coverage, 2D plan (structural runs print thick, areas updated).
+
+## v0.23.1.7 — Structural south wall carries its real 300 mm thickness
+
+User-verified against `assets/floor_plan/default.png`: the kitchen band's
+dimension chain is 2400 mm (partition centreline → south-wall centreline)
+while the kitchen's annotated interior depth is 2200 mm — so the black
+structural south wall is **300 mm** thick (2400 − 50 − t/2 = 2200 ⇒ t = 300),
+not the uniform 200 mm the model assumed. `WallSpec` gained a `thicknessM`
+per-wall override (mirroring `PlanWall.thicknessM`, mapped through
+`buildDefaultPlan` so both renderers, collision, skirting and the 2D editor
+follow automatically); `wall-ext-S` is now 0.3 m. Kitchen interior depth
+2.25 → **2.20 m** (matching the plan annotation; extension strip 0.79 m),
+service yard 2.25 → 2.20 m, `APARTMENT_EXT_D` 9.325 → 9.375, south-flush
+appliances (stove/hood/washer) moved with the wall. Interior area
+~90.4 → ~90.1 m² (plan editor total 92.7 → 92.4 m² incl. ledge). The plan's
+discrete black structural COLUMNS (corner patches) remain unmodeled —
+deferred note in TODO.md. Full suite green (8457); GPU-verified in orbit,
+kitchen room editor and the 2D plan (wall draws visibly thicker, corners
+close clean against the 200 mm jog).
+
+## v0.23.1.6 — Plan wall-type symbology + curtain rods above window heads
+
+Two fixes from the floor-plan reference sheets (`assets/floor_plan/walls.jpg`
+"How to read your HDB floor plan" + `default.png` legend):
+
+- **Wall types.** New `'gable-end'` structure value (the block's exposed
+  external end wall — walls.jpg legend #3) across `PlanWall.structure` /
+  `WallSpec.structure` / schema / `WallInspector` / `wallHackability`
+  (structural, demolition NOT permitted) / demolition-sheet wording; the
+  default flat's west wall (`wall-ext-W`) is re-tagged gable-end. The **2D
+  plan editor** now draws walls with the HDB plan convention — structural
+  (load-bearing / RC) walls in the strongest ink + heavier body, gable-end
+  additionally lined with a dashed stripe, normal partitions unchanged —
+  mirrored (structural-heavier) on the drawing-set GA plan. A new **3D
+  "Wall types" overlay** (`wallTypes3d` flag, pro; View menu, desktop +
+  mobile) tints walls by class in BOTH the whole-flat orbit view and the
+  room editor: red = structural, blue = gable-end, amber = partition
+  (permit), untinted = unclassified — rendered as translucent sibling
+  jackets in `WallSegment`/`PlanShell`/`RoomShell`/`PlanRoomShell` (pure
+  colour map in `floorplan/wallTypeColor.ts`), session-only toggle
+  (`uiSlice.showWallTypes`). GPU-verified in all three surfaces.
+- **Curtains fully cover their windows.** Every hand-placed default/preset
+  curtain carried `height: 2.3` — below the W1 window head (2.4 m), leaving
+  a visible strip of glass/grille above the fabric. All 12 entries (4
+  move-in defaults + 8 presets) now mount the rod at 2.55 m (ceiling − 50 mm,
+  the same convention `windowFixtureProps` uses for snapped curtains).
+  GPU-verified (MB + bedroom 2 room editors).
+- Test-gate hygiene: the two biggest placement-soundness template loops get
+  an explicit 15 s timeout (Executive Maisonette brushed the 5 s default
+  under full-suite parallel load twice today; ~2 s isolated).
+
+## v0.23.1.5 — SNV spec sheet implemented: finishes, doors, fittings, grille
+
+The Serangoon North Vista sales-doc specs (`assets/guidelines/` +
+`assets/ocs/`) are now the default flat's actual build-out:
+
+- **Finishes (specs.png + OCS photos).** Five new procedural materials —
+  `floor-vinyl-oak` (timber vinyl strips, 1.2 × 0.18 m planks),
+  `floor-tile-beige` (600×600 glazed porcelain), `floor-tile-bath-green`
+  (300×600 grey-green), `wall-tile-white`/`wall-tile-grey` (300×600
+  glazed porcelain wall tiles). New `porcelain` pattern = the subway
+  running-bond painter at 2 cols × 4 rows with scale-tuned bevel/normal
+  (`patterns/tile.ts:porcelainFields`) so a 0.6 × 0.3 m tile at uvScale
+  [1.2, 1.2] reads as flat glazed porcelain, not chunky masonry.
+  `DEFAULT_ROOM_FLOOR`: vinyl through bedrooms/living/corridor (spec:
+  vinyl strip flooring), beige porcelain in kitchen/shelter/service yard
+  (was concrete!), grey-green in baths. `DEFAULT_ROOM_WALL`: glazed
+  porcelain wall tile in kitchen + baths. OCS starter (photo_7: L/D is
+  vinyl for 4/5-room at SNV): fixed-flat living/corridor OCS floor →
+  vinyl; generic category map untouched.
+- **Doors (specs.png: per-room door schedule).** `DoorSpec` gained
+  `style`/`material`/`color`/`gate`; `Door.tsx` renders flush laminate
+  slabs with stainless LEVER handles (bedrooms + entrance, per the OCS
+  door photos), vinyl BIFOLD bath doors (two folding leaves + recessed
+  pull), an aluminium-framed GLAZED service-yard door, the blast door
+  now spec-driven (`material: 'metal'`), and an HDB METAL GATE
+  (`gate: true` on door-main): barred leaf on the wall's exterior face,
+  same jamb, swinging outward opposite the timber door.
+  `DoorLeafMaterialKind` gained `'metal'` (PlanDoorLeaf + inspector +
+  schedule label too); `buildDefaultPlan` mirrors style/material/color
+  onto the plan openings so 2D symbols/schedule/DXF agree with 3D.
+- **Toilet fittings (toilet_fittings.png).** Wall-hung basin rebuilt as
+  the photo's rectangular ceramic box + slim white shroud (was a round
+  bowl on a chrome trap); `Shower` now models the handheld set — slide
+  rail, holder, handset, mixer body + hose (was a fixed rain head).
+  Default flat + OCS kit basins are `style: 'wall-hung'`.
+- **Approved grille (approved_grille_design.png).** The `grille` window
+  style is now the approved GRID: `grilleBarInstances` adds evenly
+  spaced horizontal rails (pure `horizontalRailOffsets`, one instanced
+  bucket), and the curated flat's hand-rolled `Window.tsx` grille was
+  replaced by the same shared builder (one `InstancedBoxes` draw call,
+  x/z-remapped like the louvre/cable helpers).
+
+Full suite green (8437+41); GPU-verified via
+`scripts/scenarios/snv-specs-verify.json` (overview floors, bath room
+editors, entrance gate closed/open, kitchen/SY, plan editor) — caught
+and fixed the gate mounting on the room side, gate bars lying
+horizontal, and the tile bevel reading as glass block at 2.4 m repeat.
+
+## v0.23.1.4 — Wall structural classification traced from the official plan
+
+The default flat's walls now carry the structural classification the
+official floor plan actually draws (`assets/floor_plan/default.png`
+legend + `assets/floor_plan/walls.jpg`): solid-black RC walls/columns
+and the west gable-end wall seed `structure: 'load-bearing'`, hollow
+double-line partitions seed `'brick-partition'` — so the hackability
+overlay, wall-delete guard, demolition sheet and DXF export start from
+the plan's own reading instead of every wall being `'unknown'`. New
+`WallSpec.structure` (parity with `PlanWall.structure`) is copied
+through `buildDefaultPlan`. Three walls split where one segment mixed
+RC and normal partition: the household-shelter ring's north/south walls
+are now their own `wall-int-hs-N` (hosting the blast door, re-offset) /
+`wall-int-hs-S` walls — the full HS ring (with `wall-int-bath2-hs` +
+`wall-int-shelter-LD`) is load-bearing on all four sides — and the NE
+RC column's continuation below the notch is `wall-int-b3-LD-col`,
+keeping the rest of the B3/LD partition hackable-with-permit. External
+mixed runs (facade piers + window infill) stay single walls classified
+load-bearing (conservative and practically correct — HDB never permits
+hacking external walls) with measured black extents documented inline;
+AC-ledge parapets/railings stay unclassified. Unit-tested in
+`constants.test.ts` + new `defaultPlan.test.ts`; 3D shell verified
+seam-free at the new collinear splits.
+
+## v0.23.1.3 — W1 curtains + load-time healing for plan-revision strays
+
+Curtains added to every W1 (north) window: new `default-b2-curtain` +
+`default-b3-curtain` in the move-in defaults (MB + L/D already had
+theirs) and a matching curtain in familyNursery's re-modeled bedroom 3.
+Persisted-session healing in `applySerialized` (fixes designs saved
+against the OLD default flat): a window-bound fixture (curtain/blind/
+mesh screen) further than 0.3 m from every window on its storey re-snaps
+to the nearest window — e.g. the removed MB west window's curtain now
+migrates to the north window on load (dropped only if its storey has no
+windows); and any non-mounted item whose centre is stranded outside
+every room (e.g. the old service-yard washer now sitting in the void
+strip) is clamped into its nearest room. Old default-flat saves also
+BACKFILL newly-introduced default items via a revision stamp
+(`defaultsRev` in the serialized state): a save that predates the W1
+bedroom curtains gains them once on load, and the stamp makes a later
+deliberate deletion stick. All passes are no-ops for healthy saves;
+unit-tested in `schema.test.ts`.
+
+## v0.23.1.2 — Window types, glass kinds, ledge railing + floor, W1/vent corrections
+
+New opening-style capabilities (extending the existing `openingStyles`
+surface, no new flag): window SASH TYPES `casement` / `awning` (top-hung,
+renders tilted open) / `hopper` (bottom-hung) / `transom` / `sliding`
+(double-depth centre stile), and window GLASS KINDS `clear` / `frosted` /
+`textured` / `glass-block` (reusing `PlanOpening.material`; thick
+translucent block grid for glass-block). Pure layout + glass params in
+`windowGrilleLayout.ts` (unit-tested); rendered by BOTH the curated
+`Window.tsx` (grille now opt-in via `style: 'grille'`) and `PlanShell`'s
+`FadeWindow`; editable in the 2D opening inspector (style + new Glass
+select); opening schedule groups window marks by glass kind too.
+`PlanWall.railing` (additive): a `topHeight` wall can render as an open
+metal railing (top rail + posts + balusters, pure `railingLayout.ts`) —
+the AC ledge's three parapets now do; the ledge also gets a concrete
+floor slab (external rooms previously rendered no floor). Default-flat
+corrections from the reference render/video: bathroom vents are
+grille-less frosted AWNING windows, landscape (bath1 0.8×0.7, bath2
+0.6×0.4), tops aligned at 2.0 m, bath2's on the ledge-adjacent stretch of
+the ONE continuous bath south wall (the earlier orphan stub mis-oriented
+the wall-reveal and rendered as a bare gap); the service-yard west side
+is a plain half wall (no louvre window); W1 north windows are 1.85 m of
+glass over the 550 mm parapet (head 2.4, 0.2 m below the 2.6 m ceiling);
+bedroom 2 + 3 windows are equal width (1.5 m, B3 recentred).
+
+## v0.23.1.1 — Openings audit against the 3D reference render + video
+
+Audited every default-flat opening against `assets/floor_plan/image.png`
+and `assets/floor_plan/video.mp4` (all orbit angles), cross-checked with
+the to-scale 2D plan. Fixes: removed the misread `win-livingDining-E`
+(the L/D east wall is plain non-structural wall — no glazing symbol —
+and the render shows it solid); removed `win-mainBedroom-W` (the main
+bedroom has ONLY its north window — the west wall is solid from every
+video angle; the MB curtains in the defaults + boutiqueSuite moved to
+the north window); added the two high-sill bath ventilation windows
+(`win-bath1-S` over the AC ledge, `win-bath2-S` on the ledge-adjacent
+bath south wall between the bath1/2 partition and the service yard — it
+opens over the ledge area, NOT into the yard; the bath south wall is one
+continuous wall so the short bath2 stretch isn't an orphan stub, which
+mis-oriented the dollhouse wall-reveal and rendered as a bare gap). The
+service-yard west side is a HALF WALL (low parapet, open above) — the
+earlier full-height louvred screen + `win-serviceYard-W` are gone.
+Applied the plan's W1 spec to
+all four north-facing windows (MB/B2/B3/L-D): three-quarter-height
+glass over a ~550 mm parapet (sill 0.55, head 2.5). Confirmed correct:
+SY louvre and all 8 doors (the plan's bi-fold bath doors stay modeled
+as swing leaves — no bi-fold door type in the plan model).
+
+## v0.23.1.0 — New default floor plan from a to-scale HDB 4-room plan
+
+Replaced the default flat's geometry with an exact derivation from
+`assets/floor_plan/default.png` (HDB "4 Room / Type - 1", 93 m² incl. AC
+ledge / 90 m² internal, mm dimension chains to wall centre-lines).
+`src/apartment/constants.ts` rewritten (rooms, walls, doors, windows,
+12.725 × 9.325 m footprint); same room vocabulary and door/window ids, so
+finishes, journeys and the seeded `default-hdb-4room` plan carry over —
+and the default plan is never persisted, so existing sessions pick up the
+new shell automatically. Notable geometry changes: living/dining east
+column with a 2.45 m north window (the media wall moves to the west
+partition), kitchen open to the L/D with an entrance foyer on the SE
+step, louvred service yard, high-sill bath ventilation windows over the
+AC ledge / service yard, MB foyer serving bath 1. Default move-in furnishing, Smart Start presets and auto-arrange
+expectations re-authored to the new rooms. Deleted the old
+proportionally-estimated reference plan (`docs/reference/floor-plan.svg`
+/`.jpg`/`floor_plan_simple.png`/`dimensions-derivation.md`); the new
+derivation is documented in `docs/reference/floor-plan-derivation.md`.
+
 ## v0.23.0.1 — CI fix: knip dead-code scan green
 
 The r11 PR's only red check. De-exported 51 symbols the round's parallel

@@ -3,20 +3,43 @@ import { blank, type Fields, setPx } from '../fieldKit'
 import { clamp01, makeFbm, mulberry32 } from '../noise'
 import { grainLean, plankHash, shearAcross } from '../woodPlank'
 
-export function woodFields(base: [number, number, number], seed: number, S: number): Fields {
+export function woodFields(
+  base: [number, number, number],
+  seed: number,
+  S: number,
+  opts?: {
+    /** Per-plank brightness spread (default 0.24 — real boards vary; a factory
+     *  vinyl laminate uses ~0.05 so every strip prints the same tone). */
+    valVar?: number
+    /** Per-plank warmth spread (default 0.16; near-0 for printed laminate). */
+    warmVar?: number
+    /** Grain-band darkening (default 0.16; softer for a printed grain). */
+    bandContrast?: number
+    /** Knot probability per board (default 0.6; 0 for knot-free laminate). */
+    knotChance?: number
+  },
+): Fields {
   const f = blank(S)
   f.normalStrength = 9
   const rand = mulberry32(seed)
+  const valVar = opts?.valVar ?? 0.24
+  const warmVar = opts?.warmVar ?? 0.16
+  const bandContrast = opts?.bandContrast ?? 0.16
+  const knotChance = opts?.knotChance ?? 0.6
   const planks = 6 // boards stacked across the tile
   const plankH = S / planks
   // Per-plank tint with correlated warmth (real boards vary in hue + value).
+  // The rand() consumption ORDER is fixed (val, warm, phase, knot roll + knot
+  // params) so the default opts reproduce the pre-opts output byte-identically.
   const plank = Array.from({ length: planks }, (_, i) => {
-    const val = 0.86 + rand() * 0.24 // brightness
-    const warm = 0.94 + rand() * 0.16 // >1 warmer (more red, less blue)
+    // Mean-preserving spreads: defaults reproduce the pre-opts constants
+    // exactly (0.86 + rand·0.24 and 0.94 + rand·0.16).
+    const val = 0.98 - valVar / 2 + rand() * valVar // brightness, mean 0.98
+    const warm = 1.02 - warmVar / 2 + rand() * warmVar // >1 warmer, mean 1.02
     const phase = rand() * 10
     // A couple of knots per board at random positions along its length.
     const knots =
-      rand() < 0.6 ? [{ u: rand(), v: 0.25 + rand() * 0.5, r: 0.012 + rand() * 0.02 }] : []
+      rand() < knotChance ? [{ u: rand(), v: 0.25 + rand() * 0.5, r: 0.012 + rand() * 0.02 }] : []
     // Per-board grain lean (PC2-WOOD-GRAIN-FLOW) — keyed by a stateless hash so it
     // doesn't perturb the val/warm/phase/knots stream above.
     const lean = grainLean(seed, i)
@@ -44,7 +67,7 @@ export function woodFields(base: [number, number, number], seed: number, S: numb
       const band = Math.abs(Math.sin((across + warp * 0.6) * Math.PI * 9 + pk.phase))
       const fg = fineGrain(u * 4, v)
       // Grain lines darken; fine noise adds tooth.
-      let factor = pk.val * (0.92 - band * 0.16 + (fg - 0.5) * 0.06)
+      let factor = pk.val * (0.92 - band * bandContrast + (fg - 0.5) * 0.06)
 
       // Knots: dark elliptical cores with a tight ring.
       let knotH = 0
@@ -73,12 +96,28 @@ export function woodFields(base: [number, number, number], seed: number, S: numb
       // Satin-varnished boards: fairly glossy, grain lines slightly rougher,
       // plus a faint micro break-up so the sheen isn't dead-flat.
       const rough = clamp01(
-        0.42 + band * 0.16 + (1 - groove) * 0.2 + (microRough(u, v) - 0.5) * 0.08,
+        0.42 + band * bandContrast + (1 - groove) * 0.2 + (microRough(u, v) - 0.5) * 0.08,
       )
       setPx(f, y * S + x, r, g, b, h, rough)
     }
   }
   return f
+}
+
+/**
+ * Factory vinyl strip flooring — the SNV OCS sample board (one uniform tone,
+ * printed grain, no knots). Reuses the plank painter with the per-board tint
+ * variation collapsed (valVar 0.05 / warmVar 0.02 — every strip prints the
+ * same colour), a softer grain band and zero knots, so the floor reads as one
+ * colour with grain instead of multi-toned natural boards.
+ */
+export function vinylFields(base: [number, number, number], seed: number, S: number): Fields {
+  return woodFields(base, seed, S, {
+    valVar: 0.05,
+    warmVar: 0.02,
+    bandContrast: 0.09,
+    knotChance: 0,
+  })
 }
 
 export function parquetFields(base: [number, number, number], seed: number, S: number): Fields {

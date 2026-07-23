@@ -229,14 +229,18 @@ describe('P3 desktop panel slide', () => {
 })
 
 describe('P10 panel width tokens', () => {
-  it('defines --panel-w 320px and --panel-w-compact 288px', () => {
+  it('defines --panel-w 320px, --panel-w-compact 288px and --panel-w-wide 360px', () => {
     const tokens = read('./tokens.css')
     expect(tokens).toMatch(/--panel-w:\s*320px/)
     expect(tokens).toMatch(/--panel-w-compact:\s*288px/)
+    expect(tokens).toMatch(/--panel-w-wide:\s*360px/)
   })
-  it('drives the floating catalog/inspector/finish widths off --panel-w', () => {
+  it('drives the floating catalog/inspector/finish widths off the panel-width tokens', () => {
     expect(read('./parts.css')).toMatch(/\.catalog\s*\{[^}]*width:\s*var\(--panel-w\)/s)
-    expect(read('./parts.css')).toMatch(/\.inspector\s*\{[^}]*width:\s*var\(--panel-w\)/s)
+    // The inspector uses the wider token (its header + multi-field sections
+    // were cramped at 320px); the right dock rail follows it in components.css.
+    expect(read('./parts.css')).toMatch(/\.inspector\s*\{[^}]*width:\s*var\(--panel-w-wide\)/s)
+    expect(read('./components.css')).toMatch(/--right-rail:\s*var\(--panel-w-wide\)/)
     expect(read('./flows.css')).toMatch(/\.er-finish\s*\{[^}]*width:\s*var\(--panel-w\)/s)
   })
   it('drives the tablet variants off --panel-w-compact and leaves no bare 326/312px', () => {

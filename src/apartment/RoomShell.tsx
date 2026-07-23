@@ -1,6 +1,8 @@
 import { Suspense, useEffect, useMemo, useRef } from 'react'
 import { type Mesh, type MeshStandardMaterial, Vector2 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
+import { useFeature } from '../features/useFeature'
+import { wallTypeOverlayColor } from '../floorplan/wallTypeColor'
 import type {
   MaterialId,
   ProceduralMaterialDef,
@@ -27,6 +29,7 @@ import {
 import { WindowPane } from './Window'
 import { localOuterZSign, wallThicknessMetres } from './wallSegments'
 import { useWallReveal } from './walls/useWallReveal'
+import { WallTypeOverlayJacket } from './walls/WallSegment'
 import { extrudeWallBody, getWallStructureMaterial } from './walls/wallBodyGeometry'
 import { OPENING_CLEARANCE, wallBodyOutlineFromSpans } from './walls/wallBodyShape'
 import { cornerNeighbors } from './walls/wallRevealMath'
@@ -148,22 +151,42 @@ function WallBox({
   )
   useEffect(() => () => bodyGeometry.dispose(), [bodyGeometry])
 
+  // Wall-types 3D overlay (`wallTypes3d` pro flag) — same tint as the whole-flat
+  // orbit view (`WallSegment`), so the classification reads consistently inside
+  // the room editor too.
+  const wallTypes3dFlag = useFeature('wallTypes3d')
+  const showWallTypes = useStore((s) => s.showWallTypes)
+  const overlayColor = wallTypeOverlayColor(wall.spec.structure)
+  const showWallTypeJacket = wallTypes3dFlag && showWallTypes && overlayColor !== null
+
   if (len < 1e-6) return null
   const angle = Math.atan2(ez - sz, ex - sx)
   return (
-    <mesh
-      ref={ref}
-      position={[midX, 0, midZ]}
-      rotation={[0, -angle, 0]}
-      castShadow={false}
-      // [finish, structural-white]: the grouped body paints only the interior
-      // room-facing cap with the finish; the top/outer/ends stay white.
-      material={[material, getWallStructureMaterial()]}
-      geometry={bodyGeometry}
-      // In the isolated room editor every clipped wall belongs to this room, so
-      // tag it as a wall drop target (scene/finishDropTarget.ts).
-      userData={finishSurfaceUserData('wall', roomId)}
-    />
+    <>
+      <mesh
+        ref={ref}
+        position={[midX, 0, midZ]}
+        rotation={[0, -angle, 0]}
+        castShadow={false}
+        // [finish, structural-white]: the grouped body paints only the interior
+        // room-facing cap with the finish; the top/outer/ends stay white.
+        material={[material, getWallStructureMaterial()]}
+        geometry={bodyGeometry}
+        // In the isolated room editor every clipped wall belongs to this room, so
+        // tag it as a wall drop target (scene/finishDropTarget.ts).
+        userData={finishSurfaceUserData('wall', roomId)}
+      />
+      {/* Jacket is a SIBLING, never a child of the ref'd mesh above —
+          `useWallReveal` traverses from that ref and would otherwise apply the
+          wall-fade opacity/emissive logic to this mesh's MeshBasicMaterial
+          (which has no `emissive`), stomping the overlay's own fixed 0.35
+          opacity (or throwing). */}
+      {showWallTypeJacket && (
+        <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
+          <WallTypeOverlayJacket length={len} height={h} thickness={t} color={overlayColor!} />
+        </group>
+      )}
+    </>
   )
 }
 

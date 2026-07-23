@@ -245,9 +245,9 @@ same change that reshapes a system.
   `scene/FinishDropSurface.tsx` + `scene/finishDropTarget.ts`, commit = `state/finishDropApply.ts`), `convert/`
   (`decodeImage.ts` incl. TGA/TIFF/EXR/HDR/KTX2/DDS, `reencode.ts`→WebP; 16MB cap; `decodeGpuTexture.ts` handles KTX2+DDS via pure-JS or GPU readback).
 - `src/scene/` — R3F `<Canvas>` + systems: `lighting/`, `Effects.tsx` (bloom+SMAA),
-  baked grounding decals (`ContactShadow.tsx` under-furniture blob RZ1; `CornerAO.tsx`
-  `WallFloorAO` wall/floor corner strip RD-403, sizing/gating in `cornerAoMath.ts`, mounted
-  in `apartment/walls/WallSegment.tsx`, tier-gated via the `cornerAo` QualitySettings flag),
+  baked grounding decals (`ContactShadow.tsx` under-furniture blob RZ1; the RD-403 wall/floor
+  corner-AO strip was removed in v0.23.1.11 — it read as a black outline at wall bases from
+  top-down views),
   `quality.ts`+`QualityController`, `ScreenshotController`, `PanoramaController`
   (+`panorama/equirect.ts` — six 90° screen-path renders → CPU equirect; viewer/export in
   `ui/PanoramaModal.tsx`, `panorama` flag), cameras, selection,
@@ -270,7 +270,15 @@ same change that reshapes a system.
   `InstancedCylinders`) collapses repeat geometry — bookshelf/crib + RoomDivider/CubeShelf/
   FeatureWall/ToyStorage, and the **rotation-capable** venetian-blind slats + drying-rack rods
   (batten/slat/rod maths in pure `primitives/slatLayout.ts`); `ContextLossGuard.tsx` recovers
-  WebGL context loss.
+  WebGL context loss — and rebuilds what a restore can't (GPU-STARVE-2: pulses the frozen sun
+  shadow map + bumps `contextRestoreSignal.ts` so `SceneEnvironment` re-bakes its IBL probe,
+  holding the pump continuous for ≥8 rendered frames). **Interactive resolution degrade**
+  (GPU-STARVE-1, `interactiveDegrade` flag): `InteractiveDprController.tsx` (both Canvases)
+  halves the pixel ratio while an orbit gesture is held (`cameraMotionSignal.ts`, published by
+  OrbitControls start/end) or within 3 s of a >250 ms frame (pure decision in
+  `interactiveDegrade.ts`) so High/Maximum frames stay far below the OS GPU watchdog whose
+  driver reset was the "white flash while panning" bug; DPR changes go through r3f
+  `setDpr` + a same-value `setSize` nudge so the postprocessing composer resizes too.
 - `src/ui/` — DOM overlays. **CatalogDrawer** (`catalog/`, tab row Catalog/Layers/Packs):
   Catalog = unified grid (`useUnifiedCatalog.ts`) of built-ins/generated/user/IKEA/packs/
   CC0 + Poly Haven + the R2 shared library (signed-in, pro), one fuzzy search + browse Sort +
@@ -532,7 +540,7 @@ same change that reshapes a system.
   switch flip, like curtains' draw toggle. `lightOn === 'no'` is evaluated FIRST in
   `isItemEmitter`/`resolveEmitterSpec` and wins over a fixture's own `enabled` gate (e.g. the
   vanity's Hollywood-bulb condition): the item-level gate runs upstream of the scene-wide
-  `lightsMode` ('auto'/'on'/'off') brightness multiplier in `FurnitureLights.tsx`, so a
+  `lightsMode` ('on'/'off') brightness multiplier in `FurnitureLights.tsx`, so a
   switched-off item never enters the active-lights set in any mode — **per-item toggle always
   wins**. Pure logic in `furniture/lightInteract.ts`; state in `lightInteractSlice`
   (`nearbyLightId` + `toggleLightPower`); prompt `ui/LightPrompt` ("Turn off table lamp").
@@ -994,7 +1002,7 @@ same change that reshapes a system.
   so sunrise/midday/sunset are the real times for that place (a Singapore evening stays lit to
   ~19:10). The shared **`ui/scene/TimeOfDaySlider`** (desktop Scene menu + mobile sheet) is a
   free-scrub 24h slider + a "System time" toggle (always shows the real clock, never the
-  selected time). **Lights** (`lightsMode` off/on/auto) is an independent fixture toggle — not
+  selected time). **Lights** (`lightsMode` on/off, an iPhone-style switch — the follow-the-sun 'auto' mode was removed 2026-07-24) is an independent fixture toggle — not
   tied to the sun (lights can be on in daytime). **Lighting mood presets** (UX round-3 #3,
   `lightMoodPresets` flag, simple tier): a one-tap Scene-menu chip row (Normal/Reading/Movie
   night/Entertaining/Romantic, `lighting/moodPresets.ts`, pure) layers a brightness multiplier +
@@ -1735,15 +1743,37 @@ same change that reshapes a system.
   (MCST/BCA) plus any stair advisories (SG1). `floorplan/permitNotes.ts:permitNotes(housingType)`
   is the single source of the HDB-permit / Condominium-MCST / Landed-BCA note text, read by the
   demolition-plan sheet (`demolitionPlanSvg.ts`) and the drawing-set cover sheet's general notes.
+  The curated default flat SEEDS `PlanWall.structure` from the official plan's line types
+  (`apartment/constants.ts` `WallSpec.structure`, traced from `assets/floor_plan/default.png`'s
+  legend — solid black → `'load-bearing'`, the distinct gable-end lining symbol (walls.jpg legend
+  #3, the block's exposed external end wall — the default flat's `wall-ext-W`) → `'gable-end'`,
+  hollow double lines → `'brick-partition'`; copied through by `buildDefaultPlan`), so its
+  overlay/demolition guidance starts from the plan rather than all-`'unknown'`.
   **Live hackability overlay (R4-7):** `floorplan/wallHackability.ts` is the one classifier —
-  `wallHackability(structure)` → `'no'` (load-bearing/RC, demolition NOT permitted) / `'permit'`
-  (brick/dry partition, permit required) / `'unknown'` (unclassified) + `hackClassLabel`/
+  `wallHackability(structure)` → `'no'` (load-bearing/RC/gable-end, demolition NOT permitted) /
+  `'permit'` (brick/dry partition, permit required) / `'unknown'` (unclassified) + `hackClassLabel`/
   `hackClassDescription`/`isDemolitionRestricted`. `ui/floorplan/editor/layers/HackabilityLayer.tsx`
   tints each current-storey wall by class (`--danger`/`--sun`/`--text-3`) with a legend, mounted under
   a "Hackability" toggle in the plan editor's View ▾ menu (`PlanViewMenuActions.tsx` + `FloorPlanEditor.tsx`
-  `showHackability` state), gated by the `hackabilityOverlay` pro flag. Deleting a load-bearing/RC wall in
-  `WallInspector.tsx` first raises a `confirmAction({ danger })` "NOT PERMITTED" warning (warns, doesn't
-  block). Layer registered in `inlinePxGuard`'s grandfathered list like `MepLayer`.
+  `showHackability` state), gated by the `hackabilityOverlay` pro flag. `WallsLayer.tsx`'s wall stroke is
+  ALSO structure-aware (unconditional, not a toggle — matches the HDB plan drawing convention): a
+  structural wall (load-bearing/RC/gable-end) draws with the strongest ink + a heavier body, and a
+  `'gable-end'` wall additionally overlays a thin dashed lining stripe (its distinct plan symbol).
+  Deleting a load-bearing/RC/gable-end wall in `WallInspector.tsx` first raises a
+  `confirmAction({ danger })` "NOT PERMITTED" warning (warns, doesn't block). Layer registered in
+  `inlinePxGuard`'s grandfathered list like `MepLayer`.
+  **Wall-types 3D overlay (`wallTypes3d` pro flag):** a View-menu toggle (`showWallTypes` on
+  `uiSlice`, session-only) tints each wall's translucent overlay "jacket" by its `structure`
+  (`floorplan/wallTypeColor.ts:wallTypeOverlayColor` — structural red `#e5484d`, gable-end blue
+  `#3e63dd`, brick/dry amber `#f5a524`, unclassified untinted) in the whole-flat orbit view AND the
+  per-room editor. `apartment/walls/WallSegment.tsx` exports the shared `WallTypeOverlayJacket`
+  (a `polygonOffset` box ~1% larger than the wall body, `meshBasicMaterial` opacity 0.35,
+  `depthWrite:false`, no pointer events) reused by the default flat's `RoomShell.tsx` and custom
+  plans' `PlanShell.tsx`/`PlanRoomShell.tsx`; every jacket renders as a SIBLING of (never a child of)
+  the wall's reveal-tracked mesh/group, since the camera-facing wall-reveal `useFrame`/`useWallReveal`
+  traversal would otherwise stomp the jacket's fixed opacity (or throw — its `MeshBasicMaterial` has
+  no `emissive`). Wired into the View ▾ menu (desktop `ViewMenu.tsx`, mobile `ViewSection.tsx`) —
+  visible whenever the camera is in orbit (whole-flat overview OR the room editor).
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
   walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
   rule across the whole design (frame-scoped memo: same items/defs identities within

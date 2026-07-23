@@ -4,13 +4,16 @@
  * resolves the room(s) each borders (a wall-midpoint probe, the same approach
  * `analysis/daylight.ts` uses), and groups openings with identical
  * (kind, width, head − sill, style, material) into a "mark": D1/D2… for doors,
- * W1/W2… for windows. Style (`openingStyles`, v0.22.2.64+) + door leaf material
- * are part of the grouping key, so a sliding door and a swing door of identical
- * size — or a grille vs plain window — are SEPARATE marks (a contractor's door
- * schedule needs them apart: different products/installation); a legacy plan
- * with no style/material normalises to the kind's default and groups exactly as
+ * W1/W2… for windows. Style (`openingStyles`, v0.22.2.64+) + material
+ * (door leaf finish, or — GLASS-KINDS — a window's glass kind) are part of the
+ * grouping key, so a sliding door and a swing door of identical size, a grille
+ * vs plain window, or a frosted vs clear window of the same size, are all
+ * SEPARATE marks (a contractor's schedule needs them apart: different
+ * products/installation); a legacy plan with no style/material normalises to
+ * the kind's default (door→`painted`, window→`clear`) and groups exactly as
  * before. Each mark records its count, size (W×H), sill, the swing/hinge +
- * style/material of a door, and the distinct rooms it appears in.
+ * style/material of a door (or style/glass of a window), and the distinct
+ * rooms it appears in.
  *
  * Pure logic only (no React, no three) so it stays fully unit-testable; the
  * report's "Openings schedule" section is presentation over the marks this
@@ -55,9 +58,11 @@ interface OpeningMark {
    *  grouping key, so two same-size openings of different styles are separate
    *  marks. Use {@link openingStyleLabel} for a human-readable label. */
   style: string
-  /** Door leaf finish, resolved via `resolveDoorLeafMaterialKind`
-   *  (`painted`/`wood`/`vinyl`); undefined for windows (they carry no
-   *  material). Part of the grouping key for doors. */
+  /** Material axis: for a door, the leaf finish resolved via
+   *  `resolveDoorLeafMaterialKind` (`painted`/`wood`/`vinyl`); for a window
+   *  (GLASS-KINDS), its glass kind normalised to `clear` when unset
+   *  (`clear`/`frosted`/`textured`/`glass-block`). Part of the grouping key
+   *  for both kinds. */
   material?: string
   /** Distinct room names this mark appears in, sorted; `['Unassigned']` when
    *  none of its openings resolve to a room. Deduped across storeys. */
@@ -83,9 +88,14 @@ const DOOR_STYLE_LABELS: Record<string, string> = {
 /** Human-readable window style labels. */
 const WINDOW_STYLE_LABELS: Record<string, string> = {
   plain: 'Plain',
+  sliding: 'Sliding',
   grille: 'Grille',
   'invisible-grille': 'Invisible grille',
   louvre: 'Louvre',
+  casement: 'Casement',
+  awning: 'Awning',
+  hopper: 'Hopper',
+  transom: 'Transom',
 }
 
 /** Human-readable door leaf-material labels. */
@@ -93,6 +103,15 @@ const DOOR_MATERIAL_LABELS: Record<string, string> = {
   painted: 'Painted',
   wood: 'Wood',
   vinyl: 'Vinyl',
+  metal: 'Metal',
+}
+
+/** Human-readable window glass-kind labels (GLASS-KINDS). */
+const WINDOW_MATERIAL_LABELS: Record<string, string> = {
+  clear: 'Clear',
+  frosted: 'Frosted',
+  textured: 'Textured',
+  'glass-block': 'Glass blocks',
 }
 
 /** Sentence-case a raw style/material token as a last-resort label. */
@@ -111,15 +130,24 @@ function doorMaterialLabel(material: string | undefined): string {
   return DOOR_MATERIAL_LABELS[material ?? 'painted'] ?? titleCase(material ?? 'painted')
 }
 
+/** Human-readable label for a window's glass kind (GLASS-KINDS). */
+function windowGlassLabel(material: string | undefined): string {
+  return WINDOW_MATERIAL_LABELS[material ?? 'clear'] ?? titleCase(material ?? 'clear')
+}
+
 /** Combined "Style · Material" label for a schedule row: doors read
- *  "Sliding · Wood", windows just their style ("Grille"). */
+ *  "Sliding · Wood", windows read "Grille · Clear" / "Awning · Frosted" —
+ *  both kinds now carry a material axis (GLASS-KINDS extended the window's
+ *  `PlanOpening.material` field to the glass kind). */
 export function openingStyleMaterialLabel(m: {
   kind: 'door' | 'window'
   style?: string
   material?: string
 }): string {
   const s = openingStyleLabel(m.kind, m.style)
-  return m.kind === 'door' ? `${s} · ${doorMaterialLabel(m.material)}` : s
+  const materialText =
+    m.kind === 'door' ? doorMaterialLabel(m.material) : windowGlassLabel(m.material)
+  return `${s} · ${materialText}`
 }
 
 /**
@@ -279,11 +307,15 @@ function normalizedStyle(o: PlanOpening): string {
   return o.kind === 'door' ? (o.style ?? 'panel') : (o.style ?? 'plain')
 }
 
-/** Normalised leaf material for grouping — the RESOLVED door finish
+/** Normalised material for grouping — for a door, the RESOLVED leaf finish
  *  (`resolveDoorLeafMaterialKind`, defaults `vinyl` for bifold else `painted`);
- *  `undefined` for windows (they carry no material). */
+ *  for a window (GLASS-KINDS), its glass kind, defaulting to `clear` when
+ *  unset so a legacy plan with no `material` groups exactly as before (all
+ *  windows normalise to the same `clear` bucket). */
 function normalizedMaterial(o: PlanOpening): string | undefined {
-  return o.kind === 'door' ? resolveDoorLeafMaterialKind(o) : undefined
+  if (o.kind === 'door') return resolveDoorLeafMaterialKind(o)
+  if (o.kind === 'window') return o.material ?? 'clear'
+  return undefined
 }
 
 /**

@@ -16,8 +16,9 @@
  * demolition-restricted is decided by the ONE shared classifier
  * (`wallHackability.ts:isDemolitionRestricted`) so this sheet can NEVER diverge
  * from the live hackability overlay + wall-delete guard — a **structural** wall
- * is either `'load-bearing'` OR `'rc-partition'` (a reinforced-concrete
- * partition; the household-shelter/RC case). A structural wall always gets a
+ * is `'load-bearing'`, `'rc-partition'` (a reinforced-concrete partition; the
+ * household-shelter/RC case), or `'gable-end'` (the block's exposed external
+ * end wall, walls.jpg legend #3). A structural wall always gets a
  * heavy/solid treatment; if it's ALSO being demolished that escalates to a
  * hard danger treatment + an inline "NOT PERMITTED" label — SG hacking rules
  * make load-bearing/RC demolition absolutely off-limits, never just "needs a
@@ -329,7 +330,7 @@ function legend(
       color: palette.ink,
       dash: undefined,
       width: 5,
-      label: 'Structural — load-bearing / RC (heavy line)',
+      label: 'Structural — load-bearing / RC / gable-end (heavy line)',
     })
   }
   if (tallies.structuralDemolished > 0) {
@@ -337,7 +338,7 @@ function legend(
       color: tallies.dangerColor,
       dash: '6 4',
       width: 5,
-      label: `NOT PERMITTED — structural (load-bearing / RC) (${tallies.structuralDemolished})`,
+      label: `NOT PERMITTED — structural (load-bearing / RC / gable-end) (${tallies.structuralDemolished})`,
     })
   }
   if (tallies.unverifiedDemolished > 0) {

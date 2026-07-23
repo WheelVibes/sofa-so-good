@@ -79,6 +79,31 @@ export function roomOf(position: [number, number]): RoomId | null {
   return null
 }
 
+/** Nearest room to a point that falls outside every room's rect/extension —
+ *  a resilience fallback for an item whose stored [x,z] no longer lands
+ *  inside any room after a floor-plan edit (its default coordinate now sits
+ *  in a sliver the geometry carved away). Without this, `roomOf` returns
+ *  `null` and the item never matches any room's `inRoom` test — invisible to
+ *  every "Tidy" pass forever, even a whole-flat `arrangeAllRooms`. Distance
+ *  is to the nearest edge of each room's own rect (0 while inside it). */
+function nearestRoomTo(position: [number, number]): RoomId {
+  const [x, z] = position
+  let best: RoomId | null = null
+  let bestDist = Infinity
+  for (const [id, r] of Object.entries(ROOMS) as [RoomId, (typeof ROOMS)[RoomId]][]) {
+    const dx = Math.max(r.origin[0] - x, 0, x - (r.origin[0] + r.width))
+    const dz = Math.max(r.origin[1] - z, 0, z - (r.origin[1] + r.depth))
+    const dist = Math.hypot(dx, dz)
+    if (dist < bestDist) {
+      bestDist = dist
+      best = id
+    }
+  }
+  // ROOMS is never empty, so `best` is always assigned — the `livingDining`
+  // fallback only guards the type against a theoretical empty table.
+  return best ?? 'livingDining'
+}
+
 interface Ctx {
   catalog: Record<string, FurnitureDef>
   doors: Record<string, { open: boolean }>
@@ -201,7 +226,13 @@ function tryPlace(
  *  floor (e.g. the L/D lounge is bounded east of the b3 partition at x≈9.05,
  *  not the room origin at x=8.55). */
 const RECT_OVERRIDE: Partial<Record<RoomId, Rect>> = {
-  livingDining: { x0: 9.15, z0: 1.5, x1: 12.5, z1: 6.65 },
+  // West bound sits just east of the B3/LD partition face (x=9.225, the
+  // windowless focal wall for z<3.775 — see FOCAL below); using the wider
+  // household-shelter face (x=8.265, only real south of z≈4.875) here would
+  // let a wall-mounted item (TV/console, exempt from real wall collision)
+  // land beyond the actual B3/corridor wall in the north band. South/east
+  // bounds stay inset off the kitchen/entrance openings, as before.
+  livingDining: { x0: 9.275, z0: 1.4, x1: 12.475, z1: 6.625 },
 }
 
 /** Usable rect for a room — main rectangle inset from the walls. */
@@ -218,8 +249,29 @@ function usableRect(roomId: RoomId): Rect {
   }
 }
 
-/** Rooms whose seating should face a focal (TV) wall, and which edge it is. */
-const FOCAL: Partial<Record<RoomId, Edge>> = { livingDining: 'E' }
+/** A room's L-shape EXTENSION as its own inset rect (the settle fallback's
+ *  extra search area — see `settle`), or `undefined` for a plain rectangular
+ *  room. Not used by the tuned per-kind arrangers (they target the main
+ *  `usableRect` only); this only widens the LAST-RESORT safety net. */
+function extensionRectOf(roomId: RoomId): Rect | undefined {
+  const r = ROOMS[roomId]
+  if (!r.extension) return undefined
+  const inset = 0.15
+  const ex = r.origin[0] + r.extension.offset[0]
+  const ez = r.origin[1] + r.extension.offset[1]
+  return {
+    x0: ex + inset,
+    z0: ez + inset,
+    x1: ex + r.extension.width - inset,
+    z1: ez + r.extension.depth - inset,
+  }
+}
+
+/** Rooms whose seating should face a focal (TV) wall, and which edge it is.
+ *  livingDining's focal wall is the WEST side (B3/household-shelter
+ *  partitions), matching the curated default layout — the north wall is
+ *  glazed and the west partitions give the dining zone the east wall. */
+const FOCAL: Partial<Record<RoomId, Edge>> = { livingDining: 'W' }
 
 /** The fixed default flat as a `FloorPlan` (RM3) — same coordinate system as
  *  `ROOMS`/`WINDOWS`/`DOORS` in apartment/constants.ts (`buildDefaultPlan`
@@ -285,6 +337,37 @@ function snapToWall(
   return item
 }
 
+/** Place the main seating flush against the wall opposite the focal (TV) wall,
+ *  facing it — but if that wall is blocked there (e.g. a window's front
+ *  clearance the sofa is too tall to sit under: RM, the LD's east/north walls
+ *  now carry windows), step the sofa inward off the wall and try a spread of
+ *  Z bands, always at the SAME fixed rotation so it keeps facing the focal
+ *  wall even when it ends up freestanding rather than wall-backed. */
+function placeSeatingFacingFocal(
+  item: FurnitureItem,
+  rect: Rect,
+  rot: number,
+  fs: number,
+  oppX: number,
+  d: number,
+  preferredZ: number,
+  world: FurnitureItem[],
+  ctx: Ctx,
+): FurnitureItem {
+  const baseX = oppX + fs * (d / 2 + CLEARANCE.wallGap)
+  const zOffsets = [0, 0.4, -0.4, 0.8, -0.8, 1.2, -1.2, 1.6, -1.6, 2, -2]
+  for (let depthStep = 0; depthStep < 12; depthStep++) {
+    const x = baseX + fs * depthStep * 0.25
+    if (fs > 0 ? x > rect.x1 - 0.3 : x < rect.x0 + 0.3) break
+    for (const dz of zOffsets) {
+      const z = clamp(preferredZ + dz, rect.z0 + 0.3, rect.z1 - 0.3)
+      const placed = tryPlace(item, [x, z], rot, world, ctx)
+      if (placed !== item) return placed
+    }
+  }
+  return item
+}
+
 type RoomKind = 'living' | 'bedroom' | 'kitchen' | 'bath' | 'generic'
 function roomKind(roomId: RoomId): RoomKind {
   if (roomId === 'livingDining') return 'living'
@@ -319,18 +402,18 @@ function placeFlush(
 }
 
 /** Corners of the rect, slightly inset, for tucking accents. */
-/** Last-resort placement: original transform, then corners, then a coarse
- *  grid sweep with a few rotations. Pushes the item into `world` wherever it
- *  first fits (leaves it out only if nothing fits). */
-function settle(item: FurnitureItem, rect: Rect, world: FurnitureItem[], ctx: Ctx) {
-  if (tryPlace(item, item.position, item.rotation, world, ctx) !== item) return
-  for (const c of cornersOf(rect)) if (tryPlace(item, c, item.rotation, world, ctx) !== item) return
+/** Last-resort placement within ONE rect: corners, then a coarse grid sweep,
+ *  then a finer sweep, each across a few rotations. Returns `true` once
+ *  placed. */
+function settleInRect(item: FurnitureItem, rect: Rect, world: FurnitureItem[], ctx: Ctx): boolean {
+  for (const c of cornersOf(rect))
+    if (tryPlace(item, c, item.rotation, world, ctx) !== item) return true
   const rots = [0, Math.PI / 2, Math.PI, -Math.PI / 2]
   for (const rot of rots) {
     const step = 0.3
     for (let x = rect.x0 + 0.3; x <= rect.x1 - 0.3; x += step) {
       for (let z = rect.z0 + 0.3; z <= rect.z1 - 0.3; z += step) {
-        if (tryPlace(item, [x, z], rot, world, ctx) !== item) return
+        if (tryPlace(item, [x, z], rot, world, ctx) !== item) return true
       }
     }
   }
@@ -343,10 +426,31 @@ function settle(item: FurnitureItem, rect: Rect, world: FurnitureItem[], ctx: Ct
   for (const rot of rots) {
     for (let x = rect.x0 + 0.3; x <= rect.x1 - 0.3; x += fineStep) {
       for (let z = rect.z0 + 0.3; z <= rect.z1 - 0.3; z += fineStep) {
-        if (tryPlace(item, [x, z], rot, world, ctx) !== item) return
+        if (tryPlace(item, [x, z], rot, world, ctx) !== item) return true
       }
     }
   }
+  return false
+}
+
+/** Last-resort placement: original transform, then corners/grid/fine sweeps
+ *  across `rect` — and, if given, the room's EXTENSION rect too (RM: an
+ *  L-shaped room's sub-wing, e.g. livingDining's entrance foyer / kitchen's
+ *  east strip, isn't covered by the tuned arranger's main `rect`; without
+ *  this an item that starts there and goes invalid — e.g. a stale default
+ *  too close to a wall after a floor-plan edit — had NO fallback at all and
+ *  stayed invalid). Pushes the item into `world` wherever it first fits
+ *  (leaves it out only if nothing fits anywhere). */
+function settle(
+  item: FurnitureItem,
+  rect: Rect,
+  world: FurnitureItem[],
+  ctx: Ctx,
+  extensionRect?: Rect,
+) {
+  if (tryPlace(item, item.position, item.rotation, world, ctx) !== item) return
+  if (settleInRect(item, rect, world, ctx)) return
+  if (extensionRect && settleInRect(item, extensionRect, world, ctx)) return
 }
 
 function tuckCorners(items: FurnitureItem[], rect: Rect, world: FurnitureItem[], ctx: Ctx) {
@@ -374,11 +478,19 @@ export function arrangeRoom(
 ): FurnitureItem[] {
   return arrangeCore({
     rect: usableRect(roomId),
+    extensionRect: extensionRectOf(roomId),
     keepOut: [...(KEEPOUT[roomId] ?? []), ...DEFAULT_DOOR_APPROACH],
     windowKeepOut: DEFAULT_WINDOW_KEEPOUT,
     windows: DEFAULT_WINDOWS,
     doorPoints: DEFAULT_DOOR_POINTS,
-    inRoom: (i) => roomOf(i.position) === roomId,
+    inRoom: (i) => {
+      const r = roomOf(i.position)
+      // A stale item outside every room (see `nearestRoomTo`) is claimed by
+      // whichever room's pass it's nearest to, so it's never permanently
+      // invisible to "Tidy" — only reached when `r` is null (the common,
+      // in-room case short-circuits on the direct match).
+      return r === roomId || (r === null && nearestRoomTo(i.position) === roomId)
+    },
     kind: roomKind(roomId),
     focal: FOCAL[roomId],
     allItems,
@@ -392,6 +504,11 @@ export function arrangeRoom(
  *  using the strategy for `kind`, against the other items as obstacles. */
 function arrangeCore(opts: {
   rect: Rect
+  /** The room's L-shape extension, inset (see `extensionRectOf`) — widens the
+   *  safety-net `settle` fallback's search area for an item that starts in a
+   *  sub-wing the tuned per-kind arranger doesn't target (e.g. an entrance
+   *  foyer). Undefined for a plain rectangular room. */
+  extensionRect?: Rect
   keepOut: Rect[]
   /** Window front-clearance rects (RM3) — see `Ctx.windowKeepOut`. */
   windowKeepOut?: WindowFrontRect[]
@@ -417,6 +534,7 @@ function arrangeCore(opts: {
 }): FurnitureItem[] {
   const {
     rect,
+    extensionRect,
     keepOut,
     windowKeepOut,
     windows,
@@ -463,7 +581,7 @@ function arrangeCore(opts: {
   for (const it of roomItems) {
     if (inWorld.has(it.id)) continue
     if (roleOf(it.defId, catalog) === 'mounted' || roleOf(it.defId, catalog) === 'ceiling') continue
-    settle(it, rect, world, ctx)
+    settle(it, rect, world, ctx, extensionRect)
   }
 
   // Rebuild the full list in original order: a placed item takes its new
@@ -671,9 +789,20 @@ function arrangeLiving(
 ) {
   const cx = (rect.x0 + rect.x1) / 2
   const cz = (rect.z0 + rect.z1) / 2
+  // The tuned lounge layout supports the focal (TV) wall on EITHER vertical
+  // side — `fs` is the sign toward the focal wall along X: +1 when it's the
+  // EAST wall, -1 when it's the WEST wall (RM: the default flat's east wall
+  // now carries a 3.4 m window, so the TV/focal wall moved to the windowless
+  // west side — B3/HS partitions). `focalX`/`oppX` are the focal and opposite
+  // wall's X coordinate; every east-hardcoded offset below is expressed via
+  // `fs` so it mirrors correctly for a west focal wall.
+  const focalVertical = focal === 'E' || focal === 'W'
+  const fs = focal === 'W' ? -1 : 1
+  const focalX = fs > 0 ? rect.x1 : rect.x0
+  const oppX = fs > 0 ? rect.x0 : rect.x1
 
   // 1. Media console + TV + feature wall + cove → focal wall (flush).
-  let consoleFrontX = rect.x1 // for placing seating opposite
+  let consoleFrontX = focalX // for placing seating opposite
   let consoleZ = cz
   if (focal) {
     const console = get(['mediaConsole'])[0]
@@ -699,38 +828,39 @@ function arrangeLiving(
       // shift to the seating z band (only if it actually got placed)
       const placedConsole = world.find((w) => w.id === console.id)
       if (placedConsole) {
-        tryPlace(placedConsole, [rect.x1 - d / 2 - 0.06, consoleZ], inward(focal), world, ctx)
-        consoleFrontX = rect.x1 - d - 0.06
+        tryPlace(placedConsole, [focalX - fs * (d / 2 + 0.06), consoleZ], inward(focal), world, ctx)
+        consoleFrontX = focalX - fs * (d + 0.06)
       }
     }
     for (const m of get(['media', 'featureWall'])) {
       const off = m.defId === 'feature-wall' ? 0.02 : 0.12
-      tryPlace(m, [rect.x1 - off, consoleZ], inward(focal), world, ctx)
+      tryPlace(m, [focalX - fs * off, consoleZ], inward(focal), world, ctx)
     }
   }
 
   // 2. Seating → face the focal wall, opposite side; else face room centre.
   const sofa = get(['seating'])[0]
-  let sofaFrontX = rect.x0
-  if (sofa && focal === 'E') {
+  let sofaFrontX = oppX
+  if (sofa && focalVertical) {
     const def = catalog[sofa.defId]
     const d = def ? baseFootprint(sofa, def).d : 0.9
-    // Back flush to the west wall (rect.x0 is the wall face + tiny gap).
-    const px = rect.x0 + d / 2 + CLEARANCE.wallGap
-    tryPlace(sofa, [px, consoleZ], Math.PI / 2, world, ctx)
-    sofaFrontX = px + d / 2
+    // Facing the focal wall: inward('W') = +PI/2 (facing E, focal on E);
+    // inward('E') = -PI/2 (facing W, focal on W) — i.e. inward(opposite(focal)).
+    const rot = inward(opposite(focal!))
+    const placed = placeSeatingFacingFocal(sofa, rect, rot, fs, oppX, d, consoleZ, world, ctx)
+    if (placed !== sofa) sofaFrontX = placed.position[0] + fs * (d / 2)
   } else if (sofa) {
     snapToWall(sofa, rect, [nearestEdge(sofa.position, rect)], world, ctx)
   }
 
   // 3. Low table + rug between sofa and console (long side parallel to sofa).
-  const midX = focal === 'E' ? (sofaFrontX + consoleFrontX) / 2 : cx
+  const midX = focalVertical ? (sofaFrontX + consoleFrontX) / 2 : cx
   for (const rug of get(['rug'])) tryPlace(rug, [midX, consoleZ], 0, world, ctx)
   for (const t of get(['lowTable'])) {
     // A coffee table's long side should be parallel to the (N-S) sofa → rot 90°.
     const def = catalog[t.defId]
     const fp = def ? baseFootprint(t, def) : { w: 1, d: 1 }
-    const rot = focal === 'E' && fp.w > fp.d ? Math.PI / 2 : 0
+    const rot = focalVertical && fp.w > fp.d ? Math.PI / 2 : 0
     tryPlace(t, [midX, consoleZ], rot, world, ctx)
   }
 
@@ -745,7 +875,7 @@ function arrangeLiving(
         ? consoleZ < cz
           ? rect.z0 + (rect.z1 - rect.z0) * 0.8
           : rect.z0 + (rect.z1 - rect.z0) * 0.2
-        : focal === 'E'
+        : focalVertical
           ? rect.z0 + (rect.z1 - rect.z0) * 0.74
           : cz
     const dx = clamp(dining.position[0], rect.x0 + 1, rect.x1 - 1)

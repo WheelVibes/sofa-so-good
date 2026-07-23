@@ -36,6 +36,7 @@ export interface SolidMaterialDef extends MaterialDefBase {
 /** Pattern name for runtime procedural texture generation. */
 export type ProceduralPattern =
   | 'wood'
+  | 'vinyl'
   | 'tile'
   | 'carpet'
   | 'concrete'
@@ -51,6 +52,7 @@ export type ProceduralPattern =
   | 'batten'
   | 'hexagon'
   | 'subway'
+  | 'porcelain'
   | 'fluted'
   | 'peranakan'
   | 'limewash'

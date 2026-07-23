@@ -121,6 +121,7 @@ export interface ComposeTexture {
 export const COMPOSE_TEXTURES: ComposeTexture[] = [
   { pattern: 'plaster', label: 'Plaster (paint)', uvScale: [2.5, 2.5] },
   { pattern: 'wood', label: 'Wood planks', uvScale: [1.9, 1.2] },
+  { pattern: 'vinyl', label: 'Vinyl strips', uvScale: [1.2, 1.08] },
   { pattern: 'parquet', label: 'Parquet', uvScale: [0.5, 0.5] },
   { pattern: 'herringbone', label: 'Herringbone', uvScale: [2, 2] },
   { pattern: 'tile', label: 'Tile', uvScale: [0.8, 0.8] },

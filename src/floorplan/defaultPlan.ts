@@ -20,7 +20,13 @@ export function buildDefaultPlan(): FloorPlan {
     start: [w.start[0], w.start[1]],
     end: [w.end[0], w.end[1]],
     thickness: w.thickness,
+    ...(w.thicknessM != null ? { thicknessM: w.thicknessM } : {}),
     ...(w.topHeight != null ? { topHeight: w.topHeight } : {}),
+    ...(w.railing ? { railing: true } : {}),
+    // Structural classification traced from the official plan (see the
+    // WALLS header in apartment/constants.ts) — seeds the hackability
+    // overlay / demolition sheet instead of leaving every wall 'unknown'.
+    ...(w.structure ? { structure: w.structure } : {}),
   }))
 
   const openings: PlanOpening[] = [
@@ -35,6 +41,9 @@ export function buildDefaultPlan(): FloorPlan {
         head: FLAT.doorHeight,
         hinge: d.hinge,
         swing: d.swing,
+        ...(d.style ? { style: d.style } : {}),
+        ...(d.material ? { material: d.material } : {}),
+        ...(d.color ? { color: d.color } : {}),
       }),
     ),
     ...WINDOWS.map(
@@ -46,6 +55,10 @@ export function buildDefaultPlan(): FloorPlan {
         width: w.width,
         sill: w.sill,
         head: w.head,
+        ...(w.style ? { style: w.style } : {}),
+        // Window GLASS kind rides `PlanOpening.material` (doors use the same
+        // field for leaf material; windows reuse it for glass kind instead).
+        ...(w.glass ? { material: w.glass } : {}),
       }),
     ),
   ]

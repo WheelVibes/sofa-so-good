@@ -62,34 +62,61 @@ export function Shower({ props }: { props: ParamProps }) {
           <boxGeometry args={[0.02, 0.02, size - 0.2]} />
         </mesh>
       )}
-      {/* Riser rail on the −X/−Z corner. Runs the full height from INTO the tray
-          (y 0.05, embedded in the 0–0.08 m tray) up to the head arm, so the whole
-          plumbing column (riser + mixer + head arm + head) reads as one grounded
-          assembly attached to the tray rather than floating fittings on an absent
-          wall — the deferred harness finding. */}
+      {/* Riser/slide-rail on the −X/−Z corner. Runs the full height from INTO
+          the tray (y 0.05, embedded in the 0–0.08 m tray) up to the sliding
+          holder, so the whole plumbing column (riser + mixer + holder +
+          handset + hose) reads as one grounded assembly attached to the tray
+          rather than floating fittings on an absent wall — the deferred
+          harness finding. Renamed from "shower-head arm" to "slide rail":
+          the approved fitting (assets/ocs/toilet_fittings.png) is a HANDHELD
+          set on a chrome slide-rail bar, not a fixed overhead rain head. */}
       <mesh castShadow position={[-half + 0.05, 0.94, -half + 0.05]} material={chrome}>
         <cylinderGeometry args={[0.015, 0.015, 1.78, 10]} />
       </mesh>
-      {/* Shower-head arm — a short diagonal spar bridging the riser top to the
-          head so the head sockets onto the riser instead of hanging free. */}
+      {/* Sliding holder bracket — clamps the handset to the rail partway up
+          (a short collar around the riser + a stub arm holding the handset
+          cradle), replacing the old fixed diagonal arm to a rain head. */}
       <mesh
-        position={[-half + 0.115, 1.82, -half + 0.115]}
-        rotation={[0, -Math.PI / 4, 0]}
-        material={chrome}
-      >
-        <boxGeometry args={[0.26, 0.022, 0.022]} />
-      </mesh>
-      {/* Shower head */}
-      <mesh
-        position={[-half + 0.18, 1.85, -half + 0.18]}
+        position={[-half + 0.05, 1.55, -half + 0.05]}
         rotation={[Math.PI / 2, 0, 0]}
         material={chrome}
       >
-        <cylinderGeometry args={[0.07, 0.07, 0.03, seg(18, detail)]} />
+        <cylinderGeometry args={[0.026, 0.026, 0.03, seg(12, detail)]} />
       </mesh>
-      {/* Mixer */}
+      <mesh
+        position={[-half + 0.115, 1.55, -half + 0.115]}
+        rotation={[0, -Math.PI / 4, 0]}
+        material={chrome}
+      >
+        <boxGeometry args={[0.14, 0.02, 0.02]} />
+      </mesh>
+      {/* Handset (cradled in the holder, socket-facing down like the photo) */}
+      <mesh
+        castShadow
+        position={[-half + 0.18, 1.52, -half + 0.18]}
+        rotation={[0.15, -Math.PI / 4, 0]}
+        material={chrome}
+      >
+        <cylinderGeometry args={[0.026, 0.032, 0.16, seg(14, detail)]} />
+      </mesh>
+      {/* Head plate — the wide spray face at the handset's business end */}
+      <mesh
+        position={[-half + 0.192, 1.446, -half + 0.192]}
+        rotation={[0.15, -Math.PI / 4, 0]}
+        material={chrome}
+      >
+        <cylinderGeometry args={[0.045, 0.045, 0.014, seg(16, detail)]} />
+      </mesh>
+      {/* Mixer body (bath/shower mixer, low on the riser) */}
       <mesh position={[-half + 0.05, 0.95, -half + 0.05]} material={chrome}>
         <boxGeometry args={[0.08, 0.12, 0.08]} />
+      </mesh>
+      {/* Hose — a slim flexible tube from the mixer outlet up to the handset,
+          following the riser (the photo's "with hose" mixer). Modelled as a
+          thin cylinder along the riser rather than a free curve, since the
+          rail already occupies that line. */}
+      <mesh position={[-half + 0.05, 1.24, -half + 0.05]} material={chrome}>
+        <cylinderGeometry args={[0.008, 0.008, 0.58, 8]} />
       </mesh>
     </group>
   )

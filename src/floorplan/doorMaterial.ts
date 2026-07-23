@@ -7,10 +7,12 @@
 
 import type { PlanOpening } from './types'
 
-/** The three door-leaf finishes: `painted` (flat colour, today's default),
+/** The four door-leaf finishes: `painted` (flat colour, today's default),
  *  `wood` (procedural wood grain tinted by `color`), `vinyl` (smooth PVC
- *  laminate — the standard SG toilet/utility door finish). */
-export type DoorLeafMaterialKind = 'painted' | 'wood' | 'vinyl'
+ *  laminate — the standard SG toilet/utility door finish), `metal` (brushed
+ *  metal — the household-shelter blast door / an aluminium-framed glazed
+ *  door). */
+export type DoorLeafMaterialKind = 'painted' | 'wood' | 'vinyl' | 'metal'
 
 /** Resolves a door leaf's surface material kind: the explicit
  *  `opening.material` override, else `vinyl` for a `bifold` door (the
@@ -20,6 +22,6 @@ export function resolveDoorLeafMaterialKind(
   opening: Pick<PlanOpening, 'material' | 'style'>,
 ): DoorLeafMaterialKind {
   const m = opening.material
-  if (m === 'wood' || m === 'vinyl' || m === 'painted') return m
+  if (m === 'wood' || m === 'vinyl' || m === 'painted' || m === 'metal') return m
   return opening.style === 'bifold' ? 'vinyl' : 'painted'
 }

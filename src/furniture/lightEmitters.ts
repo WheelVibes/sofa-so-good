@@ -119,10 +119,10 @@ export const OVERRIDE_EMITTER: EmitterSpec = {
  * emits when the user flagged it as a light source (`props.lightOn ===
  * 'yes'`, the `itemAsLight` inspector toggle / walk-mode toggle-on). This
  * item-level gate is evaluated once, upstream of the scene-wide `lightsMode`
- * ('auto' | 'on' | 'off') brightness multiplier applied in
+ * ('on' | 'off') brightness multiplier applied in
  * `FurnitureLights.tsx` — so an item switched off here never appears in the
  * active-lights set at all, regardless of what `lightsMode` says (composition
- * rule: **per-item toggle wins**, in every mode, not just 'auto'). `lightsMode`
+ * rule: **per-item toggle wins**, in every mode). `lightsMode`
  * only scales the brightness/timing of whichever items already passed this
  * per-item gate; it never re-adds an item this gate excluded.
  */

@@ -58,7 +58,7 @@ function wallReveal(id: string) {
 
 describe('flat wall reveal (real ROOMS/WALLS)', () => {
   it('reaches peak fade strength on the bedroom north facade when the camera faces it', () => {
-    const { nx, nz } = wallReveal('wall-ext-N')
+    const { nx, nz } = wallReveal('wall-ext-N-west')
     expect(nz).toBeLessThan(0) // outward points north (−Z), away from the bedrooms
     // Camera looking INTO the facade (forward opposes the outward normal).
     const strength = wallRevealStrength(-nx, -nz, nx, nz)
@@ -66,7 +66,7 @@ describe('flat wall reveal (real ROOMS/WALLS)', () => {
   })
 
   it('keeps the bedroom north facade fully opaque from inside the flat (a FAR wall)', () => {
-    const { nx, nz } = wallReveal('wall-ext-N')
+    const { nx, nz } = wallReveal('wall-ext-N-west')
     // Camera looking OUT through the facade from inside (forward along outward):
     // the far-wall case the retired binary target guarded — excluded structurally
     // by the graded curve (facingToward ≤ 0 → strength exactly 0).
@@ -75,7 +75,7 @@ describe('flat wall reveal (real ROOMS/WALLS)', () => {
   })
 
   it('reaches peak fade on the living/dining east facade when faced (sanity: centred wall)', () => {
-    const { nx, nz } = wallReveal('wall-ext-E')
+    const { nx, nz } = wallReveal('wall-ext-E-mid')
     expect(nx).toBeGreaterThan(0) // outward points east (+X)
     const strength = wallRevealStrength(-nx, -nz, nx, nz)
     expect(strength).toBeCloseTo(1, 1)
@@ -85,7 +85,7 @@ describe('flat wall reveal (real ROOMS/WALLS)', () => {
     // The whole point of the fix: a faced bedroom (off-centre) wall reaches the
     // same near-peak strength as a faced south (more central) wall — no partial gap.
     // Orientation-only, so both are driven by a forward vector facing the wall.
-    const north = wallReveal('wall-ext-N')
+    const north = wallReveal('wall-ext-N-west')
     const south = wallReveal('wall-ext-S')
     const sNorth = wallRevealStrength(-north.nx, -north.nz, north.nx, north.nz)
     const sSouth = wallRevealStrength(-south.nx, -south.nz, south.nx, south.nz)
@@ -96,10 +96,10 @@ describe('flat wall reveal (real ROOMS/WALLS)', () => {
     // The curated flat's WALLS share exact corner endpoints, so the default
     // epsilon links each exterior facade to the walls meeting it at a corner.
     const map = cornerNeighbors(WALLS.map((w) => ({ id: w.id, start: w.start, end: w.end })))
-    const northNbs = map.get('wall-ext-N') ?? []
+    const northNbs = map.get('wall-ext-N-west') ?? []
     expect(northNbs.length).toBeGreaterThan(0)
-    expect(northNbs).not.toContain('wall-ext-N')
+    expect(northNbs).not.toContain('wall-ext-N-west')
     // Symmetry: every neighbour lists the facade back.
-    for (const nb of northNbs) expect(map.get(nb)).toContain('wall-ext-N')
+    for (const nb of northNbs) expect(map.get(nb)).toContain('wall-ext-N-west')
   })
 })
