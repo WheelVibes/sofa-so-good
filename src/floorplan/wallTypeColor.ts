@@ -22,7 +22,7 @@ import type { PlanWall } from './types'
  * - `undefined` / `'unknown'` → `null` — no tint (nothing confidently
  *   classified to show).
  */
-export const WALL_TYPE_OVERLAY_COLORS: Record<
+const WALL_TYPE_OVERLAY_COLORS: Record<
   Exclude<NonNullable<PlanWall['structure']>, 'unknown'>,
   string
 > = {

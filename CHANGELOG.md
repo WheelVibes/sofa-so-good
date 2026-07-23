@@ -5,6 +5,11 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.24.0.1 — CI fix: knip dead-code scan green
+
+`WALL_TYPE_OVERLAY_COLORS` (SNV wall-type symbology) de-exported — only consumed in-file by
+`wallTypeOverlayColor()`; nothing deleted. Same treatment as the r11 knip sweep.
+
 ## v0.24.0.0 — Round 12 ships: SNV default-plan accuracy line + GPU-STARVE white-flash fix
 
 Release bump for the r12 staging PR (minor per the versioning rule — multi-feature). Carries
