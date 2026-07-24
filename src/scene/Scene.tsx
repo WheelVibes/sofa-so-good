@@ -13,6 +13,7 @@ import { FurnitureLayer } from '../furniture/FurnitureLayer'
 import { FurnitureMaterialLoader } from '../furniture/FurnitureMaterialLoader'
 import { useStore } from '../state/store'
 import { MeasurementOverlay } from '../ui/MeasurementOverlay'
+import { AirconTrunking } from './AirconTrunking'
 import { AlignmentGuides } from './AlignmentGuides'
 import { AnisotropyController } from './AnisotropyController'
 import { AnnotationsOverlay } from './AnnotationsOverlay'
@@ -142,6 +143,9 @@ export function Scene() {
         <CurtainLightController />
         <FurnitureLights />
         {customPlan ? <PlanShell /> : <Apartment />}
+        {/* Modeled aircon trunking route (BSJ-2 follow-up) — custom plans only,
+            see the module doc for why (no room-graph for the curated flat). */}
+        {customPlan && <AirconTrunking />}
         <CeilingOccluder rects={occluderRects} />
         {/* "Click a room to edit" hover highlight — works for both plans now. */}
         <RoomHoverHighlight />

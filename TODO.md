@@ -595,15 +595,28 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
   The curated default flat (`RoomShell`/`Apartment.tsx`) is unchanged — it has no `floorLevelMm`
   concept (plan-room-only feature). Tests: `floorLevels3d.test.ts` (offset resolution incl. flag-off
   ⇒ 0, wall extension, point lookups across storeys, riser geometry + level-elevation composition).
-- [ ] **BSJ-2 follow-up — 3D refrigerant-trunking route** (S/M, pro) — the aircon system planner
-  (BSJ-2) currently emits a one-line trunking ADVISORY per system ("runs from the AC ledge along
-  the corridor ceiling — confirm with installer") rather than a modeled route. Approach when built:
-  a pure `analysis/airconTrunking.ts` that routes an orthogonal polyline from each served room's FCU
-  to its condenser on the ledge, hugging the corridor ceiling (reuse `planRoomShell` walls +
-  `roomCategory` to find the corridor spine + door thresholds to cross rooms), rendered as a thin
-  ducted-trunking run in the 3D scene (a mounted `noClip` polyline mesh at ceiling height) and marked
-  on the RCP/electrical sheet. Feeds a real pipe-length quantity into the aircon budget line. Pure
-  client. Keep the advisory note as the fallback when the route can't be resolved.
+- [x] **BSJ-2 follow-up — 3D refrigerant-trunking route** (S/M, pro) — DONE: pure
+  `analysis/airconTrunking.ts` routes an orthogonal (Manhattan-dogleg) polyline per served room,
+  condenser → FCU, at ceiling height. Router: a room-adjacency graph over DOOR openings only
+  (`planRoomShell` per-room openings, a door's world centre attributed to every room it borders),
+  BFS shortest hop-count path from the condenser's room to the FCU's room (naturally prefers the
+  corridor spine — it has doors to every bedroom), waypoints = condenser pos + each hop's door
+  threshold + FCU pos, each leg expanded into an axis-aligned dogleg. `resolved:false` (no wall-
+  crossing check beyond "through doors, not walls" — deliberately simple, correctness over
+  optimality) keeps the ORIGINAL advisory text unchanged — no regression. `resolveAirconTrunkingInput`
+  mirrors `renovationAllocator`'s placed-items-else-planner-proposal fallback so every consumer
+  (3D, RCP, budget) agrees on the same route for the same design. **3D**: `scene/AirconTrunking.tsx`
+  — small (~60×40mm) painted-white duct boxes per segment, mounted alongside `PlanShell` in
+  `Scene.tsx`, **custom plans only** (the curated default flat has no room-graph model to route
+  against). **RCP sheet**: `rcp.ts`'s `ReflectedCeilingPlan.trunking` (resolved runs only) +
+  `rcpSvg.ts` dashed polyline + `~XXm` label + a legend row. **Budget**: new
+  `trades.airconTrunkingPerM` (S$20/m) feeds a separate `aircon-trunking` trade line (real
+  modeled-route length, only when resolved) alongside the existing flat per-FCU `aircon` line.
+  **DaylightPanel**: "Trunking ~XX m" replaces the generic advisory per system once every FCU in
+  that system resolves. New pro flag `airconTrunking` (default on, rides alongside `airconSystem`).
+  Tests: `airconTrunking.test.ts` (router: resolves through doors, Manhattan-only segments,
+  planner-proposal fallback, unresolved on no door path), `rcp.test.ts` (RCP overlay), allocator pin
+  (`renovationAllocator.airconTrunking.test.ts`), `featureFlags.test.ts` (both modes).
 - Near-misses CLEARED (verified covered, don't re-propose): full appliance catalog (fridge/
   washer/dishwasher/oven/microwave/hood/hob/wine-cooler/water-heater/aircon FCU); TV 43-75"
   sizes; curtains/roller/roman/zebra/drapery; carpentry (kitchen/wardrobe/feature-wall/study/
@@ -644,6 +657,32 @@ First-time-user end-to-end walkthrough on the GPU harness. Full write-up + scree
   2027" + format hint, and the move-in checklist rows are now tickable + persisted (`handoverChecked`,
   schema+autosave); Smart Start footer token humanised (see P2-2). (P3-1 tour copy + P3-5 elevation
   preview left as-is: P3-5 is the print thumbnail, out of this batch's scope.)
+
+## Blank-slate journey queue r2 (2026-07-24)
+> Second-queue gap analysis over the areas round 1 scored lower — full per-area verdicts,
+> SG-source citations and near-miss re-verification in
+> `docs/research/2026-07-24-blank-slate-gap-analysis-r2.md`. Ranked.
+- [ ] **BSJ2-1 — Condo developer fit-out intake state + customisation budget posture** (M,
+  simple) — fifth `IntakeStateMeta` (`furniture/intakeStates.ts`) seeding the developer-fitted
+  unit: tiled/vinyl floors per room category, bedroom wardrobes, kitchen cabinet run +
+  hob/hood/oven, complete bathrooms, wall FCUs + condenser (reuse the BSJ-2 primitives). The
+  renovation allocator then reads the intake baseline and zeroes developer-provided trades
+  (flooring, wardrobe carpentry, aircon install) unless the user replaces them — the
+  customisation-vs-rebuild split every SG condo cost guide describes. Unblocks the condo half
+  of the product promise (all four shipped intake states are HDB).
+- [ ] **BSJ2-2 — Defect pins on the 3D model + DLP defect report** (M, pro) — typed defect
+  pins (category from `handoverChecklist`'s room-kind snag rules, severity, open → reported →
+  rectified → re-inspect status, room auto-attribution) extending the proven comment-pin
+  pattern (`commentsSlice`/`CommentPins`); a "Defect check" mode seeded per room from the
+  checklist; export a defect report (plan markup via the existing SVG overlay pattern +
+  numbered list + DLP/Assure-3 deadlines from `handoverDates`) the owner hands the
+  developer/BSC. No photos in v1 (storage-free).
+- [ ] **BSJ2-3 — Smart-home pre-wire advisory + wired-AP coverage** (S/M, pro) — electrical
+  advisory section: neutral-wire-to-every-switch line (per MEP switch count, S$500–1,200 band,
+  deeper-box + LEW notes — the one irreversible pre-reno smart-home decision) folded into the
+  Electrician handover pack; plus wired access-point coverage (an `ap` electrical kind or a
+  data-point coverage advisory: ≥1 wired drop per ~60–90 m² zone + TV/study), reusing the
+  socket-advisory pattern.
 
 ## E2E blank-slate journey validation (2026-07-19)
 > New-owner end-to-end journey (bare shell → surfaces → theme/furnish → MEP/circuits/aircon →

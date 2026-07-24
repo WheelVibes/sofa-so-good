@@ -337,7 +337,12 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   legend, `printMmPerM` sizing) and reuses `mepLabelLayout.ts:layoutMepLabels` to declutter
   fixture distance labels exactly like the MEP sheets (H-D1) — don't re-derive a second declutter
   scheme. `ui/drawingSet.ts` fans this out per storey (every storey with rooms, not just ones with
-  fixtures — a flat-ceiling room's zone note is still useful on its own).
+  fixtures — a flat-ceiling room's zone note is still useful on its own). **Aircon trunking overlay
+  (BSJ-2 follow-up, `airconTrunking` flag):** `buildReflectedCeilingPlan`'s optional 4th/5th args
+  (`trunkingItems`/`orientationDeg`, both default to no-op) feed `analysis/airconTrunking.ts`'s
+  router; only RESOLVED runs land in `ReflectedCeilingPlan.trunking`, drawn by `rcpSvg.ts` as a
+  dashed polyline + `~XXm` label + a legend row (an unresolved run draws nothing on the sheet,
+  same as it draws nothing in 3D — the DaylightPanel advisory is the only surface for that case).
 - **On-plan D/W mark callouts (H1-F): `analysis/openingSchedule.ts:assignOpeningMarks(plan)`.** A
   per-opening (keyed by opening id, not aggregated) variant of `buildOpeningSchedule`'s
   (kind, width, head−sill, style, material) grouping, reusing the SAME `markKey`/`openingHeight`

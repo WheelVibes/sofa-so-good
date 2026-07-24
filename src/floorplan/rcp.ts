@@ -20,6 +20,9 @@
  * Self-contained beyond `./types` + `apartment/ceiling/ceilingModel` (pure) +
  * `lighting2d/lightingPlan`'s `PlanLight` type. No three/React imports.
  */
+
+import { buildAirconSystemPlan } from '../analysis/airconSystem'
+import { buildAirconTrunkingPlan, resolveAirconTrunkingInput } from '../analysis/airconTrunking'
 import { buildCeiling, ceilingStyleLabel } from '../apartment/ceiling/ceilingModel'
 import { isFeatureEnabled } from '../features/featureFlags'
 import { CORNICE_MIN_M, MIN_FINISHED_CLEARANCE_M } from './ceilingClearance'
@@ -138,10 +141,23 @@ interface RcpAircon {
   label?: string
 }
 
+/** One RESOLVED trunking run for the RCP overlay (BSJ-2 follow-up) — a dashed
+ *  polyline in plan projection [x,z] (the 3D route's Y is dropped, since a
+ *  reflected ceiling plan is a top-down view) + its length for the caption. */
+export interface RcpTrunkingRun {
+  systemIndex: number
+  roomName: string
+  points: PlanVec2[]
+  lengthM: number
+}
+
 export interface ReflectedCeilingPlan {
   zones: RcpZone[]
   fixtures: RcpFixture[]
   aircon: RcpAircon[]
+  /** Modeled refrigerant-trunking routes (BSJ-2 follow-up), resolved runs
+   *  only — empty when the `airconTrunking` flag is off or nothing resolves. */
+  trunking: RcpTrunkingRun[]
 }
 
 /** The nearest wall of the given orientation (`'x'` = a wall running along Z,
@@ -256,18 +272,33 @@ function buildZone(room: PlanRoom, defaultCeilingHeightM: number, withClearance:
   }
 }
 
+/** Minimal shape this module needs to re-derive the trunking route — a placed
+ *  (or heuristic-fallback) furniture item, structural like `RcpAirconInput`
+ *  above so this file stays free of a `furniture/types.ts` dependency. */
+export interface RcpTrunkingItemInput {
+  defId: string
+  roomId?: string
+  position: [number, number]
+}
+
 /**
  * Build the reflected ceiling plan for one storey (caller resolves the storey
  * via `levels.ts:levelAsPlan`, matching every other per-storey plan builder in
  * this codebase — `buildElectricalPlan`/`buildPlumbingPlan`). `fixtures` and
  * `electricalPoints` are the caller's already-level-filtered lists (e.g.
  * `itemsOnLevel(lighting.lights, level.id)`), mirroring the lighting/electrical
- * sheet loops in `ui/drawingSet.ts`.
+ * sheet loops in `ui/drawingSet.ts`. `trunkingItems`/`orientationDeg` (optional,
+ * whole-flat — the aircon system planner and its routes aren't level-filtered
+ * the way fixtures/points are) drive the trunking overlay when the
+ * `airconTrunking` flag is on; omitted/flag-off ⇒ `trunking: []`, unchanged
+ * from before this field existed.
  */
 export function buildReflectedCeilingPlan(
   plan: FloorPlan,
   fixtures: RcpFixtureInput[],
   electricalPoints: RcpAirconInput[],
+  trunkingItems: RcpTrunkingItemInput[] = [],
+  orientationDeg = 0,
 ): ReflectedCeilingPlan {
   const rooms = Array.isArray(plan.rooms) ? plan.rooms : []
   const walls = Array.isArray(plan.walls) ? plan.walls : []
@@ -305,5 +336,25 @@ export function buildReflectedCeilingPlan(
       label: p.label,
     }))
 
-  return { zones, fixtures: ceilingFixtures, aircon }
+  // Trunking overlay (BSJ-2 follow-up), gated on its own flag — same
+  // resolved-only convention as the 3D renderer (an unresolved run keeps only
+  // the DaylightPanel advisory text, never a partial/guessed line on a sheet).
+  let trunking: RcpTrunkingRun[] = []
+  if (isFeatureEnabled('airconTrunking')) {
+    const systemPlan = buildAirconSystemPlan(plan, orientationDeg)
+    if (systemPlan.systems.length > 0) {
+      const input = resolveAirconTrunkingInput(plan, systemPlan, trunkingItems)
+      const routed = buildAirconTrunkingPlan(plan, systemPlan, input)
+      trunking = routed.runs
+        .filter((r) => r.resolved)
+        .map((r) => ({
+          systemIndex: r.systemIndex,
+          roomName: r.roomName,
+          points: r.waypoints.map(([x, , z]) => [x, z] as PlanVec2),
+          lengthM: r.lengthM,
+        }))
+    }
+  }
+
+  return { zones, fixtures: ceilingFixtures, aircon, trunking }
 }

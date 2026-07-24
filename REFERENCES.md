@@ -98,3 +98,14 @@ see `docs/asset-studio-plan.md` for the staged program this research seeds.
   [chili3d](https://github.com/xiangechen/chili3d) (OCCT→WASM + three.js) ·
   [replicad](https://replicad.xyz) / [opencascade.js](https://ocjs.org) (B-rep in browser;
   ~4–15 MB WASM — ruled out for now in the plan).
+
+## Defect-inspection tools (SG, 2026-07-24 gap-analysis r2 — reference for BSJ2-2 defect pins)
+
+- **Easy Inspection** — SG defect-checking service for BTO/condo; the per-room marked-up
+  defect list + joint-inspection workflow is the artifact BSJ2-2 reproduces in-app.
+  [site](https://easyinspection.sg/)
+- **Defect Check SG / A1 Inspection / PropDefect** — same category; PropDefect publishes the
+  per-surface check taxonomy (hollow tiles, paint, doors/windows, ponding, seepage) worth
+  mirroring in the defect-pin categories. [site](https://defectcheck.sg/) ·
+  [DLP explainer](https://a1inspection.sg/what-is-the-defects-liability-period/) ·
+  [taxonomy](https://propdefect.com/what-we-check/)

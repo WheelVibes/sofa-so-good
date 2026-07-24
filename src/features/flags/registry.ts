@@ -1849,6 +1849,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // 3D refrigerant-trunking route visualization (BSJ-2 follow-up): routes an
+  // orthogonal polyline from each FCU to its condenser through door openings
+  // at ceiling height (`analysis/airconTrunking.ts`), rendered as a thin
+  // ducted-trunking run in the orbit scene, marked on the RCP sheet, and
+  // feeding a real pipe-length quantity into the aircon budget line. Rides
+  // alongside `airconSystem` in the same Cooling-load section — same
+  // pure-client-over-existing-data shape → prod-safe; an analytical/
+  // professional planning surface → pro tier.
+  airconTrunking: {
+    label: 'Aircon trunking route',
+    description: 'Modeled refrigerant-trunking route from each FCU to its condenser',
+    default: true,
+    tier: 'pro',
+  },
   // False-ceiling clearance validator (UX research round 4 R4-2): warns when a
   // dropped/cove ceiling zone leaves under the SG comfort/statutory finished
   // clearance (≥2.4 m under a dropped ceiling; 2.6 m standard slab), and reports

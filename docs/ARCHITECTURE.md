@@ -1405,6 +1405,9 @@ same change that reshapes a system.
   per-zone clearance (headroom mm + warn/belowCornice) only when `isFeatureEnabled('ceilingClearance')`
   (the `ceilingClearance` pro flag), and `rcpSvg.ts` prints it as a "⚠ …mm under 2400mm min headroom"
   marking (or a passing clearance readout) in each zone note.
+  **Aircon trunking overlay (BSJ-2 follow-up):** `rcp.ts`'s `ReflectedCeilingPlan.trunking`
+  (resolved routes only, see `analysis/airconTrunking.ts` above) is drawn by `rcpSvg.ts` as a
+  dashed polyline + length label per system, gated by the `airconTrunking` flag.
   **Elevation sheet grouping (TODO H6):** a 4-room HDB flat produced ~20 one-per-wall elevation
   sheets, most bare. `ui/drawingSet.ts`'s elevation loop now partitions `projectAllElevations`'
   output (tagged with its ORIGINAL index so "Wall N" captions never repeat across the two kinds
@@ -1732,6 +1735,31 @@ same change that reshapes a system.
   fresh set, ONE undo step). Surfaced as the "Aircon system" section + "Plan aircon" action in
   `DaylightPanel`, gated by the `airconSystem` pro flag. The `renovationAllocator` aircon line now
   counts PLACED FCUs when present, else this planner's proposal.
+- **Aircon trunking route (BSJ-2 follow-up)** (`analysis/airconTrunking.ts` pure →
+  `buildAirconTrunkingPlan(plan, systemPlan, input)`: for each served room, routes an orthogonal
+  polyline condenser → FCU at ceiling height. Router (deliberately simple — correctness over
+  optimality): a room-adjacency graph over DOOR openings only (`doorLinks`, via `planRoomShell`'s
+  per-room openings — a door's world centre is attributed to every room it borders), BFS shortest
+  hop-count path from the condenser's room to the FCU's room (`shortestDoorPath` — naturally
+  prefers the corridor/hallway spine, since that's the room with doors to every bedroom), then
+  each hop (condenser pos → door threshold → … → FCU pos) expanded into an axis-aligned
+  `manhattanDogleg`. A run with no door-connected path is `resolved:false` (empty waypoints) —
+  the caller keeps the ORIGINAL one-line advisory for that system, never a partial/guessed route.
+  `resolveAirconTrunkingInput(plan, systemPlan, placedItems)` mirrors `renovationAllocator`'s
+  placed-items-else-planner-proposal fallback (prefers real `aircon-unit`/`aircon-condenser`
+  items when placed, else re-runs `planAirconPlacements` read-only) so the 3D route, RCP sheet
+  and budget line can never disagree on the same design. **3D**: `scene/AirconTrunking.tsx` —
+  small (~60×40mm) painted-white duct boxes per segment, mounted in `Scene.tsx` alongside
+  `PlanShell`, **custom plans only** (the curated default flat has no room-graph/door-opening
+  model to route against — `planRoomShell` is plan-model-only). **RCP sheet**:
+  `rcp.ts`'s `ReflectedCeilingPlan.trunking` (resolved runs only, plan-projected `[x,z]`) +
+  `rcpSvg.ts` draws a dashed polyline + `~XXm` label + a legend row. **Budget**: a new
+  `trades.airconTrunkingPerM` rate (S$20/m) feeds a separate `aircon-trunking` trade line
+  (`renovationAllocator.ts`, real modeled-route length, only when resolved) alongside the
+  existing flat per-FCU `aircon` line; gated by the caller passing `airconTrunking: true`
+  (mirrors the `waterproofing` boolean-input pattern). `DaylightPanel`'s per-system trunking
+  note becomes "Trunking ~XX m …" once every FCU in that system resolves a route. New pro flag
+  `airconTrunking` (default on, rides alongside `airconSystem` in the Cooling-load section).
 - **Door & window schedule** (`analysis/openingSchedule.ts` pure → `buildOpeningSchedule(plan)`:
   walks `plan.openings` across all storeys, resolves each opening's room(s) by a wall-midpoint probe
   (`PROBE_OFFSET`, as in `daylight.ts`), and groups openings with identical (kind, width, head−sill)

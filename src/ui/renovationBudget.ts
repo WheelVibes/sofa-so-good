@@ -44,6 +44,7 @@ export function assembleRenoAllocation(state: RootState): RenoAllocation {
     orientationDeg: state.orientationDeg,
     budgetTarget: state.budgetTarget ?? undefined,
     waterproofing: isFeatureEnabled('waterproofing'),
+    airconTrunking: isFeatureEnabled('airconTrunking'),
   })
 }
 
