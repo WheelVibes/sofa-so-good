@@ -79,7 +79,7 @@ import type { AirconSystemPlan } from './airconSystem'
 
 /** A placed (or proposed) aircon item's plan position, minimal shape so this
  *  module has no dependency on `furniture/types.ts`. */
-export interface AirconTrunkingPoint {
+interface AirconTrunkingPoint {
   roomId: string
   position: [number, number]
 }
@@ -92,7 +92,7 @@ export interface AirconTrunkingInput {
 }
 
 /** One routed run: a single condenser → single FCU trunking path. */
-export interface AirconTrunkingRun {
+interface AirconTrunkingRun {
   /** 1-based system index (matches `AirconSystem.index`). */
   systemIndex: number
   /** Room the FCU serves. */

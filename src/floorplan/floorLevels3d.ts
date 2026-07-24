@@ -48,7 +48,7 @@
  *    real ≤60 mm kerb behaves underfoot).
  */
 import { buildFloorTransitions } from './floorLevels'
-import { levelAsPlan, planLevels } from './levels'
+import { planLevels } from './levels'
 import type { FloorPlan, PlanRoom } from './types'
 import { pointInRoom } from './types'
 
@@ -202,19 +202,4 @@ export function buildThresholdRisers(
     })
   }
   return out
-}
-
-/** One storey's rooms, honoring `levelAsPlan`'s ground/upper split — a thin
- *  convenience so 3D renderers that already hold a `PlanLevel`-shaped pseudo
- *  plan (`levelAsPlan(plan, level)`) can resolve offsets without re-importing
- *  `levels.ts` themselves. */
-export function levelRoomOffsets(
-  plan: FloorPlan,
-  levelId: string,
-  flagOn: boolean,
-): Map<string, number> {
-  const level = planLevels(plan).find((l) => l.id === levelId)
-  if (!level) return new Map()
-  const lp = levelAsPlan(plan, level)
-  return roomFloorOffsetsForLevel(lp, levelId, flagOn)
 }

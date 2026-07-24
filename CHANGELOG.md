@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.1 — CI fix: knip dead-code scan green
+
+Deleted `levelRoomOffsets` (`floorplan/floorLevels3d.ts`) — a speculative per-storey convenience
+with no consumer and no test, so an unconsumed abstraction per the repo's YAGNI stance — and
+de-exported `AirconTrunkingPoint`/`AirconTrunkingRun` (used only inside `airconTrunking.ts`).
+Same treatment as the r11/r12 knip sweeps.
+
 ## v0.25.0.0 — Round 13 ships: the two 3D follow-ups, the white-flicker root cause, and E2E validation r2
 
 Release bump for the r13 staging PR. Contents: **BSJ-8 real 3D floor levels** (v0.24.0.2),
