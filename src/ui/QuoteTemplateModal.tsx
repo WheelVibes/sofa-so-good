@@ -42,6 +42,7 @@ const TRADE_RATE_META: Record<keyof TradeRates, { label: string; unit: string }>
   ceilingPerM2: { label: 'False ceiling / partition', unit: '/m²' },
   mePerPoint: { label: 'M&E point', unit: '/point' },
   airconPerUnit: { label: 'Aircon (indoor unit)', unit: '/unit' },
+  airconTrunkingPerM: { label: 'Aircon trunking (piping run)', unit: '/lin.m' },
   glassPerM2: { label: 'Glass & aluminium', unit: '/m²' },
   plumbingFixtureEach: { label: 'Plumbing fixture install', unit: '/no.' },
   waterproofingPerM2: { label: 'Waterproofing membrane', unit: '/m²' },

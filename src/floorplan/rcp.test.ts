@@ -1,6 +1,12 @@
-import { describe, expect, it } from 'vitest'
-import { buildReflectedCeilingPlan, CEILING_FIXTURE_TYPES, type RcpFixtureInput } from './rcp'
-import type { FloorPlan, PlanElectricalPoint, PlanRoom } from './types'
+import { afterEach, describe, expect, it } from 'vitest'
+import { resolveFlags, setResolvedFlags } from '../features/flags/resolve'
+import {
+  buildReflectedCeilingPlan,
+  CEILING_FIXTURE_TYPES,
+  type RcpFixtureInput,
+  type RcpTrunkingItemInput,
+} from './rcp'
+import type { FloorPlan, PlanElectricalPoint, PlanOpening, PlanRoom, PlanWall } from './types'
 
 const box: FloorPlan['walls'] = [
   { id: 'a', start: [0, 0], end: [4, 0], thickness: 'external' },
@@ -181,5 +187,109 @@ describe('buildReflectedCeilingPlan — aircon', () => {
     expect(rcp.aircon).toHaveLength(2)
     expect(rcp.aircon[0]!.mountHeightMm).toBe(2400) // ELECTRICAL_MOUNT_DEFAULTS_MM.aircon
     expect(rcp.aircon[1]).toEqual({ x: 3.8, z: 0.5, mountHeightMm: 2500, label: 'Living AC' })
+  })
+})
+
+describe('buildReflectedCeilingPlan — trunking (BSJ-2 follow-up)', () => {
+  // The app boots in Simple mode (`featureFlagsSlice.ts`'s module-level seed),
+  // which forces every pro flag off — force Pro mode here so `airconTrunking`
+  // resolves on, matching how `rcpSvg.test.ts` handles the same module-load
+  // ordering quirk. Restored after each test.
+  setResolvedFlags(resolveFlags(false, {}, false, 'pro'))
+  afterEach(() => {
+    setResolvedFlags(resolveFlags(false, {}, false, 'pro'))
+  })
+
+  function twoRoomWalls(): PlanWall[] {
+    return [
+      { id: 'liv-n', start: [0, 0], end: [5, 0], thickness: 'external' },
+      { id: 'liv-s', start: [0, 4], end: [5, 4], thickness: 'internal' },
+      { id: 'liv-w', start: [0, 0], end: [0, 4], thickness: 'internal' },
+      // Shared wall between living + master, carries the door.
+      { id: 'liv-e', start: [5, 0], end: [5, 4], thickness: 'internal' },
+      { id: 'mas-n', start: [5, 0], end: [9, 0], thickness: 'external' },
+      { id: 'mas-s', start: [5, 4], end: [9, 4], thickness: 'internal' },
+      { id: 'mas-e', start: [9, 0], end: [9, 4], thickness: 'internal' },
+      // AC ledge, off the living room — the fallback proposal (no items
+      // placed) needs a ledge/yard/balcony room to place a condenser onto.
+      { id: 'ledge-n', start: [0, -1.2], end: [5, -1.2], thickness: 'external' },
+      { id: 'ledge-s', start: [0, 0], end: [5, 0], thickness: 'internal' },
+      { id: 'ledge-w', start: [0, -1.2], end: [0, 0], thickness: 'internal' },
+      { id: 'ledge-e', start: [5, -1.2], end: [5, 0], thickness: 'internal' },
+    ]
+  }
+
+  function twoRoomPlan(): FloorPlan {
+    const rooms: PlanRoom[] = [
+      {
+        id: 'living',
+        name: 'Living / Dining',
+        origin: [0, 0],
+        width: 5,
+        depth: 4,
+        category: 'living',
+      },
+      {
+        id: 'master',
+        name: 'Master Bedroom',
+        origin: [5, 0],
+        width: 4,
+        depth: 4,
+        category: 'masterBedroom',
+      },
+      { id: 'ledge', name: 'AC Ledge', origin: [0, -1.2], width: 5, depth: 1.2, category: 'other' },
+    ]
+    const openings: PlanOpening[] = [
+      { id: 'd1', kind: 'door', wallId: 'liv-e', offset: 1, width: 1, sill: 0, head: 2.1 },
+      // Ledge's own service door back into living (living-n / ledge-s share
+      // the same span) so the router can cross from the ledge to the FCUs.
+      { id: 'd2', kind: 'door', wallId: 'liv-n', offset: 1, width: 1, sill: 0, head: 2.1 },
+    ]
+    return {
+      id: 'p2',
+      name: 'Test',
+      ceilingHeight: 2.8,
+      extent: [9, 4],
+      walls: twoRoomWalls(),
+      openings,
+      rooms,
+    }
+  }
+
+  it('marks a resolved trunking route with the aircon flag on', () => {
+    // Both served rooms (living + master, each their own zone → their own
+    // condenser) need a placed FCU; living's condenser sits in the room itself.
+    const items: RcpTrunkingItemInput[] = [
+      { defId: 'aircon-unit', roomId: 'living', position: [1, 1] },
+      { defId: 'aircon-condenser', roomId: 'living', position: [0.3, 0.3] },
+      { defId: 'aircon-unit', roomId: 'master', position: [8.5, 2] },
+      { defId: 'aircon-condenser', roomId: 'master', position: [8.7, 0.3] },
+    ]
+    const rcp = buildReflectedCeilingPlan(twoRoomPlan(), [], [], items, 0)
+    expect(rcp.trunking.length).toBeGreaterThan(0)
+    const run = rcp.trunking.find((r) => r.roomName === 'Master Bedroom')!
+    expect(run.points.length).toBeGreaterThanOrEqual(2)
+    expect(run.lengthM).toBeGreaterThan(0)
+  })
+
+  it('falls back to the planner proposal when no aircon items are placed yet', () => {
+    // No placed items at all — mirrors the allocator's own fallback, so the
+    // sheet still shows a proposed route rather than nothing.
+    const rcp = buildReflectedCeilingPlan(twoRoomPlan(), [], [], [], 0)
+    expect(rcp.trunking.length).toBeGreaterThan(0)
+  })
+
+  it('returns no trunking when the plan has no habitable rooms to serve', () => {
+    const emptyPlan: FloorPlan = {
+      id: 'p3',
+      name: 'Test',
+      ceilingHeight: 2.8,
+      extent: [4, 4],
+      walls: box,
+      openings: [],
+      rooms: [],
+    }
+    const rcp = buildReflectedCeilingPlan(emptyPlan, [], [], [], 0)
+    expect(rcp.trunking).toEqual([])
   })
 })

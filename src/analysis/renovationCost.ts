@@ -75,6 +75,10 @@ type TradeRateKey =
   | 'mePerPoint'
   /** Aircon install allowance, SGD per indoor FCU (incl. share of piping/condenser). */
   | 'airconPerUnit'
+  /** Refrigerant-trunking install allowance, SGD per linear metre of MODELED
+   *  route (BSJ-2 follow-up) — piping/insulation/bracketing labour, additive
+   *  to `airconPerUnit`'s flat per-FCU share. */
+  | 'airconTrunkingPerM'
   /** Glass & aluminium (shower screens / partitions / grilles), SGD per m². */
   | 'glassPerM2'
   /** Sanitary / plumbing fixture install, SGD each. */
@@ -94,6 +98,10 @@ const DEFAULT_TRADE_RATES: TradeRates = {
   ceilingPerM2: 32,
   mePerPoint: 120,
   airconPerUnit: 1800,
+  // SG installed-trunking allowance — indicative mid-market rate covering
+  // copper piping + insulation + bracketing labour per linear metre run
+  // (9creation/Qanvast-style aircon add-on quotes, 2025-26).
+  airconTrunkingPerM: 20,
   glassPerM2: 240,
   plumbingFixtureEach: 150,
   waterproofingPerM2: 35,

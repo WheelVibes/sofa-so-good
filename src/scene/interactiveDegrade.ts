@@ -76,15 +76,25 @@ export function shouldDegradeDpr(i: DegradeInputs): boolean {
 // Long-frame bookkeeping (module singleton, written from useFrame).
 
 let lastLongFrameAt = 0
+let prevFrameDriven = false
 
 /**
  * Record a rendered frame's delta. Only deltas measured while frames are being
  * continuously driven (a camera gesture, or the RenderPump's continuous mode)
  * are trusted — in demand mode an idle gap between two single frames can be
  * seconds long without any frame being slow.
+ *
+ * The PREVIOUS frame must have been driven too (GPU-STARVE-3): the first frame
+ * of a gesture measures its delta against the last idle demand-mode frame, so
+ * `dt` spans the whole idle gap — trusting it recorded a phantom long frame at
+ * the start of nearly every gesture, which held the degrade (and its resolution
+ * toggle) for 3 s past every release. A genuinely slow first frame is still
+ * caught one frame later, and the gesture itself already degrades immediately.
  */
 export function noteRenderedFrame(dtMs: number, continuouslyDriven: boolean, nowMs: number): void {
-  if (continuouslyDriven && dtMs > LONG_FRAME_MS) lastLongFrameAt = nowMs
+  const trusted = continuouslyDriven && prevFrameDriven
+  prevFrameDriven = continuouslyDriven
+  if (trusted && dtMs > LONG_FRAME_MS) lastLongFrameAt = nowMs
 }
 
 export function lastLongFrameTime(): number {
@@ -94,4 +104,5 @@ export function lastLongFrameTime(): number {
 /** Test-only reset. */
 export function __resetInteractiveDegrade(): void {
   lastLongFrameAt = 0
+  prevFrameDriven = false
 }

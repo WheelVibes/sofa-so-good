@@ -35,6 +35,7 @@ import { type FloorPlan, type PlanRoom, planRoomArea, planRoomPerimeter } from '
 import { buildWaterproofingZones, totalMembraneAreaM2 } from '../floorplan/waterproofing'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildAirconSystemPlan } from './airconSystem'
+import { buildAirconTrunkingPlan, resolveAirconTrunkingInput } from './airconTrunking'
 import type { PriceRules, TradeRates } from './renovationCost'
 import { floorRateKind } from './renovationCost'
 
@@ -99,6 +100,10 @@ export interface RenoAllocatorInput {
   /** Add the waterproofing membrane sub-line (BSJ-7, `waterproofing` flag). When
    *  false/absent the wet-works lines are unchanged (no regression). */
   waterproofing?: boolean
+  /** Feed the modeled trunking-route length into the aircon line (BSJ-2
+   *  follow-up, `airconTrunking` flag). When false/absent, or when no route
+   *  resolves, the aircon line is unchanged (no regression). */
+  airconTrunking?: boolean
 }
 
 /** Wet-work room categories: floors + walls are tiled + waterproofed. */
@@ -213,10 +218,21 @@ export function buildRenovationAllocation(input: RenoAllocatorInput): RenoAlloca
   const placedFcuCount = items.filter(
     (it) => it.defId === 'aircon-unit' && catalog[it.defId],
   ).length
-  const airconUnits =
-    placedFcuCount > 0
-      ? placedFcuCount
-      : buildAirconSystemPlan(plan, input.orientationDeg ?? 0).fcuCount
+  const airconSystemPlan = buildAirconSystemPlan(plan, input.orientationDeg ?? 0)
+  const airconUnits = placedFcuCount > 0 ? placedFcuCount : airconSystemPlan.fcuCount
+
+  // Modeled refrigerant-trunking length (BSJ-2 follow-up, `airconTrunking`
+  // flag) — same placed-items-else-proposal fallback as the FCU count above,
+  // via the shared resolver so this can never disagree with the DaylightPanel
+  // readout / RCP sheet / 3D route for the exact same design. Only RESOLVED
+  // runs contribute (an unresolved run has no real quantity to quote).
+  const airconTrunkingLengthM = input.airconTrunking
+    ? buildAirconTrunkingPlan(
+        plan,
+        airconSystemPlan,
+        resolveAirconTrunkingInput(plan, airconSystemPlan, items),
+      ).totalLengthM
+    : 0
 
   // --- Hacking (baseline diff) ----------------------------------------------
   const hackedLm = input.baselinePlan ? diffWalls(input.baselinePlan, plan).hackedLengthM : 0
@@ -329,6 +345,19 @@ export function buildRenovationAllocation(input: RenoAllocatorInput): RenoAlloca
     airconUnits,
     'units',
     airconUnits * trades.airconPerUnit,
+    'Plumbing/electrical fit-out',
+  )
+
+  // Refrigerant-trunking sub-line (BSJ-2 follow-up) — a real modeled-route
+  // quantity alongside the flat per-FCU aircon allowance above, mirroring how
+  // `waterproofing` rides alongside `tiling` as its own line rather than
+  // folding into it (different unit, different rate, independently flag-gated).
+  push(
+    'aircon-trunking',
+    'Air-conditioning trunking (piping run)',
+    airconTrunkingLengthM,
+    'lin.m',
+    airconTrunkingLengthM * trades.airconTrunkingPerM,
     'Plumbing/electrical fit-out',
   )
 

@@ -1,0 +1,135 @@
+{
+  "name": "interactive-dpr-seamless",
+  "description": "GPU-STARVE-3 guard: every interactive-DPR degrade/restore resize must repaint in the SAME task (no blank composite). Wraps gl.setSize; a queueMicrotask scheduled inside the wrapper runs before the browser composites, so `sameTask: frame advanced by then` is exactly 'fresh pixels were in the buffer at composite time'. Toggle cycles are forced deterministically: __resetInteractiveDegrade clears long-frame holds (this iGPU renders post-stack frames in seconds, pinning the degrade), cameraMotionSignal begin/end drives the edges, and a store nudge pumps demand-mode frames so the controller's rAF decision loop actually runs. Run with SHOT_GPU=1 and the sink: node -e 'require(\"http\").createServer((q,s)=>{let b=\"\";q.on(\"data\",c=>b+=c);q.on(\"end\",()=>{require(\"fs\").appendFileSync(\"/tmp/dpr-probe.jsonl\",b+\"\\n\");s.setHeader(\"Access-Control-Allow-Origin\",\"*\");s.end(\"ok\")})}).listen(8765)'",
+  "steps": [
+    {
+      "waitFor": {
+        "storeExists": true
+      }
+    },
+    {
+      "waitFor": {
+        "store": "state.bootPhase === 'ready' && state.sceneReady === true"
+      },
+      "timeout": 90000
+    },
+    {
+      "viewport": {
+        "width": 640,
+        "height": 480
+      }
+    },
+    {
+      "store": {
+        "action": "setManualHour",
+        "args": [
+          13
+        ]
+      }
+    },
+    {
+      "store": {
+        "action": "setQualityTier",
+        "args": [
+          "high"
+        ]
+      }
+    },
+    {
+      "wait": 8000
+    },
+    {
+      "name": "install-probe",
+      "eval": "(() => { const gl = window.__three.gl; const P = window.__dprProbe = { resizes: [], losses: 0 }; gl.domElement.addEventListener('webglcontextlost', () => { P.losses++ }); const orig = gl.setSize.bind(gl); gl.setSize = (w, h, updateStyle) => { const before = gl.info.render.frame; const r = orig(w, h, updateStyle); const rec = { t: Math.round(performance.now()), w: Math.round(w * gl.getPixelRatio()), frameBefore: before, frameAtMicrotask: -1, sameTask: false }; rec.stack = (new Error().stack||'').split('\\n').slice(1,20).map(l=>l.trim()); P.resizes.push(rec); queueMicrotask(() => { rec.frameAtMicrotask = gl.info.render.frame; rec.sameTask = rec.frameAtMicrotask > before }); return r } })()"
+    },
+    {
+      "name": "load-modules",
+      "eval": "Promise.all([import('/src/scene/cameraMotionSignal.ts'), import('/src/scene/interactiveDegrade.ts')]).then(([cms, deg]) => { window.__cms = cms; window.__deg = deg })"
+    },
+    {
+      "name": "cycle-1-reset",
+      "eval": "window.__deg.__resetInteractiveDegrade()"
+    },
+    {
+      "store": {
+        "action": "setManualHour",
+        "args": [
+          13.01
+        ]
+      }
+    },
+    {
+      "wait": 1500
+    },
+    {
+      "name": "cycle-1-begin",
+      "eval": "window.__cms.beginCameraGesture()"
+    },
+    {
+      "store": {
+        "action": "setManualHour",
+        "args": [
+          13.02
+        ]
+      }
+    },
+    {
+      "wait": 1200
+    },
+    {
+      "name": "cycle-1-end",
+      "eval": "window.__cms.endCameraGesture(); window.__deg.__resetInteractiveDegrade()"
+    },
+    {
+      "store": {
+        "action": "setManualHour",
+        "args": [
+          13.03
+        ]
+      }
+    },
+    {
+      "wait": 1500
+    },
+    {
+      "name": "cycle-2-begin",
+      "eval": "window.__cms.beginCameraGesture()"
+    },
+    {
+      "store": {
+        "action": "setManualHour",
+        "args": [
+          13.04
+        ]
+      }
+    },
+    {
+      "wait": 1200
+    },
+    {
+      "name": "cycle-2-end",
+      "eval": "window.__cms.endCameraGesture(); window.__deg.__resetInteractiveDegrade()"
+    },
+    {
+      "store": {
+        "action": "setManualHour",
+        "args": [
+          13.05
+        ]
+      }
+    },
+    {
+      "wait": 1500
+    },
+    {
+      "screenshot": "after-toggle-cycles"
+    },
+    {
+      "name": "post-summary",
+      "eval": "fetch('http://127.0.0.1:8765/', { method: 'POST', body: JSON.stringify(Object.assign({ dpr: window.__three.gl.getPixelRatio(), buf: window.__three.gl.drawingBufferWidth }, window.__dprProbe)) })"
+    },
+    {
+      "wait": 600
+    }
+  ]
+}

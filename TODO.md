@@ -478,9 +478,9 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
   `keyCollectionDate` input + countdowns (additive zod + autosave). Rides the `report` flag.
 
 ## Blank-slate journey queue (2026-07-19 goal) — ✅ FULLY SHIPPED (BSJ-1…BSJ-8)
-> All eight ranked items shipped. Only two follow-ups remain open below (BSJ-2 3D
-> trunking route + BSJ-8 3D floor-level representation) — both deliberate deferrals
-> with an approach sentence; the near-misses list stays as a don't-re-propose record.
+> All eight ranked items shipped, including the BSJ-8 3D follow-up. Only the BSJ-2 3D
+> trunking route follow-up remains open below — a deliberate deferral with an approach
+> sentence; the near-misses list stays as a don't-re-propose record.
 > Goal (product owner): serve new SG HDB/condo buyers designing their home fully from a
 > blank slate WITHOUT an interior designer. Full walk of bare-handover → fully-designed
 > journey + per-stage coverage verdicts + near-misses cleared:
@@ -566,21 +566,57 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
   Rendered as FFL pills + step diamonds + legend on the Dimensioned plan (same overlay) + Tiler pack;
   RoomInspector "Floor level (mm)" field (pro-gated). Intake states don't seed it (documented —
   default-flat mutations are session-only). Tests: `floorLevels.test.ts`, schema round-trip, both-modes.
-- [ ] **BSJ-8 follow-up — 3D floor-level representation** (M, pro) — v1 is documentation-only. A future
-  pass could lower the 3D floor mesh + skirting to a room's `floorLevelMm` and add a real threshold
-  step/ramp at each transition. Approach: offset the room's floor plane (and its furniture Y baseline)
-  by `floorLevelMm/1000` in the plan-room shell + `PlanRoomCeiling`/floor renderers, re-seat items on
-  the lowered plane, and model the doorway step as a short vertical face. Deferred because it ripples
-  through furniture Y-placement, walk-mode collision, and stair/level math — needs its own careful pass.
-- [ ] **BSJ-2 follow-up — 3D refrigerant-trunking route** (S/M, pro) — the aircon system planner
-  (BSJ-2) currently emits a one-line trunking ADVISORY per system ("runs from the AC ledge along
-  the corridor ceiling — confirm with installer") rather than a modeled route. Approach when built:
-  a pure `analysis/airconTrunking.ts` that routes an orthogonal polyline from each served room's FCU
-  to its condenser on the ledge, hugging the corridor ceiling (reuse `planRoomShell` walls +
-  `roomCategory` to find the corridor spine + door thresholds to cross rooms), rendered as a thin
-  ducted-trunking run in the 3D scene (a mounted `noClip` polyline mesh at ceiling height) and marked
-  on the RCP/electrical sheet. Feeds a real pipe-length quantity into the aircon budget line. Pure
-  client. Keep the advisory note as the fallback when the route can't be resolved.
+- [x] **BSJ-8 follow-up — 3D floor-level representation** (M, pro) — DONE (`floorLevels` flag,
+  reused). New pure `floorplan/floorLevels3d.ts` (`roomFloorOffsetM`, `wallBaseExtensionM`,
+  `floorOffsetAtPoint`/`roomFloorOffsetsForLevel`/`roomAndOffsetAtPoint`, `buildThresholdRisers`
+  reusing `floorLevels.ts:buildFloorTransitions` for the doorway pairing) computes per-room Y
+  offsets + doorway riser specs; flag off ⇒ every offset is 0 (byte-identical to pre-BSJ-8
+  render). **Floor + skirting**: `PlanRoomShell` (isolated room editor) offsets its floor +
+  thresholds group by the room's own offset; `PlanShell` (whole-plan overview) offsets each
+  room's floor group + resolves each skirting strip's offset from the room it fronts (probed a
+  touch inside the room from the strip's face). **Wall-base gap**: plan wall boxes start at
+  world Y=0 and are shared between rooms, so rather than duplicating wall geometry per adjacent
+  room, a plain plinth box (`WallBasePlinth` in `PlanRoomShell`, inline in `PlanShell`) fills the
+  gap from a lowered floor up to y=0 — exact for the isolated editor (one room per wall) and a
+  harmless few-mm over-extension into a neighbour's differently-offset void on a shared
+  partition in the overview (acceptable at the mm-scale steps this feature models; walls/ceiling
+  themselves never move — an FFL change is a slab build-up, not a storey change). **Threshold
+  risers**: `buildThresholdRisers` + a new `ThresholdRiser` mesh (vertical face + top nosing)
+  render at each doorway transition `floorLevels.ts` already flags, so the 3D riser and the
+  2D step marker can never disagree about where a step exists. **Furniture re-seat**: render-time
+  only — `FurnitureLayer` composes a room-offset lookup (`pointInRoom` against the item's storey)
+  with the existing per-storey elevation wrapper (whole-plan overview) or receives the isolated
+  room's single offset as a `roomOffsetM` prop from `RoomEditorScene` (room editor); stored
+  `item.position`/`FurnitureItem` gains no Y field, so session data stays level-agnostic exactly
+  like the pre-existing multi-storey `levelId` elevation pattern. **Walk-mode**: `FirstPersonCamera`
+  adds the walker's current room's offset (found via `pointInRoom` each frame, or resolved once
+  for the isolated room editor) on top of the existing per-storey `floorElev` — a smooth Y follow
+  (not a hard collision step), so standing height tracks a lowered/raised room continuously.
+  The curated default flat (`RoomShell`/`Apartment.tsx`) is unchanged — it has no `floorLevelMm`
+  concept (plan-room-only feature). Tests: `floorLevels3d.test.ts` (offset resolution incl. flag-off
+  ⇒ 0, wall extension, point lookups across storeys, riser geometry + level-elevation composition).
+- [x] **BSJ-2 follow-up — 3D refrigerant-trunking route** (S/M, pro) — DONE: pure
+  `analysis/airconTrunking.ts` routes an orthogonal (Manhattan-dogleg) polyline per served room,
+  condenser → FCU, at ceiling height. Router: a room-adjacency graph over DOOR openings only
+  (`planRoomShell` per-room openings, a door's world centre attributed to every room it borders),
+  BFS shortest hop-count path from the condenser's room to the FCU's room (naturally prefers the
+  corridor spine — it has doors to every bedroom), waypoints = condenser pos + each hop's door
+  threshold + FCU pos, each leg expanded into an axis-aligned dogleg. `resolved:false` (no wall-
+  crossing check beyond "through doors, not walls" — deliberately simple, correctness over
+  optimality) keeps the ORIGINAL advisory text unchanged — no regression. `resolveAirconTrunkingInput`
+  mirrors `renovationAllocator`'s placed-items-else-planner-proposal fallback so every consumer
+  (3D, RCP, budget) agrees on the same route for the same design. **3D**: `scene/AirconTrunking.tsx`
+  — small (~60×40mm) painted-white duct boxes per segment, mounted alongside `PlanShell` in
+  `Scene.tsx`, **custom plans only** (the curated default flat has no room-graph model to route
+  against). **RCP sheet**: `rcp.ts`'s `ReflectedCeilingPlan.trunking` (resolved runs only) +
+  `rcpSvg.ts` dashed polyline + `~XXm` label + a legend row. **Budget**: new
+  `trades.airconTrunkingPerM` (S$20/m) feeds a separate `aircon-trunking` trade line (real
+  modeled-route length, only when resolved) alongside the existing flat per-FCU `aircon` line.
+  **DaylightPanel**: "Trunking ~XX m" replaces the generic advisory per system once every FCU in
+  that system resolves. New pro flag `airconTrunking` (default on, rides alongside `airconSystem`).
+  Tests: `airconTrunking.test.ts` (router: resolves through doors, Manhattan-only segments,
+  planner-proposal fallback, unresolved on no door path), `rcp.test.ts` (RCP overlay), allocator pin
+  (`renovationAllocator.airconTrunking.test.ts`), `featureFlags.test.ts` (both modes).
 - Near-misses CLEARED (verified covered, don't re-propose): full appliance catalog (fridge/
   washer/dishwasher/oven/microwave/hood/hob/wine-cooler/water-heater/aircon FCU); TV 43-75"
   sizes; curtains/roller/roman/zebra/drapery; carpentry (kitchen/wardrobe/feature-wall/study/
@@ -621,6 +657,95 @@ First-time-user end-to-end walkthrough on the GPU harness. Full write-up + scree
   2027" + format hint, and the move-in checklist rows are now tickable + persisted (`handoverChecked`,
   schema+autosave); Smart Start footer token humanised (see P2-2). (P3-1 tour copy + P3-5 elevation
   preview left as-is: P3-5 is the print thumbnail, out of this batch's scope.)
+
+## Blank-slate journey queue r2 (2026-07-24)
+> Second-queue gap analysis over the areas round 1 scored lower — full per-area verdicts,
+> SG-source citations and near-miss re-verification in
+> `docs/research/2026-07-24-blank-slate-gap-analysis-r2.md`. Ranked.
+- [ ] **BSJ2-1 — Condo developer fit-out intake state + customisation budget posture** (M,
+  simple) — fifth `IntakeStateMeta` (`furniture/intakeStates.ts`) seeding the developer-fitted
+  unit: tiled/vinyl floors per room category, bedroom wardrobes, kitchen cabinet run +
+  hob/hood/oven, complete bathrooms, wall FCUs + condenser (reuse the BSJ-2 primitives). The
+  renovation allocator then reads the intake baseline and zeroes developer-provided trades
+  (flooring, wardrobe carpentry, aircon install) unless the user replaces them — the
+  customisation-vs-rebuild split every SG condo cost guide describes. Unblocks the condo half
+  of the product promise (all four shipped intake states are HDB).
+- [ ] **BSJ2-2 — Defect pins on the 3D model + DLP defect report** (M, pro) — typed defect
+  pins (category from `handoverChecklist`'s room-kind snag rules, severity, open → reported →
+  rectified → re-inspect status, room auto-attribution) extending the proven comment-pin
+  pattern (`commentsSlice`/`CommentPins`); a "Defect check" mode seeded per room from the
+  checklist; export a defect report (plan markup via the existing SVG overlay pattern +
+  numbered list + DLP/Assure-3 deadlines from `handoverDates`) the owner hands the
+  developer/BSC. No photos in v1 (storage-free).
+- [ ] **BSJ2-3 — Smart-home pre-wire advisory + wired-AP coverage** (S/M, pro) — electrical
+  advisory section: neutral-wire-to-every-switch line (per MEP switch count, S$500–1,200 band,
+  deeper-box + LEW notes — the one irreversible pre-reno smart-home decision) folded into the
+  Electrician handover pack; plus wired access-point coverage (an `ap` electrical kind or a
+  data-point coverage advisory: ≥1 wired drop per ~60–90 m² zone + TV/study), reusing the
+  socket-advisory pattern.
+
+## E2E blank-slate journey validation r2 (2026-07-25)
+> Second adversarial no-designer journey run on the GPU harness, focused on what shipped since
+> round 1 (four intake states, BSJ-8 real 3D floor levels, BSJ-2 3D trunking) + a regression pass
+> over the round-1 chain. Full write-up + 19 screenshot refs + probe data:
+> `docs/research/2026-07-25-e2e-journey-validation-r2.md`. Scenario:
+> `scripts/scenarios/e2e-blank-slate-journey-r2.json` (110 steps). Verdict: the promise HOLDS
+> and every round-1 finding stayed fixed; the new 3D legs are **starter-template-starved**.
+> P1=1 (fixed), P2=4 (2 fixed), P3=6, 0 crashes.
+- [x] **E2E2-P1 — printed RCP sheet silently dropped the modeled trunking route.** FIXED:
+  `ui/drawingSet.ts` passed each placed aircon item with a PLACEHOLDER `roomId: it.id`; the
+  router matches input FCUs to served rooms by that id, and `resolveAirconTrunkingInput` only
+  derives the room from position when `roomId` is undefined — so every run came back unresolved
+  in the print path only (3D/panel/budget pass raw items and were fine). Dropped the placeholder.
+  The one sheet an aircon installer is handed had none of the data the budget charges for.
+- [x] **E2E2-P2-1 — deleting the condensers kept quoting a route from them.** FIXED: the
+  placed-items gate required BOTH FCUs and condensers, so deleting the condensers fell back to
+  the planner PROPOSAL and the ducts/RCP/$-carrying budget line kept showing a route from
+  equipment the user removed. Now ANY placed aircon item means "describe the scene" → a
+  half-edited system yields unresolved runs → the honest advisory.
+- [x] **E2E2-P3-2 — three stale "documentation only / doesn't move the 3D floor" copy sites.**
+  FIXED (RoomInspector helper text, `floorLevels.ts` module doc, `floorLevelMm` field doc,
+  `floorLevels` flag comment) — all four contradicted BSJ-8 3D shipped in v0.24.0.2.
+- [ ] **E2E2-P2-2 — starter templates starve the room-graph features** (M, data). `tpl-hdb-4room`
+  has doors only on the entrance + master bedroom and an UNROOMED corridor, so features that walk
+  the room graph quietly degrade on exactly the plans a new buyer starts from: 3 of 4 trunking
+  runs stay unresolved (the budget prices 10.43 lin.m of a realistically ~40 m job while *looking*
+  exact), and `buildFloorTransitions` (which pairs rooms via door openings) emits no step marker,
+  no 3D threshold riser and no kerb advisory for a bath FFL offset. Fix: author full door sets +
+  corridor rooms into the starter templates (data, not code), and/or teach the router + transition
+  builder to treat unroomed circulation as a traversable pseudo-room.
+- [ ] **E2E2-P2-3 — `planAircon` places 0 condensers, silently, on a plan with no ledge/yard**
+  (S, pro). On `tpl-hdb-2room` the proposal claims 2 systems / 2 condensers, then places 2 FCUs
+  and 0 condensers with `advisories: []`, while `ledgeWeightNote` still describes "2 condensers
+  ≈ 60 kg on one ledge" for a ledge that doesn't exist. Fix: push an advisory when no condenser
+  room resolves ("no AC ledge/service yard on this plan — add one, or confirm external bracket
+  mounting") and suppress/reword the ledge weight note.
+- [ ] **E2E2-P2-4 — `floorLevelMm` accepts absurd values with no clamp or warning** (S, pro).
+  The inspector only rounds and `roomFloorOffsetM` divides raw mm by 1000, so a −500-for-−50
+  typo renders a clean-looking 1 m pit (fittings re-seat, plinth fills the gap) with no warning.
+  Fix: clamp or soft-warn outside a sane band (SG practice ≈ ±150 mm).
+- [ ] **E2E2-P3-1 — moving an FCU out of its served room silently zeroes the modeled route.**
+  Consistent (no phantom data) but invisible: the trunking budget line vanishes and the panel
+  reverts to the advisory with no hint. Suggest a per-run "FCU is outside its served room —
+  re-plan aircon" note.
+- [ ] **E2E2-P3-3 — no FFL feedback in the interactive plan editor.** FFL tags exist only on the
+  printed dimensioned plan + tiler pack; the editor canvas shows nothing, so a user can't see
+  which rooms carry offsets without selecting each one. Suggest reusing the print `FFL ±N` tag on
+  the editor room label (flag-gated like the field).
+- [ ] **E2E2-P3-4 — OCS blurb promises "porcelain living"; the SNV default seeds vinyl.** The
+  vinyl is a deliberate spec-match to the SNV OCS photo; the wizard blurb states the generic
+  claim unconditionally. Reword per-plan or generically.
+- [ ] **E2E2-P3-5 — aircon trade pack never carries the modeled trunking.** `ui/tradePacks.ts`
+  prints only the generic `trunkingNote` and its sheet list omits the RCP sheet that now holds
+  the actual dashed route + length. Add the RCP sheet + per-run modeled lengths to the pack.
+  (Cosmetic: the tiler's tile-setting-out legend prints on the aircon pack's floor-plan sheet.)
+- [ ] **E2E2-P3-6 — `budget` flag defaults off while the docs call budget part of the Simple core
+  loop.** A Simple user gets no budget surface on a clean boot. Either flip the default when the
+  surface is ready or align CLAUDE.md + the registry header.
+- [ ] **E2E2-follow-up — walk-mode Y-follow across a threshold has no screenshot proof.** Verified
+  at module level only (`floorOffsetAtPoint` returns the offset; `FirstPersonCamera` consumes it
+  per frame); headless WASD driving into the door-less template bath wasn't deterministic. Needs a
+  guard scenario on a door-ful custom plan (blocked on P2-2's template doors).
 
 ## E2E blank-slate journey validation (2026-07-19)
 > New-owner end-to-end journey (bare shell → surfaces → theme/furnish → MEP/circuits/aircon →

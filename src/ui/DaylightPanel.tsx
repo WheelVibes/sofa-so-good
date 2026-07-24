@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { buildAirconSizing } from '../analysis/airconSizing'
 import { AIRCON_SERVED_CATEGORIES, buildAirconSystemPlan } from '../analysis/airconSystem'
+import { buildAirconTrunkingPlan, resolveAirconTrunkingInput } from '../analysis/airconTrunking'
 import { buildDaylightReport, DAYLIGHT_MIN_RATIO, VENT_MIN_RATIO } from '../analysis/daylight'
 import { useFeature } from '../features/useFeature'
 import { allPlanRooms } from '../floorplan/levels'
@@ -31,6 +32,9 @@ export function DaylightPanel() {
   // Aircon SYSTEM planner (BSJ-2) — condenser grouping proposal + place action.
   // Rides in the same Cooling-load area; its own pro flag gates the section.
   const systemOn = useFeature('airconSystem')
+  // 3D refrigerant-trunking route (BSJ-2 follow-up) — rides alongside the
+  // system planner section, its own pro flag.
+  const trunkingOn = useFeature('airconTrunking')
   const planAircon = useStore((s) => s.planAircon)
   const notify = useStore((s) => s.notify)
   const items = useStore((s) => s.items)
@@ -64,6 +68,14 @@ export function DaylightPanel() {
     () => (open && systemOn ? buildAirconSystemPlan(plan, orientationDeg) : null),
     [open, systemOn, plan, orientationDeg],
   )
+  // Trunking routes, keyed by served room id, for the "Trunking ~XX m" readout
+  // — same placed-items-else-proposal fallback the budget line uses.
+  const trunkingByRoom = useMemo(() => {
+    if (!open || !trunkingOn || !systemPlan || systemPlan.systems.length === 0) return null
+    const input = resolveAirconTrunkingInput(plan, systemPlan, items)
+    const trunking = buildAirconTrunkingPlan(plan, systemPlan, input)
+    return new Map(trunking.runs.map((r) => [r.roomId, r]))
+  }, [open, trunkingOn, systemPlan, plan, items])
 
   if (!open || !report) return null
 
@@ -310,11 +322,42 @@ export function DaylightPanel() {
                           or split this system.
                         </div>
                       )}
-                      <div
-                        style={{ marginTop: 4, color: 'var(--text-3)', fontSize: 'var(--t-2xs)' }}
-                      >
-                        {sys.trunkingNote}
-                      </div>
+                      {(() => {
+                        // Trunking readout (BSJ-2 follow-up): a resolved route
+                        // per FCU in this system replaces the generic advisory
+                        // with a real "Trunking ~XX m" figure; an unresolved
+                        // run (or the flag off) keeps the original one-liner.
+                        const runs = sys.fcus
+                          .map((f) => trunkingByRoom?.get(f.roomId))
+                          .filter((r): r is NonNullable<typeof r> => Boolean(r))
+                        const resolvedRuns = runs.filter((r) => r.resolved)
+                        if (trunkingOn && resolvedRuns.length === runs.length && runs.length > 0) {
+                          const totalM = resolvedRuns.reduce((s, r) => s + r.lengthM, 0)
+                          return (
+                            <div
+                              style={{
+                                marginTop: 4,
+                                color: 'var(--text-3)',
+                                fontSize: 'var(--t-2xs)',
+                              }}
+                            >
+                              Trunking ~{Math.round(totalM)} m from the AC ledge (modeled route —
+                              confirm with your installer).
+                            </div>
+                          )
+                        }
+                        return (
+                          <div
+                            style={{
+                              marginTop: 4,
+                              color: 'var(--text-3)',
+                              fontSize: 'var(--t-2xs)',
+                            }}
+                          >
+                            {sys.trunkingNote}
+                          </div>
+                        )
+                      })()}
                     </div>
                   </div>
                 )

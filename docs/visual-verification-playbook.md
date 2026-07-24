@@ -141,6 +141,22 @@ GPU-session gotchas (2026-07-11 sweep):
   the compressed result + a short `wait` so the request lands. Used to diagnose GPU-STARVE
   (white-flash) and verify the interactive-DPR degrade; keep summaries compressed (record only
   change points, not every frame).
+- **Proving "no blank composite" (GPU-STARVE-3): a per-rAF probe is useless here — use the
+  microtask-inside-a-wrapped-resize trick.** Two traps burned the 2026-07-24 white-flicker
+  session: (a) in `--headless=new` GPU mode, rAF is starved down to render damage (~1-2 ticks/s
+  under load), so a rAF sampling loop misses everything; (b) at post-stack tiers this iGPU's
+  frames exceed `LONG_FRAME_MS` continuously, so the degrade pins at 0.5 and the restore edge
+  never fires organically. Working recipe: wrap `__three.gl.setSize` (three's `setPixelRatio`
+  funnels through it) recording `gl.info.render.frame` before the resize, then `queueMicrotask`
+  to re-read it — microtasks run before that task's composite, so `frame advanced == fresh
+  pixels at composite time`, exactly "no white flash". Record `new Error().stack` in the
+  wrapper for any failing event — it names the culprit caller directly (this is how the r3f
+  `configure()` DPR stomp was found). Force the toggle cycles deterministically: import
+  `/src/scene/cameraMotionSignal.ts` (vite serves the app's own module instance) for
+  begin/endCameraGesture, `/src/scene/interactiveDegrade.ts` → `__resetInteractiveDegrade()`
+  to clear long-frame holds, and a store nudge (e.g. `setManualHour`) after each edge so
+  demand-mode frames pump and the controller's rAF decision loop actually runs. Guard scenario:
+  `scripts/scenarios/interactive-dpr-seamless.json` (assert every resize `sameTask: true`).
 
 ## Scenario mode (recommended — use this for anything multi-step)
 

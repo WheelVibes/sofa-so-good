@@ -1,5 +1,5 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { isProfilerBenchmarkActive } from '../dev/profiler/benchmarkSignal'
 import { setProceduralBaseSize } from '../materials/procedural/generators'
 import { useStore } from '../state/store'
@@ -23,6 +23,8 @@ const FPS_FLOOR = 30
  */
 export function QualityController() {
   const { gl } = useThree()
+  const advance = useThree((s) => s.advance)
+  const setDpr = useThree((s) => s.setDpr)
   const dprMax = useQuality().dprMax
 
   // One-time default selection (skipped if the user already chose a tier).
@@ -32,10 +34,28 @@ export function QualityController() {
     useStore.getState().autoSetQualityTier(detectDefaultTier(ctx))
   }, [gl])
 
-  // Apply the effective device-pixel-ratio clamp.
-  useEffect(() => {
-    gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprMax))
-  }, [dprMax, gl])
+  // Apply the effective device-pixel-ratio clamp. This controller is the SOLE
+  // owner of the tier DPR clamp (GPU-STARVE-3): the Canvases pass no `dpr`
+  // prop, because r3f re-applies that prop from the Canvas component's own
+  // layout effect — which React runs AFTER every child effect, so nothing in
+  // the tree can repaint after its resize and every tier switch composited one
+  // cleared (page-white) frame (probe-confirmed 2026-07-24, stack-traced to
+  // r3f's internal `setDpr`). Routed through r3f `setDpr` (not a raw
+  // `gl.setPixelRatio`) so viewport state stays coherent, then repainted in
+  // the SAME task: any drawing-buffer resize CLEARS the buffer, and without a
+  // pre-composite repaint the browser shows the blank canvas until the next
+  // demand-mode frame. A layout effect runs pre-composite (a plain useEffect
+  // is one composite late); same rule as InteractiveDprController.
+  useLayoutEffect(() => {
+    setDpr(Math.min(window.devicePixelRatio || 1, dprMax))
+    if (!document.hidden && gl.domElement.isConnected) {
+      try {
+        advance(performance.now(), true)
+      } catch {
+        // mid-teardown — the next scheduled frame repaints instead
+      }
+    }
+  }, [dprMax, gl, setDpr, advance])
 
   // Procedural finish textures generate at 256² on Performance (the default
   // tier — quarter the texels, near-identical at room scale) and 512² above.

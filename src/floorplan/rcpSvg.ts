@@ -11,7 +11,7 @@
  */
 import { symbolPrintScale } from './drawingScale'
 import { layoutMepLabels } from './mepLabelLayout'
-import type { RcpFixture, RcpRect, ReflectedCeilingPlan } from './rcp'
+import type { RcpFixture, RcpRect, RcpTrunkingRun, ReflectedCeilingPlan } from './rcp'
 import type { FloorPlan, PlanWall } from './types'
 import { wallLength } from './types'
 
@@ -121,6 +121,7 @@ export function rcpSvg(plan: FloorPlan, rcp: ReflectedCeilingPlan, opts: RcpSvgO
   const zones = Array.isArray(rcp?.zones) ? rcp.zones : []
   const fixtures = Array.isArray(rcp?.fixtures) ? rcp.fixtures : []
   const aircon = Array.isArray(rcp?.aircon) ? rcp.aircon : []
+  const trunking = Array.isArray(rcp?.trunking) ? rcp.trunking : []
 
   const b = wallBounds(drawn)
   const worldW = Math.max(b.maxX - b.minX + PAD * 2, 1)
@@ -137,8 +138,11 @@ export function rcpSvg(plan: FloorPlan, rcp: ReflectedCeilingPlan, opts: RcpSvgO
 
   const anyFixtureLabel = fixtures.length > 0
   const anyAircon = aircon.length > 0
+  const anyTrunking = trunking.length > 0
   const legendRows =
-    (anyFixtureLabel ? new Set(fixtures.map((f) => f.type)).size : 0) + (anyAircon ? 1 : 0)
+    (anyFixtureLabel ? new Set(fixtures.map((f) => f.type)).size : 0) +
+    (anyAircon ? 1 : 0) +
+    (anyTrunking ? 1 : 0)
   const legendH = LEGEND_PAD * 2 + LEGEND_ROW * Math.max(legendRows, 1) + LEGEND_ROW // + convention line
   const heightPx = planH + legendH
 
@@ -204,6 +208,13 @@ export function rcpSvg(plan: FloorPlan, rcp: ReflectedCeilingPlan, opts: RcpSvgO
     )
   }
 
+  // Aircon refrigerant-trunking routes (BSJ-2 follow-up) — a dashed polyline
+  // per resolved run + a length label at its midpoint. Drawn under the
+  // fixture/aircon symbols so a route passing near a symbol doesn't obscure it.
+  for (const run of trunking) {
+    parts.push(trunkingSvg(run, px, py, palette))
+  }
+
   // Fixture wall-offset dimensions — a short dashed leader from the fixture to
   // each nearest wall's centreline, with a distance label. Labels that would
   // collide (fixtures clustered a few cm apart — same failure mode the MEP
@@ -247,7 +258,7 @@ export function rcpSvg(plan: FloorPlan, rcp: ReflectedCeilingPlan, opts: RcpSvgO
     parts.push(airconSymbol(px(p.x), py(p.z), p, palette))
   })
 
-  parts.push(legend(fixtures, aircon, planH, palette))
+  parts.push(legend(fixtures, aircon, trunking, planH, palette))
 
   parts.push('</svg>')
   return parts.join('\n')
@@ -312,11 +323,36 @@ function airconSymbol(
   return out.join('\n')
 }
 
-/** Legend: one row per fixture kind present + (when any) an aircon row, plus a
- *  trailing convention line explaining the dimension convention. */
+/** One trunking route: dashed polyline + a length label at its midpoint
+ *  segment. Uses `palette.symbol` (the same accent as the aircon marking) so
+ *  it visually pairs with the AC symbol it originates from. */
+function trunkingSvg(
+  run: RcpTrunkingRun,
+  px: (x: number) => number,
+  py: (z: number) => number,
+  palette: RcpPalette,
+): string {
+  if (run.points.length < 2) return ''
+  const pts = run.points.map(([x, z]) => `${n(px(x))},${n(py(z))}`).join(' ')
+  const mid = run.points[Math.floor(run.points.length / 2)]!
+  const [mx, mz] = [px(mid[0]), py(mid[1])]
+  return (
+    `<g class="rcp-trunking">` +
+    `<polyline points="${pts}" fill="none" stroke="${esc(palette.symbol)}" stroke-width="1.25" ` +
+    `stroke-dasharray="5 3" stroke-linejoin="round" />` +
+    `<text x="${n(mx)}" y="${n(mz - 4)}" font-size="${DIM_FONT}" text-anchor="middle" ` +
+    `fill="${esc(palette.symbol)}">~${Math.round(run.lengthM)}m</text>` +
+    `</g>`
+  )
+}
+
+/** Legend: one row per fixture kind present + (when any) an aircon row + (when
+ *  any resolved run) a trunking row, plus a trailing convention line
+ *  explaining the dimension convention. */
 function legend(
   fixtures: RcpFixture[],
   aircon: { mountHeightMm: number }[],
+  trunking: RcpTrunkingRun[],
   planH: number,
   palette: RcpPalette,
 ): string {
@@ -350,6 +386,18 @@ function legend(
     out.push(
       `<text x="${LEGEND_PAD + SYM_R * 2 + 8}" y="${n(y)}" font-size="${FONT}" ` +
         `dominant-baseline="middle" fill="${esc(palette.ink)}">Aircon point × ${aircon.length} — see Electrical plan for full schedule</text>`,
+    )
+    y += LEGEND_ROW
+  }
+  if (trunking.length > 0) {
+    const totalM = Math.round(trunking.reduce((s, r) => s + r.lengthM, 0))
+    out.push(
+      `<line x1="${LEGEND_PAD}" y1="${n(y)}" x2="${LEGEND_PAD + SYM_R * 2}" y2="${n(y)}" ` +
+        `stroke="${esc(palette.symbol)}" stroke-width="1.25" stroke-dasharray="5 3" />`,
+    )
+    out.push(
+      `<text x="${LEGEND_PAD + SYM_R * 2 + 8}" y="${n(y)}" font-size="${FONT}" ` +
+        `dominant-baseline="middle" fill="${esc(palette.ink)}">Aircon trunking route × ${trunking.length} runs ≈ ${totalM}m total (modeled — confirm with installer)</text>`,
     )
     y += LEGEND_ROW
   }

@@ -1789,8 +1789,9 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // finished-floor-level offset (`PlanRoom.floorLevelMm`) surfaced as FFL tags +
   // doorway step/transition markers on the dimensioned/setting-out plan + tiler
   // pack, a kerb/step advisory, and a floor-level field in the room inspector.
-  // Documentation-level in v1 (does NOT move the 3D floor mesh). Pure client →
-  // prod-safe; an analytical/contractor surface → pro tier.
+  // Also gates the real 3D representation (v0.24.0.2, `floorLevels3d.ts`: floor +
+  // skirting + plinth offset, furniture re-seat, doorway risers, walk-mode
+  // height). Pure client → prod-safe; an analytical/contractor surface → pro.
   floorLevels: {
     label: 'Floor levels & transitions',
     description: 'Per-room FFL offsets, doorway step markers, and a kerb/step advisory',
@@ -1846,6 +1847,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   airconSystem: {
     label: 'Aircon system planner',
     description: 'Group rooms into System-2/3/4 condensers + place FCUs and the outdoor unit',
+    default: true,
+    tier: 'pro',
+  },
+  // 3D refrigerant-trunking route visualization (BSJ-2 follow-up): routes an
+  // orthogonal polyline from each FCU to its condenser through door openings
+  // at ceiling height (`analysis/airconTrunking.ts`), rendered as a thin
+  // ducted-trunking run in the orbit scene, marked on the RCP sheet, and
+  // feeding a real pipe-length quantity into the aircon budget line. Rides
+  // alongside `airconSystem` in the same Cooling-load section — same
+  // pure-client-over-existing-data shape → prod-safe; an analytical/
+  // professional planning surface → pro tier.
+  airconTrunking: {
+    label: 'Aircon trunking route',
+    description: 'Modeled refrigerant-trunking route from each FCU to its condenser',
     default: true,
     tier: 'pro',
   },

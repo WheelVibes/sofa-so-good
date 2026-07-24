@@ -5,6 +5,118 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.1 — CI fix: knip dead-code scan green
+
+Deleted `levelRoomOffsets` (`floorplan/floorLevels3d.ts`) — a speculative per-storey convenience
+with no consumer and no test, so an unconsumed abstraction per the repo's YAGNI stance — and
+de-exported `AirconTrunkingPoint`/`AirconTrunkingRun` (used only inside `airconTrunking.ts`).
+Same treatment as the r11/r12 knip sweeps.
+
+## v0.25.0.0 — Round 13 ships: the two 3D follow-ups, the white-flicker root cause, and E2E validation r2
+
+Release bump for the r13 staging PR. Contents: **BSJ-8 real 3D floor levels** (v0.24.0.2),
+the **GPU-STARVE-3 white-flicker fix** (v0.24.0.3 — the user-reported flicker in orbit + the
+room editor at Maximum), the **BSJ-2 3D refrigerant-trunking route** (v0.24.0.4), a
+**second-queue blank-slate gap analysis** (BSJ2-1..3 filed: condo developer fit-out intake,
+defect pins tied to the DLP checklist, smart-home pre-wire advisory), and the **round-2
+adversarial E2E journey validation**.
+
+Validation r2 verdict: the no-designer promise HOLDS as a connected flow and every round-1
+finding stayed fixed (circuits link, condenser collisions gone, panel/budget/RCP lengths agree
+exactly). Three findings fixed in this bump: the printed **RCP sheet silently dropped the
+modeled trunking route** (a placeholder `roomId` in `ui/drawingSet.ts` unresolved every run in
+the print path only — the one sheet an aircon installer is handed had none of the data the
+budget charges for); **deleting the condensers kept quoting a route from them** (the
+placed-items gate needed BOTH sides, so a half-edited system fell back to the planner proposal
+and kept drawing ducts + charging a budget line for removed equipment — now any placed aircon
+item means "describe the scene", so a half-edited system drops to the honest advisory); and
+four **stale "documentation only / doesn't move the 3D floor" copy sites** that BSJ-8 3D made
+false. The remaining P2/P3s are filed in `TODO.md` — headline: the **starter templates starve
+the room-graph features** (`tpl-hdb-4room` has doors only on the entrance + master bedroom and
+an unroomed corridor, so 3 of 4 trunking runs stay unresolved and a bath FFL offset can never
+emit a doorway step marker; it's template DATA, not code). Write-up:
+`docs/research/2026-07-25-e2e-journey-validation-r2.md` · scenario
+`scripts/scenarios/e2e-blank-slate-journey-r2.json` (110 steps, 19 shots).
+
+## v0.24.0.4 — BSJ-2 follow-up: 3D refrigerant-trunking route visualization
+
+The aircon SYSTEM planner (BSJ-2) previously emitted only a one-line trunking ADVISORY per
+system. New pure `analysis/airconTrunking.ts` routes an orthogonal (Manhattan-dogleg) polyline
+per served room, condenser → FCU, at ceiling height: a room-adjacency graph over FOUR link
+classes, BFS shortest hop-count path from the condenser's room to the FCU's room (naturally
+prefers the corridor spine), waypoints joined by axis-aligned doglegs. The four classes exist
+because live-app probing on the shipped default flat showed a door-only graph resolves ZERO
+routes on real plans: (a) **door links** (a door's world centre borders both rooms); (b)
+**wall-drill links** — a door-less condenser room (the AC ledge: refrigerant lines exit via a
+core-drilled wall) links to every room sharing a true boundary span, crossing at the point
+nearest the condenser; (c) **open-plan gap links** — rooms whose TRUE outline edges (rect/L
+union or authored polygon — NOT a bbox, which falsely overlaps neighbours for L-rooms) share a
+span with an uncovered ≥0.6 m wall gap; (d) **overlap links** — real plans express some open
+boundaries as room rects that genuinely OVERLAP (the flat's living/dining rect overlaps the
+corridor rect by ~0.76 m), so intersecting rect decompositions (≥0.3 m both axes, no wall
+through the intersection) connect at the intersection centre. `resolveAirconTrunkingInput`
+also derives each placed item's room from its position (`FurnitureItem` carries no roomId —
+the first cut silently unresolved everything the moment "Plan aircon" applied). A route with
+no path (`resolved:false`) keeps the ORIGINAL advisory text — no regression. GPU-verified on
+the shipped flat: all four runs resolve (8.4/10.7/12.4/13.6 m, 45.1 m total) and the ceiling
+duct runs render clean (screenshots in the r13 session).
+`resolveAirconTrunkingInput` mirrors `renovationAllocator`'s placed-items-else-planner-proposal
+fallback so the 3D route, RCP sheet and budget line can never disagree on the same design.
+Rendered as a thin ducted-trunking run (`scene/AirconTrunking.tsx`, small painted-white duct
+boxes at ceiling height) in the main orbit scene alongside `PlanShell` — **custom plans only**
+(the curated default flat has no room-graph model to route against). Marked on the RCP sheet as
+a dashed polyline + length label (`rcp.ts`'s `ReflectedCeilingPlan.trunking`, `rcpSvg.ts`). Feeds
+a real modeled-route length into a new `aircon-trunking` budget line (`trades.airconTrunkingPerM`,
+S$20/m) alongside the existing flat per-FCU `aircon` line. DaylightPanel's aircon-system section
+now shows "Trunking ~XX m" per system once every FCU in it resolves. New pro flag
+`airconTrunking` (default on, rides alongside `airconSystem`). Tests: router (door-path
+resolution, Manhattan-only segments, planner-proposal fallback, unresolved on no door path), RCP
+overlay, allocator pin, feature-flag both-modes.
+
+## v0.24.0.3 — GPU-STARVE-3: white flickering in orbit + room editor at Maximum, root-caused and closed
+
+User-reported: white screen flickering persisted in orbit mode and the room editor at Maximum
+after v0.23.1.13. Root cause (probe-verified on real GPU with a wrapped `gl.setSize` +
+`queueMicrotask` frame-count check — microtasks run before that task's composite, so
+"frame advanced by then" == "no blank frame reached the screen"): **every drawing-buffer
+resize CLEARS the buffer, and in demand mode the scheduled repaint lands on the NEXT rAF**,
+so the browser composited a page-white canvas on every interactive-degrade engage/release,
+every tier switch, and — worst — every r3f `configure()` DPR stomp (r3f re-applies the Canvas
+`dpr` prop from the Canvas component's own layout effect on ANY commit where the prop value
+differs from `viewport.dpr`, i.e. on any store-driven re-render mid-gesture while degraded;
+found via a stack trace recorded in the resize wrapper). Four changes:
+(1) `InteractiveDprController.apply` now repaints synchronously (`advance()`) in the same task
+as its resize, and applies the degrade at the **raw `gl.setPixelRatio` level, never r3f
+`setDpr`** — `viewport.dpr` stays at the full clamp so `configure()`'s value-compare never
+fires and the stomp class is gone entirely (the same-value `setSize` nudge still resizes the
+post composer). (2) `QualityController` is now the sole owner of the tier DPR clamp, routed
+through r3f `setDpr` in a `useLayoutEffect` (pre-composite; a plain effect was one composite
+late) + same-task `advance()`. (3) Both Canvases pass a memoised `dpr={[1, dprMax]}` whose
+value always equals the controller clamp. (4) Phantom long frames fixed: the first frame of a
+gesture measures its dt against the last idle demand-mode frame (seconds), which recorded a
+fake >250 ms "long frame" at nearly every gesture start and held the degrade (plus its toggle)
+3 s past every release — `noteRenderedFrame` now requires the PREVIOUS frame to have been
+continuously driven too. Guard scenario `interactive-dpr-seamless.json` (4 forced
+degrade↔restore cycles on real GPU: every resize `sameTask: true`, 0 context losses); scene
+suite 67 files / 572 tests green; new rules + probe recipe documented in `src/scene/CLAUDE.md`
+and the visual-verification playbook.
+
+## v0.24.0.2 — BSJ-8 follow-up: 3D floor-level representation
+
+Custom-plan rooms with an explicit `floorLevelMm` (BSJ-8 — a sunken bathroom, a raised
+platform) now actually move in 3D, not just on the dimensioned plan. New pure
+`floorplan/floorLevels3d.ts` resolves per-room Y offsets (flag off ⇒ always 0) and doorway
+threshold-riser specs (reusing `floorLevels.ts`'s existing step-transition pairing so the 3D
+riser and the 2D marker can never disagree). Wired in: `PlanRoomShell`/`PlanShell` offset each
+room's floor + skirting and add a plinth box filling the wall-base gap a lowered floor would
+otherwise leave (walls/ceiling stay at the plan datum — an FFL change is a slab build-up, not a
+storey change); a new `ThresholdRiser` mesh renders the step face + nosing at each level
+transition; `FurnitureLayer` re-seats floor-anchored furniture at RENDER time only (stored item
+positions stay level-agnostic, mirroring the existing multi-storey elevation pattern);
+`FirstPersonCamera` follows the walker's current room offset continuously (a smooth Y follow, not
+a hard collision step). The curated default flat is unchanged (no `floorLevelMm` concept there).
+Tests: `floorLevels3d.test.ts`.
+
 ## v0.24.0.1 — CI fix: knip dead-code scan green
 
 `WALL_TYPE_OVERLAY_COLORS` (SNV wall-type symbology) de-exported — only consumed in-file by

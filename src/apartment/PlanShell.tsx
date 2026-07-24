@@ -13,6 +13,13 @@ import {
   Vector3,
 } from 'three'
 import { useFeature } from '../features/useFeature'
+import {
+  buildThresholdRisers,
+  roomAndOffsetAtPoint,
+  roomFloorOffsetM,
+  type ThresholdRiserSpec,
+  wallBaseExtensionM,
+} from '../floorplan/floorLevels3d'
 import { traceBuildingOutline, type WallSeg } from '../floorplan/footprint'
 import { levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
 import { planWallThickness, type WallBox, wallBoxes } from '../floorplan/planGeometry'
@@ -378,6 +385,7 @@ function FadeSkirting({
   cx,
   cz,
   neighborIds,
+  offsetM = 0,
 }: {
   box: WallBox
   height: number
@@ -387,13 +395,16 @@ function FadeSkirting({
   cx: number
   cz: number
   neighborIds: readonly string[]
+  /** FFL offset (m) of the room this strip fronts (BSJ-8 follow-up); 0 keeps
+   *  the strip at the plan datum, byte-identical to the pre-BSJ-8 render. */
+  offsetM?: number
 }) {
   const ref = useRef<Mesh>(null)
   useTrimFade(ref, box, isExterior, isInterior, cx, cz, neighborIds)
   return (
     <BeveledBox
       ref={ref}
-      position={[box.cx, height / 2, box.cz]}
+      position={[box.cx, offsetM + height / 2, box.cz]}
       rotation={[0, box.angle, 0]}
       receiveShadow
       args={[box.thickness + 0.024, height, box.length]}
@@ -459,6 +470,33 @@ function FadeThreshold({
       {/* Hardwood threshold strip — matches the default flat's Thresholds. */}
       <meshStandardMaterial color="#7d6243" roughness={0.8} metalness={0} transparent opacity={1} />
     </mesh>
+  )
+}
+
+/** Nosing strip proud of the riser's top edge (matches a real step's rounded
+ *  lip) — a thin bevelled cap the width of the door span. */
+const RISER_NOSING_H = 0.02
+const RISER_NOSING_PROUD = 0.02
+
+/** A doorway step riser (BSJ-8 follow-up): a short vertical quad spanning the
+ *  door width between two rooms at different FFL levels, plus a thin nosing
+ *  strip along its top edge (the higher room's floor). Not wall-reveal-linked
+ *  (small + always inside a doorway — reads fine at a constant opacity, like
+ *  the default flat's plain threshold strip). */
+function ThresholdRiser({ riser }: { riser: ThresholdRiserSpec }) {
+  const midY = (riser.bottomY + riser.topY) / 2
+  return (
+    <group position={[riser.center[0], midY, riser.center[1]]} rotation={[0, riser.angle, 0]}>
+      <mesh receiveShadow castShadow>
+        <boxGeometry args={[0.03, riser.riseM, riser.length]} />
+        {/* Hardwood riser face — matches the doorway threshold strip's finish. */}
+        <meshStandardMaterial color="#7d6243" roughness={0.8} metalness={0} />
+      </mesh>
+      <mesh position={[0, riser.riseM / 2 + RISER_NOSING_H / 2, 0]} receiveShadow>
+        <boxGeometry args={[0.03 + RISER_NOSING_PROUD, RISER_NOSING_H, riser.length + 0.02]} />
+        <meshStandardMaterial color="#8a6d4f" roughness={0.65} metalness={0} />
+      </mesh>
+    </group>
   )
 }
 
@@ -579,6 +617,9 @@ function PlanLevelShell({
   const wallTypes3dFlag = useFeature('wallTypes3d')
   const showWallTypesToggle = useStore((s) => s.showWallTypes)
   const showWallTypes = wallTypes3dFlag && showWallTypesToggle
+  // Floor levels (BSJ-8 follow-up) — per-room FFL offset applied to floors +
+  // skirting; walls stay at the plan datum (see PlanShell's header note).
+  const floorLevelsOn = useFeature('floorLevels')
   const lp = useMemo(() => levelAsPlan(plan, level), [plan, level])
 
   // Point-in-room test for this storey, used to orient each wall's "outward"
@@ -625,8 +666,21 @@ function PlanLevelShell({
   // optional per-wall baseboard override (PARITY-BASEBOARD): height + colour, or
   // hidden. Built per wall (not from the flattened `boxes`) so the override is
   // in scope; defaults match the shell skirting (0.09 m, off-white).
+  //
+  // BSJ-8 follow-up: each strip's Y follows whichever room it fronts (probed a
+  // touch inside the room from the strip's own face) so a lowered/raised room's
+  // skirting sits on its own floor, not the plan datum. A strip on a shared
+  // wall between two differently-offset rooms picks up ONE side's offset (the
+  // probe direction below) — an acceptable simplification at the mm-scale steps
+  // this feature models (see floorLevels3d.ts's module header).
   const skirtings = useMemo(() => {
-    const out: { box: WallBox; height: number; color: string; isExterior: boolean }[] = []
+    const out: {
+      box: WallBox
+      height: number
+      color: string
+      isExterior: boolean
+      offsetM: number
+    }[] = []
     for (const w of lp.walls) {
       const bb = w.baseboard
       if (bb?.hidden) continue
@@ -634,11 +688,36 @@ function PlanLevelShell({
       const color = bb?.color ?? '#eceae4'
       const isExterior = w.thickness === 'external'
       for (const box of wallBoxes(lp, w)) {
-        if (box.cy - box.height / 2 < 0.01) out.push({ box, height, color, isExterior })
+        if (box.cy - box.height / 2 < 0.01) {
+          const probeX = box.cx + Math.cos(box.angle) * (box.thickness / 2 + 0.15)
+          const probeZ = box.cz - Math.sin(box.angle) * (box.thickness / 2 + 0.15)
+          const { offsetM } = roomAndOffsetAtPoint(lp.rooms, probeX, probeZ, floorLevelsOn)
+          out.push({ box, height, color, isExterior, offsetM })
+        }
       }
     }
     return out
-  }, [lp])
+  }, [lp, floorLevelsOn])
+
+  // Plinth boxes filling the gap under a wall for its fronting room's lowered
+  // floor (mirrors PlanRoomShell's WallBasePlinth) — one per floor-reaching wall
+  // box whose fronting room is stepped down. Skipped entirely when the flag is
+  // off or no room is lowered (empty array, no render).
+  const wallPlinths = useMemo(() => {
+    if (!floorLevelsOn) return []
+    const out: { box: WallBox; extension: number }[] = []
+    for (const w of lp.walls) {
+      for (const box of wallBoxes(lp, w)) {
+        if (box.cy - box.height / 2 >= 0.01) continue
+        const probeX = box.cx + Math.cos(box.angle) * (box.thickness / 2 + 0.15)
+        const probeZ = box.cz - Math.sin(box.angle) * (box.thickness / 2 + 0.15)
+        const { offsetM } = roomAndOffsetAtPoint(lp.rooms, probeX, probeZ, floorLevelsOn)
+        const extension = wallBaseExtensionM(offsetM)
+        if (extension > 0) out.push({ box, extension })
+      }
+    }
+    return out
+  }, [lp, floorLevelsOn])
 
   // Doorway threshold patches (DOOR-GAP-LEAK): fill the unfloored
   // wall-thickness slot under every floor-level door opening, tagged with the
@@ -650,6 +729,33 @@ function PlanLevelShell({
       isExterior: exterior.get(rect.wallId) ?? false,
     }))
   }, [lp])
+
+  // Doorway step risers (BSJ-8 follow-up): a short vertical face + nosing at
+  // each doorway between two rooms at different FFL levels, reusing
+  // `floorLevels.ts:buildFloorTransitions` (via `buildThresholdRisers`) for the
+  // pairing so the 3D riser and the dimensioned-plan's step marker never
+  // disagree about where a step exists. This storey's plan (`lp`) is the whole
+  // level, but the LEVEL-ELEVATION offset is added back inside
+  // `buildThresholdRisers` — `PlanLevelShell`'s own parent `<group>` already
+  // applies `level.elevation`, so risers here are built at world scale and then
+  // rendered relative to that same parent, matching every other geometry helper
+  // in this component (`wallBoxes`, `planThresholdRects`, …).
+  const thresholdRisers = useMemo(() => {
+    if (!floorLevelsOn) return []
+    const wallById = new Map(lp.walls.map((w) => [w.id, w]))
+    return buildThresholdRisers(lp, true, (openingId) => {
+      const op = lp.openings.find((o) => o.id === openingId)
+      const wall = op ? wallById.get(op.wallId) : undefined
+      if (!op || !wall) return undefined
+      const len = wallLength(wall)
+      if (len === 0) return undefined
+      const angle = Math.atan2(
+        (wall.end[0] - wall.start[0]) / len,
+        (wall.end[1] - wall.start[1]) / len,
+      )
+      return { width: op.width, angle }
+    }).map((r) => ({ ...r, bottomY: r.bottomY - level.elevation, topY: r.topY - level.elevation }))
+  }, [lp, floorLevelsOn, level.elevation])
 
   // Window glass panes (between sill and head, in the wall gap).
   const windows = useMemo(() => {
@@ -709,7 +815,9 @@ function PlanLevelShell({
       <UnroomedFloor walls={lp.walls} />
 
       {/* Per-room floors (catalog finish, defaulting to oak); click-to-enter
-          works on every storey (the room editor is level-aware, ML5). */}
+          works on every storey (the room editor is level-aware, ML5). Offset by
+          the room's FFL level (BSJ-8 follow-up, `floorLevels` flag) — walls stay
+          at the plan datum, so a lowered/raised room's floor rides its own group. */}
       {lp.rooms.map((r) => {
         const mat = resolvePlanRoomFloor(finishes, r) as MaterialId
         const roomId = r.id
@@ -718,22 +826,24 @@ function PlanLevelShell({
           r.floorTexScale || r.floorTexAngle
             ? { scale: r.floorTexScale, angle: r.floorTexAngle }
             : undefined
+        const offsetM = roomFloorOffsetM(r, floorLevelsOn)
         if (r.polygon && r.polygon.length >= 3) {
           return (
-            <PlanRoomFloor
-              key={r.id}
-              roomId={roomId}
-              origin={r.origin}
-              width={r.width}
-              depth={r.depth}
-              polygon={r.polygon}
-              materialId={mat}
-              texTransform={texTransform}
-            />
+            <group key={r.id} position={[0, offsetM, 0]}>
+              <PlanRoomFloor
+                roomId={roomId}
+                origin={r.origin}
+                width={r.width}
+                depth={r.depth}
+                polygon={r.polygon}
+                materialId={mat}
+                texTransform={texTransform}
+              />
+            </group>
           )
         }
         return (
-          <group key={r.id}>
+          <group key={r.id} position={[0, offsetM, 0]}>
             <PlanRoomFloor
               roomId={roomId}
               origin={r.origin}
@@ -856,8 +966,9 @@ function PlanLevelShell({
       ))}
 
       {/* Skirting along floor-reaching wall spans (per-wall baseboard override:
-          height/colour, or hidden — PARITY-BASEBOARD). */}
-      {skirtings.map(({ box: b, height, color, isExterior }, i) => (
+          height/colour, or hidden — PARITY-BASEBOARD). Rides its fronting
+          room's FFL offset (BSJ-8 follow-up). */}
+      {skirtings.map(({ box: b, height, color, isExterior, offsetM }, i) => (
         <FadeSkirting
           key={`sk${i}`}
           box={b}
@@ -868,7 +979,22 @@ function PlanLevelShell({
           cx={cx}
           cz={cz}
           neighborIds={neighbors.get(b.wallId) ?? NO_NEIGHBORS}
+          offsetM={offsetM}
         />
+      ))}
+
+      {/* Plinth boxes filling the gap under a wall for its fronting room's
+          lowered floor (BSJ-8 follow-up) — walls stay at the plan datum. */}
+      {wallPlinths.map(({ box: b, extension }, i) => (
+        <mesh
+          key={`plinth${i}`}
+          position={[b.cx, -extension / 2, b.cz]}
+          rotation={[0, b.angle, 0]}
+          receiveShadow
+        >
+          <boxGeometry args={[b.thickness, extension, b.length]} />
+          <meshStandardMaterial color={wallColor} roughness={0.9} metalness={0} />
+        </mesh>
       ))}
 
       {/* Crown molding at the wall–ceiling junction (full-height spans only),
@@ -901,6 +1027,12 @@ function PlanLevelShell({
           cz={cz}
           neighborIds={neighbors.get(rect.wallId) ?? NO_NEIGHBORS}
         />
+      ))}
+
+      {/* Doorway step risers (BSJ-8 follow-up) — a short vertical face + top
+          nosing at a threshold between two rooms at different FFL levels. */}
+      {thresholdRisers.map((r) => (
+        <ThresholdRiser key={r.openingId} riser={r} />
       ))}
 
       {/* Door leaves — swinging, clickable; closed by default (matches collision). */}

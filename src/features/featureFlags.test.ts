@@ -99,6 +99,15 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(false, {}, false, 'simple').parametricStairs).toBe(false)
   })
 
+  it('airconTrunking (pro tier) is present in Pro and hidden in Simple', () => {
+    // The modeled refrigerant-trunking route (BSJ-2 follow-up) rides alongside
+    // `airconSystem` in the Cooling-load section → pro. Pure-code → on in prod Pro.
+    expect(resolveFlags(true, {}, false, 'pro').airconTrunking).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').airconTrunking).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').airconTrunking).toBe(true)
+    expect(resolveFlags(false, {}, false, 'simple').airconTrunking).toBe(false)
+  })
+
   it('pathArray (pro tier) is present in Pro and hidden in Simple', () => {
     // Duplicate-along-path (PARITY-DUP-PATH) is advanced array tooling → pro; the
     // inspector section gates on this flag so it disappears from Simple's core loop.

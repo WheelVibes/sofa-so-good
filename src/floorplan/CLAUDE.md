@@ -337,7 +337,12 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   legend, `printMmPerM` sizing) and reuses `mepLabelLayout.ts:layoutMepLabels` to declutter
   fixture distance labels exactly like the MEP sheets (H-D1) — don't re-derive a second declutter
   scheme. `ui/drawingSet.ts` fans this out per storey (every storey with rooms, not just ones with
-  fixtures — a flat-ceiling room's zone note is still useful on its own).
+  fixtures — a flat-ceiling room's zone note is still useful on its own). **Aircon trunking overlay
+  (BSJ-2 follow-up, `airconTrunking` flag):** `buildReflectedCeilingPlan`'s optional 4th/5th args
+  (`trunkingItems`/`orientationDeg`, both default to no-op) feed `analysis/airconTrunking.ts`'s
+  router; only RESOLVED runs land in `ReflectedCeilingPlan.trunking`, drawn by `rcpSvg.ts` as a
+  dashed polyline + `~XXm` label + a legend row (an unresolved run draws nothing on the sheet,
+  same as it draws nothing in 3D — the DaylightPanel advisory is the only surface for that case).
 - **On-plan D/W mark callouts (H1-F): `analysis/openingSchedule.ts:assignOpeningMarks(plan)`.** A
   per-opening (keyed by opening id, not aggregated) variant of `buildOpeningSchedule`'s
   (kind, width, head−sill, style, material) grouping, reusing the SAME `markKey`/`openingHeight`
@@ -389,8 +394,7 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   "waterproofing membrane below" note (factual, not flag-gated).
 - **Floor levels & transitions (BSJ-8, `floorLevels` pro flag): `floorLevels.ts`** (pure) over the
   additive `PlanRoom.floorLevelMm?` (mm vs the FFL datum; schema.ts ⇄ types.ts parity, no version
-  bump). **DOCUMENTATION-level only** — it does NOT move the 3D floor mesh (that would ripple through
-  furniture Y-placement; filed as a follow-up). `roomFloorLevelMm` (absent/NaN → 0), `fflTag`
+  bump). `roomFloorLevelMm` (absent/NaN → 0), `fflTag`
   (`FFL ±0`/`FFL +25`/`FFL −50`), `buildRoomFflTags` (tags only rooms with an EXPLICIT level, at their
   `roomLabelPosition`), `buildFloorTransitions` (doorway steps between rooms at different levels, via
   `openingProbe.roomsAcrossOpening`), `buildKerbAdvisories` (a bath/powder level with an adjacent dry
@@ -398,3 +402,13 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   (`autoDimensionSvg.ts` overlay, same sheet as setting-out) and in the tiler pack; edited in the
   `RoomInspector` "Floor level (mm)" field (pro-gated). `intakeStates.ts` deliberately does NOT seed a
   default level (see its module note — default-flat mutations are session-only).
+  **3D representation (BSJ-8 follow-up): `floorLevels3d.ts`** (pure) resolves per-room Y offsets
+  (`roomFloorOffsetM`, flag off ⇒ 0) + a wall-base extension amount (`wallBaseExtensionM`, for the
+  plinth that fills a lowered floor's gap under a wall) + doorway riser specs
+  (`buildThresholdRisers`, reusing `buildFloorTransitions` for the pairing — the 3D riser and the 2D
+  step marker can never disagree). Consumed by `apartment/PlanRoomShell.tsx` (isolated room editor)
+  and `apartment/PlanShell.tsx` (whole-plan overview) for the floor/skirting offset + plinth +
+  `ThresholdRiser` mesh, `furniture/FurnitureLayer.tsx` for the render-time furniture re-seat
+  (no new field on `FurnitureItem`), and `scene/cameras/FirstPersonCamera.tsx` for the walk-mode
+  ground-height follow. Plan-room feature only — the curated default flat has no `floorLevelMm`
+  concept and is unaffected.

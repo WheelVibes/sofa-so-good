@@ -58,17 +58,42 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   (1) `InteractiveDprController` (both Canvases, `interactiveDegrade` flag) halves the pixel
   ratio while a camera gesture is held (`cameraMotionSignal.ts` ← OrbitControls
   `onStart`/`onEnd`) and for 3 s after any >250 ms rendered frame (pure, unit-tested decision
-  in `interactiveDegrade.ts`; never during recording). Any change to DPR must go through r3f
-  `setDpr` **plus a same-value `setSize` nudge** — `@react-three/postprocessing`'s composer
-  only re-sizes its buffers on a `size` identity change, so a bare `setPixelRatio` leaves the
-  post stack rendering at the old resolution. New camera-control surfaces must publish their
-  gestures to `cameraMotionSignal`. (2) `ContextLossGuard` (both Canvases) rebuilds after a
-  restore: shadow-refresh pulse (the frozen map would stay stale forever) + `contextRestoreSignal`
-  bump (`SceneEnvironment` keys `<Environment>` on it — render-target-only resources don't
-  survive a loss) + a frame-COUNTED pump hold (≥8 frames AND ≥1.5 s; a timed hold can elapse
-  before a slow renderer's bake frame ever runs). Guard scenario:
-  `scripts/scenarios/context-restore-rebuild.json`. Any new render-target-backed bake (probes,
-  PMREM, accumulation) must subscribe to `contextRestoreSignal` or it will come back black.
+  in `interactiveDegrade.ts`; never during recording; a long-frame delta is only trusted when
+  the PREVIOUS frame was also continuously driven — the first gesture frame's dt spans the
+  idle demand-mode gap and recorded phantom long frames). New camera-control surfaces must
+  publish their gestures to `cameraMotionSignal`. (2) `ContextLossGuard` (both Canvases)
+  rebuilds after a restore: shadow-refresh pulse (the frozen map would stay stale forever) +
+  `contextRestoreSignal` bump (`SceneEnvironment` keys `<Environment>` on it —
+  render-target-only resources don't survive a loss) + a frame-COUNTED pump hold (≥8 frames
+  AND ≥1.5 s; a timed hold can elapse before a slow renderer's bake frame ever runs). Guard
+  scenario: `scripts/scenarios/context-restore-rebuild.json`. Any new render-target-backed
+  bake (probes, PMREM, accumulation) must subscribe to `contextRestoreSignal` or it will come
+  back black.
+- **Every drawing-buffer resize must repaint in the SAME task, and the interactive degrade is
+  raw-GL-only (GPU-STARVE-3).** Resizing the drawing buffer (any `gl.setSize`/`setPixelRatio`,
+  including r3f-internal ones) CLEARS it; in demand mode the scheduled invalidate renders on the
+  NEXT rAF, so the browser composites a blank page-white canvas in between — at Maximum the
+  first full-res frame after a restore takes hundreds of ms, so every degrade/restore toggle,
+  tier switch, and DPR stomp flashed white ("white flickering in orbit/room editor at
+  Maximum"). Three rules, probe-verified (`scripts/scenarios/interactive-dpr-seamless.json`,
+  microtask-vs-frame-count probe — a microtask scheduled inside a resize runs before that
+  task's composite):
+  · Any code that resizes the buffer must synchronously `advance(performance.now(), true)`
+    afterwards (guard: `!document.hidden && gl.domElement.isConnected`, try/catch) —
+    `InteractiveDprController.apply` and `QualityController`'s clamp (a `useLayoutEffect`, NOT
+    `useEffect` — plain effects run one composite late) are the two models.
+  · The interactive degrade goes through **raw `gl.setPixelRatio`, never r3f `setDpr`**, plus
+    the same-value r3f `setSize` nudge (`@react-three/postprocessing`'s composer only re-sizes
+    its buffers on a `size` identity change and re-reads the drawing buffer; the nudge skips
+    the GL resize for identical values so the raw ratio survives). Reason: r3f's root
+    `configure()` re-runs on EVERY Canvas commit and calls `setDpr` whenever the `dpr` prop
+    VALUE differs from `viewport.dpr` — a degrade held in r3f state was stomped back to full
+    (buffer clear, no repaint, then a heal re-resize) by any store-driven Canvas re-render
+    mid-gesture. Keeping `viewport.dpr` at the full clamp makes `configure()` a no-op.
+  · The Canvas `dpr` prop (memoised `[1, dprMax]`) must always evaluate to the same value as
+    `QualityController`'s `setDpr(min(devicePixelRatio, dprMax))` clamp, or `configure()`
+    stomp-resizes on every commit (bites on hi-DPI devices if the prop is dropped — r3f's
+    default is `[1, 2]`).
 - **Bloom only blooms genuine HDR emitters, never broad daytime surfaces** (RD-409). The
   Bloom `luminanceThreshold` (`look.BLOOM.luminanceThreshold`, 1.35) sits **above** sunlit
   white walls/ceilings under the day IBL + ~1.2 graded exposure and **below** the night

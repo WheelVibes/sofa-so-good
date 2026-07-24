@@ -2,9 +2,10 @@
  * Floor build-up / levels & transitions (blank-slate BSJ-8).
  *
  * A per-room finished-floor-level offset (`PlanRoom.floorLevelMm`, mm vs the main
- * FFL datum) is DOCUMENTATION-level in v1 — it does NOT move the 3D floor mesh
- * (that would ripple through furniture Y-placement; filed as a follow-up). This
- * pure module derives from it:
+ * FFL datum) drives both the DOCUMENTATION layer (this module) and — since
+ * v0.24.0.2 — the real 3D representation (`floorLevels3d.ts`, which reuses this
+ * module's `buildFloorTransitions` for its doorway risers so the 3D step and the
+ * 2D marker can never disagree). This pure module derives from it:
  *
  *  - **FFL tags** ("FFL −50") at each room label where a level is set, for the
  *    dimensioned/setting-out plan + the tiler pack.

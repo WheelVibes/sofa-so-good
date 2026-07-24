@@ -146,8 +146,8 @@ export function RoomInspector({ room: r, levelId }: { room: PlanRoom; levelId?: 
             }}
           />
           <span className="text-xs" style={{ color: 'var(--text-3)' }}>
-            Offset vs the main floor datum — e.g. bath −50, balcony −50. Documentation only (tags
-            the plan + tiler pack; doesn’t move the 3D floor).
+            Offset vs the main floor datum — e.g. bath −50, balcony −50. Moves the room’s 3D floor
+            and its furniture, and tags the plan + tiler pack.
           </span>
         </div>
       ) : null}
