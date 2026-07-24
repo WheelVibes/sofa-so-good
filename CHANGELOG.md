@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.0 — Round 13 ships: the two 3D follow-ups, the white-flicker root cause, and E2E validation r2
+
+Release bump for the r13 staging PR. Contents: **BSJ-8 real 3D floor levels** (v0.24.0.2),
+the **GPU-STARVE-3 white-flicker fix** (v0.24.0.3 — the user-reported flicker in orbit + the
+room editor at Maximum), the **BSJ-2 3D refrigerant-trunking route** (v0.24.0.4), a
+**second-queue blank-slate gap analysis** (BSJ2-1..3 filed: condo developer fit-out intake,
+defect pins tied to the DLP checklist, smart-home pre-wire advisory), and the **round-2
+adversarial E2E journey validation**.
+
+Validation r2 verdict: the no-designer promise HOLDS as a connected flow and every round-1
+finding stayed fixed (circuits link, condenser collisions gone, panel/budget/RCP lengths agree
+exactly). Three findings fixed in this bump: the printed **RCP sheet silently dropped the
+modeled trunking route** (a placeholder `roomId` in `ui/drawingSet.ts` unresolved every run in
+the print path only — the one sheet an aircon installer is handed had none of the data the
+budget charges for); **deleting the condensers kept quoting a route from them** (the
+placed-items gate needed BOTH sides, so a half-edited system fell back to the planner proposal
+and kept drawing ducts + charging a budget line for removed equipment — now any placed aircon
+item means "describe the scene", so a half-edited system drops to the honest advisory); and
+four **stale "documentation only / doesn't move the 3D floor" copy sites** that BSJ-8 3D made
+false. The remaining P2/P3s are filed in `TODO.md` — headline: the **starter templates starve
+the room-graph features** (`tpl-hdb-4room` has doors only on the entrance + master bedroom and
+an unroomed corridor, so 3 of 4 trunking runs stay unresolved and a bath FFL offset can never
+emit a doorway step marker; it's template DATA, not code). Write-up:
+`docs/research/2026-07-25-e2e-journey-validation-r2.md` · scenario
+`scripts/scenarios/e2e-blank-slate-journey-r2.json` (110 steps, 19 shots).
+
 ## v0.24.0.4 — BSJ-2 follow-up: 3D refrigerant-trunking route visualization
 
 The aircon SYSTEM planner (BSJ-2) previously emitted only a one-line trunking ADVISORY per

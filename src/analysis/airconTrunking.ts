@@ -673,7 +673,14 @@ export function resolveAirconTrunkingInput(
 ): AirconTrunkingInput {
   const placedFcus = placedItems.filter((it) => it.defId === 'aircon-unit')
   const placedCondensers = placedItems.filter((it) => it.defId === 'aircon-condenser')
-  if (placedFcus.length > 0 && placedCondensers.length > 0) {
+  // ANY placed aircon item means the user owns this system — describe what is
+  // actually in the scene, even when one side is missing (E2E-r2 P2-1: the
+  // earlier `fcus && condensers` gate fell back to the PROPOSAL after the user
+  // deleted their condensers, so the ducts, the RCP overlay and a
+  // dollar-carrying budget line kept quoting a route from equipment that no
+  // longer existed). A half-edited system now yields empty condensers/FCUs →
+  // unresolved runs → the honest one-line advisory.
+  if (placedFcus.length > 0 || placedCondensers.length > 0) {
     // Placed scene items are plain `FurnitureItem`s, which carry NO roomId —
     // derive it from the position (point-in-room, else nearest room centre:
     // a wall-flush FCU or a ledge condenser can sit marginally outside its

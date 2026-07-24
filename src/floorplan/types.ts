@@ -220,11 +220,12 @@ export interface PlanRoom {
   /** Optional finished-floor-level offset (mm) vs the main FFL datum (BSJ-8 —
    *  `floorLevels` pro flag). Negative = below the datum (a bathroom is
    *  typically −25/−50 mm below the adjacent dry rooms so water can't run out; a
-   *  balcony −50 mm). Absent → level with the datum (0). This is a
-   *  DOCUMENTATION-level field in v1: it drives per-room FFL tags + doorway
-   *  step/transition markers on the dimensioned/setting-out plan, the kerb/step
-   *  advisory, and the tiler pack — it does NOT move the 3D floor mesh (that
-   *  would ripple through furniture Y-placement; filed as a follow-up). Set from
+   *  balcony −50 mm). Absent → level with the datum (0). Drives per-room FFL
+   *  tags + doorway step/transition markers on the dimensioned/setting-out plan,
+   *  the kerb/step advisory, and the tiler pack — AND, since v0.24.0.2, the real
+   *  3D representation (`floorLevels3d.ts`: the room's floor mesh + skirting +
+   *  wall-base plinth, its furniture's Y baseline, doorway threshold risers, and
+   *  walk-mode camera height). Set from
    *  the floor-plan editor's `RoomInspector` "Floor level" field. Additive +
    *  optional — no schema-version bump. */
   floorLevelMm?: number

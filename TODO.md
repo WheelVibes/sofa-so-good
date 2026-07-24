@@ -684,6 +684,69 @@ First-time-user end-to-end walkthrough on the GPU harness. Full write-up + scree
   data-point coverage advisory: ≥1 wired drop per ~60–90 m² zone + TV/study), reusing the
   socket-advisory pattern.
 
+## E2E blank-slate journey validation r2 (2026-07-25)
+> Second adversarial no-designer journey run on the GPU harness, focused on what shipped since
+> round 1 (four intake states, BSJ-8 real 3D floor levels, BSJ-2 3D trunking) + a regression pass
+> over the round-1 chain. Full write-up + 19 screenshot refs + probe data:
+> `docs/research/2026-07-25-e2e-journey-validation-r2.md`. Scenario:
+> `scripts/scenarios/e2e-blank-slate-journey-r2.json` (110 steps). Verdict: the promise HOLDS
+> and every round-1 finding stayed fixed; the new 3D legs are **starter-template-starved**.
+> P1=1 (fixed), P2=4 (2 fixed), P3=6, 0 crashes.
+- [x] **E2E2-P1 — printed RCP sheet silently dropped the modeled trunking route.** FIXED:
+  `ui/drawingSet.ts` passed each placed aircon item with a PLACEHOLDER `roomId: it.id`; the
+  router matches input FCUs to served rooms by that id, and `resolveAirconTrunkingInput` only
+  derives the room from position when `roomId` is undefined — so every run came back unresolved
+  in the print path only (3D/panel/budget pass raw items and were fine). Dropped the placeholder.
+  The one sheet an aircon installer is handed had none of the data the budget charges for.
+- [x] **E2E2-P2-1 — deleting the condensers kept quoting a route from them.** FIXED: the
+  placed-items gate required BOTH FCUs and condensers, so deleting the condensers fell back to
+  the planner PROPOSAL and the ducts/RCP/$-carrying budget line kept showing a route from
+  equipment the user removed. Now ANY placed aircon item means "describe the scene" → a
+  half-edited system yields unresolved runs → the honest advisory.
+- [x] **E2E2-P3-2 — three stale "documentation only / doesn't move the 3D floor" copy sites.**
+  FIXED (RoomInspector helper text, `floorLevels.ts` module doc, `floorLevelMm` field doc,
+  `floorLevels` flag comment) — all four contradicted BSJ-8 3D shipped in v0.24.0.2.
+- [ ] **E2E2-P2-2 — starter templates starve the room-graph features** (M, data). `tpl-hdb-4room`
+  has doors only on the entrance + master bedroom and an UNROOMED corridor, so features that walk
+  the room graph quietly degrade on exactly the plans a new buyer starts from: 3 of 4 trunking
+  runs stay unresolved (the budget prices 10.43 lin.m of a realistically ~40 m job while *looking*
+  exact), and `buildFloorTransitions` (which pairs rooms via door openings) emits no step marker,
+  no 3D threshold riser and no kerb advisory for a bath FFL offset. Fix: author full door sets +
+  corridor rooms into the starter templates (data, not code), and/or teach the router + transition
+  builder to treat unroomed circulation as a traversable pseudo-room.
+- [ ] **E2E2-P2-3 — `planAircon` places 0 condensers, silently, on a plan with no ledge/yard**
+  (S, pro). On `tpl-hdb-2room` the proposal claims 2 systems / 2 condensers, then places 2 FCUs
+  and 0 condensers with `advisories: []`, while `ledgeWeightNote` still describes "2 condensers
+  ≈ 60 kg on one ledge" for a ledge that doesn't exist. Fix: push an advisory when no condenser
+  room resolves ("no AC ledge/service yard on this plan — add one, or confirm external bracket
+  mounting") and suppress/reword the ledge weight note.
+- [ ] **E2E2-P2-4 — `floorLevelMm` accepts absurd values with no clamp or warning** (S, pro).
+  The inspector only rounds and `roomFloorOffsetM` divides raw mm by 1000, so a −500-for-−50
+  typo renders a clean-looking 1 m pit (fittings re-seat, plinth fills the gap) with no warning.
+  Fix: clamp or soft-warn outside a sane band (SG practice ≈ ±150 mm).
+- [ ] **E2E2-P3-1 — moving an FCU out of its served room silently zeroes the modeled route.**
+  Consistent (no phantom data) but invisible: the trunking budget line vanishes and the panel
+  reverts to the advisory with no hint. Suggest a per-run "FCU is outside its served room —
+  re-plan aircon" note.
+- [ ] **E2E2-P3-3 — no FFL feedback in the interactive plan editor.** FFL tags exist only on the
+  printed dimensioned plan + tiler pack; the editor canvas shows nothing, so a user can't see
+  which rooms carry offsets without selecting each one. Suggest reusing the print `FFL ±N` tag on
+  the editor room label (flag-gated like the field).
+- [ ] **E2E2-P3-4 — OCS blurb promises "porcelain living"; the SNV default seeds vinyl.** The
+  vinyl is a deliberate spec-match to the SNV OCS photo; the wizard blurb states the generic
+  claim unconditionally. Reword per-plan or generically.
+- [ ] **E2E2-P3-5 — aircon trade pack never carries the modeled trunking.** `ui/tradePacks.ts`
+  prints only the generic `trunkingNote` and its sheet list omits the RCP sheet that now holds
+  the actual dashed route + length. Add the RCP sheet + per-run modeled lengths to the pack.
+  (Cosmetic: the tiler's tile-setting-out legend prints on the aircon pack's floor-plan sheet.)
+- [ ] **E2E2-P3-6 — `budget` flag defaults off while the docs call budget part of the Simple core
+  loop.** A Simple user gets no budget surface on a clean boot. Either flip the default when the
+  surface is ready or align CLAUDE.md + the registry header.
+- [ ] **E2E2-follow-up — walk-mode Y-follow across a threshold has no screenshot proof.** Verified
+  at module level only (`floorOffsetAtPoint` returns the offset; `FirstPersonCamera` consumes it
+  per frame); headless WASD driving into the door-less template bath wasn't deterministic. Needs a
+  guard scenario on a door-ful custom plan (blocked on P2-2's template doors).
+
 ## E2E blank-slate journey validation (2026-07-19)
 > New-owner end-to-end journey (bare shell → surfaces → theme/furnish → MEP/circuits/aircon →
 > score/checks/budget/handover → drawing set + trade packs) driven as ONE GPU-harness session.

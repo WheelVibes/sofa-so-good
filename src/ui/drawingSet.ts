@@ -552,15 +552,15 @@ export function buildDrawingSheets(
       const levelFixtures = itemsOnLevel(lighting.lights, level.id)
       const levelElectrical = itemsOnLevel(electrical?.points ?? [], level.id)
       // Trunking routes (BSJ-2 follow-up) are whole-flat, level-scoped like the
-      // system planner itself — pass this storey's placed aircon items (the
-      // FCU/condenser room ids are level-implicit via `planRoomShell`).
-      // `roomId` here only needs to be non-empty — `airconTrunking.ts`'s
-      // `roomIdAt` re-resolves the ACTUAL containing room from the live
-      // position for every placed item (a placed FCU/condenser always sits
-      // inside a real room), so this placeholder is never actually used.
+      // system planner itself — pass this storey's placed aircon items with NO
+      // roomId (a `FurnitureItem` carries none): `resolveAirconTrunkingInput`
+      // derives each item's room from its live position, and the router then
+      // matches input FCUs to served rooms BY that roomId — so a placeholder id
+      // here (an earlier cut passed `it.id`) made every run silently unresolved
+      // and dropped the trunking overlay from the printed RCP sheet.
       const levelTrunkingItems = itemsOnLevel(items, level.id)
         .filter((it) => it.defId === 'aircon-unit' || it.defId === 'aircon-condenser')
-        .map((it) => ({ defId: it.defId, roomId: it.id, position: it.position }))
+        .map((it) => ({ defId: it.defId, position: it.position }))
       const rcp = buildReflectedCeilingPlan(
         levelPlan,
         levelFixtures,

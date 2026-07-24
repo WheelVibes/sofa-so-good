@@ -160,6 +160,25 @@ describe('buildAirconTrunkingPlan', () => {
     expect(trunking.runs.every((r) => r.resolved)).toBe(true)
   })
 
+  it('does NOT fall back to the proposal once ANY aircon item is placed (E2E-r2 P2-1)', () => {
+    const p = twoRoomCorridorPlan()
+    const systemPlan = buildAirconSystemPlan(p)
+    const { items } = planAirconPlacements(p, systemPlan)
+    // The user planned the system, then deleted their condenser(s). The route
+    // must NOT keep quoting the planner's proposal (which would draw ducts and
+    // charge a budget line for equipment that no longer exists) — it drops to
+    // unresolved so every surface falls back to the honest advisory.
+    const fcusOnly = items.filter((it) => it.defId === 'aircon-unit')
+    expect(fcusOnly.length).toBeGreaterThan(0)
+    const input = resolveAirconTrunkingInput(p, systemPlan, fcusOnly)
+    expect(input.condensers).toEqual([])
+    expect(input.fcus.length).toBe(fcusOnly.length)
+
+    const trunking = buildAirconTrunkingPlan(p, systemPlan, input)
+    expect(trunking.runs.every((r) => !r.resolved)).toBe(true)
+    expect(trunking.totalLengthM).toBe(0)
+  })
+
   it('reports resolved:false when a served room has no door/gap/drill path to the condenser', () => {
     // No doors anywhere, AND the ledge is set back 2m from living (no shared
     // boundary span for either the gap-link or wall-drill classes — a true

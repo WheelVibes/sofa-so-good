@@ -1789,8 +1789,9 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // finished-floor-level offset (`PlanRoom.floorLevelMm`) surfaced as FFL tags +
   // doorway step/transition markers on the dimensioned/setting-out plan + tiler
   // pack, a kerb/step advisory, and a floor-level field in the room inspector.
-  // Documentation-level in v1 (does NOT move the 3D floor mesh). Pure client →
-  // prod-safe; an analytical/contractor surface → pro tier.
+  // Also gates the real 3D representation (v0.24.0.2, `floorLevels3d.ts`: floor +
+  // skirting + plinth offset, furniture re-seat, doorway risers, walk-mode
+  // height). Pure client → prod-safe; an analytical/contractor surface → pro.
   floorLevels: {
     label: 'Floor levels & transitions',
     description: 'Per-room FFL offsets, doorway step markers, and a kerb/step advisory',
