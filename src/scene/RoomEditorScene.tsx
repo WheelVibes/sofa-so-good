@@ -4,6 +4,8 @@ import { CeilingOccluder } from '../apartment/ceiling/CeilingOccluder'
 import { occluderRectsForPlan } from '../apartment/ceiling/occluderRects'
 import { PlanRoomShell } from '../apartment/PlanRoomShell'
 import { RoomShell } from '../apartment/RoomShell'
+import { useFeature } from '../features/useFeature'
+import { roomFloorOffsetM } from '../floorplan/floorLevels3d'
 import { FurnitureLayer } from '../furniture/FurnitureLayer'
 import { FurnitureMaterialLoader } from '../furniture/FurnitureMaterialLoader'
 import { useStore } from '../state/store'
@@ -64,10 +66,16 @@ export function RoomEditorScene() {
   // the main orbit Canvas (High/Maximum renders crisp; Performance caps at 1).
   const dprMax = useQuality().dprMax
   const shadowMapType = SHADOW_FILTER_THREE[shadowFilterForTier(useStore((s) => s.qualityTier))]
+  const floorLevelsOn = useFeature('floorLevels')
   if (!roomId) return null
   const editorShell = getRoomEditorShell(plan, roomId)
   if (!editorShell) return null
   const shell = editorShell.shell
+  // BSJ-8 follow-up: the isolated room's own FFL offset (metres), so its
+  // furniture re-seats on the same floor plane `PlanRoomShell` renders — the
+  // default-flat path (`RoomShell`, no `floorLevelMm` concept) stays 0.
+  const roomOffsetM =
+    editorShell.kind === 'plan' ? roomFloorOffsetM(editorShell.shell.room, floorLevelsOn) : 0
   const [cx, cz] = shell.center
   const r = shell.radius
   // Mask the alignment grid to just this room (its polygon when free-form, else
@@ -142,7 +150,7 @@ export function RoomEditorScene() {
       <GridOverlay rects={gridRects} polygon={gridPolygon} />
       <AlignmentGuides />
       <ClearanceOverlay />
-      <FurnitureLayer room={shell} />
+      <FurnitureLayer room={shell} roomOffsetM={roomOffsetM} />
       <FurnitureMaterialLoader />
       <SelectionOutline />
       <RotateGizmo />

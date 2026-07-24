@@ -1274,14 +1274,25 @@ same change that reshapes a system.
   of the finish schedule (unconditional — factual), and an additive `waterproofing` budget
   sub-line (`renovationAllocator.ts`, `trades.waterproofingPerM2`, gated by the flag).
   **Floor levels & transitions (BSJ-8, `floorLevels` flag, pro):** additive
-  `PlanRoom.floorLevelMm?` (mm vs the FFL datum; schema.ts ⇄ types.ts parity) is
-  DOCUMENTATION-level — it does NOT move the 3D floor mesh (follow-up). `floorplan/floorLevels.ts`
+  `PlanRoom.floorLevelMm?` (mm vs the FFL datum; schema.ts ⇄ types.ts parity). `floorplan/floorLevels.ts`
   (pure) derives per-room FFL tags (`buildRoomFflTags`, only where set), doorway step markers
   between rooms at different levels (`buildFloorTransitions`, via `openingProbe.roomsAcrossOpening`),
   and a kerb/step advisory (`buildKerbAdvisories` — a bath/powder level with its adjacent dry room).
   Rendered as FFL pills + step diamonds + a legend on the dimensioned plan (same `autoDimensionSvg.ts`
   overlay) and in the tiler pack; edited via the RoomInspector "Floor level (mm)" field. Intake
   states deliberately don't seed it (see `intakeStates.ts` note).
+  **3D representation (BSJ-8 follow-up):** `floorplan/floorLevels3d.ts` (pure) resolves each
+  room's Y offset (`roomFloorOffsetM`, flag off ⇒ 0) and doorway riser specs
+  (`buildThresholdRisers`, reusing `buildFloorTransitions` for the pairing). `PlanRoomShell`
+  (isolated room editor) and `PlanShell` (whole-plan overview) offset each room's floor +
+  skirting and add a plinth (`WallBasePlinth`/inline plinth mesh) filling the wall-base gap a
+  lowered floor would otherwise leave — walls/ceiling stay at the plan datum (an FFL change is a
+  slab build-up, not a storey change); a `ThresholdRiser` mesh renders the step face + nosing at
+  each transition. `FurnitureLayer` re-seats floor-anchored furniture at RENDER time only (no new
+  field on `FurnitureItem` — mirrors the existing multi-storey elevation wrapper);
+  `FirstPersonCamera` follows the walker's current room offset continuously on top of the
+  storey elevation. Plan-room feature only — the curated default flat (`RoomShell`) has no
+  `floorLevelMm` concept and is unchanged.
   **Carpentry/joinery elevations + sections (TODO G8, `carpentrySheets` flag, pro):**
   the single most-cited DIY-handover gap — a dimensioned front elevation + one
   representative section per distinct PLACED parametric piece (bookshelf/wardrobe/

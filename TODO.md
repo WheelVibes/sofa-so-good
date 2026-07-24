@@ -478,9 +478,9 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
   `keyCollectionDate` input + countdowns (additive zod + autosave). Rides the `report` flag.
 
 ## Blank-slate journey queue (2026-07-19 goal) — ✅ FULLY SHIPPED (BSJ-1…BSJ-8)
-> All eight ranked items shipped. Only two follow-ups remain open below (BSJ-2 3D
-> trunking route + BSJ-8 3D floor-level representation) — both deliberate deferrals
-> with an approach sentence; the near-misses list stays as a don't-re-propose record.
+> All eight ranked items shipped, including the BSJ-8 3D follow-up. Only the BSJ-2 3D
+> trunking route follow-up remains open below — a deliberate deferral with an approach
+> sentence; the near-misses list stays as a don't-re-propose record.
 > Goal (product owner): serve new SG HDB/condo buyers designing their home fully from a
 > blank slate WITHOUT an interior designer. Full walk of bare-handover → fully-designed
 > journey + per-stage coverage verdicts + near-misses cleared:
@@ -566,12 +566,35 @@ imperial/metric units, cover/legend/index sheet, finishes/FF&E/door-window sched
   Rendered as FFL pills + step diamonds + legend on the Dimensioned plan (same overlay) + Tiler pack;
   RoomInspector "Floor level (mm)" field (pro-gated). Intake states don't seed it (documented —
   default-flat mutations are session-only). Tests: `floorLevels.test.ts`, schema round-trip, both-modes.
-- [ ] **BSJ-8 follow-up — 3D floor-level representation** (M, pro) — v1 is documentation-only. A future
-  pass could lower the 3D floor mesh + skirting to a room's `floorLevelMm` and add a real threshold
-  step/ramp at each transition. Approach: offset the room's floor plane (and its furniture Y baseline)
-  by `floorLevelMm/1000` in the plan-room shell + `PlanRoomCeiling`/floor renderers, re-seat items on
-  the lowered plane, and model the doorway step as a short vertical face. Deferred because it ripples
-  through furniture Y-placement, walk-mode collision, and stair/level math — needs its own careful pass.
+- [x] **BSJ-8 follow-up — 3D floor-level representation** (M, pro) — DONE (`floorLevels` flag,
+  reused). New pure `floorplan/floorLevels3d.ts` (`roomFloorOffsetM`, `wallBaseExtensionM`,
+  `floorOffsetAtPoint`/`roomFloorOffsetsForLevel`/`roomAndOffsetAtPoint`, `buildThresholdRisers`
+  reusing `floorLevels.ts:buildFloorTransitions` for the doorway pairing) computes per-room Y
+  offsets + doorway riser specs; flag off ⇒ every offset is 0 (byte-identical to pre-BSJ-8
+  render). **Floor + skirting**: `PlanRoomShell` (isolated room editor) offsets its floor +
+  thresholds group by the room's own offset; `PlanShell` (whole-plan overview) offsets each
+  room's floor group + resolves each skirting strip's offset from the room it fronts (probed a
+  touch inside the room from the strip's face). **Wall-base gap**: plan wall boxes start at
+  world Y=0 and are shared between rooms, so rather than duplicating wall geometry per adjacent
+  room, a plain plinth box (`WallBasePlinth` in `PlanRoomShell`, inline in `PlanShell`) fills the
+  gap from a lowered floor up to y=0 — exact for the isolated editor (one room per wall) and a
+  harmless few-mm over-extension into a neighbour's differently-offset void on a shared
+  partition in the overview (acceptable at the mm-scale steps this feature models; walls/ceiling
+  themselves never move — an FFL change is a slab build-up, not a storey change). **Threshold
+  risers**: `buildThresholdRisers` + a new `ThresholdRiser` mesh (vertical face + top nosing)
+  render at each doorway transition `floorLevels.ts` already flags, so the 3D riser and the
+  2D step marker can never disagree about where a step exists. **Furniture re-seat**: render-time
+  only — `FurnitureLayer` composes a room-offset lookup (`pointInRoom` against the item's storey)
+  with the existing per-storey elevation wrapper (whole-plan overview) or receives the isolated
+  room's single offset as a `roomOffsetM` prop from `RoomEditorScene` (room editor); stored
+  `item.position`/`FurnitureItem` gains no Y field, so session data stays level-agnostic exactly
+  like the pre-existing multi-storey `levelId` elevation pattern. **Walk-mode**: `FirstPersonCamera`
+  adds the walker's current room's offset (found via `pointInRoom` each frame, or resolved once
+  for the isolated room editor) on top of the existing per-storey `floorElev` — a smooth Y follow
+  (not a hard collision step), so standing height tracks a lowered/raised room continuously.
+  The curated default flat (`RoomShell`/`Apartment.tsx`) is unchanged — it has no `floorLevelMm`
+  concept (plan-room-only feature). Tests: `floorLevels3d.test.ts` (offset resolution incl. flag-off
+  ⇒ 0, wall extension, point lookups across storeys, riser geometry + level-elevation composition).
 - [ ] **BSJ-2 follow-up — 3D refrigerant-trunking route** (S/M, pro) — the aircon system planner
   (BSJ-2) currently emits a one-line trunking ADVISORY per system ("runs from the AC ledge along
   the corridor ceiling — confirm with installer") rather than a modeled route. Approach when built:

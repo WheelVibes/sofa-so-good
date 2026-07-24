@@ -437,10 +437,13 @@ room — it prints in the new spot on the Report and Drawing set too. The inspec
 **Floor level (mm)** *(Pro)* — a selected room's inspector has a **Floor level**
 field: the finished-floor offset in millimetres versus your home's main floor
 datum (e.g. a bathroom **−50**, a balcony **−50**, so water can't run out into the
-dry rooms). It's documentation only — it tags the **Dimensioned plan** and the
-**Tiler** handover pack with an "FFL −50" marker, and draws a **step / transition
-strip** marker at any doorway where two rooms sit at different levels; it does *not*
-move the 3D floor. Rooms you leave at 0 sit level with the datum and get no tag.
+dry rooms). It tags the **Dimensioned plan** and the **Tiler** handover pack with
+an "FFL −50" marker, draws a **step / transition strip** marker at any doorway
+where two rooms sit at different levels, **and lowers/raises the room's 3D floor**
+(+ its skirting) to match — the 3D view shows a real step face at the doorway and
+furniture in the room re-seats on its own floor, in both the whole-flat view and
+the isolated room editor; walk-mode follows the step underfoot. Rooms you leave
+at 0 sit level with the datum and get no tag.
 
 Wet rooms (bathrooms, powder rooms, kitchen, service yard, balcony) also print a
 diagonal **waterproofing hatch** on the Dimensioned plan and a per-room

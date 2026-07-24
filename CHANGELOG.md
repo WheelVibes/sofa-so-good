@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.24.0.2 — BSJ-8 follow-up: 3D floor-level representation
+
+Custom-plan rooms with an explicit `floorLevelMm` (BSJ-8 — a sunken bathroom, a raised
+platform) now actually move in 3D, not just on the dimensioned plan. New pure
+`floorplan/floorLevels3d.ts` resolves per-room Y offsets (flag off ⇒ always 0) and doorway
+threshold-riser specs (reusing `floorLevels.ts`'s existing step-transition pairing so the 3D
+riser and the 2D marker can never disagree). Wired in: `PlanRoomShell`/`PlanShell` offset each
+room's floor + skirting and add a plinth box filling the wall-base gap a lowered floor would
+otherwise leave (walls/ceiling stay at the plan datum — an FFL change is a slab build-up, not a
+storey change); a new `ThresholdRiser` mesh renders the step face + nosing at each level
+transition; `FurnitureLayer` re-seats floor-anchored furniture at RENDER time only (stored item
+positions stay level-agnostic, mirroring the existing multi-storey elevation pattern);
+`FirstPersonCamera` follows the walker's current room offset continuously (a smooth Y follow, not
+a hard collision step). The curated default flat is unchanged (no `floorLevelMm` concept there).
+Tests: `floorLevels3d.test.ts`.
+
 ## v0.24.0.1 — CI fix: knip dead-code scan green
 
 `WALL_TYPE_OVERLAY_COLORS` (SNV wall-type symbology) de-exported — only consumed in-file by

@@ -18,17 +18,20 @@ import { KEYBINDINGS } from '../../controls/keybindings'
 import { isAnyModalOpen } from '../../controls/modalGuard'
 import { isEditableTarget } from '../../controls/useKeyboard'
 import { isFeatureEnabled } from '../../features/featureFlags'
+import { roomFloorOffsetM } from '../../floorplan/floorLevels3d'
 import {
   GROUND_LEVEL_ID,
   levelAsPlan,
   levelElevation,
   levelOfRoom,
   levelSpawnPoint,
+  planLevels,
   walkLevel,
 } from '../../floorplan/levels'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { planRoomShell } from '../../floorplan/planRoomShell'
-import { planBounds, planRoomArea } from '../../floorplan/types'
+import type { PlanRoom } from '../../floorplan/types'
+import { planBounds, planRoomArea, pointInRoom } from '../../floorplan/types'
 import { useCatalogGetter } from '../../furniture/catalog'
 import { lightAimSegments } from '../../furniture/lightInteract'
 import { screenAimSegments } from '../../furniture/screenInteract'
@@ -125,6 +128,33 @@ export function FirstPersonCamera() {
   const floorElev = roomEditorId ? 0 : levelElevation(floorPlan, walkerLevelId)
   const floorElevRef = useRef(floorElev)
   floorElevRef.current = floorElev
+  // Floor levels (BSJ-8 follow-up, `floorLevels` flag): the walker's ground
+  // height ADDS the current room's FFL offset on top of the storey elevation
+  // above, so standing height follows a lowered/raised room continuously as
+  // the walker crosses a threshold — a smooth Y follow (not a hard collision
+  // step), matching how a real few-cm kerb behaves underfoot. In the isolated
+  // room editor the whole walk is scoped to one room, so its single offset is
+  // resolved once (mirrors `FurnitureLayer`'s `roomOffsetM` prop) rather than
+  // re-scanning per frame; the whole-plan walk resolves per-frame from the
+  // walker's live XZ against the walker's OWN storey's rooms.
+  const roomEditorOffsetRef = useRef(0)
+  const roomsForOffsetRef = useRef<readonly PlanRoom[]>([])
+  useEffect(() => {
+    if (!isFeatureEnabled('floorLevels') || isDefaultPlan(floorPlan)) {
+      roomEditorOffsetRef.current = 0
+      roomsForOffsetRef.current = []
+      return
+    }
+    if (roomEditorId) {
+      const shell = planRoomShell(floorPlan, roomEditorId)
+      roomEditorOffsetRef.current = shell ? roomFloorOffsetM(shell.room, true) : 0
+      roomsForOffsetRef.current = []
+    } else {
+      roomEditorOffsetRef.current = 0
+      const level = planLevels(floorPlan).find((l) => l.id === walkerLevelId)
+      roomsForOffsetRef.current = level ? level.rooms : []
+    }
+  }, [floorPlan, roomEditorId, walkerLevelId])
   const collisionWalls = useRef<CollisionWall[]>([])
   // Furniture footprints the walker can't pass through (rebuilt on item change;
   // scoped to the walker's storey — an upstairs bed doesn't block downstairs).
@@ -460,10 +490,22 @@ export function FirstPersonCamera() {
     const joystickMoving = Math.hypot(walkInput.move.x, walkInput.move.y) > 0.01
     const moving = !!(forward || back || left || rightKey) || joystickMoving
     const crouching = !!pressed.current['ShiftLeft'] || !!pressed.current['ShiftRight']
-    // Stand on the walker's level's floor: eye/crouch height + its elevation.
-    // Standing height follows the live user setting (lerped via groundY below).
+    // Stand on the walker's level's floor: eye/crouch height + its elevation +
+    // the current room's FFL offset (BSJ-8 follow-up — 0 when the flag is off
+    // or on the default flat). Standing height follows the live user setting
+    // (lerped via groundY below).
     const standHeight = Math.max(CROUCH_HEIGHT, eyeHeightRef.current)
-    const targetGround = floorElevRef.current + (crouching ? CROUCH_HEIGHT : standHeight)
+    let roomOffset = roomEditorOffsetRef.current
+    if (!roomEditorId && roomsForOffsetRef.current.length > 0) {
+      for (const r of roomsForOffsetRef.current) {
+        if (pointInRoom(r, camera.position.x, camera.position.z)) {
+          roomOffset = roomFloorOffsetM(r, true)
+          break
+        }
+      }
+    }
+    const targetGround =
+      floorElevRef.current + roomOffset + (crouching ? CROUCH_HEIGHT : standHeight)
     const dy = targetGround - groundY.current
     const maxStep = CROUCH_RATE * dt
     groundY.current += Math.abs(dy) <= maxStep ? dy : Math.sign(dy) * maxStep

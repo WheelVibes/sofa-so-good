@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { Suspense, useEffect, useMemo, useRef } from 'react'
 import { type Group, Mesh, MeshStandardMaterial, Vector2 } from 'three'
 import { useFeature } from '../features/useFeature'
+import { roomFloorOffsetM, wallBaseExtensionM } from '../floorplan/floorLevels3d'
 import {
   type PlanClippedWall,
   type PlanRoomOpening,
@@ -301,12 +302,51 @@ function PlanRoomThresholds({ shell }: { shell: Shell }) {
   )
 }
 
+/** A plain plinth box filling the gap between a lowered room's floor and the
+ *  wall base (BSJ-8 follow-up — walls stay at their datum y=0; only the floor
+ *  moves, so a negative `floorLevelMm` would otherwise show daylight under the
+ *  wall). Sits flush against the wall's inner face, plaster-tinted (a floor
+ *  finish never shows here — it's a thin structural upstand, not a floor). No
+ *  render when the room isn't lowered (`extension` is 0). */
+function WallBasePlinth({
+  wall,
+  extension,
+}: {
+  wall: PlanClippedWall
+  /** Downward extension (m, > 0) — {@link wallBaseExtensionM}. */
+  extension: number
+}) {
+  const [sx, sz] = wall.start
+  const [ex, ez] = wall.end
+  const len = Math.hypot(ex - sx, ez - sz)
+  if (len < 1e-6 || extension <= 0) return null
+  const midX = (sx + ex) / 2
+  const midZ = (sz + ez) / 2
+  const angle = Math.atan2(ez - sz, ex - sx)
+  const t = clippedThickness(wall.thickness)
+  // Length along local X — same frame as WallBoxBody's extruded outline
+  // (spans -len/2..len/2 on X, thickness on Z) under the same -angle rotation.
+  return (
+    <mesh position={[midX, -extension / 2, midZ]} rotation={[0, -angle, 0]} receiveShadow>
+      <boxGeometry args={[len, extension, t]} />
+      <meshStandardMaterial color={WALL_COLOR} roughness={0.9} />
+    </mesh>
+  )
+}
+
 /**
  * Renders one isolated room of a **custom floor plan** for the per-room editor —
  * the plan-data analogue of `apartment/RoomShell`. Per-rect (or polygon) floors
  * with the room's own floor finish, walls clipped to the room footprint (with
  * camera-facing reveal), plus door/window panels for the room's openings (placed
  * from the `PlanRoomShell`'s resolved opening centres + angles).
+ *
+ * **Floor levels (BSJ-8 follow-up, `floorLevels` flag):** when the room carries
+ * an explicit `floorLevelMm`, its floor plane + doorway thresholds are offset by
+ * `floorLevelMm/1000` (metres) while the walls/ceiling stay at the plan datum —
+ * an FFL change is a slab build-up difference, not a storey change. A lowered
+ * floor gets a plinth ({@link WallBasePlinth}) filling the gap under each wall so
+ * no daylight shows through at the base.
  */
 export function PlanRoomShell({ shell }: { shell: Shell }) {
   const planHeight = useStore((s) => s.floorPlan.ceilingHeight)
@@ -315,6 +355,9 @@ export function PlanRoomShell({ shell }: { shell: Shell }) {
   const height = room.ceilingHeight ?? planHeight
   const floorMat = resolvePlanRoomFloor(finishes, room) as MaterialId
   const wallMat = resolvePlanRoomWall(finishes, room) as MaterialId | null
+  const floorLevelsOn = useFeature('floorLevels')
+  const offsetM = roomFloorOffsetM(room, floorLevelsOn)
+  const wallExtension = wallBaseExtensionM(offsetM)
 
   // Corner adjacency between the room's clipped walls (WALL-REVEAL-CORNER-SPREAD).
   // Same 0.25 m epsilon as RoomShell — clipped endpoints can sit up to a neighbour
@@ -341,29 +384,45 @@ export function PlanRoomShell({ shell }: { shell: Shell }) {
 
   return (
     <group>
-      {/* Floors: a polygon room renders one triangulated floor; otherwise the
-          footprint rects (main + optional L-extension). */}
-      {room.polygon && room.polygon.length >= 3 ? (
-        <PlanRoomFloor
-          roomId={room.id}
-          origin={room.origin}
-          width={room.width}
-          depth={room.depth}
-          polygon={room.polygon}
-          materialId={floorMat}
-        />
-      ) : (
-        shell.rects.map((r, i) => (
+      {/* Floors + doorway thresholds ride the room's FFL offset (BSJ-8
+          follow-up); walls/ceiling stay at the plan datum. */}
+      <group position={[0, offsetM, 0]}>
+        {/* Floors: a polygon room renders one triangulated floor; otherwise the
+            footprint rects (main + optional L-extension). */}
+        {room.polygon && room.polygon.length >= 3 ? (
           <PlanRoomFloor
-            key={`floor-${i}`}
             roomId={room.id}
-            origin={[r.x0, r.z0]}
-            width={r.x1 - r.x0}
-            depth={r.z1 - r.z0}
+            origin={room.origin}
+            width={room.width}
+            depth={room.depth}
+            polygon={room.polygon}
             materialId={floorMat}
           />
-        ))
-      )}
+        ) : (
+          shell.rects.map((r, i) => (
+            <PlanRoomFloor
+              key={`floor-${i}`}
+              roomId={room.id}
+              origin={[r.x0, r.z0]}
+              width={r.x1 - r.x0}
+              depth={r.z1 - r.z0}
+              materialId={floorMat}
+            />
+          ))
+        )}
+
+        {/* Doorway threshold strips — fill the unfloored wall-thickness slot under
+            each door so the backdrop can't shine through (DOOR-GAP-LEAK). */}
+        <PlanRoomThresholds shell={shell} />
+      </group>
+
+      {/* Plinth filling the gap under each wall for a lowered floor — walls
+          themselves stay at the datum (an FFL change is a slab build-up, not a
+          storey change). */}
+      {wallExtension > 0 &&
+        shell.walls.map((w, i) => (
+          <WallBasePlinth key={`plinth-${w.wallId}-${i}`} wall={w} extension={wallExtension} />
+        ))}
 
       {shell.walls.map((w, i) => (
         <WallBox
@@ -384,10 +443,6 @@ export function PlanRoomShell({ shell }: { shell: Shell }) {
       {shell.openings.map((entry) => (
         <PlanOpeningMesh key={entry.opening.id} entry={entry} />
       ))}
-
-      {/* Doorway threshold strips — fill the unfloored wall-thickness slot under
-          each door so the backdrop can't shine through (DOOR-GAP-LEAK). */}
-      <PlanRoomThresholds shell={shell} />
     </group>
   )
 }

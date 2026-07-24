@@ -389,8 +389,7 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   "waterproofing membrane below" note (factual, not flag-gated).
 - **Floor levels & transitions (BSJ-8, `floorLevels` pro flag): `floorLevels.ts`** (pure) over the
   additive `PlanRoom.floorLevelMm?` (mm vs the FFL datum; schema.ts ⇄ types.ts parity, no version
-  bump). **DOCUMENTATION-level only** — it does NOT move the 3D floor mesh (that would ripple through
-  furniture Y-placement; filed as a follow-up). `roomFloorLevelMm` (absent/NaN → 0), `fflTag`
+  bump). `roomFloorLevelMm` (absent/NaN → 0), `fflTag`
   (`FFL ±0`/`FFL +25`/`FFL −50`), `buildRoomFflTags` (tags only rooms with an EXPLICIT level, at their
   `roomLabelPosition`), `buildFloorTransitions` (doorway steps between rooms at different levels, via
   `openingProbe.roomsAcrossOpening`), `buildKerbAdvisories` (a bath/powder level with an adjacent dry
@@ -398,3 +397,13 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   (`autoDimensionSvg.ts` overlay, same sheet as setting-out) and in the tiler pack; edited in the
   `RoomInspector` "Floor level (mm)" field (pro-gated). `intakeStates.ts` deliberately does NOT seed a
   default level (see its module note — default-flat mutations are session-only).
+  **3D representation (BSJ-8 follow-up): `floorLevels3d.ts`** (pure) resolves per-room Y offsets
+  (`roomFloorOffsetM`, flag off ⇒ 0) + a wall-base extension amount (`wallBaseExtensionM`, for the
+  plinth that fills a lowered floor's gap under a wall) + doorway riser specs
+  (`buildThresholdRisers`, reusing `buildFloorTransitions` for the pairing — the 3D riser and the 2D
+  step marker can never disagree). Consumed by `apartment/PlanRoomShell.tsx` (isolated room editor)
+  and `apartment/PlanShell.tsx` (whole-plan overview) for the floor/skirting offset + plinth +
+  `ThresholdRiser` mesh, `furniture/FurnitureLayer.tsx` for the render-time furniture re-seat
+  (no new field on `FurnitureItem`), and `scene/cameras/FirstPersonCamera.tsx` for the walk-mode
+  ground-height follow. Plan-room feature only — the curated default flat has no `floorLevelMm`
+  concept and is unaffected.
