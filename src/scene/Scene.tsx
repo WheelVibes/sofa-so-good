@@ -81,10 +81,15 @@ export function Scene() {
   const customPlan = useStore((s) => !isDefaultPlan(s.floorPlan))
   const floorPlan = useStore((s) => s.floorPlan)
   const occluderRects = useMemo(() => occluderRectsForPlan(floorPlan), [floorPlan])
-  // Tier-gate the device-pixel-ratio ceiling: the default Performance tier caps
-  // at DPR 1 (big fill-rate saving on weak/mobile GPUs); higher tiers render
-  // sharper. R3F applies `dpr` changes live, so this tracks a tier switch.
+  // Tier-gated device-pixel-ratio ceiling (GPU-STARVE-3). The `dpr` prop's
+  // VALUE must always equal what QualityController's clamp puts in
+  // `viewport.dpr`: r3f's root `configure()` re-runs on every Canvas commit
+  // and calls `setDpr` (a buffer-clearing resize with no same-task repaint =
+  // one white flash) whenever the prop value and `viewport.dpr` disagree.
+  // That's also why the interactive degrade lives at the raw `gl` level, not
+  // in r3f state — see InteractiveDprController.tsx / QualityController.tsx.
   const dprMax = useQuality().dprMax
+  const dprRange = useMemo<[number, number]>(() => [1, dprMax], [dprMax])
   const shadowMapType = SHADOW_FILTER_THREE[shadowFilterForTier(useStore((s) => s.qualityTier))]
   const cameraMode = useStore((s) => s.cameraMode)
   return (
@@ -110,7 +115,7 @@ export function Scene() {
       // gl-level write elsewhere would be stomped. Runtime-switch material
       // recompiles live in RendererTierController.
       shadows={{ type: shadowMapType }}
-      dpr={[1, dprMax]}
+      dpr={dprRange}
       camera={{ position: [12, 8, 12], fov: 45, near: 0.1, far: 400 }}
       gl={{
         antialias: true,

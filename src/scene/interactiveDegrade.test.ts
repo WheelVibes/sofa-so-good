@@ -84,10 +84,26 @@ describe('noteRenderedFrame (long-frame bookkeeping)', () => {
     noteRenderedFrame(LONG_FRAME_MS + 100, false, 5_000)
     expect(lastLongFrameTime()).toBe(0) // idle demand-mode gap — not a slow frame
     noteRenderedFrame(LONG_FRAME_MS + 100, true, 6_000)
-    expect(lastLongFrameTime()).toBe(6_000)
+    expect(lastLongFrameTime()).toBe(0) // first driven frame — dt spans the idle gap
+    noteRenderedFrame(LONG_FRAME_MS + 100, true, 6_500)
+    expect(lastLongFrameTime()).toBe(6_500) // second driven frame — trusted
+  })
+
+  it('ignores the first driven frame after an idle gap (GPU-STARVE-3)', () => {
+    // Gesture starts: the first frame's delta reaches back to the last idle
+    // frame, so a long "delta" here is the gap, not a slow frame.
+    noteRenderedFrame(5_000, true, 10_000)
+    expect(lastLongFrameTime()).toBe(0)
+    // Dropping out of driven mode re-arms the guard.
+    noteRenderedFrame(LONG_FRAME_MS + 100, true, 10_400)
+    expect(lastLongFrameTime()).toBe(10_400)
+    noteRenderedFrame(16, false, 20_000)
+    noteRenderedFrame(LONG_FRAME_MS + 100, true, 25_000)
+    expect(lastLongFrameTime()).toBe(10_400) // first driven frame again — ignored
   })
 
   it('ignores fast frames', () => {
+    noteRenderedFrame(16, true, 6_900) // arm: previous frame driven
     noteRenderedFrame(LONG_FRAME_MS - 1, true, 7_000)
     expect(lastLongFrameTime()).toBe(0)
   })

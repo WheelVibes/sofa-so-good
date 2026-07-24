@@ -62,9 +62,11 @@ export function RoomEditorScene() {
     () => occluderRectsForPlan(plan).filter((r) => r.id === roomId),
     [plan, roomId],
   )
-  // Honour the user's global quality tier for the pixel-ratio ceiling, matching
-  // the main orbit Canvas (High/Maximum renders crisp; Performance caps at 1).
+  // Tier-gated DPR ceiling — the prop VALUE must match QualityController's
+  // clamp or r3f's configure() stomp-resizes on every commit (GPU-STARVE-3);
+  // see the matching note on the main orbit Canvas in Scene.tsx.
   const dprMax = useQuality().dprMax
+  const dprRange = useMemo<[number, number]>(() => [1, dprMax], [dprMax])
   const shadowMapType = SHADOW_FILTER_THREE[shadowFilterForTier(useStore((s) => s.qualityTier))]
   const floorLevelsOn = useFeature('floorLevels')
   if (!roomId) return null
@@ -95,7 +97,7 @@ export function RoomEditorScene() {
       // Demand mode + RenderPump, exactly like the main orbit Canvas: the scene
       // draws 0 frames when idle and continuously only while something animates.
       frameloop="demand"
-      dpr={[1, dprMax]}
+      dpr={dprRange}
       // Tier-driven filter (PHOTO-SOFTSHADOW): VSM soft shadows on Medium+, PCF
       // on the (shadowless) Performance tier. Must be THIS prop, not only the
       // controller: r3f re-applies `shadows` on every Canvas render, so a

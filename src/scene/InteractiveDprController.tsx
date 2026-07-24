@@ -20,13 +20,31 @@ import { useQuality } from './useQuality'
  * canvas white mid-pan). Mounted once in BOTH Canvases (main + room editor),
  * like `RendererTierController`.
  *
- * Mechanics:
- *  - DPR changes go through r3f `setDpr` (so viewport state stays coherent),
- *    followed by a same-value `setSize` nudge: `@react-three/postprocessing`'s
- *    composer only re-sizes its internal buffers when the r3f `size` identity
- *    changes (its effect keys on `size`, and `composer.setSize` re-reads the
- *    *drawing buffer*), so without the nudge the post stack would keep
- *    rendering at the old resolution and the degrade would save nothing.
+ * Mechanics (GPU-STARVE-3 hardened — the original mechanics themselves caused
+ * white flicker, see below):
+ *  - The degrade is applied at the RAW `gl.setPixelRatio` level and is
+ *    deliberately INVISIBLE to r3f's `viewport.dpr` state. It must NOT go
+ *    through r3f `setDpr`: r3f's root `configure()` re-runs on every Canvas
+ *    commit and re-applies the `dpr` prop whenever its value differs from
+ *    `viewport.dpr` — so a degrade held in r3f state was stomped back to full
+ *    resolution by ANY store-driven Canvas re-render mid-gesture (probe
+ *    stack-traced to `configure → setDpr`, 2026-07-24), each stomp clearing
+ *    the buffer with no repaint (a white flash) and forcing a heal-back
+ *    (another resize). With `viewport.dpr` always at the full clamp,
+ *    `configure()`'s comparison never fires.
+ *  - Each raw ratio change is followed by a same-value r3f `setSize` nudge:
+ *    `@react-three/postprocessing`'s composer only re-sizes its internal
+ *    buffers when the r3f `size` identity changes (its effect keys on `size`,
+ *    and `composer.setSize` re-reads the *drawing buffer*), so without the
+ *    nudge the post stack would keep rendering at the old resolution and the
+ *    degrade would save nothing. The nudge doesn't touch the GL ratio (r3f's
+ *    size/dpr subscriber skips identical width/height/dpr values).
+ *  - Every resize is repainted in the SAME task via `advance()`: resizing the
+ *    drawing buffer CLEARS it, and in demand mode the scheduled invalidate
+ *    only renders on the NEXT rAF — so each degrade engage/release composited
+ *    at least one blank (page-white) frame, long ones after a restore whose
+ *    first full-res frame at Maximum takes hundreds of ms. That blank
+ *    composite WAS the "white flickering while orbiting at Maximum".
  *  - The decision is re-checked on a cheap always-on rAF loop (not useFrame):
  *    the restore edge fires *after* frames stop (gesture released → demand
  *    mode idle), when no useFrame would run — restoring there means the next
@@ -37,8 +55,8 @@ import { useQuality } from './useQuality'
  */
 export function InteractiveDprController() {
   const gl = useThree((s) => s.gl)
-  const setDpr = useThree((s) => s.setDpr)
   const setSize = useThree((s) => s.setSize)
+  const advance = useThree((s) => s.advance)
   const get = useThree((s) => s.get)
   const enabled = useFeature('interactiveDegrade')
   const quality = useQuality()
@@ -57,15 +75,28 @@ export function InteractiveDprController() {
   useEffect(() => {
     if (!enabled) return
     const effectiveDpr = () => Math.min(window.devicePixelRatio || 1, dprMax)
-    const apply = (want: boolean) => {
+    const apply = (want: boolean, renderNow = true) => {
       degraded.current = want
       const full = effectiveDpr()
-      setDpr(want ? degradedDpr(full) : full)
+      // Raw GL-level ratio — never r3f setDpr (see docstring: configure()
+      // stomps any viewport.dpr that differs from the Canvas dpr prop).
+      gl.setPixelRatio(want ? degradedDpr(full) : full)
       // Nudge the composer's size subscription (see docstring) — same values,
-      // fresh identity. r3f re-applies the (unchanged) camera + canvas size and
-      // invalidates, so the new resolution presents immediately in demand mode.
+      // fresh identity; r3f skips the GL-level resize for identical values so
+      // the raw ratio above survives.
       const { size } = get()
       setSize(size.width, size.height, size.top, size.left)
+      // Repaint in the SAME task as the resize (see docstring) so the cleared
+      // buffer never reaches the compositor. Guarded so a Canvas teardown
+      // never renders a half-disposed tree; best-effort — a failed repaint
+      // just means one blank composite, the pre-fix behaviour.
+      if (renderNow && !document.hidden && gl.domElement.isConnected) {
+        try {
+          advance(performance.now(), true)
+        } catch {
+          // mid-teardown render — the scheduled invalidate repaints instead
+        }
+      }
     }
     let raf = 0
     const loop = () => {
@@ -79,8 +110,9 @@ export function InteractiveDprController() {
         effectiveDpr: effectiveDpr(),
         recording: useStore.getState().recording,
       })
-      // Heal external stomps too (tier switch / Canvas dpr prop re-apply set
-      // the full ratio while a degrade window is open).
+      // Heal external stomps too (a window resize or tier switch re-applies
+      // the full state-level ratio at the GL level while a degrade window is
+      // open — rare, and each heal repaints in-task).
       const desired = want ? degradedDpr(effectiveDpr()) : effectiveDpr()
       if (want !== degraded.current || Math.abs(gl.getPixelRatio() - desired) > 1e-3) apply(want)
     }
@@ -88,10 +120,13 @@ export function InteractiveDprController() {
     return () => {
       cancelAnimationFrame(raf)
       // Never leave the scene stuck at the degraded resolution (flag flipped
-      // off / tier change remount / Canvas teardown order).
+      // off / tier change remount / Canvas teardown order). This cleanup also
+      // runs on a dep-change re-run (e.g. a tier switch) where the canvas
+      // lives on — repaint there too; the isConnected guard in `apply` skips
+      // the repaint on a real teardown.
       if (degraded.current) apply(false)
     }
-  }, [enabled, postprocessing, dprMax, gl, setDpr, setSize, get])
+  }, [enabled, postprocessing, dprMax, gl, setSize, advance, get])
 
   return null
 }

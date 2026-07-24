@@ -5,6 +5,34 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.24.0.3 — GPU-STARVE-3: white flickering in orbit + room editor at Maximum, root-caused and closed
+
+User-reported: white screen flickering persisted in orbit mode and the room editor at Maximum
+after v0.23.1.13. Root cause (probe-verified on real GPU with a wrapped `gl.setSize` +
+`queueMicrotask` frame-count check — microtasks run before that task's composite, so
+"frame advanced by then" == "no blank frame reached the screen"): **every drawing-buffer
+resize CLEARS the buffer, and in demand mode the scheduled repaint lands on the NEXT rAF**,
+so the browser composited a page-white canvas on every interactive-degrade engage/release,
+every tier switch, and — worst — every r3f `configure()` DPR stomp (r3f re-applies the Canvas
+`dpr` prop from the Canvas component's own layout effect on ANY commit where the prop value
+differs from `viewport.dpr`, i.e. on any store-driven re-render mid-gesture while degraded;
+found via a stack trace recorded in the resize wrapper). Four changes:
+(1) `InteractiveDprController.apply` now repaints synchronously (`advance()`) in the same task
+as its resize, and applies the degrade at the **raw `gl.setPixelRatio` level, never r3f
+`setDpr`** — `viewport.dpr` stays at the full clamp so `configure()`'s value-compare never
+fires and the stomp class is gone entirely (the same-value `setSize` nudge still resizes the
+post composer). (2) `QualityController` is now the sole owner of the tier DPR clamp, routed
+through r3f `setDpr` in a `useLayoutEffect` (pre-composite; a plain effect was one composite
+late) + same-task `advance()`. (3) Both Canvases pass a memoised `dpr={[1, dprMax]}` whose
+value always equals the controller clamp. (4) Phantom long frames fixed: the first frame of a
+gesture measures its dt against the last idle demand-mode frame (seconds), which recorded a
+fake >250 ms "long frame" at nearly every gesture start and held the degrade (plus its toggle)
+3 s past every release — `noteRenderedFrame` now requires the PREVIOUS frame to have been
+continuously driven too. Guard scenario `interactive-dpr-seamless.json` (4 forced
+degrade↔restore cycles on real GPU: every resize `sameTask: true`, 0 context losses); scene
+suite 67 files / 572 tests green; new rules + probe recipe documented in `src/scene/CLAUDE.md`
+and the visual-verification playbook.
+
 ## v0.24.0.2 — BSJ-8 follow-up: 3D floor-level representation
 
 Custom-plan rooms with an explicit `floorLevelMm` (BSJ-8 — a sunken bathroom, a raised
