@@ -18,6 +18,76 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 - **F21 (real-headset WebXR)** — controller-locomotion pass needs a physical VR headset to verify;
   the inert WebXR entry + provider already ship.
 
+## Open — UI/UX polish cycle (2026-08-19; sources: internal audit + DESIGN.md research refs)
+Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, visual verify.
+### Stage 1 — correctness/policy (do first)
+- [ ] UIUX-1: saved-layout slot delete must gate on `confirmAction({danger})` —
+  `toolbar/menus/FileMenu.tsx:468` + `toolbar/mobile/FileSection.tsx:103,396` delete with no
+  prompt/undo (policy violation; VersionsPanel is the model).
+- [ ] UIUX-2: fix 4 undefined button-class families (`.sm`→`btn-sm` in BackdropUpload/
+  PaintVizModal; `.ghost` in RoofSettings/PlanInspector/WallInspector; `.btn-icon` in
+  UserManagementModal; `.btn.on` PresentationMode auto-advance has NO on-state) + add a
+  styleGuards-style test asserting every `btn*` modifier used in TSX exists in CSS.
+- [ ] UIUX-3: add `useModalGuard` + `focusTrap` to the 3 custom `.modal-overlay` dialogs that
+  skip them: `auth/UserManagementModal`, `LocationPrompt`, `glbEditor/GlbDesignerDialog`.
+### Stage 2 — token consistency (small sweeps)
+- [ ] UIUX-4: modal `width` literals → `--modal-sm/-md/-lg` tokens (~17 call sites; siblings
+  diverge: TimeCompare uses token, RenderCompare/VersionCompare/StagingReveal pass 820).
+- [ ] UIUX-5: ConfirmModal + PromptModal action rows → `Modal`'s `footer` prop (10 siblings
+  already do).
+- [ ] UIUX-6: shared `.form-err` class (4 modals paste `color: var(--danger, #c0392b)` — dead
+  hex literal); define or drop `--on-scrim` (PresentationMode renders literal #fff);
+  ProductTour scrim `rgba(20,16,12,.55)` + raw transition → tokens.
+- [ ] UIUX-7: add `.panel-sub.plain` (un-uppercase modifier) — 10+ inline
+  `textTransform:'none'` hacks (StagingReveal, WallNumericEntry, GridZoomControls,
+  PlanTotalLabel, AiPhotorealSection, FinishPicker ×2).
+- [ ] UIUX-8: motion/hover token strays — walk-HUD 600ms → `--dur-3 --ease-out`
+  (app.css:246), screens.css 0.3s → `--dur-2`, `.share-opt:hover` → `--surface-3`
+  (features.css:364 inverted hover), `.ss-card` raw .12s + 4px radius + missing hover fill
+  (flows.css:160).
+### Stage 3 — mobile/a11y + list vocab
+- [ ] UIUX-9: 44px touch floor — catalog-card ♥/↻/× (32px) + `.lyr-geye` (30px) get the same
+  `::after { inset:-9px }` extension panel-head icons already have (responsive.css).
+- [ ] UIUX-10: labelled bare `.slider` → `SliderField` (ItemLightControls Brightness,
+  PaintVizModal Coverage, ElevationPanel lux hour, TiltControls, ItemPhysicalControls ×2).
+- [ ] UIUX-11: FileMenu saved-layouts list → `.saved-view-row` vocabulary + `EmptyState`
+  (currently Tailwind clone: off-scale radii/type, ~20px "×" delete, hand-rolled empty text).
+### Stage 4 — off-system surface migrations (Tailwind → tokens)
+- [ ] UIUX-12: inspector bodies (IkeaBody/GltfBody/ParametricBody/SourceLine/
+  MultiSelectPanel/IesProfilePicker/ItemLightControls/ItemPhysicalControls): `.sec-h`
+  headers, `Button size="sm"`, `Disclosure` over raw `<details>`, `EmptyState` (split into
+  2–3 commits).
+- [ ] UIUX-13: catalog PacksTab/RemoteBrowseTab/ResolutionPicker/CachePane: hand-rolled
+  accent buttons → `Button`/`.btn-accent`, `--danger-soft`, type ladder.
+- [ ] UIUX-14: PlanViewMenuActions 8 boolean toggles are accent-CTA buttons → check rows /
+  `.seg-btn.on` grammar (match 3D ViewMenu); same `btn-accent`-as-open-state leak in
+  PlanEditorHeader/LevelMenu/PlanToolMenu/PlanMenu.
+- [ ] UIUX-15: GraphicsSettings hand-built overlay → shared `Modal` (gains focus trap).
+- [ ] UIUX-16: literal burn-down — FinishPicker `#ccc` fallbacks + inline rows,
+  ParametricControls 26px/radius-6 swatch ×3 → `.swatch`, WebGLFallback/ErrorBoundary
+  off-system, LoadingOverlay/PresentationMode grandfathered inline px.
+### Stage 5 — polish patterns from research (each flag-gated, reduced-motion-safe)
+- [ ] UIUX-20: Segmented control sliding active-pill (Watermelon fluid-tabs mechanic; CSS
+  transform on measured offset).
+- [ ] UIUX-21: animated number on Budget HUD/panel totals (rAF lerp, tabular-nums,
+  reduced-motion snaps).
+- [ ] UIUX-22: text-shimmer on loading/AI-progress labels (background-clip gradient;
+  Motion-Primitives mechanic; ambientFx-gated).
+- [ ] UIUX-23: toast behavior upgrade — pause-timer + expand on hover, stack-collapse ≥3
+  (Sonner spec), keep existing notify API.
+- [ ] UIUX-24: Haikei-style inline SVG blob backdrops for EmptyState/onboarding (static,
+  `currentColor`/accent-tinted, no runtime cost).
+- [ ] UIUX-25: copy/save state-morph confirmation on copy-link/copy buttons (icon crossfade
+  + spring-ish cubic-bezier).
+- [ ] UIUX-26: origin-aware popover/menu entrance (transform-origin from anchor side,
+  scale .96→1 `--dur-1 --ease-out`; exits faster).
+- [ ] UIUX-27: skeleton-shimmer class + Doherty pass over async surfaces (catalog thumbs,
+  DLC materials, cloud sync) — verify catalog blank-tile lazy-load look.
+- [ ] UIUX-28: onboarding checklist (furnish→finish→light→share) — simple-tier flag,
+  goal-gradient progress, dismissable (Watermelon onboarding-checklist pattern).
+- [ ] UIUX-29: guard test / adoption sweep — every new pattern documented in DESIGN.md as it
+  ships; keep adding tasks discovered during stages above.
+
 ## Open — client-doable
 - [ ] MOD-FPE-SPLIT (optional tail, REFAC-2 landed a further cut): `FloorPlanEditor.tsx` is now
   **~2432 lines** (was 4271, −43%). Done: state/effect hooks `usePlanBackdrop` (v.46), `usePlanAiWalls`
