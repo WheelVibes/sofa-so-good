@@ -5,6 +5,47 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.0.0 — Photoreal materials round 1: photo-finish correctness + the Showroom strip
+
+Research-driven materials push (goal: showroom / sample-board fidelity; references studied:
+ArchSynth = diffusion AI rendering, Coohom/Planner 5D = cloud path tracing over a **curated
+photo-PBR library**, Shapespark = baked GI — the transferable web pattern is *curated
+photo-scanned PBR map sets, correctly decoded*).
+
+- **REAL-2 — photo albedos rendered with wrong gamma AND ~25% brightness.** The `textured`
+  branch of `cache.ts:buildMaterial` never tagged the drei-loaded albedo `SRGBColorSpace`
+  (skipping the sRGB→linear decode), and `m.color` stayed at the def's `swatch` — which for
+  every generated-catalog photo material was the `#888888` placeholder, multiplying the photo
+  down to ~25% linear brightness. Photo floors rendered as muddy near-black planks; the
+  "Plastered wall" finish rendered close to black. Now: albedo tagged sRGB, `m.color` white for
+  plain textured defs; the multiply is kept ONLY for real `tint:<baseId>:<#hex>` finishes (the
+  legacy tint mechanism, `isTintMaterialId`). Visually A/B'd on the real GPU (living room,
+  Medium): the oak floor reads as lit wood planks, the plaster accent wall as plaster.
+- **REAL-3 — AO channel now loads.** `useTexturedMaterial` fetched only albedo/normal/roughness;
+  remote CC0 bundles download an AO map that `buildMaterial` binds — it was just never loaded.
+  Baked crevice/grout shading now lands on photo finishes.
+- **SHOWROOM-FINISHES — curated one-tap photo-PBR strip** (flag `showroomFinishes`, simple tier,
+  default on, prod-safe CC0). `materials/showroomCatalog.ts`: 15 hand-curated Poly Haven
+  finishes (9 floors, 6 walls) with honest names, mean-albedo swatches and **physical
+  metres-per-tile uvScales**; `ui/finish/ShowroomRow.tsx` renders them above the FinishPicker
+  grid (Floor + Walls tabs, desktop + mobile) — tap → streams the full 1k map set CORS-direct
+  via the existing `resolveRemoteAsset`/IDB-cache path → applies. Curated overrides land in
+  `bundleToMaterialDef` (generic pack-browser downloads keep the 1 m default). Dead slugs
+  degrade gracefully (CDN thumb 404 hides the chip; resolve failure toasts).
+- **Remote finishes survive reload** (`state/storage/rehydrateRemoteFinishes.ts`, boot step):
+  applied `polyhaven:/ambientcg:` finish ids (incl. tint-/`mat:`-wrapped, via the pure
+  `extractRemoteFinishRefs` scan) re-resolve on boot from the IDB bundle cache (offline-capable)
+  — previously an applied remote finish silently fell back to the first builtin on reload.
+  Deliberately not flag-gated (gating is browse/add only, matching remote furniture).
+- **Bundled photo materials get real swatches.** `material.json` sidecars now carry a
+  mean-albedo `swatch` (computed via sharp) emitted by `index-assets` — the picker's photo
+  tiles/chips no longer fall back to uniform grey. The furniture-catalog emitter also
+  round-trips `mergeGeneratedCatalog` so re-running `index-assets` no longer deletes it.
+- Tests: textured-branch colour/AO contract (`cache.test.ts`), showroom curation integrity +
+  id round-trip + Simple/Pro flag gate (`showroomCatalog.test.ts`), strip render/resolve/apply
+  + FinishPicker mount in BOTH modes (`ShowroomRow.test.tsx`), boot rehydration
+  (`rehydrateRemoteFinishes.test.ts`).
+
 ## v0.25.0.1 — CI fix: knip dead-code scan green
 
 Deleted `levelRoomOffsets` (`floorplan/floorLevels3d.ts`) — a speculative per-storey convenience

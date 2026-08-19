@@ -917,6 +917,16 @@ same change that reshapes a system.
   uploaded (`textured`) maps get the same treatment (REAL-1)** — `cache.ts:buildMaterial`'s
   `textured` branch calls `applyAnisotropy` on every loaded albedo/normal/roughness/ao map, so a
   photo-textured floor/wall no longer renders blurrier than a procedural finish at grazing angles.
+  **Textured colour correctness (REAL-2)**: the same branch tags the loaded photo albedo
+  `SRGBColorSpace` (drei's `useTexture` leaves it untagged → wrong gamma) and keeps `m.color`
+  **white** for a plain textured def — the swatch is only the picker-chip preview; multiplying the
+  photo by it crushed every bundled/remote/uploaded material (the generated catalog's `#888888`
+  placeholder darkened photo floors to ~25%). The multiply survives ONLY for real legacy
+  `tint:<baseId>:<#hex>` ids (`isTintMaterialId`), which is the tint mechanism. **AO maps load
+  (REAL-3)**: `useTexturedMaterial` includes the `ao` channel in its `useTexture` list (remote CC0
+  bundles fetch it; previously it was fetched but never loaded/bound). **Bundled photo swatches**:
+  each `public/assets/materials/<id>/material.json` sidecar carries a mean-albedo `swatch`
+  (emitted by `index-assets` into `generatedCatalog.ts`; grey `#888888` only for legacy sidecars).
   **Wall/floor/ceiling material cache is a bounded LRU (PERF-A)**: `cache.ts`'s `CACHE` (also
   backs furniture `mat:<id>` DLC finishes, `furn:`-prefixed) is `materials/materialLru.ts`'s
   `LruCache` — the same bounded + dispose-on-evict shape the furniture material cache uses
@@ -1099,6 +1109,19 @@ same change that reshapes a system.
   model source** (its multi-file glTF is why), so no provider emits `kind:'furniture'` (the
   `remoteFurniture` browse is dormant until one does). Add a source: poly-pizza-style client reusing
   `buildEntry`/`commit`, a `RemoteProvider`, or a `'manual'` entry.
+- **Showroom finishes (SHOWROOM-FINISHES)** (`materials/showroomCatalog.ts`,
+  `ui/finish/ShowroomRow.tsx`, flag `showroomFinishes` — simple tier, default on, prod-safe CC0):
+  a hand-curated shortlist of Poly Haven photo-PBR finishes (honest names, mean-albedo swatches,
+  physical `uvScale` per scan) rendered as a one-tap strip above the FinishPicker grid (Floor +
+  Walls tabs). A tap streams the full map set through the existing `resolveRemoteAsset` path
+  (CORS-direct, IDB-cached) at `SHOWROOM_RESOLUTION` (1k) and applies the resolved
+  `polyhaven:<slug>:<res>` finish id. `bundleToMaterialDef` applies the curated
+  name/swatch/uvScale override for showroom slugs (generic downloads keep the 1 m default).
+  Dead slugs degrade gracefully (thumb 404 hides the chip; resolve failure toasts). **Reload
+  rehydration** (`state/storage/rehydrateRemoteFinishes.ts`, boot step `remoteFinishes`): applied
+  remote finish ids (incl. tint-wrapped / `mat:`-wrapped, scanned by pure
+  `extractRemoteFinishRefs`) are re-resolved on boot from the IDB bundle cache (offline) or the
+  provider — deliberately NOT flag-gated (gating is browse/add only).
 - **Shared library (R2, prod)** (`state/slices/sharedLibrarySlice.ts`, `ui/catalog/SharedCard.tsx`,
   `catalog/packs/sharedLibrary.ts`): the Cloudflare R2 library **auto-populates the catalog grid**
   for signed-in **admins** — `bootstrapSharedLibrary` fetches `library/index.json` once on catalog

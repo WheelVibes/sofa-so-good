@@ -23,6 +23,9 @@ export interface MaterialSidecar {
   id: string
   name: string
   category: 'floor' | 'wall'
+  /** Picker-chip preview colour (mean albedo tone). Optional — the emitter
+   *  falls back to a neutral grey placeholder when absent. */
+  swatch?: string
   uvScale: [number, number]
   channels: {
     albedo: string

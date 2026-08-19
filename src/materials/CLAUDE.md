@@ -102,6 +102,26 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   leaking a GPU texture per frame. Applied in `glbEdit/buildObject.ts:buildSurfaceMaterial`'s finish
   branch (`applyFinishTextureTransform`), which also rotates `anisotropyRotation` where the finish is
   a `MeshPhysicalMaterial` (brushed metal) so the highlight tracks the visible grain.
+- **Textured (photo) finishes render true (REAL-2/REAL-3).** `cache.ts:buildMaterial`'s
+  `textured` branch tags the loaded albedo `SRGBColorSpace` (drei's `useTexture` leaves it
+  untagged → wrong gamma) and sets `m.color` **white** for a PLAIN textured def — a def's
+  `swatch` is only its picker-chip colour, never an albedo multiplier. The multiply is kept
+  ONLY for real `tint:<baseId>:<#hex>` ids (`isTintMaterialId`) — that IS the legacy tint
+  mechanism (and the documented fallback when a `!r` repaint bake fails). `useMaterial.ts:
+  useTexturedMaterial` loads all four channels incl. **ao** (positional unpack — keep the list
+  order albedo/normal/roughness/ao). Don't reintroduce a swatch multiply on plain photo defs.
+- **Showroom finishes (`showroomCatalog.ts`, SHOWROOM-FINISHES, flag `showroomFinishes` —
+  simple tier, prod-safe CC0):** the hand-curated Poly Haven photo-PBR shortlist behind the
+  FinishPicker's one-tap "Showroom" strip (`ui/finish/ShowroomRow.tsx`). Pure data + id helpers:
+  curated `uvScale` = physical metres-per-tile, `swatch` = mean albedo, honest names;
+  `bundleToMaterialDef` (catalog/remote/resolver.ts) applies the curated override by slug.
+  Applied ids (`polyhaven:<slug>:<res>`) are **rehydrated on boot** by
+  `state/storage/rehydrateRemoteFinishes.ts` (pure `extractRemoteFinishRefs` string scan →
+  `resolveRemoteAsset`, IDB-cached → works offline; NOT flag-gated — gating is browse/add only).
+  Adding a curated finish = one entry in `SHOWROOM_FINISHES` (slug must be a real Poly Haven
+  texture asset; a dead slug degrades to a hidden chip). Bundled photo sets under
+  `public/assets/materials/` carry a mean-albedo `swatch` in their `material.json` sidecar —
+  recompute it (sharp mean over the albedo) when swapping a texture.
 - **Texture anisotropy** (`anisotropy.ts`, RD-401): never hardcode `texture.anisotropy`.
   Route every CanvasTexture creation (and every per-repeat `.clone()`) through
   `applyAnisotropy(tex)` — it stamps the shared cap and tracks the texture. The cap defaults

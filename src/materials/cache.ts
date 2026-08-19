@@ -6,6 +6,7 @@ import {
   type Texture,
 } from 'three'
 import { applyAnisotropy } from './anisotropy'
+import { isTintMaterialId } from './composeMaterial'
 import { LruCache } from './materialLru'
 import {
   effectivePatternSize,
@@ -323,6 +324,22 @@ export function buildMaterial(
       m.color.set('#ffffff')
     } else if (textures.albedo) {
       m.map = textures.albedo
+      // REAL-2 — a photo albedo is an sRGB-encoded image, but drei's `useTexture`
+      // leaves `colorSpace` untagged (NoColorSpace), so the renderer skipped the
+      // sRGB→linear decode and every CC0/uploaded photo finish rendered with
+      // wrong gamma. Tag the shared loader instance once (every consumer — base
+      // material and tint siblings alike — wants the same decode).
+      if (textures.albedo.colorSpace !== SRGBColorSpace) {
+        textures.albedo.colorSpace = SRGBColorSpace
+        textures.albedo.needsUpdate = true
+      }
+      // REAL-2 — `m.color` multiplies the albedo map. That multiply is the
+      // *deliberate* mechanism of a legacy `tint:<baseId>:<#hex>` finish, but a
+      // PLAIN textured def's `swatch` is only its picker-chip preview colour —
+      // multiplying the photo by it darkened every bundled/remote/uploaded
+      // material (the generated catalog's `#888888` placeholder crushed photo
+      // floors to ~25% brightness). Keep the multiply only for real tint ids.
+      m.color.set(isTintMaterialId(def.id) ? def.swatch : '#ffffff')
     }
     if (textures.normal) m.normalMap = textures.normal
     if (textures.roughness) m.roughnessMap = textures.roughness

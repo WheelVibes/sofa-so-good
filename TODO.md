@@ -4,6 +4,19 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## Showroom finishes (v0.26.0.0, 2026-08-19)
+- [ ] **Showroom strip in `WallAccentPicker`.** The curated photo-PBR strip ships in the main
+  FinishPicker (Floor + Walls tabs) only; the accent-wall picker still offers just the catalog
+  grid. Reuse `ShowroomRow` there (same `showroomFinishes` gate).
+- [ ] **Showroom picks for furniture `mat:` finishes.** A resolved showroom finish already works
+  as a `mat:polyhaven:<slug>:1k` furniture finish (and rehydrates — the boot scan covers item
+  props), but no furniture UI surfaces the curated list yet.
+- [ ] **Curated-slug liveness check.** Showroom slugs degrade gracefully when dead (thumb 404 →
+  chip hides), but a periodic dev-time script hitting `api.polyhaven.com/info/<slug>` would catch
+  a renamed asset before users see a thinner strip. (Sandbox egress blocked polyhaven at author
+  time, so the medium-confidence slugs — `laminate_floor_02`, `painted_plaster_wall` — ship on
+  the graceful-degradation contract; verify once network allows.)
+
 ## New default floor plan (v0.23.1.0, 2026-07-23)
 - [ ] **`socialLounge` preset: TV cluster sits over the L/D east window.** The new plan put the
   main window band on the L/D east wall; every other preset moved its media wall to the solid

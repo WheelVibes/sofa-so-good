@@ -110,6 +110,16 @@ export async function runBootstrap(): Promise<void> {
     await runStep('planShareLink', loadSharedPlanFromUrl)
     await runStep('designShareLink', loadSharedDesignFromUrl)
 
+    // Re-resolve applied remote-material finishes (SHOWROOM-FINISHES) from the
+    // IndexedDB bundle cache / the provider, so a reload keeps photo finishes
+    // rendering. Runs after every design-restoring step above (hydrate, cloud,
+    // share links) so it scans the FINAL restored state; fire-and-forget so a
+    // slow/offline network never delays boot.
+    runStep('remoteFinishes', async () => {
+      const { rehydrateRemoteFinishes } = await import('./rehydrateRemoteFinishes')
+      void rehydrateRemoteFinishes()
+    })
+
     // Surface autosave failures (the common one is localStorage quota) so the
     // user knows their work isn't being persisted, instead of silently losing
     // it. Dedup to a single notification that auto-clears when saving resumes.

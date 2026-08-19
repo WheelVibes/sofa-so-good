@@ -36,6 +36,11 @@ for the broader gap matrix, `TASKS.md` for live tracking, `CHANGELOG.md` for shi
   `transmissionResolutionScale`; Performance/Medium panes keep the cheap transparent+sky-catch
   look byte-identical). **Bundled +
   runtime Poly Haven 2K PBR finishes ship; in-browser KTX2/UASTC encode ships (opt-in); no POM/displacement.**
+  **Photo-finish correctness + curation (v0.26.0.0, SHOWROOM-FINISHES / REAL-2 / REAL-3):** the
+  textured branch now renders photo albedos sRGB-decoded and UN-multiplied (the placeholder swatch
+  used to darken every photo material to ~25% — the single biggest "crude materials" defect), AO
+  maps actually load, and a curated Poly Haven "Showroom" strip (one-tap, 1k, IDB-cached, honest
+  physical uvScales) puts photo PBR into the core Simple-mode finish loop with reload rehydration.
 - **Post** (`Effects.tsx`): N8AO → Bloom → HueSat → (CA) → Vignette → (grain) → SMAA. Tone-mappers
   Filmic(ACES)/AgX/Neutral available; auto-exposure + user dial.
 - **Path tracer** (`pathtrace/hqRenderSession.ts`): progressive, tiled, `PhysicalCamera` DoF,

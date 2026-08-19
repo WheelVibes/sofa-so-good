@@ -1,5 +1,16 @@
 # Finishes & materials
 
+## Showroom finishes (photo‑real)
+
+The **Showroom** row at the top of the finish picker's **Floor** and **Walls**
+tabs offers a curated set of **photo‑scanned, physically‑based finishes** (real
+wood, marble, tiles, plaster and more — free CC0 scans from Poly Haven). Tap a
+chip and the full material — colour, surface relief, gloss variation and
+baked‑in shading — streams in and applies to the surface; it's cached on your
+device, so it loads instantly next time and keeps working offline. These read
+far more realistic than flat colour swatches, especially at Medium quality and
+above. (Needs an internet connection for the first download of each finish.)
+
 ## Repaint a wall or refinish the floor
 
 1. Inside the [per‑room editor](/room-editor), click any **wall** or the **floor**.

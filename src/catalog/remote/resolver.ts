@@ -1,4 +1,5 @@
 import type { RemoteGltfDef } from '../../furniture/types'
+import { showroomFinishFor } from '../../materials/showroomCatalog'
 import type { TexturedMaterialDef } from '../../materials/types'
 import { gltfJsonFootprint } from './gltfBounds'
 import type { AssetBundle, RemoteEntry, Resolution } from './types'
@@ -25,11 +26,17 @@ export function bundleToMaterialDef(
     roughness: c.roughness ? blobUrl(c.roughness) : undefined,
     ao: c.ao ? blobUrl(c.ao) : undefined,
   }
+  // SHOWROOM-FINISHES — a curated showroom pick carries hand-tuned metadata:
+  // its honest name, a mean-albedo swatch, and (most importantly) the physical
+  // metres-per-tile the scan reads correctly at on the world-UV surfaces. A
+  // generic pack-browser download keeps the provider name + the legacy 1 m
+  // tile default.
+  const curated = entry.provider === 'polyhaven' ? showroomFinishFor(entry.slug) : null
   return {
     id: `${entry.provider}:${entry.slug}:${resolution}`,
-    name: entry.name,
-    category: entry.category as 'floor' | 'wall',
-    swatch: '#cccccc',
+    name: curated?.name ?? entry.name,
+    category: (curated?.category ?? entry.category) as 'floor' | 'wall',
+    swatch: curated?.swatch ?? '#cccccc',
     kind: 'textured',
     source: entry.provider as 'polyhaven' | 'ambientcg',
     slug: entry.slug,
@@ -37,7 +44,7 @@ export function bundleToMaterialDef(
     sourceUrl: entry.sourceUrl,
     thumbUrl: entry.thumbUrl,
     textures: urls,
-    uvScale: [1, 1],
+    uvScale: curated?.uvScale ?? [1, 1],
     runtimeUrls: urls,
   }
 }
