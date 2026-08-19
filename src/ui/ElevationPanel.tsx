@@ -9,6 +9,7 @@ import { estimateRoomLux, type LuxStatus } from '../lighting2d/roomLux'
 import { useEffectiveHour } from '../scene/lighting/useEffectiveHour'
 import { useStore } from '../state/store'
 import { AuxPanelHead } from './AuxPanelHead'
+import { SliderField } from './controls/SliderField'
 import { type ElevationPalette, elevationCaption, elevationSvg } from './elevation/elevationSvg'
 import { LuxLegend } from './lighting2d/LuxLegend'
 import { type LightingPalette, lightingPlanSvg } from './lighting2d/lightingPlanSvg'
@@ -260,16 +261,6 @@ export function ElevationPanel() {
                       >
                         Time of day
                       </span>
-                      <span
-                        className="mono"
-                        style={{
-                          fontSize: 'var(--t-2xs)',
-                          color: 'var(--text-2)',
-                          fontVariantNumeric: 'tabular-nums',
-                        }}
-                      >
-                        {formatClock(effectiveHour)}
-                      </span>
                       {/* Play/stop button — auto-advances manualHour at 1 hr/s. */}
                       <button
                         type="button"
@@ -282,19 +273,21 @@ export function ElevationPanel() {
                         {luxPlaying ? '⏹' : '▶'}
                       </button>
                     </div>
-                    <input
-                      type="range"
+                    {/* The live clock IS the slider's label (TimeOfDaySlider pattern —
+                        the header above already names the section, so a separate
+                        readout would show the value twice). */}
+                    <SliderField
+                      label={formatClock(effectiveHour)}
+                      ariaLabel="Time of day for lux overlay"
                       min={0}
                       max={24}
                       step={0.25}
                       value={effectiveHour}
-                      aria-label="Time of day for lux overlay"
-                      onChange={(e) => {
+                      onChange={(v) => {
                         if (luxPlaying) setLuxPlaying(false)
-                        setManualHour(Number(e.target.value))
+                        setManualHour(v)
                       }}
-                      className="slider"
-                      style={{ width: '100%' }}
+                      hideReadout
                     />
                   </div>
 

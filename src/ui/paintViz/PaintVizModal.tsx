@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { SliderField } from '../controls/SliderField'
 import { Modal } from '../Modal'
 import { Icon } from '../toolbar/icons'
 import {
@@ -235,19 +236,16 @@ export function PaintVizModal({ open, onClose, swatches }: PaintVizModalProps) {
               </button>
             </div>
 
-            <label className="paint-viz-strength">
-              <span>Coverage</span>
-              <input
-                type="range"
-                className="slider"
-                min={0.2}
-                max={1}
-                step={0.05}
-                value={strength}
-                onChange={(e) => setStrength(Number(e.target.value))}
-                aria-label="Paint coverage"
-              />
-            </label>
+            <SliderField
+              label="Coverage"
+              ariaLabel="Paint coverage"
+              min={0.2}
+              max={1}
+              step={0.05}
+              value={strength}
+              onChange={setStrength}
+              format={(v) => `${Math.round(v * 100)}%`}
+            />
 
             {/* biome-ignore lint/a11y/useSemanticElements: a swatch grid is a labelled group of toggle buttons, not a fieldset form control (matches FinishPicker's SwatchGroup). */}
             <div className="paint-viz-swatches" role="group" aria-label="Paint colours">

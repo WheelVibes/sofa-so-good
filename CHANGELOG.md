@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.12 — UIUX-10: labelled bare sliders → SliderField (6 call sites)
+
+ItemLightControls Brightness, PaintVizModal Coverage (gains a % readout it lacked),
+TiltControls pitch/roll rows (° readout), ItemPhysicalControls Opacity (% readout), and
+the Drawings-panel lux time scrub (clock-as-label + hideReadout, the TimeOfDaySlider
+pattern — drops the duplicate header clock span) now use the shared `SliderField`
+instead of hand-pairing a bare `.slider` with a label/value span. The elevation slider
+keeps its bare form deliberately: its readout is an *editable* numeric input, not a
+span. Visually verified (inspector Brightness row, Drawings lux scrub).
+
 ## v0.25.0.11 — UIUX-9: catalog card actions + layers group eyes reach the 44px touch floor
 
 The catalog card corner stack (♥/↻/×) was 32px on mobile and the Layers group
