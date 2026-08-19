@@ -359,6 +359,15 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 /* Inline button spinner (P16). Reuses @keyframes toastspin (features.css). */
 .btn .btn-spin { animation: toastspin 0.9s linear infinite; transform-origin: 50% 50%; flex: none; }
 .btn.is-loading { pointer-events: none; opacity: 0.7; }
+/* Press feedback (UIUX-32, the Motion `whileTap` equivalent in one rule): a
+   uniform tactile scale-down while a button is actively pressed. Transform-only
+   (rides each control's existing transition; the global reduced-motion kill
+   zeroes it). Deliberately NOT on cards — `.liftable` owns their transform. */
+.btn:active:not(:disabled),
+.icon-btn:active,
+.tool-btn:active,
+.seg button:active { transform: scale(0.96); }
+
 /* Progress-label shimmer (UIUX-22): a highlight sweeps across in-flight status
    text. Mounted only via ShimmerText, which gates on useAmbientFx() (dormant in
    the default Performance tier / reduced-motion) and IO-pauses it off-screen.

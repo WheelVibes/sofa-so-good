@@ -460,3 +460,12 @@ describe('UIUX-31 spring linear() tokens', () => {
     expect(components).toMatch(/\.done-pop[^}]*var\(--dur-spring-pop\) var\(--ease-spring-pop\)/)
   })
 })
+
+describe('UIUX-32 press-scale feedback', () => {
+  it('buttons scale down on :active, transform-only', () => {
+    const components = read('./components.css')
+    expect(components).toMatch(
+      /\.btn:active:not\(:disabled\),\s*\n\.icon-btn:active,\s*\n\.tool-btn:active,\s*\n\.seg button:active \{ transform: scale\(0\.96\); \}/,
+    )
+  })
+})

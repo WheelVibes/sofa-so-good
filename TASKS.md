@@ -47,9 +47,7 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
 
 
 
-- [ ] UIUX-32: press-scale micro-feedback — one rule: `.btn:active/.icon-btn:active/
-  .tool-btn:active { transform: scale(0.97) }` on the motion tokens (Motion `whileTap`
-  equivalent); respects reduced-motion via the global kill. S.
+
 - [ ] UIUX-33: hold-to-confirm button primitive (KokonutUI hold-button — progress overlay
   fills over ~1.5s, release resets). NOTE: the P35 confirm+Undo policy stays the source of
   truth — this could only ever be an *additional* affordance (e.g. the mobile clear-room

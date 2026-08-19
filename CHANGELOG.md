@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.33 — UIUX-32: uniform press-scale feedback on buttons
+
+One rule (the Motion `whileTap` equivalent): `.btn`/`.icon-btn`/`.tool-btn`/segmented
+buttons scale to 0.96 while actively pressed — tactile confirmation across every button
+in the app. Transform-only, rides each control's existing `--dur/--ease` transition, and
+the global reduced-motion kill zeroes it. Cards stay untouched (`.liftable` owns their
+transform). Guarded in styleGuards.
+
 ## v0.25.0.32 — UIUX-31: real spring easings as CSS linear() tokens
 
 The motion.dev technique with zero runtime dependency: `scripts/gen-spring-easing.mjs`
