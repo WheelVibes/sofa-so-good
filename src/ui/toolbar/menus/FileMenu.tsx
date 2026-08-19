@@ -467,6 +467,15 @@ export function FileMenu() {
                 <button
                   type="button"
                   onClick={async () => {
+                    // Irreversible: gate on the confirm modal (P35 destructive-
+                    // confirmation policy; see src/ui/CLAUDE.md).
+                    const ok = await useStore.getState().confirmAction({
+                      title: 'Delete this layout?',
+                      message: `“${s.slot}” will be permanently deleted. This can't be undone.`,
+                      confirmLabel: 'Delete layout',
+                      danger: true,
+                    })
+                    if (!ok) return
                     await storage.delete(s.slot)
                     deleteThumb(s.slot)
                     refresh()

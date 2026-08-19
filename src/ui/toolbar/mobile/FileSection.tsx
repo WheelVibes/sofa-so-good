@@ -101,6 +101,15 @@ export function FileSection({
     s.getState().notify.start({ title: `Loaded “${slot}”`, kind: 'success' })
   }
   const deleteLayout = async (slot: string) => {
+    // Irreversible: gate on the confirm modal (P35 destructive-confirmation
+    // policy; see src/ui/CLAUDE.md).
+    const ok = await s.getState().confirmAction({
+      title: 'Delete this layout?',
+      message: `“${slot}” will be permanently deleted. This can't be undone.`,
+      confirmLabel: 'Delete layout',
+      danger: true,
+    })
+    if (!ok) return
     await storage.delete(slot)
     deleteThumb(slot)
     refreshSlots()
