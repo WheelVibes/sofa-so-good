@@ -10,6 +10,7 @@ import { useStore } from '../state/store'
 import { safeUrl } from '../utils/safeUrl'
 import { AuxPanelHead } from './AuxPanelHead'
 import { CategoryIcon } from './catalog/CategoryIcon'
+import { useAnimatedNumber } from './controls/useAnimatedNumber'
 import { EmptyState } from './EmptyState'
 import { buildShoppingCsv } from './shoppingCsv'
 import { Icon } from './toolbar/icons'
@@ -83,7 +84,6 @@ export function BudgetPanel() {
   )
   const livePrices = useLivePrices(liveEntries, livePricesEnabled && liveOn && open)
 
-  if (!open) return null
   const fmt = (n: number) => `$${n.toLocaleString('en-SG')}`
   // Offers arrive cheapest-first; the cheapest one drives line/total pricing.
   const eachOf = (l: Line) => livePrices[l.name]?.[0]?.price ?? l.each
@@ -92,6 +92,11 @@ export function BudgetPanel() {
     0,
   )
   const shownTotal = liveOn ? liveTotal : total
+  // Headline figure rolls to its new value (UIUX-21); target math stays live.
+  // (Hook — must sit above the early return.)
+  const animatedTotal = Math.round(useAnimatedNumber(shownTotal))
+
+  if (!open) return null
   const saved = collections.map((id) => catalog[id]).filter((d): d is NonNullable<typeof d> => !!d)
 
   return (
@@ -165,7 +170,7 @@ export function BudgetPanel() {
       ) : (
         <div className="panel-body">
           <div className="bud-total">
-            <span className="big mono">{fmt(shownTotal)}</span>
+            <span className="big mono">{fmt(animatedTotal)}</span>
             <span className="panel-sub">{count} items</span>
           </div>
           <BudgetTarget

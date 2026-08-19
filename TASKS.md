@@ -42,8 +42,7 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
   the closer, fix or re-rung the scenario.
 ### Stage 5 — polish patterns from research (each flag-gated, reduced-motion-safe)
 
-- [ ] UIUX-21: animated number on Budget HUD/panel totals (rAF lerp, tabular-nums,
-  reduced-motion snaps).
+
 - [ ] UIUX-22: text-shimmer on loading/AI-progress labels (background-clip gradient;
   Motion-Primitives mechanic; ambientFx-gated).
 - [ ] UIUX-23: toast behavior upgrade — pause-timer + expand on hover, stack-collapse ≥3

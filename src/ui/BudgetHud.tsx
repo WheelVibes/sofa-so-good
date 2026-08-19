@@ -3,6 +3,7 @@ import { useFeature } from '../features/useFeature'
 import { useCatalog } from '../furniture/catalog'
 import { itemsCost } from '../furniture/itemsCost'
 import { useStore } from '../state/store'
+import { useAnimatedNumber } from './controls/useAnimatedNumber'
 
 /**
  * A small budget pill, shown only once the user has set a budget target
@@ -24,6 +25,9 @@ export function BudgetHud() {
   const catalog = useCatalog()
 
   const spent = useMemo(() => itemsCost(items, catalog), [items, catalog])
+  // The readout rolls to its new figure (UIUX-21) — over/under state and the
+  // bar keep the LIVE value so colour/width never lag the truth.
+  const shownSpent = Math.round(useAnimatedNumber(spent))
 
   if (!budgetOn || target == null || cameraMode !== 'orbit' || floorPlanEditing) return null
   const over = spent > target
@@ -41,7 +45,7 @@ export function BudgetHud() {
       }}
     >
       <div className="budget-hud-row">
-        <span className="budget-hud-spent mono">{fmt(spent)}</span>
+        <span className="budget-hud-spent mono">{fmt(shownSpent)}</span>
         <span className="budget-hud-target mono">/ {fmt(target)}</span>
         <span className="budget-hud-delta">
           {over ? `+${fmt(spent - target)}` : `${fmt(target - spent)} left`}

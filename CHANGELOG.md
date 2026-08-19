@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.22 — UIUX-21: budget readouts roll to their new value
+
+New `src/ui/controls/useAnimatedNumber.ts` (the Motion-Primitives animated-number
+mechanic, no dependency): a ~300ms rAF easeOutCubic lerp that snaps under
+prefers-reduced-motion and settles exactly on the target (2 unit tests). Wired into the
+BudgetHud pill and the Budget panel headline total — the figure rolls when furniture is
+added/removed; over/under colour, the progress bar and the delta stay LIVE so state
+never lags the truth. Verified live (pill before/after adding a sofa).
+
 ## v0.25.0.21 — UIUX-20: Segmented control gains a sliding active pill
 
 The `Segmented` component now measures its selected button (useLayoutEffect +
