@@ -23,9 +23,7 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
 ### Stage 2 — token consistency (small sweeps)
 
 
-- [ ] UIUX-6: shared `.form-err` class (4 modals paste `color: var(--danger, #c0392b)` — dead
-  hex literal); define or drop `--on-scrim` (PresentationMode renders literal #fff);
-  ProductTour scrim `rgba(20,16,12,.55)` + raw transition → tokens.
+
 - [ ] UIUX-7: add `.panel-sub.plain` (un-uppercase modifier) — 10+ inline
   `textTransform:'none'` hacks (StagingReveal, WallNumericEntry, GridZoomControls,
   PlanTotalLabel, AiPhotorealSection, FinishPicker ×2).

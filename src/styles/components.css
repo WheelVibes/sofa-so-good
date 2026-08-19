@@ -122,6 +122,9 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
   display: flex; align-items: center; justify-content: flex-end; gap: var(--s-2);
   padding: 0 var(--s-4) var(--s-4);
 }
+/* Inline form/action error text (capture failures, validation) — one class so
+   every modal's error line matches; never a colour literal at the call site. */
+.form-err { color: var(--danger); font-size: var(--t-xs); font-weight: 600; }
 
 /* ---- Thin, aesthetic scrollbars ------------------------------ */
 * { scrollbar-width: thin; scrollbar-color: var(--border-2) transparent; }

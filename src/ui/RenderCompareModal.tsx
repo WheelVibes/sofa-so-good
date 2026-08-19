@@ -477,7 +477,7 @@ export function RenderCompareModal() {
             }}
           >
             {errorMsg ? (
-              <span style={{ color: 'var(--danger, #c0392b)' }}>{errorMsg}</span>
+              <span className="form-err">{errorMsg}</span>
             ) : phaseA === 'rendering' ? (
               'Capturing A…'
             ) : (

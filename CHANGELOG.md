@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.8 — UIUX-6: .form-err class; --scrim/--on-scrim tokens; tour + presentation literals gone
+
+Four compare/capture modals pasted `color: var(--danger, #c0392b)` (a dead hex fallback —
+--danger exists in all 10 theme blocks) for their error line → one shared **`.form-err`**
+(components.css). **`--scrim` / `--on-scrim`** are now real tokens (semantic,
+mode-independent, like --sun): PresentationMode referenced them with `#fff`/rgba fallbacks
+that were silently in effect; its HUD bars/caption now use the tokens (+ the "Capturing
+360°…" pill drops literal 8px/14px/radius-8 for --s-3/--s-4/--r-3). ProductTour's scrim
+`rgba(20,16,12,.55)` → `var(--scrim)` and its spotlight move animates on
+`--dur-2 --ease-out` instead of raw `.2s` linear. Visually verified (tour spotlight hole +
+presentation gradient bars).
+
 ## v0.25.0.7 — UIUX-5: ConfirmModal/PromptModal actions → Modal `footer` + shared `.panel-foot`
 
 The two most-used prompts rendered their action rows inside the scrollable body while 10

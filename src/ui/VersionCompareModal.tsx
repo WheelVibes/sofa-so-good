@@ -308,7 +308,7 @@ export function VersionCompareModal() {
             }}
           >
             {errorMsg ? (
-              <span style={{ color: 'var(--danger, #c0392b)' }}>{errorMsg}</span>
+              <span className="form-err">{errorMsg}</span>
             ) : phase === 'capturing' ? (
               'Capturing the current design and the saved version…'
             ) : (

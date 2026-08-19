@@ -21,8 +21,9 @@ tilt cards, scramble text) are **off-brand — do not add them**.
   `--accent` / `--accent-2` (hover) / `--accent-soft` / `--accent-soft-text` / `--on-accent`,
   `--danger(-soft)`, `--ok`, `--border` (hairline) / `--border-2` (emphasis/hover only).
 - **Never a color literal** in component CSS/TSX — no hex, no Tailwind color utilities. Derive
-  variants with `color-mix(in oklch, var(--accent) N%, transparent)`. The two semantic
-  exceptions (`--sun`, `--photo-tile`) live in tokens.css with their rationale.
+  variants with `color-mix(in oklch, var(--accent) N%, transparent)`. The semantic
+  mode-independent exceptions (`--sun`, `--photo-tile`, `--scrim`/`--on-scrim` for text
+  over live 3D pixels) live in tokens.css with their rationale.
 - Accent borders mean **selection/focus**, never mere hover. Hover = one surface step up
   (rest `--surface-2` → hover `--surface-3`).
 

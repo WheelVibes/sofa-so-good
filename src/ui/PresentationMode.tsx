@@ -270,7 +270,11 @@ export function PresentationMode() {
         >
           <span
             className="panel"
-            style={{ padding: '8px 14px', borderRadius: 8, fontSize: 'var(--t-sm)' }}
+            style={{
+              padding: 'var(--s-3) var(--s-4)',
+              borderRadius: 'var(--r-3)',
+              fontSize: 'var(--t-sm)',
+            }}
           >
             Capturing 360°…
           </span>
@@ -286,10 +290,10 @@ export function PresentationMode() {
           justifyContent: 'space-between',
           padding: 'var(--s-3)',
           pointerEvents: 'auto',
-          background: 'linear-gradient(to bottom, var(--scrim, rgba(0,0,0,0.45)), transparent)',
+          background: 'linear-gradient(to bottom, var(--scrim), transparent)',
         }}
       >
-        <span style={{ color: 'var(--on-scrim, #fff)', fontWeight: 600, fontSize: 'var(--t-sm)' }}>
+        <span style={{ color: 'var(--on-scrim)', fontWeight: 600, fontSize: 'var(--t-sm)' }}>
           Presentation · {index + 1} / {count}
           {isPano ? ' · 360°' : ''}
           {isTourSlide ? ' · Tour' : ''}
@@ -311,14 +315,14 @@ export function PresentationMode() {
           position: 'relative',
           pointerEvents: 'auto',
           padding: 'var(--s-4)',
-          background: 'linear-gradient(to top, var(--scrim, rgba(0,0,0,0.55)), transparent)',
+          background: 'linear-gradient(to top, var(--scrim), transparent)',
           display: 'flex',
           alignItems: 'flex-end',
           justifyContent: 'space-between',
           gap: 'var(--s-3)',
         }}
       >
-        <div style={{ color: 'var(--on-scrim, #fff)', minWidth: 0 }}>
+        <div style={{ color: 'var(--on-scrim)', minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 'var(--t-lg)' }}>{slideLabel}</div>
           {slideNote ? (
             <div style={{ fontSize: 'var(--t-sm)', opacity: 0.9, marginTop: 4, maxWidth: '60ch' }}>

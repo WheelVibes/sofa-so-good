@@ -277,7 +277,7 @@ export function StagingRevealModal() {
             }}
           >
             {errorMsg ? (
-              <span style={{ color: 'var(--danger, #c0392b)' }}>{errorMsg}</span>
+              <span className="form-err">{errorMsg}</span>
             ) : phase === 'capturing' ? (
               'Capturing the empty room and your design…'
             ) : (

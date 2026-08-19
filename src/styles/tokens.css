@@ -90,6 +90,12 @@
   --sun: oklch(0.84 0.16 85);
   --sun-edge: oklch(0.48 0.11 65);
 
+  /* Scrim over live 3D/photo content (presentation HUD bars, tour dim) is dark
+     in every theme/mode — what's underneath is arbitrary scene pixels, so text
+     on it is a fixed light --on-scrim (semantic, like --sun). */
+  --scrim: oklch(0.2 0.015 55 / 0.5);
+  --on-scrim: oklch(0.985 0.005 75);
+
   /* Product-photo tile (IKEA + shared library). Catalog product shots ship on a
      baked pure-white studio background; a `mix-blend-mode: multiply` blends that
      white into this soft, mode-independent warm off-white so the thumbnail reads
