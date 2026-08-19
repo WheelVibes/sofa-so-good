@@ -237,7 +237,7 @@ export function HqRenderModal() {
       width="var(--modal-lg)"
       panelId="hq-render"
       footer={
-        <div className="flex items-center justify-between gap-2" style={{ width: '100%' }}>
+        <div className="panel-foot" style={{ justifyContent: 'space-between' }}>
           <div className="flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
             <Select
               className="input"

@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.14 — UIUX-17: 10 Modal footers migrate onto `.panel-foot`
+
+StagingReveal, VersionCompare, SmartStartWizard, HqRender, PanoTour, Panorama,
+RenderCompare, TimeCompare, the notifications import-error dialog and
+UploadMaterialDialog each hand-rolled a footer flex wrapper — most with NO padding, so
+their action rows sat flush against the panel edge (visible in the UIUX-4 screenshots).
+All now compose the shared `.panel-foot` row (UIUX-5), overriding only
+`justify-content`/`gap`/`flex-wrap` inline where the layout splits. TemplatesPanel's
+`action-grid` footer is intentionally untouched (a grid of template cards, not an action
+row). Verified: SmartStart + Render-compare footers now padded and aligned.
+
 ## v0.25.0.13 — UIUX-11: File-menu saved layouts on the .saved-view-row vocabulary + EmptyState
 
 The desktop File menu's "Saved layouts" list was a hand-rolled Tailwind clone (off-scale

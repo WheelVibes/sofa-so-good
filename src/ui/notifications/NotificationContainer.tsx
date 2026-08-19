@@ -320,12 +320,8 @@ function NotificationDetailsModal({
       width="var(--modal-sm)"
       footer={
         <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            padding: 'var(--s-3) var(--s-4)',
-            borderTop: '1px solid var(--border)',
-          }}
+          className="panel-foot"
+          style={{ paddingTop: 'var(--s-3)', borderTop: '1px solid var(--border)' }}
         >
           <button type="button" className="btn btn-soft" onClick={onClose}>
             Close

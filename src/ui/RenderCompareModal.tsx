@@ -199,14 +199,8 @@ export function RenderCompareModal() {
       panelId="render-compare"
       footer={
         <div
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 'var(--s-3)',
-            flexWrap: 'wrap',
-          }}
+          className="panel-foot"
+          style={{ justifyContent: 'space-between', gap: 'var(--s-3)', flexWrap: 'wrap' }}
         >
           {/* Preset selectors */}
           <div

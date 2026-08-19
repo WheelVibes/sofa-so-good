@@ -109,7 +109,7 @@ export function UploadMaterialDialog({ open, onClose }: UploadMaterialDialogProp
       title="Upload material"
       width="var(--modal-sm)"
       footer={
-        <footer className="flex justify-end gap-2 px-[var(--s-4)] py-[var(--s-3)]">
+        <footer className="panel-foot" style={{ paddingTop: 'var(--s-3)' }}>
           <button onClick={close} className="btn" disabled={busy} type="button">
             Cancel
           </button>

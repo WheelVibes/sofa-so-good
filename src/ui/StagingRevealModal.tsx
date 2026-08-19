@@ -115,7 +115,7 @@ export function StagingRevealModal() {
       width="var(--modal-lg)"
       panelId="staging-reveal"
       footer={
-        <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end' }}>
+        <div className="panel-foot">
           <button
             type="button"
             className="btn btn-accent"

@@ -145,14 +145,8 @@ export function TimeCompareModal() {
       panelId="time-compare"
       footer={
         <div
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 'var(--s-3)',
-            flexWrap: 'wrap',
-          }}
+          className="panel-foot"
+          style={{ justifyContent: 'space-between', gap: 'var(--s-3)', flexWrap: 'wrap' }}
         >
           <div
             style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-3)', flexWrap: 'wrap' }}

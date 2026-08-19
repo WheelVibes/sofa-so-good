@@ -131,7 +131,7 @@ export function SmartStartWizard() {
       width="var(--modal-sm)"
       panelId="smart-start"
       footer={
-        <div className="flex items-center justify-between gap-2">
+        <div className="panel-foot" style={{ justifyContent: 'space-between' }}>
           <button type="button" className="btn" onClick={() => setOpen(false)}>
             Skip
           </button>

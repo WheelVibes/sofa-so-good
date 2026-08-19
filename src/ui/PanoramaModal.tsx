@@ -62,7 +62,7 @@ export function PanoramaModal() {
       width="var(--modal-lg)"
       panelId="panorama"
       footer={
-        <div className="flex items-center justify-between gap-2">
+        <div className="panel-foot" style={{ justifyContent: 'space-between' }}>
           <div className="flex items-center gap-2">
             <Button onClick={capture} disabled={busy}>
               Re-capture

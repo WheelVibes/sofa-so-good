@@ -148,7 +148,7 @@ export function VersionCompareModal() {
       width="var(--modal-lg)"
       panelId="version-compare"
       footer={
-        <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end' }}>
+        <div className="panel-foot">
           <button
             type="button"
             className="btn btn-accent"

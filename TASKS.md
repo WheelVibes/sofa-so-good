@@ -41,10 +41,7 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
   `.seg-btn.on` grammar (match 3D ViewMenu); same `btn-accent`-as-open-state leak in
   PlanEditorHeader/LevelMenu/PlanToolMenu/PlanMenu.
 - [ ] UIUX-15: GraphicsSettings hand-built overlay → shared `Modal` (gains focus trap).
-- [ ] UIUX-17: migrate the ~10 existing Modal `footer` wrappers (HqRender, VersionCompare,
-  RenderCompare, SmartStartWizard, UploadMaterialDialog, …) onto the new shared
-  `.panel-foot` row (today they hand-roll flex wrappers with NO padding — footers sit
-  flush against the panel edge); override justify inline only for split layouts.
+
 - [ ] UIUX-18: UserManagementModal uses undefined `var(--t-1)`/`var(--t-3xs)` font-size
   tokens (scale is --t-2xs..--t-xl) + repeats the panel-sub un-uppercase hack — fold into
   UIUX-7/12 sweeps.
