@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.13 — UIUX-11: File-menu saved layouts on the .saved-view-row vocabulary + EmptyState
+
+The desktop File menu's "Saved layouts" list was a hand-rolled Tailwind clone (off-scale
+6px radii, text-[13px]/[10px] literals, wrong hover step, a ~20px bare "×" delete, inline
+"No saved layouts." text). It now renders the View-menu bookmark vocabulary — `.saved-view-row`
++ `.menu-item .mi-text/.mi-main/.mi-sub` + `.saved-view-thumb` + the 30px `.saved-view-del`
+(with `Icon.Trash`) — and the shared `EmptyState` ("No saved layouts yet"). New
+`FileMenu.emptyState.test.tsx` (2 tests) pins both states. Verified live (menu scrolls;
+EmptyState scrolled into view for the shot).
+
 ## v0.25.0.12 — UIUX-10: labelled bare sliders → SliderField (6 call sites)
 
 ItemLightControls Brightness, PaintVizModal Coverage (gains a % readout it lacked),

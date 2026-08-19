@@ -29,8 +29,7 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
 ### Stage 3 — mobile/a11y + list vocab
 
 
-- [ ] UIUX-11: FileMenu saved-layouts list → `.saved-view-row` vocabulary + `EmptyState`
-  (currently Tailwind clone: off-scale radii/type, ~20px "×" delete, hand-rolled empty text).
+
 ### Stage 4 — off-system surface migrations (Tailwind → tokens)
 - [ ] UIUX-12: inspector bodies (IkeaBody/GltfBody/ParametricBody/SourceLine/
   MultiSelectPanel/IesProfilePicker/ItemLightControls/ItemPhysicalControls): `.sec-h`

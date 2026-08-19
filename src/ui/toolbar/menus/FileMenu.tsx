@@ -15,6 +15,7 @@ import { Disclosure } from '../../controls/Disclosure'
 import { Select, type SelectOption } from '../../controls/Select'
 import { downloadBoqXlsx } from '../../downloadBoqXlsx'
 import { DRAWING_LAYERS } from '../../drawingLayers'
+import { EmptyState } from '../../EmptyState'
 import { openBoq } from '../../openBoq'
 import { downloadCostBreakdownCsv } from '../../openCostBreakdownCsv'
 import { openDrawingSet } from '../../openDrawingSet'
@@ -33,6 +34,7 @@ import { openShoppingList } from '../../openShoplist'
 import { openTradePack } from '../../openTradePack'
 import { TRADE_PACKS } from '../../tradePacks'
 import { viewInAr } from '../../viewInAr'
+import { Icon } from '../icons'
 import { shortcutLabel } from '../shortcuts'
 import { MenuItem, MenuLabel, ToolbarMenu } from '../ToolbarMenu'
 
@@ -431,41 +433,38 @@ export function FileMenu() {
         }}
       />
       {slots.length === 0 ? (
-        <p className="px-2 py-2 text-center text-[11px] text-[var(--text-3)]">No saved layouts.</p>
+        <EmptyState
+          icon={Icon.Save}
+          title="No saved layouts yet"
+          description="Save… stores the current design here."
+        />
       ) : (
         <div className="max-h-56 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
           {slots
             .slice()
             .sort((a, b) => b.savedAt.localeCompare(a.savedAt))
             .map((s) => (
-              <div
-                key={s.slot}
-                className="flex items-center justify-between gap-2 rounded-md px-2 py-1 hover:bg-[var(--surface-2)]"
-              >
+              <div key={s.slot} className="saved-view-row">
                 <button
+                  type="button"
+                  role="menuitem"
+                  className="menu-item saved-view-apply"
                   onClick={() => void load(s.slot)}
-                  className="flex flex-1 items-center gap-2 truncate text-left"
+                  title={`Load "${s.slot}"`}
                 >
                   {getThumb(s.slot) ? (
-                    <img
-                      src={getThumb(s.slot)!}
-                      alt=""
-                      className="h-9 w-12 shrink-0 rounded object-cover"
-                    />
+                    <img src={getThumb(s.slot)!} alt="" className="saved-view-thumb" />
                   ) : (
-                    <div className="h-9 w-12 shrink-0 rounded bg-[var(--surface-2)]" />
+                    <Icon.Save width={16} height={16} className="icn" />
                   )}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-medium text-[var(--text)]">
-                      {s.slot}
-                    </span>
-                    <span className="block text-[10px] text-[var(--text-3)]">
-                      {new Date(s.savedAt).toLocaleString()}
-                    </span>
+                  <span className="mi-text">
+                    <span className="mi-main">{s.slot}</span>
+                    <span className="mi-sub">{new Date(s.savedAt).toLocaleString()}</span>
                   </span>
                 </button>
                 <button
                   type="button"
+                  className="saved-view-del"
                   onClick={async () => {
                     // Irreversible: gate on the confirm modal (P35 destructive-
                     // confirmation policy; see src/ui/CLAUDE.md).
@@ -480,11 +479,10 @@ export function FileMenu() {
                     deleteThumb(s.slot)
                     refresh()
                   }}
-                  className="rounded px-1 text-[var(--danger)] hover:bg-[var(--danger-soft)]"
                   aria-label={`Delete layout "${s.slot}"`}
                   title="Delete"
                 >
-                  ×
+                  <Icon.Trash width={14} height={14} />
                 </button>
               </div>
             ))}
