@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.2 — UI/UX research cycle kickoff: DESIGN.md contract + library references
+
+Start of the systematic UI/UX polish mission. Researched NameThatUI, designmd.ai,
+Watermelon UI (source), Motion-Primitives (source), Haikei + adjacent references
+(shadcn/Origin UI, Sonner/Vaul, Laws of UX, animations.dev). Shipped:
+- **`DESIGN.md`** (repo root, designmd.ai format): the one-file design contract — semantic
+  color roles, type ladder, spacing/shape/elevation, motion rules (feedback ≤300ms ease-out,
+  decorative loops slow + tier-gated, transform/opacity only), interaction grammar
+  (primitives, destructive policy, mobile parity), canonical component naming
+  (NameThatUI vocabulary), process gates. Linked from root `CLAUDE.md`.
+- **`REFERENCES.md`**: new "UI/UX component & motion libraries" section recording the 9
+  researched pattern sources with what each contributes (mechanics, not dependencies).
+Docs only — no behaviour change.
+
 ## v0.25.0.1 — CI fix: knip dead-code scan green
 
 Deleted `levelRoomOffsets` (`floorplan/floorLevels3d.ts`) — a speculative per-storey convenience

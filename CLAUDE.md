@@ -13,7 +13,8 @@ Zustand (sliced store), Vite, Vitest, Biome.
 > rules live in path-scoped `CLAUDE.md` files that load only when you work in that folder:
 > `src/state/`, `src/furniture/`, `src/scene/`, `src/ui/`, `src/materials/`, `src/lighting/`,
 > `src/floorplan/`. Other reference
-> docs: `docs/visual-verification-playbook.md`, `docs/interior-design-guidelines.md`,
+> docs: `DESIGN.md` (design-system contract — tokens, motion, naming, do/don'ts),
+> `docs/visual-verification-playbook.md`, `docs/interior-design-guidelines.md`,
 > `REFERENCES.md` (competitor apps to study), `CHANGELOG.md`/`TASKS.md`/`TODO.md`.
 
 ## Hard rules (always)
