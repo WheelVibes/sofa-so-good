@@ -33,13 +33,12 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
 ### Stage 4 — off-system surface migrations (Tailwind → tokens)
 
 
-- [ ] UIUX-19 (BUG, discovered 2026-08-19): the plan editor's PlanMenu/Popover menus
-  cannot be opened headlessly any more — a synthetic trigger `.click()` leaves
-  `aria-expanded=false` (likely Popover's capture-phase scroll / reflow close listeners
-  firing in the harness), so the existing `plan-furniture-rotate.json` guard scenario
-  FAILS at `furniture-btn` on current staging (pre-existing; reproduced before the
-  UIUX-14 class change; PlanMenu opens fine in RTL + for real pointer input). Root-cause
-  the closer, fix or re-rung the scenario.
+- [ ] UIUX-19b (harness, narrowed): with the Popover scroll-close fix (v0.25.0.29) the
+  plan-editor menus open again headlessly — `plan-furniture-rotate.json` now advances to
+  its rotate-drag rung and fails THERE (`rotation-changed` after the synthetic
+  pointerdown/move sweep; pre-existing on staging, unrelated to the UI/UX work). Root-cause
+  the synthetic-pointer rotate path or re-rung the scenario.
+
 ### Stage 5 — polish patterns from research (each flag-gated, reduced-motion-safe)
 
 

@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.29 — UIUX-19: Popover no longer closed by scrolls that can't move its anchor
+
+Root-caused the "plan-editor menus can't open" bug: Popover's capture-phase scroll
+listener closed on ANY outside scroll, and clicking a plan-header menu makes the
+unrelated `.plan-canvas` emit one (headless focus-scroll; any auto-scrolling pane could
+do the same for real users) — so the menu closed the instant it opened. The closer now
+ignores scrolls of containers that don't contain the anchor (they can't detach the
+panel); document/page scrolls and anchor-container scrolls still close as before.
+2 new Popover tests; the previously-failing `plan-furniture-rotate.json` guard now gets
+past its menu rungs (its later rotate-drag rung still fails — pre-existing, re-filed as
+UIUX-19b).
+
 ## v0.25.0.28 — UIUX-27: skeleton audit — SharedCard gains its missing load shimmer
 
 Audited the async surfaces for the <400ms-feedback rule: CatalogCard (builtin thumbnail
