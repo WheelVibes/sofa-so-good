@@ -35,7 +35,7 @@ export const LoadingOverlay = memo(function LoadingOverlay({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '1.75rem',
+        gap: 'var(--s-7)',
         background: 'radial-gradient(120% 90% at 50% 30%, var(--scene-a), var(--scene-b) 75%)',
         opacity: fading ? 0 : 1,
         transition: `opacity ${FADE_MS}ms ease`,
@@ -47,7 +47,7 @@ export const LoadingOverlay = memo(function LoadingOverlay({
       <div style={{ textAlign: 'center', lineHeight: 1.5 }}>
         <div
           style={{
-            fontSize: '1.35rem',
+            fontSize: 'var(--t-xl)',
             fontWeight: 800,
             letterSpacing: '-0.02em',
             color: 'var(--text)',
@@ -55,7 +55,7 @@ export const LoadingOverlay = memo(function LoadingOverlay({
         >
           Sofa So Good
         </div>
-        <div style={{ marginTop: '0.35rem', fontSize: '0.95rem', color: 'var(--text-3)' }}>
+        <div style={{ marginTop: 'var(--s-1)', fontSize: 'var(--t-md)', color: 'var(--text-3)' }}>
           {label ? (
             label
           ) : (

@@ -521,7 +521,7 @@ export function FinishPicker() {
                 style={{
                   backgroundColor: sampledFinish.finishId.startsWith('#')
                     ? sampledFinish.finishId
-                    : (materials[sampledFinish.finishId]?.swatch ?? '#ccc'),
+                    : (materials[sampledFinish.finishId]?.swatch ?? 'var(--surface-3)'),
                 }}
                 aria-hidden="true"
               />
@@ -773,7 +773,9 @@ export function FinishPicker() {
                       <>
                         {accents.map(([key, id]) => {
                           const mat = materials[id]
-                          const swatchColor = id.startsWith('#') ? id : (mat?.swatch ?? '#ccc')
+                          const swatchColor = id.startsWith('#')
+                            ? id
+                            : (mat?.swatch ?? 'var(--surface-3)')
                           const name = id.startsWith('#') ? id.toUpperCase() : (mat?.name ?? id)
                           return (
                             <div

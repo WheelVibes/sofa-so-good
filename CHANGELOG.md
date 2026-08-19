@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.19 — UIUX-16: literal burn-down — FinishPicker/#ccc, swatch dupes, crash surfaces, 3 files off the px-guard grandfather list
+
+FinishPicker's two `#ccc` swatch fallbacks → `var(--surface-3)` (last colour literals in
+the no-hardcoded-colour surface). ParametricControls' three finish-preset swatches
+dropped their inline `width/height/borderRadius: 6` duplicate of the `.swatch` class
+(off-scale radius gone). WebGLFallback + ErrorBoundary (the app's face on failure)
+migrated off Tailwind color/size utilities onto tokens — the error card is now a real
+`.panel` with `.btn`/`.btn-accent` actions (raw `<details>` kept deliberately:
+crash surface stays dependency-minimal). LoadingOverlay's rem literals → type/spacing
+tokens, PresentationMode/GraphicsSettings/ParametricControls micro-literals → `--s-0`/
+`--s-1`; **LoadingOverlay, PresentationMode and GraphicsSettings leave the
+`inlinePxGuard` grandfather list** (96 → 93).
+
 ## v0.25.0.18 — UIUX-12: inspector bodies migrate off Tailwind onto the token vocabulary
 
 IkeaBody / GltfBody / ParametricBody / SourceLine / MultiSelectPanel / IesProfilePicker

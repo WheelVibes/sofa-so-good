@@ -325,12 +325,19 @@ export function PresentationMode() {
         <div style={{ color: 'var(--on-scrim)', minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 'var(--t-lg)' }}>{slideLabel}</div>
           {slideNote ? (
-            <div style={{ fontSize: 'var(--t-sm)', opacity: 0.9, marginTop: 4, maxWidth: '60ch' }}>
+            <div
+              style={{
+                fontSize: 'var(--t-sm)',
+                opacity: 0.9,
+                marginTop: 'var(--s-1)',
+                maxWidth: '60ch',
+              }}
+            >
               {slideNote}
             </div>
           ) : null}
           {isPano && pano ? (
-            <div style={{ fontSize: 'var(--t-xs)', opacity: 0.75, marginTop: 4 }}>
+            <div style={{ fontSize: 'var(--t-xs)', opacity: 0.75, marginTop: 'var(--s-1)' }}>
               Drag to look around · scroll to zoom{auto ? ' · auto-advance paused' : ''}
             </div>
           ) : null}

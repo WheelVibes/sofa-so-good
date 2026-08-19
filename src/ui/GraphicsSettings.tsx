@@ -288,7 +288,10 @@ export function GraphicsSettings({
 function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <div className="row">
-      <div className="rk" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}>
+      <div
+        className="rk"
+        style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 'var(--s-0)' }}
+      >
         <div>{label}</div>
         {hint && (
           <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', fontWeight: 500 }}>

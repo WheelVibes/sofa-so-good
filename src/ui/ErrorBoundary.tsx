@@ -65,45 +65,69 @@ export class ErrorBoundary extends Component<Props, State> {
 
     const scope = this.props.scope ?? 'app'
     return (
-      <div className="flex h-[100dvh] w-screen items-center justify-center bg-[var(--surface-2)] p-6 text-center">
-        <div className="max-w-md rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-7 shadow-xl">
-          <div className="mb-3 text-3xl">🛋️</div>
-          <h1 className="mb-2 text-xl font-semibold text-[var(--text)]">
+      <div
+        className="flex h-[100dvh] w-screen items-center justify-center text-center"
+        style={{ background: 'var(--surface-2)', padding: 'var(--s-6)' }}
+      >
+        <div
+          className="max-w-md panel"
+          style={{ position: 'static', padding: 'var(--s-7)', boxShadow: 'var(--shadow-pop)' }}
+        >
+          <div style={{ fontSize: 'var(--t-xl)', marginBottom: 'var(--s-3)' }}>🛋️</div>
+          <h1
+            style={{
+              fontSize: 'var(--t-xl)',
+              fontWeight: 800,
+              lineHeight: 'var(--lh-tight)',
+              color: 'var(--text)',
+              marginBottom: 'var(--s-2)',
+            }}
+          >
             Something went wrong in the {scope}
           </h1>
-          <p className="mb-5 text-sm text-[var(--text-2)]">
+          <p
+            style={{
+              fontSize: 'var(--t-sm)',
+              color: 'var(--text-2)',
+              lineHeight: 'var(--lh-body)',
+              marginBottom: 'var(--s-5)',
+            }}
+          >
             The {scope} hit an unexpected error. Your saved design is on disk — try recovering
             below. If it keeps happening, resetting the in-progress layout usually clears it.
           </p>
           <div className="flex flex-wrap justify-center gap-2">
-            <button
-              type="button"
-              onClick={this.reset}
-              className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--on-accent,#fff)]"
-            >
+            <button type="button" onClick={this.reset} className="btn btn-accent">
               Try again
             </button>
-            <button
-              type="button"
-              onClick={this.hardReload}
-              className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text)]"
-            >
+            <button type="button" onClick={this.hardReload} className="btn">
               Reload
             </button>
-            <button
-              type="button"
-              onClick={this.resetAndReload}
-              className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text-2)]"
-            >
+            <button type="button" onClick={this.resetAndReload} className="btn">
               Reset layout & reload
             </button>
           </div>
           {error.message ? (
+            // Raw <details>, deliberately not the Disclosure component: this is
+            // the crash surface — keep its dependency graph minimal so it can't
+            // take itself down with the thing it reports.
             <details className="mt-5 text-left">
-              <summary className="cursor-pointer text-xs text-[var(--text-2)]">
+              <summary
+                className="cursor-pointer"
+                style={{ fontSize: 'var(--t-xs)', color: 'var(--text-2)' }}
+              >
                 Technical details
               </summary>
-              <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-[var(--surface-2)] p-3 text-left text-[11px] text-[var(--text-2)]">
+              <pre
+                className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words text-left"
+                style={{
+                  background: 'var(--surface-2)',
+                  borderRadius: 'var(--r-2)',
+                  padding: 'var(--s-3)',
+                  fontSize: 'var(--t-xs)',
+                  color: 'var(--text-2)',
+                }}
+              >
                 {error.message}
               </pre>
             </details>
