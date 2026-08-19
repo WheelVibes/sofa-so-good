@@ -198,7 +198,7 @@ export function RenovationBudgetPanel() {
 
             <button
               type="button"
-              className="btn ghost sm"
+              className="btn btn-sm"
               style={{ marginTop: 'var(--s-2)' }}
               title="Download the renovation budget as a CSV (spreadsheet)"
               onClick={exportCsv}

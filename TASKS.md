@@ -20,16 +20,6 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 
 ## Open — UI/UX polish cycle (2026-08-19; sources: internal audit + DESIGN.md research refs)
 Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, visual verify.
-### Stage 1 — correctness/policy (do first)
-- [ ] UIUX-1: saved-layout slot delete must gate on `confirmAction({danger})` —
-  `toolbar/menus/FileMenu.tsx:468` + `toolbar/mobile/FileSection.tsx:103,396` delete with no
-  prompt/undo (policy violation; VersionsPanel is the model).
-- [ ] UIUX-2: fix 4 undefined button-class families (`.sm`→`btn-sm` in BackdropUpload/
-  PaintVizModal; `.ghost` in RoofSettings/PlanInspector/WallInspector; `.btn-icon` in
-  UserManagementModal; `.btn.on` PresentationMode auto-advance has NO on-state) + add a
-  styleGuards-style test asserting every `btn*` modifier used in TSX exists in CSS.
-- [ ] UIUX-3: add `useModalGuard` + `focusTrap` to the 3 custom `.modal-overlay` dialogs that
-  skip them: `auth/UserManagementModal`, `LocationPrompt`, `glbEditor/GlbDesignerDialog`.
 ### Stage 2 — token consistency (small sweeps)
 - [ ] UIUX-4: modal `width` literals → `--modal-sm/-md/-lg` tokens (~17 call sites; siblings
   diverge: TimeCompare uses token, RenderCompare/VersionCompare/StagingReveal pass 820).

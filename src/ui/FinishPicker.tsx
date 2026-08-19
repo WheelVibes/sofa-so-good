@@ -723,7 +723,7 @@ export function FinishPicker() {
               {activeCeiling ? (
                 <button
                   type="button"
-                  className="btn ghost btn-block"
+                  className="btn btn-block"
                   style={{ marginTop: 'var(--s-2)' }}
                   onClick={() => clearCeilingFinish(roomId)}
                   title="Reset this room's ceiling back to plain white"
@@ -955,7 +955,7 @@ export function FinishPicker() {
               type="button"
               onClick={clearRoom}
               title="Remove all unlocked furniture from this room (undoable)"
-              className="btn ghost btn-block"
+              className="btn btn-block"
               style={{ marginTop: 'var(--s-2)', color: 'var(--danger)' }}
             >
               <Icon.Trash width={14} height={14} />

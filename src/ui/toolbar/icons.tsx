@@ -522,6 +522,16 @@ export const Icon = {
       <path d="M9 6l6 6-6 6" />
     </Svg>
   ),
+  Play: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <path d="M8 5.5v13l10-6.5z" />
+    </Svg>
+  ),
+  Pause: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <path d="M9 5.5v13M15 5.5v13" />
+    </Svg>
+  ),
   Download: (p: SVGProps<SVGSVGElement>) => (
     <Svg {...p}>
       <path d="M12 4v11M8 11l4 4 4-4" />

@@ -314,6 +314,14 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 /* Inline button spinner (P16). Reuses @keyframes toastspin (features.css). */
 .btn .btn-spin { animation: toastspin 0.9s linear infinite; transform-origin: 50% 50%; flex: none; }
 .btn.is-loading { pointer-events: none; opacity: 0.7; }
+/* Standalone two-state toggle button "armed" state (TB-8: 2-state toggles stay
+   plain buttons — but they MUST show their on-state). Mirrors .icon-btn.on;
+   the inset accent ring marks selection (accent border = selection, not hover). */
+.btn.on {
+  background: var(--accent-soft); color: var(--accent-soft-text);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.btn.on:hover { background: var(--accent-soft); color: var(--accent-soft-text); }
 
 kbd {
   font-family: var(--font-mono); font-size: 10px; font-weight: 600;

@@ -273,7 +273,7 @@ function PickApply({
       />
       <button
         type="button"
-        className="btn btn-soft sm arr-apply"
+        className="btn btn-soft btn-sm arr-apply"
         disabled={!val}
         onClick={() => val && onApply(val)}
       >

@@ -5,6 +5,45 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.5 — UIUX-2: undefined button-class typo families fixed + vocabulary guard
+
+An undefined `.btn` modifier silently renders the default button, so five typo
+families had shipped invisible: `.sm` (BackdropUpload, PaintVizModal ×4, ArrangeMenu —
+→ `btn-sm`), `.ghost`/`.btn-ghost` (RoofSettings, PlanInspector, WallInspector,
+ProductTour, BudgetPanel, RenovationBudgetPanel, FinishPicker ×2, DaylightPanel,
+QuoteTemplateModal, HistoryPanel — plain `.btn` IS the tertiary; class dropped),
+`.btn-icon` (UserManagementModal → the real `.icon-btn`/`.icon-btn danger`),
+`.btn-primary` (QuoteTemplateModal → `btn-accent`), and `.btn.on` with no CSS rule —
+the PresentationMode Auto-advance toggle had NO visible on-state. Shipped:
+- **`.btn.on`** (components.css): standalone two-state-toggle armed state mirroring
+  `.icon-btn.on` — accent-soft fill + inset 1px accent selection ring (TB-8: toggles
+  must show their state). PresentationMode Auto now uses it + `aria-pressed` + new
+  `Icon.Play`/`Icon.Pause` (replacing ▶/⏸ emoji, matching its Icon-set siblings).
+- **`src/ui/btnClassGuard.test.ts`**: scans every TSX `className` for `btn-*` tokens
+  and asserts each exists in CSS; denies the bare `sm`/`ghost` typo tokens. Caught the
+  7th family (ArrangeMenu) during development.
+Visually verified (tour footer, presentation HUD off/on zoom crops).
+
+## v0.25.0.4 — UIUX-3: modal-guard + focus management for the 3 custom overlay dialogs
+
+`UserManagementModal`, `LocationPrompt` and `GlbDesignerDialog` render their own
+`.modal-overlay` without the shared `Modal`, so global hotkeys (⌘K, undo) stayed live
+behind them and Tab escaped the dialog. Each now calls `useModalGuard()` and the new
+**`src/controls/useDialogFocus.ts`** (shared hook: move focus to the first focusable on
+open via `FOCUSABLE_SELECTOR`, trap Tab via `trapTabKey`, restore the opener's focus on
+close — the A11Y-MODAL-MENU contract for non-`Modal` overlays). Guard + focus asserted
+by `LocationPrompt.guard.test.tsx`; visually verified (focus ring lands on "Use my
+location" at open).
+
+## v0.25.0.3 — UIUX-1: saved-layout delete gates on the confirm modal (both platforms)
+
+Deleting a saved layout slot is irreversible (no undo toast, no history) but the desktop
+File-menu "×" and the mobile sheet's trash deleted silently — a P35 destructive-action
+policy violation (VersionsPanel already conformed). Both now gate on
+`confirmAction({ danger: true })` with the same copy ("Delete this layout?").
+5 new tests in `FileMenu.confirmDelete.test.tsx` cover desktop + mobile: confirm request
+opens, cancel preserves, confirm deletes.
+
 ## v0.25.0.2 — UI/UX research cycle kickoff: DESIGN.md contract + library references
 
 Start of the systematic UI/UX polish mission. Researched NameThatUI, designmd.ai,

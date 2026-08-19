@@ -303,14 +303,14 @@ export function QuoteTemplateModal() {
         >
           <button
             type="button"
-            className="btn btn-ghost"
+            className="btn"
             onClick={() => resetTemplate()}
             disabled={isDefault}
             title="Reset to factory defaults"
           >
             Reset defaults
           </button>
-          <button type="button" className="btn btn-primary" onClick={() => setOpen(false)}>
+          <button type="button" className="btn btn-accent" onClick={() => setOpen(false)}>
             Done
           </button>
         </div>
@@ -428,7 +428,7 @@ export function QuoteTemplateModal() {
               </span>
               <button
                 type="button"
-                className="btn btn-ghost btn-sm"
+                className="btn btn-sm"
                 onClick={() => resetRules()}
                 disabled={rulesAreDefault}
                 title="Reset rates to the built-in Singapore rate table"

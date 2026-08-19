@@ -73,7 +73,7 @@ export function RoofSettings({ plan }: { plan: FloorPlan }) {
         {roof ? (
           <button
             type="button"
-            className="btn ghost btn-sm"
+            className="btn btn-sm"
             onClick={() => a.updateFloorPlanMeta({ roof: undefined })}
           >
             Remove

@@ -334,11 +334,13 @@ export function PresentationMode() {
         <div style={{ display: 'flex', gap: 'var(--s-2)', flex: '0 0 auto' }}>
           <button
             type="button"
-            className={`btn btn-soft${auto ? ' on' : ''}`}
+            className={`btn${auto ? ' on' : ''}`}
             onClick={() => setAuto((a) => !a)}
             title="Auto-advance slides (pauses on 360° slides)"
+            aria-pressed={auto}
           >
-            {auto ? 'Auto ⏸' : 'Auto ▶'}
+            {auto ? <Icon.Pause width={14} height={14} /> : <Icon.Play width={14} height={14} />}
+            Auto
           </button>
           <button
             type="button"

@@ -156,7 +156,7 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
           {w.thicknessM != null ? (
             <button
               type="button"
-              className="btn ghost btn-sm self-start"
+              className="btn btn-sm self-start"
               onClick={() => a.updateWall(w.id, { thicknessM: undefined }, levelId)}
             >
               Use plan default

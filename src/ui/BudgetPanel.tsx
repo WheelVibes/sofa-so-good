@@ -270,7 +270,7 @@ export function BudgetPanel() {
           {groups.length > 0 ? (
             <button
               type="button"
-              className="btn ghost sm"
+              className="btn btn-sm"
               style={{ marginTop: 'var(--s-2)' }}
               title="Download the shopping list as a CSV (for a spreadsheet or supplier)"
               onClick={() => {

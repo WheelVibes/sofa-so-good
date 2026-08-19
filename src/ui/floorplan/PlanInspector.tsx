@@ -151,7 +151,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
           {plan.wallColor && plan.wallColor.toLowerCase() !== DEFAULT_PLAN_WALL_COLOR ? (
             <button
               type="button"
-              className="btn ghost btn-sm"
+              className="btn btn-sm"
               onClick={() => a.updateFloorPlanMeta({ wallColor: DEFAULT_PLAN_WALL_COLOR })}
             >
               Reset

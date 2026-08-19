@@ -276,7 +276,7 @@ export function UserManagementModal({ onClose }: { onClose: () => void }) {
                     </div>
                     <button
                       type="button"
-                      className="btn btn-soft btn-icon"
+                      className="icon-btn"
                       style={{ marginLeft: 'auto' }}
                       aria-label={`Edit ${u.email}`}
                       aria-expanded={editing}
@@ -287,7 +287,7 @@ export function UserManagementModal({ onClose }: { onClose: () => void }) {
                     </button>
                     <button
                       type="button"
-                      className="btn btn-danger btn-icon"
+                      className="icon-btn danger"
                       aria-label={`Delete ${u.email}`}
                       title={
                         isSelf

@@ -207,7 +207,6 @@ export function HistoryPanel() {
 
         {stepCount > 0 ? (
           <Button
-            className="ghost"
             size="sm"
             block
             style={{ marginTop: 10 }}

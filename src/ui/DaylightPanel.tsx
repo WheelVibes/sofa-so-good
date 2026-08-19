@@ -242,7 +242,7 @@ export function DaylightPanel() {
                   {hiddenCount > 0 && (
                     <button
                       type="button"
-                      className="btn btn-ghost btn-sm"
+                      className="btn btn-sm"
                       style={{ marginTop: 'var(--s-2)' }}
                       onClick={() => setShowAllCooling((v) => !v)}
                     >

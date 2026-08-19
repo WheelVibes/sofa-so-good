@@ -200,7 +200,7 @@ export function PaintVizModal({ open, onClose, swatches }: PaintVizModalProps) {
             <div className="paint-viz-actions">
               <button
                 type="button"
-                className="btn btn-soft sm"
+                className="btn btn-soft btn-sm"
                 onClick={() => fileRef.current?.click()}
               >
                 <Icon.Upload width={13} height={13} />
@@ -208,7 +208,7 @@ export function PaintVizModal({ open, onClose, swatches }: PaintVizModalProps) {
               </button>
               <button
                 type="button"
-                className="btn btn-soft sm"
+                className="btn btn-soft btn-sm"
                 onClick={undoPoint}
                 disabled={points.length === 0}
               >
@@ -217,7 +217,7 @@ export function PaintVizModal({ open, onClose, swatches }: PaintVizModalProps) {
               </button>
               <button
                 type="button"
-                className="btn btn-soft sm"
+                className="btn btn-soft btn-sm"
                 onClick={resetMask}
                 disabled={points.length === 0}
               >
@@ -226,7 +226,7 @@ export function PaintVizModal({ open, onClose, swatches }: PaintVizModalProps) {
               </button>
               <button
                 type="button"
-                className="btn btn-soft sm"
+                className="btn btn-soft btn-sm"
                 onClick={download}
                 disabled={!paintable || !paint}
               >
