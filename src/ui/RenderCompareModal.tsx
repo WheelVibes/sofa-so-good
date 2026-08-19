@@ -212,15 +212,7 @@ export function RenderCompareModal() {
           <div
             style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-3)', flexWrap: 'wrap' }}
           >
-            <label
-              className="panel-sub"
-              style={{
-                textTransform: 'none',
-                letterSpacing: 0,
-                display: 'flex',
-                gap: 'var(--s-2)',
-              }}
-            >
+            <label className="panel-sub plain" style={{ display: 'flex', gap: 'var(--s-2)' }}>
               <span
                 className="rc-slot-badge rc-slot-a"
                 style={{
@@ -262,15 +254,7 @@ export function RenderCompareModal() {
             >
               ⇄
             </button>
-            <label
-              className="panel-sub"
-              style={{
-                textTransform: 'none',
-                letterSpacing: 0,
-                display: 'flex',
-                gap: 'var(--s-2)',
-              }}
-            >
+            <label className="panel-sub plain" style={{ display: 'flex', gap: 'var(--s-2)' }}>
               <span
                 style={{
                   display: 'inline-block',
@@ -415,7 +399,7 @@ export function RenderCompareModal() {
         {hasBothImages ? (
           <>
             <div
-              className="panel-sub"
+              className="panel-sub plain"
               style={{
                 position: 'absolute',
                 top: 8,
@@ -424,8 +408,6 @@ export function RenderCompareModal() {
                 color: 'var(--on-accent)',
                 padding: 'var(--s-1) var(--s-2)',
                 borderRadius: 4,
-                textTransform: 'none',
-                letterSpacing: 0,
                 fontSize: 'var(--t-xs)',
                 fontWeight: 700,
                 pointerEvents: 'none',
@@ -434,7 +416,7 @@ export function RenderCompareModal() {
               A · {RENDER_PRESETS.find((p) => p.id === state.presetA)?.label ?? state.presetA}
             </div>
             <div
-              className="panel-sub"
+              className="panel-sub plain"
               style={{
                 position: 'absolute',
                 top: 8,
@@ -443,8 +425,6 @@ export function RenderCompareModal() {
                 color: '#fff',
                 padding: 'var(--s-1) var(--s-2)',
                 borderRadius: 4,
-                textTransform: 'none',
-                letterSpacing: 0,
                 fontSize: 'var(--t-xs)',
                 fontWeight: 700,
                 pointerEvents: 'none',
@@ -461,7 +441,7 @@ export function RenderCompareModal() {
             status line below instead. */}
         {errorMsg || (!state.imageA && !state.imageB) ? (
           <div
-            className="panel-sub"
+            className="panel-sub plain"
             style={{
               position: 'absolute',
               inset: 0,
@@ -470,8 +450,6 @@ export function RenderCompareModal() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 'var(--s-2)',
-              textTransform: 'none',
-              letterSpacing: 0,
               textAlign: 'center',
               padding: 'var(--s-6)',
             }}
@@ -489,8 +467,8 @@ export function RenderCompareModal() {
 
       {/* Status line */}
       <div
-        className="panel-sub"
-        style={{ textTransform: 'none', letterSpacing: 0, marginTop: 'var(--s-3)', minHeight: 16 }}
+        className="panel-sub plain"
+        style={{ marginTop: 'var(--s-3)', minHeight: 16 }}
         aria-live="polite"
       >
         {phaseA === 'rendering'

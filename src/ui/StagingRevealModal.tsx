@@ -219,7 +219,7 @@ export function StagingRevealModal() {
               ⇄
             </div>
             <div
-              className="panel-sub"
+              className="panel-sub plain"
               style={{
                 position: 'absolute',
                 top: 8,
@@ -228,8 +228,6 @@ export function StagingRevealModal() {
                 color: '#fff',
                 padding: '2px 7px',
                 borderRadius: 4,
-                textTransform: 'none',
-                letterSpacing: 0,
                 fontSize: 11,
                 fontWeight: 700,
                 pointerEvents: 'none',
@@ -238,7 +236,7 @@ export function StagingRevealModal() {
               Before · Empty
             </div>
             <div
-              className="panel-sub"
+              className="panel-sub plain"
               style={{
                 position: 'absolute',
                 top: 8,
@@ -247,8 +245,6 @@ export function StagingRevealModal() {
                 color: 'var(--on-accent)',
                 padding: '2px 7px',
                 borderRadius: 4,
-                textTransform: 'none',
-                letterSpacing: 0,
                 fontSize: 11,
                 fontWeight: 700,
                 pointerEvents: 'none',
@@ -262,7 +258,7 @@ export function StagingRevealModal() {
         {/* Empty / progress / error overlay (before any capture). */}
         {errorMsg || !hasBoth ? (
           <div
-            className="panel-sub"
+            className="panel-sub plain"
             style={{
               position: 'absolute',
               inset: 0,
@@ -270,8 +266,6 @@ export function StagingRevealModal() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 6,
-              textTransform: 'none',
-              letterSpacing: 0,
               textAlign: 'center',
               padding: 24,
             }}
@@ -287,11 +281,7 @@ export function StagingRevealModal() {
         ) : null}
       </div>
 
-      <div
-        className="panel-sub"
-        style={{ textTransform: 'none', letterSpacing: 0, marginTop: 8, minHeight: 16 }}
-        aria-live="polite"
-      >
+      <div className="panel-sub plain" style={{ marginTop: 8, minHeight: 16 }} aria-live="polite">
         {phase === 'capturing'
           ? 'Capturing…'
           : hasBoth

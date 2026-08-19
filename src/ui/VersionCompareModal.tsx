@@ -251,7 +251,7 @@ export function VersionCompareModal() {
               ⇄
             </div>
             <div
-              className="panel-sub"
+              className="panel-sub plain"
               style={{
                 position: 'absolute',
                 top: 8,
@@ -260,8 +260,6 @@ export function VersionCompareModal() {
                 color: 'var(--on-accent)',
                 padding: 'var(--s-1) var(--s-2)',
                 borderRadius: 4,
-                textTransform: 'none',
-                letterSpacing: 0,
                 fontSize: 'var(--t-xs)',
                 fontWeight: 700,
                 pointerEvents: 'none',
@@ -270,7 +268,7 @@ export function VersionCompareModal() {
               Current
             </div>
             <div
-              className="panel-sub"
+              className="panel-sub plain"
               style={{
                 position: 'absolute',
                 top: 8,
@@ -279,8 +277,6 @@ export function VersionCompareModal() {
                 color: '#fff',
                 padding: 'var(--s-1) var(--s-2)',
                 borderRadius: 4,
-                textTransform: 'none',
-                letterSpacing: 0,
                 fontSize: 'var(--t-xs)',
                 fontWeight: 700,
                 pointerEvents: 'none',
@@ -293,7 +289,7 @@ export function VersionCompareModal() {
 
         {errorMsg || !hasBoth ? (
           <div
-            className="panel-sub"
+            className="panel-sub plain"
             style={{
               position: 'absolute',
               inset: 0,
@@ -301,8 +297,6 @@ export function VersionCompareModal() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 'var(--s-2)',
-              textTransform: 'none',
-              letterSpacing: 0,
               textAlign: 'center',
               padding: 'var(--s-6)',
             }}
@@ -319,8 +313,8 @@ export function VersionCompareModal() {
       </div>
 
       <div
-        className="panel-sub"
-        style={{ textTransform: 'none', letterSpacing: 0, marginTop: 'var(--s-3)', minHeight: 16 }}
+        className="panel-sub plain"
+        style={{ marginTop: 'var(--s-3)', minHeight: 16 }}
         aria-live="polite"
       >
         {phase === 'capturing'

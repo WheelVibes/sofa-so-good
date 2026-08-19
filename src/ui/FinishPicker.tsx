@@ -765,14 +765,7 @@ export function FinishPicker() {
                   <div className="sec">
                     <div className="label">Accent walls</div>
                     {accents.length === 0 ? (
-                      <p
-                        className="panel-sub"
-                        style={{
-                          textTransform: 'none',
-                          letterSpacing: 0,
-                          margin: 'var(--s-1) 0 0',
-                        }}
-                      >
+                      <p className="panel-sub plain" style={{ margin: 'var(--s-1) 0 0' }}>
                         Pick a wall below (or tap any wall in the 3D view) to paint it a different
                         colour from the rest of the room.
                       </p>
@@ -822,14 +815,7 @@ export function FinishPicker() {
                             </div>
                           )
                         })}
-                        <p
-                          className="panel-sub"
-                          style={{
-                            textTransform: 'none',
-                            letterSpacing: 0,
-                            margin: 'var(--s-2) 0 0',
-                          }}
-                        >
+                        <p className="panel-sub plain" style={{ margin: 'var(--s-2) 0 0' }}>
                           Add another below, or tap a wall in the 3D view.
                         </p>
                       </>

@@ -291,6 +291,10 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 .panel-head-actions { display: inline-flex; align-items: center; gap: var(--s-1); flex: none; }
 .panel-title { font-size: var(--t-base); font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; line-height: 1.3; }
 .panel-sub { font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); font-weight: 600; }
+/* Sentence-case variant for helper/annotation copy that borrows .panel-sub's
+   size/colour but must not shout — replaces ~50 inline
+   `textTransform:'none', letterSpacing:0` hacks (UIUX-7). */
+.panel-sub.plain { text-transform: none; letter-spacing: 0; }
 .panel-body { padding: 0 var(--s-4) var(--s-4); overflow-y: auto; }
 .hr { height: 1px; background: var(--border); margin: 0; border: 0; }
 

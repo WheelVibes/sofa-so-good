@@ -24,9 +24,7 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
 
 
 
-- [ ] UIUX-7: add `.panel-sub.plain` (un-uppercase modifier) — 10+ inline
-  `textTransform:'none'` hacks (StagingReveal, WallNumericEntry, GridZoomControls,
-  PlanTotalLabel, AiPhotorealSection, FinishPicker ×2).
+
 - [ ] UIUX-8: motion/hover token strays — walk-HUD 600ms → `--dur-3 --ease-out`
   (app.css:246), screens.css 0.3s → `--dur-2`, `.share-opt:hover` → `--surface-3`
   (features.css:364 inverted hover), `.ss-card` raw .12s + 4px radius + missing hover fill

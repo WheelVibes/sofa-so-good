@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.9 — UIUX-7: `.panel-sub.plain` — 50 inline un-uppercase hacks replaced
+
+`.panel-sub` is the uppercase section-label class, but ~50 call sites across 20 files
+(SmartStartWizard, compare modals, HqRender, auth screens, plan-editor labels,
+AiPhotorealSection, FinishPicker, StyleQuiz, notifications…) borrowed its size/colour and
+then hand-reset `textTransform:'none', letterSpacing:0` inline for sentence-case helper
+copy. New `.panel-sub.plain` modifier (components.css) carries that intent once; every
+site migrated (mechanical rewrite preserving each site's other inline styles), zero
+`textTransform:'none'` left in src/ui. Verified live: SmartStart helper copy sentence-case
+while STARTING STATE/DESIGN THEMES headers stay uppercase + a computed-style assertion.
+
 ## v0.25.0.8 — UIUX-6: .form-err class; --scrim/--on-scrim tokens; tour + presentation literals gone
 
 Four compare/capture modals pasted `color: var(--danger, #c0392b)` (a dead hex fallback —

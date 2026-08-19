@@ -158,14 +158,8 @@ export function TimeCompareModal() {
             style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-3)', flexWrap: 'wrap' }}
           >
             <label
-              className="panel-sub"
-              style={{
-                textTransform: 'none',
-                letterSpacing: 0,
-                display: 'flex',
-                gap: 'var(--s-2)',
-                alignItems: 'center',
-              }}
+              className="panel-sub plain"
+              style={{ display: 'flex', gap: 'var(--s-2)', alignItems: 'center' }}
             >
               <span
                 style={{
@@ -188,14 +182,8 @@ export function TimeCompareModal() {
               />
             </label>
             <label
-              className="panel-sub"
-              style={{
-                textTransform: 'none',
-                letterSpacing: 0,
-                display: 'flex',
-                gap: 'var(--s-2)',
-                alignItems: 'center',
-              }}
+              className="panel-sub plain"
+              style={{ display: 'flex', gap: 'var(--s-2)', alignItems: 'center' }}
             >
               <span
                 style={{
@@ -316,7 +304,7 @@ export function TimeCompareModal() {
               ⇄
             </div>
             <div
-              className="panel-sub"
+              className="panel-sub plain"
               style={{
                 position: 'absolute',
                 top: 8,
@@ -325,8 +313,6 @@ export function TimeCompareModal() {
                 color: 'var(--on-accent)',
                 padding: 'var(--s-1) var(--s-2)',
                 borderRadius: 4,
-                textTransform: 'none',
-                letterSpacing: 0,
                 fontSize: 'var(--t-xs)',
                 fontWeight: 700,
                 pointerEvents: 'none',
@@ -335,7 +321,7 @@ export function TimeCompareModal() {
               A · {presetOptionLabel(presetA)}
             </div>
             <div
-              className="panel-sub"
+              className="panel-sub plain"
               style={{
                 position: 'absolute',
                 top: 8,
@@ -344,8 +330,6 @@ export function TimeCompareModal() {
                 color: '#fff',
                 padding: 'var(--s-1) var(--s-2)',
                 borderRadius: 4,
-                textTransform: 'none',
-                letterSpacing: 0,
                 fontSize: 'var(--t-xs)',
                 fontWeight: 700,
                 pointerEvents: 'none',
@@ -359,7 +343,7 @@ export function TimeCompareModal() {
         {/* Empty / progress / error overlay (before any capture). */}
         {errorMsg || !hasBoth ? (
           <div
-            className="panel-sub"
+            className="panel-sub plain"
             style={{
               position: 'absolute',
               inset: 0,
@@ -367,8 +351,6 @@ export function TimeCompareModal() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 'var(--s-2)',
-              textTransform: 'none',
-              letterSpacing: 0,
               textAlign: 'center',
               padding: 'var(--s-6)',
             }}
@@ -385,8 +367,8 @@ export function TimeCompareModal() {
       </div>
 
       <div
-        className="panel-sub"
-        style={{ textTransform: 'none', letterSpacing: 0, marginTop: 'var(--s-3)', minHeight: 16 }}
+        className="panel-sub plain"
+        style={{ marginTop: 'var(--s-3)', minHeight: 16 }}
         aria-live="polite"
       >
         {busy

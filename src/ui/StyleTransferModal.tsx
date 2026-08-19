@@ -63,14 +63,8 @@ export function StyleTransferModal() {
           >
             <div style={{ fontWeight: 700, color: 'var(--text)' }}>{style.name}</div>
             <div
-              className="panel-sub"
-              style={{
-                textTransform: 'none',
-                letterSpacing: 0,
-                fontSize: 'var(--t-xs)',
-                lineHeight: 1.35,
-                minHeight: 34,
-              }}
+              className="panel-sub plain"
+              style={{ fontSize: 'var(--t-xs)', lineHeight: 1.35, minHeight: 34 }}
             >
               {style.description}
             </div>

@@ -333,10 +333,7 @@ function NotificationDetailsModal({
         </div>
       }
     >
-      <p
-        className="panel-sub"
-        style={{ textTransform: 'none', letterSpacing: 0, margin: '0 0 var(--s-3)' }}
-      >
+      <p className="panel-sub plain" style={{ margin: '0 0 var(--s-3)' }}>
         {details.length} item{details.length === 1 ? '' : 's'} could not be imported:
       </p>
       <ul

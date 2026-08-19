@@ -104,15 +104,13 @@ export function PanoramaModal() {
         {pano ? <PanoramaViewer pano={pano} /> : null}
         {busy || !pano ? (
           <div
-            className="panel-sub"
+            className="panel-sub plain"
             style={{
               position: 'absolute',
               inset: 0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              textTransform: 'none',
-              letterSpacing: 0,
             }}
           >
             {busy ? 'Capturing panorama…' : failed ? 'Could not capture — try again.' : ''}

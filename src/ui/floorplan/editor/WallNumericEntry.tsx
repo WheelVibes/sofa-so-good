@@ -204,10 +204,7 @@ export function WallNumericEntry({
           fontSize: 12,
         }}
       >
-        <span
-          className="panel-sub"
-          style={{ minWidth: 46, textTransform: 'none', letterSpacing: 0 }}
-        >
+        <span className="panel-sub plain" style={{ minWidth: 46 }}>
           Length
         </span>
         <input
@@ -243,10 +240,7 @@ export function WallNumericEntry({
           fontSize: 12,
         }}
       >
-        <span
-          className="panel-sub"
-          style={{ minWidth: 46, textTransform: 'none', letterSpacing: 0 }}
-        >
+        <span className="panel-sub plain" style={{ minWidth: 46 }}>
           Angle °
         </span>
         <input

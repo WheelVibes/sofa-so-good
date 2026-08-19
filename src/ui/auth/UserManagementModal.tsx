@@ -174,9 +174,7 @@ export function UserManagementModal({ onClose }: { onClose: () => void }) {
           onSubmit={create}
           style={{ display: 'grid', gap: 'var(--s-2)', marginBottom: 'var(--s-4)' }}
         >
-          <p className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
-            Create a new account
-          </p>
+          <p className="panel-sub plain">Create a new account</p>
           <input
             className="input"
             type="email"
@@ -231,9 +229,7 @@ export function UserManagementModal({ onClose }: { onClose: () => void }) {
           </p>
         ) : null}
 
-        <p className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
-          Accounts ({users.length})
-        </p>
+        <p className="panel-sub plain">Accounts ({users.length})</p>
         {loading ? (
           <p style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>Loading…</p>
         ) : users.length === 0 ? (

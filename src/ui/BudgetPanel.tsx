@@ -302,13 +302,11 @@ export function BudgetPanel() {
           ) : null}
           {livePricesEnabled && (
             <label
-              className="panel-sub"
+              className="panel-sub plain"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
-                textTransform: 'none',
-                letterSpacing: 0,
                 cursor: 'pointer',
                 marginTop: 4,
               }}
@@ -420,14 +418,8 @@ export function BudgetPanel() {
             Copy shopping list
           </button>
           <p
-            className="panel-sub"
-            style={{
-              marginTop: 'var(--s-3)',
-              textTransform: 'none',
-              letterSpacing: 0,
-              fontWeight: 500,
-              lineHeight: 1.4,
-            }}
+            className="panel-sub plain"
+            style={{ marginTop: 'var(--s-3)', fontWeight: 500, lineHeight: 1.4 }}
           >
             {liveOn
               ? 'Live SG retailer top-match prices (cheapest used) where found, else estimate. Finishes & reno excluded.'

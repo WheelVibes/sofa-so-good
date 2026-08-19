@@ -83,7 +83,7 @@ export function LoginScreen() {
 
         {currentUser ? (
           <>
-            <p className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
+            <p className="panel-sub plain">
               Signed in as <b style={{ color: 'var(--text)' }}>{currentUser.name}</b> ·{' '}
               {currentUser.role}
             </p>
@@ -135,9 +135,7 @@ export function LoginScreen() {
           </>
         ) : isBackend ? (
           <form onSubmit={submit}>
-            <p className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
-              {providerLabel} sign-in
-            </p>
+            <p className="panel-sub plain">{providerLabel} sign-in</p>
             <p
               style={{
                 fontSize: 'var(--t-2xs)',

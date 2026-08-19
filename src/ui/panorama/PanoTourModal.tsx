@@ -287,7 +287,7 @@ export function PanoTourModal() {
         ) : null}
         {!pano || busy ? (
           <div
-            className="panel-sub"
+            className="panel-sub plain"
             style={{
               position: 'absolute',
               inset: 0,
@@ -295,8 +295,6 @@ export function PanoTourModal() {
               alignItems: 'center',
               justifyContent: 'center',
               textAlign: 'center',
-              textTransform: 'none',
-              letterSpacing: 0,
               padding: 16,
             }}
           >
@@ -350,10 +348,7 @@ export function PanoTourModal() {
         </div>
       ) : null}
       {stops.length === 1 ? (
-        <div
-          className="panel-sub"
-          style={{ marginTop: 8, textTransform: 'none', letterSpacing: 0 }}
-        >
+        <div className="panel-sub plain" style={{ marginTop: 8 }}>
           Add a stop in another room to link them with a hotspot.
         </div>
       ) : null}

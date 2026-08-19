@@ -98,10 +98,7 @@ export function StyleQuizModal() {
           <div style={{ fontWeight: 700, fontSize: 'var(--t-lg)', color: 'var(--text)' }}>
             {recommended.name}
           </div>
-          <div
-            className="panel-sub"
-            style={{ textTransform: 'none', letterSpacing: 0, fontSize: 'var(--t-sm)' }}
-          >
+          <div className="panel-sub plain" style={{ fontSize: 'var(--t-sm)' }}>
             {recommended.description}
           </div>
           <div style={{ display: 'flex', gap: 5 }} aria-hidden>

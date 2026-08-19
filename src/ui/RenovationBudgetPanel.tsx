@@ -188,10 +188,7 @@ export function RenovationBudgetPanel() {
               ))}
             </div>
 
-            <p
-              className="panel-sub"
-              style={{ marginTop: 'var(--s-2)', textTransform: 'none', letterSpacing: 0 }}
-            >
+            <p className="panel-sub plain" style={{ marginTop: 'var(--s-2)' }}>
               Indicative estimate from your design's quantities at mid-market SG rates — confirm
               with your contractor. Edit rates in Quote template (Pro).
             </p>

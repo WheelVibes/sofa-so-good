@@ -7,8 +7,6 @@ import { Icon } from '../toolbar/icons'
 import { EMPTY_GALLERY, galleryReducer, ORIGINAL_ID, selectedEntry } from './variantGallery'
 
 const subStyle = {
-  textTransform: 'none',
-  letterSpacing: 0,
   lineHeight: 1.4,
 } as const
 
@@ -83,7 +81,7 @@ export function AiPhotorealSection() {
       <div className="sec-h">
         <span>Make photoreal (AI · beta)</span>
       </div>
-      <p className="panel-sub" style={{ ...subStyle, margin: '0 0 8px' }}>
+      <p className="panel-sub plain" style={{ ...subStyle, margin: '0 0 8px' }}>
         Restyle the current view into a photoreal image with your own Replicate API key (kept only
         in this browser). Structure is preserved; results vary.
       </p>
@@ -114,7 +112,7 @@ export function AiPhotorealSection() {
       </button>
       {msg && (
         <p
-          className="panel-sub"
+          className="panel-sub plain"
           style={{
             ...subStyle,
             marginTop: 8,
@@ -176,7 +174,7 @@ export function AiPhotorealSection() {
               ))}
             </div>
           )}
-          <p className="panel-sub" style={{ ...subStyle, margin: '8px 0 4px' }}>
+          <p className="panel-sub plain" style={{ ...subStyle, margin: '8px 0 4px' }}>
             Redesign this render — same view, another style:
           </p>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -205,13 +203,19 @@ export function AiPhotorealSection() {
             })}
           </div>
           {gallery.pendingId && (
-            <p className="panel-sub" style={{ ...subStyle, marginTop: 6, color: 'var(--text-2)' }}>
+            <p
+              className="panel-sub plain"
+              style={{ ...subStyle, marginTop: 6, color: 'var(--text-2)' }}
+            >
               Generating the {STYLE_VARIANTS.find((s) => s.id === gallery.pendingId)?.label} restyle
               — this can take ~30s or more…
             </p>
           )}
           {gallery.error && (
-            <p className="panel-sub" style={{ ...subStyle, marginTop: 6, color: 'var(--danger)' }}>
+            <p
+              className="panel-sub plain"
+              style={{ ...subStyle, marginTop: 6, color: 'var(--danger)' }}
+            >
               {gallery.error}
             </p>
           )}

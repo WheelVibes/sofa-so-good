@@ -276,10 +276,7 @@ export function HqRenderModal() {
                   options={FSTOP_PRESETS.map((d) => ({ value: String(d.v), label: d.label }))}
                 />
                 {dofOn ? (
-                  <label
-                    className="panel-sub flex items-center gap-1"
-                    style={{ textTransform: 'none', letterSpacing: 0 }}
-                  >
+                  <label className="panel-sub flex items-center gap-1 plain">
                     <input
                       type="checkbox"
                       checked={dofAuto}
@@ -291,10 +288,7 @@ export function HqRenderModal() {
                   </label>
                 ) : null}
                 {dofOn && !dofAuto ? (
-                  <label
-                    className="panel-sub flex items-center gap-1"
-                    style={{ textTransform: 'none', letterSpacing: 0 }}
-                  >
+                  <label className="panel-sub flex items-center gap-1 plain">
                     Focus
                     <input
                       className="input"
@@ -371,15 +365,13 @@ export function HqRenderModal() {
         {beamOn ? <span ref={beamRef} className="beam" aria-hidden="true" /> : null}
         {phase !== 'rendering' && phase !== 'done' ? (
           <div
-            className="panel-sub"
+            className="panel-sub plain"
             style={{
               position: 'absolute',
               inset: 0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              textTransform: 'none',
-              letterSpacing: 0,
               textAlign: 'center',
               padding: 16,
             }}
@@ -396,11 +388,7 @@ export function HqRenderModal() {
           </div>
         ) : null}
       </div>
-      <div
-        className="panel-sub"
-        style={{ textTransform: 'none', letterSpacing: 0, marginTop: 8 }}
-        aria-live="polite"
-      >
+      <div className="panel-sub plain" style={{ marginTop: 8 }} aria-live="polite">
         {samples > 0 ? `${samples} / ${maxSamples} samples` : ' '}
       </div>
     </Modal>
