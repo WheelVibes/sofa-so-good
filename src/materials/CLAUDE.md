@@ -83,7 +83,27 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   Degenerate guards: non-positive size/tile, non-finite tile, and a runaway subdivision all fall
   back to the plain plane. Unit-tested in `worldUv.test.ts` (period-breaking + determinism + no UV
   NaN + repeat=1 untouched + the Simple/Pro flag-gate, both modes).
-- **Wood grain flow (PC2-WOOD-GRAIN-FLOW)**: the wood painters (`procedural/patterns/wood.ts` —
+- **SNV sample-board fidelity (SNV-BOARDS)**: the five SNV default finishes are matched against
+  the user's photos of the actual Serangoon North Vista exhibition sample boards
+  (`assets/guidelines/specs.png` + board close-ups) — treat the boards as ground truth when
+  touching them. **`vinyl`** (`patterns/wood.ts`) is its own painter now, NOT a `woodFields`
+  wrapper: a grey-washed rift-oak PRINT — fine straight striations along the strip (sine ladder
+  + fbm amplitude modulation; never the natural painter's wavy cathedral bands, which read as
+  zebra moiré), sparse elongated dark/light streaks, one staggered end joint per 1.2 m strip,
+  tight V-seams, matte (rough ~0.6, normalStrength 4). **`stoneTile`** = the kitchen/HS/SY honed
+  warm-greige stone print (soft ~18° striations mirrored per tile + broad clouds, hairline LIGHT
+  rectified joints ≈ face·0.86 — never the `tile` painter's 0.62-dark grout); one painter, two
+  physical sizes via uvScale (kitchen 600×600 `[1.2,1.2]`, HS/SY 300×300 `[0.6,0.6]`,
+  `floor-tile-beige` / `floor-tile-beige-300`). **`porcelainStone`** = the bathroom floor's
+  mottled grey-green honed 300×600 running bond (broad m1 ±0.22 clouds + finer blotches,
+  per-tile phase, sage undertone in dark patches). **`porcelain`** (walls) is `subwayFields`
+  with `rectified: true` — NO bevel band, gentle face↔joint height step (0.72 vs 0.58), ~⅓
+  glaze peel, soft per-tile clouding; the metro `subway` keeps its proud bevel look. Bath walls
+  default `wall-tile-white` (the board shows white-cream, not grey). Verified with real-GPU
+  walk-mode close-ups (steep + grazing pitch per surface — see the playbook's `__walkLook`
+  recipe); painter signatures unit-tested in `patterns/snvBoards.test.ts` (striation direction,
+  print uniformity vs natural wood, light joints, honed-vs-glaze roughness, near-flat wall
+  relief). the wood painters (`procedural/patterns/wood.ts` —
   planks/parquet/herringbone) give each board a deterministic per-board grain **lean** via the pure
   `procedural/woodPlank.ts` (`plankHash` shared stateless hash, `grainLean` ~±2.6°, `shearAcross`
   shearing across-by-along about the board mid-length) so the figure flows board-to-board instead of

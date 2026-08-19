@@ -275,7 +275,32 @@ export function subwayFields(
   base: [number, number, number],
   seed: number,
   S: number,
-  opts?: { cols?: number; rows?: number; normalStrength?: number; bevelDiv?: number },
+  opts?: {
+    cols?: number
+    rows?: number
+    normalStrength?: number
+    bevelDiv?: number
+    /** Joint width divisor (px = S/groutDiv). Default 150; rectified large-
+     *  format porcelain uses a larger divisor for hairline joints. */
+    groutDiv?: number
+    /** Multiplier on the glaze orange-peel height (default 1). Large-format
+     *  glazed porcelain is optically smooth — SNV board fidelity uses ~0.3. */
+    glazeAmp?: number
+    /** Soft per-tile low-freq clouding amplitude on the face factor (default
+     *  0 — plain metro tile). The SNV bathroom wall tile's faint marble-ish
+     *  drift uses ~0.05. Sampled in tile-local coords with a per-tile phase so
+     *  the print varies tile-to-tile like a real porcelain print run. */
+    cloud?: number
+    /** Face speckle amplitude (default 0.04). */
+    speckAmp?: number
+    /** Bevel-band brightening (default 0.06). */
+    bevelLift?: number
+    /** Rectified large-format porcelain (SNV-BOARDS): NO bevel band at all and
+     *  a gentle face↔joint height step (0.72 vs 0.58) instead of the metro
+     *  tile's deep proud pillow (0.95 vs 0.05) — the joint reads as a thin
+     *  darker seam, not a chamfered ridge catching a specular line. */
+    rectified?: boolean
+  },
 ): Fields {
   const f = blank(S)
   f.normalStrength = opts?.normalStrength ?? 14
@@ -283,11 +308,16 @@ export function subwayFields(
   const tw = S / cols // tile width
   const rows = opts?.rows ?? 8 // even → half-offset running bond wraps; 2:1 tiles (tw = 2·th)
   const th = S / rows
-  const grout = Math.max(2, Math.round(S / 150)) // thin joint
+  const grout = Math.max(2, Math.round(S / (opts?.groutDiv ?? 150))) // thin joint
   const bevel = Math.max(3, Math.round(S / (opts?.bevelDiv ?? 90))) // soft edge bevel band
+  const glazeAmp = opts?.glazeAmp ?? 1
+  const cloudAmp = opts?.cloud ?? 0
+  const speckAmp = opts?.speckAmp ?? 0.04
+  const bevelLift = opts?.bevelLift ?? 0.06
   const groutRgb: [number, number, number] = [218, 214, 206]
   const speck = makeFbm(seed + 7, 3, 60)
   const groutDirt = makeFbm(seed + 17, 3, 7) // aged-grout dirt (RZ4)
+  const cloudN = cloudAmp > 0 ? makeFbm(seed + 31, 3, 2.6) : null
   // MAT-002: glaze orange-peel (face only) + glaze↔grout roughness contrast.
   const { glaze, grout: groutContrast } = DEFAULT_TILE_SURFACE_PARAMS
   const glazePeel = makeGlazePeel(seed, glaze)
@@ -303,30 +333,42 @@ export function subwayFields(
       const i = y * S + x
       if (edge < grout) {
         // Recessed grout joint, unevenly darkened by accumulated dirt; matte.
-        const ag = 0.74 + groutDirt(x / S, y / S) * 0.26
+        // Rectified porcelain keeps the joint shallow (a seam, not a canyon)
+        // and cleaner (fresh fine grout, less dirt swing).
+        const ag = opts?.rectified
+          ? 0.9 + groutDirt(x / S, y / S) * 0.1
+          : 0.74 + groutDirt(x / S, y / S) * 0.26
         setPx(
           f,
           i,
           groutRgb[0] * ag,
           groutRgb[1] * ag,
           groutRgb[2] * ag,
-          0.05,
+          opts?.rectified ? 0.58 : 0.05,
           glazeRoughness(true, groutContrast, (1 - ag) * 0.06),
         )
         continue
       }
       // Ceramic face — bright, glossy; a bevel band near the joint catches light
       // (raised height) so each tile reads as proud, with a faint glaze
-      // orange-peel undulation across the flat face.
-      const onBevel = edge < grout + bevel
+      // orange-peel undulation across the flat face. Rectified tiles skip the
+      // bevel entirely (sharp square arrises, near-flush faces).
+      const onBevel = !opts?.rectified && edge < grout + bevel
       const bv = onBevel ? (edge - grout) / bevel : 1
-      const sp = (speck(x / S, y / S) - 0.5) * 0.04
-      const factor = clamp01(0.97 + sp + (onBevel ? (1 - bv) * 0.06 : 0))
+      const sp = (speck(x / S, y / S) - 0.5) * speckAmp
+      // Soft per-tile clouding (SNV porcelain print): tile-local coords + a
+      // per-tile phase so each tile carries its own drift, like a print run.
+      let cl = 0
+      if (cloudN) {
+        const pid = ((row * 31 + col * 7) % 97) * 0.137
+        cl = (cloudN((xIn / tw) * 0.9 + pid * 7, (yIn / th) * 0.5 + pid * 3) - 0.5) * 2 * cloudAmp
+      }
+      const factor = clamp01(0.97 + sp + cl + (onBevel ? (1 - bv) * bevelLift : 0))
       const [r, g, b] = shade(base, factor)
       // Apply the glaze peel only on the flat face, not the bevel ramp (the bevel
       // already supplies its own strong height gradient).
-      const peel = onBevel ? 0 : glazePeel(x / S, y / S)
-      const height = onBevel ? 0.5 + bv * 0.45 : 0.95 + peel
+      const peel = onBevel ? 0 : glazePeel(x / S, y / S) * glazeAmp
+      const height = opts?.rectified ? 0.72 + peel : onBevel ? 0.5 + bv * 0.45 : 0.95 + peel
       setPx(f, i, r, g, b, height, glazeRoughness(false, groutContrast, Math.abs(sp) * 1.2))
     }
   }
@@ -343,7 +385,155 @@ export function subwayFields(
  * softer normal so the face stays flat glazed porcelain, not chunky masonry.
  */
 export function porcelainFields(base: [number, number, number], seed: number, S: number): Fields {
-  return subwayFields(base, seed, S, { cols: 2, rows: 4, normalStrength: 8, bevelDiv: 180 })
+  // SNV sample-board fidelity (SNV-BOARDS): the real 300×600 glazed wall tile
+  // is optically smooth with hairline rectified joints and a faint per-tile
+  // print drift — the earlier tuning (normal 8, S/180 bevel, full orange-peel)
+  // read as chunky glass block at arm's length. Near-flat normal, hairline
+  // grout, ~⅓ glaze peel, soft clouding, finer speckle.
+  return subwayFields(base, seed, S, {
+    cols: 2,
+    rows: 4,
+    normalStrength: 3,
+    groutDiv: 280,
+    glazeAmp: 0.3,
+    cloud: 0.05,
+    speckAmp: 0.02,
+    rectified: true,
+  })
+}
+
+/** Small deterministic 0..1 hash (shared shape with `brickFields`'s local). */
+function hsh01(n: number): number {
+  let t = (n * 2654435761) >>> 0
+  t ^= t >>> 15
+  t = (t * 2246822519) >>> 0
+  return (t >>> 8) / 16777216
+}
+
+/**
+ * Honed square stone-print porcelain (SNV-BOARDS) — the SNV kitchen /
+ * household-shelter / service-yard glazed floor tile: a warm greige stone
+ * print with soft diagonal striations + broad tonal clouds, fine sand
+ * speckle, a satin honed face (matte-side roughness, NOT the glossy `tile`
+ * glaze) and hairline rectified joints in a light cement close to the face
+ * tone. 2×2 tiles per texture; per-tile phase + mirrored striation direction
+ * so adjacent tiles read as different pieces from one print run. `uvScale`
+ * sets the physical size: `[1.2, 1.2]` → 600×600 (kitchen), `[0.6, 0.6]` →
+ * 300×300 (household shelter / service yard).
+ */
+export function stoneTileFields(base: [number, number, number], seed: number, S: number): Fields {
+  const f = blank(S)
+  f.normalStrength = 4
+  const tilesPerRow = 2
+  const cell = S / tilesPerRow
+  const groutW = Math.max(2, Math.round(S * 0.006))
+  const striate = makeFbm(seed + 5, 4, 5)
+  const cloud = makeFbm(seed + 13, 3, 2.4)
+  const sand = makeFbm(seed + 29, 3, 90)
+  const groutDirt = makeFbm(seed + 17, 3, 7)
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const cx = Math.floor(x / cell)
+      const cy = Math.floor(y / cell)
+      const inX = x - cx * cell
+      const inY = y - cy * cell
+      const distEdge = Math.min(inX, cell - inX, inY, cell - inY)
+      const i = y * S + x
+      if (distEdge < groutW) {
+        // Hairline rectified joint — light cement near the face tone (the
+        // boards read almost seamless), shallow recess, matte.
+        const t = distEdge / groutW
+        const ag = 0.94 + groutDirt(x / S, y / S) * 0.06
+        const [r, g, b] = shade(base, 0.86 * ag)
+        setPx(f, i, r, g, b, 0.4 + t * 0.15, 0.85)
+        continue
+      }
+      const pid = cy * tilesPerRow + cx
+      const ph = hsh01(seed + pid * 97) * 5
+      // Soft directional striations ~18° off vertical, mirrored on alternate
+      // tiles (a stone print run rotates pieces).
+      const dir = pid % 2 ? 0.32 : -0.32
+      const tu = inX / cell
+      const tv = inY / cell
+      const su = tu + tv * dir
+      const st = (striate(su * 6 + ph, tv * 0.6 + ph) - 0.5) * 0.075
+      const cl = (cloud(tu * 0.8 + ph, tv * 0.8 + ph * 1.7) - 0.5) * 0.075
+      const sp = (sand(x / S, y / S) - 0.5) * 0.025
+      // Darker patches drift slightly warmer (the board's tan undertone).
+      const k = Math.max(-0.02, Math.min(0.02, -(st + cl) * 0.35))
+      const factor = clamp01(0.97 + st + cl + sp)
+      const r = base[0] * factor * (1 + k)
+      const g = base[1] * factor
+      const b = base[2] * factor * (1 - k)
+      // Honed satin: matte-leaning with a gentle cloud-correlated drift so the
+      // sheen moves with the print, never a uniform gloss.
+      const rough = clamp01(0.48 + (st + cl) * 0.9 + Math.abs(sp) * 2)
+      setPx(f, i, r, g, b, 0.6 + st * 0.5, rough)
+    }
+  }
+  return f
+}
+
+/**
+ * Mottled honed porcelain, 300×600 running bond (SNV-BOARDS) — the SNV
+ * bathroom glazed floor tile: a grey-green stone print with strong broad
+ * mottle clouds + a finer secondary blotch layer, fine speckle, satin honed
+ * face and hairline light joints. Same running-bond layout as `porcelain`
+ * (2 cols × 4 rows → `[1.2, 1.2]` renders true 0.6 × 0.3 m tiles) but a
+ * matte stone face instead of the glossy wall glaze; per-tile phase so each
+ * tile is a different slice of the print.
+ */
+export function porcelainStoneFields(
+  base: [number, number, number],
+  seed: number,
+  S: number,
+): Fields {
+  const f = blank(S)
+  f.normalStrength = 4
+  const cols = 2
+  const tw = S / cols
+  const rows = 4
+  const th = S / rows
+  const grout = Math.max(2, Math.round(S / 280))
+  const mottle1 = makeFbm(seed + 41, 4, 3.2)
+  const mottle2 = makeFbm(seed + 43, 3, 8)
+  const sand = makeFbm(seed + 47, 3, 80)
+  const groutDirt = makeFbm(seed + 17, 3, 7)
+  for (let y = 0; y < S; y++) {
+    const row = Math.floor(y / th)
+    const yIn = y - row * th
+    const offset = (row & 1) * (tw / 2)
+    for (let x = 0; x < S; x++) {
+      const xs = (((x + offset) % S) + S) % S
+      const col = Math.floor(xs / tw)
+      const xIn = xs - col * tw
+      const edge = Math.min(xIn, tw - xIn, yIn, th - yIn)
+      const i = y * S + x
+      if (edge < grout) {
+        const ag = 0.93 + groutDirt(x / S, y / S) * 0.07
+        const [r, g, b] = shade(base, 0.84 * ag)
+        setPx(f, i, r, g, b, 0.4, 0.88)
+        continue
+      }
+      const pid = row * 31 + col * 7
+      const ph = hsh01(seed + pid) * 9
+      const tu = xIn / tw
+      const tv = yIn / th
+      // Broad mottle + finer blotches — the board's cloudy grey-green figure.
+      const m1 = (mottle1(tu * 1.4 + ph, tv * 0.7 + ph * 1.3) - 0.5) * 0.22
+      const m2 = (mottle2(tu * 2.2 + ph, tv * 1.1 + ph) - 0.5) * 0.08
+      const sp = (sand(x / S, y / S) - 0.5) * 0.02
+      // Darker blotches drift slightly greener (the board's sage undertone).
+      const k = Math.max(-0.035, Math.min(0.035, -m1 * 0.45))
+      const factor = clamp01(0.95 + m1 + m2 + sp)
+      const r = base[0] * factor * (1 - k * 0.6)
+      const g = base[1] * factor * (1 + k * 0.5)
+      const b = base[2] * factor * (1 - k)
+      const rough = clamp01(0.44 + m2 * 0.9 + Math.abs(sp) * 2)
+      setPx(f, i, r, g, b, 0.6 + m1 * 0.4, rough)
+    }
+  }
+  return f
 }
 
 export function brickFields(base: [number, number, number], seed: number, S: number): Fields {

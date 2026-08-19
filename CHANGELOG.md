@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.1.0 — SNV sample-board fidelity: the five default finishes match the real boards
+
+The user supplied photos of the actual Serangoon North Vista exhibition sample boards (vinyl
+strip flooring, kitchen/HS/SY glazed porcelain floor, bathroom glazed porcelain floor + wall,
+kitchen wall tile). Real-GPU walk-mode close-ups (steep + grazing `__walkLook` pitch per
+surface) showed the rendered defaults bore little resemblance: wavy zebra-moiré "vinyl", glossy
+dark-grout 300 mm kitchen tiles (board: honed 600 mm, hairline light joints), stucco-bumpy
+proud-bevelled wall tile (board: near-flat rectified gloss), no bathroom mottle, and a grey
+bath wall where the board shows white-cream.
+
+- **`vinyl` painter rewritten** (own painter, no longer a `woodFields` wrapper): fine straight
+  rift-oak striations along the strip, sparse elongated character streaks, barely-there
+  cathedral smears, one staggered end joint per 1.2 m strip, tight V-seams, matte laminate
+  sheen. Swatch warmed to the board's grey-washed oak (`#d6c3ac`).
+- **New `stoneTile` painter** — honed warm-greige stone-print porcelain with soft mirrored
+  diagonal striations + clouds and hairline light rectified joints. `floor-tile-beige` now
+  renders TRUE 600×600 (was 300 mm glossy with dark grout); new `floor-tile-beige-300` covers
+  the household shelter / service yard at the board's 300×300.
+- **New `porcelainStone` painter** — the bathroom floor's mottled grey-green honed 300×600
+  running bond (broad per-tile clouds, sage undertone in dark patches).
+- **`porcelain` wall tile rectified** — no bevel band, gentle joint relief, hairline grout,
+  ~⅓ orange-peel, soft per-tile print clouding (metro `subway` keeps its bevel). Bathrooms
+  default to `wall-tile-white` per the board (grey stays a catalog option).
+- Painter signatures unit-tested (`snvBoards.test.ts`: striation direction, print uniformity vs
+  natural wood, light-joint luma, honed-vs-glaze roughness split, near-flat wall relief);
+  before/after close-ups verified on the real GPU at every surface.
+
 ## v0.26.0.1 — Showroom strip in the accent-wall picker
 
 `WallAccentPicker` now mounts the same curated photo-PBR `ShowroomRow` (wall finishes) above its

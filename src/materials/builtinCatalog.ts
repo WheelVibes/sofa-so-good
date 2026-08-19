@@ -185,41 +185,53 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   // so plank height = uvScaleY / 6 = 0.18 → uvScaleY 1.08, plank length =
   // uvScaleX = 1.2 (distinct from `floor-vinyl-light`'s [1.4, 0.9] wide-board
   // read — these are narrower, shorter strips, lighter oak tone).
-  // Tint sampled from the SNV OCS sample board (light grey-washed oak,
-  // surface tone ≈ #bcb4a9): the `vinyl` painter multiplies the base down by
-  // ~0.85 on average (grain bands + grooves), so the base sits ~1/0.85 above
-  // the sampled tone to RENDER at it. Uniform per-strip colour (printed
-  // laminate) via the dedicated `vinyl` pattern — the default L/D + corridor
-  // + bedroom finish, paired with the laminated-UPVC skirting
+  // Tint sampled from the SNV OCS sample board (warm grey-washed rift oak,
+  // surface tone ≈ #bcb0a0): the SNV-BOARDS `vinyl` painter multiplies the
+  // base down by ~0.9 on average (striations + seams), so the base sits
+  // ~1/0.9 above the sampled tone to RENDER at it. Uniform per-strip colour
+  // (printed laminate) via the dedicated `vinyl` pattern — the default L/D +
+  // corridor + bedroom finish, paired with the laminated-UPVC skirting
   // (`apartment/Skirting.tsx`).
   'floor-vinyl-oak': floor(
     'floor-vinyl-oak',
     'Timber vinyl strips',
-    '#d9cfc2',
+    '#d6c3ac',
     'vinyl',
     [1.2, 1.08],
   ),
-  // Beige glazed porcelain, 600×600 — kitchen / household shelter / service
-  // yard floor. `tile` painter holds 2×2 tiles per texture; [0.6, 0.6] matches
-  // the existing `floor-tile-white` scale (tile = uvScale / 2 = 0.3 m... this
-  // repeats the sibling default's convention rather than re-deriving it).
+  // Beige glazed porcelain, 600×600 — the SNV kitchen floor. SNV-BOARDS: the
+  // dedicated `stoneTile` painter (honed warm-greige stone print, hairline
+  // rectified joints) at the TRUE physical scale — 2×2 tiles per texture →
+  // [1.2, 1.2] renders real 600 mm tiles (the earlier `tile`/[0.6, 0.6]
+  // combo rendered glossy 300 mm tiles with dark grout, nothing like the
+  // sample board).
   'floor-tile-beige': floor(
     'floor-tile-beige',
     'Beige glazed porcelain (600×600)',
-    '#cfc5b0',
-    'tile',
+    '#cfc0a8',
+    'stoneTile',
+    [1.2, 1.2],
+  ),
+  // Same SNV stone print at 300×300 — the household-shelter / service-yard
+  // floor per the sample board ("Kitchen 600×600; Household Shelter/Service
+  // Yard 300×300"). Same painter, half the physical tile size.
+  'floor-tile-beige-300': floor(
+    'floor-tile-beige-300',
+    'Beige glazed porcelain (300×300)',
+    '#cfc0a8',
+    'stoneTile',
     [0.6, 0.6],
   ),
-  // Mottled grey-green glazed porcelain, 300×600 — bathroom floor. The
-  // `porcelain` painter is the large-format running-bond variant (2 cols ×
-  // 4 rows per texture with scale-tuned bevel/normal); a 0.6 × 0.3 m tile
-  // needs uvScale = tileSize × coursesPerAxis = [1.2, 1.2]
-  // (tile width = 1.2/2 = 0.6 m, tile height = 1.2/4 = 0.3 m).
+  // Mottled grey-green glazed porcelain, 300×600 — bathroom floor. SNV-BOARDS:
+  // the `porcelainStone` painter (honed mottled stone print, running bond,
+  // hairline light joints); a 0.6 × 0.3 m tile needs uvScale = tileSize ×
+  // coursesPerAxis = [1.2, 1.2] (tile width 1.2/2 = 0.6 m, height 1.2/4 =
+  // 0.3 m).
   'floor-tile-bath-green': floor(
     'floor-tile-bath-green',
     'Grey-green glazed porcelain (300×600)',
-    '#a8aca1',
-    'porcelain',
+    '#a2a79a',
+    'porcelainStone',
     [1.2, 1.2],
   ),
 
@@ -549,19 +561,22 @@ export const DEFAULT_ROOM_FLOOR: Partial<Record<RoomId, MaterialId>> = {
   kitchen: 'floor-tile-beige',
   bath1: 'floor-tile-bath-green',
   bath2: 'floor-tile-bath-green',
-  householdShelter: 'floor-tile-beige',
-  serviceYard: 'floor-tile-beige',
+  // 300×300 per the SNV sample board (kitchen keeps the 600×600 format).
+  householdShelter: 'floor-tile-beige-300',
+  serviceYard: 'floor-tile-beige-300',
   acLedge: 'floor-concrete',
 }
 
-/** SNV spec wall finishes: glazed porcelain wall tile in the kitchen
- *  (off-white/beige) and both bathrooms (light grey); everything else stays
- *  painted plaster (skim-coat + paint, per spec) — livingDining keeps its
- *  existing warm-paint override. */
+/** SNV spec wall finishes: glazed porcelain wall tile in the kitchen AND both
+ *  bathrooms — the sample boards (SNV-BOARDS) show a white-cream wall tile in
+ *  the bathroom too, not the grey the earlier guess used; everything else
+ *  stays painted plaster (skim-coat + paint, per spec) — livingDining keeps
+ *  its existing warm-paint override. `wall-tile-grey` stays in the catalog as
+ *  an option. */
 export const DEFAULT_ROOM_WALL: Partial<Record<RoomId, MaterialId>> = {
   livingDining: 'wall-paint-warm',
-  bath1: 'wall-tile-grey',
-  bath2: 'wall-tile-grey',
+  bath1: 'wall-tile-white',
+  bath2: 'wall-tile-white',
   kitchen: 'wall-tile-white',
 }
 
