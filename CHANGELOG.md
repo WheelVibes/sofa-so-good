@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.31 — UIUX-30: modal/dropdown edge-spacing sweep + scroll-edge shadows
+
+Ran an automated flush-edge audit (min distance of every interactive element to its
+modal/dropdown container edges, 15 surfaces desktop + mobile). Fixes from the findings:
+menu panels (`.pop-panel`, `.menu`) move from a near-flush 7px inset to the 8px floor
+(`--s-3`, top inset matched); and scrollable modal bodies — whose clipped content read
+as elements "flushed" against the panel edge — gain **scroll-edge shadows**: sticky
+gradient lips on `.panel-body` driven by native scroll-driven animations
+(`animation-timeline: scroll()`, `@supports`-gated, opacity-0 fallback), colour derived
+from `--text` so all themes/modes adapt. Probe-verified (top lip 0→1, bottom 1→0 across
+scroll positions); mobile sheet audit came back clean. Guards added to styleGuards.
+
 ## v0.25.0.30 — UIUX-28: getting-started checklist (onboardChecklist flag, simple tier)
 
 New "Get started" card (bottom-left of the orbit view, Watermelon onboarding-checklist

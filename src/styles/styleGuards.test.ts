@@ -425,3 +425,18 @@ describe('UIUX-23 toast stack collapse', () => {
     expect(rule.slice(0, 400)).toMatch(/max-height:\s*12px/)
   })
 })
+
+describe('UIUX-30 edge spacing + scroll-edge shadows', () => {
+  it('menu panels keep the --s-3 inset so rows never sit near-flush', () => {
+    const app = read('./app.css')
+    expect(app).toMatch(/\.pop-panel \{[^}]*padding:\s*var\(--s-3\)/s)
+    expect(app).toMatch(/\.pop-panel > :first-child \{[^}]*margin-top:\s*var\(--s-3\)/s)
+  })
+  it('modal bodies carry scroll-driven edge shadows behind @supports', () => {
+    const components = read('./components.css')
+    expect(components).toMatch(/@supports \(animation-timeline: scroll\(\)\)/)
+    expect(components).toMatch(/@keyframes scrollEdgeTop/)
+    expect(components).toMatch(/@keyframes scrollEdgeBot/)
+    expect(components).toMatch(/color-mix\(in oklch, var\(--text\) 14%, transparent\)/)
+  })
+})
