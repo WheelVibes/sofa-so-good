@@ -20,6 +20,7 @@
   flex-direction: column;
   gap: 1px;
   animation: pop var(--dur) var(--ease);
+  transform-origin: var(--pop-origin, 50% 0);
   color: var(--text);
 }
 

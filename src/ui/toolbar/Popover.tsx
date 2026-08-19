@@ -65,6 +65,10 @@ export function Popover({ open, anchorRef, onClose, children, align = 'left' }: 
     const maxLeft = window.innerWidth - panelW - 8
     if (panelW) left = Math.max(8, Math.min(left, maxLeft))
     setPos({ left, top })
+    // Origin-aware entrance (UIUX-26): the panel's `pop` scale grows from the
+    // trigger's horizontal centre (top edge), not its own middle.
+    const originX = Math.max(0, r.left + r.width / 2 - left)
+    panelRef.current?.style.setProperty('--pop-origin', `${Math.round(originX)}px 0px`)
   }, [open, anchorRef, align])
 
   // Register in the open-popover set for descendant-portal containment.

@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.23 — UIUX-26: origin-aware popover/menu entrance
+
+The shared `pop` keyframe now scales from 0.97 alongside its fade/translate, and panels
+grow from their anchor: `Popover` writes `--pop-origin` (the trigger's horizontal centre,
+top edge) which `.pop-panel` consumes as `transform-origin`; non-portal `.menu.open`
+panels grow from their own top edge. The animations.dev origin-scaling pattern — a menu
+now visibly emerges *from its button*. Exit stays an instant unmount; reduced-motion
+zeroes it globally. Verified at-open with the TOOLBAR-MENU-VOID no-settle assertion
+(every row fully opaque at the instant the panel mounts) + a computed transform-origin
+check.
+
 ## v0.25.0.22 — UIUX-21: budget readouts roll to their new value
 
 New `src/ui/controls/useAnimatedNumber.ts` (the Motion-Primitives animated-number

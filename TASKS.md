@@ -51,8 +51,7 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
   `currentColor`/accent-tinted, no runtime cost).
 - [ ] UIUX-25: copy/save state-morph confirmation on copy-link/copy buttons (icon crossfade
   + spring-ish cubic-bezier).
-- [ ] UIUX-26: origin-aware popover/menu entrance (transform-origin from anchor side,
-  scale .96→1 `--dur-1 --ease-out`; exits faster).
+
 - [ ] UIUX-27: skeleton-shimmer class + Doherty pass over async surfaces (catalog thumbs,
   DLC materials, cloud sync) — verify catalog blank-tile lazy-load look.
 - [ ] UIUX-28: onboarding checklist (furnish→finish→light→share) — simple-tier flag,

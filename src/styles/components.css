@@ -444,8 +444,14 @@ body.mobile .tip::after { content: none; }
   z-index: var(--z-pop);
   display: none; flex-direction: column; gap: 1px;
 }
-.menu.open { display: flex; animation: pop var(--dur) var(--ease); }
-@keyframes pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.menu.open { display: flex; animation: pop var(--dur) var(--ease); transform-origin: 50% 0; }
+/* Origin-aware entrance (UIUX-26): panels scale up slightly from their anchor
+   side — Popover sets --pop-origin to the trigger's centre; anything else
+   grows from its own top edge. Exit stays an instant unmount. */
+@keyframes pop {
+  from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
 
 /* Entrance stagger (P2). Children of a .stagger-in container fade+rise in
    sequence. --i (the child's index) drives a 50ms cascade; mapped lists set it
