@@ -49,6 +49,10 @@ tilt cards, scramble text) are **off-brand — do not add them**.
 ## Motion
 
 - Micro-transitions (hover, fills, color): `var(--dur)` (0.16s) `var(--ease)`.
+- Springs: use the paired `--dur-spring-snappy/--ease-spring-snappy` (position/size moves)
+  and `--dur-spring-pop/--ease-spring-pop` (confirmation lands) tokens — sampled real
+  springs compiled to CSS `linear()` (regenerate via `scripts/gen-spring-easing.mjs`);
+  never split a spring easing from its paired duration.
 - Entrances/choreography: `--dur-1`(150) `--dur-2`(300) `--dur-3`(600) + `--ease-out`
   (easeOutExpo — fast-in, soft-settle). Exits are faster than entrances or instant.
 - Animate **transform + opacity only**; animation fills `backwards`, never `both`.

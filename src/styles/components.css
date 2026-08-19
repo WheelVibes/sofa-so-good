@@ -386,7 +386,7 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 }
 /* Copy/save confirmation pop (UIUX-25): the swapped-in check icon lands with a
    small overshoot. Fill `backwards`, never `both`; reduced-motion zeroes it. */
-.done-pop { animation: donepop var(--dur-2) var(--ease-pop) backwards; }
+.done-pop { animation: donepop var(--dur-spring-pop) var(--ease-spring-pop) backwards; }
 @keyframes donepop {
   from { transform: scale(0.4); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
@@ -613,7 +613,8 @@ body.mobile .tip::after { content: none; }
   position: absolute; top: 3px; bottom: 3px; left: 0;
   border-radius: var(--r-1); pointer-events: none;
   background: var(--surface-solid); box-shadow: 0 1px 2px oklch(0 0 0 / 0.08);
-  transition: transform var(--dur-1) var(--ease-out), width var(--dur-1) var(--ease-out);
+  /* Real spring feel where linear() is supported (UIUX-31); ease-out fallback. */
+  transition: transform var(--dur-spring-snappy) var(--ease-spring-snappy), width var(--dur-spring-snappy) var(--ease-spring-snappy);
 }
 .seg.accent .seg-pill { background: var(--accent); box-shadow: none; }
 

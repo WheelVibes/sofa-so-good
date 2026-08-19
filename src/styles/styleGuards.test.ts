@@ -440,3 +440,23 @@ describe('UIUX-30 edge spacing + scroll-edge shadows', () => {
     expect(components).toMatch(/color-mix\(in oklch, var\(--text\) 14%, transparent\)/)
   })
 })
+
+describe('UIUX-31 spring linear() tokens', () => {
+  it('defines sampled-spring easings behind @supports with cubic-bezier fallbacks', () => {
+    const tokens = read('./tokens.css')
+    expect(tokens).toMatch(/@supports \(transition-timing-function: linear\(0, 1\)\)/)
+    expect(tokens).toMatch(/--ease-spring-snappy:\s*linear\(0, 0\.022/)
+    expect(tokens).toMatch(/--ease-spring-pop:\s*linear\(0, 0\.028/)
+    // Fallback pairs must exist un-gated so older browsers resolve the tokens.
+    const beforeSupports = tokens.slice(0, tokens.indexOf('@supports'))
+    expect(beforeSupports).toMatch(/--ease-spring-snappy:\s*cubic-bezier/)
+    expect(beforeSupports).toMatch(/--ease-spring-pop:\s*cubic-bezier/)
+  })
+  it('the seg pill and done-pop ride the paired spring tokens', () => {
+    const components = read('./components.css')
+    expect(components).toMatch(
+      /\.seg-pill[^}]*var\(--dur-spring-snappy\) var\(--ease-spring-snappy\)/s,
+    )
+    expect(components).toMatch(/\.done-pop[^}]*var\(--dur-spring-pop\) var\(--ease-spring-pop\)/)
+  })
+})

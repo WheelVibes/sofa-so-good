@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.32 — UIUX-31: real spring easings as CSS linear() tokens
+
+The motion.dev technique with zero runtime dependency: `scripts/gen-spring-easing.mjs`
+samples a damped harmonic oscillator into native `linear()` strings, shipped as paired
+tokens `--dur/--ease-spring-snappy` (ζ0.82, peak ≈1.01 — position/size moves) and
+`--dur/--ease-spring-pop` (ζ0.58, one visible bounce ≈1.11 — confirmation lands) behind
+`@supports (transition-timing-function: linear(0,1))`, with the existing cubic-bezier
+tokens as un-gated fallbacks. First consumers: the Segmented sliding pill (now settles
+like a real spring) and the `.done-pop` confirmation land (copy morphs, checklist ticks).
+Verified live (computed `linear(` easing + post-settle pill alignment); guards + DESIGN.md
+motion rule added.
+
 ## v0.25.0.31 — UIUX-30: modal/dropdown edge-spacing sweep + scroll-edge shadows
 
 Ran an automated flush-edge audit (min distance of every interactive element to its

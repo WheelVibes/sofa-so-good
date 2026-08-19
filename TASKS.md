@@ -46,11 +46,7 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
 
 
 
-- [ ] UIUX-31: spring easing tokens via CSS `linear()` (motion.dev technique) — a small
-  generator (damped oscillator sampled to a `linear()` string) emits
-  `--ease-spring-snappy/-soft` (+ matching durations) into tokens.css behind
-  `@supports (transition-timing-function: linear(0, 1))`; apply to the seg pill,
-  popover/modal entrances and toast moves. Foundational S.
+
 - [ ] UIUX-32: press-scale micro-feedback — one rule: `.btn:active/.icon-btn:active/
   .tool-btn:active { transform: scale(0.97) }` on the motion tokens (Motion `whileTap`
   equivalent); respects reduced-motion via the global kill. S.
