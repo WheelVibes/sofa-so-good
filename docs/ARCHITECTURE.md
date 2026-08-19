@@ -1113,7 +1113,8 @@ same change that reshapes a system.
   `ui/finish/ShowroomRow.tsx`, flag `showroomFinishes` — simple tier, default on, prod-safe CC0):
   a hand-curated shortlist of Poly Haven photo-PBR finishes (honest names, mean-albedo swatches,
   physical `uvScale` per scan) rendered as a one-tap strip above the FinishPicker grid (Floor +
-  Walls tabs). A tap streams the full map set through the existing `resolveRemoteAsset` path
+  Walls tabs) AND in the WallAccentPicker (applies as the wall face's accent). A tap streams the
+  full map set through the existing `resolveRemoteAsset` path
   (CORS-direct, IDB-cached) at `SHOWROOM_RESOLUTION` (1k) and applies the resolved
   `polyhaven:<slug>:<res>` finish id. `bundleToMaterialDef` applies the curated
   name/swatch/uvScale override for showroom slugs (generic downloads keep the 1 m default).

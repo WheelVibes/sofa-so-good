@@ -5,9 +5,6 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 `TASKS.md`.
 
 ## Showroom finishes (v0.26.0.0, 2026-08-19)
-- [ ] **Showroom strip in `WallAccentPicker`.** The curated photo-PBR strip ships in the main
-  FinishPicker (Floor + Walls tabs) only; the accent-wall picker still offers just the catalog
-  grid. Reuse `ShowroomRow` there (same `showroomFinishes` gate).
 - [ ] **Showroom picks for furniture `mat:` finishes.** A resolved showroom finish already works
   as a `mat:polyhaven:<slug>:1k` furniture finish (and rehydrates — the boot scan covers item
   props), but no furniture UI surfaces the curated list yet.

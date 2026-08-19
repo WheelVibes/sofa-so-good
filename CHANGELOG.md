@@ -5,6 +5,12 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.0.1 — Showroom strip in the accent-wall picker
+
+`WallAccentPicker` now mounts the same curated photo-PBR `ShowroomRow` (wall finishes) above its
+catalog grid, applying a pick as that one wall face's accent — same `showroomFinishes` gate,
+tested on/off. Closes the first v0.26.0.0 deferred item.
+
 ## v0.26.0.0 — Photoreal materials round 1: photo-finish correctness + the Showroom strip
 
 Research-driven materials push (goal: showroom / sample-board fidelity; references studied:
