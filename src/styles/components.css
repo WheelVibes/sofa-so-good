@@ -122,27 +122,31 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
   display: flex; align-items: center; justify-content: flex-end; gap: var(--s-2);
   padding: 0 var(--s-4) var(--s-4);
 }
-/* Scroll-edge shadows (UIUX-30): a scrollable .panel-body clips its content at
-   the panel edge, which reads as elements sitting flush against the modal edge.
+/* Scroll-edge shadows (UIUX-30, extended to every .panel-body in UIUX-35 —
+   modals AND the catalog/inspector dock panels; `.lyr-body` mirrors this in
+   features.css). NOT on `.card-grid`: it's a *grid* scroller, where sticky
+   pseudo-lips become grid items and corrupt the column layout. A scrollable
+   body otherwise clips its content at the panel edge, which reads as elements
+   sitting flush against it.
    Sticky gradient lips fade in only while there IS more content in that
    direction, driven by native scroll-driven animations. Progressive
    enhancement: without animation-timeline support the timeline is absent and
    the lips keep their specified opacity 0. Shadow colour derives from --text so
    it adapts to light/dark across all 5 themes. */
 @supports (animation-timeline: scroll()) {
-  .modal-overlay .panel-body::before,
-  .modal-overlay .panel-body::after {
+  .panel-body::before,
+  .panel-body::after {
     content: ''; position: sticky; left: 0; right: 0; display: block;
     height: 10px; flex: none; z-index: 2; pointer-events: none; opacity: 0;
     animation: none linear both;
     animation-timeline: scroll();
   }
-  .modal-overlay .panel-body::before {
+  .panel-body::before {
     top: 0; margin: 0 calc(-1 * var(--s-4)) -10px;
     background: linear-gradient(to bottom, color-mix(in oklch, var(--text) 14%, transparent), transparent);
     animation-name: scrollEdgeTop;
   }
-  .modal-overlay .panel-body::after {
+  .panel-body::after {
     bottom: 0; margin: -10px calc(-1 * var(--s-4)) 0;
     background: linear-gradient(to top, color-mix(in oklch, var(--text) 14%, transparent), transparent);
     animation-name: scrollEdgeBot;

@@ -55,8 +55,7 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
 - [ ] UIUX-34: direction-aware tab/panel content transitions (KokonutUI smooth-tab) —
   when a Segmented/tab selection moves right, the incoming panel slides in from the
   right (± translateX + fade, `--dur-1`); FinishPicker tabs + Drawings panel first. S.
-- [ ] UIUX-35: extend the UIUX-30 scroll-edge shadows from modal bodies to the scrollable
-  dock panels (catalog grid, layers list, inspector body). S.
+
 - [ ] UIUX-36: FLIP reorder/filter animation (motion.dev layout-animation pattern) — a
   `useFlip(depsKey)` hook (measure → invert → play via element.animate) for the layers
   list and catalog grid filter changes; skipped under reduced-motion/perf tier. M.

@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.34 — UIUX-35: scroll-edge shadows extend to dock panels + layers list
+
+The UIUX-30 sticky gradient lips now cover every block `.panel-body` scroller (inspector,
+finish picker, packs, help — not just modals) and the Layers `.lyr-body` (with its own
+horizontal margins). `.card-grid` is deliberately excluded — a grid scroller turns sticky
+pseudo-lips into grid items and corrupts the column layout (documented in the CSS).
+Probe-verified on the inspector (top lip 0→1 on scroll, bottom lip live).
+
 ## v0.25.0.33 — UIUX-32: uniform press-scale feedback on buttons
 
 One rule (the Motion `whileTap` equivalent): `.btn`/`.icon-btn`/`.tool-btn`/segmented

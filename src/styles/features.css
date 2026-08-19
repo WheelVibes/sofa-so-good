@@ -149,6 +149,27 @@
    ============================================================ */
 
 .lyr-body { padding: var(--s-2) var(--s-3) var(--s-4); overflow-y: auto; }
+/* Layers list gets the same scroll-edge shadows as .panel-body (UIUX-35);
+   margins match its own --s-3 horizontal padding. */
+@supports (animation-timeline: scroll()) {
+  .lyr-body::before,
+  .lyr-body::after {
+    content: ''; position: sticky; left: 0; right: 0; display: block;
+    height: 10px; flex: none; z-index: 2; pointer-events: none; opacity: 0;
+    animation: none linear both;
+    animation-timeline: scroll();
+  }
+  .lyr-body::before {
+    top: 0; margin: 0 calc(-1 * var(--s-3)) -10px;
+    background: linear-gradient(to bottom, color-mix(in oklch, var(--text) 14%, transparent), transparent);
+    animation-name: scrollEdgeTop;
+  }
+  .lyr-body::after {
+    bottom: 0; margin: -10px calc(-1 * var(--s-3)) 0;
+    background: linear-gradient(to top, color-mix(in oklch, var(--text) 14%, transparent), transparent);
+    animation-name: scrollEdgeBot;
+  }
+}
 .lyr-group { margin-top: var(--s-3); }
 .lyr-group:first-child { margin-top: 4px; }
 .lyr-ghead {
