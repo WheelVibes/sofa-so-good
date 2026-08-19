@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.16 — UIUX-15: GraphicsSettings on the shared Modal
+
+GraphicsSettings hand-built its own `.modal-overlay` shell (own portal, own Escape
+listener, no focus trap, literal 320px width). It now composes the shared `Modal`
+(gains the focus trap + focus restore + backdrop-click + guard for free),
+`width="var(--modal-xs)"`, and keeps its taller scroll budget via a
+`#graphicsSettings` per-modal CSS override. Verified: focus lands in the dialog,
+Escape closes, sticky section headers + exposure SliderField intact.
+
 ## v0.25.0.15 — UIUX-18: undefined design-token references fixed + scale-token guard
 
 Five undefined-token families were silently computing to inherited/fallback values:

@@ -125,6 +125,9 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 /* Inline form/action error text (capture failures, validation) — one class so
    every modal's error line matches; never a colour literal at the call site. */
 .form-err { color: var(--danger); font-size: var(--t-xs); font-weight: 600; }
+/* Graphics settings: a long stack of sections — allow a taller panel than the
+   360-wide default before it scrolls (was its custom shell's sizing, UIUX-15). */
+.modal-overlay > #graphicsSettings { max-height: min(640px, calc(100vh - 48px)); }
 
 /* ---- Thin, aesthetic scrollbars ------------------------------ */
 * { scrollbar-width: thin; scrollbar-color: var(--border-2) transparent; }

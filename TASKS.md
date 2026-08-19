@@ -40,8 +40,6 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
 - [ ] UIUX-14: PlanViewMenuActions 8 boolean toggles are accent-CTA buttons → check rows /
   `.seg-btn.on` grammar (match 3D ViewMenu); same `btn-accent`-as-open-state leak in
   PlanEditorHeader/LevelMenu/PlanToolMenu/PlanMenu.
-- [ ] UIUX-15: GraphicsSettings hand-built overlay → shared `Modal` (gains focus trap).
-
 
 - [ ] UIUX-16: literal burn-down — FinishPicker `#ccc` fallbacks + inline rows,
   ParametricControls 26px/radius-6 swatch ×3 → `.swatch`, WebGLFallback/ErrorBoundary

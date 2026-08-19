@@ -1,7 +1,5 @@
-import { type ReactNode, useEffect } from 'react'
-import { createPortal } from 'react-dom'
+import type { ReactNode } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { useModalGuard } from '../controls/modalGuard'
 import { EXPOSURE_MAX, EXPOSURE_MIN, TONE_MAPPING_LABEL } from '../scene/look'
 import {
   type AssetTier,
@@ -12,9 +10,9 @@ import {
 } from '../scene/quality'
 import { TONE_MAPPING_SETTINGS, type ToneMappingSetting } from '../scene/toneContext'
 import { useStore } from '../state/store'
-import { AuxPanelHead } from './AuxPanelHead'
 import { Select } from './controls/Select'
 import { SliderField } from './controls/SliderField'
+import { Modal } from './Modal'
 
 const TIERS = RENDER_TIERS
 /** Segment label per setting — extends the look labels with the 'auto' option. */
@@ -71,236 +69,219 @@ export function GraphicsSettings({
   const setUnits = useStore((s) => s.setUnits)
   const proMode = useStore((s) => s.uiMode === 'pro')
 
-  // Modal-style overlay (doesn't build on the shared Modal primitive):
-  // suppress global shortcuts while open.
-  useModalGuard(open)
-
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
-
-  if (!open) return null
   const eff = resolveQuality(tier, overrides)
   const hasOverrides = Object.keys(overrides).length > 0
 
-  return createPortal(
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="panel"
-        style={{ width: 320, maxHeight: 'min(640px, calc(100vh - 48px))' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <AuxPanelHead
-          title="Graphics"
-          sub="Render & assets"
-          onClose={onClose}
-          showBack={showBack}
-        />
-        <hr className="hr" />
-        <div className="panel-body">
-          {/* Measurement units — display preference for all read-outs. Metric
+  // Shared Modal shell (UIUX-15): modal guard, Escape, backdrop click and the
+  // focus trap all come from the primitive; #graphicsSettings keeps its taller
+  // max-height via a per-modal CSS override (components.css).
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Graphics"
+      sub="Render & assets"
+      showBack={showBack}
+      width="var(--modal-xs)"
+      panelId="graphicsSettings"
+    >
+      {/* Measurement units — display preference for all read-outs. Metric
               stays the editing unit; imperial reformats labels/HUDs. Each block
               below is a `.sec` so its sticky `.sec-h` releases when the section
               scrolls past (a bare `.sec-h` would stay pinned and stack under
               the next one), and the first `.sec`'s top padding gives the body
               its breathing room under the panel head. */}
-          <div className="sec">
-            <div className="sec-h">
-              <span>Measurement units</span>
-            </div>
-            <div className="seg accent" style={{ display: 'flex', width: '100%' }}>
-              {(['metric', 'imperial'] as const).map((u) => (
-                <button
-                  key={u}
-                  type="button"
-                  onClick={() => setUnits(u)}
-                  className={`capitalize${unitSystem === u ? ' on' : ''}`}
-                  style={{ flex: 1 }}
-                >
-                  {u === 'metric' ? 'Metric (m)' : 'Imperial (ft)'}
-                </button>
-              ))}
-            </div>
-            <p className="sec-desc">
-              Affects dimension read-outs (room sizes, tape, clearance). Plan-editor input fields
-              stay in metres.
-            </p>
-          </div>
+      <div className="sec">
+        <div className="sec-h">
+          <span>Measurement units</span>
+        </div>
+        <div className="seg accent" style={{ display: 'flex', width: '100%' }}>
+          {(['metric', 'imperial'] as const).map((u) => (
+            <button
+              key={u}
+              type="button"
+              onClick={() => setUnits(u)}
+              className={`capitalize${unitSystem === u ? ' on' : ''}`}
+              style={{ flex: 1 }}
+            >
+              {u === 'metric' ? 'Metric (m)' : 'Imperial (ft)'}
+            </button>
+          ))}
+        </div>
+        <p className="sec-desc">
+          Affects dimension read-outs (room sizes, tape, clearance). Plan-editor input fields stay
+          in metres.
+        </p>
+      </div>
 
-          {/* Tier presets — 2×2 grid. */}
-          <div className="sec">
-            <div className="sec-h">
-              <span>Quality preset</span>
-            </div>
-            <div className="action-grid two">
-              {TIERS.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setTier(t)}
-                  className={`act${tier === t && !hasOverrides ? ' on' : ''}`}
-                >
-                  {QUALITY_LABEL[t]}
-                </button>
-              ))}
-            </div>
-            <p className="sec-desc">
-              {QUALITY_DESCRIPTION[tier]}{' '}
-              {userSet
-                ? hasOverrides
-                  ? 'Custom settings (overriding the preset).'
-                  : 'Manual — auto fps-adjust is off.'
-                : 'Auto-adjusts to hold 30+ fps. Changing anything pins it.'}
-            </p>
-          </div>
+      {/* Tier presets — 2×2 grid. */}
+      <div className="sec">
+        <div className="sec-h">
+          <span>Quality preset</span>
+        </div>
+        <div className="action-grid two">
+          {TIERS.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTier(t)}
+              className={`act${tier === t && !hasOverrides ? ' on' : ''}`}
+            >
+              {QUALITY_LABEL[t]}
+            </button>
+          ))}
+        </div>
+        <p className="sec-desc">
+          {QUALITY_DESCRIPTION[tier]}{' '}
+          {userSet
+            ? hasOverrides
+              ? 'Custom settings (overriding the preset).'
+              : 'Manual — auto fps-adjust is off.'
+            : 'Auto-adjusts to hold 30+ fps. Changing anything pins it.'}
+        </p>
+      </div>
 
-          {/* Tone-mapping "look" (view transform) — applies on every tier,
+      {/* Tone-mapping "look" (view transform) — applies on every tier,
               so it lives outside the Pro-only advanced block. */}
+      <div className="sec">
+        <div className="sec-h">
+          <span>Look (tone mapping)</span>
+        </div>
+        <div className="seg accent" style={{ display: 'flex', width: '100%' }}>
+          {TONE_MAPPING_SETTINGS.map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setToneMapping(m)}
+              className={toneMapping === m ? 'on' : ''}
+              style={{ flex: 1 }}
+            >
+              {TONE_MAPPING_SETTING_LABEL[m]}
+            </button>
+          ))}
+        </div>
+        <p className="sec-desc">{TONE_MAPPING_HINT[toneMapping]}</p>
+
+        {/* Exposure (brightness) — applies on every tier alongside the Look.
+                Uses the shared SliderField (label + slider + readout, TB-10). */}
+        <SliderField
+          label="Exposure"
+          ariaLabel="Exposure"
+          min={EXPOSURE_MIN}
+          max={EXPOSURE_MAX}
+          step={0.05}
+          value={exposure}
+          format={(v) => `${v.toFixed(2)}×`}
+          onChange={setExposure}
+        />
+      </div>
+
+      {/* Advanced graphics (asset detail + per-effect overrides + FPS) —
+              Pro mode only; Simple keeps just render quality + units. */}
+      {proMode ? (
+        <>
+          {/* Asset quality. */}
           <div className="sec">
             <div className="sec-h">
-              <span>Look (tone mapping)</span>
+              <span>Asset quality</span>
             </div>
             <div className="seg accent" style={{ display: 'flex', width: '100%' }}>
-              {TONE_MAPPING_SETTINGS.map((m) => (
+              {ASSET_OPTIONS.map((o) => (
                 <button
-                  key={m}
+                  key={o.label}
                   type="button"
-                  onClick={() => setToneMapping(m)}
-                  className={toneMapping === m ? 'on' : ''}
+                  onClick={() => setAssetTier(o.value)}
+                  className={assetTier === o.value ? 'on' : ''}
                   style={{ flex: 1 }}
                 >
-                  {TONE_MAPPING_SETTING_LABEL[m]}
+                  {o.label}
                 </button>
               ))}
             </div>
-            <p className="sec-desc">{TONE_MAPPING_HINT[toneMapping]}</p>
+            <p className="sec-desc">
+              Model + texture detail, separate from render quality. “Original” loads full-resolution
+              assets even on Low.
+            </p>
+          </div>
 
-            {/* Exposure (brightness) — applies on every tier alongside the Look.
-                Uses the shared SliderField (label + slider + readout, TB-10). */}
+          <div className="sec">
+            <Row label="Sun shadows" hint="Resolution; off is fastest">
+              <Select
+                value={String(eff.shadowMapSize)}
+                onChange={(v) => setOverride('shadowMapSize', Number(v))}
+                className="input"
+                style={{ width: 'auto' }}
+                options={SHADOW_OPTIONS.map((o) => ({
+                  value: String(o.value),
+                  label: o.label,
+                }))}
+              />
+            </Row>
+
+            <Toggle
+              label="Reflections (IBL)"
+              hint="Image-based lighting probe"
+              checked={eff.ibl}
+              onChange={(v) => setOverride('ibl', v)}
+            />
+            <Toggle
+              label="Bloom, AO + antialiasing"
+              hint="GPU post-processing (loaded on demand)"
+              checked={eff.postprocessing}
+              onChange={(v) => setOverride('postprocessing', v)}
+            />
+            <Toggle
+              label="Wall fade"
+              hint="Fade near walls when orbiting"
+              checked={eff.wallReveal}
+              onChange={(v) => setOverride('wallReveal', v)}
+            />
+            <Toggle
+              label="Contact shadows"
+              hint="Soft grounding under furniture"
+              checked={eff.contactShadows}
+              onChange={(v) => setOverride('contactShadows', v)}
+            />
+            <Toggle
+              label="FPS counter"
+              hint="Live frame-rate overlay"
+              checked={showFps}
+              onChange={toggleShowFps}
+            />
+
             <SliderField
-              label="Exposure"
-              ariaLabel="Exposure"
-              min={EXPOSURE_MIN}
-              max={EXPOSURE_MAX}
-              step={0.05}
-              value={exposure}
+              label="Night light fixtures"
+              min={0}
+              max={12}
+              step={1}
+              value={eff.maxFixtureLights}
+              format={(v) => `${v} max`}
+              onChange={(v) => setOverride('maxFixtureLights', v)}
+            />
+            <SliderField
+              label="Resolution scale"
+              min={0.75}
+              max={2}
+              step={0.25}
+              value={eff.dprMax}
               format={(v) => `${v.toFixed(2)}×`}
-              onChange={setExposure}
+              onChange={(v) => setOverride('dprMax', v)}
             />
           </div>
 
-          {/* Advanced graphics (asset detail + per-effect overrides + FPS) —
-              Pro mode only; Simple keeps just render quality + units. */}
-          {proMode ? (
-            <>
-              {/* Asset quality. */}
-              <div className="sec">
-                <div className="sec-h">
-                  <span>Asset quality</span>
-                </div>
-                <div className="seg accent" style={{ display: 'flex', width: '100%' }}>
-                  {ASSET_OPTIONS.map((o) => (
-                    <button
-                      key={o.label}
-                      type="button"
-                      onClick={() => setAssetTier(o.value)}
-                      className={assetTier === o.value ? 'on' : ''}
-                      style={{ flex: 1 }}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="sec-desc">
-                  Model + texture detail, separate from render quality. “Original” loads
-                  full-resolution assets even on Low.
-                </p>
-              </div>
-
-              <div className="sec">
-                <Row label="Sun shadows" hint="Resolution; off is fastest">
-                  <Select
-                    value={String(eff.shadowMapSize)}
-                    onChange={(v) => setOverride('shadowMapSize', Number(v))}
-                    className="input"
-                    style={{ width: 'auto' }}
-                    options={SHADOW_OPTIONS.map((o) => ({
-                      value: String(o.value),
-                      label: o.label,
-                    }))}
-                  />
-                </Row>
-
-                <Toggle
-                  label="Reflections (IBL)"
-                  hint="Image-based lighting probe"
-                  checked={eff.ibl}
-                  onChange={(v) => setOverride('ibl', v)}
-                />
-                <Toggle
-                  label="Bloom, AO + antialiasing"
-                  hint="GPU post-processing (loaded on demand)"
-                  checked={eff.postprocessing}
-                  onChange={(v) => setOverride('postprocessing', v)}
-                />
-                <Toggle
-                  label="Wall fade"
-                  hint="Fade near walls when orbiting"
-                  checked={eff.wallReveal}
-                  onChange={(v) => setOverride('wallReveal', v)}
-                />
-                <Toggle
-                  label="Contact shadows"
-                  hint="Soft grounding under furniture"
-                  checked={eff.contactShadows}
-                  onChange={(v) => setOverride('contactShadows', v)}
-                />
-                <Toggle
-                  label="FPS counter"
-                  hint="Live frame-rate overlay"
-                  checked={showFps}
-                  onChange={toggleShowFps}
-                />
-
-                <SliderField
-                  label="Night light fixtures"
-                  min={0}
-                  max={12}
-                  step={1}
-                  value={eff.maxFixtureLights}
-                  format={(v) => `${v} max`}
-                  onChange={(v) => setOverride('maxFixtureLights', v)}
-                />
-                <SliderField
-                  label="Resolution scale"
-                  min={0.75}
-                  max={2}
-                  step={0.25}
-                  value={eff.dprMax}
-                  format={(v) => `${v.toFixed(2)}×`}
-                  onChange={(v) => setOverride('dprMax', v)}
-                />
-              </div>
-
-              {hasOverrides && (
-                <button
-                  type="button"
-                  onClick={resetOverrides}
-                  className="btn btn-soft btn-block"
-                  style={{ marginTop: 'var(--s-4)' }}
-                >
-                  Reset to {QUALITY_LABEL[tier]} preset
-                </button>
-              )}
-            </>
-          ) : null}
-        </div>
-      </div>
-    </div>,
-    document.body,
+          {hasOverrides && (
+            <button
+              type="button"
+              onClick={resetOverrides}
+              className="btn btn-soft btn-block"
+              style={{ marginTop: 'var(--s-4)' }}
+            >
+              Reset to {QUALITY_LABEL[tier]} preset
+            </button>
+          )}
+        </>
+      ) : null}
+    </Modal>
   )
 }
 
