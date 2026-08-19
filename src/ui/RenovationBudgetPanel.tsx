@@ -122,7 +122,7 @@ export function RenovationBudgetPanel() {
                         borderRadius: 999,
                         background: 'var(--surface-2)',
                         overflow: 'hidden',
-                        marginTop: 'var(--s-05, 2px)',
+                        marginTop: 'var(--s-0)',
                       }}
                     >
                       <div
@@ -177,7 +177,7 @@ export function RenovationBudgetPanel() {
                     justifyContent: 'space-between',
                     fontSize: 'var(--t-2xs)',
                     color: 'var(--text-3)',
-                    marginBottom: 'var(--s-05, 2px)',
+                    marginBottom: 'var(--s-0)',
                   }}
                 >
                   <span>{b.label}</span>

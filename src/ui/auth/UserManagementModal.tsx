@@ -133,7 +133,7 @@ export function UserManagementModal({ onClose }: { onClose: () => void }) {
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 'var(--z-modal, 70)' as never,
+        zIndex: 'var(--z-modal)' as never,
         display: 'grid',
         placeItems: 'center',
         background: 'color-mix(in oklch, var(--scene-b, #1a1714) 60%, transparent)',
@@ -157,7 +157,7 @@ export function UserManagementModal({ onClose }: { onClose: () => void }) {
             marginBottom: 'var(--s-3)',
           }}
         >
-          <div className="panel-title" style={{ fontSize: 'var(--t-1)' }}>
+          <div className="panel-title" style={{ fontSize: 'var(--t-lg)' }}>
             Manage accounts
           </div>
           <button
@@ -266,7 +266,7 @@ export function UserManagementModal({ onClose }: { onClose: () => void }) {
                         {u.name} {u.role === 'admin' ? '· admin' : ''}
                         {isSelf ? ' · you' : ''}
                       </div>
-                      <div style={{ fontSize: 'var(--t-3xs)', color: 'var(--text-3)' }}>
+                      <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
                         {u.email}
                       </div>
                     </div>

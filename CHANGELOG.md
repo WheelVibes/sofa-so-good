@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.15 — UIUX-18: undefined design-token references fixed + scale-token guard
+
+Five undefined-token families were silently computing to inherited/fallback values:
+`var(--t-1)` (auth panel titles → now `--t-lg`), `var(--t-3xs)` (→ `--t-2xs`),
+`var(--s-0)` ×5 + `var(--s-05, 2px)` ×2 (new **`--s-0: 2px`** micro spacing step),
+and `var(--z-modal, 70|9000)` (new **`--z-modal: 65`** — above bottom-sheets/overlays
+at 60, below toasts at 70, matching the documented z philosophy; ProductTour's scrim no
+longer floats above toasts). New `tokenRefGuard.test.ts` scans every `var(--…)` scale
+reference in src/ui + src/styles against the tokens actually defined — it found the
+--s-0/--s-05/--z-modal families during development.
+
 ## v0.25.0.14 — UIUX-17: 10 Modal footers migrate onto `.panel-foot`
 
 StagingReveal, VersionCompare, SmartStartWizard, HqRender, PanoTour, Panorama,

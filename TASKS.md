@@ -42,9 +42,7 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
   PlanEditorHeader/LevelMenu/PlanToolMenu/PlanMenu.
 - [ ] UIUX-15: GraphicsSettings hand-built overlay → shared `Modal` (gains focus trap).
 
-- [ ] UIUX-18: UserManagementModal uses undefined `var(--t-1)`/`var(--t-3xs)` font-size
-  tokens (scale is --t-2xs..--t-xl) + repeats the panel-sub un-uppercase hack — fold into
-  UIUX-7/12 sweeps.
+
 - [ ] UIUX-16: literal burn-down — FinishPicker `#ccc` fallbacks + inline rows,
   ParametricControls 26px/radius-6 swatch ×3 → `.swatch`, WebGLFallback/ErrorBoundary
   off-system, LoadingOverlay/PresentationMode grandfathered inline px.

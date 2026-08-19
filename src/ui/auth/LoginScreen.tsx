@@ -55,7 +55,7 @@ export function LoginScreen() {
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 'var(--z-modal, 70)' as never,
+        zIndex: 'var(--z-modal)' as never,
         display: 'grid',
         placeItems: 'center',
         background: 'color-mix(in oklch, var(--scene-b, #1a1714) 60%, transparent)',
@@ -76,7 +76,7 @@ export function LoginScreen() {
           }}
         >
           <BrandMark size={26} />
-          <div className="panel-title" style={{ fontSize: 'var(--t-1)' }}>
+          <div className="panel-title" style={{ fontSize: 'var(--t-lg)' }}>
             Sofa So Good
           </div>
         </div>

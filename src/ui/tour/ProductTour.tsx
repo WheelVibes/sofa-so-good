@@ -230,7 +230,7 @@ export function ProductTour() {
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 'var(--z-modal, 9000)' as never,
+        zIndex: 'var(--z-modal)' as never,
         pointerEvents: 'none',
       }}
     >
