@@ -32,9 +32,6 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
 
 ### Stage 4 — off-system surface migrations (Tailwind → tokens)
 
-- [ ] UIUX-13: catalog PacksTab/RemoteBrowseTab/ResolutionPicker/CachePane: hand-rolled
-  accent buttons → `Button`/`.btn-accent`, `--danger-soft`, type ladder.
-
 
 - [ ] UIUX-19 (BUG, discovered 2026-08-19): the plan editor's PlanMenu/Popover menus
   cannot be opened headlessly any more — a synthetic trigger `.click()` leaves

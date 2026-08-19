@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.20 — UIUX-13: catalog Packs/Remote-browse surfaces on the token vocabulary
+
+PacksTab, RemoteBrowseTab, ResolutionPicker and CachePane re-implemented accent buttons,
+danger-soft boxes and section headers in raw Tailwind arbitraries. Migrated: 5 hand-rolled
+accent CTAs + Retry/Clear/Show-more → the `<Button>` primitive; `color-mix` danger boxes →
+`var(--danger-soft)`; provider/category/resolution filter pills → `.seg-btn (.on)`;
+"manual" chip → `.badge neutral`; headers → `.panel-sub(-plain)`; `font-mono` → `.mono`;
+inputs → `.input`; off-ladder 9px type → `--t-2xs`; card chrome + progress bar on tokens
+(`--r-pill` bar, `--dur/--ease` width transition). Layout-only utilities kept. 200
+catalog tests green; Packs tab visually A/B'd against the pre-migration baseline
+(both render the provider-gated empty state in the sandbox — no regression).
+
 ## v0.25.0.19 — UIUX-16: literal burn-down — FinishPicker/#ccc, swatch dupes, crash surfaces, 3 files off the px-guard grandfather list
 
 FinishPicker's two `#ccc` swatch fallbacks → `var(--surface-3)` (last colour literals in

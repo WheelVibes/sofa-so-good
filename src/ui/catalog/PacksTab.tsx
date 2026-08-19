@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react'
 import {
   type IkeaProgressEvent,
   registerGroup,
@@ -17,14 +17,34 @@ import type { Pack } from '../../catalog/packs/types'
 import { uninstallPack } from '../../catalog/packs/uninstall'
 import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
+import { Button } from '../controls/Button'
 
 const fmtMB = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
+
+/** Shared token-based chrome for the pack cards (no dedicated CSS class —
+ *  inline tokens, per the migration pattern for one-off compound surfaces). */
+const cardStyle: CSSProperties = {
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--r-2)',
+  background: 'var(--surface-solid)',
+  padding: 'var(--s-4)',
+}
+const nameStyle: CSSProperties = { fontSize: 'var(--t-base)', color: 'var(--text)' }
+const descStyle: CSSProperties = { fontSize: 'var(--t-sm)', color: 'var(--text-2)' }
+/** Inline error note — the real `--danger-soft` token (was a hand-rolled color-mix). */
+const errBoxStyle: CSSProperties = {
+  background: 'var(--danger-soft)',
+  color: 'var(--danger)',
+  borderRadius: 'var(--r-2)',
+  padding: 'var(--s-2) var(--s-3)',
+  fontSize: 'var(--t-xs)',
+}
 
 /** Shared presentational chrome for the install-style pack cards (zip / Poly
  *  Pizza / Poly Haven): the bordered card, name (+ optional right-aligned meta
  *  like size or item count), description, and the attribution line with an
  *  optional trailing source/help link. Each card supplies its own install
- *  controls as `children`. Keeps the file's local Tailwind-var style. */
+ *  controls as `children`. */
 function PackCardShell({
   pack,
   meta,
@@ -38,17 +58,21 @@ function PackCardShell({
   children: ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded border border-[var(--border)] bg-[var(--surface-solid)] p-3">
+    <div className="flex flex-col gap-2" style={cardStyle}>
       {meta !== undefined ? (
         <div className="flex items-baseline justify-between">
-          <div className="text-sm font-semibold text-[var(--text)]">{pack.name}</div>
-          <div className="text-[10px] text-[var(--text-3)]">{meta}</div>
+          <div className="font-semibold" style={nameStyle}>
+            {pack.name}
+          </div>
+          <div className="panel-sub plain">{meta}</div>
         </div>
       ) : (
-        <div className="text-sm font-semibold text-[var(--text)]">{pack.name}</div>
+        <div className="font-semibold" style={nameStyle}>
+          {pack.name}
+        </div>
       )}
-      <p className="text-xs text-[var(--text-2)]">{pack.description}</p>
-      <div className="text-[10px] text-[var(--text-3)]">
+      <p style={descStyle}>{pack.description}</p>
+      <div className="panel-sub plain">
         {pack.attribution}
         {linkLabel && (
           <>
@@ -78,10 +102,10 @@ function PackRemoveRow({
 }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[11px] text-[var(--accent-soft-text)]">✓ {label}</span>
-      <button onClick={onRemove} className="text-[11px] text-[var(--danger)] underline">
+      <span style={{ fontSize: 'var(--t-xs)', color: 'var(--accent-soft-text)' }}>✓ {label}</span>
+      <Button variant="danger" size="sm" onClick={onRemove}>
         {removeLabel}
-      </button>
+      </Button>
     </div>
   )
 }
@@ -155,12 +179,14 @@ function IkeaLiveCard({ pack }: { pack: Pack }) {
 
   if (sidecarUp === false) {
     return (
-      <div className="flex flex-col gap-2 rounded border border-[var(--border)] bg-[var(--surface-solid)] p-3">
-        <div className="text-sm font-semibold text-[var(--text)]">{pack.name}</div>
-        <p className="text-xs text-[var(--text-2)]">{pack.description}</p>
+      <div className="flex flex-col gap-2" style={cardStyle}>
+        <div className="font-semibold" style={nameStyle}>
+          {pack.name}
+        </div>
+        <p style={descStyle}>{pack.description}</p>
         <div className="pack-notice">
-          Sidecar not detected. Run <code className="font-mono">npm run scraper-server</code> to
-          enable live IKEA scraping.
+          Sidecar not detected. Run <code className="mono">npm run scraper-server</code> to enable
+          live IKEA scraping.
         </div>
       </div>
     )
@@ -168,43 +194,56 @@ function IkeaLiveCard({ pack }: { pack: Pack }) {
 
   const rows = Object.entries(items).slice(-12)
   return (
-    <div className="flex flex-col gap-2 rounded border border-[var(--border)] bg-[var(--surface-solid)] p-3">
-      <div className="text-sm font-semibold text-[var(--text)]">{pack.name}</div>
-      <p className="text-xs text-[var(--text-2)]">{pack.description}</p>
-      <div className="text-[10px] text-[var(--text-3)]">{pack.attribution}</div>
+    <div className="flex flex-col gap-2" style={cardStyle}>
+      <div className="font-semibold" style={nameStyle}>
+        {pack.name}
+      </div>
+      <p style={descStyle}>{pack.description}</p>
+      <div className="panel-sub plain">{pack.attribution}</div>
       {running ? (
         <div className="flex flex-col gap-1.5">
-          <div className="h-1.5 w-full overflow-hidden rounded bg-[var(--surface-3)]">
+          <div
+            className="w-full overflow-hidden"
+            style={{ height: 6, borderRadius: 'var(--r-pill)', background: 'var(--surface-3)' }}
+          >
             <div
-              className="h-full bg-[var(--accent)] transition-all"
               style={{
+                height: '100%',
+                background: 'var(--accent)',
+                transition: 'width var(--dur) var(--ease)',
                 width: progress.total ? `${(progress.done / progress.total) * 100}%` : '0%',
               }}
             />
           </div>
-          <div className="flex justify-between text-[10px] text-[var(--text-3)]">
+          <div className="panel-sub plain flex justify-between">
             <span>
               {progress.done}/{progress.total || '…'} products
             </span>
-            <span className="text-[var(--accent-soft-text)]">{registered} added</span>
+            <span style={{ color: 'var(--accent-soft-text)' }}>{registered} added</span>
           </div>
-          <ul className="max-h-32 overflow-y-auto text-[10px] text-[var(--text-2)]">
+          <ul
+            className="max-h-32 overflow-y-auto"
+            style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-2)' }}
+          >
             {rows.map(([k, ev]) => (
               <li key={k} className="flex justify-between gap-2">
                 <span className="truncate">{k}</span>
-                <span className="shrink-0 text-[var(--text-3)]">{ev.phase}</span>
+                <span className="shrink-0" style={{ color: 'var(--text-3)' }}>
+                  {ev.phase}
+                </span>
               </li>
             ))}
           </ul>
         </div>
       ) : (
-        <button
+        <Button
+          variant="accent"
+          size="sm"
           onClick={() => void onStart()}
           disabled={sidecarUp === null}
-          className="rounded bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-[var(--on-accent)] hover:bg-[var(--accent-2)] disabled:opacity-50"
         >
           {registered > 0 ? `Scrape more (${registered} added)` : 'Scrape IKEA catalogue'}
-        </button>
+        </Button>
       )}
     </div>
   )
@@ -238,13 +277,9 @@ function ZipPackCard({ pack }: { pack: Pack }) {
           onRemove={() => void uninstallPack(pack.id)}
         />
       ) : (
-        <button
-          onClick={() => void onInstall()}
-          disabled={busy}
-          className="rounded bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-[var(--on-accent)] hover:bg-[var(--accent-2)] disabled:opacity-50"
-        >
+        <Button variant="accent" size="sm" onClick={() => void onInstall()} disabled={busy}>
           {busy ? 'Installing…' : `Install (${fmtMB(size)})`}
-        </button>
+        </Button>
       )}
     </PackCardShell>
   )
@@ -287,7 +322,7 @@ function PolyPizzaCard({ pack }: { pack: Pack }) {
         onChange={(e) => setApiKey(e.target.value)}
         placeholder="Poly Pizza API key"
         autoComplete="off"
-        className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1.5 text-xs text-[var(--text)] placeholder:text-[var(--text-3)]"
+        className="input"
       />
       <div className="flex gap-2">
         <input
@@ -298,21 +333,19 @@ function PolyPizzaCard({ pack }: { pack: Pack }) {
             if (e.key === 'Enter' && !busy) void onDownload()
           }}
           placeholder="Search (e.g. sofa, lamp) — blank = furniture"
-          className="min-w-0 flex-1 rounded border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1.5 text-xs text-[var(--text)] placeholder:text-[var(--text-3)]"
+          className="input min-w-0 flex-1"
         />
-        <button
+        <Button
+          variant="accent"
+          size="sm"
+          className="shrink-0"
           onClick={() => void onDownload()}
           disabled={busy}
-          className="shrink-0 rounded bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-[var(--on-accent)] hover:bg-[var(--accent-2)] disabled:opacity-50"
         >
           {busy ? 'Downloading…' : 'Download'}
-        </button>
+        </Button>
       </div>
-      {error && (
-        <div className="rounded bg-[color-mix(in_oklch,var(--danger)_12%,transparent)] px-2 py-1.5 text-[11px] text-[var(--danger)]">
-          {error}
-        </div>
-      )}
+      {error && <div style={errBoxStyle}>{error}</div>}
       {entryCount > 0 && (
         <PackRemoveRow
           label={`${entryCount} models in your catalog`}
@@ -356,19 +389,11 @@ function PolyHavenBundleCard({ pack }: { pack: Pack }) {
           onRemove={() => void uninstallPack(pack.id)}
         />
       ) : (
-        <button
-          onClick={() => void onAdd()}
-          disabled={busy}
-          className="rounded bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-[var(--on-accent)] hover:bg-[var(--accent-2)] disabled:opacity-50"
-        >
+        <Button variant="accent" size="sm" onClick={() => void onAdd()} disabled={busy}>
           {busy ? 'Adding…' : `Add bundle (${itemCount} items)`}
-        </button>
+        </Button>
       )}
-      {error && (
-        <div className="rounded bg-[color-mix(in_oklch,var(--danger)_12%,transparent)] px-2 py-1.5 text-[11px] text-[var(--danger)]">
-          {error}
-        </div>
-      )}
+      {error && <div style={errBoxStyle}>{error}</div>}
     </PackCardShell>
   )
 }
@@ -377,24 +402,22 @@ function PolyHavenBundleCard({ pack }: { pack: Pack }) {
  *  the user downloads by hand and imports via the Upload dialog. Dev-only. */
 function ManualCard({ pack }: { pack: Pack }) {
   return (
-    <div className="flex flex-col gap-2 rounded border border-dashed border-[var(--border)] bg-[var(--surface-solid)] p-3">
+    <div
+      className="flex flex-col gap-2"
+      style={{ ...cardStyle, border: '1px dashed var(--border)' }}
+    >
       <div className="flex items-baseline justify-between">
-        <div className="text-sm font-semibold text-[var(--text)]">{pack.name}</div>
-        <span className="rounded bg-[var(--surface-3)] px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-[var(--text-3)]">
-          manual
-        </span>
+        <div className="font-semibold" style={nameStyle}>
+          {pack.name}
+        </div>
+        <span className="badge neutral">manual</span>
       </div>
-      <p className="text-xs text-[var(--text-2)]">{pack.description}</p>
-      <div className="text-[10px] text-[var(--text-3)]">{pack.attribution}</div>
-      <a
-        href={pack.sourceUrl}
-        target="_blank"
-        rel="noreferrer"
-        className="rounded border border-[var(--border)] px-3 py-1.5 text-center text-xs font-medium text-[var(--text)] hover:bg-[var(--surface-2)]"
-      >
+      <p style={descStyle}>{pack.description}</p>
+      <div className="panel-sub plain">{pack.attribution}</div>
+      <a href={pack.sourceUrl} target="_blank" rel="noreferrer" className="btn btn-sm">
         Open source ↗
       </a>
-      <p className="text-[10px] text-[var(--text-3)]">
+      <p className="panel-sub plain">
         {pack.assetType === 'material'
           ? 'Download a PBR set, then add it via Upload → Material.'
           : 'Download a model, then drag the GLB into the Upload dialog to add it.'}
@@ -422,14 +445,12 @@ export function PacksTab() {
   const furniture = packs.filter((p) => (p.assetType ?? 'furniture') === 'furniture')
   const materials = packs.filter((p) => p.assetType === 'material')
   return (
-    <div className="flex flex-col gap-3 overflow-y-auto p-3">
-      <h2 className="text-xs font-semibold text-[var(--text-2)]">Furniture</h2>
+    <div className="flex flex-col gap-3 overflow-y-auto" style={{ padding: 'var(--s-4)' }}>
+      <h2 className="panel-sub">Furniture</h2>
       {furniture.map(renderCard)}
       {materials.length > 0 && (
         <>
-          <h2 className="mt-2 text-xs font-semibold text-[var(--text-2)]">
-            Materials &amp; textures
-          </h2>
+          <h2 className="panel-sub mt-2">Materials &amp; textures</h2>
           {materials.map(renderCard)}
         </>
       )}

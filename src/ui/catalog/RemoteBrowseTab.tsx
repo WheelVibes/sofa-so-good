@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useRemoteEntries } from '../../catalog/remote/hooks'
 import type { ProviderId, RemoteKind } from '../../catalog/remote/types'
 import { useStore } from '../../state/store'
+import { Button } from '../controls/Button'
 import { EmptyState } from '../EmptyState'
 import { Icon } from '../toolbar/icons'
 import { CachePane } from './CachePane'
@@ -64,7 +65,10 @@ export function RemoteBrowseTab({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-col gap-2 border-b border-[var(--border)] px-3 py-2">
+      <div
+        className="flex flex-col gap-2"
+        style={{ borderBottom: '1px solid var(--border)', padding: 'var(--s-3) var(--s-4)' }}
+      >
         <div className="flex items-center gap-2">
           <input
             value={q}
@@ -73,21 +77,17 @@ export function RemoteBrowseTab({
               setLimit(120)
             }}
             placeholder={`Search ${totalLoaded} ${kind === 'furniture' ? 'models' : 'textures'}…`}
-            className="flex-1 rounded border border-[var(--border)] px-2 py-1 text-xs"
+            className="input flex-1"
           />
           <ResolutionPicker />
         </div>
         {kind === 'material' && (
-          <div className="flex gap-1 text-[10px]">
+          <div className="flex gap-1">
             {([ALL, 'polyhaven', 'ambientcg'] as const).map((p) => (
               <button
                 key={p}
                 onClick={() => setProvider(p)}
-                className={`rounded px-2 py-0.5 ${
-                  provider === p
-                    ? 'bg-[var(--accent)] text-[var(--on-accent)]'
-                    : 'bg-[var(--surface-2)] text-[var(--text-2)]'
-                }`}
+                className={`seg-btn${provider === p ? ' on' : ''}`}
               >
                 {p === ALL ? 'All' : p === 'polyhaven' ? 'Poly Haven' : 'ambientCG'}
               </button>
@@ -95,7 +95,7 @@ export function RemoteBrowseTab({
           </div>
         )}
         {kind === 'material' && (
-          <div className="flex gap-1 text-[10px]">
+          <div className="flex gap-1">
             {([ALL, 'floor', 'wall'] as const).map((c) => (
               <button
                 key={c}
@@ -103,18 +103,17 @@ export function RemoteBrowseTab({
                   setCat(c)
                   setLimit(120)
                 }}
-                className={`rounded px-2 py-0.5 capitalize ${
-                  cat === c
-                    ? 'bg-[var(--accent)] text-[var(--on-accent)]'
-                    : 'bg-[var(--surface-2)] text-[var(--text-2)]'
-                }`}
+                className={`seg-btn capitalize${cat === c ? ' on' : ''}`}
               >
                 {c === ALL ? 'All surfaces' : c}
               </button>
             ))}
           </div>
         )}
-        <div className="flex items-center justify-between text-[9px] text-[var(--text-3)]">
+        <div
+          className="flex items-center justify-between"
+          style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}
+        >
           <span>
             {filtered.length} match{filtered.length === 1 ? '' : 'es'}
             {q ? '' : ` of ${totalLoaded}`}
@@ -123,13 +122,14 @@ export function RemoteBrowseTab({
             <span title={phError}>
               PH:{' '}
               <span
-                className={
-                  phStatus === 'error'
-                    ? 'text-[var(--danger)]'
-                    : phStatus === 'ready'
-                      ? 'text-[var(--ok)]'
-                      : 'text-[var(--text-3)]'
-                }
+                style={{
+                  color:
+                    phStatus === 'error'
+                      ? 'var(--danger)'
+                      : phStatus === 'ready'
+                        ? 'var(--ok)'
+                        : 'var(--text-3)',
+                }}
               >
                 {phStatus}
               </span>
@@ -138,13 +138,14 @@ export function RemoteBrowseTab({
               <span title={acgError}>
                 ACG:{' '}
                 <span
-                  className={
-                    acgStatus === 'error'
-                      ? 'text-[var(--danger)]'
-                      : acgStatus === 'ready'
-                        ? 'text-[var(--ok)]'
-                        : 'text-[var(--text-3)]'
-                  }
+                  style={{
+                    color:
+                      acgStatus === 'error'
+                        ? 'var(--danger)'
+                        : acgStatus === 'ready'
+                          ? 'var(--ok)'
+                          : 'var(--text-3)',
+                  }}
                 >
                   {acgStatus}
                 </span>
@@ -153,9 +154,17 @@ export function RemoteBrowseTab({
           </span>
         </div>
         {(phStatus === 'error' || (kind === 'material' && acgStatus === 'error')) && (
-          <div className="rounded bg-[var(--danger-soft)] p-2 text-[10px] text-[var(--danger)]">
+          <div
+            style={{
+              background: 'var(--danger-soft)',
+              color: 'var(--danger)',
+              borderRadius: 'var(--r-2)',
+              padding: 'var(--s-3)',
+              fontSize: 'var(--t-2xs)',
+            }}
+          >
             <div className="font-medium">Couldn’t reach the online library.</div>
-            <div className="text-[var(--danger)]/80">
+            <div style={{ opacity: 0.8 }}>
               Online assets need an internet connection — the built-in catalog works offline. Retry
               below.
             </div>
@@ -171,20 +180,14 @@ export function RemoteBrowseTab({
             )}
             <div className="mt-1 flex gap-1">
               {phStatus === 'error' && (
-                <button
-                  onClick={() => void refresh('polyhaven')}
-                  className="rounded bg-[var(--danger)] px-2 py-0.5 text-[var(--on-accent)]"
-                >
+                <Button variant="danger" size="sm" onClick={() => void refresh('polyhaven')}>
                   Retry Poly Haven
-                </button>
+                </Button>
               )}
               {kind === 'material' && acgStatus === 'error' && (
-                <button
-                  onClick={() => void refresh('ambientcg')}
-                  className="rounded bg-[var(--danger)] px-2 py-0.5 text-[var(--on-accent)]"
-                >
+                <Button variant="danger" size="sm" onClick={() => void refresh('ambientcg')}>
                   Retry ambientCG
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -193,7 +196,7 @@ export function RemoteBrowseTab({
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {filtered.length === 0 ? (
           phStatus === 'loading' || acgStatus === 'loading' ? (
-            <p className="py-6 text-center text-xs text-[var(--text-3)]">Loading catalog…</p>
+            <p className="panel-sub plain py-6 text-center">Loading catalog…</p>
           ) : totalLoaded === 0 ? (
             <EmptyState
               icon={Icon.Cube}
@@ -222,12 +225,9 @@ export function RemoteBrowseTab({
               ))}
             </div>
             {hiddenCount > 0 && (
-              <button
-                onClick={() => setLimit((n) => n + 120)}
-                className="mt-3 w-full rounded bg-[var(--surface-2)] py-1 text-[11px] text-[var(--text-2)] hover:bg-[var(--surface-3)]"
-              >
+              <Button size="sm" block className="mt-3" onClick={() => setLimit((n) => n + 120)}>
                 Show {Math.min(120, hiddenCount)} more ({hiddenCount} remaining)
-              </button>
+              </Button>
             )}
           </>
         )}
