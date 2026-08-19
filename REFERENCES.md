@@ -141,6 +141,17 @@ plain CSS/React (no Tailwind, no framer-motion). Steal the *mechanics*, port to 
   hover-expand, pause-on-hover, promise toasts) and mobile bottom-sheet spec (snap points,
   drag handle, momentum dismissal). [sonner](https://sonner.emilkowal.ski) ·
   [vaul](https://vaul.emilkowal.ski)
+- **Motion (motion.dev)** — framer-motion's successor; its documented technique of
+  compiling spring physics into native CSS `linear()` easing (plus FLIP layout-animation
+  and scroll-triggered/linked guidance) ports to plain CSS/WAAPI with zero dependencies.
+  [docs](https://motion.dev/docs/spring) · [CSS springs](https://motion.dev/docs/css)
+- **KokonutUI** — MIT React/Tailwind collection (~46 components); productivity-relevant
+  mechanics: hold-to-confirm button, expanding-label toolbar, direction-aware tab content,
+  smooth bottom-sheet stagger. Most of the rest is marketing-flash (banned here).
+  [site](https://kokonutui.com) · [source](https://github.com/kokonut-labs/kokonutui)
+- **Bklit UI** — MIT charts/dataviz registry (visx/d3/motion stack — not adoptable as a
+  dependency); pattern-level takeaway: animated ring/gauge sweeps paired with animated
+  numeric readouts. [site](https://bklit.com) · [source](https://github.com/bklit/bklit-ui)
 - **Laws of UX / animations.dev** — UX heuristics checklist (Fitts, Hick, Doherty <400ms
   feedback, goal-gradient) and the authority on productivity-tool motion taste (150–300ms
   ease-out enters, faster ease-in exits, transform/opacity only).
