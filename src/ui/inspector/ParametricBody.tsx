@@ -12,6 +12,7 @@ import {
 import { useMaterials } from '../../materials/useMaterial'
 import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
+import { Button } from '../controls/Button'
 import { ColorField, EnumField, IntegerField, NumberField } from './fields'
 import { InspectorSection } from './InspectorSection'
 import { MountHeightPresets } from './MountHeightPresets'
@@ -62,14 +63,14 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
   const cabinetIsOpen = item.props['open'] === 'yes'
   const openSection = canOpen ? (
     <InspectorSection title="Doors & drawers" defaultOpen>
-      <button
-        type="button"
+      <Button
+        size="sm"
+        block
         aria-pressed={cabinetIsOpen}
         onClick={() => setProp('open', cabinetIsOpen ? 'no' : 'yes')}
-        className="w-full rounded border border-[var(--border-2)] bg-[var(--surface)] px-2 py-1 text-xs font-medium hover:border-[var(--accent)]"
       >
         {cabinetIsOpen ? 'Close doors & drawers' : 'Open doors & drawers'}
-      </button>
+      </Button>
     </InspectorSection>
   ) : null
 
@@ -112,8 +113,8 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
     axis: 'W' | 'D' | 'H'
     value: number
   }) => (
-    <label className="flex flex-1 items-center gap-1 text-[11px]">
-      <span className="w-3.5 text-[var(--text-3)]">{label}</span>
+    <label className="flex flex-1 items-center gap-1" style={{ fontSize: 'var(--t-xs)' }}>
+      <span style={{ width: 14, flex: 'none', color: 'var(--text-3)' }}>{label}</span>
       <input
         type="number"
         min={0.05}
@@ -124,12 +125,13 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
         }}
-        className="w-full min-w-0 rounded border border-[var(--border-2)] bg-[var(--surface)] px-1 py-0.5 text-right font-mono"
+        className="input mono w-full min-w-0"
+        style={{ padding: 'var(--s-1) var(--s-2)', textAlign: 'right', fontSize: 'var(--t-xs)' }}
       />
     </label>
   )
   const AxisSlider = ({ label, prop, value }: { label: string; prop: string; value: number }) => (
-    <label className="flex items-center justify-between gap-2 text-xs">
+    <label className="flex items-center justify-between gap-2" style={{ fontSize: 'var(--t-sm)' }}>
       <span className="w-12">{label}</span>
       <input
         type="range"
@@ -138,9 +140,9 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
         step={0.05}
         value={value}
         onChange={(e) => updateItemProps(item.id, { [prop]: Number(e.target.value) })}
-        className="flex-1 accent-[var(--accent)]"
+        className="slider flex-1"
       />
-      <span className="w-12 text-right font-mono">{value.toFixed(2)}×</span>
+      <span className="mono w-12 text-right">{value.toFixed(2)}×</span>
     </label>
   )
 
@@ -163,7 +165,10 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
     >
       <div className="space-y-2">
         {keepProportions ? (
-          <label className="flex items-center justify-between gap-2 text-xs">
+          <label
+            className="flex items-center justify-between gap-2"
+            style={{ fontSize: 'var(--t-sm)' }}
+          >
             <span className="flex-1">Scale</span>
             <input
               type="range"
@@ -172,9 +177,9 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
               step={0.05}
               value={sx}
               onChange={(e) => setUniform(Number(e.target.value))}
-              className="flex-1 accent-[var(--accent)]"
+              className="slider flex-1"
             />
-            <span className="w-12 text-right font-mono">{sx.toFixed(2)}×</span>
+            <span className="mono w-12 text-right">{sx.toFixed(2)}×</span>
           </label>
         ) : (
           <>
@@ -183,7 +188,10 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
             <AxisSlider label="Depth" prop="scaleZ" value={sz} />
           </>
         )}
-        <label className="flex items-center gap-2 text-[11px] text-[var(--text-2)]">
+        <label
+          className="flex items-center gap-2"
+          style={{ fontSize: 'var(--t-xs)', color: 'var(--text-2)' }}
+        >
           <input
             type="checkbox"
             checked={keepProportions}
@@ -202,7 +210,7 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
           <DimField label="D" axis="D" value={baseD * sz} />
           <DimField label="H" axis="H" value={baseH * sy} />
         </div>
-        <div className="text-[11px] text-[var(--text-3)]">{dims}</div>
+        <div className="dims">{dims}</div>
       </div>
     </InspectorSection>
   )
@@ -223,8 +231,8 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
     <>
       {def.description ? (
         <p
-          className="text-xs"
           style={{
+            fontSize: 'var(--t-sm)',
             color: 'var(--text-2)',
             lineHeight: 'var(--lh-body)',
             marginBottom: 'var(--s-2)',

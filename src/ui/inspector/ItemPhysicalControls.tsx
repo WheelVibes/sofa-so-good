@@ -86,7 +86,10 @@ export function OpacityControl({ item }: { item: FurnitureItem }) {
         onChange={(v) => useStore.getState().updateItemProps(item.id, { opacity: v })}
         format={(v) => `${Math.round(v * 100)}%`}
       />
-      <label className="flex items-center gap-2 text-xs" style={{ marginTop: 'var(--s-1)' }}>
+      <label
+        className="flex items-center gap-2"
+        style={{ marginTop: 'var(--s-1)', fontSize: 'var(--t-sm)' }}
+      >
         <input type="checkbox" checked={itemHidden} onChange={() => toggleItemHidden(item.id)} />
         <span>Hide in 3D view</span>
       </label>

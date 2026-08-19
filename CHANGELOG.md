@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.18 — UIUX-12: inspector bodies migrate off Tailwind onto the token vocabulary
+
+IkeaBody / GltfBody / ParametricBody / SourceLine / MultiSelectPanel / IesProfilePicker
+(+ the ItemLight/ItemPhysical remainders) styled the flagship inspector panel with raw
+Tailwind color/size/radius utilities. Migrated: hand-rolled uppercase headers →
+`.sec-h`/`.panel-sub(.plain)`; raw `<details>` "Product info" → shared `Disclosure`;
+hand-rolled buttons → `<Button size="sm">` (finish chips use `.btn.on` + aria-pressed);
+"No compatible items imported yet." → shared `EmptyState`; `text-[10px]`/`rounded`/
+`font-mono`/`accent-[…]` utilities → `--t-*`/`--r-*` tokens, `.mono`, `.slider`,
+`.sec-desc`. Layout-only utilities (flex/gap/truncate) deliberately kept. Behaviour
+unchanged — inspector suite (38 tests) + full suite (8518) green; visually verified
+(wardrobe inspector + 3-item multi-select).
+
 ## v0.25.0.17 — UIUX-14: plan-editor toggles use the sanctioned .btn.on state, not btn-accent
 
 Eight boolean display toggles in the plan editor's "View ▾" menu (labels, dims,

@@ -24,7 +24,7 @@ export function ItemLightControls({ item }: { item: FurnitureItem }) {
       <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
         Light
       </div>
-      <div className="flex items-center justify-between gap-2 text-xs">
+      <div className="flex items-center justify-between gap-2" style={{ fontSize: 'var(--t-sm)' }}>
         <span>Colour</span>
         <ColorPicker
           ariaLabel="Light colour"

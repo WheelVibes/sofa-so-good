@@ -31,10 +31,7 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
 
 
 ### Stage 4 — off-system surface migrations (Tailwind → tokens)
-- [ ] UIUX-12: inspector bodies (IkeaBody/GltfBody/ParametricBody/SourceLine/
-  MultiSelectPanel/IesProfilePicker/ItemLightControls/ItemPhysicalControls): `.sec-h`
-  headers, `Button size="sm"`, `Disclosure` over raw `<details>`, `EmptyState` (split into
-  2–3 commits).
+
 - [ ] UIUX-13: catalog PacksTab/RemoteBrowseTab/ResolutionPicker/CachePane: hand-rolled
   accent buttons → `Button`/`.btn-accent`, `--danger-soft`, type ladder.
 

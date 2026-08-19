@@ -44,7 +44,7 @@ export function IesProfilePicker({ itemId, value }: { itemId: string; value: str
 
   return (
     <div className="space-y-1" style={{ marginTop: 'var(--s-2)' }}>
-      <div className="flex items-center justify-between gap-2 text-xs">
+      <div className="flex items-center justify-between gap-2" style={{ fontSize: 'var(--t-sm)' }}>
         <span>Photometry (IES)</span>
         <Select
           ariaLabel="IES photometric profile"
