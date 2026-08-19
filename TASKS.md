@@ -44,8 +44,6 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
 
 
 
-- [ ] UIUX-23: toast behavior upgrade — pause-timer + expand on hover, stack-collapse ≥3
-  (Sonner spec), keep existing notify API.
 
 - [ ] UIUX-27: skeleton-shimmer class + Doherty pass over async surfaces (catalog thumbs,
   DLC materials, cloud sync) — verify catalog blank-tile lazy-load look.

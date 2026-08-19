@@ -414,3 +414,14 @@ describe('UIUX-8 motion/hover token strays', () => {
     expect(components).toMatch(/\.panel-sub\.plain\s*\{[^}]*text-transform:\s*none/)
   })
 })
+
+describe('UIUX-23 toast stack collapse', () => {
+  it('collapses only with 3+ toasts, never the newest, and expands on hover/focus', () => {
+    const features = read('./features.css')
+    expect(features).toMatch(
+      /\.toast-host:has\(> :nth-child\(3\)\):not\(:hover\):not\(:focus-within\) > \.toast\.in:not\(:last-child\)/,
+    )
+    const rule = features.slice(features.indexOf('.toast-host:has(> :nth-child(3))'))
+    expect(rule.slice(0, 400)).toMatch(/max-height:\s*12px/)
+  })
+})

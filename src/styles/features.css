@@ -479,6 +479,19 @@
   opacity: 0; transform: translateY(10px) scale(0.98); transition: var(--dur) var(--ease);
 }
 .toast.in { opacity: 1; transform: none; }
+/* Sonner-style stack collapse (UIUX-23): once 3+ toasts are visible, the older
+   ones tuck down to a peek lip behind the newest so the stack can't wall off
+   the canvas; hovering or keyboard-focusing anywhere in the stack expands it
+   (and each toast's own hover/focus pause keeps WCAG 2.2.1 intact). Pure CSS —
+   max-height clip + a slight recede, transitioned on the motion tokens. */
+.toast { max-height: 240px; transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease), max-height var(--dur-2) var(--ease), box-shadow var(--dur) var(--ease); }
+.toast-host:has(> :nth-child(3)):not(:hover):not(:focus-within) > .toast.in:not(:last-child) {
+  max-height: 12px; overflow: hidden;
+  padding-top: 4px; padding-bottom: 4px;
+  opacity: 0.6; transform: scale(0.95);
+  transform-origin: 50% 100%;
+  box-shadow: none;
+}
 .toast .icn { color: var(--accent-soft-text); flex: none; }
 .toast.err .icn { color: var(--danger); }
 /* Success toast checkmark pop — a quick overshoot-scale on the tick as the toast

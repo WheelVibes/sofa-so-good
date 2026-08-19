@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.27 — UIUX-23: toast stack collapses past 2 (Sonner spec)
+
+With 3+ toasts visible, older ones now tuck down to a slim peek lip behind the newest
+(pure CSS: `:has(> :nth-child(3))` + max-height clip + a slight recede on the motion
+tokens) so a burst of notifications can't wall off the canvas; hovering or
+keyboard-focusing anywhere in the stack expands it. The existing per-toast
+pause-on-hover/focus (WCAG 2.2.1) and the notify API are untouched. Verified live
+(3-toast collapse assertion + collapsed/expanded shots); guarded in styleGuards.
+
 ## v0.25.0.26 — UIUX-24: EmptyState icons sit on a soft organic blob
 
 The shared EmptyState's icon square becomes a Haikei-style organic blob rendered in pure
