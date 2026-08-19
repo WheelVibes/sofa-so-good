@@ -45,8 +45,7 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
 
 
 
-- [ ] UIUX-27: skeleton-shimmer class + Doherty pass over async surfaces (catalog thumbs,
-  DLC materials, cloud sync) — verify catalog blank-tile lazy-load look.
+
 - [ ] UIUX-28: onboarding checklist (furnish→finish→light→share) — simple-tier flag,
   goal-gradient progress, dismissable (Watermelon onboarding-checklist pattern).
 - [ ] UIUX-29: guard test / adoption sweep — every new pattern documented in DESIGN.md as it

@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.28 — UIUX-27: skeleton audit — SharedCard gains its missing load shimmer
+
+Audited the async surfaces for the <400ms-feedback rule: CatalogCard (builtin thumbnail
+generation) and RemoteCard (provider thumbs) already show the P17 `.skeleton` shimmer;
+the FinishPicker Browse tab rides RemoteCard. The gap was **SharedCard** (admin R2
+library): its lazy proxied `<img>` sat as an invisible box for its whole network wait —
+it now shows the shared skeleton until the photo's bytes land (`onLoad`), matching
+RemoteCard. Catalog suite green (200).
+
 ## v0.25.0.27 — UIUX-23: toast stack collapses past 2 (Sonner spec)
 
 With 3+ toasts visible, older ones now tuck down to a slim peek lip behind the newest
