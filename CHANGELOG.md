@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.26 — UIUX-24: EmptyState icons sit on a soft organic blob
+
+The shared EmptyState's icon square becomes a Haikei-style organic blob rendered in pure
+CSS (asymmetric border-radius + a faint rotated accent halo `::before`), accent-tinted
+via `color-mix` tokens so all 5 themes × light/dark recolour it. Static — zero runtime/
+motion cost, no flag needed. Every empty list in the app (catalog filters, saved
+layouts, packs, comments, …) now reads warm instead of clinical. Verified light + dark.
+
 ## v0.25.0.25 — UIUX-22: progress-label shimmer (ambient-fx-gated)
 
 New `ShimmerText` control (Motion-Primitives text-shimmer mechanic: background-clip
