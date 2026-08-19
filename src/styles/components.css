@@ -331,6 +331,13 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 /* Inline button spinner (P16). Reuses @keyframes toastspin (features.css). */
 .btn .btn-spin { animation: toastspin 0.9s linear infinite; transform-origin: 50% 50%; flex: none; }
 .btn.is-loading { pointer-events: none; opacity: 0.7; }
+/* Copy/save confirmation pop (UIUX-25): the swapped-in check icon lands with a
+   small overshoot. Fill `backwards`, never `both`; reduced-motion zeroes it. */
+.done-pop { animation: donepop var(--dur-2) var(--ease-pop) backwards; }
+@keyframes donepop {
+  from { transform: scale(0.4); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
 /* Standalone two-state toggle button "armed" state (TB-8: 2-state toggles stay
    plain buttons — but they MUST show their on-state). Mirrors .icon-btn.on;
    the inset accent ring marks selection (accent border = selection, not hover). */

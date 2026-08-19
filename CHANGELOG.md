@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.24 — UIUX-25: copy buttons confirm inline (state morph + overshoot pop)
+
+New `useCopiedFlash` hook + `.done-pop` keyframe + **`--ease-pop`** token (a CSS
+approximation of the reference libraries' confirm springs — micro-elements only).
+ShareModal's Copy 3D link / Copy plan link / Copy summary now morph to a checked
+"Copied!" for ~1.6s after a successful copy (one flash per control, so quick successive
+copies can't mislabel a sibling), then revert; the icon lands with a small overshoot.
+Toast unchanged — feedback now also lives in the control the user pressed (Watermelon
+copy-confirm pattern). Pinned by `ShareModal.copyMorph.test.tsx` (fake-timer morph +
+revert) and driven live in a scenario (morph + revert observed via waitFor).
+
 ## v0.25.0.23 — UIUX-26: origin-aware popover/menu entrance
 
 The shared `pop` keyframe now scales from 0.97 alongside its fade/translate, and panels

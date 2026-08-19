@@ -66,6 +66,10 @@
   --dur-2: 300ms;
   --dur-3: 600ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Spring-ish overshoot for tiny state-confirmation pops (UIUX-25) — a CSS
+     approximation of the reference libraries' confirm springs. Micro-elements
+     only (icons, chips); never whole panels. */
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* Unified keyboard focus ring (P14): a 3px soft-accent halo, one token so
      every control matches. color-mix keeps it on-theme in all 5 palettes. */

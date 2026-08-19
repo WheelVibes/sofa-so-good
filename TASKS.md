@@ -49,8 +49,6 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
   (Sonner spec), keep existing notify API.
 - [ ] UIUX-24: Haikei-style inline SVG blob backdrops for EmptyState/onboarding (static,
   `currentColor`/accent-tinted, no runtime cost).
-- [ ] UIUX-25: copy/save state-morph confirmation on copy-link/copy buttons (icon crossfade
-  + spring-ish cubic-bezier).
 
 - [ ] UIUX-27: skeleton-shimmer class + Doherty pass over async surfaces (catalog thumbs,
   DLC materials, cloud sync) — verify catalog blank-tile lazy-load look.
