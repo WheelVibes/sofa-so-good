@@ -448,7 +448,7 @@ describe('UIUX-31 spring linear() tokens', () => {
     expect(tokens).toMatch(/--ease-spring-snappy:\s*linear\(0, 0\.022/)
     expect(tokens).toMatch(/--ease-spring-pop:\s*linear\(0, 0\.028/)
     // Fallback pairs must exist un-gated so older browsers resolve the tokens.
-    const beforeSupports = tokens.slice(0, tokens.indexOf('@supports'))
+    const beforeSupports = tokens.slice(0, tokens.indexOf('@supports (transition-timing-function'))
     expect(beforeSupports).toMatch(/--ease-spring-snappy:\s*cubic-bezier/)
     expect(beforeSupports).toMatch(/--ease-spring-pop:\s*cubic-bezier/)
   })
