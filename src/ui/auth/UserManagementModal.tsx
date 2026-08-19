@@ -1,4 +1,6 @@
-import { type FormEvent, useCallback, useEffect, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { useModalGuard } from '../../controls/modalGuard'
+import { useDialogFocus } from '../../controls/useDialogFocus'
 import { ApiError, apiFetch } from '../../features/api/client'
 import { useStore } from '../../state/store'
 import { EmptyState } from '../EmptyState'
@@ -23,6 +25,11 @@ interface AdminUser {
 export function UserManagementModal({ onClose }: { onClose: () => void }) {
   const currentUser = useStore((s) => s.currentUser)
   const refreshAuth = useStore((s) => s.refreshAuth)
+  const panelRef = useRef<HTMLDivElement>(null)
+  // Custom .modal-overlay (not the shared Modal): suppress global hotkeys and
+  // manage focus ourselves (UIUX-3; see src/ui/CLAUDE.md).
+  useModalGuard(true)
+  useDialogFocus(true, panelRef)
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -137,7 +144,11 @@ export function UserManagementModal({ onClose }: { onClose: () => void }) {
       aria-modal="true"
       aria-label="Manage accounts"
     >
-      <div className="panel" style={{ width: 'min(560px, 100%)', padding: 'var(--s-5)' }}>
+      <div
+        ref={panelRef}
+        className="panel"
+        style={{ width: 'min(560px, 100%)', padding: 'var(--s-5)' }}
+      >
         <div
           style={{
             display: 'flex',
