@@ -3,6 +3,7 @@ import { AiError, generatePhotoreal, getAiKey, setAiKey } from '../../ai/aiClien
 import { buildVariantPrompt, defaultPhotorealPrompt, STYLE_VARIANTS } from '../../ai/styleVariants'
 import { captureCanvasPng } from '../../scene/captureCanvas'
 import { useStore } from '../../state/store'
+import { ShimmerText } from '../controls/ShimmerText'
 import { Icon } from '../toolbar/icons'
 import { EMPTY_GALLERY, galleryReducer, ORIGINAL_ID, selectedEntry } from './variantGallery'
 
@@ -108,7 +109,7 @@ export function AiPhotorealSection() {
         disabled={status === 'running' || !key.trim()}
         onClick={run}
       >
-        {status === 'running' ? 'Generating…' : 'Make photoreal'}
+        {status === 'running' ? <ShimmerText>Generating…</ShimmerText> : 'Make photoreal'}
       </button>
       {msg && (
         <p

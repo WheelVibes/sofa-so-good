@@ -13,6 +13,7 @@ import { getHqRenderSource } from '../scene/pathtrace/hqRenderSource'
 import { useStore } from '../state/store'
 import { Button } from './controls/Button'
 import { Select } from './controls/Select'
+import { ShimmerText } from './controls/ShimmerText'
 import { Modal } from './Modal'
 import { useAmbientFx } from './useAmbientFx'
 
@@ -376,15 +377,19 @@ export function HqRenderModal() {
               padding: 16,
             }}
           >
-            {phase === 'building'
-              ? 'Preparing scene (building BVH)…'
-              : phase === 'denoising'
-                ? 'Denoising (OIDN AI)…'
-                : phase === 'error'
-                  ? errorKind === 'blank'
-                    ? "The render came back blank — this device's graphics driver may not support the high-quality renderer. The PNG export in File still works."
-                    : 'Could not start the render — your device may not support WebGL2. The PNG export in File still works.'
-                  : 'Pick a resolution and quality, then Start render. Higher samples = cleaner image, longer wait.'}
+            {phase === 'building' ? (
+              <ShimmerText>Preparing scene (building BVH)…</ShimmerText>
+            ) : phase === 'denoising' ? (
+              <ShimmerText>Denoising (OIDN AI)…</ShimmerText>
+            ) : phase === 'error' ? (
+              errorKind === 'blank' ? (
+                "The render came back blank — this device's graphics driver may not support the high-quality renderer. The PNG export in File still works."
+              ) : (
+                'Could not start the render — your device may not support WebGL2. The PNG export in File still works.'
+              )
+            ) : (
+              'Pick a resolution and quality, then Start render. Higher samples = cleaner image, longer wait.'
+            )}
           </div>
         ) : null}
       </div>

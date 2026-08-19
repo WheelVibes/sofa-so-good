@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.25 — UIUX-22: progress-label shimmer (ambient-fx-gated)
+
+New `ShimmerText` control (Motion-Primitives text-shimmer mechanic: background-clip
+text + a sweeping token-colour gradient, slow 2.2s loop): wraps in-flight status copy so
+long waits read as alive. Follows the P7 continuous-animation mandate — renders plain
+text unless `useAmbientFx()` allows it (dormant in the default Performance tier and under
+reduced-motion) and IntersectionObserver-pauses off-screen. Wired into the HQ render
+modal ("Preparing scene…", "Denoising…") and the AI photoreal "Generating…" button label.
+Gate pinned by `ShimmerText.test.tsx`; CSS asserted live (gradient, shimmerslide
+animation, text clip, paused play-state).
+
 ## v0.25.0.24 — UIUX-25: copy buttons confirm inline (state morph + overshoot pop)
 
 New `useCopiedFlash` hook + `.done-pop` keyframe + **`--ease-pop`** token (a CSS

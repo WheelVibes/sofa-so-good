@@ -331,6 +331,31 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 /* Inline button spinner (P16). Reuses @keyframes toastspin (features.css). */
 .btn .btn-spin { animation: toastspin 0.9s linear infinite; transform-origin: 50% 50%; flex: none; }
 .btn.is-loading { pointer-events: none; opacity: 0.7; }
+/* Progress-label shimmer (UIUX-22): a highlight sweeps across in-flight status
+   text. Mounted only via ShimmerText, which gates on useAmbientFx() (dormant in
+   the default Performance tier / reduced-motion) and IO-pauses it off-screen.
+   Token-only colours; the slow 2.2s loop follows the decorative-loops-are-slow
+   rule. Fill is irrelevant (infinite), play-state carries the pause. */
+.shimmer-text {
+  background: linear-gradient(
+    90deg,
+    var(--text-3) 0%,
+    var(--text-3) 42%,
+    var(--text) 50%,
+    var(--text-3) 58%,
+    var(--text-3) 100%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmerslide 2.2s linear infinite;
+}
+.shimmer-text.paused { animation-play-state: paused; }
+@keyframes shimmerslide {
+  from { background-position: 100% 0; }
+  to { background-position: -150% 0; }
+}
 /* Copy/save confirmation pop (UIUX-25): the swapped-in check icon lands with a
    small overshoot. Fill `backwards`, never `both`; reduced-motion zeroes it. */
 .done-pop { animation: donepop var(--dur-2) var(--ease-pop) backwards; }
