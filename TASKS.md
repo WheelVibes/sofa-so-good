@@ -53,9 +53,7 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
   truth — this could only ever be an *additional* affordance (e.g. the mobile clear-room
   confirm), needs a product decision first.
 
-- [ ] UIUX-36: FLIP reorder/filter animation (motion.dev layout-animation pattern) — a
-  `useFlip(depsKey)` hook (measure → invert → play via element.animate) for the layers
-  list and catalog grid filter changes; skipped under reduced-motion/perf tier. M.
+
 - [ ] UIUX-37: budget ring gauge (bklit ring / apple-activity-card pattern) — hand-rolled
   SVG stroke-dashoffset sweep as an alternative spend-vs-target readout. M; only if the
   Budget surface wants a second visual.

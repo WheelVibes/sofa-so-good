@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.36 — UIUX-36: FLIP row movement in the Layers panel
+
+New dependency-free `useFlip` hook (the motion.dev layout-animation mechanic): after a
+layout-affecting change, children carrying `data-flip-id` that MOVED glide from their
+old position to the new one (measure → invert → play via WAAPI, transform-only, 240ms
+ease-out). Additions/removals keep the existing entrance patterns; skipped under
+prefers-reduced-motion and for >60 elements. Wired into the Layers panel (`.lyr-body`,
+keyed on visible row order + collapse) so z-reorder / filter / group-collapse no longer
+teleport rows. Live-verified (WAAPI animations observed on rows after `reorderItems`).
+
 ## v0.25.0.35 — UIUX-34: direction-aware tab-panel transitions
 
 New `useSlideDir` hook + `.panel-slide[data-dir]` vocabulary (the smooth-tab content

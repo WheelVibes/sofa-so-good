@@ -1,4 +1,4 @@
-import { type CSSProperties, useMemo, useState } from 'react'
+import { type CSSProperties, useMemo, useRef, useState } from 'react'
 import { ROOMS } from '../../apartment/constants'
 import type { RoomId } from '../../apartment/types'
 import { useFeature } from '../../features/useFeature'
@@ -12,6 +12,7 @@ import {
   readFinishDragPayload,
 } from '../../state/finishDropApply'
 import { useStore } from '../../state/store'
+import { useFlip } from '../controls/useFlip'
 import { EmptyState } from '../EmptyState'
 import { Icon } from '../toolbar/icons'
 import { CategoryIcon } from './CategoryIcon'
@@ -84,6 +85,18 @@ export function LayersPanel() {
     : groups
   const matchCount = visibleGroups.reduce((n, g) => n + g.items.length, 0)
 
+  // FLIP row movement (UIUX-36): rows glide to their new slot on reorder /
+  // filter / collapse instead of teleporting. Keyed on the visible row order.
+  const lyrBodyRef = useRef<HTMLDivElement>(null)
+  const flipKey = useMemo(
+    () =>
+      visibleGroups
+        .map((g) => `${g.key}:${collapsed[g.key] ? 'c' : g.items.map((it) => it.id).join(',')}`)
+        .join('|'),
+    [visibleGroups, collapsed],
+  )
+  useFlip(lyrBodyRef, flipKey)
+
   return (
     <>
       {items.length > 0 ? (
@@ -100,7 +113,7 @@ export function LayersPanel() {
           </div>
         </div>
       ) : null}
-      <div className="lyr-body">
+      <div className="lyr-body" ref={lyrBodyRef}>
         {groups.length === 0 ? (
           <EmptyState
             icon={Icon.Layers}
@@ -182,6 +195,7 @@ export function LayersPanel() {
                     return (
                       <div
                         key={it.id}
+                        data-flip-id={it.id}
                         className={`lyr-row${selected ? ' sel' : ''}${
                           hiddenSet.has(it.id) ? ' hidden' : ''
                         }`}
