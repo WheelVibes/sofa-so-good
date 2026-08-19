@@ -38,6 +38,7 @@ import { MasterPaletteEditor } from './color/MasterPaletteEditor'
 import { Disclosure } from './controls/Disclosure'
 import { Select } from './controls/Select'
 import { useRovingTabs } from './controls/useRovingTabs'
+import { useSlideDir } from './controls/useSlideDir'
 import { MaterialComposer } from './finish/MaterialComposer'
 import { SwatchGroup } from './finish/swatches'
 import { Icon } from './toolbar/icons'
@@ -364,6 +365,9 @@ export function FinishPicker() {
   // flag is on, so a stale 'ceiling' selection falls back to floor rather than
   // showing an empty tab.
   const activeTab: Surface = lastSurface === 'ceiling' && !fCeiling ? 'floor' : lastSurface
+  // Direction-aware surface-tab switch (UIUX-34): panels slide in from the
+  // side the selection travelled toward (floor 0 · wall 1 · ceiling 2).
+  const slideDir = useSlideDir(activeTab === 'floor' ? 0 : activeTab === 'wall' ? 1 : 2)
 
   // WAI-ARIA tabs pattern for the surface tablist (TB-9): one Tab stop (the
   // active tab), Arrow/Home/End rove focus AND select (shared hook). Hooks must
@@ -592,7 +596,7 @@ export function FinishPicker() {
             ))}
           </div>
           {activeTab === 'floor' && (
-            <>
+            <div className="panel-slide" data-dir={slideDir ?? undefined}>
               <SwatchGroup
                 label="Floor"
                 hideLabel
@@ -630,10 +634,10 @@ export function FinishPicker() {
                   savedNameOf={savedNameFor}
                 />
               ) : null}
-            </>
+            </div>
           )}
           {activeTab === 'wall' && (
-            <>
+            <div className="panel-slide" data-dir={slideDir ?? undefined}>
               <SwatchGroup
                 label="Walls"
                 hideLabel
@@ -683,13 +687,13 @@ export function FinishPicker() {
                   savedNameOf={savedNameFor}
                 />
               ) : null}
-            </>
+            </div>
           )}
           {/* Ceiling paints from the wall (paint/plaster) pool — a ceiling is
               painted like a wall. Default is plain white (no finish), so a
               "Reset to white" clears back to it. Gated by the ceilingFinish flag. */}
           {fCeiling && activeTab === 'ceiling' ? (
-            <>
+            <div className="panel-slide" data-dir={slideDir ?? undefined}>
               <SwatchGroup
                 label="Ceiling"
                 hideLabel
@@ -741,7 +745,7 @@ export function FinishPicker() {
                   savedNameOf={savedNameFor}
                 />
               ) : null}
-            </>
+            </div>
           ) : null}
           {/* Accent walls (per-`wallId:roomId`): surface + manage this room's
               accents in one place. Creating one either taps a wall in the 3D

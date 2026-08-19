@@ -52,9 +52,6 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
   fills over ~1.5s, release resets). NOTE: the P35 confirm+Undo policy stays the source of
   truth — this could only ever be an *additional* affordance (e.g. the mobile clear-room
   confirm), needs a product decision first.
-- [ ] UIUX-34: direction-aware tab/panel content transitions (KokonutUI smooth-tab) —
-  when a Segmented/tab selection moves right, the incoming panel slides in from the
-  right (± translateX + fade, `--dur-1`); FinishPicker tabs + Drawings panel first. S.
 
 - [ ] UIUX-36: FLIP reorder/filter animation (motion.dev layout-animation pattern) — a
   `useFlip(depsKey)` hook (measure → invert → play via element.animate) for the layers

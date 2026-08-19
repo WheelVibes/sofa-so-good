@@ -10,6 +10,7 @@ import { useEffectiveHour } from '../scene/lighting/useEffectiveHour'
 import { useStore } from '../state/store'
 import { AuxPanelHead } from './AuxPanelHead'
 import { SliderField } from './controls/SliderField'
+import { useSlideDir } from './controls/useSlideDir'
 import { type ElevationPalette, elevationCaption, elevationSvg } from './elevation/elevationSvg'
 import { LuxLegend } from './lighting2d/LuxLegend'
 import { type LightingPalette, lightingPlanSvg } from './lighting2d/lightingPlanSvg'
@@ -88,6 +89,8 @@ export function ElevationPanel() {
   )
   const [sel, setSel] = useState(0)
   const [mode, setMode] = useState<DrawingMode>('elevations')
+  // Direction-aware tab switch (UIUX-34): lighting sits right of elevations.
+  const slideDir = useSlideDir(mode === 'elevations' ? 0 : 1)
 
   const merged = useMemo(
     () =>
@@ -157,145 +160,88 @@ export function ElevationPanel() {
           ))}
         </div>
 
-        {mode === 'elevations' ? (
-          elevations.length === 0 ? (
-            <div
-              style={{ fontSize: 'var(--t-xs)', color: 'var(--text-3)', padding: 'var(--s-3) 0' }}
-            >
-              No walls to draw yet.
-            </div>
+        <div key={mode} className="panel-slide" data-dir={slideDir ?? undefined}>
+          {mode === 'elevations' ? (
+            elevations.length === 0 ? (
+              <div
+                style={{ fontSize: 'var(--t-xs)', color: 'var(--text-3)', padding: 'var(--s-3) 0' }}
+              >
+                No walls to draw yet.
+              </div>
+            ) : (
+              <>
+                {/* Wall picker */}
+                <div
+                  className="seg"
+                  style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s-1)' }}
+                >
+                  {elevations.map((e, i) => (
+                    <button
+                      key={e.wallId}
+                      type="button"
+                      className={i === sel ? 'on' : ''}
+                      onClick={() => setSel(i)}
+                      style={{ flex: '0 0 auto' }}
+                    >
+                      Wall {i + 1}
+                    </button>
+                  ))}
+                </div>
+                {current ? (
+                  <>
+                    <div
+                      style={{
+                        fontSize: 'var(--t-xs)',
+                        color: 'var(--text-2)',
+                        margin: 'var(--s-3) 0 var(--s-2)',
+                      }}
+                    >
+                      {elevationCaption(current, sel, units)}
+                    </div>
+                    {/* The SVG scales to the panel width via its viewBox. */}
+                    <div
+                      className="elev-canvas"
+                      style={{
+                        width: '100%',
+                        background: 'var(--surface-2)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--r-2)',
+                        padding: 'var(--s-2)',
+                      }}
+                      // biome-ignore lint/security/noDangerouslySetInnerHtml: SVG is built by elevationSvg with all user text HTML-escaped.
+                      dangerouslySetInnerHTML={{ __html: svg }}
+                    />
+                  </>
+                ) : null}
+              </>
+            )
           ) : (
             <>
-              {/* Wall picker */}
-              <div className="seg" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s-1)' }}>
-                {elevations.map((e, i) => (
-                  <button
-                    key={e.wallId}
-                    type="button"
-                    className={i === sel ? 'on' : ''}
-                    onClick={() => setSel(i)}
-                    style={{ flex: '0 0 auto' }}
-                  >
-                    Wall {i + 1}
-                  </button>
-                ))}
-              </div>
-              {current ? (
-                <>
-                  <div
-                    style={{
-                      fontSize: 'var(--t-xs)',
-                      color: 'var(--text-2)',
-                      margin: 'var(--s-3) 0 var(--s-2)',
-                    }}
-                  >
-                    {elevationCaption(current, sel, units)}
-                  </div>
-                  {/* The SVG scales to the panel width via its viewBox. */}
-                  <div
-                    className="elev-canvas"
-                    style={{
-                      width: '100%',
-                      background: 'var(--surface-2)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 'var(--r-2)',
-                      padding: 'var(--s-2)',
-                    }}
-                    // biome-ignore lint/security/noDangerouslySetInnerHtml: SVG is built by elevationSvg with all user text HTML-escaped.
-                    dangerouslySetInnerHTML={{ __html: svg }}
+              {/* ── 3D lux heatmap toggle (LP5 tail / LP6) ──────────────────── */}
+              <div style={{ margin: '0 0 var(--s-2)' }}>
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--s-2)',
+                    fontSize: 'var(--t-xs)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={luxOverlayOn}
+                    onChange={(e) => setLuxOverlayOn(e.target.checked)}
                   />
-                </>
-              ) : null}
-            </>
-          )
-        ) : (
-          <>
-            {/* ── 3D lux heatmap toggle (LP5 tail / LP6) ──────────────────── */}
-            <div style={{ margin: '0 0 var(--s-2)' }}>
-              <label
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--s-2)',
-                  fontSize: 'var(--t-xs)',
-                  cursor: 'pointer',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={luxOverlayOn}
-                  onChange={(e) => setLuxOverlayOn(e.target.checked)}
-                />
-                <span style={{ flex: 1 }}>Show light levels on the floor (3D)</span>
-              </label>
+                  <span style={{ flex: 1 }}>Show light levels on the floor (3D)</span>
+                </label>
 
-              {luxOverlayOn && (
-                <>
-                  {/* LP6 — time-of-day scrub + play button.
+                {luxOverlayOn && (
+                  <>
+                    {/* LP6 — time-of-day scrub + play button.
                       Reuses the existing manualHour / setManualHour store state
                       (same source as the Scene → Time-of-day slider), so this
                       control and the Scene slider are in sync. */}
-                  <div
-                    style={{
-                      marginTop: 'var(--s-2)',
-                      padding: 'var(--s-2)',
-                      background: 'var(--surface-2)',
-                      borderRadius: 'var(--r-2)',
-                      border: '1px solid var(--border)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 'var(--s-2)',
-                        marginBottom: 'var(--s-1)',
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: 'var(--t-2xs)',
-                          color: 'var(--text-3)',
-                          flex: 1,
-                        }}
-                      >
-                        Time of day
-                      </span>
-                      {/* Play/stop button — auto-advances manualHour at 1 hr/s. */}
-                      <button
-                        type="button"
-                        className={`icon-btn${luxPlaying ? ' active' : ''}`}
-                        aria-label={luxPlaying ? 'Stop playback' : 'Play across the day'}
-                        title={luxPlaying ? 'Stop' : 'Play across the day'}
-                        onClick={() => setLuxPlaying(!luxPlaying)}
-                        style={{ padding: 'var(--s-1) var(--s-2)', fontSize: 'var(--t-2xs)' }}
-                      >
-                        {luxPlaying ? '⏹' : '▶'}
-                      </button>
-                    </div>
-                    {/* The live clock IS the slider's label (TimeOfDaySlider pattern —
-                        the header above already names the section, so a separate
-                        readout would show the value twice). */}
-                    <SliderField
-                      label={formatClock(effectiveHour)}
-                      ariaLabel="Time of day for lux overlay"
-                      min={0}
-                      max={24}
-                      step={0.25}
-                      value={effectiveHour}
-                      onChange={(v) => {
-                        if (luxPlaying) setLuxPlaying(false)
-                        setManualHour(v)
-                      }}
-                      hideReadout
-                    />
-                  </div>
-
-                  {/* LP6 — per-fixture exclusion.
-                      Shown only when fixtures are present. Each row toggles the
-                      fixture's contribution out of the heatmap so the user can
-                      isolate what each light adds. */}
-                  {lighting.lights.length > 0 && (
                     <div
                       style={{
                         marginTop: 'var(--s-2)',
@@ -307,163 +253,229 @@ export function ElevationPanel() {
                     >
                       <div
                         style={{
-                          fontSize: 'var(--t-2xs)',
-                          color: 'var(--text-3)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 'var(--s-2)',
                           marginBottom: 'var(--s-1)',
                         }}
                       >
-                        Fixture contributions — uncheck to isolate
+                        <span
+                          style={{
+                            fontSize: 'var(--t-2xs)',
+                            color: 'var(--text-3)',
+                            flex: 1,
+                          }}
+                        >
+                          Time of day
+                        </span>
+                        {/* Play/stop button — auto-advances manualHour at 1 hr/s. */}
+                        <button
+                          type="button"
+                          className={`icon-btn${luxPlaying ? ' active' : ''}`}
+                          aria-label={luxPlaying ? 'Stop playback' : 'Play across the day'}
+                          title={luxPlaying ? 'Stop' : 'Play across the day'}
+                          onClick={() => setLuxPlaying(!luxPlaying)}
+                          style={{ padding: 'var(--s-1) var(--s-2)', fontSize: 'var(--t-2xs)' }}
+                        >
+                          {luxPlaying ? '⏹' : '▶'}
+                        </button>
                       </div>
-                      {lighting.lights.map((light) => {
-                        const excluded = luxExcludedIds.includes(light.id)
-                        return (
-                          <label
-                            key={light.id}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 'var(--s-2)',
-                              fontSize: 'var(--t-2xs)',
-                              cursor: 'pointer',
-                              padding: 'var(--s-1) 0',
-                              color: excluded ? 'var(--text-3)' : 'var(--text)',
-                              textDecoration: excluded ? 'line-through' : 'none',
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={!excluded}
-                              onChange={() => toggleLuxExcluded(light.id)}
-                            />
-                            <span
+                      {/* The live clock IS the slider's label (TimeOfDaySlider pattern —
+                        the header above already names the section, so a separate
+                        readout would show the value twice). */}
+                      <SliderField
+                        label={formatClock(effectiveHour)}
+                        ariaLabel="Time of day for lux overlay"
+                        min={0}
+                        max={24}
+                        step={0.25}
+                        value={effectiveHour}
+                        onChange={(v) => {
+                          if (luxPlaying) setLuxPlaying(false)
+                          setManualHour(v)
+                        }}
+                        hideReadout
+                      />
+                    </div>
+
+                    {/* LP6 — per-fixture exclusion.
+                      Shown only when fixtures are present. Each row toggles the
+                      fixture's contribution out of the heatmap so the user can
+                      isolate what each light adds. */}
+                    {lighting.lights.length > 0 && (
+                      <div
+                        style={{
+                          marginTop: 'var(--s-2)',
+                          padding: 'var(--s-2)',
+                          background: 'var(--surface-2)',
+                          borderRadius: 'var(--r-2)',
+                          border: '1px solid var(--border)',
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 'var(--t-2xs)',
+                            color: 'var(--text-3)',
+                            marginBottom: 'var(--s-1)',
+                          }}
+                        >
+                          Fixture contributions — uncheck to isolate
+                        </div>
+                        {lighting.lights.map((light) => {
+                          const excluded = luxExcludedIds.includes(light.id)
+                          return (
+                            <label
+                              key={light.id}
                               style={{
-                                flex: 1,
-                                minWidth: 0,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 'var(--s-2)',
+                                fontSize: 'var(--t-2xs)',
+                                cursor: 'pointer',
+                                padding: 'var(--s-1) 0',
+                                color: excluded ? 'var(--text-3)' : 'var(--text)',
+                                textDecoration: excluded ? 'line-through' : 'none',
                               }}
                             >
-                              {light.label}
-                            </span>
-                          </label>
-                        )
-                      })}
+                              <input
+                                type="checkbox"
+                                checked={!excluded}
+                                onChange={() => toggleLuxExcluded(light.id)}
+                              />
+                              <span
+                                style={{
+                                  flex: 1,
+                                  minWidth: 0,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {light.label}
+                              </span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    <div style={{ marginTop: 'var(--s-1)' }}>
+                      <LuxLegend />
                     </div>
-                  )}
+                  </>
+                )}
+              </div>
 
-                  <div style={{ marginTop: 'var(--s-1)' }}>
-                    <LuxLegend />
-                  </div>
-                </>
+              {/* Fixture count summary */}
+              {lighting.lights.length === 0 ? (
+                <div
+                  style={{
+                    fontSize: 'var(--t-xs)',
+                    color: 'var(--text-3)',
+                    padding: 'var(--s-3) 0',
+                  }}
+                >
+                  No light fixtures placed yet.
+                </div>
+              ) : (
+                <div
+                  style={{
+                    fontSize: 'var(--t-xs)',
+                    color: 'var(--text-2)',
+                    margin: '0 0 var(--s-2)',
+                  }}
+                >
+                  {lighting.lights.length} fixture{lighting.lights.length > 1 ? 's' : ''} ·{' '}
+                  {lighting.schedule.length} type{lighting.schedule.length > 1 ? 's' : ''}
+                </div>
               )}
-            </div>
-
-            {/* Fixture count summary */}
-            {lighting.lights.length === 0 ? (
-              <div
-                style={{ fontSize: 'var(--t-xs)', color: 'var(--text-3)', padding: 'var(--s-3) 0' }}
-              >
-                No light fixtures placed yet.
-              </div>
-            ) : (
-              <div
-                style={{
-                  fontSize: 'var(--t-xs)',
-                  color: 'var(--text-2)',
-                  margin: '0 0 var(--s-2)',
-                }}
-              >
-                {lighting.lights.length} fixture{lighting.lights.length > 1 ? 's' : ''} ·{' '}
-                {lighting.schedule.length} type{lighting.schedule.length > 1 ? 's' : ''}
-              </div>
-            )}
-            {lightFigures.map((fig) => (
-              <div key={fig.key} style={{ marginBottom: 'var(--s-2)' }}>
-                {fig.caption ? (
+              {lightFigures.map((fig) => (
+                <div key={fig.key} style={{ marginBottom: 'var(--s-2)' }}>
+                  {fig.caption ? (
+                    <div
+                      style={{
+                        fontSize: 'var(--t-xs)',
+                        color: 'var(--text-2)',
+                        marginBottom: 'var(--s-1)',
+                      }}
+                    >
+                      {fig.caption}
+                    </div>
+                  ) : null}
+                  <div
+                    style={{
+                      width: '100%',
+                      background: 'var(--surface-2)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--r-2)',
+                      padding: 'var(--s-2)',
+                    }}
+                    // biome-ignore lint/security/noDangerouslySetInnerHtml: SVG is built by lightingPlanSvg from numeric data + fixed palette (no user HTML).
+                    dangerouslySetInnerHTML={{ __html: fig.svg }}
+                  />
+                </div>
+              ))}
+              {/* Per-room lux estimate vs recommended residential levels (LP5). */}
+              {roomLux.length > 0 && (
+                <div style={{ marginTop: 'var(--s-3)' }}>
                   <div
                     style={{
                       fontSize: 'var(--t-xs)',
+                      fontWeight: 600,
                       color: 'var(--text-2)',
                       marginBottom: 'var(--s-1)',
                     }}
                   >
-                    {fig.caption}
+                    Estimated light levels
                   </div>
-                ) : null}
-                <div
-                  style={{
-                    width: '100%',
-                    background: 'var(--surface-2)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--r-2)',
-                    padding: 'var(--s-2)',
-                  }}
-                  // biome-ignore lint/security/noDangerouslySetInnerHtml: SVG is built by lightingPlanSvg from numeric data + fixed palette (no user HTML).
-                  dangerouslySetInnerHTML={{ __html: fig.svg }}
-                />
-              </div>
-            ))}
-            {/* Per-room lux estimate vs recommended residential levels (LP5). */}
-            {roomLux.length > 0 && (
-              <div style={{ marginTop: 'var(--s-3)' }}>
-                <div
-                  style={{
-                    fontSize: 'var(--t-xs)',
-                    fontWeight: 600,
-                    color: 'var(--text-2)',
-                    marginBottom: 'var(--s-1)',
-                  }}
-                >
-                  Estimated light levels
-                </div>
-                {roomLux.map((r) => (
-                  <div
-                    key={r.roomId}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 'var(--s-2)',
-                      fontSize: 'var(--t-xs)',
-                      padding: 'var(--s-1) 0',
-                      borderTop: '1px solid var(--border)',
-                    }}
-                  >
-                    <span
+                  {roomLux.map((r) => (
+                    <div
+                      key={r.roomId}
                       style={{
-                        flex: 1,
-                        minWidth: 0,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--s-2)',
+                        fontSize: 'var(--t-xs)',
+                        padding: 'var(--s-1) 0',
+                        borderTop: '1px solid var(--border)',
                       }}
                     >
-                      {r.roomName}
-                    </span>
-                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-                      {Math.round(r.lux)} lx
-                    </span>
-                    <span style={{ color: 'var(--text-3)', fontVariantNumeric: 'tabular-nums' }}>
-                      rec {r.recommended.min}–{r.recommended.max}
-                    </span>
-                    <span className={`badge ${LUX_BADGE[r.status].cls}`}>
-                      {LUX_BADGE[r.status].label}
-                    </span>
+                      <span
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {r.roomName}
+                      </span>
+                      <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {Math.round(r.lux)} lx
+                      </span>
+                      <span style={{ color: 'var(--text-3)', fontVariantNumeric: 'tabular-nums' }}>
+                        rec {r.recommended.min}–{r.recommended.max}
+                      </span>
+                      <span className={`badge ${LUX_BADGE[r.status].cls}`}>
+                        {LUX_BADGE[r.status].label}
+                      </span>
+                    </div>
+                  ))}
+                  <div
+                    style={{
+                      fontSize: 'var(--t-2xs)',
+                      color: 'var(--text-3)',
+                      marginTop: 'var(--s-1)',
+                    }}
+                  >
+                    Lumen-method estimate (utilisation 0.45) vs residential guidance.
                   </div>
-                ))}
-                <div
-                  style={{
-                    fontSize: 'var(--t-2xs)',
-                    color: 'var(--text-3)',
-                    marginTop: 'var(--s-1)',
-                  }}
-                >
-                  Lumen-method estimate (utilisation 0.45) vs residential guidance.
                 </div>
-              </div>
-            )}
-          </>
-        )}
+              )}
+            </>
+          )}
+        </div>
       </div>
     </aside>
   )

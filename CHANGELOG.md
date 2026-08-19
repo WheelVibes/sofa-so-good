@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.35 — UIUX-34: direction-aware tab-panel transitions
+
+New `useSlideDir` hook + `.panel-slide[data-dir]` vocabulary (the smooth-tab content
+mechanic): when a tab/segment selection moves right, the incoming panel slides in from
+the right (±14px translate + fade on `--dur-1 --ease-out`, fill backwards; null on
+mount so nothing slides at open; reduced-motion zeroes it). Wired into the Drawings
+panel (Elevations ⇄ Lighting) and the FinishPicker surface tabs (Floor · Walls ·
+Ceiling). Hook unit-tested; live assertions confirm no-dir-at-mount, `right` on
+forward, `left` on back. Full suite green (8544).
+
 ## v0.25.0.34 — UIUX-35: scroll-edge shadows extend to dock panels + layers list
 
 The UIUX-30 sticky gradient lips now cover every block `.panel-body` scroller (inspector,

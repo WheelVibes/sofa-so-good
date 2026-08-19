@@ -363,6 +363,18 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 /* Inline button spinner (P16). Reuses @keyframes toastspin (features.css). */
 .btn .btn-spin { animation: toastspin 0.9s linear infinite; transform-origin: 50% 50%; flex: none; }
 .btn.is-loading { pointer-events: none; opacity: 0.7; }
+/* Direction-aware panel switch (UIUX-34): the incoming tab/segment panel
+   slides in from the side the selection travelled toward (useSlideDir sets
+   data-dir; a remount `key` replays the entrance). No data-dir = plain fade.
+   Fill `backwards`, never `both`; reduced-motion zeroes it. */
+.panel-slide { animation: panelSlideIn var(--dur-1) var(--ease-out) backwards; }
+.panel-slide[data-dir='right'] { --slide-from: 14px; }
+.panel-slide[data-dir='left'] { --slide-from: -14px; }
+@keyframes panelSlideIn {
+  from { opacity: 0; transform: translateX(var(--slide-from, 0)); }
+  to { opacity: 1; transform: none; }
+}
+
 /* Press feedback (UIUX-32, the Motion `whileTap` equivalent in one rule): a
    uniform tactile scale-down while a button is actively pressed. Transform-only
    (rides each control's existing transition; the global reduced-motion kill
