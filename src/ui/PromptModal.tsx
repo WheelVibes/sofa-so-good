@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../state/store'
+import { Button } from './controls/Button'
 import { Modal } from './Modal'
 
 /**
@@ -30,7 +31,22 @@ export function PromptModal() {
   const submit = () => resolvePrompt(text.trim() || null)
 
   return (
-    <Modal open onClose={() => resolvePrompt(null)} title={req.title} panelId="promptModal">
+    <Modal
+      open
+      onClose={() => resolvePrompt(null)}
+      title={req.title}
+      panelId="promptModal"
+      footer={
+        <div className="panel-foot">
+          <Button variant="soft" onClick={() => resolvePrompt(null)}>
+            Cancel
+          </Button>
+          <Button variant="accent" onClick={submit}>
+            {req.submitLabel ?? 'OK'}
+          </Button>
+        </div>
+      }
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault()
@@ -54,14 +70,6 @@ export function PromptModal() {
           className="input"
           aria-label={req.label ?? req.title}
         />
-        <div className="flex justify-end gap-2">
-          <button type="button" className="btn btn-soft" onClick={() => resolvePrompt(null)}>
-            Cancel
-          </button>
-          <button type="submit" className="btn btn-accent">
-            {req.submitLabel ?? 'OK'}
-          </button>
-        </div>
       </form>
     </Modal>
   )

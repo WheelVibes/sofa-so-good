@@ -297,10 +297,7 @@ export function QuoteTemplateModal() {
       sub={ratesEnabled ? 'Branding, notes, tax & rates' : 'Branding, notes & tax settings'}
       width="var(--modal-sm)"
       footer={
-        <div
-          className="panel-foot"
-          style={{ display: 'flex', gap: 'var(--s-1)', justifyContent: 'flex-end' }}
-        >
+        <div className="panel-foot">
           <button
             type="button"
             className="btn"

@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.7 — UIUX-5: ConfirmModal/PromptModal actions → Modal `footer` + shared `.panel-foot`
+
+The two most-used prompts rendered their action rows inside the scrollable body while 10
+sibling modals use the `footer` prop. Both now pass a footer on the new **`.panel-foot`**
+class (components.css) — flex end-aligned actions on `.panel-body`'s horizontal rhythm.
+`.panel-foot` was already referenced by QuoteTemplateModal but *defined nowhere* (footers
+sat flush against the panel edge); it now has one definition and QuoteTemplateModal drops
+its inline duplicate. Both modals migrate to the `<Button>` primitive, and `ButtonProps`
+gains React-19 `ref`-as-prop support (lands on the underlying `<button>`). Enter-confirms
+and the Cancel safe-default focus are unchanged (new `ConfirmModal.test.tsx`, 3 tests).
+Follow-up UIUX-17 filed: migrate the other footer wrappers onto `.panel-foot`.
+
 ## v0.25.0.6 — UIUX-4: modal width literals → --modal-xs/-sm/-md/-lg tokens (18 call sites)
 
 Every `Modal width` numeric literal now uses the P11 token scale (the audit found

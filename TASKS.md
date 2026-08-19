@@ -22,8 +22,7 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, visual verify.
 ### Stage 2 — token consistency (small sweeps)
 
-- [ ] UIUX-5: ConfirmModal + PromptModal action rows → `Modal`'s `footer` prop (10 siblings
-  already do).
+
 - [ ] UIUX-6: shared `.form-err` class (4 modals paste `color: var(--danger, #c0392b)` — dead
   hex literal); define or drop `--on-scrim` (PresentationMode renders literal #fff);
   ProductTour scrim `rgba(20,16,12,.55)` + raw transition → tokens.
@@ -52,6 +51,13 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
   `.seg-btn.on` grammar (match 3D ViewMenu); same `btn-accent`-as-open-state leak in
   PlanEditorHeader/LevelMenu/PlanToolMenu/PlanMenu.
 - [ ] UIUX-15: GraphicsSettings hand-built overlay → shared `Modal` (gains focus trap).
+- [ ] UIUX-17: migrate the ~10 existing Modal `footer` wrappers (HqRender, VersionCompare,
+  RenderCompare, SmartStartWizard, UploadMaterialDialog, …) onto the new shared
+  `.panel-foot` row (today they hand-roll flex wrappers with NO padding — footers sit
+  flush against the panel edge); override justify inline only for split layouts.
+- [ ] UIUX-18: UserManagementModal uses undefined `var(--t-1)`/`var(--t-3xs)` font-size
+  tokens (scale is --t-2xs..--t-xl) + repeats the panel-sub un-uppercase hack — fold into
+  UIUX-7/12 sweeps.
 - [ ] UIUX-16: literal burn-down — FinishPicker `#ccc` fallbacks + inline rows,
   ParametricControls 26px/radius-6 swatch ×3 → `.swatch`, WebGLFallback/ErrorBoundary
   off-system, LoadingOverlay/PresentationMode grandfathered inline px.

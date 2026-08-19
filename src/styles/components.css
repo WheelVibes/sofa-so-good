@@ -115,6 +115,13 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
    intro copy); a margin scrolls with the content, so sticky headers below it
    are unaffected. */
 .modal-overlay .panel-body > :first-child:not(.sec) { margin-top: var(--s-4); }
+/* Modal footer row (the `Modal` `footer` prop): actions right-aligned on the
+   same horizontal rhythm as .panel-body. Override justify-content inline for
+   split layouts (e.g. a leading option cluster + trailing CTA). */
+.panel-foot {
+  display: flex; align-items: center; justify-content: flex-end; gap: var(--s-2);
+  padding: 0 var(--s-4) var(--s-4);
+}
 
 /* ---- Thin, aesthetic scrollbars ------------------------------ */
 * { scrollbar-width: thin; scrollbar-color: var(--border-2) transparent; }
