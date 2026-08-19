@@ -2307,7 +2307,7 @@ export function FloorPlanEditor() {
       <button
         type="button"
         onClick={() => a.setPlanWallMultiAdd(!planWallMultiAdd)}
-        className={`btn btn-sm${planWallMultiAdd ? ' btn-accent' : ''}`}
+        className={`btn btn-sm${planWallMultiAdd ? ' on' : ''}`}
         title="Select multiple walls: tap walls to add/remove them (or Shift-click). Then Delete or Lock them together."
         aria-pressed={planWallMultiAdd}
       >

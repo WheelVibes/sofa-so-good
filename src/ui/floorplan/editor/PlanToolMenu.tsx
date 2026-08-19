@@ -31,7 +31,7 @@ export function PlanToolMenu({
       <button
         ref={ref}
         type="button"
-        className={`btn btn-sm${open ? ' btn-accent' : ''}`}
+        className={`btn btn-sm${open ? ' on' : ''}`}
         style={{
           flex: 1,
           minWidth: 0,

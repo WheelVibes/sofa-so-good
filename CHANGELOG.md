@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.17 — UIUX-14: plan-editor toggles use the sanctioned .btn.on state, not btn-accent
+
+Eight boolean display toggles in the plan editor's "View ▾" menu (labels, dims,
+furniture, MEP, hackability, skeleton, all-levels) plus the header catalog button, the
+LevelMenu/PlanToolMenu/PlanMenu open-states and the wall multi-add toggle all showed
+their armed state with the `btn-accent` CTA fill — the accent-as-state grammar leak.
+All now use `.btn.on` (accent-soft + selection ring, UIUX-2) so accent fill again means
+"primary action" only (the header's Done/Exit CTAs keep it). New
+`PlanViewMenuActions.test.tsx` pins the grammar. While verifying, discovered the
+pre-existing UIUX-19 harness bug (plan menus un-openable headlessly — the existing
+plan-furniture-rotate guard fails on staging); recorded in TASKS.md.
+
 ## v0.25.0.16 — UIUX-15: GraphicsSettings on the shared Modal
 
 GraphicsSettings hand-built its own `.modal-overlay` shell (own portal, own Escape
