@@ -655,15 +655,23 @@ body.mobile {
   /* The catalog card's favourite ♥ reveals on `:hover` on desktop — but touch has
      no hover, so on a phone it stays invisible and unreachable. Show it always on
      mobile, enlarged for touch. The whole corner action stack (♥/↻/×) matches. */
-  .fav-btn { opacity: 1; width: 32px; height: 32px; }
+  .fav-btn { opacity: 1; width: 40px; height: 40px; }
+  /* 40px visual + the 4px stack gap = a 44px touch pitch (UIUX-9); the ::after
+     pads each button 2px into the gap so the effective target hits the 44px
+     floor without adjacent extensions overlapping. */
   .card-acts .fav-btn,
   .card-acts .coll-x,
-  .card-acts .coll-refresh { width: 32px; height: 32px; }
+  .card-acts .coll-refresh { width: 40px; height: 40px; position: relative; }
+  .card-acts .fav-btn::after,
+  .card-acts .coll-x::after,
+  .card-acts .coll-refresh::after { content: ''; position: absolute; inset: -2px; }
 
   /* Same hover-reveal trap on the Layers panel's group hide-all / lock-all eyes
      (`.lyr-geye`): opacity:0 until `.lyr-ghead-row:hover`, so on touch you can't
      turn a group hidden/locked in the first place. Show + enlarge them on mobile. */
-  .lyr-geye { opacity: 1; width: 30px; height: 30px; }
+  /* Full 44px touch floor — the two group eyes sit adjacent with no gap, so the
+     size itself must reach 44 (a pseudo-element pad would overlap the neighbour). */
+  .lyr-geye { opacity: 1; width: 44px; height: 44px; }
 
   /* Layers row actions (hide/lock/delete) reveal on hover/focus on desktop; touch
      has no hover, so keep them visible on mobile (matches the .lyr-geye fix). */

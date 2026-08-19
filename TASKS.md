@@ -27,8 +27,7 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
 
 
 ### Stage 3 — mobile/a11y + list vocab
-- [ ] UIUX-9: 44px touch floor — catalog-card ♥/↻/× (32px) + `.lyr-geye` (30px) get the same
-  `::after { inset:-9px }` extension panel-head icons already have (responsive.css).
+
 - [ ] UIUX-10: labelled bare `.slider` → `SliderField` (ItemLightControls Brightness,
   PaintVizModal Coverage, ElevationPanel lux hour, TiltControls, ItemPhysicalControls ×2).
 - [ ] UIUX-11: FileMenu saved-layouts list → `.saved-view-row` vocabulary + `EmptyState`

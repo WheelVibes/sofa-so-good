@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.11 — UIUX-9: catalog card actions + layers group eyes reach the 44px touch floor
+
+The catalog card corner stack (♥/↻/×) was 32px on mobile and the Layers group
+hide-all/lock-all eyes 30px — both below the app's own 44px floor (panel-head icons
+already had ::after extensions). Card actions: 40px visual + 2px ::after pad into the
+4px stack gap = 44px pitch with no overlapping extensions; group eyes: sized to 44px
+outright (they sit adjacent with no gap, so a pseudo pad would overlap the neighbour).
+Verified at 390×844 with getBoundingClientRect assertions + screenshots.
+
 ## v0.25.0.10 — UIUX-8: motion/hover token strays + dead #sharePanel width override
 
 Walk-HUD auto-hide fade `600ms ease` → `var(--dur-3) var(--ease-out)`; boot-loader fade +
