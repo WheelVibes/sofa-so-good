@@ -41,8 +41,7 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
   UIUX-14 class change; PlanMenu opens fine in RTL + for real pointer input). Root-cause
   the closer, fix or re-rung the scenario.
 ### Stage 5 — polish patterns from research (each flag-gated, reduced-motion-safe)
-- [ ] UIUX-20: Segmented control sliding active-pill (Watermelon fluid-tabs mechanic; CSS
-  transform on measured offset).
+
 - [ ] UIUX-21: animated number on Budget HUD/panel totals (rAF lerp, tabular-nums,
   reduced-motion snaps).
 - [ ] UIUX-22: text-shimmer on loading/AI-progress labels (background-clip gradient;

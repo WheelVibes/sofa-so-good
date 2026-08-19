@@ -535,6 +535,21 @@ body.mobile .tip::after { content: none; }
 .seg button.on { background: var(--surface-solid); color: var(--text); box-shadow: 0 1px 2px oklch(0 0 0 / 0.08); }
 .seg.accent button.on { background: var(--accent); color: var(--on-accent); box-shadow: none; }
 .seg button:focus-visible { box-shadow: var(--focus-ring); }
+/* Sliding active pill (UIUX-20) — the `Segmented` component only: once it has
+   measured the selection it adds `.slide` + a `.seg-pill` that glides between
+   segments (transform/width on the motion tokens; reduced-motion zeroes it).
+   Raw `.seg` markup keeps the static `.on` fill above. */
+.seg.slide { position: relative; }
+.seg.slide > button { position: relative; z-index: 1; }
+.seg.slide button.on { background: transparent; box-shadow: none; }
+.seg.accent.slide button.on { background: transparent; }
+.seg-pill {
+  position: absolute; top: 3px; bottom: 3px; left: 0;
+  border-radius: var(--r-1); pointer-events: none;
+  background: var(--surface-solid); box-shadow: 0 1px 2px oklch(0 0 0 / 0.08);
+  transition: transform var(--dur-1) var(--ease-out), width var(--dur-1) var(--ease-out);
+}
+.seg.accent .seg-pill { background: var(--accent); box-shadow: none; }
 
 /* Toolbar-island segmented cluster (TB-8: the desktop Lights control) — a
    decorative context icon + a .seg group that carries the accessible name. */

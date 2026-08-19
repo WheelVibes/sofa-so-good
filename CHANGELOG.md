@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.21 — UIUX-20: Segmented control gains a sliding active pill
+
+The `Segmented` component now measures its selected button (useLayoutEffect +
+ResizeObserver) and drives an absolutely-positioned `.seg-pill` that glides between
+segments on `--dur-1 --ease-out` (transform/width only; the Watermelon "fluid tabs"
+mechanic; reduced-motion zeroes it globally). Static `.on` styling remains the fallback
+whenever the pill can't be measured (hidden group, non-layout DOM) and for raw `.seg`
+markup — the indicator can never disappear (pinned by `Segmented.pill.test.tsx`).
+Verified live in ShareModal's Post/Square/Story control: pill moves on selection and
+stays pixel-aligned with the active segment (≤1.5px assertion).
+
 ## v0.25.0.20 — UIUX-13: catalog Packs/Remote-browse surfaces on the token vocabulary
 
 PacksTab, RemoteBrowseTab, ResolutionPicker and CachePane re-implemented accent buttons,
