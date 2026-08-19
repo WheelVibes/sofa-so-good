@@ -13,7 +13,14 @@ import {
   FOCUS_DEFAULT_M,
   FSTOP_DEFAULT,
 } from '../../scene/cameras/cameraLensSettings'
-import { clampExposure, DEFAULT_EXPOSURE } from '../../scene/look'
+import {
+  clampExposure,
+  clampSceneSaturation,
+  clampSceneWarmth,
+  DEFAULT_EXPOSURE,
+  DEFAULT_SCENE_SATURATION,
+  DEFAULT_SCENE_WARMTH,
+} from '../../scene/look'
 import {
   DEFAULT_TONE_MAPPING_SETTING,
   TONE_MAPPING_SETTINGS,
@@ -35,6 +42,8 @@ export function loadQualityPrefs(): void {
       assetTier?: 'low' | 'medium' | 'high' | null
       toneMapping?: string
       exposure?: number
+      sceneWarmth?: number
+      sceneSaturation?: number
       lensFocalMm?: number
       dofFStop?: number
       dofFocusDistance?: number
@@ -62,6 +71,13 @@ export function loadQualityPrefs(): void {
       assetTier: p.assetTier ?? null,
       toneMapping,
       exposure: typeof p.exposure === 'number' ? clampExposure(p.exposure) : DEFAULT_EXPOSURE,
+      // Scene colour-grade dials (COLOR-GRADE) — back-compat neutral defaults.
+      sceneWarmth:
+        typeof p.sceneWarmth === 'number' ? clampSceneWarmth(p.sceneWarmth) : DEFAULT_SCENE_WARMTH,
+      sceneSaturation:
+        typeof p.sceneSaturation === 'number'
+          ? clampSceneSaturation(p.sceneSaturation)
+          : DEFAULT_SCENE_SATURATION,
       // Lens + DoF (PC2-CAM-DOF-LENS) — back-compat defaults for legacy prefs.
       lensFocalMm:
         typeof p.lensFocalMm === 'number' ? clampFocalMm(p.lensFocalMm) : FOCAL_DEFAULT_MM,
@@ -93,6 +109,8 @@ export function watchQualityPrefs(): void {
       assetTier: s.assetTier,
       toneMapping: s.toneMapping,
       exposure: s.exposure,
+      sceneWarmth: s.sceneWarmth,
+      sceneSaturation: s.sceneSaturation,
       lensFocalMm: s.lensFocalMm,
       dofFStop: s.dofFStop,
       dofFocusDistance: s.dofFocusDistance,

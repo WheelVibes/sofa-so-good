@@ -43,7 +43,13 @@ colours read true, Filmic otherwise), **Filmic** (punchy contrast), **AgX**
 (minimal shift, truest material colour — best for product/showroom shots). It
 applies on every quality tier and is remembered per device. The **Exposure** slider just
 below it dials the overall brightness up or down (like a camera's exposure
-compensation), on top of the automatic day/night exposure.
+compensation), on top of the automatic day/night exposure. Two more dials sit
+beside it: **Warmth** shifts the whole scene's white balance cooler (greyer,
+bluer) or warmer (more golden) on every tier, and **Saturation** dials the
+overall colour intensity down toward monochrome or up toward vivid (applies on
+High/Maximum quality). All three are remembered per device; to tone a *single*
+floor or wall instead, use the **Saturation**/**Brightness** sliders in the
+finish picker's **Compose your own…**.
 
 **Do mirrors actually reflect the room?**
 Yes, on the **High** and **Maximum** graphics tiers — wall, bathroom and floor

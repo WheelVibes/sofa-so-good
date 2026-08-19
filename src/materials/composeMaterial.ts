@@ -33,6 +33,17 @@ export const DEFAULT_COMPOSE_SCALE = 1
 const COMPOSE_ROUGHNESS_MIN = 0.05
 const COMPOSE_ROUGHNESS_MAX = 1
 
+/** Saturation multiplier bounds for the composer's tone controls (COLOR-GRADE):
+ *  0 = fully desaturated (grey), 1 = as-picked (default), 2 = extra vivid. */
+export const COMPOSE_SAT_MIN = 0
+export const COMPOSE_SAT_MAX = 2
+export const DEFAULT_COMPOSE_SAT = 1
+
+/** Brightness multiplier bounds: darker ↔ lighter around the picked colour. */
+export const COMPOSE_BRIGHT_MIN = 0.5
+export const COMPOSE_BRIGHT_MAX = 1.5
+export const DEFAULT_COMPOSE_BRIGHT = 1
+
 /**
  * How a tint colour combines with a textured base's albedo (FINISH-RECOLOR):
  *  - `'multiply'` (legacy, the absent-token default): the colour multiplies the
@@ -58,33 +69,77 @@ function clampRoughness(r: number): number | undefined {
   return Math.min(COMPOSE_ROUGHNESS_MAX, Math.max(COMPOSE_ROUGHNESS_MIN, r))
 }
 
+function clampSat(s: number): number {
+  if (!Number.isFinite(s)) return DEFAULT_COMPOSE_SAT
+  return Math.min(COMPOSE_SAT_MAX, Math.max(COMPOSE_SAT_MIN, s))
+}
+
+function clampBright(b: number): number {
+  if (!Number.isFinite(b)) return DEFAULT_COMPOSE_BRIGHT
+  return Math.min(COMPOSE_BRIGHT_MAX, Math.max(COMPOSE_BRIGHT_MIN, b))
+}
+
+/**
+ * Apply saturation + brightness to a `#rrggbb` colour (COLOR-GRADE): mix each
+ * channel toward its luma (sat < 1 desaturates toward grey — the "get the
+ * greyish tone back" dial — sat > 1 pushes away from it), then scale by
+ * brightness, clamped. Pure; identity at (1, 1) so token-less ids are
+ * byte-identical.
+ */
+export function adjustColorTone(hex: string, sat: number, bright: number): string {
+  const s = clampSat(sat)
+  const b = clampBright(bright)
+  if (s === 1 && b === 1) return hex
+  if (!HEX_RE.test(hex) || hex.length !== 7) return hex
+  const r = Number.parseInt(hex.slice(1, 3), 16)
+  const g = Number.parseInt(hex.slice(3, 5), 16)
+  const bl = Number.parseInt(hex.slice(5, 7), 16)
+  const luma = 0.2126 * r + 0.7152 * g + 0.0722 * bl
+  const adj = (c: number) => Math.max(0, Math.min(255, Math.round((luma + (c - luma) * s) * b)))
+  const to2 = (c: number) => c.toString(16).padStart(2, '0')
+  return `#${to2(adj(r))}${to2(adj(g))}${to2(adj(bl))}`
+}
+
 /** Split a colour segment into its parts. After the `<#hex>` colour an optional
  *  `@<scale>` multiplies the tile size, an optional `~<rough>` overrides the
- *  roughness/gloss (CUSTOMIZE-MATERIAL-PARAMS), and an optional `!r` switches the
- *  tint mode to luminance-preserving repaint (FINISH-RECOLOR). All absent →
- *  defaults (byte-identical to the pre-parameter ids, so old saved/applied
- *  finishes keep working). Tokens are order-independent. */
+ *  roughness/gloss (CUSTOMIZE-MATERIAL-PARAMS), an optional `%<sat>` /
+ *  `^<bright>` adjust the colour's saturation / brightness (COLOR-GRADE), and
+ *  an optional `!r` switches the tint mode to luminance-preserving repaint
+ *  (FINISH-RECOLOR). All absent → defaults (byte-identical to the
+ *  pre-parameter ids, so old saved/applied finishes keep working). Tokens are
+ *  order-independent. */
 function splitColorScale(seg: string): {
   color: string
   scale: number
   roughness: number | undefined
+  sat: number
+  bright: number
   mode: TintMode
 } {
-  // Colour is everything up to the first parameter token (`@`, `~` or `!`).
+  // Colour is everything up to the first parameter token.
   const firstTok = (() => {
     let first = -1
-    for (const tok of ['@', '~', '!']) {
+    for (const tok of ['@', '~', '!', '%', '^']) {
       const i = seg.indexOf(tok)
       if (i >= 0 && (first < 0 || i < first)) first = i
     }
     return first
   })()
   if (firstTok < 0) {
-    return { color: seg, scale: DEFAULT_COMPOSE_SCALE, roughness: undefined, mode: 'multiply' }
+    return {
+      color: seg,
+      scale: DEFAULT_COMPOSE_SCALE,
+      roughness: undefined,
+      sat: DEFAULT_COMPOSE_SAT,
+      bright: DEFAULT_COMPOSE_BRIGHT,
+      mode: 'multiply',
+    }
   }
   const color = seg.slice(0, firstTok)
   const scaleM = seg.match(/@(-?[\d.]+)/)
   const roughM = seg.match(/~(-?[\d.]+)/)
+  const satM = seg.match(/%(-?[\d.]+)/)
+  const brightM = seg.match(/\^(-?[\d.]+)/)
   // Future-proof: `!<word>` is a mode token; only `r` (repaint) is known today —
   // an unknown word degrades to the legacy multiply mode rather than failing.
   const modeM = seg.match(/!([a-z]+)/)
@@ -92,16 +147,28 @@ function splitColorScale(seg: string): {
     color,
     scale: scaleM ? clampScale(Number.parseFloat(scaleM[1])) : DEFAULT_COMPOSE_SCALE,
     roughness: roughM ? clampRoughness(Number.parseFloat(roughM[1])) : undefined,
+    sat: satM ? clampSat(Number.parseFloat(satM[1])) : DEFAULT_COMPOSE_SAT,
+    bright: brightM ? clampBright(Number.parseFloat(brightM[1])) : DEFAULT_COMPOSE_BRIGHT,
     mode: modeM?.[1] === 'r' ? 'repaint' : 'multiply',
   }
 }
 
-/** Build the `@<scale>~<rough>!r` parameter suffix, omitting defaults. */
-function paramSuffix(scale: number, roughness: number | undefined, mode?: TintMode): string {
+/** Build the `@<scale>~<rough>%<sat>^<bright>!r` parameter suffix, omitting defaults. */
+function paramSuffix(
+  scale: number,
+  roughness: number | undefined,
+  mode?: TintMode,
+  sat: number = DEFAULT_COMPOSE_SAT,
+  bright: number = DEFAULT_COMPOSE_BRIGHT,
+): string {
   const s = clampScale(scale)
   const r = roughness == null ? undefined : clampRoughness(roughness)
+  const sa = clampSat(sat)
+  const br = clampBright(bright)
   const m = mode === 'repaint' ? '!r' : ''
-  return `${s === DEFAULT_COMPOSE_SCALE ? '' : `@${s}`}${r == null ? '' : `~${r}`}${m}`
+  return `${s === DEFAULT_COMPOSE_SCALE ? '' : `@${s}`}${r == null ? '' : `~${r}`}${
+    sa === DEFAULT_COMPOSE_SAT ? '' : `%${sa}`
+  }${br === DEFAULT_COMPOSE_BRIGHT ? '' : `^${br}`}${m}`
 }
 
 /** Multiply a `[u, v]` tile size by a scale, guarding non-finite inputs. */
@@ -162,8 +229,10 @@ export function composeMaterialId(
   color: string,
   scale: number = DEFAULT_COMPOSE_SCALE,
   roughness?: number,
+  sat: number = DEFAULT_COMPOSE_SAT,
+  bright: number = DEFAULT_COMPOSE_BRIGHT,
 ): string {
-  return `${COMPOSE_PREFIX}${pattern}:${color}${paramSuffix(scale, roughness)}`
+  return `${COMPOSE_PREFIX}${pattern}:${color}${paramSuffix(scale, roughness, undefined, sat, bright)}`
 }
 
 export interface ComposedParts {
@@ -174,6 +243,10 @@ export interface ComposedParts {
   scale: number
   /** Roughness/gloss override, or `undefined` for the pattern default. */
   roughness: number | undefined
+  /** Colour saturation multiplier (COLOR-GRADE; 1 = as picked). */
+  sat: number
+  /** Colour brightness multiplier (COLOR-GRADE; 1 = as picked). */
+  bright: number
 }
 
 /** Parse a composed id into its parts, or `null` if malformed / unknown
@@ -186,11 +259,11 @@ export function parseComposedMaterialId(id: string): ComposedParts | null {
   const pattern = rest.slice(0, sep) as ProceduralPattern
   // A composed finish re-bakes its procedural pattern with the colour, which IS
   // a true recolor already — a `!r` token is tolerated but changes nothing.
-  const { color, scale, roughness } = splitColorScale(rest.slice(sep + 1))
+  const { color, scale, roughness, sat, bright } = splitColorScale(rest.slice(sep + 1))
   const texture = BY_PATTERN.get(pattern)
   if (!texture) return null
   if (!HEX_RE.test(color)) return null
-  return { pattern, color, texture, scale, roughness }
+  return { pattern, color, texture, scale, roughness, sat, bright }
 }
 
 // ── Tinting an EXISTING catalog material (MAT-COMPOSE tail) ─────────────────
@@ -216,8 +289,10 @@ export function tintMaterialId(
   scale: number = DEFAULT_COMPOSE_SCALE,
   roughness?: number,
   mode: TintMode = DEFAULT_TINT_MODE,
+  sat: number = DEFAULT_COMPOSE_SAT,
+  bright: number = DEFAULT_COMPOSE_BRIGHT,
 ): string {
-  return `${TINT_PREFIX}${baseId}:${color}${paramSuffix(scale, roughness, mode)}`
+  return `${TINT_PREFIX}${baseId}:${color}${paramSuffix(scale, roughness, mode, sat, bright)}`
 }
 
 export interface TintParts {
@@ -227,11 +302,15 @@ export interface TintParts {
   scale: number
   /** Roughness/gloss override, or `undefined` for the base default. */
   roughness: number | undefined
+  /** Colour saturation multiplier (COLOR-GRADE; 1 = as picked). */
+  sat: number
+  /** Colour brightness multiplier (COLOR-GRADE; 1 = as picked). */
+  bright: number
   /** How the colour combines with a textured base's albedo (FINISH-RECOLOR). */
   mode: TintMode
 }
 
-/** Parse a tint id into `{ baseId, color, scale, roughness, mode }`, or `null` if malformed. */
+/** Parse a tint id into its parts, or `null` if malformed. */
 export function parseTintMaterialId(id: string): TintParts | null {
   if (!isTintMaterialId(id)) return null
   const rest = id.slice(TINT_PREFIX.length)
@@ -240,9 +319,9 @@ export function parseTintMaterialId(id: string): TintParts | null {
   const lastColon = rest.lastIndexOf(':')
   if (lastColon <= 0) return null
   const baseId = rest.slice(0, lastColon)
-  const { color, scale, roughness, mode } = splitColorScale(rest.slice(lastColon + 1))
+  const { color, scale, roughness, sat, bright, mode } = splitColorScale(rest.slice(lastColon + 1))
   if (!baseId || !HEX_RE.test(color)) return null
-  return { baseId, color, scale, roughness, mode }
+  return { baseId, color, scale, roughness, sat, bright, mode }
 }
 
 /**
@@ -256,10 +335,15 @@ export function parseTintMaterialId(id: string): TintParts | null {
 export function tintedMaterialDef(id: string, base: MaterialDef): MaterialDef | null {
   const parts = parseTintMaterialId(id)
   if (!parts) return null
+  // COLOR-GRADE: the sat/bright tokens adjust the tint colour before it lands
+  // in the swatch — for a procedural base that colour re-bakes the pattern,
+  // for a textured base it feeds the repaint bake / multiply, so the tone dial
+  // works for every material kind at every tier.
+  const toned = adjustColorTone(parts.color, parts.sat, parts.bright)
   let next: MaterialDef = {
     ...base,
     id,
-    swatch: parts.color,
+    swatch: toned,
     name: `${base.name} · ${parts.color}`,
   }
   // Repaint mode (FINISH-RECOLOR): the textured branch of `buildMaterial` bakes
@@ -296,9 +380,26 @@ export function recolorFinishId(
 ): string {
   if (!active) return hex
   const tint = parseTintMaterialId(active)
-  if (tint) return tintMaterialId(tint.baseId, hex, tint.scale, tint.roughness, 'repaint')
+  if (tint)
+    return tintMaterialId(
+      tint.baseId,
+      hex,
+      tint.scale,
+      tint.roughness,
+      'repaint',
+      tint.sat,
+      tint.bright,
+    )
   const composed = parseComposedMaterialId(active)
-  if (composed) return composeMaterialId(composed.pattern, hex, composed.scale, composed.roughness)
+  if (composed)
+    return composeMaterialId(
+      composed.pattern,
+      hex,
+      composed.scale,
+      composed.roughness,
+      composed.sat,
+      composed.bright,
+    )
   if (active.startsWith('#')) return hex
   const def = catalog[active]
   if (!def) return hex
@@ -324,7 +425,8 @@ export function composedMaterialDef(
     category,
     kind: 'procedural',
     pattern: parts.pattern,
-    swatch: parts.color,
+    // COLOR-GRADE: sat/bright tokens adjust the bake colour (see tintedMaterialDef).
+    swatch: adjustColorTone(parts.color, parts.sat, parts.bright),
     uvScale: scaledUv(parts.texture.uvScale, parts.scale),
     ...(parts.roughness != null ? { roughness: parts.roughness } : {}),
   }

@@ -455,7 +455,10 @@ export function FinishPicker() {
     if (fRecolor && !isTintMaterialId(id) && !isComposedMaterialId(id)) {
       const cur = parseTintMaterialId(activeFor(surface) ?? '')
       if (cur && cur.baseId !== id) {
-        applyFinish(surface, tintMaterialId(id, cur.color, 1, cur.roughness, 'repaint'))
+        applyFinish(
+          surface,
+          tintMaterialId(id, cur.color, 1, cur.roughness, 'repaint', cur.sat, cur.bright),
+        )
         return
       }
     }

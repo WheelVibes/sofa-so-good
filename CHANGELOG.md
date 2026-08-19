@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.0 — COLOR-GRADE: colour / lighting / saturation dials for every surface
+
+User ask: keep the board-matched look tunable — "so I can get back the more greyish tone if I
+wanted". Two layers of knobs, both neutral-by-default (byte-identical look until moved):
+
+- **Per-surface** (works on every material kind, every tier): the finish-id grammar gains
+  `%<sat>` (saturation 0–2) and `^<bright>` (brightness 0.5–1.5) tokens beside `@scale`/
+  `~rough`/`!r`, applied to the effective bake colour by the pure `adjustColorTone`; surfaced as
+  **Saturation + Brightness sliders in "Compose your own…"** with live-toned previews. Dragging
+  Saturation to ~35 % on the vinyl reproduces the old grey wash exactly (GPU-verified A/B).
+  Tokens ride the plain finish-id string — no schema change; `recolorFinishId`/keep-colour paths
+  carry them through. Legacy ids parse with neutral defaults.
+- **Scene-level** (Graphics panel, beside Exposure; flag `colorGrade`, simple tier): **Warmth**
+  (-1…+1) tints the analytical sun/hemisphere/ambient lights on every tier via
+  `look.ts:warmthTintRGB`; **Saturation** (0–200 %) rides the High/Maximum HueSaturation pass
+  via `hueSatSaturation` (default reproduces the shipped +0.06 baseline exactly). Both persist
+  per-device via qualityPrefs; reset-to-default is byte-identical (sampled-pixel-verified).
+- Tests: token round-trip + back-compat + `adjustColorTone` behaviour, warmth/saturation curve
+  neutrality + clamping, Graphics dials in BOTH modes + flag-off, store clamping.
+
 ## v0.26.1.2 — TONE-CALIBRATION: SNV finishes render at the boards' exact colour proportions
 
 User feedback: the vinyl read grey where the board is brownish/woody. Measured why: sampling the

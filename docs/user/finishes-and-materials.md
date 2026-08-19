@@ -80,8 +80,11 @@ Colour, texture/pattern, and material behave as separate, mix‑and‑match choi
   press its **×** (or re‑tap the highlighted swatch) to go back to the
   finish's original colours.
 - **Fine‑tune the material.** **Compose your own…** adds a **Scale** slider
-  (tile size) and a **Gloss** slider (matte → polished) on top of any
-  texture + colour combination. For photo textures it also offers two colour
+  (tile size), a **Gloss** slider (matte → polished), and **Saturation** +
+  **Brightness** sliders that tone the colour itself — drag Saturation down
+  for a greyer, washed‑out read of the same texture (e.g. a grey‑wash version
+  of the vinyl floor), up for a richer one — on top of any texture + colour
+  combination. For photo textures it also offers two colour
   modes: **Repaint** (the default — true recolour, keeps the pattern) and
   **Shade** (darken‑only wash, the old behaviour).
 - **Works with your own textures too.** Any texture you

@@ -11,10 +11,11 @@ import {
 } from '@react-three/postprocessing'
 import { type ReactElement, useMemo } from 'react'
 import { Vector2 } from 'three'
+import { useStore } from '../state/store'
 import { rasterDofParams } from './cameras/cameraLensSettings'
 import { lightingFromAltitude } from './lighting/altitudeCurve'
 import { useSunPosition } from './lighting/useSunPosition'
-import { AO, BLOOM, bloomIntensityForDay } from './look'
+import { AO, BLOOM, bloomIntensityForDay, hueSatSaturation } from './look'
 
 interface EffectsProps {
   /** Render SSAO at full resolution (sharper, deeper) instead of half-res. */
@@ -73,6 +74,10 @@ export default function EffectsImpl({
   // don't smear. Orbit/editor no longer suppress it.
   const bloomIntensity = bloomIntensityForDay(dayLevel)
 
+  // COLOR-GRADE: the user scene-saturation dial rides the HueSaturation pass.
+  // The default (1) resolves to the long-standing +0.06 baseline exactly.
+  const sceneSaturation = useStore((s) => s.sceneSaturation)
+
   const effects: ReactElement[] = [
     <N8AO
       key="ao"
@@ -89,7 +94,7 @@ export default function EffectsImpl({
       luminanceSmoothing={BLOOM.luminanceSmoothing}
       intensity={bloomIntensity}
     />,
-    <HueSaturation key="hue" saturation={0.06} hue={0} />,
+    <HueSaturation key="hue" saturation={hueSatSaturation(sceneSaturation)} hue={0} />,
   ]
   if (cinematic) {
     effects.push(

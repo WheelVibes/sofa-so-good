@@ -83,6 +83,20 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   Degenerate guards: non-positive size/tile, non-finite tile, and a runaway subdivision all fall
   back to the plain plane. Unit-tested in `worldUv.test.ts` (period-breaking + determinism + no UV
   NaN + repeat=1 untouched + the Simple/Pro flag-gate, both modes).
+- **Per-surface + scene colour dials (COLOR-GRADE).** The finish-id grammar carries two more
+  order-independent tokens beside `@scale`/`~rough`/`!r`: **`%<sat>`** (saturation 0–2) and
+  **`^<bright>`** (brightness 0.5–1.5), parsed by `splitColorScale` and applied to the effective
+  bake colour via the pure `adjustColorTone` (mix toward luma grey, then scale; identity at
+  (1,1) so token-less ids are byte-identical). They work for every material kind at every tier
+  (procedural re-bake, textured repaint/multiply) and surface as **Saturation/Brightness sliders
+  in `MaterialComposer`** — the sanctioned per-surface "make this floor grey again" lever.
+  `recolorFinishId` + the FinishPicker keep-colour path must carry `sat`/`bright` through when
+  rebuilding a tint id. **Scene-level dials** live in `look.ts`: `sceneWarmth` (-1…1, tints the
+  analytical sun/hemisphere/ambient lights via `warmthTintRGB` — neutral (1,1,1) at 0, every
+  tier) and `sceneSaturation` (0…2, rides the High/Max HueSaturation pass via `hueSatSaturation`
+  — default 1 reproduces the shipped +0.06 baseline exactly). Both persist per-device via
+  `qualityPrefs` beside `exposure`, gated by the `colorGrade` flag (simple tier) in
+  `GraphicsSettings`. Keep every new dial byte-identical-neutral at its default.
 - **SNV swatches are render-calibrated (TONE-CALIBRATION).** The five SNV finish swatches are
   deliberately MORE saturated/warm than the boards they match: the midday lighting mix (cool sky
   IBL + hemisphere fill) has a measured per-channel response of roughly (0.56, 0.61, 0.68) R/G/B
