@@ -185,17 +185,22 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   // so plank height = uvScaleY / 6 = 0.18 → uvScaleY 1.08, plank length =
   // uvScaleX = 1.2 (distinct from `floor-vinyl-light`'s [1.4, 0.9] wide-board
   // read — these are narrower, shorter strips, lighter oak tone).
-  // Tint sampled from the SNV OCS sample board (warm grey-washed rift oak,
-  // surface tone ≈ #bcb0a0): the SNV-BOARDS `vinyl` painter multiplies the
-  // base down by ~0.9 on average (striations + seams), so the base sits
-  // ~1/0.9 above the sampled tone to RENDER at it. Uniform per-strip colour
-  // (printed laminate) via the dedicated `vinyl` pattern — the default L/D +
-  // corridor + bedroom finish, paired with the laminated-UPVC skirting
-  // (`apartment/Skirting.tsx`).
+  // RENDER-CALIBRATED swatch (SNV-BOARDS tone pass): the board's surface tone
+  // is a warm grey-washed oak (~#b2a28e), but the midday light mix (cool sky
+  // IBL + hemisphere fill) strips warmth — a measured per-channel response of
+  // ~(0.56, 0.61, 0.68) R/G/B on this floor. The swatch is therefore solved
+  // as target ÷ response (then peak-normalised), which is WHY it looks more
+  // saturated than the board in isolation: rendered on the floor at midday it
+  // lands on the board's exact colour proportions (verified by sampling GPU
+  // screenshots). Don't "fix" it back toward the board hex — that re-greys
+  // the floor. Same calibration applies to the other SNV swatches below.
+  // Uniform per-strip colour (printed laminate) via the dedicated `vinyl`
+  // pattern — the default L/D + corridor + bedroom finish, paired with the
+  // laminated-UPVC skirting (`apartment/Skirting.tsx`).
   'floor-vinyl-oak': floor(
     'floor-vinyl-oak',
     'Timber vinyl strips',
-    '#d6c3ac',
+    '#d6b38d',
     'vinyl',
     [1.2, 1.08],
   ),
@@ -208,7 +213,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'floor-tile-beige': floor(
     'floor-tile-beige',
     'Beige glazed porcelain (600×600)',
-    '#cfc0a8',
+    '#cfb38e',
     'stoneTile',
     [1.2, 1.2],
   ),
@@ -218,7 +223,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'floor-tile-beige-300': floor(
     'floor-tile-beige-300',
     'Beige glazed porcelain (300×300)',
-    '#cfc0a8',
+    '#cfb38e',
     'stoneTile',
     [0.6, 0.6],
   ),
@@ -230,7 +235,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'floor-tile-bath-green': floor(
     'floor-tile-bath-green',
     'Grey-green glazed porcelain (300×600)',
-    '#a2a79a',
+    '#a69e83',
     'porcelainStone',
     [1.2, 1.2],
   ),
@@ -406,7 +411,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     category: 'wall',
     kind: 'procedural',
     pattern: 'porcelain',
-    swatch: '#ede8dc',
+    swatch: '#eddfc4',
     uvScale: [1.2, 1.2],
   },
   'wall-tile-grey': {

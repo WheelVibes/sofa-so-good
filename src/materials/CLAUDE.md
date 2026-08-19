@@ -83,6 +83,15 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   Degenerate guards: non-positive size/tile, non-finite tile, and a runaway subdivision all fall
   back to the plain plane. Unit-tested in `worldUv.test.ts` (period-breaking + determinism + no UV
   NaN + repeat=1 untouched + the Simple/Pro flag-gate, both modes).
+- **SNV swatches are render-calibrated (TONE-CALIBRATION).** The five SNV finish swatches are
+  deliberately MORE saturated/warm than the boards they match: the midday lighting mix (cool sky
+  IBL + hemisphere fill) has a measured per-channel response of roughly (0.56, 0.61, 0.68) R/G/B
+  on floors — blue is boosted ~19% over red, which greys out warm albedos. Each swatch is solved
+  as `boardTone ÷ response` (peak-normalised), then verified by sampling the mean RGB of
+  real-GPU screenshots until the rendered proportions match the board photo's (they now match to
+  ±0.002). Recipe to recalibrate after any lighting/tonemap change: render the close-up scenario,
+  `sharp`-sample the surface region, `newSwatch = target ÷ (render ÷ oldSwatch)` per channel,
+  iterate once. Never eyeball-revert a calibrated swatch toward its board hex.
 - **Joint widths are real-world millimetres (JOINT-SCALE).** Convert a painter's joint band to
   mm before shipping it: `band_px / S × uvScale_m × 1000` (both sides of the boundary count).
   Real values: rectified porcelain ≈ 2–3 mm, classic ceramic grout ≈ 3–5 mm, wood/vinyl

@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.1.2 — TONE-CALIBRATION: SNV finishes render at the boards' exact colour proportions
+
+User feedback: the vinyl read grey where the board is brownish/woody. Measured why: sampling the
+rendered floor showed the warm albedo's R−B spread of 42 collapsing to 5 on screen — the midday
+lighting mix (cool sky IBL + hemisphere fill) has a per-channel response of ~(0.56, 0.61, 0.68)
+R/G/B on floors, boosting blue ~19% over red and greying every warm finish. Rather than touching
+the guarded lighting rig, the five SNV swatches are now solved as `boardTone ÷ measuredResponse`
+(peak-normalised) and iterated against sampled GPU screenshots: rendered colour proportions now
+match the board photos to ±0.002 (vinyl exact) — the vinyl reads warm grey-washed oak, the
+kitchen floor warm beige, the walls cream, the bath floor grey-green. Recorded as the
+TONE-CALIBRATION rule + recipe in `src/materials/CLAUDE.md` (calibrated swatches look
+over-saturated in isolation BY DESIGN; never eyeball-revert them toward the board hex).
+
 ## v0.26.1.1 — JOINT-SCALE: realistic joint/seam widths across every tile + plank painter
 
 User feedback on v0.26.1.0: spaces between tiles and planks were exaggerated, "uglier than real
