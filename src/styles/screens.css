@@ -41,7 +41,7 @@
   position: absolute; inset: 0; z-index: var(--z-overlay);
   display: grid; place-items: center;
   background: radial-gradient(120% 90% at 50% 30%, var(--scene-a), var(--scene-b) 75%);
-  animation: fade 0.3s var(--ease);
+  animation: fade var(--dur-2) var(--ease-out);
 }
 .load-inner { display: flex; flex-direction: column; align-items: center; width: 320px; max-width: 80vw; }
 .load-mark {
@@ -55,7 +55,7 @@
 .load-title { margin-top: 18px; font-size: var(--t-xl); font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
 .load-sub { margin-top: 2px; font-size: var(--t-sm); color: var(--text-3); font-weight: 500; white-space: nowrap; text-align: center; }
 .load-bar { margin-top: 26px; width: 100%; height: 5px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
-.load-bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.3s var(--ease); }
+.load-bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width var(--dur-2) var(--ease); }
 .load-status { margin-top: 10px; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); font-size: var(--t-xs); color: var(--text-3); font-weight: 600; }
 .load-status #loadTip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .load-status .mono { flex: none; }

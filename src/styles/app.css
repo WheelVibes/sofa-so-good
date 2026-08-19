@@ -243,7 +243,7 @@
   color: var(--text-2);
   white-space: nowrap;
   opacity: 1;
-  transition: opacity 600ms ease;
+  transition: opacity var(--dur-3) var(--ease-out);
 }
 .walk-hud.is-hidden {
   opacity: 0;

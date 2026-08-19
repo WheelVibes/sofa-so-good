@@ -384,3 +384,33 @@ describe('P21 tabular numerals', () => {
     expect(read('./components.css')).toMatch(/\.mono\b[^}]*font-feature-settings:\s*'tnum'\s*1/s)
   })
 })
+
+describe('UIUX-8 motion/hover token strays', () => {
+  it('walk-HUD fade uses the motion scale, not a raw 600ms', () => {
+    const app = read('./app.css')
+    expect(app).toMatch(/\.walk-hud[^}]*transition:\s*opacity var\(--dur-3\) var\(--ease-out\)/s)
+    expect(app).not.toMatch(/transition:\s*opacity 600ms/)
+  })
+  it('boot loader fade + bar use --dur-2', () => {
+    const screens = read('./screens.css')
+    expect(screens).toMatch(/animation:\s*fade var\(--dur-2\)/)
+    expect(screens).toMatch(/transition:\s*width var\(--dur-2\)/)
+  })
+  it('.share-opt hover steps up to --surface-3 (rest --surface-2 → hover --surface-3)', () => {
+    const features = read('./features.css')
+    expect(features).toMatch(/\.share-opt:hover[^}]*background:\s*var\(--surface-3\)/)
+    expect(features).not.toMatch(/\.share-opt:hover[^}]*var\(--surface-solid\)/)
+  })
+  it('.ss-card transitions on the motion tokens and fills --surface-3 on hover', () => {
+    const flows = read('./flows.css')
+    expect(flows).toMatch(/\.ss-card[^}]*transition:[^}]*var\(--dur\) var\(--ease\)/s)
+    expect(flows).toMatch(/\.ss-card:hover[^}]*background:\s*var\(--surface-3\)/)
+    expect(flows).toMatch(/\.ss-card-swatches i[^}]*border-radius:\s*var\(--r-1\)/)
+  })
+  it('.panel-foot and .form-err exist with token-only styling (UIUX-5/6)', () => {
+    const components = read('./components.css')
+    expect(components).toMatch(/\.panel-foot\s*\{[^}]*padding:\s*0 var\(--s-4\) var\(--s-4\)/s)
+    expect(components).toMatch(/\.form-err\s*\{[^}]*color:\s*var\(--danger\)/)
+    expect(components).toMatch(/\.panel-sub\.plain\s*\{[^}]*text-transform:\s*none/)
+  })
+})

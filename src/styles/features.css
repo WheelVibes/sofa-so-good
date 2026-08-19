@@ -356,12 +356,12 @@
 /* ============================================================
    SHARE & EXPORT  — centered modal
    ============================================================ */
-.modal-overlay > #sharePanel { width: min(440px, calc(100vw - 24px)); }
+/* #sharePanel width now comes from the Modal width prop (--modal-sm, UIUX-4). */
 .share-link { display: flex; gap: var(--s-2); margin-top: var(--s-3); }
 .share-link .input { font-family: var(--font-mono); font-size: var(--t-xs); }
 .share-vis { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-3); }
 .share-opt { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3); border-radius: var(--r-2); border: 1px solid var(--border); background: var(--surface-2); width: 100%; text-align: left; transition: var(--dur) var(--ease); }
-.share-opt:hover { background: var(--surface-solid); border-color: var(--border-2); }
+.share-opt:hover { background: var(--surface-3); border-color: var(--border-2); }
 .share-opt.on { border-color: var(--accent); background: var(--accent-soft); }
 .share-opt .so-ic { width: 32px; height: 32px; flex: none; border-radius: var(--r-2); display: grid; place-items: center; background: var(--surface-3); color: var(--text-2); }
 .share-opt.on .so-ic { background: var(--accent); color: var(--on-accent); }
@@ -510,7 +510,7 @@
 body.mobile .cmdk { width: calc(100vw - 24px); }
 body.mobile #clearancePanel, body.mobile #versionsPanel, body.mobile #shopPanel { width: calc(100vw - 24px); }
 body.mobile .modal-overlay > #swapPanel,
-body.mobile .modal-overlay > #sharePanel { width: calc(100vw - 24px); }
+/* (mobile #sharePanel width: the --modal-sm token already clamps to 100vw-24px) */
 body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
 
 /* ---- Scene menu (time of day / lighting / backdrop) -------------- */

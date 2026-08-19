@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.10 — UIUX-8: motion/hover token strays + dead #sharePanel width override
+
+Walk-HUD auto-hide fade `600ms ease` → `var(--dur-3) var(--ease-out)`; boot-loader fade +
+progress bar `0.3s` → `var(--dur-2)`; `.share-opt:hover` stepped DOWN to `--surface-solid`
+on light themes (inverted hover) → the documented `--surface-3` step-up; `.ss-card` raw
+`.12s` transitions → `var(--dur) var(--ease)`, gains the missing hover fill step, and its
+swatches' off-scale 4px radius → `--r-1`. Removed the `#sharePanel` `min(440px…)` CSS
+width overrides made dead by UIUX-4 (inline `--modal-sm` wins). New "UIUX-8" +
+"panel-foot/form-err/plain" regression guards in `styleGuards.test.ts`. Full suite green
+(8513).
+
 ## v0.25.0.9 — UIUX-7: `.panel-sub.plain` — 50 inline un-uppercase hacks replaced
 
 `.panel-sub` is the uppercase section-label class, but ~50 call sites across 20 files

@@ -25,10 +25,7 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
 
 
 
-- [ ] UIUX-8: motion/hover token strays — walk-HUD 600ms → `--dur-3 --ease-out`
-  (app.css:246), screens.css 0.3s → `--dur-2`, `.share-opt:hover` → `--surface-3`
-  (features.css:364 inverted hover), `.ss-card` raw .12s + 4px radius + missing hover fill
-  (flows.css:160).
+
 ### Stage 3 — mobile/a11y + list vocab
 - [ ] UIUX-9: 44px touch floor — catalog-card ♥/↻/× (32px) + `.lyr-geye` (30px) get the same
   `::after { inset:-9px }` extension panel-head icons already have (responsive.css).
