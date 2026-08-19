@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.30 — UIUX-28: getting-started checklist (onboardChecklist flag, simple tier)
+
+New "Get started" card (bottom-left of the orbit view, Watermelon onboarding-checklist
+pattern with goal-gradient progress): the five core-loop actions — place a piece, change
+a finish, scrub the time of day, walk through, share — auto-check the first time the
+user performs each (store-transition watchers in the card; no other slice touched),
+with an animated progress bar, tick pops, a dismiss ×, and a Done CTA at 5/5. State is
+per-device (`checklistSlice`, `hdb_checklist`, out of the save schema). Flag
+`onboardChecklist` (simple tier, default on) tested in BOTH modes; 7 component tests +
+4 flag tests + the `onboard-checklist-simple.json` scenario ladder rung (checks, plan-
+editor hiding, dismissal). Docs: getting-started guide + ARCHITECTURE shared-UI map.
+
 ## v0.25.0.29 — UIUX-19: Popover no longer closed by scrolls that can't move its anchor
 
 Root-caused the "plan-editor menus can't open" bug: Popover's capture-phase scroll

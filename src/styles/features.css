@@ -690,3 +690,44 @@ body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
 }
 .paint-viz-error { margin: 0; font-size: var(--t-xs); color: var(--danger); }
+
+/* ---- Getting-started checklist (UIUX-28, onboardChecklist flag) ------- */
+/* A compact bottom-left card over the orbit view: goal-gradient progress bar +
+   the five core-loop steps, auto-checked on first use. Token-only; entrance
+   rides the shared `pop` keyframe; ticks land with the .done-pop overshoot. */
+.onb-check {
+  position: absolute;
+  left: calc(var(--s-4) + env(safe-area-inset-left));
+  bottom: calc(var(--s-6) + env(safe-area-inset-bottom));
+  z-index: var(--z-hud);
+  width: 236px; padding: var(--s-3) var(--s-4) var(--s-4);
+  background: var(--surface); backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+  border: 1px solid var(--border); border-radius: var(--r-3);
+  box-shadow: var(--shadow-panel);
+  animation: pop var(--dur) var(--ease);
+  transform-origin: 0 100%;
+}
+.onb-check-head { display: flex; align-items: center; gap: var(--s-2); }
+.onb-check-head b { font-size: var(--t-sm); font-weight: 800; color: var(--text); flex: 1; }
+.onb-check-count { font-size: var(--t-2xs); font-weight: 700; color: var(--text-3); }
+.onb-check-bar {
+  height: 4px; border-radius: var(--r-pill); background: var(--surface-3);
+  overflow: hidden; margin: var(--s-2) 0 var(--s-3);
+}
+.onb-check-bar i {
+  display: block; height: 100%; border-radius: var(--r-pill);
+  background: var(--accent); transition: width var(--dur-2) var(--ease-out);
+}
+.onb-check-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.onb-check-list li { display: flex; align-items: center; gap: var(--s-2); font-size: var(--t-xs); font-weight: 600; color: var(--text-2); }
+.onb-check-tick {
+  width: 16px; height: 16px; flex: none; display: grid; place-items: center;
+  border-radius: 999px; border: 1px solid var(--border-2); color: var(--on-accent);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.onb-check-list li.on .onb-check-tick { background: var(--accent); border-color: var(--accent); }
+.onb-check-list li.on .onb-check-label { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--border-2); }
+.onb-check > .btn { margin-top: var(--s-3); }
+/* Keep clear of the mobile bottom edge + let the card shrink on narrow phones. */
+body.mobile .onb-check { width: min(236px, calc(100vw - 2 * var(--s-4))); }

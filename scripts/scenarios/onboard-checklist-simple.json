@@ -1,0 +1,27 @@
+{
+  "name": "onboard-checklist-simple",
+  "url": "http://localhost:5219/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s = window.__store.getState(); s.setOnboardingOpen?.(false); s.endTour?.(); s.dismissLocationPrompt?.(); s.setManualHour ? null : null; })()" },
+    { "name": "checklist-visible", "waitFor": { "css": ".onb-check" }, "timeout": 15000 },
+    { "name": "starts-incomplete", "waitFor": { "store": "state.checklistDone.length <= 1" } },
+    { "name": "shot-initial", "screenshot": "01-checklist" },
+    { "name": "scrub-time", "store": { "action": "setManualHour", "args": [18] } },
+    { "name": "light-checked", "waitFor": { "store": "state.checklistDone.includes('light')" }, "timeout": 8000 },
+    { "name": "open-share", "store": { "action": "setShareOpen", "args": [true] } },
+    { "name": "share-checked", "waitFor": { "store": "state.checklistDone.includes('share')" }, "timeout": 8000 },
+    { "name": "close-share", "store": { "action": "setShareOpen", "args": [false] } },
+    { "name": "progress-settle", "wait": 600 },
+    { "name": "shot-progress", "screenshot": "02-two-checked" },
+    { "name": "hidden-in-plan-editor", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-open", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "assert-hidden", "eval": "(() => { if (document.querySelector('.onb-check')) throw new Error('checklist visible over plan editor') })()" },
+    { "name": "back-to-orbit", "store": { "action": "setFloorPlanEditing", "args": [false] } },
+    { "name": "checklist-back", "waitFor": { "css": ".onb-check" }, "timeout": 15000 },
+    { "name": "dismiss-checklist", "click": "button[aria-label='Dismiss checklist']" },
+    { "name": "gone", "waitFor": { "store": "state.checklistDismissed === true" }, "timeout": 8000 },
+    { "name": "assert-gone", "eval": "(() => { if (document.querySelector('.onb-check')) throw new Error('checklist still visible after dismiss') })()" },
+    { "name": "shot-dismissed", "screenshot": "03-dismissed" }
+  ]
+}

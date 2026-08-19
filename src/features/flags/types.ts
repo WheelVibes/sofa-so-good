@@ -152,6 +152,7 @@ export type FeatureFlag =
   | 'layerOrder'
   | 'contextMenu'
   | 'infoCallouts'
+  | 'onboardChecklist'
   | 'newBadges'
   | 'densityMode'
   | 'proUpsell'

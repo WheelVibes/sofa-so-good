@@ -1431,6 +1431,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Getting-started checklist card (UIUX-28, Watermelon onboarding-checklist
+  // pattern): the five core-loop actions (furnish, finish, light, walk, share)
+  // with goal-gradient progress, auto-checked as the user does each for the
+  // first time; dismissible, per-device persisted. Beginner aid in the default
+  // experience → simple tier, prod-safe pure UI.
+  onboardChecklist: {
+    label: 'Getting-started checklist',
+    description: 'First-session checklist of the core design loop with progress',
+    default: true,
+    tier: 'simple',
+  },
   // Pulsing "New" dot on recently-shipped toolbar/menu entries, dismissed on
   // first use, persisted per-flag (P27). Pure UI, prod-safe. Discoverability
   // polish for all users (badges both simple- and pro-tier entries) → simple tier.

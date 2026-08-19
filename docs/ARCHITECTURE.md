@@ -480,7 +480,7 @@ same change that reshapes a system.
   renders from the registry (`toolAction('budget')`, surfaces `['palette']` so ⌘K keeps it).
   Aux panels that share the centred-top slot are closed as a group via `src/ui/auxPanels.ts`
   (`closeAllAuxPanels`); contextual user-guide deep-links resolve through `src/ui/docsUrl.ts`.
-  **Shared UI systems**: `InfoCallout` (flag-gated dismissible hint banners, per-id persisted) and `ui/newBadges.ts` (registry-driven "New" `.new-dot` on toolbar/menu entries, seen-state persisted). **Shared form controls** (`src/ui/controls/`): `Button` (typed composer over the `.btn-*` vocabulary — variant/size/block/icon/loading), `Select` (themed dropdown — replaces every native
+  **Shared UI systems**: `InfoCallout` (flag-gated dismissible hint banners, per-id persisted), `OnboardingChecklist` (UIUX-28 — `onboardChecklist` flag, simple tier: the bottom-left getting-started card; steps auto-check from store transitions via `checklistSlice`, per-device persisted `hdb_checklist`) and `ui/newBadges.ts` (registry-driven "New" `.new-dot` on toolbar/menu entries, seen-state persisted). **Shared form controls** (`src/ui/controls/`): `Button` (typed composer over the `.btn-*` vocabulary — variant/size/block/icon/loading), `Select` (themed dropdown — replaces every native
   `<select>`; `Popover` on desktop / `Modal` sheet on mobile, listbox keyboard + ARIA) and
   `ColorPicker` (replaces every native `<input type=color>`; SV pad + hue bar + hex +
   `ThemeColorRows` + recents, HSV math in the pure `colorConvert.ts`). The native iOS focus-zoom on
