@@ -258,8 +258,9 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   scrollable toolbar can't clip them.
 - **Menu shortcut combos go through `MenuItem`'s `kbd` prop** (`toolbar/ToolbarMenu.tsx`),
   which renders the right-aligned `.mi-kbd` chip — never inline the combo text in `label`.
-- **Modal widths use the `--modal-sm`/`-md`/`-lg` tokens**: pass the token string to
-  `Modal`'s `width` prop (`width="var(--modal-md)"`), not an ad-hoc `min(…px, …)` literal.
+- **Modal widths use the `--modal-xs`/`-sm`/`-md`/`-lg` tokens**: pass the token string to
+  `Modal`'s `width` prop (`width="var(--modal-md)"`), not an ad-hoc `min(…px, …)`/numeric
+  literal; a 360px modal just omits `width` (the `.modal-overlay > .panel` default).
 - **Keyboard focus treatment is `var(--focus-ring)`** (`box-shadow` on `:focus-visible`) —
   no ad-hoc focus rings/outlines on a new control.
 - **Borders.** `--border` is the default hairline (panels, rows, cards, dividers, inputs at

@@ -33,13 +33,7 @@ export function ConfirmModal() {
   if (!req) return null
 
   return (
-    <Modal
-      open
-      onClose={() => resolveConfirm(false)}
-      title={req.title}
-      width={360}
-      panelId="confirmModal"
-    >
+    <Modal open onClose={() => resolveConfirm(false)} title={req.title} panelId="confirmModal">
       <div className="flex flex-col gap-3">
         <p className="text-sm leading-relaxed" style={{ color: 'var(--text-2)' }}>
           {req.message}

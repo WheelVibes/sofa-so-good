@@ -65,7 +65,7 @@ export function SaveTemplateModal({ open, onClose }: { open: boolean; onClose: (
   }
 
   return (
-    <Modal open onClose={onClose} title="Save apartment to library" width={380}>
+    <Modal open onClose={onClose} title="Save apartment to library" width="var(--modal-sm)">
       <form
         onSubmit={(e) => {
           e.preventDefault()

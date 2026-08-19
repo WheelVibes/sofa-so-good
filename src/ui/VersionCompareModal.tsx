@@ -145,7 +145,7 @@ export function VersionCompareModal() {
       onClose={() => setVersionCompare(null)}
       title="Compare in 3D"
       sub={slot ? `Reveal slider — current design vs “${slot}”, same camera` : undefined}
-      width={820}
+      width="var(--modal-lg)"
       panelId="version-compare"
       footer={
         <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end' }}>

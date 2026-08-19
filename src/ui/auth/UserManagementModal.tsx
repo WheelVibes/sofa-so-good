@@ -147,7 +147,7 @@ export function UserManagementModal({ onClose }: { onClose: () => void }) {
       <div
         ref={panelRef}
         className="panel"
-        style={{ width: 'min(560px, 100%)', padding: 'var(--s-5)' }}
+        style={{ width: 'var(--modal-md)', padding: 'var(--s-5)' }}
       >
         <div
           style={{

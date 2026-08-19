@@ -128,7 +128,7 @@ export function SmartStartWizard() {
       onClose={() => setOpen(false)}
       title="Smart Start"
       sub="Furnish your flat"
-      width={460}
+      width="var(--modal-sm)"
       panelId="smart-start"
       footer={
         <div className="flex items-center justify-between gap-2">

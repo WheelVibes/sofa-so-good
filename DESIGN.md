@@ -42,7 +42,8 @@ tilt cards, scramble text) are **off-brand — do not add them**.
   Crisp, architectural corners — don't soften.
 - Elevation: `--shadow-panel` (docked/floating panels) and `--shadow-pop` (popovers, lifted
   cards) only. Panels use translucent `--surface` + `backdrop-filter: blur(var(--blur))`.
-- Widths: `--panel-w`/`-compact`/`-wide`; modals `--modal-sm`/`-md`/`-lg`; z via `--z-*`.
+- Widths: `--panel-w`/`-compact`/`-wide`; modals `--modal-xs`/`-sm`/`-md`/`-lg` (360px
+  default needs no token); z via `--z-*`.
 
 ## Motion
 

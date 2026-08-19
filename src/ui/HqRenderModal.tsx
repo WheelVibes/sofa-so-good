@@ -234,7 +234,7 @@ export function HqRenderModal() {
       onClose={() => setOpen(false)}
       title="HQ render"
       sub="Path-traced photoreal still of the current view — let samples accumulate, save any time"
-      width={760}
+      width="var(--modal-lg)"
       panelId="hq-render"
       footer={
         <div className="flex items-center justify-between gap-2" style={{ width: '100%' }}>

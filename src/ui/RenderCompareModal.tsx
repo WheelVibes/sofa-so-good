@@ -195,7 +195,7 @@ export function RenderCompareModal() {
       onClose={() => setOpen(false)}
       title="Render compare"
       sub="A/B comparison — preset + environment per side, same camera view"
-      width={820}
+      width="var(--modal-lg)"
       panelId="render-compare"
       footer={
         <div

@@ -121,7 +121,7 @@ export function ShareModal() {
       onClose={() => setOpen(false)}
       title="Share design"
       sub={planName}
-      width={440}
+      width="var(--modal-sm)"
       panelId="sharePanel"
     >
       <div className="sec">

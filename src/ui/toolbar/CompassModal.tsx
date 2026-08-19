@@ -79,7 +79,13 @@ export function CompassModal({
   const rounded = Math.round(orientationDeg) % 360
 
   return (
-    <Modal open={open} onClose={onClose} title="Sun direction" showBack={showBack} width={320}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Sun direction"
+      showBack={showBack}
+      width="var(--modal-xs)"
+    >
       <div className="flex flex-col items-center">
         <span className="mb-2 tabular-nums text-sm text-[var(--text-3)]">
           {Math.round(orientationDeg)}°

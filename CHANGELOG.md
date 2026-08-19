@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.6 — UIUX-4: modal width literals → --modal-xs/-sm/-md/-lg tokens (18 call sites)
+
+Every `Modal width` numeric literal now uses the P11 token scale (the audit found
+direct sibling divergence: TimeCompare used the token while RenderCompare/
+VersionCompare/StagingReveal passed 820). New **`--modal-xs`** (320px) token for the
+compact popover-style dialogs (AppearancePopover, CompassModal, mobile toolbar picker).
+Mapping: 380/400/440/448/460→sm; 512/620/`min(560px,100%)`→md; 760/820→lg; 360→prop
+dropped (the `.modal-overlay > .panel` default). ConfirmModal/PromptModal now inherit
+the default. Rule updated in `src/ui/CLAUDE.md` + `DESIGN.md`. Visually verified
+(Share sm, Render-compare lg incl. its one-row A/B footer, Confirm default).
+
 ## v0.25.0.5 — UIUX-2: undefined button-class typo families fixed + vocabulary guard
 
 An undefined `.btn` modifier silently renders the default button, so five typo

@@ -112,7 +112,7 @@ export function StagingRevealModal() {
       onClose={() => setOpen(false)}
       title="Before / after"
       sub="Reveal slider — empty room vs your furnished design, same camera"
-      width={820}
+      width="var(--modal-lg)"
       panelId="staging-reveal"
       footer={
         <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end' }}>

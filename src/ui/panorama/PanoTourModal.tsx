@@ -199,7 +199,7 @@ export function PanoTourModal() {
       onClose={() => setOpen(false)}
       title="360° tour"
       sub="Linked panoramas — click a hotspot to walk room to room"
-      width={760}
+      width="var(--modal-lg)"
       panelId="pano-tour"
       footer={
         <div className="flex items-center justify-between gap-2">

@@ -18,7 +18,7 @@ export function ShortcutsModal() {
       onClose={() => setOpen(false)}
       title="Keyboard shortcuts"
       sub="Speed up the design loop"
-      width={620}
+      width="var(--modal-md)"
       panelId="shortcuts-help"
     >
       <div className="shortcuts-groups">

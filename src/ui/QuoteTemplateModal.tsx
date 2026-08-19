@@ -295,7 +295,7 @@ export function QuoteTemplateModal() {
       onClose={() => setOpen(false)}
       title="Quote template"
       sub={ratesEnabled ? 'Branding, notes, tax & rates' : 'Branding, notes & tax settings'}
-      width={400}
+      width="var(--modal-sm)"
       footer={
         <div
           className="panel-foot"

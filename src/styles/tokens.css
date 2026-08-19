@@ -71,7 +71,9 @@
   --focus-ring: 0 0 0 var(--focus-ring-w) color-mix(in oklch, var(--accent) 45%, transparent);
 
   /* Modal panel widths (P11) — replaces ad-hoc min(560px…)/min(432px…). Each
-     clamps to the viewport so it never overflows a narrow phone. */
+     clamps to the viewport so it never overflows a narrow phone. --modal-xs is
+     for compact popover-style dialogs (Appearance, Compass, mobile pickers). */
+  --modal-xs: min(320px, calc(100vw - 24px));
   --modal-sm: min(432px, calc(100vw - 24px));
   --modal-md: min(560px, calc(100vw - 24px));
   --modal-lg: min(720px, calc(100vw - 24px));

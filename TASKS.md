@@ -21,8 +21,7 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 ## Open — UI/UX polish cycle (2026-08-19; sources: internal audit + DESIGN.md research refs)
 Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, visual verify.
 ### Stage 2 — token consistency (small sweeps)
-- [ ] UIUX-4: modal `width` literals → `--modal-sm/-md/-lg` tokens (~17 call sites; siblings
-  diverge: TimeCompare uses token, RenderCompare/VersionCompare/StagingReveal pass 820).
+
 - [ ] UIUX-5: ConfirmModal + PromptModal action rows → `Modal`'s `footer` prop (10 siblings
   already do).
 - [ ] UIUX-6: shared `.form-err` class (4 modals paste `color: var(--danger, #c0392b)` — dead

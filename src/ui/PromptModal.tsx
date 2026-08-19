@@ -30,13 +30,7 @@ export function PromptModal() {
   const submit = () => resolvePrompt(text.trim() || null)
 
   return (
-    <Modal
-      open
-      onClose={() => resolvePrompt(null)}
-      title={req.title}
-      width={360}
-      panelId="promptModal"
-    >
+    <Modal open onClose={() => resolvePrompt(null)} title={req.title} panelId="promptModal">
       <form
         onSubmit={(e) => {
           e.preventDefault()

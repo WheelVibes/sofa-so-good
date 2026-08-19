@@ -254,7 +254,12 @@ export function AppearancePopover() {
         </button>
       </Tooltip>
       {isMobile ? (
-        <Modal open={open} onClose={() => setOpen(false)} title="Appearance" width={320}>
+        <Modal
+          open={open}
+          onClose={() => setOpen(false)}
+          title="Appearance"
+          width="var(--modal-xs)"
+        >
           <AppearanceControls />
         </Modal>
       ) : (
