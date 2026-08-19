@@ -5,10 +5,13 @@ import { DEFAULT_TILE_SURFACE_PARAMS, glazeRoughness, makeGlazePeel } from '../t
 
 export function tileFields(base: [number, number, number], seed: number, S: number): Fields {
   const f = blank(S)
-  f.normalStrength = 22
+  f.normalStrength = 16
   const tilesPerRow = 2
   const cell = S / tilesPerRow
-  const groutW = S * 0.018
+  // JOINT-SCALE: at the typical 0.6–0.8 m uvScale this painter's tiles are
+  // 300–400 mm ceramic; a real joint is 3–5 mm. The old 1.8%-of-texture band
+  // (≈ 2 × 9 px ≈ 20+ mm) read as cartoon grout lines.
+  const groutW = Math.max(1.5, S * 0.006)
   const rand = mulberry32(seed)
   const cellTint: number[] = []
   for (let i = 0; i < tilesPerRow * tilesPerRow; i++) cellTint.push(0.94 + rand() * 0.12)
@@ -23,7 +26,9 @@ export function tileFields(base: [number, number, number], seed: number, S: numb
   // own grout layout so the normal + roughness ALIGN with the visible joints.
   const { glaze, grout: groutContrast } = DEFAULT_TILE_SURFACE_PARAMS
   const glazePeel = makeGlazePeel(seed, glaze)
-  const grout: [number, number, number] = [base[0] * 0.62, base[1] * 0.62, base[2] * 0.6]
+  // JOINT-SCALE: cement grout a step darker than the face — not the old 0.62
+  // near-black rules.
+  const grout: [number, number, number] = [base[0] * 0.74, base[1] * 0.74, base[2] * 0.72]
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
       const cx = Math.floor(x / cell)
@@ -36,14 +41,15 @@ export function tileFields(base: [number, number, number], seed: number, S: numb
         // Recessed grout line, darkened unevenly by accumulated dirt; matte
         // cement (high roughness) vs the glossy glaze.
         const t = distEdge / groutW
-        const ag = 0.74 + groutDirt(x / S, y / S) * 0.26
+        const ag = 0.82 + groutDirt(x / S, y / S) * 0.18
         setPx(
           f,
           i,
           grout[0] * ag,
           grout[1] * ag,
           grout[2] * ag,
-          0.05 + t * 0.1,
+          // Shallow real-world recess (~1–2 mm), not a carved canyon.
+          0.35 + t * 0.15,
           glazeRoughness(true, groutContrast, (1 - ag) * 0.06),
         )
       } else {
@@ -92,8 +98,10 @@ export function hexagonFields(base: [number, number, number], seed: number, S: n
   // MAT-002: glaze orange-peel (face only) + glaze↔grout roughness contrast.
   const { glaze, grout: groutContrast } = DEFAULT_TILE_SURFACE_PARAMS
   const glazePeel = makeGlazePeel(seed, glaze)
-  const grout: [number, number, number] = [base[0] * 0.6, base[1] * 0.6, base[2] * 0.58]
-  const groutW = 3.5 // px threshold on the gap between the two nearest centres
+  // JOINT-SCALE: mosaic-sheet grout is genuinely visible, but a step darker
+  // than the face — not near-black.
+  const grout: [number, number, number] = [base[0] * 0.72, base[1] * 0.72, base[2] * 0.7]
+  const groutW = 2.5 // px threshold on the gap between the two nearest centres
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
       let best = Infinity
@@ -130,14 +138,14 @@ export function hexagonFields(base: [number, number, number], seed: number, S: n
       const i = y * S + x
       if (edge < groutW) {
         const t = edge / groutW
-        const ag = 0.74 + groutDirt(x / S, y / S) * 0.26
+        const ag = 0.82 + groutDirt(x / S, y / S) * 0.18
         setPx(
           f,
           i,
           grout[0] * ag,
           grout[1] * ag,
           grout[2] * ag,
-          0.05 + t * 0.1,
+          0.3 + t * 0.15,
           glazeRoughness(true, groutContrast, (1 - ag) * 0.06),
         )
       } else {
@@ -308,7 +316,9 @@ export function subwayFields(
   const tw = S / cols // tile width
   const rows = opts?.rows ?? 8 // even → half-offset running bond wraps; 2:1 tiles (tw = 2·th)
   const th = S / rows
-  const grout = Math.max(2, Math.round(S / (opts?.groutDiv ?? 150))) // thin joint
+  // JOINT-SCALE: rectified porcelain allows a true 1 px hairline; the bevelled
+  // metro tile keeps its ≥2 px visible joint (that's its look).
+  const grout = Math.max(opts?.rectified ? 1 : 2, Math.round(S / (opts?.groutDiv ?? 150)))
   const bevel = Math.max(3, Math.round(S / (opts?.bevelDiv ?? 90))) // soft edge bevel band
   const glazeAmp = opts?.glazeAmp ?? 1
   const cloudAmp = opts?.cloud ?? 0
@@ -394,7 +404,7 @@ export function porcelainFields(base: [number, number, number], seed: number, S:
     cols: 2,
     rows: 4,
     normalStrength: 3,
-    groutDiv: 280,
+    groutDiv: 500,
     glazeAmp: 0.3,
     cloud: 0.05,
     speckAmp: 0.02,
@@ -426,7 +436,8 @@ export function stoneTileFields(base: [number, number, number], seed: number, S:
   f.normalStrength = 4
   const tilesPerRow = 2
   const cell = S / tilesPerRow
-  const groutW = Math.max(2, Math.round(S * 0.006))
+  // JOINT-SCALE: hairline rectified joint (~1 px each side ≈ 2–3 mm per pair).
+  const groutW = Math.max(1, Math.round(S * 0.0025))
   const striate = makeFbm(seed + 5, 4, 5)
   const cloud = makeFbm(seed + 13, 3, 2.4)
   const sand = makeFbm(seed + 29, 3, 90)
@@ -443,9 +454,9 @@ export function stoneTileFields(base: [number, number, number], seed: number, S:
         // Hairline rectified joint — light cement near the face tone (the
         // boards read almost seamless), shallow recess, matte.
         const t = distEdge / groutW
-        const ag = 0.94 + groutDirt(x / S, y / S) * 0.06
-        const [r, g, b] = shade(base, 0.86 * ag)
-        setPx(f, i, r, g, b, 0.4 + t * 0.15, 0.85)
+        const ag = 0.95 + groutDirt(x / S, y / S) * 0.05
+        const [r, g, b] = shade(base, 0.9 * ag)
+        setPx(f, i, r, g, b, 0.48 + t * 0.1, 0.85)
         continue
       }
       const pid = cy * tilesPerRow + cx
@@ -494,7 +505,8 @@ export function porcelainStoneFields(
   const tw = S / cols
   const rows = 4
   const th = S / rows
-  const grout = Math.max(2, Math.round(S / 280))
+  // JOINT-SCALE: hairline rectified joint (~1 px each side ≈ 2–3 mm per pair).
+  const grout = Math.max(1, Math.round(S / 500))
   const mottle1 = makeFbm(seed + 41, 4, 3.2)
   const mottle2 = makeFbm(seed + 43, 3, 8)
   const sand = makeFbm(seed + 47, 3, 80)
@@ -510,9 +522,9 @@ export function porcelainStoneFields(
       const edge = Math.min(xIn, tw - xIn, yIn, th - yIn)
       const i = y * S + x
       if (edge < grout) {
-        const ag = 0.93 + groutDirt(x / S, y / S) * 0.07
-        const [r, g, b] = shade(base, 0.84 * ag)
-        setPx(f, i, r, g, b, 0.4, 0.88)
+        const ag = 0.95 + groutDirt(x / S, y / S) * 0.05
+        const [r, g, b] = shade(base, 0.89 * ag)
+        setPx(f, i, r, g, b, 0.5, 0.88)
         continue
       }
       const pid = row * 31 + col * 7

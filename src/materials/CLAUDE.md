@@ -83,6 +83,16 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   Degenerate guards: non-positive size/tile, non-finite tile, and a runaway subdivision all fall
   back to the plain plane. Unit-tested in `worldUv.test.ts` (period-breaking + determinism + no UV
   NaN + repeat=1 untouched + the Simple/Pro flag-gate, both modes).
+- **Joint widths are real-world millimetres (JOINT-SCALE).** Convert a painter's joint band to
+  mm before shipping it: `band_px / S × uvScale_m × 1000` (both sides of the boundary count).
+  Real values: rectified porcelain ≈ 2–3 mm, classic ceramic grout ≈ 3–5 mm, wood/vinyl
+  micro-bevels ≈ 1–2 mm, brick mortar ≈ 10 mm. The pre-tuning painters exaggerated these
+  3–8× (e.g. the `tile` painter's 1.8%-of-texture grout ≈ 20+ mm near-black rules; vinyl's 7 mm
+  0.78-dark seams) — which is what read as "ugly" spaces between tiles/planks. Darkening is
+  gentle too: grout ≈ 0.7–0.75 × face for cement joints, ≥ 0.86 × face for rectified/hairline
+  and wood bevels; recesses are shallow steps (Δheight ≤ 0.3), never 0.05-vs-0.95 canyons —
+  those catch specular ridge lines under VSM/IBL and read as chamfered glass block. When adding
+  a painter, size the joint from the physical tile/plank first.
 - **SNV sample-board fidelity (SNV-BOARDS)**: the five SNV default finishes are matched against
   the user's photos of the actual Serangoon North Vista exhibition sample boards
   (`assets/guidelines/specs.png` + board close-ups) — treat the boards as ground truth when

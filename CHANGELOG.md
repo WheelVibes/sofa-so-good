@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.1.1 — JOINT-SCALE: realistic joint/seam widths across every tile + plank painter
+
+User feedback on v0.26.1.0: spaces between tiles and planks were exaggerated, "uglier than real
+life". Audited every painter's joint band in physical millimetres (`band_px / S × uvScale_m`) —
+they were 3–8× oversized and far too dark. Now real-world: rectified porcelain (`porcelain` /
+`stoneTile` / `porcelainStone`) at true 1 px hairlines (~2–3 mm) with near-face-tone grout;
+the classic ceramic `tile` painter from ~20+ mm near-black rules (0.62×face) to 3–5 mm at
+0.74×face with a shallow recess (and normalStrength 22→16); `hexagon` mosaic grout lightened;
+vinyl strip V-seams from 7 mm/0.78-dark bands to ~1 px/0.86 with hairline end joints; natural
+`wood`/`parquet`/`herringbone` grooves from 7–14 mm near-black chamfers to 1–2 mm micro-bevels
+(0.62–0.68 floors). GPU-verified close-ups: floors/walls now read as continuous surfaces with
+fine joints instead of grids of dark rules; documented as the JOINT-SCALE rule in
+`src/materials/CLAUDE.md` (size joints from the physical tile first).
+
 ## v0.26.1.0 — SNV sample-board fidelity: the five default finishes match the real boards
 
 The user supplied photos of the actual Serangoon North Vista exhibition sample boards (vinyl

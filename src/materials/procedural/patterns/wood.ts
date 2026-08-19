@@ -71,10 +71,12 @@ export function woodFields(base: [number, number, number], seed: number, S: numb
         }
       }
 
-      // Plank groove (dark + recessed bevel between boards).
+      // Plank groove (dark + recessed micro-bevel between boards).
+      // JOINT-SCALE: real board bevels are 1–2 mm; the old 3.5%-of-plank band
+      // (~7 mm each side) darkened to 0.45 read as thick black rules.
       const edge = Math.min(yInPlank, 1 - yInPlank)
-      const groove = edge < 0.035 ? edge / 0.035 : 1
-      factor *= 0.45 + 0.55 * groove
+      const groove = edge < 0.015 ? edge / 0.015 : 1
+      factor *= 0.62 + 0.38 * groove
 
       // Apply warmth: scale R up / B down around the value.
       const r = base[0] * factor * pk.warm
@@ -113,7 +115,7 @@ export function vinylFields(base: [number, number, number], seed: number, S: num
   const streakN = makeFbm(seed + 9, 3, 12)
   const cathedralN = makeFbm(seed + 15, 3, 2.5)
   const micro = makeFbm(seed + 21, 3, 90)
-  const endW = Math.max(1.5, S * 0.004) // end-joint half width (px)
+  const endW = Math.max(1, S * 0.002) // end-joint half width (px) — hairline
   for (let y = 0; y < S; y++) {
     const pi = Math.floor(y / plankH)
     const across = (y % plankH) / plankH // 0..1 across the strip
@@ -141,16 +143,19 @@ export function vinylFields(base: [number, number, number], seed: number, S: num
       const cat = Math.abs(Math.sin((across + catWarp) * Math.PI * 2 + phase)) ** 10 * 0.05
       const mc = (micro(u * 2, across + pi) - 0.5) * 0.035
       let factor = val * (0.9 + striae - dk * 0.14 + lt * 0.06 - cat + mc)
-      // Tight V-seam between strips + one staggered end joint per strip.
+      // Hairline V-seam between strips + one staggered end joint per strip.
+      // JOINT-SCALE: real vinyl strips sit flush with a ~1 mm micro-V — the
+      // first cut used a 7 mm band darkened to 0.78, which read as thick dark
+      // rules between every strip. ~1 px (≈2–3 mm) at a gentle 0.86 floor.
       const edge = Math.min(across, 1 - across)
-      const seam = edge < 0.02 ? edge / 0.02 : 1
+      const seam = edge < 0.012 ? edge / 0.012 : 1
       const du = Math.abs(u - endU)
       const end = Math.min(du, 1 - du) * S < endW
-      factor *= (0.78 + 0.22 * seam) * (end ? 0.82 : 1)
+      factor *= (0.86 + 0.14 * seam) * (end ? 0.9 : 1)
       const r = base[0] * factor * warm
       const g = base[1] * factor
       const b = base[2] * factor * (2 - warm)
-      const h = clamp01(0.5 + striae * 1.6 - dk * 0.12 - (1 - seam) * 0.3 - (end ? 0.25 : 0))
+      const h = clamp01(0.5 + striae * 1.6 - dk * 0.12 - (1 - seam) * 0.16 - (end ? 0.12 : 0))
       // Low-sheen matte laminate; grain and streaks vary the tooth subtly.
       const rough = clamp01(0.58 + striae * 0.9 + dk * 0.06 - lt * 0.03 + mc + (1 - seam) * 0.1)
       setPx(f, y * S + x, r, g, b, h, rough)
@@ -201,12 +206,13 @@ export function parquetFields(base: [number, number, number], seed: number, S: n
       const fg = fine(along * 4, across)
       let factor = val * (0.92 - band * 0.14 + (fg - 0.5) * 0.06)
       // Recessed grooves between planks (across) and at plank ends (along).
+      // JOINT-SCALE: micro-bevel widths (real parquet joints are 1–2 mm).
       const edgeAcross = Math.min(across, 1 - across)
-      const grooveA = edgeAcross < 0.06 ? edgeAcross / 0.06 : 1
+      const grooveA = edgeAcross < 0.025 ? edgeAcross / 0.025 : 1
       const edgeAlong = Math.min(along, 1 - along)
-      const grooveB = edgeAlong < 0.03 ? edgeAlong / 0.03 : 1
+      const grooveB = edgeAlong < 0.012 ? edgeAlong / 0.012 : 1
       const groove = Math.min(grooveA, grooveB)
-      factor *= 0.5 + 0.5 * groove
+      factor *= 0.68 + 0.32 * groove
       const r = base[0] * factor * warm
       const g = base[1] * factor
       const b = base[2] * factor * (2 - warm)
@@ -275,12 +281,13 @@ export function herringboneFields(base: [number, number, number], seed: number, 
       const fg = fine(alongF * 4, acrossF)
       let factor = val * (0.92 - band * 0.14 + (fg - 0.5) * 0.06)
       // Recessed grooves: across the width (plank sides) + at the butt ends.
+      // JOINT-SCALE: micro-bevel widths (real herringbone joints are 1–2 mm).
       const edgeAcross = Math.min(acrossF, 1 - acrossF)
-      const grooveA = edgeAcross < 0.07 ? edgeAcross / 0.07 : 1
+      const grooveA = edgeAcross < 0.03 ? edgeAcross / 0.03 : 1
       const edgeAlong = Math.min(alongF, 1 - alongF)
-      const grooveB = edgeAlong < 0.05 ? edgeAlong / 0.05 : 1
+      const grooveB = edgeAlong < 0.02 ? edgeAlong / 0.02 : 1
       const groove = Math.min(grooveA, grooveB)
-      factor *= 0.5 + 0.5 * groove
+      factor *= 0.68 + 0.32 * groove
       const r = base[0] * factor * warm
       const gg = base[1] * factor
       const b = base[2] * factor * (2 - warm)
