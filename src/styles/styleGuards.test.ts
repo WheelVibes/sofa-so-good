@@ -518,3 +518,12 @@ describe('UIUX-43 walk-mode HUD mobile fixes', () => {
     )
   })
 })
+
+describe('UIUX-45 context-menu destructive rows signal at rest', () => {
+  it('.ctx-item.danger is danger-coloured at rest, not only on hover', () => {
+    const f = read('./features.css')
+    expect(f).toMatch(/\.ctx-item\.danger \{ color: var\(--danger\); \}/)
+    expect(f).toMatch(/\.ctx-item\.danger \.icn \{ color: var\(--danger\); \}/)
+    expect(f).toMatch(/\.ctx-item\.danger:hover \{ background: var\(--danger-soft\)/)
+  })
+})

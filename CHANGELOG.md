@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.48 — UIUX-45: context-menu Delete rows signal danger at rest
+
+Right-click menu audit (item menu, light + dark): grouping, kbd chips, icons and the
+dark palette all read correctly. One inconsistency fixed: `.ctx-item.danger` (Delete /
+Delete N items / Delete N walls / Delete room) only turned red **on hover** — at rest it
+was indistinguishable from a normal row, unlike every other destructive affordance
+(inspector `.act.danger`, header `.icon-btn.danger` are red at rest). The danger colour
+now applies at rest on both label and icon; hover keeps the `--danger-soft` fill.
+Verified visually; guard test added.
+
 ## v0.25.0.47 — UIUX-44: FinishPicker audit clean (desktop + mobile, light + dark)
 
 Visual audit of the finish picker (room selected in the room editor → `.finish-picker`

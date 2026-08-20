@@ -495,6 +495,10 @@
 .ctx-item .icn { color: var(--text-3); }
 .ctx-item:hover .icn { color: var(--accent-soft-text); }
 .ctx-item .sk { margin-left: auto; }
+/* Destructive rows signal at REST, matching the inspector's .act.danger and
+   .icon-btn.danger (UIUX-45) — hover adds the soft fill on top. */
+.ctx-item.danger { color: var(--danger); }
+.ctx-item.danger .icn { color: var(--danger); }
 .ctx-item.danger:hover { background: var(--danger-soft); color: var(--danger); }
 .ctx-item.danger:hover .icn { color: var(--danger); }
 .ctx-sep { height: 1px; background: var(--border); margin: 3px 4px; }
