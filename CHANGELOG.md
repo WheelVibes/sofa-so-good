@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.37 — UIUX-38: theme-matrix sweep of the new patterns (all pass) + playbook gotcha
+
+Visual sweep of the Stage-5/6 patterns (seg sliding pill, copy-confirm morph, soft
+buttons, scroll-edge shadows, panel-foot, notes field) across all 5 themes × light/dark
+via a 10-shot Share-modal scenario + contact sheet: every combo renders correctly — no
+token fixes needed. The one apparent defect (clay-dark's active seg label invisibly
+dark) was proven transient: headless Chromium starts CSS transitions only on the first
+rendered frame, so a screenshot right after a `[data-mode]` flip captures `transition:
+all .16s` properties at their START (light-theme) values; computed-style probes + a
+second shot show the correct dark `--text`. Documented in
+`docs/visual-verification-playbook.md` under known headless limitations.
+
 ## v0.25.0.36 — UIUX-36: FLIP row movement in the Layers panel
 
 New dependency-free `useFlip` hook (the motion.dev layout-animation mechanic): after a
