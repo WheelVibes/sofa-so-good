@@ -50,6 +50,12 @@ tilt cards, scramble text) are **off-brand — do not add them**.
   scroll-edge lips pin flush at the clip edge, and scrolled rows can never ghost through a
   padding strip past the panel's visual end. Rows boxed in by an opaque sticky label take
   the `--focus-ring-inset` variant so the ring is never truncated.
+- Sticky section labels on a TRANSLUCENT surface (glass panels, sheets, dropdowns) are
+  `background: transparent` + `backdrop-filter: blur(var(--blur)) saturate(1.3)` — never a
+  fill: a second translucent layer double-composites into a lighter full-width bar behind
+  the title (UIUX-61). Only an OPAQUE container (modal cards) opts into a fill, by pinning
+  `--sec-h-bg` to its exact card tone so the fill composites invisibly while fully hiding
+  scrolled rows.
 
 ## Motion
 

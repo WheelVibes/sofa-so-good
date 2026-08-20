@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.30 — UIUX-61: sticky-header white fill bars removed on glass surfaces
+
+User report (mobile Handover sheet): section titles like "MOVE-IN CHECKLIST"
+showed a white full-width fill. Mechanism: sticky `.sec-h` headers painted a
+second translucent `--surface` layer to occlude scrolled rows — invisible on
+opaque modal cards, but on translucent glass panels the double-composite reads
+as a lighter/white bar (the code called it an "accepted trade-off"; no longer).
+Repo-wide fix on the `.m-detail-h` precedent: `.sec-h` (default), the Layers
+`.lyr-ghead-row`, and dropdown `.pop-panel .menu-label` are now transparent
+with a frosted `backdrop-filter` — the pinned title stays legible over rows
+blurring beneath, with no fill. Opaque modal cards keep their exact-match
+solid fill via `--sec-h-bg` (unchanged look). DESIGN.md rule added; style
+guards rewritten; verified on the mobile Handover sheet (stuck mid-scroll),
+Layers panel, Tools menu, and the Share modal.
+
 ## v0.26.2.29 — UIUX-60: inspector disclosure chevrons un-inverted
 
 Item-inspector audit (desktop docked + mobile sheet, collapsed and expanded).

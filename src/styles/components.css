@@ -86,15 +86,13 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
      (`.modal-overlay`'s backdrop-filter) — unlike the anchored dock panels
      (catalog/inspector/budget), they don't need to show the live 3D scene
      through the card itself. Go opaque here (`--surface-solid`, same hue as
-     `--surface`, alpha 1) so a `.sec-h` sticky section header — which paints
-     its own `var(--surface)` layer on top to occlude scrolled rows — composites
-     to the exact same colour as the card behind it (blending a translucent
-     colour over an *opaque* layer of the identical hue reproduces that hue
-     exactly, regardless of the translucent layer's own alpha). On the
-     anchored glass panels this container stays translucent, so the same
-     sticky header still double-composites against the blurred scene and can
-     read slightly lighter than its surroundings — an accepted trade-off to
-     keep those panels' glass-over-scene look; not reported/fixed here. */
+     `--surface`, alpha 1) and pin `--sec-h-bg` to the same tone so a sticky
+     `.sec-h` fully occludes scrolled rows while compositing to the exact
+     card colour (a fill of the identical hue over an opaque layer is
+     invisible). Glass panels take `.sec-h`'s DEFAULT instead — transparent +
+     frosted backdrop — because any fill there double-composites into a
+     lighter full-width bar (UIUX-61; formerly an "accepted trade-off",
+     since reported by a user on the mobile Handover sheet and removed). */
   background: var(--surface-solid);
   --sec-h-bg: var(--surface-solid);
 }

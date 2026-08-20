@@ -344,14 +344,28 @@ describe('P36 sticky section headers', () => {
     expect(p).toMatch(/\.sec-h\s*\{[^}]*position:\s*sticky/s)
     expect(p).toMatch(/\.sec-h\s*\{[^}]*box-shadow:\s*0 1px 0 var\(--border\)/s)
   })
-  it('.sec-h background is overridable per-container via --sec-h-bg (falls back to --surface)', () => {
-    // The default (anchored glass panels — catalog/inspector/budget) keeps the
-    // translucent --surface it always had. Containers that go opaque (modal
-    // dialogs) override --sec-h-bg to the same opaque tone so the sticky
-    // header composites to an identical colour as the card behind it instead
-    // of double-compositing a second translucent layer (the "white bar" bug).
+  it('.sec-h default is transparent + frosted backdrop; --sec-h-bg opts a container into a fill (UIUX-61)', () => {
+    // On the translucent glass panels (aux/catalog/budget) ANY fill on the
+    // sticky header double-composites over the panel's own --surface and reads
+    // as a full-width WHITE BAR behind the title (user report, mobile Handover
+    // sheet). The default is therefore transparent with a backdrop blur (the
+    // .m-detail-h precedent) so the pinned title stays legible over scrolling
+    // rows without adding a fill; only opaque containers (modal dialogs) pin
+    // --sec-h-bg to their exact card tone, where the fill composites invisibly.
     const p = read('./parts.css')
-    expect(p).toMatch(/\.sec-h\s*\{[^}]*background:\s*var\(--sec-h-bg,\s*var\(--surface\)\)/s)
+    expect(p).toMatch(/\.sec-h\s*\{[^}]*background:\s*var\(--sec-h-bg,\s*transparent\)/s)
+    expect(p).toMatch(/\.sec-h\s*\{[^}]*backdrop-filter:\s*blur\(var\(--blur\)\)/s)
+  })
+  it('the other sticky headers on glass surfaces are transparent + frosted too (UIUX-61)', () => {
+    // Same mechanism, same fix: the Layers group header row painted a second
+    // --surface layer, and dropdown menu labels painted --surface-solid over
+    // the alpha-.97 --elevated card — both read as lighter bands.
+    const f = read('./features.css')
+    expect(f).toMatch(/\.lyr-ghead-row\s*\{[^}]*background:\s*transparent/s)
+    expect(f).toMatch(/\.lyr-ghead-row\s*\{[^}]*backdrop-filter:\s*blur\(var\(--blur\)\)/s)
+    const a = read('./app.css')
+    expect(a).toMatch(/\.pop-panel \.menu-label\s*\{[^}]*background:\s*transparent/s)
+    expect(a).toMatch(/\.pop-panel \.menu-label\s*\{[^}]*backdrop-filter:\s*blur\(var\(--blur\)\)/s)
   })
   it('modal dialogs go opaque and pin --sec-h-bg to match, so their sticky headers seam-lessly match the card', () => {
     const c = read('./components.css')
