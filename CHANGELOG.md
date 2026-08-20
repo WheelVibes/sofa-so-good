@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.28 — UIUX-59: Share modal audited clean; rule-grep sweeps clean
+
+Share modal audited on desktop (scrolled both ends) and a phone viewport:
+insets, scroll-edge lips, token buttons, 44px touch targets, full-width mobile
+sheet — all clean, no changes. Rule-backed greps also came back clean: no
+ad-hoc Modal widths (all `--modal-*` tokens), no ad-hoc focus outlines (the one
+`outline:` is the Layers drop-target drag affordance), no TB-8 click-to-cycle
+state controls (walk mode's "Press E" HUD pill is a diegetic interaction
+prompt, not a settings control). Noted: the ⌘K palette is deliberately
+keyboard-only — every command has mobile toolbar-sheet parity, so no mobile
+trigger is missing.
+
 ## v0.26.2.27 — UIUX-58: last two hand-rolled empty states on the shared primitive
 
 Repo-wide sweep for the src/ui CLAUDE.md rule "empty states use the shared
