@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.49 — UIUX-46: scroll-region insets — no more truncated rings or exposed overflow
+
+User report, two defects across scrollable panels, both root-caused and fixed:
+**(1) Exposed bottom overflow** — the sticky scroll-edge lips pin at the scroller's
+CONTENT box, so a scroller's bottom padding formed a strip BELOW the lip where scrolled
+rows stayed visible past the panel's visual end (Quote template rows crowding the footer,
+the File menu's Include-sheets checkboxes below the menu's shadow line, the Shopping
+list's next row under Export CSV). Scrollers now carry no vertical padding — the inset
+moved to the first/last child (`.panel-body`, `.pop-panel`, `.lyr-body`, `#helpPanel`
+override), mirroring the top-side sticky-header rule: clip edges sit flush, lips pin at
+the true edge, resting spacing unchanged. **(2) Truncated focus ring** — the menu row
+auto-focused on open sits 1px under an OPAQUE sticky section label (z-index 1), which
+covered the outward ring's top edge; new `--focus-ring-inset` token + menu rows draw the
+ring inset. Verified on all three reported surfaces (menu top/bottom, quote modal footer,
+mobile shopping edge) plus a scrolled-to-end rest-state check; guard tests updated+added.
+
 ## v0.25.0.48 — UIUX-45: context-menu Delete rows signal danger at rest
 
 Right-click menu audit (item menu, light + dark): grouping, kbd chips, icons and the

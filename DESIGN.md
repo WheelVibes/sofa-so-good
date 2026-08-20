@@ -45,6 +45,11 @@ tilt cards, scramble text) are **off-brand — do not add them**.
   cards) only. Panels use translucent `--surface` + `backdrop-filter: blur(var(--blur))`.
 - Widths: `--panel-w`/`-compact`/`-wide`; modals `--modal-xs`/`-sm`/`-md`/`-lg` (360px
   default needs no token); z via `--z-*`.
+- Scroll containers carry NO vertical padding — the inset lives on the first/last child
+  (`.panel-body`/`.pop-panel`/`.lyr-body` pattern, UIUX-46): sticky section labels and the
+  scroll-edge lips pin flush at the clip edge, and scrolled rows can never ghost through a
+  padding strip past the panel's visual end. Rows boxed in by an opaque sticky label take
+  the `--focus-ring-inset` variant so the ring is never truncated.
 
 ## Motion
 

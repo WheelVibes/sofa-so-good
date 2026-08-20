@@ -334,7 +334,14 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
    size/colour but must not shout — replaces ~50 inline
    `textTransform:'none', letterSpacing:0` hacks (UIUX-7). */
 .panel-sub.plain { text-transform: none; letter-spacing: 0; }
-.panel-body { padding: 0 var(--s-4) var(--s-4); overflow-y: auto; }
+/* No vertical padding on the scrollport (UIUX-46): bottom padding let scrolled
+   rows stay visible BELOW the sticky scroll-edge lip (which pins at the content
+   box, not the padding edge), ghosting content past the panel's visual end —
+   behind modal footers, into the rounded corners (user report: Quote template,
+   Shopping list, File menu). The bottom breathing-room lives on the last child
+   instead, mirroring the top-side rule further up; resting spacing unchanged. */
+.panel-body { padding: 0 var(--s-4); overflow-y: auto; }
+.panel-body > :last-child { margin-bottom: var(--s-4); }
 .hr { height: 1px; background: var(--border); margin: 0; border: 0; }
 
 /* icon button (close, etc.) */

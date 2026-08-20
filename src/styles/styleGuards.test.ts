@@ -429,8 +429,11 @@ describe('UIUX-23 toast stack collapse', () => {
 describe('UIUX-30 edge spacing + scroll-edge shadows', () => {
   it('menu panels keep the --s-3 inset so rows never sit near-flush', () => {
     const app = read('./app.css')
-    expect(app).toMatch(/\.pop-panel \{[^}]*padding:\s*var\(--s-3\)/s)
+    // UIUX-46 moved the vertical inset onto the children (scrollport padding
+    // shows scrolled rows past the sticky edge lips); sides stay --s-3.
+    expect(app).toMatch(/\.pop-panel \{[^}]*padding:\s*0 var\(--s-3\)/s)
     expect(app).toMatch(/\.pop-panel > :first-child \{[^}]*margin-top:\s*var\(--s-3\)/s)
+    expect(app).toMatch(/\.pop-panel > :last-child \{[^}]*margin-bottom:\s*var\(--s-3\)/s)
   })
   it('modal bodies carry scroll-driven edge shadows behind @supports', () => {
     const components = read('./components.css')
@@ -525,5 +528,27 @@ describe('UIUX-45 context-menu destructive rows signal at rest', () => {
     expect(f).toMatch(/\.ctx-item\.danger \{ color: var\(--danger\); \}/)
     expect(f).toMatch(/\.ctx-item\.danger \.icn \{ color: var\(--danger\); \}/)
     expect(f).toMatch(/\.ctx-item\.danger:hover \{ background: var\(--danger-soft\)/)
+  })
+})
+
+describe('UIUX-46 scroll-region insets live on children, not the scrollport', () => {
+  it('.panel-body has no bottom padding; the last child carries the inset', () => {
+    const c = read('./components.css')
+    expect(c).toMatch(/\.panel-body \{ padding: 0 var\(--s-4\); overflow-y: auto; \}/)
+    expect(c).toMatch(/\.panel-body > :last-child \{ margin-bottom: var\(--s-4\); \}/)
+  })
+  it('.lyr-body mirrors the same child-inset pattern on both ends', () => {
+    const f = read('./features.css')
+    expect(f).toMatch(/\.lyr-body \{ padding: 0 var\(--s-3\); overflow-y: auto; \}/)
+    expect(f).toMatch(/\.lyr-body > :first-child \{ margin-top: var\(--s-2\); \}/)
+    expect(f).toMatch(/\.lyr-body > :last-child \{ margin-bottom: var\(--s-4\); \}/)
+  })
+  it('menu rows use the inset focus ring so sticky labels cannot truncate it', () => {
+    const tokens = read('./tokens.css')
+    expect(tokens).toMatch(/--focus-ring-inset: inset 0 0 0 var\(--focus-ring-w\)/)
+    const app = read('./app.css')
+    expect(app).toMatch(
+      /\.pop-panel \.menu-item:focus-visible \{\s*\n\s*box-shadow: var\(--focus-ring-inset\);/,
+    )
   })
 })

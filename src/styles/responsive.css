@@ -623,8 +623,11 @@ body.mobile {
   body.mobile .glb-designer .panel-body .icon-btn::after {
     content: ''; position: absolute; inset: -9px -2px;
   }
-  /* Help modal: comfortable body padding on phones. */
-  #helpPanel .panel-body { padding: var(--s-2) var(--s-4) var(--s-5); }
+  /* Help modal: comfortable body inset on phones — on the children, not the
+     scrollport (UIUX-46: scrollport padding shows scrolled rows past the edge
+     lips; see .panel-body in components.css). */
+  #helpPanel .panel-body { padding: var(--s-2) var(--s-4); }
+  #helpPanel .panel-body > :last-child { margin-bottom: var(--s-5); }
   .kbd-grid { grid-template-columns: 1fr; gap: 9px 0; }
 
   /* ---- Nav cluster: hide on touch -------------------------- */

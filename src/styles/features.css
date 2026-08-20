@@ -148,7 +148,11 @@
    OBJECTS / LAYERS  — left-dock mode, shares catalog position
    ============================================================ */
 
-.lyr-body { padding: var(--s-2) var(--s-3) var(--s-4); overflow-y: auto; }
+/* Vertical inset on the children, not the scrollport (UIUX-46) — padding at
+   either end shows scrolled rows past the sticky edge lips (see .panel-body). */
+.lyr-body { padding: 0 var(--s-3); overflow-y: auto; }
+.lyr-body > :first-child { margin-top: var(--s-2); }
+.lyr-body > :last-child { margin-bottom: var(--s-4); }
 /* Layers list gets the same scroll-edge shadows as .panel-body (UIUX-35);
    margins match its own --s-3 horizontal padding. */
 @supports (animation-timeline: scroll()) {

@@ -84,6 +84,10 @@
      every control matches. color-mix keeps it on-theme in all 5 palettes. */
   --focus-ring-w: 3px;
   --focus-ring: 0 0 0 var(--focus-ring-w) color-mix(in oklch, var(--accent) 45%, transparent);
+  /* Inward variant for rows boxed in by opaque neighbours (sticky menu labels)
+     or a scrollport edge, where the outward ring would be truncated (UIUX-46). */
+  --focus-ring-inset: inset 0 0 0 var(--focus-ring-w)
+    color-mix(in oklch, var(--accent) 45%, transparent);
 
   /* Modal panel widths (P11) — replaces ad-hoc min(560px…)/min(432px…). Each
      clamps to the viewport so it never overflows a narrow phone. --modal-xs is
