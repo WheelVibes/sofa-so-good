@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.22 — UIUX-53: Handover date hint no longer contradicts the control
+
+The Handover panel's empty-state caption claimed "Format: day / month / year"
+directly under a native date input that renders the BROWSER locale's own
+placeholder (mm/dd/yyyy on en-US) — the hint contradicted the very field it
+annotated. A native date input's display format is locale-driven, so no
+hardcoded format claim can be right; the caption now renders only once a date
+is picked, as the unambiguous "Collection day: 12 Jul 2027" confirmation
+(the empty state keeps the existing "Set your key-collection date…" explainer).
+Verified both states in the panel.
+
 ## v0.26.2.21 — UIUX-52: phantom CSS token sweep + guard
 
 Repo-wide scan for `var(--…)` references to custom properties that are never
