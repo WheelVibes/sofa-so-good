@@ -48,9 +48,6 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
   confirm), needs a product decision first.
 
 
-- [ ] UIUX-41b: the glbEditor panels (SourcePanel / ComponentsPanel / LayersPanel /
-  CombinePanel) share the `.lyr-row` vocabulary but kept click-only div rows — extend the
-  UIUX-41 `.lyr-sel` primary-button pattern (keyboard select + focus ring) to them.
 - [ ] UIUX-29: guard test / adoption sweep — every new pattern documented in DESIGN.md as it
   ships; keep adding tasks discovered during stages above.
 

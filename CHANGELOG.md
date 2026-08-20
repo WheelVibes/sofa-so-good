@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.43 — UIUX-41b: GLB designer layer rows keyboard-selectable
+
+Extends the UIUX-41 `.lyr-sel` primary-button pattern to the GLB Asset Designer's layers
+tree — the one glbEditor surface with click-only div rows (audit: ComponentsPanel already
+used a real arm button, SourcePanel rows are label+checkbox, CombinePanel rows have no
+row click). Part rows wrap swatch+name in a select button (`aria-pressed`, Enter/Space,
+shift/ctrl multi-select preserved); transform-group headers do the same around icon+name;
+select-mode keeps its keyboard-accessible checkboxes, inline rename keeps its input. The
+row div keeps its whole-row mouse click and dblclick-rename. New context-mounted unit
+tests; the stage3a group scenario (row click, shift-click multi-select, group select →
+edit panel) passes end-to-end with the tree rendering unchanged.
+
 ## v0.25.0.42 — UIUX-41: Layers rows are keyboard-selectable
 
 The Layers panel's object rows were click-only `<div>`s — a keyboard user could Tab to a
