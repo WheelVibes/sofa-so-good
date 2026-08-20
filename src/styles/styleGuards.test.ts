@@ -469,3 +469,26 @@ describe('UIUX-32 press-scale feedback', () => {
     )
   })
 })
+
+describe('UIUX-39 mobile tap-target pass 3 (layers list / modal buttons / callout dismiss)', () => {
+  const responsive = read('./responsive.css')
+  it('lifts the layers list to the 44px floor with a non-overlapping row-action pitch', () => {
+    expect(responsive).toMatch(/\.lyr-row \{ min-height: 44px; \}/)
+    expect(responsive).toMatch(/\.lyr-ghead \{ min-height: 44px; \}/)
+    expect(responsive).toMatch(/\.lyr-acts \{ gap: 4px; \}/)
+    expect(responsive).toMatch(
+      /\.lyr-acts button \{ width: 40px; height: 40px; position: relative; \}/,
+    )
+    expect(responsive).toMatch(
+      /\.lyr-acts button::after \{ content: ''; position: absolute; inset: -2px; \}/,
+    )
+    expect(responsive).toMatch(/\.lyr-foot \.lyr-showall \{ min-height: 44px;/)
+  })
+  it('lifts plain .btn inside modals and extends the InfoCallout dismiss to 44px', () => {
+    expect(responsive).toMatch(/\.modal-overlay \.btn \{ min-height: 44px; \}/)
+    expect(responsive).toMatch(/\.info-callout \.ic-dismiss \{ position: relative; \}/)
+    expect(responsive).toMatch(
+      /\.info-callout \.ic-dismiss::after \{ content: ''; position: absolute; inset: -11px; \}/,
+    )
+  })
+})

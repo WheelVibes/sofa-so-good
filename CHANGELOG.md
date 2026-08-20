@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.38 — UIUX-39: mobile tap-target pass 3 (layers list, modal buttons, callout dismiss)
+
+An `elementFromPoint`-based *effective* hit-area audit (sees the invisible `::after`
+extensions the earlier rect audits couldn't) swept the mobile surfaces (menu sheet,
+catalog + layers, inspector, share modal, plan editor) and found the last sub-44px
+targets: the Layers list at desktop density (rows ~28px, group headers 25px, per-row
+hide/lock/delete 22px, footer text actions 17px), plain `.btn`s inside modals (31px —
+the pass-2 lift covered segs/catalog chrome but never modal buttons), and the
+InfoCallout dismiss × (22px, the one small icon with no extension). All lifted to the
+44px floor under `body.mobile` using the established recipes (row-action 40px + 4px gap
++ ::after 2px pitch; the toast-X 22+2×11 extension). Guard tests added; re-audit clean
+(only the by-design wide grab-handle and the documented adjacent-header-icon width
+tradeoff remain); layers + share verified visually on 390×844.
+
 ## v0.25.0.37 — UIUX-38: theme-matrix sweep of the new patterns (all pass) + playbook gotcha
 
 Visual sweep of the Stage-5/6 patterns (seg sliding pill, copy-confirm morph, soft
