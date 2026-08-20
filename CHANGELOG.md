@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.41 — UIUX-40: scroll-edge shadows on scrollable dropdown menus
+
+Audit of the desktop toolbar menus (View/Scene/File, Pro) + the ⌘K palette across
+light/dark found one gap: a long dropdown (File/Tools are 72vh-capped scrollers) clipped
+its last row flush at the panel edge with no cue that more rows sit below. The
+`.panel-body` sticky-lip scroll shadows (UIUX-30/35) now also cover `.pop-panel` —
+same `animation-timeline: scroll()` progressive enhancement, adapted to the pop-panel's
+`--s-3` inset; the pseudo lips are flex items there, harmless in a flex *column* (only
+grid scrollers corrupt). Probed live: bottom lip 1→0 across a full scroll, top lip 0→1,
+both inert on short menus; verified visually light + dark. Everything else in the sweep
+(section labels, kbd chips, icon alignment, palette empty state) already consistent —
+no other changes. Guard test added.
+
 ## v0.25.0.40 — UIUX-37: budget ring gauge (RingGauge control)
 
 New `controls/RingGauge` (the bklit ring / activity-gauge pattern, dependency-free): an

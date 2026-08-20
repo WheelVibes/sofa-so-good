@@ -48,6 +48,34 @@
   margin-top: var(--s-3); /* UIUX-30: keep the top inset equal to the sides */
 }
 
+/* Scroll-edge shadows on scrollable dropdowns (UIUX-40) — the ToolbarMenu panel
+   is its own 72vh-capped scroller, so a long menu (File/Tools in Pro) clipped
+   its last row flush at the panel edge with no cue that more rows sit below.
+   Same sticky-lip recipe as `.panel-body` (components.css, where the
+   scrollEdgeTop/Bot keyframes live), with the pop-panel's --s-3 inset; the
+   pseudos are flex items here (flex: none, zeroed by negative margins), which
+   is fine in a column — only *grid* scrollers corrupt (the .card-grid lesson).
+   Non-scrolling popovers keep the lips inert at opacity 0. */
+@supports (animation-timeline: scroll()) {
+  .pop-panel::before,
+  .pop-panel::after {
+    content: ''; position: sticky; left: 0; right: 0; display: block;
+    height: 10px; flex: none; z-index: 2; pointer-events: none; opacity: 0;
+    animation: none linear both;
+    animation-timeline: scroll();
+  }
+  .pop-panel::before {
+    top: 0; margin: 0 calc(-1 * var(--s-3)) -10px;
+    background: linear-gradient(to bottom, color-mix(in oklch, var(--text) 14%, transparent), transparent);
+    animation-name: scrollEdgeTop;
+  }
+  .pop-panel::after {
+    bottom: 0; margin: -10px calc(-1 * var(--s-3)) 0;
+    background: linear-gradient(to top, color-mix(in oklch, var(--text) 14%, transparent), transparent);
+    animation-name: scrollEdgeBot;
+  }
+}
+
 /* Portaled tooltip bubble (positioned by Popover). */
 .tip-box {
   display: inline-flex;

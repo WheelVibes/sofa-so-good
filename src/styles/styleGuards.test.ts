@@ -439,6 +439,14 @@ describe('UIUX-30 edge spacing + scroll-edge shadows', () => {
     expect(components).toMatch(/@keyframes scrollEdgeBot/)
     expect(components).toMatch(/color-mix\(in oklch, var\(--text\) 14%, transparent\)/)
   })
+  it('scrollable dropdown panels carry the same edge shadows (UIUX-40)', () => {
+    const app = read('./app.css')
+    expect(app).toMatch(/\.pop-panel::before,\s*\n\s*\.pop-panel::after \{/)
+    expect(app).toMatch(/\.pop-panel::before \{[^}]*animation-name: scrollEdgeTop/s)
+    expect(app).toMatch(/\.pop-panel::after \{[^}]*animation-name: scrollEdgeBot/s)
+    // The pop-panel inset is --s-3, so the lips must stretch by that amount, not --s-4.
+    expect(app).toMatch(/\.pop-panel::before \{[^}]*calc\(-1 \* var\(--s-3\)\)/s)
+  })
 })
 
 describe('UIUX-31 spring linear() tokens', () => {
