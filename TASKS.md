@@ -33,12 +33,6 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
 ### Stage 4 — off-system surface migrations (Tailwind → tokens)
 
 
-- [ ] UIUX-19b (harness, narrowed): with the Popover scroll-close fix (v0.25.0.29) the
-  plan-editor menus open again headlessly — `plan-furniture-rotate.json` now advances to
-  its rotate-drag rung and fails THERE (`rotation-changed` after the synthetic
-  pointerdown/move sweep; pre-existing on staging, unrelated to the UI/UX work). Root-cause
-  the synthetic-pointer rotate path or re-rung the scenario.
-
 ### Stage 5 — polish patterns from research (each flag-gated, reduced-motion-safe)
 
 

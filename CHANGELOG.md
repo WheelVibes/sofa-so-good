@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.39 — UIUX-19b: plan-furniture-rotate scenario green again (selector fix)
+
+Root-caused the long-failing rotate rung: the scenario dispatched its synthetic
+pointermove/pointerup on `document.querySelector('.plan-screen svg')` — which matches a
+header ICON svg (the header buttons, North compass and scale bar all render svgs before
+the drawing surface), so the gesture never bubbled through the plan canvas's React
+`onPointerMove` (the pointerdown worked because it targeted the knob inside the real
+canvas — history pushed, drag armed, then nothing). Re-targeted both steps at
+`.plan-canvas svg`; the scenario now passes end-to-end including the 15°-snap assertion,
+verified visually (footprint rotated ~105°). Harness fix only — no app behaviour was
+wrong. Gotcha + symptom signature recorded in the visual-verification playbook.
+
 ## v0.25.0.38 — UIUX-39: mobile tap-target pass 3 (layers list, modal buttons, callout dismiss)
 
 An `elementFromPoint`-based *effective* hit-area audit (sees the invisible `::after`

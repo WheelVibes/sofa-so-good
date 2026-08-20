@@ -319,6 +319,15 @@ come out near-black.
   real shot: run any `eval` that forces style recalc (`getComputedStyle(el).color`) followed by a
   short `wait`, or take a throwaway screenshot first — and if a shot still looks wrong, re-probe
   computed style *after* it before diagnosing a token bug.
+- **`querySelector('.plan-screen svg')` grabs a header ICON, not the plan canvas** (UIUX-19b):
+  the plan screen renders many svgs before the drawing surface — the header buttons' icon
+  svgs, the North compass, the scale bar — so the first-match selector dispatches your
+  synthetic pointer event on a toolbar icon and it never bubbles through the canvas svg's
+  React `onPointerMove`/`onPointerUp` (the gesture silently does nothing; `plan-furniture-rotate`
+  failed its rotate rung this way for weeks while its pointerdown — dispatched on the knob
+  inside the real canvas — worked fine). Target **`.plan-canvas svg`** for plan-canvas
+  pointer events. Symptom signature: the down-handler's side effects fire (history pushed,
+  drag state armed) but move/up handlers never run.
 - **R3F raycasts don't fire for synthetic DOM events** — `click` by text/selector
   clicks a real DOM element fine, but clicking the Three.js canvas does NOT trigger
   `onPointerDown`/`onClick` on 3D objects (meshes). Use store actions (`store` step)
