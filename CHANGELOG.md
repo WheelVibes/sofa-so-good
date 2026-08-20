@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.45 — UIUX-42: Smart Start uses tall viewports (first-run audit otherwise clean)
+
+Visual audit of the first-run surfaces: the Onboarding welcome flow reads correctly in
+light + dark and on mobile (brand mark, feature cards, footer nav); the Smart Start
+mobile sheet lays out well. One fix: on a tall desktop viewport the modal's 560px
+default cap cut the flagship design-theme card grid mid-card while half the screen sat
+unused — `#smart-start` now gets the `#graphicsSettings` treatment
+(`max-height: min(760px, calc(100vh - 48px))`), showing two full theme rows with the
+next row peeking as the scroll cue. Also confirmed by probe that the modal-body
+scroll-edge shadow was already active on this surface (the earlier "clipped with no
+cue" read was the lip being subtle over a filled card at the exact edge).
+
 ## v0.25.0.44 — UIUX-29: selectable-row pattern canonicalised; click-only-div audit clean
 
 DESIGN.md interaction grammar gains the UIUX-41/41b rule: a selectable list row is never

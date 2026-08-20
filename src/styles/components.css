@@ -160,6 +160,10 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 /* Graphics settings: a long stack of sections — allow a taller panel than the
    360-wide default before it scrolls (was its custom shell's sizing, UIUX-15). */
 .modal-overlay > #graphicsSettings { max-height: min(640px, calc(100vh - 48px)); }
+/* Smart Start: intro + 4 starting-state rows + the design-theme card grid is a
+   long stack — on a tall viewport the 560px default cut the flagship theme grid
+   mid-card while half the screen sat unused (UIUX-42). Same pattern as above. */
+.modal-overlay > #smart-start { max-height: min(760px, calc(100vh - 48px)); }
 
 /* ---- Thin, aesthetic scrollbars ------------------------------ */
 * { scrollbar-width: thin; scrollbar-color: var(--border-2) transparent; }
