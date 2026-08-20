@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.17 — UIUX-48: merged materials UI audited clean
+
+Post-merge audit of the surfaces the photoreal-materials PR added, through the UI/UX
+lens: `ShowroomRow` rides the token `.swatch` vocabulary (so it inherits the 40px mobile
+tap-target bump — probe-confirmed 40×40 on the phone sheet), its heading uses the
+`.sec-h` + `.badge ok` vocabulary, and the colour-grade dials are shared `SliderField`s.
+Dark mode reads correctly across the finish tabs; the Showroom strip's
+graceful-degradation path (a chip whose CDN thumbnail fails hides itself; an all-hidden
+strip renders nothing) was exercised live by the sandbox proxy blocking Poly Haven and
+behaved exactly as designed. No changes needed.
+
 ## v0.26.2.16 — merge fix: colour-grade dials restored beside Exposure
 
 The staging merge (below) was pushed with the dial-relocation hunk accidentally left
