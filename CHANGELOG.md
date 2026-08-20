@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.27 — UIUX-58: last two hand-rolled empty states on the shared primitive
+
+Repo-wide sweep for the src/ui CLAUDE.md rule "empty states use the shared
+EmptyState" found two stragglers hand-rolling plain-text hints: the View menu's
+saved-views section ("No saved views yet" as a bare div, while FileMenu and
+ArrangeMenu use EmptyState in the identical menu context) and the plan
+inspector's switch-controls section ("No light fixtures on this storey yet" as
+a bare <p>). Both now render the primitive — Frame icon for saved views, Lights
+icon for switch controls — same copy, consistent centred icon+title+description
+treatment. Verified live in the View menu (scrolls fully into view) and the
+switch inspector with a fixture-less storey.
+
 ## v0.26.2.26 — UIUX-57: report tables no longer collide adjacent cells
 
 Follow-up defect from the report audit, in the section never viewed before
