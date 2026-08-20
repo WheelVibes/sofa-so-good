@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.26 — UIUX-57: report tables no longer collide adjacent cells
+
+Follow-up defect from the report audit, in the section never viewed before
+(Finishes schedule → Renovation estimate): REPORT_CSS gave `td` zero horizontal
+padding, so in 3–4 column tables the right-aligned numeric cells touched their
+neighbours ("66.2 m²$60/m²" read as one string) and long values wrapped
+mid-cell ("179.5 m²" split across lines). Every cell now gets a 12px gap from
+its left neighbour (`td + td`), and `.num` cells are nowrap so a value never
+splits. FF&E + finish-schedule tables keep their own padding rules (class
+specificity wins). Verified in the rendered report — renovation estimate and
+thermal envelope both clean.
+
 ## v0.26.2.25 — UIUX-56: theme-matrix + mobile sweep audited clean
 
 Verification pass over this stretch's fixes across the theme matrix and a phone
