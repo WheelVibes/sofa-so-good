@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.44 — UIUX-29: selectable-row pattern canonicalised; click-only-div audit clean
+
+DESIGN.md interaction grammar gains the UIUX-41/41b rule: a selectable list row is never
+a click-only div — the primary action is a real `.lyr-sel`-style button with
+`aria-pressed`, sibling action buttons after it (the row div may keep whole-row mouse
+click + drag-and-drop duties). A repo-wide sweep for remaining click-only
+div/span handlers found no other real gaps: the hits are `stopPropagation`-only event
+containment, standard backdrop-dismiss overlays (Escape covers keyboard), or layout divs
+around real buttons; catalog cards already carry `role="button"`.
+
 ## v0.25.0.43 — UIUX-41b: GLB designer layer rows keyboard-selectable
 
 Extends the UIUX-41 `.lyr-sel` primary-button pattern to the GLB Asset Designer's layers

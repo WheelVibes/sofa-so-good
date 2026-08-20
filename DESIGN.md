@@ -69,6 +69,9 @@ tilt cards, scramble text) are **off-brand — do not add them**.
 - Keyboard focus = `var(--focus-ring)` box-shadow on `:focus-visible` — never ad-hoc outlines.
 - Hover-lift cards = shared `.liftable` (translateY(-2px) + `--shadow-pop`).
 - Hover-revealed row actions must also reveal on `:focus-within` and stay visible on touch.
+- A selectable list row is never a click-only div: the primary action (icon + name) is a
+  real button (`.lyr-sel` / the saved-view-row pattern) with `aria-pressed`, sibling action
+  buttons after it; the row div may keep a whole-row mouse click and drag-and-drop duties.
 - 3+ state controls = `Segmented`/`Select`, never click-to-cycle; `Segmented`'s selection
   glides on a measured `.seg-pill` (static `.on` is the unmeasured fallback). Buttons = `<Button>`
   primitive. Sliders = `SliderField`. Empty lists = `EmptyState`. Collapsibles = `Disclosure`.
