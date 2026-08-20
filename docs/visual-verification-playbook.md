@@ -318,7 +318,11 @@ come out near-black.
   transient. After any theme/mode/state flip whose properties transition, force a frame before the
   real shot: run any `eval` that forces style recalc (`getComputedStyle(el).color`) followed by a
   short `wait`, or take a throwaway screenshot first — and if a shot still looks wrong, re-probe
-  computed style *after* it before diagnosing a token bug.
+  computed style *after* it before diagnosing a token bug. In a MULTI-theme contact-sheet sweep
+  this applies between EVERY flip: a `{theme flip} → wait → screenshot` chain reproduces the fake
+  bug on each panel after the first (re-hit in the UIUX-56 sweep) — interleave a forced-recalc
+  eval (`void getComputedStyle(document.body).color`) + wait, or shoot each theme twice and keep
+  the second.
 - **`querySelector('.plan-screen svg')` grabs a header ICON, not the plan canvas** (UIUX-19b):
   the plan screen renders many svgs before the drawing surface — the header buttons' icon
   svgs, the North compass, the scale bar — so the first-match selector dispatches your

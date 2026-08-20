@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.25 — UIUX-56: theme-matrix + mobile sweep audited clean
+
+Verification pass over this stretch's fixes across the theme matrix and a phone
+viewport: the Design score panel (RingGauge ok-tone, sev-dots, aux body inset)
+in clay light/dark, harbour dark and estate light; Handover + Design score as
+mobile bottom sheets (width-auto override, 12px first-child gap probe-confirmed,
+UIUX-53 date field clean on mobile). No real defects — one suspected clay-dark
+"invisible score numbers" turned out to be the documented screenshot-at-
+transition-start artifact (computed-style probe + settled reshoot proved it).
+Playbook gotcha extended with the multi-theme sweep recipe (force a frame
+between every flip and shot).
+
 ## v0.26.2.24 — UIUX-55: BOQ quote table polish; drawing set audited clean
 
 Headless audit of the two remaining printables. The BOQ quote: section titles
