@@ -113,8 +113,13 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
    stuck) — so don't zero the first `.sec`'s padding-top inline. This margin
    rule covers the remaining case of a first child that is NOT a `.sec` (plain
    intro copy); a margin scrolls with the content, so sticky headers below it
-   are unaffected. */
-.modal-overlay .panel-body > :first-child:not(.sec) { margin-top: var(--s-4); }
+   are unaffected. UIUX-51 (user report): the floating `.aux` panels had the
+   exact same flush-against-the-hr problem (Versions' save button, Handover's
+   date field, the score dial) — same rule, same self-spacing exclusions
+   (`.clr-summary` stat rows carry their own padding-top like `.sec` does).
+   Dock panels (catalog/inspector) stay flush by design. */
+.modal-overlay .panel-body > :first-child:not(.sec):not(.clr-summary),
+.aux .panel-body > :first-child:not(.sec):not(.clr-summary) { margin-top: var(--s-4); }
 /* Modal footer row (the `Modal` `footer` prop): actions right-aligned on the
    same horizontal rhythm as .panel-body. Override justify-content inline for
    split layouts (e.g. a leading option cluster + trailing CTA). Symmetric

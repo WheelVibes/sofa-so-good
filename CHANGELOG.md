@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.20 — UIUX-51: aux panel bodies get top breathing room
+
+User report: aux-panel body content sat flush under the header rule ("looks cut
+off") — Versions' Save button, SG rules' stat tiles, Handover's intro, Design score's
+dial and Comments' composer all started at 0 gap. The scroll-region child-inset rule
+(UIUX-46/47) gave `.modal-overlay .panel-body > :first-child` a `--s-4` top margin but
+never covered the floating aux panels, which share the same `.panel-body` scroller
+architecture. The rule now targets `.aux .panel-body` too, keeping the same exclusions
+for self-spacing first children (`.sec`, `.clr-summary`). Style guard extended; verified
+on all seven aux panels (contact sheet) plus a Versions close-up — clear gap, no
+double-spacing on the stat-tile panels.
+
 ## v0.26.2.19 — UIUX-50: Design score dial fixed + aux-panel sweep clean
 
 Sweep of the seven analytical aux panels (Clearance, Daylight, Design score,

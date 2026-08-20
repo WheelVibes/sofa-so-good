@@ -569,3 +569,12 @@ describe('UIUX-46b remaining scrollers use child insets too', () => {
     expect(r).toMatch(/\.m-rail > :last-child \{ margin-bottom: var\(--s-2\); \}/)
   })
 })
+
+describe('UIUX-51 aux panel bodies get top breathing room', () => {
+  it('the first-child margin rule covers .aux bodies with the self-spacing exclusions', () => {
+    const c = read('./components.css')
+    expect(c).toMatch(
+      /\.modal-overlay \.panel-body > :first-child:not\(\.sec\):not\(\.clr-summary\),\s*\n\.aux \.panel-body > :first-child:not\(\.sec\):not\(\.clr-summary\) \{ margin-top: var\(--s-4\); \}/,
+    )
+  })
+})
