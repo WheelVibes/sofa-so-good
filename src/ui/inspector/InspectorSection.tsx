@@ -50,13 +50,17 @@ export function InspectorSection({
             textAlign: 'left',
           }}
         >
+          {/* Base glyph points DOWN = expanded; collapsed rotates -90° to point
+              RIGHT — the disclosure grammar the Layers/glbEditor panels use
+              (UIUX-60: this was `open ? 90 : 0`, i.e. down when collapsed and
+              LEFT when expanded — inverted against every other collapsible). */}
           <Icon.Chevron
             width={13}
             height={13}
             style={{
               flex: 'none',
               transition: 'transform .15s',
-              transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+              transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
             }}
           />
           <span>{title}</span>

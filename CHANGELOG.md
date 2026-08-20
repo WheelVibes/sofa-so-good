@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.29 — UIUX-60: inspector disclosure chevrons un-inverted
+
+Item-inspector audit (desktop docked + mobile sheet, collapsed and expanded).
+One real defect: `InspectorSection` rotated its chevron `open ? 90° : 0°` over
+a down-pointing base glyph — so a COLLAPSED section pointed down and an
+EXPANDED one pointed LEFT, inverted against the universal disclosure grammar
+and against this app's own Layers/glbEditor panels (right = collapsed, down =
+expanded). Now `open ? 0° : -90°`. Everything else clean: header icon row,
+two-column property rows, action grid, elevation slider, mobile bottom sheet.
+Verified collapsed/expanded on the live panel.
+
 ## v0.26.2.28 — UIUX-59: Share modal audited clean; rule-grep sweeps clean
 
 Share modal audited on desktop (scrolled both ends) and a phone viewport:
