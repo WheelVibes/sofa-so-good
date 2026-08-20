@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.23 — UIUX-54: report compliance advisories collapse to ×N entries
+
+Full visual audit of the printable design report (rendered headlessly, all 23
+sections). Styling is sound — one real defect: "HDB compliance hints" printed
+one advisory PER external/long wall with the same title and paragraph verbatim,
+so the default flat carried ~24 indistinguishable copies (pages of repetition).
+Identical advisories (severity+title+detail+cite) now collapse into one entry
+with a ×N count ("Likely structural wall — hacking is restricted ×22"); entries
+whose detail differs (per-wall lengths, per-room names) stay separate. The
+summary counts stay true raw counts. Unit test with a hermetic two-external-wall
+plan; verified in the regenerated report.
+
 ## v0.26.2.22 — UIUX-53: Handover date hint no longer contradicts the control
 
 The Handover panel's empty-state caption claimed "Format: day / month / year"
