@@ -222,7 +222,7 @@ export function ProfileEditor({
         {points.map((p, i) => {
           const [cx, cy] = toPx(p)
           const active = i === sel
-          const fill = active ? 'var(--accent)' : 'var(--surface-4, var(--surface-3))'
+          const fill = active ? 'var(--accent)' : 'var(--surface-3)'
           // Smooth points render as CIRCLES, sharp points as SQUARES — a glanceable
           // read of which points the curve rounds through vs. which are corners.
           const r = active ? 6 : 4.5

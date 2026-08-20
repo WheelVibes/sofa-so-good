@@ -140,7 +140,12 @@ export function FurnitureLayer({
                 pointerEvents="none"
               >
                 <title>Tilted (pitch/roll)</title>
-                <circle r={7} fill="var(--panel)" stroke="var(--accent)" strokeWidth={1.5} />
+                <circle
+                  r={7}
+                  fill="var(--surface-solid)"
+                  stroke="var(--accent)"
+                  strokeWidth={1.5}
+                />
                 {/* Diagonal double-arrow = out-of-plane tilt. */}
                 <path
                   d="M-3.4,3.4 L3.4,-3.4 M3.4,-3.4 l-2.5,0.15 M3.4,-3.4 l-0.15,2.5 M-3.4,3.4 l2.5,-0.15 M-3.4,3.4 l0.15,-2.5"

@@ -341,7 +341,7 @@ export function ProductTour() {
             style={{
               fontSize: 'var(--t-2xs)',
               fontWeight: 600,
-              color: 'var(--accent-text, var(--accent))',
+              color: 'var(--accent)',
               margin: '-6px 0 12px',
               display: 'flex',
               alignItems: 'center',

@@ -216,8 +216,8 @@
   padding: 1px 6px;
   border-radius: var(--r-pill);
   background: var(--surface-solid);
-  border: 1px solid var(--guide, #ff3df0);
-  color: var(--guide, #ff3df0);
+  border: 1px solid var(--guide);
+  color: var(--guide);
   font-size: var(--t-xs);
   font-weight: 700;
   line-height: 1.4;

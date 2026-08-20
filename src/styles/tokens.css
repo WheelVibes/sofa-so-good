@@ -113,6 +113,13 @@
   --sun: oklch(0.84 0.16 85);
   --sun-edge: oklch(0.48 0.11 65);
 
+  /* Alignment-guide magenta — semantic like --sun, same hue in every theme.
+     MUST match scene/AlignmentGuides.tsx `GUIDE_COLOR` (the 3D guide lines are
+     three.js materials that can't read CSS vars); the .spacing-badge border/text
+     tie the DOM badge to those lines (UIUX-52: was referenced undefined, the
+     per-site fallback literal did all the work). */
+  --guide: #ff3df0;
+
   /* Scrim over live 3D/photo content (presentation HUD bars, tour dim) is dark
      in every theme/mode — what's underneath is arbitrary scene pixels, so text
      on it is a fixed light --on-scrim (semantic, like --sun). */

@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.21 — UIUX-52: phantom CSS token sweep + guard
+
+Repo-wide scan for `var(--…)` references to custom properties that are never
+defined (the failure class behind UIUX-50's invisible Design score dial). Six
+phantoms found and fixed: the plan editor's tilted-item badge circle was filled
+with undefined `--panel` → computed BLACK in every theme (now `--surface-solid`;
+verified in the plan editor with a pitched bed — light circle, accent arrow);
+`.shortcuts-group-title` used `--text-1` (→ `--text`); `--guide` is now a real
+semantic token in tokens.css (magenta, documented as mirroring
+`AlignmentGuides.tsx` `GUIDE_COLOR`) instead of a per-site fallback literal; and
+three fallback-hidden misspellings (`--accent-text`, `--shadow-2`, `--surface-4`)
+collapse to the real tokens they fell back to. New `phantomTokenGuard.test.ts`
+fs-scans all src css/ts/tsx and fails on any undefined var() reference.
+
 ## v0.26.2.20 — UIUX-51: aux panel bodies get top breathing room
 
 User report: aux-panel body content sat flush under the header rule ("looks cut
