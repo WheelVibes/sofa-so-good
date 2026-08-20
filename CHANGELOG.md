@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.46 — UIUX-43: walk-mode HUD mobile fixes (measure pill, keyboard chips)
+
+Walk-mode HUD audit (desktop + mobile portrait/landscape, day + night, via the existing
+walk-hud-audit scenario) found two mobile defects, both fixed: (1) the persistent
+walk-measure pill's desktop top-right slot sat UNDER the collapsed toolbar's hamburger
+on a portrait phone — its placement now lives on a `.walk-measure-dock` class (was
+inline utilities) and drops one row below the hamburger on mobile, pinned to the visual
+viewport like the other walk docks; (2) the walk interact pills ("E · Open curtains" and
+friends) advertised a keyboard ‹E› chip on touch — the pills are already tappable
+buttons, so the kbd chip is now hidden under `body.mobile` AND `@media (pointer:
+coarse)` (landscape phones are wider than the mobile breakpoint). Desktop unchanged
+(verified). Guard tests added.
+
 ## v0.25.0.45 — UIUX-42: Smart Start uses tall viewports (first-run audit otherwise clean)
 
 Visual audit of the first-run surfaces: the Onboarding welcome flow reads correctly in

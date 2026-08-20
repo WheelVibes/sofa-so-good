@@ -299,7 +299,14 @@
 
 /* Walk-mode point-to-point measure control (WALK-MEASURE) — persistent
    top-right pill (unlike `.walk-hud` above, this doesn't auto-fade: it's an
-   active tool, not a one-time hint). */
+   active tool, not a one-time hint). The dock owns the placement so
+   responsive.css can drop it below the mobile hamburger (UIUX-43). */
+.walk-measure-dock {
+  position: absolute;
+  right: 16px;
+  top: calc(env(safe-area-inset-top, 0px) + 16px);
+  z-index: 20;
+}
 .walk-measure {
   display: inline-flex;
   align-items: center;

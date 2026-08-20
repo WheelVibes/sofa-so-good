@@ -106,6 +106,18 @@ body.mobile {
   .walk-joystick,
   .walk-hud-dock { position: fixed; }
 
+  /* Walk-measure pill (UIUX-43): on a portrait phone the walk toolbar collapses
+     to corner home/menu buttons, and the pill's desktop top-right slot sat
+     UNDER the hamburger. Drop it one row below (and pin to the visual viewport
+     like the docks above). */
+  .walk-measure-dock { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 64px); }
+
+  /* Walk-prompt keyboard chips (UIUX-43): the "E · Open curtains" pills are
+     real tappable buttons, but the ‹E› kbd chip is meaningless where there is
+     no keyboard — hide it on phone layouts (the coarse-pointer rule below
+     covers landscape phones, which are wider than this breakpoint). */
+  .hud-pill kbd { display: none; }
+
   /* The 2D plan editor (`.plan-screen`, `absolute inset:0` inside the extended
      shell) also runs past the bottom, so its canvas-pinned controls (compass /
      scale bar / floor selector) would be dragged below the screen. Shrink its
@@ -750,4 +762,11 @@ body.mobile {
 /* Budget HUD clears the iOS home indicator on mobile (full-bleed canvas). */
 body.mobile .budget-hud {
   bottom: calc(var(--s-3) + env(safe-area-inset-bottom));
+}
+
+/* Touch has no keyboard whatever the width — a landscape phone is wider than
+   the body.mobile breakpoint yet still shouldn't advertise an ‹E› key on the
+   walk-mode interact pills (UIUX-43; the pills are tappable buttons). */
+@media (pointer: coarse) {
+  .hud-pill kbd { display: none; }
 }

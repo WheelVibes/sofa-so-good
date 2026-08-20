@@ -500,3 +500,21 @@ describe('UIUX-39 mobile tap-target pass 3 (layers list / modal buttons / callou
     )
   })
 })
+
+describe('UIUX-43 walk-mode HUD mobile fixes', () => {
+  const responsive = read('./responsive.css')
+  it('drops the walk-measure pill below the mobile hamburger', () => {
+    expect(responsive).toMatch(
+      /\.walk-measure-dock \{ position: fixed; top: calc\(env\(safe-area-inset-top, 0px\) \+ 64px\); \}/,
+    )
+    const app = read('./app.css')
+    expect(app).toMatch(/\.walk-measure-dock \{/)
+  })
+  it('hides interact-pill keyboard chips on touch (mobile block + coarse pointer)', () => {
+    const hits = responsive.match(/\.hud-pill kbd \{ display: none; \}/g) ?? []
+    expect(hits.length).toBe(2)
+    expect(responsive).toMatch(
+      /@media \(pointer: coarse\) \{\s*\n\s*\.hud-pill kbd \{ display: none; \}/,
+    )
+  })
+})

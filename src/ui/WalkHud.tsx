@@ -74,10 +74,7 @@ export function WalkHud() {
       {/* Walk-measure control: top-right, persistent (not auto-fading like the
           controls banner below — it's an active tool, not a one-time hint). */}
       {measureEnabled ? (
-        <div
-          className="pointer-events-none absolute right-4 z-20"
-          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}
-        >
+        <div className="walk-measure-dock pointer-events-none">
           <div className="walk-measure pointer-events-auto">
             <button
               type="button"
