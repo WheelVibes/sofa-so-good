@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.18 — UIUX-49: aux panels size via a named width ladder
+
+Versions/history audit found five floating aux panels sizing themselves with ad-hoc
+inline widths (300/340/340/360/380) plus duplicate per-panel ID rules in CSS — the
+reason the mobile sheet override needs `!important`. parts.css now ships a named ladder
+(`.aux-320` = `--panel-w`, `.aux-360`, `.aux-380`); Versions + Clearance normalise
+340→360, History 300→320, RenoRules and Elevation keep their sizes via class. The
+shadowing `#versionsPanel`/`#clearancePanel` ID widths and the dead `#shopPanel` rules
+(no element carries that id) are removed. New fs guard forbids inline widths on aux
+asides and numeric ID width rules (token widths like `#swapPanel { width:
+var(--modal-md) }` stay sanctioned). Probed live: Versions 360, History 320; the panel
+(empty state, CURRENT card, save-prompt modal with the new symmetric footer) verified
+visually. Delete-version confirmed still gated on the danger confirm.
+
 ## v0.26.2.17 — UIUX-48: merged materials UI audited clean
 
 Post-merge audit of the surfaces the photoreal-materials PR added, through the UI/UX

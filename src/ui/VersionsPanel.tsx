@@ -180,7 +180,7 @@ export function VersionsPanel() {
   }
 
   return (
-    <aside className="panel mini aux" id="versionsPanel" style={{ width: 340 }}>
+    <aside className="panel mini aux aux-360" id="versionsPanel">
       <AuxPanelHead
         title="Versions"
         sub="Layout history"

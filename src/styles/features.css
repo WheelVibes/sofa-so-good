@@ -273,7 +273,7 @@
 /* ============================================================
    CLEARANCE  — floating aux panel
    ============================================================ */
-#clearancePanel { width: 340px; }
+/* Width comes from the .aux-360 ladder class (UIUX-49) — no per-panel ID width. */
 .clr-summary { display: flex; flex-wrap: wrap; gap: var(--s-2); padding-top: var(--s-3); }
 .clr-stat { flex: 1 1 54px; min-width: 54px; padding: var(--s-3) var(--s-2); border-radius: var(--r-2); background: var(--surface-2); border: 1px solid var(--border); text-align: center; }
 .clr-stat .n { font-size: var(--t-xl); font-weight: 800; font-family: var(--font-mono); letter-spacing: -0.03em; line-height: 1.1; }
@@ -311,7 +311,8 @@
 /* ============================================================
    SHOPPING LIST + COLLECTIONS  (replaces budget panel)
    ============================================================ */
-#shopPanel { width: 320px; }
+/* (No #shopPanel id exists any more — the shopping panel is BudgetPanel's
+   plain .panel.mini.aux; its width is .mini's. UIUX-49 removed the dead rule.) */
 .shop-tabs { display: flex; gap: 2px; padding: var(--s-3) 0 var(--s-2); }
 .shop-list { display: flex; flex-direction: column; }
 .shop-row { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3) 0; }
@@ -381,7 +382,7 @@
 /* ============================================================
    VERSIONS  — floating aux panel
    ============================================================ */
-#versionsPanel { width: 340px; }
+/* Width comes from the .aux-360 ladder class (UIUX-49) — no per-panel ID width. */
 .ver-list { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-3); }
 .ver-card { display: flex; gap: var(--s-3); padding: var(--s-3); border-radius: var(--r-2); background: var(--surface-2); border: 1px solid var(--border); transition: var(--dur) var(--ease); position: relative; }
 .ver-card.current { border-color: var(--accent); }
@@ -578,7 +579,8 @@
 
 /* ---- mobile fit ---------------------------------------------- */
 body.mobile .cmdk { width: calc(100vw - 24px); }
-body.mobile #clearancePanel, body.mobile #versionsPanel, body.mobile #shopPanel { width: calc(100vw - 24px); }
+/* (aux panels need no per-id mobile width: the responsive `.aux` sheet rule
+   already forces width auto !important within left/right insets — UIUX-49.) */
 body.mobile .modal-overlay > #swapPanel,
 /* (mobile #sharePanel width: the --modal-sm token already clamps to 100vw-24px) */
 body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }

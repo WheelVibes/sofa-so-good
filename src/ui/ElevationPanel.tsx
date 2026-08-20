@@ -133,7 +133,7 @@ export function ElevationPanel() {
         })
 
   return (
-    <aside className="panel mini aux" id="elevationPanel" style={{ width: 380 }}>
+    <aside className="panel mini aux aux-380" id="elevationPanel">
       <AuxPanelHead
         title="Drawings"
         sub={mode === 'elevations' ? 'Side-on views per wall' : 'Fixtures + coverage'}

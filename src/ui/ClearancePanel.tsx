@@ -126,7 +126,7 @@ export function ClearancePanel() {
   }
 
   return (
-    <aside className="panel mini aux" id="clearancePanel" style={{ width: 340 }}>
+    <aside className="panel mini aux aux-360" id="clearancePanel">
       <AuxPanelHead
         title="Clearance checks"
         sub="HDB 90 cm walkways"

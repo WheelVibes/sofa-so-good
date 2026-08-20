@@ -645,9 +645,13 @@
 /* ---- Generic small panel (budget / graphics / finishes) ------ */
 .mini { width: 290px; }
 .aux { left: 50%; top: 74px; transform: translateX(-50%); position: absolute; z-index: var(--z-pop); animation: pop var(--dur) var(--ease); max-height: calc(100vh - 96px); }
-/* Fixed width for the analysis aux panels (daylight / design-score / accessibility);
-   the mobile responsive rule overrides .aux width to auto. */
+/* Fixed-width ladder for the floating aux panels (UIUX-49) — three named steps,
+   never inline widths (an inline width would defeat the mobile sheet override,
+   which forces width auto). 320 tracks --panel-w so a panel matches the docked
+   rail; 360 is the analysis default; 380 the drawings/elevation extra room. */
+.aux-320 { width: var(--panel-w); }
 .aux-360 { width: 360px; }
+.aux-380 { width: 380px; }
 /* display:block so width:100% + aspect-ratio apply — as a <span> (inline) they
    were ignored, collapsing every swatch to a thin strip. Square thumbnails. */
 .swatch-lg { display: block; width: 100%; aspect-ratio: 1/1; border-radius: var(--r-2); border: 1px solid var(--border-2); cursor: pointer; position: relative; overflow: hidden; }
