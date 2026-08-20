@@ -95,7 +95,7 @@ describe('tintMaterial (recolour an existing material)', () => {
     const id = tintMaterialId('floor-wood-oak', '#3aa0ff')
     expect(id).toBe('tint:floor-wood-oak:#3aa0ff')
     expect(isTintMaterialId(id)).toBe(true)
-    expect(parseTintMaterialId(id)).toEqual({
+    expect(parseTintMaterialId(id)).toMatchObject({
       baseId: 'floor-wood-oak',
       color: '#3aa0ff',
       scale: 1,
@@ -105,7 +105,7 @@ describe('tintMaterial (recolour an existing material)', () => {
 
   it('keeps a colon-bearing base id intact (provider slug)', () => {
     const id = tintMaterialId('polyhaven:wood_floor_deck', '#cc8844')
-    expect(parseTintMaterialId(id)).toEqual({
+    expect(parseTintMaterialId(id)).toMatchObject({
       baseId: 'polyhaven:wood_floor_deck',
       color: '#cc8844',
       scale: 1,
@@ -116,7 +116,7 @@ describe('tintMaterial (recolour an existing material)', () => {
   it('builds + parses a repaint-mode id (`!r`, FINISH-RECOLOR)', () => {
     const id = tintMaterialId('floor-wood-oak', '#aabbcc', 1, undefined, 'repaint')
     expect(id).toBe('tint:floor-wood-oak:#aabbcc!r')
-    expect(parseTintMaterialId(id)).toEqual({
+    expect(parseTintMaterialId(id)).toMatchObject({
       baseId: 'floor-wood-oak',
       color: '#aabbcc',
       scale: 1,
@@ -127,7 +127,7 @@ describe('tintMaterial (recolour an existing material)', () => {
   it('repaint token composes with scale + roughness, order-independent', () => {
     const id = tintMaterialId('polyhaven:plank_flooring', '#334455', 2, 0.3, 'repaint')
     expect(id).toBe('tint:polyhaven:plank_flooring:#334455@2~0.3!r')
-    expect(parseTintMaterialId(id)).toEqual({
+    expect(parseTintMaterialId(id)).toMatchObject({
       baseId: 'polyhaven:plank_flooring',
       color: '#334455',
       scale: 2,

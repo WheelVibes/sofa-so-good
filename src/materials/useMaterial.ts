@@ -154,15 +154,21 @@ export function useTexturedMaterial(def: TexturedMaterialDef): MeshStandardMater
   // NOT re-apply withBase here or the sub-path doubles (`/sofa-so-good/
   // sofa-so-good/…`) and 404s in production.
   const urls = def.runtimeUrls ?? def.textures
-  const list = [urls.albedo, urls.normal, urls.roughness].filter((u): u is string => !!u)
+  // REAL-3 — include the AO channel: bundles/uploads that ship an ambient-
+  // occlusion map (remote CC0 downloads fetch it, `buildMaterial` binds it)
+  // previously never had it loaded here, so photo finishes lost their baked
+  // crevice/grout shading. Ordered list → positional unpack below.
+  const list = [urls.albedo, urls.normal, urls.roughness, urls.ao].filter((u): u is string => !!u)
   const tex = useTexture(list)
   const cached = getCachedMaterial(def.id)
   if (cached) return cached
   const arr = Array.isArray(tex) ? tex : [tex]
+  let next = 1
   const loaded = {
     albedo: arr[0],
-    normal: urls.normal ? arr[1] : undefined,
-    roughness: urls.roughness ? arr[urls.normal ? 2 : 1] : undefined,
+    normal: urls.normal ? arr[next++] : undefined,
+    roughness: urls.roughness ? arr[next++] : undefined,
+    ao: urls.ao ? arr[next++] : undefined,
   }
   return buildMaterial(def, loaded)
 }

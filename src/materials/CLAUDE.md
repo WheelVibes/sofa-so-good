@@ -83,7 +83,60 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   Degenerate guards: non-positive size/tile, non-finite tile, and a runaway subdivision all fall
   back to the plain plane. Unit-tested in `worldUv.test.ts` (period-breaking + determinism + no UV
   NaN + repeat=1 untouched + the Simple/Pro flag-gate, both modes).
-- **Wood grain flow (PC2-WOOD-GRAIN-FLOW)**: the wood painters (`procedural/patterns/wood.ts` —
+- **Per-surface + scene colour dials (COLOR-GRADE).** The finish-id grammar carries two more
+  order-independent tokens beside `@scale`/`~rough`/`!r`: **`%<sat>`** (saturation 0–2) and
+  **`^<bright>`** (brightness 0.5–1.5), parsed by `splitColorScale` and applied to the effective
+  bake colour via the pure `adjustColorTone` (mix toward luma grey, then scale; identity at
+  (1,1) so token-less ids are byte-identical). They work for every material kind at every tier
+  (procedural re-bake, textured repaint/multiply) and surface as **Saturation/Brightness sliders
+  in `MaterialComposer`** — the sanctioned per-surface "make this floor grey again" lever.
+  `recolorFinishId` + the FinishPicker keep-colour path must carry `sat`/`bright` through when
+  rebuilding a tint id. **Scene-level dials** live in `look.ts`: `sceneWarmth` (-1…1, tints the
+  analytical sun/hemisphere/ambient lights via `warmthTintRGB` — neutral (1,1,1) at 0, every
+  tier) and `sceneSaturation` (0…2, rides the High/Max HueSaturation pass via `hueSatSaturation`
+  — default 1 reproduces the shipped +0.06 baseline exactly). Both persist per-device via
+  `qualityPrefs` beside `exposure`, gated by the `colorGrade` flag (simple tier) in
+  `GraphicsSettings`. Keep every new dial byte-identical-neutral at its default.
+- **SNV swatches are render-calibrated (TONE-CALIBRATION).** The five SNV finish swatches are
+  deliberately MORE saturated/warm than the boards they match: the midday lighting mix (cool sky
+  IBL + hemisphere fill) has a measured per-channel response of roughly (0.56, 0.61, 0.68) R/G/B
+  on floors — blue is boosted ~19% over red, which greys out warm albedos. Each swatch is solved
+  as `boardTone ÷ response` (peak-normalised), then verified by sampling the mean RGB of
+  real-GPU screenshots until the rendered proportions match the board photo's (they now match to
+  ±0.002). Recipe to recalibrate after any lighting/tonemap change: render the close-up scenario,
+  `sharp`-sample the surface region, `newSwatch = target ÷ (render ÷ oldSwatch)` per channel,
+  iterate once. Never eyeball-revert a calibrated swatch toward its board hex.
+- **Joint widths are real-world millimetres (JOINT-SCALE).** Convert a painter's joint band to
+  mm before shipping it: `band_px / S × uvScale_m × 1000` (both sides of the boundary count).
+  Real values: rectified porcelain ≈ 2–3 mm, classic ceramic grout ≈ 3–5 mm, wood/vinyl
+  micro-bevels ≈ 1–2 mm, brick mortar ≈ 10 mm. The pre-tuning painters exaggerated these
+  3–8× (e.g. the `tile` painter's 1.8%-of-texture grout ≈ 20+ mm near-black rules; vinyl's 7 mm
+  0.78-dark seams) — which is what read as "ugly" spaces between tiles/planks. Darkening is
+  gentle too: grout ≈ 0.7–0.75 × face for cement joints, ≥ 0.86 × face for rectified/hairline
+  and wood bevels; recesses are shallow steps (Δheight ≤ 0.3), never 0.05-vs-0.95 canyons —
+  those catch specular ridge lines under VSM/IBL and read as chamfered glass block. When adding
+  a painter, size the joint from the physical tile/plank first.
+- **SNV sample-board fidelity (SNV-BOARDS)**: the five SNV default finishes are matched against
+  the user's photos of the actual Serangoon North Vista exhibition sample boards
+  (`assets/guidelines/specs.png` + board close-ups) — treat the boards as ground truth when
+  touching them. **`vinyl`** (`patterns/wood.ts`) is its own painter now, NOT a `woodFields`
+  wrapper: a grey-washed rift-oak PRINT — fine straight striations along the strip (sine ladder
+  + fbm amplitude modulation; never the natural painter's wavy cathedral bands, which read as
+  zebra moiré), sparse elongated dark/light streaks, one staggered end joint per 1.2 m strip,
+  tight V-seams, matte (rough ~0.6, normalStrength 4). **`stoneTile`** = the kitchen/HS/SY honed
+  warm-greige stone print (soft ~18° striations mirrored per tile + broad clouds, hairline LIGHT
+  rectified joints ≈ face·0.86 — never the `tile` painter's 0.62-dark grout); one painter, two
+  physical sizes via uvScale (kitchen 600×600 `[1.2,1.2]`, HS/SY 300×300 `[0.6,0.6]`,
+  `floor-tile-beige` / `floor-tile-beige-300`). **`porcelainStone`** = the bathroom floor's
+  mottled grey-green honed 300×600 running bond (broad m1 ±0.22 clouds + finer blotches,
+  per-tile phase, sage undertone in dark patches). **`porcelain`** (walls) is `subwayFields`
+  with `rectified: true` — NO bevel band, gentle face↔joint height step (0.72 vs 0.58), ~⅓
+  glaze peel, soft per-tile clouding; the metro `subway` keeps its proud bevel look. Bath walls
+  default `wall-tile-white` (the board shows white-cream, not grey). Verified with real-GPU
+  walk-mode close-ups (steep + grazing pitch per surface — see the playbook's `__walkLook`
+  recipe); painter signatures unit-tested in `patterns/snvBoards.test.ts` (striation direction,
+  print uniformity vs natural wood, light joints, honed-vs-glaze roughness, near-flat wall
+  relief). the wood painters (`procedural/patterns/wood.ts` —
   planks/parquet/herringbone) give each board a deterministic per-board grain **lean** via the pure
   `procedural/woodPlank.ts` (`plankHash` shared stateless hash, `grainLean` ~±2.6°, `shearAcross`
   shearing across-by-along about the board mid-length) so the figure flows board-to-board instead of
@@ -102,6 +155,26 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   leaking a GPU texture per frame. Applied in `glbEdit/buildObject.ts:buildSurfaceMaterial`'s finish
   branch (`applyFinishTextureTransform`), which also rotates `anisotropyRotation` where the finish is
   a `MeshPhysicalMaterial` (brushed metal) so the highlight tracks the visible grain.
+- **Textured (photo) finishes render true (REAL-2/REAL-3).** `cache.ts:buildMaterial`'s
+  `textured` branch tags the loaded albedo `SRGBColorSpace` (drei's `useTexture` leaves it
+  untagged → wrong gamma) and sets `m.color` **white** for a PLAIN textured def — a def's
+  `swatch` is only its picker-chip colour, never an albedo multiplier. The multiply is kept
+  ONLY for real `tint:<baseId>:<#hex>` ids (`isTintMaterialId`) — that IS the legacy tint
+  mechanism (and the documented fallback when a `!r` repaint bake fails). `useMaterial.ts:
+  useTexturedMaterial` loads all four channels incl. **ao** (positional unpack — keep the list
+  order albedo/normal/roughness/ao). Don't reintroduce a swatch multiply on plain photo defs.
+- **Showroom finishes (`showroomCatalog.ts`, SHOWROOM-FINISHES, flag `showroomFinishes` —
+  simple tier, prod-safe CC0):** the hand-curated Poly Haven photo-PBR shortlist behind the
+  FinishPicker's one-tap "Showroom" strip (`ui/finish/ShowroomRow.tsx`). Pure data + id helpers:
+  curated `uvScale` = physical metres-per-tile, `swatch` = mean albedo, honest names;
+  `bundleToMaterialDef` (catalog/remote/resolver.ts) applies the curated override by slug.
+  Applied ids (`polyhaven:<slug>:<res>`) are **rehydrated on boot** by
+  `state/storage/rehydrateRemoteFinishes.ts` (pure `extractRemoteFinishRefs` string scan →
+  `resolveRemoteAsset`, IDB-cached → works offline; NOT flag-gated — gating is browse/add only).
+  Adding a curated finish = one entry in `SHOWROOM_FINISHES` (slug must be a real Poly Haven
+  texture asset; a dead slug degrades to a hidden chip). Bundled photo sets under
+  `public/assets/materials/` carry a mean-albedo `swatch` in their `material.json` sidecar —
+  recompute it (sharp mean over the albedo) when swapping a texture.
 - **Texture anisotropy** (`anisotropy.ts`, RD-401): never hardcode `texture.anisotropy`.
   Route every CanvasTexture creation (and every per-repeat `.clone()`) through
   `applyAnisotropy(tex)` — it stamps the shared cap and tracks the texture. The cap defaults

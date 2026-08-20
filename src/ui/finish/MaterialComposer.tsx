@@ -1,12 +1,19 @@
 import { useEffect, useState } from 'react'
 import { useFeature } from '../../features/useFeature'
 import {
+  adjustColorTone,
+  COMPOSE_BRIGHT_MAX,
+  COMPOSE_BRIGHT_MIN,
+  COMPOSE_SAT_MAX,
+  COMPOSE_SAT_MIN,
   COMPOSE_SCALE_MAX,
   COMPOSE_SCALE_MIN,
   COMPOSE_TEXTURES,
   composeMaterialId,
+  DEFAULT_COMPOSE_BRIGHT,
   DEFAULT_COMPOSE_COLOR,
   DEFAULT_COMPOSE_PATTERN,
+  DEFAULT_COMPOSE_SAT,
   DEFAULT_COMPOSE_SCALE,
   parseComposedMaterialId,
   parseTintMaterialId,
@@ -79,6 +86,12 @@ export function MaterialComposer({
     DEFAULT_COMPOSE_SCALE
   const seedRoughness = (): number | undefined =>
     parseComposedMaterialId(active)?.roughness ?? parseTintMaterialId(active)?.roughness
+  const seedSat = (): number =>
+    parseComposedMaterialId(active)?.sat ?? parseTintMaterialId(active)?.sat ?? DEFAULT_COMPOSE_SAT
+  const seedBright = (): number =>
+    parseComposedMaterialId(active)?.bright ??
+    parseTintMaterialId(active)?.bright ??
+    DEFAULT_COMPOSE_BRIGHT
   // Colour mode for TEXTURED tint bases (FINISH-RECOLOR): 'repaint' recolours
   // the albedo (default for new compositions), 'multiply' is the legacy shade.
   const seedMode = (): TintMode => parseTintMaterialId(active)?.mode ?? 'repaint'
@@ -88,6 +101,8 @@ export function MaterialComposer({
   const [color, setColor] = useState<string>(seedColor)
   const [scale, setScale] = useState<number>(seedScale)
   const [roughness, setRoughness] = useState<number | undefined>(seedRoughness)
+  const [sat, setSat] = useState<number>(seedSat)
+  const [bright, setBright] = useState<number>(seedBright)
   const [mode, setMode] = useState<TintMode>(seedMode)
   const [name, setName] = useState<string>('')
 
@@ -98,6 +113,8 @@ export function MaterialComposer({
     setColor(seedColor())
     setScale(seedScale())
     setRoughness(seedRoughness())
+    setSat(seedSat())
+    setBright(seedBright())
     setMode(seedMode())
   }, [active])
 
@@ -116,8 +133,8 @@ export function MaterialComposer({
   // Resolve the finish id + a preview swatch for the current source + colour +
   // scale + gloss (+ colour mode for textured bases).
   const id = isPattern
-    ? composeMaterialId(key as ProceduralPattern, color, scale, roughness)
-    : tintMaterialId(key, color, scale, roughness, modeOn ? mode : undefined)
+    ? composeMaterialId(key as ProceduralPattern, color, scale, roughness, sat, bright)
+    : tintMaterialId(key, color, scale, roughness, modeOn ? mode : undefined, sat, bright)
   // Gloss slider: 0 % = matte (roughness 1), 100 % = glossy (roughness 0.05).
   // An unset roughness shows at the procedural default (0.85) but stays absent
   // from the id until the user drags it.
@@ -132,17 +149,20 @@ export function MaterialComposer({
     setTexPreview(null)
     if (!(modeOn && mode === 'repaint' && baseMat?.kind === 'textured')) return
     const url = baseMat.thumbUrl ?? baseMat.runtimeUrls?.albedo ?? baseMat.textures.albedo
-    void recolorThumbnailDataUrl(url, color).then((dataUrl) => {
+    void recolorThumbnailDataUrl(url, adjustColorTone(color, sat, bright)).then((dataUrl) => {
       if (!cancelled && dataUrl) setTexPreview(dataUrl)
     })
     return () => {
       cancelled = true
     }
-  }, [modeOn, mode, baseMat, color])
+  }, [modeOn, mode, baseMat, color, sat, bright])
+  // Previews bake with the TONED colour so the Saturation/Brightness sliders
+  // show live in the thumbnail (COLOR-GRADE), matching what Apply produces.
+  const tonedColor = adjustColorTone(color, sat, bright)
   const preview = isPattern
-    ? proceduralThumbnailDataUrl(id, key as ProceduralPattern, color)
+    ? proceduralThumbnailDataUrl(id, key as ProceduralPattern, tonedColor)
     : baseMat?.kind === 'procedural'
-      ? proceduralThumbnailDataUrl(id, baseMat.pattern, color)
+      ? proceduralThumbnailDataUrl(id, baseMat.pattern, tonedColor)
       : (texPreview ?? undefined)
   const isActive = active === id
   // The saved name of the CURRENT composition (so editing reflects live edits).
@@ -310,6 +330,65 @@ export function MaterialComposer({
           style={{ flex: '0 0 auto', fontSize: 'var(--t-2xs)', minWidth: 36, textAlign: 'right' }}
         >
           {glossPct}%
+        </span>
+      </label>
+      {/* Saturation + Brightness (COLOR-GRADE): tone the picked colour without
+          hunting in the colour picker — drag Saturation down for the greyer,
+          washed read; up for a richer one. Identity (100 %) adds no id token. */}
+      <label
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--s-2)',
+          marginTop: 'var(--s-2)',
+        }}
+      >
+        <span className="label" style={{ flex: '0 0 auto', fontSize: 'var(--t-2xs)' }}>
+          Saturation
+        </span>
+        <input
+          type="range"
+          style={{ flex: 1, minWidth: 0 }}
+          min={COMPOSE_SAT_MIN}
+          max={COMPOSE_SAT_MAX}
+          step={0.05}
+          value={sat}
+          onChange={(e) => setSat(Number.parseFloat(e.target.value))}
+          aria-label={`${label} colour saturation`}
+        />
+        <span
+          className="label"
+          style={{ flex: '0 0 auto', fontSize: 'var(--t-2xs)', minWidth: 36, textAlign: 'right' }}
+        >
+          {Math.round(sat * 100)}%
+        </span>
+      </label>
+      <label
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--s-2)',
+          marginTop: 'var(--s-2)',
+        }}
+      >
+        <span className="label" style={{ flex: '0 0 auto', fontSize: 'var(--t-2xs)' }}>
+          Brightness
+        </span>
+        <input
+          type="range"
+          style={{ flex: 1, minWidth: 0 }}
+          min={COMPOSE_BRIGHT_MIN}
+          max={COMPOSE_BRIGHT_MAX}
+          step={0.05}
+          value={bright}
+          onChange={(e) => setBright(Number.parseFloat(e.target.value))}
+          aria-label={`${label} colour brightness`}
+        />
+        <span
+          className="label"
+          style={{ flex: '0 0 auto', fontSize: 'var(--t-2xs)', minWidth: 36, textAlign: 'right' }}
+        >
+          {Math.round(bright * 100)}%
         </span>
       </label>
       <button

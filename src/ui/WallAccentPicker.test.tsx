@@ -104,3 +104,23 @@ describe('WallAccentPicker colour override (FINISH-RECOLOR)', () => {
     expect(useStore.getState().finishes.wallAccents[KEY]).toBe('#3aa0ff')
   })
 })
+
+describe('WallAccentPicker — Showroom strip (SHOWROOM-FINISHES)', () => {
+  it('mounts the curated wall strip when the flag is on, and applies a pick as the accent', () => {
+    useStore.setState({ selectedWall: WALL })
+    const resolveMock = vi.fn().mockResolvedValue(undefined)
+    useStore.setState({ resolveRemoteAsset: resolveMock } as never)
+    render(<WallAccentPicker />)
+    expect(screen.getByRole('group', { name: 'Showroom finishes' })).toBeInTheDocument()
+  })
+
+  it('hides the strip when the showroomFinishes flag is off (panel itself still mounts)', () => {
+    useStore.setState({
+      selectedWall: WALL,
+      featureFlags: { ...useStore.getState().featureFlags, showroomFinishes: false },
+    })
+    render(<WallAccentPicker />)
+    expect(screen.getByText('Accent wall')).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Showroom finishes' })).toBeNull()
+  })
+})

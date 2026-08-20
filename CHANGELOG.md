@@ -5,7 +5,7 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
-## v0.25.0.51 — UIUX-47: modal footers carry a symmetric top inset
+## v0.26.2.15 — UIUX-47: modal footers carry a symmetric top inset
 
 User report: with the body now clipping flush right above the footer (UIUX-46), the
 footer's zero top padding sat Done/confirm buttons directly against the clip edge.
@@ -17,7 +17,7 @@ card action row, not a modal footer — out of scope. Verified on the Quote temp
 (scrolled, footer clear below the lip) and ConfirmModal (rest state balanced); guard
 regex updated.
 
-## v0.25.0.50 — UIUX-46b: child-inset sweep across the remaining scrollers
+## v0.26.2.14 — UIUX-46b: child-inset sweep across the remaining scrollers
 
 Extends the UIUX-46 rule (scrollers carry no vertical padding — the inset lives on the
 first/last child) to every remaining eligible scroller: the `Select` listbox popover
@@ -29,7 +29,7 @@ row track, same class of reason its edge lips were excluded) and the plan canvas
 intentional open scroller. Verified live (⌘K mid-scroll, room-switcher listbox, sheet
 detail at end-of-scroll); guard test added.
 
-## v0.25.0.49 — UIUX-46: scroll-region insets — no more truncated rings or exposed overflow
+## v0.26.2.13 — UIUX-46: scroll-region insets — no more truncated rings or exposed overflow
 
 User report, two defects across scrollable panels, both root-caused and fixed:
 **(1) Exposed bottom overflow** — the sticky scroll-edge lips pin at the scroller's
@@ -45,7 +45,7 @@ covered the outward ring's top edge; new `--focus-ring-inset` token + menu rows 
 ring inset. Verified on all three reported surfaces (menu top/bottom, quote modal footer,
 mobile shopping edge) plus a scrolled-to-end rest-state check; guard tests updated+added.
 
-## v0.25.0.48 — UIUX-45: context-menu Delete rows signal danger at rest
+## v0.26.2.12 — UIUX-45: context-menu Delete rows signal danger at rest
 
 Right-click menu audit (item menu, light + dark): grouping, kbd chips, icons and the
 dark palette all read correctly. One inconsistency fixed: `.ctx-item.danger` (Delete /
@@ -55,7 +55,7 @@ was indistinguishable from a normal row, unlike every other destructive affordan
 now applies at rest on both label and icon; hover keeps the `--danger-soft` fill.
 Verified visually; guard test added.
 
-## v0.25.0.47 — UIUX-44: FinishPicker audit clean (desktop + mobile, light + dark)
+## v0.26.2.11 — UIUX-44: FinishPicker audit clean (desktop + mobile, light + dark)
 
 Visual audit of the finish picker (room selected in the room editor → `.finish-picker`
 dock/sheet): desktop light + dark and the mobile bottom sheet all read correctly —
@@ -65,7 +65,7 @@ no token or layout defects found, no changes shipped. (A light seg pill in the d
 capture was re-confirmed as the documented headless transition-start screenshot
 artifact, not a theme bug.)
 
-## v0.25.0.46 — UIUX-43: walk-mode HUD mobile fixes (measure pill, keyboard chips)
+## v0.26.2.10 — UIUX-43: walk-mode HUD mobile fixes (measure pill, keyboard chips)
 
 Walk-mode HUD audit (desktop + mobile portrait/landscape, day + night, via the existing
 walk-hud-audit scenario) found two mobile defects, both fixed: (1) the persistent
@@ -78,7 +78,7 @@ buttons, so the kbd chip is now hidden under `body.mobile` AND `@media (pointer:
 coarse)` (landscape phones are wider than the mobile breakpoint). Desktop unchanged
 (verified). Guard tests added.
 
-## v0.25.0.45 — UIUX-42: Smart Start uses tall viewports (first-run audit otherwise clean)
+## v0.26.2.9 — UIUX-42: Smart Start uses tall viewports (first-run audit otherwise clean)
 
 Visual audit of the first-run surfaces: the Onboarding welcome flow reads correctly in
 light + dark and on mobile (brand mark, feature cards, footer nav); the Smart Start
@@ -90,7 +90,7 @@ next row peeking as the scroll cue. Also confirmed by probe that the modal-body
 scroll-edge shadow was already active on this surface (the earlier "clipped with no
 cue" read was the lip being subtle over a filled card at the exact edge).
 
-## v0.25.0.44 — UIUX-29: selectable-row pattern canonicalised; click-only-div audit clean
+## v0.26.2.8 — UIUX-29: selectable-row pattern canonicalised; click-only-div audit clean
 
 DESIGN.md interaction grammar gains the UIUX-41/41b rule: a selectable list row is never
 a click-only div — the primary action is a real `.lyr-sel`-style button with
@@ -100,7 +100,7 @@ div/span handlers found no other real gaps: the hits are `stopPropagation`-only 
 containment, standard backdrop-dismiss overlays (Escape covers keyboard), or layout divs
 around real buttons; catalog cards already carry `role="button"`.
 
-## v0.25.0.43 — UIUX-41b: GLB designer layer rows keyboard-selectable
+## v0.26.2.7 — UIUX-41b: GLB designer layer rows keyboard-selectable
 
 Extends the UIUX-41 `.lyr-sel` primary-button pattern to the GLB Asset Designer's layers
 tree — the one glbEditor surface with click-only div rows (audit: ComponentsPanel already
@@ -112,7 +112,7 @@ row div keeps its whole-row mouse click and dblclick-rename. New context-mounted
 tests; the stage3a group scenario (row click, shift-click multi-select, group select →
 edit panel) passes end-to-end with the tree rendering unchanged.
 
-## v0.25.0.42 — UIUX-41: Layers rows are keyboard-selectable
+## v0.26.2.6 — UIUX-41: Layers rows are keyboard-selectable
 
 The Layers panel's object rows were click-only `<div>`s — a keyboard user could Tab to a
 row's hide/lock/delete buttons but had no way to *select* the object itself. The row's
@@ -125,7 +125,7 @@ truncation title. Verified live: 87 rows expose buttons, focus lands correctly,
 Enter-select drives the real selection path (inspector opens); layout unchanged.
 Follow-up noted for the glbEditor panels that share the `.lyr-row` vocabulary.
 
-## v0.25.0.41 — UIUX-40: scroll-edge shadows on scrollable dropdown menus
+## v0.26.2.5 — UIUX-40: scroll-edge shadows on scrollable dropdown menus
 
 Audit of the desktop toolbar menus (View/Scene/File, Pro) + the ⌘K palette across
 light/dark found one gap: a long dropdown (File/Tools are 72vh-capped scrollers) clipped
@@ -138,7 +138,7 @@ both inert on short menus; verified visually light + dark. Everything else in th
 (section labels, kbd chips, icon alignment, palette empty state) already consistent —
 no other changes. Guard test added.
 
-## v0.25.0.40 — UIUX-37: budget ring gauge (RingGauge control)
+## v0.26.2.4 — UIUX-37: budget ring gauge (RingGauge control)
 
 New `controls/RingGauge` (the bklit ring / activity-gauge pattern, dependency-free): an
 SVG stroke-dashoffset sweep from 12 o'clock — accent within budget, danger past it,
@@ -150,7 +150,7 @@ field is removed (one visual per value; the words stay). The Budget HUD pill kee
 slim bar. Unit tests (clamps, dashoffset math, danger class, both modes in BudgetPanel);
 verified visually desktop + mobile, under- and over-budget. DESIGN.md vocabulary updated.
 
-## v0.25.0.39 — UIUX-19b: plan-furniture-rotate scenario green again (selector fix)
+## v0.26.2.3 — UIUX-19b: plan-furniture-rotate scenario green again (selector fix)
 
 Root-caused the long-failing rotate rung: the scenario dispatched its synthetic
 pointermove/pointerup on `document.querySelector('.plan-screen svg')` — which matches a
@@ -162,7 +162,7 @@ canvas — history pushed, drag armed, then nothing). Re-targeted both steps at
 verified visually (footprint rotated ~105°). Harness fix only — no app behaviour was
 wrong. Gotcha + symptom signature recorded in the visual-verification playbook.
 
-## v0.25.0.38 — UIUX-39: mobile tap-target pass 3 (layers list, modal buttons, callout dismiss)
+## v0.26.2.2 — UIUX-39: mobile tap-target pass 3 (layers list, modal buttons, callout dismiss)
 
 An `elementFromPoint`-based *effective* hit-area audit (sees the invisible `::after`
 extensions the earlier rect audits couldn't) swept the mobile surfaces (menu sheet,
@@ -176,7 +176,7 @@ InfoCallout dismiss × (22px, the one small icon with no extension). All lifted 
 (only the by-design wide grab-handle and the documented adjacent-header-icon width
 tradeoff remain); layers + share verified visually on 390×844.
 
-## v0.25.0.37 — UIUX-38: theme-matrix sweep of the new patterns (all pass) + playbook gotcha
+## v0.26.2.1 — UIUX-38: theme-matrix sweep of the new patterns (all pass) + playbook gotcha
 
 Visual sweep of the Stage-5/6 patterns (seg sliding pill, copy-confirm morph, soft
 buttons, scroll-edge shadows, panel-foot, notes field) across all 5 themes × light/dark
@@ -570,6 +570,126 @@ Watermelon UI (source), Motion-Primitives (source), Haikei + adjacent references
 - **`REFERENCES.md`**: new "UI/UX component & motion libraries" section recording the 9
   researched pattern sources with what each contributes (mechanics, not dependencies).
 Docs only — no behaviour change.
+## v0.26.2.0 — COLOR-GRADE: colour / lighting / saturation dials for every surface
+
+User ask: keep the board-matched look tunable — "so I can get back the more greyish tone if I
+wanted". Two layers of knobs, both neutral-by-default (byte-identical look until moved):
+
+- **Per-surface** (works on every material kind, every tier): the finish-id grammar gains
+  `%<sat>` (saturation 0–2) and `^<bright>` (brightness 0.5–1.5) tokens beside `@scale`/
+  `~rough`/`!r`, applied to the effective bake colour by the pure `adjustColorTone`; surfaced as
+  **Saturation + Brightness sliders in "Compose your own…"** with live-toned previews. Dragging
+  Saturation to ~35 % on the vinyl reproduces the old grey wash exactly (GPU-verified A/B).
+  Tokens ride the plain finish-id string — no schema change; `recolorFinishId`/keep-colour paths
+  carry them through. Legacy ids parse with neutral defaults.
+- **Scene-level** (Graphics panel, beside Exposure; flag `colorGrade`, simple tier): **Warmth**
+  (-1…+1) tints the analytical sun/hemisphere/ambient lights on every tier via
+  `look.ts:warmthTintRGB`; **Saturation** (0–200 %) rides the High/Maximum HueSaturation pass
+  via `hueSatSaturation` (default reproduces the shipped +0.06 baseline exactly). Both persist
+  per-device via qualityPrefs; reset-to-default is byte-identical (sampled-pixel-verified).
+- Tests: token round-trip + back-compat + `adjustColorTone` behaviour, warmth/saturation curve
+  neutrality + clamping, Graphics dials in BOTH modes + flag-off, store clamping.
+
+## v0.26.1.2 — TONE-CALIBRATION: SNV finishes render at the boards' exact colour proportions
+
+User feedback: the vinyl read grey where the board is brownish/woody. Measured why: sampling the
+rendered floor showed the warm albedo's R−B spread of 42 collapsing to 5 on screen — the midday
+lighting mix (cool sky IBL + hemisphere fill) has a per-channel response of ~(0.56, 0.61, 0.68)
+R/G/B on floors, boosting blue ~19% over red and greying every warm finish. Rather than touching
+the guarded lighting rig, the five SNV swatches are now solved as `boardTone ÷ measuredResponse`
+(peak-normalised) and iterated against sampled GPU screenshots: rendered colour proportions now
+match the board photos to ±0.002 (vinyl exact) — the vinyl reads warm grey-washed oak, the
+kitchen floor warm beige, the walls cream, the bath floor grey-green. Recorded as the
+TONE-CALIBRATION rule + recipe in `src/materials/CLAUDE.md` (calibrated swatches look
+over-saturated in isolation BY DESIGN; never eyeball-revert them toward the board hex).
+
+## v0.26.1.1 — JOINT-SCALE: realistic joint/seam widths across every tile + plank painter
+
+User feedback on v0.26.1.0: spaces between tiles and planks were exaggerated, "uglier than real
+life". Audited every painter's joint band in physical millimetres (`band_px / S × uvScale_m`) —
+they were 3–8× oversized and far too dark. Now real-world: rectified porcelain (`porcelain` /
+`stoneTile` / `porcelainStone`) at true 1 px hairlines (~2–3 mm) with near-face-tone grout;
+the classic ceramic `tile` painter from ~20+ mm near-black rules (0.62×face) to 3–5 mm at
+0.74×face with a shallow recess (and normalStrength 22→16); `hexagon` mosaic grout lightened;
+vinyl strip V-seams from 7 mm/0.78-dark bands to ~1 px/0.86 with hairline end joints; natural
+`wood`/`parquet`/`herringbone` grooves from 7–14 mm near-black chamfers to 1–2 mm micro-bevels
+(0.62–0.68 floors). GPU-verified close-ups: floors/walls now read as continuous surfaces with
+fine joints instead of grids of dark rules; documented as the JOINT-SCALE rule in
+`src/materials/CLAUDE.md` (size joints from the physical tile first).
+
+## v0.26.1.0 — SNV sample-board fidelity: the five default finishes match the real boards
+
+The user supplied photos of the actual Serangoon North Vista exhibition sample boards (vinyl
+strip flooring, kitchen/HS/SY glazed porcelain floor, bathroom glazed porcelain floor + wall,
+kitchen wall tile). Real-GPU walk-mode close-ups (steep + grazing `__walkLook` pitch per
+surface) showed the rendered defaults bore little resemblance: wavy zebra-moiré "vinyl", glossy
+dark-grout 300 mm kitchen tiles (board: honed 600 mm, hairline light joints), stucco-bumpy
+proud-bevelled wall tile (board: near-flat rectified gloss), no bathroom mottle, and a grey
+bath wall where the board shows white-cream.
+
+- **`vinyl` painter rewritten** (own painter, no longer a `woodFields` wrapper): fine straight
+  rift-oak striations along the strip, sparse elongated character streaks, barely-there
+  cathedral smears, one staggered end joint per 1.2 m strip, tight V-seams, matte laminate
+  sheen. Swatch warmed to the board's grey-washed oak (`#d6c3ac`).
+- **New `stoneTile` painter** — honed warm-greige stone-print porcelain with soft mirrored
+  diagonal striations + clouds and hairline light rectified joints. `floor-tile-beige` now
+  renders TRUE 600×600 (was 300 mm glossy with dark grout); new `floor-tile-beige-300` covers
+  the household shelter / service yard at the board's 300×300.
+- **New `porcelainStone` painter** — the bathroom floor's mottled grey-green honed 300×600
+  running bond (broad per-tile clouds, sage undertone in dark patches).
+- **`porcelain` wall tile rectified** — no bevel band, gentle joint relief, hairline grout,
+  ~⅓ orange-peel, soft per-tile print clouding (metro `subway` keeps its bevel). Bathrooms
+  default to `wall-tile-white` per the board (grey stays a catalog option).
+- Painter signatures unit-tested (`snvBoards.test.ts`: striation direction, print uniformity vs
+  natural wood, light-joint luma, honed-vs-glaze roughness split, near-flat wall relief);
+  before/after close-ups verified on the real GPU at every surface.
+
+## v0.26.0.1 — Showroom strip in the accent-wall picker
+
+`WallAccentPicker` now mounts the same curated photo-PBR `ShowroomRow` (wall finishes) above its
+catalog grid, applying a pick as that one wall face's accent — same `showroomFinishes` gate,
+tested on/off. Closes the first v0.26.0.0 deferred item.
+
+## v0.26.0.0 — Photoreal materials round 1: photo-finish correctness + the Showroom strip
+
+Research-driven materials push (goal: showroom / sample-board fidelity; references studied:
+ArchSynth = diffusion AI rendering, Coohom/Planner 5D = cloud path tracing over a **curated
+photo-PBR library**, Shapespark = baked GI — the transferable web pattern is *curated
+photo-scanned PBR map sets, correctly decoded*).
+
+- **REAL-2 — photo albedos rendered with wrong gamma AND ~25% brightness.** The `textured`
+  branch of `cache.ts:buildMaterial` never tagged the drei-loaded albedo `SRGBColorSpace`
+  (skipping the sRGB→linear decode), and `m.color` stayed at the def's `swatch` — which for
+  every generated-catalog photo material was the `#888888` placeholder, multiplying the photo
+  down to ~25% linear brightness. Photo floors rendered as muddy near-black planks; the
+  "Plastered wall" finish rendered close to black. Now: albedo tagged sRGB, `m.color` white for
+  plain textured defs; the multiply is kept ONLY for real `tint:<baseId>:<#hex>` finishes (the
+  legacy tint mechanism, `isTintMaterialId`). Visually A/B'd on the real GPU (living room,
+  Medium): the oak floor reads as lit wood planks, the plaster accent wall as plaster.
+- **REAL-3 — AO channel now loads.** `useTexturedMaterial` fetched only albedo/normal/roughness;
+  remote CC0 bundles download an AO map that `buildMaterial` binds — it was just never loaded.
+  Baked crevice/grout shading now lands on photo finishes.
+- **SHOWROOM-FINISHES — curated one-tap photo-PBR strip** (flag `showroomFinishes`, simple tier,
+  default on, prod-safe CC0). `materials/showroomCatalog.ts`: 15 hand-curated Poly Haven
+  finishes (9 floors, 6 walls) with honest names, mean-albedo swatches and **physical
+  metres-per-tile uvScales**; `ui/finish/ShowroomRow.tsx` renders them above the FinishPicker
+  grid (Floor + Walls tabs, desktop + mobile) — tap → streams the full 1k map set CORS-direct
+  via the existing `resolveRemoteAsset`/IDB-cache path → applies. Curated overrides land in
+  `bundleToMaterialDef` (generic pack-browser downloads keep the 1 m default). Dead slugs
+  degrade gracefully (CDN thumb 404 hides the chip; resolve failure toasts).
+- **Remote finishes survive reload** (`state/storage/rehydrateRemoteFinishes.ts`, boot step):
+  applied `polyhaven:/ambientcg:` finish ids (incl. tint-/`mat:`-wrapped, via the pure
+  `extractRemoteFinishRefs` scan) re-resolve on boot from the IDB bundle cache (offline-capable)
+  — previously an applied remote finish silently fell back to the first builtin on reload.
+  Deliberately not flag-gated (gating is browse/add only, matching remote furniture).
+- **Bundled photo materials get real swatches.** `material.json` sidecars now carry a
+  mean-albedo `swatch` (computed via sharp) emitted by `index-assets` — the picker's photo
+  tiles/chips no longer fall back to uniform grey. The furniture-catalog emitter also
+  round-trips `mergeGeneratedCatalog` so re-running `index-assets` no longer deletes it.
+- Tests: textured-branch colour/AO contract (`cache.test.ts`), showroom curation integrity +
+  id round-trip + Simple/Pro flag gate (`showroomCatalog.test.ts`), strip render/resolve/apply
+  + FinishPicker mount in BOTH modes (`ShowroomRow.test.tsx`), boot rehydration
+  (`rehydrateRemoteFinishes.test.ts`).
 
 ## v0.25.0.1 — CI fix: knip dead-code scan green
 

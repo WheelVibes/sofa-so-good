@@ -180,7 +180,9 @@ describe('buildMaterial textured branch — repaint vs multiply (FINISH-RECOLOR)
 
   it('falls back to the multiply path when recolorAlbedo is set but no albedo image is loaded', () => {
     const albedo = new Texture() // .image is null — not loaded yet
-    const m = buildMaterial(texturedDef('recolor-no-image', true), { albedo })
+    // A recolorAlbedo def only ever arises from `tintedMaterialDef`, so its id is
+    // a real tint id — the multiply fallback keys off that (REAL-2).
+    const m = buildMaterial(texturedDef('tint:base-oak:#8800ff!r', true), { albedo })
     // No image → the recolor engine is never consulted; legacy multiply shape.
     expect(recolorImageToCanvasMock).not.toHaveBeenCalled()
     expect(m.map).toBe(albedo)
@@ -190,18 +192,36 @@ describe('buildMaterial textured branch — repaint vs multiply (FINISH-RECOLOR)
   it('falls back to the multiply path when the recolor bake returns null', () => {
     recolorImageToCanvasMock.mockReturnValue(null)
     const albedo = loadedTexture()
-    const m = buildMaterial(texturedDef('recolor-null-bake', true), { albedo })
+    const m = buildMaterial(texturedDef('tint:base-oak:#8800ff!r', true), { albedo })
     expect(recolorImageToCanvasMock).toHaveBeenCalledTimes(1)
     expect(m.map).toBe(albedo) // shared loader map kept
     expect(`#${m.color.getHexString()}`).toBe('#8800ff')
   })
 
-  it('never consults the recolor engine without the recolorAlbedo flag (legacy ids untouched)', () => {
+  it('keeps the multiply tint for a legacy multiply-mode tint id (no recolorAlbedo flag)', () => {
     const albedo = loadedTexture()
-    const m = buildMaterial(texturedDef('recolor-legacy'), { albedo })
+    const m = buildMaterial(texturedDef('tint:base-oak:#8800ff'), { albedo })
     expect(recolorImageToCanvasMock).not.toHaveBeenCalled()
     expect(m.map).toBe(albedo)
     expect(`#${m.color.getHexString()}`).toBe('#8800ff')
+  })
+
+  it('REAL-2: a PLAIN textured def renders its photo albedo untinted (white m.color) and sRGB-tagged', () => {
+    const albedo = loadedTexture()
+    const m = buildMaterial(texturedDef('plain-photo-oak'), { albedo })
+    expect(recolorImageToCanvasMock).not.toHaveBeenCalled()
+    expect(m.map).toBe(albedo)
+    // The swatch is only the picker-chip preview — it must NOT multiply the map.
+    expect(`#${m.color.getHexString()}`).toBe('#ffffff')
+    // The photo albedo is an sRGB image; the loader leaves it untagged.
+    expect(albedo.colorSpace).toBe('srgb')
+  })
+
+  it('REAL-3: binds a loaded AO map', () => {
+    const albedo = loadedTexture()
+    const ao = loadedTexture()
+    const m = buildMaterial(texturedDef('plain-photo-ao'), { albedo, ao })
+    expect(m.aoMap).toBe(ao)
   })
 
   it('repaint: swaps in an OWNED recolored CanvasTexture, whitens m.color, and disposes only the owned map on eviction', () => {

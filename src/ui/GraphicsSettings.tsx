@@ -1,6 +1,15 @@
 import type { ReactNode } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { EXPOSURE_MAX, EXPOSURE_MIN, TONE_MAPPING_LABEL } from '../scene/look'
+import { useFeature } from '../features/useFeature'
+import {
+  EXPOSURE_MAX,
+  EXPOSURE_MIN,
+  SCENE_SATURATION_MAX,
+  SCENE_SATURATION_MIN,
+  SCENE_WARMTH_MAX,
+  SCENE_WARMTH_MIN,
+  TONE_MAPPING_LABEL,
+} from '../scene/look'
 import {
   type AssetTier,
   QUALITY_DESCRIPTION,
@@ -63,6 +72,11 @@ export function GraphicsSettings({
   const setToneMapping = useStore((s) => s.setToneMapping)
   const exposure = useStore((s) => s.exposure)
   const setExposure = useStore((s) => s.setExposure)
+  const fColorGrade = useFeature('colorGrade')
+  const sceneWarmth = useStore((s) => s.sceneWarmth)
+  const setSceneWarmth = useStore((s) => s.setSceneWarmth)
+  const sceneSaturation = useStore((s) => s.sceneSaturation)
+  const setSceneSaturation = useStore((s) => s.setSceneSaturation)
   const showFps = useStore((s) => s.showFps)
   const toggleShowFps = useStore((s) => s.toggleShowFps)
   const unitSystem = useStore((s) => s.units)
@@ -267,6 +281,38 @@ export function GraphicsSettings({
               format={(v) => `${v.toFixed(2)}×`}
               onChange={(v) => setOverride('dprMax', v)}
             />
+            {/* Scene colour grade (COLOR-GRADE): Warmth biases the scene's white
+                balance on every tier (cooler ← 0 → warmer); Saturation rides the
+                High/Maximum post stack — together the "get the greyer, cooler
+                look back" dials. */}
+            {fColorGrade ? (
+              <>
+                <SliderField
+                  label="Warmth"
+                  ariaLabel="Scene warmth (white balance)"
+                  min={SCENE_WARMTH_MIN}
+                  max={SCENE_WARMTH_MAX}
+                  step={0.05}
+                  value={sceneWarmth}
+                  format={(v) => (v === 0 ? 'Neutral' : v > 0 ? `+${v.toFixed(2)}` : v.toFixed(2))}
+                  onChange={setSceneWarmth}
+                />
+                <SliderField
+                  label="Saturation"
+                  ariaLabel="Scene saturation"
+                  min={SCENE_SATURATION_MIN}
+                  max={SCENE_SATURATION_MAX}
+                  step={0.05}
+                  value={sceneSaturation}
+                  format={(v) => `${Math.round(v * 100)}%`}
+                  onChange={setSceneSaturation}
+                />
+                <p className="sec-desc">
+                  Warmth shifts the whole scene cooler or warmer; Saturation applies on High /
+                  Maximum quality.
+                </p>
+              </>
+            ) : null}
           </div>
 
           {hasOverrides && (

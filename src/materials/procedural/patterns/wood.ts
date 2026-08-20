@@ -3,29 +3,17 @@ import { blank, type Fields, setPx } from '../fieldKit'
 import { clamp01, makeFbm, mulberry32 } from '../noise'
 import { grainLean, plankHash, shearAcross } from '../woodPlank'
 
-export function woodFields(
-  base: [number, number, number],
-  seed: number,
-  S: number,
-  opts?: {
-    /** Per-plank brightness spread (default 0.24 — real boards vary; a factory
-     *  vinyl laminate uses ~0.05 so every strip prints the same tone). */
-    valVar?: number
-    /** Per-plank warmth spread (default 0.16; near-0 for printed laminate). */
-    warmVar?: number
-    /** Grain-band darkening (default 0.16; softer for a printed grain). */
-    bandContrast?: number
-    /** Knot probability per board (default 0.6; 0 for knot-free laminate). */
-    knotChance?: number
-  },
-): Fields {
+export function woodFields(base: [number, number, number], seed: number, S: number): Fields {
   const f = blank(S)
   f.normalStrength = 9
   const rand = mulberry32(seed)
-  const valVar = opts?.valVar ?? 0.24
-  const warmVar = opts?.warmVar ?? 0.16
-  const bandContrast = opts?.bandContrast ?? 0.16
-  const knotChance = opts?.knotChance ?? 0.6
+  // (The former per-caller opts — collapsed variation for the vinyl reuse —
+  // were retired when `vinylFields` became its own painter (SNV-BOARDS);
+  // these constants reproduce the long-standing natural-board output exactly.)
+  const valVar = 0.24
+  const warmVar = 0.16
+  const bandContrast = 0.16
+  const knotChance = 0.6
   const planks = 6 // boards stacked across the tile
   const plankH = S / planks
   // Per-plank tint with correlated warmth (real boards vary in hue + value).
@@ -83,10 +71,12 @@ export function woodFields(
         }
       }
 
-      // Plank groove (dark + recessed bevel between boards).
+      // Plank groove (dark + recessed micro-bevel between boards).
+      // JOINT-SCALE: real board bevels are 1–2 mm; the old 3.5%-of-plank band
+      // (~7 mm each side) darkened to 0.45 read as thick black rules.
       const edge = Math.min(yInPlank, 1 - yInPlank)
-      const groove = edge < 0.035 ? edge / 0.035 : 1
-      factor *= 0.45 + 0.55 * groove
+      const groove = edge < 0.015 ? edge / 0.015 : 1
+      factor *= 0.62 + 0.38 * groove
 
       // Apply warmth: scale R up / B down around the value.
       const r = base[0] * factor * pk.warm
@@ -105,19 +95,73 @@ export function woodFields(
 }
 
 /**
- * Factory vinyl strip flooring — the SNV OCS sample board (one uniform tone,
- * printed grain, no knots). Reuses the plank painter with the per-board tint
- * variation collapsed (valVar 0.05 / warmVar 0.02 — every strip prints the
- * same colour), a softer grain band and zero knots, so the floor reads as one
- * colour with grain instead of multi-toned natural boards.
+ * Factory vinyl strip flooring — the SNV sample board (SNV-BOARDS): a
+ * grey-washed rift-oak PRINT. What the board actually shows (and the earlier
+ * wood-painter reuse did not): dense fine STRAIGHT striations running the
+ * strip's length (rift-sawn figure, not wavy cathedral bands), a few sparse
+ * darker/lighter streaks, barely-there broad cathedral smears, one staggered
+ * end-joint per strip (real strips are ~1.2 m long), tight V-seams, and a
+ * uniform low-sheen matte face (every strip prints the same tone). The old
+ * `woodFields` reuse produced wavy sine bands + isotropic noise that read as
+ * zebra moiré at walking distance.
  */
 export function vinylFields(base: [number, number, number], seed: number, S: number): Fields {
-  return woodFields(base, seed, S, {
-    valVar: 0.05,
-    warmVar: 0.02,
-    bandContrast: 0.09,
-    knotChance: 0,
-  })
+  const f = blank(S)
+  f.normalStrength = 4 // printed laminate — shallow embossed relief only
+  const planks = 6
+  const plankH = S / planks
+  const striaeWarp = makeFbm(seed + 3, 3, 6)
+  const striaeAmp = makeFbm(seed + 5, 3, 9)
+  const streakN = makeFbm(seed + 9, 3, 12)
+  const cathedralN = makeFbm(seed + 15, 3, 2.5)
+  const micro = makeFbm(seed + 21, 3, 90)
+  const endW = Math.max(1, S * 0.002) // end-joint half width (px) — hairline
+  for (let y = 0; y < S; y++) {
+    const pi = Math.floor(y / plankH)
+    const across = (y % plankH) / plankH // 0..1 across the strip
+    // Per-strip: near-identical print tone (factory laminate), a print phase
+    // so strips don't repeat, and a staggered end-joint position.
+    const val = 1 + (plankHash(pi * 17 + 1) - 0.5) * 0.05
+    const warm = 1 + (plankHash(pi * 29 + 3) - 0.5) * 0.02
+    const phase = plankHash(pi * 41 + 7) * 13
+    const endU = plankHash(pi * 53 + 11)
+    for (let x = 0; x < S; x++) {
+      const u = x / S
+      // Fine straight striations: a sine ladder across the strip, warped only
+      // slightly along its length and amplitude-modulated so runs of grain
+      // fade in/out instead of reading as ruled lines.
+      const warp = (striaeWarp(u * 1.6 + phase, across * 2) - 0.5) * 1.4
+      const s1 = Math.sin((across * 22 + warp * 0.55 + phase) * Math.PI * 2)
+      const am = 0.35 + striaeAmp(u * 0.9 + phase, across * 6) * 0.65
+      const striae = s1 * am * 0.065
+      // Sparse elongated dark + light streaks (the board's character marks).
+      const sk = streakN(u * 1.1 + phase, across * 10 + phase)
+      const dk = clamp01((sk - 0.66) * 4)
+      const lt = clamp01((0.34 - sk) * 4)
+      // Barely-there broad cathedral smears.
+      const catWarp = (cathedralN(u * 1.2 + phase, across) - 0.5) * 0.8
+      const cat = Math.abs(Math.sin((across + catWarp) * Math.PI * 2 + phase)) ** 10 * 0.05
+      const mc = (micro(u * 2, across + pi) - 0.5) * 0.035
+      let factor = val * (0.9 + striae - dk * 0.14 + lt * 0.06 - cat + mc)
+      // Hairline V-seam between strips + one staggered end joint per strip.
+      // JOINT-SCALE: real vinyl strips sit flush with a ~1 mm micro-V — the
+      // first cut used a 7 mm band darkened to 0.78, which read as thick dark
+      // rules between every strip. ~1 px (≈2–3 mm) at a gentle 0.86 floor.
+      const edge = Math.min(across, 1 - across)
+      const seam = edge < 0.012 ? edge / 0.012 : 1
+      const du = Math.abs(u - endU)
+      const end = Math.min(du, 1 - du) * S < endW
+      factor *= (0.86 + 0.14 * seam) * (end ? 0.9 : 1)
+      const r = base[0] * factor * warm
+      const g = base[1] * factor
+      const b = base[2] * factor * (2 - warm)
+      const h = clamp01(0.5 + striae * 1.6 - dk * 0.12 - (1 - seam) * 0.16 - (end ? 0.12 : 0))
+      // Low-sheen matte laminate; grain and streaks vary the tooth subtly.
+      const rough = clamp01(0.58 + striae * 0.9 + dk * 0.06 - lt * 0.03 + mc + (1 - seam) * 0.1)
+      setPx(f, y * S + x, r, g, b, h, rough)
+    }
+  }
+  return f
 }
 
 export function parquetFields(base: [number, number, number], seed: number, S: number): Fields {
@@ -162,12 +206,13 @@ export function parquetFields(base: [number, number, number], seed: number, S: n
       const fg = fine(along * 4, across)
       let factor = val * (0.92 - band * 0.14 + (fg - 0.5) * 0.06)
       // Recessed grooves between planks (across) and at plank ends (along).
+      // JOINT-SCALE: micro-bevel widths (real parquet joints are 1–2 mm).
       const edgeAcross = Math.min(across, 1 - across)
-      const grooveA = edgeAcross < 0.06 ? edgeAcross / 0.06 : 1
+      const grooveA = edgeAcross < 0.025 ? edgeAcross / 0.025 : 1
       const edgeAlong = Math.min(along, 1 - along)
-      const grooveB = edgeAlong < 0.03 ? edgeAlong / 0.03 : 1
+      const grooveB = edgeAlong < 0.012 ? edgeAlong / 0.012 : 1
       const groove = Math.min(grooveA, grooveB)
-      factor *= 0.5 + 0.5 * groove
+      factor *= 0.68 + 0.32 * groove
       const r = base[0] * factor * warm
       const g = base[1] * factor
       const b = base[2] * factor * (2 - warm)
@@ -236,12 +281,13 @@ export function herringboneFields(base: [number, number, number], seed: number, 
       const fg = fine(alongF * 4, acrossF)
       let factor = val * (0.92 - band * 0.14 + (fg - 0.5) * 0.06)
       // Recessed grooves: across the width (plank sides) + at the butt ends.
+      // JOINT-SCALE: micro-bevel widths (real herringbone joints are 1–2 mm).
       const edgeAcross = Math.min(acrossF, 1 - acrossF)
-      const grooveA = edgeAcross < 0.07 ? edgeAcross / 0.07 : 1
+      const grooveA = edgeAcross < 0.03 ? edgeAcross / 0.03 : 1
       const edgeAlong = Math.min(alongF, 1 - alongF)
-      const grooveB = edgeAlong < 0.05 ? edgeAlong / 0.05 : 1
+      const grooveB = edgeAlong < 0.02 ? edgeAlong / 0.02 : 1
       const groove = Math.min(grooveA, grooveB)
-      factor *= 0.5 + 0.5 * groove
+      factor *= 0.68 + 0.32 * groove
       const r = base[0] * factor * warm
       const gg = base[1] * factor
       const b = base[2] * factor * (2 - warm)
