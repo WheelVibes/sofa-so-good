@@ -18,6 +18,12 @@
 .badge.err { background: var(--danger-soft); color: var(--danger); }
 .badge.warn { background: oklch(0.75 0.13 75 / 0.18); color: oklch(0.52 0.13 65); }
 [data-mode='dark'] .badge.warn { color: oklch(0.82 0.12 78); }
+/* Issue-severity dots (Design score, UIUX-50) — the warn shade family lives
+   here in CSS beside .badge.warn/.lyr-flag.warn (no --warn token exists). */
+.sev-dot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; background: var(--text-3); }
+.sev-dot.critical { background: var(--danger); }
+.sev-dot.warn { background: oklch(0.62 0.14 70); }
+[data-mode='dark'] .sev-dot.warn { background: oklch(0.78 0.12 75); }
 .badge.ok { background: var(--accent-soft); color: var(--accent-soft-text); }
 .badge.neutral { background: var(--surface-3); color: var(--text-3); }
 

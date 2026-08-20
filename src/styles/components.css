@@ -366,6 +366,8 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
   transition: stroke-dashoffset var(--dur-2) var(--ease-out), stroke var(--dur) var(--ease);
 }
 .ring-gauge.danger .ring-fg { stroke: var(--danger); }
+.ring-gauge.ok .ring-fg { stroke: var(--ok); }
+.ring-gauge.ok .ring-label { color: var(--ok); }
 .ring-gauge .ring-label {
   position: absolute; font-size: var(--t-2xs); font-weight: 700;
   font-variant-numeric: tabular-nums; color: var(--text-2);

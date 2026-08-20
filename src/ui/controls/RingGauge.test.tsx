@@ -43,3 +43,15 @@ describe('RingGauge (UIUX-37)', () => {
     expect(container.querySelector('.ring-label')?.textContent).toBe('0%')
   })
 })
+
+describe('RingGauge tone variant (UIUX-50)', () => {
+  it("tone='ok' paints via the ok class; danger wins when both are set", () => {
+    const ok = render(<RingGauge value={0.8} tone="ok" ariaLabel="Grade A" />)
+    expect(ok.container.querySelector('.ring-gauge')?.className).toContain('ok')
+    ok.unmount()
+    const both = render(<RingGauge value={0.2} tone="ok" danger ariaLabel="Grade F" />)
+    const cls = both.container.querySelector('.ring-gauge')?.className ?? ''
+    expect(cls).toContain('danger')
+    expect(cls).not.toContain('ok')
+  })
+})

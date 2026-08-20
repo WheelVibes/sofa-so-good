@@ -8,6 +8,9 @@ interface RingGaugeProps {
   strokeWidth?: number
   /** Paint the sweep in the danger colour (over budget / limit breached). */
   danger?: boolean
+  /** Optional tonal variant: 'ok' paints the sweep + label in --ok (a healthy
+   *  score/grade). `danger` wins when both are set. Default is accent. */
+  tone?: 'ok'
   /** Accessible description of what the ring shows. */
   ariaLabel: string
   /** Centre content (a compact % readout, an icon…). */
@@ -26,14 +29,16 @@ export function RingGauge({
   size = 48,
   strokeWidth = 5,
   danger = false,
+  tone,
   ariaLabel,
   children,
 }: RingGaugeProps) {
   const clamped = Math.max(0, Math.min(1, value))
   const r = (size - strokeWidth) / 2
   const c = 2 * Math.PI * r
+  const toneClass = danger ? ' danger' : tone === 'ok' ? ' ok' : ''
   return (
-    <div className={`ring-gauge${danger ? ' danger' : ''}`} style={{ width: size, height: size }}>
+    <div className={`ring-gauge${toneClass}`} style={{ width: size, height: size }}>
       <svg
         width={size}
         height={size}

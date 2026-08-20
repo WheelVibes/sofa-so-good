@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.19 — UIUX-50: Design score dial fixed + aux-panel sweep clean
+
+Sweep of the seven analytical aux panels (Clearance, Daylight, Design score,
+Accessibility, SG rules, Handover, Comments): six are clean — badges, stat tiles,
+per-room cards and EmptyState CTAs all on-system. The Design score dial had two real
+bugs behind phantom tokens: its centre mask used `var(--panel-bg, var(--surface-1))`
+(neither exists) so the donut rendered as a SOLID pie, and the grade letter was painted
+in the same colour as that pie — invisible. The hand-rolled conic dial is replaced by
+the canonical `RingGauge` (new `tone="ok"` variant for healthy grades; danger for D/F),
+the category bars' `var(--err, #d9534f)` fallback-to-hex becomes `var(--danger)`, and
+the issue-severity dots move to CSS classes (`.sev-dot`, beside the other warn-shade
+rules). Verified live: green ring at 83% with a legible centred "B". Ring tone unit
+test added.
+
 ## v0.26.2.18 — UIUX-49: aux panels size via a named width ladder
 
 Versions/history audit found five floating aux panels sizing themselves with ad-hoc
