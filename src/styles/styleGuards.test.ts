@@ -409,7 +409,9 @@ describe('UIUX-8 motion/hover token strays', () => {
   })
   it('.panel-foot and .form-err exist with token-only styling (UIUX-5/6)', () => {
     const components = read('./components.css')
-    expect(components).toMatch(/\.panel-foot\s*\{[^}]*padding:\s*0 var\(--s-4\) var\(--s-4\)/s)
+    // UIUX-47: symmetric vertical inset — the body clips flush right above the
+    // footer mid-scroll, so the buttons need the same breathing room above.
+    expect(components).toMatch(/\.panel-foot\s*\{[^}]*padding:\s*var\(--s-4\)/s)
     expect(components).toMatch(/\.form-err\s*\{[^}]*color:\s*var\(--danger\)/)
     expect(components).toMatch(/\.panel-sub\.plain\s*\{[^}]*text-transform:\s*none/)
   })

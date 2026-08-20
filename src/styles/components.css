@@ -117,10 +117,13 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 .modal-overlay .panel-body > :first-child:not(.sec) { margin-top: var(--s-4); }
 /* Modal footer row (the `Modal` `footer` prop): actions right-aligned on the
    same horizontal rhythm as .panel-body. Override justify-content inline for
-   split layouts (e.g. a leading option cluster + trailing CTA). */
+   split layouts (e.g. a leading option cluster + trailing CTA). Symmetric
+   vertical inset (UIUX-47, user report): the body clips flush right above the
+   footer mid-scroll, so a zero top padding sat the buttons against the clip
+   edge — the footer carries the same breathing room above as below. */
 .panel-foot {
   display: flex; align-items: center; justify-content: flex-end; gap: var(--s-2);
-  padding: 0 var(--s-4) var(--s-4);
+  padding: var(--s-4);
 }
 /* Scroll-edge shadows (UIUX-30, extended to every .panel-body in UIUX-35 —
    modals AND the catalog/inspector dock panels; `.lyr-body` mirrors this in

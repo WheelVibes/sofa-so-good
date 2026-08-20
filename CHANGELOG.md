@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.51 — UIUX-47: modal footers carry a symmetric top inset
+
+User report: with the body now clipping flush right above the footer (UIUX-46), the
+footer's zero top padding sat Done/confirm buttons directly against the clip edge.
+`.panel-foot` is now symmetric (`padding: var(--s-4)`) — the same breathing room above
+the buttons as below. All 13 Modal `footer=` call sites ride the shared class, so one
+rule covers them; `UploadMaterialDialog`'s inline `paddingTop` workaround (a call-site
+patch for exactly this gap) is removed. The glb-designer `ArmedCard` footer is an inline
+card action row, not a modal footer — out of scope. Verified on the Quote template
+(scrolled, footer clear below the lip) and ConfirmModal (rest state balanced); guard
+regex updated.
+
 ## v0.25.0.50 — UIUX-46b: child-inset sweep across the remaining scrollers
 
 Extends the UIUX-46 rule (scrollers carry no vertical padding — the inset lives on the
