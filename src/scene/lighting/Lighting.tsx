@@ -10,6 +10,7 @@ import {
   shadowFilterForTier,
   shadowParamsForFilter,
   toneExposureBias,
+  warmthTintRGB,
 } from '../look'
 import { isShadowRefreshActive } from '../shadowRefreshSignal'
 import { resolveToneMapping, toneContextFromState } from '../toneContext'
@@ -185,6 +186,12 @@ export function Lighting() {
       dArr(cur.groundColor, target.groundColor)
     }
 
+    // COLOR-GRADE: user white-balance bias tints the analytical lights on every
+    // tier (sun + hemisphere + ambient). Neutral (1,1,1) at the default 0, so
+    // the graded look is byte-identical until the user moves the dial. Scalar
+    // mults only — no per-frame allocation beyond the returned tuple.
+    const wb = warmthTintRGB(st.sceneWarmth)
+
     if (sunRef.current) {
       // --- C275: window-glass tint + curtain attenuation ---
       // All tier levels: colour modulation is free (scalar mults only).
@@ -224,11 +231,12 @@ export function Lighting() {
       if (!settled || freshInstance || !st.sceneReady || isShadowRefreshActive(performance.now())) {
         shadow.needsUpdate = true
       }
-      // Apply glass tint as a component-wise multiply of the sun colour.
+      // Apply glass tint + the user white-balance bias as component-wise
+      // multiplies of the sun colour.
       sunRef.current.color.setRGB(
-        cur.sunColor[0] * tint[0],
-        cur.sunColor[1] * tint[1],
-        cur.sunColor[2] * tint[2],
+        cur.sunColor[0] * tint[0] * wb[0],
+        cur.sunColor[1] * tint[1] * wb[1],
+        cur.sunColor[2] * tint[2] * wb[2],
       )
     }
     // Split the fill budget: a directional hemisphere (sky/ground) reads as
@@ -240,10 +248,21 @@ export function Lighting() {
     const fillScale = iblFillScale(iblActive, cur.sun)
     if (hemiRef.current) {
       hemiRef.current.intensity = cur.ambient * 1.1 * fillScale
-      hemiRef.current.color.setRGB(cur.skyColor[0], cur.skyColor[1], cur.skyColor[2])
-      hemiRef.current.groundColor.setRGB(cur.groundColor[0], cur.groundColor[1], cur.groundColor[2])
+      hemiRef.current.color.setRGB(
+        cur.skyColor[0] * wb[0],
+        cur.skyColor[1] * wb[1],
+        cur.skyColor[2] * wb[2],
+      )
+      hemiRef.current.groundColor.setRGB(
+        cur.groundColor[0] * wb[0],
+        cur.groundColor[1] * wb[1],
+        cur.groundColor[2] * wb[2],
+      )
     }
-    if (ambientRef.current) ambientRef.current.intensity = cur.ambient * 0.35 * fillScale
+    if (ambientRef.current) {
+      ambientRef.current.intensity = cur.ambient * 0.35 * fillScale
+      ambientRef.current.color.setRGB(wb[0], wb[1], wb[2])
+    }
 
     // Keep the OS/browser chrome (iOS standalone status bar, mobile address bar)
     // tinted to the top of the canvas so its top edge blends into the scene.

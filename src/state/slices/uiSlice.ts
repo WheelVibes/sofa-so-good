@@ -1,6 +1,13 @@
 import { DEFAULT_WALL_REVEAL_STRENGTH } from '../../apartment/walls/wallRevealMath'
 import type { LightMood } from '../../lighting/moodPresets'
-import { clampExposure, DEFAULT_EXPOSURE } from '../../scene/look'
+import {
+  clampExposure,
+  clampSceneSaturation,
+  clampSceneWarmth,
+  DEFAULT_EXPOSURE,
+  DEFAULT_SCENE_SATURATION,
+  DEFAULT_SCENE_WARMTH,
+} from '../../scene/look'
 import type { AssetTier, QualitySettings, RenderTier } from '../../scene/quality'
 import { QUALITY_LABEL, RENDER_TIERS } from '../../scene/quality'
 import { DEFAULT_TONE_MAPPING_SETTING, type ToneMappingSetting } from '../../scene/toneContext'
@@ -67,6 +74,12 @@ export interface UiSlice {
   /** User exposure (brightness) multiplier on top of auto-exposure. Per-device,
    *  persisted via qualityPrefs. 1 = neutral. */
   exposure: number
+  /** Scene white-balance bias (COLOR-GRADE): -1 coolest … 0 neutral … +1 warmest.
+   *  Tints the analytical lights on every tier. Per-device, qualityPrefs. */
+  sceneWarmth: number
+  /** Scene saturation multiplier (COLOR-GRADE): 0 … 1 (default) … 2. Drives the
+   *  High/Maximum post stack's HueSaturation pass. Per-device, qualityPrefs. */
+  sceneSaturation: number
   /** Fixture lights mode (all on / all off). */
   lightsMode: LightsMode
   /** Lighting mood preset (UX round-3 #3): one-tap brightness + colour-temperature
@@ -220,6 +233,10 @@ export interface UiSlice {
   setToneMapping: (m: ToneMappingSetting) => void
   /** Set the user exposure multiplier (clamped to the supported range). */
   setExposure: (e: number) => void
+  /** Set the scene white-balance bias (clamped; COLOR-GRADE). */
+  setSceneWarmth: (w: number) => void
+  /** Set the scene saturation multiplier (clamped; COLOR-GRADE). */
+  setSceneSaturation: (s: number) => void
   setLightsMode: (m: LightsMode) => void
   /** Cycle Auto → On → Off → Auto. */
   cycleLightsMode: () => void
@@ -252,6 +269,8 @@ export const UI_INITIAL: Pick<
   | 'assetTier'
   | 'toneMapping'
   | 'exposure'
+  | 'sceneWarmth'
+  | 'sceneSaturation'
   | 'lightsMode'
   | 'lightMood'
   | 'showCeilingFixtures'
@@ -293,6 +312,8 @@ export const UI_INITIAL: Pick<
   assetTier: null,
   toneMapping: DEFAULT_TONE_MAPPING_SETTING,
   exposure: DEFAULT_EXPOSURE,
+  sceneWarmth: DEFAULT_SCENE_WARMTH,
+  sceneSaturation: DEFAULT_SCENE_SATURATION,
   lightsMode: 'off',
   lightMood: 'none' as LightMood,
   showCeilingFixtures: false,
@@ -406,6 +427,8 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   setAssetTier: (t) => set({ assetTier: t }),
   setToneMapping: (toneMapping) => set({ toneMapping }),
   setExposure: (e) => set({ exposure: clampExposure(e) }),
+  setSceneWarmth: (w) => set({ sceneWarmth: clampSceneWarmth(w) }),
+  setSceneSaturation: (sat) => set({ sceneSaturation: clampSceneSaturation(sat) }),
   setLightsMode: (m) => set({ lightsMode: m }),
   setLightMood: (m) => set({ lightMood: m }),
   setShowCeilingFixtures: (v) => set({ showCeilingFixtures: v }),

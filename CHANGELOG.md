@@ -5,6 +5,127 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.0 — COLOR-GRADE: colour / lighting / saturation dials for every surface
+
+User ask: keep the board-matched look tunable — "so I can get back the more greyish tone if I
+wanted". Two layers of knobs, both neutral-by-default (byte-identical look until moved):
+
+- **Per-surface** (works on every material kind, every tier): the finish-id grammar gains
+  `%<sat>` (saturation 0–2) and `^<bright>` (brightness 0.5–1.5) tokens beside `@scale`/
+  `~rough`/`!r`, applied to the effective bake colour by the pure `adjustColorTone`; surfaced as
+  **Saturation + Brightness sliders in "Compose your own…"** with live-toned previews. Dragging
+  Saturation to ~35 % on the vinyl reproduces the old grey wash exactly (GPU-verified A/B).
+  Tokens ride the plain finish-id string — no schema change; `recolorFinishId`/keep-colour paths
+  carry them through. Legacy ids parse with neutral defaults.
+- **Scene-level** (Graphics panel, beside Exposure; flag `colorGrade`, simple tier): **Warmth**
+  (-1…+1) tints the analytical sun/hemisphere/ambient lights on every tier via
+  `look.ts:warmthTintRGB`; **Saturation** (0–200 %) rides the High/Maximum HueSaturation pass
+  via `hueSatSaturation` (default reproduces the shipped +0.06 baseline exactly). Both persist
+  per-device via qualityPrefs; reset-to-default is byte-identical (sampled-pixel-verified).
+- Tests: token round-trip + back-compat + `adjustColorTone` behaviour, warmth/saturation curve
+  neutrality + clamping, Graphics dials in BOTH modes + flag-off, store clamping.
+
+## v0.26.1.2 — TONE-CALIBRATION: SNV finishes render at the boards' exact colour proportions
+
+User feedback: the vinyl read grey where the board is brownish/woody. Measured why: sampling the
+rendered floor showed the warm albedo's R−B spread of 42 collapsing to 5 on screen — the midday
+lighting mix (cool sky IBL + hemisphere fill) has a per-channel response of ~(0.56, 0.61, 0.68)
+R/G/B on floors, boosting blue ~19% over red and greying every warm finish. Rather than touching
+the guarded lighting rig, the five SNV swatches are now solved as `boardTone ÷ measuredResponse`
+(peak-normalised) and iterated against sampled GPU screenshots: rendered colour proportions now
+match the board photos to ±0.002 (vinyl exact) — the vinyl reads warm grey-washed oak, the
+kitchen floor warm beige, the walls cream, the bath floor grey-green. Recorded as the
+TONE-CALIBRATION rule + recipe in `src/materials/CLAUDE.md` (calibrated swatches look
+over-saturated in isolation BY DESIGN; never eyeball-revert them toward the board hex).
+
+## v0.26.1.1 — JOINT-SCALE: realistic joint/seam widths across every tile + plank painter
+
+User feedback on v0.26.1.0: spaces between tiles and planks were exaggerated, "uglier than real
+life". Audited every painter's joint band in physical millimetres (`band_px / S × uvScale_m`) —
+they were 3–8× oversized and far too dark. Now real-world: rectified porcelain (`porcelain` /
+`stoneTile` / `porcelainStone`) at true 1 px hairlines (~2–3 mm) with near-face-tone grout;
+the classic ceramic `tile` painter from ~20+ mm near-black rules (0.62×face) to 3–5 mm at
+0.74×face with a shallow recess (and normalStrength 22→16); `hexagon` mosaic grout lightened;
+vinyl strip V-seams from 7 mm/0.78-dark bands to ~1 px/0.86 with hairline end joints; natural
+`wood`/`parquet`/`herringbone` grooves from 7–14 mm near-black chamfers to 1–2 mm micro-bevels
+(0.62–0.68 floors). GPU-verified close-ups: floors/walls now read as continuous surfaces with
+fine joints instead of grids of dark rules; documented as the JOINT-SCALE rule in
+`src/materials/CLAUDE.md` (size joints from the physical tile first).
+
+## v0.26.1.0 — SNV sample-board fidelity: the five default finishes match the real boards
+
+The user supplied photos of the actual Serangoon North Vista exhibition sample boards (vinyl
+strip flooring, kitchen/HS/SY glazed porcelain floor, bathroom glazed porcelain floor + wall,
+kitchen wall tile). Real-GPU walk-mode close-ups (steep + grazing `__walkLook` pitch per
+surface) showed the rendered defaults bore little resemblance: wavy zebra-moiré "vinyl", glossy
+dark-grout 300 mm kitchen tiles (board: honed 600 mm, hairline light joints), stucco-bumpy
+proud-bevelled wall tile (board: near-flat rectified gloss), no bathroom mottle, and a grey
+bath wall where the board shows white-cream.
+
+- **`vinyl` painter rewritten** (own painter, no longer a `woodFields` wrapper): fine straight
+  rift-oak striations along the strip, sparse elongated character streaks, barely-there
+  cathedral smears, one staggered end joint per 1.2 m strip, tight V-seams, matte laminate
+  sheen. Swatch warmed to the board's grey-washed oak (`#d6c3ac`).
+- **New `stoneTile` painter** — honed warm-greige stone-print porcelain with soft mirrored
+  diagonal striations + clouds and hairline light rectified joints. `floor-tile-beige` now
+  renders TRUE 600×600 (was 300 mm glossy with dark grout); new `floor-tile-beige-300` covers
+  the household shelter / service yard at the board's 300×300.
+- **New `porcelainStone` painter** — the bathroom floor's mottled grey-green honed 300×600
+  running bond (broad per-tile clouds, sage undertone in dark patches).
+- **`porcelain` wall tile rectified** — no bevel band, gentle joint relief, hairline grout,
+  ~⅓ orange-peel, soft per-tile print clouding (metro `subway` keeps its bevel). Bathrooms
+  default to `wall-tile-white` per the board (grey stays a catalog option).
+- Painter signatures unit-tested (`snvBoards.test.ts`: striation direction, print uniformity vs
+  natural wood, light-joint luma, honed-vs-glaze roughness split, near-flat wall relief);
+  before/after close-ups verified on the real GPU at every surface.
+
+## v0.26.0.1 — Showroom strip in the accent-wall picker
+
+`WallAccentPicker` now mounts the same curated photo-PBR `ShowroomRow` (wall finishes) above its
+catalog grid, applying a pick as that one wall face's accent — same `showroomFinishes` gate,
+tested on/off. Closes the first v0.26.0.0 deferred item.
+
+## v0.26.0.0 — Photoreal materials round 1: photo-finish correctness + the Showroom strip
+
+Research-driven materials push (goal: showroom / sample-board fidelity; references studied:
+ArchSynth = diffusion AI rendering, Coohom/Planner 5D = cloud path tracing over a **curated
+photo-PBR library**, Shapespark = baked GI — the transferable web pattern is *curated
+photo-scanned PBR map sets, correctly decoded*).
+
+- **REAL-2 — photo albedos rendered with wrong gamma AND ~25% brightness.** The `textured`
+  branch of `cache.ts:buildMaterial` never tagged the drei-loaded albedo `SRGBColorSpace`
+  (skipping the sRGB→linear decode), and `m.color` stayed at the def's `swatch` — which for
+  every generated-catalog photo material was the `#888888` placeholder, multiplying the photo
+  down to ~25% linear brightness. Photo floors rendered as muddy near-black planks; the
+  "Plastered wall" finish rendered close to black. Now: albedo tagged sRGB, `m.color` white for
+  plain textured defs; the multiply is kept ONLY for real `tint:<baseId>:<#hex>` finishes (the
+  legacy tint mechanism, `isTintMaterialId`). Visually A/B'd on the real GPU (living room,
+  Medium): the oak floor reads as lit wood planks, the plaster accent wall as plaster.
+- **REAL-3 — AO channel now loads.** `useTexturedMaterial` fetched only albedo/normal/roughness;
+  remote CC0 bundles download an AO map that `buildMaterial` binds — it was just never loaded.
+  Baked crevice/grout shading now lands on photo finishes.
+- **SHOWROOM-FINISHES — curated one-tap photo-PBR strip** (flag `showroomFinishes`, simple tier,
+  default on, prod-safe CC0). `materials/showroomCatalog.ts`: 15 hand-curated Poly Haven
+  finishes (9 floors, 6 walls) with honest names, mean-albedo swatches and **physical
+  metres-per-tile uvScales**; `ui/finish/ShowroomRow.tsx` renders them above the FinishPicker
+  grid (Floor + Walls tabs, desktop + mobile) — tap → streams the full 1k map set CORS-direct
+  via the existing `resolveRemoteAsset`/IDB-cache path → applies. Curated overrides land in
+  `bundleToMaterialDef` (generic pack-browser downloads keep the 1 m default). Dead slugs
+  degrade gracefully (CDN thumb 404 hides the chip; resolve failure toasts).
+- **Remote finishes survive reload** (`state/storage/rehydrateRemoteFinishes.ts`, boot step):
+  applied `polyhaven:/ambientcg:` finish ids (incl. tint-/`mat:`-wrapped, via the pure
+  `extractRemoteFinishRefs` scan) re-resolve on boot from the IDB bundle cache (offline-capable)
+  — previously an applied remote finish silently fell back to the first builtin on reload.
+  Deliberately not flag-gated (gating is browse/add only, matching remote furniture).
+- **Bundled photo materials get real swatches.** `material.json` sidecars now carry a
+  mean-albedo `swatch` (computed via sharp) emitted by `index-assets` — the picker's photo
+  tiles/chips no longer fall back to uniform grey. The furniture-catalog emitter also
+  round-trips `mergeGeneratedCatalog` so re-running `index-assets` no longer deletes it.
+- Tests: textured-branch colour/AO contract (`cache.test.ts`), showroom curation integrity +
+  id round-trip + Simple/Pro flag gate (`showroomCatalog.test.ts`), strip render/resolve/apply
+  + FinishPicker mount in BOTH modes (`ShowroomRow.test.tsx`), boot rehydration
+  (`rehydrateRemoteFinishes.test.ts`).
+
 ## v0.25.0.1 — CI fix: knip dead-code scan green
 
 Deleted `levelRoomOffsets` (`floorplan/floorLevels3d.ts`) — a speculative per-storey convenience

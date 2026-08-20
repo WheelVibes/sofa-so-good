@@ -197,6 +197,24 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  showroomFinishes: {
+    label: 'Showroom finishes',
+    description: 'Curated photo-scanned PBR finishes (Poly Haven CC0)',
+    // CORS-direct CC0 streaming → prod-safe. Unlike the full remoteMaterials
+    // browser (pro), the curated one-tap strip is part of the core finish
+    // loop, so it stays in Simple mode.
+    default: true,
+    tier: 'simple',
+  },
+  colorGrade: {
+    label: 'Scene colour grade',
+    description: 'Warmth (white balance) + saturation dials in Graphics',
+    // Pure-code view knobs beside Exposure — prod-safe. Simple tier: undoing/
+    // adjusting the overall colour cast is part of the core "view" loop (the
+    // Exposure dial it sits beside is Simple too).
+    default: true,
+    tier: 'simple',
+  },
   remoteFurniture: {
     label: 'Online models',
     description: 'CC0 3D-model browser (Poly Haven)',

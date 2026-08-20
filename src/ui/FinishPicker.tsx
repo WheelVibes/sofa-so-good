@@ -39,6 +39,7 @@ import { Disclosure } from './controls/Disclosure'
 import { Select } from './controls/Select'
 import { useRovingTabs } from './controls/useRovingTabs'
 import { MaterialComposer } from './finish/MaterialComposer'
+import { ShowroomRow } from './finish/ShowroomRow'
 import { SwatchGroup } from './finish/swatches'
 import { Icon } from './toolbar/icons'
 
@@ -292,6 +293,7 @@ export function FinishPicker() {
   const fCeiling = useFeature('ceilingFinish')
   const fWallAccent = useFeature('wallAccentPicker')
   const fDesignerPicks = useFeature('designerPicks')
+  const fShowroom = useFeature('showroomFinishes')
   const fComposer = useFeature('materialComposer')
   const fSaveMaterials = useFeature('saveMaterials')
   const fRecolor = useFeature('finishRecolor')
@@ -453,7 +455,10 @@ export function FinishPicker() {
     if (fRecolor && !isTintMaterialId(id) && !isComposedMaterialId(id)) {
       const cur = parseTintMaterialId(activeFor(surface) ?? '')
       if (cur && cur.baseId !== id) {
-        applyFinish(surface, tintMaterialId(id, cur.color, 1, cur.roughness, 'repaint'))
+        applyFinish(
+          surface,
+          tintMaterialId(id, cur.color, 1, cur.roughness, 'repaint', cur.sat, cur.bright),
+        )
         return
       }
     }
@@ -463,6 +468,13 @@ export function FinishPicker() {
   const handleResolved = (id: string) => {
     applyFinish(lastSurface, id)
     setView('swatch')
+  }
+
+  // Highlight base for the Showroom strip: a tinted active finish highlights
+  // its base texture's chip (same convention as SwatchGroup's activeBaseId).
+  const showroomActiveBase = (activeId: string | undefined): string => {
+    if (!activeId) return ''
+    return parseTintMaterialId(activeId)?.baseId ?? activeId
   }
 
   return (
@@ -593,6 +605,13 @@ export function FinishPicker() {
           </div>
           {activeTab === 'floor' && (
             <>
+              {fShowroom ? (
+                <ShowroomRow
+                  surface="floor"
+                  active={showroomActiveBase(activeFloor)}
+                  onSelect={(id) => handleSelect('floor', id)}
+                />
+              ) : null}
               <SwatchGroup
                 label="Floor"
                 hideLabel
@@ -634,6 +653,13 @@ export function FinishPicker() {
           )}
           {activeTab === 'wall' && (
             <>
+              {fShowroom ? (
+                <ShowroomRow
+                  surface="wall"
+                  active={showroomActiveBase(activeWall)}
+                  onSelect={(id) => handleSelect('wall', id)}
+                />
+              ) : null}
               <SwatchGroup
                 label="Walls"
                 hideLabel

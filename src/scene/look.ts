@@ -59,6 +59,57 @@ export function clampExposure(x: number): number {
   return Math.min(EXPOSURE_MAX, Math.max(EXPOSURE_MIN, x))
 }
 
+/**
+ * Scene colour-grade knobs (COLOR-GRADE) — user dials so the graded look can be
+ * pushed warmer/cooler and more/less saturated (e.g. back toward the greyish
+ * pre-calibration read) without touching materials. Both persist per-device
+ * (qualityPrefs) beside `exposure`/`toneMapping`.
+ */
+
+/** White-balance bias: -1 = coolest, 0 = neutral (default), +1 = warmest. */
+export const DEFAULT_SCENE_WARMTH = 0
+export const SCENE_WARMTH_MIN = -1
+export const SCENE_WARMTH_MAX = 1
+
+export function clampSceneWarmth(x: number): number {
+  if (!Number.isFinite(x)) return DEFAULT_SCENE_WARMTH
+  return Math.min(SCENE_WARMTH_MAX, Math.max(SCENE_WARMTH_MIN, x))
+}
+
+/** Scene saturation multiplier: 0 = monochrome-ish, 1 = default, 2 = vivid.
+ *  Drives the High/Maximum post stack's HueSaturation pass. */
+export const DEFAULT_SCENE_SATURATION = 1
+export const SCENE_SATURATION_MIN = 0
+export const SCENE_SATURATION_MAX = 2
+
+export function clampSceneSaturation(x: number): number {
+  if (!Number.isFinite(x)) return DEFAULT_SCENE_SATURATION
+  return Math.min(SCENE_SATURATION_MAX, Math.max(SCENE_SATURATION_MIN, x))
+}
+
+/**
+ * White-balance tint for the analytical lights (sun / hemisphere / ambient) —
+ * a component-wise multiplier. Neutral (1,1,1) at bias 0 so the default look
+ * is byte-identical; +1 leans amber (R up, B down), -1 leans cool. Green is
+ * pinned at 1 so overall luminance barely moves. Works on EVERY tier (the
+ * analytical lights exist everywhere; the Medium+ IBL probe keeps its fixed
+ * tint, so the strength is a touch gentler there — acceptable for a user dial).
+ */
+export function warmthTintRGB(bias: number): [number, number, number] {
+  const b = clampSceneWarmth(bias)
+  return [1 + 0.14 * b, 1, 1 - 0.16 * b]
+}
+
+/** Map the user scene-saturation multiplier onto the HueSaturation pass's
+ *  `saturation` param (-1..1). The pass ships a +0.06 baseline ("finishes read
+ *  rich, not muddy") — the default multiplier 1 must reproduce exactly that. */
+export const BASE_POST_SATURATION = 0.06
+
+export function hueSatSaturation(sceneSaturation: number): number {
+  const s = clampSceneSaturation(sceneSaturation)
+  return Math.min(1, Math.max(-1, BASE_POST_SATURATION + (s - 1)))
+}
+
 /** Exposure compensation per operator so switching the look keeps the scene at
  *  roughly the same perceived brightness (AgX maps middle-grey lower than ACES,
  *  so it gets a small boost; Neutral tracks ACES closely). Multiplies the

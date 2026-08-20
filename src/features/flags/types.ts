@@ -30,6 +30,8 @@ export type FeatureFlag =
   | 'backdrops'
   | 'packs'
   | 'remoteMaterials'
+  | 'showroomFinishes'
+  | 'colorGrade'
   | 'remoteFurniture'
   | 'modelUpload'
   | 'aiPhotoreal'

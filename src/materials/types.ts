@@ -53,6 +53,8 @@ export type ProceduralPattern =
   | 'hexagon'
   | 'subway'
   | 'porcelain'
+  | 'stoneTile'
+  | 'porcelainStone'
   | 'fluted'
   | 'peranakan'
   | 'limewash'

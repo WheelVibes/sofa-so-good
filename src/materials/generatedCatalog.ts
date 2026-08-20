@@ -8,7 +8,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     category: 'floor',
     kind: 'textured',
     source: 'polyhaven',
-    swatch: '#888888',
+    swatch: '#352f25',
     sourceUrl: 'https://polyhaven.com/a/dirty_carpet',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/floor-carpet/albedo.jpg`,
@@ -23,7 +23,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     category: 'floor',
     kind: 'textured',
     source: 'polyhaven',
-    swatch: '#888888',
+    swatch: '#786f5b',
     sourceUrl: 'https://polyhaven.com/a/concrete_floor_02',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/floor-concrete/albedo.jpg`,
@@ -38,7 +38,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     category: 'floor',
     kind: 'textured',
     source: 'polyhaven',
-    swatch: '#888888',
+    swatch: '#6c645a',
     sourceUrl: 'https://polyhaven.com/a/brown_planks_03',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/floor-parquet/albedo.jpg`,
@@ -53,7 +53,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     category: 'floor',
     kind: 'textured',
     source: 'polyhaven',
-    swatch: '#888888',
+    swatch: '#b29d7a',
     sourceUrl: 'https://polyhaven.com/a/marble_01',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/floor-tile-marble/albedo.jpg`,
@@ -68,7 +68,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     category: 'floor',
     kind: 'textured',
     source: 'polyhaven',
-    swatch: '#888888',
+    swatch: '#7a706c',
     sourceUrl: 'https://polyhaven.com/a/floor_tiles_06',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/floor-tile-stone/albedo.jpg`,
@@ -83,7 +83,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     category: 'floor',
     kind: 'textured',
     source: 'polyhaven',
-    swatch: '#888888',
+    swatch: '#6e6156',
     sourceUrl: 'https://polyhaven.com/a/square_tiles_03',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/floor-tile-white/albedo.jpg`,
@@ -98,7 +98,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     category: 'floor',
     kind: 'textured',
     source: 'polyhaven',
-    swatch: '#888888',
+    swatch: '#816043',
     sourceUrl: 'https://polyhaven.com/a/wood_floor',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/floor-wood-natural/albedo.jpg`,
@@ -113,7 +113,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     category: 'floor',
     kind: 'textured',
     source: 'polyhaven',
-    swatch: '#888888',
+    swatch: '#6f350e',
     sourceUrl: 'https://polyhaven.com/a/wood_floor_deck',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/floor-wood-oak/albedo.jpg`,
@@ -128,7 +128,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     category: 'floor',
     kind: 'textured',
     source: 'polyhaven',
-    swatch: '#888888',
+    swatch: '#8a592f',
     sourceUrl: 'https://polyhaven.com/a/wood_floor_worn',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/floor-wood-walnut/albedo.jpg`,
@@ -143,7 +143,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     category: 'wall',
     kind: 'textured',
     source: 'polyhaven',
-    swatch: '#888888',
+    swatch: '#9e8c78',
     sourceUrl: 'https://polyhaven.com/a/beige_wall_001',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/wall-beige/albedo.jpg`,
@@ -158,7 +158,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     category: 'wall',
     kind: 'textured',
     source: 'polyhaven',
-    swatch: '#888888',
+    swatch: '#826350',
     sourceUrl: 'https://polyhaven.com/a/medieval_red_brick',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/wall-brick/albedo.jpg`,
@@ -173,7 +173,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     category: 'wall',
     kind: 'textured',
     source: 'polyhaven',
-    swatch: '#888888',
+    swatch: '#8b836e',
     sourceUrl: 'https://polyhaven.com/a/concrete_wall_007',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/wall-concrete/albedo.jpg`,
@@ -188,7 +188,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     category: 'wall',
     kind: 'textured',
     source: 'polyhaven',
-    swatch: '#888888',
+    swatch: '#4e728e',
     sourceUrl: 'https://polyhaven.com/a/denim_fabric',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/wall-fabric-denim/albedo.jpg`,
@@ -203,7 +203,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     category: 'wall',
     kind: 'textured',
     source: 'polyhaven',
-    swatch: '#888888',
+    swatch: '#969380',
     sourceUrl: 'https://polyhaven.com/a/leather_white',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/wall-leather-white/albedo.jpg`,
@@ -218,7 +218,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     category: 'wall',
     kind: 'textured',
     source: 'polyhaven',
-    swatch: '#888888',
+    swatch: '#3e321d',
     sourceUrl: 'https://polyhaven.com/a/metal_plate',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/wall-metal-plate/albedo.jpg`,
@@ -233,7 +233,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     category: 'wall',
     kind: 'textured',
     source: 'polyhaven',
-    swatch: '#888888',
+    swatch: '#bbb2a3',
     sourceUrl: 'https://polyhaven.com/a/plastered_wall_02',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/wall-plaster/albedo.jpg`,
@@ -248,7 +248,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
     category: 'wall',
     kind: 'textured',
     source: 'polyhaven',
-    swatch: '#888888',
+    swatch: '#4e4230',
     sourceUrl: 'https://polyhaven.com/a/stone_brick_wall_001',
     textures: {
       albedo: `${import.meta.env.BASE_URL}assets/materials/wall-stone-brick/albedo.jpg`,

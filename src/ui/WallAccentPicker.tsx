@@ -8,6 +8,7 @@ import { useMaterials } from '../materials/useMaterial'
 import { roomDisplayName } from '../state/rooms'
 import { useStore } from '../state/store'
 import { ColorPicker } from './controls/ColorPicker'
+import { ShowroomRow } from './finish/ShowroomRow'
 import { Icon } from './toolbar/icons'
 
 function swatchImage(m: MaterialDef): string | undefined {
@@ -27,6 +28,7 @@ function swatchImage(m: MaterialDef): string | undefined {
 export function WallAccentPicker() {
   const enabled = useFeature('wallAccentPicker')
   const fRecolor = useFeature('finishRecolor')
+  const fShowroom = useFeature('showroomFinishes')
   const selectedWall = useStore((s) => s.selectedWall)
   const wallAccents = useStore(useShallow((s) => s.finishes.wallAccents))
   const roomWall = useStore(useShallow((s) => s.finishes.walls))
@@ -66,6 +68,15 @@ export function WallAccentPicker() {
       </div>
       <hr className="hr" />
       <div className="panel-body">
+        {/* SHOWROOM-FINISHES — the same curated photo-PBR strip the main
+            FinishPicker offers, applied as this one wall face's accent. */}
+        {fShowroom ? (
+          <ShowroomRow
+            surface="wall"
+            active={currentBase ?? ''}
+            onSelect={(id) => setWallAccent(key, id)}
+          />
+        ) : null}
         <div className="swatches">
           {walls.map((m) => (
             <button
