@@ -341,6 +341,23 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 }
 .icon-btn:hover { background: var(--surface-3); color: var(--text); }
 
+/* Radial progress ring (UIUX-37, controls/RingGauge.tsx) — accent sweep on a
+   surface track, danger when over; the sweep glides on the motion tokens
+   (reduced-motion zeroes the transition globally). */
+.ring-gauge { position: relative; display: inline-grid; place-items: center; flex: none; }
+.ring-gauge svg { display: block; }
+.ring-gauge .ring-bg { fill: none; stroke: var(--surface-2); }
+.ring-gauge .ring-fg {
+  fill: none; stroke: var(--accent); stroke-linecap: round;
+  transition: stroke-dashoffset var(--dur-2) var(--ease-out), stroke var(--dur) var(--ease);
+}
+.ring-gauge.danger .ring-fg { stroke: var(--danger); }
+.ring-gauge .ring-label {
+  position: absolute; font-size: var(--t-2xs); font-weight: 700;
+  font-variant-numeric: tabular-nums; color: var(--text-2);
+}
+.ring-gauge.danger .ring-label { color: var(--danger); }
+
 /* ---- Buttons -------------------------------------------------- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);

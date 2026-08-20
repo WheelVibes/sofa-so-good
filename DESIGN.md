@@ -72,7 +72,9 @@ tilt cards, scramble text) are **off-brand — do not add them**.
 - 3+ state controls = `Segmented`/`Select`, never click-to-cycle; `Segmented`'s selection
   glides on a measured `.seg-pill` (static `.on` is the unmeasured fallback). Buttons = `<Button>`
   primitive. Sliders = `SliderField`. Empty lists = `EmptyState`. Collapsibles = `Disclosure`.
-  Confirmations = `confirmAction()` (never `window.confirm`).
+  Confirmations = `confirmAction()` (never `window.confirm`). Spend/limit progress with a
+  focal number = `RingGauge` (accent sweep, `danger` past the limit, `--dur-2 --ease-out`
+  dashoffset glide) — one visual per value: a ring replaces a bar, never joins it.
 - Destructive: delete = confirm + Undo toast backstop (deliberate policy — do not "simplify"
   to timed-undo-only).
 - Mobile (≤640px `body.mobile`): bottom sheets, ≥44px touch targets, safe-area insets,

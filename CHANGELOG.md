@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.40 — UIUX-37: budget ring gauge (RingGauge control)
+
+New `controls/RingGauge` (the bklit ring / activity-gauge pattern, dependency-free): an
+SVG stroke-dashoffset sweep from 12 o'clock — accent within budget, danger past it,
+`--surface-2` track, centre label slot, sweep gliding on `--dur-2 --ease-out` (the app's
+reduced-motion block zeroes it), `role="img"` + aria-label, value clamped 0..1. Wired
+into the Shopping panel's headline (`.bud-total`) when a budget target is set — the %
+ring sits beside the rolling total — and the old inline linear bar under the target
+field is removed (one visual per value; the words stay). The Budget HUD pill keeps its
+slim bar. Unit tests (clamps, dashoffset math, danger class, both modes in BudgetPanel);
+verified visually desktop + mobile, under- and over-budget. DESIGN.md vocabulary updated.
+
 ## v0.25.0.39 — UIUX-19b: plan-furniture-rotate scenario green again (selector fix)
 
 Root-caused the long-failing rotate rung: the scenario dispatched its synthetic

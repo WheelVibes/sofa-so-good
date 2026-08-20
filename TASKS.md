@@ -48,9 +48,6 @@ Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, vis
   confirm), needs a product decision first.
 
 
-- [ ] UIUX-37: budget ring gauge (bklit ring / apple-activity-card pattern) — hand-rolled
-  SVG stroke-dashoffset sweep as an alternative spend-vs-target readout. M; only if the
-  Budget surface wants a second visual.
 - [ ] UIUX-29: guard test / adoption sweep — every new pattern documented in DESIGN.md as it
   ships; keep adding tasks discovered during stages above.
 

@@ -753,8 +753,9 @@
 .act-array-go:disabled { opacity: 0.5; cursor: not-allowed; filter: none; }
 
 /* budget bar */
-.bud-total { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }
-.bud-total .panel-sub { white-space: nowrap; }
+.bud-total { display: flex; align-items: baseline; gap: var(--s-3); }
+.bud-total .panel-sub { white-space: nowrap; margin-left: auto; }
+.bud-total .ring-gauge { align-self: center; }
 .bud-total .big { font-size: var(--t-xl); font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; }
 .bud-bar { height: 8px; border-radius: 999px; background: var(--surface-3); overflow: hidden; margin: var(--s-3) 0; display: flex; }
 .bud-seg { height: 100%; }
