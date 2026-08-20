@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.47 — UIUX-44: FinishPicker audit clean (desktop + mobile, light + dark)
+
+Visual audit of the finish picker (room selected in the room editor → `.finish-picker`
+dock/sheet): desktop light + dark and the mobile bottom sheet all read correctly —
+surface tabs at the 44px floor, designer-pick swatch rows, finish cells with favourite
+hearts, Apply/Try-on/Compose actions and the accent-wall section all properly spaced;
+no token or layout defects found, no changes shipped. (A light seg pill in the dark
+capture was re-confirmed as the documented headless transition-start screenshot
+artifact, not a theme bug.)
+
 ## v0.25.0.46 — UIUX-43: walk-mode HUD mobile fixes (measure pill, keyboard chips)
 
 Walk-mode HUD audit (desktop + mobile portrait/landscape, day + night, via the existing
