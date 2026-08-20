@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.50 — UIUX-46b: child-inset sweep across the remaining scrollers
+
+Extends the UIUX-46 rule (scrollers carry no vertical padding — the inset lives on the
+first/last child) to every remaining eligible scroller: the `Select` listbox popover
+(`.select-panel`, options ghosted into its rounded corners mid-scroll), the ⌘K results
+list (`.cmdk-results`, rows ghosted above the footer legend), and the mobile sheet's two
+panes (`.m-rail`, `.m-detail` — rows past the sheet's rounded bottom edge). The catalog
+`.card-grid` is deliberately excluded (a grid scroller: a last-child margin stretches its
+row track, same class of reason its edge lips were excluded) and the plan canvas is an
+intentional open scroller. Verified live (⌘K mid-scroll, room-switcher listbox, sheet
+detail at end-of-scroll); guard test added.
+
 ## v0.25.0.49 — UIUX-46: scroll-region insets — no more truncated rings or exposed overflow
 
 User report, two defects across scrollable panels, both root-caused and fixed:

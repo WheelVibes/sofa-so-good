@@ -552,3 +552,18 @@ describe('UIUX-46 scroll-region insets live on children, not the scrollport', ()
     )
   })
 })
+
+describe('UIUX-46b remaining scrollers use child insets too', () => {
+  it('select-panel, cmdk-results, and the mobile sheet panes carry no vertical scrollport padding', () => {
+    const p = read('./parts.css')
+    expect(p).toMatch(/\.select-panel \{[^}]*padding: 0 var\(--s-2\)/)
+    expect(p).toMatch(/\.select-panel > :last-child \{ margin-bottom: var\(--s-2\); \}/)
+    const f = read('./features.css')
+    expect(f).toMatch(/\.cmdk-results \{ overflow-y: auto; padding: 0 var\(--s-2\); \}/)
+    expect(f).toMatch(/\.cmdk-results > :last-child \{ margin-bottom: var\(--s-2\); \}/)
+    const r = read('./responsive.css')
+    expect(r).toMatch(/\.m-detail \{[^}]*padding: 0 var\(--s-2\); \}/)
+    expect(r).toMatch(/\.m-detail > :last-child \{ margin-bottom: var\(--s-3\); \}/)
+    expect(r).toMatch(/\.m-rail > :last-child \{ margin-bottom: var\(--s-2\); \}/)
+  })
+})

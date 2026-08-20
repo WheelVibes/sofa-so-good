@@ -444,7 +444,10 @@
 .cmdk-search input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-size: var(--t-lg); font-weight: 500; }
 .cmdk-search input::placeholder { color: var(--text-3); }
 .cmdk-search kbd { flex: none; }
-.cmdk-results { overflow-y: auto; padding: var(--s-2); }
+/* Child insets, not scrollport padding (UIUX-46) — see .panel-body. */
+.cmdk-results { overflow-y: auto; padding: 0 var(--s-2); }
+.cmdk-results > :first-child { margin-top: var(--s-2); }
+.cmdk-results > :last-child { margin-bottom: var(--s-2); }
 .cmdk-glabel { font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-3); font-weight: 700; padding: var(--s-3) var(--s-2) 4px; }
 .cmdk-item { display: flex; align-items: center; gap: var(--s-3); padding: 9px var(--s-2); border-radius: var(--r-2); width: 100%; text-align: left; color: var(--text-2); }
 .cmdk-item .icn { color: var(--text-3); flex: none; }
