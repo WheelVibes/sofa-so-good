@@ -214,6 +214,17 @@
 .lyr-ic { width: 24px; height: 24px; flex: none; display: grid; place-items: center; border-radius: var(--r-1); background: var(--surface-3); color: var(--text-3); }
 .lyr-row.sel .lyr-ic { background: var(--surface-solid); color: var(--accent-soft-text); }
 .lyr-nm { font-size: var(--t-sm); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+/* The row's primary select action is a real <button> (UIUX-41) so keyboard
+   users can Tab to an object and Enter/Space-select it; the row div stays the
+   drag-and-drop finish target. Inherits the row's look; stretches to the row
+   height so the whole name area is the (44px-on-mobile) tap target. */
+.lyr-sel {
+  display: flex; align-items: center; gap: var(--s-2); flex: 1; min-width: 0;
+  align-self: stretch; padding: 0; background: none; border: 0;
+  color: inherit; font: inherit; text-align: left; border-radius: var(--r-1);
+  cursor: pointer;
+}
+.lyr-sel:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .lyr-flag { color: var(--danger); display: grid; place-items: center; flex: none; }
 .lyr-flag.warn { color: oklch(0.62 0.14 70); }
 .lyr-acts { display: flex; gap: 1px; flex: none; opacity: 0; transition: var(--dur) var(--ease); }

@@ -200,9 +200,6 @@ export function LayersPanel() {
                           hiddenSet.has(it.id) ? ' hidden' : ''
                         }`}
                         style={{ '--i': idx } as CSSProperties}
-                        onClick={(e) =>
-                          e.metaKey || e.ctrlKey ? toggleSelectedItem(it.id) : selectItem(it.id)
-                        }
                         onDragOver={(e) => {
                           if (fFinishDnd && isFinishDrag(e.dataTransfer)) {
                             e.preventDefault()
@@ -217,16 +214,29 @@ export function LayersPanel() {
                           applyFinishDrop(it.id, e.dataTransfer)
                         }}
                       >
-                        <span className="lyr-ic">
-                          {def ? (
-                            <CategoryIcon category={def.category} width={14} height={14} />
-                          ) : (
-                            <Icon.Cube width={14} height={14} />
-                          )}
-                        </span>
-                        <span className="lyr-nm" title={itemLabel(it)}>
-                          {itemLabel(it)}
-                        </span>
+                        {/* Primary select action is a real button (UIUX-41) so a
+                            keyboard user can Tab to an object and Enter-select it;
+                            the row div stays the drag-and-drop finish target
+                            (drop zones must be a <div>, src/ui/CLAUDE.md). */}
+                        <button
+                          type="button"
+                          className="lyr-sel"
+                          aria-pressed={selected}
+                          onClick={(e) =>
+                            e.metaKey || e.ctrlKey ? toggleSelectedItem(it.id) : selectItem(it.id)
+                          }
+                        >
+                          <span className="lyr-ic">
+                            {def ? (
+                              <CategoryIcon category={def.category} width={14} height={14} />
+                            ) : (
+                              <Icon.Cube width={14} height={14} />
+                            )}
+                          </span>
+                          <span className="lyr-nm" title={itemLabel(it)}>
+                            {itemLabel(it)}
+                          </span>
+                        </button>
                         <span className="lyr-acts">
                           <button
                             type="button"

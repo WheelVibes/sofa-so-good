@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.25.0.42 — UIUX-41: Layers rows are keyboard-selectable
+
+The Layers panel's object rows were click-only `<div>`s — a keyboard user could Tab to a
+row's hide/lock/delete buttons but had no way to *select* the object itself. The row's
+primary action (icon + name) is now a real `.lyr-sel` button (the FileMenu saved-view-row
+pattern: layout div + primary button + sibling actions): Tab reaches it, Enter/Space
+selects, ctrl/⌘-click still multi-toggles, `aria-pressed` mirrors selection, and it takes
+the shared `--focus-ring` on `:focus-visible`. The row div stays the finish drag-and-drop
+target (drop zones must be a div) and keeps the FLIP id; `.lyr-nm` keeps its P22
+truncation title. Verified live: 87 rows expose buttons, focus lands correctly,
+Enter-select drives the real selection path (inspector opens); layout unchanged.
+Follow-up noted for the glbEditor panels that share the `.lyr-row` vocabulary.
+
 ## v0.25.0.41 — UIUX-40: scroll-edge shadows on scrollable dropdown menus
 
 Audit of the desktop toolbar menus (View/Scene/File, Pro) + the ⌘K palette across
