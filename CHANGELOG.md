@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.24 — UIUX-55: BOQ quote table polish; drawing set audited clean
+
+Headless audit of the two remaining printables. The BOQ quote: section titles
+are `<caption>`s that rendered as small centred stray text (now left-aligned
+bold headings via the opener stylesheet); Qty/Rate/Amount cells were
+left-aligned prose (now `class="n"` right-aligned tabular numerals); and every
+section carried an always-empty "Length (ft)" column that only carpentry lines
+use (now rendered per-section only when a line has a derived length, with the
+subtotal colspan following). CSV output unchanged. The drawing set (35 sheets,
+cover/title blocks/schedules) audited clean — no changes. Unit test for the
+conditional column; verified in the rendered quote.
+
 ## v0.26.2.23 — UIUX-54: report compliance advisories collapse to ×N entries
 
 Full visual audit of the printable design report (rendered headlessly, all 23
