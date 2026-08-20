@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.16 — merge fix: colour-grade dials restored beside Exposure
+
+The staging merge (below) was pushed with the dial-relocation hunk accidentally left
+unstaged: the merge commit still had staging's COLOR-GRADE Warmth/Saturation dials
+stranded inside the Pro-only advanced block (where the auto-merge landed them), hiding
+them in Simple mode and failing their two placement tests. This commit is that
+relocation — the dials sit beside Exposure in the always-visible Look section, exactly
+as staging ships them; verified live in default Simple mode.
+
 ## v0.26.2.15 — UIUX-47: modal footers carry a symmetric top inset
 
 User report: with the body now clipping flush right above the footer (UIUX-46), the

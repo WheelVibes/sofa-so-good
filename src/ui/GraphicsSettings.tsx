@@ -188,6 +188,39 @@ export function GraphicsSettings({
           format={(v) => `${v.toFixed(2)}×`}
           onChange={setExposure}
         />
+        {/* Scene colour grade (COLOR-GRADE): Warmth biases the scene's white
+                balance on every tier (cooler ← 0 → warmer); Saturation rides the
+                High/Maximum post stack — together the "get the greyer, cooler
+                look back" dials. Lives beside Exposure on every tier/mode
+                (simple-tier flag) — NOT in the Pro-only advanced block. */}
+        {fColorGrade ? (
+          <>
+            <SliderField
+              label="Warmth"
+              ariaLabel="Scene warmth (white balance)"
+              min={SCENE_WARMTH_MIN}
+              max={SCENE_WARMTH_MAX}
+              step={0.05}
+              value={sceneWarmth}
+              format={(v) => (v === 0 ? 'Neutral' : v > 0 ? `+${v.toFixed(2)}` : v.toFixed(2))}
+              onChange={setSceneWarmth}
+            />
+            <SliderField
+              label="Saturation"
+              ariaLabel="Scene saturation"
+              min={SCENE_SATURATION_MIN}
+              max={SCENE_SATURATION_MAX}
+              step={0.05}
+              value={sceneSaturation}
+              format={(v) => `${Math.round(v * 100)}%`}
+              onChange={setSceneSaturation}
+            />
+            <p className="sec-desc">
+              Warmth shifts the whole scene cooler or warmer; Saturation applies on High / Maximum
+              quality.
+            </p>
+          </>
+        ) : null}
       </div>
 
       {/* Advanced graphics (asset detail + per-effect overrides + FPS) —
@@ -281,38 +314,6 @@ export function GraphicsSettings({
               format={(v) => `${v.toFixed(2)}×`}
               onChange={(v) => setOverride('dprMax', v)}
             />
-            {/* Scene colour grade (COLOR-GRADE): Warmth biases the scene's white
-                balance on every tier (cooler ← 0 → warmer); Saturation rides the
-                High/Maximum post stack — together the "get the greyer, cooler
-                look back" dials. */}
-            {fColorGrade ? (
-              <>
-                <SliderField
-                  label="Warmth"
-                  ariaLabel="Scene warmth (white balance)"
-                  min={SCENE_WARMTH_MIN}
-                  max={SCENE_WARMTH_MAX}
-                  step={0.05}
-                  value={sceneWarmth}
-                  format={(v) => (v === 0 ? 'Neutral' : v > 0 ? `+${v.toFixed(2)}` : v.toFixed(2))}
-                  onChange={setSceneWarmth}
-                />
-                <SliderField
-                  label="Saturation"
-                  ariaLabel="Scene saturation"
-                  min={SCENE_SATURATION_MIN}
-                  max={SCENE_SATURATION_MAX}
-                  step={0.05}
-                  value={sceneSaturation}
-                  format={(v) => `${Math.round(v * 100)}%`}
-                  onChange={setSceneSaturation}
-                />
-                <p className="sec-desc">
-                  Warmth shifts the whole scene cooler or warmer; Saturation applies on High /
-                  Maximum quality.
-                </p>
-              </>
-            ) : null}
           </div>
 
           {hasOverrides && (
