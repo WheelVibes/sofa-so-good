@@ -34,6 +34,7 @@ import { openShoppingList } from '../../openShoplist'
 import { openTradePack } from '../../openTradePack'
 import { TRADE_PACKS } from '../../tradePacks'
 import { viewInAr } from '../../viewInAr'
+import { exportGroupLabel } from '../exportGroupLabel'
 import { Icon } from '../icons'
 import { shortcutLabel } from '../shortcuts'
 import { MenuItem, MenuLabel, ToolbarMenu } from '../ToolbarMenu'
@@ -43,26 +44,6 @@ import { MenuItem, MenuLabel, ToolbarMenu } from '../ToolbarMenu'
  *  moodboard, drawing set), the "Budget & costs" group (the budget panel plus
  *  all its cost exports, previously scattered across four menu spots), and the
  *  CAD / 3D / CSV data exports that used to sit in Tools → "Export & document". */
-/**
- * Heading for the export group, naming only the buckets that actually render
- * (UIUX-71). The heading used to be a fixed "CAD, 3D & data", but in Simple
- * mode the CAD rows (DXF/SVG, pro) and the CSV data rows (`shopExport`, off by
- * default) are both gated away — so the default experience advertised two
- * categories it did not show. Joined with a trailing "&" so it reads as a
- * phrase: "CAD, 3D & data" / "CAD & 3D" / "3D".
- */
-export function exportGroupLabel(present: {
-  cad: boolean
-  threeD: boolean
-  data: boolean
-}): string {
-  const parts = [present.cad && 'CAD', present.threeD && '3D', present.data && 'data'].filter(
-    (p): p is string => typeof p === 'string',
-  )
-  if (parts.length <= 1) return parts[0] ?? ''
-  return `${parts.slice(0, -1).join(', ')} & ${parts[parts.length - 1]}`
-}
-
 export function FileMenu() {
   const recording = useStore((s) => s.recording)
   const setRecording = useStore((s) => s.setRecording)

@@ -98,4 +98,29 @@ describe('mobile FileSection grouping — Simple mode (pro-tier rows hidden)', (
       expect(screen.queryByText(label)).toBeNull()
     }
   })
+
+  it('drops "CAD" from the export heading when the CAD rows are gated off (UIUX-73)', () => {
+    renderFileSection()
+    // The mobile heading was a fixed "CAD, 3D & data" and kept promising the
+    // CAD rows after the desktop menu was fixed — both surfaces now share
+    // `exportGroupLabel`.
+    expect(screen.getByText('3D & data')).toBeTruthy()
+    expect(screen.queryByText('CAD, 3D & data')).toBeNull()
+  })
+})
+
+describe('mobile FileSection — desktop parity for the AR export (UIUX-73)', () => {
+  // iOS AR Quick Look only opens a .usdz on a phone/tablet, yet the row shipped
+  // desktop-only. The geometry-only CAD formats stay desktop-only on purpose.
+  for (const mode of ['simple', 'pro'] as const) {
+    it(`offers Export for AR (.usdz) in ${mode} mode`, () => {
+      setMode(mode)
+      renderFileSection()
+      expect(screen.getByText('Export for AR (.usdz)')).toBeTruthy()
+      expect(screen.getByText('Export 3D model (.glb)')).toBeTruthy()
+      // Not the professional geometry formats — no phone use case.
+      expect(screen.queryByText('Export 3D model (.obj)')).toBeNull()
+      expect(screen.queryByText('Export 3D model (.stl)')).toBeNull()
+    })
+  }
 })

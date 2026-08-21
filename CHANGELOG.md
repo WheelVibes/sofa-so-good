@@ -5,6 +5,31 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.43 — UIUX-73: mobile File section reaches export parity with desktop
+
+UIUX-71 taught the export menu to name only the buckets it actually renders,
+but it only fixed the desktop `FileMenu` — the mobile sheet kept a hardcoded
+"CAD, 3D & data" heading over a section that has never offered a CAD format, so
+a phone in Simple mode advertised two buckets it couldn't deliver. The labelling
+logic moves out of `FileMenu.tsx` into a shared `ui/toolbar/exportGroupLabel.ts`
+that both surfaces import, which is the only way the two headings can't drift
+apart again (own unit test: the six bucket combinations plus the empty case).
+The mobile heading now reads an honest "3D" in Simple, "3D & data" once the
+budget/shop flags are on.
+
+Auditing the section for the same desktop/mobile gap in the other direction
+found one: `.usdz` was desktop-only, even though AR Quick View is the one export
+that *requires* a phone — iOS opens a `.usdz` in AR from Safari and does nothing
+useful with it on a Mac. Mobile gains the row; `.obj`/`.stl` stay desktop-only
+on purpose (they feed Blender/CAD/3D-printing pipelines that don't exist on a
+phone) and that reasoning is now a comment in the file rather than an accident.
+The mobile grouping test gained a Simple-mode heading assertion and an AR-parity
+describe that runs in both modes.
+
+Verified at 390×844 in Simple: the heading reads "3D", the `.usdz` row renders
+with its "View in your room — iOS AR Quick Look" caption, no `.obj`/`.stl` leak,
+and all six rail sections keep flat unfilled headers.
+
 ## v0.26.2.42 — UIUX-72: flag-tier docs reconciled with the registry + guarded
 
 UIUX-71's leak was found because ARCHITECTURE.md described `sceneExport3d` as

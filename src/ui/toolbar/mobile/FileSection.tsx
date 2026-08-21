@@ -23,6 +23,7 @@ import { openSh3fImport } from '../../openSh3fImport'
 import { openShoppingList } from '../../openShoplist'
 import { openTradePack } from '../../openTradePack'
 import { TRADE_PACKS } from '../../tradePacks'
+import { exportGroupLabel } from '../exportGroupLabel'
 import { Icon } from '../icons'
 import { Item, Section, SubHeader } from './parts'
 
@@ -294,7 +295,11 @@ export function FileSection({
         />
       ) : null}
 
-      {fDxf || fSceneExport || fShopExport ? <SubHeader>CAD, 3D &amp; data</SubHeader> : null}
+      {fDxf || fSceneExport || fShopExport ? (
+        <SubHeader>
+          {exportGroupLabel({ cad: fDxf, threeD: fSceneExport, data: fShopExport })}
+        </SubHeader>
+      ) : null}
       {fDxf ? (
         <Item
           icon="Export"
@@ -304,12 +309,25 @@ export function FileSection({
         />
       ) : null}
       {fSceneExport ? (
-        <Item
-          icon="Export"
-          label="Export 3D model (.glb)"
-          sub="Whole furnished scene for Blender / AR / Coohom"
-          onClick={act(() => void exportScene3d('glb'))}
-        />
+        <>
+          <Item
+            icon="Export"
+            label="Export 3D model (.glb)"
+            sub="Whole furnished scene for Blender / AR / Coohom"
+            onClick={act(() => void exportScene3d('glb'))}
+          />
+          {/* Desktop parity (UIUX-73) — and the format that most needs to be
+              HERE: iOS AR Quick Look only opens a .usdz on a phone/tablet, yet
+              the row existed on desktop only. The geometry-only CAD formats
+              (.obj/.stl, `sceneExportCad`) stay desktop-only on purpose: no
+              phone use case for a Wavefront OBJ. */}
+          <Item
+            icon="Export"
+            label="Export for AR (.usdz)"
+            sub="View in your room — iOS AR Quick Look"
+            onClick={act(() => void exportScene3d('usdz'))}
+          />
+        </>
       ) : null}
       {fShopExport ? (
         <>
