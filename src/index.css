@@ -17,6 +17,33 @@
 @import './styles/responsive.css';
 @import './styles/app.css';
 
+/* ── Tailwind → design-ladder bridge (UIUX-64) ──────────────────────────
+ * ~90 call sites still use Tailwind type utilities (text-xs/text-sm/
+ * leading-relaxed…). Tailwind's own scale (xs 12px, sm 14px, lh 1.333/1.625)
+ * is a SECOND type ladder next to the app's `--t-*`/`--lh-*` tokens — the
+ * DESIGN.md "one ladder" rule. Re-point the utilities' theme variables at
+ * the tokens (rendered sizes preserved: xs→--t-sm 12px, sm→--t-md 14px,
+ * base→--t-lg 16px, xl→--t-xl 20px are exact matches) so every current and
+ * future Tailwind utility lands on the ladder. Multiline defaults take
+ * --lh-body per the ladder. Colour utilities stay banned outright.
+ * NOTE this block must sit AFTER the @import statements (CSS requires all
+ * imports first — a statement between them invalidates the rest), and it
+ * must be `@theme inline`: values referencing other CSS variables have to be
+ * inlined into the generated utilities. */
+@theme inline {
+  --text-xs: var(--t-sm);
+  --text-xs--line-height: var(--lh-body);
+  --text-sm: var(--t-md);
+  --text-sm--line-height: var(--lh-body);
+  --text-base: var(--t-lg);
+  --text-base--line-height: var(--lh-body);
+  --text-lg: var(--t-lg);
+  --text-lg--line-height: var(--lh-tight);
+  --text-xl: var(--t-xl);
+  --text-xl--line-height: var(--lh-tight);
+  --leading-relaxed: var(--lh-body);
+}
+
 html,
 body,
 #root {

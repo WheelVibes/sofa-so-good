@@ -375,6 +375,29 @@ describe('UIUX-61 sticky headers are an opaque-container privilege', () => {
   })
 })
 
+describe('UIUX-64 Tailwind type utilities ride the design ladder', () => {
+  // ~90 call sites use text-xs/text-sm/leading-relaxed. Without the bridge,
+  // Tailwind's own scale is a SECOND type ladder (xs 12px/1.333 vs --t-xs
+  // 11px…) — the @theme inline block re-points the utilities' theme variables
+  // at the `--t-*`/`--lh-*` tokens. Two structural constraints, both verified
+  // live: the block must be `@theme inline` (plain @theme drops var()-valued
+  // sizes, silently DISABLING the utilities), and it must come AFTER every
+  // @import (a statement between imports invalidates the rest of the sheet).
+  const idx = read('../index.css')
+  it('the @theme inline bridge exists and aliases the type utilities to tokens', () => {
+    const block = idx.match(/@theme inline\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(block).toMatch(/--text-xs:\s*var\(--t-sm\)/)
+    expect(block).toMatch(/--text-sm:\s*var\(--t-md\)/)
+    expect(block).toMatch(/--leading-relaxed:\s*var\(--lh-body\)/)
+    expect(block).not.toMatch(/--color-/) // colour utilities stay banned, not bridged
+  })
+  it('the bridge sits after the last @import (CSS drops rules between imports)', () => {
+    const lastImport = idx.lastIndexOf('@import')
+    const theme = idx.indexOf('@theme inline')
+    expect(theme).toBeGreaterThan(lastImport)
+  })
+})
+
 describe('UIUX-62 no nested backdrop-filters', () => {
   // An element with backdrop-filter becomes a backdrop ROOT: a descendant's
   // backdrop-filter can only sample content painted INSIDE it (typically the

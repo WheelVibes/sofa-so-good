@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.34 — UIUX-64: confirm surfaces audited; Tailwind type utilities bridged to the ladder
+
+Audit of the confirm grammar: ConfirmModal danger/plain variants, the text
+prompt, and the EditConfirmBar pill (normal + blocked) — all render on-system
+(soft-danger confirm button per `.btn-danger`, Cancel focused first, blocked
+pill communicates "Can't place here" with a disabled tick). One systemic
+finding: ~90 call sites still use Tailwind type utilities (text-xs/text-sm/
+leading-relaxed), and Tailwind's own scale is a SECOND type ladder next to
+`--t-*` (xs 12px vs --t-xs 11px, lh 1.333/1.625 vs 1.25/1.5) — violating the
+DESIGN.md "one ladder" rule with visibly mixed copy sizes. New `@theme inline`
+bridge in index.css re-points the utilities' theme variables at the tokens
+(rendered sizes preserved exactly: xs→--t-sm 12px, sm→--t-md 14px, base→--t-lg
+16px; multiline defaults take --lh-body), so every current and future Tailwind
+type utility lands on the ladder with zero TSX churn. Two traps found live and
+guarded: plain `@theme` drops var()-valued sizes (silently disabling the
+utilities), and the block must sit AFTER all @imports. Verified with computed-
+style probes (text-sm 14px/21px, text-xs 12px/18px) + the ConfirmModal render.
+
 ## v0.26.2.33 — UIUX-63: error toasts wear a warning triangle, not a shield-check
 
 Visual audit of the remaining interaction surfaces: toasts (all four kinds +
