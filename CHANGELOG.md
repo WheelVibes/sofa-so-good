@@ -5,6 +5,43 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.45 — UIUX-75: plan-editor overlays back on the design system
+
+The 2D floor-plan editor's two floating overlays had never been audited, and
+`WallNumericEntry` had drifted furthest of anything found this cycle: a literal
+`rgba(0,0,0,0.18)` shadow (invisible to the guards, which scan CSS files and
+className strings but not inline style objects), px font sizes off the `--t-*`
+ladder, a `borderRadius: 6` beside a `--r-2` of 5, `zIndex: 50` between two
+z-tokens, and six one-off gaps. All of it moves to a `.wall-num` rule built from
+tokens, so the overlay finally recolours across the five themes; the component's
+`style=` now carries only the computed `left`/`top`, which CSS cannot know.
+
+Three real defects came out of the visual pass rather than the grep:
+
+**The overlay was see-through.** It follows the cursor and routinely lands on
+`.plan-props`, itself a glass `.panel` — so its own `backdrop-filter` sampled a
+backdrop root and did nothing, and the inspector's body text read straight
+through the numbers being typed. Now opaque (`--surface-solid`, filter off),
+with a `styleGuards` case pinning it.
+
+**It could be placed off-screen.** The prefer-below-right-then-flip offset
+assumes the endpoint is on screen, but the plan canvas pans and zooms freely — a
+draft end left of or above the viewport (a paper rect starting at -1650, -1822
+is ordinary after a few zoom steps) overflows nothing, so no flip fires and the
+panel went with it. Positioning is now the pure `wallEntryPlacement.ts`, which
+clamps last; it also takes the real `panelH`, since the panel grows by the
+validation row and the old hardcoded height dropped the error message below the
+fold exactly when it needed reading. Verified live: paper origin at
+(-1650, -1822) now pins the panel to (12, 12).
+
+**`DrawToolPalette` misreported its pressed state.** Select rendered lit for the
+'scale' tool while reporting `aria-pressed=false`, and Wall and Split exposed no
+pressed state at all — a screen-reader user saw an unpressed button the sighted
+user saw highlighted. The three stay toggle buttons rather than a `Segmented`
+radiogroup (the real tool state space includes every tool in the dropdowns, so a
+radiogroup over three of ten would misreport it differently), but both signals
+now come from one `SIMPLE_TOOLS[].on` predicate, tested across five tool states.
+
 ## v0.26.2.44 — UIUX-74: one empty-state record for the four saved collections
 
 Following UIUX-73's mobile/desktop drift into the empty case. Four lists —

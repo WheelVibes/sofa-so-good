@@ -426,6 +426,16 @@ describe('UIUX-62 no nested backdrop-filters', () => {
     expect(rule).toMatch(/background:\s*var\(--surface-solid\)/)
     expect(rule).toMatch(/backdrop-filter:\s*none/)
   })
+  it('the wall numeric-entry overlay is opaque with no filter (it lands on the glass inspector)', () => {
+    // It follows the cursor across the plan canvas and routinely covers
+    // `.plan-props`, itself a glass `.panel`. Nesting the filter there did
+    // nothing but let the inspector's body text read through the numbers the
+    // user is typing (UIUX-75).
+    const s = read('./screens.css')
+    const rule = s.match(/\.wall-num\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(rule).toMatch(/background:\s*var\(--surface-solid\)/)
+    expect(rule).toMatch(/backdrop-filter:\s*none/)
+  })
   it('the mobile sheet has no backdrop-filter of its own (it lives inside the filtered .m-menu-overlay)', () => {
     const r = read('./responsive.css')
     const rule = r.match(/\.m-sheet\s*\{[^}]*\}/s)?.[0] ?? ''
