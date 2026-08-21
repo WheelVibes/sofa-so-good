@@ -9,6 +9,7 @@ import { captureThumb, deleteThumb, saveThumb } from '../../../state/storage/slo
 import { useStore } from '../../../state/store'
 import { resolveToolLabel, toolAction } from '../../actions/toolActions'
 import { downloadBoqXlsx } from '../../downloadBoqXlsx'
+import { EmptyState } from '../../EmptyState'
 import { openBoq } from '../../openBoq'
 import { downloadCostBreakdownCsv } from '../../openCostBreakdownCsv'
 import { downloadFfeCsv } from '../../openFfeCsv'
@@ -25,6 +26,7 @@ import { openTradePack } from '../../openTradePack'
 import { TRADE_PACKS } from '../../tradePacks'
 import { exportGroupLabel } from '../exportGroupLabel'
 import { Icon } from '../icons'
+import { SAVED_EMPTY } from '../savedEmptyStates'
 import { Item, Section, SubHeader } from './parts'
 
 /** File — every OUTPUT lives here (TB-5, mirrors the desktop FileMenu): save /
@@ -398,7 +400,7 @@ export function FileSection({
       />
       <div className="m-sub-h">Saved layouts</div>
       {slots.length === 0 ? (
-        <div className="m-empty">No saved layouts.</div>
+        <EmptyState {...SAVED_EMPTY.layouts} />
       ) : (
         slots
           .slice()

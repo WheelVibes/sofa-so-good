@@ -95,7 +95,14 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   `Icon` set) + title + optional one-line description + optional CTA, on the `.empty-mini`
   token vocabulary. Any panel/list that can be empty must render it (don't hand-roll inline
   "No … yet" text). Keep copy concise + friendly; use distinct copy for search-no-results
-  vs truly-empty; only wire a CTA to a real existing handler.
+  vs truly-empty; only wire a CTA to a real existing handler. **A list that renders on BOTH a
+  desktop toolbar menu and a mobile sheet section takes its copy from a shared record, not two
+  literals** — the four saved collections (layouts / sets / styles / views) live in
+  `toolbar/savedEmptyStates.ts` as `SAVED_EMPTY`, spread as `<EmptyState {...SAVED_EMPTY.views} />`
+  on both surfaces (UIUX-74; the mobile File section had drifted to a hand-rolled
+  `.m-empty` div and mobile Arrange/View showed nothing at all). Inside the sheet,
+  `.m-detail .empty-mini` tightens the desktop padding so two empties can't push the real rows
+  past a 390x844 fold.
 - **Screen transitions (P6):** orbit↔walk and room-editor enter/exit are already crossfaded by
   `LoadingOverlay` (they fire `showLoading`); the floor-plan editor (`.plan-screen`) crossfades on
   mount via `screenFadeIn` (`--dur-2`/`--ease-out`, fill `backwards`) against the persistent 3D

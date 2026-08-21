@@ -10,6 +10,7 @@ import { useStore } from '../../../state/store'
 import { Select } from '../../controls/Select'
 import { EmptyState } from '../../EmptyState'
 import { Icon } from '../icons'
+import { SAVED_EMPTY } from '../savedEmptyStates'
 import { shortcutLabel } from '../shortcuts'
 import { MenuItem, MenuLabel, ToolbarMenu } from '../ToolbarMenu'
 
@@ -99,11 +100,7 @@ export function ArrangeMenu() {
             }}
           />
           {userSets.length === 0 ? (
-            <EmptyState
-              icon={Icon.Sets}
-              title="No saved sets yet"
-              description="Select a few pieces, then save."
-            />
+            <EmptyState {...SAVED_EMPTY.sets} />
           ) : (
             userSets.map((u) => (
               <SavedRow
@@ -164,11 +161,7 @@ export function ArrangeMenu() {
         }}
       />
       {userStyles.length === 0 ? (
-        <EmptyState
-          icon={Icon.Style}
-          title="No saved styles yet"
-          description="Finish a room, then save."
-        />
+        <EmptyState {...SAVED_EMPTY.styles} />
       ) : (
         userStyles.map((s) => (
           <SavedRow

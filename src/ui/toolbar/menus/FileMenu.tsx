@@ -36,6 +36,7 @@ import { TRADE_PACKS } from '../../tradePacks'
 import { viewInAr } from '../../viewInAr'
 import { exportGroupLabel } from '../exportGroupLabel'
 import { Icon } from '../icons'
+import { SAVED_EMPTY } from '../savedEmptyStates'
 import { shortcutLabel } from '../shortcuts'
 import { MenuItem, MenuLabel, ToolbarMenu } from '../ToolbarMenu'
 
@@ -454,11 +455,7 @@ export function FileMenu() {
         }}
       />
       {slots.length === 0 ? (
-        <EmptyState
-          icon={Icon.Save}
-          title="No saved layouts yet"
-          description="Save… stores the current design here."
-        />
+        <EmptyState {...SAVED_EMPTY.layouts} />
       ) : (
         <div className="max-h-56 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
           {slots

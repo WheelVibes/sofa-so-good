@@ -8,6 +8,7 @@ import { promptAndRecordViewTour } from '../../recordViewTour'
 import { renderAllSavedViews } from '../../renderAllViews'
 import { DayNightClipSetup } from '../../scene/DayNightClipSetup'
 import { Icon } from '../icons'
+import { SAVED_EMPTY } from '../savedEmptyStates'
 import { MenuItem } from '../ToolbarMenu'
 
 /**
@@ -93,13 +94,7 @@ export function SavedViewsSection() {
           onClick={() => suggestSavedViews()}
         />
       ) : null}
-      {savedViews.length === 0 ? (
-        <EmptyState
-          icon={Icon.Frame}
-          title="No saved views yet"
-          description='Frame an angle, then "Save current view".'
-        />
-      ) : null}
+      {savedViews.length === 0 ? <EmptyState {...SAVED_EMPTY.views} /> : null}
       {savedViews.length > 0 ? (
         showSetup ? (
           <PresentationSetup />

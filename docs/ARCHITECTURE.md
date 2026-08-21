@@ -465,7 +465,10 @@ same change that reshapes a system.
   `upload/`/`floorplan/`/
   `toolbar/`/`tour/`/`wizard/`/`ai/`/`auth/`. Empty panels/lists render the shared
   **`EmptyState`** (`EmptyState.tsx`: icon + title + optional description + optional CTA on
-  the `.empty-mini` token vocabulary) for consistent, friendly empty-state messaging.
+  the `.empty-mini` token vocabulary) for consistent, friendly empty-state messaging; the four
+  saved collections that render on both a desktop menu and a mobile sheet section share one copy
+  record, `toolbar/savedEmptyStates.ts:SAVED_EMPTY` (its test asserts every surface still spreads
+  it instead of re-inlining a headline).
   The analytical **Tools** cluster (Analyse + Review panels) is defined once in
   **`src/ui/actions/toolActions.tsx`** (a declarative `ToolAction[]` — `flag`/`docs`/`surfaces`/
   `isActive`/`run`); the desktop `menus/ToolsMenu`, the `MobileToolbar` sheet, and the

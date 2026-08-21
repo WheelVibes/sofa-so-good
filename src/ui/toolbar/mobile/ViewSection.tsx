@@ -3,9 +3,11 @@ import { isMultiLevel, planLevels } from '../../../floorplan/levels'
 import { enterVr } from '../../../scene/xr/xrStore'
 import { captureThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
+import { EmptyState } from '../../EmptyState'
 import { PresentationSetup } from '../../presentation/PresentationSetup'
 import { DayNightClipSetup } from '../../scene/DayNightClipSetup'
 import { Icon } from '../icons'
+import { SAVED_EMPTY } from '../savedEmptyStates'
 import { Item, Section } from './parts'
 
 /** View — combined camera + framing (mirrors the desktop View menu).
@@ -191,6 +193,9 @@ export function ViewSection({
           ) : null}
           {fSavedViews && savedViews.length > 1 && fDayNightClip ? <DayNightClipSetup /> : null}
         </>
+      ) : null}
+      {!roomEditorActive && fSavedViews && savedViews.length === 0 ? (
+        <EmptyState {...SAVED_EMPTY.views} />
       ) : null}
       {!roomEditorActive &&
         fSavedViews &&

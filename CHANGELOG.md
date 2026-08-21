@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.44 — UIUX-74: one empty-state record for the four saved collections
+
+Following UIUX-73's mobile/desktop drift into the empty case. Four lists —
+saved layouts, sets, styles and views — each render on a desktop toolbar menu
+AND a mobile sheet section, and all four had separated: desktop used the shared
+`EmptyState` with a headline plus a hint naming the control that fills the list,
+mobile File hand-rolled `<div className="m-empty">No saved layouts.</div>`, and
+mobile Arrange and View rendered *nothing at all* — a "My styles" header with a
+Save row and then blank space, no explanation of what would appear there.
+
+`toolbar/savedEmptyStates.ts:SAVED_EMPTY` is now the single copy record; every
+surface spreads it (`<EmptyState {...SAVED_EMPTY.views} />`), which is the only
+arrangement in which the icon, headline and hint can't separate again. The three
+missing mobile empties are added, the `.m-empty` one-off and its CSS rule are
+gone, and its test asserts each of the eight call sites spreads the record and
+that no surface re-inlines a headline literal.
+
+The sheet needed one adjustment rather than a straight copy of the desktop
+padding: `.empty-mini`'s 30px block is tuned for a dropdown with room to spare,
+but a Pro-mode Arrange section on a fresh install shows two of them, so
+`.m-detail .empty-mini` tightens to `--s-5`/`--s-4` (the blob, copy and type
+scale are untouched). Verified at 390x844 in Simple — Arrange shows the styles
+empty (sets is correctly gated away, `userSets` is pro), View and File each show
+theirs — and on desktop in Pro, where both Arrange empties still render exactly
+as before the refactor.
+
 ## v0.26.2.43 — UIUX-73: mobile File section reaches export parity with desktop
 
 UIUX-71 taught the export menu to name only the buckets it actually renders,
