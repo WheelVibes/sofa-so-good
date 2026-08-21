@@ -811,3 +811,16 @@
 .budget-hud-bar { height: 5px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin-top: 5px; }
 .budget-hud-fill { height: 100%; background: var(--accent); transition: width var(--dur) var(--ease); }
 .budget-hud.over .budget-hud-fill { background: var(--danger); }
+
+/* Phantom classes made real (UIUX-78): each of these named a class that no
+   stylesheet defined, while a full inline style object next to it did the work.
+   The static half now lives here; see `.btn-plain` in components.css for the
+   text-button reset they all shared. */
+/* Minimizable plan-inspector title — fills the bar so the whole row is the tap
+   target on touch. */
+.plan-props-title { flex: 1; min-width: 0; }
+/* Collapsible inspector section: header row, then its disclosure toggle. */
+.insp-sec-h { display: flex; align-items: center; gap: var(--s-3); }
+.insp-sec-toggle { display: flex; align-items: center; gap: var(--s-2); flex: 1; min-width: 0; }
+/* Clearance-gap row: a full-width text button, so the whole row selects the gap. */
+.clr-item-row { display: block; width: 100%; }

@@ -10,11 +10,23 @@
  * assertion below is preserved verbatim (same describe names, same regexes)
  * so a failure is still immediately identifiable by feature.
  */
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const read = (rel: string) => readFileSync(join(__dirname, rel), 'utf8')
+
+const SRC = join(__dirname, '..')
+const rel = (p: string) => p.slice(SRC.length + 1)
+/** Every non-test .tsx under src, for the guards that scan component source. */
+function walkTsx(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir)) {
+    const p = join(dir, entry)
+    if (statSync(p).isDirectory()) walkTsx(p, out)
+    else if (entry.endsWith('.tsx') && !entry.includes('.test.')) out.push(p)
+  }
+  return out
+}
 
 const flows = read('./flows.css')
 const parts = read('./parts.css')
@@ -406,6 +418,65 @@ describe('UIUX-64 Tailwind type utilities ride the design ladder', () => {
     const lastImport = idx.lastIndexOf('@import')
     const theme = idx.indexOf('@theme inline')
     expect(theme).toBeGreaterThan(lastImport)
+  })
+})
+
+describe('UIUX-78 the plain-button reset lives in one place', () => {
+  // Five call sites inlined "make this button read as the text around it", each
+  // with a different subset, and most of what they inlined the global `button`
+  // reset already does. `.btn-plain` owns the remainder.
+  it('components.css keeps a global button reset', () => {
+    const c = read('./components.css')
+    const rule = c.match(/^button \{[^}]*\}/ms)?.[0] ?? ''
+    for (const decl of ['background', 'border', 'cursor', 'color', 'font-family']) {
+      expect(rule, decl).toContain(decl)
+    }
+  })
+
+  it('.btn-plain adds only what the global reset cannot', () => {
+    const c = read('./components.css')
+    const rule = c.match(/\.btn-plain\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(rule).toMatch(/padding:\s*0/)
+    expect(rule).toMatch(/font:\s*inherit/)
+    expect(rule).toMatch(/text-align:\s*left/)
+    // Not a `.btn` variant: it must not paint a button frame.
+    expect(rule).not.toMatch(/background:/)
+    expect(rule).not.toMatch(/border(?!-):/)
+  })
+
+  it('no TSX re-inlines the reset the class now owns', () => {
+    // `all: unset` is the nuclear form of the same thing and takes the focus
+    // ring's box-shadow with it, so it is banned outright. Otherwise: three or
+    // more reset declarations inside a six-line window is the old hand-rolled
+    // copy. Windowing beats matching the whole style object — a `${…}` inside a
+    // clip-path or template value breaks any brace-balanced regex.
+    const RESET = [
+      /background:\s*'none'/,
+      /border:\s*'none'/,
+      /padding:\s*0\s*,/,
+      /font:\s*'inherit'/,
+      /color:\s*'inherit'/,
+    ]
+    // Self-check: the window scan must still bite on the shape it replaced.
+    const SAMPLE = ["background: 'none',", "border: 'none',", 'padding: 0,'].join('\n')
+    expect(RESET.filter((rx) => rx.test(SAMPLE)).length).toBeGreaterThanOrEqual(3)
+
+    const offenders: string[] = []
+    for (const f of walkTsx(join(__dirname, '..'))) {
+      const lines = readFileSync(f, 'utf8').split('\n')
+      lines.forEach((line, i) => {
+        if (/all:\s*'unset'/.test(line)) offenders.push(`${rel(f)}:${i + 1} all:unset`)
+      })
+      for (let i = 0; i < lines.length; i++) {
+        const win = lines.slice(i, i + 6).join('\n')
+        const hits = RESET.filter((rx) => rx.test(win)).length
+        if (hits >= 3) {
+          offenders.push(`${rel(f)}:${i + 1} inlines ${hits} reset props`)
+          i += 6
+        }
+      }
+    }
+    expect(offenders).toEqual([])
   })
 })
 

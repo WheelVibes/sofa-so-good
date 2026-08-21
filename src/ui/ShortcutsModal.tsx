@@ -23,7 +23,7 @@ export function ShortcutsModal() {
     >
       <div className="shortcuts-groups">
         {SHORTCUT_GROUPS.map((group) => (
-          <section key={group.title} className="shortcuts-group">
+          <section key={group.title}>
             <h3 className="shortcuts-group-title">{group.title}</h3>
             <div className="kbd-grid">
               {group.rows.map((row) => (

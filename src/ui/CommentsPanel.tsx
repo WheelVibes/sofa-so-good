@@ -106,15 +106,8 @@ export function CommentsPanel() {
                   type="button"
                   title="Jump to this pin"
                   onClick={() => focusComment(c.id)}
-                  style={{
-                    flex: 1,
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    background: 'none',
-                    border: 'none',
-                    padding: 0,
-                    color: 'inherit',
-                  }}
+                  className="btn-plain"
+                  style={{ flex: 1 }}
                 >
                   <span
                     style={{

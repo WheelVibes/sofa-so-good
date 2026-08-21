@@ -436,6 +436,19 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 .btn-danger { background: var(--danger-soft); color: var(--danger); }
 .btn-danger:hover { background: var(--danger-soft); filter: brightness(0.97); }
 .btn-block { width: 100%; }
+/* A button that must read as the text around it — a panel title row, a list
+   row, a thumbnail (UIUX-78). Five call sites inlined this by hand, each with a
+   different subset, and most of what they inlined the global `button` reset near
+   the top of this file already does (background / border / cursor / colour /
+   font-family). This adds only what that reset cannot: zero box, the
+   surrounding font metrics rather than the browser's button font, and reading
+   alignment. It is NOT a `.btn` variant — it deliberately has no `.btn` frame,
+   so it composes with a layout class instead of with `.btn`. */
+.btn-plain {
+  padding: 0; margin: 0; font: inherit; color: inherit;
+  letter-spacing: inherit; text-transform: inherit; text-align: left;
+}
+
 .btn-sm { padding: 5px 8px; font-size: var(--t-xs); }
 /* Inline button spinner (P16). Reuses @keyframes toastspin (features.css). */
 .btn .btn-spin { animation: toastspin 0.9s linear infinite; transform-origin: 50% 50%; flex: none; }

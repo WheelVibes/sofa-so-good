@@ -100,7 +100,7 @@ function FurnishingRoom() {
       aria-hidden="true"
       style={{ position: 'relative', width: 200, height: 160 }}
     >
-      <RoomLayer className="hdb-draw hdb-shell" origin="100px 85px">
+      <RoomLayer className="hdb-draw" origin="100px 85px">
         <path {...shellProps} fill="none" d="M20 30 H180 V140 H20 Z" />
       </RoomLayer>
       <RoomLayer className="hdb-draw hdb-floor" origin="100px 110px">

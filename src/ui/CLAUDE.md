@@ -33,6 +33,22 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   class strings. The `.btn-*` classes stay the source of truth — `Button` only
   composes them. New buttons use it; the raw classes remain valid for legacy
   call sites being migrated.
+- **A button that must read as plain text uses `.btn-plain`, not a hand-rolled reset**
+  (UIUX-78). The global `button` rule in `components.css` already drops
+  background/border/cursor/colour/font-family; `.btn-plain` adds only what it can't — zero box,
+  `font: inherit` (so the button takes the surrounding size/weight, not the browser's), and
+  `text-align: left`. Compose it with a layout class (`.plan-props-title`, `.insp-sec-toggle`,
+  `.clr-item-row`), never with `.btn` — it deliberately paints no button frame. **Never
+  `all: unset`**: it also drops the inherited theme colour (leaving the browser's `canvastext`)
+  and is one cascade change away from taking the `--focus-ring` box-shadow with it.
+- **A class name in `className` must exist in a stylesheet.** A phantom class is not harmless —
+  it tells the next reader that styling lives in CSS when an inline `style` object is really
+  doing the work, which is how `rc-slot-badge` sat dead in a compare modal and how five copies
+  of the text-button reset stayed hidden. When you find one, make it real (move the static
+  styling into the class) rather than deleting the name; delete only when a defined sibling
+  already covers the element. Inline stylesheets count as definitions — `LoadingOverlay` keeps
+  its `hdb-*` keyframes in a `<style>` template literal, so a scan that reads only `.css` files
+  will report them falsely.
 - **Docked side sidebars (desktop).** The scene, toolbar and canvas HUDs live inside `.stage-area`
   (in `App.tsx`); the inspector/finish panels carry a `dock-panel` class and the **catalog** a
   `dock-panel-left` class (it's a sibling of `.stage-area`, not a child, so the rail can shrink the

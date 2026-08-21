@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.48 — UIUX-78: the plain-button reset, and what phantom classes point at
+
+UIUX-77 found `rc-slot-badge rc-slot-a` in a compare modal referencing two
+classes no stylesheet defines. Sweeping for the shape found 37 more, and the
+first cut of that scan was wrong in an instructive way: it read only `.css`
+files, so it reported the whole `hdb-*` family in `LoadingOverlay` as phantom
+when that component keeps its keyframes in a `<style>` template literal. Reading
+inline stylesheets too, and separating names a test or scenario queries as a
+selector, leaves 17 genuinely undefined — and every one of them sits on an
+element whose real styling is inline. **A phantom class is a signpost to
+off-system styling**, so the fix is to make it real, not to delete the name.
+
+This ships the slice with a shared cause. Five call sites hand-rolled "make this
+button read as the text around it" — the plan-inspector title, the inspector
+section toggle, a clearance-gap row, a comment row, and one thumbnail — each with
+a different subset of the same declarations, and most of what they inlined the
+global `button` reset at the top of `components.css` already does. `.btn-plain`
+owns the remainder: zero box, `font: inherit` so the button takes the
+surrounding size and weight instead of the browser's, and reading alignment.
+
+The clearance row had used `all: unset`, the nuclear version — which also drops
+the inherited theme colour, so that row had been rendering in the browser's
+`canvastext` rather than `--text`. Verified live: the class path resolves to the
+theme colour and keeps the `--focus-ring` box-shadow, and the inspector and plan
+titles compute identically to their old inline objects (padding 0, `font:
+inherit` resolving to the section's 10px/700 uppercase, `flex: 1`).
+
+Three names were genuine no-ops rather than signposts and are gone:
+`.shortcuts-group` (the stylesheet keys the parent `.shortcuts-groups` and the
+child `.shortcuts-group-title`), `.insp-sec` (redundant beside the defined
+`.sec`), and `.hdb-shell` (its sibling `.hdb-floor` carries the real
+animation-delay). The remaining twelve are filed as their own task.
+
 ## v0.26.2.47 — UIUX-77: the compare modals' remaining inline styling
 
 UIUX-76 took the colour literals out of the four compare modals; this takes the

@@ -28,27 +28,13 @@ export function InspectorSection({
 }: Props) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <section className="sec insp-sec" style={style}>
-      <div className="sec-h" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <section className="sec" style={style}>
+      <div className="sec-h insp-sec-h">
         <button
           type="button"
-          className="insp-sec-toggle"
+          className="insp-sec-toggle btn-plain"
           aria-expanded={open}
           onClick={() => setOpen((o) => !o)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            flex: 1,
-            minWidth: 0,
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            cursor: 'pointer',
-            font: 'inherit',
-            color: 'inherit',
-            textAlign: 'left',
-          }}
         >
           {/* Base glyph points DOWN = expanded; collapsed rotates -90° to point
               RIGHT — the disclosure grammar the Layers/glbEditor panels use
