@@ -552,14 +552,12 @@ function TradePacksPicker() {
             <button
               key={p.id}
               type="button"
-              className="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-left hover:bg-[var(--surface-2)]"
+              className="menu-item"
               onClick={() => void openTradePack(p.id)}
               title={p.scope}
             >
-              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[var(--text)]">
-                {p.recipient}
-              </span>
-              <span className="shrink-0 text-[11px] text-[var(--accent)]">Open / Print</span>
+              <span className="min-w-0 flex-1 truncate font-medium">{p.recipient}</span>
+              <span className="shrink-0 text-xs text-[var(--accent)]">Open / Print</span>
             </button>
           ))}
         </div>

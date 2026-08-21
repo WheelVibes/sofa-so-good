@@ -217,7 +217,7 @@ function SavedRow({
   onDelete: () => void
 }) {
   return (
-    <div className="flex items-center gap-1 rounded-md pr-1 hover:bg-[var(--surface-2)]">
+    <div className="flex items-center gap-1 rounded-md pr-1 hover:bg-[var(--surface-3)]">
       <button
         type="button"
         role="menuitem"
@@ -235,7 +235,7 @@ function SavedRow({
         aria-label={deleteLabel}
         title={deleteTitle}
         onClick={onDelete}
-        className="rounded px-1.5 py-1 text-[var(--text-3)] hover:bg-[var(--surface-3)] hover:text-[var(--danger)]"
+        className="icon-btn danger"
       >
         ×
       </button>

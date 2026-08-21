@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.40 — UIUX-70: last hand-rolled menu rows join the vocabulary
+
+The sweep's final stragglers: the File menu's trade-pack rows hand-rolled
+their layout/hover with arbitrary-value utilities (off-ladder 13px/11px text,
+wrong hover step) — now plain `.menu-item` rows with a ladder-sized accent
+"Open / Print" affordance; the Arrange menu's saved-arrangement row hovered
+one surface step short (`--surface-2`, the vocabulary's REST tone) — now
+`--surface-3` — and its delete "×" was a bespoke mini button — now
+`.icon-btn.danger` (red at rest per the UIUX-45 destructive-row convention).
+Verified live: seven trade-pack rows render as `.menu-item` with consistent
+menu rhythm.
+
 ## v0.26.2.39 — UIUX-69: scene measurement chips share one class; colour literal fixed
 
 Follow-up sweep from UIUX-68's pattern: the 3D scene's measurement/readout
