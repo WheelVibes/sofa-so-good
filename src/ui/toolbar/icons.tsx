@@ -226,6 +226,16 @@ export const Icon = {
       <path d="M9 12l2 2 4-4" />
     </Svg>
   ),
+  /* Warning triangle — error/failure states (toasts). Distinct from `Checks`
+     (a shield-check = verified/passed), which an error toast wore by mistake
+     until UIUX-63: a red "protected" badge on "Upload failed" read inverted. */
+  Alert: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <path d="M10.3 4.6 2.9 17.5a2 2 0 0 0 1.7 3h14.8a2 2 0 0 0 1.7-3L13.7 4.6a2 2 0 0 0-3.4 0z" />
+      <path d="M12 9.5v4" />
+      <path d="M12 16.8h.01" />
+    </Svg>
+  ),
   SunStudy: (p: SVGProps<SVGSVGElement>) => (
     <Svg {...p}>
       <path d="M4 18h16" />

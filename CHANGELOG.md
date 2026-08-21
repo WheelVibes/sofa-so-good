@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.33 — UIUX-63: error toasts wear a warning triangle, not a shield-check
+
+Visual audit of the remaining interaction surfaces: toasts (all four kinds +
+action button + collapse stack), the ProductTour overlay (spotlight, steps,
+progress dots — clean), and the right-click context menu (grouped rows, kbd
+chips, danger Delete — clean). One real defect: `KIND_ICON.error` pointed at
+`Checks` — the clearance SHIELD-CHECK glyph — so a failure toast wore a red
+"verified/protected" badge: inverted semantics on exactly the toast that must
+read as failure at a glance. New `Icon.Alert` warning triangle (2px-stroke set
+style) wired as the error glyph; unit test asserts the triangle (and the
+shield's absence) on error toasts. Verified live: "Upload failed" now carries
+the red triangle beside Retry.
+
 ## v0.26.2.32 — UIUX-62: repo-wide backdrop-root / nested-filter sweep
 
 Full inventory of every backdrop-filter (38 CSS rules + 2 inline TSX) and every

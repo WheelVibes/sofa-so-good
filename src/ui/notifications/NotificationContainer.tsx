@@ -8,7 +8,10 @@ const KIND_ICON: Record<Notification['kind'], IconName> = {
   info: 'Help',
   progress: 'Versions',
   success: 'Check',
-  error: 'Checks',
+  // Warning triangle (UIUX-63) — this was `Checks`, the clearance SHIELD-CHECK
+  // glyph, so an error toast wore a red "verified/protected" badge: inverted
+  // semantics on exactly the toast that must read as failure at a glance.
+  error: 'Alert',
 }
 
 /** Visually-hidden style for the screen-reader live regions: present in the

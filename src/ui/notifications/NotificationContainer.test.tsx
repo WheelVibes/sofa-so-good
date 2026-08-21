@@ -38,6 +38,22 @@ describe('NotificationContainer', () => {
     expect(host.querySelector('.icn.spin')).not.toBeNull()
   })
 
+  it('error toasts wear the warning triangle, not the shield-check (UIUX-63)', () => {
+    // KIND_ICON.error was `Checks` — the clearance SHIELD-CHECK — so a failure
+    // toast wore a red "verified" badge. The Alert triangle carries a
+    // recognisable exclamation stem; the shield a `l7 3` shoulder path.
+    render(<NotificationContainer />)
+    act(() => {
+      useStore.getState().notify.start({ title: 'Upload failed', kind: 'error' })
+    })
+    const host = document.querySelector('.toast-host') as HTMLElement
+    const icn = host.querySelector('.icn') as SVGElement
+    expect(icn).not.toBeNull()
+    const paths = [...icn.querySelectorAll('path')].map((p) => p.getAttribute('d') ?? '')
+    expect(paths.some((d) => d.includes('M12 9.5v4'))).toBe(true) // exclamation stem
+    expect(paths.some((d) => d.includes('l7 3'))).toBe(false) // no shield shoulder
+  })
+
   it('renders an indeterminate bar (no aria-valuenow) when progress is null', () => {
     render(<NotificationContainer />)
     act(() => {
