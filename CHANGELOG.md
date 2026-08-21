@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.37 — UIUX-67: theme-matrix verification of the recent fixes (clean)
+
+Ten-combo sweep (clay/kampong/porcelain/estate/harbour × light/dark) over this
+stretch's changes, captured as a contact sheet from one live session per half:
+the static aux section headers show NO fill bar in any combo (the UIUX-61b
+white-bar fix holds where it was worst — dark modes over the scene); the error
+toast's new Alert triangle is legible on light and dark toast surfaces beside
+Retry; the bridged Tailwind type sizes and the aux-body top inset render
+consistently across all themes. Verification-only — no code changes.
+
 ## v0.26.2.36 — UIUX-66: GLB designer audited; one canonical category-label map
 
 Visual audit of the 3D asset designer (viewport HUD, shape grid, Disclosure
