@@ -56,4 +56,22 @@ describe('UIUX-52 no phantom CSS custom-property references', () => {
       .map(([name, locs]) => `${name} (${locs.join(', ')})`)
     expect(phantoms).toEqual([])
   })
+
+  it('no Tailwind colour-literal utilities in TSX (UIUX-69)', () => {
+    // "No hardcoded colour" hard rule: a `text-white`/`bg-black` utility paints
+    // a literal that ignores the theme tokens (TapeMeasure's Pin badge wore
+    // `text-white` on an accent that isn't guaranteed a white foreground —
+    // `--on-accent` is the token for that). Scan className strings only.
+    const offenders: string[] = []
+    for (const f of walk(SRC).filter((p) => p.endsWith('.tsx'))) {
+      const lines = readFileSync(f, 'utf8').split('\n')
+      lines.forEach((line, i) => {
+        if (!line.includes('className')) return
+        if (/\b(?:text|bg|border|ring|fill|stroke)-(?:white|black)\b/.test(line)) {
+          offenders.push(`${f.slice(SRC.length + 1)}:${i + 1}`)
+        }
+      })
+    }
+    expect(offenders).toEqual([])
+  })
 })

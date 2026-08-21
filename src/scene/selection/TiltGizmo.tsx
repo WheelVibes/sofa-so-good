@@ -227,7 +227,7 @@ export function TiltGizmo() {
       </mesh>
       {dragging && (
         <Html position={[0, TILT_ROD_LENGTH + 0.18, 0]} center distanceFactor={9}>
-          <div className="rounded bg-[var(--surface-solid)]/95 px-2 py-0.5 text-xs font-semibold text-[var(--text)] shadow whitespace-nowrap pointer-events-none">
+          <div className="measure-chip pointer-events-none">
             {`P ${toDeg(pitch)}° · R ${toDeg(roll)}°`}
           </div>
         </Html>

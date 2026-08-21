@@ -401,9 +401,7 @@ export function RotateGizmo() {
       )}
       {rotating && readout && (
         <Html position={[0, 0, radius + 0.18]} center distanceFactor={9}>
-          <div className="rounded bg-[var(--surface-solid)]/95 px-2 py-0.5 text-xs font-semibold text-[var(--text)] shadow whitespace-nowrap pointer-events-none">
-            {readout}
-          </div>
+          <div className="measure-chip pointer-events-none">{readout}</div>
         </Html>
       )}
     </group>

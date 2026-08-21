@@ -143,7 +143,7 @@ export function TapeMeasure() {
             distanceFactor={9}
             zIndexRange={[15, 0]}
           >
-            <div className="flex items-center gap-1.5 rounded bg-[var(--surface-solid)]/95 px-2 py-0.5 text-xs font-semibold text-[var(--text)] shadow whitespace-nowrap">
+            <div className="measure-chip">
               <span className="pointer-events-none">{formatLength(bar.len, units)}</span>
               {complete ? <PinButton onClick={pin} /> : null}
             </div>
@@ -170,7 +170,7 @@ export function TapeMeasure() {
             distanceFactor={9}
             zIndexRange={[15, 0]}
           >
-            <div className="flex items-center gap-1.5 rounded bg-[var(--surface-solid)]/95 px-2 py-0.5 text-xs font-semibold text-[var(--text)] shadow whitespace-nowrap">
+            <div className="measure-chip">
               <span className="pointer-events-none">{`${formatDims(rect.w, rect.d, units)} · ${formatArea(rect.w * rect.d, units)}`}</span>
               {complete ? <PinButton onClick={pin} /> : null}
             </div>
@@ -192,7 +192,7 @@ function PinButton({ onClick }: { onClick: () => void }) {
         e.stopPropagation()
         onClick()
       }}
-      className="rounded bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
+      className="rounded bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold leading-none text-[var(--on-accent)]"
     >
       📌 Pin
     </button>

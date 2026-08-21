@@ -215,6 +215,18 @@
    while dragging). Reads over furniture; the magenta border ties it to the
    alignment-guide lines. Surface/text use theme tokens so it stays legible in
    light + dark across all themes. */
+/* Measurement/readout chip drawn over the 3D scene via drei Html (tape
+   measure, walk measure, pinned dimensions, tilt/rotate gizmo readouts) —
+   ONE class for what were six duplicated per-site Tailwind strings (UIUX-69).
+   Near-opaque surface so scene pixels can't bleed through the number. */
+.measure-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: var(--r-1);
+  background: color-mix(in oklch, var(--surface-solid) 95%, transparent);
+  padding: 2px 8px;
+  font-size: var(--t-sm); font-weight: 600; color: var(--text);
+  box-shadow: var(--shadow-panel); white-space: nowrap;
+}
 .spacing-badge {
   display: inline-block;
   padding: 1px 6px;

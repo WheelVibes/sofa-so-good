@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.39 — UIUX-69: scene measurement chips share one class; colour literal fixed
+
+Follow-up sweep from UIUX-68's pattern: the 3D scene's measurement/readout
+chips (tape measure ×2, walk measure, pinned dimensions, tilt + rotate gizmo
+readouts) were six near-identical hand-rolled Tailwind strings, drifting in
+gap/padding and using Tailwind's default shadow instead of `--shadow-panel`.
+One `.measure-chip` class now serves all six (near-opaque `--surface-solid`,
+ladder type, system shadow). The tape measure's "Pin" badge wore `text-white`
+— a hardcoded colour literal on an accent that isn't guaranteed a white
+foreground — now `--on-accent`. New guard in phantomTokenGuard: no Tailwind
+colour-literal utilities (`text-white`/`bg-black`/…) in any TSX className.
+Verified live on a pinned dimension chip (token bg, 12px ladder font,
+`--shadow-panel`).
+
 ## v0.26.2.38 — UIUX-68: upload dialogs join the button vocabulary
 
 Audit of the upload dialog family. The model-upload dialog hand-rolled all six
