@@ -759,7 +759,7 @@
 .act-array-go {
   display: inline-flex; align-items: center; gap: 4px;
   margin-left: auto; padding: 4px 12px; border-radius: var(--r-pill);
-  font-size: var(--t-xs); font-weight: 700; color: var(--on-accent, #fff);
+  font-size: var(--t-xs); font-weight: 700; color: var(--on-accent);
   background: var(--accent);
 }
 .act-array-go:hover { filter: brightness(1.05); }

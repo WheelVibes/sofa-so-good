@@ -129,17 +129,7 @@ export function UserManagementModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="modal-overlay"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 'var(--z-modal)' as never,
-        display: 'grid',
-        placeItems: 'center',
-        background: 'color-mix(in oklch, var(--scene-b, #1a1714) 60%, transparent)',
-        backdropFilter: 'blur(var(--blur, 8px))',
-        padding: 'var(--s-4)',
-      }}
+      className="modal-overlay auth-scrim"
       role="dialog"
       aria-modal="true"
       aria-label="Manage accounts"

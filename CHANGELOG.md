@@ -5,6 +5,49 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.46 — UIUX-76: colour literals in inline style objects
+
+UIUX-75's `rgba(0,0,0,0.18)` shadow was not an isolated slip — it was a whole
+blind spot. The "no hardcoded colour" rule is enforced by a CSS-file scan and a
+`className` scan, and a React `style={{ background: 'rgba(0,0,0,0.45)' }}` falls
+between them. Sweeping for the shape found the class, and closing it in
+`phantomTokenGuard` (DOM style objects, plus colour-literal fallbacks inside a
+`var()`) turned up two more offenders the sweep had missed.
+
+**Four compare modals had each copy-pasted the same A/B split-reveal overlay** —
+Render compare, Version compare, Time compare, the staging reveal — and the
+copies had drifted apart: three different knob font sizes, an `rgba(0,0,0,0.45)`
++ `#fff` scrim chip sitting directly beside a correctly tokenised
+`var(--accent)` sibling in the SAME component, and the accent chip on the left in
+three of them but the right in the fourth. `ui/compare/CompareOverlay.tsx` plus a
+`.cmp-*` class vocabulary replaces all four: `labelA` is always the left/baseline
+side (neutral chip) and `labelB` the right/subject side (accent chip).
+
+Probing the result caught a bug all four had shared and none had noticed: the ⇄
+knob paired an `--on-accent` disc with a `--surface-solid` glyph — near-white on
+near-white, so the glyph was invisible in every theme. It is now an accent disc
+with an `--on-accent` glyph, the one pair whose contrast the token contract
+guarantees.
+
+**The drag-select marquee painted a literal Tailwind blue** (`#3b82f6` + a
+matching rgba fill), so dragging a selection over a warm clay or kampong scene
+put a foreign cool-blue rectangle on it. Now `.marquee-box`, accent-tinted via
+`color-mix`.
+
+**Both auth overlays hand-rolled the same scrim inline**, identical down to a
+`var(--scene-b, #1a1714)` fallback and a `zIndex: 'var(--z-modal)' as never`
+cast — and at 60% of the scene tone, noticeably darker than the `.modal-overlay`
+scrim every other dialog uses. One `.auth-scrim` class now, so the two at least
+agree with each other. Two more literal `var()` fallbacks (`--on-accent, #fff`
+in a `parts.css` pill, `--danger, #c0392b` on a mobile delete row) are dropped;
+all four tokens are defined in all ten theme blocks, so the fallbacks were dead
+weight that would have hidden a rename.
+
+The new guards are self-verifying (they assert their own regexes still bite, and
+don't fire on the tokenised form they steer towards) and strip comments before
+scanning — the previous version matched the comment quoting the literal it bans,
+the same trap a UIUX-62 guard fell into.
+
 ## v0.26.2.45 — UIUX-75: plan-editor overlays back on the design system
 
 The 2D floor-plan editor's two floating overlays had never been audited, and

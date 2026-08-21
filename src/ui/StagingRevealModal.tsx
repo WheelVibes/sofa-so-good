@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { captureCanvasPng } from '../scene/captureCanvas'
 import { useStore } from '../state/store'
+import { CompareOverlay } from './compare/CompareOverlay'
 import { Modal } from './Modal'
 import { clampDivider } from './renderCompare/compareState'
 import { captureStagingPair } from './staging/stagingReveal'
@@ -182,77 +183,11 @@ export function StagingRevealModal() {
 
         {/* Divider bar + handle + labels (only with both frames). */}
         {hasBoth ? (
-          <>
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                bottom: 0,
-                left: dividerPct,
-                transform: 'translateX(-50%)',
-                width: 2,
-                background: 'var(--on-accent, #fff)',
-                pointerEvents: 'none',
-              }}
-              aria-hidden
-            />
-            <div
-              style={{
-                position: 'absolute',
-                top: '50%',
-                left: dividerPct,
-                transform: 'translate(-50%, -50%)',
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                background: 'var(--on-accent, #fff)',
-                boxShadow: '0 1px 6px rgba(0,0,0,0.35)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                pointerEvents: 'none',
-                fontSize: 14,
-                color: 'var(--surface-solid)',
-              }}
-              aria-hidden
-            >
-              ⇄
-            </div>
-            <div
-              className="panel-sub plain"
-              style={{
-                position: 'absolute',
-                top: 8,
-                left: 10,
-                background: 'rgba(0,0,0,0.45)',
-                color: '#fff',
-                padding: '2px 7px',
-                borderRadius: 4,
-                fontSize: 11,
-                fontWeight: 700,
-                pointerEvents: 'none',
-              }}
-            >
-              Before · Empty
-            </div>
-            <div
-              className="panel-sub plain"
-              style={{
-                position: 'absolute',
-                top: 8,
-                right: 10,
-                background: 'var(--accent)',
-                color: 'var(--on-accent)',
-                padding: '2px 7px',
-                borderRadius: 4,
-                fontSize: 11,
-                fontWeight: 700,
-                pointerEvents: 'none',
-              }}
-            >
-              After · Furnished
-            </div>
-          </>
+          <CompareOverlay
+            dividerPct={dividerPct}
+            labelA="Before · Empty"
+            labelB="After · Furnished"
+          />
         ) : null}
 
         {/* Empty / progress / error overlay (before any capture). */}

@@ -268,6 +268,22 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
 - **Modal widths use the `--modal-xs`/`-sm`/`-md`/`-lg` tokens**: pass the token string to
   `Modal`'s `width` prop (`width="var(--modal-md)"`), not an ad-hoc `min(…px, …)`/numeric
   literal; a 360px modal just omits `width` (the `.modal-overlay > .panel` default).
+- **No colour literal in an inline `style` object either.** The "no hardcoded colour" rule is
+  guarded by a CSS-file scan plus a `className` scan, and an inline
+  `style={{ background: 'rgba(0,0,0,0.45)' }}` slipped between them — four compare modals painted
+  an off-theme scrim chip beside a correctly tokenised accent sibling, and the drag-select marquee
+  kept a Tailwind-palette blue (UIUX-76). `phantomTokenGuard` now scans DOM style objects too, and
+  bans a colour-literal FALLBACK inside a `var()` (`var(--on-accent, #fff)` hides a real token
+  behind a literal). A `style=` prop carries only what CSS cannot know — a computed position or
+  size. Three-material colours, the `ColorPicker` instruments and finish-swatch data are pigment
+  VALUES, not themed surfaces, and are exempt.
+- **The A/B split-reveal overlay is `compare/CompareOverlay`** — the divider, ⇄ knob and the two
+  corner label chips shared by Render compare / Version compare / Time compare / the staging
+  reveal, on the `.cmp-*` classes. `labelA` is always the left/baseline side (neutral chip) and
+  `labelB` the right/subject side (accent chip), so the grammar is the same whichever modal opens.
+  The knob is an accent disc with an `--on-accent` glyph — the one pair whose contrast the token
+  contract guarantees; the copies it replaced all put a near-white glyph on a near-white disc, so
+  the ⇄ was invisible in every theme.
 - **Keyboard focus treatment is `var(--focus-ring)`** (`box-shadow` on `:focus-visible`) —
   no ad-hoc focus rings/outlines on a new control.
 - **Borders.** `--border` is the default hairline (panels, rows, cards, dividers, inputs at

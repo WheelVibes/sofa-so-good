@@ -503,3 +503,12 @@
   mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent);
   -webkit-mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent);
 }
+
+/* Drag-select marquee over the 3D canvas (UIUX-76). Accent-tinted so it belongs
+   to whichever theme is active; the geometry comes from the component. */
+.marquee-box {
+  position: fixed; z-index: var(--z-pop); pointer-events: none;
+  border: 1px solid var(--accent);
+  background: color-mix(in oklch, var(--accent) 15%, transparent);
+  border-radius: var(--r-1);
+}

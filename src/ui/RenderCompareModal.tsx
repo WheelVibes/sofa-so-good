@@ -3,6 +3,7 @@ import { captureCanvasPng } from '../scene/captureCanvas'
 import { HDRI_PRESETS } from '../scene/lighting/hdriCatalog'
 import { applyRenderPreset, RENDER_PRESETS } from '../scene/renderPresets'
 import { useStore } from '../state/store'
+import { CompareOverlay } from './compare/CompareOverlay'
 import { Select } from './controls/Select'
 import { Modal } from './Modal'
 import {
@@ -346,87 +347,13 @@ export function RenderCompareModal() {
           </div>
         ) : null}
 
-        {/* Divider bar + handle (only when both images are loaded) */}
+        {/* Split-reveal divider + corner labels (only when both images are loaded) */}
         {hasBothImages ? (
-          <>
-            {/* Vertical bar */}
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                bottom: 0,
-                left: dividerPct,
-                transform: 'translateX(-50%)',
-                width: 2,
-                background: 'var(--on-accent, #fff)',
-                pointerEvents: 'none',
-              }}
-              aria-hidden
-            />
-            {/* Drag handle circle */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '50%',
-                left: dividerPct,
-                transform: 'translate(-50%, -50%)',
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                background: 'var(--on-accent, #fff)',
-                boxShadow: '0 1px 6px rgba(0,0,0,0.35)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                pointerEvents: 'none',
-                fontSize: 'var(--t-md)',
-                color: 'var(--surface-solid)',
-              }}
-              aria-hidden
-            >
-              ⇄
-            </div>
-          </>
-        ) : null}
-
-        {/* Labels: A (left) and B (right) */}
-        {hasBothImages ? (
-          <>
-            <div
-              className="panel-sub plain"
-              style={{
-                position: 'absolute',
-                top: 8,
-                left: 10,
-                background: 'var(--accent)',
-                color: 'var(--on-accent)',
-                padding: 'var(--s-1) var(--s-2)',
-                borderRadius: 4,
-                fontSize: 'var(--t-xs)',
-                fontWeight: 700,
-                pointerEvents: 'none',
-              }}
-            >
-              A · {RENDER_PRESETS.find((p) => p.id === state.presetA)?.label ?? state.presetA}
-            </div>
-            <div
-              className="panel-sub plain"
-              style={{
-                position: 'absolute',
-                top: 8,
-                right: 10,
-                background: 'rgba(0,0,0,0.45)',
-                color: '#fff',
-                padding: 'var(--s-1) var(--s-2)',
-                borderRadius: 4,
-                fontSize: 'var(--t-xs)',
-                fontWeight: 700,
-                pointerEvents: 'none',
-              }}
-            >
-              B · {RENDER_PRESETS.find((p) => p.id === state.presetB)?.label ?? state.presetB}
-            </div>
-          </>
+          <CompareOverlay
+            dividerPct={dividerPct}
+            labelA={`A · ${RENDER_PRESETS.find((p) => p.id === state.presetA)?.label ?? state.presetA}`}
+            labelB={`B · ${RENDER_PRESETS.find((p) => p.id === state.presetB)?.label ?? state.presetB}`}
+          />
         ) : null}
 
         {/* Empty / in-progress overlay — only while NOTHING is captured yet (or

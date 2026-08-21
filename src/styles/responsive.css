@@ -342,7 +342,7 @@ body.mobile {
     flex: none; width: 44px; min-height: 44px; border-radius: var(--r-2);
     color: var(--text-3);
   }
-  .m-saved-view-del:active { background: var(--surface-3); color: var(--danger, #c0392b); }
+  .m-saved-view-del:active { background: var(--surface-3); color: var(--danger); }
 
   /* Sub-headers inside a detail section. */
   .m-sub-h { font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); font-weight: 700; padding: 8px 9px 3px; }

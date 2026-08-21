@@ -104,8 +104,22 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
-/* The sign-in dialog builds its own fixed scrim (`.login-screen`, inline
-   backdrop-filter over the scene) with a `.panel` card inside. The card's
+/* Auth overlays' scrim (UIUX-76). The sign-in screen and the account-management
+   dialog each hand-rolled this as an inline style object, identical down to the
+   `var(--scene-b, #1a1714)` literal fallback and a `zIndex: 'var(--z-modal)' as
+   never` cast — and at 60% of the scene tone, noticeably darker than the
+   `.modal-overlay` scrim every other dialog uses. One class, so the two agree
+   with each other; it sits after `.modal-overlay` so the management dialog can
+   wear both (it needs that rule's opaque-card treatment) and this scrim wins. */
+.auth-scrim {
+  position: fixed; inset: 0; z-index: var(--z-modal);
+  display: grid; place-items: center; padding: var(--s-4);
+  background: color-mix(in oklch, var(--scene-b) 60%, transparent);
+  backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur));
+}
+
+/* The sign-in dialog builds its own fixed scrim (`.login-screen.auth-scrim`,
+   blurring the scene) with a `.panel` card inside. The card's
    inherited glass (translucent `--surface` + backdrop-filter) is FAKE there:
    the scrim is a backdrop root, so the card's filter samples only the dim
    veil, not the scene (UIUX-62). Dialogs are opaque — same treatment as
@@ -785,3 +799,40 @@ body.mobile .tip::after { content: none; }
 .row + .row { border-top: 1px solid var(--border); }
 .row .rk { display: flex; align-items: center; gap: var(--s-3); font-size: var(--t-base); font-weight: 500; color: var(--text-2); }
 .row .rk .icn { color: var(--text-3); }
+
+/* ---- A/B split-reveal overlay (UIUX-76) --------------------------------
+   Shared by every compare modal (render / version / time / staging reveal) via
+   `ui/compare/CompareOverlay.tsx`. Each modal used to inline its own copy, and
+   the copies drifted into three knob sizes plus a literal rgba/#fff chip next
+   to a tokenised accent sibling. `a` is always the left/baseline side and `b`
+   the right/subject side, so the two chips read as a pair and the grammar is
+   the same whichever modal you open. */
+.cmp-divider {
+  position: absolute; top: 0; bottom: 0; width: 2px;
+  transform: translateX(-50%); background: var(--on-accent);
+  pointer-events: none;
+}
+.cmp-handle {
+  position: absolute; top: 50%; transform: translate(-50%, -50%);
+  width: 32px; height: 32px; border-radius: var(--r-pill);
+  display: grid; place-items: center; pointer-events: none;
+  /* Accent disc, not a white one: the copies all paired `--on-accent` (near
+     white) with a `--surface-solid` glyph (also near white), so the ⇄ was
+     invisible in every theme. `--on-accent` on `--accent` is the pair whose
+     contrast the token contract guarantees, and it ties the knob to the `b`
+     chip. The divider stays a light hairline over the imagery. */
+  background: var(--accent); color: var(--on-accent);
+  box-shadow: var(--shadow-panel); font-size: var(--t-md);
+}
+.cmp-tag {
+  position: absolute; top: var(--s-3); pointer-events: none;
+  padding: 2px 7px; border-radius: var(--r-1);
+  font-size: var(--t-xs); font-weight: 700; white-space: nowrap;
+}
+/* Baseline side: a neutral chip that stays legible over any render. */
+.cmp-tag.a {
+  left: var(--s-4); background: var(--surface-solid); color: var(--text);
+  border: 1px solid var(--border);
+}
+/* Subject side: the accent chip marks what the user is evaluating. */
+.cmp-tag.b { right: var(--s-4); background: var(--accent); color: var(--on-accent); }

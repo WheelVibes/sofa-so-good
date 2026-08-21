@@ -50,22 +50,7 @@ export function LoginScreen() {
   }
 
   return (
-    <div
-      className="login-screen"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 'var(--z-modal)' as never,
-        display: 'grid',
-        placeItems: 'center',
-        background: 'color-mix(in oklch, var(--scene-b, #1a1714) 60%, transparent)',
-        backdropFilter: 'blur(var(--blur, 8px))',
-        padding: 'var(--s-4)',
-      }}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Sign in"
-    >
+    <div className="login-screen auth-scrim" role="dialog" aria-modal="true" aria-label="Sign in">
       <div className="panel" style={{ width: 'min(380px, 100%)', padding: 'var(--s-5)' }}>
         <div
           style={{
