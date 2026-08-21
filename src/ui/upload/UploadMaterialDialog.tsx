@@ -116,7 +116,7 @@ export function UploadMaterialDialog({ open, onClose }: UploadMaterialDialogProp
           <button
             onClick={submit}
             disabled={busy || !albedo || !name.trim()}
-            className="rounded btn btn-accent disabled:opacity-40"
+            className="btn btn-accent"
             type="button"
           >
             {busy ? 'Saving…' : 'Save'}

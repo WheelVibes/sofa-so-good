@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.38 — UIUX-68: upload dialogs join the button vocabulary
+
+Audit of the upload dialog family. The model-upload dialog hand-rolled all six
+of its buttons with Tailwind arbitrary-value utilities (`rounded
+bg-[var(--accent)] px-3 py-1 …`) instead of the `.btn` classes — its footer
+Cancel/Import read as bare text (the disabled Import was near-invisible), and
+the Choose-folder + group-pager buttons drifted from the system's radius/
+padding/hover grammar. All six now use `btn btn-soft`/`btn-accent`
+(/`btn-sm`), inheriting the shared disabled treatment; the material dialog's
+redundant `rounded`/`disabled:` add-ons around its existing `.btn` classes were
+dropped. ConfirmDialog was already clean. Verified live: footer probes report
+`btn btn-soft`/`btn btn-accent`, and the dialog renders with real buttons and
+a visibly-disabled Import.
+
 ## v0.26.2.37 — UIUX-67: theme-matrix verification of the recent fixes (clean)
 
 Ten-combo sweep (clay/kampong/porcelain/estate/harbour × light/dark) over this
