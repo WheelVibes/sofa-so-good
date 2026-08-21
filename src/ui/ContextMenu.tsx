@@ -109,9 +109,12 @@ export function ContextMenu() {
     )
   }
 
-  // Clamp to viewport (rough height estimate per row).
+  // Clamp to viewport (rough height estimate per row). Mobile rows sit on the
+  // 44px touch floor (`body.mobile .ctx-item`, UIUX-65) — the estimate must
+  // track that or a long-pressed menu near the bottom edge overflows it.
+  const rowH = isMobile ? 45 : 34
   const left = Math.min(menu.x, window.innerWidth - 220)
-  const top = Math.min(menu.y, window.innerHeight - (rows.length * 34 + 60))
+  const top = Math.min(menu.y, window.innerHeight - (rows.length * rowH + 60))
 
   return createPortal(
     <div className="ctx-menu" style={{ left, top }} onPointerDown={(e) => e.stopPropagation()}>

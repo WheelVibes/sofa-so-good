@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.35 — UIUX-65: mobile touch targets for the context menu + confirm pill
+
+Mobile pass over the two remaining sub-44px interaction surfaces. The context
+menu IS reachable on touch (Android long-press fires contextmenu) but its rows
+were ~30px with no mobile rule — now `min-height: 44px` under `body.mobile`
+(direct lift; adjacent rows would overlap pseudo-extensions), with the
+component's viewport-clamp estimate tracking the taller rows so a long-press
+near the bottom edge can't overflow. The Apply-change pill's ✓/✗ are 38px
+circles with a 9px gap — extended to 44px hit areas via ±3px pseudo-elements
+(the pitch recipe, no overlap). Probed live at 390×844: rows 44px, menu
+clamped within the viewport, pill inset -3px. Guards added.
+
 ## v0.26.2.34 — UIUX-64: confirm surfaces audited; Tailwind type utilities bridged to the ladder
 
 Audit of the confirm grammar: ConfirmModal danger/plain variants, the text

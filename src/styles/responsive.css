@@ -467,6 +467,18 @@ body.mobile {
   .toast .icon-btn { position: relative; }
   .toast .icon-btn::after { content: ''; position: absolute; inset: -11px; }
 
+  /* Context-menu rows (UIUX-65): reachable on touch via long-press (Android
+     fires contextmenu), but the desktop rows are ~30px tall. Lift each row to
+     the 44px floor directly — adjacent rows, so pseudo-extensions would
+     overlap. The clamp estimate in ContextMenu.tsx mirrors this height. */
+  .ctx-item { min-height: 44px; }
+
+  /* Apply-change pill ✓/✗ (UIUX-65): 38px visual circles + the pill's 9px gap
+     → extend each hit area by 3px per side (38 + 2×3 = 44) without overlap —
+     the 40px+4px-gap pitch recipe, shifted to this pill's metrics. */
+  .edit-confirm-btn { position: relative; }
+  .edit-confirm-btn::after { content: ''; position: absolute; inset: -3px; }
+
   /* InfoCallout's dismiss × ("Don't show this again") is the same 22px shape and
      was the one small icon the passes above missed — no size lift, no extension
      (UIUX-39). Same recipe as the toast X: 22 + 2×11 = 44, and the × sits alone

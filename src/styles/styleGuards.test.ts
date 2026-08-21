@@ -375,6 +375,17 @@ describe('UIUX-61 sticky headers are an opaque-container privilege', () => {
   })
 })
 
+describe('UIUX-65 mobile touch targets: context menu + confirm pill', () => {
+  const r = read('./responsive.css')
+  it('context-menu rows sit on the 44px floor under body.mobile', () => {
+    expect(r).toMatch(/\.ctx-item\s*\{[^}]*min-height:\s*44px/s)
+  })
+  it('the Apply-change pill buttons extend to 44px hit areas (38 + 2×3)', () => {
+    expect(r).toMatch(/\.edit-confirm-btn\s*\{[^}]*position:\s*relative/s)
+    expect(r).toMatch(/\.edit-confirm-btn::after\s*\{[^}]*inset:\s*-3px/s)
+  })
+})
+
 describe('UIUX-64 Tailwind type utilities ride the design ladder', () => {
   // ~90 call sites use text-xs/text-sm/leading-relaxed. Without the bridge,
   // Tailwind's own scale is a SECOND type ladder (xs 12px/1.333 vs --t-xs
