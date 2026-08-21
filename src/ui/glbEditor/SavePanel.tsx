@@ -1,3 +1,4 @@
+import { CATEGORY_LABEL } from '../../furniture/categoryLabels'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../../furniture/types'
 import { Select } from '../controls/Select'
 import { useDesigner } from './designerContext'
@@ -49,7 +50,7 @@ export function SavePanel() {
         value={category}
         onChange={(v) => onCategory(v as FurnitureCategory)}
         style={{ width: '100%', marginBottom: 'var(--s-2)' }}
-        options={FURNITURE_CATEGORIES.map((c) => ({ value: c, label: c }))}
+        options={FURNITURE_CATEGORIES.map((c) => ({ value: c, label: CATEGORY_LABEL[c] }))}
       />
       <Select
         className="input"

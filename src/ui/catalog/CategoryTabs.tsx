@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { CATEGORY_LABEL } from '../../furniture/categoryLabels'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../../furniture/types'
 import { Select, type SelectOption } from '../controls/Select'
 import { Icon } from '../toolbar/icons'
@@ -25,25 +26,6 @@ interface CategoryTabsProps {
     onChange: (value: SortKey) => void
     options: SelectOption[]
   }
-}
-
-const LABELS: Record<FurnitureCategory, string> = {
-  beds: 'Beds',
-  seating: 'Seating',
-  tables: 'Tables',
-  storage: 'Storage',
-  kitchen: 'Kitchen',
-  bathroom: 'Bathroom',
-  appliances: 'Appliances',
-  lighting: 'Lighting',
-  decor: 'Decor',
-  textiles: 'Textiles',
-  outdoor: 'Outdoor',
-  electronics: 'Electronics',
-  kids: 'Baby & Kids',
-  pets: 'Pets',
-  laundry: 'Laundry',
-  others: 'Others',
 }
 
 export function CategoryTabs({
@@ -118,7 +100,7 @@ export function CategoryTabs({
             className={`chip${isActive ? ' on' : ''}`}
           >
             <CategoryIcon category={c} className="icn" width={14} height={14} />
-            {LABELS[c]}
+            {CATEGORY_LABEL[c]}
             <span className="chip-count">{count}</span>
           </button>
         )

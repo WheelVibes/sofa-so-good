@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.36 — UIUX-66: GLB designer audited; one canonical category-label map
+
+Visual audit of the 3D asset designer (viewport HUD, shape grid, Disclosure
+sections, save panel) — structurally clean and on-system (the "+ Templates"
+rows are the standard `.compose` Disclosure idiom). One real defect: the
+Save-to-catalog category `Select` rendered raw category ids ("others", "beds")
+in a UI of Title Case labels, because the display-name map existed only as
+duplicates private to `CategoryTabs` and the report's `reportShared`. New
+canonical `furniture/categoryLabels.ts` (`CATEGORY_LABEL`, beside
+`categoryColors.ts`); the designer select, catalog tabs, and report all
+consume it (the report re-exports it under its historical `CAT_LABEL` name).
+Verified live: the designer select now shows "Others" with Title Case options.
+
 ## v0.26.2.35 — UIUX-65: mobile touch targets for the context menu + confirm pill
 
 Mobile pass over the two remaining sub-44px interaction surfaces. The context
