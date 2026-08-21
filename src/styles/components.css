@@ -807,6 +807,52 @@ body.mobile .tip::after { content: none; }
    to a tokenised accent sibling. `a` is always the left/baseline side and `b`
    the right/subject side, so the two chips read as a pair and the grammar is
    the same whichever modal you open. */
+/* The 16:9 image frame every compare modal drags its divider across. All four
+   inlined the identical object down to a `borderRadius: 8` that matched no
+   radius token (`--r-3` is 7px). Only the cursor stays inline — it is
+   state-driven (wait / ew-resize / default). */
+.cmp-frame {
+  position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden;
+  background: var(--surface-3); border-radius: var(--r-3);
+  user-select: none; touch-action: none;
+}
+/* A full-bleed frame layer: the B-side image, or the A-side's clip wrapper. */
+.cmp-layer { position: absolute; inset: 0; }
+.cmp-img { width: 100%; height: 100%; object-fit: fill; display: block; }
+/* Centred message covering the frame before anything is captured, or on error.
+   `.col` stacks it (the render modal shows a label above its progress line). */
+.cmp-empty {
+  position: absolute; inset: 0; display: flex;
+  align-items: center; justify-content: center;
+  gap: var(--s-2); padding: var(--s-6); text-align: center;
+}
+.cmp-empty.col { flex-direction: column; }
+/* Footer control strip: the A/B pickers on one side, the capture action on the
+   other, wrapping on a narrow modal. `.panel-foot` owns the frame; this owns the
+   compare-specific distribution. */
+.cmp-controls { justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
+.cmp-pickers { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+.cmp-pickers label { display: flex; align-items: center; gap: var(--s-2); }
+/* The ⇄ swap-A-and-B button — a glyph, so it takes a larger type size than the
+   `.btn-sm` default it sits beside. */
+.cmp-swap { padding: var(--s-1) var(--s-3); font-size: var(--t-lg); }
+/* Live status line under the frame. `min-height` reserves the row so the modal
+   doesn't jump as the message appears and clears. */
+.cmp-status { margin-top: var(--s-3); min-height: 16px; }
+/* Legend dot tying an A/B picker row to its half of the frame. It shares the
+   overlay chips' identity — `a` is the neutral baseline side, `b` the accent
+   subject side — because both label the same two halves; the dots used to run
+   accent-A / neutral-B, the opposite way round from the chips beside them. */
+.cmp-slot {
+  /* `flex: none` matters: the dot is a flex child of a label whose Select makes
+     the row overflow, and with the default shrink factor the old inline copies
+     were being crushed to under 4px — a dot the picker row could not actually
+     use to tell A from B. */
+  display: inline-block; flex: none; width: 10px; height: 10px;
+  border-radius: var(--r-1); align-self: center;
+}
+.cmp-slot.a { background: var(--text-3); }
+.cmp-slot.b { background: var(--accent); }
 .cmp-divider {
   position: absolute; top: 0; bottom: 0; width: 2px;
   transform: translateX(-50%); background: var(--on-accent);

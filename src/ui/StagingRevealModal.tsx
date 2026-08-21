@@ -132,52 +132,21 @@ export function StagingRevealModal() {
         ref={sliderRef}
         role="presentation"
         aria-label="Staging reveal slider — drag to compare empty vs furnished"
-        style={{
-          position: 'relative',
-          width: '100%',
-          aspectRatio: '16 / 9',
-          background: 'var(--surface-3)',
-          borderRadius: 8,
-          overflow: 'hidden',
-          cursor: phase === 'capturing' ? 'wait' : hasBoth ? 'ew-resize' : 'default',
-          userSelect: 'none',
-          touchAction: 'none',
-        }}
+        className="cmp-frame"
+        style={{ cursor: phase === 'capturing' ? 'wait' : hasBoth ? 'ew-resize' : 'default' }}
         onMouseDown={hasBoth ? onMouseDown : undefined}
         onTouchStart={hasBoth ? onTouchMove : undefined}
         onTouchMove={hasBoth ? onTouchMove : undefined}
       >
         {/* After (furnished) — full width behind. */}
         {after ? (
-          <img
-            src={after}
-            alt="Furnished design"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'fill',
-            }}
-            draggable={false}
-          />
+          <img src={after} alt="Furnished design" className="cmp-layer cmp-img" draggable={false} />
         ) : null}
 
         {/* Before (empty room) — clipped to the left of the divider. */}
         {before ? (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              clipPath: `inset(0 ${(1 - divider) * 100}% 0 0)`,
-            }}
-          >
-            <img
-              src={before}
-              alt="Empty room"
-              style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block' }}
-              draggable={false}
-            />
+          <div className="cmp-layer" style={{ clipPath: `inset(0 ${(1 - divider) * 100}% 0 0)` }}>
+            <img src={before} alt="Empty room" className="cmp-img" draggable={false} />
           </div>
         ) : null}
 
@@ -192,19 +161,7 @@ export function StagingRevealModal() {
 
         {/* Empty / progress / error overlay (before any capture). */}
         {errorMsg || !hasBoth ? (
-          <div
-            className="panel-sub plain"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              textAlign: 'center',
-              padding: 24,
-            }}
-          >
+          <div className="panel-sub plain cmp-empty">
             {errorMsg ? (
               <span className="form-err">{errorMsg}</span>
             ) : phase === 'capturing' ? (
@@ -216,7 +173,7 @@ export function StagingRevealModal() {
         ) : null}
       </div>
 
-      <div className="panel-sub plain" style={{ marginTop: 8, minHeight: 16 }} aria-live="polite">
+      <div className="panel-sub plain cmp-status" aria-live="polite">
         {phase === 'capturing'
           ? 'Capturing…'
           : hasBoth

@@ -71,5 +71,23 @@ describe('CompareOverlay adoption', () => {
       expect(src, f).not.toContain("borderRadius: '50%'")
       expect(src, f).not.toMatch(/rgba\(0,\s*0,\s*0,\s*0\.\d+\)/)
     })
+
+    it(`${f} keeps only genuinely dynamic values inline`, () => {
+      // UIUX-77: these four inlined 6-13 style objects each, repeating the same
+      // frame / image-layer / empty-message / picker-row / status-line shapes
+      // (and a `borderRadius: 8` matching no radius token). Everything static
+      // moved to the `.cmp-*` classes; what's left must be values CSS cannot
+      // know — the state-driven cursor and the divider's clip-path.
+      const src = read(f)
+      // Count by opening token: a clip-path value contains `${…}`, so a
+      // brace-balanced regex would stop short of it.
+      const lines = src.split('\n').filter((l) => l.includes('style={{'))
+      expect(lines.length, `${f} inline style objects`).toBe(2)
+      for (const l of lines) {
+        expect(/cursor:|clipPath:/.test(l), `${f}: ${l.trim()}`).toBe(true)
+      }
+      // No raw pixel numbers left anywhere in the file's styling.
+      expect(src, f).not.toMatch(/(?:borderRadius|fontSize|gap|padding):\s*\d/)
+    })
   }
 })

@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.47 — UIUX-77: the compare modals' remaining inline styling
+
+UIUX-76 took the colour literals out of the four compare modals; this takes the
+rest. They were carrying 6, 13, 12 and 6 inline style objects, repeating the same
+five shapes between them — the 16:9 image frame (identical down to a
+`borderRadius: 8` that matches no radius token; `--r-3` is 7px), the full-bleed
+image layers, the centred pre-capture message, the footer picker strip, and the
+status line. All of it becomes the `.cmp-*` family that `CompareOverlay` already
+started, and each file is down to exactly **two** inline objects: the
+state-driven cursor and the divider's clip-path — values CSS cannot know, which
+is the line the `src/ui` rule draws.
+
+Two things surfaced on the way:
+
+**A phantom class.** `<span className="rc-slot-badge rc-slot-a">` in the render
+modal referenced two classes defined in no CSS file — an abandoned migration
+whose inline style was doing all the work. Sweeping for the shape finds ~38 more
+undefined class tokens across `src/`, which needs per-class triage (dead vs
+querySelector hook) and is filed as its own task rather than folded in here.
+
+**The legend dots were being crushed.** Probing the migrated markup showed them
+computing to 3.8px instead of 10px: they are flex children of a label whose
+`Select` overflows the row, and neither the class nor the inline copies before it
+set `flex: none`, so the shrink factor ate them. A 4px dot cannot do the one job
+it has — telling the A picker from the B picker — and it had presumably looked
+like that since the rows were written. Fixed on the shared class, so all four
+get it.
+
+The dots also ran accent-A / neutral-B, the opposite way round from the overlay
+chips sitting directly above them on the same two halves. They now follow the
+chips: `a` neutral (baseline), `b` accent (subject).
+
 ## v0.26.2.46 — UIUX-76: colour literals in inline style objects
 
 UIUX-75's `rgba(0,0,0,0.18)` shadow was not an isolated slip — it was a whole

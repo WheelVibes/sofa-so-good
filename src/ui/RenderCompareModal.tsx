@@ -199,27 +199,11 @@ export function RenderCompareModal() {
       width="var(--modal-lg)"
       panelId="render-compare"
       footer={
-        <div
-          className="panel-foot"
-          style={{ justifyContent: 'space-between', gap: 'var(--s-3)', flexWrap: 'wrap' }}
-        >
+        <div className="panel-foot cmp-controls">
           {/* Preset selectors */}
-          <div
-            style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-3)', flexWrap: 'wrap' }}
-          >
-            <label className="panel-sub plain" style={{ display: 'flex', gap: 'var(--s-2)' }}>
-              <span
-                className="rc-slot-badge rc-slot-a"
-                style={{
-                  display: 'inline-block',
-                  width: 10,
-                  height: 10,
-                  borderRadius: 2,
-                  background: 'var(--accent)',
-                  alignSelf: 'center',
-                }}
-                aria-hidden
-              />
+          <div className="cmp-pickers">
+            <label className="panel-sub plain">
+              <span className="cmp-slot a" aria-hidden />
               A
               <Select
                 className="input"
@@ -240,27 +224,16 @@ export function RenderCompareModal() {
             </label>
             <button
               type="button"
-              className="btn btn-sm"
+              className="btn btn-sm cmp-swap"
               aria-label="Swap presets A and B"
               title="Swap A and B"
               disabled={busy}
               onClick={() => setState(swapAB)}
-              style={{ padding: 'var(--s-1) var(--s-3)', fontSize: 'var(--t-lg)' }}
             >
               ⇄
             </button>
-            <label className="panel-sub plain" style={{ display: 'flex', gap: 'var(--s-2)' }}>
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: 10,
-                  height: 10,
-                  borderRadius: 2,
-                  background: 'var(--text-3)',
-                  alignSelf: 'center',
-                }}
-                aria-hidden
-              />
+            <label className="panel-sub plain">
+              <span className="cmp-slot b" aria-hidden />
               B
               <Select
                 className="input"
@@ -292,17 +265,8 @@ export function RenderCompareModal() {
         ref={sliderRef}
         role="presentation"
         aria-label="Render comparison slider — drag to compare"
-        style={{
-          position: 'relative',
-          width: '100%',
-          aspectRatio: '16 / 9',
-          background: 'var(--surface-3)',
-          borderRadius: 8,
-          overflow: 'hidden',
-          cursor: busy ? 'wait' : hasBothImages ? 'ew-resize' : 'default',
-          userSelect: 'none',
-          touchAction: 'none',
-        }}
+        className="cmp-frame"
+        style={{ cursor: busy ? 'wait' : hasBothImages ? 'ew-resize' : 'default' }}
         onMouseDown={hasBothImages ? onMouseDown : undefined}
         onTouchStart={hasBothImages ? onTouchStart : undefined}
         onTouchMove={hasBothImages ? onTouchMove : undefined}
@@ -312,14 +276,7 @@ export function RenderCompareModal() {
           <img
             src={state.imageB}
             alt="Preset B render"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'fill',
-              display: 'block',
-            }}
+            className="cmp-layer cmp-img"
             draggable={false}
           />
         ) : null}
@@ -327,23 +284,10 @@ export function RenderCompareModal() {
         {/* Side A — clipped to the left of the divider */}
         {state.imageA ? (
           <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              clipPath: `inset(0 ${(1 - state.divider) * 100}% 0 0)`,
-            }}
+            className="cmp-layer"
+            style={{ clipPath: `inset(0 ${(1 - state.divider) * 100}% 0 0)` }}
           >
-            <img
-              src={state.imageA}
-              alt="Preset A render"
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'fill',
-                display: 'block',
-              }}
-              draggable={false}
-            />
+            <img src={state.imageA} alt="Preset A render" className="cmp-img" draggable={false} />
           </div>
         ) : null}
 
@@ -361,20 +305,7 @@ export function RenderCompareModal() {
             the image and read as clipped text, so progress for B falls to the
             status line below instead. */}
         {errorMsg || (!state.imageA && !state.imageB) ? (
-          <div
-            className="panel-sub plain"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 'var(--s-2)',
-              textAlign: 'center',
-              padding: 'var(--s-6)',
-            }}
-          >
+          <div className="panel-sub plain cmp-empty col">
             {errorMsg ? (
               <span className="form-err">{errorMsg}</span>
             ) : phaseA === 'rendering' ? (
@@ -387,11 +318,7 @@ export function RenderCompareModal() {
       </div>
 
       {/* Status line */}
-      <div
-        className="panel-sub plain"
-        style={{ marginTop: 'var(--s-3)', minHeight: 16 }}
-        aria-live="polite"
-      >
+      <div className="panel-sub plain cmp-status" aria-live="polite">
         {phaseA === 'rendering'
           ? 'Capturing A…'
           : phaseB === 'rendering'

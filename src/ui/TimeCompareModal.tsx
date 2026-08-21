@@ -145,27 +145,10 @@ export function TimeCompareModal() {
       width="var(--modal-lg)"
       panelId="time-compare"
       footer={
-        <div
-          className="panel-foot"
-          style={{ justifyContent: 'space-between', gap: 'var(--s-3)', flexWrap: 'wrap' }}
-        >
-          <div
-            style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-3)', flexWrap: 'wrap' }}
-          >
-            <label
-              className="panel-sub plain"
-              style={{ display: 'flex', gap: 'var(--s-2)', alignItems: 'center' }}
-            >
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: 10,
-                  height: 10,
-                  borderRadius: 2,
-                  background: 'var(--accent)',
-                }}
-                aria-hidden
-              />
+        <div className="panel-foot cmp-controls">
+          <div className="cmp-pickers">
+            <label className="panel-sub plain">
+              <span className="cmp-slot a" aria-hidden />
               A
               <Select
                 className="input"
@@ -176,20 +159,8 @@ export function TimeCompareModal() {
                 options={TIME_PRESET_OPTIONS}
               />
             </label>
-            <label
-              className="panel-sub plain"
-              style={{ display: 'flex', gap: 'var(--s-2)', alignItems: 'center' }}
-            >
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: 10,
-                  height: 10,
-                  borderRadius: 2,
-                  background: 'var(--text-3)',
-                }}
-                aria-hidden
-              />
+            <label className="panel-sub plain">
+              <span className="cmp-slot b" aria-hidden />
               B
               <Select
                 className="input"
@@ -211,17 +182,8 @@ export function TimeCompareModal() {
         ref={sliderRef}
         role="presentation"
         aria-label="Time-of-day compare slider — drag to compare"
-        style={{
-          position: 'relative',
-          width: '100%',
-          aspectRatio: '16 / 9',
-          background: 'var(--surface-3)',
-          borderRadius: 8,
-          overflow: 'hidden',
-          cursor: busy ? 'wait' : hasBoth ? 'ew-resize' : 'default',
-          userSelect: 'none',
-          touchAction: 'none',
-        }}
+        className="cmp-frame"
+        style={{ cursor: busy ? 'wait' : hasBoth ? 'ew-resize' : 'default' }}
         onMouseDown={hasBoth ? onMouseDown : undefined}
         onTouchStart={hasBoth ? onTouchMove : undefined}
         onTouchMove={hasBoth ? onTouchMove : undefined}
@@ -231,30 +193,18 @@ export function TimeCompareModal() {
           <img
             src={imageB}
             alt={`Scene at ${TIME_PRESET_LABELS[presetB]}`}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'fill',
-            }}
+            className="cmp-layer cmp-img"
             draggable={false}
           />
         ) : null}
 
         {/* A — clipped to the left of the divider. */}
         {imageA ? (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              clipPath: `inset(0 ${(1 - divider) * 100}% 0 0)`,
-            }}
-          >
+          <div className="cmp-layer" style={{ clipPath: `inset(0 ${(1 - divider) * 100}% 0 0)` }}>
             <img
               src={imageA}
               alt={`Scene at ${TIME_PRESET_LABELS[presetA]}`}
-              style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block' }}
+              className="cmp-img"
               draggable={false}
             />
           </div>
@@ -271,19 +221,7 @@ export function TimeCompareModal() {
 
         {/* Empty / progress / error overlay (before any capture). */}
         {errorMsg || !hasBoth ? (
-          <div
-            className="panel-sub plain"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 'var(--s-2)',
-              textAlign: 'center',
-              padding: 'var(--s-6)',
-            }}
-          >
+          <div className="panel-sub plain cmp-empty">
             {errorMsg ? (
               <span className="form-err">{errorMsg}</span>
             ) : busy ? (
@@ -295,11 +233,7 @@ export function TimeCompareModal() {
         ) : null}
       </div>
 
-      <div
-        className="panel-sub plain"
-        style={{ marginTop: 'var(--s-3)', minHeight: 16 }}
-        aria-live="polite"
-      >
+      <div className="panel-sub plain cmp-status" aria-live="polite">
         {busy
           ? 'Capturing…'
           : hasBoth
