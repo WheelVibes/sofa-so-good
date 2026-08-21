@@ -50,6 +50,7 @@ export type FeatureFlag =
   | 'dxfExport'
   | 'boq'
   | 'sceneExport3d'
+  | 'sceneExportCad'
   | 'batchRender'
   | 'shopExport'
   | 'suggestions'

@@ -1505,10 +1505,14 @@ same change that reshapes a system.
   world-space plane to project onto, unlike `RotateGizmo`/`ResizeGizmo`). Single-item only, hidden for
   locked items and Staircase. Serialized (optional) in `schema.ts`. Collision stays yaw-OBB (tilt
   doesn't change the plan footprint).
-- **3D scene export** (`sceneExport3d` flag, pro; Q-3DEXPORT): `ui/openSceneExport.ts` `exportScene3d`
-  downloads the whole furnished home as `.glb` (reusing `furniture/convert/toGlb.ts` `exportGlb`), `.obj`
-  (`export/sceneObj.ts`, dynamic `OBJExporter`), `.stl` (`export/sceneStl.ts`), or `.usdz`
-  (`export/sceneUsdz.ts`). The live scene root is reached from DOM code via `scene/SceneExportController`
+- **3D scene export** (two flags, split by tier — Q-3DEXPORT, UIUX-71): `ui/openSceneExport.ts`
+  `exportScene3d` downloads the whole furnished home as `.glb` (reusing `furniture/convert/toGlb.ts`
+  `exportGlb`), `.obj` (`export/sceneObj.ts`, dynamic `OBJExporter`), `.stl` (`export/sceneStl.ts`),
+  or `.usdz` (`export/sceneUsdz.ts`). The consumer-facing formats (`.glb`, `.usdz`/AR) ride
+  **`sceneExport3d`** (simple); the geometry-only professional formats (`.obj`, `.stl`) ride
+  **`sceneExportCad`** (pro), beside `dxfExport` — a Simple-mode audit found the File menu offering a
+  casual owner a Wavefront OBJ and an "STL for 3D printing / CAD" (this doc already described the
+  feature as pro while the registry had drifted to simple). The live scene root is reached from DOM code via `scene/SceneExportController`
   + the `scene/sceneExportAccess.ts` singleton (mirrors `ScreenshotController`/`captureCanvas.ts`). Pure
   `export/sceneGltf.ts` `buildExportRoot` clones the scene and strips editor-only helpers — anything
   tagged `userData.noExport` via `noExportUserData`/`markNoExport` (selection/gizmo/overlays/sky/pins/

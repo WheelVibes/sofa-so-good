@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.41 — UIUX-71: Simple mode stops offering CAD/3D-print exports
+
+First sweep of Simple mode itself — the app default, which nearly every prior
+audit skipped in favour of Pro. Menu structure is sound (no dangling section
+labels: every pro-gated group's heading is guarded). One real tier leak: the
+File menu's export group offered a casual owner four rows including
+"Geometry-only Wavefront OBJ" and "Geometry-only STL for 3D printing / CAD" —
+professional interchange formats that the tier rule puts in Pro, and which
+docs/ARCHITECTURE.md already described as pro while the registry had drifted to
+`tier: 'simple'`. Split by tier: the consumer-facing formats (`.glb`, `.usdz`
+AR Quick Look) stay on `sceneExport3d` (simple); `.obj`/`.stl` move to a new
+`sceneExportCad` (pro, default on) beside `dxfExport`. The group heading also
+enumerated absent categories — a fixed "CAD, 3D & data" while Simple gates the
+CAD rows (DXF/SVG) and the CSV data rows away; a pure `exportGroupLabel` helper
+now names only the buckets that render ("CAD, 3D & data" / "3D & data" / "3D").
+Flag test covers both modes; the grouping test asserts the heading and the
+format split in Simple AND Pro. Verified live: Simple shows a "3D" group with
+exactly `.glb` + `.usdz`.
+
 ## v0.26.2.40 — UIUX-70: last hand-rolled menu rows join the vocabulary
 
 The sweep's final stragglers: the File menu's trade-pack rows hand-rolled

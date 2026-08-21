@@ -43,6 +43,26 @@ import { MenuItem, MenuLabel, ToolbarMenu } from '../ToolbarMenu'
  *  moodboard, drawing set), the "Budget & costs" group (the budget panel plus
  *  all its cost exports, previously scattered across four menu spots), and the
  *  CAD / 3D / CSV data exports that used to sit in Tools → "Export & document". */
+/**
+ * Heading for the export group, naming only the buckets that actually render
+ * (UIUX-71). The heading used to be a fixed "CAD, 3D & data", but in Simple
+ * mode the CAD rows (DXF/SVG, pro) and the CSV data rows (`shopExport`, off by
+ * default) are both gated away — so the default experience advertised two
+ * categories it did not show. Joined with a trailing "&" so it reads as a
+ * phrase: "CAD, 3D & data" / "CAD & 3D" / "3D".
+ */
+export function exportGroupLabel(present: {
+  cad: boolean
+  threeD: boolean
+  data: boolean
+}): string {
+  const parts = [present.cad && 'CAD', present.threeD && '3D', present.data && 'data'].filter(
+    (p): p is string => typeof p === 'string',
+  )
+  if (parts.length <= 1) return parts[0] ?? ''
+  return `${parts.slice(0, -1).join(', ')} & ${parts[parts.length - 1]}`
+}
+
 export function FileMenu() {
   const recording = useStore((s) => s.recording)
   const setRecording = useStore((s) => s.setRecording)
@@ -68,6 +88,7 @@ export function FileMenu() {
   const fQuoteTemplate = useFeature('quoteTemplate')
   const fDxf = useFeature('dxfExport')
   const fSceneExport = useFeature('sceneExport3d')
+  const fSceneExportCad = useFeature('sceneExportCad')
   const fViewInAr = useFeature('viewInAr')
   const fImportSh3d = useFeature('importSh3d')
   const fImportSh3f = useFeature('importSh3f')
@@ -310,7 +331,18 @@ export function FileMenu() {
         />
       ) : null}
 
-      {(fDxf || fSceneExport || fViewInAr || fShopExport) && <MenuLabel>CAD, 3D & data</MenuLabel>}
+      {/* Label names only the buckets actually rendered (UIUX-71): in Simple
+          mode the CAD rows (DXF/SVG) and the CSV data rows are gated off, so a
+          fixed "CAD, 3D & data" heading promised two absent categories. */}
+      {(fDxf || fSceneExport || fSceneExportCad || fViewInAr || fShopExport) && (
+        <MenuLabel>
+          {exportGroupLabel({
+            cad: fDxf,
+            threeD: fSceneExport || fSceneExportCad || fViewInAr,
+            data: fShopExport,
+          })}
+        </MenuLabel>
+      )}
       {fDxf ? (
         <>
           <MenuItem
@@ -337,6 +369,20 @@ export function FileMenu() {
           />
           <MenuItem
             icon="Export"
+            label="Export for AR (.usdz)"
+            sub="View in your room — iOS AR Quick Look"
+            onClick={() => void exportScene3d('usdz')}
+          />
+        </>
+      ) : null}
+      {/* Geometry-only professional formats — Pro tier (`sceneExportCad`,
+          UIUX-71): a casual Simple-mode owner has no use for a Wavefront OBJ
+          or an STL for 3D printing, and the tier rule puts anything
+          professional/advanced in Pro. */}
+      {fSceneExportCad ? (
+        <>
+          <MenuItem
+            icon="Export"
             label="Export 3D model (.obj)"
             sub="Geometry-only Wavefront OBJ"
             onClick={() => void exportScene3d('obj')}
@@ -346,12 +392,6 @@ export function FileMenu() {
             label="Export 3D model (.stl)"
             sub="Geometry-only STL for 3D printing / CAD"
             onClick={() => void exportScene3d('stl')}
-          />
-          <MenuItem
-            icon="Export"
-            label="Export for AR (.usdz)"
-            sub="View in your room — iOS AR Quick Look"
-            onClick={() => void exportScene3d('usdz')}
           />
         </>
       ) : null}
