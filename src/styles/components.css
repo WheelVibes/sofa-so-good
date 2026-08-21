@@ -95,6 +95,25 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
      since reported by a user on the mobile Handover sheet and removed). */
   background: var(--surface-solid);
   --sec-h-bg: var(--surface-solid);
+  /* The base `.panel` carries its own backdrop-filter for the glass look —
+     here it is fully hidden behind the opaque card AND nested inside the
+     overlay's backdrop-filter (which makes the overlay a backdrop root, so
+     the card's filter could only ever sample the scrim's dim layer anyway).
+     Pure GPU waste + a latent veil if the card ever went translucent —
+     switch it off (UIUX-62). */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+/* The sign-in dialog builds its own fixed scrim (`.login-screen`, inline
+   backdrop-filter over the scene) with a `.panel` card inside. The card's
+   inherited glass (translucent `--surface` + backdrop-filter) is FAKE there:
+   the scrim is a backdrop root, so the card's filter samples only the dim
+   veil, not the scene (UIUX-62). Dialogs are opaque — same treatment as
+   `.modal-overlay > .panel`. */
+.login-screen > .panel {
+  background: var(--surface-solid);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 /* Sticky section headers are an opaque-container privilege (UIUX-61): only
    over an opaque card does the header's fill composite invisibly while fully

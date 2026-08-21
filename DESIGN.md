@@ -59,6 +59,12 @@ tilt cards, scramble text) are **off-brand — do not add them**.
   section labels (they scroll away with their section); opaque containers (modal cards,
   the near-opaque `--elevated` dropdowns) re-enable sticky with an exact-match solid fill
   (`--sec-h-bg` / `--surface-solid`).
+- Never NEST `backdrop-filter` (UIUX-62): a filtered element is a backdrop root, so a
+  descendant's filter samples only content painted inside the container (its own
+  translucent layer) — never the scene — repainting a veil at GPU cost. One filter per
+  overlay stack: the scrim/panel that directly faces the scene filters; everything inside
+  it uses fills (`backdrop-filter: none` on modal/login cards, the mobile sheet, and any
+  card hosted by a filtered scrim).
 
 ## Motion
 

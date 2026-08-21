@@ -373,6 +373,37 @@ describe('UIUX-61 sticky headers are an opaque-container privilege', () => {
     expect(l).toMatch(/background:\s*var\(--surface-solid\)/)
     expect(l).not.toMatch(/backdrop-filter/)
   })
+})
+
+describe('UIUX-62 no nested backdrop-filters', () => {
+  // An element with backdrop-filter becomes a backdrop ROOT: a descendant's
+  // backdrop-filter can only sample content painted INSIDE it (typically the
+  // container's own translucent layer), never the scene — repainting a veil at
+  // GPU cost. Every overlay/scrim already filters the scene once; the card or
+  // sheet inside it must not filter again.
+  it('modal cards switch the inherited .panel backdrop-filter OFF (opaque + inside the filtered overlay)', () => {
+    const c = read('./components.css')
+    const rule = c.match(/\.modal-overlay > \.panel\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(rule).toMatch(/backdrop-filter:\s*none/)
+  })
+  it('the login dialog card is opaque with no filter (its scrim is the backdrop root)', () => {
+    const c = read('./components.css')
+    const rule = c.match(/\.login-screen > \.panel\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(rule).toMatch(/background:\s*var\(--surface-solid\)/)
+    expect(rule).toMatch(/backdrop-filter:\s*none/)
+  })
+  it('the mobile sheet has no backdrop-filter of its own (it lives inside the filtered .m-menu-overlay)', () => {
+    const r = read('./responsive.css')
+    const rule = r.match(/\.m-sheet\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(rule).not.toMatch(/backdrop-filter\s*:/)
+    expect(rule).toMatch(/background:\s*var\(--elevated\)/)
+  })
+  it('the mobile sheet detail header uses the solid exact-tone fill, not a nested filter', () => {
+    const r = read('./responsive.css')
+    const rule = r.match(/\.m-detail-h\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(rule).toMatch(/background:\s*var\(--surface-solid\)/)
+    expect(rule).not.toMatch(/backdrop-filter\s*:/)
+  })
   it('flattens .sec-h inside the finish picker (scoped override) — static, transparent, no hairline', () => {
     // The per-room FinishPicker aside carries a `.finish-picker` class so its
     // stacked section headers don't read as full-width lighter strips (user

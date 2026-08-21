@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.32 — UIUX-62: repo-wide backdrop-root / nested-filter sweep
+
+Full inventory of every backdrop-filter (38 CSS rules + 2 inline TSX) and every
+sticky occluder, classified by containment. Four latent quirks fixed: modal
+cards inherited `.panel`'s backdrop-filter while opaque AND nested inside the
+overlay's filter (pure GPU waste, latent veil — now `backdrop-filter: none`);
+the login dialog's `.panel` card kept fake glass whose filter could only sample
+its scrim's dim layer (now opaque like modal cards); the mobile menu sheet ran
+its own filter nested inside `.m-menu-overlay`'s (removed — invisible behind
+the alpha-.97 card, real mobile GPU cost); and `.m-detail-h` relied on a nested
+filter that only appeared to work (now the `.menu-label` solid exact-tone
+fill). Verified clean: the mobilebar strips its own filter before the menu
+button's (not nested), scroll-edge lips paint dark text-derived gradients (not
+fills), all HUDs/popovers/scrims filter at top level, `.menu`/`.er-hint`/
+`.empty-card` are unrendered orphans. New DESIGN.md rule ("never nest
+backdrop-filter — one filter per overlay stack") + 4 style guards; verified
+live on the login dialog, Share modal, and mobile menu sheet with computed-
+style probes + screenshots.
+
 ## v0.26.2.31 — UIUX-61b: glass sticky headers go static (backdrop-root veil)
 
 Follow-up user report: the v0.26.2.30 frosted-backdrop headers STILL showed a
