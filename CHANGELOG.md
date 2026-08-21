@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.42 — UIUX-72: flag-tier docs reconciled with the registry + guarded
+
+UIUX-71's leak was found because ARCHITECTURE.md described `sceneExport3d` as
+pro while the registry had drifted to `simple`. Audited all 201 flags for the
+same class: seven more inline tier claims disagreed with the registry
+(`panorama`, `panoTour`, `hqRender`, `renderCompare`, `walkCameraControls`,
+`replaceSimilar`, `planPolyline` — each documented "pro", each registered AND
+unit-tested as simple). Here the registry is right and the prose was stale, so
+the docs are corrected rather than the behaviour: every one of the seven has a
+flag test asserting simple-tier presence in both modes, and flipping a tested
+tier would hide a shipped feature. New `docTierParity.test.ts` reads both doc
+conventions ("`flag` flag, pro" / "`flag` **pro** flag") and fails on any
+disagreement, so a tier change must update its own docs; a second assertion
+keeps the guard from silently reading zero claims. Negative-tested by
+reintroducing one stale claim (fails) and restoring it (passes). Three
+heuristic hits reviewed and cleared as false positives: `modelUpload` names OBJ
+as an *import* format, and `accounts`/`sharedLibrary` say "admin" about the
+account gate, not the tier.
+
 ## v0.26.2.41 — UIUX-71: Simple mode stops offering CAD/3D-print exports
 
 First sweep of Simple mode itself — the app default, which nearly every prior

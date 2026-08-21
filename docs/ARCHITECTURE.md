@@ -2018,7 +2018,7 @@ same change that reshapes a system.
   PARITY-PLANTEXT) + **dimension
   lines** (Dimension tool → `plan.dimensions`, measured-length labels) — both persisted (PARITY-DIMTEXT).
   **Polyline markup** (Polyline tool → `plan.polylines`, open/closed + dashed + end-arrow; pure
-  `floorplan/polyline.ts`; `planPolyline` flag, pro — PARITY-POLYLINE).
+  `floorplan/polyline.ts`; `planPolyline` flag, simple — PARITY-POLYLINE).
   **MEP points** (G1 — persisted, editable electrical/plumbing points, contractor-handover goal):
   `FloorPlan.electricalPoints`/`plumbingPoints` (`PlanElectricalPoint`/`PlanPlumbingPoint`,
   `floorplan/types.ts` — `ElectricalKind`/`PlumbingKind` moved there so `electricalPlan.ts`/
@@ -2235,7 +2235,7 @@ same change that reshapes a system.
   `scene/WalkMeasureOverlay.tsx` renders the segment + live distance; the button↔frame-loop
   handoff is the `scene/cameras/walkMeasureRequest.ts` module signal (walkTeleport pattern).
   **Observer camera controls** (PARITY-WALKCAM,
-  `walkCameraControls` flag, pro): FOV (50–100°, default 70) + eye-height (1.2–1.9 m, default
+  `walkCameraControls` flag, simple): FOV (50–100°, default 70) + eye-height (1.2–1.9 m, default
   1.6) sliders in `ui/walk/WalkCameraControls.tsx`, persisted in `editorPrefs`; pure clamp
   helpers + ranges in `scene/cameras/walkCameraSettings.ts`; FOV applies reactively to the live
   camera (own effect, restored on exit), eye-height ref'd so a drag re-heights without re-spawn. Multi-storey (ML6c): the walker's storey follows
@@ -2322,7 +2322,7 @@ same change that reshapes a system.
   the single source. **Groups** (`groupsSlice.ts`): shared `groupId` = emergent group
   (first click→group, second/Alt drills in; rigid centroid rotate; auto-dissolves below
   2; save schema **v2**).
-- **Replace with similar** (PARITY-REPLACE, `replaceSimilar` flag, pro): pure
+- **Replace with similar** (PARITY-REPLACE, `replaceSimilar` flag, simple): pure
   `furniture/similarItems.ts` `similarItems(defId, catalog, limit?)` ranks same-category catalog
   siblings nearest-footprint-first (orientation-independent W×D from `defaultFootprint`, tie-break
   name→id; excludes self/unknown); the `itemsSlice.replaceItemDef(id, newDefId)` store action swaps
@@ -2339,9 +2339,9 @@ same change that reshapes a system.
   `sofa:export` PNG + photoreal/link), **360° panorama** (`scene/PanoramaController` six-face
   capture → pure `scene/panorama/equirect.ts` CPU assembly → `ui/PanoramaModal` + shared
   drag-to-look viewer `ui/panorama/PanoramaViewer.tsx` (pure `viewerLook.ts` clamp math) + PNG,
-  `panorama` flag, pro), **HQ render** (`scene/pathtrace/hqRenderSession.ts` progressive
+  `panorama` flag, simple), **HQ render** (`scene/pathtrace/hqRenderSession.ts` progressive
   path-traced still via `three-gpu-pathtracer`; `hqRenderSource.ts` module singleton exposes
-  live scene+camera; `ui/HqRenderModal.tsx` — resolution/samples/DoF; `hqRender` flag, pro;
+  live scene+camera; `ui/HqRenderModal.tsx` — resolution/samples/DoF; `hqRender` flag, simple;
   **AI denoise** PHOTO-DENOISE: OIDN U-Net over the finished still via the lazy-loaded
   `denoiser` package (tfjs — WebGPU→WebGL2→CPU fallback chain), guided by one-shot raster
   albedo/normal AOVs (`hqAovPasses.ts`) captured at session start; Apache-2.0 weights
@@ -2351,7 +2351,7 @@ same change that reshapes a system.
   preview + fallback; `hqAiDenoise` flag, simple),
   **Render preset A/B compare** (`ui/renderCompare/compareState.ts` pure logic — preset
   selection, swap, divider clamping; `ui/RenderCompareModal.tsx` two sequential captures +
-  Lightroom-style before/after slider with touch parity; `renderCompare` flag, pro),
+  Lightroom-style before/after slider with touch parity; `renderCompare` flag, simple),
   **Before/after staging reveal** (`ui/staging/stagingReveal.ts` pure capture orchestrator —
   injected canvas-capture + hidden-set deps, unit-tested; `ui/StagingRevealModal.tsx` captures the
   furnished view then transiently hides all furniture for the empty-room frame and shows the same
@@ -2376,7 +2376,7 @@ same change that reshapes a system.
   stop open); per-stop panoramas captured live via `capturePanorama({eye})` then cached in
   `ui/panorama/panoImageIdb.ts` (`sofa-pano-cache` IDB, keyed `<stopId>:<designKey>` —
   auto-invalidated on design change); stop drag in the 2D plan editor SVG (`FloorPlanEditor`
-  `movingStop` state); `panoTour` flag, pro), **Presentation mode** (`ui/PresentationMode.tsx`, `presentation` flag,
+  `movingStop` state); `panoTour` flag, simple), **Presentation mode** (`ui/PresentationMode.tsx`, `presentation` flag,
   pro — full-screen saved-views slideshow with per-view notes; views marked 360° (`SavedView.pano`)
   capture a panorama live at the slide and show it in `PanoramaViewer`; auto-advance pauses on
   panorama slides; **tour inclusion** — when both `presentation` + `panoTour` flags are on, the
