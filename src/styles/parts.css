@@ -529,17 +529,17 @@
   font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--text-3); font-weight: 700; margin-bottom: var(--s-3);
   display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
-  position: sticky; top: 0; z-index: 1;
-  /* `--sec-h-bg` lets a container declare the exact opaque tone its sticky
-     header should paint (see `.modal-overlay > .panel` in components.css).
-     The DEFAULT is transparent + a frosted backdrop (the `.m-detail-h`
-     precedent): on the translucent glass panels (aux/catalog/budget) any
-     second `--surface` fill double-composites and reads as a full-width
-     WHITE BAR behind the title (user report, UIUX-61) — the blur keeps the
-     pinned title legible over rows scrolling beneath without adding a fill. */
-  background: var(--sec-h-bg, transparent);
-  backdrop-filter: blur(var(--blur)) saturate(1.3);
-  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.3);
+  /* STATIC + no fill by default (UIUX-61, user report: white bar behind
+     "MOVE-IN CHECKLIST" on the mobile Handover sheet). On a translucent glass
+     panel a sticky header CANNOT occlude scrolled rows cleanly: any fill
+     double-composites over the panel's own `--surface` layer into a lighter
+     full-width bar, and a backdrop-filter is no escape — the panel's own
+     backdrop-filter makes it a *backdrop root*, so a child's filter samples
+     only the panel's near-white translucent background (not the scene) and
+     re-paints it as the same white veil (see MDN/`backdrop-root` spec).
+     Sticky pinning is re-enabled ONLY inside opaque containers (the
+     `.modal-overlay .panel` rule in components.css), where a `--surface-solid`
+     fill composites invisibly. */
   box-shadow: 0 1px 0 var(--border); padding-bottom: var(--s-2);
 }
 .sec-h span { white-space: nowrap; }

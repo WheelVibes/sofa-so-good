@@ -35,12 +35,11 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  /* Transparent + frosted backdrop instead of a `--surface-solid` fill: the
-     dropdown card is `--elevated` (alpha .97), so a solid layer on top read
-     as a subtly brighter band across the menu (UIUX-61 sticky-fill sweep). */
-  background: transparent;
-  backdrop-filter: blur(var(--blur)) saturate(1.3);
-  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.3);
+  /* Solid fill is fine HERE: the dropdown card is `--elevated` (alpha .97,
+     near-opaque), so `--surface-solid` composites within ~3% of the card tone —
+     no visible band — while fully hiding rows scrolling beneath. Glass panels
+     (alpha .86 over the live scene) can't do this — see `.sec-h` (UIUX-61). */
+  background: var(--surface-solid);
 }
 /* Vertical padding on the scrollport would leave a band at each end where
    scrolling rows stay visible past the clip you'd expect: at the top, above a

@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.31 — UIUX-61b: glass sticky headers go static (backdrop-root veil)
+
+Follow-up user report: the v0.26.2.30 frosted-backdrop headers STILL showed a
+white band on the mobile Handover sheet. Root cause (per the backdrop-filter
+spec/MDN): the glass panel's own backdrop-filter makes it a *backdrop root*,
+so a child's backdrop-filter samples only the panel's near-white translucent
+`--surface` layer — not the scene — and repaints exactly the veil the fix
+tried to remove. New rule: sticky section headers are an OPAQUE-container
+privilege. Base `.sec-h` and the Layers `.lyr-ghead-row` are now static and
+unfilled (titles scroll away with their section — nothing to occlude); modal
+bodies re-enable sticky with the exact-match `--surface-solid` fill; dropdown
+`.menu-label` reverts to its solid fill (the `--elevated` card is 97% opaque,
+so the seam is imperceptible). DESIGN.md + guards updated to the corrected
+rule; verified scrolled on the mobile Handover sheet (no band at any depth),
+the Share modal (seamless pin), with computed-style probes.
+
 ## v0.26.2.30 — UIUX-61: sticky-header white fill bars removed on glass surfaces
 
 User report (mobile Handover sheet): section titles like "MOVE-IN CHECKLIST"

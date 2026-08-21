@@ -96,6 +96,14 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
   background: var(--surface-solid);
   --sec-h-bg: var(--surface-solid);
 }
+/* Sticky section headers are an opaque-container privilege (UIUX-61): only
+   over an opaque card does the header's fill composite invisibly while fully
+   hiding scrolled rows. The base `.sec-h` is static/unfilled (glass panels
+   can't do this cleanly — see parts.css); modals opt back in here. */
+.modal-overlay .panel .sec-h {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--sec-h-bg, var(--surface-solid));
+}
 /* The dialog container receives programmatic focus on open (a11y) — suppress its
    own focus ring; interactive children keep their own focus styles. */
 .modal-overlay > .panel[role='dialog']:focus { outline: none; }

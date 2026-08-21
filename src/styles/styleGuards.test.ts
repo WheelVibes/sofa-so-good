@@ -333,44 +333,45 @@ describe('P2 entrance stagger', () => {
   })
 })
 
-describe('P36 sticky section headers', () => {
-  it('pins the layers group header row (.lyr-ghead-row) to the top of the scroll body', () => {
-    const f = read('./features.css')
-    expect(f).toMatch(/\.lyr-ghead-row\s*\{[^}]*position:\s*sticky/s)
-    expect(f).toMatch(/\.lyr-ghead-row\s*\{[^}]*top:\s*0/s)
-  })
-  it('pins .sec-h and gives both a background + subtle bottom hairline', () => {
+describe('UIUX-61 sticky headers are an opaque-container privilege', () => {
+  // A sticky section header can only occlude scrolled rows cleanly over an
+  // OPAQUE surface. On translucent glass panels any fill double-composites
+  // over the panel's own --surface layer into a lighter full-width bar (user
+  // report: "MOVE-IN CHECKLIST" on the mobile Handover sheet) — and
+  // backdrop-filter is no escape, because the panel's own backdrop-filter
+  // makes it a backdrop ROOT: a child filter samples only the panel's
+  // near-white translucent background, repainting the very same white veil.
+  it('base .sec-h is static with NO fill and NO backdrop-filter (glass-safe)', () => {
+    // Declaration-shaped regexes (`prop\s*:`) so the explanatory comments —
+    // which name the offending properties — can't trip the assertions.
     const p = read('./parts.css')
-    expect(p).toMatch(/\.sec-h\s*\{[^}]*position:\s*sticky/s)
-    expect(p).toMatch(/\.sec-h\s*\{[^}]*box-shadow:\s*0 1px 0 var\(--border\)/s)
+    const base = p.match(/\n\.sec-h\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(base).not.toMatch(/position\s*:\s*sticky/)
+    expect(base).not.toMatch(/\bbackground\s*:/)
+    expect(base).not.toMatch(/backdrop-filter\s*:/)
+    expect(base).toMatch(/box-shadow:\s*0 1px 0 var\(--border\)/)
   })
-  it('.sec-h default is transparent + frosted backdrop; --sec-h-bg opts a container into a fill (UIUX-61)', () => {
-    // On the translucent glass panels (aux/catalog/budget) ANY fill on the
-    // sticky header double-composites over the panel's own --surface and reads
-    // as a full-width WHITE BAR behind the title (user report, mobile Handover
-    // sheet). The default is therefore transparent with a backdrop blur (the
-    // .m-detail-h precedent) so the pinned title stays legible over scrolling
-    // rows without adding a fill; only opaque containers (modal dialogs) pin
-    // --sec-h-bg to their exact card tone, where the fill composites invisibly.
-    const p = read('./parts.css')
-    expect(p).toMatch(/\.sec-h\s*\{[^}]*background:\s*var\(--sec-h-bg,\s*transparent\)/s)
-    expect(p).toMatch(/\.sec-h\s*\{[^}]*backdrop-filter:\s*blur\(var\(--blur\)\)/s)
-  })
-  it('the other sticky headers on glass surfaces are transparent + frosted too (UIUX-61)', () => {
-    // Same mechanism, same fix: the Layers group header row painted a second
-    // --surface layer, and dropdown menu labels painted --surface-solid over
-    // the alpha-.97 --elevated card — both read as lighter bands.
+  it('the Layers group header row is static with no fill (glass panel)', () => {
     const f = read('./features.css')
-    expect(f).toMatch(/\.lyr-ghead-row\s*\{[^}]*background:\s*transparent/s)
-    expect(f).toMatch(/\.lyr-ghead-row\s*\{[^}]*backdrop-filter:\s*blur\(var\(--blur\)\)/s)
-    const a = read('./app.css')
-    expect(a).toMatch(/\.pop-panel \.menu-label\s*\{[^}]*background:\s*transparent/s)
-    expect(a).toMatch(/\.pop-panel \.menu-label\s*\{[^}]*backdrop-filter:\s*blur\(var\(--blur\)\)/s)
+    const row = f.match(/\.lyr-ghead-row\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(row).not.toMatch(/position\s*:\s*sticky/)
+    expect(row).not.toMatch(/backdrop-filter\s*:/)
+    expect(row).toMatch(/background:\s*transparent/)
   })
-  it('modal dialogs go opaque and pin --sec-h-bg to match, so their sticky headers seam-lessly match the card', () => {
+  it('modal bodies re-enable sticky .sec-h with the exact-match opaque fill', () => {
     const c = read('./components.css')
     expect(c).toMatch(/\.modal-overlay > \.panel\s*\{[^}]*background:\s*var\(--surface-solid\)/s)
     expect(c).toMatch(/\.modal-overlay > \.panel\s*\{[^}]*--sec-h-bg:\s*var\(--surface-solid\)/s)
+    const scoped = c.match(/\.modal-overlay \.panel \.sec-h\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(scoped).toMatch(/position:\s*sticky/)
+    expect(scoped).toMatch(/background:\s*var\(--sec-h-bg,\s*var\(--surface-solid\)\)/)
+  })
+  it('dropdown menu labels stay sticky with a solid fill (near-opaque --elevated card)', () => {
+    const a = read('./app.css')
+    const l = a.match(/\.pop-panel \.menu-label\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(l).toMatch(/position:\s*sticky/)
+    expect(l).toMatch(/background:\s*var\(--surface-solid\)/)
+    expect(l).not.toMatch(/backdrop-filter/)
   })
   it('flattens .sec-h inside the finish picker (scoped override) — static, transparent, no hairline', () => {
     // The per-room FinishPicker aside carries a `.finish-picker` class so its
