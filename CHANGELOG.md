@@ -5,6 +5,51 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.27.0.0 — UI/UX design-system pass: UIUX-1 → UIUX-80
+
+Release bump for the PR to `staging`. Eighty numbered tasks over 89 commits (41
+fix · 18 feat · 17 refactor · 11 docs), 196 files, with 36 test files added or
+extended. Per-task detail is in the entries below; the shape of the work:
+
+**One vocabulary, actually enforced.** Surfaces that had drifted onto hand-rolled
+styling came back to the token classes — menu rows, upload dialogs, scene chips,
+compare modals, plan-editor overlays — and each sweep left a guard behind rather
+than a promise. `styleGuards` (80+ CSS assertions), `phantomTokenGuard` (undefined
+`var()` references, Tailwind colour literals, inline colour literals in style
+objects, colour-literal fallbacks inside `var()`), `auxWidthGuard`, and
+`docTierParity` across all 201 feature flags. Several guards are self-verifying —
+they assert their own regexes still bite — because an earlier one silently passed
+after matching the comment that quoted the literal it banned.
+
+**Root causes, not symptoms.** The recurring lesson was that a visible artefact
+usually had a mechanism worth finding: sticky-header "white bars" were
+backdrop-root semantics, not a fill (a descendant's `backdrop-filter` samples only
+what its filtered ancestor painted, so sticky headers are an opaque-container
+privilege); two competing type ladders were Tailwind's scale sitting beside the
+app's `--t-*` tokens, fixed with an `@theme inline` bridge; a Design-score dial
+rendering as a solid pie was a phantom CSS token invalidating the whole
+declaration. Where the sandbox couldn't reproduce a platform quirk, the fix came
+from documented behaviour rather than headless output.
+
+**Simple mode as the real default.** Tier assignments were audited against the
+registry, the docs and each feature's nature — Simple was offering OBJ/STL
+exports for Blender and CAD — and the mobile sheet was swept separately, since a
+desktop-only pass had let the phone keep a heading promising formats it never
+had.
+
+**Accessibility and touch as first-class checks.** Layers and glbEditor rows
+became keyboard-reachable, `aria-pressed` was made to agree with the visual state
+it contradicted, the AI transcript became a live region, and context menus,
+confirm pills and comment actions reached the 44px floor — the last by growing for
+real, because expanded phantom hit areas on adjacent buttons would have sent an
+Edit tap to Delete.
+
+Every change was verified by running the app and reading the render, not by green
+tests alone: that is what caught the invisible ⇄ knob (a near-white glyph on a
+near-white disc, in all five themes), legend dots crushed to 3.8px, a plan overlay
+whose text read through the panel beneath it, and a glbEditor panel that had been
+missing its section frame because a class name matched no stylesheet.
+
 ## v0.26.2.50 — UIUX-80: the AI chat and collaboration panels
 
 Two surfaces no pass had touched. The audit's opening premise was wrong and worth
