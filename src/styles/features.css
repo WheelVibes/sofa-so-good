@@ -819,3 +819,39 @@ body.mobile .onb-check { width: min(236px, calc(100vw - 2 * var(--s-4))); }
   position: absolute; bottom: var(--s-3); left: var(--s-3);
   font-size: var(--t-2xs); font-variant-numeric: tabular-nums;
 }
+
+/* ---- Comments panel rows (UIUX-80) ------------------------------------
+   Built on the shared `.clr-item` aux-row (named after its first consumer, the
+   Clearance panel, but used by nine panels). These add only what a comment row
+   needs on top: the icon-action strip and the resolved treatment. */
+.cmt-row { display: flex; gap: var(--s-2); align-items: flex-start; }
+.cmt-row { border-left-color: var(--accent); }
+.cmt-row.resolved { border-left-color: var(--ok); }
+.cmt-txt { font-size: var(--t-xs); overflow-wrap: anywhere; }
+.cmt-row.resolved .cmt-txt { text-decoration: line-through; opacity: 0.6; }
+.cmt-meta {
+  display: block; font-size: var(--t-2xs); color: var(--text-3); margin-top: var(--s-0);
+}
+.cmt-row .icon-btn.on { color: var(--ok); }
+
+/* ---- Design chat transcript (UIUX-80) ---------------------------------- */
+/* The list fills the panel body rather than stopping at a magic 360px, so a
+   docked full-height panel uses the height it has. */
+.chat-log { flex: 1; min-height: 0; overflow-y: auto; margin-bottom: var(--s-2); }
+.chat-turn { border-left-color: var(--border-2); }
+.chat-turn.you { border-left-color: var(--accent); }
+.chat-turn.failed { border-left-color: var(--danger); }
+.chat-who {
+  font-size: var(--t-2xs); color: var(--text-3); margin-bottom: var(--s-1);
+}
+.chat-body { font-size: var(--t-xs); white-space: pre-wrap; }
+.chat-body.pending { color: var(--text-3); }
+.chat-ask { display: flex; gap: var(--s-2); }
+.chat-ask .input { flex: 1; }
+/* The body becomes the flex column the transcript stretches inside, and gives up
+   its own scrolling — `.panel-body` scrolls by default, so leaving that on would
+   nest a second scroll region inside the first. The transcript alone scrolls, and
+   the composer stays pinned at the bottom of the panel. */
+#designChatPanel .panel-body {
+  display: flex; flex-direction: column; min-height: 0; overflow-y: hidden;
+}

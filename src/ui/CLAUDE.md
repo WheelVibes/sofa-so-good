@@ -111,7 +111,11 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   (delete a saved version/slot, delete a saved view, reset/replace the whole
   design) MUST gate on `confirmAction({ title, message, confirmLabel, danger })`
   (`promptSlice`, rendered by `ConfirmModal`) and bail on `false`. Never a
-  blocking `window.confirm`; never silent irreversible deletion.
+  blocking `window.confirm`; never silent irreversible deletion. **Deleting a
+  comment confirms too** (UIUX-80): it was the one delete in the app with neither
+  a prompt nor an Undo toast, on a trash icon wedged 6px from the edit icon in a
+  three-button row — `deleteComment` does push history, but nothing told the user
+  that.
 - **Empty states use the shared `EmptyState`** (`src/ui/EmptyState.tsx`): icon (from the
   `Icon` set) + title + optional one-line description + optional CTA, on the `.empty-mini`
   token vocabulary. Any panel/list that can be empty must render it (don't hand-roll inline
@@ -311,6 +315,19 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   modal should end up with exactly TWO inline `style` objects — the state-driven cursor and the
   divider's clip-path (UIUX-77; they had 6–13 each, including a `borderRadius: 8` matching no
   radius token and legend dots crushed under 4px for want of `flex: none`).
+- **A chat transcript is a live region, and its panel gives up its own scroll.** `DesignChatPanel`'s
+  log carries `role="log"` + `aria-live="polite"` — without it a screen-reader user got no signal
+  that the advisor had replied, or that the request was still running (UIUX-80). Its `.panel-body`
+  becomes a flex column with `overflow-y: hidden` (`.panel-body` scrolls by default, so leaving
+  that on nests a second scroll region) and `.chat-log` takes `flex: 1` — the transcript scrolls
+  and the composer stays pinned. Don't cap the transcript with a magic pixel height: `.aux` already
+  caps the panel at `calc(100vh - 96px)`, and the old `maxHeight: 360` left ~400px of a docked
+  panel empty.
+- **Adjacent icon buttons reach the 44px touch floor by growing, not by `::after` expansion.** The
+  `inset: -9px` phantom hit area is right for a lone panel-head button, but three comment-row
+  actions sit `--s-2` apart, so expanded areas would overlap and a tap aimed at Edit could land on
+  Delete (UIUX-80). Size them for real under `body.mobile` and give the flexing text column
+  `min-width: 0` so it yields the space.
 - **Keyboard focus treatment is `var(--focus-ring)`** (`box-shadow` on `:focus-visible`) —
   no ad-hoc focus rings/outlines on a new control.
 - **Borders.** `--border` is the default hairline (panels, rows, cards, dividers, inputs at

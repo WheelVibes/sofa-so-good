@@ -5,6 +5,48 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.50 — UIUX-80: the AI chat and collaboration panels
+
+Two surfaces no pass had touched. The audit's opening premise was wrong and worth
+recording: both borrow `.clr-list`/`.clr-item` from the Clearance panel, which
+looked like off-system borrowing until a grep showed **nine** panels using them —
+`DrawingCalloutsPanel`'s own docblock even cites them as the shared aux-list
+pattern. It is a naming wart (a shared vocabulary named after its first
+consumer), not a structural fault, and renaming eleven files would be churn. Left
+alone deliberately.
+
+The real findings:
+
+**Deleting a comment had no confirm and no Undo toast** — the only delete in the
+app with neither, on a trash icon sitting 6px from the edit icon in a
+three-button row. `deleteComment` does push history, so it was recoverable, but
+nothing told the user that. It now routes through the same
+`confirmAction({ danger: true })` gate as deleting an item or a saved view.
+
+**Three 26px tap targets on a phone**, with the destructive one last. They grow
+to 44px under `body.mobile` rather than taking the `::after { inset: -9px }`
+hit-area trick used on panel-head buttons: three actions `--s-2` apart would get
+overlapping phantom areas, and a tap aimed at Edit could land on Delete. The text
+column takes `min-width: 0` to yield the space.
+
+**The chat transcript announced nothing.** No `role="log"` and no live region, so
+a screen-reader user got no signal that the advisor had replied or that the
+request was still running. Both are wired now.
+
+**The transcript was capped at a magic `maxHeight: 360`** inside a panel that
+`.aux` already caps at `calc(100vh - 96px)` — on a 1000px-tall window that left
+roughly 400px of the panel empty. The body is now a flex column that gives up its
+own scrolling (`.panel-body` scrolls by default, so keeping it would nest a second
+scroll region) and the log takes the remaining height, so the transcript fills the
+panel and the composer stays pinned. Verified at 904px: log 783px and scrollable,
+composer inside the panel.
+
+Smaller: the ✓ and ✎ actions were bare unicode glyphs next to a real
+`Icon.Trash` in the same row (now `Icon.Check` / `Icon.Edit`); two more dead
+`var(--ok, …)` literal fallbacks are gone; the resolved treatment and row layout
+move to `.cmt-*` classes; and the chat's `!e.shiftKey` send guard was inert — a
+single-line `<input>` has no newline to insert, so Enter always sent.
+
 ## v0.26.2.49 — UIUX-79: the last twelve phantom classes, and a missing frame
 
 Finishing what UIUX-78 started: **`src/` now has zero className tokens with no
