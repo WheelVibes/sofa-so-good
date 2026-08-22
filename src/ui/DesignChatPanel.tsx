@@ -111,7 +111,9 @@ export function DesignChatPanel() {
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // A single-line <input> has no newline to insert, so the old `!e.shiftKey`
+    // guard could never change the outcome — Enter always sends here.
+    if (e.key === 'Enter') {
       e.preventDefault()
       void send()
     }
@@ -136,48 +138,37 @@ export function DesignChatPanel() {
             }
           />
         ) : (
+          // `role="log"` + a polite live region: a chat surface that never
+          // announces the reply leaves a screen-reader user with no idea the
+          // answer arrived, or that the request is still running (UIUX-80).
           <div
             ref={listRef}
-            className="clr-list"
-            style={{ maxHeight: 360, overflowY: 'auto', marginBottom: 'var(--s-2)' }}
+            className="clr-list chat-log"
+            role="log"
+            aria-live="polite"
+            aria-relevant="additions text"
+            aria-label="Design chat transcript"
           >
             {turns.map((t) => (
               <div
                 key={t.id}
-                className="clr-item"
-                style={{
-                  borderLeftColor: t.error
-                    ? 'var(--danger)'
-                    : t.role === 'user'
-                      ? 'var(--accent)'
-                      : 'var(--border-2)',
-                }}
+                className={`clr-item chat-turn ${t.error ? 'failed' : t.role === 'user' ? 'you' : ''}`}
               >
-                <div
-                  className="ci-head"
-                  style={{
-                    fontSize: 'var(--t-2xs)',
-                    color: 'var(--text-3)',
-                    marginBottom: 'var(--s-1)',
-                  }}
-                >
-                  {t.role === 'user' ? 'You' : 'Advisor'}
-                </div>
-                <div style={{ fontSize: 'var(--t-xs)', whiteSpace: 'pre-wrap' }}>{t.content}</div>
+                <div className="ci-head chat-who">{t.role === 'user' ? 'You' : 'Advisor'}</div>
+                <div className="chat-body">{t.content}</div>
               </div>
             ))}
             {busy && (
-              <div className="clr-item" style={{ borderLeftColor: 'var(--border-2)' }}>
-                <div style={{ fontSize: 'var(--t-xs)', color: 'var(--text-3)' }}>Thinking…</div>
+              <div className="clr-item chat-turn">
+                <div className="chat-body pending">Thinking…</div>
               </div>
             )}
           </div>
         )}
-        <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
+        <div className="chat-ask">
           <input
             type="text"
             className="input"
-            style={{ flex: 1 }}
             placeholder="Ask about your design…"
             value={question}
             disabled={busy}

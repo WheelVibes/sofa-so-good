@@ -10,6 +10,7 @@ import { useStore } from '../../../state/store'
 import { Select } from '../../controls/Select'
 import { EmptyState } from '../../EmptyState'
 import { Icon } from '../icons'
+import { SAVED_EMPTY } from '../savedEmptyStates'
 import { shortcutLabel } from '../shortcuts'
 import { MenuItem, MenuLabel, ToolbarMenu } from '../ToolbarMenu'
 
@@ -99,11 +100,7 @@ export function ArrangeMenu() {
             }}
           />
           {userSets.length === 0 ? (
-            <EmptyState
-              icon={Icon.Sets}
-              title="No saved sets yet"
-              description="Select a few pieces, then save."
-            />
+            <EmptyState {...SAVED_EMPTY.sets} />
           ) : (
             userSets.map((u) => (
               <SavedRow
@@ -164,11 +161,7 @@ export function ArrangeMenu() {
         }}
       />
       {userStyles.length === 0 ? (
-        <EmptyState
-          icon={Icon.Style}
-          title="No saved styles yet"
-          description="Finish a room, then save."
-        />
+        <EmptyState {...SAVED_EMPTY.styles} />
       ) : (
         userStyles.map((s) => (
           <SavedRow
@@ -217,7 +210,7 @@ function SavedRow({
   onDelete: () => void
 }) {
   return (
-    <div className="flex items-center gap-1 rounded-md pr-1 hover:bg-[var(--surface-2)]">
+    <div className="flex items-center gap-1 rounded-md pr-1 hover:bg-[var(--surface-3)]">
       <button
         type="button"
         role="menuitem"
@@ -235,7 +228,7 @@ function SavedRow({
         aria-label={deleteLabel}
         title={deleteTitle}
         onClick={onDelete}
-        className="rounded px-1.5 py-1 text-[var(--text-3)] hover:bg-[var(--surface-3)] hover:text-[var(--danger)]"
+        className="icon-btn danger"
       >
         ×
       </button>
@@ -273,7 +266,7 @@ function PickApply({
       />
       <button
         type="button"
-        className="btn btn-soft sm arr-apply"
+        className="btn btn-soft btn-sm arr-apply"
         disabled={!val}
         onClick={() => val && onApply(val)}
       >

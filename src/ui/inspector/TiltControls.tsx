@@ -1,6 +1,7 @@
 /** Pitch + roll sliders for multi-axis furniture tilt (SweetHome3DJS parity). */
 
 import { TILT_LIMIT_DEG } from '../../furniture/tiltRotation'
+import { SliderField } from '../controls/SliderField'
 
 /** Pitch + roll sliders for multi-axis furniture tilt (SweetHome3DJS parity).
  *  Values are stored in radians; the UI works in whole degrees. The range
@@ -31,31 +32,16 @@ export function TiltControls({
     value: number
     onChange: (rad: number) => void
   }) => (
-    <div className="fld" style={{ display: 'block', marginBottom: 'var(--s-1)' }}>
-      <div
-        className="label"
-        style={{
-          fontSize: 'var(--t-2xs)',
-          color: 'var(--text-3)',
-          display: 'flex',
-          justifyContent: 'space-between',
-        }}
-      >
-        <span>{label}</span>
-        <span>{toDeg(value)}°</span>
-      </div>
-      <input
-        type="range"
-        className="slider"
-        aria-label={`${label} (degrees)`}
-        min={-TILT_LIMIT_DEG}
-        max={TILT_LIMIT_DEG}
-        step={1}
-        value={toDeg(value)}
-        onChange={(e) => onChange(toRad(Number(e.target.value)))}
-        style={{ width: '100%' }}
-      />
-    </div>
+    <SliderField
+      label={label}
+      ariaLabel={`${label} (degrees)`}
+      min={-TILT_LIMIT_DEG}
+      max={TILT_LIMIT_DEG}
+      step={1}
+      value={toDeg(value)}
+      onChange={(v) => onChange(toRad(v))}
+      format={(v) => `${v}°`}
+    />
   )
   return (
     <div className="sec" style={{ marginTop: 'var(--s-2)' }}>

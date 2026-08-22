@@ -306,6 +306,32 @@ come out near-black.
   burst. When verifying lighting-only changes, follow them with a no-op store nudge
   or assert via a scene-graph probe (`import('/src/scene/pathtrace/hqRenderSource.ts')`
   → traverse for the light) instead of pixels alone.
+- **CSS transitions screenshot at their START value right after a store-driven style flip**
+  (UIUX-38 theme-matrix sweep): headless Chromium renders no frames between scenario steps
+  (demand frameloop, nothing invalidates), and a CSS transition only *begins* on the first
+  rendered frame after its style change — so a `wait` step passes wall-clock time without
+  advancing it, and the screenshot itself forces the first frame, capturing frame zero. Concretely:
+  flipping `[data-mode]` dark and screenshotting 400ms later showed the seg pill's active label
+  still at the LIGHT theme's `--text` (its `transition: all .16s` was `playState: running` with
+  the light value 400ms in), while non-transitioned properties on neighbours had already switched —
+  a convincing fake "theme contrast bug" that getComputedStyle probes + a SECOND screenshot proved
+  transient. After any theme/mode/state flip whose properties transition, force a frame before the
+  real shot: run any `eval` that forces style recalc (`getComputedStyle(el).color`) followed by a
+  short `wait`, or take a throwaway screenshot first — and if a shot still looks wrong, re-probe
+  computed style *after* it before diagnosing a token bug. In a MULTI-theme contact-sheet sweep
+  this applies between EVERY flip: a `{theme flip} → wait → screenshot` chain reproduces the fake
+  bug on each panel after the first (re-hit in the UIUX-56 sweep) — interleave a forced-recalc
+  eval (`void getComputedStyle(document.body).color`) + wait, or shoot each theme twice and keep
+  the second.
+- **`querySelector('.plan-screen svg')` grabs a header ICON, not the plan canvas** (UIUX-19b):
+  the plan screen renders many svgs before the drawing surface — the header buttons' icon
+  svgs, the North compass, the scale bar — so the first-match selector dispatches your
+  synthetic pointer event on a toolbar icon and it never bubbles through the canvas svg's
+  React `onPointerMove`/`onPointerUp` (the gesture silently does nothing; `plan-furniture-rotate`
+  failed its rotate rung this way for weeks while its pointerdown — dispatched on the knob
+  inside the real canvas — worked fine). Target **`.plan-canvas svg`** for plan-canvas
+  pointer events. Symptom signature: the down-handler's side effects fire (history pushed,
+  drag state armed) but move/up handlers never run.
 - **R3F raycasts don't fire for synthetic DOM events** — `click` by text/selector
   clicks a real DOM element fine, but clicking the Three.js canvas does NOT trigger
   `onPointerDown`/`onClick` on 3D objects (meshes). Use store actions (`store` step)

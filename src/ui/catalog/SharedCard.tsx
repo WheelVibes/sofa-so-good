@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { type CSSProperties, useState } from 'react'
 import type { SharedLibraryItem } from '../../catalog/packs/sharedLibrary'
 import { assetUrl } from '../../features/api/client'
 import { useFeature } from '../../features/useFeature'
@@ -31,6 +31,7 @@ export function SharedCard({ item, onResolved, staggerIndex }: Props) {
   const saved = useStore((s) => s.favouriteDefIds.includes(favId))
   const toggleFavourite = useStore((s) => s.toggleFavourite)
   const thumb = item.thumbnail ? assetUrl(`ikea/${item.group}/${item.thumbnail}`) : null
+  const [thumbLoaded, setThumbLoaded] = useState(false)
 
   const onClick = async () => {
     if (state === 'adding') return
@@ -75,10 +76,14 @@ export function SharedCard({ item, onResolved, staggerIndex }: Props) {
       <div className="card-thumb photo">
         <CatalogSourcePill label="IKEA" />
         {thumb ? (
-          <img src={thumb} alt={item.name} loading="lazy" />
+          <img src={thumb} alt={item.name} loading="lazy" onLoad={() => setThumbLoaded(true)} />
         ) : (
           <CategoryIcon category={category} width={40} height={40} />
         )}
+        {/* Skeleton shimmer until the proxied photo's bytes actually land
+            (UIUX-27, matching RemoteCard) — the lazy <img> is otherwise an
+            invisible box for its whole network wait. */}
+        {thumb && !thumbLoaded ? <span className="skeleton" aria-hidden /> : null}
         {state === 'adding' ? (
           <span className="thumb-status">Adding…</span>
         ) : state === 'error' ? (

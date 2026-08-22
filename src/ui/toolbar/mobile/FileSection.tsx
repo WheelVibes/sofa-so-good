@@ -9,6 +9,7 @@ import { captureThumb, deleteThumb, saveThumb } from '../../../state/storage/slo
 import { useStore } from '../../../state/store'
 import { resolveToolLabel, toolAction } from '../../actions/toolActions'
 import { downloadBoqXlsx } from '../../downloadBoqXlsx'
+import { EmptyState } from '../../EmptyState'
 import { openBoq } from '../../openBoq'
 import { downloadCostBreakdownCsv } from '../../openCostBreakdownCsv'
 import { downloadFfeCsv } from '../../openFfeCsv'
@@ -23,7 +24,9 @@ import { openSh3fImport } from '../../openSh3fImport'
 import { openShoppingList } from '../../openShoplist'
 import { openTradePack } from '../../openTradePack'
 import { TRADE_PACKS } from '../../tradePacks'
+import { exportGroupLabel } from '../exportGroupLabel'
 import { Icon } from '../icons'
+import { SAVED_EMPTY } from '../savedEmptyStates'
 import { Item, Section, SubHeader } from './parts'
 
 /** File — every OUTPUT lives here (TB-5, mirrors the desktop FileMenu): save /
@@ -101,6 +104,15 @@ export function FileSection({
     s.getState().notify.start({ title: `Loaded “${slot}”`, kind: 'success' })
   }
   const deleteLayout = async (slot: string) => {
+    // Irreversible: gate on the confirm modal (P35 destructive-confirmation
+    // policy; see src/ui/CLAUDE.md).
+    const ok = await s.getState().confirmAction({
+      title: 'Delete this layout?',
+      message: `“${slot}” will be permanently deleted. This can't be undone.`,
+      confirmLabel: 'Delete layout',
+      danger: true,
+    })
+    if (!ok) return
     await storage.delete(slot)
     deleteThumb(slot)
     refreshSlots()
@@ -285,7 +297,11 @@ export function FileSection({
         />
       ) : null}
 
-      {fDxf || fSceneExport || fShopExport ? <SubHeader>CAD, 3D &amp; data</SubHeader> : null}
+      {fDxf || fSceneExport || fShopExport ? (
+        <SubHeader>
+          {exportGroupLabel({ cad: fDxf, threeD: fSceneExport, data: fShopExport })}
+        </SubHeader>
+      ) : null}
       {fDxf ? (
         <Item
           icon="Export"
@@ -295,12 +311,25 @@ export function FileSection({
         />
       ) : null}
       {fSceneExport ? (
-        <Item
-          icon="Export"
-          label="Export 3D model (.glb)"
-          sub="Whole furnished scene for Blender / AR / Coohom"
-          onClick={act(() => void exportScene3d('glb'))}
-        />
+        <>
+          <Item
+            icon="Export"
+            label="Export 3D model (.glb)"
+            sub="Whole furnished scene for Blender / AR / Coohom"
+            onClick={act(() => void exportScene3d('glb'))}
+          />
+          {/* Desktop parity (UIUX-73) — and the format that most needs to be
+              HERE: iOS AR Quick Look only opens a .usdz on a phone/tablet, yet
+              the row existed on desktop only. The geometry-only CAD formats
+              (.obj/.stl, `sceneExportCad`) stay desktop-only on purpose: no
+              phone use case for a Wavefront OBJ. */}
+          <Item
+            icon="Export"
+            label="Export for AR (.usdz)"
+            sub="View in your room — iOS AR Quick Look"
+            onClick={act(() => void exportScene3d('usdz'))}
+          />
+        </>
       ) : null}
       {fShopExport ? (
         <>
@@ -371,7 +400,7 @@ export function FileSection({
       />
       <div className="m-sub-h">Saved layouts</div>
       {slots.length === 0 ? (
-        <div className="m-empty">No saved layouts.</div>
+        <EmptyState {...SAVED_EMPTY.layouts} />
       ) : (
         slots
           .slice()

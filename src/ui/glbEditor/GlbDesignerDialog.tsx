@@ -1,4 +1,7 @@
+import { useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useModalGuard } from '../../controls/modalGuard'
+import { useDialogFocus } from '../../controls/useDialogFocus'
 import { Icon } from '../toolbar/icons'
 import { ArrangePanel } from './ArrangePanel'
 import { CombinePanel } from './CombinePanel'
@@ -40,11 +43,18 @@ export function GlbDesignerDialog() {
  *  open + flag-enabled; the provider above stays mounted so its hooks are stable. */
 function DesignerDialogFrame() {
   const { open, enabled, isMobile, close } = useDesigner()
-  if (!open || !enabled) return null
+  const shown = open && enabled
+  const panelRef = useRef<HTMLDivElement>(null)
+  // Custom .modal-overlay (not the shared Modal): suppress global hotkeys and
+  // manage focus ourselves while shown (UIUX-3; see src/ui/CLAUDE.md).
+  useModalGuard(shown)
+  useDialogFocus(shown, panelRef)
+  if (!shown) return null
 
   return createPortal(
     <div className="modal-overlay" onClick={close}>
       <div
+        ref={panelRef}
         className="panel glb-designer"
         onClick={(e) => e.stopPropagation()}
         style={{

@@ -89,7 +89,7 @@ export function ScalePlanModal({ open, onClose }: { open: boolean; onClose: () =
   }
 
   return (
-    <Modal open onClose={onClose} title="Scale plan" width={380}>
+    <Modal open onClose={onClose} title="Scale plan" width="var(--modal-sm)">
       <form
         onSubmit={(e) => {
           e.preventDefault()

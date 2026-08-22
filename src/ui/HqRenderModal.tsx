@@ -13,6 +13,7 @@ import { getHqRenderSource } from '../scene/pathtrace/hqRenderSource'
 import { useStore } from '../state/store'
 import { Button } from './controls/Button'
 import { Select } from './controls/Select'
+import { ShimmerText } from './controls/ShimmerText'
 import { Modal } from './Modal'
 import { useAmbientFx } from './useAmbientFx'
 
@@ -234,10 +235,10 @@ export function HqRenderModal() {
       onClose={() => setOpen(false)}
       title="HQ render"
       sub="Path-traced photoreal still of the current view — let samples accumulate, save any time"
-      width={760}
+      width="var(--modal-lg)"
       panelId="hq-render"
       footer={
-        <div className="flex items-center justify-between gap-2" style={{ width: '100%' }}>
+        <div className="panel-foot" style={{ justifyContent: 'space-between' }}>
           <div className="flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
             <Select
               className="input"
@@ -276,10 +277,7 @@ export function HqRenderModal() {
                   options={FSTOP_PRESETS.map((d) => ({ value: String(d.v), label: d.label }))}
                 />
                 {dofOn ? (
-                  <label
-                    className="panel-sub flex items-center gap-1"
-                    style={{ textTransform: 'none', letterSpacing: 0 }}
-                  >
+                  <label className="panel-sub flex items-center gap-1 plain">
                     <input
                       type="checkbox"
                       checked={dofAuto}
@@ -291,10 +289,7 @@ export function HqRenderModal() {
                   </label>
                 ) : null}
                 {dofOn && !dofAuto ? (
-                  <label
-                    className="panel-sub flex items-center gap-1"
-                    style={{ textTransform: 'none', letterSpacing: 0 }}
-                  >
+                  <label className="panel-sub flex items-center gap-1 plain">
                     Focus
                     <input
                       className="input"
@@ -371,36 +366,34 @@ export function HqRenderModal() {
         {beamOn ? <span ref={beamRef} className="beam" aria-hidden="true" /> : null}
         {phase !== 'rendering' && phase !== 'done' ? (
           <div
-            className="panel-sub"
+            className="panel-sub plain"
             style={{
               position: 'absolute',
               inset: 0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              textTransform: 'none',
-              letterSpacing: 0,
               textAlign: 'center',
               padding: 16,
             }}
           >
-            {phase === 'building'
-              ? 'Preparing scene (building BVH)…'
-              : phase === 'denoising'
-                ? 'Denoising (OIDN AI)…'
-                : phase === 'error'
-                  ? errorKind === 'blank'
-                    ? "The render came back blank — this device's graphics driver may not support the high-quality renderer. The PNG export in File still works."
-                    : 'Could not start the render — your device may not support WebGL2. The PNG export in File still works.'
-                  : 'Pick a resolution and quality, then Start render. Higher samples = cleaner image, longer wait.'}
+            {phase === 'building' ? (
+              <ShimmerText>Preparing scene (building BVH)…</ShimmerText>
+            ) : phase === 'denoising' ? (
+              <ShimmerText>Denoising (OIDN AI)…</ShimmerText>
+            ) : phase === 'error' ? (
+              errorKind === 'blank' ? (
+                "The render came back blank — this device's graphics driver may not support the high-quality renderer. The PNG export in File still works."
+              ) : (
+                'Could not start the render — your device may not support WebGL2. The PNG export in File still works.'
+              )
+            ) : (
+              'Pick a resolution and quality, then Start render. Higher samples = cleaner image, longer wait.'
+            )}
           </div>
         ) : null}
       </div>
-      <div
-        className="panel-sub"
-        style={{ textTransform: 'none', letterSpacing: 0, marginTop: 8 }}
-        aria-live="polite"
-      >
+      <div className="panel-sub plain" style={{ marginTop: 8 }} aria-live="polite">
         {samples > 0 ? `${samples} / ${maxSamples} samples` : ' '}
       </div>
     </Modal>

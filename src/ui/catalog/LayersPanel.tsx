@@ -1,4 +1,4 @@
-import { type CSSProperties, useMemo, useState } from 'react'
+import { type CSSProperties, useMemo, useRef, useState } from 'react'
 import { ROOMS } from '../../apartment/constants'
 import type { RoomId } from '../../apartment/types'
 import { useFeature } from '../../features/useFeature'
@@ -12,6 +12,7 @@ import {
   readFinishDragPayload,
 } from '../../state/finishDropApply'
 import { useStore } from '../../state/store'
+import { useFlip } from '../controls/useFlip'
 import { EmptyState } from '../EmptyState'
 import { Icon } from '../toolbar/icons'
 import { CategoryIcon } from './CategoryIcon'
@@ -84,6 +85,18 @@ export function LayersPanel() {
     : groups
   const matchCount = visibleGroups.reduce((n, g) => n + g.items.length, 0)
 
+  // FLIP row movement (UIUX-36): rows glide to their new slot on reorder /
+  // filter / collapse instead of teleporting. Keyed on the visible row order.
+  const lyrBodyRef = useRef<HTMLDivElement>(null)
+  const flipKey = useMemo(
+    () =>
+      visibleGroups
+        .map((g) => `${g.key}:${collapsed[g.key] ? 'c' : g.items.map((it) => it.id).join(',')}`)
+        .join('|'),
+    [visibleGroups, collapsed],
+  )
+  useFlip(lyrBodyRef, flipKey)
+
   return (
     <>
       {items.length > 0 ? (
@@ -100,7 +113,7 @@ export function LayersPanel() {
           </div>
         </div>
       ) : null}
-      <div className="lyr-body">
+      <div className="lyr-body" ref={lyrBodyRef}>
         {groups.length === 0 ? (
           <EmptyState
             icon={Icon.Layers}
@@ -182,13 +195,11 @@ export function LayersPanel() {
                     return (
                       <div
                         key={it.id}
+                        data-flip-id={it.id}
                         className={`lyr-row${selected ? ' sel' : ''}${
                           hiddenSet.has(it.id) ? ' hidden' : ''
                         }`}
                         style={{ '--i': idx } as CSSProperties}
-                        onClick={(e) =>
-                          e.metaKey || e.ctrlKey ? toggleSelectedItem(it.id) : selectItem(it.id)
-                        }
                         onDragOver={(e) => {
                           if (fFinishDnd && isFinishDrag(e.dataTransfer)) {
                             e.preventDefault()
@@ -203,16 +214,29 @@ export function LayersPanel() {
                           applyFinishDrop(it.id, e.dataTransfer)
                         }}
                       >
-                        <span className="lyr-ic">
-                          {def ? (
-                            <CategoryIcon category={def.category} width={14} height={14} />
-                          ) : (
-                            <Icon.Cube width={14} height={14} />
-                          )}
-                        </span>
-                        <span className="lyr-nm" title={itemLabel(it)}>
-                          {itemLabel(it)}
-                        </span>
+                        {/* Primary select action is a real button (UIUX-41) so a
+                            keyboard user can Tab to an object and Enter-select it;
+                            the row div stays the drag-and-drop finish target
+                            (drop zones must be a <div>, src/ui/CLAUDE.md). */}
+                        <button
+                          type="button"
+                          className="lyr-sel"
+                          aria-pressed={selected}
+                          onClick={(e) =>
+                            e.metaKey || e.ctrlKey ? toggleSelectedItem(it.id) : selectItem(it.id)
+                          }
+                        >
+                          <span className="lyr-ic">
+                            {def ? (
+                              <CategoryIcon category={def.category} width={14} height={14} />
+                            ) : (
+                              <Icon.Cube width={14} height={14} />
+                            )}
+                          </span>
+                          <span className="lyr-nm" title={itemLabel(it)}>
+                            {itemLabel(it)}
+                          </span>
+                        </button>
                         <span className="lyr-acts">
                           <button
                             type="button"

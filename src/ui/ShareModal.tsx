@@ -12,6 +12,7 @@ import { exportDesignToFile } from '../state/storage/designFile'
 import { useStore } from '../state/store'
 import { AiPhotorealSection } from './ai/AiPhotorealSection'
 import { Segmented } from './controls/Segmented'
+import { useCopiedFlash } from './controls/useCopiedFlash'
 import { Modal } from './Modal'
 import { openDesignReport } from './openReport'
 import { exportScene3d } from './openSceneExport'
@@ -67,6 +68,12 @@ export function ShareModal() {
 
   const toast = (title: string) => useStore.getState().notify.start({ title, kind: 'success' })
 
+  // Inline copy-confirmation morphs (UIUX-25) — one per copy control so two
+  // quick copies don't flash the wrong button.
+  const link3d = useCopiedFlash()
+  const linkPlan = useCopiedFlash()
+  const summaryFlash = useCopiedFlash()
+
   // A self-contained share link: the whole design (furniture, finishes, plan) is
   // encoded into the URL hash, so opening it on any device/instance reconstructs
   // it — no account or server (see features/planShare).
@@ -74,6 +81,7 @@ export function ShareModal() {
     try {
       const url = buildPlanShareUrl(encodeDesignToCode(useStore.getState()))
       void navigator.clipboard?.writeText(url)
+      linkPlan.flash()
       toast('Plan link copied — opens this exact design anywhere')
     } catch (e) {
       useStore.getState().notify.start({
@@ -91,6 +99,7 @@ export function ShareModal() {
     try {
       const url = buildDesignShareUrl(encodeDesignShareCode(useStore.getState()))
       void navigator.clipboard?.writeText(url)
+      link3d.flash()
       toast('3D link copied — opens an editable copy of this design')
     } catch (e) {
       useStore.getState().notify.start({
@@ -110,6 +119,7 @@ export function ShareModal() {
     const s = useStore.getState()
     const text = buildShareSummary(s.floorPlan, s.items, buildMergedCatalog(s), s.units)
     void navigator.clipboard?.writeText(text)
+    summaryFlash.flash()
     toast('Summary copied to clipboard')
   }
 
@@ -121,7 +131,7 @@ export function ShareModal() {
       onClose={() => setOpen(false)}
       title="Share design"
       sub={planName}
-      width={440}
+      width="var(--modal-sm)"
       panelId="sharePanel"
     >
       <div className="sec">
@@ -140,8 +150,12 @@ export function ShareModal() {
           device. No account needed; the whole design travels in the link.
         </p>
         <button type="button" className="btn btn-accent btn-block" onClick={copy3dLink}>
-          <Icon.Copy width={14} height={14} />
-          Copy 3D link
+          {link3d.copied ? (
+            <Icon.Check className="done-pop" width={14} height={14} />
+          ) : (
+            <Icon.Copy width={14} height={14} />
+          )}
+          {link3d.copied ? 'Copied!' : 'Copy 3D link'}
         </button>
         <button
           type="button"
@@ -149,8 +163,12 @@ export function ShareModal() {
           onClick={copyPlanLink}
           style={{ marginTop: 'var(--s-2)' }}
         >
-          <Icon.Copy width={14} height={14} />
-          Copy plan link
+          {linkPlan.copied ? (
+            <Icon.Check className="done-pop" width={14} height={14} />
+          ) : (
+            <Icon.Copy width={14} height={14} />
+          )}
+          {linkPlan.copied ? 'Copied!' : 'Copy plan link'}
         </button>
         <p
           style={{
@@ -292,8 +310,12 @@ export function ShareModal() {
             </button>
           )}
           <button type="button" className="btn btn-soft" onClick={copySummary}>
-            <Icon.Copy width={14} height={14} />
-            Copy summary
+            {summaryFlash.copied ? (
+              <Icon.Check className="done-pop" width={14} height={14} />
+            ) : (
+              <Icon.Copy width={14} height={14} />
+            )}
+            {summaryFlash.copied ? 'Copied!' : 'Copy summary'}
           </button>
         </div>
       </div>

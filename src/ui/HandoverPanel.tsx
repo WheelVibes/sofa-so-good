@@ -81,13 +81,17 @@ export function HandoverPanel() {
         />
         {/* SG-readable confirmation of the picked date (the native control
             renders in the browser's own locale, which may show US m/d/y —
-            UXW-P3-6). `12 Jul 2027` (en-GB) is unambiguous either way. */}
-        <div className="ho-date-note">
-          {(() => {
-            const d = parseKeyDate(keyDate)
-            return d ? `Collection day: ${formatHandoverDate(d)}` : 'Format: day / month / year'
-          })()}
-        </div>
+            UXW-P3-6). `12 Jul 2027` (en-GB) is unambiguous either way. Shown
+            only once a date exists — the old empty-state fallback claimed
+            "day / month / year" while the control itself shows the browser
+            locale's placeholder (mm/dd/yyyy on en-US), contradicting the very
+            field it annotated (UIUX-53). */}
+        {(() => {
+          const d = parseKeyDate(keyDate)
+          return d ? (
+            <div className="ho-date-note">Collection day: {formatHandoverDate(d)}</div>
+          ) : null
+        })()}
 
         {dates ? (
           <>

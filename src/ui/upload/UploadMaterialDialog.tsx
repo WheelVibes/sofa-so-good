@@ -107,16 +107,16 @@ export function UploadMaterialDialog({ open, onClose }: UploadMaterialDialogProp
       open={open}
       onClose={close}
       title="Upload material"
-      width={448}
+      width="var(--modal-sm)"
       footer={
-        <footer className="flex justify-end gap-2 px-[var(--s-4)] py-[var(--s-3)]">
+        <footer className="panel-foot">
           <button onClick={close} className="btn" disabled={busy} type="button">
             Cancel
           </button>
           <button
             onClick={submit}
             disabled={busy || !albedo || !name.trim()}
-            className="rounded btn btn-accent disabled:opacity-40"
+            className="btn btn-accent"
             type="button"
           >
             {busy ? 'Saving…' : 'Save'}

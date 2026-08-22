@@ -554,13 +554,6 @@ export function DesignerViewport() {
       {dims ? (
         <div
           className="badge neutral mono dv-ov dv-ov-dims"
-          style={{
-            position: 'absolute',
-            bottom: 8,
-            left: 8,
-            fontSize: 'var(--t-2xs)',
-            fontVariantNumeric: 'tabular-nums',
-          }}
           role="status"
           aria-label="Selection dimensions"
         >

@@ -80,6 +80,7 @@ import { useDeferredSceneSwap } from './ui/loading/useDeferredSceneSwap'
 import { NavCluster } from './ui/NavCluster'
 import { NotificationContainer } from './ui/notifications/NotificationContainer'
 import { Onboarding } from './ui/Onboarding'
+import { OnboardingChecklist } from './ui/OnboardingChecklist'
 import { PresentationMode } from './ui/PresentationMode'
 import { PromptModal } from './ui/PromptModal'
 import { QuoteTemplateModal } from './ui/QuoteTemplateModal'
@@ -355,6 +356,7 @@ export default function App() {
           <DragHud />
           <ResizeHud />
           <BudgetHud />
+          <OnboardingChecklist />
           <TapeModeToggle />
           <Crosshair />
           <WalkJoystick />

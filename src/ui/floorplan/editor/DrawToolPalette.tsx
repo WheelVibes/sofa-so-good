@@ -11,6 +11,39 @@ export interface MepSelection {
 }
 
 /**
+ * The three always-visible tools. `on` is the single source for both the visual
+ * `.on` class and `aria-pressed`, so the two can't disagree; 'scale' shares the
+ * Select button because scaling is a select-mode gesture.
+ */
+const SIMPLE_TOOLS: {
+  t: Tool
+  label: string
+  title: string
+  on: (tool: Tool) => boolean
+  icon?: true
+}[] = [
+  {
+    t: 'select',
+    label: 'Select',
+    title: 'Select / move — click an element to select it, drag to move',
+    on: (tool) => tool === 'select' || tool === 'scale',
+    icon: true,
+  },
+  {
+    t: 'wall',
+    label: 'Wall',
+    title: 'Wall — drag to draw; snaps to 15° angles (hold Shift for any angle)',
+    on: (tool) => tool === 'wall',
+  },
+  {
+    t: 'split',
+    label: 'Split',
+    title: 'Split — click a wall to split it in two',
+    on: (tool) => tool === 'split',
+  },
+]
+
+/**
  * Desktop drawing-tool palette: Select/Wall/Split as direct buttons, plus the
  * Room / Opening / Markup / MEP tool groups collapsed into labelled `PlanMenu`
  * dropdowns so the toolbar stays a single row. Extracted from `FloorPlanEditor`
@@ -85,34 +118,31 @@ export function DrawToolPalette({
   ]
 
   return (
-    <div className="flex items-center gap-1" style={{ marginLeft: 4 }}>
+    <div className="draw-tools">
       <div className="seg accent">
-        <button
-          type="button"
-          onClick={() => onPick('select')}
-          className={tool === 'select' || tool === 'scale' ? 'on' : ''}
-          title="Select / move — click an element to select it, drag to move"
-          aria-label="Select"
-          aria-pressed={tool === 'select'}
-        >
-          <Icon.Select width={16} height={16} />
-        </button>
-        <button
-          type="button"
-          onClick={() => onPick('wall')}
-          className={tool === 'wall' ? 'on' : ''}
-          title="Wall — drag to draw; snaps to 15° angles (hold Shift for any angle)"
-        >
-          Wall
-        </button>
-        <button
-          type="button"
-          onClick={() => onPick('split')}
-          className={tool === 'split' ? 'on' : ''}
-          title="Split — click a wall to split it in two"
-        >
-          Split
-        </button>
+        {/* These three are toggle buttons, not a Segmented radiogroup: the real
+            tool state space also includes every tool in the dropdowns below, so
+            a radiogroup over three of ten would misreport it. `aria-pressed`
+            must therefore track the SAME condition as the visual `on` class on
+            every button — the Select button previously rendered `on` for the
+            'scale' tool while reporting aria-pressed=false, so a screen-reader
+            user saw an unpressed button the sighted user saw lit (UIUX-75). */}
+        {SIMPLE_TOOLS.map((x) => {
+          const on = x.on(tool)
+          return (
+            <button
+              key={x.t}
+              type="button"
+              onClick={() => onPick(x.t)}
+              className={on ? 'on' : ''}
+              title={x.title}
+              aria-label={x.icon ? x.label : undefined}
+              aria-pressed={on}
+            >
+              {x.icon ? <Icon.Select width={16} height={16} /> : x.label}
+            </button>
+          )
+        })}
       </div>
       {toolGroups.map((g) => (
         <PlanMenu

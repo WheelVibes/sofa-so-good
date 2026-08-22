@@ -10,7 +10,11 @@ import type {
 } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { safeUrl } from '../../utils/safeUrl'
+import { Button } from '../controls/Button'
 import { ColorPicker } from '../controls/ColorPicker'
+import { Disclosure } from '../controls/Disclosure'
+import { EmptyState } from '../EmptyState'
+import { Icon } from '../toolbar/icons'
 import { finishOverrideKey, variantProps } from './ikeaBodyProps'
 
 interface IkeaBodyProps {
@@ -36,72 +40,74 @@ function IkeaProductInfoDetails({ info }: { info: IkeaProductInfo }) {
   // crafted `data:`/`javascript:` URL can't slip into an `<img src>`.
   const mainImageUrl = safeUrl(info.mainImageUrl)
   return (
-    <details className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-[10px] text-[var(--text-2)]">
-      <summary className="cursor-pointer text-xs font-medium text-[var(--text-2)]">
-        Product info
-      </summary>
-      <div className="mt-1.5 space-y-1.5">
+    <Disclosure summary="Product info">
+      <div
+        className="mt-1.5 space-y-1.5"
+        style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-2)' }}
+      >
         {info.categoryConfidence === 'low' ? (
-          <p className="insp-warn-text text-[10px]">⚠ Category auto-detected — review.</p>
+          <p className="insp-warn-text">⚠ Category auto-detected — review.</p>
         ) : null}
         {mainImageUrl ? (
           <img
             src={mainImageUrl}
             alt=""
             width={96}
-            className="rounded border border-[var(--border)]"
+            style={{ borderRadius: 'var(--r-2)', border: '1px solid var(--border)' }}
           />
         ) : null}
         {info.series ? (
           <p>
-            <span className="text-[var(--text-3)]">Series:</span> {info.series}
+            <span style={{ color: 'var(--text-3)' }}>Series:</span> {info.series}
           </p>
         ) : null}
         {info.styleGroup ? (
           <p>
-            <span className="text-[var(--text-3)]">Style:</span> {info.styleGroup}
+            <span style={{ color: 'var(--text-3)' }}>Style:</span> {info.styleGroup}
           </p>
         ) : null}
         {info.designer ? (
           <p>
-            <span className="text-[var(--text-3)]">Designer:</span> {info.designer}
+            <span style={{ color: 'var(--text-3)' }}>Designer:</span> {info.designer}
           </p>
         ) : null}
         {info.size ? (
           <p>
-            <span className="text-[var(--text-3)]">Size:</span> {info.size}
+            <span style={{ color: 'var(--text-3)' }}>Size:</span> {info.size}
           </p>
         ) : null}
-        {info.description ? <p className="leading-snug">{info.description}</p> : null}
+        {info.description ? (
+          <p style={{ lineHeight: 'var(--lh-body)' }}>{info.description}</p>
+        ) : null}
         {measurements.length ? (
           <div>
-            <div className="text-[var(--text-3)]">Measurements</div>
+            <div style={{ color: 'var(--text-3)' }}>Measurements</div>
             {measurements.map(([k, v]) => (
               <div key={k} className="flex justify-between gap-2">
                 <span>{k}</span>
-                <span className="font-mono">{v}</span>
+                <span className="mono">{v}</span>
               </div>
             ))}
           </div>
         ) : null}
         {info.materials?.length ? (
           <div>
-            <div className="text-[var(--text-3)]">Materials</div>
+            <div style={{ color: 'var(--text-3)' }}>Materials</div>
             {info.materials.map((m, i) => (
               <p key={i}>
-                <span className="text-[var(--text-3)]">{m.part}:</span> {m.composition}
+                <span style={{ color: 'var(--text-3)' }}>{m.part}:</span> {m.composition}
               </p>
             ))}
           </div>
         ) : null}
         {info.careInstructions ? (
           <p>
-            <span className="text-[var(--text-3)]">Care:</span> {info.careInstructions}
+            <span style={{ color: 'var(--text-3)' }}>Care:</span> {info.careInstructions}
           </p>
         ) : null}
         {info.documents?.length ? (
           <div>
-            <div className="text-[var(--text-3)]">Documents</div>
+            <div style={{ color: 'var(--text-3)' }}>Documents</div>
             {info.documents.map((d, i) => {
               const href = safeUrl(d.url)
               return href ? (
@@ -110,12 +116,16 @@ function IkeaProductInfoDetails({ info }: { info: IkeaProductInfo }) {
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block text-[var(--accent-soft-text)] hover:underline"
+                  style={{
+                    display: 'block',
+                    color: 'var(--accent-soft-text)',
+                    textDecoration: 'underline',
+                  }}
                 >
                   {d.name} (PDF)
                 </a>
               ) : (
-                <span key={i} className="block text-[var(--text-3)]">
+                <span key={i} style={{ display: 'block', color: 'var(--text-3)' }}>
                   {d.name} (PDF)
                 </span>
               )
@@ -125,14 +135,14 @@ function IkeaProductInfoDetails({ info }: { info: IkeaProductInfo }) {
         {info.rating ? (
           <p>
             {'★'.repeat(Math.round(info.rating.value))}
-            <span className="text-[var(--text-3)]">
+            <span style={{ color: 'var(--text-3)' }}>
               {' '}
               {info.rating.value}/{info.rating.max} · {info.rating.count} reviews
             </span>
           </p>
         ) : null}
       </div>
-    </details>
+    </Disclosure>
   )
 }
 
@@ -193,7 +203,7 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
       {/* (a) Finish picker */}
       {finishVariants.length > 1 ? (
         <div>
-          <div className="mb-1 text-[10px] uppercase tracking-wide text-[var(--text-3)]">
+          <div className="panel-sub" style={{ marginBottom: 'var(--s-1)' }}>
             Finish
           </div>
           {/* biome-ignore lint/a11y/useSemanticElements: a <fieldset> needs a
@@ -204,25 +214,29 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
             {finishVariants.map((v) => {
               const isActive = v.finish === current
               return (
-                <button
+                <Button
                   key={v.finish}
-                  type="button"
+                  size="sm"
                   title={v.label}
                   aria-pressed={isActive}
+                  className={isActive ? 'on' : ''}
                   onClick={() => selectVariant(v)}
-                  className={`flex items-center gap-1 rounded border px-1.5 py-1 text-[10px] ${
-                    isActive
-                      ? 'border-[var(--accent)] ring-1 ring-[var(--accent)]'
-                      : 'border-[var(--border)]'
-                  } hover:border-[var(--accent)]`}
+                  icon={
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: 12,
+                        height: 12,
+                        flex: 'none',
+                        borderRadius: 'var(--r-1)',
+                        border: '1px solid var(--border-2)',
+                        backgroundColor: v.swatchHex ?? 'var(--surface-3)',
+                      }}
+                    />
+                  }
                 >
-                  <span
-                    className="h-3 w-3 rounded-sm border border-[var(--border-2)]"
-                    aria-hidden="true"
-                    style={{ backgroundColor: v.swatchHex ?? 'var(--surface-3)' }}
-                  />
                   {v.label}
-                </button>
+                </Button>
               )
             })}
           </div>
@@ -232,7 +246,7 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
       {/* (b) Recolour (per-component) OR global tint */}
       {multiMaterial && variant ? (
         <div>
-          <div className="mb-1 text-[10px] uppercase tracking-wide text-[var(--text-3)]">
+          <div className="panel-sub" style={{ marginBottom: 'var(--s-1)' }}>
             Recolour
           </div>
           <div className="space-y-1">
@@ -242,7 +256,11 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
                 typeof item.props[key] === 'string' ? (item.props[key] as string) : ''
               const value = override || m.hex || m.sampledHex || '#ffffff'
               return (
-                <div key={m.name} className="flex items-center justify-between gap-2 text-xs">
+                <div
+                  key={m.name}
+                  className="flex items-center justify-between gap-2"
+                  style={{ fontSize: 'var(--t-sm)' }}
+                >
                   <span className="flex-1 truncate" title={m.name}>
                     {m.name}
                   </span>
@@ -257,7 +275,10 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between gap-2 text-xs">
+        <div
+          className="flex items-center justify-between gap-2"
+          style={{ fontSize: 'var(--t-sm)' }}
+        >
           <span className="flex-1">Tint</span>
           <ColorPicker
             value={tint || '#ffffff'}
@@ -265,18 +286,18 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
             ariaLabel="Tint"
           />
           {tint ? (
-            <button
-              onClick={() => updateItemProps(item.id, { tint: '' })}
-              className="text-[10px] text-[var(--text-3)] hover:text-[var(--text-2)]"
-            >
+            <Button size="sm" onClick={() => updateItemProps(item.id, { tint: '' })}>
               clear
-            </button>
+            </Button>
           ) : null}
         </div>
       )}
 
       {/* (c) Scale */}
-      <label className="flex items-center justify-between gap-2 text-xs">
+      <label
+        className="flex items-center justify-between gap-2"
+        style={{ fontSize: 'var(--t-sm)' }}
+      >
         <span className="flex-1">Scale</span>
         <input
           type="range"
@@ -285,9 +306,9 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
           step={0.05}
           value={scale}
           onChange={(e) => updateItemProps(item.id, { scale: Number(e.target.value) })}
-          className="flex-1 accent-[var(--accent)]"
+          className="slider flex-1"
         />
-        <span className="w-12 text-right font-mono">{scale.toFixed(2)}×</span>
+        <span className="mono w-12 text-right">{scale.toFixed(2)}×</span>
       </label>
 
       {/* (d) Product info */}
@@ -295,15 +316,17 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
 
       {/* (e) Complete with */}
       {showCompleteWith ? (
-        <div className="border-t border-[var(--border)] pt-2">
-          <div className="mb-1 text-[10px] uppercase tracking-wide text-[var(--text-3)]">
-            Complete with
+        <div className="sec">
+          <div className="sec-h">
+            <span>Complete with</span>
           </div>
           {matchedCategories.length ? (
             <div className="space-y-1.5">
               {matchedCategories.map(([category, list]) => (
                 <div key={category}>
-                  <div className="text-[10px] capitalize text-[var(--text-3)]">{category}</div>
+                  <div className="panel-sub plain" style={{ textTransform: 'capitalize' }}>
+                    {category}
+                  </div>
                   <div className="space-y-1">
                     {list.map((m) => {
                       const finish0 = m.finishes[0]?.finish ?? m.def.activeVariant
@@ -314,21 +337,22 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
                       )
                       return (
                         <div key={m.def.id} className="flex flex-wrap items-center gap-1">
-                          <button
+                          <Button
+                            size="sm"
+                            variant="soft"
                             onClick={() => placeOnThis(m.def, finish0, category)}
                             disabled={!canPlace}
-                            className="rounded border border-[var(--accent)] px-1.5 py-1 text-[10px] text-[var(--accent-soft-text)] hover:bg-[var(--accent-soft)] disabled:cursor-not-allowed disabled:opacity-40"
                             title="Combine this with the selected item"
                           >
                             Place on this
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            size="sm"
                             onClick={() => setActiveDefId(m.def.id)}
                             title="Click then place on the floor"
-                            className="rounded bg-[var(--surface-2)] px-1.5 py-1 text-[10px] text-[var(--text-2)] hover:bg-[var(--surface-3)]"
                           >
                             + {m.def.name}
-                          </button>
+                          </Button>
                         </div>
                       )
                     })}
@@ -337,7 +361,11 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
               ))}
             </div>
           ) : (
-            <p className="text-[10px] text-[var(--text-3)]">No compatible items imported yet.</p>
+            <EmptyState
+              icon={Icon.Sets}
+              title="No compatible items"
+              description="No compatible items imported yet."
+            />
           )}
         </div>
       ) : null}

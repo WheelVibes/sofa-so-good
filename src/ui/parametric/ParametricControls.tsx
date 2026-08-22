@@ -63,7 +63,7 @@ function BayStylePicker({
         style={{
           fontSize: 'var(--t-2xs)',
           color: 'var(--text-3)',
-          marginBottom: 2,
+          marginBottom: 'var(--s-0)',
         }}
       >
         Bay {bayIndex + 1}
@@ -172,7 +172,9 @@ function KitchenControls({
           />
         </label>
         {spec.hasUppers ? (
-          <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 2 }}>
+          <div
+            style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 'var(--s-0)' }}
+          >
             35 cm deep, 72 cm tall — wall-mounted above worktop
           </div>
         ) : null}
@@ -216,7 +218,7 @@ function KitchenControls({
               key={p.label}
               type="button"
               className={`swatch${spec.finish === p.finish && spec.color === p.color ? ' on' : ''}`}
-              style={{ background: p.color, width: 26, height: 26, borderRadius: 6 }}
+              style={{ background: p.color }}
               aria-label={`Finish: ${p.label}`}
               title={p.label}
               onClick={() => onChange({ finish: p.finish, color: p.color })}
@@ -254,7 +256,7 @@ function FinishSection({
             key={p.label}
             type="button"
             className={`swatch${spec.finish === p.finish && spec.color === p.color ? ' on' : ''}`}
-            style={{ background: p.color, width: 26, height: 26, borderRadius: 6 }}
+            style={{ background: p.color }}
             aria-label={`Finish: ${p.label}`}
             title={p.label}
             onClick={() => onChange({ finish: p.finish, color: p.color })}
@@ -293,7 +295,7 @@ function WardrobeFitOutPicker({
   }
   return (
     <div style={{ marginBottom: 'var(--s-1)' }}>
-      <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginBottom: 2 }}>
+      <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginBottom: 'var(--s-0)' }}>
         Bay {bayIndex + 1}
       </div>
       <div className="seg" style={{ fontSize: 'var(--t-2xs)', flexWrap: 'wrap' }}>
@@ -404,7 +406,9 @@ function WardrobeControls({
               </button>
             ))}
           </div>
-          <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 2 }}>
+          <div
+            style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 'var(--s-0)' }}
+          >
             Open removes the doors so the interior fit-out shows.
           </div>
         </div>
@@ -615,7 +619,7 @@ export function ParametricControls({
           <label className="row" style={{ cursor: 'pointer', marginTop: 'var(--s-2)' }}>
             <div
               className="rk"
-              style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}
+              style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 'var(--s-0)' }}
             >
               <div>Doors</div>
               {model.doorCount > 0 ? (
@@ -729,7 +733,7 @@ export function ParametricControls({
               key={p.label}
               type="button"
               className={`swatch${spec.finish === p.finish && spec.color === p.color ? ' on' : ''}`}
-              style={{ background: p.color, width: 26, height: 26, borderRadius: 6 }}
+              style={{ background: p.color }}
               aria-label={`Finish: ${p.label}`}
               title={p.label}
               onClick={() => onChange({ finish: p.finish, color: p.color })}

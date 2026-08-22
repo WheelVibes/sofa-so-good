@@ -346,9 +346,21 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   // sidecar. Surfaced in the default experience (curated launch set) → simple tier.
   sceneExport3d: {
     label: 'Export 3D model',
-    description: 'Whole furnished scene → glTF/GLB (+ OBJ) for Blender / AR / Coohom',
+    // Consumer-facing 3D formats only (UIUX-71): GLB is the portable/AR-ready
+    // interchange file and USDZ is iOS AR Quick Look ("see it in your room").
+    // The geometry-only professional formats moved to `sceneExportCad` (pro) —
+    // Simple mode must not offer a casual HDB owner a Wavefront OBJ.
+    description: 'Whole furnished scene → glTF/GLB + USDZ (AR-ready)',
     default: true,
     tier: 'simple',
+  },
+  sceneExportCad: {
+    label: 'Export 3D model (CAD formats)',
+    description: 'Geometry-only OBJ / STL for Blender, CAD and 3D printing',
+    default: true,
+    // Professional interchange formats — Pro alongside `dxfExport`, per the
+    // Simple-tier rule (Simple = the minimal core loop only).
+    tier: 'pro',
   },
   batchRender: {
     label: 'Render all views',
@@ -1446,6 +1458,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   infoCallouts: {
     label: 'Info callouts',
     description: 'Dismissible hint banners in the room, floor-plan and walk screens',
+    default: true,
+    tier: 'simple',
+  },
+  // Getting-started checklist card (UIUX-28, Watermelon onboarding-checklist
+  // pattern): the five core-loop actions (furnish, finish, light, walk, share)
+  // with goal-gradient progress, auto-checked as the user does each for the
+  // first time; dismissible, per-device persisted. Beginner aid in the default
+  // experience → simple tier, prod-safe pure UI.
+  onboardChecklist: {
+    label: 'Getting-started checklist',
+    description: 'First-session checklist of the core design loop with progress',
     default: true,
     tier: 'simple',
   },

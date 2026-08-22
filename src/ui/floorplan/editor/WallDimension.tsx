@@ -128,7 +128,7 @@ export function WallDimension({ a, b, label, toPx, centre, fontPx, selected }: P
         dominantBaseline="middle"
         className="plan-dim-label select-none"
         fill={textColor}
-        style={{ fontSize: fontPx, fontWeight: 600 }}
+        style={{ fontSize: fontPx }}
       >
         {label}
       </text>

@@ -41,7 +41,7 @@
   position: absolute; inset: 0; z-index: var(--z-overlay);
   display: grid; place-items: center;
   background: radial-gradient(120% 90% at 50% 30%, var(--scene-a), var(--scene-b) 75%);
-  animation: fade 0.3s var(--ease);
+  animation: fade var(--dur-2) var(--ease-out);
 }
 .load-inner { display: flex; flex-direction: column; align-items: center; width: 320px; max-width: 80vw; }
 .load-mark {
@@ -55,7 +55,7 @@
 .load-title { margin-top: 18px; font-size: var(--t-xl); font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
 .load-sub { margin-top: 2px; font-size: var(--t-sm); color: var(--text-3); font-weight: 500; white-space: nowrap; text-align: center; }
 .load-bar { margin-top: 26px; width: 100%; height: 5px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
-.load-bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.3s var(--ease); }
+.load-bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width var(--dur-2) var(--ease); }
 .load-status { margin-top: 10px; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); font-size: var(--t-xs); color: var(--text-3); font-weight: 600; }
 .load-status #loadTip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .load-status .mono { flex: none; }
@@ -183,6 +183,38 @@
   box-shadow: var(--shadow-panel); font-size: var(--t-xs); font-weight: 600; color: var(--text-2);
   backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur));
 }
+/* Drawing-tool cluster in the plan header: the Select/Wall/Split .seg plus the
+   Room/Opening/Markup/MEP dropdowns on one row (UIUX-75 — was an inline
+   `marginLeft: 4` off the spacing scale). */
+.draw-tools { display: flex; align-items: center; gap: var(--s-1); margin-left: var(--s-1); }
+/* Numeric length/angle entry that follows the cursor while a wall draft is live
+   (UIUX-75). Everything except the computed `left`/`top` lives here — the
+   component used to inline a literal `rgba(0,0,0,0.18)` shadow, px font sizes
+   and one-off gaps, none of which recolour across the 5 themes. */
+.wall-num {
+  position: fixed; z-index: var(--z-pop);
+  width: 200px; padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-2); box-shadow: var(--shadow-pop);
+  display: flex; flex-direction: column; gap: var(--s-1);
+  pointer-events: auto; user-select: none;
+  /* Opaque, not glass. It follows the cursor over an arbitrary background and
+     regularly lands on top of the .plan-props inspector — itself a glass panel,
+     so the nested backdrop-filter did nothing and the inspector's body text read
+     straight through the numbers the user is typing. One filter per overlay
+     stack (DESIGN.md); a transient entry field takes legibility over depth. */
+  background: var(--surface-solid);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+.wall-num label {
+  display: flex; align-items: center; gap: var(--s-2); font-size: var(--t-sm);
+}
+.wall-num .wall-num-l { min-width: 46px; }
+.wall-num .input { flex: 1; font-size: var(--t-sm); padding: 2px var(--s-1); height: 24px; }
+.wall-num .input[aria-invalid='true'] { border-color: var(--danger); }
+.wall-num .wall-num-err {
+  font-size: var(--t-2xs); line-height: var(--lh-body); color: var(--danger);
+}
+
 /* Live how-to-finish hint shown while a multi-click draw tool (Polygon room /
    Polyline) is active. */
 .plan-draw-hint {
@@ -230,3 +262,19 @@
 /* Walk-mode mobile movement joystick (translucent, bottom-left, safe-area). */
 .walk-joystick { position: absolute; left: calc(env(safe-area-inset-left, 0px) + 20px); bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); z-index: var(--z-pop); width: 88px; height: 88px; border-radius: 50%; background: transparent; border: 2px solid color-mix(in oklab, var(--text) 45%, transparent); box-shadow: var(--shadow-pop); display: flex; align-items: center; justify-content: center; touch-action: none; user-select: none; }
 .walk-joystick-thumb { width: 38px; height: 38px; border-radius: 50%; background: color-mix(in oklab, var(--accent) 65%, transparent); border: 1px solid color-mix(in oklab, var(--text) 25%, transparent); pointer-events: none; }
+
+/* Plan-editor SVG text labels (UIUX-79 — both classes were phantom, their
+   styling inline). Note the separate `.dim-label` in features.css is the drei
+   <Html> chip in the 3D room editor, not these SVG <text> nodes. */
+.plan-note {
+  font-size: var(--t-sm); font-weight: 600; fill: var(--text);
+  paint-order: stroke; stroke: var(--surface); stroke-width: 3;
+  stroke-linejoin: round;
+}
+.plan-note.sel { fill: var(--accent); }
+/* No `fill` here on purpose. Both consumers set it as a presentation attribute
+   from their selection state, and they disagree on the UNSELECTED colour
+   (`WallDimension` uses --text-2, `PersistentDimensionsLayer` --accent-soft-text),
+   so one class cannot carry both. A CSS `fill` would outrank the attribute and
+   flatten that difference; the size is computed per zoom and stays inline too. */
+.plan-dim-label { pointer-events: none; font-weight: 600; }

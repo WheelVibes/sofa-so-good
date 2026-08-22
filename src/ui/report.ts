@@ -761,8 +761,29 @@ export function buildReportHtml(
   const stairAdvisories = buildStairAdvisories(plan, items, (id) => catalog[id])
   const allAdvisories = [...compliance.advisories, ...stairAdvisories]
   const cautionCount = compliance.cautionCount + stairAdvisories.length
+  // Identical advisories collapse into one entry with a ×N count (UIUX-54):
+  // the structural-wall rule emits one advisory PER external/long wall with the
+  // same title + paragraph verbatim, so the default plan printed a dozen
+  // indistinguishable copies — pages of repetition that add nothing. Advisories
+  // whose detail differs (e.g. per-wall lengths, per-room names) stay separate.
+  const groupedAdvisories = (() => {
+    const m = new Map<string, { advisory: (typeof allAdvisories)[number]; count: number }>()
+    for (const a of allAdvisories) {
+      const key = `${a.severity}|${a.title}|${a.detail}|${a.cite}`
+      const ex = m.get(key)
+      if (ex) ex.count += 1
+      else m.set(key, { advisory: a, count: 1 })
+    }
+    return [...m.values()]
+  })()
   const compBadge = (sev: string) =>
     sev === 'permit' ? '#b91c1c' : sev === 'caution' ? '#b45309' : '#6b7280'
+  const advisoryRows = groupedAdvisories
+    .map(
+      ({ advisory: a, count }) =>
+        `<div class="ci-detail" style="margin-top:6px"><span class="badge" style="background:${compBadge(a.severity)};color:#fff">${esc(a.severity)}</span> <strong>${esc(a.title)}${count > 1 ? ` ×${count}` : ''}</strong><br>${esc(a.detail)} <span style="color:#9ca3af">(${esc(a.cite)})</span></div>`,
+    )
+    .join('')
   const otherPathNote =
     housingType === 'Condominium'
       ? 'This is a Condominium plan — renovation approval comes from the MCST / building management (not HDB); structural work additionally needs BCA/PE involvement.'
@@ -777,22 +798,12 @@ export function buildReportHtml(
       <div class="${compliance.permitCount > 0 ? 'warn' : 'ok'}">
         ${compliance.permitCount} permit-sensitive · ${cautionCount} caution — guidance only, confirm with HDB / your contractor.
       </div>
-      ${allAdvisories
-        .map(
-          (a) =>
-            `<div class="ci-detail" style="margin-top:6px"><span class="badge" style="background:${compBadge(a.severity)};color:#fff">${esc(a.severity)}</span> <strong>${esc(a.title)}</strong><br>${esc(a.detail)} <span style="color:#9ca3af">(${esc(a.cite)})</span></div>`,
-        )
-        .join('')}
+      ${advisoryRows}
     </div>`
     : `<div class="room-cost">
       <h2>Renovation compliance notes</h2>
       <div class="ok">${esc(otherPathNote)}</div>
-      ${allAdvisories
-        .map(
-          (a) =>
-            `<div class="ci-detail" style="margin-top:6px"><span class="badge" style="background:${compBadge(a.severity)};color:#fff">${esc(a.severity)}</span> <strong>${esc(a.title)}</strong><br>${esc(a.detail)} <span style="color:#9ca3af">(${esc(a.cite)})</span></div>`,
-        )
-        .join('')}
+      ${advisoryRows}
     </div>`
 
   // Move-in / handover checklist (PARITY-MOVEIN-CHECKLIST) — a derived snagging +

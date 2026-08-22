@@ -1,4 +1,6 @@
-import { type FormEvent, useCallback, useEffect, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { useModalGuard } from '../../controls/modalGuard'
+import { useDialogFocus } from '../../controls/useDialogFocus'
 import { ApiError, apiFetch } from '../../features/api/client'
 import { useStore } from '../../state/store'
 import { EmptyState } from '../EmptyState'
@@ -23,6 +25,11 @@ interface AdminUser {
 export function UserManagementModal({ onClose }: { onClose: () => void }) {
   const currentUser = useStore((s) => s.currentUser)
   const refreshAuth = useStore((s) => s.refreshAuth)
+  const panelRef = useRef<HTMLDivElement>(null)
+  // Custom .modal-overlay (not the shared Modal): suppress global hotkeys and
+  // manage focus ourselves (UIUX-3; see src/ui/CLAUDE.md).
+  useModalGuard(true)
+  useDialogFocus(true, panelRef)
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -122,22 +129,16 @@ export function UserManagementModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="modal-overlay"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 'var(--z-modal, 70)' as never,
-        display: 'grid',
-        placeItems: 'center',
-        background: 'color-mix(in oklch, var(--scene-b, #1a1714) 60%, transparent)',
-        backdropFilter: 'blur(var(--blur, 8px))',
-        padding: 'var(--s-4)',
-      }}
+      className="modal-overlay auth-scrim"
       role="dialog"
       aria-modal="true"
       aria-label="Manage accounts"
     >
-      <div className="panel" style={{ width: 'min(560px, 100%)', padding: 'var(--s-5)' }}>
+      <div
+        ref={panelRef}
+        className="panel"
+        style={{ width: 'var(--modal-md)', padding: 'var(--s-5)' }}
+      >
         <div
           style={{
             display: 'flex',
@@ -146,7 +147,7 @@ export function UserManagementModal({ onClose }: { onClose: () => void }) {
             marginBottom: 'var(--s-3)',
           }}
         >
-          <div className="panel-title" style={{ fontSize: 'var(--t-1)' }}>
+          <div className="panel-title" style={{ fontSize: 'var(--t-lg)' }}>
             Manage accounts
           </div>
           <button
@@ -163,9 +164,7 @@ export function UserManagementModal({ onClose }: { onClose: () => void }) {
           onSubmit={create}
           style={{ display: 'grid', gap: 'var(--s-2)', marginBottom: 'var(--s-4)' }}
         >
-          <p className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
-            Create a new account
-          </p>
+          <p className="panel-sub plain">Create a new account</p>
           <input
             className="input"
             type="email"
@@ -220,9 +219,7 @@ export function UserManagementModal({ onClose }: { onClose: () => void }) {
           </p>
         ) : null}
 
-        <p className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
-          Accounts ({users.length})
-        </p>
+        <p className="panel-sub plain">Accounts ({users.length})</p>
         {loading ? (
           <p style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>Loading…</p>
         ) : users.length === 0 ? (
@@ -259,13 +256,13 @@ export function UserManagementModal({ onClose }: { onClose: () => void }) {
                         {u.name} {u.role === 'admin' ? '· admin' : ''}
                         {isSelf ? ' · you' : ''}
                       </div>
-                      <div style={{ fontSize: 'var(--t-3xs)', color: 'var(--text-3)' }}>
+                      <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
                         {u.email}
                       </div>
                     </div>
                     <button
                       type="button"
-                      className="btn btn-soft btn-icon"
+                      className="icon-btn"
                       style={{ marginLeft: 'auto' }}
                       aria-label={`Edit ${u.email}`}
                       aria-expanded={editing}
@@ -276,7 +273,7 @@ export function UserManagementModal({ onClose }: { onClose: () => void }) {
                     </button>
                     <button
                       type="button"
-                      className="btn btn-danger btn-icon"
+                      className="icon-btn danger"
                       aria-label={`Delete ${u.email}`}
                       title={
                         isSelf

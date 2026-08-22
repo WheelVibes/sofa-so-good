@@ -105,7 +105,7 @@ export function PlanEditorHeader({
             <button
               type="button"
               onClick={onToggleCatalog}
-              className={`btn btn-sm${catalogOpen ? ' btn-accent' : ''}`}
+              className={`btn btn-sm${catalogOpen ? ' on' : ''}`}
               title="Browse furniture to add directly to the plan"
               aria-pressed={catalogOpen}
             >
@@ -139,7 +139,7 @@ export function PlanEditorHeader({
             <button
               type="button"
               onClick={onToggleCatalog}
-              className={`btn btn-sm${catalogOpen ? ' btn-accent' : ''}`}
+              className={`btn btn-sm${catalogOpen ? ' on' : ''}`}
               title="Browse furniture to add directly to the plan"
               aria-pressed={catalogOpen}
             >

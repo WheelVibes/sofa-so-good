@@ -465,7 +465,10 @@ same change that reshapes a system.
   `upload/`/`floorplan/`/
   `toolbar/`/`tour/`/`wizard/`/`ai/`/`auth/`. Empty panels/lists render the shared
   **`EmptyState`** (`EmptyState.tsx`: icon + title + optional description + optional CTA on
-  the `.empty-mini` token vocabulary) for consistent, friendly empty-state messaging.
+  the `.empty-mini` token vocabulary) for consistent, friendly empty-state messaging; the four
+  saved collections that render on both a desktop menu and a mobile sheet section share one copy
+  record, `toolbar/savedEmptyStates.ts:SAVED_EMPTY` (its test asserts every surface still spreads
+  it instead of re-inlining a headline).
   The analytical **Tools** cluster (Analyse + Review panels) is defined once in
   **`src/ui/actions/toolActions.tsx`** (a declarative `ToolAction[]` — `flag`/`docs`/`surfaces`/
   `isActive`/`run`); the desktop `menus/ToolsMenu`, the `MobileToolbar` sheet, and the
@@ -480,7 +483,7 @@ same change that reshapes a system.
   renders from the registry (`toolAction('budget')`, surfaces `['palette']` so ⌘K keeps it).
   Aux panels that share the centred-top slot are closed as a group via `src/ui/auxPanels.ts`
   (`closeAllAuxPanels`); contextual user-guide deep-links resolve through `src/ui/docsUrl.ts`.
-  **Shared UI systems**: `InfoCallout` (flag-gated dismissible hint banners, per-id persisted) and `ui/newBadges.ts` (registry-driven "New" `.new-dot` on toolbar/menu entries, seen-state persisted). **Shared form controls** (`src/ui/controls/`): `Button` (typed composer over the `.btn-*` vocabulary — variant/size/block/icon/loading), `Select` (themed dropdown — replaces every native
+  **Shared UI systems**: `InfoCallout` (flag-gated dismissible hint banners, per-id persisted), `OnboardingChecklist` (UIUX-28 — `onboardChecklist` flag, simple tier: the bottom-left getting-started card; steps auto-check from store transitions via `checklistSlice`, per-device persisted `hdb_checklist`) and `ui/newBadges.ts` (registry-driven "New" `.new-dot` on toolbar/menu entries, seen-state persisted). **Shared form controls** (`src/ui/controls/`): `Button` (typed composer over the `.btn-*` vocabulary — variant/size/block/icon/loading), `Select` (themed dropdown — replaces every native
   `<select>`; `Popover` on desktop / `Modal` sheet on mobile, listbox keyboard + ARIA) and
   `ColorPicker` (replaces every native `<input type=color>`; SV pad + hue bar + hex +
   `ThemeColorRows` + recents, HSV math in the pure `colorConvert.ts`). The native iOS focus-zoom on
@@ -1505,10 +1508,14 @@ same change that reshapes a system.
   world-space plane to project onto, unlike `RotateGizmo`/`ResizeGizmo`). Single-item only, hidden for
   locked items and Staircase. Serialized (optional) in `schema.ts`. Collision stays yaw-OBB (tilt
   doesn't change the plan footprint).
-- **3D scene export** (`sceneExport3d` flag, pro; Q-3DEXPORT): `ui/openSceneExport.ts` `exportScene3d`
-  downloads the whole furnished home as `.glb` (reusing `furniture/convert/toGlb.ts` `exportGlb`), `.obj`
-  (`export/sceneObj.ts`, dynamic `OBJExporter`), `.stl` (`export/sceneStl.ts`), or `.usdz`
-  (`export/sceneUsdz.ts`). The live scene root is reached from DOM code via `scene/SceneExportController`
+- **3D scene export** (two flags, split by tier — Q-3DEXPORT, UIUX-71): `ui/openSceneExport.ts`
+  `exportScene3d` downloads the whole furnished home as `.glb` (reusing `furniture/convert/toGlb.ts`
+  `exportGlb`), `.obj` (`export/sceneObj.ts`, dynamic `OBJExporter`), `.stl` (`export/sceneStl.ts`),
+  or `.usdz` (`export/sceneUsdz.ts`). The consumer-facing formats (`.glb`, `.usdz`/AR) ride
+  **`sceneExport3d`** (simple); the geometry-only professional formats (`.obj`, `.stl`) ride
+  **`sceneExportCad`** (pro), beside `dxfExport` — a Simple-mode audit found the File menu offering a
+  casual owner a Wavefront OBJ and an "STL for 3D printing / CAD" (this doc already described the
+  feature as pro while the registry had drifted to simple). The live scene root is reached from DOM code via `scene/SceneExportController`
   + the `scene/sceneExportAccess.ts` singleton (mirrors `ScreenshotController`/`captureCanvas.ts`). Pure
   `export/sceneGltf.ts` `buildExportRoot` clones the scene and strips editor-only helpers — anything
   tagged `userData.noExport` via `noExportUserData`/`markNoExport` (selection/gizmo/overlays/sky/pins/
@@ -2014,7 +2021,7 @@ same change that reshapes a system.
   PARITY-PLANTEXT) + **dimension
   lines** (Dimension tool → `plan.dimensions`, measured-length labels) — both persisted (PARITY-DIMTEXT).
   **Polyline markup** (Polyline tool → `plan.polylines`, open/closed + dashed + end-arrow; pure
-  `floorplan/polyline.ts`; `planPolyline` flag, pro — PARITY-POLYLINE).
+  `floorplan/polyline.ts`; `planPolyline` flag, simple — PARITY-POLYLINE).
   **MEP points** (G1 — persisted, editable electrical/plumbing points, contractor-handover goal):
   `FloorPlan.electricalPoints`/`plumbingPoints` (`PlanElectricalPoint`/`PlanPlumbingPoint`,
   `floorplan/types.ts` — `ElectricalKind`/`PlumbingKind` moved there so `electricalPlan.ts`/
@@ -2231,7 +2238,7 @@ same change that reshapes a system.
   `scene/WalkMeasureOverlay.tsx` renders the segment + live distance; the button↔frame-loop
   handoff is the `scene/cameras/walkMeasureRequest.ts` module signal (walkTeleport pattern).
   **Observer camera controls** (PARITY-WALKCAM,
-  `walkCameraControls` flag, pro): FOV (50–100°, default 70) + eye-height (1.2–1.9 m, default
+  `walkCameraControls` flag, simple): FOV (50–100°, default 70) + eye-height (1.2–1.9 m, default
   1.6) sliders in `ui/walk/WalkCameraControls.tsx`, persisted in `editorPrefs`; pure clamp
   helpers + ranges in `scene/cameras/walkCameraSettings.ts`; FOV applies reactively to the live
   camera (own effect, restored on exit), eye-height ref'd so a drag re-heights without re-spawn. Multi-storey (ML6c): the walker's storey follows
@@ -2318,7 +2325,7 @@ same change that reshapes a system.
   the single source. **Groups** (`groupsSlice.ts`): shared `groupId` = emergent group
   (first click→group, second/Alt drills in; rigid centroid rotate; auto-dissolves below
   2; save schema **v2**).
-- **Replace with similar** (PARITY-REPLACE, `replaceSimilar` flag, pro): pure
+- **Replace with similar** (PARITY-REPLACE, `replaceSimilar` flag, simple): pure
   `furniture/similarItems.ts` `similarItems(defId, catalog, limit?)` ranks same-category catalog
   siblings nearest-footprint-first (orientation-independent W×D from `defaultFootprint`, tie-break
   name→id; excludes self/unknown); the `itemsSlice.replaceItemDef(id, newDefId)` store action swaps
@@ -2335,9 +2342,9 @@ same change that reshapes a system.
   `sofa:export` PNG + photoreal/link), **360° panorama** (`scene/PanoramaController` six-face
   capture → pure `scene/panorama/equirect.ts` CPU assembly → `ui/PanoramaModal` + shared
   drag-to-look viewer `ui/panorama/PanoramaViewer.tsx` (pure `viewerLook.ts` clamp math) + PNG,
-  `panorama` flag, pro), **HQ render** (`scene/pathtrace/hqRenderSession.ts` progressive
+  `panorama` flag, simple), **HQ render** (`scene/pathtrace/hqRenderSession.ts` progressive
   path-traced still via `three-gpu-pathtracer`; `hqRenderSource.ts` module singleton exposes
-  live scene+camera; `ui/HqRenderModal.tsx` — resolution/samples/DoF; `hqRender` flag, pro;
+  live scene+camera; `ui/HqRenderModal.tsx` — resolution/samples/DoF; `hqRender` flag, simple;
   **AI denoise** PHOTO-DENOISE: OIDN U-Net over the finished still via the lazy-loaded
   `denoiser` package (tfjs — WebGPU→WebGL2→CPU fallback chain), guided by one-shot raster
   albedo/normal AOVs (`hqAovPasses.ts`) captured at session start; Apache-2.0 weights
@@ -2347,7 +2354,7 @@ same change that reshapes a system.
   preview + fallback; `hqAiDenoise` flag, simple),
   **Render preset A/B compare** (`ui/renderCompare/compareState.ts` pure logic — preset
   selection, swap, divider clamping; `ui/RenderCompareModal.tsx` two sequential captures +
-  Lightroom-style before/after slider with touch parity; `renderCompare` flag, pro),
+  Lightroom-style before/after slider with touch parity; `renderCompare` flag, simple),
   **Before/after staging reveal** (`ui/staging/stagingReveal.ts` pure capture orchestrator —
   injected canvas-capture + hidden-set deps, unit-tested; `ui/StagingRevealModal.tsx` captures the
   furnished view then transiently hides all furniture for the empty-room frame and shows the same
@@ -2372,7 +2379,7 @@ same change that reshapes a system.
   stop open); per-stop panoramas captured live via `capturePanorama({eye})` then cached in
   `ui/panorama/panoImageIdb.ts` (`sofa-pano-cache` IDB, keyed `<stopId>:<designKey>` —
   auto-invalidated on design change); stop drag in the 2D plan editor SVG (`FloorPlanEditor`
-  `movingStop` state); `panoTour` flag, pro), **Presentation mode** (`ui/PresentationMode.tsx`, `presentation` flag,
+  `movingStop` state); `panoTour` flag, simple), **Presentation mode** (`ui/PresentationMode.tsx`, `presentation` flag,
   pro — full-screen saved-views slideshow with per-view notes; views marked 360° (`SavedView.pano`)
   capture a panorama live at the slide and show it in `PanoramaViewer`; auto-advance pauses on
   panorama slides; **tour inclusion** — when both `presentation` + `panoTour` flags are on, the

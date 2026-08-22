@@ -249,7 +249,7 @@ export function MobileToolbar() {
         open={appearanceOpen}
         onClose={() => setAppearanceOpen(false)}
         title="Appearance"
-        width={320}
+        width="var(--modal-xs)"
         showBack={menuOpen}
       >
         <AppearanceControls />

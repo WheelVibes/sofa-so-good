@@ -72,14 +72,7 @@ export function RenovationBudgetPanel() {
             </div>
 
             {alloc.target != null && alloc.overUnder != null ? (
-              <div
-                className="callout"
-                style={{
-                  margin: 'var(--s-2) 0',
-                  fontSize: 'var(--t-xs)',
-                  color: alloc.overUnder > 0 ? 'var(--danger)' : 'var(--ok, var(--accent-2))',
-                }}
-              >
+              <div className={`reno-callout ${alloc.overUnder > 0 ? 'over' : 'under'}`}>
                 Budget target {fmt(alloc.target)} —{' '}
                 {alloc.overUnder > 0
                   ? `${fmt(alloc.overUnder)} over`
@@ -122,7 +115,7 @@ export function RenovationBudgetPanel() {
                         borderRadius: 999,
                         background: 'var(--surface-2)',
                         overflow: 'hidden',
-                        marginTop: 'var(--s-05, 2px)',
+                        marginTop: 'var(--s-0)',
                       }}
                     >
                       <div
@@ -177,7 +170,7 @@ export function RenovationBudgetPanel() {
                     justifyContent: 'space-between',
                     fontSize: 'var(--t-2xs)',
                     color: 'var(--text-3)',
-                    marginBottom: 'var(--s-05, 2px)',
+                    marginBottom: 'var(--s-0)',
                   }}
                 >
                   <span>{b.label}</span>
@@ -188,17 +181,14 @@ export function RenovationBudgetPanel() {
               ))}
             </div>
 
-            <p
-              className="panel-sub"
-              style={{ marginTop: 'var(--s-2)', textTransform: 'none', letterSpacing: 0 }}
-            >
+            <p className="panel-sub plain" style={{ marginTop: 'var(--s-2)' }}>
               Indicative estimate from your design's quantities at mid-market SG rates — confirm
               with your contractor. Edit rates in Quote template (Pro).
             </p>
 
             <button
               type="button"
-              className="btn ghost sm"
+              className="btn btn-sm"
               style={{ marginTop: 'var(--s-2)' }}
               title="Download the renovation budget as a CSV (spreadsheet)"
               onClick={exportCsv}

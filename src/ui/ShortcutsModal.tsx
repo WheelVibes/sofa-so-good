@@ -18,12 +18,12 @@ export function ShortcutsModal() {
       onClose={() => setOpen(false)}
       title="Keyboard shortcuts"
       sub="Speed up the design loop"
-      width={620}
+      width="var(--modal-md)"
       panelId="shortcuts-help"
     >
       <div className="shortcuts-groups">
         {SHORTCUT_GROUPS.map((group) => (
-          <section key={group.title} className="shortcuts-group">
+          <section key={group.title}>
             <h3 className="shortcuts-group-title">{group.title}</h3>
             <div className="kbd-grid">
               {group.rows.map((row) => (

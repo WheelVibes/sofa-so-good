@@ -12,13 +12,13 @@ export function SourceLine({ attribution, license, sourceUrl }: SourceLineProps)
   // Sanitize: imported defs can carry a javascript:/data: sourceUrl (XSS).
   const href = safeUrl(sourceUrl)
   return (
-    <div className="mt-1 text-[10px] text-[var(--text-3)]">
+    <div className="panel-sub plain" style={{ marginTop: 'var(--s-1)' }}>
       {href ? (
         <a
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="underline hover:text-[var(--text-2)]"
+          style={{ color: 'inherit', textDecoration: 'underline' }}
         >
           {text}
         </a>

@@ -33,6 +33,27 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   class strings. The `.btn-*` classes stay the source of truth — `Button` only
   composes them. New buttons use it; the raw classes remain valid for legacy
   call sites being migrated.
+- **A button that must read as plain text uses `.btn-plain`, not a hand-rolled reset**
+  (UIUX-78). The global `button` rule in `components.css` already drops
+  background/border/cursor/colour/font-family; `.btn-plain` adds only what it can't — zero box,
+  `font: inherit` (so the button takes the surrounding size/weight, not the browser's), and
+  `text-align: left`. Compose it with a layout class (`.plan-props-title`, `.insp-sec-toggle`,
+  `.clr-item-row`), never with `.btn` — it deliberately paints no button frame. **Never
+  `all: unset`**: it also drops the inherited theme colour (leaving the browser's `canvastext`)
+  and is one cascade change away from taking the `--focus-ring` box-shadow with it.
+- **A class name in `className` must exist in a stylesheet.** A phantom class is not harmless —
+  it tells the next reader that styling lives in CSS when an inline `style` object is really
+  doing the work, which is how `rc-slot-badge` sat dead in a compare modal and how five copies
+  of the text-button reset stayed hidden. When you find one, make it real (move the static
+  styling into the class) rather than deleting the name; delete only when a defined sibling
+  already covers the element. Inline stylesheets count as definitions — `LoadingOverlay` keeps
+  its `hdb-*` keyframes in a `<style>` template literal, so a scan that reads only `.css` files
+  will report them falsely. A phantom class can also hide a MISSING style rather than a
+  misplaced one: `ArrangePanel` passed `arrange-array` to its `Disclosure` where its three
+  sibling glbEditor panels pass `.sec`, so it had been rendering with no section frame at all
+  (UIUX-79). One caveat when moving styling into a class: a CSS declaration outranks an SVG
+  presentation attribute, so `.plan-dim-label` deliberately sets no `fill` — its two consumers
+  pass different unselected fills as attributes and one class cannot carry both.
 - **Docked side sidebars (desktop).** The scene, toolbar and canvas HUDs live inside `.stage-area`
   (in `App.tsx`); the inspector/finish panels carry a `dock-panel` class and the **catalog** a
   `dock-panel-left` class (it's a sibling of `.stage-area`, not a child, so the rail can shrink the
@@ -90,12 +111,23 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   (delete a saved version/slot, delete a saved view, reset/replace the whole
   design) MUST gate on `confirmAction({ title, message, confirmLabel, danger })`
   (`promptSlice`, rendered by `ConfirmModal`) and bail on `false`. Never a
-  blocking `window.confirm`; never silent irreversible deletion.
+  blocking `window.confirm`; never silent irreversible deletion. **Deleting a
+  comment confirms too** (UIUX-80): it was the one delete in the app with neither
+  a prompt nor an Undo toast, on a trash icon wedged 6px from the edit icon in a
+  three-button row — `deleteComment` does push history, but nothing told the user
+  that.
 - **Empty states use the shared `EmptyState`** (`src/ui/EmptyState.tsx`): icon (from the
   `Icon` set) + title + optional one-line description + optional CTA, on the `.empty-mini`
   token vocabulary. Any panel/list that can be empty must render it (don't hand-roll inline
   "No … yet" text). Keep copy concise + friendly; use distinct copy for search-no-results
-  vs truly-empty; only wire a CTA to a real existing handler.
+  vs truly-empty; only wire a CTA to a real existing handler. **A list that renders on BOTH a
+  desktop toolbar menu and a mobile sheet section takes its copy from a shared record, not two
+  literals** — the four saved collections (layouts / sets / styles / views) live in
+  `toolbar/savedEmptyStates.ts` as `SAVED_EMPTY`, spread as `<EmptyState {...SAVED_EMPTY.views} />`
+  on both surfaces (UIUX-74; the mobile File section had drifted to a hand-rolled
+  `.m-empty` div and mobile Arrange/View showed nothing at all). Inside the sheet,
+  `.m-detail .empty-mini` tightens the desktop padding so two empties can't push the real rows
+  past a 390x844 fold.
 - **Screen transitions (P6):** orbit↔walk and room-editor enter/exit are already crossfaded by
   `LoadingOverlay` (they fire `showLoading`); the floor-plan editor (`.plan-screen`) crossfades on
   mount via `screenFadeIn` (`--dur-2`/`--ease-out`, fill `backwards`) against the persistent 3D
@@ -258,8 +290,44 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   scrollable toolbar can't clip them.
 - **Menu shortcut combos go through `MenuItem`'s `kbd` prop** (`toolbar/ToolbarMenu.tsx`),
   which renders the right-aligned `.mi-kbd` chip — never inline the combo text in `label`.
-- **Modal widths use the `--modal-sm`/`-md`/`-lg` tokens**: pass the token string to
-  `Modal`'s `width` prop (`width="var(--modal-md)"`), not an ad-hoc `min(…px, …)` literal.
+- **Modal widths use the `--modal-xs`/`-sm`/`-md`/`-lg` tokens**: pass the token string to
+  `Modal`'s `width` prop (`width="var(--modal-md)"`), not an ad-hoc `min(…px, …)`/numeric
+  literal; a 360px modal just omits `width` (the `.modal-overlay > .panel` default).
+- **No colour literal in an inline `style` object either.** The "no hardcoded colour" rule is
+  guarded by a CSS-file scan plus a `className` scan, and an inline
+  `style={{ background: 'rgba(0,0,0,0.45)' }}` slipped between them — four compare modals painted
+  an off-theme scrim chip beside a correctly tokenised accent sibling, and the drag-select marquee
+  kept a Tailwind-palette blue (UIUX-76). `phantomTokenGuard` now scans DOM style objects too, and
+  bans a colour-literal FALLBACK inside a `var()` (`var(--on-accent, #fff)` hides a real token
+  behind a literal). A `style=` prop carries only what CSS cannot know — a computed position or
+  size. Three-material colours, the `ColorPicker` instruments and finish-swatch data are pigment
+  VALUES, not themed surfaces, and are exempt.
+- **The A/B split-reveal overlay is `compare/CompareOverlay`** — the divider, ⇄ knob and the two
+  corner label chips shared by Render compare / Version compare / Time compare / the staging
+  reveal, on the `.cmp-*` classes. `labelA` is always the left/baseline side (neutral chip) and
+  `labelB` the right/subject side (accent chip), so the grammar is the same whichever modal opens.
+  The knob is an accent disc with an `--on-accent` glyph — the one pair whose contrast the token
+  contract guarantees; the copies it replaced all put a near-white glyph on a near-white disc, so
+  the ⇄ was invisible in every theme. The surrounding chrome is the same `.cmp-*` family
+  (`-frame` 16:9 image frame · `-layer`/`-img` full-bleed image layers · `-empty` centred
+  pre-capture message, `.col` to stack it · `-controls`/`-pickers`/`-swap` footer strip ·
+  `-status` live line · `-slot.a`/`.b` legend dot matching the chips' A/B identity). A compare
+  modal should end up with exactly TWO inline `style` objects — the state-driven cursor and the
+  divider's clip-path (UIUX-77; they had 6–13 each, including a `borderRadius: 8` matching no
+  radius token and legend dots crushed under 4px for want of `flex: none`).
+- **A chat transcript is a live region, and its panel gives up its own scroll.** `DesignChatPanel`'s
+  log carries `role="log"` + `aria-live="polite"` — without it a screen-reader user got no signal
+  that the advisor had replied, or that the request was still running (UIUX-80). Its `.panel-body`
+  becomes a flex column with `overflow-y: hidden` (`.panel-body` scrolls by default, so leaving
+  that on nests a second scroll region) and `.chat-log` takes `flex: 1` — the transcript scrolls
+  and the composer stays pinned. Don't cap the transcript with a magic pixel height: `.aux` already
+  caps the panel at `calc(100vh - 96px)`, and the old `maxHeight: 360` left ~400px of a docked
+  panel empty.
+- **Adjacent icon buttons reach the 44px touch floor by growing, not by `::after` expansion.** The
+  `inset: -9px` phantom hit area is right for a lone panel-head button, but three comment-row
+  actions sit `--s-2` apart, so expanded areas would overlap and a tap aimed at Edit could land on
+  Delete (UIUX-80). Size them for real under `body.mobile` and give the flexing text column
+  `min-width: 0` so it yields the space.
 - **Keyboard focus treatment is `var(--focus-ring)`** (`box-shadow` on `:focus-visible`) —
   no ad-hoc focus rings/outlines on a new control.
 - **Borders.** `--border` is the default hairline (panels, rows, cards, dividers, inputs at

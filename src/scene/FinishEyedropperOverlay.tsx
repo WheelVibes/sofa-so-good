@@ -17,11 +17,9 @@ export function FinishEyedropperOverlay() {
   return (
     <div
       aria-hidden
-      className="finish-eyedropper-overlay pointer-events-none absolute inset-0 z-10"
-      style={{
-        boxShadow: 'inset 0 0 0 2px var(--accent)',
-        background: sampling ? 'var(--accent-soft)' : 'transparent',
-      }}
+      className={`finish-eyedropper-overlay pointer-events-none absolute inset-0 z-10${
+        sampling ? ' sampling' : ''
+      }`}
     />
   )
 }

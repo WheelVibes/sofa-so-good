@@ -416,7 +416,11 @@
   background: var(--surface-3); color: var(--text);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
-.select-panel { max-height: 60vh; overflow-y: auto; padding: var(--s-2); gap: 1px; }
+/* Vertical inset on the children, not the scrollport (UIUX-46): padding at
+   either end shows scrolled options past the popover's rounded corners. */
+.select-panel { max-height: 60vh; overflow-y: auto; padding: 0 var(--s-2); gap: 1px; }
+.select-panel > :first-child { margin-top: var(--s-2); }
+.select-panel > :last-child { margin-bottom: var(--s-2); }
 .select-list { display: flex; flex-direction: column; gap: 1px; }
 .select-option { justify-content: space-between; }
 .select-option .select-option-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
@@ -525,12 +529,17 @@
   font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--text-3); font-weight: 700; margin-bottom: var(--s-3);
   display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
-  position: sticky; top: 0; z-index: 1;
-  /* `--sec-h-bg` lets a container declare the exact opaque tone its sticky
-     header should match (see `.modal-overlay > .panel` in components.css) —
-     defaults to the translucent `--surface` for the anchored glass panels
-     (catalog/inspector/budget), unchanged from before. */
-  background: var(--sec-h-bg, var(--surface));
+  /* STATIC + no fill by default (UIUX-61, user report: white bar behind
+     "MOVE-IN CHECKLIST" on the mobile Handover sheet). On a translucent glass
+     panel a sticky header CANNOT occlude scrolled rows cleanly: any fill
+     double-composites over the panel's own `--surface` layer into a lighter
+     full-width bar, and a backdrop-filter is no escape — the panel's own
+     backdrop-filter makes it a *backdrop root*, so a child's filter samples
+     only the panel's near-white translucent background (not the scene) and
+     re-paints it as the same white veil (see MDN/`backdrop-root` spec).
+     Sticky pinning is re-enabled ONLY inside opaque containers (the
+     `.modal-overlay .panel` rule in components.css), where a `--surface-solid`
+     fill composites invisibly. */
   box-shadow: 0 1px 0 var(--border); padding-bottom: var(--s-2);
 }
 .sec-h span { white-space: nowrap; }
@@ -635,15 +644,19 @@
 .kbd-row kbd { flex: none; }
 /* Keyboard-shortcuts overlay (ShortcutsModal) — grouped kbd-grid sections. */
 .shortcuts-groups { display: flex; flex-direction: column; gap: var(--s-5); }
-.shortcuts-group-title { font-size: var(--t-sm); font-weight: 600; color: var(--text-1); margin: 0 0 var(--s-2); }
+.shortcuts-group-title { font-size: var(--t-sm); font-weight: 600; color: var(--text); margin: 0 0 var(--s-2); }
 .shortcuts-keys { display: inline-flex; gap: 4px; flex: none; }
 
 /* ---- Generic small panel (budget / graphics / finishes) ------ */
 .mini { width: 290px; }
 .aux { left: 50%; top: 74px; transform: translateX(-50%); position: absolute; z-index: var(--z-pop); animation: pop var(--dur) var(--ease); max-height: calc(100vh - 96px); }
-/* Fixed width for the analysis aux panels (daylight / design-score / accessibility);
-   the mobile responsive rule overrides .aux width to auto. */
+/* Fixed-width ladder for the floating aux panels (UIUX-49) — three named steps,
+   never inline widths (an inline width would defeat the mobile sheet override,
+   which forces width auto). 320 tracks --panel-w so a panel matches the docked
+   rail; 360 is the analysis default; 380 the drawings/elevation extra room. */
+.aux-320 { width: var(--panel-w); }
 .aux-360 { width: 360px; }
+.aux-380 { width: 380px; }
 /* display:block so width:100% + aspect-ratio apply — as a <span> (inline) they
    were ignored, collapsing every swatch to a thin strip. Square thumbnails. */
 .swatch-lg { display: block; width: 100%; aspect-ratio: 1/1; border-radius: var(--r-2); border: 1px solid var(--border-2); cursor: pointer; position: relative; overflow: hidden; }
@@ -746,15 +759,16 @@
 .act-array-go {
   display: inline-flex; align-items: center; gap: 4px;
   margin-left: auto; padding: 4px 12px; border-radius: var(--r-pill);
-  font-size: var(--t-xs); font-weight: 700; color: var(--on-accent, #fff);
+  font-size: var(--t-xs); font-weight: 700; color: var(--on-accent);
   background: var(--accent);
 }
 .act-array-go:hover { filter: brightness(1.05); }
 .act-array-go:disabled { opacity: 0.5; cursor: not-allowed; filter: none; }
 
 /* budget bar */
-.bud-total { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }
-.bud-total .panel-sub { white-space: nowrap; }
+.bud-total { display: flex; align-items: baseline; gap: var(--s-3); }
+.bud-total .panel-sub { white-space: nowrap; margin-left: auto; }
+.bud-total .ring-gauge { align-self: center; }
 .bud-total .big { font-size: var(--t-xl); font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; }
 .bud-bar { height: 8px; border-radius: 999px; background: var(--surface-3); overflow: hidden; margin: var(--s-3) 0; display: flex; }
 .bud-seg { height: 100%; }
@@ -797,3 +811,16 @@
 .budget-hud-bar { height: 5px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin-top: 5px; }
 .budget-hud-fill { height: 100%; background: var(--accent); transition: width var(--dur) var(--ease); }
 .budget-hud.over .budget-hud-fill { background: var(--danger); }
+
+/* Phantom classes made real (UIUX-78): each of these named a class that no
+   stylesheet defined, while a full inline style object next to it did the work.
+   The static half now lives here; see `.btn-plain` in components.css for the
+   text-button reset they all shared. */
+/* Minimizable plan-inspector title — fills the bar so the whole row is the tap
+   target on touch. */
+.plan-props-title { flex: 1; min-width: 0; }
+/* Collapsible inspector section: header row, then its disclosure toggle. */
+.insp-sec-h { display: flex; align-items: center; gap: var(--s-3); }
+.insp-sec-toggle { display: flex; align-items: center; gap: var(--s-2); flex: 1; min-width: 0; }
+/* Clearance-gap row: a full-width text button, so the whole row selects the gap. */
+.clr-item-row { display: block; width: 100%; }

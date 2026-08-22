@@ -295,22 +295,19 @@ export function QuoteTemplateModal() {
       onClose={() => setOpen(false)}
       title="Quote template"
       sub={ratesEnabled ? 'Branding, notes, tax & rates' : 'Branding, notes & tax settings'}
-      width={400}
+      width="var(--modal-sm)"
       footer={
-        <div
-          className="panel-foot"
-          style={{ display: 'flex', gap: 'var(--s-1)', justifyContent: 'flex-end' }}
-        >
+        <div className="panel-foot">
           <button
             type="button"
-            className="btn btn-ghost"
+            className="btn"
             onClick={() => resetTemplate()}
             disabled={isDefault}
             title="Reset to factory defaults"
           >
             Reset defaults
           </button>
-          <button type="button" className="btn btn-primary" onClick={() => setOpen(false)}>
+          <button type="button" className="btn btn-accent" onClick={() => setOpen(false)}>
             Done
           </button>
         </div>
@@ -428,7 +425,7 @@ export function QuoteTemplateModal() {
               </span>
               <button
                 type="button"
-                className="btn btn-ghost btn-sm"
+                className="btn btn-sm"
                 onClick={() => resetRules()}
                 disabled={rulesAreDefault}
                 title="Reset rates to the built-in Singapore rate table"

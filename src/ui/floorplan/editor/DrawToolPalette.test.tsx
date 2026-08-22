@@ -45,3 +45,49 @@ describe('DrawToolPalette — MEP group', () => {
     expect(socketBtn?.className).toContain('on')
   })
 })
+
+/**
+ * UIUX-75: the three always-visible tools are toggle buttons, so `aria-pressed`
+ * must track the same condition as the visual `.on` class. It didn't — Select
+ * rendered lit for the 'scale' tool while reporting aria-pressed=false, and Wall
+ * and Split exposed no pressed state at all.
+ */
+describe('DrawToolPalette — pressed state', () => {
+  const props = {
+    onPick: vi.fn(),
+    fPolyline: false,
+    fMep: false,
+    mep: { family: 'electrical' as const, kind: 'socket' as const },
+    onPickMep: vi.fn(),
+  }
+
+  const cluster = () => document.querySelectorAll<HTMLButtonElement>('.seg.accent button')
+
+  it('exposes aria-pressed on every tool button, matching the .on class', () => {
+    for (const tool of ['select', 'wall', 'split', 'scale', 'door'] as const) {
+      const { unmount } = render(<DrawToolPalette {...props} tool={tool} />)
+      const btns = [...cluster()]
+      expect(btns.length, tool).toBe(3)
+      for (const b of btns) {
+        // Both signals present, and always in agreement.
+        expect(b.getAttribute('aria-pressed'), `${tool}/${b.textContent}`).not.toBeNull()
+        expect(b.getAttribute('aria-pressed') === 'true', `${tool}/${b.textContent}`).toBe(
+          b.classList.contains('on'),
+        )
+      }
+      unmount()
+    }
+  })
+
+  it("reports Select as pressed while the 'scale' tool is active", () => {
+    render(<DrawToolPalette {...props} tool="scale" />)
+    const select = screen.getByRole('button', { name: 'Select' })
+    expect(select.getAttribute('aria-pressed')).toBe('true')
+    expect(select.classList.contains('on')).toBe(true)
+  })
+
+  it('reports nothing pressed while a dropdown tool is active', () => {
+    render(<DrawToolPalette {...props} tool="door" />)
+    for (const b of cluster()) expect(b.getAttribute('aria-pressed')).toBe('false')
+  })
+})

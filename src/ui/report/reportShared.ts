@@ -3,6 +3,7 @@
  * The print palettes are fixed inks (the report window has its own CSS, not the
  * app's tokens); `esc`/`sgd` are the HTML-escape + SGD-format helpers.
  */
+import { CATEGORY_LABEL } from '../../furniture/categoryLabels'
 import type { FurnitureCategory } from '../../furniture/types'
 import type { ElevationPalette } from '../elevation/elevationSvg'
 import type { LightingPalette } from '../lighting2d/lightingPlanSvg'
@@ -36,24 +37,9 @@ export const SECTION_PRINT = {
   item: '#d8c8b0',
 }
 
-export const CAT_LABEL: Record<FurnitureCategory, string> = {
-  beds: 'Beds',
-  seating: 'Seating',
-  tables: 'Tables',
-  storage: 'Storage',
-  kitchen: 'Kitchen',
-  bathroom: 'Bathroom',
-  appliances: 'Appliances',
-  lighting: 'Lighting',
-  decor: 'Decor',
-  textiles: 'Textiles',
-  outdoor: 'Outdoor',
-  electronics: 'Electronics',
-  kids: 'Baby & Kids',
-  pets: 'Pets',
-  laundry: 'Laundry',
-  others: 'Others',
-}
+/** Category display names — the canonical map (UIUX-66); re-exported under the
+ *  report's historical name for its existing call sites. */
+export const CAT_LABEL: Record<FurnitureCategory, string> = CATEGORY_LABEL
 
 // Escapes for BOTH text and attribute contexts (the report embeds names/notes/
 // swatches inside style="…" + title="…"), so quotes must be escaped too — a `"`

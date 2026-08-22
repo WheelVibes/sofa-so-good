@@ -5,7 +5,8 @@ stays a thin dispatcher. Several kinds of file live here:
 
 - **Pure logic modules** (`floorPlanGeometry.ts`, `snapToWalls.ts`,
   `snapWallAngle.ts`, `planLabelDisplay.ts`, `planConstants.ts`,
-  `toolDraftReducer.ts`, `backdropPlacement.ts`, `planFurnishPlacement.ts`, …): side-effect-free, **free of React / DOM / store /
+  `toolDraftReducer.ts`, `backdropPlacement.ts`, `planFurnishPlacement.ts`,
+  `wallEntryPlacement.ts`, …): side-effect-free, **free of React / DOM / store /
   three**. Every function is **parameterised on its inputs** (walls / rooms /
   points / a `snap` fn passed in explicitly) — never read editor or component
   state, never call `useStore`. This is what makes each one unit-testable in
@@ -35,6 +36,19 @@ stays a thin dispatcher. Several kinds of file live here:
   `WallTypeToggle.tsx`, `UndoRedoButtons.tsx`, `GridZoomControls.tsx`,
   `PlanTotalLabel.tsx`, `PlanViewMenuActions.tsx`, `PlanDefaultsFields.tsx`, …):
   presentational overlays/toolbar fragments driven by props from the editor.
+  Their styling belongs in `screens.css` (`.draw-tools`, `.wall-num`), not in
+  inline style objects — a `style=` prop here carries only values the CSS cannot
+  know (`WallNumericEntry`'s computed `left`/`top`). `WallNumericEntry` is
+  deliberately **opaque** (`--surface-solid`, `backdrop-filter: none`): it follows
+  the cursor and routinely covers the glass `.plan-props` inspector, where a
+  nested filter does nothing but let the inspector's text read through the
+  numbers being typed. Its position comes from the pure `wallEntryPlacement.ts`,
+  which clamps into the viewport — the endpoint can be far off-canvas after a
+  pan/zoom, so the prefer-then-flip offset alone would place the panel
+  off-screen. The three always-visible tools in `DrawToolPalette` are toggle
+  buttons (not a `Segmented` radiogroup — the real tool state space includes
+  every tool in the dropdowns), so each one's `aria-pressed` and `.on` class must
+  come from the SAME predicate; `SIMPLE_TOOLS[].on` is that single source.
   `PlanEditorHeader` carries a `.plan-header` class: a flat full-width bar on
   desktop, and on mobile a rounded floating pill (surface/border/shadow +
   `BrandDot` + `env(safe-area-inset-top)`) matching the room-editor `.toolbar.mobilebar`

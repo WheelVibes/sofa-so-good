@@ -123,7 +123,7 @@ function Label({
 }) {
   return (
     <Html position={[cx, LIFT + 0.05, cz]} center distanceFactor={9} zIndexRange={[15, 0]}>
-      <div className="flex items-center gap-1 rounded bg-[var(--surface-solid)]/95 px-1.5 py-0.5 text-xs font-semibold text-[var(--text)] shadow whitespace-nowrap">
+      <div className="measure-chip">
         <span className="pointer-events-none">{text}</span>
         <button
           type="button"

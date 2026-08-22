@@ -86,17 +86,56 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
      (`.modal-overlay`'s backdrop-filter) — unlike the anchored dock panels
      (catalog/inspector/budget), they don't need to show the live 3D scene
      through the card itself. Go opaque here (`--surface-solid`, same hue as
-     `--surface`, alpha 1) so a `.sec-h` sticky section header — which paints
-     its own `var(--surface)` layer on top to occlude scrolled rows — composites
-     to the exact same colour as the card behind it (blending a translucent
-     colour over an *opaque* layer of the identical hue reproduces that hue
-     exactly, regardless of the translucent layer's own alpha). On the
-     anchored glass panels this container stays translucent, so the same
-     sticky header still double-composites against the blurred scene and can
-     read slightly lighter than its surroundings — an accepted trade-off to
-     keep those panels' glass-over-scene look; not reported/fixed here. */
+     `--surface`, alpha 1) and pin `--sec-h-bg` to the same tone so a sticky
+     `.sec-h` fully occludes scrolled rows while compositing to the exact
+     card colour (a fill of the identical hue over an opaque layer is
+     invisible). Glass panels take `.sec-h`'s DEFAULT instead — transparent +
+     frosted backdrop — because any fill there double-composites into a
+     lighter full-width bar (UIUX-61; formerly an "accepted trade-off",
+     since reported by a user on the mobile Handover sheet and removed). */
   background: var(--surface-solid);
   --sec-h-bg: var(--surface-solid);
+  /* The base `.panel` carries its own backdrop-filter for the glass look —
+     here it is fully hidden behind the opaque card AND nested inside the
+     overlay's backdrop-filter (which makes the overlay a backdrop root, so
+     the card's filter could only ever sample the scrim's dim layer anyway).
+     Pure GPU waste + a latent veil if the card ever went translucent —
+     switch it off (UIUX-62). */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+/* Auth overlays' scrim (UIUX-76). The sign-in screen and the account-management
+   dialog each hand-rolled this as an inline style object, identical down to the
+   `var(--scene-b, #1a1714)` literal fallback and a `zIndex: 'var(--z-modal)' as
+   never` cast — and at 60% of the scene tone, noticeably darker than the
+   `.modal-overlay` scrim every other dialog uses. One class, so the two agree
+   with each other; it sits after `.modal-overlay` so the management dialog can
+   wear both (it needs that rule's opaque-card treatment) and this scrim wins. */
+.auth-scrim {
+  position: fixed; inset: 0; z-index: var(--z-modal);
+  display: grid; place-items: center; padding: var(--s-4);
+  background: color-mix(in oklch, var(--scene-b) 60%, transparent);
+  backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur));
+}
+
+/* The sign-in dialog builds its own fixed scrim (`.login-screen.auth-scrim`,
+   blurring the scene) with a `.panel` card inside. The card's
+   inherited glass (translucent `--surface` + backdrop-filter) is FAKE there:
+   the scrim is a backdrop root, so the card's filter samples only the dim
+   veil, not the scene (UIUX-62). Dialogs are opaque — same treatment as
+   `.modal-overlay > .panel`. */
+.login-screen > .panel {
+  background: var(--surface-solid);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+/* Sticky section headers are an opaque-container privilege (UIUX-61): only
+   over an opaque card does the header's fill composite invisibly while fully
+   hiding scrolled rows. The base `.sec-h` is static/unfilled (glass panels
+   can't do this cleanly — see parts.css); modals opt back in here. */
+.modal-overlay .panel .sec-h {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--sec-h-bg, var(--surface-solid));
 }
 /* The dialog container receives programmatic focus on open (a11y) — suppress its
    own focus ring; interactive children keep their own focus styles. */
@@ -113,8 +152,65 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
    stuck) — so don't zero the first `.sec`'s padding-top inline. This margin
    rule covers the remaining case of a first child that is NOT a `.sec` (plain
    intro copy); a margin scrolls with the content, so sticky headers below it
-   are unaffected. */
-.modal-overlay .panel-body > :first-child:not(.sec) { margin-top: var(--s-4); }
+   are unaffected. UIUX-51 (user report): the floating `.aux` panels had the
+   exact same flush-against-the-hr problem (Versions' save button, Handover's
+   date field, the score dial) — same rule, same self-spacing exclusions
+   (`.clr-summary` stat rows carry their own padding-top like `.sec` does).
+   Dock panels (catalog/inspector) stay flush by design. */
+.modal-overlay .panel-body > :first-child:not(.sec):not(.clr-summary),
+.aux .panel-body > :first-child:not(.sec):not(.clr-summary) { margin-top: var(--s-4); }
+/* Modal footer row (the `Modal` `footer` prop): actions right-aligned on the
+   same horizontal rhythm as .panel-body. Override justify-content inline for
+   split layouts (e.g. a leading option cluster + trailing CTA). Symmetric
+   vertical inset (UIUX-47, user report): the body clips flush right above the
+   footer mid-scroll, so a zero top padding sat the buttons against the clip
+   edge — the footer carries the same breathing room above as below. */
+.panel-foot {
+  display: flex; align-items: center; justify-content: flex-end; gap: var(--s-2);
+  padding: var(--s-4);
+}
+/* Scroll-edge shadows (UIUX-30, extended to every .panel-body in UIUX-35 —
+   modals AND the catalog/inspector dock panels; `.lyr-body` mirrors this in
+   features.css). NOT on `.card-grid`: it's a *grid* scroller, where sticky
+   pseudo-lips become grid items and corrupt the column layout. A scrollable
+   body otherwise clips its content at the panel edge, which reads as elements
+   sitting flush against it.
+   Sticky gradient lips fade in only while there IS more content in that
+   direction, driven by native scroll-driven animations. Progressive
+   enhancement: without animation-timeline support the timeline is absent and
+   the lips keep their specified opacity 0. Shadow colour derives from --text so
+   it adapts to light/dark across all 5 themes. */
+@supports (animation-timeline: scroll()) {
+  .panel-body::before,
+  .panel-body::after {
+    content: ''; position: sticky; left: 0; right: 0; display: block;
+    height: 10px; flex: none; z-index: 2; pointer-events: none; opacity: 0;
+    animation: none linear both;
+    animation-timeline: scroll();
+  }
+  .panel-body::before {
+    top: 0; margin: 0 calc(-1 * var(--s-4)) -10px;
+    background: linear-gradient(to bottom, color-mix(in oklch, var(--text) 14%, transparent), transparent);
+    animation-name: scrollEdgeTop;
+  }
+  .panel-body::after {
+    bottom: 0; margin: -10px calc(-1 * var(--s-4)) 0;
+    background: linear-gradient(to top, color-mix(in oklch, var(--text) 14%, transparent), transparent);
+    animation-name: scrollEdgeBot;
+  }
+}
+@keyframes scrollEdgeTop { 0% { opacity: 0; } 6% { opacity: 1; } 100% { opacity: 1; } }
+@keyframes scrollEdgeBot { 0% { opacity: 1; } 94% { opacity: 1; } 100% { opacity: 0; } }
+/* Inline form/action error text (capture failures, validation) — one class so
+   every modal's error line matches; never a colour literal at the call site. */
+.form-err { color: var(--danger); font-size: var(--t-xs); font-weight: 600; }
+/* Graphics settings: a long stack of sections — allow a taller panel than the
+   360-wide default before it scrolls (was its custom shell's sizing, UIUX-15). */
+.modal-overlay > #graphicsSettings { max-height: min(640px, calc(100vh - 48px)); }
+/* Smart Start: intro + 4 starting-state rows + the design-theme card grid is a
+   long stack — on a tall viewport the 560px default cut the flagship theme grid
+   mid-card while half the screen sat unused (UIUX-42). Same pattern as above. */
+.modal-overlay > #smart-start { max-height: min(760px, calc(100vh - 48px)); }
 
 /* ---- Thin, aesthetic scrollbars ------------------------------ */
 * { scrollbar-width: thin; scrollbar-color: var(--border-2) transparent; }
@@ -281,7 +377,18 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 .panel-head-actions { display: inline-flex; align-items: center; gap: var(--s-1); flex: none; }
 .panel-title { font-size: var(--t-base); font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; line-height: 1.3; }
 .panel-sub { font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); font-weight: 600; }
-.panel-body { padding: 0 var(--s-4) var(--s-4); overflow-y: auto; }
+/* Sentence-case variant for helper/annotation copy that borrows .panel-sub's
+   size/colour but must not shout — replaces ~50 inline
+   `textTransform:'none', letterSpacing:0` hacks (UIUX-7). */
+.panel-sub.plain { text-transform: none; letter-spacing: 0; }
+/* No vertical padding on the scrollport (UIUX-46): bottom padding let scrolled
+   rows stay visible BELOW the sticky scroll-edge lip (which pins at the content
+   box, not the padding edge), ghosting content past the panel's visual end —
+   behind modal footers, into the rounded corners (user report: Quote template,
+   Shopping list, File menu). The bottom breathing-room lives on the last child
+   instead, mirroring the top-side rule further up; resting spacing unchanged. */
+.panel-body { padding: 0 var(--s-4); overflow-y: auto; }
+.panel-body > :last-child { margin-bottom: var(--s-4); }
 .hr { height: 1px; background: var(--border); margin: 0; border: 0; }
 
 /* icon button (close, etc.) */
@@ -291,6 +398,25 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
   color: var(--text-3); transition: var(--dur) var(--ease);
 }
 .icon-btn:hover { background: var(--surface-3); color: var(--text); }
+
+/* Radial progress ring (UIUX-37, controls/RingGauge.tsx) — accent sweep on a
+   surface track, danger when over; the sweep glides on the motion tokens
+   (reduced-motion zeroes the transition globally). */
+.ring-gauge { position: relative; display: inline-grid; place-items: center; flex: none; }
+.ring-gauge svg { display: block; }
+.ring-gauge .ring-bg { fill: none; stroke: var(--surface-2); }
+.ring-gauge .ring-fg {
+  fill: none; stroke: var(--accent); stroke-linecap: round;
+  transition: stroke-dashoffset var(--dur-2) var(--ease-out), stroke var(--dur) var(--ease);
+}
+.ring-gauge.danger .ring-fg { stroke: var(--danger); }
+.ring-gauge.ok .ring-fg { stroke: var(--ok); }
+.ring-gauge.ok .ring-label { color: var(--ok); }
+.ring-gauge .ring-label {
+  position: absolute; font-size: var(--t-2xs); font-weight: 700;
+  font-variant-numeric: tabular-nums; color: var(--text-2);
+}
+.ring-gauge.danger .ring-label { color: var(--danger); }
 
 /* ---- Buttons -------------------------------------------------- */
 .btn {
@@ -310,10 +436,84 @@ input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 .btn-danger { background: var(--danger-soft); color: var(--danger); }
 .btn-danger:hover { background: var(--danger-soft); filter: brightness(0.97); }
 .btn-block { width: 100%; }
+/* A button that must read as the text around it — a panel title row, a list
+   row, a thumbnail (UIUX-78). Five call sites inlined this by hand, each with a
+   different subset, and most of what they inlined the global `button` reset near
+   the top of this file already does (background / border / cursor / colour /
+   font-family). This adds only what that reset cannot: zero box, the
+   surrounding font metrics rather than the browser's button font, and reading
+   alignment. It is NOT a `.btn` variant — it deliberately has no `.btn` frame,
+   so it composes with a layout class instead of with `.btn`. */
+.btn-plain {
+  padding: 0; margin: 0; font: inherit; color: inherit;
+  letter-spacing: inherit; text-transform: inherit; text-align: left;
+}
+
 .btn-sm { padding: 5px 8px; font-size: var(--t-xs); }
 /* Inline button spinner (P16). Reuses @keyframes toastspin (features.css). */
 .btn .btn-spin { animation: toastspin 0.9s linear infinite; transform-origin: 50% 50%; flex: none; }
 .btn.is-loading { pointer-events: none; opacity: 0.7; }
+/* Direction-aware panel switch (UIUX-34): the incoming tab/segment panel
+   slides in from the side the selection travelled toward (useSlideDir sets
+   data-dir; a remount `key` replays the entrance). No data-dir = plain fade.
+   Fill `backwards`, never `both`; reduced-motion zeroes it. */
+.panel-slide { animation: panelSlideIn var(--dur-1) var(--ease-out) backwards; }
+.panel-slide[data-dir='right'] { --slide-from: 14px; }
+.panel-slide[data-dir='left'] { --slide-from: -14px; }
+@keyframes panelSlideIn {
+  from { opacity: 0; transform: translateX(var(--slide-from, 0)); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Press feedback (UIUX-32, the Motion `whileTap` equivalent in one rule): a
+   uniform tactile scale-down while a button is actively pressed. Transform-only
+   (rides each control's existing transition; the global reduced-motion kill
+   zeroes it). Deliberately NOT on cards — `.liftable` owns their transform. */
+.btn:active:not(:disabled),
+.icon-btn:active,
+.tool-btn:active,
+.seg button:active { transform: scale(0.96); }
+
+/* Progress-label shimmer (UIUX-22): a highlight sweeps across in-flight status
+   text. Mounted only via ShimmerText, which gates on useAmbientFx() (dormant in
+   the default Performance tier / reduced-motion) and IO-pauses it off-screen.
+   Token-only colours; the slow 2.2s loop follows the decorative-loops-are-slow
+   rule. Fill is irrelevant (infinite), play-state carries the pause. */
+.shimmer-text {
+  background: linear-gradient(
+    90deg,
+    var(--text-3) 0%,
+    var(--text-3) 42%,
+    var(--text) 50%,
+    var(--text-3) 58%,
+    var(--text-3) 100%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmerslide 2.2s linear infinite;
+}
+.shimmer-text.paused { animation-play-state: paused; }
+@keyframes shimmerslide {
+  from { background-position: 100% 0; }
+  to { background-position: -150% 0; }
+}
+/* Copy/save confirmation pop (UIUX-25): the swapped-in check icon lands with a
+   small overshoot. Fill `backwards`, never `both`; reduced-motion zeroes it. */
+.done-pop { animation: donepop var(--dur-spring-pop) var(--ease-spring-pop) backwards; }
+@keyframes donepop {
+  from { transform: scale(0.4); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+/* Standalone two-state toggle button "armed" state (TB-8: 2-state toggles stay
+   plain buttons — but they MUST show their on-state). Mirrors .icon-btn.on;
+   the inset accent ring marks selection (accent border = selection, not hover). */
+.btn.on {
+  background: var(--accent-soft); color: var(--accent-soft-text);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.btn.on:hover { background: var(--accent-soft); color: var(--accent-soft-text); }
 
 kbd {
   font-family: var(--font-mono); font-size: 10px; font-weight: 600;
@@ -410,7 +610,7 @@ body.mobile .tip::after { content: none; }
 /* ---- Dropdown menu ------------------------------------------- */
 .menu {
   position: absolute; top: calc(100% + 8px);
-  min-width: 220px; padding: var(--s-2);
+  min-width: 220px; padding: var(--s-3); /* UIUX-30: match .pop-panel's inset */
   background: var(--elevated);
   backdrop-filter: blur(var(--blur)) saturate(1.3);
   -webkit-backdrop-filter: blur(var(--blur)) saturate(1.3);
@@ -419,8 +619,14 @@ body.mobile .tip::after { content: none; }
   z-index: var(--z-pop);
   display: none; flex-direction: column; gap: 1px;
 }
-.menu.open { display: flex; animation: pop var(--dur) var(--ease); }
-@keyframes pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.menu.open { display: flex; animation: pop var(--dur) var(--ease); transform-origin: 50% 0; }
+/* Origin-aware entrance (UIUX-26): panels scale up slightly from their anchor
+   side — Popover sets --pop-origin to the trigger's centre; anything else
+   grows from its own top edge. Exit stays an instant unmount. */
+@keyframes pop {
+  from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
 
 /* Entrance stagger (P2). Children of a .stagger-in container fade+rise in
    sequence. --i (the child's index) drives a 50ms cascade; mapped lists set it
@@ -510,6 +716,22 @@ body.mobile .tip::after { content: none; }
 .seg button.on { background: var(--surface-solid); color: var(--text); box-shadow: 0 1px 2px oklch(0 0 0 / 0.08); }
 .seg.accent button.on { background: var(--accent); color: var(--on-accent); box-shadow: none; }
 .seg button:focus-visible { box-shadow: var(--focus-ring); }
+/* Sliding active pill (UIUX-20) — the `Segmented` component only: once it has
+   measured the selection it adds `.slide` + a `.seg-pill` that glides between
+   segments (transform/width on the motion tokens; reduced-motion zeroes it).
+   Raw `.seg` markup keeps the static `.on` fill above. */
+.seg.slide { position: relative; }
+.seg.slide > button { position: relative; z-index: 1; }
+.seg.slide button.on { background: transparent; box-shadow: none; }
+.seg.accent.slide button.on { background: transparent; }
+.seg-pill {
+  position: absolute; top: 3px; bottom: 3px; left: 0;
+  border-radius: var(--r-1); pointer-events: none;
+  background: var(--surface-solid); box-shadow: 0 1px 2px oklch(0 0 0 / 0.08);
+  /* Real spring feel where linear() is supported (UIUX-31); ease-out fallback. */
+  transition: transform var(--dur-spring-snappy) var(--ease-spring-snappy), width var(--dur-spring-snappy) var(--ease-spring-snappy);
+}
+.seg.accent .seg-pill { background: var(--accent); box-shadow: none; }
 
 /* Toolbar-island segmented cluster (TB-8: the desktop Lights control) — a
    decorative context icon + a .seg group that carries the accessible name. */
@@ -590,3 +812,86 @@ body.mobile .tip::after { content: none; }
 .row + .row { border-top: 1px solid var(--border); }
 .row .rk { display: flex; align-items: center; gap: var(--s-3); font-size: var(--t-base); font-weight: 500; color: var(--text-2); }
 .row .rk .icn { color: var(--text-3); }
+
+/* ---- A/B split-reveal overlay (UIUX-76) --------------------------------
+   Shared by every compare modal (render / version / time / staging reveal) via
+   `ui/compare/CompareOverlay.tsx`. Each modal used to inline its own copy, and
+   the copies drifted into three knob sizes plus a literal rgba/#fff chip next
+   to a tokenised accent sibling. `a` is always the left/baseline side and `b`
+   the right/subject side, so the two chips read as a pair and the grammar is
+   the same whichever modal you open. */
+/* The 16:9 image frame every compare modal drags its divider across. All four
+   inlined the identical object down to a `borderRadius: 8` that matched no
+   radius token (`--r-3` is 7px). Only the cursor stays inline — it is
+   state-driven (wait / ew-resize / default). */
+.cmp-frame {
+  position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden;
+  background: var(--surface-3); border-radius: var(--r-3);
+  user-select: none; touch-action: none;
+}
+/* A full-bleed frame layer: the B-side image, or the A-side's clip wrapper. */
+.cmp-layer { position: absolute; inset: 0; }
+.cmp-img { width: 100%; height: 100%; object-fit: fill; display: block; }
+/* Centred message covering the frame before anything is captured, or on error.
+   `.col` stacks it (the render modal shows a label above its progress line). */
+.cmp-empty {
+  position: absolute; inset: 0; display: flex;
+  align-items: center; justify-content: center;
+  gap: var(--s-2); padding: var(--s-6); text-align: center;
+}
+.cmp-empty.col { flex-direction: column; }
+/* Footer control strip: the A/B pickers on one side, the capture action on the
+   other, wrapping on a narrow modal. `.panel-foot` owns the frame; this owns the
+   compare-specific distribution. */
+.cmp-controls { justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
+.cmp-pickers { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+.cmp-pickers label { display: flex; align-items: center; gap: var(--s-2); }
+/* The ⇄ swap-A-and-B button — a glyph, so it takes a larger type size than the
+   `.btn-sm` default it sits beside. */
+.cmp-swap { padding: var(--s-1) var(--s-3); font-size: var(--t-lg); }
+/* Live status line under the frame. `min-height` reserves the row so the modal
+   doesn't jump as the message appears and clears. */
+.cmp-status { margin-top: var(--s-3); min-height: 16px; }
+/* Legend dot tying an A/B picker row to its half of the frame. It shares the
+   overlay chips' identity — `a` is the neutral baseline side, `b` the accent
+   subject side — because both label the same two halves; the dots used to run
+   accent-A / neutral-B, the opposite way round from the chips beside them. */
+.cmp-slot {
+  /* `flex: none` matters: the dot is a flex child of a label whose Select makes
+     the row overflow, and with the default shrink factor the old inline copies
+     were being crushed to under 4px — a dot the picker row could not actually
+     use to tell A from B. */
+  display: inline-block; flex: none; width: 10px; height: 10px;
+  border-radius: var(--r-1); align-self: center;
+}
+.cmp-slot.a { background: var(--text-3); }
+.cmp-slot.b { background: var(--accent); }
+.cmp-divider {
+  position: absolute; top: 0; bottom: 0; width: 2px;
+  transform: translateX(-50%); background: var(--on-accent);
+  pointer-events: none;
+}
+.cmp-handle {
+  position: absolute; top: 50%; transform: translate(-50%, -50%);
+  width: 32px; height: 32px; border-radius: var(--r-pill);
+  display: grid; place-items: center; pointer-events: none;
+  /* Accent disc, not a white one: the copies all paired `--on-accent` (near
+     white) with a `--surface-solid` glyph (also near white), so the ⇄ was
+     invisible in every theme. `--on-accent` on `--accent` is the pair whose
+     contrast the token contract guarantees, and it ties the knob to the `b`
+     chip. The divider stays a light hairline over the imagery. */
+  background: var(--accent); color: var(--on-accent);
+  box-shadow: var(--shadow-panel); font-size: var(--t-md);
+}
+.cmp-tag {
+  position: absolute; top: var(--s-3); pointer-events: none;
+  padding: 2px 7px; border-radius: var(--r-1);
+  font-size: var(--t-xs); font-weight: 700; white-space: nowrap;
+}
+/* Baseline side: a neutral chip that stays legible over any render. */
+.cmp-tag.a {
+  left: var(--s-4); background: var(--surface-solid); color: var(--text);
+  border: 1px solid var(--border);
+}
+/* Subject side: the accent chip marks what the user is evaluating. */
+.cmp-tag.b { right: var(--s-4); background: var(--accent); color: var(--on-accent); }

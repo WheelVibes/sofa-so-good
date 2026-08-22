@@ -28,9 +28,7 @@ export function GridZoomControls({
   return (
     <>
       <div className="seg" style={{ alignItems: 'center', gap: 6, paddingLeft: 8 }}>
-        <span className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
-          Grid
-        </span>
+        <span className="panel-sub plain">Grid</span>
         <Select
           ariaLabel="Snap grid size"
           className="input"

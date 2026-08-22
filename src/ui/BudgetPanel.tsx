@@ -10,6 +10,8 @@ import { useStore } from '../state/store'
 import { safeUrl } from '../utils/safeUrl'
 import { AuxPanelHead } from './AuxPanelHead'
 import { CategoryIcon } from './catalog/CategoryIcon'
+import { RingGauge } from './controls/RingGauge'
+import { useAnimatedNumber } from './controls/useAnimatedNumber'
 import { EmptyState } from './EmptyState'
 import { buildShoppingCsv } from './shoppingCsv'
 import { Icon } from './toolbar/icons'
@@ -83,7 +85,6 @@ export function BudgetPanel() {
   )
   const livePrices = useLivePrices(liveEntries, livePricesEnabled && liveOn && open)
 
-  if (!open) return null
   const fmt = (n: number) => `$${n.toLocaleString('en-SG')}`
   // Offers arrive cheapest-first; the cheapest one drives line/total pricing.
   const eachOf = (l: Line) => livePrices[l.name]?.[0]?.price ?? l.each
@@ -92,6 +93,11 @@ export function BudgetPanel() {
     0,
   )
   const shownTotal = liveOn ? liveTotal : total
+  // Headline figure rolls to its new value (UIUX-21); target math stays live.
+  // (Hook — must sit above the early return.)
+  const animatedTotal = Math.round(useAnimatedNumber(shownTotal))
+
+  if (!open) return null
   const saved = collections.map((id) => catalog[id]).filter((d): d is NonNullable<typeof d> => !!d)
 
   return (
@@ -165,7 +171,18 @@ export function BudgetPanel() {
       ) : (
         <div className="panel-body">
           <div className="bud-total">
-            <span className="big mono">{fmt(shownTotal)}</span>
+            {/* Spend-vs-target at a glance (UIUX-37): the ring replaces the old
+                inline bar under the target field — one visual for one value. */}
+            {budgetTarget != null && budgetTarget > 0 ? (
+              <RingGauge
+                value={shownTotal / budgetTarget}
+                danger={shownTotal > budgetTarget}
+                ariaLabel={`${Math.round((shownTotal / budgetTarget) * 100)}% of the ${fmt(budgetTarget)} budget spent`}
+              >
+                {Math.round((shownTotal / budgetTarget) * 100)}%
+              </RingGauge>
+            ) : null}
+            <span className="big mono">{fmt(animatedTotal)}</span>
             <span className="panel-sub">{count} items</span>
           </div>
           <BudgetTarget
@@ -175,13 +192,8 @@ export function BudgetPanel() {
             onChange={setBudgetTarget}
           />
           {groups.length > 1 && shownTotal > 0 ? (
-            <div className="bud-breakdown" style={{ margin: 'var(--s-2) 0 var(--s-1)' }}>
-              <div
-                className="label"
-                style={{ fontSize: 'var(--t-2xs)', marginBottom: 4, color: 'var(--text-3)' }}
-              >
-                Spend by category
-              </div>
+            <div className="bud-breakdown">
+              <div className="label">Spend by category</div>
               {groups
                 .map((g) => ({
                   cat: g.cat,
@@ -225,13 +237,8 @@ export function BudgetPanel() {
             </div>
           ) : null}
           {byRoom.rows.length > 1 && byRoom.sum > 0 ? (
-            <div className="bud-breakdown" style={{ margin: 'var(--s-2) 0 var(--s-1)' }}>
-              <div
-                className="label"
-                style={{ fontSize: 'var(--t-2xs)', marginBottom: 4, color: 'var(--text-3)' }}
-              >
-                Spend by room
-              </div>
+            <div className="bud-breakdown">
+              <div className="label">Spend by room</div>
               {byRoom.rows.map(({ name, amt, count }) => {
                 const pct = Math.round((amt / byRoom.sum) * 100)
                 return (
@@ -270,7 +277,7 @@ export function BudgetPanel() {
           {groups.length > 0 ? (
             <button
               type="button"
-              className="btn ghost sm"
+              className="btn btn-sm"
               style={{ marginTop: 'var(--s-2)' }}
               title="Download the shopping list as a CSV (for a spreadsheet or supplier)"
               onClick={() => {
@@ -302,13 +309,11 @@ export function BudgetPanel() {
           ) : null}
           {livePricesEnabled && (
             <label
-              className="panel-sub"
+              className="panel-sub plain"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
-                textTransform: 'none',
-                letterSpacing: 0,
                 cursor: 'pointer',
                 marginTop: 4,
               }}
@@ -420,14 +425,8 @@ export function BudgetPanel() {
             Copy shopping list
           </button>
           <p
-            className="panel-sub"
-            style={{
-              marginTop: 'var(--s-3)',
-              textTransform: 'none',
-              letterSpacing: 0,
-              fontWeight: 500,
-              lineHeight: 1.4,
-            }}
+            className="panel-sub plain"
+            style={{ marginTop: 'var(--s-3)', fontWeight: 500, lineHeight: 1.4 }}
           >
             {liveOn
               ? 'Live SG retailer top-match prices (cheapest used) where found, else estimate. Finishes & reno excluded.'
@@ -506,39 +505,21 @@ function BudgetTarget({
           ))}
         </div>
       )}
+      {/* The spend-vs-target sweep itself lives in the header's RingGauge
+          (UIUX-37) — this row keeps only the words. */}
       {has && (
-        <>
-          <div
-            style={{
-              height: 6,
-              borderRadius: 999,
-              background: 'var(--surface-2)',
-              overflow: 'hidden',
-              marginTop: 6,
-            }}
-          >
-            <div
-              style={{
-                width: `${pct * 100}%`,
-                height: '100%',
-                background: over ? 'var(--danger)' : 'var(--accent)',
-                transition: 'width .2s',
-              }}
-            />
-          </div>
-          <div
-            style={{
-              fontSize: 'var(--t-2xs)',
-              marginTop: 4,
-              fontWeight: 600,
-              color: over ? 'var(--danger)' : 'var(--text-2)',
-            }}
-          >
-            {over
-              ? `Over by ${fmt(spent - target)}`
-              : `${fmt(remaining)} left · ${Math.round(pct * 100)}% of ${fmt(target)}`}
-          </div>
-        </>
+        <div
+          style={{
+            fontSize: 'var(--t-2xs)',
+            marginTop: 4,
+            fontWeight: 600,
+            color: over ? 'var(--danger)' : 'var(--text-2)',
+          }}
+        >
+          {over
+            ? `Over by ${fmt(spent - target)}`
+            : `${fmt(remaining)} left · ${Math.round(pct * 100)}% of ${fmt(target)}`}
+        </div>
       )}
     </div>
   )

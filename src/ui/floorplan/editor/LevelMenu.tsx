@@ -237,7 +237,7 @@ export function LevelMenu({
       )}
       <button
         type="button"
-        className={`btn btn-sm${open ? ' btn-accent' : ''}`}
+        className={`btn btn-sm${open ? ' on' : ''}`}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Floors"

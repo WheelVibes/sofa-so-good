@@ -60,3 +60,26 @@ describe('LayersPanel hidden-row dimming', () => {
     expect(visibleRow).not.toHaveClass('hidden')
   })
 })
+
+describe('LayersPanel keyboard-selectable rows (UIUX-41)', () => {
+  it('each row exposes a real select button that sets the selection', () => {
+    useStore.setState({ items: [ITEM], selectedItemIds: [] })
+    render(<LayersPanel />)
+    const btn = screen
+      .getAllByRole('button', { pressed: false })
+      .find((b) => b.className.includes('lyr-sel'))
+    expect(btn).toBeTruthy()
+    fireEvent.click(btn as HTMLElement)
+    expect(useStore.getState().selectedItemIds).toEqual(['i1'])
+  })
+
+  it('reflects selection via aria-pressed and toggles on ctrl-click', () => {
+    useStore.setState({ items: [ITEM] })
+    useStore.getState().selectItem('i1')
+    render(<LayersPanel />)
+    const btn = document.querySelector('.lyr-sel') as HTMLElement
+    expect(btn.getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(btn, { ctrlKey: true })
+    expect(useStore.getState().selectedItemIds).toEqual([])
+  })
+})

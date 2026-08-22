@@ -295,27 +295,32 @@ export function boqToHtml(boq: Boq, template?: QuoteTemplate): string {
     parts.push('<p class="boq-empty">No items.</p>')
   }
   for (const section of boq.sections) {
+    // The linear-feet column exists only for carpentry lines — a section with
+    // none (FF&E, finishes) renders without the always-empty column (UIUX-55).
+    // Numeric cells carry class="n" so the opener's stylesheet can right-align
+    // them with tabular numerals; the fragment stays legible unstyled.
+    const hasFt = section.lines.some((l) => l.lengthFt != null)
     parts.push(`<table class="boq-section"><caption>${escapeHtml(section.title)}</caption>`)
     parts.push(
-      '<thead><tr><th>Description</th><th>Qty</th><th>Unit</th>' +
-        '<th>Length (ft)</th><th>Rate</th><th>Amount</th></tr></thead>',
+      '<thead><tr><th>Description</th><th class="n">Qty</th><th>Unit</th>' +
+        `${hasFt ? '<th class="n">Length (ft)</th>' : ''}<th class="n">Rate</th><th class="n">Amount</th></tr></thead>`,
     )
     parts.push('<tbody>')
     for (const line of section.lines) {
       parts.push(
         '<tr>' +
           `<td>${escapeHtml(line.description)}</td>` +
-          `<td>${escapeHtml(line.qty)}</td>` +
+          `<td class="n">${escapeHtml(line.qty)}</td>` +
           `<td>${escapeHtml(line.unit)}</td>` +
-          `<td>${line.lengthFt == null ? '' : escapeHtml(line.lengthFt)}</td>` +
-          `<td>${escapeHtml(fmt(line.rate))}</td>` +
-          `<td>${escapeHtml(fmt(line.amount))}</td>` +
+          `${hasFt ? `<td class="n">${line.lengthFt == null ? '' : escapeHtml(line.lengthFt)}</td>` : ''}` +
+          `<td class="n">${escapeHtml(fmt(line.rate))}</td>` +
+          `<td class="n">${escapeHtml(fmt(line.amount))}</td>` +
           '</tr>',
       )
     }
     parts.push('</tbody>')
     parts.push(
-      `<tfoot><tr><th colspan="5">Subtotal</th><td>${escapeHtml(fmt(section.subtotal))}</td></tr></tfoot>`,
+      `<tfoot><tr><th colspan="${hasFt ? 5 : 4}">Subtotal</th><td class="n">${escapeHtml(fmt(section.subtotal))}</td></tr></tfoot>`,
     )
     parts.push('</table>')
   }

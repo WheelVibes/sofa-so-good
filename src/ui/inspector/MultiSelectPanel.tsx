@@ -388,7 +388,9 @@ export function MultiSelectPanel() {
             </div>
             {bulkAppearanceOn ? (
               <div className="sec">
-                <div className="label">Appearance</div>
+                <div className="sec-h">
+                  <span>Appearance</span>
+                </div>
                 <div
                   className="row ms-appearance"
                   style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-2)' }}

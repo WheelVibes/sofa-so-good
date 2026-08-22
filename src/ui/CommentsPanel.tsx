@@ -37,6 +37,21 @@ export function CommentsPanel() {
     s.focusOn([c.position[0], c.position[1]])
   }
 
+  // Every other delete in the app is confirm (item / saved view / version) or at
+  // least confirm+Undo; this one was a single click on a trash icon wedged
+  // between the resolve and edit icons, with no prompt and no Undo toast even
+  // though `deleteComment` does push history (UIUX-80).
+  const removeComment = async (id: string, index: number) => {
+    const s = useStore.getState()
+    const ok = await s.confirmAction({
+      title: 'Delete comment?',
+      message: `Comment #${index} will be removed. You can undo this with Ctrl/⌘+Z.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    })
+    if (ok) useStore.getState().deleteComment(id)
+  }
+
   const editComment = async (id: string) => {
     const s = useStore.getState()
     const c = s.comments.find((x) => x.id === id)
@@ -92,48 +107,18 @@ export function CommentsPanel() {
         ) : (
           <div className="clr-list">
             {comments.map((c, i) => (
-              <div
-                key={c.id}
-                className="clr-item"
-                style={{
-                  borderLeftColor: c.resolved ? 'var(--ok, var(--accent))' : 'var(--accent)',
-                  display: 'flex',
-                  gap: 'var(--s-2)',
-                  alignItems: 'flex-start',
-                }}
-              >
+              <div key={c.id} className={`clr-item cmt-row${c.resolved ? ' resolved' : ''}`}>
                 <button
                   type="button"
                   title="Jump to this pin"
                   onClick={() => focusComment(c.id)}
-                  style={{
-                    flex: 1,
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    background: 'none',
-                    border: 'none',
-                    padding: 0,
-                    color: 'inherit',
-                  }}
+                  className="btn-plain"
+                  style={{ flex: 1 }}
                 >
-                  <span
-                    style={{
-                      fontSize: 'var(--t-xs)',
-                      textDecoration: c.resolved ? 'line-through' : 'none',
-                      opacity: c.resolved ? 0.6 : 1,
-                      overflowWrap: 'anywhere',
-                    }}
-                  >
+                  <span className="cmt-txt">
                     <strong>#{i + 1}</strong> {c.text}
                   </span>
-                  <span
-                    style={{
-                      display: 'block',
-                      fontSize: 'var(--t-2xs)',
-                      color: 'var(--text-3)',
-                      marginTop: 2,
-                    }}
-                  >
+                  <span className="cmt-meta">
                     {c.author ? `${c.author} · ` : ''}
                     {multi ? `${levelById(plan, c.levelId).name} · ` : ''}
                     {new Date(c.createdAt).toLocaleDateString()}
@@ -141,14 +126,13 @@ export function CommentsPanel() {
                 </button>
                 <button
                   type="button"
-                  className="icon-btn"
+                  className={`icon-btn${c.resolved ? ' on' : ''}`}
                   aria-label={`${c.resolved ? 'Reopen' : 'Resolve'} comment ${i + 1}`}
                   aria-pressed={c.resolved}
                   title={c.resolved ? 'Reopen' : 'Mark resolved'}
-                  style={c.resolved ? { color: 'var(--ok, var(--accent))' } : undefined}
                   onClick={() => useStore.getState().setCommentResolved(c.id, !c.resolved)}
                 >
-                  ✓
+                  <Icon.Check width={14} height={14} />
                 </button>
                 <button
                   type="button"
@@ -157,14 +141,14 @@ export function CommentsPanel() {
                   title="Edit"
                   onClick={() => void editComment(c.id)}
                 >
-                  ✎
+                  <Icon.Edit width={14} height={14} />
                 </button>
                 <button
                   type="button"
                   className="icon-btn"
                   aria-label={`Delete comment ${i + 1}`}
                   title="Delete"
-                  onClick={() => useStore.getState().deleteComment(c.id)}
+                  onClick={() => void removeComment(c.id, i + 1)}
                 >
                   <Icon.Trash width={14} height={14} />
                 </button>

@@ -5,6 +5,1255 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.27.0.0 — UI/UX design-system pass: UIUX-1 → UIUX-80
+
+Release bump for the PR to `staging`. Eighty numbered tasks over 89 commits (41
+fix · 18 feat · 17 refactor · 11 docs), 196 files, with 36 test files added or
+extended. Per-task detail is in the entries below; the shape of the work:
+
+**One vocabulary, actually enforced.** Surfaces that had drifted onto hand-rolled
+styling came back to the token classes — menu rows, upload dialogs, scene chips,
+compare modals, plan-editor overlays — and each sweep left a guard behind rather
+than a promise. `styleGuards` (80+ CSS assertions), `phantomTokenGuard` (undefined
+`var()` references, Tailwind colour literals, inline colour literals in style
+objects, colour-literal fallbacks inside `var()`), `auxWidthGuard`, and
+`docTierParity` across all 201 feature flags. Several guards are self-verifying —
+they assert their own regexes still bite — because an earlier one silently passed
+after matching the comment that quoted the literal it banned.
+
+**Root causes, not symptoms.** The recurring lesson was that a visible artefact
+usually had a mechanism worth finding: sticky-header "white bars" were
+backdrop-root semantics, not a fill (a descendant's `backdrop-filter` samples only
+what its filtered ancestor painted, so sticky headers are an opaque-container
+privilege); two competing type ladders were Tailwind's scale sitting beside the
+app's `--t-*` tokens, fixed with an `@theme inline` bridge; a Design-score dial
+rendering as a solid pie was a phantom CSS token invalidating the whole
+declaration. Where the sandbox couldn't reproduce a platform quirk, the fix came
+from documented behaviour rather than headless output.
+
+**Simple mode as the real default.** Tier assignments were audited against the
+registry, the docs and each feature's nature — Simple was offering OBJ/STL
+exports for Blender and CAD — and the mobile sheet was swept separately, since a
+desktop-only pass had let the phone keep a heading promising formats it never
+had.
+
+**Accessibility and touch as first-class checks.** Layers and glbEditor rows
+became keyboard-reachable, `aria-pressed` was made to agree with the visual state
+it contradicted, the AI transcript became a live region, and context menus,
+confirm pills and comment actions reached the 44px floor — the last by growing for
+real, because expanded phantom hit areas on adjacent buttons would have sent an
+Edit tap to Delete.
+
+Every change was verified by running the app and reading the render, not by green
+tests alone: that is what caught the invisible ⇄ knob (a near-white glyph on a
+near-white disc, in all five themes), legend dots crushed to 3.8px, a plan overlay
+whose text read through the panel beneath it, and a glbEditor panel that had been
+missing its section frame because a class name matched no stylesheet.
+
+## v0.26.2.50 — UIUX-80: the AI chat and collaboration panels
+
+Two surfaces no pass had touched. The audit's opening premise was wrong and worth
+recording: both borrow `.clr-list`/`.clr-item` from the Clearance panel, which
+looked like off-system borrowing until a grep showed **nine** panels using them —
+`DrawingCalloutsPanel`'s own docblock even cites them as the shared aux-list
+pattern. It is a naming wart (a shared vocabulary named after its first
+consumer), not a structural fault, and renaming eleven files would be churn. Left
+alone deliberately.
+
+The real findings:
+
+**Deleting a comment had no confirm and no Undo toast** — the only delete in the
+app with neither, on a trash icon sitting 6px from the edit icon in a
+three-button row. `deleteComment` does push history, so it was recoverable, but
+nothing told the user that. It now routes through the same
+`confirmAction({ danger: true })` gate as deleting an item or a saved view.
+
+**Three 26px tap targets on a phone**, with the destructive one last. They grow
+to 44px under `body.mobile` rather than taking the `::after { inset: -9px }`
+hit-area trick used on panel-head buttons: three actions `--s-2` apart would get
+overlapping phantom areas, and a tap aimed at Edit could land on Delete. The text
+column takes `min-width: 0` to yield the space.
+
+**The chat transcript announced nothing.** No `role="log"` and no live region, so
+a screen-reader user got no signal that the advisor had replied or that the
+request was still running. Both are wired now.
+
+**The transcript was capped at a magic `maxHeight: 360`** inside a panel that
+`.aux` already caps at `calc(100vh - 96px)` — on a 1000px-tall window that left
+roughly 400px of the panel empty. The body is now a flex column that gives up its
+own scrolling (`.panel-body` scrolls by default, so keeping it would nest a second
+scroll region) and the log takes the remaining height, so the transcript fills the
+panel and the composer stays pinned. Verified at 904px: log 783px and scrollable,
+composer inside the panel.
+
+Smaller: the ✓ and ✎ actions were bare unicode glyphs next to a real
+`Icon.Trash` in the same row (now `Icon.Check` / `Icon.Edit`); two more dead
+`var(--ok, …)` literal fallbacks are gone; the resolved treatment and row layout
+move to `.cmt-*` classes; and the chat's `!e.shiftKey` send guard was inert — a
+single-line `<input>` has no newline to insert, so Enter always sent.
+
+## v0.26.2.49 — UIUX-79: the last twelve phantom classes, and a missing frame
+
+Finishing what UIUX-78 started: **`src/` now has zero className tokens with no
+stylesheet definition.** Each of the twelve made its static styling into a real
+rule — the two finish overlays, the room-editor area pill, the budget breakdown
+block, the flags row, the renovation over/under note, the versions file-action
+pair, the Smart Start intake block, the glbEditor array grid and its viewport
+dimensions readout, and the two plan-editor SVG label layers.
+
+Three of them were more than tidying:
+
+**`ArrangePanel` had no section frame.** Its `Disclosure` passed `arrange-array`
+where its three sibling glbEditor panels (Details, Components, Make configurable)
+pass `.sec` — so a class that styles nothing had been standing in for the frame
+those siblings have. A phantom class can hide a *missing* rule, not just a
+misplaced one.
+
+**The room-editor area pill no longer needs `useIsMobile`.** Its top offset was a
+JS `isMobile ? 84 : 68` branch inlined on the element; the 84 is now a
+`body.mobile` override in `responsive.css`, and the component dropped the hook
+entirely along with its whole style object.
+
+**`.plan-dim-label` deliberately carries no `fill`.** A CSS declaration outranks
+an SVG presentation attribute, and the class's two consumers disagree on the
+unselected colour (`WallDimension` uses `--text-2`, `PersistentDimensionsLayer`
+`--accent-soft-text`), so one class cannot carry both — the attribute stays. Its
+sibling `.plan-note` had a selection-only fill, so that one does move, behind a
+`.sel` modifier.
+
+Two raw pixel values went to the scale on the way (`ver-file-row`'s 8px gaps →
+`--s-3`, `ss-ocs`'s 12px → `--s-4`), and the renovation note's
+`var(--ok, var(--accent-2))` fallback is gone — `--ok` is defined in all ten
+theme blocks.
+
+Verified by cascade probe on every new class (each resolves to the tokens the old
+inline object used) plus a live check of the area pill. `.plan-dim-label` and
+`.clr-item-row` render only in states the harness can't easily reach, so those
+two are cascade-verified rather than seen on a real element.
+
+## v0.26.2.48 — UIUX-78: the plain-button reset, and what phantom classes point at
+
+UIUX-77 found `rc-slot-badge rc-slot-a` in a compare modal referencing two
+classes no stylesheet defines. Sweeping for the shape found 37 more, and the
+first cut of that scan was wrong in an instructive way: it read only `.css`
+files, so it reported the whole `hdb-*` family in `LoadingOverlay` as phantom
+when that component keeps its keyframes in a `<style>` template literal. Reading
+inline stylesheets too, and separating names a test or scenario queries as a
+selector, leaves 17 genuinely undefined — and every one of them sits on an
+element whose real styling is inline. **A phantom class is a signpost to
+off-system styling**, so the fix is to make it real, not to delete the name.
+
+This ships the slice with a shared cause. Five call sites hand-rolled "make this
+button read as the text around it" — the plan-inspector title, the inspector
+section toggle, a clearance-gap row, a comment row, and one thumbnail — each with
+a different subset of the same declarations, and most of what they inlined the
+global `button` reset at the top of `components.css` already does. `.btn-plain`
+owns the remainder: zero box, `font: inherit` so the button takes the
+surrounding size and weight instead of the browser's, and reading alignment.
+
+The clearance row had used `all: unset`, the nuclear version — which also drops
+the inherited theme colour, so that row had been rendering in the browser's
+`canvastext` rather than `--text`. Verified live: the class path resolves to the
+theme colour and keeps the `--focus-ring` box-shadow, and the inspector and plan
+titles compute identically to their old inline objects (padding 0, `font:
+inherit` resolving to the section's 10px/700 uppercase, `flex: 1`).
+
+Three names were genuine no-ops rather than signposts and are gone:
+`.shortcuts-group` (the stylesheet keys the parent `.shortcuts-groups` and the
+child `.shortcuts-group-title`), `.insp-sec` (redundant beside the defined
+`.sec`), and `.hdb-shell` (its sibling `.hdb-floor` carries the real
+animation-delay). The remaining twelve are filed as their own task.
+
+## v0.26.2.47 — UIUX-77: the compare modals' remaining inline styling
+
+UIUX-76 took the colour literals out of the four compare modals; this takes the
+rest. They were carrying 6, 13, 12 and 6 inline style objects, repeating the same
+five shapes between them — the 16:9 image frame (identical down to a
+`borderRadius: 8` that matches no radius token; `--r-3` is 7px), the full-bleed
+image layers, the centred pre-capture message, the footer picker strip, and the
+status line. All of it becomes the `.cmp-*` family that `CompareOverlay` already
+started, and each file is down to exactly **two** inline objects: the
+state-driven cursor and the divider's clip-path — values CSS cannot know, which
+is the line the `src/ui` rule draws.
+
+Two things surfaced on the way:
+
+**A phantom class.** `<span className="rc-slot-badge rc-slot-a">` in the render
+modal referenced two classes defined in no CSS file — an abandoned migration
+whose inline style was doing all the work. Sweeping for the shape finds ~38 more
+undefined class tokens across `src/`, which needs per-class triage (dead vs
+querySelector hook) and is filed as its own task rather than folded in here.
+
+**The legend dots were being crushed.** Probing the migrated markup showed them
+computing to 3.8px instead of 10px: they are flex children of a label whose
+`Select` overflows the row, and neither the class nor the inline copies before it
+set `flex: none`, so the shrink factor ate them. A 4px dot cannot do the one job
+it has — telling the A picker from the B picker — and it had presumably looked
+like that since the rows were written. Fixed on the shared class, so all four
+get it.
+
+The dots also ran accent-A / neutral-B, the opposite way round from the overlay
+chips sitting directly above them on the same two halves. They now follow the
+chips: `a` neutral (baseline), `b` accent (subject).
+
+## v0.26.2.46 — UIUX-76: colour literals in inline style objects
+
+UIUX-75's `rgba(0,0,0,0.18)` shadow was not an isolated slip — it was a whole
+blind spot. The "no hardcoded colour" rule is enforced by a CSS-file scan and a
+`className` scan, and a React `style={{ background: 'rgba(0,0,0,0.45)' }}` falls
+between them. Sweeping for the shape found the class, and closing it in
+`phantomTokenGuard` (DOM style objects, plus colour-literal fallbacks inside a
+`var()`) turned up two more offenders the sweep had missed.
+
+**Four compare modals had each copy-pasted the same A/B split-reveal overlay** —
+Render compare, Version compare, Time compare, the staging reveal — and the
+copies had drifted apart: three different knob font sizes, an `rgba(0,0,0,0.45)`
++ `#fff` scrim chip sitting directly beside a correctly tokenised
+`var(--accent)` sibling in the SAME component, and the accent chip on the left in
+three of them but the right in the fourth. `ui/compare/CompareOverlay.tsx` plus a
+`.cmp-*` class vocabulary replaces all four: `labelA` is always the left/baseline
+side (neutral chip) and `labelB` the right/subject side (accent chip).
+
+Probing the result caught a bug all four had shared and none had noticed: the ⇄
+knob paired an `--on-accent` disc with a `--surface-solid` glyph — near-white on
+near-white, so the glyph was invisible in every theme. It is now an accent disc
+with an `--on-accent` glyph, the one pair whose contrast the token contract
+guarantees.
+
+**The drag-select marquee painted a literal Tailwind blue** (`#3b82f6` + a
+matching rgba fill), so dragging a selection over a warm clay or kampong scene
+put a foreign cool-blue rectangle on it. Now `.marquee-box`, accent-tinted via
+`color-mix`.
+
+**Both auth overlays hand-rolled the same scrim inline**, identical down to a
+`var(--scene-b, #1a1714)` fallback and a `zIndex: 'var(--z-modal)' as never`
+cast — and at 60% of the scene tone, noticeably darker than the `.modal-overlay`
+scrim every other dialog uses. One `.auth-scrim` class now, so the two at least
+agree with each other. Two more literal `var()` fallbacks (`--on-accent, #fff`
+in a `parts.css` pill, `--danger, #c0392b` on a mobile delete row) are dropped;
+all four tokens are defined in all ten theme blocks, so the fallbacks were dead
+weight that would have hidden a rename.
+
+The new guards are self-verifying (they assert their own regexes still bite, and
+don't fire on the tokenised form they steer towards) and strip comments before
+scanning — the previous version matched the comment quoting the literal it bans,
+the same trap a UIUX-62 guard fell into.
+
+## v0.26.2.45 — UIUX-75: plan-editor overlays back on the design system
+
+The 2D floor-plan editor's two floating overlays had never been audited, and
+`WallNumericEntry` had drifted furthest of anything found this cycle: a literal
+`rgba(0,0,0,0.18)` shadow (invisible to the guards, which scan CSS files and
+className strings but not inline style objects), px font sizes off the `--t-*`
+ladder, a `borderRadius: 6` beside a `--r-2` of 5, `zIndex: 50` between two
+z-tokens, and six one-off gaps. All of it moves to a `.wall-num` rule built from
+tokens, so the overlay finally recolours across the five themes; the component's
+`style=` now carries only the computed `left`/`top`, which CSS cannot know.
+
+Three real defects came out of the visual pass rather than the grep:
+
+**The overlay was see-through.** It follows the cursor and routinely lands on
+`.plan-props`, itself a glass `.panel` — so its own `backdrop-filter` sampled a
+backdrop root and did nothing, and the inspector's body text read straight
+through the numbers being typed. Now opaque (`--surface-solid`, filter off),
+with a `styleGuards` case pinning it.
+
+**It could be placed off-screen.** The prefer-below-right-then-flip offset
+assumes the endpoint is on screen, but the plan canvas pans and zooms freely — a
+draft end left of or above the viewport (a paper rect starting at -1650, -1822
+is ordinary after a few zoom steps) overflows nothing, so no flip fires and the
+panel went with it. Positioning is now the pure `wallEntryPlacement.ts`, which
+clamps last; it also takes the real `panelH`, since the panel grows by the
+validation row and the old hardcoded height dropped the error message below the
+fold exactly when it needed reading. Verified live: paper origin at
+(-1650, -1822) now pins the panel to (12, 12).
+
+**`DrawToolPalette` misreported its pressed state.** Select rendered lit for the
+'scale' tool while reporting `aria-pressed=false`, and Wall and Split exposed no
+pressed state at all — a screen-reader user saw an unpressed button the sighted
+user saw highlighted. The three stay toggle buttons rather than a `Segmented`
+radiogroup (the real tool state space includes every tool in the dropdowns, so a
+radiogroup over three of ten would misreport it differently), but both signals
+now come from one `SIMPLE_TOOLS[].on` predicate, tested across five tool states.
+
+## v0.26.2.44 — UIUX-74: one empty-state record for the four saved collections
+
+Following UIUX-73's mobile/desktop drift into the empty case. Four lists —
+saved layouts, sets, styles and views — each render on a desktop toolbar menu
+AND a mobile sheet section, and all four had separated: desktop used the shared
+`EmptyState` with a headline plus a hint naming the control that fills the list,
+mobile File hand-rolled `<div className="m-empty">No saved layouts.</div>`, and
+mobile Arrange and View rendered *nothing at all* — a "My styles" header with a
+Save row and then blank space, no explanation of what would appear there.
+
+`toolbar/savedEmptyStates.ts:SAVED_EMPTY` is now the single copy record; every
+surface spreads it (`<EmptyState {...SAVED_EMPTY.views} />`), which is the only
+arrangement in which the icon, headline and hint can't separate again. The three
+missing mobile empties are added, the `.m-empty` one-off and its CSS rule are
+gone, and its test asserts each of the eight call sites spreads the record and
+that no surface re-inlines a headline literal.
+
+The sheet needed one adjustment rather than a straight copy of the desktop
+padding: `.empty-mini`'s 30px block is tuned for a dropdown with room to spare,
+but a Pro-mode Arrange section on a fresh install shows two of them, so
+`.m-detail .empty-mini` tightens to `--s-5`/`--s-4` (the blob, copy and type
+scale are untouched). Verified at 390x844 in Simple — Arrange shows the styles
+empty (sets is correctly gated away, `userSets` is pro), View and File each show
+theirs — and on desktop in Pro, where both Arrange empties still render exactly
+as before the refactor.
+
+## v0.26.2.43 — UIUX-73: mobile File section reaches export parity with desktop
+
+UIUX-71 taught the export menu to name only the buckets it actually renders,
+but it only fixed the desktop `FileMenu` — the mobile sheet kept a hardcoded
+"CAD, 3D & data" heading over a section that has never offered a CAD format, so
+a phone in Simple mode advertised two buckets it couldn't deliver. The labelling
+logic moves out of `FileMenu.tsx` into a shared `ui/toolbar/exportGroupLabel.ts`
+that both surfaces import, which is the only way the two headings can't drift
+apart again (own unit test: the six bucket combinations plus the empty case).
+The mobile heading now reads an honest "3D" in Simple, "3D & data" once the
+budget/shop flags are on.
+
+Auditing the section for the same desktop/mobile gap in the other direction
+found one: `.usdz` was desktop-only, even though AR Quick View is the one export
+that *requires* a phone — iOS opens a `.usdz` in AR from Safari and does nothing
+useful with it on a Mac. Mobile gains the row; `.obj`/`.stl` stay desktop-only
+on purpose (they feed Blender/CAD/3D-printing pipelines that don't exist on a
+phone) and that reasoning is now a comment in the file rather than an accident.
+The mobile grouping test gained a Simple-mode heading assertion and an AR-parity
+describe that runs in both modes.
+
+Verified at 390×844 in Simple: the heading reads "3D", the `.usdz` row renders
+with its "View in your room — iOS AR Quick Look" caption, no `.obj`/`.stl` leak,
+and all six rail sections keep flat unfilled headers.
+
+## v0.26.2.42 — UIUX-72: flag-tier docs reconciled with the registry + guarded
+
+UIUX-71's leak was found because ARCHITECTURE.md described `sceneExport3d` as
+pro while the registry had drifted to `simple`. Audited all 201 flags for the
+same class: seven more inline tier claims disagreed with the registry
+(`panorama`, `panoTour`, `hqRender`, `renderCompare`, `walkCameraControls`,
+`replaceSimilar`, `planPolyline` — each documented "pro", each registered AND
+unit-tested as simple). Here the registry is right and the prose was stale, so
+the docs are corrected rather than the behaviour: every one of the seven has a
+flag test asserting simple-tier presence in both modes, and flipping a tested
+tier would hide a shipped feature. New `docTierParity.test.ts` reads both doc
+conventions ("`flag` flag, pro" / "`flag` **pro** flag") and fails on any
+disagreement, so a tier change must update its own docs; a second assertion
+keeps the guard from silently reading zero claims. Negative-tested by
+reintroducing one stale claim (fails) and restoring it (passes). Three
+heuristic hits reviewed and cleared as false positives: `modelUpload` names OBJ
+as an *import* format, and `accounts`/`sharedLibrary` say "admin" about the
+account gate, not the tier.
+
+## v0.26.2.41 — UIUX-71: Simple mode stops offering CAD/3D-print exports
+
+First sweep of Simple mode itself — the app default, which nearly every prior
+audit skipped in favour of Pro. Menu structure is sound (no dangling section
+labels: every pro-gated group's heading is guarded). One real tier leak: the
+File menu's export group offered a casual owner four rows including
+"Geometry-only Wavefront OBJ" and "Geometry-only STL for 3D printing / CAD" —
+professional interchange formats that the tier rule puts in Pro, and which
+docs/ARCHITECTURE.md already described as pro while the registry had drifted to
+`tier: 'simple'`. Split by tier: the consumer-facing formats (`.glb`, `.usdz`
+AR Quick Look) stay on `sceneExport3d` (simple); `.obj`/`.stl` move to a new
+`sceneExportCad` (pro, default on) beside `dxfExport`. The group heading also
+enumerated absent categories — a fixed "CAD, 3D & data" while Simple gates the
+CAD rows (DXF/SVG) and the CSV data rows away; a pure `exportGroupLabel` helper
+now names only the buckets that render ("CAD, 3D & data" / "3D & data" / "3D").
+Flag test covers both modes; the grouping test asserts the heading and the
+format split in Simple AND Pro. Verified live: Simple shows a "3D" group with
+exactly `.glb` + `.usdz`.
+
+## v0.26.2.40 — UIUX-70: last hand-rolled menu rows join the vocabulary
+
+The sweep's final stragglers: the File menu's trade-pack rows hand-rolled
+their layout/hover with arbitrary-value utilities (off-ladder 13px/11px text,
+wrong hover step) — now plain `.menu-item` rows with a ladder-sized accent
+"Open / Print" affordance; the Arrange menu's saved-arrangement row hovered
+one surface step short (`--surface-2`, the vocabulary's REST tone) — now
+`--surface-3` — and its delete "×" was a bespoke mini button — now
+`.icon-btn.danger` (red at rest per the UIUX-45 destructive-row convention).
+Verified live: seven trade-pack rows render as `.menu-item` with consistent
+menu rhythm.
+
+## v0.26.2.39 — UIUX-69: scene measurement chips share one class; colour literal fixed
+
+Follow-up sweep from UIUX-68's pattern: the 3D scene's measurement/readout
+chips (tape measure ×2, walk measure, pinned dimensions, tilt + rotate gizmo
+readouts) were six near-identical hand-rolled Tailwind strings, drifting in
+gap/padding and using Tailwind's default shadow instead of `--shadow-panel`.
+One `.measure-chip` class now serves all six (near-opaque `--surface-solid`,
+ladder type, system shadow). The tape measure's "Pin" badge wore `text-white`
+— a hardcoded colour literal on an accent that isn't guaranteed a white
+foreground — now `--on-accent`. New guard in phantomTokenGuard: no Tailwind
+colour-literal utilities (`text-white`/`bg-black`/…) in any TSX className.
+Verified live on a pinned dimension chip (token bg, 12px ladder font,
+`--shadow-panel`).
+
+## v0.26.2.38 — UIUX-68: upload dialogs join the button vocabulary
+
+Audit of the upload dialog family. The model-upload dialog hand-rolled all six
+of its buttons with Tailwind arbitrary-value utilities (`rounded
+bg-[var(--accent)] px-3 py-1 …`) instead of the `.btn` classes — its footer
+Cancel/Import read as bare text (the disabled Import was near-invisible), and
+the Choose-folder + group-pager buttons drifted from the system's radius/
+padding/hover grammar. All six now use `btn btn-soft`/`btn-accent`
+(/`btn-sm`), inheriting the shared disabled treatment; the material dialog's
+redundant `rounded`/`disabled:` add-ons around its existing `.btn` classes were
+dropped. ConfirmDialog was already clean. Verified live: footer probes report
+`btn btn-soft`/`btn btn-accent`, and the dialog renders with real buttons and
+a visibly-disabled Import.
+
+## v0.26.2.37 — UIUX-67: theme-matrix verification of the recent fixes (clean)
+
+Ten-combo sweep (clay/kampong/porcelain/estate/harbour × light/dark) over this
+stretch's changes, captured as a contact sheet from one live session per half:
+the static aux section headers show NO fill bar in any combo (the UIUX-61b
+white-bar fix holds where it was worst — dark modes over the scene); the error
+toast's new Alert triangle is legible on light and dark toast surfaces beside
+Retry; the bridged Tailwind type sizes and the aux-body top inset render
+consistently across all themes. Verification-only — no code changes.
+
+## v0.26.2.36 — UIUX-66: GLB designer audited; one canonical category-label map
+
+Visual audit of the 3D asset designer (viewport HUD, shape grid, Disclosure
+sections, save panel) — structurally clean and on-system (the "+ Templates"
+rows are the standard `.compose` Disclosure idiom). One real defect: the
+Save-to-catalog category `Select` rendered raw category ids ("others", "beds")
+in a UI of Title Case labels, because the display-name map existed only as
+duplicates private to `CategoryTabs` and the report's `reportShared`. New
+canonical `furniture/categoryLabels.ts` (`CATEGORY_LABEL`, beside
+`categoryColors.ts`); the designer select, catalog tabs, and report all
+consume it (the report re-exports it under its historical `CAT_LABEL` name).
+Verified live: the designer select now shows "Others" with Title Case options.
+
+## v0.26.2.35 — UIUX-65: mobile touch targets for the context menu + confirm pill
+
+Mobile pass over the two remaining sub-44px interaction surfaces. The context
+menu IS reachable on touch (Android long-press fires contextmenu) but its rows
+were ~30px with no mobile rule — now `min-height: 44px` under `body.mobile`
+(direct lift; adjacent rows would overlap pseudo-extensions), with the
+component's viewport-clamp estimate tracking the taller rows so a long-press
+near the bottom edge can't overflow. The Apply-change pill's ✓/✗ are 38px
+circles with a 9px gap — extended to 44px hit areas via ±3px pseudo-elements
+(the pitch recipe, no overlap). Probed live at 390×844: rows 44px, menu
+clamped within the viewport, pill inset -3px. Guards added.
+
+## v0.26.2.34 — UIUX-64: confirm surfaces audited; Tailwind type utilities bridged to the ladder
+
+Audit of the confirm grammar: ConfirmModal danger/plain variants, the text
+prompt, and the EditConfirmBar pill (normal + blocked) — all render on-system
+(soft-danger confirm button per `.btn-danger`, Cancel focused first, blocked
+pill communicates "Can't place here" with a disabled tick). One systemic
+finding: ~90 call sites still use Tailwind type utilities (text-xs/text-sm/
+leading-relaxed), and Tailwind's own scale is a SECOND type ladder next to
+`--t-*` (xs 12px vs --t-xs 11px, lh 1.333/1.625 vs 1.25/1.5) — violating the
+DESIGN.md "one ladder" rule with visibly mixed copy sizes. New `@theme inline`
+bridge in index.css re-points the utilities' theme variables at the tokens
+(rendered sizes preserved exactly: xs→--t-sm 12px, sm→--t-md 14px, base→--t-lg
+16px; multiline defaults take --lh-body), so every current and future Tailwind
+type utility lands on the ladder with zero TSX churn. Two traps found live and
+guarded: plain `@theme` drops var()-valued sizes (silently disabling the
+utilities), and the block must sit AFTER all @imports. Verified with computed-
+style probes (text-sm 14px/21px, text-xs 12px/18px) + the ConfirmModal render.
+
+## v0.26.2.33 — UIUX-63: error toasts wear a warning triangle, not a shield-check
+
+Visual audit of the remaining interaction surfaces: toasts (all four kinds +
+action button + collapse stack), the ProductTour overlay (spotlight, steps,
+progress dots — clean), and the right-click context menu (grouped rows, kbd
+chips, danger Delete — clean). One real defect: `KIND_ICON.error` pointed at
+`Checks` — the clearance SHIELD-CHECK glyph — so a failure toast wore a red
+"verified/protected" badge: inverted semantics on exactly the toast that must
+read as failure at a glance. New `Icon.Alert` warning triangle (2px-stroke set
+style) wired as the error glyph; unit test asserts the triangle (and the
+shield's absence) on error toasts. Verified live: "Upload failed" now carries
+the red triangle beside Retry.
+
+## v0.26.2.32 — UIUX-62: repo-wide backdrop-root / nested-filter sweep
+
+Full inventory of every backdrop-filter (38 CSS rules + 2 inline TSX) and every
+sticky occluder, classified by containment. Four latent quirks fixed: modal
+cards inherited `.panel`'s backdrop-filter while opaque AND nested inside the
+overlay's filter (pure GPU waste, latent veil — now `backdrop-filter: none`);
+the login dialog's `.panel` card kept fake glass whose filter could only sample
+its scrim's dim layer (now opaque like modal cards); the mobile menu sheet ran
+its own filter nested inside `.m-menu-overlay`'s (removed — invisible behind
+the alpha-.97 card, real mobile GPU cost); and `.m-detail-h` relied on a nested
+filter that only appeared to work (now the `.menu-label` solid exact-tone
+fill). Verified clean: the mobilebar strips its own filter before the menu
+button's (not nested), scroll-edge lips paint dark text-derived gradients (not
+fills), all HUDs/popovers/scrims filter at top level, `.menu`/`.er-hint`/
+`.empty-card` are unrendered orphans. New DESIGN.md rule ("never nest
+backdrop-filter — one filter per overlay stack") + 4 style guards; verified
+live on the login dialog, Share modal, and mobile menu sheet with computed-
+style probes + screenshots.
+
+## v0.26.2.31 — UIUX-61b: glass sticky headers go static (backdrop-root veil)
+
+Follow-up user report: the v0.26.2.30 frosted-backdrop headers STILL showed a
+white band on the mobile Handover sheet. Root cause (per the backdrop-filter
+spec/MDN): the glass panel's own backdrop-filter makes it a *backdrop root*,
+so a child's backdrop-filter samples only the panel's near-white translucent
+`--surface` layer — not the scene — and repaints exactly the veil the fix
+tried to remove. New rule: sticky section headers are an OPAQUE-container
+privilege. Base `.sec-h` and the Layers `.lyr-ghead-row` are now static and
+unfilled (titles scroll away with their section — nothing to occlude); modal
+bodies re-enable sticky with the exact-match `--surface-solid` fill; dropdown
+`.menu-label` reverts to its solid fill (the `--elevated` card is 97% opaque,
+so the seam is imperceptible). DESIGN.md + guards updated to the corrected
+rule; verified scrolled on the mobile Handover sheet (no band at any depth),
+the Share modal (seamless pin), with computed-style probes.
+
+## v0.26.2.30 — UIUX-61: sticky-header white fill bars removed on glass surfaces
+
+User report (mobile Handover sheet): section titles like "MOVE-IN CHECKLIST"
+showed a white full-width fill. Mechanism: sticky `.sec-h` headers painted a
+second translucent `--surface` layer to occlude scrolled rows — invisible on
+opaque modal cards, but on translucent glass panels the double-composite reads
+as a lighter/white bar (the code called it an "accepted trade-off"; no longer).
+Repo-wide fix on the `.m-detail-h` precedent: `.sec-h` (default), the Layers
+`.lyr-ghead-row`, and dropdown `.pop-panel .menu-label` are now transparent
+with a frosted `backdrop-filter` — the pinned title stays legible over rows
+blurring beneath, with no fill. Opaque modal cards keep their exact-match
+solid fill via `--sec-h-bg` (unchanged look). DESIGN.md rule added; style
+guards rewritten; verified on the mobile Handover sheet (stuck mid-scroll),
+Layers panel, Tools menu, and the Share modal.
+
+## v0.26.2.29 — UIUX-60: inspector disclosure chevrons un-inverted
+
+Item-inspector audit (desktop docked + mobile sheet, collapsed and expanded).
+One real defect: `InspectorSection` rotated its chevron `open ? 90° : 0°` over
+a down-pointing base glyph — so a COLLAPSED section pointed down and an
+EXPANDED one pointed LEFT, inverted against the universal disclosure grammar
+and against this app's own Layers/glbEditor panels (right = collapsed, down =
+expanded). Now `open ? 0° : -90°`. Everything else clean: header icon row,
+two-column property rows, action grid, elevation slider, mobile bottom sheet.
+Verified collapsed/expanded on the live panel.
+
+## v0.26.2.28 — UIUX-59: Share modal audited clean; rule-grep sweeps clean
+
+Share modal audited on desktop (scrolled both ends) and a phone viewport:
+insets, scroll-edge lips, token buttons, 44px touch targets, full-width mobile
+sheet — all clean, no changes. Rule-backed greps also came back clean: no
+ad-hoc Modal widths (all `--modal-*` tokens), no ad-hoc focus outlines (the one
+`outline:` is the Layers drop-target drag affordance), no TB-8 click-to-cycle
+state controls (walk mode's "Press E" HUD pill is a diegetic interaction
+prompt, not a settings control). Noted: the ⌘K palette is deliberately
+keyboard-only — every command has mobile toolbar-sheet parity, so no mobile
+trigger is missing.
+
+## v0.26.2.27 — UIUX-58: last two hand-rolled empty states on the shared primitive
+
+Repo-wide sweep for the src/ui CLAUDE.md rule "empty states use the shared
+EmptyState" found two stragglers hand-rolling plain-text hints: the View menu's
+saved-views section ("No saved views yet" as a bare div, while FileMenu and
+ArrangeMenu use EmptyState in the identical menu context) and the plan
+inspector's switch-controls section ("No light fixtures on this storey yet" as
+a bare <p>). Both now render the primitive — Frame icon for saved views, Lights
+icon for switch controls — same copy, consistent centred icon+title+description
+treatment. Verified live in the View menu (scrolls fully into view) and the
+switch inspector with a fixture-less storey.
+
+## v0.26.2.26 — UIUX-57: report tables no longer collide adjacent cells
+
+Follow-up defect from the report audit, in the section never viewed before
+(Finishes schedule → Renovation estimate): REPORT_CSS gave `td` zero horizontal
+padding, so in 3–4 column tables the right-aligned numeric cells touched their
+neighbours ("66.2 m²$60/m²" read as one string) and long values wrapped
+mid-cell ("179.5 m²" split across lines). Every cell now gets a 12px gap from
+its left neighbour (`td + td`), and `.num` cells are nowrap so a value never
+splits. FF&E + finish-schedule tables keep their own padding rules (class
+specificity wins). Verified in the rendered report — renovation estimate and
+thermal envelope both clean.
+
+## v0.26.2.25 — UIUX-56: theme-matrix + mobile sweep audited clean
+
+Verification pass over this stretch's fixes across the theme matrix and a phone
+viewport: the Design score panel (RingGauge ok-tone, sev-dots, aux body inset)
+in clay light/dark, harbour dark and estate light; Handover + Design score as
+mobile bottom sheets (width-auto override, 12px first-child gap probe-confirmed,
+UIUX-53 date field clean on mobile). No real defects — one suspected clay-dark
+"invisible score numbers" turned out to be the documented screenshot-at-
+transition-start artifact (computed-style probe + settled reshoot proved it).
+Playbook gotcha extended with the multi-theme sweep recipe (force a frame
+between every flip and shot).
+
+## v0.26.2.24 — UIUX-55: BOQ quote table polish; drawing set audited clean
+
+Headless audit of the two remaining printables. The BOQ quote: section titles
+are `<caption>`s that rendered as small centred stray text (now left-aligned
+bold headings via the opener stylesheet); Qty/Rate/Amount cells were
+left-aligned prose (now `class="n"` right-aligned tabular numerals); and every
+section carried an always-empty "Length (ft)" column that only carpentry lines
+use (now rendered per-section only when a line has a derived length, with the
+subtotal colspan following). CSV output unchanged. The drawing set (35 sheets,
+cover/title blocks/schedules) audited clean — no changes. Unit test for the
+conditional column; verified in the rendered quote.
+
+## v0.26.2.23 — UIUX-54: report compliance advisories collapse to ×N entries
+
+Full visual audit of the printable design report (rendered headlessly, all 23
+sections). Styling is sound — one real defect: "HDB compliance hints" printed
+one advisory PER external/long wall with the same title and paragraph verbatim,
+so the default flat carried ~24 indistinguishable copies (pages of repetition).
+Identical advisories (severity+title+detail+cite) now collapse into one entry
+with a ×N count ("Likely structural wall — hacking is restricted ×22"); entries
+whose detail differs (per-wall lengths, per-room names) stay separate. The
+summary counts stay true raw counts. Unit test with a hermetic two-external-wall
+plan; verified in the regenerated report.
+
+## v0.26.2.22 — UIUX-53: Handover date hint no longer contradicts the control
+
+The Handover panel's empty-state caption claimed "Format: day / month / year"
+directly under a native date input that renders the BROWSER locale's own
+placeholder (mm/dd/yyyy on en-US) — the hint contradicted the very field it
+annotated. A native date input's display format is locale-driven, so no
+hardcoded format claim can be right; the caption now renders only once a date
+is picked, as the unambiguous "Collection day: 12 Jul 2027" confirmation
+(the empty state keeps the existing "Set your key-collection date…" explainer).
+Verified both states in the panel.
+
+## v0.26.2.21 — UIUX-52: phantom CSS token sweep + guard
+
+Repo-wide scan for `var(--…)` references to custom properties that are never
+defined (the failure class behind UIUX-50's invisible Design score dial). Six
+phantoms found and fixed: the plan editor's tilted-item badge circle was filled
+with undefined `--panel` → computed BLACK in every theme (now `--surface-solid`;
+verified in the plan editor with a pitched bed — light circle, accent arrow);
+`.shortcuts-group-title` used `--text-1` (→ `--text`); `--guide` is now a real
+semantic token in tokens.css (magenta, documented as mirroring
+`AlignmentGuides.tsx` `GUIDE_COLOR`) instead of a per-site fallback literal; and
+three fallback-hidden misspellings (`--accent-text`, `--shadow-2`, `--surface-4`)
+collapse to the real tokens they fell back to. New `phantomTokenGuard.test.ts`
+fs-scans all src css/ts/tsx and fails on any undefined var() reference.
+
+## v0.26.2.20 — UIUX-51: aux panel bodies get top breathing room
+
+User report: aux-panel body content sat flush under the header rule ("looks cut
+off") — Versions' Save button, SG rules' stat tiles, Handover's intro, Design score's
+dial and Comments' composer all started at 0 gap. The scroll-region child-inset rule
+(UIUX-46/47) gave `.modal-overlay .panel-body > :first-child` a `--s-4` top margin but
+never covered the floating aux panels, which share the same `.panel-body` scroller
+architecture. The rule now targets `.aux .panel-body` too, keeping the same exclusions
+for self-spacing first children (`.sec`, `.clr-summary`). Style guard extended; verified
+on all seven aux panels (contact sheet) plus a Versions close-up — clear gap, no
+double-spacing on the stat-tile panels.
+
+## v0.26.2.19 — UIUX-50: Design score dial fixed + aux-panel sweep clean
+
+Sweep of the seven analytical aux panels (Clearance, Daylight, Design score,
+Accessibility, SG rules, Handover, Comments): six are clean — badges, stat tiles,
+per-room cards and EmptyState CTAs all on-system. The Design score dial had two real
+bugs behind phantom tokens: its centre mask used `var(--panel-bg, var(--surface-1))`
+(neither exists) so the donut rendered as a SOLID pie, and the grade letter was painted
+in the same colour as that pie — invisible. The hand-rolled conic dial is replaced by
+the canonical `RingGauge` (new `tone="ok"` variant for healthy grades; danger for D/F),
+the category bars' `var(--err, #d9534f)` fallback-to-hex becomes `var(--danger)`, and
+the issue-severity dots move to CSS classes (`.sev-dot`, beside the other warn-shade
+rules). Verified live: green ring at 83% with a legible centred "B". Ring tone unit
+test added.
+
+## v0.26.2.18 — UIUX-49: aux panels size via a named width ladder
+
+Versions/history audit found five floating aux panels sizing themselves with ad-hoc
+inline widths (300/340/340/360/380) plus duplicate per-panel ID rules in CSS — the
+reason the mobile sheet override needs `!important`. parts.css now ships a named ladder
+(`.aux-320` = `--panel-w`, `.aux-360`, `.aux-380`); Versions + Clearance normalise
+340→360, History 300→320, RenoRules and Elevation keep their sizes via class. The
+shadowing `#versionsPanel`/`#clearancePanel` ID widths and the dead `#shopPanel` rules
+(no element carries that id) are removed. New fs guard forbids inline widths on aux
+asides and numeric ID width rules (token widths like `#swapPanel { width:
+var(--modal-md) }` stay sanctioned). Probed live: Versions 360, History 320; the panel
+(empty state, CURRENT card, save-prompt modal with the new symmetric footer) verified
+visually. Delete-version confirmed still gated on the danger confirm.
+
+## v0.26.2.17 — UIUX-48: merged materials UI audited clean
+
+Post-merge audit of the surfaces the photoreal-materials PR added, through the UI/UX
+lens: `ShowroomRow` rides the token `.swatch` vocabulary (so it inherits the 40px mobile
+tap-target bump — probe-confirmed 40×40 on the phone sheet), its heading uses the
+`.sec-h` + `.badge ok` vocabulary, and the colour-grade dials are shared `SliderField`s.
+Dark mode reads correctly across the finish tabs; the Showroom strip's
+graceful-degradation path (a chip whose CDN thumbnail fails hides itself; an all-hidden
+strip renders nothing) was exercised live by the sandbox proxy blocking Poly Haven and
+behaved exactly as designed. No changes needed.
+
+## v0.26.2.16 — merge fix: colour-grade dials restored beside Exposure
+
+The staging merge (below) was pushed with the dial-relocation hunk accidentally left
+unstaged: the merge commit still had staging's COLOR-GRADE Warmth/Saturation dials
+stranded inside the Pro-only advanced block (where the auto-merge landed them), hiding
+them in Simple mode and failing their two placement tests. This commit is that
+relocation — the dials sit beside Exposure in the always-visible Look section, exactly
+as staging ships them; verified live in default Simple mode.
+
+## v0.26.2.15 — UIUX-47: modal footers carry a symmetric top inset
+
+User report: with the body now clipping flush right above the footer (UIUX-46), the
+footer's zero top padding sat Done/confirm buttons directly against the clip edge.
+`.panel-foot` is now symmetric (`padding: var(--s-4)`) — the same breathing room above
+the buttons as below. All 13 Modal `footer=` call sites ride the shared class, so one
+rule covers them; `UploadMaterialDialog`'s inline `paddingTop` workaround (a call-site
+patch for exactly this gap) is removed. The glb-designer `ArmedCard` footer is an inline
+card action row, not a modal footer — out of scope. Verified on the Quote template
+(scrolled, footer clear below the lip) and ConfirmModal (rest state balanced); guard
+regex updated.
+
+## v0.26.2.14 — UIUX-46b: child-inset sweep across the remaining scrollers
+
+Extends the UIUX-46 rule (scrollers carry no vertical padding — the inset lives on the
+first/last child) to every remaining eligible scroller: the `Select` listbox popover
+(`.select-panel`, options ghosted into its rounded corners mid-scroll), the ⌘K results
+list (`.cmdk-results`, rows ghosted above the footer legend), and the mobile sheet's two
+panes (`.m-rail`, `.m-detail` — rows past the sheet's rounded bottom edge). The catalog
+`.card-grid` is deliberately excluded (a grid scroller: a last-child margin stretches its
+row track, same class of reason its edge lips were excluded) and the plan canvas is an
+intentional open scroller. Verified live (⌘K mid-scroll, room-switcher listbox, sheet
+detail at end-of-scroll); guard test added.
+
+## v0.26.2.13 — UIUX-46: scroll-region insets — no more truncated rings or exposed overflow
+
+User report, two defects across scrollable panels, both root-caused and fixed:
+**(1) Exposed bottom overflow** — the sticky scroll-edge lips pin at the scroller's
+CONTENT box, so a scroller's bottom padding formed a strip BELOW the lip where scrolled
+rows stayed visible past the panel's visual end (Quote template rows crowding the footer,
+the File menu's Include-sheets checkboxes below the menu's shadow line, the Shopping
+list's next row under Export CSV). Scrollers now carry no vertical padding — the inset
+moved to the first/last child (`.panel-body`, `.pop-panel`, `.lyr-body`, `#helpPanel`
+override), mirroring the top-side sticky-header rule: clip edges sit flush, lips pin at
+the true edge, resting spacing unchanged. **(2) Truncated focus ring** — the menu row
+auto-focused on open sits 1px under an OPAQUE sticky section label (z-index 1), which
+covered the outward ring's top edge; new `--focus-ring-inset` token + menu rows draw the
+ring inset. Verified on all three reported surfaces (menu top/bottom, quote modal footer,
+mobile shopping edge) plus a scrolled-to-end rest-state check; guard tests updated+added.
+
+## v0.26.2.12 — UIUX-45: context-menu Delete rows signal danger at rest
+
+Right-click menu audit (item menu, light + dark): grouping, kbd chips, icons and the
+dark palette all read correctly. One inconsistency fixed: `.ctx-item.danger` (Delete /
+Delete N items / Delete N walls / Delete room) only turned red **on hover** — at rest it
+was indistinguishable from a normal row, unlike every other destructive affordance
+(inspector `.act.danger`, header `.icon-btn.danger` are red at rest). The danger colour
+now applies at rest on both label and icon; hover keeps the `--danger-soft` fill.
+Verified visually; guard test added.
+
+## v0.26.2.11 — UIUX-44: FinishPicker audit clean (desktop + mobile, light + dark)
+
+Visual audit of the finish picker (room selected in the room editor → `.finish-picker`
+dock/sheet): desktop light + dark and the mobile bottom sheet all read correctly —
+surface tabs at the 44px floor, designer-pick swatch rows, finish cells with favourite
+hearts, Apply/Try-on/Compose actions and the accent-wall section all properly spaced;
+no token or layout defects found, no changes shipped. (A light seg pill in the dark
+capture was re-confirmed as the documented headless transition-start screenshot
+artifact, not a theme bug.)
+
+## v0.26.2.10 — UIUX-43: walk-mode HUD mobile fixes (measure pill, keyboard chips)
+
+Walk-mode HUD audit (desktop + mobile portrait/landscape, day + night, via the existing
+walk-hud-audit scenario) found two mobile defects, both fixed: (1) the persistent
+walk-measure pill's desktop top-right slot sat UNDER the collapsed toolbar's hamburger
+on a portrait phone — its placement now lives on a `.walk-measure-dock` class (was
+inline utilities) and drops one row below the hamburger on mobile, pinned to the visual
+viewport like the other walk docks; (2) the walk interact pills ("E · Open curtains" and
+friends) advertised a keyboard ‹E› chip on touch — the pills are already tappable
+buttons, so the kbd chip is now hidden under `body.mobile` AND `@media (pointer:
+coarse)` (landscape phones are wider than the mobile breakpoint). Desktop unchanged
+(verified). Guard tests added.
+
+## v0.26.2.9 — UIUX-42: Smart Start uses tall viewports (first-run audit otherwise clean)
+
+Visual audit of the first-run surfaces: the Onboarding welcome flow reads correctly in
+light + dark and on mobile (brand mark, feature cards, footer nav); the Smart Start
+mobile sheet lays out well. One fix: on a tall desktop viewport the modal's 560px
+default cap cut the flagship design-theme card grid mid-card while half the screen sat
+unused — `#smart-start` now gets the `#graphicsSettings` treatment
+(`max-height: min(760px, calc(100vh - 48px))`), showing two full theme rows with the
+next row peeking as the scroll cue. Also confirmed by probe that the modal-body
+scroll-edge shadow was already active on this surface (the earlier "clipped with no
+cue" read was the lip being subtle over a filled card at the exact edge).
+
+## v0.26.2.8 — UIUX-29: selectable-row pattern canonicalised; click-only-div audit clean
+
+DESIGN.md interaction grammar gains the UIUX-41/41b rule: a selectable list row is never
+a click-only div — the primary action is a real `.lyr-sel`-style button with
+`aria-pressed`, sibling action buttons after it (the row div may keep whole-row mouse
+click + drag-and-drop duties). A repo-wide sweep for remaining click-only
+div/span handlers found no other real gaps: the hits are `stopPropagation`-only event
+containment, standard backdrop-dismiss overlays (Escape covers keyboard), or layout divs
+around real buttons; catalog cards already carry `role="button"`.
+
+## v0.26.2.7 — UIUX-41b: GLB designer layer rows keyboard-selectable
+
+Extends the UIUX-41 `.lyr-sel` primary-button pattern to the GLB Asset Designer's layers
+tree — the one glbEditor surface with click-only div rows (audit: ComponentsPanel already
+used a real arm button, SourcePanel rows are label+checkbox, CombinePanel rows have no
+row click). Part rows wrap swatch+name in a select button (`aria-pressed`, Enter/Space,
+shift/ctrl multi-select preserved); transform-group headers do the same around icon+name;
+select-mode keeps its keyboard-accessible checkboxes, inline rename keeps its input. The
+row div keeps its whole-row mouse click and dblclick-rename. New context-mounted unit
+tests; the stage3a group scenario (row click, shift-click multi-select, group select →
+edit panel) passes end-to-end with the tree rendering unchanged.
+
+## v0.26.2.6 — UIUX-41: Layers rows are keyboard-selectable
+
+The Layers panel's object rows were click-only `<div>`s — a keyboard user could Tab to a
+row's hide/lock/delete buttons but had no way to *select* the object itself. The row's
+primary action (icon + name) is now a real `.lyr-sel` button (the FileMenu saved-view-row
+pattern: layout div + primary button + sibling actions): Tab reaches it, Enter/Space
+selects, ctrl/⌘-click still multi-toggles, `aria-pressed` mirrors selection, and it takes
+the shared `--focus-ring` on `:focus-visible`. The row div stays the finish drag-and-drop
+target (drop zones must be a div) and keeps the FLIP id; `.lyr-nm` keeps its P22
+truncation title. Verified live: 87 rows expose buttons, focus lands correctly,
+Enter-select drives the real selection path (inspector opens); layout unchanged.
+Follow-up noted for the glbEditor panels that share the `.lyr-row` vocabulary.
+
+## v0.26.2.5 — UIUX-40: scroll-edge shadows on scrollable dropdown menus
+
+Audit of the desktop toolbar menus (View/Scene/File, Pro) + the ⌘K palette across
+light/dark found one gap: a long dropdown (File/Tools are 72vh-capped scrollers) clipped
+its last row flush at the panel edge with no cue that more rows sit below. The
+`.panel-body` sticky-lip scroll shadows (UIUX-30/35) now also cover `.pop-panel` —
+same `animation-timeline: scroll()` progressive enhancement, adapted to the pop-panel's
+`--s-3` inset; the pseudo lips are flex items there, harmless in a flex *column* (only
+grid scrollers corrupt). Probed live: bottom lip 1→0 across a full scroll, top lip 0→1,
+both inert on short menus; verified visually light + dark. Everything else in the sweep
+(section labels, kbd chips, icon alignment, palette empty state) already consistent —
+no other changes. Guard test added.
+
+## v0.26.2.4 — UIUX-37: budget ring gauge (RingGauge control)
+
+New `controls/RingGauge` (the bklit ring / activity-gauge pattern, dependency-free): an
+SVG stroke-dashoffset sweep from 12 o'clock — accent within budget, danger past it,
+`--surface-2` track, centre label slot, sweep gliding on `--dur-2 --ease-out` (the app's
+reduced-motion block zeroes it), `role="img"` + aria-label, value clamped 0..1. Wired
+into the Shopping panel's headline (`.bud-total`) when a budget target is set — the %
+ring sits beside the rolling total — and the old inline linear bar under the target
+field is removed (one visual per value; the words stay). The Budget HUD pill keeps its
+slim bar. Unit tests (clamps, dashoffset math, danger class, both modes in BudgetPanel);
+verified visually desktop + mobile, under- and over-budget. DESIGN.md vocabulary updated.
+
+## v0.26.2.3 — UIUX-19b: plan-furniture-rotate scenario green again (selector fix)
+
+Root-caused the long-failing rotate rung: the scenario dispatched its synthetic
+pointermove/pointerup on `document.querySelector('.plan-screen svg')` — which matches a
+header ICON svg (the header buttons, North compass and scale bar all render svgs before
+the drawing surface), so the gesture never bubbled through the plan canvas's React
+`onPointerMove` (the pointerdown worked because it targeted the knob inside the real
+canvas — history pushed, drag armed, then nothing). Re-targeted both steps at
+`.plan-canvas svg`; the scenario now passes end-to-end including the 15°-snap assertion,
+verified visually (footprint rotated ~105°). Harness fix only — no app behaviour was
+wrong. Gotcha + symptom signature recorded in the visual-verification playbook.
+
+## v0.26.2.2 — UIUX-39: mobile tap-target pass 3 (layers list, modal buttons, callout dismiss)
+
+An `elementFromPoint`-based *effective* hit-area audit (sees the invisible `::after`
+extensions the earlier rect audits couldn't) swept the mobile surfaces (menu sheet,
+catalog + layers, inspector, share modal, plan editor) and found the last sub-44px
+targets: the Layers list at desktop density (rows ~28px, group headers 25px, per-row
+hide/lock/delete 22px, footer text actions 17px), plain `.btn`s inside modals (31px —
+the pass-2 lift covered segs/catalog chrome but never modal buttons), and the
+InfoCallout dismiss × (22px, the one small icon with no extension). All lifted to the
+44px floor under `body.mobile` using the established recipes (row-action 40px + 4px gap
++ ::after 2px pitch; the toast-X 22+2×11 extension). Guard tests added; re-audit clean
+(only the by-design wide grab-handle and the documented adjacent-header-icon width
+tradeoff remain); layers + share verified visually on 390×844.
+
+## v0.26.2.1 — UIUX-38: theme-matrix sweep of the new patterns (all pass) + playbook gotcha
+
+Visual sweep of the Stage-5/6 patterns (seg sliding pill, copy-confirm morph, soft
+buttons, scroll-edge shadows, panel-foot, notes field) across all 5 themes × light/dark
+via a 10-shot Share-modal scenario + contact sheet: every combo renders correctly — no
+token fixes needed. The one apparent defect (clay-dark's active seg label invisibly
+dark) was proven transient: headless Chromium starts CSS transitions only on the first
+rendered frame, so a screenshot right after a `[data-mode]` flip captures `transition:
+all .16s` properties at their START (light-theme) values; computed-style probes + a
+second shot show the correct dark `--text`. Documented in
+`docs/visual-verification-playbook.md` under known headless limitations.
+
+## v0.25.0.36 — UIUX-36: FLIP row movement in the Layers panel
+
+New dependency-free `useFlip` hook (the motion.dev layout-animation mechanic): after a
+layout-affecting change, children carrying `data-flip-id` that MOVED glide from their
+old position to the new one (measure → invert → play via WAAPI, transform-only, 240ms
+ease-out). Additions/removals keep the existing entrance patterns; skipped under
+prefers-reduced-motion and for >60 elements. Wired into the Layers panel (`.lyr-body`,
+keyed on visible row order + collapse) so z-reorder / filter / group-collapse no longer
+teleport rows. Live-verified (WAAPI animations observed on rows after `reorderItems`).
+
+## v0.25.0.35 — UIUX-34: direction-aware tab-panel transitions
+
+New `useSlideDir` hook + `.panel-slide[data-dir]` vocabulary (the smooth-tab content
+mechanic): when a tab/segment selection moves right, the incoming panel slides in from
+the right (±14px translate + fade on `--dur-1 --ease-out`, fill backwards; null on
+mount so nothing slides at open; reduced-motion zeroes it). Wired into the Drawings
+panel (Elevations ⇄ Lighting) and the FinishPicker surface tabs (Floor · Walls ·
+Ceiling). Hook unit-tested; live assertions confirm no-dir-at-mount, `right` on
+forward, `left` on back. Full suite green (8544).
+
+## v0.25.0.34 — UIUX-35: scroll-edge shadows extend to dock panels + layers list
+
+The UIUX-30 sticky gradient lips now cover every block `.panel-body` scroller (inspector,
+finish picker, packs, help — not just modals) and the Layers `.lyr-body` (with its own
+horizontal margins). `.card-grid` is deliberately excluded — a grid scroller turns sticky
+pseudo-lips into grid items and corrupts the column layout (documented in the CSS).
+Probe-verified on the inspector (top lip 0→1 on scroll, bottom lip live).
+
+## v0.25.0.33 — UIUX-32: uniform press-scale feedback on buttons
+
+One rule (the Motion `whileTap` equivalent): `.btn`/`.icon-btn`/`.tool-btn`/segmented
+buttons scale to 0.96 while actively pressed — tactile confirmation across every button
+in the app. Transform-only, rides each control's existing `--dur/--ease` transition, and
+the global reduced-motion kill zeroes it. Cards stay untouched (`.liftable` owns their
+transform). Guarded in styleGuards.
+
+## v0.25.0.32 — UIUX-31: real spring easings as CSS linear() tokens
+
+The motion.dev technique with zero runtime dependency: `scripts/gen-spring-easing.mjs`
+samples a damped harmonic oscillator into native `linear()` strings, shipped as paired
+tokens `--dur/--ease-spring-snappy` (ζ0.82, peak ≈1.01 — position/size moves) and
+`--dur/--ease-spring-pop` (ζ0.58, one visible bounce ≈1.11 — confirmation lands) behind
+`@supports (transition-timing-function: linear(0,1))`, with the existing cubic-bezier
+tokens as un-gated fallbacks. First consumers: the Segmented sliding pill (now settles
+like a real spring) and the `.done-pop` confirmation land (copy morphs, checklist ticks).
+Verified live (computed `linear(` easing + post-settle pill alignment); guards + DESIGN.md
+motion rule added.
+
+## v0.25.0.31 — UIUX-30: modal/dropdown edge-spacing sweep + scroll-edge shadows
+
+Ran an automated flush-edge audit (min distance of every interactive element to its
+modal/dropdown container edges, 15 surfaces desktop + mobile). Fixes from the findings:
+menu panels (`.pop-panel`, `.menu`) move from a near-flush 7px inset to the 8px floor
+(`--s-3`, top inset matched); and scrollable modal bodies — whose clipped content read
+as elements "flushed" against the panel edge — gain **scroll-edge shadows**: sticky
+gradient lips on `.panel-body` driven by native scroll-driven animations
+(`animation-timeline: scroll()`, `@supports`-gated, opacity-0 fallback), colour derived
+from `--text` so all themes/modes adapt. Probe-verified (top lip 0→1, bottom 1→0 across
+scroll positions); mobile sheet audit came back clean. Guards added to styleGuards.
+
+## v0.25.0.30 — UIUX-28: getting-started checklist (onboardChecklist flag, simple tier)
+
+New "Get started" card (bottom-left of the orbit view, Watermelon onboarding-checklist
+pattern with goal-gradient progress): the five core-loop actions — place a piece, change
+a finish, scrub the time of day, walk through, share — auto-check the first time the
+user performs each (store-transition watchers in the card; no other slice touched),
+with an animated progress bar, tick pops, a dismiss ×, and a Done CTA at 5/5. State is
+per-device (`checklistSlice`, `hdb_checklist`, out of the save schema). Flag
+`onboardChecklist` (simple tier, default on) tested in BOTH modes; 7 component tests +
+4 flag tests + the `onboard-checklist-simple.json` scenario ladder rung (checks, plan-
+editor hiding, dismissal). Docs: getting-started guide + ARCHITECTURE shared-UI map.
+
+## v0.25.0.29 — UIUX-19: Popover no longer closed by scrolls that can't move its anchor
+
+Root-caused the "plan-editor menus can't open" bug: Popover's capture-phase scroll
+listener closed on ANY outside scroll, and clicking a plan-header menu makes the
+unrelated `.plan-canvas` emit one (headless focus-scroll; any auto-scrolling pane could
+do the same for real users) — so the menu closed the instant it opened. The closer now
+ignores scrolls of containers that don't contain the anchor (they can't detach the
+panel); document/page scrolls and anchor-container scrolls still close as before.
+2 new Popover tests; the previously-failing `plan-furniture-rotate.json` guard now gets
+past its menu rungs (its later rotate-drag rung still fails — pre-existing, re-filed as
+UIUX-19b).
+
+## v0.25.0.28 — UIUX-27: skeleton audit — SharedCard gains its missing load shimmer
+
+Audited the async surfaces for the <400ms-feedback rule: CatalogCard (builtin thumbnail
+generation) and RemoteCard (provider thumbs) already show the P17 `.skeleton` shimmer;
+the FinishPicker Browse tab rides RemoteCard. The gap was **SharedCard** (admin R2
+library): its lazy proxied `<img>` sat as an invisible box for its whole network wait —
+it now shows the shared skeleton until the photo's bytes land (`onLoad`), matching
+RemoteCard. Catalog suite green (200).
+
+## v0.25.0.27 — UIUX-23: toast stack collapses past 2 (Sonner spec)
+
+With 3+ toasts visible, older ones now tuck down to a slim peek lip behind the newest
+(pure CSS: `:has(> :nth-child(3))` + max-height clip + a slight recede on the motion
+tokens) so a burst of notifications can't wall off the canvas; hovering or
+keyboard-focusing anywhere in the stack expands it. The existing per-toast
+pause-on-hover/focus (WCAG 2.2.1) and the notify API are untouched. Verified live
+(3-toast collapse assertion + collapsed/expanded shots); guarded in styleGuards.
+
+## v0.25.0.26 — UIUX-24: EmptyState icons sit on a soft organic blob
+
+The shared EmptyState's icon square becomes a Haikei-style organic blob rendered in pure
+CSS (asymmetric border-radius + a faint rotated accent halo `::before`), accent-tinted
+via `color-mix` tokens so all 5 themes × light/dark recolour it. Static — zero runtime/
+motion cost, no flag needed. Every empty list in the app (catalog filters, saved
+layouts, packs, comments, …) now reads warm instead of clinical. Verified light + dark.
+
+## v0.25.0.25 — UIUX-22: progress-label shimmer (ambient-fx-gated)
+
+New `ShimmerText` control (Motion-Primitives text-shimmer mechanic: background-clip
+text + a sweeping token-colour gradient, slow 2.2s loop): wraps in-flight status copy so
+long waits read as alive. Follows the P7 continuous-animation mandate — renders plain
+text unless `useAmbientFx()` allows it (dormant in the default Performance tier and under
+reduced-motion) and IntersectionObserver-pauses off-screen. Wired into the HQ render
+modal ("Preparing scene…", "Denoising…") and the AI photoreal "Generating…" button label.
+Gate pinned by `ShimmerText.test.tsx`; CSS asserted live (gradient, shimmerslide
+animation, text clip, paused play-state).
+
+## v0.25.0.24 — UIUX-25: copy buttons confirm inline (state morph + overshoot pop)
+
+New `useCopiedFlash` hook + `.done-pop` keyframe + **`--ease-pop`** token (a CSS
+approximation of the reference libraries' confirm springs — micro-elements only).
+ShareModal's Copy 3D link / Copy plan link / Copy summary now morph to a checked
+"Copied!" for ~1.6s after a successful copy (one flash per control, so quick successive
+copies can't mislabel a sibling), then revert; the icon lands with a small overshoot.
+Toast unchanged — feedback now also lives in the control the user pressed (Watermelon
+copy-confirm pattern). Pinned by `ShareModal.copyMorph.test.tsx` (fake-timer morph +
+revert) and driven live in a scenario (morph + revert observed via waitFor).
+
+## v0.25.0.23 — UIUX-26: origin-aware popover/menu entrance
+
+The shared `pop` keyframe now scales from 0.97 alongside its fade/translate, and panels
+grow from their anchor: `Popover` writes `--pop-origin` (the trigger's horizontal centre,
+top edge) which `.pop-panel` consumes as `transform-origin`; non-portal `.menu.open`
+panels grow from their own top edge. The animations.dev origin-scaling pattern — a menu
+now visibly emerges *from its button*. Exit stays an instant unmount; reduced-motion
+zeroes it globally. Verified at-open with the TOOLBAR-MENU-VOID no-settle assertion
+(every row fully opaque at the instant the panel mounts) + a computed transform-origin
+check.
+
+## v0.25.0.22 — UIUX-21: budget readouts roll to their new value
+
+New `src/ui/controls/useAnimatedNumber.ts` (the Motion-Primitives animated-number
+mechanic, no dependency): a ~300ms rAF easeOutCubic lerp that snaps under
+prefers-reduced-motion and settles exactly on the target (2 unit tests). Wired into the
+BudgetHud pill and the Budget panel headline total — the figure rolls when furniture is
+added/removed; over/under colour, the progress bar and the delta stay LIVE so state
+never lags the truth. Verified live (pill before/after adding a sofa).
+
+## v0.25.0.21 — UIUX-20: Segmented control gains a sliding active pill
+
+The `Segmented` component now measures its selected button (useLayoutEffect +
+ResizeObserver) and drives an absolutely-positioned `.seg-pill` that glides between
+segments on `--dur-1 --ease-out` (transform/width only; the Watermelon "fluid tabs"
+mechanic; reduced-motion zeroes it globally). Static `.on` styling remains the fallback
+whenever the pill can't be measured (hidden group, non-layout DOM) and for raw `.seg`
+markup — the indicator can never disappear (pinned by `Segmented.pill.test.tsx`).
+Verified live in ShareModal's Post/Square/Story control: pill moves on selection and
+stays pixel-aligned with the active segment (≤1.5px assertion).
+
+## v0.25.0.20 — UIUX-13: catalog Packs/Remote-browse surfaces on the token vocabulary
+
+PacksTab, RemoteBrowseTab, ResolutionPicker and CachePane re-implemented accent buttons,
+danger-soft boxes and section headers in raw Tailwind arbitraries. Migrated: 5 hand-rolled
+accent CTAs + Retry/Clear/Show-more → the `<Button>` primitive; `color-mix` danger boxes →
+`var(--danger-soft)`; provider/category/resolution filter pills → `.seg-btn (.on)`;
+"manual" chip → `.badge neutral`; headers → `.panel-sub(-plain)`; `font-mono` → `.mono`;
+inputs → `.input`; off-ladder 9px type → `--t-2xs`; card chrome + progress bar on tokens
+(`--r-pill` bar, `--dur/--ease` width transition). Layout-only utilities kept. 200
+catalog tests green; Packs tab visually A/B'd against the pre-migration baseline
+(both render the provider-gated empty state in the sandbox — no regression).
+
+## v0.25.0.19 — UIUX-16: literal burn-down — FinishPicker/#ccc, swatch dupes, crash surfaces, 3 files off the px-guard grandfather list
+
+FinishPicker's two `#ccc` swatch fallbacks → `var(--surface-3)` (last colour literals in
+the no-hardcoded-colour surface). ParametricControls' three finish-preset swatches
+dropped their inline `width/height/borderRadius: 6` duplicate of the `.swatch` class
+(off-scale radius gone). WebGLFallback + ErrorBoundary (the app's face on failure)
+migrated off Tailwind color/size utilities onto tokens — the error card is now a real
+`.panel` with `.btn`/`.btn-accent` actions (raw `<details>` kept deliberately:
+crash surface stays dependency-minimal). LoadingOverlay's rem literals → type/spacing
+tokens, PresentationMode/GraphicsSettings/ParametricControls micro-literals → `--s-0`/
+`--s-1`; **LoadingOverlay, PresentationMode and GraphicsSettings leave the
+`inlinePxGuard` grandfather list** (96 → 93).
+
+## v0.25.0.18 — UIUX-12: inspector bodies migrate off Tailwind onto the token vocabulary
+
+IkeaBody / GltfBody / ParametricBody / SourceLine / MultiSelectPanel / IesProfilePicker
+(+ the ItemLight/ItemPhysical remainders) styled the flagship inspector panel with raw
+Tailwind color/size/radius utilities. Migrated: hand-rolled uppercase headers →
+`.sec-h`/`.panel-sub(.plain)`; raw `<details>` "Product info" → shared `Disclosure`;
+hand-rolled buttons → `<Button size="sm">` (finish chips use `.btn.on` + aria-pressed);
+"No compatible items imported yet." → shared `EmptyState`; `text-[10px]`/`rounded`/
+`font-mono`/`accent-[…]` utilities → `--t-*`/`--r-*` tokens, `.mono`, `.slider`,
+`.sec-desc`. Layout-only utilities (flex/gap/truncate) deliberately kept. Behaviour
+unchanged — inspector suite (38 tests) + full suite (8518) green; visually verified
+(wardrobe inspector + 3-item multi-select).
+
+## v0.25.0.17 — UIUX-14: plan-editor toggles use the sanctioned .btn.on state, not btn-accent
+
+Eight boolean display toggles in the plan editor's "View ▾" menu (labels, dims,
+furniture, MEP, hackability, skeleton, all-levels) plus the header catalog button, the
+LevelMenu/PlanToolMenu/PlanMenu open-states and the wall multi-add toggle all showed
+their armed state with the `btn-accent` CTA fill — the accent-as-state grammar leak.
+All now use `.btn.on` (accent-soft + selection ring, UIUX-2) so accent fill again means
+"primary action" only (the header's Done/Exit CTAs keep it). New
+`PlanViewMenuActions.test.tsx` pins the grammar. While verifying, discovered the
+pre-existing UIUX-19 harness bug (plan menus un-openable headlessly — the existing
+plan-furniture-rotate guard fails on staging); recorded in TASKS.md.
+
+## v0.25.0.16 — UIUX-15: GraphicsSettings on the shared Modal
+
+GraphicsSettings hand-built its own `.modal-overlay` shell (own portal, own Escape
+listener, no focus trap, literal 320px width). It now composes the shared `Modal`
+(gains the focus trap + focus restore + backdrop-click + guard for free),
+`width="var(--modal-xs)"`, and keeps its taller scroll budget via a
+`#graphicsSettings` per-modal CSS override. Verified: focus lands in the dialog,
+Escape closes, sticky section headers + exposure SliderField intact.
+
+## v0.25.0.15 — UIUX-18: undefined design-token references fixed + scale-token guard
+
+Five undefined-token families were silently computing to inherited/fallback values:
+`var(--t-1)` (auth panel titles → now `--t-lg`), `var(--t-3xs)` (→ `--t-2xs`),
+`var(--s-0)` ×5 + `var(--s-05, 2px)` ×2 (new **`--s-0: 2px`** micro spacing step),
+and `var(--z-modal, 70|9000)` (new **`--z-modal: 65`** — above bottom-sheets/overlays
+at 60, below toasts at 70, matching the documented z philosophy; ProductTour's scrim no
+longer floats above toasts). New `tokenRefGuard.test.ts` scans every `var(--…)` scale
+reference in src/ui + src/styles against the tokens actually defined — it found the
+--s-0/--s-05/--z-modal families during development.
+
+## v0.25.0.14 — UIUX-17: 10 Modal footers migrate onto `.panel-foot`
+
+StagingReveal, VersionCompare, SmartStartWizard, HqRender, PanoTour, Panorama,
+RenderCompare, TimeCompare, the notifications import-error dialog and
+UploadMaterialDialog each hand-rolled a footer flex wrapper — most with NO padding, so
+their action rows sat flush against the panel edge (visible in the UIUX-4 screenshots).
+All now compose the shared `.panel-foot` row (UIUX-5), overriding only
+`justify-content`/`gap`/`flex-wrap` inline where the layout splits. TemplatesPanel's
+`action-grid` footer is intentionally untouched (a grid of template cards, not an action
+row). Verified: SmartStart + Render-compare footers now padded and aligned.
+
+## v0.25.0.13 — UIUX-11: File-menu saved layouts on the .saved-view-row vocabulary + EmptyState
+
+The desktop File menu's "Saved layouts" list was a hand-rolled Tailwind clone (off-scale
+6px radii, text-[13px]/[10px] literals, wrong hover step, a ~20px bare "×" delete, inline
+"No saved layouts." text). It now renders the View-menu bookmark vocabulary — `.saved-view-row`
++ `.menu-item .mi-text/.mi-main/.mi-sub` + `.saved-view-thumb` + the 30px `.saved-view-del`
+(with `Icon.Trash`) — and the shared `EmptyState` ("No saved layouts yet"). New
+`FileMenu.emptyState.test.tsx` (2 tests) pins both states. Verified live (menu scrolls;
+EmptyState scrolled into view for the shot).
+
+## v0.25.0.12 — UIUX-10: labelled bare sliders → SliderField (6 call sites)
+
+ItemLightControls Brightness, PaintVizModal Coverage (gains a % readout it lacked),
+TiltControls pitch/roll rows (° readout), ItemPhysicalControls Opacity (% readout), and
+the Drawings-panel lux time scrub (clock-as-label + hideReadout, the TimeOfDaySlider
+pattern — drops the duplicate header clock span) now use the shared `SliderField`
+instead of hand-pairing a bare `.slider` with a label/value span. The elevation slider
+keeps its bare form deliberately: its readout is an *editable* numeric input, not a
+span. Visually verified (inspector Brightness row, Drawings lux scrub).
+
+## v0.25.0.11 — UIUX-9: catalog card actions + layers group eyes reach the 44px touch floor
+
+The catalog card corner stack (♥/↻/×) was 32px on mobile and the Layers group
+hide-all/lock-all eyes 30px — both below the app's own 44px floor (panel-head icons
+already had ::after extensions). Card actions: 40px visual + 2px ::after pad into the
+4px stack gap = 44px pitch with no overlapping extensions; group eyes: sized to 44px
+outright (they sit adjacent with no gap, so a pseudo pad would overlap the neighbour).
+Verified at 390×844 with getBoundingClientRect assertions + screenshots.
+
+## v0.25.0.10 — UIUX-8: motion/hover token strays + dead #sharePanel width override
+
+Walk-HUD auto-hide fade `600ms ease` → `var(--dur-3) var(--ease-out)`; boot-loader fade +
+progress bar `0.3s` → `var(--dur-2)`; `.share-opt:hover` stepped DOWN to `--surface-solid`
+on light themes (inverted hover) → the documented `--surface-3` step-up; `.ss-card` raw
+`.12s` transitions → `var(--dur) var(--ease)`, gains the missing hover fill step, and its
+swatches' off-scale 4px radius → `--r-1`. Removed the `#sharePanel` `min(440px…)` CSS
+width overrides made dead by UIUX-4 (inline `--modal-sm` wins). New "UIUX-8" +
+"panel-foot/form-err/plain" regression guards in `styleGuards.test.ts`. Full suite green
+(8513).
+
+## v0.25.0.9 — UIUX-7: `.panel-sub.plain` — 50 inline un-uppercase hacks replaced
+
+`.panel-sub` is the uppercase section-label class, but ~50 call sites across 20 files
+(SmartStartWizard, compare modals, HqRender, auth screens, plan-editor labels,
+AiPhotorealSection, FinishPicker, StyleQuiz, notifications…) borrowed its size/colour and
+then hand-reset `textTransform:'none', letterSpacing:0` inline for sentence-case helper
+copy. New `.panel-sub.plain` modifier (components.css) carries that intent once; every
+site migrated (mechanical rewrite preserving each site's other inline styles), zero
+`textTransform:'none'` left in src/ui. Verified live: SmartStart helper copy sentence-case
+while STARTING STATE/DESIGN THEMES headers stay uppercase + a computed-style assertion.
+
+## v0.25.0.8 — UIUX-6: .form-err class; --scrim/--on-scrim tokens; tour + presentation literals gone
+
+Four compare/capture modals pasted `color: var(--danger, #c0392b)` (a dead hex fallback —
+--danger exists in all 10 theme blocks) for their error line → one shared **`.form-err`**
+(components.css). **`--scrim` / `--on-scrim`** are now real tokens (semantic,
+mode-independent, like --sun): PresentationMode referenced them with `#fff`/rgba fallbacks
+that were silently in effect; its HUD bars/caption now use the tokens (+ the "Capturing
+360°…" pill drops literal 8px/14px/radius-8 for --s-3/--s-4/--r-3). ProductTour's scrim
+`rgba(20,16,12,.55)` → `var(--scrim)` and its spotlight move animates on
+`--dur-2 --ease-out` instead of raw `.2s` linear. Visually verified (tour spotlight hole +
+presentation gradient bars).
+
+## v0.25.0.7 — UIUX-5: ConfirmModal/PromptModal actions → Modal `footer` + shared `.panel-foot`
+
+The two most-used prompts rendered their action rows inside the scrollable body while 10
+sibling modals use the `footer` prop. Both now pass a footer on the new **`.panel-foot`**
+class (components.css) — flex end-aligned actions on `.panel-body`'s horizontal rhythm.
+`.panel-foot` was already referenced by QuoteTemplateModal but *defined nowhere* (footers
+sat flush against the panel edge); it now has one definition and QuoteTemplateModal drops
+its inline duplicate. Both modals migrate to the `<Button>` primitive, and `ButtonProps`
+gains React-19 `ref`-as-prop support (lands on the underlying `<button>`). Enter-confirms
+and the Cancel safe-default focus are unchanged (new `ConfirmModal.test.tsx`, 3 tests).
+Follow-up UIUX-17 filed: migrate the other footer wrappers onto `.panel-foot`.
+
+## v0.25.0.6 — UIUX-4: modal width literals → --modal-xs/-sm/-md/-lg tokens (18 call sites)
+
+Every `Modal width` numeric literal now uses the P11 token scale (the audit found
+direct sibling divergence: TimeCompare used the token while RenderCompare/
+VersionCompare/StagingReveal passed 820). New **`--modal-xs`** (320px) token for the
+compact popover-style dialogs (AppearancePopover, CompassModal, mobile toolbar picker).
+Mapping: 380/400/440/448/460→sm; 512/620/`min(560px,100%)`→md; 760/820→lg; 360→prop
+dropped (the `.modal-overlay > .panel` default). ConfirmModal/PromptModal now inherit
+the default. Rule updated in `src/ui/CLAUDE.md` + `DESIGN.md`. Visually verified
+(Share sm, Render-compare lg incl. its one-row A/B footer, Confirm default).
+
+## v0.25.0.5 — UIUX-2: undefined button-class typo families fixed + vocabulary guard
+
+An undefined `.btn` modifier silently renders the default button, so five typo
+families had shipped invisible: `.sm` (BackdropUpload, PaintVizModal ×4, ArrangeMenu —
+→ `btn-sm`), `.ghost`/`.btn-ghost` (RoofSettings, PlanInspector, WallInspector,
+ProductTour, BudgetPanel, RenovationBudgetPanel, FinishPicker ×2, DaylightPanel,
+QuoteTemplateModal, HistoryPanel — plain `.btn` IS the tertiary; class dropped),
+`.btn-icon` (UserManagementModal → the real `.icon-btn`/`.icon-btn danger`),
+`.btn-primary` (QuoteTemplateModal → `btn-accent`), and `.btn.on` with no CSS rule —
+the PresentationMode Auto-advance toggle had NO visible on-state. Shipped:
+- **`.btn.on`** (components.css): standalone two-state-toggle armed state mirroring
+  `.icon-btn.on` — accent-soft fill + inset 1px accent selection ring (TB-8: toggles
+  must show their state). PresentationMode Auto now uses it + `aria-pressed` + new
+  `Icon.Play`/`Icon.Pause` (replacing ▶/⏸ emoji, matching its Icon-set siblings).
+- **`src/ui/btnClassGuard.test.ts`**: scans every TSX `className` for `btn-*` tokens
+  and asserts each exists in CSS; denies the bare `sm`/`ghost` typo tokens. Caught the
+  7th family (ArrangeMenu) during development.
+Visually verified (tour footer, presentation HUD off/on zoom crops).
+
+## v0.25.0.4 — UIUX-3: modal-guard + focus management for the 3 custom overlay dialogs
+
+`UserManagementModal`, `LocationPrompt` and `GlbDesignerDialog` render their own
+`.modal-overlay` without the shared `Modal`, so global hotkeys (⌘K, undo) stayed live
+behind them and Tab escaped the dialog. Each now calls `useModalGuard()` and the new
+**`src/controls/useDialogFocus.ts`** (shared hook: move focus to the first focusable on
+open via `FOCUSABLE_SELECTOR`, trap Tab via `trapTabKey`, restore the opener's focus on
+close — the A11Y-MODAL-MENU contract for non-`Modal` overlays). Guard + focus asserted
+by `LocationPrompt.guard.test.tsx`; visually verified (focus ring lands on "Use my
+location" at open).
+
+## v0.25.0.3 — UIUX-1: saved-layout delete gates on the confirm modal (both platforms)
+
+Deleting a saved layout slot is irreversible (no undo toast, no history) but the desktop
+File-menu "×" and the mobile sheet's trash deleted silently — a P35 destructive-action
+policy violation (VersionsPanel already conformed). Both now gate on
+`confirmAction({ danger: true })` with the same copy ("Delete this layout?").
+5 new tests in `FileMenu.confirmDelete.test.tsx` cover desktop + mobile: confirm request
+opens, cancel preserves, confirm deletes.
+
+## v0.25.0.2 — UI/UX research cycle kickoff: DESIGN.md contract + library references
+
+Start of the systematic UI/UX polish mission. Researched NameThatUI, designmd.ai,
+Watermelon UI (source), Motion-Primitives (source), Haikei + adjacent references
+(shadcn/Origin UI, Sonner/Vaul, Laws of UX, animations.dev). Shipped:
+- **`DESIGN.md`** (repo root, designmd.ai format): the one-file design contract — semantic
+  color roles, type ladder, spacing/shape/elevation, motion rules (feedback ≤300ms ease-out,
+  decorative loops slow + tier-gated, transform/opacity only), interaction grammar
+  (primitives, destructive policy, mobile parity), canonical component naming
+  (NameThatUI vocabulary), process gates. Linked from root `CLAUDE.md`.
+- **`REFERENCES.md`**: new "UI/UX component & motion libraries" section recording the 9
+  researched pattern sources with what each contributes (mechanics, not dependencies).
+Docs only — no behaviour change.
 ## v0.26.2.0 — COLOR-GRADE: colour / lighting / saturation dials for every surface
 
 User ask: keep the board-matched look tunable — "so I can get back the more greyish tone if I

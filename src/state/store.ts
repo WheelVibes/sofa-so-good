@@ -19,6 +19,11 @@ import {
   createCameraViewsSlice,
 } from './slices/cameraViewsSlice'
 import {
+  CHECKLIST_INITIAL,
+  type ChecklistSlice,
+  createChecklistSlice,
+} from './slices/checklistSlice'
+import {
   CLIPBOARD_INITIAL,
   type ClipboardSlice,
   createClipboardSlice,
@@ -228,6 +233,7 @@ export interface RootState
     UserComponentsSlice,
     UserStylesSlice,
     RecentSlice,
+    ChecklistSlice,
     CalloutsSlice,
     BadgesSlice,
     FavouritesSlice,
@@ -282,6 +288,7 @@ const INITIAL = {
   ...AUTH_INITIAL,
   ...USER_STYLES_INITIAL,
   ...RECENT_INITIAL,
+  ...CHECKLIST_INITIAL,
   ...CALLOUTS_INITIAL,
   ...BADGES_INITIAL,
   ...FAVOURITES_INITIAL,
@@ -339,6 +346,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createFeatureFlagsSlice(set, get, api),
   ...createAuthSlice(set, get, api),
   ...createRecentSlice(set, get, api),
+  ...createChecklistSlice(set, get, api),
   ...createCalloutsSlice(set, get, api),
   ...createBadgesSlice(set, get, api),
   ...createFavouritesSlice(set, get, api),

@@ -30,6 +30,7 @@ import {
 } from '../../../floorplan/wallNumericEntry'
 import type { UnitSystem } from '../../../utils/measurement'
 import { formatLength } from '../../../utils/measurement'
+import { wallEntryOverlayPos } from './wallEntryPlacement'
 
 export interface WallNumericEntryProps {
   /** World-space start point of the draft wall. */
@@ -158,68 +159,34 @@ export function WallNumericEntry({
     }
   }
 
-  // Overlay positioning: offset below-right of the cursor endpoint, clamped
-  // inside the viewport (rough: leave 220px right + 80px down).
-  const panelW = 200
-  const panelH = 74
-  const margin = 12
-  const vw = window.innerWidth
-  const vh = window.innerHeight
-  let left = endScreenPx[0] + 18
-  let top = endScreenPx[1] + 18
-  if (left + panelW + margin > vw) left = endScreenPx[0] - panelW - 12
-  if (top + panelH + margin > vh) top = endScreenPx[1] - panelH - 12
+  // Overlay positioning (pure geometry + the on-screen clamp live in
+  // `wallEntryPlacement.ts`; the endpoint can be off-canvas after a pan).
+  const { left, top } = wallEntryOverlayPos({
+    endScreenPx,
+    panelW: 200,
+    // Grows when the validation row shows — exactly when the panel is tallest.
+    panelH: 74 + (lenError || angError ? 18 : 0),
+    margin: 12,
+    vw: window.innerWidth,
+    vh: window.innerHeight,
+  })
 
   return (
     // Portal out to `document.body` level is not needed: the overlay sits in the
     // canvas wrapper (which has `position: relative`), and we use `fixed` so it
     // follows the screen position regardless of scroll.
     <div
-      className="panel"
-      style={{
-        position: 'fixed',
-        left,
-        top,
-        zIndex: 50,
-        width: panelW,
-        padding: '6px 8px',
-        borderRadius: 6,
-        boxShadow: '0 2px 12px rgba(0,0,0,0.18)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 4,
-        pointerEvents: 'auto',
-        // Prevent the panel from blocking pointer events on the SVG when not focused.
-        userSelect: 'none',
-      }}
+      className="panel wall-num"
+      style={{ left, top }}
       // Stop pointer events from bubbling into the SVG canvas.
       onPointerDown={(e) => e.stopPropagation()}
     >
       {/* Length field */}
-      <label
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          fontSize: 12,
-        }}
-      >
-        <span
-          className="panel-sub"
-          style={{ minWidth: 46, textTransform: 'none', letterSpacing: 0 }}
-        >
-          Length
-        </span>
+      <label>
+        <span className="panel-sub plain wall-num-l">Length</span>
         <input
           ref={lengthRef}
           className="input mono"
-          style={{
-            flex: 1,
-            fontSize: 12,
-            padding: '2px 4px',
-            height: 24,
-            borderColor: lenError ? 'var(--danger)' : undefined,
-          }}
           type="text"
           inputMode="decimal"
           value={lengthText}
@@ -235,30 +202,11 @@ export function WallNumericEntry({
         />
       </label>
       {/* Angle field */}
-      <label
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          fontSize: 12,
-        }}
-      >
-        <span
-          className="panel-sub"
-          style={{ minWidth: 46, textTransform: 'none', letterSpacing: 0 }}
-        >
-          Angle °
-        </span>
+      <label>
+        <span className="panel-sub plain wall-num-l">Angle °</span>
         <input
           ref={angleRef}
           className="input mono"
-          style={{
-            flex: 1,
-            fontSize: 12,
-            padding: '2px 4px',
-            height: 24,
-            borderColor: angError ? 'var(--danger)' : undefined,
-          }}
           type="text"
           inputMode="decimal"
           value={angleText}
@@ -275,14 +223,7 @@ export function WallNumericEntry({
       </label>
       {/* Validation error hint */}
       {(lenError || angError) && (
-        <span
-          style={{
-            fontSize: 10,
-            color: 'var(--danger)',
-            lineHeight: 1.3,
-          }}
-          role="alert"
-        >
+        <span className="wall-num-err" role="alert">
           {lenError ?? angError}
         </span>
       )}

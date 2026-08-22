@@ -199,19 +199,9 @@ export function MarqueeSelector() {
   const width = Math.abs(rect.x1 - rect.x0)
   const height = Math.abs(rect.y1 - rect.y0)
 
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        left,
-        top,
-        width,
-        height,
-        border: '1px solid #3b82f6',
-        background: 'rgba(59, 130, 246, 0.15)',
-        pointerEvents: 'none',
-        zIndex: 50,
-      }}
-    />
-  )
+  // The box itself is a token class (`.marquee-box` in app.css) — it used to
+  // paint a literal Tailwind-palette blue that ignored the theme entirely, so a
+  // marquee over a warm clay or kampong scene read as a foreign UI (UIUX-76).
+  // Only the live geometry stays inline.
+  return <div className="marquee-box" style={{ left, top, width, height }} />
 }

@@ -230,7 +230,7 @@ export function ProductTour() {
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 'var(--z-modal, 9000)' as never,
+        zIndex: 'var(--z-modal)' as never,
         pointerEvents: 'none',
       }}
     >
@@ -244,15 +244,16 @@ export function ProductTour() {
             width: holeW,
             height: holeH,
             borderRadius: 12,
-            boxShadow: '0 0 0 9999px rgba(20,16,12,0.55)',
+            boxShadow: '0 0 0 9999px var(--scrim)',
             outline: '2px solid var(--accent)',
             outlineOffset: 2,
             pointerEvents: 'none',
-            transition: 'top .2s, left .2s, width .2s, height .2s',
+            transition:
+              'top var(--dur-2) var(--ease-out), left var(--dur-2) var(--ease-out), width var(--dur-2) var(--ease-out), height var(--dur-2) var(--ease-out)',
           }}
         />
       ) : (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(20,16,12,0.55)' }} />
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--scrim)' }} />
       )}
 
       {/* Click-blockers: full-screen when centred (no hole); four panes around the
@@ -340,7 +341,7 @@ export function ProductTour() {
             style={{
               fontSize: 'var(--t-2xs)',
               fontWeight: 600,
-              color: 'var(--accent-text, var(--accent))',
+              color: 'var(--accent)',
               margin: '-6px 0 12px',
               display: 'flex',
               alignItems: 'center',
@@ -369,7 +370,7 @@ export function ProductTour() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             type="button"
-            className="btn ghost sm"
+            className="btn btn-sm"
             onClick={end}
             style={{ marginRight: 'auto' }}
           >

@@ -20,10 +20,7 @@ export function PlanTotalLabel({
   strayCount: number
 }) {
   return (
-    <span
-      className="panel-sub"
-      style={{ textTransform: 'none', letterSpacing: 0, whiteSpace: 'nowrap', flexShrink: 0 }}
-    >
+    <span className="panel-sub plain" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
       Total{' '}
       <b className="mono" style={{ color: 'var(--text)' }}>
         {formatArea(total, units)}

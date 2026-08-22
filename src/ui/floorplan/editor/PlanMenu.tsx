@@ -27,7 +27,7 @@ export function PlanMenu({
       <button
         ref={ref}
         type="button"
-        className={`btn btn-sm${open || active ? ' btn-accent' : ''}`}
+        className={`btn btn-sm${open || active ? ' on' : ''}`}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}

@@ -14,19 +14,23 @@ import { planRoomArea, pointInRoom } from '../floorplan/types'
 import { buildMergedCatalog } from '../furniture/catalog'
 import { useStore } from '../state/store'
 import { AuxPanelHead } from './AuxPanelHead'
+import { RingGauge } from './controls/RingGauge'
 
-/** Maps a letter grade to a token colour for the dial + grade chip. */
-function gradeColor(grade: Grade): string {
-  if (grade === 'A' || grade === 'B') return 'var(--ok, var(--accent))'
-  if (grade === 'C') return 'var(--accent)'
-  return 'var(--err, #d9534f)'
+/** Maps a letter grade to the RingGauge tone (A/B healthy, C neutral accent,
+ *  D/F danger) — real tokens only (UIUX-50; the old fallback chain referenced
+ *  phantom `--err`/`--ok,--accent` names and bottomed out in a hex literal). */
+function gradeTone(grade: Grade): { tone?: 'ok'; danger?: boolean } {
+  if (grade === 'A' || grade === 'B') return { tone: 'ok' }
+  if (grade === 'C') return {}
+  return { danger: true }
 }
 
-/** Per-issue dot colour by severity. */
-function severityColor(sev: IssueSeverity): string {
-  if (sev === 'critical') return 'var(--err, #d9534f)'
-  if (sev === 'warning') return 'var(--warn, var(--accent))'
-  return 'var(--text-3)'
+/** Per-issue dot class by severity — colours live in CSS (`.sev-dot`,
+ *  features.css) beside the other warn-shade rules; no `--warn` token exists. */
+function severityClass(sev: IssueSeverity): string {
+  if (sev === 'critical') return 'sev-dot critical'
+  if (sev === 'warning') return 'sev-dot warn'
+  return 'sev-dot'
 }
 
 /**
@@ -104,7 +108,7 @@ export function DesignScorePanel() {
 
   if (!open || !score) return null
 
-  const dialColor = gradeColor(score.grade)
+  const dialTone = gradeTone(score.grade)
 
   return (
     <aside className="panel mini aux aux-360" id="designScorePanel">
@@ -125,35 +129,19 @@ export function DesignScorePanel() {
             marginBottom: 'var(--s-3)',
           }}
         >
-          <div
-            role="img"
-            aria-label={`Overall score ${score.overall} out of 100, grade ${score.grade}`}
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: '50%',
-              display: 'grid',
-              placeItems: 'center',
-              flex: '0 0 auto',
-              background: `conic-gradient(${dialColor} ${score.overall * 3.6}deg, var(--surface-2, rgba(127,127,127,0.18)) 0deg)`,
-            }}
+          {/* Canonical radial progress (UIUX-50): the old hand-rolled
+              conic-gradient dial masked its centre with a phantom token
+              (`--panel-bg`/`--surface-1` don't exist), rendering as a solid
+              pie with the grade letter invisible against it. */}
+          <RingGauge
+            value={score.overall / 100}
+            size={64}
+            strokeWidth={6}
+            {...dialTone}
+            ariaLabel={`Overall score ${score.overall} out of 100, grade ${score.grade}`}
           >
-            <div
-              style={{
-                width: 50,
-                height: 50,
-                borderRadius: '50%',
-                background: 'var(--panel-bg, var(--surface-1))',
-                display: 'grid',
-                placeItems: 'center',
-                fontWeight: 700,
-                fontSize: 'var(--t-lg)',
-                color: dialColor,
-              }}
-            >
-              {score.grade}
-            </div>
-          </div>
+            <span style={{ fontSize: 'var(--t-base)' }}>{score.grade}</span>
+          </RingGauge>
           <div>
             <div style={{ fontSize: 'var(--t-xl)', fontWeight: 700 }}>
               {score.overall}
@@ -170,7 +158,7 @@ export function DesignScorePanel() {
             → select + frame them so the user can jump straight to the fix. */}
         <div className="clr-list">
           {score.categories.map((cat) => {
-            const fill = cat.score >= 80 ? 'var(--accent)' : 'var(--err, #d9534f)'
+            const fill = cat.score >= 80 ? 'var(--accent)' : 'var(--danger)'
             const clickable = cat.offenders.length > 0
             const body = (
               <>
@@ -188,7 +176,7 @@ export function DesignScorePanel() {
                     height: 5,
                     borderRadius: 3,
                     margin: '5px 0',
-                    background: 'var(--surface-2, rgba(127,127,127,0.18))',
+                    background: 'var(--surface-2)',
                     overflow: 'hidden',
                   }}
                 >
@@ -200,17 +188,7 @@ export function DesignScorePanel() {
                       key={`${cat.id}-${i}`}
                       style={{ display: 'flex', gap: 'var(--s-2)', alignItems: 'flex-start' }}
                     >
-                      <span
-                        aria-hidden
-                        style={{
-                          flex: '0 0 auto',
-                          width: 6,
-                          height: 6,
-                          borderRadius: '50%',
-                          marginTop: 6,
-                          background: severityColor(iss.severity),
-                        }}
-                      />
+                      <span aria-hidden className={severityClass(iss.severity)} />
                       <span style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-2)' }}>
                         {iss.message}
                       </span>

@@ -136,6 +136,35 @@ describe('buildReportHtml', () => {
     expect(html).toMatch(/permit-sensitive/)
   })
 
+  it('collapses identical advisories into one ×N entry (UIUX-54)', () => {
+    // The structural-wall rule emits one advisory PER external wall with the
+    // same title + paragraph verbatim — the default flat printed a dozen
+    // indistinguishable copies. Two identical external walls → ONE entry with
+    // a ×2 count; advisories whose detail differs (per-wall lengths, per-room
+    // names) must stay separate, so the grouped entry keeps the true count.
+    const twoExternal = {
+      ...plan,
+      walls: [
+        {
+          id: 'wa',
+          start: [0, 0] as [number, number],
+          end: [6, 0] as [number, number],
+          thickness: 'external' as const,
+        },
+        {
+          id: 'wb',
+          start: [0, 3] as [number, number],
+          end: [6, 3] as [number, number],
+          thickness: 'external' as const,
+        },
+      ],
+    }
+    const html = buildReportHtml(twoExternal, [], BUILTIN_CATALOG, null)
+    const copies = html.match(/Likely structural wall — hacking is restricted/g) ?? []
+    expect(copies.length).toBe(1)
+    expect(html).toContain('Likely structural wall — hacking is restricted ×2')
+  })
+
   it('gates the HDB-compliance section to housingType==="HDB" (SG1)', () => {
     // No category (back-compat) keeps the prior default: full HDB section.
     expect(buildReportHtml(plan, items, BUILTIN_CATALOG, null)).toContain('HDB compliance hints')

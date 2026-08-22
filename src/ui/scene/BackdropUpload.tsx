@@ -32,11 +32,11 @@ export function BackdropUpload() {
     <div className="scene-field" onClick={(e) => e.stopPropagation()}>
       <span>Your photo</span>
       <div className="backdrop-upload-row">
-        <button type="button" className="btn sm" onClick={() => inputRef.current?.click()}>
+        <button type="button" className="btn btn-sm" onClick={() => inputRef.current?.click()}>
           {hasCustom ? 'Replace photo…' : 'Upload photo…'}
         </button>
         {hasCustom && (
-          <button type="button" className="btn sm" onClick={() => void clearWalkBackdrop()}>
+          <button type="button" className="btn btn-sm" onClick={() => void clearWalkBackdrop()}>
             Remove
           </button>
         )}

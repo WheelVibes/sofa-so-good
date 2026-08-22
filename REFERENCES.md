@@ -109,3 +109,50 @@ see `docs/asset-studio-plan.md` for the staged program this research seeds.
   mirroring in the defect-pin categories. [site](https://defectcheck.sg/) ·
   [DLP explainer](https://a1inspection.sg/what-is-the-defects-liability-period/) ·
   [taxonomy](https://propdefect.com/what-we-check/)
+
+## UI/UX component & motion libraries (2026-08-19 UI/UX research cycle — reference for polish work)
+
+Pattern sources for the design system (`DESIGN.md`), not runtime dependencies — the app stays
+plain CSS/React (no Tailwind, no framer-motion). Steal the *mechanics*, port to tokens.
+
+- **NameThatUI** — visual dictionary of canonical UI-element names (inspector, segmented
+  control, disclosure, source list…); the naming vocabulary `DESIGN.md` standardizes on.
+  [site](https://namethatui.com) · [methodology](https://namethatui.com/methodology)
+- **designmd.ai / DESIGN.md format** — Google Stitch's one-file design-contract format for AI
+  coding agents; our root `DESIGN.md` follows it (concrete values, semantic roles, do/don'ts).
+  [catalog](https://designmd.ai) · [format](https://designmd.ai/what-is-design-md)
+- **Watermelon UI** — open-source registry (~600 micro-interaction components, MIT source on
+  GitHub); best-in-class inline feedback patterns: state-morph copy/save buttons, inline
+  edit, fluid tabs (sliding highlight), onboarding checklist, scroll-fade, inline toast.
+  Spring timings: stiffness 200–400/damping 15–30; reveals `cubic-bezier(.19,1,.22,1)`.
+  [site](https://ui.watermelon.sh) · [source](https://github.com/WatermelonCorp/watermellon-registry)
+- **Motion-Primitives** — ~33 copy-paste animated React components (MIT); canonical mechanics
+  for text shimmer (background-clip moving gradient), border trail (`offset-path` +
+  `offset-distance`), progressive blur (stacked masked backdrop-filters), animated number,
+  sliding tab highlight, image before/after comparison, morphing dialog.
+  [site](https://motion-primitives.com) · [source](https://github.com/ibelick/motion-primitives)
+- **Haikei** — free SVG generators (blobs, layered waves, blurry gradients, scatter); one-time
+  static asset generation for empty-state/onboarding/share-card backdrops, recolorable via
+  CSS variables. Free commercial use, no attribution. [app](https://haikei.app)
+- **shadcn/ui + Origin UI** — the token-driven semantic-CSS-variable reference and the best
+  plain-markup input/stepper/tree patterns to crib from. [shadcn](https://ui.shadcn.com) ·
+  [origin](https://originui.com)
+- **Sonner / Vaul (Emil Kowalski)** — gold-standard toast behavior spec (stack-collapse,
+  hover-expand, pause-on-hover, promise toasts) and mobile bottom-sheet spec (snap points,
+  drag handle, momentum dismissal). [sonner](https://sonner.emilkowal.ski) ·
+  [vaul](https://vaul.emilkowal.ski)
+- **Motion (motion.dev)** — framer-motion's successor; its documented technique of
+  compiling spring physics into native CSS `linear()` easing (plus FLIP layout-animation
+  and scroll-triggered/linked guidance) ports to plain CSS/WAAPI with zero dependencies.
+  [docs](https://motion.dev/docs/spring) · [CSS springs](https://motion.dev/docs/css)
+- **KokonutUI** — MIT React/Tailwind collection (~46 components); productivity-relevant
+  mechanics: hold-to-confirm button, expanding-label toolbar, direction-aware tab content,
+  smooth bottom-sheet stagger. Most of the rest is marketing-flash (banned here).
+  [site](https://kokonutui.com) · [source](https://github.com/kokonut-labs/kokonutui)
+- **Bklit UI** — MIT charts/dataviz registry (visx/d3/motion stack — not adoptable as a
+  dependency); pattern-level takeaway: animated ring/gauge sweeps paired with animated
+  numeric readouts. [site](https://bklit.com) · [source](https://github.com/bklit/bklit-ui)
+- **Laws of UX / animations.dev** — UX heuristics checklist (Fitts, Hick, Doherty <400ms
+  feedback, goal-gradient) and the authority on productivity-tool motion taste (150–300ms
+  ease-out enters, faster ease-in exits, transform/opacity only).
+  [lawsofux](https://lawsofux.com) · [animations.dev](https://animations.dev)

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { useModalGuard } from '../controls/modalGuard'
+import { useDialogFocus } from '../controls/useDialogFocus'
 import { type Place, reverseGeocode, searchPlaces } from '../services/geocoding'
 import { useStore } from '../state/store'
 import { Icon } from './toolbar/icons'
@@ -26,6 +28,11 @@ interface ContentProps {
 }
 
 function LocationPromptContent({ onSetLocation, onDismiss }: ContentProps) {
+  const panelRef = useRef<HTMLDivElement>(null)
+  // Custom .modal-overlay (not the shared Modal): suppress global hotkeys and
+  // manage focus ourselves (UIUX-3; see src/ui/CLAUDE.md).
+  useModalGuard(true)
+  useDialogFocus(true, panelRef)
   const [search, setSearch] = useState('')
   const [results, setResults] = useState<Place[]>([])
   const [searching, setSearching] = useState(false)
@@ -100,7 +107,7 @@ function LocationPromptContent({ onSetLocation, onDismiss }: ContentProps) {
 
   return (
     <div className="modal-overlay">
-      <div className="panel" style={{ width: 'var(--modal-sm)' }}>
+      <div ref={panelRef} className="panel" style={{ width: 'var(--modal-sm)' }}>
         <div className="panel-head">
           <div>
             <div className="panel-title">Where are you?</div>

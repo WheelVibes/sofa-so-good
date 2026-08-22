@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useStore } from '../state/store'
+import { Button } from './controls/Button'
 import { Modal } from './Modal'
 
 /**
@@ -37,32 +38,25 @@ export function ConfirmModal() {
       open
       onClose={() => resolveConfirm(false)}
       title={req.title}
-      width={360}
       panelId="confirmModal"
-    >
-      <div className="flex flex-col gap-3">
-        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-2)' }}>
-          {req.message}
-        </p>
-        <div className="flex justify-end gap-2">
-          <button
-            ref={cancelRef}
-            type="button"
-            className="btn btn-soft"
-            onClick={() => resolveConfirm(false)}
-          >
+      footer={
+        <div className="panel-foot">
+          <Button ref={cancelRef} variant="soft" onClick={() => resolveConfirm(false)}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             ref={confirmRef}
-            type="button"
-            className={req.danger ? 'btn btn-danger' : 'btn btn-accent'}
+            variant={req.danger ? 'danger' : 'accent'}
             onClick={() => resolveConfirm(true)}
           >
             {req.confirmLabel ?? 'Confirm'}
-          </button>
+          </Button>
         </div>
-      </div>
+      }
+    >
+      <p className="text-sm leading-relaxed" style={{ color: 'var(--text-2)' }}>
+        {req.message}
+      </p>
     </Modal>
   )
 }

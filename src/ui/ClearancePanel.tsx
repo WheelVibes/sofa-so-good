@@ -126,7 +126,7 @@ export function ClearancePanel() {
   }
 
   return (
-    <aside className="panel mini aux" id="clearancePanel" style={{ width: 340 }}>
+    <aside className="panel mini aux aux-360" id="clearancePanel">
       <AuxPanelHead
         title="Clearance checks"
         sub="HDB 90 cm walkways"
@@ -226,8 +226,7 @@ export function ClearancePanel() {
               <div key={`${g.a}|${g.b}`} className="clr-item warn" style={{ display: 'block' }}>
                 <button
                   type="button"
-                  className="clr-item-row"
-                  style={{ all: 'unset', cursor: 'pointer', display: 'block', width: '100%' }}
+                  className="clr-item-row btn-plain"
                   onClick={() => selectGap(g)}
                 >
                   <div className="ci-head">

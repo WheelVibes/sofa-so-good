@@ -15,6 +15,7 @@ import { Disclosure } from '../../controls/Disclosure'
 import { Select, type SelectOption } from '../../controls/Select'
 import { downloadBoqXlsx } from '../../downloadBoqXlsx'
 import { DRAWING_LAYERS } from '../../drawingLayers'
+import { EmptyState } from '../../EmptyState'
 import { openBoq } from '../../openBoq'
 import { downloadCostBreakdownCsv } from '../../openCostBreakdownCsv'
 import { openDrawingSet } from '../../openDrawingSet'
@@ -33,6 +34,9 @@ import { openShoppingList } from '../../openShoplist'
 import { openTradePack } from '../../openTradePack'
 import { TRADE_PACKS } from '../../tradePacks'
 import { viewInAr } from '../../viewInAr'
+import { exportGroupLabel } from '../exportGroupLabel'
+import { Icon } from '../icons'
+import { SAVED_EMPTY } from '../savedEmptyStates'
 import { shortcutLabel } from '../shortcuts'
 import { MenuItem, MenuLabel, ToolbarMenu } from '../ToolbarMenu'
 
@@ -66,6 +70,7 @@ export function FileMenu() {
   const fQuoteTemplate = useFeature('quoteTemplate')
   const fDxf = useFeature('dxfExport')
   const fSceneExport = useFeature('sceneExport3d')
+  const fSceneExportCad = useFeature('sceneExportCad')
   const fViewInAr = useFeature('viewInAr')
   const fImportSh3d = useFeature('importSh3d')
   const fImportSh3f = useFeature('importSh3f')
@@ -308,7 +313,18 @@ export function FileMenu() {
         />
       ) : null}
 
-      {(fDxf || fSceneExport || fViewInAr || fShopExport) && <MenuLabel>CAD, 3D & data</MenuLabel>}
+      {/* Label names only the buckets actually rendered (UIUX-71): in Simple
+          mode the CAD rows (DXF/SVG) and the CSV data rows are gated off, so a
+          fixed "CAD, 3D & data" heading promised two absent categories. */}
+      {(fDxf || fSceneExport || fSceneExportCad || fViewInAr || fShopExport) && (
+        <MenuLabel>
+          {exportGroupLabel({
+            cad: fDxf,
+            threeD: fSceneExport || fSceneExportCad || fViewInAr,
+            data: fShopExport,
+          })}
+        </MenuLabel>
+      )}
       {fDxf ? (
         <>
           <MenuItem
@@ -335,6 +351,20 @@ export function FileMenu() {
           />
           <MenuItem
             icon="Export"
+            label="Export for AR (.usdz)"
+            sub="View in your room — iOS AR Quick Look"
+            onClick={() => void exportScene3d('usdz')}
+          />
+        </>
+      ) : null}
+      {/* Geometry-only professional formats — Pro tier (`sceneExportCad`,
+          UIUX-71): a casual Simple-mode owner has no use for a Wavefront OBJ
+          or an STL for 3D printing, and the tier rule puts anything
+          professional/advanced in Pro. */}
+      {fSceneExportCad ? (
+        <>
+          <MenuItem
+            icon="Export"
             label="Export 3D model (.obj)"
             sub="Geometry-only Wavefront OBJ"
             onClick={() => void exportScene3d('obj')}
@@ -344,12 +374,6 @@ export function FileMenu() {
             label="Export 3D model (.stl)"
             sub="Geometry-only STL for 3D printing / CAD"
             onClick={() => void exportScene3d('stl')}
-          />
-          <MenuItem
-            icon="Export"
-            label="Export for AR (.usdz)"
-            sub="View in your room — iOS AR Quick Look"
-            onClick={() => void exportScene3d('usdz')}
           />
         </>
       ) : null}
@@ -431,51 +455,52 @@ export function FileMenu() {
         }}
       />
       {slots.length === 0 ? (
-        <p className="px-2 py-2 text-center text-[11px] text-[var(--text-3)]">No saved layouts.</p>
+        <EmptyState {...SAVED_EMPTY.layouts} />
       ) : (
         <div className="max-h-56 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
           {slots
             .slice()
             .sort((a, b) => b.savedAt.localeCompare(a.savedAt))
             .map((s) => (
-              <div
-                key={s.slot}
-                className="flex items-center justify-between gap-2 rounded-md px-2 py-1 hover:bg-[var(--surface-2)]"
-              >
+              <div key={s.slot} className="saved-view-row">
                 <button
+                  type="button"
+                  role="menuitem"
+                  className="menu-item saved-view-apply"
                   onClick={() => void load(s.slot)}
-                  className="flex flex-1 items-center gap-2 truncate text-left"
+                  title={`Load "${s.slot}"`}
                 >
                   {getThumb(s.slot) ? (
-                    <img
-                      src={getThumb(s.slot)!}
-                      alt=""
-                      className="h-9 w-12 shrink-0 rounded object-cover"
-                    />
+                    <img src={getThumb(s.slot)!} alt="" className="saved-view-thumb" />
                   ) : (
-                    <div className="h-9 w-12 shrink-0 rounded bg-[var(--surface-2)]" />
+                    <Icon.Save width={16} height={16} className="icn" />
                   )}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-medium text-[var(--text)]">
-                      {s.slot}
-                    </span>
-                    <span className="block text-[10px] text-[var(--text-3)]">
-                      {new Date(s.savedAt).toLocaleString()}
-                    </span>
+                  <span className="mi-text">
+                    <span className="mi-main">{s.slot}</span>
+                    <span className="mi-sub">{new Date(s.savedAt).toLocaleString()}</span>
                   </span>
                 </button>
                 <button
                   type="button"
+                  className="saved-view-del"
                   onClick={async () => {
+                    // Irreversible: gate on the confirm modal (P35 destructive-
+                    // confirmation policy; see src/ui/CLAUDE.md).
+                    const ok = await useStore.getState().confirmAction({
+                      title: 'Delete this layout?',
+                      message: `“${s.slot}” will be permanently deleted. This can't be undone.`,
+                      confirmLabel: 'Delete layout',
+                      danger: true,
+                    })
+                    if (!ok) return
                     await storage.delete(s.slot)
                     deleteThumb(s.slot)
                     refresh()
                   }}
-                  className="rounded px-1 text-[var(--danger)] hover:bg-[var(--danger-soft)]"
                   aria-label={`Delete layout "${s.slot}"`}
                   title="Delete"
                 >
-                  ×
+                  <Icon.Trash width={14} height={14} />
                 </button>
               </div>
             ))}
@@ -545,14 +570,12 @@ function TradePacksPicker() {
             <button
               key={p.id}
               type="button"
-              className="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-left hover:bg-[var(--surface-2)]"
+              className="menu-item"
               onClick={() => void openTradePack(p.id)}
               title={p.scope}
             >
-              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[var(--text)]">
-                {p.recipient}
-              </span>
-              <span className="shrink-0 text-[11px] text-[var(--accent)]">Open / Print</span>
+              <span className="min-w-0 flex-1 truncate font-medium">{p.recipient}</span>
+              <span className="shrink-0 text-xs text-[var(--accent)]">Open / Print</span>
             </button>
           ))}
         </div>

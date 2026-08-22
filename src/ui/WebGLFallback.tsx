@@ -21,10 +21,23 @@ function isWebGL2Supported(): boolean {
 export function WebGLFallback({ children }: { children: ReactNode }) {
   if (typeof window !== 'undefined' && !isWebGL2Supported()) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-[var(--surface-2)] p-8 text-center">
+      <div
+        className="flex h-screen w-screen items-center justify-center text-center"
+        style={{ background: 'var(--surface-2)', padding: 'var(--s-7)' }}
+      >
         <div className="max-w-md">
-          <h1 className="mb-2 text-xl font-semibold text-[var(--text)]">WebGL not supported</h1>
-          <p className="text-[var(--text-2)]">
+          <h1
+            style={{
+              fontSize: 'var(--t-xl)',
+              fontWeight: 800,
+              lineHeight: 'var(--lh-tight)',
+              color: 'var(--text)',
+              marginBottom: 'var(--s-2)',
+            }}
+          >
+            WebGL not supported
+          </h1>
+          <p style={{ color: 'var(--text-2)', lineHeight: 'var(--lh-body)' }}>
             sofa-so-good needs WebGL 2 to render the 3D apartment. Try a recent version of Chrome,
             Firefox, Edge, or Safari with hardware acceleration enabled.
           </p>

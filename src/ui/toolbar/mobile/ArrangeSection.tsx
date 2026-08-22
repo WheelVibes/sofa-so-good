@@ -5,6 +5,8 @@ import { ikeaSetRecipes } from '../../../furniture/ikeaSets'
 import { LAYOUT_PRESETS } from '../../../furniture/layoutPresets'
 import { applyStyle, STYLE_PRESETS } from '../../../materials/stylePresets'
 import { useStore } from '../../../state/store'
+import { EmptyState } from '../../EmptyState'
+import { SAVED_EMPTY } from '../savedEmptyStates'
 import { Item, Section } from './parts'
 
 /** Arrange — sets / presets / styles, only inside the per-room editor. */
@@ -64,6 +66,7 @@ export function ArrangeSection({
               if (name) s.getState().saveSelectionAsSet(name)
             })}
           />
+          {userSets.length === 0 ? <EmptyState {...SAVED_EMPTY.sets} /> : null}
           {userSets.map((u) => (
             <Item
               key={u.id}
@@ -110,6 +113,7 @@ export function ArrangeSection({
           if (name) s.getState().saveCurrentStyle(name)
         })}
       />
+      {userStyles.length === 0 ? <EmptyState {...SAVED_EMPTY.styles} /> : null}
       {userStyles.map((st) => (
         <Item
           key={st.id}

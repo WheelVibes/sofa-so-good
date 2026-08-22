@@ -42,11 +42,20 @@ describe('FileMenu grouping — Pro mode', () => {
       'Save & capture',
       'Share & document',
       'Budget & costs',
+      // The export heading enumerates only the buckets that actually render
+      // (UIUX-71). This leg turns `shopExport` on via COST_OVERRIDES and Pro
+      // keeps the CAD rows, so all three buckets are present here.
       'CAD, 3D & data',
       'Load & reset',
     ]) {
       expect(screen.getByText(label)).toBeTruthy()
     }
+  })
+
+  it('offers the geometry-only professional formats (pro tier, UIUX-71)', () => {
+    openFileMenu()
+    expect(screen.getByText('Export 3D model (.obj)')).toBeTruthy()
+    expect(screen.getByText('Export 3D model (.stl)')).toBeTruthy()
   })
 
   it('groups the four cost surfaces under one menu (TB-5)', () => {
@@ -95,7 +104,17 @@ describe('FileMenu grouping — Simple mode (pro-tier rows hidden)', () => {
     expect(screen.getByText('Cost breakdown (CSV)')).toBeTruthy()
     expect(screen.getByText('Budget & costs')).toBeTruthy()
     expect(screen.getByText('Export 3D model (.glb)')).toBeTruthy()
+    // Consumer-facing AR format stays in Simple (UIUX-71) — "see it in your room".
+    expect(screen.getByText('Export for AR (.usdz)')).toBeTruthy()
     expect(screen.getByText('Share & export')).toBeTruthy()
+  })
+
+  it('drops "CAD" from the export heading when the CAD rows are gated off (UIUX-71)', () => {
+    openFileMenu()
+    // DXF/SVG are pro-tier, so Simple shows only 3D + data rows — a fixed
+    // "CAD, 3D & data" heading used to promise an absent category.
+    expect(screen.getByText('3D & data')).toBeTruthy()
+    expect(screen.queryByText('CAD, 3D & data')).toBeNull()
   })
 
   it('drops the pro-tier rows even with the cost overrides on', () => {
@@ -110,6 +129,9 @@ describe('FileMenu grouping — Simple mode (pro-tier rows hidden)', () => {
       'Reno timeline (.ics)',
       'Export DXF (CAD)',
       'View in your room (AR)',
+      // Geometry-only professional formats — pro tier since UIUX-71.
+      'Export 3D model (.obj)',
+      'Export 3D model (.stl)',
     ]) {
       expect(screen.queryByText(label)).toBeNull()
     }

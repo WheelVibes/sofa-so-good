@@ -18,6 +18,12 @@
 .badge.err { background: var(--danger-soft); color: var(--danger); }
 .badge.warn { background: oklch(0.75 0.13 75 / 0.18); color: oklch(0.52 0.13 65); }
 [data-mode='dark'] .badge.warn { color: oklch(0.82 0.12 78); }
+/* Issue-severity dots (Design score, UIUX-50) — the warn shade family lives
+   here in CSS beside .badge.warn/.lyr-flag.warn (no --warn token exists). */
+.sev-dot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; background: var(--text-3); }
+.sev-dot.critical { background: var(--danger); }
+.sev-dot.warn { background: oklch(0.62 0.14 70); }
+[data-mode='dark'] .sev-dot.warn { background: oklch(0.78 0.12 75); }
 .badge.ok { background: var(--accent-soft); color: var(--accent-soft-text); }
 .badge.neutral { background: var(--surface-3); color: var(--text-3); }
 
@@ -51,10 +57,24 @@
   display: flex; flex-direction: column; align-items: center; text-align: center;
   gap: 6px; padding: 30px 18px; color: var(--text-3);
 }
+/* Icon sits on a soft organic blob (UIUX-24, Haikei-style backdrop as pure
+   CSS): an accent-tinted asymmetric radius + a faint offset halo, so empty
+   states read warm instead of clinical. Static — no runtime/motion cost;
+   colours are tokens, so all 5 themes × light/dark recolour it. */
 .empty-mini .em-ic {
-  width: 42px; height: 42px; border-radius: var(--r-2);
+  position: relative;
+  width: 46px; height: 44px;
+  border-radius: 58% 42% 55% 45% / 48% 55% 45% 52%;
   display: grid; place-items: center; margin-bottom: 2px;
-  background: var(--surface-2); border: 1px solid var(--border); color: var(--text-3);
+  background: color-mix(in oklch, var(--accent) 10%, var(--surface-2));
+  border: 1px solid color-mix(in oklch, var(--accent) 18%, var(--border));
+  color: var(--accent-soft-text);
+}
+.empty-mini .em-ic::before {
+  content: ''; position: absolute; inset: -6px -8px -4px -4px; z-index: -1;
+  border-radius: 45% 55% 48% 52% / 55% 45% 58% 42%;
+  transform: rotate(14deg);
+  background: color-mix(in oklch, var(--accent) 6%, transparent);
 }
 .empty-mini b { font-size: var(--t-sm); font-weight: 700; color: var(--text-2); }
 .empty-mini span { font-size: var(--t-xs); line-height: var(--lh-body); max-width: 30ch; }
@@ -134,7 +154,32 @@
    OBJECTS / LAYERS  — left-dock mode, shares catalog position
    ============================================================ */
 
-.lyr-body { padding: var(--s-2) var(--s-3) var(--s-4); overflow-y: auto; }
+/* Vertical inset on the children, not the scrollport (UIUX-46) — padding at
+   either end shows scrolled rows past the sticky edge lips (see .panel-body). */
+.lyr-body { padding: 0 var(--s-3); overflow-y: auto; }
+.lyr-body > :first-child { margin-top: var(--s-2); }
+.lyr-body > :last-child { margin-bottom: var(--s-4); }
+/* Layers list gets the same scroll-edge shadows as .panel-body (UIUX-35);
+   margins match its own --s-3 horizontal padding. */
+@supports (animation-timeline: scroll()) {
+  .lyr-body::before,
+  .lyr-body::after {
+    content: ''; position: sticky; left: 0; right: 0; display: block;
+    height: 10px; flex: none; z-index: 2; pointer-events: none; opacity: 0;
+    animation: none linear both;
+    animation-timeline: scroll();
+  }
+  .lyr-body::before {
+    top: 0; margin: 0 calc(-1 * var(--s-3)) -10px;
+    background: linear-gradient(to bottom, color-mix(in oklch, var(--text) 14%, transparent), transparent);
+    animation-name: scrollEdgeTop;
+  }
+  .lyr-body::after {
+    bottom: 0; margin: -10px calc(-1 * var(--s-3)) 0;
+    background: linear-gradient(to top, color-mix(in oklch, var(--text) 14%, transparent), transparent);
+    animation-name: scrollEdgeBot;
+  }
+}
 .lyr-group { margin-top: var(--s-3); }
 .lyr-group:first-child { margin-top: 4px; }
 .lyr-ghead {
@@ -149,8 +194,13 @@
 .lyr-ghead .gcount { margin-left: auto; font-family: var(--font-mono); font-weight: 600; }
 .lyr-ghead-row {
   display: flex; align-items: center;
-  position: sticky; top: 0; z-index: 1;
-  background: var(--surface); box-shadow: 0 1px 0 var(--border);
+  /* Static, no fill (UIUX-61): the Layers panel is translucent glass, where a
+     sticky header can't occlude rows cleanly — any fill double-composites into
+     a lighter bar, and backdrop-filter samples the panel's own near-white
+     layer (the panel is a backdrop root), painting the same veil. Group
+     headers scroll with their group; the hairline still separates them. */
+  background: transparent;
+  box-shadow: 0 1px 0 var(--border);
 }
 .lyr-ghead-row .lyr-ghead { flex: 1; width: auto; }
 .lyr-geye {
@@ -179,6 +229,17 @@
 .lyr-ic { width: 24px; height: 24px; flex: none; display: grid; place-items: center; border-radius: var(--r-1); background: var(--surface-3); color: var(--text-3); }
 .lyr-row.sel .lyr-ic { background: var(--surface-solid); color: var(--accent-soft-text); }
 .lyr-nm { font-size: var(--t-sm); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+/* The row's primary select action is a real <button> (UIUX-41) so keyboard
+   users can Tab to an object and Enter/Space-select it; the row div stays the
+   drag-and-drop finish target. Inherits the row's look; stretches to the row
+   height so the whole name area is the (44px-on-mobile) tap target. */
+.lyr-sel {
+  display: flex; align-items: center; gap: var(--s-2); flex: 1; min-width: 0;
+  align-self: stretch; padding: 0; background: none; border: 0;
+  color: inherit; font: inherit; text-align: left; border-radius: var(--r-1);
+  cursor: pointer;
+}
+.lyr-sel:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .lyr-flag { color: var(--danger); display: grid; place-items: center; flex: none; }
 .lyr-flag.warn { color: oklch(0.62 0.14 70); }
 .lyr-acts { display: flex; gap: 1px; flex: none; opacity: 0; transition: var(--dur) var(--ease); }
@@ -223,7 +284,7 @@
 /* ============================================================
    CLEARANCE  — floating aux panel
    ============================================================ */
-#clearancePanel { width: 340px; }
+/* Width comes from the .aux-360 ladder class (UIUX-49) — no per-panel ID width. */
 .clr-summary { display: flex; flex-wrap: wrap; gap: var(--s-2); padding-top: var(--s-3); }
 .clr-stat { flex: 1 1 54px; min-width: 54px; padding: var(--s-3) var(--s-2); border-radius: var(--r-2); background: var(--surface-2); border: 1px solid var(--border); text-align: center; }
 .clr-stat .n { font-size: var(--t-xl); font-weight: 800; font-family: var(--font-mono); letter-spacing: -0.03em; line-height: 1.1; }
@@ -261,7 +322,8 @@
 /* ============================================================
    SHOPPING LIST + COLLECTIONS  (replaces budget panel)
    ============================================================ */
-#shopPanel { width: 320px; }
+/* (No #shopPanel id exists any more — the shopping panel is BudgetPanel's
+   plain .panel.mini.aux; its width is .mini's. UIUX-49 removed the dead rule.) */
 .shop-tabs { display: flex; gap: 2px; padding: var(--s-3) 0 var(--s-2); }
 .shop-list { display: flex; flex-direction: column; }
 .shop-row { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3) 0; }
@@ -331,7 +393,7 @@
 /* ============================================================
    VERSIONS  — floating aux panel
    ============================================================ */
-#versionsPanel { width: 340px; }
+/* Width comes from the .aux-360 ladder class (UIUX-49) — no per-panel ID width. */
 .ver-list { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-3); }
 .ver-card { display: flex; gap: var(--s-3); padding: var(--s-3); border-radius: var(--r-2); background: var(--surface-2); border: 1px solid var(--border); transition: var(--dur) var(--ease); position: relative; }
 .ver-card.current { border-color: var(--accent); }
@@ -356,12 +418,12 @@
 /* ============================================================
    SHARE & EXPORT  — centered modal
    ============================================================ */
-.modal-overlay > #sharePanel { width: min(440px, calc(100vw - 24px)); }
+/* #sharePanel width now comes from the Modal width prop (--modal-sm, UIUX-4). */
 .share-link { display: flex; gap: var(--s-2); margin-top: var(--s-3); }
 .share-link .input { font-family: var(--font-mono); font-size: var(--t-xs); }
 .share-vis { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-3); }
 .share-opt { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3); border-radius: var(--r-2); border: 1px solid var(--border); background: var(--surface-2); width: 100%; text-align: left; transition: var(--dur) var(--ease); }
-.share-opt:hover { background: var(--surface-solid); border-color: var(--border-2); }
+.share-opt:hover { background: var(--surface-3); border-color: var(--border-2); }
 .share-opt.on { border-color: var(--accent); background: var(--accent-soft); }
 .share-opt .so-ic { width: 32px; height: 32px; flex: none; border-radius: var(--r-2); display: grid; place-items: center; background: var(--surface-3); color: var(--text-2); }
 .share-opt.on .so-ic { background: var(--accent); color: var(--on-accent); }
@@ -394,7 +456,10 @@
 .cmdk-search input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-size: var(--t-lg); font-weight: 500; }
 .cmdk-search input::placeholder { color: var(--text-3); }
 .cmdk-search kbd { flex: none; }
-.cmdk-results { overflow-y: auto; padding: var(--s-2); }
+/* Child insets, not scrollport padding (UIUX-46) — see .panel-body. */
+.cmdk-results { overflow-y: auto; padding: 0 var(--s-2); }
+.cmdk-results > :first-child { margin-top: var(--s-2); }
+.cmdk-results > :last-child { margin-bottom: var(--s-2); }
 .cmdk-glabel { font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-3); font-weight: 700; padding: var(--s-3) var(--s-2) 4px; }
 .cmdk-item { display: flex; align-items: center; gap: var(--s-3); padding: 9px var(--s-2); border-radius: var(--r-2); width: 100%; text-align: left; color: var(--text-2); }
 .cmdk-item .icn { color: var(--text-3); flex: none; }
@@ -449,6 +514,10 @@
 .ctx-item .icn { color: var(--text-3); }
 .ctx-item:hover .icn { color: var(--accent-soft-text); }
 .ctx-item .sk { margin-left: auto; }
+/* Destructive rows signal at REST, matching the inspector's .act.danger and
+   .icon-btn.danger (UIUX-45) — hover adds the soft fill on top. */
+.ctx-item.danger { color: var(--danger); }
+.ctx-item.danger .icn { color: var(--danger); }
 .ctx-item.danger:hover { background: var(--danger-soft); color: var(--danger); }
 .ctx-item.danger:hover .icn { color: var(--danger); }
 .ctx-sep { height: 1px; background: var(--border); margin: 3px 4px; }
@@ -465,6 +534,19 @@
   opacity: 0; transform: translateY(10px) scale(0.98); transition: var(--dur) var(--ease);
 }
 .toast.in { opacity: 1; transform: none; }
+/* Sonner-style stack collapse (UIUX-23): once 3+ toasts are visible, the older
+   ones tuck down to a peek lip behind the newest so the stack can't wall off
+   the canvas; hovering or keyboard-focusing anywhere in the stack expands it
+   (and each toast's own hover/focus pause keeps WCAG 2.2.1 intact). Pure CSS —
+   max-height clip + a slight recede, transitioned on the motion tokens. */
+.toast { max-height: 240px; transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease), max-height var(--dur-2) var(--ease), box-shadow var(--dur) var(--ease); }
+.toast-host:has(> :nth-child(3)):not(:hover):not(:focus-within) > .toast.in:not(:last-child) {
+  max-height: 12px; overflow: hidden;
+  padding-top: 4px; padding-bottom: 4px;
+  opacity: 0.6; transform: scale(0.95);
+  transform-origin: 50% 100%;
+  box-shadow: none;
+}
 .toast .icn { color: var(--accent-soft-text); flex: none; }
 .toast.err .icn { color: var(--danger); }
 /* Success toast checkmark pop — a quick overshoot-scale on the tick as the toast
@@ -508,9 +590,10 @@
 
 /* ---- mobile fit ---------------------------------------------- */
 body.mobile .cmdk { width: calc(100vw - 24px); }
-body.mobile #clearancePanel, body.mobile #versionsPanel, body.mobile #shopPanel { width: calc(100vw - 24px); }
+/* (aux panels need no per-id mobile width: the responsive `.aux` sheet rule
+   already forces width auto !important within left/right insets — UIUX-49.) */
 body.mobile .modal-overlay > #swapPanel,
-body.mobile .modal-overlay > #sharePanel { width: calc(100vw - 24px); }
+/* (mobile #sharePanel width: the --modal-sm token already clamps to 100vw-24px) */
 body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
 
 /* ---- Scene menu (time of day / lighting / backdrop) -------------- */
@@ -663,3 +746,112 @@ body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
 }
 .paint-viz-error { margin: 0; font-size: var(--t-xs); color: var(--danger); }
+
+/* ---- Getting-started checklist (UIUX-28, onboardChecklist flag) ------- */
+/* A compact bottom-left card over the orbit view: goal-gradient progress bar +
+   the five core-loop steps, auto-checked on first use. Token-only; entrance
+   rides the shared `pop` keyframe; ticks land with the .done-pop overshoot. */
+.onb-check {
+  position: absolute;
+  left: calc(var(--s-4) + env(safe-area-inset-left));
+  bottom: calc(var(--s-6) + env(safe-area-inset-bottom));
+  z-index: var(--z-hud);
+  width: 236px; padding: var(--s-3) var(--s-4) var(--s-4);
+  background: var(--surface); backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+  border: 1px solid var(--border); border-radius: var(--r-3);
+  box-shadow: var(--shadow-panel);
+  animation: pop var(--dur) var(--ease);
+  transform-origin: 0 100%;
+}
+.onb-check-head { display: flex; align-items: center; gap: var(--s-2); }
+.onb-check-head b { font-size: var(--t-sm); font-weight: 800; color: var(--text); flex: 1; }
+.onb-check-count { font-size: var(--t-2xs); font-weight: 700; color: var(--text-3); }
+.onb-check-bar {
+  height: 4px; border-radius: var(--r-pill); background: var(--surface-3);
+  overflow: hidden; margin: var(--s-2) 0 var(--s-3);
+}
+.onb-check-bar i {
+  display: block; height: 100%; border-radius: var(--r-pill);
+  background: var(--accent); transition: width var(--dur-2) var(--ease-out);
+}
+.onb-check-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.onb-check-list li { display: flex; align-items: center; gap: var(--s-2); font-size: var(--t-xs); font-weight: 600; color: var(--text-2); }
+.onb-check-tick {
+  width: 16px; height: 16px; flex: none; display: grid; place-items: center;
+  border-radius: 999px; border: 1px solid var(--border-2); color: var(--on-accent);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.onb-check-list li.on .onb-check-tick { background: var(--accent); border-color: var(--accent); }
+.onb-check-list li.on .onb-check-label { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--border-2); }
+.onb-check > .btn { margin-top: var(--s-3); }
+/* Keep clear of the mobile bottom edge + let the card shrink on narrow phones. */
+body.mobile .onb-check { width: min(236px, calc(100vw - 2 * var(--s-4))); }
+
+/* ---- Panel rows whose classes were phantom (UIUX-79) -------------------- */
+/* Budget "spend by category" block (shopping list + renovation estimate). */
+.bud-breakdown { margin: var(--s-2) 0 var(--s-1); }
+.bud-breakdown > .label {
+  font-size: var(--t-2xs); color: var(--text-3); margin-bottom: var(--s-1);
+}
+/* One toggle row in the dev Flags panel. */
+.flag-row {
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: var(--s-2) var(--s-3); border-radius: var(--r-1); cursor: pointer;
+}
+/* Renovation-estimate over/under-target note. Renamed off the generic `callout`,
+   which read as a sibling of the `InfoCallout` banner it has nothing to do with. */
+.reno-callout { margin: var(--s-2) 0; font-size: var(--t-xs); }
+.reno-callout.over { color: var(--danger); }
+.reno-callout.under { color: var(--ok); }
+/* Versions panel: the export / import file-action pair. */
+.ver-file-row { display: flex; gap: var(--s-3); margin-top: var(--s-3); }
+.ver-file-row > .btn { flex: 1; }
+/* Smart Start's "Starting state" intake block. */
+.ss-ocs { margin-bottom: var(--s-4); }
+.ss-ocs .sec-h { margin-bottom: var(--s-1); }
+.ss-ocs-list { display: flex; flex-direction: column; gap: var(--s-1); }
+/* glbEditor Array disclosure body. */
+.arrange-array-grid { display: grid; gap: var(--s-2); margin-top: var(--s-2); }
+.arrange-array-grid > .label { font-size: var(--t-2xs); color: var(--text-3); }
+/* glbEditor viewport selection-dimensions readout, bottom-left over the canvas. */
+.dv-ov-dims {
+  position: absolute; bottom: var(--s-3); left: var(--s-3);
+  font-size: var(--t-2xs); font-variant-numeric: tabular-nums;
+}
+
+/* ---- Comments panel rows (UIUX-80) ------------------------------------
+   Built on the shared `.clr-item` aux-row (named after its first consumer, the
+   Clearance panel, but used by nine panels). These add only what a comment row
+   needs on top: the icon-action strip and the resolved treatment. */
+.cmt-row { display: flex; gap: var(--s-2); align-items: flex-start; }
+.cmt-row { border-left-color: var(--accent); }
+.cmt-row.resolved { border-left-color: var(--ok); }
+.cmt-txt { font-size: var(--t-xs); overflow-wrap: anywhere; }
+.cmt-row.resolved .cmt-txt { text-decoration: line-through; opacity: 0.6; }
+.cmt-meta {
+  display: block; font-size: var(--t-2xs); color: var(--text-3); margin-top: var(--s-0);
+}
+.cmt-row .icon-btn.on { color: var(--ok); }
+
+/* ---- Design chat transcript (UIUX-80) ---------------------------------- */
+/* The list fills the panel body rather than stopping at a magic 360px, so a
+   docked full-height panel uses the height it has. */
+.chat-log { flex: 1; min-height: 0; overflow-y: auto; margin-bottom: var(--s-2); }
+.chat-turn { border-left-color: var(--border-2); }
+.chat-turn.you { border-left-color: var(--accent); }
+.chat-turn.failed { border-left-color: var(--danger); }
+.chat-who {
+  font-size: var(--t-2xs); color: var(--text-3); margin-bottom: var(--s-1);
+}
+.chat-body { font-size: var(--t-xs); white-space: pre-wrap; }
+.chat-body.pending { color: var(--text-3); }
+.chat-ask { display: flex; gap: var(--s-2); }
+.chat-ask .input { flex: 1; }
+/* The body becomes the flex column the transcript stretches inside, and gives up
+   its own scrolling — `.panel-body` scrolls by default, so leaving that on would
+   nest a second scroll region inside the first. The transcript alone scrolls, and
+   the composer stays pinned at the bottom of the panel. */
+#designChatPanel .panel-body {
+  display: flex; flex-direction: column; min-height: 0; overflow-y: hidden;
+}

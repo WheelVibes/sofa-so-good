@@ -65,6 +65,10 @@ export function Popover({ open, anchorRef, onClose, children, align = 'left' }: 
     const maxLeft = window.innerWidth - panelW - 8
     if (panelW) left = Math.max(8, Math.min(left, maxLeft))
     setPos({ left, top })
+    // Origin-aware entrance (UIUX-26): the panel's `pop` scale grows from the
+    // trigger's horizontal centre (top edge), not its own middle.
+    const originX = Math.max(0, r.left + r.width / 2 - left)
+    panelRef.current?.style.setProperty('--pop-origin', `${Math.round(originX)}px 0px`)
   }, [open, anchorRef, align])
 
   // Register in the open-popover set for descendant-portal containment.
@@ -103,6 +107,12 @@ export function Popover({ open, anchorRef, onClose, children, align = 'left' }: 
     const onScroll = (e: Event) => {
       const t = e.target as Node | null
       if (t && panelRef.current && popoverTreeContains(panelRef.current, t)) return
+      // Only a scroll that can actually MOVE the anchor detaches the panel — a
+      // scroll inside an unrelated container (e.g. the plan canvas underneath a
+      // header menu, or an auto-scrolling side panel) must not close it. A
+      // document/window scroll targets `document`, which contains everything,
+      // so page scrolls still close as before (UIUX-19).
+      if (t && t !== document && anchorRef.current && !t.contains(anchorRef.current)) return
       onClose()
     }
     window.addEventListener('keydown', onKey)

@@ -16,7 +16,7 @@ export function RenoRulesPanel() {
   if (!open) return null
 
   return (
-    <aside className="panel mini aux" id="renoRulesPanel" style={{ width: 360 }}>
+    <aside className="panel mini aux aux-360" id="renoRulesPanel">
       <AuxPanelHead
         title="SG renovation rules"
         sub={<>HDB / BCA reference · rules as of {RENO_RULES_AS_OF}</>}

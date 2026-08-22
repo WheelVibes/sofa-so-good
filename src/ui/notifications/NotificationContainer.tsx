@@ -8,7 +8,10 @@ const KIND_ICON: Record<Notification['kind'], IconName> = {
   info: 'Help',
   progress: 'Versions',
   success: 'Check',
-  error: 'Checks',
+  // Warning triangle (UIUX-63) — this was `Checks`, the clearance SHIELD-CHECK
+  // glyph, so an error toast wore a red "verified/protected" badge: inverted
+  // semantics on exactly the toast that must read as failure at a glance.
+  error: 'Alert',
 }
 
 /** Visually-hidden style for the screen-reader live regions: present in the
@@ -320,12 +323,8 @@ function NotificationDetailsModal({
       width="var(--modal-sm)"
       footer={
         <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            padding: 'var(--s-3) var(--s-4)',
-            borderTop: '1px solid var(--border)',
-          }}
+          className="panel-foot"
+          style={{ paddingTop: 'var(--s-3)', borderTop: '1px solid var(--border)' }}
         >
           <button type="button" className="btn btn-soft" onClick={onClose}>
             Close
@@ -333,10 +332,7 @@ function NotificationDetailsModal({
         </div>
       }
     >
-      <p
-        className="panel-sub"
-        style={{ textTransform: 'none', letterSpacing: 0, margin: '0 0 var(--s-3)' }}
-      >
+      <p className="panel-sub plain" style={{ margin: '0 0 var(--s-3)' }}>
         {details.length} item{details.length === 1 ? '' : 's'} could not be imported:
       </p>
       <ul

@@ -10,11 +10,23 @@
  * assertion below is preserved verbatim (same describe names, same regexes)
  * so a failure is still immediately identifiable by feature.
  */
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const read = (rel: string) => readFileSync(join(__dirname, rel), 'utf8')
+
+const SRC = join(__dirname, '..')
+const rel = (p: string) => p.slice(SRC.length + 1)
+/** Every non-test .tsx under src, for the guards that scan component source. */
+function walkTsx(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir)) {
+    const p = join(dir, entry)
+    if (statSync(p).isDirectory()) walkTsx(p, out)
+    else if (entry.endsWith('.tsx') && !entry.includes('.test.')) out.push(p)
+  }
+  return out
+}
 
 const flows = read('./flows.css')
 const parts = read('./parts.css')
@@ -333,30 +345,179 @@ describe('P2 entrance stagger', () => {
   })
 })
 
-describe('P36 sticky section headers', () => {
-  it('pins the layers group header row (.lyr-ghead-row) to the top of the scroll body', () => {
+describe('UIUX-61 sticky headers are an opaque-container privilege', () => {
+  // A sticky section header can only occlude scrolled rows cleanly over an
+  // OPAQUE surface. On translucent glass panels any fill double-composites
+  // over the panel's own --surface layer into a lighter full-width bar (user
+  // report: "MOVE-IN CHECKLIST" on the mobile Handover sheet) — and
+  // backdrop-filter is no escape, because the panel's own backdrop-filter
+  // makes it a backdrop ROOT: a child filter samples only the panel's
+  // near-white translucent background, repainting the very same white veil.
+  it('base .sec-h is static with NO fill and NO backdrop-filter (glass-safe)', () => {
+    // Declaration-shaped regexes (`prop\s*:`) so the explanatory comments —
+    // which name the offending properties — can't trip the assertions.
+    const p = read('./parts.css')
+    const base = p.match(/\n\.sec-h\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(base).not.toMatch(/position\s*:\s*sticky/)
+    expect(base).not.toMatch(/\bbackground\s*:/)
+    expect(base).not.toMatch(/backdrop-filter\s*:/)
+    expect(base).toMatch(/box-shadow:\s*0 1px 0 var\(--border\)/)
+  })
+  it('the Layers group header row is static with no fill (glass panel)', () => {
     const f = read('./features.css')
-    expect(f).toMatch(/\.lyr-ghead-row\s*\{[^}]*position:\s*sticky/s)
-    expect(f).toMatch(/\.lyr-ghead-row\s*\{[^}]*top:\s*0/s)
+    const row = f.match(/\.lyr-ghead-row\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(row).not.toMatch(/position\s*:\s*sticky/)
+    expect(row).not.toMatch(/backdrop-filter\s*:/)
+    expect(row).toMatch(/background:\s*transparent/)
   })
-  it('pins .sec-h and gives both a background + subtle bottom hairline', () => {
-    const p = read('./parts.css')
-    expect(p).toMatch(/\.sec-h\s*\{[^}]*position:\s*sticky/s)
-    expect(p).toMatch(/\.sec-h\s*\{[^}]*box-shadow:\s*0 1px 0 var\(--border\)/s)
-  })
-  it('.sec-h background is overridable per-container via --sec-h-bg (falls back to --surface)', () => {
-    // The default (anchored glass panels — catalog/inspector/budget) keeps the
-    // translucent --surface it always had. Containers that go opaque (modal
-    // dialogs) override --sec-h-bg to the same opaque tone so the sticky
-    // header composites to an identical colour as the card behind it instead
-    // of double-compositing a second translucent layer (the "white bar" bug).
-    const p = read('./parts.css')
-    expect(p).toMatch(/\.sec-h\s*\{[^}]*background:\s*var\(--sec-h-bg,\s*var\(--surface\)\)/s)
-  })
-  it('modal dialogs go opaque and pin --sec-h-bg to match, so their sticky headers seam-lessly match the card', () => {
+  it('modal bodies re-enable sticky .sec-h with the exact-match opaque fill', () => {
     const c = read('./components.css')
     expect(c).toMatch(/\.modal-overlay > \.panel\s*\{[^}]*background:\s*var\(--surface-solid\)/s)
     expect(c).toMatch(/\.modal-overlay > \.panel\s*\{[^}]*--sec-h-bg:\s*var\(--surface-solid\)/s)
+    const scoped = c.match(/\.modal-overlay \.panel \.sec-h\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(scoped).toMatch(/position:\s*sticky/)
+    expect(scoped).toMatch(/background:\s*var\(--sec-h-bg,\s*var\(--surface-solid\)\)/)
+  })
+  it('dropdown menu labels stay sticky with a solid fill (near-opaque --elevated card)', () => {
+    const a = read('./app.css')
+    const l = a.match(/\.pop-panel \.menu-label\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(l).toMatch(/position:\s*sticky/)
+    expect(l).toMatch(/background:\s*var\(--surface-solid\)/)
+    expect(l).not.toMatch(/backdrop-filter/)
+  })
+})
+
+describe('UIUX-65 mobile touch targets: context menu + confirm pill', () => {
+  const r = read('./responsive.css')
+  it('context-menu rows sit on the 44px floor under body.mobile', () => {
+    expect(r).toMatch(/\.ctx-item\s*\{[^}]*min-height:\s*44px/s)
+  })
+  it('the Apply-change pill buttons extend to 44px hit areas (38 + 2×3)', () => {
+    expect(r).toMatch(/\.edit-confirm-btn\s*\{[^}]*position:\s*relative/s)
+    expect(r).toMatch(/\.edit-confirm-btn::after\s*\{[^}]*inset:\s*-3px/s)
+  })
+})
+
+describe('UIUX-64 Tailwind type utilities ride the design ladder', () => {
+  // ~90 call sites use text-xs/text-sm/leading-relaxed. Without the bridge,
+  // Tailwind's own scale is a SECOND type ladder (xs 12px/1.333 vs --t-xs
+  // 11px…) — the @theme inline block re-points the utilities' theme variables
+  // at the `--t-*`/`--lh-*` tokens. Two structural constraints, both verified
+  // live: the block must be `@theme inline` (plain @theme drops var()-valued
+  // sizes, silently DISABLING the utilities), and it must come AFTER every
+  // @import (a statement between imports invalidates the rest of the sheet).
+  const idx = read('../index.css')
+  it('the @theme inline bridge exists and aliases the type utilities to tokens', () => {
+    const block = idx.match(/@theme inline\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(block).toMatch(/--text-xs:\s*var\(--t-sm\)/)
+    expect(block).toMatch(/--text-sm:\s*var\(--t-md\)/)
+    expect(block).toMatch(/--leading-relaxed:\s*var\(--lh-body\)/)
+    expect(block).not.toMatch(/--color-/) // colour utilities stay banned, not bridged
+  })
+  it('the bridge sits after the last @import (CSS drops rules between imports)', () => {
+    const lastImport = idx.lastIndexOf('@import')
+    const theme = idx.indexOf('@theme inline')
+    expect(theme).toBeGreaterThan(lastImport)
+  })
+})
+
+describe('UIUX-78 the plain-button reset lives in one place', () => {
+  // Five call sites inlined "make this button read as the text around it", each
+  // with a different subset, and most of what they inlined the global `button`
+  // reset already does. `.btn-plain` owns the remainder.
+  it('components.css keeps a global button reset', () => {
+    const c = read('./components.css')
+    const rule = c.match(/^button \{[^}]*\}/ms)?.[0] ?? ''
+    for (const decl of ['background', 'border', 'cursor', 'color', 'font-family']) {
+      expect(rule, decl).toContain(decl)
+    }
+  })
+
+  it('.btn-plain adds only what the global reset cannot', () => {
+    const c = read('./components.css')
+    const rule = c.match(/\.btn-plain\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(rule).toMatch(/padding:\s*0/)
+    expect(rule).toMatch(/font:\s*inherit/)
+    expect(rule).toMatch(/text-align:\s*left/)
+    // Not a `.btn` variant: it must not paint a button frame.
+    expect(rule).not.toMatch(/background:/)
+    expect(rule).not.toMatch(/border(?!-):/)
+  })
+
+  it('no TSX re-inlines the reset the class now owns', () => {
+    // `all: unset` is the nuclear form of the same thing and takes the focus
+    // ring's box-shadow with it, so it is banned outright. Otherwise: three or
+    // more reset declarations inside a six-line window is the old hand-rolled
+    // copy. Windowing beats matching the whole style object — a `${…}` inside a
+    // clip-path or template value breaks any brace-balanced regex.
+    const RESET = [
+      /background:\s*'none'/,
+      /border:\s*'none'/,
+      /padding:\s*0\s*,/,
+      /font:\s*'inherit'/,
+      /color:\s*'inherit'/,
+    ]
+    // Self-check: the window scan must still bite on the shape it replaced.
+    const SAMPLE = ["background: 'none',", "border: 'none',", 'padding: 0,'].join('\n')
+    expect(RESET.filter((rx) => rx.test(SAMPLE)).length).toBeGreaterThanOrEqual(3)
+
+    const offenders: string[] = []
+    for (const f of walkTsx(join(__dirname, '..'))) {
+      const lines = readFileSync(f, 'utf8').split('\n')
+      lines.forEach((line, i) => {
+        if (/all:\s*'unset'/.test(line)) offenders.push(`${rel(f)}:${i + 1} all:unset`)
+      })
+      for (let i = 0; i < lines.length; i++) {
+        const win = lines.slice(i, i + 6).join('\n')
+        const hits = RESET.filter((rx) => rx.test(win)).length
+        if (hits >= 3) {
+          offenders.push(`${rel(f)}:${i + 1} inlines ${hits} reset props`)
+          i += 6
+        }
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+})
+
+describe('UIUX-62 no nested backdrop-filters', () => {
+  // An element with backdrop-filter becomes a backdrop ROOT: a descendant's
+  // backdrop-filter can only sample content painted INSIDE it (typically the
+  // container's own translucent layer), never the scene — repainting a veil at
+  // GPU cost. Every overlay/scrim already filters the scene once; the card or
+  // sheet inside it must not filter again.
+  it('modal cards switch the inherited .panel backdrop-filter OFF (opaque + inside the filtered overlay)', () => {
+    const c = read('./components.css')
+    const rule = c.match(/\.modal-overlay > \.panel\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(rule).toMatch(/backdrop-filter:\s*none/)
+  })
+  it('the login dialog card is opaque with no filter (its scrim is the backdrop root)', () => {
+    const c = read('./components.css')
+    const rule = c.match(/\.login-screen > \.panel\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(rule).toMatch(/background:\s*var\(--surface-solid\)/)
+    expect(rule).toMatch(/backdrop-filter:\s*none/)
+  })
+  it('the wall numeric-entry overlay is opaque with no filter (it lands on the glass inspector)', () => {
+    // It follows the cursor across the plan canvas and routinely covers
+    // `.plan-props`, itself a glass `.panel`. Nesting the filter there did
+    // nothing but let the inspector's body text read through the numbers the
+    // user is typing (UIUX-75).
+    const s = read('./screens.css')
+    const rule = s.match(/\.wall-num\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(rule).toMatch(/background:\s*var\(--surface-solid\)/)
+    expect(rule).toMatch(/backdrop-filter:\s*none/)
+  })
+  it('the mobile sheet has no backdrop-filter of its own (it lives inside the filtered .m-menu-overlay)', () => {
+    const r = read('./responsive.css')
+    const rule = r.match(/\.m-sheet\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(rule).not.toMatch(/backdrop-filter\s*:/)
+    expect(rule).toMatch(/background:\s*var\(--elevated\)/)
+  })
+  it('the mobile sheet detail header uses the solid exact-tone fill, not a nested filter', () => {
+    const r = read('./responsive.css')
+    const rule = r.match(/\.m-detail-h\s*\{[^}]*\}/s)?.[0] ?? ''
+    expect(rule).toMatch(/background:\s*var\(--surface-solid\)/)
+    expect(rule).not.toMatch(/backdrop-filter\s*:/)
   })
   it('flattens .sec-h inside the finish picker (scoped override) — static, transparent, no hairline', () => {
     // The per-room FinishPicker aside carries a `.finish-picker` class so its
@@ -382,5 +543,199 @@ describe('P21 tabular numerals', () => {
   })
   it('keeps dimension readouts tabular via .mono tnum', () => {
     expect(read('./components.css')).toMatch(/\.mono\b[^}]*font-feature-settings:\s*'tnum'\s*1/s)
+  })
+})
+
+describe('UIUX-8 motion/hover token strays', () => {
+  it('walk-HUD fade uses the motion scale, not a raw 600ms', () => {
+    const app = read('./app.css')
+    expect(app).toMatch(/\.walk-hud[^}]*transition:\s*opacity var\(--dur-3\) var\(--ease-out\)/s)
+    expect(app).not.toMatch(/transition:\s*opacity 600ms/)
+  })
+  it('boot loader fade + bar use --dur-2', () => {
+    const screens = read('./screens.css')
+    expect(screens).toMatch(/animation:\s*fade var\(--dur-2\)/)
+    expect(screens).toMatch(/transition:\s*width var\(--dur-2\)/)
+  })
+  it('.share-opt hover steps up to --surface-3 (rest --surface-2 → hover --surface-3)', () => {
+    const features = read('./features.css')
+    expect(features).toMatch(/\.share-opt:hover[^}]*background:\s*var\(--surface-3\)/)
+    expect(features).not.toMatch(/\.share-opt:hover[^}]*var\(--surface-solid\)/)
+  })
+  it('.ss-card transitions on the motion tokens and fills --surface-3 on hover', () => {
+    const flows = read('./flows.css')
+    expect(flows).toMatch(/\.ss-card[^}]*transition:[^}]*var\(--dur\) var\(--ease\)/s)
+    expect(flows).toMatch(/\.ss-card:hover[^}]*background:\s*var\(--surface-3\)/)
+    expect(flows).toMatch(/\.ss-card-swatches i[^}]*border-radius:\s*var\(--r-1\)/)
+  })
+  it('.panel-foot and .form-err exist with token-only styling (UIUX-5/6)', () => {
+    const components = read('./components.css')
+    // UIUX-47: symmetric vertical inset — the body clips flush right above the
+    // footer mid-scroll, so the buttons need the same breathing room above.
+    expect(components).toMatch(/\.panel-foot\s*\{[^}]*padding:\s*var\(--s-4\)/s)
+    expect(components).toMatch(/\.form-err\s*\{[^}]*color:\s*var\(--danger\)/)
+    expect(components).toMatch(/\.panel-sub\.plain\s*\{[^}]*text-transform:\s*none/)
+  })
+})
+
+describe('UIUX-23 toast stack collapse', () => {
+  it('collapses only with 3+ toasts, never the newest, and expands on hover/focus', () => {
+    const features = read('./features.css')
+    expect(features).toMatch(
+      /\.toast-host:has\(> :nth-child\(3\)\):not\(:hover\):not\(:focus-within\) > \.toast\.in:not\(:last-child\)/,
+    )
+    const rule = features.slice(features.indexOf('.toast-host:has(> :nth-child(3))'))
+    expect(rule.slice(0, 400)).toMatch(/max-height:\s*12px/)
+  })
+})
+
+describe('UIUX-30 edge spacing + scroll-edge shadows', () => {
+  it('menu panels keep the --s-3 inset so rows never sit near-flush', () => {
+    const app = read('./app.css')
+    // UIUX-46 moved the vertical inset onto the children (scrollport padding
+    // shows scrolled rows past the sticky edge lips); sides stay --s-3.
+    expect(app).toMatch(/\.pop-panel \{[^}]*padding:\s*0 var\(--s-3\)/s)
+    expect(app).toMatch(/\.pop-panel > :first-child \{[^}]*margin-top:\s*var\(--s-3\)/s)
+    expect(app).toMatch(/\.pop-panel > :last-child \{[^}]*margin-bottom:\s*var\(--s-3\)/s)
+  })
+  it('modal bodies carry scroll-driven edge shadows behind @supports', () => {
+    const components = read('./components.css')
+    expect(components).toMatch(/@supports \(animation-timeline: scroll\(\)\)/)
+    expect(components).toMatch(/@keyframes scrollEdgeTop/)
+    expect(components).toMatch(/@keyframes scrollEdgeBot/)
+    expect(components).toMatch(/color-mix\(in oklch, var\(--text\) 14%, transparent\)/)
+  })
+  it('scrollable dropdown panels carry the same edge shadows (UIUX-40)', () => {
+    const app = read('./app.css')
+    expect(app).toMatch(/\.pop-panel::before,\s*\n\s*\.pop-panel::after \{/)
+    expect(app).toMatch(/\.pop-panel::before \{[^}]*animation-name: scrollEdgeTop/s)
+    expect(app).toMatch(/\.pop-panel::after \{[^}]*animation-name: scrollEdgeBot/s)
+    // The pop-panel inset is --s-3, so the lips must stretch by that amount, not --s-4.
+    expect(app).toMatch(/\.pop-panel::before \{[^}]*calc\(-1 \* var\(--s-3\)\)/s)
+  })
+})
+
+describe('UIUX-31 spring linear() tokens', () => {
+  it('defines sampled-spring easings behind @supports with cubic-bezier fallbacks', () => {
+    const tokens = read('./tokens.css')
+    expect(tokens).toMatch(/@supports \(transition-timing-function: linear\(0, 1\)\)/)
+    expect(tokens).toMatch(/--ease-spring-snappy:\s*linear\(0, 0\.022/)
+    expect(tokens).toMatch(/--ease-spring-pop:\s*linear\(0, 0\.028/)
+    // Fallback pairs must exist un-gated so older browsers resolve the tokens.
+    const beforeSupports = tokens.slice(0, tokens.indexOf('@supports (transition-timing-function'))
+    expect(beforeSupports).toMatch(/--ease-spring-snappy:\s*cubic-bezier/)
+    expect(beforeSupports).toMatch(/--ease-spring-pop:\s*cubic-bezier/)
+  })
+  it('the seg pill and done-pop ride the paired spring tokens', () => {
+    const components = read('./components.css')
+    expect(components).toMatch(
+      /\.seg-pill[^}]*var\(--dur-spring-snappy\) var\(--ease-spring-snappy\)/s,
+    )
+    expect(components).toMatch(/\.done-pop[^}]*var\(--dur-spring-pop\) var\(--ease-spring-pop\)/)
+  })
+})
+
+describe('UIUX-32 press-scale feedback', () => {
+  it('buttons scale down on :active, transform-only', () => {
+    const components = read('./components.css')
+    expect(components).toMatch(
+      /\.btn:active:not\(:disabled\),\s*\n\.icon-btn:active,\s*\n\.tool-btn:active,\s*\n\.seg button:active \{ transform: scale\(0\.96\); \}/,
+    )
+  })
+})
+
+describe('UIUX-39 mobile tap-target pass 3 (layers list / modal buttons / callout dismiss)', () => {
+  const responsive = read('./responsive.css')
+  it('lifts the layers list to the 44px floor with a non-overlapping row-action pitch', () => {
+    expect(responsive).toMatch(/\.lyr-row \{ min-height: 44px; \}/)
+    expect(responsive).toMatch(/\.lyr-ghead \{ min-height: 44px; \}/)
+    expect(responsive).toMatch(/\.lyr-acts \{ gap: 4px; \}/)
+    expect(responsive).toMatch(
+      /\.lyr-acts button \{ width: 40px; height: 40px; position: relative; \}/,
+    )
+    expect(responsive).toMatch(
+      /\.lyr-acts button::after \{ content: ''; position: absolute; inset: -2px; \}/,
+    )
+    expect(responsive).toMatch(/\.lyr-foot \.lyr-showall \{ min-height: 44px;/)
+  })
+  it('lifts plain .btn inside modals and extends the InfoCallout dismiss to 44px', () => {
+    expect(responsive).toMatch(/\.modal-overlay \.btn \{ min-height: 44px; \}/)
+    expect(responsive).toMatch(/\.info-callout \.ic-dismiss \{ position: relative; \}/)
+    expect(responsive).toMatch(
+      /\.info-callout \.ic-dismiss::after \{ content: ''; position: absolute; inset: -11px; \}/,
+    )
+  })
+})
+
+describe('UIUX-43 walk-mode HUD mobile fixes', () => {
+  const responsive = read('./responsive.css')
+  it('drops the walk-measure pill below the mobile hamburger', () => {
+    expect(responsive).toMatch(
+      /\.walk-measure-dock \{ position: fixed; top: calc\(env\(safe-area-inset-top, 0px\) \+ 64px\); \}/,
+    )
+    const app = read('./app.css')
+    expect(app).toMatch(/\.walk-measure-dock \{/)
+  })
+  it('hides interact-pill keyboard chips on touch (mobile block + coarse pointer)', () => {
+    const hits = responsive.match(/\.hud-pill kbd \{ display: none; \}/g) ?? []
+    expect(hits.length).toBe(2)
+    expect(responsive).toMatch(
+      /@media \(pointer: coarse\) \{\s*\n\s*\.hud-pill kbd \{ display: none; \}/,
+    )
+  })
+})
+
+describe('UIUX-45 context-menu destructive rows signal at rest', () => {
+  it('.ctx-item.danger is danger-coloured at rest, not only on hover', () => {
+    const f = read('./features.css')
+    expect(f).toMatch(/\.ctx-item\.danger \{ color: var\(--danger\); \}/)
+    expect(f).toMatch(/\.ctx-item\.danger \.icn \{ color: var\(--danger\); \}/)
+    expect(f).toMatch(/\.ctx-item\.danger:hover \{ background: var\(--danger-soft\)/)
+  })
+})
+
+describe('UIUX-46 scroll-region insets live on children, not the scrollport', () => {
+  it('.panel-body has no bottom padding; the last child carries the inset', () => {
+    const c = read('./components.css')
+    expect(c).toMatch(/\.panel-body \{ padding: 0 var\(--s-4\); overflow-y: auto; \}/)
+    expect(c).toMatch(/\.panel-body > :last-child \{ margin-bottom: var\(--s-4\); \}/)
+  })
+  it('.lyr-body mirrors the same child-inset pattern on both ends', () => {
+    const f = read('./features.css')
+    expect(f).toMatch(/\.lyr-body \{ padding: 0 var\(--s-3\); overflow-y: auto; \}/)
+    expect(f).toMatch(/\.lyr-body > :first-child \{ margin-top: var\(--s-2\); \}/)
+    expect(f).toMatch(/\.lyr-body > :last-child \{ margin-bottom: var\(--s-4\); \}/)
+  })
+  it('menu rows use the inset focus ring so sticky labels cannot truncate it', () => {
+    const tokens = read('./tokens.css')
+    expect(tokens).toMatch(/--focus-ring-inset: inset 0 0 0 var\(--focus-ring-w\)/)
+    const app = read('./app.css')
+    expect(app).toMatch(
+      /\.pop-panel \.menu-item:focus-visible \{\s*\n\s*box-shadow: var\(--focus-ring-inset\);/,
+    )
+  })
+})
+
+describe('UIUX-46b remaining scrollers use child insets too', () => {
+  it('select-panel, cmdk-results, and the mobile sheet panes carry no vertical scrollport padding', () => {
+    const p = read('./parts.css')
+    expect(p).toMatch(/\.select-panel \{[^}]*padding: 0 var\(--s-2\)/)
+    expect(p).toMatch(/\.select-panel > :last-child \{ margin-bottom: var\(--s-2\); \}/)
+    const f = read('./features.css')
+    expect(f).toMatch(/\.cmdk-results \{ overflow-y: auto; padding: 0 var\(--s-2\); \}/)
+    expect(f).toMatch(/\.cmdk-results > :last-child \{ margin-bottom: var\(--s-2\); \}/)
+    const r = read('./responsive.css')
+    expect(r).toMatch(/\.m-detail \{[^}]*padding: 0 var\(--s-2\); \}/)
+    expect(r).toMatch(/\.m-detail > :last-child \{ margin-bottom: var\(--s-3\); \}/)
+    expect(r).toMatch(/\.m-rail > :last-child \{ margin-bottom: var\(--s-2\); \}/)
+  })
+})
+
+describe('UIUX-51 aux panel bodies get top breathing room', () => {
+  it('the first-child margin rule covers .aux bodies with the self-spacing exclusions', () => {
+    const c = read('./components.css')
+    expect(c).toMatch(
+      /\.modal-overlay \.panel-body > :first-child:not\(\.sec\):not\(\.clr-summary\),\s*\n\.aux \.panel-body > :first-child:not\(\.sec\):not\(\.clr-summary\) \{ margin-top: var\(--s-4\); \}/,
+    )
   })
 })

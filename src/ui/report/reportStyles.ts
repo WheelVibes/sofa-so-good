@@ -11,7 +11,12 @@ export const REPORT_CSS = `
   h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
   table { width: 100%; border-collapse: collapse; }
   td { padding: 2px 0; }
-  td.num { text-align: right; font-variant-numeric: tabular-nums; color: #374151; }
+  /* Zero horizontal td padding collides adjacent cells in 3–4 column tables
+     (renovation estimate read "66.2 m²$60/m²" as one string — UIUX-57):
+     separate every cell from its left neighbour, and keep a numeric value on
+     one line so "179.5 m²" can't wrap mid-value. */
+  td + td { padding-left: 12px; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; color: #374151; white-space: nowrap; }
   td.dim { color: #9ca3af; font-variant-numeric: tabular-nums; font-size: 12px; padding-left: 12px; }
   .msw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; border: 1px solid rgba(0,0,0,.12); }
   /* Contractor-grade finish schedule (G4) — shared with the drawing set's Finishes sheet. */

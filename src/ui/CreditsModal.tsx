@@ -34,7 +34,7 @@ export function CreditsModal({ open, onClose }: Props) {
   // trap + focus restore, `role="dialog"`/`aria-modal`, and the global hotkey
   // guard for free (A11Y — it was previously a bare overlay lacking all of these).
   return (
-    <Modal open={open} onClose={onClose} title="Asset credits" width={512}>
+    <Modal open={open} onClose={onClose} title="Asset credits" width="var(--modal-md)">
       {credits ? (
         <>
           <Section title="Furniture" entries={credits.furniture} />

@@ -28,35 +28,25 @@ export function InspectorSection({
 }: Props) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <section className="sec insp-sec" style={style}>
-      <div className="sec-h" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <section className="sec" style={style}>
+      <div className="sec-h insp-sec-h">
         <button
           type="button"
-          className="insp-sec-toggle"
+          className="insp-sec-toggle btn-plain"
           aria-expanded={open}
           onClick={() => setOpen((o) => !o)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            flex: 1,
-            minWidth: 0,
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            cursor: 'pointer',
-            font: 'inherit',
-            color: 'inherit',
-            textAlign: 'left',
-          }}
         >
+          {/* Base glyph points DOWN = expanded; collapsed rotates -90° to point
+              RIGHT — the disclosure grammar the Layers/glbEditor panels use
+              (UIUX-60: this was `open ? 90 : 0`, i.e. down when collapsed and
+              LEFT when expanded — inverted against every other collapsible). */}
           <Icon.Chevron
             width={13}
             height={13}
             style={{
               flex: 'none',
               transition: 'transform .15s',
-              transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+              transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
             }}
           />
           <span>{title}</span>

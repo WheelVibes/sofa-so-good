@@ -10,6 +10,7 @@ import type { FurnitureItem, GltfDef } from '../../furniture/types'
 import { BUILTIN_MATERIALS_BY_CATEGORY } from '../../materials/builtinCatalog'
 import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
+import { Button } from '../controls/Button'
 import { ColorPicker } from '../controls/ColorPicker'
 import { Select } from '../controls/Select'
 import { finishOverrideKey } from './ikeaBodyProps'
@@ -109,8 +110,8 @@ export function GltfBody({ item, def }: GltfBodyProps) {
     axis: 'W' | 'D' | 'H'
     value: number
   }) => (
-    <label className="flex flex-1 items-center gap-1 text-[11px]">
-      <span className="w-3.5 text-[var(--text-3)]">{label}</span>
+    <label className="flex flex-1 items-center gap-1" style={{ fontSize: 'var(--t-xs)' }}>
+      <span style={{ width: 14, flex: 'none', color: 'var(--text-3)' }}>{label}</span>
       <input
         type="number"
         min={0.05}
@@ -121,13 +122,14 @@ export function GltfBody({ item, def }: GltfBodyProps) {
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
         }}
-        className="w-full min-w-0 rounded border border-[var(--border-2)] bg-[var(--surface)] px-1 py-0.5 text-right font-mono"
+        className="input mono w-full min-w-0"
+        style={{ padding: 'var(--s-1) var(--s-2)', textAlign: 'right', fontSize: 'var(--t-xs)' }}
       />
     </label>
   )
 
   const AxisSlider = ({ label, prop, value }: { label: string; prop: string; value: number }) => (
-    <label className="flex items-center justify-between gap-2 text-xs">
+    <label className="flex items-center justify-between gap-2" style={{ fontSize: 'var(--t-sm)' }}>
       <span className="w-12">{label}</span>
       <input
         type="range"
@@ -136,16 +138,19 @@ export function GltfBody({ item, def }: GltfBodyProps) {
         step={0.05}
         value={value}
         onChange={(e) => updateItemProps(item.id, { [prop]: Number(e.target.value) })}
-        className="flex-1 accent-[var(--accent)]"
+        className="slider flex-1"
       />
-      <span className="w-12 text-right font-mono">{value.toFixed(2)}×</span>
+      <span className="mono w-12 text-right">{value.toFixed(2)}×</span>
     </label>
   )
 
   return (
     <div className="space-y-2">
       {keepProportions ? (
-        <label className="flex items-center justify-between gap-2 text-xs">
+        <label
+          className="flex items-center justify-between gap-2"
+          style={{ fontSize: 'var(--t-sm)' }}
+        >
           <span className="flex-1">Scale</span>
           <input
             type="range"
@@ -154,9 +159,9 @@ export function GltfBody({ item, def }: GltfBodyProps) {
             step={0.05}
             value={sx}
             onChange={(e) => setUniform(Number(e.target.value))}
-            className="flex-1 accent-[var(--accent)]"
+            className="slider flex-1"
           />
-          <span className="w-12 text-right font-mono">{sx.toFixed(2)}×</span>
+          <span className="mono w-12 text-right">{sx.toFixed(2)}×</span>
         </label>
       ) : (
         <>
@@ -165,7 +170,10 @@ export function GltfBody({ item, def }: GltfBodyProps) {
           <AxisSlider label="Depth" prop="scaleZ" value={sz} />
         </>
       )}
-      <label className="flex items-center gap-2 text-[11px] text-[var(--text-2)]">
+      <label
+        className="flex items-center gap-2"
+        style={{ fontSize: 'var(--t-xs)', color: 'var(--text-2)' }}
+      >
         <input
           type="checkbox"
           checked={keepProportions}
@@ -180,9 +188,12 @@ export function GltfBody({ item, def }: GltfBodyProps) {
       {/* Exact-size entry (metres): type a real dimension and the scale is
           back-solved. Sliders above stay for quick coarse resizing. */}
       <div className="space-y-1">
-        <div className="flex items-center justify-between text-[10px] text-[var(--text-3)]">
+        <div
+          className="flex items-center justify-between"
+          style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}
+        >
           <span>Exact size (m)</span>
-          <span className="font-mono">≈ {dims}</span>
+          <span className="mono">≈ {dims}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <DimField label="W" axis="W" value={curW} />
@@ -196,16 +207,18 @@ export function GltfBody({ item, def }: GltfBodyProps) {
           exposes 2+ parts. */}
       {targets.length >= 2 ? (
         <div className="space-y-1">
-          <div className="text-[10px] uppercase tracking-wide text-[var(--text-3)]">
-            Part finishes
-          </div>
+          <div className="panel-sub">Part finishes</div>
           {targets.map((t) => {
             const key = finishOverrideKey(t.key)
             const override = typeof item.props[key] === 'string' ? (item.props[key] as string) : ''
             const isColour = override === '' || override.startsWith('#')
             const mode = isColour ? 'colour' : override
             return (
-              <div key={t.key} className="flex items-center gap-2 text-xs">
+              <div
+                key={t.key}
+                className="flex items-center gap-2"
+                style={{ fontSize: 'var(--t-sm)' }}
+              >
                 <span className="min-w-0 flex-1 truncate" title={t.label}>
                   {t.label}
                 </span>
@@ -217,7 +230,14 @@ export function GltfBody({ item, def }: GltfBodyProps) {
                     })
                   }
                   ariaLabel={`${t.label} finish`}
-                  className="rounded border border-[var(--border-2)] bg-[var(--surface)] px-1 py-0.5 text-[10px]"
+                  className="input"
+                  style={{
+                    width: 'auto',
+                    flex: 'none',
+                    minWidth: 0,
+                    padding: 'var(--s-1) var(--s-2)',
+                    fontSize: 'var(--t-2xs)',
+                  }}
                   options={[
                     { value: 'colour', label: 'Colour' },
                     { value: '__grp_texture', label: 'Texture', disabled: true },
@@ -234,20 +254,16 @@ export function GltfBody({ item, def }: GltfBodyProps) {
                   />
                 ) : null}
                 {override ? (
-                  <button
-                    type="button"
-                    onClick={() => updateItemProps(item.id, { [key]: '' })}
-                    className="text-[10px] text-[var(--text-3)] hover:text-[var(--text-2)]"
-                  >
+                  <Button size="sm" onClick={() => updateItemProps(item.id, { [key]: '' })}>
                     clear
-                  </button>
+                  </Button>
                 ) : null}
               </div>
             )
           })}
         </div>
       ) : null}
-      <div className="flex items-center justify-between gap-2 text-xs">
+      <div className="flex items-center justify-between gap-2" style={{ fontSize: 'var(--t-sm)' }}>
         <span className="flex-1">Tint {targets.length >= 2 ? '(all)' : ''}</span>
         <ColorPicker
           value={tint || '#ffffff'}
@@ -255,15 +271,12 @@ export function GltfBody({ item, def }: GltfBodyProps) {
           ariaLabel="Tint"
         />
         {tint ? (
-          <button
-            onClick={() => updateItemProps(item.id, { tint: '' })}
-            className="text-[10px] text-[var(--text-3)] hover:text-[var(--text-2)]"
-          >
+          <Button size="sm" onClick={() => updateItemProps(item.id, { tint: '' })}>
             clear
-          </button>
+          </Button>
         ) : null}
       </div>
-      <label className="flex items-center gap-2 text-xs">
+      <label className="flex items-center gap-2" style={{ fontSize: 'var(--t-sm)' }}>
         <input
           type="checkbox"
           checked={reflective}
@@ -272,7 +285,7 @@ export function GltfBody({ item, def }: GltfBodyProps) {
         <span className="flex-1">Reflective surface (mirror)</span>
       </label>
       {reflective ? (
-        <p className="text-[10px] text-[var(--text-3)]">
+        <p className="sec-desc">
           Reflects the room on the High / Maximum graphics tiers; the model's largest flat face
           becomes the mirror.
         </p>
@@ -280,14 +293,16 @@ export function GltfBody({ item, def }: GltfBodyProps) {
       {/* Built-in attribution + licence is rendered once by <SourceLine> in
           InspectorPanel (with a source link), so it's not repeated here. */}
       {def.source === 'user' ? (
-        <p className="pt-1 text-[10px] text-[var(--text-3)]">
+        <p className="panel-sub plain" style={{ paddingTop: 'var(--s-1)' }}>
           Uploaded {new Date(def.uploadedAt).toLocaleDateString()}
         </p>
       ) : null}
       {def.source === 'user' && def.slotSpec && configuratorOn ? (
-        <button
-          type="button"
-          className="btn btn-soft btn-block btn-sm mt-2"
+        <Button
+          variant="soft"
+          size="sm"
+          block
+          style={{ marginTop: 'var(--s-3)' }}
           onClick={() => {
             const st = useStore.getState()
             st.setConfiguratorEditSpec(def.slotSpec ?? null)
@@ -295,7 +310,7 @@ export function GltfBody({ item, def }: GltfBodyProps) {
           }}
         >
           Edit configuration
-        </button>
+        </Button>
       ) : null}
     </div>
   )

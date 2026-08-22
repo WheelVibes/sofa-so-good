@@ -128,10 +128,10 @@ export function SmartStartWizard() {
       onClose={() => setOpen(false)}
       title="Smart Start"
       sub="Furnish your flat"
-      width={460}
+      width="var(--modal-sm)"
       panelId="smart-start"
       footer={
-        <div className="flex items-center justify-between gap-2">
+        <div className="panel-foot" style={{ justifyContent: 'space-between' }}>
           <button type="button" className="btn" onClick={() => setOpen(false)}>
             Skip
           </button>
@@ -141,30 +141,17 @@ export function SmartStartWizard() {
         </div>
       }
     >
-      <p
-        className="panel-sub"
-        style={{ textTransform: 'none', letterSpacing: 0, marginBottom: 10 }}
-      >
+      <p className="panel-sub plain" style={{ marginBottom: 10 }}>
         Pick a style — we’ll furnish every room and finish the walls &amp; floors to match. You can
         tweak anything afterwards.
       </p>
-      <p
-        className="panel-sub"
-        style={{
-          textTransform: 'none',
-          letterSpacing: 0,
-          marginBottom: 10,
-          color: 'var(--text-3)',
-        }}
-      >
+      <p className="panel-sub plain" style={{ marginBottom: 10, color: 'var(--text-3)' }}>
         Replaces any floors &amp; walls you’ve already set on the living spaces.
       </p>
       {fOcs ? (
-        <div className="ss-ocs" style={{ marginBottom: 12 }}>
-          <div className="sec-h" style={{ marginBottom: 'var(--s-1)' }}>
-            Starting state
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-1)' }}>
+        <div className="ss-ocs">
+          <div className="sec-h">Starting state</div>
+          <div className="ss-ocs-list">
             {INTAKE_STATES.map((st) => (
               <button
                 key={st.id}
@@ -183,13 +170,8 @@ export function SmartStartWizard() {
               >
                 <span style={{ fontWeight: 700 }}>{st.name}</span>
                 <span
-                  className="panel-sub"
-                  style={{
-                    textTransform: 'none',
-                    letterSpacing: 0,
-                    lineHeight: 'var(--lh-body)',
-                    whiteSpace: 'normal',
-                  }}
+                  className="panel-sub plain"
+                  style={{ lineHeight: 'var(--lh-body)', whiteSpace: 'normal' }}
                 >
                   {st.blurb}
                 </span>
@@ -233,11 +215,9 @@ export function SmartStartWizard() {
               Match my brief
             </button>
             {briefMatch === 'none' ? (
-              <span className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
-                Couldn’t match that — pick a style below.
-              </span>
+              <span className="panel-sub plain">Couldn’t match that — pick a style below.</span>
             ) : briefMatch ? (
-              <span className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
+              <span className="panel-sub plain">
                 Matched: {briefMatch.matchedTerms.slice(0, 4).join(', ')}
                 {briefMatch.budget != null
                   ? ` · budget $${briefMatch.budget.toLocaleString()}`
@@ -270,10 +250,7 @@ export function SmartStartWizard() {
           </div>
         </>
       ) : null}
-      <p
-        className="panel-sub"
-        style={{ textTransform: 'none', letterSpacing: 0, marginTop: 10, opacity: 0.7 }}
-      >
+      <p className="panel-sub plain" style={{ marginTop: 10, opacity: 0.7 }}>
         Applies to the current apartment shell. Theme:{' '}
         <b>{THEME_META[PRESET_THEME[picked] ?? current]?.name ?? THEME_META[current].name}</b>.
       </p>

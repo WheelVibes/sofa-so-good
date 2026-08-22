@@ -18,6 +18,39 @@ These need infrastructure/hardware this app doesn't have (a GPU + network don't 
 - **F21 (real-headset WebXR)** — controller-locomotion pass needs a physical VR headset to verify;
   the inert WebXR entry + provider already ship.
 
+## Open — UI/UX polish cycle (2026-08-19; sources: internal audit + DESIGN.md research refs)
+Bite-sized, one commit each, ordered. Rules: tokens only, both modes tested, visual verify.
+### Stage 2 — token consistency (small sweeps)
+
+
+
+
+
+### Stage 3 — mobile/a11y + list vocab
+
+
+
+### Stage 4 — off-system surface migrations (Tailwind → tokens)
+
+
+### Stage 5 — polish patterns from research (each flag-gated, reduced-motion-safe)
+
+
+
+
+
+
+
+
+- [ ] UIUX-33: hold-to-confirm button primitive (KokonutUI hold-button — progress overlay
+  fills over ~1.5s, release resets). NOTE: the P35 confirm+Undo policy stays the source of
+  truth — this could only ever be an *additional* affordance (e.g. the mobile clear-room
+  confirm), needs a product decision first.
+
+
+- [ ] UIUX-29: guard test / adoption sweep — every new pattern documented in DESIGN.md as it
+  ships; keep adding tasks discovered during stages above.
+
 ## Open — client-doable
 - [ ] MOD-FPE-SPLIT (optional tail, REFAC-2 landed a further cut): `FloorPlanEditor.tsx` is now
   **~2432 lines** (was 4271, −43%). Done: state/effect hooks `usePlanBackdrop` (v.46), `usePlanAiWalls`

@@ -3,6 +3,8 @@ import { type PlanElectricalPoint, pointInRoom } from '../../../../floorplan/typ
 import { isEmitter } from '../../../../furniture/lightEmitters'
 import { useStore } from '../../../../state/store'
 import { Select } from '../../../controls/Select'
+import { EmptyState } from '../../../EmptyState'
+import { Icon } from '../../../toolbar/icons'
 
 /** Whether a placed item is a light FIXTURE that a switch can control — a
  *  registered emitter (ceiling light/fan, cove, sconce, lamp, …) or any item
@@ -72,9 +74,11 @@ export function SwitchControlsSection({
         <span>Controls ({controls.length})</span>
       </div>
       {fixtures.length === 0 ? (
-        <p className="text-xs" style={{ color: 'var(--text-3)' }}>
-          No light fixtures on this storey yet. Place ceiling lights or lamps, then link them here.
-        </p>
+        <EmptyState
+          icon={Icon.Lights}
+          title="No light fixtures on this storey"
+          description="Place ceiling lights or lamps, then link them here."
+        />
       ) : (
         <div className="flex flex-col gap-2">
           {roomKeys.map((rk) => (

@@ -176,4 +176,24 @@ describe('boqToHtml', () => {
     expect(html).toContain('S$0.00')
     expect(() => boqToHtml(buildBoq({ plan }))).not.toThrow()
   })
+
+  it('renders the Length (ft) column only in sections with carpentry lines (UIUX-55)', () => {
+    // FF&E-only → no always-empty linear-feet column, subtotal spans 4.
+    const ffeOnly = boqToHtml(
+      buildBoq({ plan, furniture: [{ name: 'Sofa', qty: 1, unitPrice: 100 }] }),
+    )
+    expect(ffeOnly).not.toContain('Length (ft)')
+    expect(ffeOnly).toContain('colspan="4"')
+    // Carpentry section keeps the column (with the derived feet), spans 5.
+    const withCarpentry = boqToHtml(
+      buildBoq({
+        plan,
+        furniture: [{ name: 'Sofa', qty: 1, unitPrice: 100 }],
+        carpentry: [{ name: 'Wardrobe run', lengthM: 2, ratePerM: 300 }],
+      }),
+    )
+    expect(withCarpentry).toContain('Length (ft)')
+    expect(withCarpentry).toContain('colspan="5"')
+    expect(withCarpentry).toContain('colspan="4"') // the FF&E section stays narrow
+  })
 })

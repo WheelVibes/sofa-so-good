@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 
 export interface SegmentedOption {
   value: string
@@ -43,6 +43,34 @@ export function Segmented({
   const groupRef = useRef<HTMLDivElement>(null)
   const selectedIdx = options.findIndex((o) => o.value === value)
 
+  // Sliding active pill (UIUX-20, Watermelon fluid-tabs mechanic): measure the
+  // selected button and drive an absolutely-positioned `.seg-pill` under it via
+  // CSS vars, so selection glides between segments (transform/width only, on
+  // the motion tokens; reduced-motion zeroes it globally). Until the first
+  // measurement lands (or when nothing is selected) the group stays in the
+  // static `.on` fallback — the pill never replaces the indicator it can't draw.
+  const [pill, setPill] = useState<{ x: number; w: number } | null>(null)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-measure when the selection or the option set changes; fit/accent change metrics too.
+  useLayoutEffect(() => {
+    const group = groupRef.current
+    if (!group) return
+    const measure = () => {
+      const btn = group.querySelectorAll('button')[selectedIdx]
+      // A 0-width measurement (hidden group, non-layout test DOM) keeps the
+      // static `.on` fallback rather than drawing an invisible pill.
+      if (selectedIdx < 0 || !btn || btn.offsetWidth === 0) {
+        setPill(null)
+        return
+      }
+      setPill({ x: btn.offsetLeft, w: btn.offsetWidth })
+    }
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(measure)
+    ro.observe(group)
+    return () => ro.disconnect()
+  }, [selectedIdx, options, fit, accent])
+
   const step = (from: number, dir: 1 | -1): number => {
     let i = from
     for (let n = 0; n < options.length; n++) {
@@ -82,7 +110,7 @@ export function Segmented({
     }
   }
 
-  const cls = `seg${accent ? ' accent' : ''}${fit ? ' fit' : ''}${className ? ` ${className}` : ''}`
+  const cls = `seg${accent ? ' accent' : ''}${fit ? ' fit' : ''}${pill ? ' slide' : ''}${className ? ` ${className}` : ''}`
   return (
     <div
       ref={groupRef}
@@ -91,6 +119,13 @@ export function Segmented({
       className={cls}
       onKeyDown={onKeyDown}
     >
+      {pill ? (
+        <span
+          className="seg-pill"
+          aria-hidden="true"
+          style={{ width: pill.w, transform: `translateX(${pill.x}px)` }}
+        />
+      ) : null}
       {options.map((o, i) => {
         const selected = o.value === value
         return (

@@ -50,22 +50,7 @@ export function LoginScreen() {
   }
 
   return (
-    <div
-      className="login-screen"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 'var(--z-modal, 70)' as never,
-        display: 'grid',
-        placeItems: 'center',
-        background: 'color-mix(in oklch, var(--scene-b, #1a1714) 60%, transparent)',
-        backdropFilter: 'blur(var(--blur, 8px))',
-        padding: 'var(--s-4)',
-      }}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Sign in"
-    >
+    <div className="login-screen auth-scrim" role="dialog" aria-modal="true" aria-label="Sign in">
       <div className="panel" style={{ width: 'min(380px, 100%)', padding: 'var(--s-5)' }}>
         <div
           style={{
@@ -76,14 +61,14 @@ export function LoginScreen() {
           }}
         >
           <BrandMark size={26} />
-          <div className="panel-title" style={{ fontSize: 'var(--t-1)' }}>
+          <div className="panel-title" style={{ fontSize: 'var(--t-lg)' }}>
             Sofa So Good
           </div>
         </div>
 
         {currentUser ? (
           <>
-            <p className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
+            <p className="panel-sub plain">
               Signed in as <b style={{ color: 'var(--text)' }}>{currentUser.name}</b> ·{' '}
               {currentUser.role}
             </p>
@@ -135,9 +120,7 @@ export function LoginScreen() {
           </>
         ) : isBackend ? (
           <form onSubmit={submit}>
-            <p className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
-              {providerLabel} sign-in
-            </p>
+            <p className="panel-sub plain">{providerLabel} sign-in</p>
             <p
               style={{
                 fontSize: 'var(--t-2xs)',

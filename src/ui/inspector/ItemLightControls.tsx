@@ -2,6 +2,7 @@ import { resolveEmitterSpec } from '../../furniture/lightEmitters'
 import type { FurnitureItem } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { ColorPicker } from '../controls/ColorPicker'
+import { SliderField } from '../controls/SliderField'
 import { IesProfilePicker } from './IesProfilePicker'
 
 /**
@@ -23,7 +24,7 @@ export function ItemLightControls({ item }: { item: FurnitureItem }) {
       <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
         Light
       </div>
-      <div className="flex items-center justify-between gap-2 text-xs">
+      <div className="flex items-center justify-between gap-2" style={{ fontSize: 'var(--t-sm)' }}>
         <span>Colour</span>
         <ColorPicker
           ariaLabel="Light colour"
@@ -31,25 +32,16 @@ export function ItemLightControls({ item }: { item: FurnitureItem }) {
           onChange={(hex) => useStore.getState().updateItemProps(item.id, { lightColor: hex })}
         />
       </div>
-      <label className="flex items-center justify-between gap-2 text-xs">
-        <span>Brightness</span>
-        <input
-          type="range"
-          className="slider"
-          aria-label="Light brightness"
-          min={1}
-          max={12}
-          step={0.5}
-          value={intensity}
-          onChange={(e) =>
-            useStore.getState().updateItemProps(item.id, {
-              lightIntensity: Number(e.target.value),
-            })
-          }
-          style={{ flex: 1 }}
-        />
-        <span className="w-8 text-right font-mono">{intensity.toFixed(0)}</span>
-      </label>
+      <SliderField
+        label="Brightness"
+        ariaLabel="Light brightness"
+        min={1}
+        max={12}
+        step={0.5}
+        value={intensity}
+        onChange={(v) => useStore.getState().updateItemProps(item.id, { lightIntensity: v })}
+        format={(v) => v.toFixed(0)}
+      />
       <IesProfilePicker
         itemId={item.id}
         value={typeof item.props.iesProfile === 'string' ? item.props.iesProfile : ''}

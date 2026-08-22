@@ -38,6 +38,7 @@ import { MasterPaletteEditor } from './color/MasterPaletteEditor'
 import { Disclosure } from './controls/Disclosure'
 import { Select } from './controls/Select'
 import { useRovingTabs } from './controls/useRovingTabs'
+import { useSlideDir } from './controls/useSlideDir'
 import { MaterialComposer } from './finish/MaterialComposer'
 import { ShowroomRow } from './finish/ShowroomRow'
 import { SwatchGroup } from './finish/swatches'
@@ -366,6 +367,9 @@ export function FinishPicker() {
   // flag is on, so a stale 'ceiling' selection falls back to floor rather than
   // showing an empty tab.
   const activeTab: Surface = lastSurface === 'ceiling' && !fCeiling ? 'floor' : lastSurface
+  // Direction-aware surface-tab switch (UIUX-34): panels slide in from the
+  // side the selection travelled toward (floor 0 · wall 1 · ceiling 2).
+  const slideDir = useSlideDir(activeTab === 'floor' ? 0 : activeTab === 'wall' ? 1 : 2)
 
   // WAI-ARIA tabs pattern for the surface tablist (TB-9): one Tab stop (the
   // active tab), Arrow/Home/End rove focus AND select (shared hook). Hooks must
@@ -533,7 +537,7 @@ export function FinishPicker() {
                 style={{
                   backgroundColor: sampledFinish.finishId.startsWith('#')
                     ? sampledFinish.finishId
-                    : (materials[sampledFinish.finishId]?.swatch ?? '#ccc'),
+                    : (materials[sampledFinish.finishId]?.swatch ?? 'var(--surface-3)'),
                 }}
                 aria-hidden="true"
               />
@@ -604,7 +608,7 @@ export function FinishPicker() {
             ))}
           </div>
           {activeTab === 'floor' && (
-            <>
+            <div className="panel-slide" data-dir={slideDir ?? undefined}>
               {fShowroom ? (
                 <ShowroomRow
                   surface="floor"
@@ -649,10 +653,10 @@ export function FinishPicker() {
                   savedNameOf={savedNameFor}
                 />
               ) : null}
-            </>
+            </div>
           )}
           {activeTab === 'wall' && (
-            <>
+            <div className="panel-slide" data-dir={slideDir ?? undefined}>
               {fShowroom ? (
                 <ShowroomRow
                   surface="wall"
@@ -709,13 +713,13 @@ export function FinishPicker() {
                   savedNameOf={savedNameFor}
                 />
               ) : null}
-            </>
+            </div>
           )}
           {/* Ceiling paints from the wall (paint/plaster) pool — a ceiling is
               painted like a wall. Default is plain white (no finish), so a
               "Reset to white" clears back to it. Gated by the ceilingFinish flag. */}
           {fCeiling && activeTab === 'ceiling' ? (
-            <>
+            <div className="panel-slide" data-dir={slideDir ?? undefined}>
               <SwatchGroup
                 label="Ceiling"
                 hideLabel
@@ -749,7 +753,7 @@ export function FinishPicker() {
               {activeCeiling ? (
                 <button
                   type="button"
-                  className="btn ghost btn-block"
+                  className="btn btn-block"
                   style={{ marginTop: 'var(--s-2)' }}
                   onClick={() => clearCeilingFinish(roomId)}
                   title="Reset this room's ceiling back to plain white"
@@ -767,7 +771,7 @@ export function FinishPicker() {
                   savedNameOf={savedNameFor}
                 />
               ) : null}
-            </>
+            </div>
           ) : null}
           {/* Accent walls (per-`wallId:roomId`): surface + manage this room's
               accents in one place. Creating one either taps a wall in the 3D
@@ -791,14 +795,7 @@ export function FinishPicker() {
                   <div className="sec">
                     <div className="label">Accent walls</div>
                     {accents.length === 0 ? (
-                      <p
-                        className="panel-sub"
-                        style={{
-                          textTransform: 'none',
-                          letterSpacing: 0,
-                          margin: 'var(--s-1) 0 0',
-                        }}
-                      >
+                      <p className="panel-sub plain" style={{ margin: 'var(--s-1) 0 0' }}>
                         Pick a wall below (or tap any wall in the 3D view) to paint it a different
                         colour from the rest of the room.
                       </p>
@@ -806,7 +803,9 @@ export function FinishPicker() {
                       <>
                         {accents.map(([key, id]) => {
                           const mat = materials[id]
-                          const swatchColor = id.startsWith('#') ? id : (mat?.swatch ?? '#ccc')
+                          const swatchColor = id.startsWith('#')
+                            ? id
+                            : (mat?.swatch ?? 'var(--surface-3)')
                           const name = id.startsWith('#') ? id.toUpperCase() : (mat?.name ?? id)
                           return (
                             <div
@@ -848,14 +847,7 @@ export function FinishPicker() {
                             </div>
                           )
                         })}
-                        <p
-                          className="panel-sub"
-                          style={{
-                            textTransform: 'none',
-                            letterSpacing: 0,
-                            margin: 'var(--s-2) 0 0',
-                          }}
-                        >
+                        <p className="panel-sub plain" style={{ margin: 'var(--s-2) 0 0' }}>
                           Add another below, or tap a wall in the 3D view.
                         </p>
                       </>
@@ -981,7 +973,7 @@ export function FinishPicker() {
               type="button"
               onClick={clearRoom}
               title="Remove all unlocked furniture from this room (undoable)"
-              className="btn ghost btn-block"
+              className="btn btn-block"
               style={{ marginTop: 'var(--s-2)', color: 'var(--danger)' }}
             >
               <Icon.Trash width={14} height={14} />

@@ -423,7 +423,7 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
                     type="button"
                     onClick={chooseFolder}
                     disabled={busy}
-                    className="rounded bg-[var(--surface-solid)] px-3 py-1 text-xs font-medium text-[var(--text-2)] shadow-sm ring-1 ring-[var(--border-2)] hover:bg-[var(--surface-2)] disabled:opacity-50"
+                    className="btn btn-soft btn-sm"
                   >
                     Choose folder…
                   </button>
@@ -594,16 +594,13 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
         </div>
 
         <footer className="flex justify-end gap-2 border-t border-[var(--border)] px-5 py-3">
-          <button
-            onClick={requestClose}
-            className="rounded px-3 py-1 text-sm text-[var(--text-2)] hover:bg-[var(--surface-2)]"
-          >
+          <button onClick={requestClose} className="btn btn-soft">
             Cancel
           </button>
           <button
             onClick={submit}
             disabled={busy || detecting || modelFiles.length === 0 || (single && !name.trim())}
-            className="rounded bg-[var(--accent)] px-3 py-1 text-sm text-[var(--on-accent)] hover:bg-[var(--accent-2)] disabled:cursor-not-allowed disabled:bg-[var(--surface-3)]"
+            className="btn btn-accent"
           >
             {busy ? 'Saving…' : submitLabel(ikeaGroups.length, single, looseModels.length)}
           </button>
@@ -683,7 +680,7 @@ export function GroupPanel({
             type="button"
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={win.page === 0}
-            className="rounded bg-[var(--surface-solid)] px-2 py-0.5 text-xs font-medium text-[var(--text-2)] shadow-sm ring-1 ring-[var(--border-2)] hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
+            className="btn btn-soft btn-sm"
           >
             ‹ Prev
           </button>
@@ -695,7 +692,7 @@ export function GroupPanel({
             type="button"
             onClick={() => setPage((p) => Math.min(win.pageCount - 1, p + 1))}
             disabled={win.page >= win.pageCount - 1}
-            className="rounded bg-[var(--surface-solid)] px-2 py-0.5 text-xs font-medium text-[var(--text-2)] shadow-sm ring-1 ring-[var(--border-2)] hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
+            className="btn btn-soft btn-sm"
           >
             Next ›
           </button>

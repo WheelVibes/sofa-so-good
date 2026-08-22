@@ -57,3 +57,44 @@ describe('BudgetPanel empty states', () => {
     }
   })
 })
+
+describe('BudgetPanel ring gauge (UIUX-37)', () => {
+  const seedSofa = () =>
+    useStore.setState({
+      shopTab: 'list',
+      items: [
+        {
+          id: 'a',
+          defId: 'sofa-3seat',
+          position: [1, 1] as [number, number],
+          rotation: 0,
+          props: {},
+        },
+      ],
+    })
+
+  it('renders no ring while no budget target is set', () => {
+    seedSofa()
+    useStore.setState({ budgetTarget: null })
+    const { container, unmount } = render(<BudgetPanel />)
+    expect(container.querySelector('.ring-gauge')).toBeNull()
+    unmount()
+  })
+
+  it('renders an accent ring within budget and flips to danger when over (both modes)', () => {
+    for (const mode of ['simple', 'pro'] as const) {
+      useStore.getState().setUiMode(mode)
+      useStore.getState().reresolveFeatureFlags()
+      seedSofa()
+      useStore.setState({ budgetTarget: 1000000 })
+      const under = render(<BudgetPanel />)
+      expect(under.container.querySelector('.ring-gauge')).not.toBeNull()
+      expect(under.container.querySelector('.ring-gauge.danger')).toBeNull()
+      under.unmount()
+      useStore.setState({ budgetTarget: 1 })
+      const over = render(<BudgetPanel />)
+      expect(over.container.querySelector('.ring-gauge.danger')).not.toBeNull()
+      over.unmount()
+    }
+  })
+})

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { captureCanvasPng } from '../scene/captureCanvas'
 import { useStore } from '../state/store'
+import { CompareOverlay } from './compare/CompareOverlay'
 import { Modal } from './Modal'
 import { clampDivider } from './renderCompare/compareState'
 import { captureStagingPair } from './staging/stagingReveal'
@@ -112,10 +113,10 @@ export function StagingRevealModal() {
       onClose={() => setOpen(false)}
       title="Before / after"
       sub="Reveal slider — empty room vs your furnished design, same camera"
-      width={820}
+      width="var(--modal-lg)"
       panelId="staging-reveal"
       footer={
-        <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end' }}>
+        <div className="panel-foot">
           <button
             type="button"
             className="btn btn-accent"
@@ -131,153 +132,38 @@ export function StagingRevealModal() {
         ref={sliderRef}
         role="presentation"
         aria-label="Staging reveal slider — drag to compare empty vs furnished"
-        style={{
-          position: 'relative',
-          width: '100%',
-          aspectRatio: '16 / 9',
-          background: 'var(--surface-3)',
-          borderRadius: 8,
-          overflow: 'hidden',
-          cursor: phase === 'capturing' ? 'wait' : hasBoth ? 'ew-resize' : 'default',
-          userSelect: 'none',
-          touchAction: 'none',
-        }}
+        className="cmp-frame"
+        style={{ cursor: phase === 'capturing' ? 'wait' : hasBoth ? 'ew-resize' : 'default' }}
         onMouseDown={hasBoth ? onMouseDown : undefined}
         onTouchStart={hasBoth ? onTouchMove : undefined}
         onTouchMove={hasBoth ? onTouchMove : undefined}
       >
         {/* After (furnished) — full width behind. */}
         {after ? (
-          <img
-            src={after}
-            alt="Furnished design"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'fill',
-            }}
-            draggable={false}
-          />
+          <img src={after} alt="Furnished design" className="cmp-layer cmp-img" draggable={false} />
         ) : null}
 
         {/* Before (empty room) — clipped to the left of the divider. */}
         {before ? (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              clipPath: `inset(0 ${(1 - divider) * 100}% 0 0)`,
-            }}
-          >
-            <img
-              src={before}
-              alt="Empty room"
-              style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block' }}
-              draggable={false}
-            />
+          <div className="cmp-layer" style={{ clipPath: `inset(0 ${(1 - divider) * 100}% 0 0)` }}>
+            <img src={before} alt="Empty room" className="cmp-img" draggable={false} />
           </div>
         ) : null}
 
         {/* Divider bar + handle + labels (only with both frames). */}
         {hasBoth ? (
-          <>
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                bottom: 0,
-                left: dividerPct,
-                transform: 'translateX(-50%)',
-                width: 2,
-                background: 'var(--on-accent, #fff)',
-                pointerEvents: 'none',
-              }}
-              aria-hidden
-            />
-            <div
-              style={{
-                position: 'absolute',
-                top: '50%',
-                left: dividerPct,
-                transform: 'translate(-50%, -50%)',
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                background: 'var(--on-accent, #fff)',
-                boxShadow: '0 1px 6px rgba(0,0,0,0.35)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                pointerEvents: 'none',
-                fontSize: 14,
-                color: 'var(--surface-solid)',
-              }}
-              aria-hidden
-            >
-              ⇄
-            </div>
-            <div
-              className="panel-sub"
-              style={{
-                position: 'absolute',
-                top: 8,
-                left: 10,
-                background: 'rgba(0,0,0,0.45)',
-                color: '#fff',
-                padding: '2px 7px',
-                borderRadius: 4,
-                textTransform: 'none',
-                letterSpacing: 0,
-                fontSize: 11,
-                fontWeight: 700,
-                pointerEvents: 'none',
-              }}
-            >
-              Before · Empty
-            </div>
-            <div
-              className="panel-sub"
-              style={{
-                position: 'absolute',
-                top: 8,
-                right: 10,
-                background: 'var(--accent)',
-                color: 'var(--on-accent)',
-                padding: '2px 7px',
-                borderRadius: 4,
-                textTransform: 'none',
-                letterSpacing: 0,
-                fontSize: 11,
-                fontWeight: 700,
-                pointerEvents: 'none',
-              }}
-            >
-              After · Furnished
-            </div>
-          </>
+          <CompareOverlay
+            dividerPct={dividerPct}
+            labelA="Before · Empty"
+            labelB="After · Furnished"
+          />
         ) : null}
 
         {/* Empty / progress / error overlay (before any capture). */}
         {errorMsg || !hasBoth ? (
-          <div
-            className="panel-sub"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              textTransform: 'none',
-              letterSpacing: 0,
-              textAlign: 'center',
-              padding: 24,
-            }}
-          >
+          <div className="panel-sub plain cmp-empty">
             {errorMsg ? (
-              <span style={{ color: 'var(--danger, #c0392b)' }}>{errorMsg}</span>
+              <span className="form-err">{errorMsg}</span>
             ) : phase === 'capturing' ? (
               'Capturing the empty room and your design…'
             ) : (
@@ -287,11 +173,7 @@ export function StagingRevealModal() {
         ) : null}
       </div>
 
-      <div
-        className="panel-sub"
-        style={{ textTransform: 'none', letterSpacing: 0, marginTop: 8, minHeight: 16 }}
-        aria-live="polite"
-      >
+      <div className="panel-sub plain cmp-status" aria-live="polite">
         {phase === 'capturing'
           ? 'Capturing…'
           : hasBoth

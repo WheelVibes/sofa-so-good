@@ -3,6 +3,7 @@ import { captureCanvasPng } from '../scene/captureCanvas'
 import { HDRI_PRESETS } from '../scene/lighting/hdriCatalog'
 import { applyRenderPreset, RENDER_PRESETS } from '../scene/renderPresets'
 import { useStore } from '../state/store'
+import { CompareOverlay } from './compare/CompareOverlay'
 import { Select } from './controls/Select'
 import { Modal } from './Modal'
 import {
@@ -195,44 +196,14 @@ export function RenderCompareModal() {
       onClose={() => setOpen(false)}
       title="Render compare"
       sub="A/B comparison — preset + environment per side, same camera view"
-      width={820}
+      width="var(--modal-lg)"
       panelId="render-compare"
       footer={
-        <div
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 'var(--s-3)',
-            flexWrap: 'wrap',
-          }}
-        >
+        <div className="panel-foot cmp-controls">
           {/* Preset selectors */}
-          <div
-            style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-3)', flexWrap: 'wrap' }}
-          >
-            <label
-              className="panel-sub"
-              style={{
-                textTransform: 'none',
-                letterSpacing: 0,
-                display: 'flex',
-                gap: 'var(--s-2)',
-              }}
-            >
-              <span
-                className="rc-slot-badge rc-slot-a"
-                style={{
-                  display: 'inline-block',
-                  width: 10,
-                  height: 10,
-                  borderRadius: 2,
-                  background: 'var(--accent)',
-                  alignSelf: 'center',
-                }}
-                aria-hidden
-              />
+          <div className="cmp-pickers">
+            <label className="panel-sub plain">
+              <span className="cmp-slot a" aria-hidden />
               A
               <Select
                 className="input"
@@ -253,35 +224,16 @@ export function RenderCompareModal() {
             </label>
             <button
               type="button"
-              className="btn btn-sm"
+              className="btn btn-sm cmp-swap"
               aria-label="Swap presets A and B"
               title="Swap A and B"
               disabled={busy}
               onClick={() => setState(swapAB)}
-              style={{ padding: 'var(--s-1) var(--s-3)', fontSize: 'var(--t-lg)' }}
             >
               ⇄
             </button>
-            <label
-              className="panel-sub"
-              style={{
-                textTransform: 'none',
-                letterSpacing: 0,
-                display: 'flex',
-                gap: 'var(--s-2)',
-              }}
-            >
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: 10,
-                  height: 10,
-                  borderRadius: 2,
-                  background: 'var(--text-3)',
-                  alignSelf: 'center',
-                }}
-                aria-hidden
-              />
+            <label className="panel-sub plain">
+              <span className="cmp-slot b" aria-hidden />
               B
               <Select
                 className="input"
@@ -313,17 +265,8 @@ export function RenderCompareModal() {
         ref={sliderRef}
         role="presentation"
         aria-label="Render comparison slider — drag to compare"
-        style={{
-          position: 'relative',
-          width: '100%',
-          aspectRatio: '16 / 9',
-          background: 'var(--surface-3)',
-          borderRadius: 8,
-          overflow: 'hidden',
-          cursor: busy ? 'wait' : hasBothImages ? 'ew-resize' : 'default',
-          userSelect: 'none',
-          touchAction: 'none',
-        }}
+        className="cmp-frame"
+        style={{ cursor: busy ? 'wait' : hasBothImages ? 'ew-resize' : 'default' }}
         onMouseDown={hasBothImages ? onMouseDown : undefined}
         onTouchStart={hasBothImages ? onTouchStart : undefined}
         onTouchMove={hasBothImages ? onTouchMove : undefined}
@@ -333,14 +276,7 @@ export function RenderCompareModal() {
           <img
             src={state.imageB}
             alt="Preset B render"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'fill',
-              display: 'block',
-            }}
+            className="cmp-layer cmp-img"
             draggable={false}
           />
         ) : null}
@@ -348,111 +284,20 @@ export function RenderCompareModal() {
         {/* Side A — clipped to the left of the divider */}
         {state.imageA ? (
           <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              clipPath: `inset(0 ${(1 - state.divider) * 100}% 0 0)`,
-            }}
+            className="cmp-layer"
+            style={{ clipPath: `inset(0 ${(1 - state.divider) * 100}% 0 0)` }}
           >
-            <img
-              src={state.imageA}
-              alt="Preset A render"
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'fill',
-                display: 'block',
-              }}
-              draggable={false}
-            />
+            <img src={state.imageA} alt="Preset A render" className="cmp-img" draggable={false} />
           </div>
         ) : null}
 
-        {/* Divider bar + handle (only when both images are loaded) */}
+        {/* Split-reveal divider + corner labels (only when both images are loaded) */}
         {hasBothImages ? (
-          <>
-            {/* Vertical bar */}
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                bottom: 0,
-                left: dividerPct,
-                transform: 'translateX(-50%)',
-                width: 2,
-                background: 'var(--on-accent, #fff)',
-                pointerEvents: 'none',
-              }}
-              aria-hidden
-            />
-            {/* Drag handle circle */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '50%',
-                left: dividerPct,
-                transform: 'translate(-50%, -50%)',
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                background: 'var(--on-accent, #fff)',
-                boxShadow: '0 1px 6px rgba(0,0,0,0.35)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                pointerEvents: 'none',
-                fontSize: 'var(--t-md)',
-                color: 'var(--surface-solid)',
-              }}
-              aria-hidden
-            >
-              ⇄
-            </div>
-          </>
-        ) : null}
-
-        {/* Labels: A (left) and B (right) */}
-        {hasBothImages ? (
-          <>
-            <div
-              className="panel-sub"
-              style={{
-                position: 'absolute',
-                top: 8,
-                left: 10,
-                background: 'var(--accent)',
-                color: 'var(--on-accent)',
-                padding: 'var(--s-1) var(--s-2)',
-                borderRadius: 4,
-                textTransform: 'none',
-                letterSpacing: 0,
-                fontSize: 'var(--t-xs)',
-                fontWeight: 700,
-                pointerEvents: 'none',
-              }}
-            >
-              A · {RENDER_PRESETS.find((p) => p.id === state.presetA)?.label ?? state.presetA}
-            </div>
-            <div
-              className="panel-sub"
-              style={{
-                position: 'absolute',
-                top: 8,
-                right: 10,
-                background: 'rgba(0,0,0,0.45)',
-                color: '#fff',
-                padding: 'var(--s-1) var(--s-2)',
-                borderRadius: 4,
-                textTransform: 'none',
-                letterSpacing: 0,
-                fontSize: 'var(--t-xs)',
-                fontWeight: 700,
-                pointerEvents: 'none',
-              }}
-            >
-              B · {RENDER_PRESETS.find((p) => p.id === state.presetB)?.label ?? state.presetB}
-            </div>
-          </>
+          <CompareOverlay
+            dividerPct={dividerPct}
+            labelA={`A · ${RENDER_PRESETS.find((p) => p.id === state.presetA)?.label ?? state.presetA}`}
+            labelB={`B · ${RENDER_PRESETS.find((p) => p.id === state.presetB)?.label ?? state.presetB}`}
+          />
         ) : null}
 
         {/* Empty / in-progress overlay — only while NOTHING is captured yet (or
@@ -460,24 +305,9 @@ export function RenderCompareModal() {
             the image and read as clipped text, so progress for B falls to the
             status line below instead. */}
         {errorMsg || (!state.imageA && !state.imageB) ? (
-          <div
-            className="panel-sub"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 'var(--s-2)',
-              textTransform: 'none',
-              letterSpacing: 0,
-              textAlign: 'center',
-              padding: 'var(--s-6)',
-            }}
-          >
+          <div className="panel-sub plain cmp-empty col">
             {errorMsg ? (
-              <span style={{ color: 'var(--danger, #c0392b)' }}>{errorMsg}</span>
+              <span className="form-err">{errorMsg}</span>
             ) : phaseA === 'rendering' ? (
               'Capturing A…'
             ) : (
@@ -488,11 +318,7 @@ export function RenderCompareModal() {
       </div>
 
       {/* Status line */}
-      <div
-        className="panel-sub"
-        style={{ textTransform: 'none', letterSpacing: 0, marginTop: 'var(--s-3)', minHeight: 16 }}
-        aria-live="polite"
-      >
+      <div className="panel-sub plain cmp-status" aria-live="polite">
         {phaseA === 'rendering'
           ? 'Capturing A…'
           : phaseB === 'rendering'

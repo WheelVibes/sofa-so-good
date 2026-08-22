@@ -151,7 +151,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
           {plan.wallColor && plan.wallColor.toLowerCase() !== DEFAULT_PLAN_WALL_COLOR ? (
             <button
               type="button"
-              className="btn ghost btn-sm"
+              className="btn btn-sm"
               onClick={() => a.updateFloorPlanMeta({ wallColor: DEFAULT_PLAN_WALL_COLOR })}
             >
               Reset
@@ -599,21 +599,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
         <button
           type="button"
           onClick={toggle}
-          className="plan-props-title"
-          style={{
-            flex: 1,
-            minWidth: 0,
-            textAlign: 'left',
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            margin: 0,
-            font: 'inherit',
-            color: 'inherit',
-            letterSpacing: 'inherit',
-            textTransform: 'inherit',
-            cursor: 'pointer',
-          }}
+          className="plan-props-title btn-plain"
           aria-label={minimized ? 'Expand properties' : 'Minimize properties'}
           aria-expanded={!minimized}
           title={minimized ? 'Expand' : 'Minimize'}

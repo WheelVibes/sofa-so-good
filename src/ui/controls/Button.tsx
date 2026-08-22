@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react'
 import { Icon } from '../toolbar/icons'
 
 const VARIANT: Record<'default' | 'accent' | 'soft' | 'danger', string> = {
@@ -9,6 +9,8 @@ const VARIANT: Record<'default' | 'accent' | 'soft' | 'danger', string> = {
 }
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  /** React 19 ref-as-prop: lands on the underlying <button> via {...rest}. */
+  ref?: Ref<HTMLButtonElement>
   /** Maps to the .btn-* vocabulary (the classes stay the source of truth). */
   variant?: 'default' | 'accent' | 'soft' | 'danger'
   size?: 'default' | 'sm'

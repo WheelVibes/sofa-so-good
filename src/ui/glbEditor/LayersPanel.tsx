@@ -85,47 +85,85 @@ const PartRow = memo(function PartRow({
       className={`lyr-row${selected ? ' sel' : ''}`}
       onClick={(e) => onSelect(part.id, e.shiftKey || e.ctrlKey || e.metaKey || selectMode)}
     >
-      {selectMode ? (
-        <input
-          type="checkbox"
-          checked={selected}
-          aria-label={`Select ${label}`}
-          onChange={() => onSelect(part.id, true)}
-          onClick={(e) => e.stopPropagation()}
-        />
-      ) : (
-        <span
-          className="swatch"
-          style={{
-            background: part.color,
-            width: 16,
-            height: 16,
-            borderRadius: 3,
-            // Dim only a hole that's actually cutting (grouped); a free hole
-            // renders as a solid, so keep it at full opacity.
-            opacity: isHole && !inertHole ? 0.4 : 1,
-          }}
-        />
-      )}
-      {editing ? (
-        <GroupRenameInput
-          initial={part.name ?? ''}
-          ariaLabel={`Rename ${label}`}
-          onCommit={(name) => onRename(part.id, name)}
-          onCancel={onEndRename}
-        />
-      ) : (
-        <span
-          className="lyr-nm"
-          title={`${label} — double-click to rename`}
-          onDoubleClick={(e) => {
-            e.stopPropagation()
-            onStartRename(part.id)
-          }}
-        >
-          {label}
-        </span>
-      )}
+      {(() => {
+        const swatch = (
+          <span
+            className="swatch"
+            style={{
+              background: part.color,
+              width: 16,
+              height: 16,
+              borderRadius: 3,
+              // Dim only a hole that's actually cutting (grouped); a free hole
+              // renders as a solid, so keep it at full opacity.
+              opacity: isHole && !inertHole ? 0.4 : 1,
+            }}
+          />
+        )
+        const name = (
+          <span
+            className="lyr-nm"
+            title={`${label} — double-click to rename`}
+            onDoubleClick={(e) => {
+              e.stopPropagation()
+              onStartRename(part.id)
+            }}
+          >
+            {label}
+          </span>
+        )
+        if (selectMode)
+          return (
+            <>
+              <input
+                type="checkbox"
+                checked={selected}
+                aria-label={`Select ${label}`}
+                onChange={() => onSelect(part.id, true)}
+                onClick={(e) => e.stopPropagation()}
+              />
+              {editing ? (
+                <GroupRenameInput
+                  initial={part.name ?? ''}
+                  ariaLabel={`Rename ${label}`}
+                  onCommit={(name2) => onRename(part.id, name2)}
+                  onCancel={onEndRename}
+                />
+              ) : (
+                name
+              )}
+            </>
+          )
+        if (editing)
+          return (
+            <>
+              {swatch}
+              <GroupRenameInput
+                initial={part.name ?? ''}
+                ariaLabel={`Rename ${label}`}
+                onCommit={(name2) => onRename(part.id, name2)}
+                onCancel={onEndRename}
+              />
+            </>
+          )
+        // Primary select action is a real button (UIUX-41b, the catalog
+        // LayersPanel pattern) so keyboard users can Tab + Enter-select a part;
+        // the row div keeps its whole-row mouse click.
+        return (
+          <button
+            type="button"
+            className="lyr-sel"
+            aria-pressed={selected}
+            onClick={(e) => {
+              e.stopPropagation()
+              onSelect(part.id, e.shiftKey || e.ctrlKey || e.metaKey)
+            }}
+          >
+            {swatch}
+            {name}
+          </button>
+        )
+      })()}
       {isHole ? (
         <span
           className={`badge ${inertHole ? 'warn' : 'neutral'}`}
@@ -370,29 +408,44 @@ export function LayersPanel() {
                     <Icon.Chevron width={13} height={13} />
                   )}
                 </button>
-                <Icon.Group width={14} height={14} />
                 {editingId === g.id ? (
-                  <GroupRenameInput
-                    initial={g.name}
-                    ariaLabel={`Rename ${g.name}`}
-                    onCommit={(name) => {
-                      onRenameGroup(g.id, name)
-                      setEditingId(null)
-                    }}
-                    onCancel={() => setEditingId(null)}
-                  />
+                  <>
+                    <Icon.Group width={14} height={14} />
+                    <GroupRenameInput
+                      initial={g.name}
+                      ariaLabel={`Rename ${g.name}`}
+                      onCommit={(name) => {
+                        onRenameGroup(g.id, name)
+                        setEditingId(null)
+                      }}
+                      onCancel={() => setEditingId(null)}
+                    />
+                  </>
                 ) : (
-                  <span
-                    className="lyr-nm"
-                    style={{ fontWeight: 600 }}
-                    title={`${g.name} — double-click to rename`}
-                    onDoubleClick={(e) => {
+                  /* Keyboard-selectable group header (UIUX-41b) — same .lyr-sel
+                     primary-button pattern as the part rows below. */
+                  <button
+                    type="button"
+                    className="lyr-sel"
+                    aria-pressed={groupSel}
+                    onClick={(e) => {
                       e.stopPropagation()
-                      setEditingId(g.id)
+                      onSelectGroup(g.id)
                     }}
                   >
-                    {g.name}
-                  </span>
+                    <Icon.Group width={14} height={14} />
+                    <span
+                      className="lyr-nm"
+                      style={{ fontWeight: 600 }}
+                      title={`${g.name} — double-click to rename`}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation()
+                        setEditingId(g.id)
+                      }}
+                    >
+                      {g.name}
+                    </span>
+                  </button>
                 )}
                 <span
                   className="badge neutral"

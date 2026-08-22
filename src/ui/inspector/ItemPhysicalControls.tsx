@@ -1,6 +1,7 @@
 import type { FurnitureItem } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { Button } from '../controls/Button'
+import { SliderField } from '../controls/SliderField'
 import { Icon } from '../toolbar/icons'
 
 /**
@@ -75,34 +76,20 @@ export function OpacityControl({ item }: { item: FurnitureItem }) {
   const itemHidden = useStore((s) => s.hiddenItemIds.includes(item.id))
   return (
     <div className="fld" style={{ display: 'block', marginTop: 'var(--s-2)' }}>
-      <div
-        className="label"
-        style={{
-          fontSize: 'var(--t-2xs)',
-          color: 'var(--text-3)',
-          display: 'flex',
-          justifyContent: 'space-between',
-        }}
-      >
-        <span>Opacity</span>
-        <span>
-          {Math.round((item.props['opacity'] != null ? Number(item.props['opacity']) : 1) * 100)}%
-        </span>
-      </div>
-      <input
-        type="range"
-        className="slider"
-        aria-label="Item opacity"
+      <SliderField
+        label="Opacity"
+        ariaLabel="Item opacity"
         min={0.15}
         max={1}
         step={0.05}
         value={item.props['opacity'] != null ? Number(item.props['opacity']) : 1}
-        onChange={(e) =>
-          useStore.getState().updateItemProps(item.id, { opacity: Number(e.target.value) })
-        }
-        style={{ width: '100%' }}
+        onChange={(v) => useStore.getState().updateItemProps(item.id, { opacity: v })}
+        format={(v) => `${Math.round(v * 100)}%`}
       />
-      <label className="flex items-center gap-2 text-xs" style={{ marginTop: 'var(--s-1)' }}>
+      <label
+        className="flex items-center gap-2"
+        style={{ marginTop: 'var(--s-1)', fontSize: 'var(--t-sm)' }}
+      >
         <input type="checkbox" checked={itemHidden} onChange={() => toggleItemHidden(item.id)} />
         <span>Hide in 3D view</span>
       </label>

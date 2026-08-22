@@ -87,7 +87,7 @@ export function HistoryPanel() {
   const shown = [...entries].reverse().filter((e) => e.label.toLowerCase().includes(q))
 
   return (
-    <aside className="panel mini aux" id="historyPanel" style={{ width: 300 }}>
+    <aside className="panel mini aux aux-320" id="historyPanel">
       <AuxPanelHead
         title="History"
         sub={stepCount === 0 ? 'No edits yet' : `${stepCount} step${stepCount === 1 ? '' : 's'}`}
@@ -207,7 +207,6 @@ export function HistoryPanel() {
 
         {stepCount > 0 ? (
           <Button
-            className="ghost"
             size="sm"
             block
             style={{ marginTop: 10 }}

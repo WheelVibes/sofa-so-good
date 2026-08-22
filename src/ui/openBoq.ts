@@ -155,7 +155,12 @@ export async function openBoq(): Promise<void> {
       '.boq-header-note{font-size:13px;background:#f9fafb;border-left:3px solid #e5e7eb;padding:8px 12px;margin:12px 0}' +
       '.boq-footer-note{font-size:11px;color:#6b7280;margin-top:16px;border-top:1px solid #eee;padding-top:8px}' +
       'table{width:100%;border-collapse:collapse;margin:8px 0 20px}' +
+      // Section titles are <caption>s — style them as left-aligned headings
+      // (the browser default is small centred text, which read as a stray
+      // caption rather than a section header — UIUX-55).
+      'caption{text-align:left;font-size:15px;font-weight:600;padding:4px 0;color:#1f2937}' +
       'td,th{padding:4px 8px;border-bottom:1px solid #eee;text-align:left}' +
+      'td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}' +
       'td:last-child,th:last-child{text-align:right}h2{font-size:15px;margin-top:20px}</style>' +
       `</head><body>${boqToHtml(boq, template)}` +
       '<p style="color:#9ca3af;font-size:11px">Indicative budgetary quote — supply &amp; install estimate; excludes hacking/disposal, M&amp;E and contractor margin. Confirm with your contractor.</p></body></html>',

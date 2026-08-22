@@ -5,6 +5,7 @@ import { applySerialized } from '../state/schema'
 import { storage } from '../state/storage/adapter'
 import { pauseAutosave, resumeAutosave } from '../state/storage/autosave'
 import { useStore } from '../state/store'
+import { CompareOverlay } from './compare/CompareOverlay'
 import { Modal } from './Modal'
 import { clampDivider } from './renderCompare/compareState'
 import { captureVersionComparePair } from './versionCompare/versionCompare'
@@ -145,10 +146,10 @@ export function VersionCompareModal() {
       onClose={() => setVersionCompare(null)}
       title="Compare in 3D"
       sub={slot ? `Reveal slider — current design vs “${slot}”, same camera` : undefined}
-      width={820}
+      width="var(--modal-lg)"
       panelId="version-compare"
       footer={
-        <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end' }}>
+        <div className="panel-foot">
           <button
             type="button"
             className="btn btn-accent"
@@ -164,151 +165,36 @@ export function VersionCompareModal() {
         ref={sliderRef}
         role="presentation"
         aria-label="Version compare slider — drag to compare current vs saved"
-        style={{
-          position: 'relative',
-          width: '100%',
-          aspectRatio: '16 / 9',
-          background: 'var(--surface-3)',
-          borderRadius: 8,
-          overflow: 'hidden',
-          cursor: phase === 'capturing' ? 'wait' : hasBoth ? 'ew-resize' : 'default',
-          userSelect: 'none',
-          touchAction: 'none',
-        }}
+        className="cmp-frame"
+        style={{ cursor: phase === 'capturing' ? 'wait' : hasBoth ? 'ew-resize' : 'default' }}
         onMouseDown={hasBoth ? onMouseDown : undefined}
         onTouchStart={hasBoth ? onTouchMove : undefined}
         onTouchMove={hasBoth ? onTouchMove : undefined}
       >
         {/* Saved version — full width behind. */}
         {saved ? (
-          <img
-            src={saved}
-            alt="Saved version"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'fill',
-            }}
-            draggable={false}
-          />
+          <img src={saved} alt="Saved version" className="cmp-layer cmp-img" draggable={false} />
         ) : null}
 
         {/* Current design — clipped to the left of the divider. */}
         {current ? (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              clipPath: `inset(0 ${(1 - divider) * 100}% 0 0)`,
-            }}
-          >
-            <img
-              src={current}
-              alt="Current design"
-              style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block' }}
-              draggable={false}
-            />
+          <div className="cmp-layer" style={{ clipPath: `inset(0 ${(1 - divider) * 100}% 0 0)` }}>
+            <img src={current} alt="Current design" className="cmp-img" draggable={false} />
           </div>
         ) : null}
 
         {hasBoth ? (
-          <>
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                bottom: 0,
-                left: dividerPct,
-                transform: 'translateX(-50%)',
-                width: 2,
-                background: 'var(--on-accent, #fff)',
-                pointerEvents: 'none',
-              }}
-              aria-hidden
-            />
-            <div
-              style={{
-                position: 'absolute',
-                top: '50%',
-                left: dividerPct,
-                transform: 'translate(-50%, -50%)',
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                background: 'var(--on-accent, #fff)',
-                boxShadow: '0 1px 6px rgba(0,0,0,0.35)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                pointerEvents: 'none',
-                fontSize: 'var(--t-sm)',
-                color: 'var(--surface-solid)',
-              }}
-              aria-hidden
-            >
-              ⇄
-            </div>
-            <div
-              className="panel-sub"
-              style={{
-                position: 'absolute',
-                top: 8,
-                left: 10,
-                background: 'var(--accent)',
-                color: 'var(--on-accent)',
-                padding: 'var(--s-1) var(--s-2)',
-                borderRadius: 4,
-                textTransform: 'none',
-                letterSpacing: 0,
-                fontSize: 'var(--t-xs)',
-                fontWeight: 700,
-                pointerEvents: 'none',
-              }}
-            >
-              Current
-            </div>
-            <div
-              className="panel-sub"
-              style={{
-                position: 'absolute',
-                top: 8,
-                right: 10,
-                background: 'rgba(0,0,0,0.45)',
-                color: '#fff',
-                padding: 'var(--s-1) var(--s-2)',
-                borderRadius: 4,
-                textTransform: 'none',
-                letterSpacing: 0,
-                fontSize: 'var(--t-xs)',
-                fontWeight: 700,
-                pointerEvents: 'none',
-              }}
-            >
-              {slot ?? 'Saved version'}
-            </div>
-          </>
+          <CompareOverlay
+            dividerPct={dividerPct}
+            labelA="Current"
+            labelB={slot ?? 'Saved version'}
+          />
         ) : null}
 
         {errorMsg || !hasBoth ? (
-          <div
-            className="panel-sub"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 'var(--s-2)',
-              textTransform: 'none',
-              letterSpacing: 0,
-              textAlign: 'center',
-              padding: 'var(--s-6)',
-            }}
-          >
+          <div className="panel-sub plain cmp-empty">
             {errorMsg ? (
-              <span style={{ color: 'var(--danger, #c0392b)' }}>{errorMsg}</span>
+              <span className="form-err">{errorMsg}</span>
             ) : phase === 'capturing' ? (
               'Capturing the current design and the saved version…'
             ) : (
@@ -318,11 +204,7 @@ export function VersionCompareModal() {
         ) : null}
       </div>
 
-      <div
-        className="panel-sub"
-        style={{ textTransform: 'none', letterSpacing: 0, marginTop: 'var(--s-3)', minHeight: 16 }}
-        aria-live="polite"
-      >
+      <div className="panel-sub plain cmp-status" aria-live="polite">
         {phase === 'capturing'
           ? 'Capturing…'
           : hasBoth

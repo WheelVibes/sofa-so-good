@@ -2,11 +2,13 @@ import { useFeature } from '../../../features/useFeature'
 import { canRecord } from '../../../scene/RecordController'
 import { captureThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
+import { EmptyState } from '../../EmptyState'
 import { PresentationSetup } from '../../presentation/PresentationSetup'
 import { promptAndRecordViewTour } from '../../recordViewTour'
 import { renderAllSavedViews } from '../../renderAllViews'
 import { DayNightClipSetup } from '../../scene/DayNightClipSetup'
 import { Icon } from '../icons'
+import { SAVED_EMPTY } from '../savedEmptyStates'
 import { MenuItem } from '../ToolbarMenu'
 
 /**
@@ -92,11 +94,7 @@ export function SavedViewsSection() {
           onClick={() => suggestSavedViews()}
         />
       ) : null}
-      {savedViews.length === 0 ? (
-        <div className="px-2 py-1.5 text-[11px] leading-snug" style={{ color: 'var(--text-3)' }}>
-          No saved views yet — frame an angle, then "Save current view".
-        </div>
-      ) : null}
+      {savedViews.length === 0 ? <EmptyState {...SAVED_EMPTY.views} /> : null}
       {savedViews.length > 0 ? (
         showSetup ? (
           <PresentationSetup />

@@ -57,9 +57,7 @@ export function WalkMeasureOverlay() {
       ) : null}
       {mid && dist !== null ? (
         <Html position={mid} center distanceFactor={9} zIndexRange={[15, 0]}>
-          <div className="flex items-center gap-1.5 whitespace-nowrap rounded bg-[var(--surface-solid)]/95 px-2 py-0.5 text-xs font-semibold text-[var(--text)] shadow tabular-nums">
-            {formatLength(dist, units)}
-          </div>
+          <div className="measure-chip tabular-nums">{formatLength(dist, units)}</div>
         </Html>
       ) : null}
     </group>

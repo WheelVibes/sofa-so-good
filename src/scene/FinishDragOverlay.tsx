@@ -24,13 +24,6 @@ export function FinishDragOverlay() {
   if (!active) return null
 
   return (
-    <div
-      aria-hidden
-      className="finish-drag-overlay pointer-events-none absolute inset-0 z-10"
-      style={{
-        boxShadow: 'inset 0 0 0 3px var(--accent)',
-        background: 'var(--accent-soft)',
-      }}
-    />
+    <div aria-hidden className="finish-drag-overlay pointer-events-none absolute inset-0 z-10" />
   )
 }

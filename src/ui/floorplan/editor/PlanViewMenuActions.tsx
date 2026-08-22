@@ -62,7 +62,7 @@ export function PlanViewMenuActions({
         <button
           type="button"
           onClick={onCycleLabels}
-          className={`btn btn-sm${labelsOn ? ' btn-accent' : ''}`}
+          className={`btn btn-sm${labelsOn ? ' on' : ''}`}
           title="Cycle furniture labels on the plan: off → name → name + price"
           aria-pressed={labelsOn}
         >
@@ -72,7 +72,7 @@ export function PlanViewMenuActions({
       <button
         type="button"
         onClick={onToggleRoomLabels}
-        className={`btn btn-sm${showRoomLabels ? ' btn-accent' : ''}`}
+        className={`btn btn-sm${showRoomLabels ? ' on' : ''}`}
         title="Toggle room name + dimension labels"
         aria-pressed={showRoomLabels}
       >
@@ -81,7 +81,7 @@ export function PlanViewMenuActions({
       <button
         type="button"
         onClick={onToggleWallDims}
-        className={`btn btn-sm${showWallDims ? ' btn-accent' : ''}`}
+        className={`btn btn-sm${showWallDims ? ' on' : ''}`}
         title="Toggle wall-length labels"
         aria-pressed={showWallDims}
       >
@@ -90,7 +90,7 @@ export function PlanViewMenuActions({
       <button
         type="button"
         onClick={onToggleFurniture}
-        className={`btn btn-sm${showFurniture ? ' btn-accent' : ''}`}
+        className={`btn btn-sm${showFurniture ? ' on' : ''}`}
         title="Show furniture footprints (hidden by default so they don't get in the way of editing; hidden furniture can't be selected or moved)"
         aria-pressed={showFurniture}
       >
@@ -100,7 +100,7 @@ export function PlanViewMenuActions({
         <button
           type="button"
           onClick={onToggleMep}
-          className={`btn btn-sm${showMep ? ' btn-accent' : ''}`}
+          className={`btn btn-sm${showMep ? ' on' : ''}`}
           title="Toggle the electrical/plumbing points layer"
           aria-pressed={showMep}
         >
@@ -111,7 +111,7 @@ export function PlanViewMenuActions({
         <button
           type="button"
           onClick={onToggleHackability}
-          className={`btn btn-sm${showHackability ? ' btn-accent' : ''}`}
+          className={`btn btn-sm${showHackability ? ' on' : ''}`}
           title="Toggle the wall hackability overlay — tints walls by demolition-permit status (red = not permitted, amber = permit required, muted = unclassified)"
           aria-pressed={showHackability}
         >
@@ -121,7 +121,7 @@ export function PlanViewMenuActions({
       <button
         type="button"
         onClick={onToggleSkeleton}
-        className={`btn btn-sm${skeleton ? ' btn-accent' : ''}`}
+        className={`btn btn-sm${skeleton ? ' on' : ''}`}
         title="Skeleton view — draw all walls uniformly thin to check whether they meet to enclose rooms"
         aria-pressed={skeleton}
       >
@@ -131,7 +131,7 @@ export function PlanViewMenuActions({
         <button
           type="button"
           onClick={onToggleOtherLevels}
-          className={`btn btn-sm${showOtherLevels ? ' btn-accent' : ''}`}
+          className={`btn btn-sm${showOtherLevels ? ' on' : ''}`}
           title="Show the other storeys' walls as a dimmed underlay (to line up floors)"
           aria-pressed={showOtherLevels}
         >
