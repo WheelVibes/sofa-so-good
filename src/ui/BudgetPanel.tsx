@@ -192,13 +192,8 @@ export function BudgetPanel() {
             onChange={setBudgetTarget}
           />
           {groups.length > 1 && shownTotal > 0 ? (
-            <div className="bud-breakdown" style={{ margin: 'var(--s-2) 0 var(--s-1)' }}>
-              <div
-                className="label"
-                style={{ fontSize: 'var(--t-2xs)', marginBottom: 4, color: 'var(--text-3)' }}
-              >
-                Spend by category
-              </div>
+            <div className="bud-breakdown">
+              <div className="label">Spend by category</div>
               {groups
                 .map((g) => ({
                   cat: g.cat,
@@ -242,13 +237,8 @@ export function BudgetPanel() {
             </div>
           ) : null}
           {byRoom.rows.length > 1 && byRoom.sum > 0 ? (
-            <div className="bud-breakdown" style={{ margin: 'var(--s-2) 0 var(--s-1)' }}>
-              <div
-                className="label"
-                style={{ fontSize: 'var(--t-2xs)', marginBottom: 4, color: 'var(--text-3)' }}
-              >
-                Spend by room
-              </div>
+            <div className="bud-breakdown">
+              <div className="label">Spend by room</div>
               {byRoom.rows.map(({ name, amt, count }) => {
                 const pct = Math.round((amt / byRoom.sum) * 100)
                 return (

@@ -41,17 +41,8 @@ export function NotesLayer({
             y={toPx(nt.z)}
             textAnchor="middle"
             dominantBaseline="middle"
-            className="plan-note"
-            style={{
-              cursor: tool === 'select' ? 'move' : 'crosshair',
-              fontSize: 12,
-              fontWeight: 600,
-              fill: selected ? 'var(--accent)' : 'var(--text)',
-              paintOrder: 'stroke',
-              stroke: 'var(--surface)',
-              strokeWidth: 3,
-              strokeLinejoin: 'round',
-            }}
+            className={`plan-note${selected ? ' sel' : ''}`}
+            style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
             onPointerDown={(e) => {
               if (tool !== 'select') return
               const willMove = beginElementDrag(e, sel?.type === 'note' && sel.id === nt.id)

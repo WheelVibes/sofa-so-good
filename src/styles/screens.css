@@ -262,3 +262,19 @@
 /* Walk-mode mobile movement joystick (translucent, bottom-left, safe-area). */
 .walk-joystick { position: absolute; left: calc(env(safe-area-inset-left, 0px) + 20px); bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); z-index: var(--z-pop); width: 88px; height: 88px; border-radius: 50%; background: transparent; border: 2px solid color-mix(in oklab, var(--text) 45%, transparent); box-shadow: var(--shadow-pop); display: flex; align-items: center; justify-content: center; touch-action: none; user-select: none; }
 .walk-joystick-thumb { width: 38px; height: 38px; border-radius: 50%; background: color-mix(in oklab, var(--accent) 65%, transparent); border: 1px solid color-mix(in oklab, var(--text) 25%, transparent); pointer-events: none; }
+
+/* Plan-editor SVG text labels (UIUX-79 — both classes were phantom, their
+   styling inline). Note the separate `.dim-label` in features.css is the drei
+   <Html> chip in the 3D room editor, not these SVG <text> nodes. */
+.plan-note {
+  font-size: var(--t-sm); font-weight: 600; fill: var(--text);
+  paint-order: stroke; stroke: var(--surface); stroke-width: 3;
+  stroke-linejoin: round;
+}
+.plan-note.sel { fill: var(--accent); }
+/* No `fill` here on purpose. Both consumers set it as a presentation attribute
+   from their selection state, and they disagree on the UNSELECTED colour
+   (`WallDimension` uses --text-2, `PersistentDimensionsLayer` --accent-soft-text),
+   so one class cannot carry both. A CSS `fill` would outrank the attribute and
+   flatten that difference; the size is computed per zoom and stays inline too. */
+.plan-dim-label { pointer-events: none; font-weight: 600; }

@@ -48,7 +48,12 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   styling into the class) rather than deleting the name; delete only when a defined sibling
   already covers the element. Inline stylesheets count as definitions — `LoadingOverlay` keeps
   its `hdb-*` keyframes in a `<style>` template literal, so a scan that reads only `.css` files
-  will report them falsely.
+  will report them falsely. A phantom class can also hide a MISSING style rather than a
+  misplaced one: `ArrangePanel` passed `arrange-array` to its `Disclosure` where its three
+  sibling glbEditor panels pass `.sec`, so it had been rendering with no section frame at all
+  (UIUX-79). One caveat when moving styling into a class: a CSS declaration outranks an SVG
+  presentation attribute, so `.plan-dim-label` deliberately sets no `fill` — its two consumers
+  pass different unselected fills as attributes and one class cannot carry both.
 - **Docked side sidebars (desktop).** The scene, toolbar and canvas HUDs live inside `.stage-area`
   (in `App.tsx`); the inspector/finish panels carry a `dock-panel` class and the **catalog** a
   `dock-panel-left` class (it's a sibling of `.stage-area`, not a child, so the rail can shrink the

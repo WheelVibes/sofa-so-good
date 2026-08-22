@@ -87,7 +87,7 @@ export function PersistentDimensionsLayer({
               dominantBaseline="middle"
               className="plan-dim-label"
               fill={isSel ? 'var(--accent)' : 'var(--accent-soft-text)'}
-              style={{ pointerEvents: 'none', fontSize: fontPx, fontWeight: 600 }}
+              style={{ fontSize: fontPx }}
             >
               {formatLength(o.width, units)}
             </text>

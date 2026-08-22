@@ -5,6 +5,45 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.26.2.49 — UIUX-79: the last twelve phantom classes, and a missing frame
+
+Finishing what UIUX-78 started: **`src/` now has zero className tokens with no
+stylesheet definition.** Each of the twelve made its static styling into a real
+rule — the two finish overlays, the room-editor area pill, the budget breakdown
+block, the flags row, the renovation over/under note, the versions file-action
+pair, the Smart Start intake block, the glbEditor array grid and its viewport
+dimensions readout, and the two plan-editor SVG label layers.
+
+Three of them were more than tidying:
+
+**`ArrangePanel` had no section frame.** Its `Disclosure` passed `arrange-array`
+where its three sibling glbEditor panels (Details, Components, Make configurable)
+pass `.sec` — so a class that styles nothing had been standing in for the frame
+those siblings have. A phantom class can hide a *missing* rule, not just a
+misplaced one.
+
+**The room-editor area pill no longer needs `useIsMobile`.** Its top offset was a
+JS `isMobile ? 84 : 68` branch inlined on the element; the 84 is now a
+`body.mobile` override in `responsive.css`, and the component dropped the hook
+entirely along with its whole style object.
+
+**`.plan-dim-label` deliberately carries no `fill`.** A CSS declaration outranks
+an SVG presentation attribute, and the class's two consumers disagree on the
+unselected colour (`WallDimension` uses `--text-2`, `PersistentDimensionsLayer`
+`--accent-soft-text`), so one class cannot carry both — the attribute stays. Its
+sibling `.plan-note` had a selection-only fill, so that one does move, behind a
+`.sel` modifier.
+
+Two raw pixel values went to the scale on the way (`ver-file-row`'s 8px gaps →
+`--s-3`, `ss-ocs`'s 12px → `--s-4`), and the renovation note's
+`var(--ok, var(--accent-2))` fallback is gone — `--ok` is defined in all ten
+theme blocks.
+
+Verified by cascade probe on every new class (each resolves to the tokens the old
+inline object used) plus a live check of the area pill. `.plan-dim-label` and
+`.clr-item-row` render only in states the harness can't easily reach, so those
+two are cascade-verified rather than seen on a real element.
+
 ## v0.26.2.48 — UIUX-78: the plain-button reset, and what phantom classes point at
 
 UIUX-77 found `rc-slot-badge rc-slot-a` in a compare modal referencing two

@@ -344,6 +344,10 @@ body.mobile {
   }
   .m-saved-view-del:active { background: var(--surface-3); color: var(--danger); }
 
+  /* The room-editor area pill clears the taller mobile toolbar (UIUX-79 — this
+     was a JS `isMobile ? 84 : 68` branch inlined on the element). */
+  .room-editor-caption { top: calc(env(safe-area-inset-top, 0px) + 84px); }
+
   /* Sub-headers inside a detail section. */
   .m-sub-h { font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); font-weight: 700; padding: 8px 9px 3px; }
   /* Empty lists in the sheet use the shared `.empty-mini` (UIUX-74) — the

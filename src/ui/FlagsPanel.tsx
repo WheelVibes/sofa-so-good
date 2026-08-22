@@ -56,18 +56,7 @@ export function FlagsPanel() {
             const def = FEATURE_FLAGS[key]
             const on = flags[key]
             return (
-              <label
-                key={key}
-                className="flag-row"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--s-2)',
-                  padding: '6px 8px',
-                  borderRadius: 'var(--r-1)',
-                  cursor: 'pointer',
-                }}
-              >
+              <label key={key} className="flag-row">
                 <input
                   type="checkbox"
                   checked={on}

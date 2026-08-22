@@ -23,13 +23,14 @@ function ArraySection() {
   const [radCount, setRadCount] = useState(6)
   const [radius, setRadius] = useState(0.5)
   const [sweep, setSweep] = useState(360)
+  // `.sec` is the section frame its sibling glbEditor panels use (Details /
+  // Components / Make configurable). This passed `arrange-array`, a class no
+  // stylesheet defines, so the panel rendered without the frame (UIUX-79).
   return (
-    <Disclosure summary="Array" className="arrange-array">
-      <div style={{ display: 'grid', gap: 'var(--s-2)', marginTop: 'var(--s-2)' }}>
+    <Disclosure summary="Array" className="sec">
+      <div className="arrange-array-grid">
         {/* Linear */}
-        <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
-          Linear
-        </div>
+        <div className="label">Linear</div>
         <div style={{ display: 'flex', gap: 'var(--s-1)', alignItems: 'center' }}>
           <input
             type="number"

@@ -72,14 +72,7 @@ export function RenovationBudgetPanel() {
             </div>
 
             {alloc.target != null && alloc.overUnder != null ? (
-              <div
-                className="callout"
-                style={{
-                  margin: 'var(--s-2) 0',
-                  fontSize: 'var(--t-xs)',
-                  color: alloc.overUnder > 0 ? 'var(--danger)' : 'var(--ok, var(--accent-2))',
-                }}
-              >
+              <div className={`reno-callout ${alloc.overUnder > 0 ? 'over' : 'under'}`}>
                 Budget target {fmt(alloc.target)} —{' '}
                 {alloc.overUnder > 0
                   ? `${fmt(alloc.overUnder)} over`

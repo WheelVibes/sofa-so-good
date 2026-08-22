@@ -149,11 +149,9 @@ export function SmartStartWizard() {
         Replaces any floors &amp; walls you’ve already set on the living spaces.
       </p>
       {fOcs ? (
-        <div className="ss-ocs" style={{ marginBottom: 12 }}>
-          <div className="sec-h" style={{ marginBottom: 'var(--s-1)' }}>
-            Starting state
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-1)' }}>
+        <div className="ss-ocs">
+          <div className="sec-h">Starting state</div>
+          <div className="ss-ocs-list">
             {INTAKE_STATES.map((st) => (
               <button
                 key={st.id}

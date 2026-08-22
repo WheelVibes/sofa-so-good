@@ -787,3 +787,35 @@ body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
 .onb-check > .btn { margin-top: var(--s-3); }
 /* Keep clear of the mobile bottom edge + let the card shrink on narrow phones. */
 body.mobile .onb-check { width: min(236px, calc(100vw - 2 * var(--s-4))); }
+
+/* ---- Panel rows whose classes were phantom (UIUX-79) -------------------- */
+/* Budget "spend by category" block (shopping list + renovation estimate). */
+.bud-breakdown { margin: var(--s-2) 0 var(--s-1); }
+.bud-breakdown > .label {
+  font-size: var(--t-2xs); color: var(--text-3); margin-bottom: var(--s-1);
+}
+/* One toggle row in the dev Flags panel. */
+.flag-row {
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: var(--s-2) var(--s-3); border-radius: var(--r-1); cursor: pointer;
+}
+/* Renovation-estimate over/under-target note. Renamed off the generic `callout`,
+   which read as a sibling of the `InfoCallout` banner it has nothing to do with. */
+.reno-callout { margin: var(--s-2) 0; font-size: var(--t-xs); }
+.reno-callout.over { color: var(--danger); }
+.reno-callout.under { color: var(--ok); }
+/* Versions panel: the export / import file-action pair. */
+.ver-file-row { display: flex; gap: var(--s-3); margin-top: var(--s-3); }
+.ver-file-row > .btn { flex: 1; }
+/* Smart Start's "Starting state" intake block. */
+.ss-ocs { margin-bottom: var(--s-4); }
+.ss-ocs .sec-h { margin-bottom: var(--s-1); }
+.ss-ocs-list { display: flex; flex-direction: column; gap: var(--s-1); }
+/* glbEditor Array disclosure body. */
+.arrange-array-grid { display: grid; gap: var(--s-2); margin-top: var(--s-2); }
+.arrange-array-grid > .label { font-size: var(--t-2xs); color: var(--text-3); }
+/* glbEditor viewport selection-dimensions readout, bottom-left over the canvas. */
+.dv-ov-dims {
+  position: absolute; bottom: var(--s-3); left: var(--s-3);
+  font-size: var(--t-2xs); font-variant-numeric: tabular-nums;
+}

@@ -512,3 +512,28 @@
   background: color-mix(in oklch, var(--accent) 15%, transparent);
   border-radius: var(--r-1);
 }
+
+/* ---- Scene overlays whose classes were phantom (UIUX-79) ---------------
+   Each named a class no stylesheet defined while an inline style object did the
+   work. Static styling belongs here; only genuinely computed values stay inline. */
+/* Drag-a-finish-onto-a-surface affordance: an accent inset ring over the canvas. */
+.finish-drag-overlay {
+  box-shadow: inset 0 0 0 3px var(--accent);
+  background: var(--accent-soft);
+}
+/* Eyedropper mode: a thinner ring always, tinted only while actually sampling. */
+.finish-eyedropper-overlay { box-shadow: inset 0 0 0 2px var(--accent); background: transparent; }
+.finish-eyedropper-overlay.sampling { background: var(--accent-soft); }
+/* Room-editor area pill, top-centre. The mobile offset is a `body.mobile`
+   override in responsive.css rather than a JS `isMobile` branch — the component
+   no longer needs the hook at all. */
+.room-editor-caption {
+  top: calc(env(safe-area-inset-top, 0px) + 68px);
+  left: 50%; transform: translateX(-50%);
+  padding: 5px var(--s-4); border-radius: var(--r-pill);
+  background: var(--surface-solid); border: 1px solid var(--border);
+  box-shadow: var(--shadow-pop); font-size: var(--t-xs);
+  white-space: nowrap; max-width: calc(100vw - 24px);
+  overflow: hidden; text-overflow: ellipsis; color: var(--text-2);
+}
+.room-editor-caption b { color: var(--text); }

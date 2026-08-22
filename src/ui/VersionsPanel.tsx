@@ -194,7 +194,7 @@ export function VersionsPanel() {
           Save current as version
         </button>
 
-        <div className="ver-file-row" style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+        <div className="ver-file-row">
           <button
             type="button"
             className="btn btn-soft btn-sm"
