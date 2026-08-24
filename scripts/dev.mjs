@@ -15,7 +15,7 @@ const major = Number(process.versions.node.split('.')[0])
 if (major < 22) {
   console.error(
     `\n[dev] Node ${process.versions.node} is too old — the dev backend needs Node >= 22 ` +
-      `(node:sqlite). This repo pins ${'24.18.0'} in .nvmrc; run \`nvm use\` then \`npm run dev\`.\n`,
+      `(node:sqlite). This repo pins ${'26.7.0'} in .nvmrc; run \`nvm use\` then \`npm run dev\`.\n`,
   )
   process.exit(1)
 }

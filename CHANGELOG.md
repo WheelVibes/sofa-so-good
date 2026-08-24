@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.28.0.0 — Node 26 toolchain + boot no longer deadlocks in a hidden tab
+
+**Boot deadlocked in any hidden tab.** `runBootstrap` yields a frame after every
+step so the static boot cover keeps compositing, but `yieldFrame` awaited a bare
+`requestAnimationFrame` — which Chrome throttles to zero while a page is not
+visible. Load the app in a background tab (or an offscreen/headless harness) and
+boot stopped dead: `bootPhase` stuck on `'hydrating'`, `#boot-loader` never faded,
+no canvas mounted, `window.__store` never exposed (it is set by the last step).
+`yieldFrame` now races the frame against a 50 ms timer and skips the frame
+entirely when `document.hidden`, so boot always makes progress. Reproduced
+end-to-end with a puppeteer harness (`document.hidden` + a frame clock that never
+fires): deadlocks before, boots after. Covered by
+`src/state/storage/bootstrapYieldFrame.test.ts` (visible, hidden, frame-never-
+fires, and resolve-only-once).
+
+**Toolchain moved to Node 26.7.0** across `.nvmrc`, `engines`, all seven CI
+workflows, the Dockerfile, and `scripts/dev.mjs` — plus the docs that name the pin
+(`README`, `CLAUDE.md`, `ARCHITECTURE`, `packaging-android`). Node >= 25 enables the
+Web Storage API by default and its global `localStorage` shadows the one happy-dom
+installs, leaving it `undefined` and failing all 162 DOM tests that touch it with a
+bare `Cannot read properties of undefined`. Upstream is unresolved (vitest#8757,
+happy-dom#1950); the documented workaround is `--no-webstorage`, now set via
+`NODE_OPTIONS` in the `test`/`test:watch` scripts. Worker `execArgv` was tried
+first and silently ignores process-level flags, so `src/setupTests.ts` throws with
+the fix when `vitest` is invoked directly and bypasses the scripts. Full suite is
+green on Node 26: 937 files / 8713 tests.
+
 ## v0.27.0.0 — UI/UX design-system pass: UIUX-1 → UIUX-80
 
 Release bump for the PR to `staging`. Eighty numbered tasks over 89 commits (41

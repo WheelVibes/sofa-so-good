@@ -1581,6 +1581,43 @@ PNG**.
 
 ## Gotchas & fixes (the actual time-sinks)
 
+### `scripts/shot.mjs` does not run on macOS (silent `exit 1`, no output)
+The harness serialises runs by re-exec'ing itself under **`flock`**, which does not exist on
+macOS. `spawnSync('flock', …)` fails with ENOENT, `res.status` is `null`, and the `process.exit(
+res.status ?? 1)` on the next line exits **1 with nothing printed** — after the scenario header
+has already been logged, so it looks like the scenario itself died. Symptom: `Running scenario:
+"…"` then immediate silence. Confirm with `which flock`. Until the harness grows a portable
+mutex, drive visual verification on macOS through the Chrome extension (a real tab + the live
+dev server) or write a one-off puppeteer script; do **not** spend time debugging the scenario.
+
+### A hidden tab has no animation frames — anything awaiting rAF deadlocks
+Chrome throttles `requestAnimationFrame` to **zero** while a page is not visible, so any boot or
+init path that awaits a frame stops dead in a background tab, an occluded window, or an
+offscreen/headless harness. This bit boot itself: `runBootstrap`'s `yieldFrame` awaited a bare
+`requestAnimationFrame`, so a hidden tab left `bootPhase` on `'hydrating'` forever — `#boot-loader`
+never faded, no canvas mounted, and `window.__store` was never exposed (it is set by the last
+bootstrap step), which reads exactly like a broken build. Fixed by racing the frame against a
+timer and skipping it when `document.hidden` (v0.28.0.0).
+
+Two lessons for verification: (1) when the app appears stuck on the boot cover, **check
+`document.visibilityState` before suspecting the code** — a screenshot cannot tell you the tab is
+hidden; (2) to reproduce a hidden tab reliably, stub the clock rather than trusting window
+focus. `headless: 'shell'` reports background tabs as **visible**, so `bringToFront()` on another
+page proves nothing. What works:
+
+```js
+await page.evaluateOnNewDocument(() => {
+  Object.defineProperty(document, 'hidden', { value: true, configurable: true })
+  Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+  let id = 0
+  window.requestAnimationFrame = () => ++id   // accepted, never delivered
+  window.cancelAnimationFrame = () => {}
+})
+```
+
+Always confirm such a harness actually *detects* the bug — revert the fix, watch it fail, restore
+it — otherwise a passing run only proves the harness is inert.
+
 ### A store-level flag-off must be re-verified against EVERY consumer, not just the obvious one
 Flipping a pro-tier flag off mid-scenario (`setFeatureFlag('mepEditor', false)`) is a good way to
 catch a consumer that forgot its own `useFeature` gate — it caught exactly that in the MEP-points

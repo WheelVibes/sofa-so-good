@@ -72,7 +72,9 @@ Zustand (sliced store), Vite, Vitest, Biome.
 - **Before each commit**: `npm test` + `tsc` + `biome` (pre-commit hook blocks on errors).
   Vitest defaults to the **node** environment — a test that touches the DOM must start with
   `// @vitest-environment happy-dom` (details in ARCHITECTURE.md).
-  While **iterating**, run targeted tests only (`npx vitest --run <paths near your change>`);
+  While **iterating**, run targeted tests only (`npm test -- <paths near your change>`) — go
+  through `npm test`, not bare `npx vitest`, so `NODE_OPTIONS=--no-webstorage` is set (Node ≥ 25
+  shadows happy-dom's `localStorage`; `src/setupTests.ts` fails loudly if it is missing);
   run the **full suite exactly once, right before the commit** — full-suite runs are ~2 min
   and dominate iteration time. Never run the full suite and a screenshot/scenario harness at the
   same time (sequence heavy phases).
@@ -113,7 +115,7 @@ Zustand (sliced store), Vite, Vitest, Biome.
 - `npm run docs:build`/`build:all` (user guide) · `docs:dev:developer` (dev docs).
 - Packaging: `docker build .` (nginx image, `VITE_BASE=/`) · `npm run dist:desktop` (Electron
   installers) · `npm run build:mobile` (Capacitor Android → APK via CI, see
-  `docs/packaging-android.md`) — details in ARCHITECTURE.md. Node pinned **24.18.0** (`.nvmrc`).
+  `docs/packaging-android.md`) — details in ARCHITECTURE.md. Node pinned **26.7.0** (`.nvmrc`).
 - Cloudflare backend (Pages + Workers + D1/R2/KV): `typecheck:worker` (tsc for `functions/`+
   `server/`+`workers/`), `build-library-index` (R2 manifest). Full deploy + guardrails guide:
   **[docs/deployment-cloudflare.md](docs/deployment-cloudflare.md)**. Backend features gate on
