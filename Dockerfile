@@ -16,7 +16,7 @@
 # Note: the service worker (offline PWA) only activates on http://localhost or
 # over HTTPS — put TLS in front for offline support on any other host.
 
-FROM node:24.18.0-alpine AS build
+FROM node:26.7.0-alpine AS build
 WORKDIR /app
 
 # Test-only browser downloads have no place in the image build.

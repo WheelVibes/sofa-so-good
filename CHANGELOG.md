@@ -5,6 +5,72 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.28.0.2 — portable harness mutex (shot.mjs runs on macOS) + all 12 advisories cleared
+
+**`scripts/shot.mjs` could not run on macOS at all.** It serialised runs by
+re-exec'ing under `flock`, which does not exist there: the spawn failed with
+ENOENT, `res.status` was `null`, and `process.exit(res.status ?? 1)` exited 1
+having printed nothing — after the scenario header had already been logged, so it
+read as the scenario crashing rather than the harness never starting. Replaced
+with an in-process lock file: atomic `'wx'` create, PID liveness check to clear a
+lock left by a killed run (what `flock` got free from the kernel), and release on
+exit plus SIGINT/SIGTERM/SIGHUP. The re-exec and its `SHOT_HARNESS_LOCKED`
+handshake are gone. Verified on macOS: legacy one-shot mode, the full 29-step
+`first-run` scenario (8 screenshots), two concurrent runs actually serialising
+(61 s apart, both succeeding), and recovery from both a dead-PID and a
+garbage-content lock file.
+
+**All 12 npm advisories cleared** (10 high, 2 moderate → 0). `npm audit fix`
+alone was a no-op: it aborted on a peer conflict, because the patched `wrangler`
+wants `@cloudflare/workers-types@^5` while the repo pinned `^4`. Bumping that pair
+together unblocked the rest — brace-expansion, fast-uri, js-yaml, miniflare,
+nanoid, ndarray-pixels, postcss, tar, undici, hono. `sharp` needed a semver-major
+bump (0.34.5 → 0.35.3), which supersedes and closes Dependabot PR #98 (that one
+targeted `main` and only went to 0.35.0, which is still vulnerable). None of
+sharp 0.35's breaking changes touch this repo: no `failOnError`,
+`paletteBitDepth`, `sharpen` property or `format.jp2k` use anywhere, and the only
+APIs called are `metadata`/`resize`/`extract`/`png`/`jpeg`/`density`. Verified
+with the asset-pipeline suite (92 tests) plus a real libvips 8.18.3 encode.
+
+Note: scenario files under `scripts/scenarios/` hardcode `http://localhost:5212/`
+while the dev server is on 5173 — pre-existing and untouched here; override the
+`url` when running them against `npm run dev`.
+
+## v0.28.0.1 — CI test shards must go through `npm test`
+
+`ci.yml` ran the sharded suite as `npx vitest run --shard=…`, which bypasses the
+npm script and therefore the `NODE_OPTIONS=--no-webstorage` that Node >= 25 needs
+— so `src/setupTests.ts` would have thrown on every DOM test in CI. Both shards
+now run `npm test -- --shard=…`, with a comment at the call site saying why bare
+`vitest` is wrong here. Verified locally: shard 1/2 green (468 files / 4666 tests).
+
+## v0.28.0.0 — Node 26 toolchain + boot no longer deadlocks in a hidden tab
+
+**Boot deadlocked in any hidden tab.** `runBootstrap` yields a frame after every
+step so the static boot cover keeps compositing, but `yieldFrame` awaited a bare
+`requestAnimationFrame` — which Chrome throttles to zero while a page is not
+visible. Load the app in a background tab (or an offscreen/headless harness) and
+boot stopped dead: `bootPhase` stuck on `'hydrating'`, `#boot-loader` never faded,
+no canvas mounted, `window.__store` never exposed (it is set by the last step).
+`yieldFrame` now races the frame against a 50 ms timer and skips the frame
+entirely when `document.hidden`, so boot always makes progress. Reproduced
+end-to-end with a puppeteer harness (`document.hidden` + a frame clock that never
+fires): deadlocks before, boots after. Covered by
+`src/state/storage/bootstrapYieldFrame.test.ts` (visible, hidden, frame-never-
+fires, and resolve-only-once).
+
+**Toolchain moved to Node 26.7.0** across `.nvmrc`, `engines`, all seven CI
+workflows, the Dockerfile, and `scripts/dev.mjs` — plus the docs that name the pin
+(`README`, `CLAUDE.md`, `ARCHITECTURE`, `packaging-android`). Node >= 25 enables the
+Web Storage API by default and its global `localStorage` shadows the one happy-dom
+installs, leaving it `undefined` and failing all 162 DOM tests that touch it with a
+bare `Cannot read properties of undefined`. Upstream is unresolved (vitest#8757,
+happy-dom#1950); the documented workaround is `--no-webstorage`, now set via
+`NODE_OPTIONS` in the `test`/`test:watch` scripts. Worker `execArgv` was tried
+first and silently ignores process-level flags, so `src/setupTests.ts` throws with
+the fix when `vitest` is invoked directly and bypasses the scripts. Full suite is
+green on Node 26: 937 files / 8713 tests.
+
 ## v0.27.0.0 — UI/UX design-system pass: UIUX-1 → UIUX-80
 
 Release bump for the PR to `staging`. Eighty numbered tasks over 89 commits (41

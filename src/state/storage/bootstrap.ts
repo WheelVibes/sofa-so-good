@@ -32,8 +32,38 @@ import { hydrateWalkBackdrop } from './walkBackdrop'
 
 let started = false
 
-const yieldFrame = (): Promise<void> =>
-  new Promise((resolve) => requestAnimationFrame(() => resolve()))
+/** How long to wait for an animation frame before giving up and continuing. */
+const YIELD_FRAME_TIMEOUT_MS = 50
+
+/**
+ * Yield one animation frame so the static boot cover can keep compositing.
+ *
+ * A hidden tab never fires `requestAnimationFrame` — Chrome throttles it to
+ * zero while the page is not visible — so awaiting the frame alone deadlocks
+ * the whole bootstrap: `bootPhase` never reaches `'ready'`, `#boot-loader`
+ * never fades, the scene never mounts and `window.__store` is never exposed.
+ * That bites background tabs and any offscreen/headless screenshot harness.
+ * So race the frame against a short timer, and when the page is already hidden
+ * (nothing to composite) take the timer path directly.
+ *
+ * Exported for tests only.
+ */
+export const yieldFrame = (): Promise<void> =>
+  new Promise((resolve) => {
+    const hidden = typeof document !== 'undefined' && document.hidden
+    if (hidden || typeof requestAnimationFrame !== 'function') {
+      setTimeout(resolve, 0)
+      return
+    }
+    let settled = false
+    const finish = () => {
+      if (settled) return
+      settled = true
+      resolve()
+    }
+    requestAnimationFrame(finish)
+    setTimeout(finish, YIELD_FRAME_TIMEOUT_MS)
+  })
 
 /** Run one boot step, swallowing + logging any failure so it can't abort the
  *  rest of the bootstrap. Supports sync or async steps. Yields one animation

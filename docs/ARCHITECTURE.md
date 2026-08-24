@@ -22,7 +22,12 @@ same change that reshapes a system.
   **Test environments**: Vitest defaults to `node` (fast, no DOM); any test file that touches
   the DOM (render/`@testing-library`/`window`/`document`/canvas/IndexedDB) must start with a
   `// @vitest-environment happy-dom` line — a missing pragma fails with
-  `window/document is not defined`. CSS regex guards are consolidated in
+  `window/document is not defined`. Both scripts set `NODE_OPTIONS=--no-webstorage`: Node >= 25
+  enables the Web Storage API by default, and its global `localStorage` shadows the one
+  happy-dom installs, leaving it `undefined` in DOM tests (upstream vitest#8757 /
+  happy-dom#1950, both open — `--no-webstorage` is the documented workaround). Invoking
+  `vitest` directly bypasses the scripts, so `src/setupTests.ts` throws with the fix rather
+  than letting tests fail on a bare `Cannot read properties of undefined`. CSS regex guards are consolidated in
   `src/styles/styleGuards.test.ts` (one node-env file) — add new style guards there, not as
   new per-feature files;
   `npm run build` (= `tsc` + Vite prod build). `predev`/`prebuild` run `copy-decoders`
@@ -61,7 +66,7 @@ same change that reshapes a system.
   for GitHub Pages; the dev server stays `/`). Must end with `/`. `scripts/static-serve.mjs`
   honours matching `BASE`/`PORT` envs for serving non-default-base builds locally.
 - **Docker**: `docker build -t sofa-so-good . && docker run -p 8080:80 sofa-so-good` —
-  multi-stage image (node:24.18.0-alpine build with `VITE_BASE=/` → nginx:1.27-alpine).
+  multi-stage image (node:26.7.0-alpine build with `VITE_BASE=/` → nginx:1.27-alpine).
   `docker/nginx.conf` adds the wasm/glb/ktx2 MIME types, SPA fallback (excluding `/docs/`),
   cache headers, and same-origin `/acg`/`/acg-cdn`/`/kenney` proxies for the runtime CC0
   catalog (the production equivalent of the dev-only Vite proxies). `.dockerignore` keeps
@@ -82,7 +87,7 @@ same change that reshapes a system.
   push-to-main); signing/notarization activate via secrets (`MAC_CSC_LINK` +
   password, `APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID`, `WIN_CSC_LINK` +
   password) with hardened runtime + `electron/entitlements.mac.plist`; secretless builds are
-  unsigned. Node pinned at **24.18.0** (`.nvmrc`, CI, `engines`).
+  unsigned. Node pinned at **26.7.0** (`.nvmrc`, CI, `engines`).
 - **Android (Capacitor)**: `npm run build:mobile` (web build with `VITE_BASE=./` +
   `VITE_DISABLE_PWA=1`, regenerate launcher icons, `cap sync android`; via
   `scripts/build-mobile.mjs`) bundles `dist/` into the committed `android/` native project

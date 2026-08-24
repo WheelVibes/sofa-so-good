@@ -23,10 +23,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Node 24 / npm 11 — match ci.yml/deploy.yml so `npm ci` accepts the lockfile.
+      # Node 26 / npm 11 — match ci.yml/deploy.yml so `npm ci` accepts the lockfile.
       - uses: actions/setup-node@v4
         with:
-          node-version: 24.18.0
+          node-version: 26.7.0
           cache: npm
 
       # JDK 21 — Capacitor 8 / AGP 8.13 build requirement (matches the dev env).

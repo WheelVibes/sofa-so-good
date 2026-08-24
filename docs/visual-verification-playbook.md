@@ -160,11 +160,12 @@ GPU-session gotchas (2026-07-11 sweep):
 
 ## Scenario mode (recommended — use this for anything multi-step)
 
-**Harness runs are serialized machine-wide.** `shot.mjs` re-execs itself under
-`flock` (`/tmp/sofa-shot-harness.lock`) because concurrent SwiftShader Chromiums
+**Harness runs are serialized machine-wide.** `shot.mjs` takes an exclusive lock file
+(`$TMPDIR/sofa-shot-harness.lock`) because concurrent SwiftShader Chromiums
 (1–2 GB each) have coincided with container restarts that silently kill the
 running process. A second invocation queues (up to 15 min) until the first
-finishes — that delay is expected, not a hang.
+finishes — that delay is expected, not a hang. A lock left by a killed run is
+cleared automatically via a PID liveness check.
 
 **Scenario mode** is the primary way to drive complex, multi-step user journeys
 headlessly. It runs an ordered list of named steps in a single browser session
@@ -578,7 +579,7 @@ is 15°-snapped. **Key gotchas learned here:**
   rotate drag. Wrap `setPointerCapture` in try/catch (it can throw for a fully-synthetic pointer,
   but the handler still records the gesture before capture). The assert only needs the rotation to
   change + be 15°-snapped, so the exact pointer-to-centre angle need not be precise.
-- **NEVER launch two `shot.mjs` runs at once.** They serialize on a `flock`, but a second queued
+- **NEVER launch two `shot.mjs` runs at once.** They serialize on a lock file, but a second queued
   Chromium under SwiftShader starves the first and the editor's `.plan-screen` `waitFor` times out
   spuriously. Run one scenario, wait for `EXIT`, then run the next.
 
@@ -1580,6 +1581,50 @@ PNG**.
 ---
 
 ## Gotchas & fixes (the actual time-sinks)
+
+### The harness mutex is a lock file, not `flock` (and why that matters)
+`shot.mjs` serialises ALL runs machine-wide — SwiftShader Chromium is 1–2 GB per instance and
+concurrent runs have coincided with container restarts that silently kill the process. It used to
+do that by re-exec'ing under **`flock`**, which **does not exist on macOS**: the spawn failed with
+ENOENT, `res.status` was `null`, and `process.exit(res.status ?? 1)` exited **1 printing nothing**
+— *after* the scenario header had been logged, so it read as the scenario crashing. Symptom was
+`Running scenario: "…"` then silence, on every invocation. Fixed in v0.28.0.2 with an in-process
+lock file (atomic `'wx'` create + PID liveness check + release on exit/signals), which behaves the
+same on every platform.
+
+Two consequences when a run misbehaves:
+- **A wedged run blocks every other run for up to 15 min.** The error names the lock path
+  (`$TMPDIR/sofa-shot-harness.lock`); delete it if no `shot.mjs` is actually running.
+- **A `SIGKILL`'d run leaves the file behind.** That is recovered automatically — the next run
+  reads the PID, sees it is dead, and clears it — so do NOT add sleeps or retries around this.
+
+### A hidden tab has no animation frames — anything awaiting rAF deadlocks
+Chrome throttles `requestAnimationFrame` to **zero** while a page is not visible, so any boot or
+init path that awaits a frame stops dead in a background tab, an occluded window, or an
+offscreen/headless harness. This bit boot itself: `runBootstrap`'s `yieldFrame` awaited a bare
+`requestAnimationFrame`, so a hidden tab left `bootPhase` on `'hydrating'` forever — `#boot-loader`
+never faded, no canvas mounted, and `window.__store` was never exposed (it is set by the last
+bootstrap step), which reads exactly like a broken build. Fixed by racing the frame against a
+timer and skipping it when `document.hidden` (v0.28.0.0).
+
+Two lessons for verification: (1) when the app appears stuck on the boot cover, **check
+`document.visibilityState` before suspecting the code** — a screenshot cannot tell you the tab is
+hidden; (2) to reproduce a hidden tab reliably, stub the clock rather than trusting window
+focus. `headless: 'shell'` reports background tabs as **visible**, so `bringToFront()` on another
+page proves nothing. What works:
+
+```js
+await page.evaluateOnNewDocument(() => {
+  Object.defineProperty(document, 'hidden', { value: true, configurable: true })
+  Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+  let id = 0
+  window.requestAnimationFrame = () => ++id   // accepted, never delivered
+  window.cancelAnimationFrame = () => {}
+})
+```
+
+Always confirm such a harness actually *detects* the bug — revert the fix, watch it fail, restore
+it — otherwise a passing run only proves the harness is inert.
 
 ### A store-level flag-off must be re-verified against EVERY consumer, not just the obvious one
 Flipping a pro-tier flag off mid-scenario (`setFeatureFlag('mepEditor', false)`) is a good way to
