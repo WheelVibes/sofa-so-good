@@ -20,6 +20,7 @@
 //   SHOT_NAV_TIMEOUT           navigation timeout ms (default 60000)
 
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import puppeteer from 'puppeteer'
@@ -112,23 +113,96 @@ const keepFirstRun = !!process.env.SHOT_KEEP_FIRSTRUN || scenario?.keepFirstRun 
 // ──────────────────────────────────────────────────────────────────────────────
 
 // Machine-wide harness mutex: SwiftShader Chromium instances are the heaviest
-// processes in this sandbox (1–2 GB each); concurrent runs have coincided with
-// container-level restarts that silently kill the running process. Serialize ALL
-// shot.mjs invocations by re-exec'ing under `flock` — the kernel releases the lock
-// when the holder dies, so no stale-lock handling is needed. Waits up to 15 min
-// for the lock, then fails loudly.
-if (!process.env.SHOT_HARNESS_LOCKED) {
-  const { spawnSync } = await import('node:child_process')
-  const t0 = Date.now()
-  const res = spawnSync(
-    'flock',
-    ['-w', '900', '/tmp/sofa-shot-harness.lock', process.execPath, ...process.argv.slice(1)],
-    { stdio: 'inherit', env: { ...process.env, SHOT_HARNESS_LOCKED: '1' } },
-  )
-  if (res.status === 1 && Date.now() - t0 > 890_000) {
-    console.error('shot.mjs: harness lock not acquired within 15 min — another run is stuck')
+// processes here (1–2 GB each); concurrent runs have coincided with
+// container-level restarts that silently kill the running process, so ALL
+// shot.mjs invocations are serialized.
+//
+// This used to re-exec under `flock`, which **does not exist on macOS**: the
+// spawn failed with ENOENT, `res.status` was `null`, and `?? 1` exited 1 having
+// printed nothing — after the scenario header had already been logged, so it
+// read as the scenario crashing. The lock is now taken in-process via an atomic
+// exclusive create, which behaves identically on every platform and drops the
+// re-exec (and its SHOT_HARNESS_LOCKED handshake) entirely.
+//
+// `flock` got kernel-released locks for free; a lock file does not, so a holder
+// that dies leaves the file behind — hence the liveness check below.
+const LOCK_FILE = path.join(os.tmpdir(), 'sofa-shot-harness.lock')
+const LOCK_WAIT_MS = 900_000
+const LOCK_POLL_MS = 250
+
+/** True while `pid` is running. EPERM means it exists but belongs to another user. */
+function pidAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (err) {
+    return err.code === 'EPERM'
   }
-  process.exit(res.status ?? 1)
+}
+
+/** Take the lock; false if someone else holds it (stale locks are cleared first). */
+function tryAcquireLock() {
+  try {
+    // 'wx' fails when the path exists, and does so atomically — two racing runs
+    // can never both believe they won.
+    fs.writeFileSync(LOCK_FILE, String(process.pid), { flag: 'wx' })
+    return true
+  } catch (err) {
+    if (err.code !== 'EEXIST') throw err
+    let holder = Number.NaN
+    try {
+      holder = Number.parseInt(fs.readFileSync(LOCK_FILE, 'utf8').trim(), 10)
+    } catch {
+      return false // vanished mid-read; the next poll settles it
+    }
+    if (pidAlive(holder)) return false
+    // Stale holder. Clear it but do NOT assume we won — another waiter may be
+    // clearing it in the same instant; let the next poll re-race for it.
+    try {
+      fs.unlinkSync(LOCK_FILE)
+    } catch {
+      // Someone else got there first.
+    }
+    return false
+  }
+}
+
+const lockStart = Date.now()
+while (!tryAcquireLock()) {
+  if (Date.now() - lockStart > LOCK_WAIT_MS) {
+    console.error(
+      `shot.mjs: harness lock not acquired within 15 min (${LOCK_FILE}) — another run is stuck.\n` +
+        'Delete that file if no shot.mjs is running.',
+    )
+    process.exit(1)
+  }
+  // Blocking sleep: this runs before any async work, so there is no event loop
+  // to starve, and Atomics.wait beats a busy loop.
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, LOCK_POLL_MS)
+}
+
+// Release on every exit path — normal return, Ctrl-C, an uncaught throw.
+let lockReleased = false
+const releaseLock = () => {
+  if (lockReleased) return
+  lockReleased = true
+  try {
+    // Only remove OUR lock: if a stale-lock sweep handed it to someone else
+    // meanwhile, deleting it would let a third run in alongside them.
+    if (fs.readFileSync(LOCK_FILE, 'utf8').trim() === String(process.pid)) {
+      fs.unlinkSync(LOCK_FILE)
+    }
+  } catch {
+    // Already gone.
+  }
+}
+process.on('exit', releaseLock)
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.on(signal, () => {
+    releaseLock()
+    process.exit(1)
+  })
 }
 
 // SHOT_GPU=1 routes WebGL to the real hardware GPU (ANGLE over the WSL D3D12

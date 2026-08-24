@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.28.0.2 — portable harness mutex (shot.mjs runs on macOS) + all 12 advisories cleared
+
+**`scripts/shot.mjs` could not run on macOS at all.** It serialised runs by
+re-exec'ing under `flock`, which does not exist there: the spawn failed with
+ENOENT, `res.status` was `null`, and `process.exit(res.status ?? 1)` exited 1
+having printed nothing — after the scenario header had already been logged, so it
+read as the scenario crashing rather than the harness never starting. Replaced
+with an in-process lock file: atomic `'wx'` create, PID liveness check to clear a
+lock left by a killed run (what `flock` got free from the kernel), and release on
+exit plus SIGINT/SIGTERM/SIGHUP. The re-exec and its `SHOT_HARNESS_LOCKED`
+handshake are gone. Verified on macOS: legacy one-shot mode, the full 29-step
+`first-run` scenario (8 screenshots), two concurrent runs actually serialising
+(61 s apart, both succeeding), and recovery from both a dead-PID and a
+garbage-content lock file.
+
+**All 12 npm advisories cleared** (10 high, 2 moderate → 0). `npm audit fix`
+alone was a no-op: it aborted on a peer conflict, because the patched `wrangler`
+wants `@cloudflare/workers-types@^5` while the repo pinned `^4`. Bumping that pair
+together unblocked the rest — brace-expansion, fast-uri, js-yaml, miniflare,
+nanoid, ndarray-pixels, postcss, tar, undici, hono. `sharp` needed a semver-major
+bump (0.34.5 → 0.35.3), which supersedes and closes Dependabot PR #98 (that one
+targeted `main` and only went to 0.35.0, which is still vulnerable). None of
+sharp 0.35's breaking changes touch this repo: no `failOnError`,
+`paletteBitDepth`, `sharpen` property or `format.jp2k` use anywhere, and the only
+APIs called are `metadata`/`resize`/`extract`/`png`/`jpeg`/`density`. Verified
+with the asset-pipeline suite (92 tests) plus a real libvips 8.18.3 encode.
+
+Note: scenario files under `scripts/scenarios/` hardcode `http://localhost:5212/`
+while the dev server is on 5173 — pre-existing and untouched here; override the
+`url` when running them against `npm run dev`.
+
 ## v0.28.0.1 — CI test shards must go through `npm test`
 
 `ci.yml` ran the sharded suite as `npx vitest run --shard=…`, which bypasses the

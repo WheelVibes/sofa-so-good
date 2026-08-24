@@ -160,11 +160,12 @@ GPU-session gotchas (2026-07-11 sweep):
 
 ## Scenario mode (recommended — use this for anything multi-step)
 
-**Harness runs are serialized machine-wide.** `shot.mjs` re-execs itself under
-`flock` (`/tmp/sofa-shot-harness.lock`) because concurrent SwiftShader Chromiums
+**Harness runs are serialized machine-wide.** `shot.mjs` takes an exclusive lock file
+(`$TMPDIR/sofa-shot-harness.lock`) because concurrent SwiftShader Chromiums
 (1–2 GB each) have coincided with container restarts that silently kill the
 running process. A second invocation queues (up to 15 min) until the first
-finishes — that delay is expected, not a hang.
+finishes — that delay is expected, not a hang. A lock left by a killed run is
+cleared automatically via a PID liveness check.
 
 **Scenario mode** is the primary way to drive complex, multi-step user journeys
 headlessly. It runs an ordered list of named steps in a single browser session
@@ -578,7 +579,7 @@ is 15°-snapped. **Key gotchas learned here:**
   rotate drag. Wrap `setPointerCapture` in try/catch (it can throw for a fully-synthetic pointer,
   but the handler still records the gesture before capture). The assert only needs the rotation to
   change + be 15°-snapped, so the exact pointer-to-centre angle need not be precise.
-- **NEVER launch two `shot.mjs` runs at once.** They serialize on a `flock`, but a second queued
+- **NEVER launch two `shot.mjs` runs at once.** They serialize on a lock file, but a second queued
   Chromium under SwiftShader starves the first and the editor's `.plan-screen` `waitFor` times out
   spuriously. Run one scenario, wait for `EXIT`, then run the next.
 
@@ -1581,14 +1582,21 @@ PNG**.
 
 ## Gotchas & fixes (the actual time-sinks)
 
-### `scripts/shot.mjs` does not run on macOS (silent `exit 1`, no output)
-The harness serialises runs by re-exec'ing itself under **`flock`**, which does not exist on
-macOS. `spawnSync('flock', …)` fails with ENOENT, `res.status` is `null`, and the `process.exit(
-res.status ?? 1)` on the next line exits **1 with nothing printed** — after the scenario header
-has already been logged, so it looks like the scenario itself died. Symptom: `Running scenario:
-"…"` then immediate silence. Confirm with `which flock`. Until the harness grows a portable
-mutex, drive visual verification on macOS through the Chrome extension (a real tab + the live
-dev server) or write a one-off puppeteer script; do **not** spend time debugging the scenario.
+### The harness mutex is a lock file, not `flock` (and why that matters)
+`shot.mjs` serialises ALL runs machine-wide — SwiftShader Chromium is 1–2 GB per instance and
+concurrent runs have coincided with container restarts that silently kill the process. It used to
+do that by re-exec'ing under **`flock`**, which **does not exist on macOS**: the spawn failed with
+ENOENT, `res.status` was `null`, and `process.exit(res.status ?? 1)` exited **1 printing nothing**
+— *after* the scenario header had been logged, so it read as the scenario crashing. Symptom was
+`Running scenario: "…"` then silence, on every invocation. Fixed in v0.28.0.2 with an in-process
+lock file (atomic `'wx'` create + PID liveness check + release on exit/signals), which behaves the
+same on every platform.
+
+Two consequences when a run misbehaves:
+- **A wedged run blocks every other run for up to 15 min.** The error names the lock path
+  (`$TMPDIR/sofa-shot-harness.lock`); delete it if no `shot.mjs` is actually running.
+- **A `SIGKILL`'d run leaves the file behind.** That is recovered automatically — the next run
+  reads the PID, sees it is dead, and clears it — so do NOT add sleeps or retries around this.
 
 ### A hidden tab has no animation frames — anything awaiting rAF deadlocks
 Chrome throttles `requestAnimationFrame` to **zero** while a page is not visible, so any boot or
