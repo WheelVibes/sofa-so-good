@@ -719,6 +719,47 @@ and an app error both sort above the tagged `THREE.Clock` line.
 
 ---
 
+## Pass 20 — the signed-in surfaces
+
+Run against a session the **user** signed in; the audit never enters credentials. Signed in as
+`admin` with a healthy API.
+
+**Versions works properly with a real backend** — the autosave row appears with Restore /
+Compare / Compare in 3D, and the local edit → undo round-trip is unaffected.
+
+### P3 · Version thumbnails read as broken  ✅ FIXED
+
+`saveThumb(captureThumb())` runs only on an **explicit** save, so the two most common rows — the
+current working layout and the autosave — always rendered an empty 70×52 grey box next to rows
+that can have a preview. Capturing a thumb on every autosave was the wrong fix: `captureThumb()`
+is a GPU readback and autosave runs often. Instead `.ver-thumb:empty` now draws a faint centred
+marker, so the absence reads as "no preview" rather than a failed image.
+
+### P2 · A failed shared-library load was permanent  ✅ FIXED
+
+`bootstrapSharedLibrary` guarded with `status !== 'idle'`, so once it errored **nothing could
+retry it** — every later call returned immediately and the feature stayed dead for the session,
+with no retry affordance. The guard now short-circuits only on `loading` / `ready`.
+
+### P2 · …and it failed mutely  ✅ FIXED
+
+Three different failure modes — a thrown fetch (wrong origin / CORS / server down), a non-2xx,
+and an SPA fallback answering **200 text/html** — all collapsed into a bare `status: 'error'`
+with nothing logged. Working out which one it was took a series of manual fetches. All three now
+warn with the URL and the reason.
+
+The actual cause here turned out to be **environmental, not a defect**:
+`[sharedLibrary] /api/assets/library/index.json returned 404 — no library manifest here.`
+The manifest is published to R2 by `build-library-index` and simply is not present in a local
+dev environment. That is exactly the sort of thing the diagnostics now say out loud.
+
+### Not audited
+
+Cloud **sync** reconciliation still needs a design saved and re-fetched across sessions —
+out of scope for a read-only audit pass.
+
+---
+
 ## Fixes applied and verified
 
 Each was verified in the live tab (measurement + pixels), not just by tests passing.
@@ -757,6 +798,9 @@ Each was verified in the live tab (measurement + pixels), not just by tests pass
 | 30 | **P2** first paint after dark forced the clock to 13:00 | keep real time, switch interior lights on | verified at a real 01:00 cold boot; 7 tests |
 | 31 | **P3** ~65 inline metal accents bypassed the factories | `<MetalMaterial>` component + 105 mechanical conversions | max metalness 0.9 → **0.4**; reactive across tier switches |
 | 32 | **P3** `THREE.Clock` noise could bury real warnings | probe tags upstream noise and sorts it last | app warnings verified sorting above it |
+| 33 | **P2** a failed shared-library load could never retry | guard only on `loading`/`ready` | retry re-attempts instead of returning; 2 tests |
+| 34 | **P2** shared-library failures were silent | warn on throw / non-2xx / non-JSON | live warning names the URL + 404; 2 tests |
+| 35 | **P3** version thumbnails read as broken | `.ver-thumb:empty` placeholder marker | verified in the panel, both rows |
 
 ## Still open
 

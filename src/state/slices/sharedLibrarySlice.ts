@@ -35,7 +35,13 @@ export const createSharedLibrarySlice: SliceCreator<SharedLibrarySlice, RootStat
   ...SHARED_LIBRARY_INITIAL,
 
   async bootstrapSharedLibrary() {
-    if (get().sharedLibrary.status !== 'idle') return
+    // Retry after a failure. The guard used to be `!== 'idle'`, which made the
+    // error state STICKY: one transient fetch failure disabled the shared library
+    // for the rest of the session with no way back, since every later call
+    // returned immediately (Chrome audit 2026-08). Only an in-flight or already
+    // loaded index should short-circuit.
+    const status = get().sharedLibrary.status
+    if (status === 'loading' || status === 'ready') return
     if (!hasBackend() || !isAdminUser(get().currentUser) || !isFeatureEnabled('sharedLibrary'))
       return
     set((s) => ({ sharedLibrary: { ...s.sharedLibrary, status: 'loading' } }))

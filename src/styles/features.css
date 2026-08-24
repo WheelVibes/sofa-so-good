@@ -400,6 +400,20 @@
 .ver-card:hover { background: var(--surface-solid); }
 .ver-thumb { width: 70px; height: 52px; flex: none; border-radius: var(--r-1); background: var(--surface-3); border: 1px solid var(--border); overflow: hidden; }
 .ver-thumb svg { width: 100%; height: 100%; display: block; }
+.ver-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Empty slot = "no preview", not a broken image. Thumbnails are only captured on
+   an EXPLICIT save, so the two most common rows — the current working layout and
+   the autosave — always render an empty 70×52 box, which read as broken
+   (Chrome audit 2026-08). A faint centred glyph makes the absence intentional. */
+.ver-thumb:empty { display: flex; align-items: center; justify-content: center; }
+.ver-thumb:empty::after {
+  content: '';
+  width: 18px;
+  height: 18px;
+  border-radius: var(--r-1);
+  border: 1.5px solid var(--border-2);
+  opacity: 0.7;
+}
 .ver-info { flex: 1; min-width: 0; }
 .ver-info .nm { font-size: var(--t-sm); font-weight: 700; display: flex; align-items: center; gap: 6px; }
 .ver-info .when { font-size: var(--t-2xs); color: var(--text-3); margin-top: 2px; }

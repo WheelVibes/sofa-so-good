@@ -37,8 +37,30 @@ function assetsBase(): string {
 export async function fetchSharedLibraryIndex(): Promise<SharedLibraryIndex | null> {
   if (!hasBackend()) return null
   try {
-    const res = await fetch(`${assetsBase()}/library/index.json`, { credentials: 'include' })
-    if (!res.ok) return null
+    const url = `${assetsBase()}/library/index.json`
+    const res = await fetch(url, { credentials: 'include' })
+    if (!res.ok) {
+      console.warn(`[sharedLibrary] ${url} returned ${res.status} — no library manifest here.`)
+      return null
+    }
+    // `res.ok` alone is not proof of a manifest: a dev server's SPA fallback
+    // answers a missing file with **200 text/html** (index.html), so the JSON
+    // parse below throws and the whole feature lands in a bare `error` state with
+    // nothing in the console to explain it (Chrome audit 2026-08 — the shared
+    // library read as broken while signed in, and the cause took a manual fetch
+    // to find). Name the problem instead of failing mute.
+    // Only reject a content-type that is PRESENT and clearly not JSON. An absent
+    // header is ambiguous (and plenty of fixtures/servers omit it), so trust the
+    // parse in that case rather than refusing a valid manifest.
+    const type = res.headers?.get('content-type') ?? ''
+    if (type && !type.includes('json')) {
+      console.warn(
+        `[sharedLibrary] ${url} returned ${res.status} ${type || 'no content-type'}, not JSON — ` +
+          'the library manifest is probably not published for this environment ' +
+          '(run `npm run build-library-index`).',
+      )
+      return null
+    }
     const index = (await res.json()) as SharedLibraryIndex
     if (!Array.isArray(index.items)) return null
     // Back-compat: manifests built before `groupKey` was emitted lack it, and a
@@ -48,7 +70,15 @@ export async function fetchSharedLibraryIndex(): Promise<SharedLibraryIndex | nu
       .filter((it) => typeof it?.group === 'string' && it.group)
       .map((it) => (it.groupKey ? it : { ...it, groupKey: it.group }))
     return index
-  } catch {
+  } catch (err) {
+    // Every failure mode used to collapse to a bare `status: 'error'` with
+    // nothing logged — a thrown fetch (wrong origin / CORS / server down), a
+    // non-2xx, or HTML from an SPA fallback all looked identical, and tracing
+    // which one it was took a series of manual fetches (Chrome audit 2026-08).
+    console.warn(
+      `[sharedLibrary] could not load the library manifest from ${assetsBase()}/library/index.json:`,
+      err,
+    )
     return null
   }
 }

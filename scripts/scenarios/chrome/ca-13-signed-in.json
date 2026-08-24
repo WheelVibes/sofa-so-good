@@ -1,0 +1,32 @@
+{
+  "name": "ca-13-signed-in",
+  "description": "Audit pass 20 — the surfaces that need a real session: versions, shared library, the account menu, and cloud sync. Requires an already signed-in tab; the audit never enters credentials itself.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 30000 },
+    { "name": "assert-signed-in", "assert": { "js": "!!window.__store.getState().currentUser", "message": "this pass needs an already signed-in session" } },
+    { "name": "reset-baseline", "eval": "const s = window.__store.getState(); s.setFloorPlanEditing(false); s.exitRoomEditor?.(); s.selectItem?.(null); s.setCatalogOpen?.(false); s.setLoginOpen?.(false); s.setCameraMode?.('orbit'); s.setTimeMode('manual'); s.setManualHour(13)" },
+    { "name": "pro-mode", "eval": "const s = window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags()" },
+    { "name": "settle-baseline", "wait": 2000 },
+
+    { "name": "open-versions", "store": { "action": "setVersionsOpen", "args": [true] } },
+    { "name": "settle-versions", "wait": 1800 },
+    { "name": "shot-versions", "screenshot": "01-versions-signed-in" },
+    { "name": "probe-versions", "probe": { "checks": ["console", "overflow", "clipped", "naming", "covered", "contrast"] } },
+    { "name": "close-versions", "store": { "action": "setVersionsOpen", "args": [false] } },
+
+    { "name": "open-shared-library", "eval": "const s = window.__store.getState(); s.setLeftMode?.('shared'); s.setCatalogOpen(true)" },
+    { "name": "settle-shared", "wait": 2200 },
+    { "name": "shot-shared", "screenshot": "02-shared-library" },
+    { "name": "probe-shared", "probe": { "checks": ["console", "overflow", "clipped", "naming", "covered", "assets"], "scope": ".panel.catalog" } },
+    { "name": "close-catalog", "store": { "action": "setCatalogOpen", "args": [false] } },
+
+    { "name": "make-an-edit", "eval": "const s = window.__store.getState(); window.__auditBefore = s.items.length; const it = s.items[0]; s.selectItem(it.id); s.deleteItem(it.id); s.selectItem(null)" },
+    { "name": "settle-edit", "wait": 2500 },
+    { "name": "assert-edit-applied", "assert": { "js": "window.__store.getState().items.length === window.__auditBefore - 1", "message": "the edit should apply locally" } },
+    { "name": "undo-edit", "store": { "action": "undo", "args": [] } },
+    { "name": "settle-undo", "wait": 1800 },
+    { "name": "assert-restored", "assert": { "js": "window.__store.getState().items.length === window.__auditBefore", "message": "undo should restore it" } },
+
+    { "name": "final-console", "probe": { "checks": ["console"] } }
+  ]
+}

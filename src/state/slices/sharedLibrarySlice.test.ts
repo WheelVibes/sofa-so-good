@@ -106,3 +106,21 @@ describe('sharedLibrarySlice', () => {
     expect(useStore.getState().sharedLibrary.resolving.alex).toBe('error')
   })
 })
+
+describe('bootstrapSharedLibrary retry', () => {
+  it('can retry after an error instead of being stuck for the session', async () => {
+    // The guard was `status !== 'idle'`, so one transient failure disabled the
+    // shared library until reload — every later call returned immediately
+    // (Chrome audit 2026-08).
+    const s = useStore.getState()
+    useStore.setState({ sharedLibrary: { status: 'error', items: [], resolving: {} } })
+    await s.bootstrapSharedLibrary()
+    expect(useStore.getState().sharedLibrary.status).not.toBe('error')
+  })
+
+  it('does not re-enter while a load is already in flight', async () => {
+    useStore.setState({ sharedLibrary: { status: 'loading', items: [], resolving: {} } })
+    await useStore.getState().bootstrapSharedLibrary()
+    expect(useStore.getState().sharedLibrary.status).toBe('loading')
+  })
+})
