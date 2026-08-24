@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.28.0.1 — CI test shards must go through `npm test`
+
+`ci.yml` ran the sharded suite as `npx vitest run --shard=…`, which bypasses the
+npm script and therefore the `NODE_OPTIONS=--no-webstorage` that Node >= 25 needs
+— so `src/setupTests.ts` would have thrown on every DOM test in CI. Both shards
+now run `npm test -- --shard=…`, with a comment at the call site saying why bare
+`vitest` is wrong here. Verified locally: shard 1/2 green (468 files / 4666 tests).
+
 ## v0.28.0.0 — Node 26 toolchain + boot no longer deadlocks in a hidden tab
 
 **Boot deadlocked in any hidden tab.** `runBootstrap` yields a frame after every

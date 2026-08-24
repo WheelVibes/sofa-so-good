@@ -71,5 +71,8 @@ jobs:
 
       # Full unit/integration suite, split across two parallel shards
       # (~4.8k tests; node-default env + threads pool keep each shard ~1 min).
+      # Goes through `npm test` (NOT bare `npx vitest`) so the script's
+      # NODE_OPTIONS=--no-webstorage is applied — Node >= 25 otherwise shadows
+      # happy-dom's localStorage and every DOM test fails (see ARCHITECTURE.md).
       - name: Run test suite
-        run: npx vitest run --shard=${{ matrix.shard }}/2
+        run: npm test -- --shard=${{ matrix.shard }}/2
