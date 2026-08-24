@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// The dispatch reads the flag per call, so control it directly.
+// `activeProviderIds` reads the flag per call, so control it directly.
 const enabled = { value: true }
 vi.mock('../../../features/featureFlags', () => ({
   isFeatureEnabled: () => enabled.value,
@@ -8,34 +8,19 @@ vi.mock('../../../features/featureFlags', () => ({
 vi.mock('./acgLibrary', () => ({
   acgLibrary: { id: 'ambientcg', fetchIndex: vi.fn(async () => ['r2']) },
 }))
-vi.mock('./ambientcg', () => ({
-  ambientcg: { id: 'ambientcg', fetchIndex: vi.fn(async () => ['live']) },
-}))
 vi.mock('./polyhaven', () => ({ polyhaven: { id: 'polyhaven' } }))
 
 const { PROVIDERS, activeProviderIds } = await import('./index')
 
-describe('ambientcg transport dispatch', () => {
-  beforeEach(() => {
-    enabled.value = true
-  })
-
-  it('uses the R2 mirror when the flag is on', async () => {
+describe('ambientcg transport', () => {
+  it('is the R2 mirror, with no live-API fallback left to dispatch to', async () => {
+    // The live ambientcg.com transport was removed (dead CDN host, 100-asset
+    // page cap, null categories) — a stale index pointing at it is what made
+    // every card load forever.
     expect(await PROVIDERS.ambientcg.fetchIndex()).toEqual(['r2'])
   })
 
-  it('falls back to the live (dev-proxy) API when the flag is off', async () => {
-    enabled.value = false
-    expect(await PROVIDERS.ambientcg.fetchIndex()).toEqual(['live'])
-  })
-
-  it('re-reads the flag per call, so a runtime toggle needs no reload', async () => {
-    expect(await PROVIDERS.ambientcg.fetchIndex()).toEqual(['r2'])
-    enabled.value = false
-    expect(await PROVIDERS.ambientcg.fetchIndex()).toEqual(['live'])
-  })
-
-  it('keeps the ambientcg id on both transports so finish ids round-trip', () => {
+  it('keeps the ambientcg id so persisted finish ids round-trip', () => {
     expect(PROVIDERS.ambientcg.id).toBe('ambientcg')
   })
 })
@@ -45,19 +30,16 @@ describe('activeProviderIds', () => {
     enabled.value = true
   })
 
-  it('bootstraps ambientCG in production once the R2 mirror is enabled', () => {
-    // The live API has no CORS headers; the mirror is same-origin, so this is
-    // the change that makes ambientCG prod-viable at all.
-    expect(activeProviderIds(false)).toContain('ambientcg')
+  it('bootstraps ambientCG whenever the R2 mirror is enabled', () => {
+    expect(activeProviderIds()).toContain('ambientcg')
   })
 
-  it('leaves production Poly Haven-only when the mirror is disabled', () => {
+  it('leaves the catalog Poly Haven-only when the mirror is disabled', () => {
     enabled.value = false
-    expect(activeProviderIds(false)).toEqual(['polyhaven'])
+    expect(activeProviderIds()).toEqual(['polyhaven'])
   })
 
-  it('bootstraps every provider in dev regardless of the flag', () => {
-    enabled.value = false
-    expect(activeProviderIds(true).sort()).toEqual(['ambientcg', 'polyhaven'])
+  it('answers the same in dev and prod — one same-origin transport, no env split', () => {
+    expect(activeProviderIds()).toEqual(['polyhaven', 'ambientcg'])
   })
 })

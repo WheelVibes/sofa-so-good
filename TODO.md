@@ -818,10 +818,13 @@ proxy/mirror/host is missing, and standing one up is a deployment task, not a co
   runtime, the corpus is packed to the four bound PBR maps (`npm run pack-ambientcg`) and
   mirrored into our own R2 bucket under `acg/`, served same-origin through the existing
   auth-gated `/api/assets` proxy (`providers/acgLibrary.ts`, flag `ambientcgLibrary`). No
-  third-party CORS dependency and no proxy to operate. The Docker image's nginx
-  `/acg`/`/acg-cdn`/`/kenney` proxies still cover self-hosted deploys of the *live* provider.
+  third-party CORS dependency and no proxy to operate. **Closed for good in v0.29.4.0**: the
+  live transport and its `/acg`+`/acg-cdn` proxies (Vite *and* the Docker nginx) are deleted —
+  the upstream API had rotted anyway (CDN moved to `acg-media.struffelproductions.com`, 100 of
+  ~2000 assets per page, `category` now `null` on every material).
   **GitHub Pages remains uncovered** — it has no backend (`hasBackend()` is false), so the R2
-  mirror is inert there and ambientCG stays dev-gated on that build (Poly Haven works direct).
+  mirror is inert there and the ambientCG grid is simply empty on that build (Poly Haven works
+  direct); there is no longer a live fallback to stand in for it.
 - **Kenney / Quaternius mirrors** — no CORS-friendly API, ship single ZIPs; need a build-time mirror
   or proxy worker + format conversion (FBX/OBJ → GLB) before adding to the runtime catalog.
 - **Sketchfab** — REST + OAuth token + runtime fetch (auth/ToS friction).

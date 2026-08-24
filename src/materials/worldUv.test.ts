@@ -5,7 +5,9 @@ import { useStore } from '../state/store'
 import {
   applyUvTransform,
   breakRepetitionPlane,
+  breakRepetitionShape,
   cellUvTransform,
+  clipPolygonToRect,
   worldUvPlaneGeometry,
   worldUvShapeGeometry,
 } from './worldUv'
@@ -217,5 +219,234 @@ describe('tileBreakup flag gating (Simple vs Pro) — the build-site guard', () 
     expect(breakup).toBeUndefined()
     const geo = worldUvPlaneGeometry(6, 6, undefined, breakup)
     expect(geo.attributes.uv.count).toBe(4) // plain quad
+  })
+})
+
+// An L-shaped room (the case rect break-up could never cover): 6×6 with a
+// 3×3 bite out of the far corner.
+const lShape: [number, number][] = [
+  [0, 0],
+  [6, 0],
+  [6, 3],
+  [3, 3],
+  [3, 6],
+  [0, 6],
+]
+
+/** Summed triangle area of an indexed geometry, in shape space. */
+function geoArea(geo: BufferGeometry): number {
+  const pos = geo.attributes.position
+  const idx = geo.getIndex()!
+  let a = 0
+  for (let i = 0; i < idx.count; i += 3) {
+    const [i0, i1, i2] = [idx.getX(i), idx.getX(i + 1), idx.getX(i + 2)]
+    const ax = pos.getX(i1) - pos.getX(i0)
+    const ay = pos.getY(i1) - pos.getY(i0)
+    const bx = pos.getX(i2) - pos.getX(i0)
+    const by = pos.getY(i2) - pos.getY(i0)
+    a += Math.abs(ax * by - ay * bx) / 2
+  }
+  return a
+}
+
+describe('clipPolygonToRect (Sutherland–Hodgman cell clip)', () => {
+  const unit: [number, number][] = [
+    [0, 0],
+    [4, 0],
+    [4, 4],
+    [0, 4],
+  ]
+
+  it('returns the cell itself when the cell is fully inside', () => {
+    const c = clipPolygonToRect(unit, 1, 1, 2, 2)
+    expect(c).toHaveLength(4)
+    for (const [x, y] of c) {
+      expect(x).toBeGreaterThanOrEqual(1)
+      expect(x).toBeLessThanOrEqual(2)
+      expect(y).toBeGreaterThanOrEqual(1)
+      expect(y).toBeLessThanOrEqual(2)
+    }
+  })
+
+  it('returns nothing for a cell that misses the polygon', () => {
+    expect(clipPolygonToRect(unit, 10, 10, 11, 11)).toEqual([])
+  })
+
+  it('clips a partly-covered cell to the overlap', () => {
+    // Half in, half out: only the x ≤ 4 part survives.
+    const c = clipPolygonToRect(unit, 3, 0, 5, 1)
+    expect(c.length).toBeGreaterThanOrEqual(3)
+    expect(Math.max(...c.map(([x]) => x))).toBeCloseTo(4, 6)
+  })
+})
+
+describe('breakRepetitionShape (RD-406 for irregular rooms)', () => {
+  it('breaks up an L-shaped room — the case the rect path cannot reach', () => {
+    const geo = breakRepetitionShape(lShape, 1.5)
+    expect(geo).not.toBeNull()
+    expect(hasNaN(geo!)).toBe(false)
+  })
+
+  it('covers exactly the room — no gaps, no overlap outside the polygon', () => {
+    // L area = 6×6 − 3×3 = 27 m².
+    const geo = breakRepetitionShape(lShape, 1.5)!
+    expect(geoArea(geo)).toBeCloseTo(27, 4)
+  })
+
+  it('is byte-identical across re-runs (pure + deterministic)', () => {
+    const a = breakRepetitionShape(lShape, 1.5)!
+    const b = breakRepetitionShape(lShape, 1.5)!
+    expect(uvArray(a)).toEqual(uvArray(b))
+  })
+
+  it('breaks the visible period: cells do not all share one UV phase', () => {
+    const geo = breakRepetitionShape(lShape, 1.5)!
+    const uv = geo.attributes.uv
+    const phases = new Set<number>()
+    for (let i = 0; i < uv.count; i++) {
+      phases.add(Math.round(((((uv.getX(i) / 1.5) % 1) + 1) % 1) * 64))
+    }
+    expect(phases.size).toBeGreaterThan(1)
+  })
+
+  it('keeps the metre UV scale — UV never drifts more than the transform allows', () => {
+    // The per-cell transform only rotates within the tile and adds a ≤ half-tile
+    // offset, so |uv − world| ≤ 1.5 tiles. Anything beyond that would mean the
+    // physical texture scale drifted across the room.
+    const geo = breakRepetitionShape(lShape, 1.5)!
+    const pos = geo.attributes.position
+    const uv = geo.attributes.uv
+    const bound = 1.5 * 1.5 + 1e-6
+    for (let i = 0; i < uv.count; i++) {
+      // shape space y = -z, and V is in world z.
+      expect(Math.abs(uv.getX(i) - pos.getX(i))).toBeLessThanOrEqual(bound)
+      expect(Math.abs(uv.getY(i) + pos.getY(i))).toBeLessThanOrEqual(bound)
+    }
+  })
+
+  it('anchors cells to the WORLD grid, so two rooms agree on a shared cell', () => {
+    // The phase is a function of world position, not of the room's own bounds —
+    // otherwise two rooms meeting at a doorway would each re-seed the pattern
+    // and the tiles would visibly jump across the threshold.
+    const cellUvs = (poly: [number, number][]) => {
+      const geo = breakRepetitionShape(poly, 1.5)!
+      const pos = geo.attributes.position
+      const uv = geo.attributes.uv
+      const out: string[] = []
+      for (let i = 0; i < uv.count; i++) {
+        const x = pos.getX(i)
+        const z = -pos.getY(i)
+        // Vertices of the cell spanning world [1.5, 3] × [1.5, 3].
+        if (x >= 1.5 - 1e-9 && x <= 3 + 1e-9 && z >= 1.5 - 1e-9 && z <= 3 + 1e-9) {
+          out.push(
+            `${x.toFixed(4)},${z.toFixed(4)}→${uv.getX(i).toFixed(4)},${uv.getY(i).toFixed(4)}`,
+          )
+        }
+      }
+      return [...new Set(out)].sort()
+    }
+    const bigSquare: [number, number][] = [
+      [0, 0],
+      [6, 0],
+      [6, 6],
+      [0, 6],
+    ]
+    expect(cellUvs(lShape)).toEqual(cellUvs(bigSquare))
+  })
+
+  it('guards degenerate input (thin/■ polygon, bad tile, runaway cell count)', () => {
+    expect(
+      breakRepetitionShape(
+        [
+          [0, 0],
+          [1, 0],
+        ] as [number, number][],
+        1,
+      ),
+    ).toBeNull()
+    expect(breakRepetitionShape(lShape, 0)).toBeNull()
+    expect(breakRepetitionShape(lShape, Number.NaN)).toBeNull()
+    // One cell in each axis → no neighbour to mis-align against.
+    expect(breakRepetitionShape(square, 4)).toBeNull()
+    // 6 m room at a 1 mm tile would be 36 million cells.
+    expect(breakRepetitionShape(lShape, 0.001)).toBeNull()
+  })
+})
+
+describe('worldUvShapeGeometry break-up wiring', () => {
+  it('no breakup arg → the plain unwrap (unchanged behaviour)', () => {
+    const plain = worldUvShapeGeometry(lShape)
+    expect(plain.attributes.uv.count).toBe(6)
+  })
+
+  it('breakup arg → per-cell broken UVs', () => {
+    const broken = worldUvShapeGeometry(lShape, undefined, 1.5)
+    expect(broken.attributes.uv.count).toBeGreaterThan(6)
+    expect(hasNaN(broken)).toBe(false)
+  })
+
+  it('falls back to the plain unwrap when the room is under two cells', () => {
+    expect(worldUvShapeGeometry(square, undefined, 4).attributes.uv.count).toBe(4)
+  })
+})
+
+describe('direction-preserving break-up (quarterTurns=false)', () => {
+  it('only ever turns a cell 180°, so a plank keeps its run', () => {
+    for (let cu = -6; cu < 6; cu++) {
+      for (let cv = -6; cv < 6; cv++) {
+        expect([0, 2]).toContain(cellUvTransform(cu, cv, false).quarters)
+      }
+    }
+  })
+
+  it('still varies cell to cell (both 0° and 180° appear)', () => {
+    const seen = new Set<number>()
+    for (let cu = 0; cu < 8; cu++) {
+      for (let cv = 0; cv < 8; cv++) seen.add(cellUvTransform(cu, cv, false).quarters)
+    }
+    expect([...seen].sort()).toEqual([0, 2])
+  })
+
+  it('keeps the sub-tile stagger — the part of a plank floor that DOES vary', () => {
+    const offs = new Set<string>()
+    for (let cu = 0; cu < 8; cu++) {
+      for (let cv = 0; cv < 8; cv++) {
+        const t = cellUvTransform(cu, cv, false)
+        offs.add(`${t.offU},${t.offV}`)
+      }
+    }
+    expect(offs.size).toBeGreaterThan(1)
+  })
+
+  it('leaves U running along world X on every cell of a rect floor', () => {
+    // A 90°/270° turn would swap the axes — the patchwork a wood floor must
+    // never show. Walk each cell's bottom edge: U must change, V must not.
+    const geo = breakRepetitionPlane(8, 8, 2, false)!
+    const uv = geo.attributes.uv
+    for (let cell = 0; cell < uv.count / 4; cell++) {
+      const i = cell * 4 // corners: (0,0) (1,0) (1,1) (0,1) in tile fractions
+      expect(Math.abs(uv.getX(i + 1) - uv.getX(i))).toBeCloseTo(2, 6)
+      expect(Math.abs(uv.getY(i + 1) - uv.getY(i))).toBeCloseTo(0, 6)
+    }
+  })
+
+  it('quarterTurns=true (isotropic finishes) still rotates — unchanged behaviour', () => {
+    const quarters = new Set<number>()
+    for (let cu = 0; cu < 8; cu++) {
+      for (let cv = 0; cv < 8; cv++) quarters.add(cellUvTransform(cu, cv).quarters)
+    }
+    expect(quarters.size).toBeGreaterThan(2)
+  })
+
+  it('applies to irregular rooms too — the polygon path takes the same flag', () => {
+    const geo = breakRepetitionShape(lShape, 1.5, false)!
+    expect(hasNaN(geo)).toBe(false)
+    // Cell-corner UVs must still be axis-aligned with world X/Z (no swap).
+    const pos = geo.attributes.position
+    const uv = geo.attributes.uv
+    for (let i = 0; i < uv.count; i++) {
+      // With no quarter turn, u tracks world x and v tracks world z (± offset).
+      expect(Math.abs(uv.getX(i) - pos.getX(i))).toBeLessThanOrEqual(1.5 * 1.5 + 1e-6)
+    }
   })
 })

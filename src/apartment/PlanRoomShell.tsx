@@ -24,6 +24,7 @@ import {
   useSolidMaterial,
   useTexturedMaterial,
 } from '../materials/useMaterial'
+import { applyUvTransformed } from '../materials/worldUv'
 import { finishSurfaceUserData } from '../scene/finishDropTarget'
 import { SilentErrorBoundary } from '../scene/SilentErrorBoundary'
 import { useStore } from '../state/store'
@@ -40,6 +41,7 @@ import {
 } from './walls/wallBodyShape'
 import { getWallOpacity } from './walls/wallReveal'
 import { cornerNeighbors } from './walls/wallRevealMath'
+import { useFloorTexTransform, useWallTexTransform } from './walls/wallTexTransform'
 
 const WALL_COLOR = '#ede9e2' // matches PlanShell's plaster walls
 const DOOR_COLOR = '#8a6d4f'
@@ -111,13 +113,20 @@ function WallBoxBody({
 
   const t = clippedThickness(wall.thickness)
   const h = wall.topHeight ?? height
+  // Per-room wall-texture transform (tile size / angle) — see
+  // `walls/wallTexTransform.ts`. Folded into the memo, not an effect:
+  // `applyUvTransform` mutates UVs, so re-running it would compound them.
+  const wallTex = useWallTexTransform(roomId, wall.wallId)
   const bodyGeometry = useMemo(
     () =>
-      extrudeWallBody(
-        wallBodyOutlineFromSpans(cutouts, -len / 2, len / 2, h, OPENING_CLEARANCE),
-        t,
+      applyUvTransformed(
+        extrudeWallBody(
+          wallBodyOutlineFromSpans(cutouts, -len / 2, len / 2, h, OPENING_CLEARANCE),
+          t,
+        ),
+        wallTex,
       ),
-    [cutouts, len, h, t],
+    [cutouts, len, h, t, wallTex],
   )
   useEffect(() => () => bodyGeometry.dispose(), [bodyGeometry])
 
@@ -357,6 +366,9 @@ export function PlanRoomShell({ shell }: { shell: Shell }) {
   const room = shell.room
   const height = room.ceilingHeight ?? planHeight
   const floorMat = resolvePlanRoomFloor(finishes, room) as MaterialId
+  // The room's lay direction + tile size, so a direction picked in the finish
+  // panel holds inside the room editor and not just in the overview.
+  const floorTex = useFloorTexTransform(room.id)
   const wallMat = resolvePlanRoomWall(finishes, room) as MaterialId | null
   const floorLevelsOn = useFeature('floorLevels')
   const offsetM = roomFloorOffsetM(room, floorLevelsOn)
@@ -400,6 +412,7 @@ export function PlanRoomShell({ shell }: { shell: Shell }) {
             depth={room.depth}
             polygon={room.polygon}
             materialId={floorMat}
+            texTransform={floorTex}
           />
         ) : (
           shell.rects.map((r, i) => (
@@ -410,6 +423,7 @@ export function PlanRoomShell({ shell }: { shell: Shell }) {
               width={r.x1 - r.x0}
               depth={r.z1 - r.z0}
               materialId={floorMat}
+              texTransform={floorTex}
             />
           ))
         )}

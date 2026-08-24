@@ -8,6 +8,7 @@ import { useMaterials } from '../materials/useMaterial'
 import { roomDisplayName } from '../state/rooms'
 import { useStore } from '../state/store'
 import { ColorPicker } from './controls/ColorPicker'
+import { DirectionRow } from './finish/DirectionRow'
 import { ShowroomRow } from './finish/ShowroomRow'
 import { Icon } from './toolbar/icons'
 
@@ -29,6 +30,7 @@ export function WallAccentPicker() {
   const enabled = useFeature('wallAccentPicker')
   const fRecolor = useFeature('finishRecolor')
   const fShowroom = useFeature('showroomFinishes')
+  const wallTextureOn = useFeature('wallTexture')
   const selectedWall = useStore((s) => s.selectedWall)
   const wallAccents = useStore(useShallow((s) => s.finishes.wallAccents))
   const roomWall = useStore(useShallow((s) => s.finishes.walls))
@@ -104,6 +106,12 @@ export function WallAccentPicker() {
             className={currentColor ? 'on' : ''}
           />
         </div>
+        {/* This ONE face's lay direction — an accent wall usually wants its own
+            (panelling turned against the room's brick, a feature wall run
+            vertically). Falls back to the room's direction until edited. */}
+        {wallTextureOn ? (
+          <DirectionRow roomId={selectedWall.roomId} surface="wall" wallId={selectedWall.wallId} />
+        ) : null}
         <button
           type="button"
           onClick={() => clearWallAccent(key)}

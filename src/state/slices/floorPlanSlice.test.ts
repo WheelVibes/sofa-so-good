@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useStore } from '../store'
+import { roomPatchNeedsFork } from './floorPlanSlice'
 
 describe('floorPlanSlice', () => {
   beforeEach(() => useStore.getState().__resetForTest())
@@ -867,5 +868,28 @@ describe('mirrorFloorPlan (PARITY-PLAN-MIRROR-REGION)', () => {
     const w = useStore.getState().floorPlan.walls.find((x) => x.id === wid)!
     expect(w.start[1]).toBe(0)
     expect(w.end[1]).toBe(0)
+  })
+})
+
+describe('roomPatchNeedsFork — which room edits bind the plan', () => {
+  it('treats finishes and texture dials as appearance, not geometry', () => {
+    expect(roomPatchNeedsFork({ floor: 'floor-wood-oak' })).toBe(false)
+    expect(roomPatchNeedsFork({ wall: 'wall-brick-red' })).toBe(false)
+    expect(roomPatchNeedsFork({ ceilingFinish: 'wall-paint-white' })).toBe(false)
+    expect(roomPatchNeedsFork({ floorTexAngle: 1, floorTexScale: 2 })).toBe(false)
+    expect(roomPatchNeedsFork({ wallTexAngle: 1, wallTexScale: 2 })).toBe(false)
+  })
+
+  it('treats anything that moves / reshapes / renames a room as geometry', () => {
+    expect(roomPatchNeedsFork({ width: 4 })).toBe(true)
+    expect(roomPatchNeedsFork({ origin: [1, 1] })).toBe(true)
+    expect(roomPatchNeedsFork({ name: 'Study' })).toBe(true)
+    expect(roomPatchNeedsFork({ polygon: [] })).toBe(true)
+    expect(roomPatchNeedsFork({ ceiling: { style: 'tray' } })).toBe(true)
+  })
+
+  it('forks on a mixed patch, and on an empty one (unknown intent)', () => {
+    expect(roomPatchNeedsFork({ floorTexAngle: 1, width: 4 })).toBe(true)
+    expect(roomPatchNeedsFork({})).toBe(true)
   })
 })

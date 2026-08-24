@@ -4,6 +4,7 @@ import type { Group, Material, Mesh } from 'three'
 import { Plane, Vector3 } from 'three'
 import { floorPointInFootprint, itemFootprint } from '../collision/placement'
 import { isFeatureEnabled } from '../features/featureFlags'
+import { boxProjectSubtree } from '../materials/boxUv'
 import { ContactShadow } from '../scene/ContactShadow'
 import { isDragRelease, markPointerDownOnItem } from '../scene/clickVsDrag'
 import { shouldBeginItemDrag, shouldDuplicateOnDragStart } from '../scene/dragHelpers'
@@ -370,6 +371,21 @@ function FurnitureInner({ item, def, passive, contactShadow, dimmed }: Furniture
       restore()
     }
   }, [opacity, item.props, def])
+
+  // Object-space box projection for parametric parts (MAT-006c, `furnitureBoxUv`).
+  // The primitives build hundreds of `<boxGeometry>`/`BeveledBox` slabs whose
+  // default UVs are 0..1 PER FACE, so a tiled finish scaled with the part rather
+  // than the world and its grain followed the face's axes rather than the part's
+  // length. Re-projecting here — once per geometry, tagged so re-renders are a
+  // no-op — is the one place that reaches every primitive without touching all
+  // of them. GLB items are excluded: their authored UVs are the truth.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: item.props identity drives the re-run (a prop edit rebuilds geometries).
+  useEffect(() => {
+    if (def.kind !== 'parametric') return
+    if (!isFeatureEnabled('furnitureBoxUv')) return
+    const g = opacityRootRef.current
+    if (g) boxProjectSubtree(g)
+  }, [def, item.props])
 
   // Register the root group for the placement drop-in animator (placementDrop.ts),
   // which mutates its Y directly for the ~0.3 s drop — Furniture keeps no per-item

@@ -39,6 +39,7 @@ import { Disclosure } from './controls/Disclosure'
 import { Select } from './controls/Select'
 import { useRovingTabs } from './controls/useRovingTabs'
 import { useSlideDir } from './controls/useSlideDir'
+import { DirectionRow } from './finish/DirectionRow'
 import { MaterialComposer } from './finish/MaterialComposer'
 import { ShowroomRow } from './finish/ShowroomRow'
 import { SwatchGroup } from './finish/swatches'
@@ -301,6 +302,8 @@ export function FinishPicker() {
   const fLayoutReroll = useFeature('layoutReroll')
   const fEyedropper = useFeature('finishEyedropper')
   const fPaintViz = useFeature('paintVisualizer')
+  const fFloorTexture = useFeature('floorTexture')
+  const fWallTexture = useFeature('wallTexture')
   const eyedropperArmed = useStore((s) => s.eyedropperArmed)
   const sampledFinish = useStore((s) => s.sampledFinish)
   const toggleEyedropper = useStore((s) => s.toggleEyedropper)
@@ -630,6 +633,10 @@ export function FinishPicker() {
                 recentFinishIds={recentFinishes}
                 curated={fDesignerPicks ? resolveDesignerPicks('floor', materials) : undefined}
               />
+              {/* Lay direction (+ tile size) for this room's floor — the angle a
+                  plank run or tile course follows. Real floors run one way
+                  across the room, so it belongs beside the finish itself. */}
+              {fFloorTexture ? <DirectionRow roomId={roomId} surface="floor" /> : null}
               <button
                 type="button"
                 className="finish-apply-all"
@@ -678,6 +685,9 @@ export function FinishPicker() {
                 recentFinishIds={recentFinishes}
                 curated={fDesignerPicks ? resolveDesignerPicks('wall', materials) : undefined}
               />
+              {/* Lay direction (+ tile size) for this room's wall finish — brick
+                  courses, subway runs and panelling all have a direction. */}
+              {fWallTexture ? <DirectionRow roomId={roomId} surface="wall" /> : null}
               <button
                 type="button"
                 className="finish-apply-all"

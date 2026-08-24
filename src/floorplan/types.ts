@@ -248,6 +248,11 @@ export interface PlanRoom {
    *  rotates the texture (radians). Absent = default tiling. */
   floorTexScale?: number
   floorTexAngle?: number
+  /** The same pair for the room's WALL finish — a tiled wall (brick, subway,
+   *  panelling, wallpaper) needs the tile size and run direction as much as a
+   *  floor does. Absent = default tiling. */
+  wallTexScale?: number
+  wallTexAngle?: number
   /** Optional in-plane offset (metres) of the room's name label from its
    *  centroid, so a label can be nudged clear of furniture / a tight room
    *  (Sweet Home 3D movable labels). Absent → centred on the centroid. */

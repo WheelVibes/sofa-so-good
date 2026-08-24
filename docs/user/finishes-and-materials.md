@@ -152,6 +152,11 @@ just the built-in palette + **Upload**):
 - Each card shows its **download size** at the chosen resolution (1K / 2K / 4K)
   before you tap, so you can avoid pulling a large texture on a slow connection —
   heavy downloads are flagged in amber.
+- **ambientCG textures come from our own library** and ship at **1K** only (the
+  resolution chips apply to Poly Haven), so they need you to be **signed in**;
+  the offline demo build has no library behind it and shows Poly Haven only.
+- If a preview can't load, the card shows a **Retry preview** chip — tap it to
+  try that thumbnail again without re-opening the panel.
 
 ## Materials on furniture (CC0 DLC)
 
@@ -181,6 +186,16 @@ A few finishing touches shape the surfaces beyond a flat colour:
 - **Floor texture scale & angle** — in the same room inspector, **Tile size (×)**
   and **Angle (°)** scale and rotate a room's floor texture, so a plank or tile
   pattern runs the way you want and reads at the right size.
+- **Wall texture scale & angle** — the same two dials under **Wall texture**, for
+  the room's wall finish: size brick courses or subway tiles to the real thing,
+  or turn panelling to run the other way.
+
+The same controls sit in the **finishes panel** itself, under **Floor direction**
+and **Wall direction**: pick **0° / 45° / 90°** (straight, diagonal, across) or
+type any angle, and set the tile size. Direction is per room and per surface, so
+a room's floor and its walls can run different ways. Wood planks, tile courses
+and panelling keep whatever direction you set — the app only varies the stagger
+between boards, the way a real floor is laid.
 - **Crown molding** — a decorative trim strip is drawn automatically at the
   **wall–ceiling junction**, with mitre‑cut corners, for a more finished room.
 

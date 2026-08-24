@@ -12,7 +12,7 @@ vi.mock('../../catalog/remote/hooks', async (orig) => {
   const real = (await orig()) as Record<string, unknown>
   return {
     ...real,
-    useThumbnail: () => undefined,
+    useThumbnail: () => ({ url: undefined, failed: false, retry: () => {} }),
     useResolveStatus: () => 'idle' as const,
     useAssetSize: () => sizeRef.current,
   }

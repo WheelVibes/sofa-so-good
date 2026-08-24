@@ -230,16 +230,9 @@ export default defineConfig(({ command }) => ({
         target: 'http://localhost:8788',
         changeOrigin: true,
       },
-      '/acg': {
-        target: 'https://ambientcg.com',
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/acg/, ''),
-      },
-      '/acg-cdn': {
-        target: 'https://acg-media.ambientcg.com',
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/acg-cdn/, ''),
-      },
+      // NOTE: the `/acg` + `/acg-cdn` proxies (live ambientcg.com API) were
+      // removed 2026-08-25 with the live transport — ambientCG is served only
+      // from our R2 mirror via `/api/assets/acg/...`, in dev and in prod alike.
       '/kenney': {
         target: 'https://kenney.nl',
         changeOrigin: true,

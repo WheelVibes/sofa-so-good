@@ -5,6 +5,227 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.30.0.0 — Chrome verification quirks written down (PR version)
+
+The version this PR ships. Everything below (v0.29.4.0 → v0.29.5.4) rides in it.
+
+`docs/visual-verification-playbook.md` gains a **Claude-in-Chrome quirks** section for driving
+the real tab, from the traps this session actually hit: a backgrounded tab never mounts the
+`<Canvas>` (App's phase-1→2 gate is two chained `requestAnimationFrame`s, which the v0.28.0.0
+boot fix does not cover) so probes return live store state against a scene that does not exist;
+`window.__three` going stale across a scene swap; `SilentErrorBoundary` turning a render crash
+into a silently missing surface; console capture only starting at the first
+`read_console_messages` call; probe output refused as `[BLOCKED: Cookie/query string data]`;
+console probes mutating the user's real design (and store actions with side effects such as the
+plan fork); the two-renderer split deciding which symptoms you can even see; 7-day IndexedDB
+index caches masquerading as live behaviour; `scripts/dev-api.ts` not hot-reloading; and the
+credentialed-cross-origin CORS signature. The rAF gotcha itself is extended with the second gate,
+and `docs/chrome-interactive-audit.md` cross-references it.
+
+## v0.29.5.4 — direction per wall FACE, and finish edits stop forking the flat
+
+**Per-face direction.** Direction was per room; an accent wall usually wants its
+own — panelling turned against the room's brick, a feature wall run vertically.
+`finishes.wallTex` now carries a transform keyed `${wallId}:${roomId}`, exactly
+like `wallAccents`, set from the **Accent wall** panel (the surface where one
+face is already selected) and resolved face → room → nothing by
+`useWallTexTransform(roomId, wallId)`. A face with no override shows — and
+follows — its room's direction until the first edit pins it; "Match room
+direction" drops it again, and a dial returned to its default is deleted rather
+than stored. The two sides of one wall stay independent. Verified in the app: a
+90° override turned 3 face planes of one wall while the room's other 16 stayed
+put.
+
+**`updateRoom` no longer forks the curated flat for a finish edit.** The fork
+exists so a *structural* edit binds the 3D scene to the edited geometry — but it
+fired for any room patch, so nudging "Tile size (×)" in the plan inspector
+silently converted a curated flat into a custom plan, which then rendered
+through `PlanShell` with visibly different walls. `roomPatchNeedsFork` now asks
+what the patch touches: finishes and texture transforms are appearance and leave
+the plan's identity alone, anything that moves, reshapes or renames a room still
+forks. The inspector's dials also route through `setSurfaceTexture` now, so
+there is one no-fork path for both entry points.
+
+**Fixed on the way:** a save written before `wallTex` existed rehydrates without
+the key, and the unguarded `finishes.wallTex[key]` read threw inside
+`WallSegment`'s face — swallowed by `SilentErrorBoundary`, so every wall in the
+flat quietly lost its finish. Every read of the new map is optional-chained; the
+rule is now written down in `src/materials/CLAUDE.md`.
+
+## v0.29.5.3 — lay direction is the user's call, per floor and per wall
+
+Knowing that a plank floor runs one way is only half of it — WHICH way is a
+design decision. **Floor direction** and **Wall direction** now sit in the
+finishes panel itself, on the Floor and Walls tabs: a 0° / 45° / 90° segmented
+control (straight, diagonal, across — the three directions floors are actually
+laid in), an angle stepper for anything else, and the tile-size dial beside it.
+Per room and per surface, so a room's floor and its walls can run differently.
+
+The dials already existed on the plan room (`floorTexAngle`/`wallTexAngle`) but
+were reachable only from the 2D plan editor's Room inspector, and the floor pair
+applied only in the plan overview — the room editor and the curated flat drew
+their floors through other components that ignored it. Every floor and wall
+render site now reads the room's transform (`useFloorTexTransform` /
+`useWallTexTransform`).
+
+Writes go through the new `finishesSlice.setSurfaceTexture`, which follows
+`planWithRoomFinish`'s no-fork rule: choosing a grain direction is a finish
+decision, so it must not convert the curated flat into a custom plan the way a
+geometry edit does. A dial set back to its default is deleted rather than
+stored, so an untouched room still serialises byte-identically, and each change
+is one coalesced undo step.
+
+## v0.29.5.2 — the break-up stops rotating wood floors, and learns to tell
+
+RD-406 gave every tile cell a 0/90/180/270° turn regardless of the material. On
+anything with a **lay direction** that is wrong, and on a plank floor it is
+obviously wrong: adjacent cells ran their planks across each other, so a large
+oak floor rendered as a patchwork rather than a floor.
+
+Checked against how these materials are actually installed rather than reasoned
+from first principles: plank flooring runs **one direction across the whole
+floor** — parallel to the longest wall, the light source, or perpendicular to
+the joists — and changing direction between adjacent rooms is called out as a
+mistake; what varies is the **end stagger**. Directional tile ships with an
+orientation arrow on its back so the whole floor reads one way, and even
+"random-look" ranges get their variety from mixing faces across boxes, not from
+rotating tiles on the floor.
+
+So directional finishes are now limited to **180°** turns, which re-phase a cell
+while leaving a board running exactly as it was (a plank can be laid either end
+first). The sub-tile offsets are untouched, so the stagger variety that hides
+the tiling remains.
+
+**Which finishes are directional is measured, not listed.** A hand-kept table
+would answer for today's catalog and rot the moment someone adds a pattern,
+uploads a texture, or the ambientCG library grows. `materials/textureDirection.ts`
+reads it off the albedo with two signals, because "can this be turned 90°?" is
+two questions: gradient-tensor **coherence** (is there a dominant direction?)
+and **axis-profile similarity** (is the lattice square — would a quarter turn
+land its grid lines back where they were?). The second is what catches a hex
+grid, which has no dominant direction and still misaligns.
+
+Measured on the real catalog: oak 0.44 and vinyl 0.52 coherence → directional;
+square ceramic similarity 0.88 → free to rotate; hex 0.24 and veined marble 0.48
+→ directional; terrazzo and carpet flat on both axes → free to rotate; the
+ambientCG stone scan on the test design → free to rotate. Every verdict matches
+what a tiler would do, and nothing had to be enumerated to get there.
+`ISOTROPIC_PATTERNS` survives only as the prior for when pixels cannot be read
+(no 2D context, an image still decoding, a tainted cross-origin canvas), where
+the safe answer for an unknown finish is "directional".
+
+Verified on a real GPU: the same oak floor before and after, patchwork → one
+grain direction with varied stagger.
+
+## v0.29.5.1 — custom plans: wall finishes render, floor click opens the picker
+
+Two long-standing gaps in the CUSTOM-PLAN path (the default flat has never had
+either), both reported from a real session.
+
+**A wall finish was invisible in the overview.** `PlanShell` draws each wall as
+one flat-coloured box — the plan's `wallColor` or a per-wall override — with no
+finish anywhere, so brick / subway / panelling / wallpaper only appeared once you
+entered that room's editor, and picking one from the overview looked like a
+no-op. `apartment/walls/PlanWallFace.tsx` adds the piece the default flat has
+always had (`WallSegment`'s face planes): a world-UV plane on each side of a wall
+box, carrying the finish of whichever room fronts that side. `roomFacingWallSide`
+probes just off the face rather than assuming "away from the plan centre", so it
+is right on notched plans; the faces clone their material and `syncFaceFade`
+mirrors the wall's reveal fade onto them; they carry the same
+`finishSurfaceUserData` tag, so canvas finish-drop and the eyedropper now work on
+custom-plan walls in the overview too.
+
+**Clicking a floor did nothing inside a custom-plan room editor.** `RoomFloor`
+selects the room on click (which is what opens the finish picker); its custom-plan
+twin `PlanRoomFloor` only ever handled the overview "dive into this room" case, so
+the panel was unreachable by clicking the floor. Both now route through the pure
+`floor/floorClick.ts` decision, so they cannot drift again. (Nothing to do with
+displacement or POM height — the click was simply never handled.)
+
+## v0.29.5.0 — texture mapping: irregular floors, furniture grain, wall dials
+
+Three gaps in how surfaces are tiled, plus the production half of the 401 fix.
+
+**A 401 is silent in production.** Accounts are admin-created (no public signup),
+so "sign in to load the online library" is advice a visitor cannot act on: a
+shipped build now treats an unauthenticated provider as simply unavailable — no
+banner, no Retry, no red status chip — while dev still gets the message that
+explains the 401. A genuine outage still surfaces in both.
+
+**Irregular rooms get repetition break-up.** RD-406 subdivided a rectangle, so
+L-shaped and angled rooms kept the visible tile grid the rect floors had lost.
+`breakRepetitionShape` clips the room polygon to the tile grid instead
+(Sutherland–Hodgman per cell), triangulates each cell piece and runs it through
+the same `cellUvTransform`. Cells anchor to the WORLD grid, not the room's
+bounding box, so two rooms agree on a shared cell and the pattern doesn't jump
+at a threshold. Same `tileBreakup` flag, same guards (degenerate polygon, ≤2
+cells, runaway cell count → the plain unwrap).
+
+**Furniture grain follows the part, not the face.** Parametric pieces are built
+from boxes carrying default `BoxGeometry` UVs — 0..1 per face whatever the face
+measures — so a tiled finish scaled with the part (a 1.6 m tabletop and a 4 cm
+leg showing the same number of tiles) and the grain ran across a leg rather than
+along it. `materials/boxUv.ts` re-projects each part from its own geometry in
+metres, with U on the longer face axis, applied from `Furniture.tsx` for
+parametric defs only (GLB keeps its authored UVs; round shapes keep their wrap).
+Flag `furnitureBoxUv`, **simple tier** — a correctness fix, not an advanced dial,
+so Simple mode is not left with mis-scaled grain.
+
+**Walls get the floor's two dials.** `wallTexScale`/`wallTexAngle` on the plan
+room, surfaced in the Room inspector beside the floor pair (flag `wallTexture`,
+simple tier) and applied at all three wall-face sites. Brick courses and subway
+tiles can be sized to the real tile; panelling can be turned. The transform is
+folded into each geometry `useMemo` rather than an effect — it mutates UVs, so
+re-running it over an already-transformed body would compound the scale.
+
+## v0.29.4.0 — ambientCG: R2 mirror only, and thumbnails that admit failure
+
+Every ambientCG card in **Browse materials** sat on its loading skeleton forever.
+Three separate faults, stacked:
+
+- **Credentialed cross-origin thumbnail fetch.** `acgLibrary.fetchThumbnail` sent
+  `credentials: 'include'` to whatever `entry.thumbUrl` said. Fed a cached entry
+  from the *live* transport, that is a request to ambientCG's CDN — which answers
+  `Access-Control-Allow-Origin: *`, and the wildcard is invalid once credentials
+  are in play, so the browser rejected every one. Cookies now go only to our own
+  proxy (`libraryFetch`), and the thumbnail URL is derived from the slug rather
+  than read off a possibly-stale entry.
+- **A week-old index the current provider can't serve.**
+  `bootstrapRemoteCatalog` reuses a cached index for 7 days without asking
+  whether it still matches the transport that would fetch it. Providers can now
+  implement `validateCached(entries)`; `acgLibrary` rejects anything not served
+  from `/api/assets/acg/`, so a stranded index is refetched instead of rendered.
+- **A swallowed error rendering as an eternal shimmer.** `useThumbnail` caught
+  and dropped every rejection. It now returns `{ url, failed, retry }`, the card
+  shows a **Retry preview** chip instead of a skeleton, and the thumbnail is
+  displayed *before* it is cached so a failed IndexedDB write can no longer hide
+  a picture we already have.
+
+**The live ambientcg.com transport is deleted** (`providers/ambientcg.ts`, the
+Vite `/acg`+`/acg-cdn` proxies, the same pair in the Docker nginx config).
+Every assumption behind it had rotted: the CDN moved to
+`acg-media.struffelproductions.com` (which the proxy rewrite never covered),
+`full_json` returns 100 of ~2000 assets per page, and `category` is now `null`
+on every material, so the whole corpus classified as floor and the Wall filter
+came back empty. ambientCG is served from our R2 mirror in dev and prod alike;
+`activeProviderIds()` no longer takes an `isDev` argument because the answer no
+longer depends on it.
+
+**A 401 now says so.** The ambientCG grid is served from our own bucket — a
+local `resources/` mirror in dev — behind the session gate, so an unauthenticated
+load reported "Couldn't reach the online library… needs an internet connection",
+which sends people hunting for a network fault that does not exist.
+`acgLibrary.fetchIndex` throws *"Sign in to load the ambientCG library"* on 401
+and the banner reads **"Not authorized — sign in to load the online library."**
+Genuine outages keep the offline copy.
+
+**Dev sessions survive a dev-api restart.** `scripts/dev-api.ts` kept the
+SESSIONS KV in memory only, so every restart silently signed you out — and the
+first symptom was that misleading 401. It now mirrors to
+`.wrangler/sofa-dev-sessions.json` (gitignored, TTL-respecting, best-effort).
+
+Also: dropped an unused `resolve` import in `scripts/dev-api.ts` (Biome error).
+
 ## v0.29.3.7 — fix the two failing CI checks
 
 - **CodeQL, high severity — regex injection** (`js/regex-injection`).

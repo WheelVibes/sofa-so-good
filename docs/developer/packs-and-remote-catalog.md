@@ -47,9 +47,17 @@ prod counterpart to the dev-only `ikea-live` scrape. Flow:
 
 ## Remote material providers
 
-`catalog/remote/providers/` — Poly Haven (CORS, prod) + ambientCG (dev-proxy).
-`activeProviderIds(isDev)` / `PROD_PROVIDER_IDS` gate which bootstrap; only
-CORS-capable ones run in production (`remoteCatalogSlice.bootstrapRemoteCatalog`).
+`catalog/remote/providers/` — Poly Haven (CORS, prod) + ambientCG (our R2
+mirror over the auth-gated `/api/assets` proxy; the live ambientcg.com
+transport was removed 2026-08-25). `activeProviderIds()` / `PROD_PROVIDER_IDS`
+gate which bootstrap (`remoteCatalogSlice.bootstrapRemoteCatalog`): Poly Haven
+always, ambientCG whenever the `ambientcgLibrary` flag is on — same answer in
+dev and prod, since ambientCG is same-origin now.
+
+A provider may also implement `validateCached(entries)`. The index cache is
+kept for a week, which outlives a transport change: entries written by an older
+build can point at URLs the current provider cannot fetch, and a card built from
+one shows a loading skeleton forever. Returning `false` forces a refetch.
 
 ## Adding a source
 

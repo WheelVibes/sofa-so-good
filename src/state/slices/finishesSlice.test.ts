@@ -211,3 +211,60 @@ describe('finishes ↔ plan write-through (FP-next)', () => {
     expect(f.walls['livingDining']).toBe('wall-brick-red')
   })
 })
+
+describe('setSurfaceTexture — user-set lay direction per floor / wall', () => {
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+  })
+
+  const room = () => useStore.getState().floorPlan.rooms.find((r) => r.id === 'livingDining')
+
+  it('sets a floor direction and a wall direction independently', () => {
+    const st = useStore.getState()
+    st.setSurfaceTexture('livingDining' as RoomId, 'floor', { angle: Math.PI / 2 })
+    st.setSurfaceTexture('livingDining' as RoomId, 'wall', { angle: Math.PI / 4 })
+    expect(room()?.floorTexAngle).toBeCloseTo(Math.PI / 2, 6)
+    expect(room()?.wallTexAngle).toBeCloseTo(Math.PI / 4, 6)
+  })
+
+  it('does NOT fork the curated flat — picking a direction is a finish decision', () => {
+    // `updateRoom` forks the default plan into a custom one (it is a geometry
+    // edit); a grain direction must not silently convert someone's flat.
+    const before = useStore.getState().floorPlan.id
+    useStore.getState().setSurfaceTexture('livingDining' as RoomId, 'floor', { angle: 1 })
+    expect(useStore.getState().floorPlan.id).toBe(before)
+  })
+
+  it('stores nothing for a default value, so an untouched room serialises as before', () => {
+    const st = useStore.getState()
+    st.setSurfaceTexture('livingDining' as RoomId, 'floor', { angle: Math.PI / 2, scale: 2 })
+    st.setSurfaceTexture('livingDining' as RoomId, 'floor', { angle: 0 })
+    expect(room()?.floorTexAngle).toBeUndefined()
+    expect(room()?.floorTexScale).toBe(2)
+    st.setSurfaceTexture('livingDining' as RoomId, 'floor', { scale: 1 })
+    expect(room()?.floorTexScale).toBeUndefined()
+  })
+
+  it('leaves the other dial alone when only one is patched', () => {
+    const st = useStore.getState()
+    st.setSurfaceTexture('livingDining' as RoomId, 'wall', { scale: 1.5 })
+    st.setSurfaceTexture('livingDining' as RoomId, 'wall', { angle: 0.5 })
+    expect(room()?.wallTexScale).toBe(1.5)
+    expect(room()?.wallTexAngle).toBe(0.5)
+  })
+
+  it('is undoable', () => {
+    useStore.getState().setSurfaceTexture('livingDining' as RoomId, 'floor', { angle: 1 })
+    expect(room()?.floorTexAngle).toBe(1)
+    useStore.getState().undo()
+    expect(
+      useStore.getState().floorPlan.rooms.find((r) => r.id === 'livingDining')?.floorTexAngle,
+    ).toBeUndefined()
+  })
+
+  it('ignores an unknown room instead of corrupting the plan', () => {
+    const before = useStore.getState().floorPlan
+    useStore.getState().setSurfaceTexture('nope' as RoomId, 'floor', { angle: 1 })
+    expect(useStore.getState().floorPlan).toBe(before)
+  })
+})

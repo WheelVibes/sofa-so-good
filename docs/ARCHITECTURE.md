@@ -68,8 +68,8 @@ same change that reshapes a system.
 - **Docker**: `docker build -t sofa-so-good . && docker run -p 8080:80 sofa-so-good` —
   multi-stage image (node:26.7.0-alpine build with `VITE_BASE=/` → nginx:1.27-alpine).
   `docker/nginx.conf` adds the wasm/glb/ktx2 MIME types, SPA fallback (excluding `/docs/`),
-  cache headers, and same-origin `/acg`/`/acg-cdn`/`/kenney` proxies for the runtime CC0
-  catalog (the production equivalent of the dev-only Vite proxies). `.dockerignore` keeps
+  cache headers, and a same-origin `/kenney` proxy for the runtime CC0 catalog (the
+  production equivalent of the dev-only Vite proxy). `.dockerignore` keeps
   the ~1 GB asset/tooling trees out of the build context.
 - **Desktop (Electron)**: `npm run build:desktop` (web build with `VITE_BASE=./` +
   `VITE_DISABLE_PWA=1`, via `scripts/build-desktop.mjs`); `npm run electron:start` (run the
@@ -126,7 +126,14 @@ same change that reshapes a system.
   `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` repo secrets). Full guide: `docs/deployment-cloudflare.md`.
 - `src/apartment/` — default flat. `constants.ts` = source of truth for walls/doors/
   windows/rooms. `walls/`, `floor/`, `Window`/`Door`/`Ceiling`/`Skirting`. `PlanShell.tsx`
-  renders a user-authored plan (extruded walls + per-room floor/ceiling) when active.
+  renders a user-authored plan (extruded walls + per-room floor/ceiling) when active; its wall
+  boxes carry `walls/PlanWallFace.tsx` interior faces so a room's WALL finish shows in the
+  overview too (the box itself is only the plan's flat wall colour — before this, a picked wall
+  finish appeared only inside that room's editor). `roomFacingWallSide` probes just off each face
+  to decide which room owns it (correct on notched plans), and `syncFaceFade` mirrors the reveal
+  fade onto the faces' cloned materials. A floor click routes through the shared
+  `floor/floorClick.ts` decision (`select-room` inside the editor → opens the finish picker,
+  `enter-room` from the overview) so `RoomFloor` and `PlanRoomFloor` cannot drift again.
   `ceiling/` = per-room ceiling treatments: pure `ceilingModel.ts` `buildCeiling` (tray/coffered/
   dropped → planes + risers, rect-room only, flat fallback) + `RoomCeiling.tsx` (tier-gated:
   risers/cove on High+); both `Ceiling.tsx` (default flat) and `PlanRoomCeiling.tsx` delegate to it
@@ -245,8 +252,17 @@ same change that reshapes a system.
   (wood/parquet/tile/marble/carpet/concrete/terrazzo/plaster/wallpaper/checker/brick…),
   `furnitureMaterials.ts` (tintable grain + `getSolidMaterial` + `mat:<id>` DLC +
   `getSurfaceMaterial`), `worldUv.ts` (world-metre UV planes/shapes + the pure
-  `breakRepetitionPlane`/`cellUvTransform` tile-repetition break-up, RD-406/MAT-006a, gated by
-  the `tileBreakup` flag at the rect-floor build sites), `finishDrop.ts` (drag-to-apply core; canvas drop =
+  `breakRepetitionPlane`/`breakRepetitionShape`/`cellUvTransform` tile-repetition break-up,
+  RD-406/MAT-006a, gated by the `tileBreakup` flag at the rect AND polygon floor build sites —
+  irregular rooms clip to the tile grid via `clipPolygonToRect`; `finishDirection.ts`
+  (`allowsQuarterTurns`) limits directional finishes to 180° turns so a wood floor keeps one grain
+  direction — and decides that by MEASURING the albedo (`analyzeTextureDirection.ts` +
+  pure `textureDirection.ts`: gradient coherence + axis-profile lattice similarity), so a new
+  pattern/scan/upload classifies itself with no list to maintain), `boxUv.ts` (object-space box
+  projection for parametric furniture UVs, MAT-006c, `furnitureBoxUv` flag — metre-scaled tiles
+  with U on the longer face axis, so grain runs along a part instead of across it),
+  `apartment/walls/wallTexTransform.ts` (per-room `wallTexScale`/`wallTexAngle`, `wallTexture`
+  flag — the wall counterpart of the room's floor pair), `finishDrop.ts` (drag-to-apply core; canvas drop =
   `scene/FinishDropSurface.tsx` + `scene/finishDropTarget.ts`, commit = `state/finishDropApply.ts`), `convert/`
   (`decodeImage.ts` incl. TGA/TIFF/EXR/HDR/KTX2/DDS, `reencode.ts`→WebP; 16MB cap; `decodeGpuTexture.ts` handles KTX2+DDS via pure-JS or GPU readback).
 - `src/scene/` — R3F `<Canvas>` + systems: `lighting/`, `Effects.tsx` (bloom+SMAA),
@@ -1122,12 +1138,16 @@ same change that reshapes a system.
   constructed) and packs it into a self-contained GLB in-browser via `convertModel`
   (`furniture/convert/`), then reuses `buildEntry`/`commit`; nothing is vendored. **Remote material
   providers** (`catalog/remote/providers/`): Poly Haven (CORS, prod) + ambientCG, gated
-  by `activeProviderIds`/`PROD_PROVIDER_IDS`. **ambientCG has two transports behind one provider
-  id**, dispatched per call by `PROVIDERS.ambientcg` on the `ambientcgLibrary` flag (pro tier,
-  default on): `acgLibrary.ts` reads our **R2 mirror** (`acg/` prefix + `library/acg-index.json`
-  manifest) over the same-origin auth-gated `/api/assets` proxy and is the prod path, while
-  `ambientcg.ts` hits the live ambientcg.com API and is dev-only (no CORS headers). Both keep the
-  `ambientcg` id, so `ambientcg:<slug>:<res>` finish ids round-trip across either. The mirror is
+  by `activeProviderIds`/`PROD_PROVIDER_IDS`. **ambientCG has exactly one transport**:
+  `acgLibrary.ts` reads our **R2 mirror** (`acg/` prefix + `library/acg-index.json` manifest)
+  over the same-origin auth-gated `/api/assets` proxy, in dev and prod alike, whenever the
+  `ambientcgLibrary` flag is on (pro tier, default on). The live ambientcg.com transport
+  (`ambientcg.ts` + the `/acg`,`/acg-cdn` proxies) was **removed 2026-08-25**: its CDN moved to
+  `acg-media.struffelproductions.com`, `full_json` caps a page at 100 of ~2000 assets, and
+  `category` is now `null` on every material. Because the index cache lives a week, a provider
+  may implement `validateCached(entries)` — `acgLibrary` rejects entries not served from
+  `/api/assets/acg/`, so an index cached from the old transport is refetched instead of
+  rendered (stale entries produced cards that loaded forever). The mirror is
   built by `scripts/pack-ambientcg.mjs` (zips → the seven bound channels as near-lossless WebP +
   a 256 px thumb + manifest) and published with `scripts/push-r2-library.mjs`. The bound set is
   albedo/normal/roughness/AO/**metalness**/**opacity**/**displacement** — see

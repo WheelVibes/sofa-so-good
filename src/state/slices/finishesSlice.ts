@@ -40,6 +40,40 @@ function planWithRoomFinish(
   }))
 }
 
+/**
+ * Write a floor/wall texture transform (tile size + angle) through to the
+ * active plan's room entry. Same no-fork discipline as `planWithRoomFinish`:
+ * this is design data that rides along with the finish, so picking a grain
+ * direction must not convert the curated flat into a custom plan. A dial set to
+ * its default (`undefined`, or a 1× scale / 0° angle) is REMOVED rather than
+ * stored, so an untouched room serialises exactly as before.
+ */
+function planWithRoomTexture(
+  plan: FloorPlan,
+  roomId: string,
+  surface: 'floor' | 'wall',
+  patch: { scale?: number; angle?: number },
+): FloorPlan {
+  const level = levelOfRoom(plan, roomId)
+  const room = level?.rooms.find((r) => r.id === roomId)
+  if (!level || !room) return plan
+  const scaleKey = surface === 'floor' ? 'floorTexScale' : 'wallTexScale'
+  const angleKey = surface === 'floor' ? 'floorTexAngle' : 'wallTexAngle'
+  const next: Record<string, unknown> = { ...room }
+  if ('scale' in patch) {
+    if (patch.scale === undefined || Math.abs(patch.scale - 1) < 1e-3) delete next[scaleKey]
+    else next[scaleKey] = patch.scale
+  }
+  if ('angle' in patch) {
+    if (patch.angle === undefined || Math.abs(patch.angle) < 1e-4) delete next[angleKey]
+    else next[angleKey] = patch.angle
+  }
+  if (next[scaleKey] === room[scaleKey] && next[angleKey] === room[angleKey]) return plan
+  return withLevelGeometry(plan, level.id, (g) => ({
+    rooms: g.rooms.map((r) => (r.id === roomId ? (next as unknown as typeof r) : r)),
+  }))
+}
+
 /** Drop finish entries for room ids that belong to neither the fixed flat nor
  *  the given plan — hygiene when a different plan is activated, so a stale
  *  custom-room key from the previous plan can't shadow the new plan's own
@@ -70,6 +104,14 @@ export interface FinishesSlice {
     walls: Record<RoomId, MaterialId>
     /** Per-room ceiling finish — absent key → the default plain white ceiling. */
     ceiling: Record<RoomId, MaterialId>
+    /**
+     * Per-wall-FACE texture transform, keyed `${wallId}:${roomId}` exactly like
+     * `wallAccents`. An accent wall usually wants its own lay direction too —
+     * panelling turned 90° against the room's brick, a feature wall run
+     * vertically — and that is a property of the one face, not the room.
+     * Absent → the face follows the room's `wallTexAngle`/`wallTexScale`.
+     */
+    wallTex: Record<string, { scale?: number; angle?: number }>
     /** Accent-wall overrides keyed `${wallId}:${roomId}` — paints one wall
      *  face (the side facing that room) differently from the room default. */
     wallAccents: Record<string, MaterialId>
@@ -78,6 +120,25 @@ export interface FinishesSlice {
   setWallFinish: (room: RoomId, id: MaterialId) => void
   /** Remove a room's wall finish (back to the neutral plaster shell). */
   clearWallFinish: (room: RoomId) => void
+  /**
+   * Set the LAY DIRECTION (and tile size) of a room's floor or wall finish —
+   * the angle a plank run, a tile course or a panel grain follows.
+   *
+   * Real floors are laid one way across the whole room, so this is the control
+   * that makes a picked direction stick; the repetition break-up only ever
+   * varies the stagger around it (`materials/finishDirection.ts`). Values live
+   * on the plan room beside the finish itself (so they travel with a saved
+   * design and show up in the finish schedule) and are written WITHOUT forking
+   * the default plan — choosing a grain direction is a finish decision, not a
+   * geometry edit. `undefined` clears a dial back to its default.
+   */
+  setSurfaceTexture: (
+    /** Plan room id — a plain string, since a custom plan's rooms are not
+     *  drawn from the curated flat's `RoomId` union. */
+    room: string,
+    surface: 'floor' | 'wall',
+    patch: { scale?: number; angle?: number },
+  ) => void
   /** Paint/texture a room's ceiling, or clear back to the default white. */
   setCeilingFinish: (room: RoomId, id: MaterialId) => void
   clearCeilingFinish: (room: RoomId) => void
@@ -92,6 +153,12 @@ export interface FinishesSlice {
   applyHomeStyle: (floorId: MaterialId, wallId: MaterialId, palette?: string[]) => void
   setWallAccent: (key: string, id: MaterialId) => void
   clearWallAccent: (key: string) => void
+  /** Set ONE wall face's lay direction / tile size (`${wallId}:${roomId}`).
+   *  A dial at its default is dropped; a face left with neither follows the
+   *  room again, so this needs no separate "clear" for the common case. */
+  setWallFaceTexture: (key: string, patch: { scale?: number; angle?: number }) => void
+  /** Drop a face's whole override — "match room" for the direction dials. */
+  clearWallFaceTexture: (key: string) => void
 }
 
 function initialMap(
@@ -110,6 +177,7 @@ export const FINISHES_INITIAL: Pick<FinishesSlice, 'finishes'> = {
     // No seed: an absent key means the plain white ceiling (the prior default).
     ceiling: {} as Record<RoomId, MaterialId>,
     wallAccents: {},
+    wallTex: {},
   },
 }
 
@@ -135,6 +203,12 @@ export const createFinishesSlice: SliceCreator<FinishesSlice, RootState> = (set,
       },
       floorPlan: planWithRoomFinish(s.floorPlan, room, 'wall', id),
     }))
+  },
+  setSurfaceTexture: (room, surface, patch) => {
+    // Coalesced: dragging a stepper is one undo step, like the plan inspector's
+    // own dials.
+    get().pushHistoryCoalesced(`surface-tex-${room}-${surface}`)
+    set((s) => ({ floorPlan: planWithRoomTexture(s.floorPlan, room, surface, patch) }))
   },
   clearWallFinish: (room) => {
     get().pushHistory()
@@ -245,6 +319,36 @@ export const createFinishesSlice: SliceCreator<FinishesSlice, RootState> = (set,
     set((s) => ({
       finishes: { ...s.finishes, wallAccents: { ...s.finishes.wallAccents, [key]: id } },
     }))
+  },
+  setWallFaceTexture: (key, patch) => {
+    get().pushHistoryCoalesced(`wall-face-tex-${key}`)
+    set((s) => {
+      const prev = s.finishes.wallTex?.[key] ?? {}
+      const next: { scale?: number; angle?: number } = { ...prev }
+      if ('scale' in patch) {
+        if (patch.scale === undefined || Math.abs(patch.scale - 1) < 1e-3) delete next.scale
+        else next.scale = patch.scale
+      }
+      if ('angle' in patch) {
+        if (patch.angle === undefined || Math.abs(patch.angle) < 1e-4) delete next.angle
+        else next.angle = patch.angle
+      }
+      const wallTex = { ...s.finishes.wallTex }
+      // An override with nothing left in it IS "follow the room" — don't keep
+      // an empty object around to serialise.
+      if (next.scale === undefined && next.angle === undefined) delete wallTex[key]
+      else wallTex[key] = next
+      return { finishes: { ...s.finishes, wallTex } }
+    })
+  },
+  clearWallFaceTexture: (key) => {
+    get().pushHistory()
+    set((s) => {
+      if (!s.finishes.wallTex?.[key]) return {}
+      const wallTex = { ...s.finishes.wallTex }
+      delete wallTex[key]
+      return { finishes: { ...s.finishes, wallTex } }
+    })
   },
   clearWallAccent: (key) => {
     get().pushHistory()

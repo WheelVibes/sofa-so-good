@@ -96,6 +96,34 @@ function forkIfDefault(plan: FloorPlan): FloorPlan {
   return plan.id === DEFAULT_PLAN_ID ? { ...plan, id: planId('plan') } : plan
 }
 
+/**
+ * Room fields that describe how a room LOOKS, not where it is: the finishes and
+ * their texture transforms. Patching one of these must NOT fork the curated
+ * flat — the fork exists so a *structural* edit binds the 3D scene to the
+ * edited geometry, and a finish or a grain direction changes no geometry at
+ * all. Before this, nudging "Tile size (×)" in the room inspector silently
+ * converted someone's curated flat into a custom plan (which then rendered
+ * through `PlanShell` instead of `<Apartment/>`, with visibly different walls).
+ * `finishesSlice`'s own writers already followed this rule; `updateRoom` did not.
+ */
+const APPEARANCE_ONLY_ROOM_FIELDS: ReadonlySet<string> = new Set([
+  'floor',
+  'wall',
+  'ceilingFinish',
+  'floorTexScale',
+  'floorTexAngle',
+  'wallTexScale',
+  'wallTexAngle',
+])
+
+/** Does this room patch change geometry (→ fork the default plan), or only how
+ *  the room is finished (→ leave the plan's identity alone)? Exported for the
+ *  unit test that pins the rule. */
+export function roomPatchNeedsFork(patch: Record<string, unknown>): boolean {
+  const keys = Object.keys(patch)
+  return keys.length === 0 || keys.some((k) => !APPEARANCE_ONLY_ROOM_FIELDS.has(k))
+}
+
 /** Apply a room's auto-naming to its boundary walls + the doors/windows on them
  *  (`<room> wall ##` / `<room> door ##` / `<room> window ##`). A user-set name
  *  (its `nameAuto` flag cleared) is never overwritten — only unset / previously
@@ -833,11 +861,12 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   },
   updateRoom: (id, patch) => {
     get().pushHistoryCoalesced(`plan-room-${id}`)
+    const needsFork = roomPatchNeedsFork(patch as Record<string, unknown>)
     set((s) => ({
       // The room can sit on any storey — resolve its level so an upper-level
       // room patches in place (room ids are plan-unique across levels).
       floorPlan: withLevelGeometry(
-        forkIfDefault(s.floorPlan),
+        needsFork ? forkIfDefault(s.floorPlan) : s.floorPlan,
         levelOfRoom(s.floorPlan, id)?.id,
         (g) => {
           const rooms = g.rooms.map((r) => (r.id === id ? { ...r, ...patch } : r))

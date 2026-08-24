@@ -1,4 +1,12 @@
-import { BufferAttribute, type BufferGeometry, PlaneGeometry, Shape, ShapeGeometry } from 'three'
+import {
+  BufferAttribute,
+  BufferGeometry,
+  PlaneGeometry,
+  Shape,
+  ShapeGeometry,
+  ShapeUtils,
+  Vector2,
+} from 'three'
 
 /** Per-surface texture transform (SweetHome3DJS texture angle/scale parity):
  *  scale tile size by `scale` (×, >1 = bigger tiles) and rotate the texture by
@@ -36,6 +44,15 @@ export function applyUvTransform(geo: BufferGeometry, t?: UvTransform): void {
     uv.setXY(i, cu + du * cos - dv * sin, cv + du * sin + dv * cos)
   }
   uv.needsUpdate = true
+}
+
+/** {@link applyUvTransform} as an expression: transform `geo` in place and hand
+ *  it back, so a geometry `useMemo` can build-and-transform in one step. Prefer
+ *  this over a separate effect — the transform MUTATES UVs, so re-running it on
+ *  an already-transformed geometry compounds the scale/rotation. */
+export function applyUvTransformed<T extends BufferGeometry>(geo: T, t?: UvTransform): T {
+  applyUvTransform(geo, t)
+  return geo
 }
 
 // ── Repetition break-up (RD-406 / MAT-006a) ────────────────────────────────
@@ -82,11 +99,22 @@ export interface CellUvTransform {
   offV: number
 }
 
-/** Pure, deterministic per-cell transform from a cell index. Same input →
- *  identical output; never NaN/inf. */
-export function cellUvTransform(cu: number, cv: number): CellUvTransform {
+/**
+ * Pure, deterministic per-cell transform from a cell index. Same input →
+ * identical output; never NaN/inf.
+ *
+ * `quarterTurns` is the DIRECTION guard (see `materials/finishDirection.ts`).
+ * With it false the cell may only turn 180°, which leaves a plank, a course or
+ * a stripe running exactly as it was while still re-phasing the cell — rotating
+ * a wood floor 90° every other cell lays the planks across each other, which is
+ * a patchwork no floor is ever laid in. Isotropic finishes (marble, terrazzo,
+ * square tile…) pass true and get the full set.
+ */
+export function cellUvTransform(cu: number, cv: number, quarterTurns = true): CellUvTransform {
   const h = hashCell(cu, cv)
-  const quarters = (h & 3) as 0 | 1 | 2 | 3
+  // Half-turn mode reuses bit 1 (not bit 0) so a cell's rotation still varies
+  // independently of its sub-tile offsets below.
+  const quarters = (quarterTurns ? h & 3 : (h & 2) === 0 ? 0 : 2) as 0 | 1 | 2 | 3
   // Sub-tile offset, quantised to **half-tile** steps {0, 0.5}. A half-tile shift
   // lands grout exactly on the next sub-tile line of a 2ⁿ-grid ceramic tile, so
   // the grout stays continuous (no broken/jogging grout lines) — while still
@@ -146,6 +174,7 @@ export function breakRepetitionPlane(
   width: number,
   height: number,
   tileSize: number,
+  quarterTurns = true,
 ): BufferGeometry | null {
   if (!(width > 0) || !(height > 0)) return null
   if (!Number.isFinite(tileSize) || tileSize <= 0) return null
@@ -183,7 +212,7 @@ export function breakRepetitionPlane(
       const y1 = -height / 2 + ((r + 1) / rows) * height
       const baseU = (c / cols) * width
       const baseV = (r / rows) * height
-      const t = cellUvTransform(c, r)
+      const t = cellUvTransform(c, r, quarterTurns)
       // Tile-fraction corners (0/1) → transformed → scaled back to metre UVs by
       // tileSize so the texture's physical scale is unchanged. Anchor each cell's
       // UV origin at its world-UV start (continuous metre scale); the transform
@@ -241,6 +270,165 @@ export function breakRepetitionPlane(
   return geo
 }
 
+/** Signed area of a polygon in shape space (>0 = counter-clockwise). */
+function signedArea(pts: [number, number][]): number {
+  let a = 0
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    a += pts[j][0] * pts[i][1] - pts[i][0] * pts[j][1]
+  }
+  return a / 2
+}
+
+/**
+ * Clip a polygon to the axis-aligned rect `[x0,x1] × [y0,y1]` (Sutherland–
+ * Hodgman: four half-plane passes against a convex window). Returns the clipped
+ * ring, or `[]` when the polygon misses the rect entirely.
+ *
+ * The classic S-H caveat — a concave subject can come back with zero-area
+ * slivers joining two disjoint pieces — is harmless here: the slivers lie on the
+ * clip boundary, inside the original polygon, and triangulate to degenerate
+ * triangles that cover no pixels. Exported for unit tests.
+ */
+export function clipPolygonToRect(
+  poly: [number, number][],
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+): [number, number][] {
+  const inside = (p: [number, number], edge: number) =>
+    edge === 0 ? p[0] >= x0 : edge === 1 ? p[0] <= x1 : edge === 2 ? p[1] >= y0 : p[1] <= y1
+  const intersect = (a: [number, number], b: [number, number], edge: number): [number, number] => {
+    // Parameter along a→b where it meets the edge line. The caller only asks
+    // when exactly one endpoint is inside, so the denominator is never 0.
+    const t =
+      edge === 0
+        ? (x0 - a[0]) / (b[0] - a[0])
+        : edge === 1
+          ? (x1 - a[0]) / (b[0] - a[0])
+          : edge === 2
+            ? (y0 - a[1]) / (b[1] - a[1])
+            : (y1 - a[1]) / (b[1] - a[1])
+    return [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]
+  }
+  let out = poly
+  for (let edge = 0; edge < 4 && out.length; edge++) {
+    const input = out
+    out = []
+    for (let i = 0, j = input.length - 1; i < input.length; j = i++) {
+      const cur = input[i]
+      const prev = input[j]
+      const curIn = inside(cur, edge)
+      const prevIn = inside(prev, edge)
+      if (curIn) {
+        if (!prevIn) out.push(intersect(prev, cur, edge))
+        out.push(cur)
+      } else if (prevIn) {
+        out.push(intersect(prev, cur, edge))
+      }
+    }
+  }
+  return out
+}
+
+/**
+ * The polygon counterpart of {@link breakRepetitionPlane}: repetition break-up
+ * for a NON-rectangular room (L-shaped flats, angled bays, custom plans), which
+ * previously fell back to one un-broken world-UV unwrap and kept the visible
+ * grid the rect floors had already lost.
+ *
+ * Rather than subdividing a plane, the room polygon (`[x, z]` world metres) is
+ * **clipped by the tile grid**: each cell that overlaps the room becomes its own
+ * ring, triangulated independently and UV'd through the same
+ * {@link cellUvTransform} the rect path uses. The cell grid is anchored to the
+ * WORLD origin (not the room's bbox), so cells line up across rooms and with the
+ * rect floors, and every cell boundary still lands on a texture-tile boundary.
+ *
+ * Returns geometry in the same shape space as {@link worldUvShapeGeometry}
+ * (vertex `(x, -z)`, +Z normal, UV in metres, drawn with the floor's -90° X
+ * rotation), so it is a drop-in. `null` when the guards say leave it alone:
+ * degenerate polygon/tile, under two cells (no neighbour to mis-align against),
+ * or a runaway cell count (huge room, tiny tile).
+ */
+export function breakRepetitionShape(
+  points: [number, number][],
+  tileSize: number,
+  quarterTurns = true,
+): BufferGeometry | null {
+  if (points.length < 3) return null
+  if (!Number.isFinite(tileSize) || tileSize <= 0) return null
+  let minX = Infinity
+  let minZ = Infinity
+  let maxX = -Infinity
+  let maxZ = -Infinity
+  for (const [x, z] of points) {
+    minX = Math.min(minX, x)
+    maxX = Math.max(maxX, x)
+    minZ = Math.min(minZ, z)
+    maxZ = Math.max(maxZ, z)
+  }
+  if (!(maxX > minX) || !(maxZ > minZ)) return null
+  const c0 = Math.floor(minX / tileSize)
+  const c1 = Math.ceil(maxX / tileSize)
+  const r0 = Math.floor(minZ / tileSize)
+  const r1 = Math.ceil(maxZ / tileSize)
+  const cols = c1 - c0
+  const rows = r1 - r0
+  if (cols * rows < 2) return null
+  if (cols * rows > 4096) return null
+
+  // Shape space: y = -z (see worldUvShapeGeometry), and CCW so the triangulated
+  // faces front the +Z normal we hand the geometry.
+  const ring: [number, number][] = points.map(([x, z]) => [x, -z])
+  if (signedArea(ring) < 0) ring.reverse()
+
+  const positions: number[] = []
+  const uvs: number[] = []
+  const indices: number[] = []
+  for (let r = r0; r < r1; r++) {
+    for (let c = c0; c < c1; c++) {
+      // Cell rect in shape space: x spans the column, y spans -(row) — the sign
+      // flip swaps the bounds, hence min/max rather than (lo, hi) in order.
+      const cellX0 = c * tileSize
+      const cellZ0 = r * tileSize
+      const piece = clipPolygonToRect(
+        ring,
+        cellX0,
+        -(cellZ0 + tileSize),
+        cellX0 + tileSize,
+        -cellZ0,
+      )
+      if (piece.length < 3) continue
+      const t = cellUvTransform(c, r, quarterTurns)
+      const base = positions.length / 3
+      for (const [px, py] of piece) {
+        positions.push(px, py, 0)
+        // Tile fractions within this cell → the cell transform → back to metres.
+        const [fu, fv] = applyCellUv((px - cellX0) / tileSize, (-py - cellZ0) / tileSize, t)
+        uvs.push(cellX0 + fu * tileSize, cellZ0 + fv * tileSize)
+      }
+      const faces = ShapeUtils.triangulateShape(
+        piece.map(([px, py]) => new Vector2(px, py)),
+        [],
+      )
+      for (const [a, b, cc] of faces) indices.push(base + a, base + b, base + cc)
+    }
+  }
+  if (!indices.length) return null
+
+  const geo = new BufferGeometry()
+  geo.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3))
+  // Flat +Z normals — every cell piece lies in the same plane.
+  const normals = new Float32Array(positions.length)
+  for (let i = 2; i < normals.length; i += 3) normals[i] = 1
+  geo.setAttribute('normal', new BufferAttribute(normals, 3))
+  geo.setAttribute('uv', new BufferAttribute(new Float32Array(uvs), 2))
+  geo.setIndex(indices)
+  geo.computeBoundingBox()
+  geo.computeBoundingSphere()
+  return geo
+}
+
 /**
  * A plane whose UVs are expressed in metres rather than the default 0..1,
  * so a tiling texture (repeat = tiles-per-metre) covers the surface at a
@@ -259,9 +447,10 @@ export function worldUvPlaneGeometry(
   height: number,
   transform?: UvTransform,
   breakup?: number,
+  quarterTurns = true,
 ): BufferGeometry {
   if (breakup != null) {
-    const broken = breakRepetitionPlane(width, height, breakup)
+    const broken = breakRepetitionPlane(width, height, breakup, quarterTurns)
     if (broken) {
       applyUvTransform(broken, transform)
       return broken
@@ -284,11 +473,25 @@ export function worldUvPlaneGeometry(
  * world `(x, 0, z)` with the normal facing up. UVs are set in metres (`x`, `z`)
  * so a tiling texture covers it at the same physical scale as the rect floors.
  * The mesh using this geometry needs no position offset (verts are absolute).
+ *
+ * `breakup` (a tile period in metres) opts into the RD-406 repetition break-up
+ * for irregular rooms — see {@link breakRepetitionShape}. Without it, or when
+ * the room is too small to have two cells, the plain unwrap is returned
+ * byte-identical to the pre-break-up behaviour.
  */
 export function worldUvShapeGeometry(
   points: [number, number][],
   transform?: UvTransform,
-): ShapeGeometry {
+  breakup?: number,
+  quarterTurns = true,
+): BufferGeometry {
+  if (breakup != null) {
+    const broken = breakRepetitionShape(points, breakup, quarterTurns)
+    if (broken) {
+      applyUvTransform(broken, transform)
+      return broken
+    }
+  }
   const shape = new Shape()
   points.forEach(([x, z], i) => {
     if (i === 0) shape.moveTo(x, -z)
