@@ -1592,6 +1592,38 @@ PNG**.
 
 ## Gotchas & fixes (the actual time-sinks)
 
+### A photo finish suspends for SECONDS — a screenshot mid-load is a different scene, not a bug
+Applying a `textured` (photo) finish for the first time makes the surface suspend on drei
+`useTexture` until every channel image has decoded. Measured on the harness: **~10–12 s** for a 1K
+ambientCG scan (5 maps / ~3 MB) applied to all 11 rooms — a 2 s or 4 s settle is nowhere near
+enough, and the length varies run to run, which is exactly what made the original report look
+intermittent and tier-dependent. Rules learned the hard way (v0.29.3.4, FINISH-DEFER):
+- **Wait on state, not a clock.** Poll the scene graph until the finish has actually landed rather
+  than sleeping: `waitFor.store` accepts any expression, and the predicate runs in page context, so
+  a `window.__probe = () => …` installed by an earlier `eval` step is reachable from it
+  (`scripts/scenarios/photo-wall-finish-load.json` is the worked example).
+- **`eval` step results are DISCARDED** — the runner never logs them. `console.log('[TAG]', …)`
+  inside the eval instead; it lands in the run's `---CONSOLE---` dump at the end.
+- **`window.__three` is the scene handle** (`__three.scene` / `.gl`); there is no
+  `__three.invalidate`. To force one demand-mode frame from a scenario, dispatch a `focus` event
+  (`RenderPump` treats it as a dirty mark) — that is also how you tell a stale FRAME from stale
+  STATE: re-probe after it, and if the graph still disagrees with the pixels the state is what's
+  behind.
+- **Surface-level state worth probing:** wall/floor faces carry `userData.finishTarget`
+  (`{kind, roomId}`), so a traverse can report per-surface `visible` / `material.map` /
+  `material.color`. `o.visible === false` on a finish surface means React has HIDDEN it (a
+  suspended subtree) — not a fade; the wall-reveal fade shows up as `opacity`/`transparent` instead.
+
+### The ambientCG R2 library needs a dev API that can see the mirror (else a silent 404)
+Reproducing anything with a real `ambientcg:<slug>:1k` finish needs three things, or
+`acgLibrary.fetchIndex` throws `ambientCG library 404` / `401` and the finish quietly stays on its
+fallback: the dev API pointed at the mirror (`DEV_LIBRARY_DIR=resources npm run dev:api`, since the
+default `ikea_optimized/` tree has no `library/acg-index.json` + `acg/`), an **admin login** from
+the page (`/api/assets/*` is auth-gated — `fetch('/api/auth/login', …)` in a scenario `eval` works
+and the cookie applies to the loads), and **Pro mode** (`setUiMode('pro')`) because the R2 transport
+is chosen by the `ambientcgLibrary` flag, which is `tier: 'pro'` — in Simple mode the provider falls
+back to the live ambientcg.com API, which needs the internet.
+
 ### The harness mutex is a lock file, not `flock` (and why that matters)
 `shot.mjs` serialises ALL runs machine-wide — SwiftShader Chromium is 1–2 GB per instance and
 concurrent runs have coincided with container restarts that silently kill the process. It used to

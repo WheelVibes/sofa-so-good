@@ -7,6 +7,7 @@ import type {
   TexturedMaterialDef,
 } from '../../materials/types'
 import {
+  useDeferredFinishId,
   useMaterialDef,
   useProceduralMaterial,
   useSolidMaterial,
@@ -64,7 +65,9 @@ function ProceduralTile({ def, ...rest }: TileProps & { def: ProceduralMaterialD
 }
 
 function Inner({ materialId, ...rest }: TileProps & { materialId: MaterialId }) {
-  const def = useMaterialDef(materialId)
+  // FINISH-DEFER: resolve the DEFERRED id so a suspending photo finish keeps the
+  // surface's current look on screen instead of blanking it (see useDeferredFinishId).
+  const def = useMaterialDef(useDeferredFinishId(materialId))
   if (def.kind === 'textured') return <TexturedTile def={def} {...rest} />
   if (def.kind === 'procedural') return <ProceduralTile def={def} {...rest} />
   return <SolidTile def={def} {...rest} />

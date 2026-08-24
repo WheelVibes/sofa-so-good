@@ -269,8 +269,10 @@ same change that reshapes a system.
   **user-uploaded photo** (persisted in IDB via `storage/walkBackdrop.ts`, hydrated on boot, controlled by
   `ui/scene/BackdropUpload.tsx` + the `customBackdrop` flag); `none` = plain sky. (The legacy instanced 3D
   City/Park/Hills/Studio estates were removed.) Main Canvas is **`frameloop="demand"`**:
-  `RenderPump.tsx` invalidates only when wanted (`renderDecision.ts` pure tested logic;
-  `renderPumpSignal.ts` gates FPS sampling). `InstancedBoxes.tsx` (pure tested
+  `RenderPump.tsx` invalidates only when wanted (`renderDecision.ts` pure tested logic —
+  including a short dirty tail on the FALLING edge of drei asset streaming,
+  `assetsSettleDirtyUntil`, so a surface that suspended on its textures gets a frame once it
+  commits; `renderPumpSignal.ts` gates FPS sampling). `InstancedBoxes.tsx` (pure tested
   `bakeInstanceMatrix`, now baking an optional per-instance rotation as `T·R·S`, plus a sibling
   `InstancedCylinders`) collapses repeat geometry — bookshelf/crib + RoomDivider/CubeShelf/
   FeatureWall/ToyStorage, and the **rotation-capable** venetian-blind slats + drying-rack rods
@@ -935,6 +937,14 @@ same change that reshapes a system.
   bundles fetch it; previously it was fetched but never loaded/bound). **Bundled photo swatches**:
   each `public/assets/materials/<id>/material.json` sidecar carries a mean-albedo `swatch`
   (emitted by `index-assets` into `generatedCatalog.ts`; grey `#888888` only for legacy sidecars).
+  **A finish change on a render path resolves the DEFERRED id (FINISH-DEFER)**: a `textured` def
+  suspends on first use (drei `useTexture`, ~12 s for a 1K ambientCG scan) and every surface sits
+  inside `<Suspense fallback={null}>`, so an eager id swap made React hide the committed surface
+  and paint nothing for the whole load — the bare wall body showed through and read as "the finish
+  didn't apply". Every wall/floor/ceiling dispatch therefore calls
+  `useMaterialDef(useDeferredFinishId(id))` (`WallSegment`, `RoomShell`, `PlanRoomShell`,
+  `RoomFloor`, `PlanRoomFloor`, `RoomCeilingTile`, `PlanRoomCeiling`), keeping the current finish
+  on screen until the new maps land; the boundaries stay as the first-mount / error net.
   **Wall/floor/ceiling material cache is a bounded LRU (PERF-A)**: `cache.ts`'s `CACHE` (also
   backs furniture `mat:<id>` DLC finishes, `furn:`-prefixed) is `materials/materialLru.ts`'s
   `LruCache` — the same bounded + dispose-on-evict shape the furniture material cache uses

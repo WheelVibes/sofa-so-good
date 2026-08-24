@@ -10,6 +10,7 @@ import type {
   TexturedMaterialDef,
 } from '../materials/types'
 import {
+  useDeferredFinishId,
   useMaterialDef,
   useProceduralMaterial,
   useSolidMaterial,
@@ -216,7 +217,9 @@ function ProceduralWall(p: WallDispatchProps & { def: ProceduralMaterialDef }) {
 }
 
 function RoomWall({ materialId, ...p }: WallDispatchProps & { materialId: MaterialId }) {
-  const def = useMaterialDef(materialId)
+  // FINISH-DEFER: resolve the DEFERRED id so a suspending photo finish keeps the
+  // surface's current look on screen instead of blanking it (see useDeferredFinishId).
+  const def = useMaterialDef(useDeferredFinishId(materialId))
   const inner =
     def.kind === 'textured' ? (
       <TexturedWall def={def} {...p} />

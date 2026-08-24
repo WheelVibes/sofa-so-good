@@ -5,6 +5,70 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.29.3.5 — audit pass 20: signed-in surfaces (shared library retry + diagnostics)
+
+Run against a session the user signed in; the audit never enters credentials.
+
+- **A failed shared-library load was permanent.** `bootstrapSharedLibrary` guarded with
+  `status !== 'idle'`, so after one error every later call returned immediately and the feature
+  stayed dead for the session with no retry path. It now short-circuits only on
+  `loading` / `ready`.
+- **…and it failed mutely.** A thrown fetch (wrong origin / CORS / server down), a non-2xx, and
+  an SPA fallback answering `200 text/html` all collapsed into a bare `status: 'error'` with
+  nothing logged; working out which one it was took a series of manual fetches. All three now
+  warn with the URL and the reason. The cause here turned out to be environmental, and now says
+  so: `[sharedLibrary] /api/assets/library/index.json returned 404 — no library manifest here.`
+  (the manifest is published to R2 by `build-library-index` and is simply absent in local dev).
+- **Version thumbnails read as broken.** `captureThumb()` runs only on an explicit save, so the
+  working-layout and autosave rows always showed an empty 70×52 box. Capturing on every autosave
+  would put a GPU readback in a frequent path, so `.ver-thumb:empty` draws a faint marker
+  instead — "no preview" rather than a failed image.
+
+Also resolves a duplicate `v0.29.1.1` heading created by two concurrent work streams: the
+0.29.1.x entries above it are renumbered up one, content unchanged.
+
+## v0.29.3.4 — the open audit item, diagnosed: a photo finish blanked the surface while it loaded
+
+- **Applying a photo finish no longer un-paints the surface while its textures load (FINISH-DEFER).**
+  This closes the "photo *wall* finishes did not render at the Performance tier" item left open and
+  unexplained in v0.29.3.3 — reproduced on a clean dev server, and **not a tier bug at all**.
+  A `textured` def SUSPENDS on first use (`useTexturedMaterial` → drei `useTexture` throws until
+  every channel image has loaded and decoded — a 1K ambientCG scan is 5 maps / ~3 MB), and every
+  wall/floor/ceiling surface renders inside `<Suspense fallback={null}>`. So a plain synchronous
+  finish change made React *hide* the committed surface (R3F `visible = false`) and mount nothing
+  in its place for the whole load: the wall faces vanished and the bare structural wall body
+  (`#f1f0ec`) showed through, which reads exactly like "the finish silently didn't apply".
+  Measured on `ambientcg:Bricks030:1k` applied to all 11 rooms at the Performance tier: **96 of
+  130 wall faces hidden, recovering only after ~12 s** — and a scene-graph probe confirmed those
+  faces still carried the previous white-paint material with `visible: false`. The tier was a red
+  herring: switching to Maximum remounts the scene *after* the textures are already in drei's
+  URL-keyed cache, so it comes back instantly and correctly — the same reason the *second* and
+  every later application of the same finish was always fine (repro: 34/130 painted on the first
+  apply, 130/130 on applies 2–6).
+  Fix: `useDeferredFinishId` (a documented `useDeferredValue` wrapper) is applied at every
+  finish-id → `MaterialDef` dispatch on a render path — `WallSegment`, `RoomShell`,
+  `PlanRoomShell`, `RoomFloor`, `PlanRoomFloor`, `RoomCeilingTile`, `PlanRoomCeiling`. React then
+  treats the change as low-priority, keeps the already-painted surface on screen while the new
+  textured branch suspends, and swaps in the photo finish when its maps land. The `fallback={null}`
+  boundaries stay as the safety net for a first-ever mount and for a load error. Verified on the
+  same repro: all 130 faces stay visible and painted through the ~10 s load, then all 130 flip to
+  brick at once.
+- **The demand-mode pump draws a frame when asset streaming ENDS** (`assetsSettleDirtyUntil`,
+  pure + unit-tested). A surface that suspended commits its loaded material *after* drei's loading
+  manager goes idle, so the last continuous frame predated the commit and `frameloop="demand"`
+  could leave the result undrawn until something unrelated (an orbit, a tier switch) happened to
+  request a frame — the second half of why the finish looked stuck. One 800 ms tail past the
+  falling edge covers the commit + its GPU upload.
+- Regression coverage: `deferredFinishId.test.tsx` (the stale-while-suspended behaviour *and* a
+  control proving the pre-fix version hides the surface), 4 new `renderDecision` cases, and
+  `scripts/scenarios/photo-wall-finish-load.json` (asserts no wall face is ever hidden while a
+  photo finish loads; offline — uses the bundled `wall-brick` set, no backend needed).
+- **Dev-server note:** the ambientCG R2 mirror only resolves when the dev API can see it —
+  `DEV_LIBRARY_DIR=resources npm run dev:api` (or an `ikea_optimized/` tree containing
+  `library/acg-index.json` + `acg/`), plus an admin login, since `/api/assets/*` is auth-gated.
+  Without it `acgLibrary.fetchIndex` throws `ambientCG library 404` and the finish silently stays
+  on its fallback.
+
 ## v0.29.3.3 — every remaining open audit item closed
 
 - **First paint after dark now keeps the real time and turns the lights on**, replacing the
@@ -107,13 +171,12 @@ what a PBR scan ships had nowhere to go.
 - **The asset pipeline promotes metalness/displacement/opacity from "recognised but unsupported"
   to emitted channels**, and `pack-ambientcg` emits all seven. A combined ARM/ORM pack stays
   ignored — splitting its RGB needs a raster pass that filename-level module deliberately doesn't do.
-- **Unverified / open:** photo *wall* finishes did not render at the Performance tier in the
-  Chrome session used to check this work — a scan with **no** metalness map (Bricks030) rendered
-  equally flat grey there, so the appearance is NOT attributable to the metalness binding. The
-  finish was set on all 11 rooms and the textures served 200/image-webp, so the cause is
-  unidentified (possibly the page state after repeated HMR reloads while material modules were
-  being edited). Wall finishes rendered correctly at Maximum in the same session. Worth a fresh
-  look before relying on the Performance-tier appearance of any photo wall finish.
+- **Photo *wall* finishes did not render at the Performance tier** in the Chrome session used to
+  check this work — a scan with **no** metalness map (Bricks030) rendered equally flat grey there,
+  so the appearance was NOT attributable to the metalness binding. **Diagnosed and fixed in
+  v0.29.3.4 (FINISH-DEFER):** the surface was hidden, not mis-shaded — a suspending photo finish
+  un-painted the wall faces for the whole texture load, and the tier was incidental.
+
 - **Dev/prod parity fix:** the dev API's R2 mirror mapped keys for the legacy `ikea_optimized/`
   layout only (`library/index.json` → `library-index.json`, `ikea/` stripped), so it **could not
   express an `acg/` prefix at all**. `makeR2FS` now prefers the true R2-shaped layout — exactly what
@@ -168,7 +231,7 @@ standing up a proxy, but by removing the third-party dependency entirely.
   render at eye level with crisp mortar lines, intact per-brick colour variation and visible
   normal relief at grazing angles — no chroma bleeding, no blocking, no new console errors.
 
-## v0.29.1.3 — every large metal surface now reads correctly on the default tier
+## v0.29.1.4 — every large metal surface now reads correctly on the default tier
 
 Finishes the black-metal bug, and corrects last round's conclusion: counting metallic materials
 said "26 bypass the factories"; measuring their world-space area said only **8 surfaces exceed
@@ -185,7 +248,7 @@ rest are small accents or intentionally dark parts.
 
 Large metallic surfaces on the default tier: **8 → 0**, verified on a fresh boot.
 
-## v0.29.1.2 — audit round 6: accounts audited, second black-metal path closed
+## v0.29.1.3 — audit round 6: accounts audited, second black-metal path closed
 
 - **Sign-in screen audited** (the dev backend was up the whole time — `/api/health` 200 via the
   Vite proxy). Probes completely clean, fully keyboard-reachable, and correctly wired for
@@ -202,7 +265,7 @@ Known boundary: 26 metallic materials are still built inline in primitive JSX an
 factories; routing those through the shared helpers is a multi-file refactor, logged rather
 than rushed.
 
-## v0.29.1.1 — pull the private R2 asset library back down into `resources/`
+## v0.29.1.2 — pull the private R2 asset library back down into `resources/`
 
 - **`npm run pull-r2-library` mirrors the `sofa-assets` R2 bucket to disk.** The deployment
   guide only ever documented the *upload* half (`rclone copy … → r2:sofa-assets/ikea`), so

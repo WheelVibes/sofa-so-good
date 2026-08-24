@@ -11,6 +11,13 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   module-level signal (`finishDragSignal.ts` pattern: `useSyncExternalStore` subscriber +
   pure set/notify) — this avoids routing through the Zustand store and triggering
   `subscribe(markDirty)` on every drag event.
+- **Asset streaming ending is itself a reason to draw (FINISH-DEFER).** `RenderPump` grants a
+  short dirty tail on the FALLING edge of drei's `useProgress().active`
+  (`renderDecision.ts:assetsSettleDirtyUntil` / `ASSETS_SETTLE_TAIL_MS`, pure + unit-tested): a
+  surface that SUSPENDED on its textures commits its loaded material *after* the loading manager
+  goes idle, so the last continuous frame predates the commit and demand mode would otherwise
+  leave the new content undrawn until some unrelated change requested a frame. Any future
+  load-then-commit path gets this for free — don't hand-roll a second edge detector.
 - **Fixture lights are budget-capped in BOTH view modes** (`lighting/FurnitureLights.tsx` +
   pure `lighting/chooseEmitters.ts`, PERF-002). Real point/spot lights from emitting furniture
   are ranked nearest-to-camera and capped to the tier's `maxFixtureLights`: walk to N, orbit to

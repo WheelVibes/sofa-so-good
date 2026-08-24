@@ -184,6 +184,20 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   mechanism (and the documented fallback when a `!r` repaint bake fails). `useMaterial.ts:
   useTexturedMaterial` loads all four channels incl. **ao** (positional unpack — keep the list
   order albedo/normal/roughness/ao). Don't reintroduce a swatch multiply on plain photo defs.
+- **A finish change on a RENDER path resolves the DEFERRED id (FINISH-DEFER).** Every
+  wall/floor/ceiling dispatch calls `useMaterialDef(useDeferredFinishId(id))`, never
+  `useMaterialDef(id)`. A `textured` def suspends on first use (drei `useTexture` throws until all
+  channels decode — ~12 s measured for a 1K ambientCG scan), and those surfaces sit inside
+  `<Suspense fallback={null}>`, so an eager id change makes React HIDE the committed surface
+  (`visible = false`) and paint nothing for the whole load: the bare structural wall body shows
+  through and it reads as "the finish didn't apply" (the v0.29.3.3 open audit item). Deferring the
+  id makes it a low-priority update, so the previous finish stays on screen until the new maps
+  land. The `fallback={null}` boundaries stay as the first-mount / load-error safety net. Never
+  defer in a UI panel — a picker must reflect the selection immediately. Sites:
+  `apartment/walls/WallSegment`, `RoomShell`, `PlanRoomShell`, `floor/RoomFloor`,
+  `floor/PlanRoomFloor`, `ceiling/RoomCeilingTile`, `floor/PlanRoomCeiling` — add the same call to
+  any new surface dispatch. Guards: `deferredFinishId.test.tsx` +
+  `scripts/scenarios/photo-wall-finish-load.json`.
 - **Showroom finishes (`showroomCatalog.ts`, SHOWROOM-FINISHES, flag `showroomFinishes` —
   simple tier, prod-safe CC0):** the hand-curated Poly Haven photo-PBR shortlist behind the
   FinishPicker's one-tap "Showroom" strip (`ui/finish/ShowroomRow.tsx`). Pure data + id helpers:

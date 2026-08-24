@@ -4,7 +4,13 @@ import { useEffect, useRef } from 'react'
 import { subscribeProceduralSwap } from '../materials/proceduralSwapSignal'
 import { useStore } from '../state/store'
 import { animatedSourceCount } from './animatedSources'
-import { isContinuous, type PumpInputs, settleTailMs, shouldRender } from './renderDecision'
+import {
+  assetsSettleDirtyUntil,
+  isContinuous,
+  type PumpInputs,
+  settleTailMs,
+  shouldRender,
+} from './renderDecision'
 import { setRenderingContinuously } from './renderPumpSignal'
 import { pulseShadowRefresh } from './shadowRefreshSignal'
 import { changeAffectsShadow } from './shadowRelevance'
@@ -109,6 +115,8 @@ export function RenderPump() {
       overlayBoot: false,
       lastOverlayRenderMs: 0,
     }
+    // Previous tick's asset-streaming flag, for the falling-edge tail below.
+    let wasAssetsActive = false
     const loop = () => {
       raf = requestAnimationFrame(loop)
       const s = useStore.getState()
@@ -118,6 +126,18 @@ export function RenderPump() {
       inputs.lastOverlayRenderMs = lastOverlayRenderMs.current
       inputs.sceneReady = s.sceneReady
       inputs.assetsActive = useProgress.getState().active
+      // Streaming just finished: a surface that SUSPENDED on its textures commits
+      // its loaded material after the loader goes idle, so without this tail the
+      // last continuous frame predates the commit and demand mode never draws the
+      // result (FINISH-DEFER). Extends the dirty window rather than invalidating
+      // once, so the commit + its GPU upload land inside it.
+      dirtyUntil.current = assetsSettleDirtyUntil(
+        wasAssetsActive,
+        inputs.assetsActive,
+        performance.now(),
+        dirtyUntil.current,
+      )
+      wasAssetsActive = inputs.assetsActive
       inputs.walk = s.cameraMode === 'firstPerson'
       inputs.autoRotate = s.autoRotate
       inputs.touring = Boolean(s.touring)

@@ -1,5 +1,5 @@
 import { useTexture } from '@react-three/drei'
-import { useMemo } from 'react'
+import { useDeferredValue, useMemo } from 'react'
 import type { MeshStandardMaterial, Texture } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../features/useFeature'
@@ -90,6 +90,36 @@ function customColorDef(id: string): MaterialDef {
     swatch: id,
     uvScale: [2.5, 2.5],
   }
+}
+
+/**
+ * The finish id a rendered SURFACE should resolve (FINISH-DEFER).
+ *
+ * A photo (`textured`) finish SUSPENDS on first use — `useTexturedMaterial`
+ * calls drei's `useTexture`, which throws a promise until every channel image
+ * has loaded and decoded (a 1K ambientCG scan is 5 maps / ~3 MB, and the first
+ * application of one measured **~12 s** on the software-GL harness). Every
+ * wall/floor/ceiling surface sits behind `<Suspense fallback={null}>`, so a
+ * plain (synchronous) finish change made the surface VANISH for that whole
+ * window: the wall faces unmounted and the bare structural body showed through,
+ * which reads exactly like "the finish didn't apply" — the Chrome-audit report
+ * of photo wall finishes rendering flat grey at the Performance tier. Nothing
+ * tier-specific about it: switching tiers merely remounted the scene once the
+ * textures were already in drei's URL cache, which is why the same finish
+ * "worked" at Maximum and on every subsequent application.
+ *
+ * Deferring the id hands the change to React as a low-priority update, so when
+ * the new textured branch suspends React KEEPS the already-committed surface on
+ * screen (the previous finish) instead of falling back to nothing, and swaps in
+ * the new one when its textures land. The `fallback={null}` boundaries stay as
+ * the safety net for a first-ever mount (nothing to keep) and for a load error.
+ *
+ * Apply this at every finish-id → `MaterialDef` dispatch on a RENDER path
+ * (`useMaterialDef(useDeferredFinishId(id))`) — never in a UI panel, where the
+ * picker must reflect the selection immediately.
+ */
+export function useDeferredFinishId<T extends MaterialId | null>(id: T): T {
+  return useDeferredValue(id)
 }
 
 /** Resolves a MaterialId to a def, falling back to the first builtin. */

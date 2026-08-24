@@ -14,6 +14,7 @@ import type {
   TexturedMaterialDef,
 } from '../../materials/types'
 import {
+  useDeferredFinishId,
   useMaterialDef,
   useProceduralMaterial,
   useSolidMaterial,
@@ -260,7 +261,9 @@ function ProceduralSegmentFace({
 }
 
 function SegmentFaceInner({ materialId, ...rest }: SegmentFaceProps) {
-  const def = useMaterialDef(materialId)
+  // FINISH-DEFER: resolve the DEFERRED id so a suspending photo finish keeps the
+  // surface's current look on screen instead of blanking it (see useDeferredFinishId).
+  const def = useMaterialDef(useDeferredFinishId(materialId))
   if (def.kind === 'textured') return <TexturedSegmentFace def={def} {...rest} />
   if (def.kind === 'procedural') return <ProceduralSegmentFace def={def} {...rest} />
   return <SolidSegmentFace def={def} {...rest} />

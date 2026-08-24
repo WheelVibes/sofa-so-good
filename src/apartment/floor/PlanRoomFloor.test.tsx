@@ -17,6 +17,8 @@ vi.mock('../../scene/SilentErrorBoundary', () => ({
 const sharedMaterial = new MeshStandardMaterial()
 vi.mock('../../materials/useMaterial', () => ({
   useMaterialDef: () => ({ kind: 'solid', color: '#fff' }),
+  // FINISH-DEFER: the dispatch resolves the deferred id; identity is fine here.
+  useDeferredFinishId: (id: string) => id,
   useSolidMaterial: () => sharedMaterial,
   useTexturedMaterial: () => sharedMaterial,
   useProceduralMaterial: () => sharedMaterial,
