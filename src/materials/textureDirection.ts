@@ -28,7 +28,7 @@
  */
 
 /** Coherence above this counts as "has a direction" (planks, stripes, courses). */
-export const COHERENCE_LIMIT = 0.25
+const COHERENCE_LIMIT = 0.25
 
 /** A profile flatter than this (relative to the image's own contrast) carries
  *  no lattice — a random field, not a grid. */
@@ -42,7 +42,7 @@ const NOISE_MARGIN = 1.8
 
 /** How alike the two axis profiles must look (best circular correlation) for
  *  the lattice to count as square, i.e. unchanged by a quarter turn. */
-export const LATTICE_SIMILARITY = 0.6
+const LATTICE_SIMILARITY = 0.6
 
 export interface DirectionAnalysis {
   /** 0 = no dominant direction, 1 = perfectly directional. */

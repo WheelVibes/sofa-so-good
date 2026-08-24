@@ -59,7 +59,7 @@ export function wallTexTransformFor(plan: FloorPlan, roomId?: string): UvTransfo
  * re-render every wall in the flat. The memoised object is then safe to put in a
  * geometry `useMemo`'s dependency list.
  */
-export function useSurfaceTexTransform(
+function useSurfaceTexTransform(
   surface: 'floor' | 'wall',
   roomId?: string,
 ): UvTransform | undefined {

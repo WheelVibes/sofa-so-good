@@ -14,7 +14,7 @@ const ALL: 'all' = 'all'
 /** Does a provider's error string mean "not signed in" rather than "offline"?
  *  `acgLibrary` throws a "Sign in…" message on 401; the raw status is matched
  *  too so an older cached message still classifies correctly. */
-export function isAuthError(error?: string): boolean {
+function isAuthError(error?: string): boolean {
   return !!error && /sign in|401|unauthori[sz]ed/i.test(error)
 }
 

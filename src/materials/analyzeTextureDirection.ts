@@ -54,7 +54,7 @@ function getScratch() {
 }
 
 /** Measure one image source, or null when it cannot be read. */
-export function analyzeImageDirection(source: CanvasImageSource): DirectionAnalysis | null {
+function analyzeImageDirection(source: CanvasImageSource): DirectionAnalysis | null {
   const s = getScratch()
   if (!s) return null
   try {
@@ -69,7 +69,7 @@ export function analyzeImageDirection(source: CanvasImageSource): DirectionAnaly
 }
 
 /** Cached analysis for a texture, keyed by its uuid (stable per instance). */
-export function analyzeTexture(tex: Texture | null | undefined): DirectionAnalysis | null {
+function analyzeTexture(tex: Texture | null | undefined): DirectionAnalysis | null {
   const image = tex?.image as CanvasImageSource | undefined
   if (!tex || !image) return null
   const hit = CACHE.get(tex.uuid)
@@ -86,9 +86,4 @@ export function analyzeTexture(tex: Texture | null | undefined): DirectionAnalys
  */
 export function measuredQuarterTurnSafe(material?: MeshStandardMaterial | null): boolean | null {
   return analyzeTexture(material?.map)?.quarterTurnSafe ?? null
-}
-
-/** Test seam — drops the memoised verdicts. */
-export function __resetTextureDirectionCache(): void {
-  CACHE.clearForTest()
 }

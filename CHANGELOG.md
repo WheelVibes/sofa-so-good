@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.30.0.1 — knip: no dead exports from the new modules
+
+The dead-code scan caught seven exports with no consumer outside their own file:
+`useSurfaceTexTransform` (the floor/wall hooks wrap it), `analyzeImageDirection`
+/ `analyzeTexture` (internal to `measuredQuarterTurnSafe`), the two
+`textureDirection` thresholds, and `isAuthError`. All are module-private now.
+`__resetTextureDirectionCache` was a test seam the tests stopped needing once
+the decision test mocked the module — deleted rather than kept alive.
+
 ## v0.30.0.0 — Chrome verification quirks written down (PR version)
 
 The version this PR ships. Everything below (v0.29.4.0 → v0.29.5.4) rides in it.
