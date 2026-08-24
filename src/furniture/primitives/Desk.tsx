@@ -1,6 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { metalLeg, readNum, readStr } from './shared'
 
 interface DeskProps {
@@ -150,7 +151,7 @@ export function Desk({ props }: DeskProps) {
             ]}
           >
             <boxGeometry args={[0.1, 0.02, 0.02]} />
-            <meshStandardMaterial color="#8a8d92" roughness={0.3} metalness={0.7} />
+            <MetalMaterial color="#8a8d92" roughness={0.3} metalness={0.7} />
           </mesh>
         </>
       )}

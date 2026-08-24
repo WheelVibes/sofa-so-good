@@ -1,6 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 
 interface DisplayCabinetProps {
@@ -139,7 +140,7 @@ export function DisplayCabinet({ props }: DisplayCabinetProps) {
       {/* Vertical door pull */}
       <mesh castShadow position={[w / 2 - postT - 0.05, (vitrineBottom + vitrineTop) / 2, d / 2]}>
         <boxGeometry args={[0.018, 0.24, 0.024]} />
-        <meshStandardMaterial color="#8a8d92" roughness={0.35} metalness={0.7} />
+        <MetalMaterial color="#8a8d92" roughness={0.35} metalness={0.7} />
       </mesh>
       {shelves}
 
@@ -169,7 +170,7 @@ export function DisplayCabinet({ props }: DisplayCabinetProps) {
                 position={[s * (w / 4) - s * (w / 4 - 0.04), splitY / 2, d / 2 + 0.02]}
               >
                 <boxGeometry args={[0.018, 0.12, 0.022]} />
-                <meshStandardMaterial color="#8a8d92" roughness={0.35} metalness={0.7} />
+                <MetalMaterial color="#8a8d92" roughness={0.35} metalness={0.7} />
               </mesh>
             </group>
           ))}

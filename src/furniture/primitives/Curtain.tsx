@@ -7,6 +7,7 @@ import { registerAnimatedSource } from '../../scene/animatedSources'
 import { pulseShadowRefreshForMotion } from '../../scene/shadowRefreshSignal'
 import { CURTAIN_SILL_STANDOFF } from '../placement/windowSnap'
 import type { ParamProps } from '../types'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 
 /** How fast the draw animation eases (≈ this fraction of the gap per second·dt). */
@@ -185,12 +186,12 @@ export function Curtain({ props }: { props: ParamProps }) {
       {/* Rod + finials, just above the drop. */}
       <mesh position={[0, height + 0.04, rodZ]} rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.015, 0.015, width + 0.2, 10]} />
-        <meshStandardMaterial color="#54585e" roughness={0.4} metalness={0.6} />
+        <MetalMaterial color="#54585e" roughness={0.4} metalness={0.6} />
       </mesh>
       {[-1, 1].map((s) => (
         <mesh key={s} position={[s * (width / 2 + 0.1), height + 0.04, rodZ]}>
           <sphereGeometry args={[0.025, 12, 8]} />
-          <meshStandardMaterial color="#54585e" roughness={0.4} metalness={0.6} />
+          <MetalMaterial color="#54585e" roughness={0.4} metalness={0.6} />
         </mesh>
       ))}
       {/* Two draped panels (gather to the sides when open), hung from the rod

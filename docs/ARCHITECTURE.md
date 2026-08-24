@@ -269,8 +269,10 @@ same change that reshapes a system.
   **user-uploaded photo** (persisted in IDB via `storage/walkBackdrop.ts`, hydrated on boot, controlled by
   `ui/scene/BackdropUpload.tsx` + the `customBackdrop` flag); `none` = plain sky. (The legacy instanced 3D
   City/Park/Hills/Studio estates were removed.) Main Canvas is **`frameloop="demand"`**:
-  `RenderPump.tsx` invalidates only when wanted (`renderDecision.ts` pure tested logic;
-  `renderPumpSignal.ts` gates FPS sampling). `InstancedBoxes.tsx` (pure tested
+  `RenderPump.tsx` invalidates only when wanted (`renderDecision.ts` pure tested logic —
+  including a short dirty tail on the FALLING edge of drei asset streaming,
+  `assetsSettleDirtyUntil`, so a surface that suspended on its textures gets a frame once it
+  commits; `renderPumpSignal.ts` gates FPS sampling). `InstancedBoxes.tsx` (pure tested
   `bakeInstanceMatrix`, now baking an optional per-instance rotation as `T·R·S`, plus a sibling
   `InstancedCylinders`) collapses repeat geometry — bookshelf/crib + RoomDivider/CubeShelf/
   FeatureWall/ToyStorage, and the **rotation-capable** venetian-blind slats + drying-rack rods
@@ -935,6 +937,14 @@ same change that reshapes a system.
   bundles fetch it; previously it was fetched but never loaded/bound). **Bundled photo swatches**:
   each `public/assets/materials/<id>/material.json` sidecar carries a mean-albedo `swatch`
   (emitted by `index-assets` into `generatedCatalog.ts`; grey `#888888` only for legacy sidecars).
+  **A finish change on a render path resolves the DEFERRED id (FINISH-DEFER)**: a `textured` def
+  suspends on first use (drei `useTexture`, ~12 s for a 1K ambientCG scan) and every surface sits
+  inside `<Suspense fallback={null}>`, so an eager id swap made React hide the committed surface
+  and paint nothing for the whole load — the bare wall body showed through and read as "the finish
+  didn't apply". Every wall/floor/ceiling dispatch therefore calls
+  `useMaterialDef(useDeferredFinishId(id))` (`WallSegment`, `RoomShell`, `PlanRoomShell`,
+  `RoomFloor`, `PlanRoomFloor`, `RoomCeilingTile`, `PlanRoomCeiling`), keeping the current finish
+  on screen until the new maps land; the boundaries stay as the first-mount / error net.
   **Wall/floor/ceiling material cache is a bounded LRU (PERF-A)**: `cache.ts`'s `CACHE` (also
   backs furniture `mat:<id>` DLC finishes, `furn:`-prefixed) is `materials/materialLru.ts`'s
   `LruCache` — the same bounded + dispose-on-evict shape the furniture material cache uses
@@ -1111,8 +1121,18 @@ same change that reshapes a system.
   `installPolyHavenBundle` fetches each item (deps come from the API `include` map, never
   constructed) and packs it into a self-contained GLB in-browser via `convertModel`
   (`furniture/convert/`), then reuses `buildEntry`/`commit`; nothing is vendored. **Remote material
-  providers** (`catalog/remote/providers/`): Poly Haven (CORS, prod) + ambientCG (proxy, dev), gated
-  by `activeProviderIds`/`PROD_PROVIDER_IDS`. **Poly Haven supplies materials/textures (+ HDRIs
+  providers** (`catalog/remote/providers/`): Poly Haven (CORS, prod) + ambientCG, gated
+  by `activeProviderIds`/`PROD_PROVIDER_IDS`. **ambientCG has two transports behind one provider
+  id**, dispatched per call by `PROVIDERS.ambientcg` on the `ambientcgLibrary` flag (pro tier,
+  default on): `acgLibrary.ts` reads our **R2 mirror** (`acg/` prefix + `library/acg-index.json`
+  manifest) over the same-origin auth-gated `/api/assets` proxy and is the prod path, while
+  `ambientcg.ts` hits the live ambientcg.com API and is dev-only (no CORS headers). Both keep the
+  `ambientcg` id, so `ambientcg:<slug>:<res>` finish ids round-trip across either. The mirror is
+  built by `scripts/pack-ambientcg.mjs` (zips → the seven bound channels as near-lossless WebP +
+  a 256 px thumb + manifest) and published with `scripts/push-r2-library.mjs`. The bound set is
+  albedo/normal/roughness/AO/**metalness**/**opacity**/**displacement** — see
+  `src/materials/CLAUDE.md` for the binding rules (metalness map drives the scalar to 1; opacity
+  is alpha-TESTED not blended; displacement feeds POM rather than `displacementMap`). **Poly Haven supplies materials/textures (+ HDRIs
   via `scene/lighting/hdriCatalog.ts`) plus these curated model bundles — but is NOT a *browsable*
   model source** (its multi-file glTF is why), so no provider emits `kind:'furniture'` (the
   `remoteFurniture` browse is dormant until one does). Add a source: poly-pizza-style client reusing

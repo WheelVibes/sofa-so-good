@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ASSETS_SETTLE_TAIL_MS,
+  assetsSettleDirtyUntil,
   isContinuous,
   OVERLAY_RENDER_MS,
   type PumpInputs,
@@ -98,5 +100,38 @@ describe('settleTailMs', () => {
   it('is longer on showcase tiers to bridge into shadow accumulation', () => {
     expect(settleTailMs(true)).toBeGreaterThan(settleTailMs(false))
     expect(settleTailMs(false)).toBeGreaterThanOrEqual(300)
+  })
+})
+
+describe('assetsSettleDirtyUntil', () => {
+  it('grants a tail when asset streaming ends', () => {
+    expect(assetsSettleDirtyUntil(true, false, 5000, 0)).toBe(5000 + ASSETS_SETTLE_TAIL_MS)
+  })
+
+  it('leaves the deadline alone while streaming, and when it never was', () => {
+    expect(assetsSettleDirtyUntil(true, true, 5000, 120)).toBe(120)
+    expect(assetsSettleDirtyUntil(false, false, 5000, 120)).toBe(120)
+    expect(assetsSettleDirtyUntil(false, true, 5000, 120)).toBe(120)
+  })
+
+  it('never shortens a later deadline already in flight', () => {
+    const later = 9000
+    expect(assetsSettleDirtyUntil(true, false, 5000, later)).toBe(later)
+  })
+
+  it('makes the tick after the falling edge render', () => {
+    // The last continuous frame was the tick that still saw `assetsActive`; a
+    // surface that suspended commits its material after that (FINISH-DEFER).
+    const now = 5000
+    const dirtyUntil = assetsSettleDirtyUntil(true, false, now, 0)
+    expect(shouldRender({ ...base, now: now + 16, assetsActive: false, dirtyUntil })).toBe(true)
+    expect(
+      shouldRender({
+        ...base,
+        now: now + ASSETS_SETTLE_TAIL_MS + 1,
+        assetsActive: false,
+        dirtyUntil,
+      }),
+    ).toBe(false)
   })
 })

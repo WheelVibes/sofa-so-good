@@ -195,7 +195,15 @@ export function resolveQuality(
   tier: RenderTier,
   overrides: Partial<QualitySettings> | undefined,
 ): QualitySettings {
-  return { ...QUALITY_PRESETS[tier], ...(overrides ?? {}) }
+  // Fall back rather than spreading `undefined`. `qualityTier` is PERSISTED, so
+  // a value written by an older build (or any tier since renamed/retired) would
+  // otherwise resolve to a settings object with every field `undefined` — and
+  // that fails silently and spectacularly: `seg(28, undefined)` is
+  // `Math.round(NaN)` → NaN, and a geometry built with NaN segments renders
+  // nothing at all. A lamp keeps its pole and loses its shade, with no error
+  // anywhere. Diagnosed while auditing (Chrome audit 2026-08).
+  const preset = QUALITY_PRESETS[tier] ?? QUALITY_PRESETS[detectDefaultTier()]
+  return { ...preset, ...(overrides ?? {}) }
 }
 
 /**

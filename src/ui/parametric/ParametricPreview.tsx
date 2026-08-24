@@ -1,6 +1,7 @@
 import { Bounds, OrbitControls } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
+import { PCFShadowMap } from 'three'
 import {
   buildParametricObject,
   disposeParametricObject,
@@ -21,7 +22,7 @@ function GeneratedPiece({ spec }: { spec: ParametricSpec }) {
  *  `Bounds` keeping any size piece framed. */
 export function ParametricPreview({ spec }: { spec: ParametricSpec }) {
   return (
-    <Canvas shadows camera={{ position: [1.8, 1.5, 2.2], fov: 40 }}>
+    <Canvas shadows={{ type: PCFShadowMap }} camera={{ position: [1.8, 1.5, 2.2], fov: 40 }}>
       <ambientLight intensity={0.7} />
       <hemisphereLight intensity={0.6} />
       <directionalLight position={[3, 5, 2]} intensity={1.1} castShadow />

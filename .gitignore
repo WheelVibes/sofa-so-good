@@ -65,6 +65,7 @@ build/
 # Cloudflare / Wrangler local state + secrets
 .wrangler/
 .dev.vars
+.r2.env
 workers/**/.wrangler/
 
 # CodeGraph / graphify local index artifacts (tooling, never committed)
@@ -75,3 +76,6 @@ src/graphify-out/
 assets/floor_plan/
 assets/guidelines/
 assets/ocs/
+
+# Downloaded upstream asset corpora (ambientCG zips, IKEA R2 pulls) — multi-GB, never commit
+resources/

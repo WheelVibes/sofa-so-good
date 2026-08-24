@@ -39,6 +39,16 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   (`PlanWallZ`/`PlanOpeningZ`), and rendered by `PlanShell` (`FadeWall`/`SlopedWallMesh`/`FadeWindow`) +
   `PlanDoorLeaf`. Adding another per-element appearance field follows the same additive shape (no
   version bump).
+- **Per-wall trim (`PlanWall.baseboard` / `PlanWall.crown`):** same additive shape (no version
+  bump) — `{ height?, color?, hidden? }` each, defaults in `types.ts`
+  (`DEFAULT_SKIRTING_HEIGHT_M`/`_COLOR`, `DEFAULT_CROWN_HEIGHT_M`/`_COLOR`). Rendered by
+  `PlanShell`'s `FadeSkirting` / `FadeCrown` from per-wall memos (`skirtings` / `crowns`) — built
+  from `lp.walls`, NOT the flattened `boxes`, so the override is in scope. Skirting takes
+  floor-reaching spans, crown takes full-height spans only (a half-wall or sloped wedge has no
+  ceiling junction). Both scale their `height` in `rescalePlan`. Edited per wall in
+  `WallInspector`; the `wallBaseboard` / `crownMolding` flags still gate each feature globally.
+  Trim is deliberately painted off-white rather than following the wall finish (architecturally
+  correct over plaster) — the override is what lets a dark brick or timber wall get matching trim.
 - **Open railings (`PlanWall.railing`):** same additive shape as `topHeight` (no version bump) —
   when true alongside a set `topHeight`, the wall renders as an open metal railing (top rail +
   posts + balusters, pure layout in `railingLayout.ts`) instead of a solid half-wall/parapet;

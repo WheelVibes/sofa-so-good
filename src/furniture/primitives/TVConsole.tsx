@@ -1,6 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 
 interface TVConsoleProps {
@@ -123,7 +124,7 @@ export function TVConsole({ props }: TVConsoleProps) {
                     />
                     <mesh castShadow position={[cx, dy, faceZ + 0.016]}>
                       <boxGeometry args={[sideW * 0.42, 0.016, 0.018]} />
-                      <meshStandardMaterial {...metal} />
+                      <MetalMaterial {...metal} />
                     </mesh>
                   </group>
                 )
@@ -203,7 +204,7 @@ export function TVConsole({ props }: TVConsoleProps) {
                     />
                     <mesh castShadow position={[cx, dy, faceZ + 0.016]}>
                       <boxGeometry args={[faceW * 0.42, 0.016, 0.018]} />
-                      <meshStandardMaterial {...metal} />
+                      <MetalMaterial {...metal} />
                     </mesh>
                   </group>
                 )
@@ -219,7 +220,7 @@ export function TVConsole({ props }: TVConsoleProps) {
                 />
                 <mesh castShadow position={[s * 0.03, faceCY, faceZ + 0.016]}>
                   <boxGeometry args={[0.018, (bodyH - 0.05) * 0.5, 0.018]} />
-                  <meshStandardMaterial {...metal} />
+                  <MetalMaterial {...metal} />
                 </mesh>
               </group>
             )}

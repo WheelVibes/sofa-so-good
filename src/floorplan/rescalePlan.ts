@@ -124,6 +124,10 @@ function scaleWall(w: PlanWall, k: number, anchor: PlanVec2): PlanWall {
   if (w.baseboard?.height !== undefined) {
     next.baseboard = { ...w.baseboard, height: w.baseboard.height * k }
   }
+  // Crown height is a physical trim dimension, so it scales with the plan too.
+  if (w.crown?.height !== undefined) {
+    next.crown = { ...w.crown, height: w.crown.height * k }
+  }
   return next
 }
 

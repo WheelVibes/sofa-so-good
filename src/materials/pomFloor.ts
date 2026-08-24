@@ -34,12 +34,13 @@
  * Mapping" (steep parallax + occlusion interpolation) with a Schüler cotangent
  * frame (no precomputed tangents) for the tangent-space view vector.
  */
-import { MeshStandardMaterial, RepeatWrapping, type Texture } from 'three'
+import { MeshStandardMaterial, RepeatWrapping, SRGBColorSpace, type Texture } from 'three'
 import type { RenderTier } from '../scene/quality'
 import { applyAnisotropy } from './anisotropy'
+import { isIblActive, NO_IBL_METALNESS } from './iblSignal'
 import { LruCache } from './materialLru'
 import { generateProcedural, generateProceduralHeightTexture } from './procedural/generators'
-import type { ProceduralMaterialDef, ProceduralPattern } from './types'
+import type { ProceduralMaterialDef, ProceduralPattern, TexturedMaterialDef } from './types'
 
 /** Geometric floor patterns whose height field has real recessed grout / joints
  *  worth ray-marching. Smooth / noise patterns are excluded (nothing to recess). */
@@ -195,6 +196,27 @@ const POM_NORMAL_FRAGMENT_MAPS = /* glsl */ `
 #endif
 `
 
+/** `aomap_fragment` (three r184) with `vAoMapUv` swapped for the marched `pomUv`.
+ *  Only the photo path binds an `aoMap`, but patching it there matters: a scan's
+ *  baked crevice/grout occlusion sampled at the UNSHIFTED uv would visibly slide
+ *  out from under the parallax-shifted albedo as the camera moves. */
+const POM_AOMAP_FRAGMENT = /* glsl */ `
+#ifdef USE_AOMAP
+	float ambientOcclusion = ( texture2D( aoMap, pomUv ).r - 1.0 ) * aoMapIntensity + 1.0;
+	reflectedLight.indirectDiffuse *= ambientOcclusion;
+	#if defined( USE_CLEARCOAT )
+		clearcoatSpecularIndirect *= ambientOcclusion;
+	#endif
+	#if defined( USE_SHEEN )
+		sheenSpecularIndirect *= ambientOcclusion;
+	#endif
+	#if defined( USE_ENVMAP ) && defined( STANDARD )
+		float dotNV = saturate( dot( geometryNormal, geometryViewDir ) );
+		reflectedLight.indirectSpecular *= computeSpecularOcclusion( dotNV, ambientOcclusion, material.roughness );
+	#endif
+#endif
+`
+
 /** Bounded cache of POM floor materials, keyed by finish id + step budget. Each
  *  entry OWNS its albedo / normal / roughness / height textures (a self-contained
  *  bake, independent of the shared `cache.ts` LRU) so eviction disposes them. */
@@ -259,5 +281,137 @@ export function buildPomFloorMaterial(
   m.customProgramCacheKey = () => `pom-floor-${steps}-${scale}`
 
   POM_CACHE.set(key, m)
+  return m
+}
+
+// ── Photo-scan POM (displacement-map path) ─────────────────────────────────
+
+/**
+ * Default parallax depth for a PHOTO scan, in UV units.
+ *
+ * The procedural path can tune this per pattern because it knows the pattern.
+ * A scanned surface carries no such label, so we take a conservative middle
+ * value: shallower than the chunky-brick tuning (0.04) so a smooth-ish scan
+ * never smears, deep enough that real tile grout visibly recedes. ambientCG
+ * displacement maps are full-range 0..1 height fields with 1 = the high face,
+ * matching the shader's `depth = 1 - height` convention.
+ */
+export const POM_PHOTO_HEIGHT_SCALE = 0.025
+
+/**
+ * Whether a photo-scanned floor finish earns POM: the flag, a tier that can
+ * afford the ray-march, and — unlike the procedural path, which can synthesise
+ * a height field from the pattern — an actual displacement map on the def.
+ * Without one there is no relief to march, so this is a hard requirement.
+ */
+export function pomPhotoFloorEligible(
+  def: TexturedMaterialDef,
+  tier: RenderTier,
+  flagEnabled: boolean,
+): boolean {
+  const urls = def.runtimeUrls ?? def.textures
+  return flagEnabled && pomFloorTierEnabled(tier) && !!urls.displacement
+}
+
+/**
+ * Bounded cache of photo POM materials, keyed by finish id + step budget.
+ *
+ * Unlike {@link POM_CACHE} this does NOT dispose its textures: they come from
+ * drei's URL-keyed `useTexture` cache and may be shared with the plain material
+ * for the same finish (and with its `tint:` siblings). Only the material is
+ * disposed — same ownership rule as the textured branch of `cache.ts`.
+ */
+const POM_PHOTO_CACHE = new LruCache<MeshStandardMaterial>({
+  max: 16,
+  dispose: (m) => m.dispose(),
+})
+
+/**
+ * Build (or reuse) the parallax-occlusion material for a photo-scanned floor
+ * finish. The caller must have already checked {@link pomPhotoFloorEligible}
+ * and pass the already-loaded textures (the same set `buildMaterial` receives).
+ *
+ * This is what makes an ambientCG/Poly Haven displacement map worth shipping:
+ * three's own `displacementMap` displaces VERTICES, and the shell's floors are
+ * low-poly boxes with nothing to subdivide, so it would do nothing. The
+ * fragment-shader ray-march needs no geometry at all.
+ */
+export function buildPomPhotoFloorMaterial(
+  def: TexturedMaterialDef,
+  tier: RenderTier,
+  textures: {
+    albedo?: Texture
+    normal?: Texture
+    roughness?: Texture
+    ao?: Texture
+    metalness?: Texture
+    displacement?: Texture
+  },
+): MeshStandardMaterial {
+  const steps = pomStepsForTier(tier)
+  const scale = POM_PHOTO_HEIGHT_SCALE
+  const key = `${def.id}@pomphoto@${steps}@ibl${isIblActive() ? 1 : 0}`
+  const cached = POM_PHOTO_CACHE.get(key)
+  if (cached) return cached
+
+  const height = textures.displacement
+  // Assign maps AFTER construction rather than through the constructor: three
+  // warns ("parameter 'metalnessMap' has value of undefined") for every absent
+  // optional channel passed as undefined, and most scans are missing several.
+  const m = new MeshStandardMaterial({
+    color: '#ffffff',
+    roughness: def.roughness ?? 0.85,
+    // A metalness MAP is authoritative — three multiplies the scalar by it, so
+    // the usual 0 default would zero the map out. Capped with no environment to
+    // reflect, or a fully metallic surface loses its albedo entirely (same rule
+    // and same reason as `cache.ts`; the cache key below is IBL-scoped to match).
+    metalness: textures.metalness ? (isIblActive() ? 1 : NO_IBL_METALNESS) : 0,
+  })
+  if (textures.albedo) m.map = textures.albedo
+  if (textures.normal) m.normalMap = textures.normal
+  if (textures.roughness) m.roughnessMap = textures.roughness
+  if (textures.ao) m.aoMap = textures.ao
+  if (textures.metalness) m.metalnessMap = textures.metalness
+  m.userData.pomHeightMap = height
+
+  // The height map rides the SAME uv transform as the other maps, so it must
+  // repeat identically or the marched offset would drift from the albedo.
+  const rx = 1 / def.uvScale[0]
+  const ry = 1 / def.uvScale[1]
+  for (const t of [
+    textures.albedo,
+    textures.normal,
+    textures.roughness,
+    textures.ao,
+    textures.metalness,
+    height,
+  ]) {
+    if (!t) continue
+    t.wrapS = t.wrapT = RepeatWrapping
+    t.repeat.set(rx, ry)
+    applyAnisotropy(t)
+  }
+  // A photo albedo is sRGB-encoded; drei leaves colorSpace untagged (same fix
+  // as `cache.ts`'s REAL-2), so tag it or the finish renders with wrong gamma.
+  if (textures.albedo && textures.albedo.colorSpace !== SRGBColorSpace) {
+    textures.albedo.colorSpace = SRGBColorSpace
+    textures.albedo.needsUpdate = true
+  }
+
+  if (height) {
+    m.onBeforeCompile = (shader) => {
+      shader.uniforms.pomHeightMap = { value: height }
+      const defines = `#define POM_MAX_STEPS ${steps}\n#define POM_SCALE ${scale.toFixed(4)}\n`
+      shader.fragmentShader = shader.fragmentShader
+        .replace('void main() {', `${defines}${POM_FRAG_HELPER}\nvoid main() {`)
+        .replace('#include <map_fragment>', POM_MAP_FRAGMENT)
+        .replace('#include <roughnessmap_fragment>', POM_ROUGHNESSMAP_FRAGMENT)
+        .replace('#include <normal_fragment_maps>', POM_NORMAL_FRAGMENT_MAPS)
+        .replace('#include <aomap_fragment>', POM_AOMAP_FRAGMENT)
+    }
+    m.customProgramCacheKey = () => `pom-photo-floor-${steps}-${scale}`
+  }
+
+  POM_PHOTO_CACHE.set(key, m)
   return m
 }

@@ -813,10 +813,15 @@ First-time-user end-to-end walkthrough on the GPU harness. Full write-up + scree
 ## ⛔ Production-infra-blocked — need a DEPLOYED host/backend, not app code
 The dev paths already work (Vite reverse proxy, dev-gated providers); only the *production*
 proxy/mirror/host is missing, and standing one up is a deployment task, not a code change here:
-- **Runtime catalog CORS proxy** (ambientCG prod) — ambientCG's API/CDN send no CORS headers.
-  The Docker image's nginx now ships `/acg`/`/acg-cdn`/`/kenney` proxies (self-hosted deploys
-  covered), but the **GitHub Pages** deployment still needs a Cloudflare Worker / Vercel edge /
-  hosted reverse-proxy. Until then ambientCG stays dev-gated there (Poly Haven works direct).
+- **Runtime catalog CORS proxy** (ambientCG prod) — ~~ambientCG's API/CDN send no CORS headers.~~
+  **Resolved for the Cloudflare deployment** (v0.29.2.0): rather than proxying ambientCG at
+  runtime, the corpus is packed to the four bound PBR maps (`npm run pack-ambientcg`) and
+  mirrored into our own R2 bucket under `acg/`, served same-origin through the existing
+  auth-gated `/api/assets` proxy (`providers/acgLibrary.ts`, flag `ambientcgLibrary`). No
+  third-party CORS dependency and no proxy to operate. The Docker image's nginx
+  `/acg`/`/acg-cdn`/`/kenney` proxies still cover self-hosted deploys of the *live* provider.
+  **GitHub Pages remains uncovered** — it has no backend (`hasBackend()` is false), so the R2
+  mirror is inert there and ambientCG stays dev-gated on that build (Poly Haven works direct).
 - **Kenney / Quaternius mirrors** — no CORS-friendly API, ship single ZIPs; need a build-time mirror
   or proxy worker + format conversion (FBX/OBJ → GLB) before adding to the runtime catalog.
 - **Sketchfab** — REST + OAuth token + runtime fetch (auth/ToS friction).

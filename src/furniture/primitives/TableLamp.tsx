@@ -3,6 +3,7 @@ import { useRef } from 'react'
 import type { MeshStandardMaterial } from 'three'
 import { fixtureEmissiveIntensity } from '../../scene/lighting/fixtureGlow'
 import type { ParamProps } from '../types'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
@@ -30,12 +31,12 @@ export function TableLamp({ props }: { props: ParamProps }) {
       {/* Base */}
       <mesh castShadow receiveShadow position={[0, 0.02, 0]}>
         <cylinderGeometry args={[0.09, 0.1, 0.04, seg(20, detail)]} />
-        <meshStandardMaterial color={baseColor} roughness={0.4} metalness={0.5} />
+        <MetalMaterial color={baseColor} roughness={0.4} metalness={0.5} />
       </mesh>
       {/* Stem */}
       <mesh castShadow position={[0, stemH / 2, 0]}>
         <cylinderGeometry args={[0.012, 0.012, stemH, 10]} />
-        <meshStandardMaterial color={baseColor} roughness={0.4} metalness={0.5} />
+        <MetalMaterial color={baseColor} roughness={0.4} metalness={0.5} />
       </mesh>
       {/* Shade */}
       <mesh castShadow position={[0, stemH + shadeH / 2 - 0.02, 0]}>

@@ -7,6 +7,7 @@ import {
 } from 'three'
 import { applyAnisotropy } from './anisotropy'
 import { isTintMaterialId } from './composeMaterial'
+import { isIblActive, NO_IBL_METALNESS } from './iblSignal'
 import { LruCache } from './materialLru'
 import {
   effectivePatternSize,
@@ -51,7 +52,7 @@ function own<T extends Texture>(tex: T): T {
  *  Called one frame after eviction by the LRU (see `materialLru.ts`), so any
  *  still-mounted mesh has unmounted first. */
 function disposeOwnedMaterial(m: MeshStandardMaterial): void {
-  for (const tex of [m.map, m.normalMap, m.roughnessMap, m.aoMap]) {
+  for (const tex of [m.map, m.normalMap, m.roughnessMap, m.aoMap, m.metalnessMap, m.alphaMap]) {
     if (tex && OWNED_TEXTURES.has(tex)) tex.dispose()
   }
   m.dispose()
@@ -210,16 +211,31 @@ async function scheduleWorkerUpgrade(
  *  solid material). */
 export function buildMaterial(
   def: MaterialDef,
-  textures?: { albedo?: Texture; normal?: Texture; roughness?: Texture; ao?: Texture },
+  textures?: {
+    albedo?: Texture
+    normal?: Texture
+    roughness?: Texture
+    ao?: Texture
+    metalness?: Texture
+    opacity?: Texture
+    displacement?: Texture
+  },
 ): MeshStandardMaterial {
   // Procedural materials carry the effective generation size in the key so a
   // quality-tier change regenerates at the new size instead of serving a stale
   // one. Smooth patterns (carpet, concrete, …) cap at 256 regardless of tier —
   // their key always ends in @256 so Medium+ hits the same cached texture.
+  // A material bound with a metalness map renders differently with and without
+  // IBL (see the metalness binding below), so its cache entry is tier-scoped —
+  // otherwise switching quality would serve a fully-metallic material to a tier
+  // with no environment to reflect. Keyed off the TEXTURES actually passed, not
+  // the def's declared URLs: the binding below reads the same value, and the two
+  // must never disagree about whether this entry is IBL-sensitive.
+  const iblScoped = textures?.metalness ? `@ibl${isIblActive() ? 1 : 0}` : ''
   const cacheKey =
     def.kind === 'procedural' && def.pattern !== 'plaster'
       ? `${def.id}@${effectivePatternSize(def.pattern)}`
-      : def.id
+      : `${def.id}${iblScoped}`
   const existing = CACHE.get(cacheKey)
   if (existing) return existing
 
@@ -344,6 +360,33 @@ export function buildMaterial(
     if (textures.normal) m.normalMap = textures.normal
     if (textures.roughness) m.roughnessMap = textures.roughness
     if (textures.ao) m.aoMap = textures.ao
+    // A metalness MAP supersedes the scalar: three multiplies `metalness` by
+    // the map's blue channel, so the default 0 would zero the map out entirely.
+    // Drive the scalar to 1 and let the scan decide which texels are metal —
+    // EXCEPT with no environment to reflect, where a fully metallic surface has
+    // no diffuse term and renders flat/black, losing the albedo completely (the
+    // same "grey box" failure `NO_IBL_METALNESS` fixes for procedural metals).
+    // The IBL state is folded into the cache key below so a tier change
+    // rebuilds rather than serving a fully-metallic material to a no-IBL tier.
+    if (textures.metalness) {
+      m.metalnessMap = textures.metalness
+      m.metalness = isIblActive() ? 1 : NO_IBL_METALNESS
+    }
+    // Per-texel opacity via alpha-TEST, not blending. A transparent surface
+    // would join the sorted blended pass and fight the wall-reveal fade (which
+    // animates `opacity` on the same materials) — and a perforated grate or
+    // open-weave mesh is a binary cut anyway, so a cutout is both cheaper and
+    // more correct than alpha blending.
+    if (textures.opacity) {
+      m.alphaMap = textures.opacity
+      m.alphaTest = 0.5
+    }
+    // Displacement is NOT bound to `displacementMap`: that displaces vertices,
+    // and the shell's floors/walls are low-poly boxes with nothing to
+    // subdivide. Carry it on userData so the parallax-occlusion floor path
+    // (`pomFloor.ts`) can ray-march it in the fragment shader instead. Not
+    // owned (drei `useTexture` cache) — never disposed here.
+    if (textures.displacement) m.userData.displacementMap = textures.displacement
     // Apply UV repeat so the picker thumbnail and the rendered surface
     // tile at the metres-per-tile rate declared in the def.
     // REAL-1 — also apply the same anisotropic filtering the procedural path
@@ -359,6 +402,8 @@ export function buildMaterial(
       textures.normal,
       textures.roughness,
       textures.ao,
+      textures.metalness,
+      textures.opacity,
     ]) {
       if (!t) continue
       t.wrapS = t.wrapT = 1000 // RepeatWrapping

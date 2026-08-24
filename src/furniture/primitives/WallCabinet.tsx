@@ -1,6 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 
 /** Run of kitchen upper/wall cabinets: a long body split into N doors with
@@ -61,7 +62,7 @@ export function WallCabinet({ props }: { props: ParamProps }) {
               position={[x + handleSide * (doorW / 2 - 0.04), cy - h / 2 + 0.08, d / 2 + 0.01]}
             >
               <boxGeometry args={[0.018, 0.1, 0.018]} />
-              <meshStandardMaterial {...handleMat} />
+              <MetalMaterial {...handleMat} />
             </mesh>
           </group>
         )

@@ -12,6 +12,7 @@ import { doorHingePivot, drawerSlideDistance, isCabinetOpen } from '../cabinetOp
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
 import { GlassMaterial } from './GlassMaterial'
+import { MetalMaterial } from './MetalMaterial'
 import { HingedDoor, SlideDrawer } from './openable'
 import { readNum, readStr } from './shared'
 
@@ -99,14 +100,14 @@ function CabinetBody({ props, type }: { props: ParamProps; type: CabinetType }) 
         return (
           <mesh key={key} castShadow position={p.position} rotation={[Math.PI / 2, 0, 0]}>
             <cylinderGeometry args={[0.014, 0.014, 0.03, 12]} />
-            <meshStandardMaterial {...handleMat} />
+            <MetalMaterial {...handleMat} />
           </mesh>
         )
       }
       return (
         <mesh key={key} castShadow position={p.position}>
           <boxGeometry args={p.size} />
-          <meshStandardMaterial {...handleMat} />
+          <MetalMaterial {...handleMat} />
         </mesh>
       )
     }
@@ -240,22 +241,22 @@ function SinkBasin({ cut }: { cut: WorktopCutout }) {
     <group position={[cut.x, 0, cut.z]}>
       <mesh receiveShadow position={[0, floorY, 0]}>
         <boxGeometry args={[bw - wallT * 2, 0.016, bd - wallT * 2]} />
-        <meshStandardMaterial {...steel} />
+        <MetalMaterial {...steel} />
       </mesh>
       {walls.map(([dx, dz, sw, sd], k) => (
         <mesh key={k} receiveShadow position={[dx, wallCY, dz]}>
           <boxGeometry args={[sw, wallH, sd]} />
-          <meshStandardMaterial {...steel} />
+          <MetalMaterial {...steel} />
         </mesh>
       ))}
       {/* Faucet: base + riser + curved spout, at the back edge of the bowl. */}
       <mesh castShadow position={[0, cut.topY + 0.02, -bd / 2 - 0.03]}>
         <cylinderGeometry args={[0.03, 0.035, 0.04, 12]} />
-        <meshStandardMaterial {...steel} />
+        <MetalMaterial {...steel} />
       </mesh>
       <mesh castShadow position={[0, cut.topY + 0.15, -bd / 2 - 0.03]}>
         <cylinderGeometry args={[0.014, 0.014, 0.26, 10]} />
-        <meshStandardMaterial {...steel} />
+        <MetalMaterial {...steel} />
       </mesh>
       <mesh
         castShadow
@@ -263,7 +264,7 @@ function SinkBasin({ cut }: { cut: WorktopCutout }) {
         rotation={[Math.PI / 2.2, 0, 0]}
       >
         <cylinderGeometry args={[0.013, 0.013, 0.18, 10]} />
-        <meshStandardMaterial {...steel} />
+        <MetalMaterial {...steel} />
       </mesh>
     </group>
   )

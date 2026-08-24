@@ -1,6 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 import { buildVanity, VANITY_TABLE_H, type VanityLayoutKind } from './vanityLayout'
@@ -79,7 +80,7 @@ export function Vanity({ props }: { props: ParamProps }) {
           </mesh>
           <mesh position={[0, 0, 0.025]}>
             <circleGeometry args={[mR - 0.03, seg(32, detail)]} />
-            <meshStandardMaterial {...glass} />
+            <MetalMaterial {...glass} />
           </mesh>
           {/* support post — bridges the table top up to the mirror centre */}
           <BeveledBox
@@ -94,7 +95,7 @@ export function Vanity({ props }: { props: ParamProps }) {
           <BeveledBox castShadow material={wood} args={[mW, mH, 0.04]} />
           <mesh position={[0, 0, 0.025]}>
             <planeGeometry args={[mW - 0.06, mH - 0.06]} />
-            <meshStandardMaterial {...glass} />
+            <MetalMaterial {...glass} />
           </mesh>
           {lights &&
             Array.from({ length: 10 }, (_, i) => {

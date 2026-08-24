@@ -1,5 +1,6 @@
 import { DEFAULT_WALL_REVEAL_STRENGTH } from '../../apartment/walls/wallRevealMath'
 import type { LightMood } from '../../lighting/moodPresets'
+import { setIblActive } from '../../materials/iblSignal'
 import {
   clampExposure,
   clampSceneSaturation,
@@ -9,7 +10,26 @@ import {
   DEFAULT_SCENE_WARMTH,
 } from '../../scene/look'
 import type { AssetTier, QualitySettings, RenderTier } from '../../scene/quality'
-import { QUALITY_LABEL, RENDER_TIERS } from '../../scene/quality'
+import { QUALITY_LABEL, RENDER_TIERS, resolveQuality } from '../../scene/quality'
+
+/**
+ * Mirror the tier's IBL state into the material layer.
+ *
+ * Metals have no diffuse term, so with no `scene.environment` they render pure
+ * black — the material factories cap metalness while IBL is off. They read this
+ * flag when a material is BUILT, and the shell's materials (interior door
+ * leaves, 0.8 × 2.1 m) are built during the very first mount, long before
+ * `SceneEnvironment`'s effect could set it. Pushing it from the store — at
+ * module init below and on every tier change — closes that window.
+ */
+function syncIblFromTier(tier: RenderTier, overrides: Partial<QualitySettings> | undefined): void {
+  setIblActive(resolveQuality(tier, overrides).ibl)
+}
+
+// Seed it at module load: the app always boots at 'performance' (ibl off), and
+// the shell builds its materials before any React effect runs.
+syncIblFromTier('performance', undefined)
+
 import { DEFAULT_TONE_MAPPING_SETTING, type ToneMappingSetting } from '../../scene/toneContext'
 import type { DrawingLayer, DrawingLayerVisibility } from '../../ui/drawingLayers'
 import type { RootState } from '../store'
@@ -399,6 +419,12 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   setShowcaseAccumulating: (v) => set({ showcaseAccumulating: v }),
   setQualityTier: (t) => {
     const changed = get().qualityTier !== t
+    // Keep the material layer's IBL flag in step. Metals with no environment to
+    // reflect render black, so `getMetalMaterial`/`getSolidMaterial` cap
+    // metalness while this is false — and they must see the right value at the
+    // moment a material is BUILT, which for the shell (door leaves, 0.8 × 2.1 m)
+    // is during the first mount, well before SceneEnvironment's effect runs.
+    syncIblFromTier(t, get().qualityOverrides)
     set({ qualityTier: t, qualityUserSet: true, qualityOverrides: {}, autoShadowsOff: false })
     // Rebuilding the renderer under a new tier (new shadow maps, post effects,
     // asset swaps…) can visibly freeze the frame for a beat, especially
@@ -416,8 +442,10 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
       qualityOverrides: {},
       autoShadowsOff: false,
     })),
-  autoSetQualityTier: (t) =>
-    set((s) => (s.qualityUserSet || s.qualityTier === t ? {} : { qualityTier: t })),
+  autoSetQualityTier: (t) => {
+    syncIblFromTier(t, get().qualityOverrides)
+    set((s) => (s.qualityUserSet || s.qualityTier === t ? {} : { qualityTier: t }))
+  },
   setQualityOverride: (key, value) =>
     set((s) => ({
       qualityOverrides: { ...s.qualityOverrides, [key]: value },

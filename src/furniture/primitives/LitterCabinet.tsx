@@ -1,6 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 
 /**
@@ -102,7 +103,7 @@ export function LitterCabinet({ props }: { props: ParamProps }) {
       />
       <mesh castShadow position={[halfW - 0.09, midY, halfD]}>
         <sphereGeometry args={[0.014, 10, 10]} />
-        <meshStandardMaterial color="#2b2b2b" roughness={0.4} metalness={0.6} />
+        <MetalMaterial color="#2b2b2b" roughness={0.4} metalness={0.6} />
       </mesh>
     </group>
   )

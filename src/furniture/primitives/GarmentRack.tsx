@@ -1,5 +1,6 @@
 import { getFabricMaterial, getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 
 /**
@@ -60,7 +61,7 @@ export function GarmentRack({ props }: { props: ParamProps }) {
             {/* Hanger hook */}
             <mesh castShadow position={[0, 0.01, 0]}>
               <torusGeometry args={[0.018, 0.003, 6, 10, Math.PI]} />
-              <meshStandardMaterial color="#b7bcc2" roughness={0.4} metalness={0.6} />
+              <MetalMaterial color="#b7bcc2" roughness={0.4} metalness={0.6} />
             </mesh>
             {/* Garment body (tapered, slightly varied) — its shoulders meet the
                 hanger hook/rail (previously it hung ~3 cm clear of the hook). */}

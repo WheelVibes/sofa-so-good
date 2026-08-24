@@ -73,6 +73,34 @@ export function shouldRender(i: PumpInputs): boolean {
   return i.now < i.dirtyUntil
 }
 
+/**
+ * Extra dirty time granted when asset streaming ENDS (falling edge of
+ * `assetsActive`).
+ *
+ * A suspended surface commits its loaded material *after* the loading manager
+ * has gone idle, so the tick that saw `assetsActive` was the LAST continuous
+ * frame and the newly-committed content could sit undrawn in demand mode — the
+ * canvas kept showing a pre-load frame until some unrelated change (an orbit, a
+ * tier switch) happened to request one. One short tail past the falling edge
+ * covers the commit + its GPU upload. FINISH-DEFER.
+ */
+export const ASSETS_SETTLE_TAIL_MS = 800
+
+/** The dirty deadline after an asset-streaming tick, given the PREVIOUS tick's
+ *  streaming flag. Grants {@link ASSETS_SETTLE_TAIL_MS} on the falling edge
+ *  (streaming just ended) and never shortens an existing, later deadline;
+ *  returns `dirtyUntil` unchanged on every other tick. Pure so the pump's edge
+ *  detection is unit-testable. */
+export function assetsSettleDirtyUntil(
+  wasActive: boolean,
+  isActive: boolean,
+  now: number,
+  dirtyUntil: number,
+): number {
+  if (!wasActive || isActive) return dirtyUntil
+  return Math.max(dirtyUntil, now + ASSETS_SETTLE_TAIL_MS)
+}
+
 /** Settle-tail length (ms) after a discrete change — how long the demand-mode
  *  pump keeps drawing once a discrete edit lands, covering the emissive-glow lerp
  *  + orbit-damping safety. The longer `showcaseEnabled` branch dates from the

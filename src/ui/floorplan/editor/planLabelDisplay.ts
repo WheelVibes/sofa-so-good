@@ -76,14 +76,34 @@ export function wrapLabel(text: string, maxChars: number): string[] {
 export type RoomLabelDetail = 'full' | 'name' | 'none'
 
 /**
- * Progressive room-label detail from the room's on-screen area (m² × px/m²):
- * full (name + area), name only, or hidden when too small to read. Importance
- * order — the name matters more than the area figure, which matters more than
- * nothing — so the area drops first, then the name.
+ * Narrowest on-screen room width (px) that can hold a detail line.
+ *
+ * The detail lines are fixed strings that do NOT wrap — the widest realistic one
+ * is `0/10 sockets` (~12 chars). At the plan's label font that needs ~84px.
  */
-export function roomLabelDetail(areaM2: number, pxPerMetre: number): RoomLabelDetail {
+export const MIN_DETAIL_WIDTH_PX = 84
+
+/**
+ * Progressive room-label detail from the room's on-screen size: full
+ * (name + area + perimeter), name only, or hidden when too small to read.
+ * Importance order — the name matters more than the area figure, which matters
+ * more than nothing — so the area drops first, then the name.
+ *
+ * `widthM` guards the detail lines specifically. Area alone is not enough: a
+ * long, thin room (HDB service yards and bath/WCs especially) can clear the area
+ * threshold while being far too NARROW for `P 7.24 m` or `0/2 sockets`, which,
+ * unlike the name, are never wrapped — so they spilled across the room's walls
+ * and over the neighbouring rooms' geometry (Chrome audit 2026-08). Omitting
+ * `widthM` keeps the original area-only behaviour.
+ */
+export function roomLabelDetail(
+  areaM2: number,
+  pxPerMetre: number,
+  widthM?: number,
+): RoomLabelDetail {
   const areaPx2 = areaM2 * pxPerMetre * pxPerMetre
   if (areaPx2 < 2600) return 'none'
   if (areaPx2 < 9000) return 'name'
+  if (widthM != null && widthM * pxPerMetre < MIN_DETAIL_WIDTH_PX) return 'name'
   return 'full'
 }

@@ -1,5 +1,6 @@
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { applianceBodyMaterial, readStr } from './shared'
 
 /** Front-load washing machine: body + recessed circular door + control
@@ -25,7 +26,7 @@ export function WashingMachine({ props }: { props: ParamProps }) {
       {/* Door ring */}
       <mesh position={[0, h * 0.45, d / 2 + 0.003]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[0.17, 0.025, 12, 28]} />
-        <meshStandardMaterial color="#b9bdc2" roughness={0.3} metalness={0.6} />
+        <MetalMaterial color="#b9bdc2" roughness={0.3} metalness={0.6} />
       </mesh>
       {/* Door glass */}
       <mesh position={[0, h * 0.45, d / 2 + 0.004]}>

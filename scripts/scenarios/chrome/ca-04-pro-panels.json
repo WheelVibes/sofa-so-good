@@ -1,0 +1,50 @@
+{
+  "name": "ca-04-pro-panels",
+  "description": "Audit pass 4 — Pro-mode analytical dock panels. Asserts each panel is HIDDEN in Simple first (tier gating), then flips to Pro and audits Checks, Design score, Elevations, Budget, Versions, History.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 30000 },
+    { "name": "dismiss-first-run", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "daylight", "eval": "const s = window.__store.getState(); s.setTimeMode('manual'); s.setManualHour(13)" },
+
+    { "name": "assert-simple-hides-pro", "assert": { "js": "(() => { const s = window.__store.getState(); s.setClearancePanelOpen(true); const shown = !!document.querySelector('#clearancePanel'); s.setClearancePanelOpen(false); return s.uiMode === 'simple' && !shown })()", "message": "clearanceChecks is a pro flag and must not render in Simple mode" } },
+
+    { "name": "pro-mode", "eval": "const s = window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags()" },
+    { "name": "pro-active", "waitFor": { "store": "state.uiMode === 'pro'" }, "timeout": 5000 },
+    { "name": "settle-pro", "wait": 1500 },
+    { "name": "shot-pro-toolbar", "screenshot": "01-pro-toolbar" },
+    { "name": "probe-pro-toolbar", "probe": { "checks": ["console", "overflow", "clipped", "naming", "covered"] } },
+
+    { "name": "open-checks", "store": { "action": "setClearancePanelOpen", "args": [true] } },
+    { "name": "checks-mounted", "waitFor": { "css": "#clearancePanel" }, "timeout": 10000 },
+    { "name": "probe-checks-at-open", "probe": { "checks": ["transparent"], "scope": "#clearancePanel" } },
+    { "name": "settle-checks", "wait": 1200 },
+    { "name": "shot-checks", "screenshot": "02-pro-checks" },
+    { "name": "probe-checks", "probe": { "checks": ["overflow", "clipped", "naming", "covered", "contrast"], "scope": "#clearancePanel" } },
+    { "name": "close-checks", "store": { "action": "setClearancePanelOpen", "args": [false] } },
+
+    { "name": "open-score", "store": { "action": "setDesignScoreOpen", "args": [true] } },
+    { "name": "score-mounted", "waitFor": { "css": "#designScorePanel" }, "timeout": 10000 },
+    { "name": "settle-score", "wait": 1200 },
+    { "name": "shot-score", "screenshot": "03-pro-design-score" },
+    { "name": "probe-score", "probe": { "checks": ["overflow", "clipped", "naming", "covered", "contrast"], "scope": "#designScorePanel" } },
+    { "name": "close-score", "store": { "action": "setDesignScoreOpen", "args": [false] } },
+
+    { "name": "open-elev", "store": { "action": "setElevationsOpen", "args": [true] } },
+    { "name": "elev-mounted", "waitFor": { "css": "#elevationPanel" }, "timeout": 10000 },
+    { "name": "settle-elev", "wait": 1500 },
+    { "name": "shot-elev", "screenshot": "04-pro-elevations" },
+    { "name": "probe-elev", "probe": { "checks": ["overflow", "clipped", "naming", "covered", "contrast"], "scope": "#elevationPanel" } },
+    { "name": "close-elev", "store": { "action": "setElevationsOpen", "args": [false] } },
+
+    { "name": "open-budget", "store": { "action": "toggleBudget", "args": [] } },
+    { "name": "settle-budget", "wait": 1400 },
+    { "name": "shot-budget", "screenshot": "05-budget" },
+    { "name": "probe-budget", "probe": { "checks": ["overflow", "clipped", "naming", "covered", "contrast"] } },
+
+    { "name": "open-history", "store": { "action": "setHistoryOpen", "args": [true] } },
+    { "name": "settle-history", "wait": 1200 },
+    { "name": "shot-two-panels", "screenshot": "06-two-panels-stacked" },
+    { "name": "probe-two-panels", "probe": { "checks": ["overflow", "covered", "clipped"] } },
+    { "name": "final-console", "probe": { "checks": ["console"] } }
+  ]
+}

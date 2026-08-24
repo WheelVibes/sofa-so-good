@@ -16,6 +16,8 @@ now published from the **`staging` branch** — see
 - [Configure secrets + bindings](#configure-secrets--bindings)
 - [Apply the database schema](#apply-the-database-schema)
 - [Populate R2 with the shared library](#populate-r2-with-the-shared-library)
+- [Mirror R2 back to your machine](#mirror-r2-back-to-your-machine)
+- [Publish the ambientCG material library](#publish-the-ambientcg-material-library)
 - [Build + deploy the site](#build--deploy-the-site)
 - [Deploy the circuit-breaker cron Worker](#deploy-the-circuit-breaker-cron-worker)
 - [Cost safety + guardrails](#cost-safety--guardrails)
@@ -198,6 +200,101 @@ safety net, but re-upload a current manifest). The manifest is served
 re-uploaded `library/index.json` is picked up on the next catalog open with no
 cache purge or redeploy.
 
+## Mirror R2 back to your machine
+
+The reverse of the upload above — pull the private library out of R2 into
+`resources/` (gitignored) so you can work against the real corpus locally.
+
+1. **Point it at credentials.** If you already configured the `sofa-r2` rclone
+   remote for the upload above, you are done — the script reads
+   `~/.config/rclone/rclone.conf` and derives the account id from the
+   `…r2.cloudflarestorage.com` endpoint. Otherwise create a read-only token
+   (Dashboard → **R2** → *Manage API tokens* → permission **Object Read only**,
+   scoped to `sofa-assets`) and write `.r2.env` in the repo root (gitignored):
+   ```ini
+   R2_ACCOUNT_ID=<account id>
+   R2_ACCESS_KEY_ID=<access key id>
+   R2_SECRET_ACCESS_KEY=<secret access key>
+   ```
+   Resolution order is environment → `.r2.env` → rclone remote; the script
+   prints which one it used.
+2. **Pull:**
+   ```bash
+   npm run pull-r2-library -- --dry-run     # list what would be fetched, no writes
+   npm run pull-r2-library                  # mirror ikea/ + library/ into resources/
+   ```
+   Flags: `--prefix <p>` (repeatable; defaults to `ikea/` and `library/`),
+   `--out <dir>` (default `resources`), `--concurrency <n>` (default 16),
+   `--bucket <name>` (default `sofa-assets`), `--remote <name>` (rclone remote,
+   default `sofa-r2`).
+
+The script (`scripts/pull-r2-library.mjs`) speaks the S3 API with hand-rolled
+SigV4 — no `rclone`/`aws` install needed. It is **resumable**: any local file
+whose size already matches the object's `Content-Length` is skipped, so a
+re-run after an interruption only fetches what is missing.
+
+> **Licensing.** The IKEA corpus is non-redistributable. `resources/` is in
+> `.gitignore` and must stay there — never commit or republish these files.
+
+## Publish the ambientCG material library
+
+R2 also serves the **ambientCG CC0 PBR material library** under the `acg/`
+prefix, alongside `ikea/`. This is what makes ambientCG usable in production at
+all: its own API and CDN send no `Access-Control-Allow-Origin`, so the live
+provider only works behind the dev-only Vite proxy. Mirroring the corpus into
+our own bucket makes it same-origin.
+
+1. **Pack the corpus.** Point the packer at extracted ambientCG `_1K-JPG`
+   folders (`<AssetId>/<AssetId>_1K-JPG_Color.jpg`, …):
+   ```bash
+   npm run pack-ambientcg              # resources/ambientcg -> resources/acg
+   ```
+   It emits the seven channels the runtime binds — albedo, normal (GL),
+   roughness, AO, metalness, opacity and displacement — plus a 256 px
+   `thumb.webp` and `index.json`. Only files nothing can consume are dropped:
+   **NormalDX** (identical to NormalGL with G flipped; three.js is
+   OpenGL-convention), the DCC scene formats (`.blend`, `.usdc`, `.mtlx`,
+   `.tres`) and the preview PNG (superseded by the generated thumb).
+
+   Note that **displacement is not bound to three's `displacementMap`** — that
+   displaces vertices and the shell's floors are low-poly boxes with nothing to
+   subdivide. It is the height field the parallax-occlusion floor path
+   ray-marches in the fragment shader (`src/materials/pomFloor.ts`), which is
+   why it is worth the bytes.
+
+   Maps are **near-lossless WebP**, not lossy. Lossy WebP (VP8) is always YUV
+   4:2:0 with no 4:4:4 mode, and a normal map stores X/Y in R/G — subsampling
+   them caps fidelity at ~22 dB PSNR *regardless of the quality setting*.
+   Near-lossless holds 46 dB with a max channel error of 2/255 at ~63% of
+   source. Use `--lossless` for a bit-exact mirror, or `--near-lossless <n>` to
+   trade.
+
+2. **Upload the tree, then the manifest** — note the manifest's destination:
+   ```bash
+   node scripts/push-r2-library.mjs resources/acg acg --exclude index.json
+   node scripts/push-r2-library.mjs resources/acg '' --only index.json \
+     --rename index.json=library/acg-index.json
+   ```
+   The manifest **must** land at `library/acg-index.json`, not
+   `acg/index.json`: [`server/assets.ts`](../server/assets.ts) exempts only the
+   `library/` prefix from the year-long immutable cache, and the manifest is
+   replaced in place on every re-publish. A manifest cached immutably outlives
+   its own fix by up to a year.
+
+   `push-r2-library.mjs` is idempotent — an object whose remote size already
+   matches the local file is skipped, so a re-publish only sends what changed.
+
+3. **Nothing to change on the backend.** The asset proxy is prefix-agnostic and
+   already maps `webp`, so `acg/` works with no code change. The client side is
+   gated by the `ambientcgLibrary` feature flag (pro tier, default on, prod-safe
+   because the assets are CC0 and same-origin) and served by
+   `src/catalog/remote/providers/acgLibrary.ts`.
+
+> **Licensing.** ambientCG is CC0, so unlike the IKEA library this is
+> redistributable. It still rides the same auth gate simply because the bucket
+> is private.
+
+
 ## Build + deploy the site
 
 Cloudflare's build automatically bundles `functions/` into the API Worker.
@@ -311,12 +408,25 @@ The backend (`scripts/dev-api.ts`) hosts the **actual** Cloudflare Worker app
 (`functions/api/[[route]].ts`) on Node with shimmed bindings — `node:sqlite` for
 D1 (persisted to `.wrangler/sofa-dev.sqlite`), an in-memory Map for KV/sessions,
 and a **filesystem mirror of the R2 shared-library bucket** so the admin catalog
-populates in dev too. R2's contents are just the local `ikea_optimized/` tree
-(the same one `rclone`d to the bucket — see below), so the shim serves those keys
-straight from disk: `ikea/<group>/<file>` → `ikea_optimized/<group>/<file>` and
-`library/index.json` → `ikea_optimized/library-index.json` (run
-`npm run build-library-index` once to produce it). Override the source dir with
-`DEV_LIBRARY_DIR`; if it's absent the shared library just stays empty. The admin
+and the ambientCG material library populate in dev too. R2's contents are just a
+local tree, so the shim serves those keys straight from disk — it searches, in
+order (`scripts/lib/devLibraryMirror.ts`, pure + unit-tested):
+
+1. **`resources/`** — the R2-SHAPED mirror `npm run pull-r2-library` writes: keys
+   verbatim (`library/index.json`, `library/acg-index.json`, `ikea/<group>/<file>`,
+   `acg/<AssetId>/<map>.webp`). This is the only layout that can express `acg/`.
+2. **`ikea_optimized/`** — the legacy flat IKEA scrape (the tree `rclone`d to the
+   bucket, see below), with the historic rewrites `ikea/<group>/<file>` →
+   `<group>/<file>` and `library/index.json` → `library-index.json` (run
+   `npm run build-library-index` once to produce it).
+
+Each key takes the first hit, so a machine with both trees serves IKEA from the
+scrape and ambientCG from `resources/` without any configuration. `DEV_LIBRARY_DIR`
+still pins one dir explicitly (absolute or repo-relative) and wins outright. A key
+in no mirror 404s — the same as an empty bucket — and the dev API logs the miss once
+with the dirs it searched, because a silent 404 here surfaces as a *feature* that
+looks broken (an `ambientcg:<slug>:1k` finish that never resolves; it was originally
+misdiagnosed as a renderer bug — see v0.29.3.4 / .6 in CHANGELOG.md). The admin
 is seeded from `.dev.vars` (`ADMIN_EMAIL`/`ADMIN_PASSWORD`) on the first request;
 sign in with those on the login screen. Turnstile is skipped when
 `TURNSTILE_SECRET` is empty. Requires Node ≥ 22 (`node:sqlite`); run either half

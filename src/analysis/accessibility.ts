@@ -13,6 +13,8 @@
  * panel / report section is presentation over the rows this returns. Mirrors the
  * shape of `daylight.ts`.
  */
+
+import { assignRoomOpeningNames } from '../floorplan/roomWallNames'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
 import { isExternalRoom } from './daylight'
 
@@ -29,6 +31,13 @@ interface DoorAccessRow {
   /** Clear structural opening width (m). */
   width: number
   pass: boolean
+  /** Which door this is, e.g. "Bedroom 2 door 01".
+   *
+   *  Without it the panel listed seven identical `Door · 0.80 m` rows and the
+   *  advice ("widen to ≥ 0.85 m") was unactionable — you could not tell which
+   *  door to widen (Chrome audit 2026-08). Prefers a user/auto-assigned opening
+   *  name, otherwise derives one from the room the door sits on. */
+  name?: string
 }
 
 /** One room's turning-space result. */
@@ -64,9 +73,27 @@ function roomMinDim(r: PlanRoom): number {
  */
 export function buildAccessibilityReport(plan: FloorPlan): AccessibilityReport {
   const openings = Array.isArray(plan.openings) ? plan.openings : []
+  const walls = Array.isArray(plan.walls) ? plan.walls : []
+  const allRooms = Array.isArray(plan.rooms) ? plan.rooms : []
+  // Reuse the same room→opening allocation the plan editor uses for auto-naming,
+  // so a door reads the same here as it does when selected on the plan. The
+  // seeded default plan carries no opening names (auto-naming only runs when a
+  // room is added or renamed), which is exactly the case that produced a list of
+  // indistinguishable rows.
+  const derivedNames = new Map<string, string>()
+  for (const room of allRooms) {
+    for (const a of assignRoomOpeningNames(walls, openings, room)) {
+      if (!derivedNames.has(a.id)) derivedNames.set(a.id, a.name)
+    }
+  }
   const doors: DoorAccessRow[] = openings
     .filter((o) => o.kind === 'door')
-    .map((o) => ({ id: o.id, width: o.width, pass: o.width >= MIN_DOOR_CLEAR }))
+    .map((o) => ({
+      id: o.id,
+      width: o.width,
+      pass: o.width >= MIN_DOOR_CLEAR,
+      name: o.name ?? derivedNames.get(o.id),
+    }))
 
   const rooms: RoomAccessRow[] = (Array.isArray(plan.rooms) ? plan.rooms : [])
     .filter((r) => !isExternalRoom(r) && r.width > 0 && r.depth > 0)

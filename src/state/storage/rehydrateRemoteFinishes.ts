@@ -41,9 +41,20 @@ export async function rehydrateRemoteFinishes(): Promise<void> {
   const refs = collectRemoteFinishRefs({ finishes: s.finishes, items: s.items })
   await Promise.all(
     refs.map((ref) =>
-      s.resolveRemoteAsset(remoteEntryForRef(ref), ref.resolution).catch(() => {
+      s.resolveRemoteAsset(remoteEntryForRef(ref), ref.resolution).catch((err) => {
         // Offline with no cached bundle — leave the surface on its fallback;
         // the id survives in the save, so a later session can still resolve.
+        // Say so in dev, though: this is the one remote-finish failure with NO
+        // UI surface (the pack browser shows its own index error), so a
+        // misconfigured local mirror — `ambientCG library 404`, the dev API not
+        // seeing `resources/` — otherwise looks like a finish that just refuses
+        // to apply. See scripts/lib/devLibraryMirror.ts.
+        if (import.meta.env.DEV) {
+          console.warn(
+            `[finishes] applied finish '${ref.provider}:${ref.slug}:${ref.resolution}' did not resolve — the surface stays on its fallback:`,
+            err,
+          )
+        }
       }),
     ),
   )

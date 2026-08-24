@@ -4,7 +4,13 @@ import { useEffect, useRef } from 'react'
 import { subscribeProceduralSwap } from '../materials/proceduralSwapSignal'
 import { useStore } from '../state/store'
 import { animatedSourceCount } from './animatedSources'
-import { isContinuous, type PumpInputs, settleTailMs, shouldRender } from './renderDecision'
+import {
+  assetsSettleDirtyUntil,
+  isContinuous,
+  type PumpInputs,
+  settleTailMs,
+  shouldRender,
+} from './renderDecision'
 import { setRenderingContinuously } from './renderPumpSignal'
 import { pulseShadowRefresh } from './shadowRefreshSignal'
 import { changeAffectsShadow } from './shadowRelevance'
@@ -28,11 +34,17 @@ export function RenderPump() {
   const invalidate = useThree((s) => s.invalidate)
   const showcaseEnabled = useQuality().showcase
 
-  // drei's loader progress — keep rendering while assets stream in. Read into a
-  // ref so the rAF loop doesn't need to re-subscribe.
-  const { active: assetsActive } = useProgress()
-  const assetsActiveRef = useRef(assetsActive)
-  assetsActiveRef.current = assetsActive
+  // drei's loader progress — keep rendering while assets stream in.
+  //
+  // Read IMPERATIVELY (`useProgress.getState()`) inside the rAF loop rather than
+  // subscribing with `useProgress()`. drei updates that store from its loading
+  // manager *during* React's render phase, so subscribing here made a mounted
+  // RenderPump set state while another component was still rendering:
+  //   "Cannot update a component (RenderPump) while rendering a different
+  //    component (TexturedRoomFloor)"
+  // — reproducible by applying a textured floor finish (Chrome audit 2026-08).
+  // Nothing is lost: the value was only ever copied into a ref and read once per
+  // frame, so the loop now reads a fresher value with no subscription at all.
 
   const showcaseRef = useRef(showcaseEnabled)
   showcaseRef.current = showcaseEnabled
@@ -103,6 +115,8 @@ export function RenderPump() {
       overlayBoot: false,
       lastOverlayRenderMs: 0,
     }
+    // Previous tick's asset-streaming flag, for the falling-edge tail below.
+    let wasAssetsActive = false
     const loop = () => {
       raf = requestAnimationFrame(loop)
       const s = useStore.getState()
@@ -111,7 +125,19 @@ export function RenderPump() {
       inputs.overlayBoot = s.bootPhase === 'ready' && !s.sceneReady
       inputs.lastOverlayRenderMs = lastOverlayRenderMs.current
       inputs.sceneReady = s.sceneReady
-      inputs.assetsActive = assetsActiveRef.current
+      inputs.assetsActive = useProgress.getState().active
+      // Streaming just finished: a surface that SUSPENDED on its textures commits
+      // its loaded material after the loader goes idle, so without this tail the
+      // last continuous frame predates the commit and demand mode never draws the
+      // result (FINISH-DEFER). Extends the dirty window rather than invalidating
+      // once, so the commit + its GPU upload land inside it.
+      dirtyUntil.current = assetsSettleDirtyUntil(
+        wasAssetsActive,
+        inputs.assetsActive,
+        performance.now(),
+        dirtyUntil.current,
+      )
+      wasAssetsActive = inputs.assetsActive
       inputs.walk = s.cameraMode === 'firstPerson'
       inputs.autoRotate = s.autoRotate
       inputs.touring = Boolean(s.touring)

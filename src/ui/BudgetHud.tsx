@@ -3,6 +3,7 @@ import { useFeature } from '../features/useFeature'
 import { useCatalog } from '../furniture/catalog'
 import { itemsCost } from '../furniture/itemsCost'
 import { useStore } from '../state/store'
+import { closeAllAuxPanels } from './auxPanels'
 import { useAnimatedNumber } from './controls/useAnimatedNumber'
 
 /**
@@ -41,7 +42,15 @@ export function BudgetHud() {
       aria-label={`Spend ${fmt(spent)} of ${fmt(target)} budget — open the shopping list`}
       title="Estimated spend vs your budget target — open the Shopping list"
       onClick={() => {
-        if (!useStore.getState().budgetOpen) useStore.getState().toggleBudget()
+        // Every other entry point (Tools menu, ⌘K, toolActions) closes the other
+        // aux panels first — they all dock to the same centred-top slot. This
+        // pill did not, so clicking it while e.g. Design score was open left two
+        // panels stacked in that one slot, the lower one's controls unreachable
+        // (Chrome audit 2026-08).
+        const s = useStore.getState()
+        if (s.budgetOpen) return
+        closeAllAuxPanels(s)
+        useStore.getState().toggleBudget()
       }}
     >
       <div className="budget-hud-row">

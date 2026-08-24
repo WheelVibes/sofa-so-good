@@ -87,6 +87,21 @@ export interface TexturedMaterialDef extends MaterialDefBase {
     normal?: string
     roughness?: string
     ao?: string
+    /** Spatially-varying metalness (`metalnessMap`). A scan with rust, patina or
+     *  worn plating cannot be described by the scalar `metalness` alone. When
+     *  present the scalar is driven to 1 so the map is the sole authority. */
+    metalness?: string
+    /** Per-texel opacity (`alphaMap`) for genuinely perforated / open-weave
+     *  surfaces (grates, mesh, sheer fabric). Uses alpha-TEST, not blending —
+     *  see `cache.ts` (a blended surface would fight the wall-reveal fade and
+     *  sort incorrectly against the rest of the shell). */
+    opacity?: string
+    /** Height / displacement field. NOT bound as three's `displacementMap` —
+     *  that displaces vertices and the shell's walls/floors are low-poly boxes
+     *  with nothing to displace. It feeds the parallax-occlusion floor path
+     *  (`pomFloor.ts`) instead, which ray-marches the height field in the
+     *  fragment shader so joints genuinely recede. */
+    displacement?: string
   }
   /** UV repeat in metres-per-tile. [1, 1] tiles 1×1 m per texture. */
   uvScale: [number, number]
@@ -96,6 +111,9 @@ export interface TexturedMaterialDef extends MaterialDefBase {
     normal?: string
     roughness?: string
     ao?: string
+    metalness?: string
+    opacity?: string
+    displacement?: string
   }
 }
 

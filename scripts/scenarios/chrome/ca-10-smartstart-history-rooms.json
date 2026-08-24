@@ -1,0 +1,50 @@
+{
+  "name": "ca-10-smartstart-history-rooms",
+  "description": "Audit pass 10 — surfaces the earlier passes never opened: the Smart Start wizard (the app's headline 'furnish everything' flow), undo/redo correctness after a real edit, and switching between rooms in the room editor.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 30000 },
+    { "name": "dismiss-first-run", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "daylight", "eval": "const s = window.__store.getState(); s.setTimeMode('manual'); s.setManualHour(13)" },
+    { "name": "settle-boot", "wait": 1500 },
+
+    { "name": "open-smartstart", "store": { "action": "setSmartStartOpen", "args": [true] } },
+    { "name": "wizard-mounted", "waitFor": { "css": ".modal-overlay" }, "timeout": 10000 },
+    { "name": "probe-wizard-at-open", "probe": { "checks": ["transparent"], "scope": ".modal-overlay" } },
+    { "name": "settle-wizard", "wait": 900 },
+    { "name": "shot-smartstart", "screenshot": "01-smart-start" },
+    { "name": "probe-wizard", "probe": { "checks": ["overflow", "clipped", "naming", "covered", "contrast", "assets"] } },
+    { "name": "close-wizard", "store": { "action": "setSmartStartOpen", "args": [false] } },
+    { "name": "settle-close", "wait": 800 },
+
+    { "name": "count-before", "eval": "window.__auditItemsBefore = window.__store.getState().items.length; return window.__auditItemsBefore" },
+    { "name": "enter-room", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "settle-room", "wait": 1600 },
+    { "name": "delete-an-item", "eval": "const s = window.__store.getState(); const it = s.items.find(i => i.defId === 'sofa-3seat') ?? s.items[0]; window.__auditDeleted = it.defId; s.selectItem(it.id); s.deleteItem(it.id); s.selectItem(null)" },
+    { "name": "settle-delete", "wait": 1400 },
+    { "name": "assert-deleted", "assert": { "js": "window.__store.getState().items.length === window.__auditItemsBefore - 1", "message": "deleting an item should drop the item count by one" } },
+    { "name": "shot-after-delete", "screenshot": "02-after-delete" },
+
+    { "name": "undo", "store": { "action": "undo", "args": [] } },
+    { "name": "settle-undo", "wait": 1600 },
+    { "name": "assert-undo-restores", "assert": { "js": "window.__store.getState().items.length === window.__auditItemsBefore", "message": "undo should restore the deleted item" } },
+    { "name": "shot-after-undo", "screenshot": "03-after-undo" },
+    { "name": "redo", "store": { "action": "redo", "args": [] } },
+    { "name": "settle-redo", "wait": 1600 },
+    { "name": "assert-redo-reapplies", "assert": { "js": "window.__store.getState().items.length === window.__auditItemsBefore - 1", "message": "redo should re-apply the delete" } },
+    { "name": "undo-again", "store": { "action": "undo", "args": [] } },
+    { "name": "settle-undo2", "wait": 1400 },
+
+    { "name": "switch-room-kitchen", "store": { "action": "enterRoomEditor", "args": ["kitchen"] } },
+    { "name": "settle-kitchen", "wait": 2000 },
+    { "name": "assert-room-switched", "assert": { "js": "window.__store.getState().roomEditor?.roomId === 'kitchen'", "message": "the room editor should follow the room switch" } },
+    { "name": "shot-kitchen", "screenshot": "04-room-switch-kitchen" },
+    { "name": "probe-kitchen", "probe": { "checks": ["console", "overflow", "clipped", "naming", "covered"] } },
+
+    { "name": "switch-room-bedroom", "store": { "action": "enterRoomEditor", "args": ["mainBedroom"] } },
+    { "name": "settle-bedroom", "wait": 2000 },
+    { "name": "shot-bedroom", "screenshot": "05-room-switch-bedroom" },
+    { "name": "exit-room", "store": { "action": "exitRoomEditor", "args": [] } },
+    { "name": "settle-exit", "wait": 1500 },
+    { "name": "final-console", "probe": { "checks": ["console"] } }
+  ]
+}

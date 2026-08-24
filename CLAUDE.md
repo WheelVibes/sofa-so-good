@@ -30,10 +30,20 @@ Zustand (sliced store), Vite, Vitest, Biome.
   new `src/<module>/CLAUDE.md`), so guidance loads only where it's relevant. Prefer many small,
   scoped docs over one growing file.
 - **Visual verification after any app change** (not docs/tests-only): run the app, exercise
-  via `window.__store` + `scripts/shot.mjs`, screenshot, **visually review** for bugs/
-  artifacts, and report what you saw. Green `tsc`+tests is NOT proof the render is right.
+  it via `window.__store`, screenshot, **visually review** for bugs/artifacts, and report what
+  you saw. Green `tsc`+tests is NOT proof the render is right.
+  **Prefer Claude-in-Chrome when it is available** — drive the real tab with
+  `scripts/lib/chrome-audit/driver.js` + `scripts/scenarios/chrome/ca-*.json`
+  (**[docs/chrome-interactive-audit.md](docs/chrome-interactive-audit.md)**): real GPU, real
+  fonts, real compositor, and the same step vocabulary as the headless runner.
+  **Fall back to `scripts/shot.mjs`** when Chrome is not connected, when the run must be
+  non-interactive (CI/cron), or for what Chrome structurally can't do — **true phone viewports**
+  (`resize_window` clamps at ~606px, so 390/320 need `viewport` steps) and **coarse-pointer JS
+  paths** like long-press (`SHOT_TOUCH=1`). NOTE: the 44px tap-target CSS is gated on
+  `@media (max-width: 960px)`, i.e. **width, not pointer** — so Chrome *can* audit tap sizing at
+  a narrow window; only the true-phone widths and real touch input need the headless harness.
   Read `docs/visual-verification-playbook.md` first (harness rules, gotchas, template); add
-  new fixes back to it.
+  new fixes back to it (or to the Chrome doc).
 - **Platform-specific quirks/bugs → search the web first, don't trust memory or assume.**
   For any mobile- or desktop-specific behaviour (iOS/Safari PWA safe-area & `env()` insets,
   `black-translucent` status bar, `100dvh`/viewport units, `position: fixed` clamping,
@@ -117,7 +127,10 @@ Zustand (sliced store), Vite, Vitest, Biome.
   installers) · `npm run build:mobile` (Capacitor Android → APK via CI, see
   `docs/packaging-android.md`) — details in ARCHITECTURE.md. Node pinned **26.7.0** (`.nvmrc`).
 - Cloudflare backend (Pages + Workers + D1/R2/KV): `typecheck:worker` (tsc for `functions/`+
-  `server/`+`workers/`), `build-library-index` (R2 manifest). Full deploy + guardrails guide:
+  `server/`+`workers/`), `build-library-index` (R2 manifest), `pull-r2-library` (mirror the
+  private R2 library into `resources/`; reuses the `sofa-r2` rclone remote or `.r2.env`),
+  `pack-ambientcg` (ambientCG zips → the 4 bound PBR maps as near-lossless WebP + manifest,
+  uploaded as the R2 `acg/` prefix). Full deploy + guardrails guide:
   **[docs/deployment-cloudflare.md](docs/deployment-cloudflare.md)**. Backend features gate on
   `VITE_API_BASE` (`hasBackend()`); accounts are admin-created (no public signup).
 

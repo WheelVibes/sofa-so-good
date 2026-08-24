@@ -7,12 +7,14 @@ import type { MaterialSidecar } from './sidecar'
 // ambientCG naming conventions, so a bare download folder ("just drop it in")
 // works with zero hand-authored metadata.
 //
-// The runtime material system (src/materials/cache.ts) only binds four maps —
-// albedo (map), normal (normalMap), roughness (roughnessMap) and AO (aoMap) —
-// so those are the only channels we EMIT. We still recognise metalness /
-// displacement / height / combined-ARM files, but only to report them as
-// ignored (an unsupported channel) rather than silently mistaking one for a
-// map we do use.
+// The runtime material system (src/materials/cache.ts) binds seven channels:
+// albedo (map), normal (normalMap), roughness (roughnessMap), AO (aoMap),
+// metalness (metalnessMap), opacity (alphaMap, alpha-tested) and displacement
+// — the last NOT as three's vertex-displacing `displacementMap` but as the
+// height field the parallax-occlusion floor path ray-marches (`pomFloor.ts`).
+// A combined-ARM (AO/Roughness/Metalness in RGB) file is still only recognised
+// so it can be reported as ignored: splitting its channels would need a raster
+// pass this pure filename-level module deliberately does not do.
 
 /** Web-usable raster extensions the runtime can load. EXR/TIFF/HDR sources
  *  (common for Poly Haven displacement/normal) are intentionally excluded —
@@ -20,7 +22,7 @@ import type { MaterialSidecar } from './sidecar'
 const IMAGE_EXT_RE = /\.(png|jpe?g|webp)$/i
 
 /** Channels the runtime actually binds. */
-export type SupportedChannel = 'albedo' | 'normal' | 'rough' | 'ao'
+export type SupportedChannel = 'albedo' | 'normal' | 'rough' | 'ao' | 'metal' | 'opacity' | 'height'
 
 interface ChannelSpec {
   channel: SupportedChannel
@@ -41,13 +43,16 @@ const CHANNEL_SPECS: ChannelSpec[] = [
   { channel: 'normal', tokens: ['nor', 'normal', 'nrm', 'norm'] },
   { channel: 'ao', tokens: ['ao', 'occlusion', 'occ'] },
   { channel: 'rough', tokens: ['rough', 'roughness', 'rgh'] },
+  // 'metal'/'metallic'/'metalness' — NOT bare 'met', which collides with
+  // unrelated words often present in a scan's filename.
+  { channel: 'metal', tokens: ['metal', 'metallic', 'metalness'] },
+  { channel: 'opacity', tokens: ['opacity', 'alpha', 'transparency'] },
+  { channel: 'height', tokens: ['disp', 'displacement', 'height', 'bump', 'depth'] },
 ]
 
 // Recognised-but-unsupported channels: detected only so we can log them as
 // ignored (the runtime has no slot for them) instead of misclassifying.
 const UNSUPPORTED_SPECS: { channel: string; tokens: string[] }[] = [
-  { channel: 'metalness', tokens: ['metal', 'metallic', 'metalness', 'met'] },
-  { channel: 'displacement', tokens: ['disp', 'displacement', 'height', 'bump', 'depth'] },
   { channel: 'arm', tokens: ['arm'] }, // combined AO/Roughness/Metalness (ORM-style)
 ]
 
@@ -94,10 +99,18 @@ function isDxNormal(filename: string): boolean {
 }
 
 export interface DetectedChannels {
-  channels: { albedo?: string; normal?: string; rough?: string; ao?: string }
+  channels: {
+    albedo?: string
+    normal?: string
+    rough?: string
+    ao?: string
+    metal?: string
+    opacity?: string
+    height?: string
+  }
   /** Human-readable notes (ambiguous picks, ignored maps, missing albedo). */
   warnings: string[]
-  /** Recognised files the runtime can't use (metalness/displacement/ARM). */
+  /** Recognised files the runtime can't use (combined ARM/ORM packs). */
   ignored: { file: string; channel: string }[]
 }
 
@@ -126,7 +139,15 @@ export function detectMaterialChannels(files: string[]): DetectedChannels {
   }
 
   const channels: DetectedChannels['channels'] = {}
-  for (const channel of ['albedo', 'normal', 'rough', 'ao'] as const) {
+  for (const channel of [
+    'albedo',
+    'normal',
+    'rough',
+    'ao',
+    'metal',
+    'opacity',
+    'height',
+  ] as const) {
     const candidates = buckets.get(channel)
     if (!candidates || candidates.length === 0) continue
     let pick = candidates[0]

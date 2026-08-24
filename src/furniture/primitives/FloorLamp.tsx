@@ -3,6 +3,7 @@ import { useRef } from 'react'
 import type { MeshStandardMaterial } from 'three'
 import { fixtureEmissiveIntensity } from '../../scene/lighting/fixtureGlow'
 import type { ParamProps } from '../types'
+import { MetalMaterial } from './MetalMaterial'
 import { readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
@@ -76,19 +77,19 @@ export function FloorLamp({ props }: { props: ParamProps }) {
           {/* Riser */}
           <mesh castShadow position={[0, (riserTop + 0.1) / 2, 0]}>
             <cylinderGeometry args={[0.02, 0.022, riserTop - 0.1, 12]} />
-            <meshStandardMaterial {...metal} />
+            <MetalMaterial {...metal} />
           </mesh>
           {/* Arched segments */}
           {arcSegs.map((s, i) => (
             <mesh key={i} castShadow position={s.pos} rotation={[0, 0, s.rot]}>
               <cylinderGeometry args={[0.02, 0.02, s.len, 10]} />
-              <meshStandardMaterial {...metal} />
+              <MetalMaterial {...metal} />
             </mesh>
           ))}
           {/* Short drop stem into the shade */}
           <mesh castShadow position={[reach, archTopY - 0.05, 0]}>
             <cylinderGeometry args={[0.016, 0.016, 0.12, 10]} />
-            <meshStandardMaterial {...metal} />
+            <MetalMaterial {...metal} />
           </mesh>
         </>
       ) : tripod ? (
@@ -124,12 +125,12 @@ export function FloorLamp({ props }: { props: ParamProps }) {
           {/* Disc base */}
           <mesh castShadow receiveShadow position={[0, 0.02, 0]}>
             <cylinderGeometry args={[0.16, 0.18, 0.04, seg(24, detail)]} />
-            <meshStandardMaterial color={poleColor} roughness={0.4} metalness={0.6} />
+            <MetalMaterial color={poleColor} roughness={0.4} metalness={0.6} />
           </mesh>
           {/* Pole */}
           <mesh castShadow position={[0, poleH / 2, 0]}>
             <cylinderGeometry args={[0.018, 0.018, poleH, 12]} />
-            <meshStandardMaterial color={poleColor} roughness={0.4} metalness={0.6} />
+            <MetalMaterial color={poleColor} roughness={0.4} metalness={0.6} />
           </mesh>
         </>
       )}

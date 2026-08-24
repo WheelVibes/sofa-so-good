@@ -1,6 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 
 /**
@@ -231,7 +232,7 @@ export function LoftBed({ props }: { props: ParamProps }) {
                 />
                 <mesh castShadow position={[iw / 2 - 0.06, wardH / 2, wZ0 + wDepth + 0.02]}>
                   <boxGeometry args={[0.02, 0.24, 0.024]} />
-                  <meshStandardMaterial color="#3a3d42" roughness={0.4} metalness={0.6} />
+                  <MetalMaterial color="#3a3d42" roughness={0.4} metalness={0.6} />
                 </mesh>
               </>
             )

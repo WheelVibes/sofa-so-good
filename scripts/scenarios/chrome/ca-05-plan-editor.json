@@ -1,0 +1,33 @@
+{
+  "name": "ca-05-plan-editor",
+  "description": "Audit pass 5 — the 2D plan editor: entry transition, room selection + inspector, wall selection, labels, compass, and the left rail tools.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 30000 },
+    { "name": "dismiss-first-run", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "pro-mode", "eval": "const s = window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags()" },
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-mounted", "waitFor": { "css": ".plan-screen" }, "timeout": 40000 },
+    { "name": "settle-plan", "wait": 2500 },
+    { "name": "shot-plan", "screenshot": "01-plan-editor" },
+    { "name": "probe-plan", "probe": { "checks": ["console", "overflow", "clipped", "naming", "covered", "contrast", "assets"] } },
+
+    { "name": "select-biggest-room", "eval": "const s = window.__store.getState(); const fp = s.floorPlan; const rooms = (fp.levels ? fp.levels.find(l => l.id === fp.activeLevelId)?.rooms : null) ?? fp.rooms ?? []; const big = rooms.reduce((a, b) => (a && a.width * a.depth >= b.width * b.depth ? a : b), rooms[0]); window.__auditRoom = big.id; s.setPlanSelection({ type: 'room', id: big.id }); return big.name ?? big.id" },
+    { "name": "settle-select", "wait": 1200 },
+    { "name": "shot-room-selected", "screenshot": "02-plan-room-selected" },
+    { "name": "probe-room-inspector", "probe": { "checks": ["overflow", "clipped", "naming", "covered", "contrast"] } },
+
+    { "name": "rename-room", "eval": "window.__store.getState().updateRoom(window.__auditRoom, { name: 'Reading Nook' })" },
+    { "name": "settle-rename", "wait": 900 },
+    { "name": "shot-room-renamed", "screenshot": "03-plan-room-renamed" },
+    { "name": "assert-rename-applied", "assert": { "js": "document.body.textContent.includes('Reading Nook')", "message": "renamed room label should appear in the plan UI" } },
+
+    { "name": "cycle-labels", "store": { "action": "setPlanLabels", "args": ["area"] } },
+    { "name": "settle-labels", "wait": 900 },
+    { "name": "shot-plan-labels", "screenshot": "04-plan-labels-area" },
+
+    { "name": "exit-plan", "store": { "action": "setFloorPlanEditing", "args": [false] } },
+    { "name": "settle-exit", "wait": 2000 },
+    { "name": "shot-back-to-3d", "screenshot": "05-back-to-3d" },
+    { "name": "final-console", "probe": { "checks": ["console"] } }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "name": "ca-09-pro-tools-sweep",
+  "description": "Audit pass 9 — the Pro discovery surfaces the earlier passes did not open: the Tools menu (screenshotted at open for the stagger-void check), the command palette with a real query, measure/tape, versions, moodboard, graphics settings and the accessibility panel.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 30000 },
+    { "name": "dismiss-first-run", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "daylight", "eval": "const s = window.__store.getState(); s.setTimeMode('manual'); s.setManualHour(13)" },
+    { "name": "pro-mode", "eval": "const s = window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags()" },
+    { "name": "pro-active", "waitFor": { "store": "state.uiMode === 'pro'" }, "timeout": 5000 },
+    { "name": "settle-pro", "wait": 1500 },
+
+    { "name": "open-tools-menu", "click": { "text": "Tools" } },
+    { "name": "tools-menu-mounted", "waitFor": { "css": ".menu-item" }, "timeout": 6000 },
+    { "name": "probe-tools-void", "probe": { "checks": ["transparent"], "scope": ".pop-panel" } },
+    { "name": "shot-tools-at-open", "screenshot": "01-tools-menu-at-open" },
+    { "name": "settle-tools", "wait": 700 },
+    { "name": "probe-tools-menu", "probe": { "checks": ["overflow", "clipped", "naming", "covered", "contrast"] } },
+    { "name": "close-tools", "key": "Escape" },
+
+    { "name": "open-cmdk", "store": { "action": "setCmdkOpen", "args": [true] } },
+    { "name": "cmdk-mounted", "waitFor": { "css": ".cmdk-item" }, "timeout": 8000 },
+    { "name": "type-query", "type": "type", "text": "measure" },
+    { "name": "settle-query", "wait": 800 },
+    { "name": "shot-cmdk-query", "screenshot": "02-command-palette-query" },
+    { "name": "probe-cmdk", "probe": { "checks": ["overflow", "clipped", "naming", "covered", "contrast"] } },
+    { "name": "assert-cmdk-filters", "assert": { "js": "document.querySelectorAll('.cmdk-item').length > 0", "message": "a real query should still match at least one command" } },
+    { "name": "close-cmdk", "store": { "action": "setCmdkOpen", "args": [false] } },
+
+    { "name": "open-measure", "store": { "action": "toggleTapeMode", "args": [] } },
+    { "name": "settle-measure", "wait": 1200 },
+    { "name": "shot-measure", "screenshot": "03-measure-tape" },
+    { "name": "probe-measure", "probe": { "checks": ["overflow", "clipped", "naming", "covered"] } },
+    { "name": "close-measure", "eval": "const s = window.__store.getState(); if (s.tapeMode) s.toggleTapeMode()" },
+
+    { "name": "open-versions", "store": { "action": "setVersionsOpen", "args": [true] } },
+    { "name": "settle-versions", "wait": 1200 },
+    { "name": "shot-versions", "screenshot": "04-versions" },
+    { "name": "probe-versions", "probe": { "checks": ["overflow", "clipped", "naming", "covered", "contrast"] } },
+    { "name": "close-versions", "store": { "action": "setVersionsOpen", "args": [false] } },
+
+    { "name": "open-accessibility", "store": { "action": "setAccessibilityOpen", "args": [true] } },
+    { "name": "settle-a11y", "wait": 1200 },
+    { "name": "shot-accessibility", "screenshot": "05-accessibility" },
+    { "name": "probe-accessibility", "probe": { "checks": ["overflow", "clipped", "naming", "covered", "contrast"] } },
+    { "name": "close-accessibility", "store": { "action": "setAccessibilityOpen", "args": [false] } },
+
+    { "name": "open-credits", "store": { "action": "setCreditsOpen", "args": [true] } },
+    { "name": "settle-credits", "wait": 1200 },
+    { "name": "shot-credits", "screenshot": "06-credits" },
+    { "name": "probe-credits", "probe": { "checks": ["overflow", "clipped", "naming", "covered", "contrast"] } },
+    { "name": "close-credits", "store": { "action": "setCreditsOpen", "args": [false] } },
+    { "name": "final-console", "probe": { "checks": ["console"] } }
+  ]
+}

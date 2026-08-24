@@ -538,7 +538,18 @@ kbd {
   border-radius: var(--r-3);
   box-shadow: var(--shadow-panel);
   z-index: var(--z-pop);
-  max-width: calc(100vw - 32px);
+  /* Clamp to the STAGE, not the viewport. `.toolbar` is centred inside
+     `.stage-area`, which is already inset by `--left-rail`/`--right-rail`, but a
+     `100vw` cap ignored those rails: with the catalog and a right dock both
+     open, the island stayed at its full natural width and overflowed its centred
+     box symmetrically, sliding under the panels. At 1280px that put **"Exit
+     room" (202..238) entirely beneath the catalog (0..320)** — the primary way
+     out of the room editor, unclickable (Chrome audit 2026-08).
+     `100%` resolves to the stage width, so the island now shrinks and the
+     existing `.toolbar-scroll` affordances (edge fades + horizontal scroll) take
+     over instead of hiding controls under a panel. Mobile keeps both rails at
+     0px, so this is identical to the old value there. */
+  max-width: calc(100% - 32px);
 }
 .tool-divider { width: 1px; align-self: stretch; background: var(--border); margin: 3px var(--s-1); }
 /* Room switcher inside the toolbar's room-editor cluster. */
@@ -707,6 +718,16 @@ body.mobile .tip::after { content: none; }
 
 /* ---- Segmented control --------------------------------------- */
 .seg { display: inline-flex; padding: 3px; gap: 2px; background: var(--surface-2); border-radius: var(--r-2); }
+/* A segmented control with many options can be wider than the panel holding it:
+   the plan properties panel is 256px but its ceiling-shape seg measured 301px,
+   pushing the last option ("Sloped") 43px off-screen with overflow visible, so
+   it could not be clicked at all (Chrome audit 2026-08).
+   Scoped to panel bodies on purpose: making `.seg` wrap globally also wrapped
+   the plan TOOLBAR's segs (View/Edit, Wall/Split, the zoom stepper) into
+   vertical stacks, because that bar is `flex-nowrap overflow-x-auto` and
+   squeezes its children. */
+.plan-props .seg,
+.panel-body .seg { flex-wrap: wrap; max-width: 100%; }
 .seg button {
   padding: 5px 10px; border-radius: var(--r-1);
   font-size: var(--t-xs); font-weight: 600; color: var(--text-3);

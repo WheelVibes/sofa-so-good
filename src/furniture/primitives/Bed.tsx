@@ -2,6 +2,7 @@ import { RoundedBox } from '@react-three/drei'
 import { getFabricMaterial, getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 
 interface BedProps {
@@ -92,7 +93,7 @@ export function Bed({ props }: BedProps) {
               rotation={[0, 0, s * 0.22]}
             >
               <cylinderGeometry args={[0.009, 0.009, frameH * 0.5, 10]} />
-              <meshStandardMaterial color="#9aa0a6" roughness={0.35} metalness={0.7} />
+              <MetalMaterial color="#9aa0a6" roughness={0.35} metalness={0.7} />
             </mesh>
           ))}
         </>
@@ -117,7 +118,7 @@ export function Bed({ props }: BedProps) {
               </mesh>
               <mesh position={[width / 2 + 0.02, frameH / 2, dz]}>
                 <boxGeometry args={[0.02, 0.02, 0.12]} />
-                <meshStandardMaterial color="#2b2b2b" roughness={0.4} metalness={0.6} />
+                <MetalMaterial color="#2b2b2b" roughness={0.4} metalness={0.6} />
               </mesh>
             </group>
           )

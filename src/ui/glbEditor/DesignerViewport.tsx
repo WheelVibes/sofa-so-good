@@ -1,7 +1,7 @@
 import { Bounds, OrbitControls, TransformControls, useBounds, useGLTF } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Suspense, useEffect, useRef, useState } from 'react'
-import { Box3, type Object3D, Vector3 } from 'three'
+import { Box3, type Object3D, PCFShadowMap, Vector3 } from 'three'
 import { EnsureFurnitureMaterials } from '../../furniture/FurnitureMaterialLoader'
 import type { FaceSnapHit } from '../../furniture/glbEdit/faceSnap'
 import {
@@ -336,7 +336,11 @@ export function DesignerViewport() {
           TransformControls invalidate during interaction, and any spec/profile/
           ghost prop change re-renders the R3F tree (which invalidates a frame in
           demand mode), so the preview stays live without a permanent 60fps loop. */}
-      <Canvas frameloop="demand" shadows camera={{ position: [1.6, 1.3, 1.8], fov: 40 }}>
+      <Canvas
+        frameloop="demand"
+        shadows={{ type: PCFShadowMap }}
+        camera={{ position: [1.6, 1.3, 1.8], fov: 40 }}
+      >
         {import.meta.env.DEV ? <DevGlExpose /> : null}
         {previewEnv === 'studio' ? (
           <>

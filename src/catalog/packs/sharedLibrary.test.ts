@@ -60,3 +60,34 @@ describe('fetchSharedLibraryIndex', () => {
     expect(await fetchSharedLibraryIndex()).toBeNull()
   })
 })
+
+describe('fetchSharedLibraryIndex — non-JSON responses', () => {
+  it('refuses a dev-server SPA fallback (200 text/html) instead of parse-failing mutely', async () => {
+    // A missing manifest in dev is answered by index.html with a 200, so `res.ok`
+    // is true and only the JSON parse gives it away — which surfaced as a bare
+    // `status: 'error'` with nothing in the console (Chrome audit 2026-08).
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const fn = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: () => 'text/html; charset=utf-8' },
+      json: () => Promise.reject(new Error('not json')),
+    })
+    vi.stubGlobal('fetch', fn)
+    await expect(fetchSharedLibraryIndex()).resolves.toBeNull()
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('not JSON'))
+    warn.mockRestore()
+  })
+
+  it('still accepts a manifest served with a JSON content-type', async () => {
+    const fn = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: () => 'application/json' },
+      json: () => Promise.resolve({ items: [{ group: 'sofas', groupKey: 'sofas' }] }),
+    })
+    vi.stubGlobal('fetch', fn)
+    const index = await fetchSharedLibraryIndex()
+    expect(index?.items).toHaveLength(1)
+  })
+})

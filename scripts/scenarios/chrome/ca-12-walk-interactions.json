@@ -1,0 +1,42 @@
+{
+  "name": "ca-12-walk-interactions",
+  "description": "Audit pass 12 — walk-mode interactions the passes so far only looked at: nearby-fixture prompts (curtains/blinds), screens, light on/off, walk measure, and the walk camera controls. Starts from an explicit clean baseline.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 30000 },
+    { "name": "dismiss-first-run", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "reset-baseline", "eval": "const s = window.__store.getState(); s.setFloorPlanEditing(false); s.exitRoomEditor?.(); s.selectItem?.(null); s.setCatalogOpen?.(false); s.setConfiguratorOpen?.(false); s.setAccessibilityOpen?.(false); s.setElevationsOpen?.(false); s.setCameraMode('orbit'); s.setTimeMode('manual'); s.setManualHour(13)" },
+    { "name": "settle-baseline", "wait": 2000 },
+    { "name": "assert-baseline", "assert": { "js": "!document.querySelector('.plan-screen') && window.__store.getState().cameraMode === 'orbit'", "message": "pass must start from the 3D orbit view" } },
+
+    { "name": "enter-walk", "store": { "action": "setCameraMode", "args": ["walk"] } },
+    { "name": "settle-walk", "wait": 2800 },
+    { "name": "shot-walk", "screenshot": "01-walk-entry" },
+    { "name": "probe-walk", "probe": { "checks": ["console", "overflow", "clipped", "naming", "covered", "contrast"] } },
+
+    { "name": "walk-measure-on", "eval": "const s = window.__store.getState(); s.setWalkMeasureLive?.(true)" },
+    { "name": "settle-measure", "wait": 1200 },
+    { "name": "shot-walk-measure", "screenshot": "02-walk-measure" },
+    { "name": "probe-walk-measure", "probe": { "checks": ["overflow", "clipped", "naming", "covered"] } },
+    { "name": "walk-measure-off", "eval": "const s = window.__store.getState(); s.clearWalkMeasure?.(); s.setWalkMeasureLive?.(false)" },
+
+    { "name": "walk-fov", "eval": "window.__store.getState().setWalkFov(85)" },
+    { "name": "settle-fov", "wait": 1200 },
+    { "name": "assert-fov", "assert": { "js": "window.__store.getState().walkFov === 85", "message": "walk FOV should apply" } },
+    { "name": "shot-walk-fov", "screenshot": "03-walk-wide-fov" },
+    { "name": "walk-eye", "eval": "window.__store.getState().setWalkEyeHeight(1.2)" },
+    { "name": "settle-eye", "wait": 1400 },
+    { "name": "shot-walk-eye", "screenshot": "04-walk-low-eye" },
+    { "name": "restore-walk-cam", "eval": "const s = window.__store.getState(); s.setWalkFov(70); s.setWalkEyeHeight(1.6)" },
+
+    { "name": "lights-on", "eval": "window.__store.getState().setLightsMode('on')" },
+    { "name": "settle-lights", "wait": 1600 },
+    { "name": "shot-walk-lights", "screenshot": "05-walk-lights-on" },
+    { "name": "assert-lights", "assert": { "js": "window.__store.getState().lightsMode === 'on'", "message": "walk-mode light toggle should apply" } },
+    { "name": "lights-off", "eval": "window.__store.getState().setLightsMode('off')" },
+
+    { "name": "back-to-orbit", "store": { "action": "setCameraMode", "args": ["orbit"] } },
+    { "name": "settle-orbit", "wait": 2000 },
+    { "name": "assert-orbit", "assert": { "js": "window.__store.getState().cameraMode === 'orbit'", "message": "should return to orbit" } },
+    { "name": "final-console", "probe": { "checks": ["console"] } }
+  ]
+}

@@ -7,6 +7,18 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   albedo+normal+roughness from seeded noise over the shared `procedural/fieldKit.ts` buffers),
   wired into the `PATTERN_FN` dispatch in `procedural/generators.ts` AND add an entry to
   `PATTERN_SIZE_CAP` (256 for smooth/noise-based, 512 for high-frequency geometric patterns).
+- **Bound texture channels (7).** `TexturedMaterialDef.textures` carries `albedo` (required),
+  `normal`, `roughness`, `ao`, `metalness`, `opacity`, `displacement`. `cache.ts:buildMaterial`
+  binds the first five to `map`/`normalMap`/`roughnessMap`/`aoMap`/`metalnessMap`; a **metalness
+  map drives the scalar to 1** (three multiplies the two, so the default 0 would zero the map
+  out). `opacity` binds `alphaMap` with **`alphaTest`, never `transparent`** — a blended surface
+  joins the sorted transparent pass and fights the wall-reveal fade, which animates `opacity` on
+  these same materials. **`displacement` is deliberately NOT bound to three's `displacementMap`**
+  (that displaces vertices; the shell's floors/walls are low-poly boxes with nothing to
+  subdivide) — it is stashed on `material.userData.displacementMap` for the POM path below.
+  Adding a channel means updating `types.ts`, `useMaterial.ts`'s positional unpack, `buildMaterial`,
+  the dispose scan, `resolver.ts`, both ambientCG providers, and `scripts/asset-pipeline/
+  materialChannels.ts` — keep all seven in parity.
 - **World-space UVs** (`worldUv.ts`): surfaces tile at a fixed physical scale — don't bake
   per-mesh UVs or assume a unit cube.
 - **Parallax-occlusion floors (`pomFloor.ts`, PHOTO-POM)**: hero grout-relief FLOOR finishes
@@ -27,6 +39,15 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   `useFloorProceduralMaterial` (RoomFloor/PlanRoomFloor `Procedural`) — walls/ceilings untouched. If a
   three upgrade changes the `map_fragment`/`roughnessmap_fragment`/`normal_fragment_maps` chunk bodies,
   re-verify the copied GLSL in `pomFloor.ts`.
+  **Photo scans too**: `pomPhotoFloorEligible` + `buildPomPhotoFloorMaterial` run the same shader
+  patch over a scanned finish's `displacement` map (`useFloorTexturedMaterial`, wired into
+  `RoomFloor`/`PlanRoomFloor`). Differences from the procedural path: a scan carries no pattern
+  label so depth is the single `POM_PHOTO_HEIGHT_SCALE` constant rather than the per-pattern
+  table; a displacement map is a HARD requirement (nothing to synthesise a height field from);
+  the `aomap_fragment` include is patched too (procedural bakes no AO, scans usually ship one, and
+  sampling it at the unshifted UV would slide it out from under the parallax-shifted albedo); and
+  its cache disposes only the MATERIAL — the textures come from drei's URL-keyed `useTexture` and
+  are shared with the plain material for the same finish.
 - **Colour harmony (`colorHarmony.ts`, CUSTOMIZE-MASTER-PALETTE)**: pure hex↔HSL + `recommendedBlends(palette, max=10)`
   derives harmony companions (complementary/analogous/triadic + tints/shades/neutral) from the
   apartment master palette. The palette lives in `state/slices/colorPaletteSlice.ts` (`masterPalette`
@@ -163,6 +184,20 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   mechanism (and the documented fallback when a `!r` repaint bake fails). `useMaterial.ts:
   useTexturedMaterial` loads all four channels incl. **ao** (positional unpack — keep the list
   order albedo/normal/roughness/ao). Don't reintroduce a swatch multiply on plain photo defs.
+- **A finish change on a RENDER path resolves the DEFERRED id (FINISH-DEFER).** Every
+  wall/floor/ceiling dispatch calls `useMaterialDef(useDeferredFinishId(id))`, never
+  `useMaterialDef(id)`. A `textured` def suspends on first use (drei `useTexture` throws until all
+  channels decode — ~12 s measured for a 1K ambientCG scan), and those surfaces sit inside
+  `<Suspense fallback={null}>`, so an eager id change makes React HIDE the committed surface
+  (`visible = false`) and paint nothing for the whole load: the bare structural wall body shows
+  through and it reads as "the finish didn't apply" (the v0.29.3.3 open audit item). Deferring the
+  id makes it a low-priority update, so the previous finish stays on screen until the new maps
+  land. The `fallback={null}` boundaries stay as the first-mount / load-error safety net. Never
+  defer in a UI panel — a picker must reflect the selection immediately. Sites:
+  `apartment/walls/WallSegment`, `RoomShell`, `PlanRoomShell`, `floor/RoomFloor`,
+  `floor/PlanRoomFloor`, `ceiling/RoomCeilingTile`, `floor/PlanRoomCeiling` — add the same call to
+  any new surface dispatch. Guards: `deferredFinishId.test.tsx` +
+  `scripts/scenarios/photo-wall-finish-load.json`.
 - **Showroom finishes (`showroomCatalog.ts`, SHOWROOM-FINISHES, flag `showroomFinishes` —
   simple tier, prod-safe CC0):** the hand-curated Poly Haven photo-PBR shortlist behind the
   FinishPicker's one-tap "Showroom" strip (`ui/finish/ShowroomRow.tsx`). Pure data + id helpers:

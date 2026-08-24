@@ -158,7 +158,13 @@ export function DesignScorePanel() {
             → select + frame them so the user can jump straight to the fix. */}
         <div className="clr-list">
           {score.categories.map((cat) => {
-            const fill = cat.score >= 80 ? 'var(--accent)' : 'var(--danger)'
+            // `--ok`, not `--accent`, for the passing state: in the default clay
+            // theme accent and danger are only ~22° apart in hue (estate ~40°) at
+            // similar lightness, so a 100/100 bar and a 50/100 bar read as the
+            // same colour and the severity encoding is invisible. `--ok` is
+            // ≥120° from `--danger` in all five themes, and matches the green
+            // grade ring already shown above (Chrome audit 2026-08).
+            const fill = cat.score >= 80 ? 'var(--ok)' : 'var(--danger)'
             const clickable = cat.offenders.length > 0
             const body = (
               <>

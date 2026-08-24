@@ -1544,6 +1544,18 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // ambientCG CC0 material library mirrored into our own R2 bucket (`acg/`)
+  // and served over the same-origin `/api/assets` proxy. The live ambientCG
+  // API sends no CORS headers, which is why the direct provider is dev-only;
+  // the mirror removes that dependency entirely, so this is prod-safe (CC0,
+  // no proxy to operate) and NOT `devOnly`. `pro` because a 1000-plus scan
+  // grid is pack-browser territory — Simple keeps the curated finish strip.
+  ambientcgLibrary: {
+    label: 'ambientCG material library',
+    description: 'Browse the CC0 ambientCG PBR material library (served from R2)',
+    default: true,
+    tier: 'pro',
+  },
   // Click-to-place furniture straight onto the 2D floor plan (PLAN-FURNISH
   // Phase 1): arm a catalog def, an SVG ghost previews the drop with
   // green/red `canPlace` validity, a click commits via the existing

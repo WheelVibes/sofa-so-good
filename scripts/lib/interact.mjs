@@ -179,10 +179,19 @@ async function runStep(page, step, outDir, shotN, _ctx) {
     }
 
     case 'viewport': {
+      // Puppeteer's setViewport REPLACES the whole config, so the isMobile /
+      // hasTouch flags shot.mjs set at launch are dropped unless repeated here.
+      // Without this, any scenario combining SHOT_TOUCH=1 with a `viewport` step
+      // silently lost touch emulation from that step onward — `(pointer: coarse)`
+      // went false and every touch-gated code path stopped being exercised, while
+      // the run still looked green (found auditing tap targets, 2026-08).
+      const touch = process.env.SHOT_TOUCH === '1'
       await page.setViewport({
         width: step.width,
         height: step.height,
         deviceScaleFactor: 1,
+        isMobile: touch,
+        hasTouch: touch,
       })
       break
     }

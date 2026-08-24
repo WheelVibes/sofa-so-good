@@ -1,6 +1,7 @@
 import { MeshReflectorMaterial } from '@react-three/drei'
 import type { RenderTier } from '../../scene/quality'
 import { useStore } from '../../state/store'
+import { MetalMaterial } from './MetalMaterial'
 
 /**
  * Material for a mirror pane. On the High / Maximum render tiers it renders a
@@ -42,7 +43,7 @@ export function MirrorMaterial({ tint = '#dfe8ee' }: { tint?: string }) {
   }
   // Fallback: tier-cheap fake reflection (matches the pre-existing mirror look).
   return (
-    <meshStandardMaterial
+    <MetalMaterial
       color={tint}
       roughness={0.07}
       metalness={0.7}

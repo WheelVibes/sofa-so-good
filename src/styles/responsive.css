@@ -548,6 +548,38 @@ body.mobile {
   .catalog .cat-search .input { min-height: 44px; }
   .catalog .cat-foot .btn { min-height: 44px; }
 
+  /* Three isolated controls that measured under 44px at a real 390px phone
+     viewport with touch emulation (audit 2026-08). Each is alone at its
+     container's edge, so the invisible ::after expander is the right tool here
+     (the pattern the project reserves for exactly that case) rather than growing
+     the visual box:
+       · the getting-started checklist's dismiss ✕ (26px, card's top-right)
+       (the catalog head's icons already get theirs from the existing
+        `.catalog .panel-head .icon-btn::after` rule — do NOT add a second, more
+        specific rule for them: an `inset: -9px 0` override silently REMOVED the
+        horizontal half of their hit area.)
+     The favourites chip is icon-only, so it gets a matching min-WIDTH — the
+     existing `.catalog .chip` rule only lifts height, leaving it 40px wide. */
+  .onb-check .icon-btn { position: relative; }
+  .onb-check .icon-btn::after { content: ''; position: absolute; inset: -9px; }
+  .catalog .chip { min-width: 44px; justify-content: center; }
+  /* The bottom sheet's drag handle (`.sheet-grab`, 120×26). Isolated at the
+     sheet's top edge with nothing adjacent, so a vertical expander is safe and
+     gives the swipe target a full 44px band.
+     NOTE: no `position: relative` here — the handle is already `position:
+     absolute` (above), and re-declaring it shifted the handle off its anchor. */
+  .sheet-grab::after { content: ''; position: absolute; inset: -9px 0; }
+
+
+  /* Analysis-panel row actions — the Clearance panel's "Nudge apart" one-click fix
+     (and any sibling `.btn-sm` inside a finding card). Measured 81×27 at a real
+     390px phone viewport with touch emulation: the panel's PRIMARY action, well
+     under the 44px guideline (audit 2026-08). Each sits in its own finding card,
+     vertically separated, so lifting the HEIGHT is safe here — the same reasoning
+     as Undo/Redo above, and it avoids the overlapping ::after expanders the
+     project's scoped rule warns about in dense rows. */
+  .aux .clr-item .btn { min-height: 44px; }
+
   /* Plan-editor header text buttons (Done, Furnish) + the bottom-left Floors
      selector trigger. View/Edit + Undo/Redo are covered by `.seg button` above;
      the hamburger already carries a `::after` hit-expander. Undo/Redo stay side

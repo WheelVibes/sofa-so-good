@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
@@ -29,7 +30,7 @@ export function OutdoorParasol({ props }: { props: ParamProps }) {
       {/* Pole */}
       <mesh castShadow position={[0, poleH / 2, 0]}>
         <cylinderGeometry args={[0.025, 0.025, poleH, 12]} />
-        <meshStandardMaterial {...metal} />
+        <MetalMaterial {...metal} />
       </mesh>
       {/* Canopy — a low octagonal cone */}
       <mesh castShadow position={[0, canopyY + canopyH / 2, 0]} material={canopyMat}>
@@ -42,7 +43,7 @@ export function OutdoorParasol({ props }: { props: ParamProps }) {
       {/* Finial */}
       <mesh castShadow position={[0, canopyY + canopyH + 0.03, 0]}>
         <sphereGeometry args={[0.03, 10, 8]} />
-        <meshStandardMaterial {...metal} />
+        <MetalMaterial {...metal} />
       </mesh>
     </group>
   )

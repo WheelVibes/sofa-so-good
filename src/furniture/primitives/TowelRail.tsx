@@ -1,5 +1,6 @@
 import { getFabricMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 
 /** Wall-mounted towel rail — a chromed bar on two brackets with a folded
@@ -20,13 +21,13 @@ export function TowelRail({ props }: { props: ParamProps }) {
       {/* Bar */}
       <mesh castShadow position={[0, 0, proj]} rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[barR, barR, width, 12]} />
-        <meshStandardMaterial {...metal} />
+        <MetalMaterial {...metal} />
       </mesh>
       {/* Brackets */}
       {[-1, 1].map((s) => (
         <mesh key={s} position={[(s * width) / 2, 0, proj / 2]}>
           <boxGeometry args={[0.015, 0.03, proj]} />
-          <meshStandardMaterial {...metal} />
+          <MetalMaterial {...metal} />
         </mesh>
       ))}
       {/* Draped towel — front and back panels hanging over the bar, with a

@@ -1,6 +1,6 @@
 import { useTexture } from '@react-three/drei'
-import { useMemo } from 'react'
-import type { MeshStandardMaterial } from 'three'
+import { useDeferredValue, useMemo } from 'react'
+import type { MeshStandardMaterial, Texture } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../features/useFeature'
 import { useStore } from '../state/store'
@@ -14,7 +14,12 @@ import {
   tintedMaterialDef,
 } from './composeMaterial'
 import { GENERATED_MATERIALS } from './generatedCatalog'
-import { buildPomFloorMaterial, pomFloorEligible } from './pomFloor'
+import {
+  buildPomFloorMaterial,
+  buildPomPhotoFloorMaterial,
+  pomFloorEligible,
+  pomPhotoFloorEligible,
+} from './pomFloor'
 import type {
   MaterialCategory,
   MaterialDef,
@@ -85,6 +90,36 @@ function customColorDef(id: string): MaterialDef {
     swatch: id,
     uvScale: [2.5, 2.5],
   }
+}
+
+/**
+ * The finish id a rendered SURFACE should resolve (FINISH-DEFER).
+ *
+ * A photo (`textured`) finish SUSPENDS on first use — `useTexturedMaterial`
+ * calls drei's `useTexture`, which throws a promise until every channel image
+ * has loaded and decoded (a 1K ambientCG scan is 5 maps / ~3 MB, and the first
+ * application of one measured **~12 s** on the software-GL harness). Every
+ * wall/floor/ceiling surface sits behind `<Suspense fallback={null}>`, so a
+ * plain (synchronous) finish change made the surface VANISH for that whole
+ * window: the wall faces unmounted and the bare structural body showed through,
+ * which reads exactly like "the finish didn't apply" — the Chrome-audit report
+ * of photo wall finishes rendering flat grey at the Performance tier. Nothing
+ * tier-specific about it: switching tiers merely remounted the scene once the
+ * textures were already in drei's URL cache, which is why the same finish
+ * "worked" at Maximum and on every subsequent application.
+ *
+ * Deferring the id hands the change to React as a low-priority update, so when
+ * the new textured branch suspends React KEEPS the already-committed surface on
+ * screen (the previous finish) instead of falling back to nothing, and swaps in
+ * the new one when its textures land. The `fallback={null}` boundaries stay as
+ * the safety net for a first-ever mount (nothing to keep) and for a load error.
+ *
+ * Apply this at every finish-id → `MaterialDef` dispatch on a RENDER path
+ * (`useMaterialDef(useDeferredFinishId(id))`) — never in a UI panel, where the
+ * picker must reflect the selection immediately.
+ */
+export function useDeferredFinishId<T extends MaterialId | null>(id: T): T {
+  return useDeferredValue(id)
 }
 
 /** Resolves a MaterialId to a def, falling back to the first builtin. */
@@ -158,7 +193,18 @@ export function useTexturedMaterial(def: TexturedMaterialDef): MeshStandardMater
   // occlusion map (remote CC0 downloads fetch it, `buildMaterial` binds it)
   // previously never had it loaded here, so photo finishes lost their baked
   // crevice/grout shading. Ordered list → positional unpack below.
-  const list = [urls.albedo, urls.normal, urls.roughness, urls.ao].filter((u): u is string => !!u)
+  // The metalness / opacity / displacement channels follow the same pattern:
+  // optional, positionally unpacked in declaration order. `useTexture` is
+  // URL-keyed, so a channel absent from the def costs nothing.
+  const list = [
+    urls.albedo,
+    urls.normal,
+    urls.roughness,
+    urls.ao,
+    urls.metalness,
+    urls.opacity,
+    urls.displacement,
+  ].filter((u): u is string => !!u)
   const tex = useTexture(list)
   const cached = getCachedMaterial(def.id)
   if (cached) return cached
@@ -169,6 +215,32 @@ export function useTexturedMaterial(def: TexturedMaterialDef): MeshStandardMater
     normal: urls.normal ? arr[next++] : undefined,
     roughness: urls.roughness ? arr[next++] : undefined,
     ao: urls.ao ? arr[next++] : undefined,
+    metalness: urls.metalness ? arr[next++] : undefined,
+    opacity: urls.opacity ? arr[next++] : undefined,
+    displacement: urls.displacement ? arr[next++] : undefined,
   }
   return buildMaterial(def, loaded)
+}
+
+/** Floor-specific variant of {@link useTexturedMaterial} (PHOTO-POM). A scanned
+ *  floor that ships a displacement map gets the same parallax-occlusion
+ *  treatment the procedural geometric patterns get, on High / Maximum only —
+ *  its joints genuinely recede instead of being faked by the normal map. Any
+ *  other case returns the plain textured material, byte-identical to before.
+ *  The base hook is always called first so hook order stays stable. */
+export function useFloorTexturedMaterial(def: TexturedMaterialDef): MeshStandardMaterial {
+  const tier = useStore((s) => s.qualityTier)
+  const pomOn = useFeature('pomFloors')
+  const base = useTexturedMaterial(def)
+  if (!pomPhotoFloorEligible(def, tier, pomOn)) return base
+  // Reuse the textures the base hook already loaded (drei's `useTexture` is
+  // URL-keyed, so this is a cache hit, not a second download).
+  return buildPomPhotoFloorMaterial(def, tier, {
+    albedo: base.map ?? undefined,
+    normal: base.normalMap ?? undefined,
+    roughness: base.roughnessMap ?? undefined,
+    ao: base.aoMap ?? undefined,
+    metalness: base.metalnessMap ?? undefined,
+    displacement: base.userData.displacementMap as Texture | undefined,
+  })
 }

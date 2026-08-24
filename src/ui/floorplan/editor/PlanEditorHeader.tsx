@@ -115,7 +115,7 @@ export function PlanEditorHeader({
           {drawHint}
           {/* Undo/redo are important enough to stay in the top bar (not buried
               in the ☰ Menu). `ml-auto` pushes them + Done to the right. */}
-          <div className="ml-auto flex items-center gap-2">
+          <div className="plan-header-end ml-auto flex items-center gap-2">
             {undoRedo}
             <button type="button" onClick={onExit} className="btn btn-accent btn-sm">
               Done
@@ -149,7 +149,7 @@ export function PlanEditorHeader({
           {drawHint}
           {templateLibrary}
           {fileActionsMenu}
-          <div className="ml-auto flex items-center gap-2">
+          <div className="plan-header-end ml-auto flex items-center gap-2">
             {multiSelectToggle}
             {quickActions}
             {viewMenu}

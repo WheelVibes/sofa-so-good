@@ -6,6 +6,7 @@ import { isDoubleDoor, isSlidingDoor, slidingParkDir } from '../floorplan/doorSw
 import type { PlanOpening, PlanWall } from '../floorplan/types'
 import { wallLength } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
+import { MetalMaterial } from '../furniture/primitives/MetalMaterial'
 import {
   getMetalMaterial,
   getPaintedMaterial,
@@ -460,12 +461,12 @@ export function PlanDoorLeaf({
         <group position={[direction * (opening.width - 0.06), Math.min(0.95, height - 0.1), 0]}>
           <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
             <cylinderGeometry args={[0.012, 0.012, 0.12, 12]} />
-            <meshStandardMaterial color="#c9a86a" metalness={0.7} roughness={0.35} />
+            <MetalMaterial color="#c9a86a" metalness={0.7} roughness={0.35} />
           </mesh>
           {[0.06, -0.06].map((z) => (
             <mesh key={z} position={[0, 0, z]} castShadow>
               <sphereGeometry args={[0.025, 16, 12]} />
-              <meshStandardMaterial color="#c9a86a" metalness={0.7} roughness={0.35} />
+              <MetalMaterial color="#c9a86a" metalness={0.7} roughness={0.35} />
             </mesh>
           ))}
         </group>

@@ -1,7 +1,8 @@
 import { Environment, Lightformer } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useSyncExternalStore } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { useFeature } from '../../features/useFeature'
+import { setIblActive } from '../../materials/iblSignal'
 import { useStore } from '../../state/store'
 import { contextRestoreVersion, subscribeContextRestore } from '../contextRestoreSignal'
 import { useQuality } from '../useQuality'
@@ -25,6 +26,12 @@ export function SceneEnvironment() {
   const sun = useSunPosition()
   const quality = useQuality()
   const enabled = quality.ibl
+  // Tell the material layer whether metals have anything to reflect. Without an
+  // environment a `metalness: 0.9` appliance renders pure black, so
+  // `getMetalMaterial` caps metalness while this is false.
+  useEffect(() => {
+    setIblActive(enabled)
+  }, [enabled])
   // Opt-in CC0 HDRI environment (F3/R-HDRI · PHOTO-HDRI): when the user selects an
   // HDRI (and the flag is on), it replaces the procedural Lightformer probe. The
   // default (`hdriId === null`) keeps the exact procedural probe — no look change.

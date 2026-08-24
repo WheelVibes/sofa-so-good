@@ -1,0 +1,59 @@
+{
+  "name": "ca-02-simple-coreloop",
+  "description": "Audit pass 2 — Simple-mode core design loop on the move-in default flat: room entry, catalog drawer, place an item, inspector, finishes, daylight scrub, walk mode, share. Simple is the app default, so nothing here may require Pro.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 30000 },
+    { "name": "dismiss-first-run", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "daylight", "eval": "const s = window.__store.getState(); s.setTimeMode('manual'); s.setManualHour(13)" },
+    { "name": "assert-simple-default", "assert": { "js": "window.__store.getState().uiMode === 'simple'", "message": "app should boot in Simple mode" } },
+    { "name": "settle-scene", "wait": 1500 },
+    { "name": "shot-overview", "screenshot": "01-overview-lit" },
+    { "name": "probe-overview", "probe": { "checks": ["console", "overflow", "clipped", "naming", "assets", "ids", "covered"] } },
+
+    { "name": "enter-room", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "room-entered", "waitFor": { "store": "state.roomEditor && state.roomEditor.roomId" }, "timeout": 10000 },
+    { "name": "settle-room", "wait": 1500 },
+    { "name": "shot-room-editor", "screenshot": "02-room-editor" },
+
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "catalog-mounted", "waitFor": { "css": ".panel.catalog, .catalog" }, "timeout": 10000 },
+    { "name": "probe-catalog-at-open", "probe": { "checks": ["transparent"], "scope": ".panel.catalog" } },
+    { "name": "settle-catalog", "wait": 900 },
+    { "name": "shot-catalog", "screenshot": "03-catalog-drawer" },
+    { "name": "probe-catalog", "probe": { "checks": ["overflow", "clipped", "naming", "assets", "covered", "contrast"], "scope": ".panel.catalog" } },
+
+    { "name": "focus-search", "click": { "selector": ".panel.catalog input, .catalog input" } },
+    { "name": "type-sofa", "type": "type", "text": "sofa" },
+    { "name": "settle-search", "wait": 900 },
+    { "name": "shot-catalog-search", "screenshot": "04-catalog-search-sofa" },
+
+    { "name": "close-catalog", "store": { "action": "setCatalogOpen", "args": [false] } },
+    { "name": "select-first-item", "eval": "const s = window.__store.getState(); const it = s.items.find(i => i.defId === 'sofa-3seat') ?? s.items.find(i => /sofa|tv-console|coffee/.test(i.defId)) ?? s.items[0]; s.selectItem(it.id); return it.defId" },
+    { "name": "inspector-mounted", "waitFor": { "css": ".panel.inspector, .inspector" }, "timeout": 10000 },
+    { "name": "settle-inspector", "wait": 900 },
+    { "name": "shot-inspector", "screenshot": "05-item-inspector" },
+    { "name": "probe-inspector", "probe": { "checks": ["overflow", "clipped", "naming", "covered", "contrast"], "scope": ".panel.inspector" } },
+
+    { "name": "deselect", "store": { "action": "selectItem", "args": [null] } },
+    { "name": "select-room-finish", "store": { "action": "selectRoom", "args": ["livingDining"] } },
+    { "name": "settle-finish", "wait": 1000 },
+    { "name": "shot-finish-picker", "screenshot": "06-finish-picker" },
+
+    { "name": "exit-room", "store": { "action": "exitRoomEditor", "args": [] } },
+    { "name": "settle-exit", "wait": 1200 },
+    { "name": "walk-mode", "store": { "action": "setCameraMode", "args": ["walk"] } },
+    { "name": "settle-walk", "wait": 2500 },
+    { "name": "shot-walk", "screenshot": "07-walk-mode" },
+    { "name": "probe-walk", "probe": { "checks": ["console", "overflow", "clipped", "naming", "covered"] } },
+    { "name": "back-to-orbit", "store": { "action": "setCameraMode", "args": ["orbit"] } },
+    { "name": "settle-orbit", "wait": 1500 },
+
+    { "name": "open-share", "store": { "action": "setShareOpen", "args": [true] } },
+    { "name": "share-mounted", "waitFor": { "css": ".modal-overlay" }, "timeout": 10000 },
+    { "name": "settle-share", "wait": 900 },
+    { "name": "shot-share", "screenshot": "08-share-modal" },
+    { "name": "probe-share", "probe": { "checks": ["overflow", "clipped", "naming", "covered", "contrast"] } },
+    { "name": "close-share", "store": { "action": "setShareOpen", "args": [false] } },
+    { "name": "final-console", "probe": { "checks": ["console"] } }
+  ]
+}

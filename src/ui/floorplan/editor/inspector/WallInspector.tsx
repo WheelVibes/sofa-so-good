@@ -1,6 +1,12 @@
 import { useFeature } from '../../../../features/useFeature'
 import { defaultWallName } from '../../../../floorplan/planElementName'
-import { DEFAULT_PLAN_WALL_COLOR, type PlanWall, wallLength } from '../../../../floorplan/types'
+import {
+  DEFAULT_CROWN_COLOR,
+  DEFAULT_CROWN_HEIGHT_M,
+  DEFAULT_PLAN_WALL_COLOR,
+  type PlanWall,
+  wallLength,
+} from '../../../../floorplan/types'
 import { isDemolitionRestricted } from '../../../../floorplan/wallHackability'
 import { endForAngle, endForLength, wallAngleDeg } from '../../../../floorplan/wallOps'
 import { useStore } from '../../../../state/store'
@@ -28,6 +34,7 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
   const wallThicknessOn = useFeature('wallThickness')
   const slopingWallsOn = useFeature('slopingWalls')
   const wallBaseboardOn = useFeature('wallBaseboard')
+  const crownMoldingOn = useFeature('crownMolding')
   const elementColorsOn = useFeature('elementColors')
   const wallStructureOn = useFeature('wallStructure')
   return (
@@ -296,6 +303,67 @@ export function WallInspector({ wall: w, levelId }: { wall: PlanWall; levelId?: 
               onClick={() => a.updateWall(w.id, { baseboard: undefined }, levelId)}
             >
               Reset skirting
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {crownMoldingOn ? (
+        <div className="space-y-1" style={{ marginTop: 'var(--s-1)' }}>
+          <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+            Crown molding
+          </div>
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={!w.crown?.hidden}
+              onChange={(e) =>
+                a.updateWall(w.id, { crown: { ...w.crown, hidden: !e.target.checked } }, levelId)
+              }
+            />
+            <span>Show crown molding</span>
+          </label>
+          {!w.crown?.hidden ? (
+            <>
+              <Num
+                label="Height (m)"
+                value={w.crown?.height ?? DEFAULT_CROWN_HEIGHT_M}
+                step={0.01}
+                min={0.01}
+                onChange={(v) =>
+                  a.updateWall(
+                    w.id,
+                    {
+                      crown: {
+                        ...w.crown,
+                        height:
+                          Math.abs(v - DEFAULT_CROWN_HEIGHT_M) < 1e-4
+                            ? undefined
+                            : Math.max(0.01, v),
+                      },
+                    },
+                    levelId,
+                  )
+                }
+              />
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="label">Colour</span>
+                <ColorPicker
+                  ariaLabel="Crown molding colour"
+                  value={w.crown?.color ?? DEFAULT_CROWN_COLOR}
+                  onChange={(hex) =>
+                    a.updateWall(w.id, { crown: { ...w.crown, color: hex } }, levelId)
+                  }
+                />
+              </div>
+            </>
+          ) : null}
+          {w.crown ? (
+            <button
+              type="button"
+              className="btn btn-soft btn-sm btn-block"
+              onClick={() => a.updateWall(w.id, { crown: undefined }, levelId)}
+            >
+              Reset crown molding
             </button>
           ) : null}
         </div>

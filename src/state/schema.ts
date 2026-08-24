@@ -276,6 +276,14 @@ const PlanWallZ = z.object({
       hidden: z.boolean().optional(),
     })
     .optional(),
+  // Optional per-wall crown-molding override (mirrors baseboard) — additive, back-compat.
+  crown: z
+    .object({
+      height: z.number().optional(),
+      color: z.string().optional(),
+      hidden: z.boolean().optional(),
+    })
+    .optional(),
   // Optional per-wall paint colour override (elementColors) — additive, back-compat.
   color: z.string().optional(),
   // Optional user-declared structural classification (TODO G7, wallStructure) —

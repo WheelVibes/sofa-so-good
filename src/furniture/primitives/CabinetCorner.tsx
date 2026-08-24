@@ -1,6 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 
 /**
@@ -98,7 +99,7 @@ export function CabinetCorner({ props }: { props: ParamProps }) {
             />
             <mesh castShadow position={[doorX - doorW / 2 + 0.04, cy, frontZ + 0.015]}>
               <boxGeometry args={[0.018, 0.16, 0.02]} />
-              <meshStandardMaterial {...handleMat} />
+              <MetalMaterial {...handleMat} />
             </mesh>
           </group>
         )
@@ -117,7 +118,7 @@ export function CabinetCorner({ props }: { props: ParamProps }) {
             />
             <mesh castShadow position={[frontX + 0.015, cy, bZ - doorL / 2 + 0.04]}>
               <boxGeometry args={[0.02, 0.16, 0.018]} />
-              <meshStandardMaterial {...handleMat} />
+              <MetalMaterial {...handleMat} />
             </mesh>
           </group>
         )

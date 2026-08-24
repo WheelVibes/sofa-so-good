@@ -63,11 +63,15 @@ export function ViewMenu() {
   return (
     <ToolbarMenu icon={isOrbit ? 'Orbit' : 'Walk'} label="View" active={autoRotate} width={244}>
       <MenuLabel>Camera</MenuLabel>
+      {/* The shortcut TOGGLES between these two, so it is shown on the inactive
+          row only — the one the key actually takes you to. Badging both implied
+          "press V to pick this one", which is wrong for whichever row is already
+          active (Chrome audit 2026-08). */}
       <MenuItem
         icon="Orbit"
         label="Orbit"
         sub="Look around the model"
-        kbd={shortcutLabel('toggleCameraMode')}
+        kbd={isOrbit ? undefined : shortcutLabel('toggleCameraMode')}
         active={isOrbit}
         onClick={() => setCameraMode('orbit')}
       />
@@ -75,7 +79,7 @@ export function ViewMenu() {
         icon="Walk"
         label="Walk"
         sub="First-person walkthrough"
-        kbd={shortcutLabel('toggleCameraMode')}
+        kbd={isOrbit ? shortcutLabel('toggleCameraMode') : undefined}
         active={!isOrbit}
         onClick={() => setCameraMode('firstPerson')}
       />

@@ -1,5 +1,6 @@
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { applianceBodyMaterial, readNum, readStr } from './shared'
 
 /**
@@ -38,7 +39,7 @@ export function Oven({ props }: { props: ParamProps }) {
       {[-0.22, 0.22].map((x) => (
         <mesh key={x} position={[x, h * 0.9, d / 2 + 0.022]} rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.026, 0.026, 0.03, 18]} />
-          <meshStandardMaterial {...steel} />
+          <MetalMaterial {...steel} />
         </mesh>
       ))}
       {/* Door — recessed glass window framed by the body, with a bar handle. */}
@@ -62,7 +63,7 @@ export function Oven({ props }: { props: ParamProps }) {
       {/* Full-width bar handle just under the fascia */}
       <mesh castShadow position={[0, h * 0.74, d / 2 + 0.03]}>
         <boxGeometry args={[w - 0.08, 0.022, 0.022]} />
-        <meshStandardMaterial {...steel} />
+        <MetalMaterial {...steel} />
       </mesh>
     </group>
   )

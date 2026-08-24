@@ -1,6 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { metalLeg, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
@@ -119,7 +120,7 @@ export function DogCrate({ props }: { props: ParamProps }) {
         ))}
         <mesh castShadow position={[halfW - 0.1, bodyH / 2 + 0.024, halfD + 0.005]}>
           <sphereGeometry args={[0.014, 10, 10]} />
-          <meshStandardMaterial color="#2b2b2b" roughness={0.4} metalness={0.6} />
+          <MetalMaterial color="#2b2b2b" roughness={0.4} metalness={0.6} />
         </mesh>
       </group>
     )

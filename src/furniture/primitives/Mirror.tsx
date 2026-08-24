@@ -1,4 +1,5 @@
 import type { ParamProps } from '../types'
+import { MetalMaterial } from './MetalMaterial'
 import { MirrorMaterial } from './MirrorMaterial'
 import { readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
@@ -26,7 +27,7 @@ export function Mirror({ props }: { props: ParamProps }) {
             surrounding the pane. (No X-rotation: that would lay the ring flat.) */}
         <mesh castShadow>
           <torusGeometry args={[r, 0.025, seg(14, detail), seg(40, detail)]} />
-          <meshStandardMaterial color={frameColor} roughness={0.35} metalness={0.6} />
+          <MetalMaterial color={frameColor} roughness={0.35} metalness={0.6} />
         </mesh>
         <mesh position={[0, 0, 0.012]}>
           <circleGeometry args={[r - 0.005, seg(44, detail)]} />
@@ -41,7 +42,7 @@ export function Mirror({ props }: { props: ParamProps }) {
       {shape !== 'frameless' && (
         <mesh castShadow position={[0, 0, 0]}>
           <boxGeometry args={[width + 0.04, height + 0.04, 0.03]} />
-          <meshStandardMaterial color={frameColor} roughness={0.35} metalness={0.6} />
+          <MetalMaterial color={frameColor} roughness={0.35} metalness={0.6} />
         </mesh>
       )}
       <mesh position={[0, 0, shape === 'frameless' ? 0.004 : 0.018]}>

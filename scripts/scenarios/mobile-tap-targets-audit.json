@@ -1,0 +1,40 @@
+{
+  "name": "mobile-tap-targets-audit",
+  "description": "The half of the audit the Chrome harness structurally cannot do: real touch emulation (SHOT_TOUCH=1 → pointer:coarse) at true phone viewports (390x844, then 320px). Measures tap targets INCLUDING the invisible ::after hit-area padding, and checks for horizontal overflow. Run with SHOT_TOUCH=1.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "daylight", "eval": "(() => { const s = window.__store.getState(); s.setTimeMode('manual'); s.setManualHour(13) })()" },
+    { "name": "phone-viewport", "viewport": { "width": 390, "height": 844 } },
+    { "name": "settle-phone", "wait": 2500 },
+
+    { "name": "assert-coarse-pointer", "eval": "(() => { const coarse = window.matchMedia('(pointer: coarse)').matches; console.log('POINTER coarse=' + coarse); if (!coarse) throw new Error('touch emulation did not take — run with SHOT_TOUCH=1') })()" },
+
+    { "name": "measure-home", "eval": "(() => { const MIN = 44; const SEL = 'button, a[href], input, select, textarea, summary, [role=\"button\"], [role=\"tab\"], [role=\"switch\"], [tabindex]:not([tabindex=\"-1\"])'; const vis = (el) => { const st = getComputedStyle(el); if (st.display === 'none' || st.visibility === 'hidden' || Number.parseFloat(st.opacity) === 0) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 }; const out = []; for (const el of document.querySelectorAll(SEL)) { if (!vis(el)) continue; if (el.closest('details:not([open])')) continue; const r = el.getBoundingClientRect(); let w = r.width, h = r.height; const a = getComputedStyle(el, '::after'); if (a.content !== 'none' && a.position === 'absolute') { const g = (side) => { const v = Number.parseFloat(a[side]); return Number.isFinite(v) && v < 0 ? -v : 0 }; w += g('left') + g('right'); h += g('top') + g('bottom') } if (w < MIN - 0.5 || h < MIN - 0.5) { const label = (el.getAttribute('aria-label') || el.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 28); out.push(`${el.tagName.toLowerCase()}.${(el.className || '').toString().split(' ')[0]} \"${label}\" ${Math.round(w)}x${Math.round(h)}`) } } console.log('TAP_HOME ' + out.length + ' :: ' + out.join(' | ')) })()" },
+    { "name": "shot-home", "screenshot": "01-phone-home" },
+
+    { "name": "enter-room", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "settle-room", "wait": 2000 },
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "catalog-mounted", "waitFor": { "css": ".panel.catalog, .catalog" }, "timeout": 10000 },
+    { "name": "settle-catalog", "wait": 1500 },
+    { "name": "measure-catalog", "eval": "(() => { const MIN = 44; const root = document.querySelector('.panel.catalog') || document.querySelector('.catalog'); const SEL = 'button, input, summary, [role=\"button\"], [tabindex]:not([tabindex=\"-1\"])'; const out = []; for (const el of root.querySelectorAll(SEL)) { const r = el.getBoundingClientRect(); if (r.width === 0) continue; let w = r.width, h = r.height; const a = getComputedStyle(el, '::after'); if (a.content !== 'none' && a.position === 'absolute') { const g = (s2) => { const v = Number.parseFloat(a[s2]); return Number.isFinite(v) && v < 0 ? -v : 0 }; w += g('left') + g('right'); h += g('top') + g('bottom') } if (w < MIN - 0.5 || h < MIN - 0.5) { const label = (el.getAttribute('aria-label') || el.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 24); out.push(`${el.tagName.toLowerCase()} \"${label}\" ${Math.round(w)}x${Math.round(h)}`) } } console.log('TAP_CATALOG ' + out.length + ' :: ' + out.join(' | ')) })()" },
+    { "name": "shot-catalog", "screenshot": "02-phone-catalog-sheet" },
+    { "name": "close-catalog", "store": { "action": "setCatalogOpen", "args": [false] } },
+    { "name": "exit-room", "store": { "action": "exitRoomEditor", "args": [] } },
+    { "name": "settle-exit", "wait": 1500 },
+
+    { "name": "pro-mode", "eval": "(() => { const s = window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags() })()" },
+    { "name": "open-checks-mobile", "store": { "action": "setClearancePanelOpen", "args": [true] } },
+    { "name": "checks-mounted", "waitFor": { "css": "#clearancePanel" }, "timeout": 10000 },
+    { "name": "settle-checks", "wait": 1500 },
+    { "name": "measure-pro-panel", "eval": "(() => { const MIN = 44; const root = document.querySelector('#clearancePanel'); const out = []; for (const el of root.querySelectorAll('button, [role=\"button\"]')) { const r = el.getBoundingClientRect(); if (r.width === 0) continue; let w = r.width, h = r.height; const a = getComputedStyle(el, '::after'); if (a.content !== 'none' && a.position === 'absolute') { const g = (s3) => { const v = Number.parseFloat(a[s3]); return Number.isFinite(v) && v < 0 ? -v : 0 }; w += g('left') + g('right'); h += g('top') + g('bottom') } if (w < MIN - 0.5 || h < MIN - 0.5) out.push(`${(el.getAttribute('aria-label') || el.textContent || '').trim().replace(/\\s+/g,' ').slice(0,24)} ${Math.round(w)}x${Math.round(h)}`) } console.log('TAP_PRO ' + out.length + ' :: ' + out.join(' | ')); const de = document.documentElement; console.log('OVERFLOW_390 scrollW=' + de.scrollWidth + ' clientW=' + de.clientWidth) })()" },
+    { "name": "shot-pro-mobile", "screenshot": "03-phone-pro-panel" },
+    { "name": "close-checks", "store": { "action": "setClearancePanelOpen", "args": [false] } },
+
+    { "name": "tiny-viewport", "viewport": { "width": 320, "height": 568 } },
+    { "name": "settle-tiny", "wait": 2500 },
+    { "name": "measure-320", "eval": "(() => { const de = document.documentElement; console.log('OVERFLOW_320 scrollW=' + de.scrollWidth + ' clientW=' + de.clientWidth); const vw = window.innerWidth; const out = []; for (const el of document.querySelectorAll('*')) { const st = getComputedStyle(el); if (st.display === 'none' || st.visibility === 'hidden') continue; const r = el.getBoundingClientRect(); if (r.width === 0) continue; if (r.right > vw + 2 || r.left < -2) { const pr = el.parentElement?.getBoundingClientRect(); if (pr && (pr.right > vw + 2 || pr.left < -2)) continue; if (r.right < -1000 || r.bottom < -1000) continue; out.push(`${el.tagName.toLowerCase()}.${(el.className || '').toString().split(' ')[0]} ${Math.round(r.left)}..${Math.round(r.right)}`) } } console.log('OFFSCREEN_320 ' + out.length + ' :: ' + out.slice(0, 10).join(' | ')) })()" },
+    { "name": "shot-320", "screenshot": "04-phone-320" }
+  ]
+}

@@ -9,10 +9,11 @@ import type {
   TexturedMaterialDef,
 } from '../../materials/types'
 import {
+  useDeferredFinishId,
   useFloorProceduralMaterial,
+  useFloorTexturedMaterial,
   useMaterialDef,
   useSolidMaterial,
-  useTexturedMaterial,
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry } from '../../materials/worldUv'
 import { isDragRelease } from '../../scene/clickVsDrag'
@@ -126,7 +127,9 @@ function TexturedRoomFloor({
   def,
   ...rest
 }: Omit<FloorMeshProps, 'material' | 'tileSize'> & { def: TexturedMaterialDef }) {
-  const material = useTexturedMaterial(def)
+  // Floor-specific hook: a scan carrying a displacement map gets POM on
+  // High/Maximum (PHOTO-POM), otherwise the plain textured material.
+  const material = useFloorTexturedMaterial(def)
   return <FloorMesh {...rest} material={material} tileSize={def.uvScale[0]} />
 }
 
@@ -139,7 +142,9 @@ function ProceduralRoomFloor({
 }
 
 function RoomFloorInner({ materialId, ...rest }: RoomFloorProps) {
-  const def = useMaterialDef(materialId)
+  // FINISH-DEFER: resolve the DEFERRED id so a suspending photo finish keeps the
+  // surface's current look on screen instead of blanking it (see useDeferredFinishId).
+  const def = useMaterialDef(useDeferredFinishId(materialId))
   if (def.kind === 'textured') return <TexturedRoomFloor def={def} {...rest} />
   if (def.kind === 'procedural') return <ProceduralRoomFloor def={def} {...rest} />
   return <SolidRoomFloor def={def} {...rest} />

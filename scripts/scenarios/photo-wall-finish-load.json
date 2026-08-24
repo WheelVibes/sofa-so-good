@@ -1,0 +1,65 @@
+{
+  "name": "photo-wall-finish-load",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 90000
+    },
+    {
+      "name": "setup",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    {
+      "name": "scene-ready",
+      "waitFor": { "store": "state.sceneReady === true" },
+      "timeout": 90000
+    },
+    {
+      "name": "settle-boot",
+      "wait": 3000
+    },
+    {
+      "name": "shot-before",
+      "screenshot": "walls-before"
+    },
+    {
+      "name": "probe-fn",
+      "eval": "window.__wallFaceState = () => { let n = 0, mapped = 0, hidden = 0; window.__three.scene.traverse((o) => { const t = o.userData && o.userData.finishTarget; if (!t || t.kind !== 'wall') return; n++; if (o.material.map) mapped++; if (!o.visible) hidden++ }); return { n, mapped, hidden } }"
+    },
+    {
+      "name": "apply-photo-finish",
+      "eval": "window.__store.getState().setAllWallFinish('wall-brick')"
+    },
+    {
+      "name": "mid-load",
+      "wait": 1200
+    },
+    {
+      "name": "shot-mid-load",
+      "screenshot": "walls-mid-load"
+    },
+    {
+      "name": "no-blank-faces-while-loading",
+      "eval": "(() => { const s = window.__wallFaceState(); console.log('[FINISH-DEFER mid]', JSON.stringify(s)); if (s.n === 0) throw new Error('no wall faces found'); if (s.hidden > 0) throw new Error('FINISH-DEFER regression: ' + s.hidden + '/' + s.n + ' wall faces hidden while the photo finish loads (bare wall body shows through)') })()"
+    },
+    {
+      "name": "finish-lands",
+      "waitFor": { "store": "(() => { const w = window.__wallFaceState(); return w.n > 0 && w.mapped === w.n })()" },
+      "timeout": 60000
+    },
+    {
+      "name": "settle-render",
+      "wait": 1500
+    },
+    {
+      "name": "shot-after",
+      "screenshot": "walls-photo-finish"
+    },
+    {
+      "name": "report",
+      "eval": "console.log('[FINISH-DEFER done]', JSON.stringify(window.__wallFaceState()))"
+    }
+  ]
+}

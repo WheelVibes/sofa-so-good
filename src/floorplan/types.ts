@@ -72,6 +72,12 @@ export interface PlanWall {
    *  wall's foot; `hidden` suppresses it entirely. Absent fields fall back to the
    *  shell default (0.09 m, off-white). */
   baseboard?: { height?: number; color?: string; hidden?: boolean }
+  /** Optional per-wall crown-molding / cornice override, mirroring `baseboard`.
+   *  `height` (m) and `color` (hex) tune the trim strip at this wall's ceiling
+   *  junction; `hidden` suppresses it for this wall only (the `crownMolding`
+   *  flag still gates the feature globally). Absent fields fall back to the
+   *  shell default (0.07 m, off-white). Additive, back-compat. */
+  crown?: { height?: number; color?: string; hidden?: boolean }
   /** Optional per-wall paint colour (hex), overriding the plan-wide `wallColor`
    *  for THIS wall only. Absent = use the plan default. Edited in the 2D plan
    *  inspector (`elementColors`). */
@@ -510,6 +516,13 @@ export interface PlanPlumbingPoint {
 
 /** Default wall colour for custom plans when `wallColor` is unset. */
 export const DEFAULT_PLAN_WALL_COLOR = '#ede9e2'
+
+/** Shell defaults for the per-wall skirting override (`PlanWall.baseboard`). */
+export const DEFAULT_SKIRTING_HEIGHT_M = 0.09
+export const DEFAULT_SKIRTING_COLOR = '#eceae4'
+/** Shell defaults for the per-wall crown-molding override (`PlanWall.crown`). */
+export const DEFAULT_CROWN_HEIGHT_M = 0.07
+export const DEFAULT_CROWN_COLOR = '#eeece6'
 
 /** Signed-area shoelace over a polygon (absolute value = area, m²). */
 export function polygonArea(pts: PlanVec2[]): number {

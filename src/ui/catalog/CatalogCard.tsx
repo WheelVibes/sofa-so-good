@@ -223,12 +223,13 @@ export function CatalogCard({
         )}
         {!thumb && expectsBuiltinThumbnail(def) ? <span className="skeleton" aria-hidden /> : null}
       </div>
-      <div className="nm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div className="nm" style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
         <CategoryIcon category={def.category} width={14} height={14} style={{ flex: 'none' }} />
-        <span
-          style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-          title={def.name}
-        >
+        {/* Wraps to a second line rather than ellipsing: at a 94px tile the
+            single-line rule cut "L-shaped sectional" and "Bay-window daybed" in
+            every theme (Chrome audit 2026-08). `title` stays as the fallback for
+            anything long enough to overrun even two lines. */}
+        <span className="cat-card-name" title={def.name}>
           {def.name}
         </span>
       </div>

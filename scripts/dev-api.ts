@@ -29,6 +29,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
 // The real production worker — hosted here unchanged.
 import { app } from '../functions/api/[[route]].ts'
+import { describeMirrors, mirrorRoots, resolveMirrorPath } from './lib/devLibraryMirror.ts'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const PORT = Number(process.env.DEV_API_PORT ?? 8788)
@@ -111,31 +112,38 @@ function makeKV() {
 }
 
 /**
- * Filesystem-backed R2 mirror. The production `LIBRARY` bucket is just the local
- * `ikea_optimized/` tree uploaded with `rclone` (docs/deployment-cloudflare.md):
- *   R2 `ikea/<group>/<file>`  <-  `<dir>/<group>/<file>`
- *   R2 `library/index.json`   <-  `<dir>/library-index.json`
- * so we serve those same keys straight from disk — no credentials, no download —
+ * Filesystem-backed R2 mirror. The production `LIBRARY` bucket is just a local
+ * tree uploaded with `pull/push-r2-library` (docs/deployment-cloudflare.md), so we
+ * serve the SAME keys straight from disk — no credentials, no download —
  * exercising the real serveAsset → LIBRARY.get → SharedCard → importGroup path.
- * Returns null (→ 404, the same as an empty library) when the dir/file is absent.
+ *
+ * Roots and key mapping live in `lib/devLibraryMirror.ts` (pure + unit-tested):
+ * both the R2-shaped mirror (`resources/`, what `pull-r2-library` writes — the
+ * only layout that can express `acg/`) and the legacy flat IKEA scrape
+ * (`ikea_optimized/`) resolve, first hit wins. Returns null (→ 404, the same as
+ * an empty bucket) when the key is in no mirror — and says so once per key, since
+ * a silent 404 here looks like a broken FEATURE (an ambientCG finish that never
+ * resolves) rather than a missing mirror.
  */
-function makeR2FS(dir: string) {
-  const rootAbs = resolve(dir)
-  const keyToPath = (key: string): string | null => {
-    const rel =
-      key === 'library/index.json'
-        ? 'library-index.json'
-        : key.startsWith('ikea/')
-          ? key.slice('ikea/'.length)
-          : key
-    const abs = resolve(rootAbs, rel)
-    // Never escape the mirror root (the route already rejects '..'; belt + braces).
-    return abs === rootAbs || abs.startsWith(`${rootAbs}/`) ? abs : null
+function makeR2FS(roots: readonly string[]) {
+  const warned = new Set<string>()
+  const warnMiss = (key: string) => {
+    if (warned.has(key)) return
+    warned.add(key)
+    const where = roots.join(', ') || '(no mirror dir)'
+    console.warn(
+      `[dev-api] LIBRARY miss: '${key}' is in none of ${where} — that request 404s. ` +
+        `Mirror it with 'npm run pull-r2-library' (writes resources/), or point ` +
+        `DEV_LIBRARY_DIR at the tree that has it.`,
+    )
   }
   return {
     async get(key: string) {
-      const path = keyToPath(key)
-      if (!path || !existsSync(path)) return null
+      const path = resolveMirrorPath(roots, key, existsSync)
+      if (!path) {
+        warnMiss(key)
+        return null
+      }
       const data = readFileSync(path)
       const st = statSync(path)
       return {
@@ -178,14 +186,15 @@ for (const file of readdirSync(migrationsDir)
   db.exec(readFileSync(join(migrationsDir, file), 'utf8'))
 }
 
-// Local mirror of the R2 shared-library bucket. Override with DEV_LIBRARY_DIR
-// (absolute or relative to the repo root); defaults to the IKEA scrape output.
-const libraryDir = resolve(ROOT, process.env.DEV_LIBRARY_DIR ?? 'ikea_optimized')
+// Local mirror(s) of the R2 shared-library bucket: `resources/` (what
+// `pull-r2-library` writes) then the legacy `ikea_optimized/` scrape, unless
+// DEV_LIBRARY_DIR names one explicitly. See lib/devLibraryMirror.ts.
+const libraryRoots = mirrorRoots(ROOT, process.env.DEV_LIBRARY_DIR)
 
 const devVars = { ...parseDotVars(join(ROOT, '.dev.vars')), ...process.env }
 const env = {
   DB: makeD1(db),
-  LIBRARY: makeR2FS(libraryDir),
+  LIBRARY: makeR2FS(libraryRoots),
   SESSIONS: makeKV(),
   CACHE: makeKV(),
   FLAGS: makeKV(),
@@ -243,10 +252,16 @@ server.listen(PORT, () => {
       ? '[dev-api] admin seed: credentials loaded from .dev.vars'
       : '[dev-api] no ADMIN_EMAIL/ADMIN_PASSWORD in .dev.vars — login will have no accounts',
   )
-  const libIndex = join(libraryDir, 'library-index.json')
-  console.log(
-    existsSync(libIndex)
-      ? `[dev-api] shared library: ${libraryDir} (admin catalog will populate from disk)`
-      : `[dev-api] shared library dir not found (${libraryDir}) — run 'npm run build-library-index' or set DEV_LIBRARY_DIR; shared catalog stays empty`,
-  )
+  // Report every mirror root present and which catalog manifests it can serve
+  // (see `makeR2FS` / lib/devLibraryMirror.ts).
+  const { lines, found } = describeMirrors(libraryRoots, existsSync)
+  if (found.length) {
+    for (const line of lines) console.log(`[dev-api] shared library: ${line}`)
+  } else {
+    console.log(
+      `[dev-api] no library manifest in ${libraryRoots.join(' or ')} — run ` +
+        `'npm run build-library-index' / 'pull-r2-library', or set DEV_LIBRARY_DIR; ` +
+        `shared catalog + ambientCG library stay empty`,
+    )
+  }
 })

@@ -1,0 +1,60 @@
+{
+  "name": "ca-08-walk-lighting-finishes",
+  "description": "Audit pass 8 — the parts of the core loop the earlier passes only touched: daylight across the day, light moods, interior lights on/off, and actually applying a floor/wall finish (not just opening the picker).",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 30000 },
+    { "name": "dismiss-first-run", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "settle-boot", "wait": 1500 },
+
+    { "name": "hour-07", "eval": "const s = window.__store.getState(); s.setTimeMode('manual'); s.setManualHour(7)" },
+    { "name": "settle-07", "wait": 1400 },
+    { "name": "shot-hour-07", "screenshot": "01-daylight-07" },
+    { "name": "hour-13", "store": { "action": "setManualHour", "args": [13] } },
+    { "name": "settle-13", "wait": 1400 },
+    { "name": "shot-hour-13", "screenshot": "02-daylight-13" },
+    { "name": "hour-19", "store": { "action": "setManualHour", "args": [19] } },
+    { "name": "settle-19", "wait": 1400 },
+    { "name": "shot-hour-19", "screenshot": "03-daylight-19" },
+    { "name": "hour-22", "store": { "action": "setManualHour", "args": [22] } },
+    { "name": "settle-22", "wait": 1400 },
+    { "name": "shot-hour-22-lights-off", "screenshot": "04-night-lights-off" },
+
+    { "name": "lights-on", "eval": "const s = window.__store.getState(); s.setLightsMode('on')" },
+    { "name": "settle-lights", "wait": 1600 },
+    { "name": "shot-night-lights-on", "screenshot": "05-night-lights-on" },
+    { "name": "assert-lights-changed", "assert": { "js": "window.__store.getState().lightsMode === 'on'", "message": "lights should be on" } },
+
+    { "name": "mood-movie", "store": { "action": "setLightMood", "args": ["movie"] } },
+    { "name": "settle-mood", "wait": 1600 },
+    { "name": "shot-mood-movie", "screenshot": "06-mood-movie" },
+    { "name": "mood-reset", "store": { "action": "setLightMood", "args": ["none"] } },
+    { "name": "back-to-day", "store": { "action": "setManualHour", "args": [13] } },
+    { "name": "lights-auto", "eval": "const s = window.__store.getState(); s.setLightsMode('off')" },
+    { "name": "settle-day", "wait": 1400 },
+
+    { "name": "enter-room", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "settle-room", "wait": 1600 },
+    { "name": "baseline-floor", "eval": "window.__store.getState().setFloorFinish('livingDining', 'floor-vinyl-oak')" },
+    { "name": "settle-baseline", "wait": 900 },
+    { "name": "capture-floor-before", "eval": "window.__auditFloorBefore = window.__store.getState().finishes.floor.livingDining; return window.__auditFloorBefore" },
+    { "name": "apply-floor-finish", "eval": "const s = window.__store.getState(); s.setFloorFinish('livingDining', 'floor-wood-walnut')" },
+    { "name": "settle-finish", "wait": 2000 },
+    { "name": "shot-floor-finish", "screenshot": "07-floor-finish-applied" },
+    { "name": "assert-floor-changed", "assert": { "js": "window.__store.getState().finishes.floor.livingDining === 'floor-wood-walnut' && window.__store.getState().finishes.floor.livingDining !== window.__auditFloorBefore", "message": "applying a floor finish should change finishes.floor for that room" } },
+
+    { "name": "apply-wall-finish", "eval": "const s = window.__store.getState(); s.setWallFinish('livingDining', 'wall-sage')" },
+    { "name": "settle-wall", "wait": 2000 },
+    { "name": "shot-wall-finish", "screenshot": "08-wall-finish-applied" },
+    { "name": "assert-wall-finish-is-real", "assert": { "js": "!!window.__store.getState().finishes.walls.livingDining", "message": "wall finish should be recorded under finishes.walls (NOTE: unknown ids are accepted silently — always use a real id)" } },
+    { "name": "probe-after-finishes", "probe": { "checks": ["console", "overflow", "clipped", "naming", "covered"] } },
+
+    { "name": "exit-room", "store": { "action": "exitRoomEditor", "args": [] } },
+    { "name": "settle-exit", "wait": 1500 },
+    { "name": "walk", "store": { "action": "setCameraMode", "args": ["walk"] } },
+    { "name": "settle-walk", "wait": 2500 },
+    { "name": "shot-walk-hud", "screenshot": "09-walk-hud" },
+    { "name": "probe-walk", "probe": { "checks": ["console", "overflow", "clipped", "naming", "covered"] } },
+    { "name": "orbit", "store": { "action": "setCameraMode", "args": ["orbit"] } },
+    { "name": "final-console", "probe": { "checks": ["console"] } }
+  ]
+}
