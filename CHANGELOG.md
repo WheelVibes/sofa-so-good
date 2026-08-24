@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.29.3.7 — fix the two failing CI checks
+
+- **CodeQL, high severity — regex injection** (`js/regex-injection`).
+  `parseRcloneRemote` interpolated the remote name, which arrives from the command
+  line, straight into `new RegExp('^\\[' + remote + '\\]$')`. A name like `.*`
+  therefore matched the FIRST section in `rclone.conf` and handed back whichever
+  credentials it found. The name is now escaped and matched literally, with a
+  regression test covering `.*`, `sofa.*` and an alternation.
+- **Dead-code scan (knip)** — `ACG_RESOLUTION` was exported but only used inside its
+  own module; dropped the `export` keyword (the constant itself is still used).
+
 ## v0.29.3.6 — the dev API finds the R2 mirror itself (no more silent ambientCG 404)
 
 - **The dev `LIBRARY` shim searches both mirror layouts, so ambientCG works out of the box.** It
@@ -105,7 +116,7 @@ Also resolves a duplicate `v0.29.1.1` heading created by two concurrent work str
   photo finish loads; offline — uses the bundled `wall-brick` set, no backend needed).
 - **Dev-server note:** reproducing this needed the ambientCG R2 mirror to resolve locally, which
   it did not — `acgLibrary.fetchIndex` threw `ambientCG library 404` until the dev API was pointed
-  at `resources/` by hand. Fixed properly in v0.29.3.5; an admin login is still required, since
+  at `resources/` by hand. Fixed properly in v0.29.3.6; an admin login is still required, since
   `/api/assets/*` is auth-gated.
 
 ## v0.29.3.3 — every remaining open audit item closed

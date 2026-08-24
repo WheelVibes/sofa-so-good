@@ -408,12 +408,25 @@ The backend (`scripts/dev-api.ts`) hosts the **actual** Cloudflare Worker app
 (`functions/api/[[route]].ts`) on Node with shimmed bindings — `node:sqlite` for
 D1 (persisted to `.wrangler/sofa-dev.sqlite`), an in-memory Map for KV/sessions,
 and a **filesystem mirror of the R2 shared-library bucket** so the admin catalog
-populates in dev too. R2's contents are just the local `ikea_optimized/` tree
-(the same one `rclone`d to the bucket — see below), so the shim serves those keys
-straight from disk: `ikea/<group>/<file>` → `ikea_optimized/<group>/<file>` and
-`library/index.json` → `ikea_optimized/library-index.json` (run
-`npm run build-library-index` once to produce it). Override the source dir with
-`DEV_LIBRARY_DIR`; if it's absent the shared library just stays empty. The admin
+and the ambientCG material library populate in dev too. R2's contents are just a
+local tree, so the shim serves those keys straight from disk — it searches, in
+order (`scripts/lib/devLibraryMirror.ts`, pure + unit-tested):
+
+1. **`resources/`** — the R2-SHAPED mirror `npm run pull-r2-library` writes: keys
+   verbatim (`library/index.json`, `library/acg-index.json`, `ikea/<group>/<file>`,
+   `acg/<AssetId>/<map>.webp`). This is the only layout that can express `acg/`.
+2. **`ikea_optimized/`** — the legacy flat IKEA scrape (the tree `rclone`d to the
+   bucket, see below), with the historic rewrites `ikea/<group>/<file>` →
+   `<group>/<file>` and `library/index.json` → `library-index.json` (run
+   `npm run build-library-index` once to produce it).
+
+Each key takes the first hit, so a machine with both trees serves IKEA from the
+scrape and ambientCG from `resources/` without any configuration. `DEV_LIBRARY_DIR`
+still pins one dir explicitly (absolute or repo-relative) and wins outright. A key
+in no mirror 404s — the same as an empty bucket — and the dev API logs the miss once
+with the dirs it searched, because a silent 404 here surfaces as a *feature* that
+looks broken (an `ambientcg:<slug>:1k` finish that never resolves; it was originally
+misdiagnosed as a renderer bug — see v0.29.3.4 / .6 in CHANGELOG.md). The admin
 is seeded from `.dev.vars` (`ADMIN_EMAIL`/`ADMIN_PASSWORD`) on the first request;
 sign in with those on the login screen. Turnstile is skipped when
 `TURNSTILE_SECRET` is empty. Requires Node ≥ 22 (`node:sqlite`); run either half

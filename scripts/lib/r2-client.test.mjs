@@ -42,4 +42,14 @@ describe('parseRcloneRemote', () => {
   it('does not match a remote whose name is a prefix of another', () => {
     expect(parseRcloneRemote(CONF, 'sofa')).toBeNull()
   })
+
+  it('treats regex metacharacters in the remote name literally', () => {
+    // The name arrives from the command line and used to be interpolated raw
+    // into `new RegExp('^\\[' + remote + '\\]$')`, so `.*` matched the FIRST
+    // section in the file and handed back someone else's credentials
+    // (CodeQL js/regex-injection, high).
+    expect(parseRcloneRemote(CONF, '.*')).toBeNull()
+    expect(parseRcloneRemote(CONF, 'sofa.*')).toBeNull()
+    expect(parseRcloneRemote(CONF, 'sofa-r2|other')).toBeNull()
+  })
 })

@@ -31,7 +31,7 @@ const INDEX_PATH = '/assets/library/acg-index.json'
 const ASSET_PREFIX = '/assets/acg'
 
 /** The only resolution the packed corpus ships (ambientCG `_1K-JPG` zips). */
-export const ACG_RESOLUTION: Resolution = '1k'
+const ACG_RESOLUTION: Resolution = '1k'
 
 export interface AcgManifestItem {
   id: string

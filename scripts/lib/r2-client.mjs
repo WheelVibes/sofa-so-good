@@ -31,12 +31,21 @@ export async function loadDotEnv(file) {
   }
 }
 
+/** Escape every regex metacharacter so a value can be matched literally. */
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 /**
  * Read one remote's key/value block out of an rclone config file. rclone stores
  * the R2 account id only inside the endpoint host, so callers derive it there.
  */
 export function parseRcloneRemote(text, remote) {
-  const section = new RegExp(`^\\[${remote}\\]\\s*$`, 'm').exec(text)
+  // Escape before interpolating: `remote` comes from the command line, so any
+  // regex metacharacter in it would otherwise be injected into this pattern
+  // (CodeQL js/regex-injection). A remote called `a.*` must match the literal
+  // section `[a.*]`, not every section.
+  const section = new RegExp(`^\\[${escapeRegExp(remote)}\\]\\s*$`, 'm').exec(text)
   if (!section) return null
   const body = text.slice(section.index + section[0].length).split(/^\[/m)[0]
   const out = {}

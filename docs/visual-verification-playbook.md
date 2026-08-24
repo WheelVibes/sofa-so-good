@@ -1615,7 +1615,7 @@ intermittent and tier-dependent. Rules learned the hard way (v0.29.3.4, FINISH-D
   suspended subtree) — not a fade; the wall-reveal fade shows up as `opacity`/`transparent` instead.
 
 ### Driving a real ambientCG (R2) finish in a scenario: mirror + login + Pro mode
-Since v0.29.3.5 the dev API finds the mirror itself (`resources/` then `ikea_optimized/` — see
+Since v0.29.3.6 the dev API finds the mirror itself (`resources/` then `ikea_optimized/` — see
 `scripts/lib/devLibraryMirror.ts`), so `npm run dev` is enough **if** the repo has `resources/`
 (`npm run pull-r2-library`); a missing key now logs `[dev-api] LIBRARY miss: …` instead of 404ing
 silently. Two things are still on you, or `acgLibrary.fetchIndex` throws and the finish quietly
