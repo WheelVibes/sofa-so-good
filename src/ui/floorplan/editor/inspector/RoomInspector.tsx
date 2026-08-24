@@ -15,7 +15,11 @@ export function RoomInspector({ room: r, levelId }: { room: PlanRoom; levelId?: 
   const plan = useStore((s) => s.floorPlan)
   const units = useStore((s) => s.units)
   const ceilingDesignOn = useFeature('ceilingDesign')
+  // Texture transforms go through the FINISH writer, not `updateRoom`: they
+  // change no geometry, so they must not fork the curated flat.
+  const setSurfaceTexture = useStore((st) => st.setSurfaceTexture)
   const floorTextureOn = useFeature('floorTexture')
+  const wallTextureOn = useFeature('wallTexture')
   const roomInsetOn = useFeature('roomInset')
   const floorLevelsOn = useFeature('floorLevels')
   return (
@@ -164,18 +168,36 @@ export function RoomInspector({ room: r, levelId }: { room: PlanRoom; levelId?: 
             value={r.floorTexScale ?? 1}
             step={0.1}
             min={0.25}
-            onChange={(v) =>
-              a.updateRoom(r.id, { floorTexScale: Math.abs(v - 1) < 1e-3 ? undefined : v })
-            }
+            onChange={(v) => setSurfaceTexture(r.id, 'floor', { scale: v })}
           />
           <Num
             label="Angle (°)"
             value={Math.round((((r.floorTexAngle ?? 0) * 180) / Math.PI) * 10) / 10}
             step={5}
-            onChange={(v) => {
-              const rad = (v * Math.PI) / 180
-              a.updateRoom(r.id, { floorTexAngle: Math.abs(rad) < 1e-4 ? undefined : rad })
-            }}
+            onChange={(v) => setSurfaceTexture(r.id, 'floor', { angle: (v * Math.PI) / 180 })}
+          />
+        </div>
+      ) : null}
+      {/* The same two dials for the room's WALL finish — a tiled wall (brick,
+          subway, panelling, wallpaper) needs its course size + run direction
+          just as much as a floor does. */}
+      {wallTextureOn ? (
+        <div className="space-y-1" style={{ marginTop: 'var(--s-1)' }}>
+          <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+            Wall texture
+          </div>
+          <Num
+            label="Tile size (×)"
+            value={r.wallTexScale ?? 1}
+            step={0.1}
+            min={0.25}
+            onChange={(v) => setSurfaceTexture(r.id, 'wall', { scale: v })}
+          />
+          <Num
+            label="Angle (°)"
+            value={Math.round((((r.wallTexAngle ?? 0) * 180) / Math.PI) * 10) / 10}
+            step={5}
+            onChange={(v) => setSurfaceTexture(r.id, 'wall', { angle: (v * Math.PI) / 180 })}
           />
         </div>
       ) : null}

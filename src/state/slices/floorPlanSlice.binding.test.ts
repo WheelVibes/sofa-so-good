@@ -25,6 +25,27 @@ describe('default-plan binding (edits fork to a custom plan)', () => {
     expect(useStore.getState().floorPlan.id).toBe(id1)
   })
 
+  it('does NOT fork for an appearance-only room patch (finish / texture dials)', () => {
+    // A grain direction or a tile size changes no geometry, so the curated flat
+    // must stay the curated flat — forking here silently swapped a user's
+    // `<Apartment/>` render for `PlanShell` mid-session.
+    const s = useStore.getState()
+    s.updateRoom('livingDining', { floorTexAngle: Math.PI / 2 })
+    expect(useStore.getState().floorPlan.id).toBe(DEFAULT_PLAN_ID)
+    useStore.getState().updateRoom('livingDining', { wallTexScale: 2, floor: 'floor-wood-oak' })
+    expect(useStore.getState().floorPlan.id).toBe(DEFAULT_PLAN_ID)
+    // …and the patch still applied.
+    const room = useStore.getState().floorPlan.rooms.find((r) => r.id === 'livingDining')
+    expect(room?.wallTexScale).toBe(2)
+    expect(room?.floor).toBe('floor-wood-oak')
+  })
+
+  it('still forks when the SAME call also moves the room', () => {
+    const s = useStore.getState()
+    s.updateRoom('livingDining', { floorTexAngle: 1, width: 5 })
+    expect(useStore.getState().floorPlan.id).not.toBe(DEFAULT_PLAN_ID)
+  })
+
   it('undo restores the default plan id', () => {
     const s = useStore.getState()
     s.addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })

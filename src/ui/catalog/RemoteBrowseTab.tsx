@@ -11,6 +11,13 @@ import { ResolutionPicker } from './ResolutionPicker'
 
 const ALL: 'all' = 'all'
 
+/** Does a provider's error string mean "not signed in" rather than "offline"?
+ *  `acgLibrary` throws a "Sign in…" message on 401; the raw status is matched
+ *  too so an older cached message still classifies correctly. */
+function isAuthError(error?: string): boolean {
+  return !!error && /sign in|401|unauthori[sz]ed/i.test(error)
+}
+
 function matchesQuery(entry: { name: string; slug: string; tags?: string[] }, q: string): boolean {
   if (!q) return true
   const ql = q.toLowerCase()
@@ -39,6 +46,20 @@ export function RemoteBrowseTab({
   const acgStatus = useStore((s) => s.remoteIndexes.ambientcg.status)
   const acgError = useStore((s) => s.remoteIndexes.ambientcg.error)
   const refresh = useStore((s) => s.refreshProviderIndex)
+
+  // An auth failure is not an outage — the ambientCG library is our own bucket
+  // behind the session gate, so the banner must not blame the network.
+  const phAuth = isAuthError(phError)
+  const acgAuth = isAuthError(acgError)
+  const needsSignIn = phAuth || acgAuth
+  // ...but a shipped build must not nag about it. Accounts are admin-created
+  // (no public signup), so "sign in" is un-actionable advice for a visitor: in
+  // production an unauthenticated provider is simply UNAVAILABLE — no red
+  // banner, no Retry — while dev still gets the message that explains the 401.
+  // A non-auth failure (real outage) still surfaces everywhere.
+  const showAuthNotice = needsSignIn && import.meta.env.DEV
+  const phFailed = phStatus === 'error' && (!phAuth || showAuthNotice)
+  const acgFailed = kind === 'material' && acgStatus === 'error' && (!acgAuth || showAuthNotice)
 
   const filtered = useMemo(() => {
     let list = all
@@ -119,22 +140,27 @@ export function RemoteBrowseTab({
             {q ? '' : ` of ${totalLoaded}`}
           </span>
           <span className="flex gap-2">
-            <span title={phError}>
-              PH:{' '}
-              <span
-                style={{
-                  color:
-                    phStatus === 'error'
-                      ? 'var(--danger)'
-                      : phStatus === 'ready'
-                        ? 'var(--ok)'
-                        : 'var(--text-3)',
-                }}
-              >
-                {phStatus}
+            {(phStatus !== 'error' || phFailed) && (
+              <span title={phError}>
+                PH:{' '}
+                <span
+                  style={{
+                    color:
+                      phStatus === 'error'
+                        ? 'var(--danger)'
+                        : phStatus === 'ready'
+                          ? 'var(--ok)'
+                          : 'var(--text-3)',
+                  }}
+                >
+                  {phStatus}
+                </span>
               </span>
-            </span>
-            {kind === 'material' && (
+            )}
+            {/* A provider that is merely unauthenticated in a shipped build is
+                not a fault to advertise — hide its status chip along with the
+                banner (`acgFailed`), rather than showing a red "error". */}
+            {kind === 'material' && (acgStatus !== 'error' || acgFailed) && (
               <span title={acgError}>
                 ACG:{' '}
                 <span
@@ -153,7 +179,7 @@ export function RemoteBrowseTab({
             )}
           </span>
         </div>
-        {(phStatus === 'error' || (kind === 'material' && acgStatus === 'error')) && (
+        {(phFailed || acgFailed) && (
           <div
             style={{
               background: 'var(--danger-soft)',
@@ -163,28 +189,33 @@ export function RemoteBrowseTab({
               fontSize: 'var(--t-2xs)',
             }}
           >
-            <div className="font-medium">Couldn’t reach the online library.</div>
-            <div style={{ opacity: 0.8 }}>
-              Online assets need an internet connection — the built-in catalog works offline. Retry
-              below.
+            <div className="font-medium">
+              {showAuthNotice
+                ? 'Not authorized — sign in to load the online library.'
+                : 'Couldn’t reach the online library.'}
             </div>
-            {phError && (
+            <div style={{ opacity: 0.8 }}>
+              {showAuthNotice
+                ? 'These textures come from your account library, not a public CDN. Sign in, then retry below.'
+                : 'Online assets need an internet connection — the built-in catalog works offline. Retry below.'}
+            </div>
+            {phError && phFailed && (
               <div className="truncate" title={phError}>
                 Poly Haven: {phError}
               </div>
             )}
-            {acgError && kind === 'material' && (
+            {acgError && acgFailed && (
               <div className="truncate" title={acgError}>
                 ambientCG: {acgError}
               </div>
             )}
             <div className="mt-1 flex gap-1">
-              {phStatus === 'error' && (
+              {phFailed && (
                 <Button variant="danger" size="sm" onClick={() => void refresh('polyhaven')}>
                   Retry Poly Haven
                 </Button>
               )}
-              {kind === 'material' && acgStatus === 'error' && (
+              {acgFailed && (
                 <Button variant="danger" size="sm" onClick={() => void refresh('ambientcg')}>
                   Retry ambientCG
                 </Button>

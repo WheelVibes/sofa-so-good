@@ -75,12 +75,17 @@ export const createRemoteCatalogSlice: StateCreator<
   async bootstrapRemoteCatalog() {
     const meta = await getMeta()
     set({ remoteCacheBytes: meta.totalBytes })
-    // ambientCG has no CORS headers (dev-only Vite proxy), so a production
-    // build only bootstraps the CORS-capable providers (Poly Haven).
+    // Which providers bootstrap at all is a flag/CORS question — see
+    // `activeProviderIds`. Poly Haven is always in; ambientCG rides the
+    // auth-gated R2 proxy and joins whenever `ambientcgLibrary` is on.
     await Promise.all(
-      activeProviderIds(import.meta.env.DEV).map(async (p) => {
+      activeProviderIds().map(async (p) => {
         const cached = await getIndex(p)
-        if (cached) {
+        // A cached index survives a week, which is longer than a transport
+        // change: entries the CURRENT provider can no longer fetch must be
+        // refetched, not rendered (they resolve to nothing and the card sits on
+        // its loading skeleton forever).
+        if (cached && PROVIDERS[p].validateCached?.(cached.entries) !== false) {
           set((s) => ({
             remoteIndexes: {
               ...s.remoteIndexes,

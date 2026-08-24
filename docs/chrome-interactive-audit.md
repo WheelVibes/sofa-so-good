@@ -181,7 +181,15 @@ use `scripts/shot.mjs` for anything in this list:
   backgrounded, `useFrame` never ticks, so `sceneReady` never flips, the boot loader never
   lifts, and captures return the last painted frame. Every symptom reads like an app hang; it
   cost one false "boot is broken" investigation before the cause (`visibilityState: 'hidden'`)
-  was spotted. See [Keeping the tab foregrounded](#keeping-the-tab-foregrounded).
+  was spotted. See [Keeping the tab foregrounded](#keeping-the-tab-foregrounded). **Driving the
+  tab by hand (MCP `javascript_tool` without this driver) has no such guard**: probes still run
+  and return live store state while `<Canvas>` has never mounted at all (App's phase-1→2 mount
+  is two chained `requestAnimationFrame`s), so you get `canvas.length === 0` +
+  `window.__three === undefined` + `bootPhase: 'ready'` + no console error. Screenshot (or
+  click) first, then probe — and see the **Claude-in-Chrome quirks** section in
+  [visual-verification-playbook.md](visual-verification-playbook.md) for the rest of the
+  real-tab traps (stale `__three`, swallowed boundary errors, blocked probe output, 7-day
+  IndexedDB caches, the two-renderer split, dev-api not hot-reloading).
 - **The JS bridge times out at 45 s.** Never `await` a whole scenario over the wire — that is
   why the driver runs detached behind `start()`/`poll()` and only ever blocks briefly.
 - **Editing any project file reloads the page.** Vite full-reloads on changes it cannot HMR,

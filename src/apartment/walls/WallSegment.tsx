@@ -52,6 +52,7 @@ import {
   SPREAD_ONSET,
 } from './wallRevealMath'
 import { wallSidesSpans } from './wallRoomSides'
+import { useWallTexTransform } from './wallTexTransform'
 
 // Interior room rectangles (+ L-extensions) for the point-in-room test that
 // orients each wall's "outward" normal — robust to the flat's non-rectangular,
@@ -95,6 +96,9 @@ interface FacePlaneProps {
   onSelect?: () => void
   /** Room this face backs onto — tags the mesh as a wall finish-drop target. */
   roomId?: string
+  /** Wall this face belongs to, so the face can carry its OWN lay direction
+   *  (`finishes.wallTex`, keyed `${wallId}:${roomId}` like the accent finish). */
+  wallId?: string
 }
 
 function FacePlane({
@@ -107,10 +111,20 @@ function FacePlane({
   material,
   onSelect,
   roomId,
+  wallId,
 }: FacePlaneProps) {
   const z = sign * (thickness / 2 + FACE_OFFSET)
   const yRot = sign === 1 ? 0 : Math.PI
-  const geometry = useMemo(() => worldUvPlaneGeometry(segLen, segHeight), [segLen, segHeight])
+  // Per-room wall-texture transform (tile size / angle) — the wall counterpart
+  // of the room's floor pair. Identity (both dials unset) → the untouched
+  // world-UV plane, byte-identical to before.
+  const texTransform = useWallTexTransform(roomId, wallId)
+  const texScale = texTransform?.scale
+  const texAngle = texTransform?.angle
+  const geometry = useMemo(
+    () => worldUvPlaneGeometry(segLen, segHeight, { scale: texScale, angle: texAngle }),
+    [segLen, segHeight, texScale, texAngle],
+  )
   // Geometry passed via `geometry=` isn't R3F-owned: dispose the superseded one
   // when segLen/segHeight change (ceiling-height / wall-thickness edits) or on
   // unmount, else every wall-face plane leaks across the session (BUG-006).
@@ -752,6 +766,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                         sign={1}
                         materialId={positiveMat}
                         roomId={span.positive ?? undefined}
+                        wallId={wall.id}
                         onSelect={
                           span.positive && accentWalls
                             ? () => selectWallIfEditing(wall.id, span.positive!)
@@ -802,6 +817,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                         sign={-1}
                         materialId={negativeMat}
                         roomId={span.negative ?? undefined}
+                        wallId={wall.id}
                         onSelect={
                           span.negative && accentWalls
                             ? () => selectWallIfEditing(wall.id, span.negative!)

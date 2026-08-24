@@ -258,6 +258,9 @@
   font-size: var(--t-2xs); font-weight: 700; white-space: nowrap;
 }
 .card-thumb .thumb-status.err { background: var(--danger); }
+/* The thumbnail-retry chip is a real <button> (it re-runs the fetch without
+   arming the card), so strip the UA button chrome — same pill either way. */
+.card-thumb button.thumb-status { border: 0; cursor: pointer; font-family: inherit; }
 /* Skeleton loader (P17). Token-only shimmer over a loading media box. The
    shimmer keyframe's duration is zeroed under reduced-motion (app.css) so it
    settles to a static --surface-3 fill. */

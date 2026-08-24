@@ -362,6 +362,10 @@ const PlanRoomZ = z.object({
   // Per-room floor-texture transform (scale/angle) — optional + additive.
   floorTexScale: z.number().optional(),
   floorTexAngle: z.number().optional(),
+  // Per-room WALL-texture transform (scale/angle) — optional + additive, same
+  // shape and back-compat story as the floor pair above.
+  wallTexScale: z.number().optional(),
+  wallTexAngle: z.number().optional(),
   // Per-room ceiling treatment (tray/coffered/dropped). Optional + additive →
   // no schema-version bump; absent → flat (the prior behaviour).
   ceiling: z
@@ -579,6 +583,12 @@ const RawSerializedStateZ = z.object({
     ceiling: z.record(z.string(), z.string()).optional(),
     // Optional for backward compat with payloads saved before accent walls.
     wallAccents: z.record(z.string(), z.string()).optional(),
+    // Per-wall-FACE texture transform (`${wallId}:${roomId}` → tile size /
+    // angle). Optional + additive: a save written before per-face direction
+    // simply has no key, and every face follows its room as it always did.
+    wallTex: z
+      .record(z.string(), z.object({ scale: z.number().optional(), angle: z.number().optional() }))
+      .optional(),
   }),
   userFurniture: z.array(z.union([UserGltfDefZ, IkeaGltfDefZ])),
   userMaterials: z.array(UserMaterialDefZ),
@@ -1035,6 +1045,7 @@ export function applySerialized(
       walls: walls as Record<RoomId, string>,
       ceiling: ceiling as Record<RoomId, string>,
       wallAccents: state.finishes.wallAccents ?? {},
+      wallTex: state.finishes.wallTex ?? {},
     },
     masterPalette: state.masterPalette ?? [],
     roomPalettes: state.roomPalettes ?? {},

@@ -45,4 +45,10 @@ export interface RemoteProvider {
     resolution: Resolution,
     signal?: AbortSignal,
   ): Promise<number | null>
+  /** Optional: does a CACHED index still match what this provider serves? The
+   *  index cache lives for a week (`bootstrapRemoteCatalog`), which outlasts a
+   *  transport change — entries written by an older build can point at URLs
+   *  this provider can no longer fetch, and a card built from one loads
+   *  forever. Return false to force a refetch instead of rendering them. */
+  validateCached?(entries: RemoteEntry[]): boolean
 }

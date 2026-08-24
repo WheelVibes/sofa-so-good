@@ -1052,6 +1052,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Per-room WALL-texture transform — the wall counterpart of `floorTexture`
+  // (tile size + angle). A tiled wall finish (brick, subway, panelling,
+  // wallpaper) needs its course size and run direction as much as a floor does.
+  // Pure geometry-UV transform → prod-safe; part of the core finish loop the
+  // floor dials already sit in → simple tier, same as `floorTexture`.
+  wallTexture: {
+    label: 'Wall texture transform',
+    description: 'Scale + rotate a room’s wall texture (tile size / angle)',
+    default: true,
+    tier: 'simple',
+  },
   // North/compass rose on the 2D plan (SweetHome3DJS compass parity). Pure
   // overlay reflecting the orientation. Surfaced in the default experience → simple tier.
   planCompass: {
@@ -1437,6 +1448,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Object-space box projection for parametric furniture UVs (MAT-006c). The
+  // default BoxGeometry UVs run 0..1 per face whatever the face measures, so a
+  // tiled finish scaled with the PART (a tabletop and a leg showing the same
+  // number of tiles) and its grain followed each face's own axes rather than the
+  // part's length. `materials/boxUv.ts` re-projects each slab from its own
+  // geometry in metres, U on the longer face axis. Pure geometry, prod-safe, no
+  // GPU cost — and a CORRECTNESS fix rather than an advanced dial, so it is
+  // simple tier: Simple mode must not be left with mis-scaled grain.
+  furnitureBoxUv: {
+    label: 'Furniture texture alignment',
+    description: 'Scale and orient furniture wood grain from the part, not the face',
+    default: true,
+    tier: 'simple',
+  },
   // Parallax-occlusion mapping on hero grout-relief floors (PHOTO-POM): the
   // procedural tile / hexagon / subway / checker / brick / parquet / herringbone
   // patterns already bake a height field to derive their normals; POM ray-marches
@@ -1545,11 +1570,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     tier: 'simple',
   },
   // ambientCG CC0 material library mirrored into our own R2 bucket (`acg/`)
-  // and served over the same-origin `/api/assets` proxy. The live ambientCG
-  // API sends no CORS headers, which is why the direct provider is dev-only;
-  // the mirror removes that dependency entirely, so this is prod-safe (CC0,
-  // no proxy to operate) and NOT `devOnly`. `pro` because a 1000-plus scan
-  // grid is pack-browser territory — Simple keeps the curated finish strip.
+  // and served over the same-origin `/api/assets` proxy. Since v0.29.4.0 this
+  // is the ONLY ambientCG transport (the live ambientcg.com provider is gone),
+  // so the flag now decides whether ambientCG appears at all rather than which
+  // transport serves it. Prod-safe (CC0, same-origin, no proxy to operate) and
+  // NOT `devOnly`. `pro` because a 1000-plus scan grid is pack-browser
+  // territory — Simple keeps the curated finish strip.
   ambientcgLibrary: {
     label: 'ambientCG material library',
     description: 'Browse the CC0 ambientCG PBR material library (served from R2)',

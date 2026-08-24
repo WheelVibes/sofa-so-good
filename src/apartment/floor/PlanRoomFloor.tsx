@@ -2,6 +2,7 @@ import type { ThreeEvent } from '@react-three/fiber'
 import { Suspense, useCallback, useMemo } from 'react'
 import type { MeshStandardMaterial } from 'three'
 import { isFeatureEnabled } from '../../features/featureFlags'
+import { allowsQuarterTurns } from '../../materials/finishDirection'
 import type {
   MaterialId,
   ProceduralMaterialDef,
@@ -24,19 +25,35 @@ import { isDragRelease } from '../../scene/clickVsDrag'
 import { finishSurfaceUserData } from '../../scene/finishDropTarget'
 import { useDisposeGeometry } from '../../scene/geometryUtil'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
+import { canEditScene } from '../../state/editing'
 import { confirmAndEnterRoom } from '../../state/enterRoomConfirm'
 import { useStore } from '../../state/store'
+import { floorClickAction } from './floorClick'
 
-/** Click-to-edit + hover affordance for a custom-plan room floor in the
- *  view-only overview (mirrors the default apartment's `RoomFloor`). Clicking a
- *  room dives into its per-room editor; hovering shows a pointer cursor +
- *  highlight. No-op without a `roomId` or outside the overview. */
+/** Click-to-edit + hover affordance for a custom-plan room floor (mirrors the
+ *  default apartment's `RoomFloor`). **Inside** the room editor a floor click
+ *  selects the room, which is what opens the finish picker — without it a
+ *  custom-plan room had no way to reach its own floor/wall finishes by clicking
+ *  the floor (the default flat's `RoomFloor` has always done this). In the
+ *  view-only overview a click dives into the room's editor instead, and
+ *  hovering shows a pointer cursor + highlight. No-op without a `roomId`. */
 function useOverviewRoomEntry(roomId?: string) {
   const onClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       if (!roomId) return
       const s = useStore.getState()
-      if (s.cameraMode === 'orbit' && !s.roomEditor.active) {
+      const action = floorClickAction({
+        canEdit: canEditScene(s),
+        cameraMode: s.cameraMode,
+        roomEditorActive: s.roomEditor.active,
+      })
+      if (action === 'select-room') {
+        // Inside the room editor: clicking the floor opens the finish picker.
+        e.stopPropagation()
+        s.selectRoom(roomId)
+        return
+      }
+      if (action === 'enter-room') {
         // Skip the tail of an orbit drag (it lands here as a click too).
         if (isDragRelease(e.nativeEvent)) return
         e.stopPropagation()
@@ -85,6 +102,9 @@ interface Rect {
   /** Tile period in metres (material `uvScale`) for the RD-406 repetition
    *  break-up — only tiling (procedural/textured) finishes set it. */
   tileSize?: number
+  /** May the break-up turn a cell by 90°? Only for a finish with no lay
+   *  direction (`materials/finishDirection.ts`). */
+  quarterTurns?: boolean
 }
 type Props = Rect & { materialId: MaterialId }
 
@@ -96,14 +116,16 @@ function FloorMesh({
   roomId,
   texTransform,
   tileSize,
+  quarterTurns,
   material,
 }: Rect & { material: MeshStandardMaterial }) {
   const handlers = useOverviewRoomEntry(roomId)
   // Drop-target tag for the canvas finish drag (scene/finishDropTarget.ts).
   const userData = roomId ? finishSurfaceUserData('floor', roomId) : undefined
   if (polygon && polygon.length >= 3) {
-    // Non-rectangular floors stay on the triangulated shape path (the tile
-    // break-up subdivides a rectangle only).
+    // Non-rectangular floors take the triangulated shape path — which now gets
+    // the SAME repetition break-up as the rectangles, by clipping the room to
+    // the tile grid (`breakRepetitionShape`) instead of subdividing a plane.
     return (
       <PolygonFloor
         polygon={polygon}
@@ -111,6 +133,8 @@ function FloorMesh({
         handlers={handlers}
         userData={userData}
         texTransform={texTransform}
+        tileSize={tileSize}
+        quarterTurns={quarterTurns}
       />
     )
   }
@@ -124,6 +148,7 @@ function FloorMesh({
       userData={userData}
       texTransform={texTransform}
       tileSize={tileSize}
+      quarterTurns={quarterTurns}
     />
   )
 }
@@ -142,6 +167,7 @@ function RectFloor({
   userData,
   texTransform,
   tileSize,
+  quarterTurns = true,
 }: {
   origin: [number, number]
   width: number
@@ -151,6 +177,7 @@ function RectFloor({
   userData?: Record<string, unknown>
   texTransform?: UvTransform
   tileSize?: number
+  quarterTurns?: boolean
 }) {
   const texScale = texTransform?.scale
   const texAngle = texTransform?.angle
@@ -163,9 +190,15 @@ function RectFloor({
   const geometry = useMemo(
     () =>
       valid
-        ? worldUvPlaneGeometry(width, depth, { scale: texScale, angle: texAngle }, breakup)
+        ? worldUvPlaneGeometry(
+            width,
+            depth,
+            { scale: texScale, angle: texAngle },
+            breakup,
+            quarterTurns,
+          )
         : null,
-    [valid, width, depth, texScale, texAngle, breakup],
+    [valid, width, depth, texScale, texAngle, breakup, quarterTurns],
   )
   useDisposeGeometry(geometry)
   if (!geometry) return null
@@ -190,18 +223,26 @@ function PolygonFloor({
   handlers,
   userData,
   texTransform,
+  tileSize,
+  quarterTurns = true,
 }: {
   polygon: [number, number][]
   material: MeshStandardMaterial
   handlers?: Record<string, unknown>
   userData?: Record<string, unknown>
   texTransform?: UvTransform
+  tileSize?: number
+  quarterTurns?: boolean
 }) {
   const texScale = texTransform?.scale
   const texAngle = texTransform?.angle
+  // RD-406 break-up for irregular rooms — same flag + same tile period as the
+  // rect path, so an L-shaped living room stops out-repeating its neighbours.
+  const breakup = tileSize != null && isFeatureEnabled('tileBreakup') ? tileSize : undefined
   const geometry = useMemo(
-    () => worldUvShapeGeometry(polygon, { scale: texScale, angle: texAngle }),
-    [polygon, texScale, texAngle],
+    () =>
+      worldUvShapeGeometry(polygon, { scale: texScale, angle: texAngle }, breakup, quarterTurns),
+    [polygon, texScale, texAngle, breakup, quarterTurns],
   )
   // Geometry passed via `geometry=` isn't R3F-owned: dispose on change/unmount.
   useDisposeGeometry(geometry)
@@ -224,11 +265,25 @@ function Solid({ def, ...rest }: Rect & { def: SolidMaterialDef }) {
 function Textured({ def, ...rest }: Rect & { def: TexturedMaterialDef }) {
   // Floor-specific hook: a scan carrying a displacement map gets POM on
   // High/Maximum (PHOTO-POM), otherwise the plain textured material.
-  return <FloorMesh {...rest} material={useFloorTexturedMaterial(def)} tileSize={def.uvScale[0]} />
+  const material = useFloorTexturedMaterial(def)
+  return (
+    <FloorMesh
+      {...rest}
+      material={material}
+      tileSize={def.uvScale[0]}
+      quarterTurns={allowsQuarterTurns(def, material)}
+    />
+  )
 }
 function Procedural({ def, ...rest }: Rect & { def: ProceduralMaterialDef }) {
+  const material = useFloorProceduralMaterial(def)
   return (
-    <FloorMesh {...rest} material={useFloorProceduralMaterial(def)} tileSize={def.uvScale[0]} />
+    <FloorMesh
+      {...rest}
+      material={material}
+      tileSize={def.uvScale[0]}
+      quarterTurns={allowsQuarterTurns(def, material)}
+    />
   )
 }
 

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Resolution } from '../types'
 import type { AcgManifestItem } from './acgLibrary'
 import { __resetAcgLibraryCache, acgLibrary, entryForItem, normaliseManifest } from './acgLibrary'
 
@@ -104,5 +105,85 @@ describe('acgLibrary.fetchAsset', () => {
     __resetAcgLibraryCache()
     mockFetch(['albedo.webp'])
     await expect(acgLibrary.fetchAsset(entryForItem(ITEM), '1k')).rejects.toThrow(/albedo/)
+  })
+})
+
+describe('acgLibrary.fetchThumbnail', () => {
+  beforeEach(() => {
+    __resetAcgLibraryCache()
+    vi.restoreAllMocks()
+  })
+
+  /** A cached entry written by the removed live-API transport: absolute URL on
+   *  ambientCG's own CDN, and resolutions the packed corpus never had. */
+  const STALE_ENTRY = {
+    ...entryForItem(ITEM),
+    thumbUrl:
+      'https://acg-media.struffelproductions.com/file/ambientCG-Web/media/thumbnail/128-PNG/Wood065.png',
+    resolutions: ['1k', '2k', '4k'] as Resolution[],
+  }
+
+  it('derives the URL from the slug, ignoring a stale entry thumbUrl', async () => {
+    const fetchMock = vi.fn(
+      async (_url: string, _init?: RequestInit) =>
+        ({ ok: true, blob: async () => new Blob(['x']) }) as Response,
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    await acgLibrary.fetchThumbnail(STALE_ENTRY)
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/assets/acg/Wood065/thumb.webp')
+  })
+
+  it('sends the session cookie only to our own proxy', async () => {
+    // A credentialed cross-origin request is rejected outright by a server
+    // answering `Access-Control-Allow-Origin: *` — the bug that turned every
+    // ambientCG card into a permanent loading skeleton.
+    const fetchMock = vi.fn(
+      async (_url: string, _init?: RequestInit) =>
+        ({ ok: true, blob: async () => new Blob(['x']) }) as Response,
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    await acgLibrary.fetchThumbnail(entryForItem(ITEM))
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ credentials: 'include' })
+  })
+})
+
+describe('acgLibrary.validateCached', () => {
+  it('rejects an index cached from the removed live transport', () => {
+    const stale = {
+      ...entryForItem(ITEM),
+      thumbUrl: 'https://acg-media.struffelproductions.com/x/Wood065.png',
+    }
+    // A week-long index cache outlives a transport change, so the entries have
+    // to be re-checked on boot rather than trusted.
+    expect(acgLibrary.validateCached?.([stale])).toBe(false)
+  })
+
+  it('accepts entries this transport produced', () => {
+    expect(acgLibrary.validateCached?.([entryForItem(ITEM)])).toBe(true)
+  })
+})
+
+describe('acgLibrary.fetchIndex', () => {
+  beforeEach(() => {
+    __resetAcgLibraryCache()
+    vi.restoreAllMocks()
+  })
+
+  it('reports a 401 as an auth problem, not an outage', async () => {
+    // The corpus is served from our own bucket, so 401 means "not signed in" —
+    // the UI keys its banner copy off this message.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 401 }) as Response),
+    )
+    await expect(acgLibrary.fetchIndex()).rejects.toThrow(/sign in/i)
+  })
+
+  it('still surfaces other failures with their status', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 404 }) as Response),
+    )
+    await expect(acgLibrary.fetchIndex()).rejects.toThrow(/404/)
   })
 })

@@ -32,7 +32,8 @@ const fetchIndexPolyhaven = vi.fn()
 const fetchAssetPolyhaven = vi.fn()
 const fetchIndexAmbientcg = vi.fn()
 const fetchAssetAmbientcg = vi.fn()
-const activeProviderIdsMock = vi.fn((_dev?: boolean) => ['polyhaven'])
+const validateCachedAmbientcg = vi.fn((_entries?: unknown) => true)
+const activeProviderIdsMock = vi.fn(() => ['polyhaven'])
 vi.mock('../../catalog/remote/providers', () => ({
   PROVIDERS: {
     polyhaven: {
@@ -44,9 +45,10 @@ vi.mock('../../catalog/remote/providers', () => ({
       id: 'ambientcg',
       fetchIndex: (...a: unknown[]) => fetchIndexAmbientcg(...a),
       fetchAsset: (...a: unknown[]) => fetchAssetAmbientcg(...a),
+      validateCached: (entries: unknown) => validateCachedAmbientcg(entries),
     },
   },
-  activeProviderIds: (dev: boolean) => activeProviderIdsMock(dev),
+  activeProviderIds: () => activeProviderIdsMock(),
 }))
 
 const bundleToFurnitureDef = vi.fn()
@@ -94,6 +96,7 @@ describe('remoteCatalogSlice', () => {
     fetchIndexAmbientcg.mockReset().mockResolvedValue([])
     fetchAssetAmbientcg.mockReset().mockResolvedValue(furnitureBundle)
     activeProviderIdsMock.mockReset().mockReturnValue(['polyhaven'])
+    validateCachedAmbientcg.mockReset().mockReturnValue(true)
     bundleToFurnitureDef.mockReset().mockReturnValue({ id: 'fake-furniture-def' })
     bundleToMaterialDef.mockReset().mockReturnValue({ id: 'fake-material-def' })
   })
@@ -145,6 +148,33 @@ describe('remoteCatalogSlice', () => {
       getIndex.mockResolvedValue(undefined)
       await useStore.getState().bootstrapRemoteCatalog()
       expect(fetchIndexPolyhaven).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('bootstrapRemoteCatalog — cached index the provider disowns', () => {
+    const staleEntry = { ...furnitureEntry, provider: 'ambientcg' as const }
+
+    beforeEach(() => {
+      activeProviderIdsMock.mockReturnValue(['ambientcg'])
+      getIndex.mockResolvedValue({
+        entries: [staleEntry],
+        fetchedAt: new Date(Date.now() - ONE_DAY).toISOString(),
+      })
+    })
+
+    it('refetches a fresh-but-invalid index instead of rendering it', async () => {
+      // A week-long cache outlives a transport change; entries the current
+      // provider can no longer fetch load forever if they reach the grid.
+      validateCachedAmbientcg.mockReturnValue(false)
+      await useStore.getState().bootstrapRemoteCatalog()
+      expect(fetchIndexAmbientcg).toHaveBeenCalledTimes(1)
+      expect(useStore.getState().remoteIndexes.ambientcg.entries).not.toContain(staleEntry)
+    })
+
+    it('still serves a fresh index the provider vouches for', async () => {
+      await useStore.getState().bootstrapRemoteCatalog()
+      expect(fetchIndexAmbientcg).not.toHaveBeenCalled()
+      expect(useStore.getState().remoteIndexes.ambientcg.entries).toEqual([staleEntry])
     })
   })
 

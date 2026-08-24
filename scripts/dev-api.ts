@@ -22,9 +22,9 @@
  * `npm run dev` / `dev:api`).
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { createServer, type IncomingMessage } from 'node:http'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
 // The real production worker — hosted here unchanged.
@@ -77,9 +77,39 @@ function makeD1(db: DatabaseSync) {
   }
 }
 
-/** In-memory KVNamespace with TTL. Sessions/flags/cache; cleared on restart. */
-function makeKV() {
+/**
+ * KVNamespace with TTL. In memory by default (flags/cache — cheap to rebuild).
+ *
+ * Pass `persistPath` and the map is mirrored to a JSON file, which is what the
+ * SESSIONS namespace uses: sessions living only in memory meant every dev-api
+ * restart silently signed you out, and the first symptom was an auth-gated
+ * feature answering 401 as if it were offline (the ambientCG library is served
+ * from your OWN `resources/` mirror, so "no internet" was never the problem).
+ */
+function makeKV(persistPath?: string) {
   const store = new Map<string, { value: string; expiresAt?: number }>()
+  if (persistPath && existsSync(persistPath)) {
+    try {
+      for (const [k, v] of Object.entries(
+        JSON.parse(readFileSync(persistPath, 'utf8')) as Record<
+          string,
+          { value: string; expiresAt?: number }
+        >,
+      )) {
+        if (!v.expiresAt || v.expiresAt > Date.now()) store.set(k, v)
+      }
+    } catch {
+      // A corrupt/partial file is not worth failing boot over — start empty.
+    }
+  }
+  const flush = () => {
+    if (!persistPath) return
+    try {
+      writeFileSync(persistPath, JSON.stringify(Object.fromEntries(store)))
+    } catch {
+      // Best-effort: losing persistence costs a re-login, nothing more.
+    }
+  }
   return {
     async get(key: string) {
       const entry = store.get(key)
@@ -95,9 +125,11 @@ function makeKV() {
         value,
         expiresAt: opts?.expirationTtl ? Date.now() + opts.expirationTtl * 1000 : undefined,
       })
+      flush()
     },
     async delete(key: string) {
       store.delete(key)
+      flush()
     },
     async list() {
       return { keys: [...store.keys()].map((name) => ({ name })), list_complete: true as const }
@@ -195,7 +227,7 @@ const devVars = { ...parseDotVars(join(ROOT, '.dev.vars')), ...process.env }
 const env = {
   DB: makeD1(db),
   LIBRARY: makeR2FS(libraryRoots),
-  SESSIONS: makeKV(),
+  SESSIONS: makeKV(join(ROOT, '.wrangler', 'sofa-dev-sessions.json')),
   CACHE: makeKV(),
   FLAGS: makeKV(),
   // Vars mirror wrangler.toml [vars]; secrets come from .dev.vars.

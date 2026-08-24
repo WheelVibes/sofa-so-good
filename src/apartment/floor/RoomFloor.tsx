@@ -2,6 +2,7 @@ import type { ThreeEvent } from '@react-three/fiber'
 import { memo, Suspense, useCallback, useMemo } from 'react'
 import type { MeshStandardMaterial } from 'three'
 import { isFeatureEnabled } from '../../features/featureFlags'
+import { allowsQuarterTurns } from '../../materials/finishDirection'
 import type {
   MaterialId,
   ProceduralMaterialDef,
@@ -24,6 +25,8 @@ import { canEditScene } from '../../state/editing'
 import { confirmAndEnterRoom } from '../../state/enterRoomConfirm'
 import { useStore } from '../../state/store'
 import type { RoomId } from '../types'
+import { useFloorTexTransform } from '../walls/wallTexTransform'
+import { floorClickAction } from './floorClick'
 
 const FLOOR_LIFT = 0.001
 
@@ -44,24 +47,53 @@ interface FloorMeshProps {
   /** Tile period in metres (material `uvScale`) for the RD-406 repetition
    *  break-up — only tiling (procedural/textured) finishes pass it. */
   tileSize?: number
+  /** May the break-up turn a cell by 90°? Only for a finish with no lay
+   *  direction (`materials/finishDirection.ts`) — a plank floor rotated a
+   *  quarter turn every other cell is a patchwork, not a floor. */
+  quarterTurns?: boolean
 }
 
-function FloorMesh({ roomId, origin, width, depth, material, tileSize }: FloorMeshProps) {
+function FloorMesh({
+  roomId,
+  origin,
+  width,
+  depth,
+  material,
+  tileSize,
+  quarterTurns = true,
+}: FloorMeshProps) {
   const selectRoom = useStore((s) => s.selectRoom)
   // RD-406 repetition break-up (`tileBreakup`, pro-tier): a large tiled floor
   // gets a per-tile-cell UV rotation/offset so it stops repeating every metre.
   // Off (or no tile size) → the plain world-UV plane (byte-identical).
   const breakup = tileSize != null && isFeatureEnabled('tileBreakup') ? tileSize : undefined
+  // The room's own lay direction + tile size (`floorTexAngle`/`floorTexScale`,
+  // set from the finish picker). Identity → the untouched world-UV plane.
+  const tex = useFloorTexTransform(roomId)
+  const texScale = tex?.scale
+  const texAngle = tex?.angle
   const geometry = useMemo(
-    () => worldUvPlaneGeometry(width, depth, undefined, breakup),
-    [width, depth, breakup],
+    () =>
+      worldUvPlaneGeometry(
+        width,
+        depth,
+        { scale: texScale, angle: texAngle },
+        breakup,
+        quarterTurns,
+      ),
+    [width, depth, breakup, quarterTurns, texScale, texAngle],
   )
   // Geometry passed via `geometry=` isn't R3F-owned: dispose on resize/unmount.
   useDisposeGeometry(geometry)
   const onClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       const state = useStore.getState()
-      if (canEditScene(state)) {
+      const action = floorClickAction({
+        canEdit: canEditScene(state),
+        cameraMode: state.cameraMode,
+        roomEditorActive: state.roomEditor.active,
+      })
+      if (action === 'select-room') {
         // Inside the room editor: clicking the floor opens the finish picker.
         e.stopPropagation()
         selectRoom(roomId)
@@ -72,7 +104,7 @@ function FloorMesh({ roomId, origin, width, depth, material, tileSize }: FloorMe
       // easy to click a floor by accident while looking around. Walk does nothing.
       // A press-drag that rotated the orbit camera ends as a "click" here too, so
       // skip those — only a genuine tap should prompt to enter the room.
-      if (state.cameraMode === 'orbit' && !state.roomEditor.active) {
+      if (action === 'enter-room') {
         if (isDragRelease(e.nativeEvent)) return
         e.stopPropagation()
         void confirmAndEnterRoom(roomId)
@@ -126,19 +158,37 @@ function SolidRoomFloor({
 function TexturedRoomFloor({
   def,
   ...rest
-}: Omit<FloorMeshProps, 'material' | 'tileSize'> & { def: TexturedMaterialDef }) {
+}: Omit<FloorMeshProps, 'material' | 'tileSize' | 'quarterTurns'> & {
+  def: TexturedMaterialDef
+}) {
   // Floor-specific hook: a scan carrying a displacement map gets POM on
   // High/Maximum (PHOTO-POM), otherwise the plain textured material.
   const material = useFloorTexturedMaterial(def)
-  return <FloorMesh {...rest} material={material} tileSize={def.uvScale[0]} />
+  return (
+    <FloorMesh
+      {...rest}
+      material={material}
+      tileSize={def.uvScale[0]}
+      quarterTurns={allowsQuarterTurns(def, material)}
+    />
+  )
 }
 
 function ProceduralRoomFloor({
   def,
   ...rest
-}: Omit<FloorMeshProps, 'material' | 'tileSize'> & { def: ProceduralMaterialDef }) {
+}: Omit<FloorMeshProps, 'material' | 'tileSize' | 'quarterTurns'> & {
+  def: ProceduralMaterialDef
+}) {
   const material = useFloorProceduralMaterial(def)
-  return <FloorMesh {...rest} material={material} tileSize={def.uvScale[0]} />
+  return (
+    <FloorMesh
+      {...rest}
+      material={material}
+      tileSize={def.uvScale[0]}
+      quarterTurns={allowsQuarterTurns(def, material)}
+    />
+  )
 }
 
 function RoomFloorInner({ materialId, ...rest }: RoomFloorProps) {

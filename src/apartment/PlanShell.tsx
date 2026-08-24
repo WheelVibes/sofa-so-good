@@ -68,6 +68,7 @@ import { planThresholdRects } from './floor/planThresholdRects'
 import type { ThresholdRect } from './floor/thresholdRects'
 import { PlanDoorLeaf } from './PlanDoorLeaf'
 import { Roof } from './Roof'
+import { PlanWallFace, syncFaceFade } from './walls/PlanWallFace'
 import { getWallOwnStrength, setWallOwnStrength } from './walls/wallReveal'
 import {
   cornerNeighbors,
@@ -238,6 +239,7 @@ function FadeWall({
   isInterior,
   neighborIds,
   overlayColor,
+  rooms,
 }: {
   box: WallBox
   cx: number
@@ -256,6 +258,9 @@ function FadeWall({
    *  just always renders at a fixed opacity when set, per the simplest
    *  acceptable read for a tint overlay). */
   overlayColor?: string | null
+  /** This storey's rooms — used to resolve which room fronts each wall face,
+   *  so the face can carry that room's wall finish. */
+  rooms: readonly PlanRoom[]
 }) {
   const ref = useRef<Mesh>(null)
   const { camera, invalidate } = useThree()
@@ -298,6 +303,10 @@ function FadeWall({
       mat.emissive.setRGB(0, 0, 0)
       mat.emissiveIntensity = 1
     }
+    // The interior finish faces are separate meshes with cloned materials, so
+    // they have to be faded alongside the body or a revealed wall keeps an
+    // opaque finish pane floating in front of the room.
+    syncFaceFade(mesh, mat)
     // frameloop="demand": keep rendering until the fade settles (else it freezes
     // mid-fade when the camera stops).
     if (Math.abs(mat.opacity - target) > 0.005) invalidate()
@@ -313,6 +322,13 @@ function FadeWall({
       >
         <boxGeometry args={[box.thickness, box.height, box.length]} />
         <meshStandardMaterial color={color} roughness={0.9} transparent opacity={1} />
+        {/* Room wall FINISHES (brick / tile / panelling / wallpaper) on the
+            interior faces — without these the overview showed only the plan's
+            flat wall colour and a picked finish appeared to do nothing until you
+            entered the room's editor. Children of the box so they inherit its
+            transform; `syncFaceFade` mirrors the reveal fade onto them. */}
+        <PlanWallFace box={box} side={1} rooms={rooms} />
+        <PlanWallFace box={box} side={-1} rooms={rooms} />
       </mesh>
       {overlayColor && (
         <mesh position={[box.cx, box.cy, box.cz]} rotation={[0, box.angle, 0]} raycast={() => null}>
@@ -953,6 +969,7 @@ function PlanLevelShell({
           isInterior={isInterior}
           neighborIds={neighbors.get(box.wallId) ?? NO_NEIGHBORS}
           overlayColor={showWallTypes ? overlayColor : null}
+          rooms={lp.rooms}
         />
       ))}
 

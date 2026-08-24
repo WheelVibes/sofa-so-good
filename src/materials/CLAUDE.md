@@ -97,13 +97,70 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   the offset a half-tile, so a 2ⁿ-grid ceramic stays grout-continuous and a non-gridded
   stone/marble/wood just varies tile-to-tile; the tiles keep their square aspect (no UV stretch),
   share boundary positions (no seam/crack), and sit at the same Y (no z-fighting). Wired into the
-  **rectangular** floor build sites only (`apartment/floor/RoomFloor.tsx` + `PlanRoomFloor.tsx`
-  `RectFloor` — polygon floors and walls are untouched) behind the **`tileBreakup`** flag
+  rect floor build sites (`apartment/floor/RoomFloor.tsx` + `PlanRoomFloor.tsx` `RectFloor`) AND,
+  via `breakRepetitionShape(points, tileSize)`, into **irregular (polygon) rooms** — L-shapes,
+  angled bays — which clip the room ring to the tile grid (Sutherland–Hodgman per cell,
+  `clipPolygonToRect`), triangulate each cell piece and UV it through the same `cellUvTransform`.
+  Cells anchor to the WORLD grid, not the room bbox, so two rooms agree on a shared cell and the
+  pattern doesn't jump at a threshold. Walls stay untouched.
+  **Direction guard (`finishDirection.ts` → `analyzeTextureDirection.ts` → `textureDirection.ts`)**:
+  a cell may only be turned a QUARTER turn when that leaves the material looking like itself;
+  everything else gets 180° only (which re-phases the cell but leaves a board running the same
+  way). This is how the materials are really laid: plank floors run ONE direction across the whole
+  floor and vary only in END STAGGER (what the sub-tile offset gives us), and directional tile
+  ships with an orientation arrow on its back so the whole floor reads one way. Quarter-turning a
+  wood floor produced a visible patchwork of crossed planks — verified on a real GPU before/after.
+  **The verdict is MEASURED from the albedo, not listed**: gradient-tensor `coherence` (is there a
+  dominant direction?) plus `axisProfileSimilarity` (is the lattice square — would a quarter turn
+  land its grid lines back?). Two signals because a hex grid has no dominant direction yet still
+  misaligns. Measured on the real catalog: oak 0.44 / vinyl 0.52 → directional; square tile
+  sim 0.88 → rotate; hex sim 0.24 and marble sim 0.48 → directional; terrazzo/carpet flat both
+  axes → rotate. So a NEW pattern, ambientCG scan or user upload classifies itself — nothing to
+  add to a list. `ISOTROPIC_PATTERNS` remains only as the prior for when pixels can't be read (no
+  2D context, image still decoding, tainted cross-origin canvas), and the safe default for the
+  unknown is "directional". Pass `allowsQuarterTurns(def, material)` from any new build site.
+  Behind the **`tileBreakup`** flag
   (`tier:'pro'`, default on — pure prod-safe). Flag off / a sub-tile (repeat≈1) surface →
   `breakRepetitionPlane` returns `null` and the plain world-UV plane is byte-identical to before.
   Degenerate guards: non-positive size/tile, non-finite tile, and a runaway subdivision all fall
   back to the plain plane. Unit-tested in `worldUv.test.ts` (period-breaking + determinism + no UV
   NaN + repeat=1 untouched + the Simple/Pro flag-gate, both modes).
+- **Furniture box projection (MAT-006c, `furnitureBoxUv` — simple tier, default on)**:
+  `boxUv.ts` re-projects each parametric part's UVs from its OWN geometry — drop the axis the
+  vertex normal points along most strongly, use the other two LOCAL coordinates as UV in metres,
+  with U on the LONGER face axis (`faceAxes`). Without it the primitives' default `BoxGeometry`
+  UVs are 0..1 per face whatever the face measures, so a tiled finish scaled with the PART (a
+  1.6 m tabletop and a 4 cm leg showing the same number of tiles) and its grain followed the
+  face's axes — running across a leg rather than along it. Object space, NOT world
+  (`triplanar.ts` is the world-space shell path), so a rotated chair's grain doesn't swim.
+  Applied by `boxProjectSubtree` from `furniture/Furniture.tsx`'s root group for `parametric`
+  defs only (GLB meshes keep their authored UVs) and only to `BoxGeometry`/`ExtrudeGeometry` (the
+  latter is drei's `RoundedBox` — our `BeveledBox`); cylinders/spheres keep their own wrap.
+  Each geometry is tagged (`userData.__boxUv`) so a re-render is a no-op.
+- **Per-surface lay DIRECTION + tile size (`ui/finish/DirectionRow.tsx`, `floorTexture` /
+  `wallTexture` flags — simple tier, default on)**: `floorTexAngle`/`floorTexScale` and
+  `wallTexAngle`/`wallTexScale` on the plan room, set from the **finish picker** (a
+  0°/45°/90° `Segmented` + an angle/tile-size stepper on the Floor and Walls tabs) as well as the
+  plan Room inspector. Direction is a design decision — a floor is laid one way across a room —
+  so the break-up only varies the stagger around whatever is chosen here. Writes go through
+  `finishesSlice.setSurfaceTexture`, which mirrors `planWithRoomFinish`'s **no-fork** discipline
+  (picking a grain direction must not convert the curated flat into a custom plan) and DELETES a
+  dial at its default so an untouched room serialises byte-identically. Read it at a render site
+  with `useFloorTexTransform` / `useWallTexTransform` (`apartment/walls/wallTexTransform.ts`) —
+  wired at every floor site (`RoomFloor`, `PlanRoomFloor` via `PlanShell` + `PlanRoomShell`) and
+  every wall site. **A single wall FACE can override its room**: `finishes.wallTex` is keyed
+  `${wallId}:${roomId}` exactly like `wallAccents` (an accent wall usually wants its own
+  direction), set from the `WallAccentPicker`, resolved face → room → nothing by
+  `useWallTexTransform(roomId, wallId)`. **Optional-chain every read of a NEW finishes field**
+  (`s.finishes.wallTex?.[key]`): a design saved before the field existed rehydrates without it,
+  and the unguarded read threw inside `WallSegment`'s face — which `SilentErrorBoundary`
+  swallowed, so every wall in the flat silently lost its finish. Applied via
+  `applyUvTransform` at all three wall-face sites (`WallSegment` face planes, `RoomShell` +
+  `PlanRoomShell` extruded bodies). **Fold it into the geometry `useMemo`, never a separate
+  effect** — the transform MUTATES UVs, so re-running it over an already-transformed body
+  compounds the scale/rotation (that is what `applyUvTransformed` is for). The hook selects the
+  two dials as SCALARS: a selector returning `{scale, angle}` would hand back a fresh identity on
+  every store update and re-render every wall in the flat.
 - **Per-surface + scene colour dials (COLOR-GRADE).** The finish-id grammar carries two more
   order-independent tokens beside `@scale`/`~rough`/`!r`: **`%<sat>`** (saturation 0–2) and
   **`^<bright>`** (brightness 0.5–1.5), parsed by `splitColorScale` and applied to the effective

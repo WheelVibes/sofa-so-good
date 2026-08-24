@@ -106,16 +106,33 @@ export function RemoteCard({ entry, onResolved, staggerIndex }: Props) {
         </button>
       ) : null}
       <div className="card-thumb">
-        {thumb ? (
-          <img src={thumb} alt={entry.name} />
+        {thumb.url ? (
+          <img src={thumb.url} alt={entry.name} />
         ) : (
           <CategoryIcon category={category} width={40} height={40} />
         )}
-        {visible && !thumb && status !== 'error' ? <span className="skeleton" aria-hidden /> : null}
+        {/* Only a thumbnail that is still in flight gets a skeleton. One that
+            FAILED gets a retry chip instead — a swallowed error rendering as a
+            permanent shimmer is indistinguishable from a slow network. */}
+        {visible && !thumb.url && !thumb.failed && status !== 'error' ? (
+          <span className="skeleton" aria-hidden />
+        ) : null}
         {status === 'fetching' ? (
           <span className="thumb-status">Downloading…</span>
         ) : status === 'error' ? (
           <span className="thumb-status err">Retry</span>
+        ) : thumb.failed ? (
+          <button
+            type="button"
+            className="thumb-status err"
+            aria-label={`Retry loading the ${entry.name} preview`}
+            onClick={(e) => {
+              e.stopPropagation()
+              thumb.retry()
+            }}
+          >
+            Retry preview
+          </button>
         ) : null}
       </div>
       <div className="nm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

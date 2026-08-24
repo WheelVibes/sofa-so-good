@@ -16,6 +16,7 @@ import {
   useSolidMaterial,
   useTexturedMaterial,
 } from '../materials/useMaterial'
+import { applyUvTransformed } from '../materials/worldUv'
 import { finishSurfaceUserData } from '../scene/finishDropTarget'
 import { SilentErrorBoundary } from '../scene/SilentErrorBoundary'
 import { useStore } from '../state/store'
@@ -34,6 +35,7 @@ import { WallTypeOverlayJacket } from './walls/WallSegment'
 import { extrudeWallBody, getWallStructureMaterial } from './walls/wallBodyGeometry'
 import { OPENING_CLEARANCE, wallBodyOutlineFromSpans } from './walls/wallBodyShape'
 import { cornerNeighbors } from './walls/wallRevealMath'
+import { useWallTexTransform } from './walls/wallTexTransform'
 
 /** A clipped wall box, painted with the room's wall finish, that fades to
  *  translucent when the orbit camera fronts it — so you always see into the
@@ -127,28 +129,50 @@ function WallBox({
   // openings vanished the moment the wall stopped fading (only the fade let you
   // see "through" it). Floor-anchored (y 0..h), so position sits at y=0. Split
   // into finish (inner face) + white (rest) material groups.
+  // Per-room wall-texture transform (tile size / angle), applied to the extruded
+  // body's own UVs — the same dials the floor has, so a tiled wall finish can be
+  // sized to the real tile and turned. It is folded into the geometry memo, NOT
+  // an effect: `applyUvTransform` mutates UVs in place, so re-running it over an
+  // already-transformed body would compound the scale/rotation.
+  const wallTex = useWallTexTransform(roomId, wall.wallId)
   const bodyGeometry = useMemo(
     () =>
-      extrudeWallBody(
-        wallBodyOutlineFromSpans(
-          clippedWallCutouts(wall),
-          -len / 2 - startAbut,
-          len / 2 + endAbut,
-          h,
-          OPENING_CLEARANCE,
+      applyUvTransformed(
+        extrudeWallBody(
+          wallBodyOutlineFromSpans(
+            clippedWallCutouts(wall),
+            -len / 2 - startAbut,
+            len / 2 + endAbut,
+            h,
+            OPENING_CLEARANCE,
+          ),
+          t,
+          innerFaceZSign,
+          startSlope !== null || endSlope !== null
+            ? {
+                startAt: startSlope !== null ? (startAt ?? undefined) : undefined,
+                startSlope: startSlope ?? undefined,
+                endAt: endSlope !== null ? (endAt ?? undefined) : undefined,
+                endSlope: endSlope ?? undefined,
+              }
+            : undefined,
         ),
-        t,
-        innerFaceZSign,
-        startSlope !== null || endSlope !== null
-          ? {
-              startAt: startSlope !== null ? (startAt ?? undefined) : undefined,
-              startSlope: startSlope ?? undefined,
-              endAt: endSlope !== null ? (endAt ?? undefined) : undefined,
-              endSlope: endSlope ?? undefined,
-            }
-          : undefined,
+        wallTex,
       ),
-    [wall, len, h, t, startAbut, endAbut, innerFaceZSign, startAt, endAt, startSlope, endSlope],
+    [
+      wall,
+      len,
+      h,
+      t,
+      startAbut,
+      endAbut,
+      innerFaceZSign,
+      startAt,
+      endAt,
+      startSlope,
+      endSlope,
+      wallTex,
+    ],
   )
   useEffect(() => () => bodyGeometry.dispose(), [bodyGeometry])
 

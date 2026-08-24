@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useStore } from '../../state/store'
 import { getThumb, putThumb } from './cache/db'
@@ -46,8 +46,18 @@ export function useRemoteEntries(kind: RemoteKind): RemoteEntry[] {
   )
 }
 
-export function useThumbnail(entry: RemoteEntry, visible: boolean): string | undefined {
+/** What a card needs to render a thumbnail: the blob URL once it is there, a
+ *  `failed` flag so a dead fetch shows a retry affordance instead of an eternal
+ *  skeleton, and the retry itself. */
+export interface ThumbnailState {
+  url?: string
+  failed: boolean
+  retry(): void
+}
+
+export function useThumbnail(entry: RemoteEntry, visible: boolean): ThumbnailState {
   const [url, setUrl] = useState<string | undefined>(undefined)
+  const [failed, setFailed] = useState(false)
   const cancelled = useRef(false)
   // The created object URL is tracked here and revoked ONLY on unmount — not in
   // the main effect's cleanup, which re-runs whenever `url` changes and would
@@ -55,26 +65,35 @@ export function useThumbnail(entry: RemoteEntry, visible: boolean): string | und
   const objectUrl = useRef<string | null>(null)
   useEffect(() => {
     cancelled.current = false
-    if (!visible || url) return
+    // `failed` is a real gate, not just a flag: it stops the effect re-running
+    // straight back into a fetch that just threw, and clearing it in `retry()`
+    // is what re-arms this effect.
+    if (!visible || url || failed) return
     const key = `${entry.provider}:${entry.slug}`
     ;(async () => {
       let blob = await getThumb(key)
-      if (!blob) {
+      const fetched = !blob
+      if (!blob)
         blob = await limiter.schedule(() => PROVIDERS[entry.provider].fetchThumbnail(entry))
-        await putThumb(key, blob)
-      }
       if (!cancelled.current) {
         const u = URL.createObjectURL(blob)
         objectUrl.current = u
         setUrl(u)
       }
+      // Cache AFTER showing it, and never let the write decide the outcome: a
+      // failed IndexedDB put (quota, private mode) must not hide — or flag as
+      // broken — a thumbnail we already have in hand.
+      if (fetched) await putThumb(key, blob).catch(() => {})
     })().catch(() => {
-      // swallow; card stays placeholder
+      // The card shows a Retry chip rather than sitting on its skeleton — a
+      // swallowed rejection here is what made a broken thumb URL look like a
+      // load that never finished.
+      if (!cancelled.current) setFailed(true)
     })
     return () => {
       cancelled.current = true
     }
-  }, [entry.provider, entry.slug, visible, url, entry])
+  }, [entry.provider, entry.slug, visible, url, entry, failed])
   // Free the blob URL when the card unmounts (drawer close / virtualised scroll).
   useEffect(
     () => () => {
@@ -85,7 +104,8 @@ export function useThumbnail(entry: RemoteEntry, visible: boolean): string | und
     },
     [],
   )
-  return url
+  const retry = useCallback(() => setFailed(false), [])
+  return { url, failed, retry }
 }
 
 /** Module-level cache of resolved download sizes (bytes), keyed by

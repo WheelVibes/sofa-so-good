@@ -1500,7 +1500,7 @@ back to orbit (config persists). Gotchas learned here:
   `SHOT_URL=http://localhost:8080/ node scripts/shot.mjs out.png 12000` (the image serves at
   root, not `/sofa-so-good/`). Also probe: SPA fallback (`/some/route` → 200 html), wasm MIME
   (`/draco/draco_decoder.wasm` → `application/wasm`), `/sw.js` → `Cache-Control: no-cache`,
-  and the `/acg`+`/kenney` proxies → 200.
+  and the `/kenney` proxy → 200.
 - **Electron shell**: `ELECTRON_SMOKE_SHOT=<out.png> npx electron . --no-sandbox` captures the
   loaded window after `ELECTRON_SMOKE_WAIT_MS` (default 15000) and exits — build first with
   `npm run build:desktop`. Gotchas: `ELECTRON_RUN_AS_NODE` (exported by VSCode/agent hosts)
@@ -1657,6 +1657,16 @@ never faded, no canvas mounted, and `window.__store` was never exposed (it is se
 bootstrap step), which reads exactly like a broken build. Fixed by racing the frame against a
 timer and skipping it when `document.hidden` (v0.28.0.0).
 
+**There is a SECOND rAF gate the v0.28.0.0 boot fix does not cover** (and it bites hardest when
+driving a real Chrome tab — see the Claude-in-Chrome section below). `App.tsx`'s three-phase boot
+mounts the `<Canvas>` from phase 1→2 via **two chained `requestAnimationFrame`s**
+(`setSceneCanvasReady`), deliberately, so the loader art keeps animating while the canvas warms.
+In a hidden tab those frames never arrive, so the app sits on "Almost ready…" with
+`bootPhase === 'ready'`, `loading.active === false`, **zero `<canvas>` elements**, no
+`window.__three`, and **no console error** — which reads exactly like a crashed scene. It is not:
+one screenshot (or any action that makes the tab visible) delivers the frames and the scene
+appears. Diagnose with `document.visibilityState`, not by reverting code.
+
 Two lessons for verification: (1) when the app appears stuck on the boot cover, **check
 `document.visibilityState` before suspecting the code** — a screenshot cannot tell you the tab is
 hidden; (2) to reproduce a hidden tab reliably, stub the clock rather than trusting window
@@ -1675,6 +1685,88 @@ await page.evaluateOnNewDocument(() => {
 
 Always confirm such a harness actually *detects* the bug — revert the fix, watch it fail, restore
 it — otherwise a passing run only proves the harness is inert.
+
+### Claude-in-Chrome quirks (driving the real tab)
+
+Everything below cost real time in the 2026-08-25 ambientCG/texture session. None of it is a bug
+in the app; all of it looks like one.
+
+**A backgrounded tab has no canvas.** The single biggest time-sink — see the rAF gotcha above.
+`javascript_tool` runs fine in a hidden tab, so probes return live store state while the scene is
+not mounted: `document.querySelectorAll('canvas').length === 0` and `window.__three === undefined`
+while `bootPhase` is `'ready'`. **Take a screenshot (or click) first, then probe.** A single
+screenshot may only deliver one frame; if the canvas still is not there, screenshot again or click
+once — the mount needs two.
+
+**`window.__three` can be a stale scene.** After a scene swap (plan ↔ curated shell, room editor
+enter/exit) re-read it before traversing; a traversal of the previous scene reports meshes that are
+no longer rendered (and misses the ones that are).
+
+**Console capture starts when you first call `read_console_messages`.** Anything logged during the
+page load before that call is gone. To catch a load-time error: call the tool once (arming it),
+then reload, then read. Errors swallowed by an error boundary never reach the console at all — see
+below.
+
+**`SilentErrorBoundary` turns a render crash into a missing surface.** A throw inside a wall face /
+floor / panel is swallowed, so the surface simply is not there: no red screen, no console error,
+no failed test. If a surface vanishes, count its meshes by tag
+(`scene.traverse(o => o.userData?.finishTarget)`) to confirm it is absent rather than mis-styled,
+then bisect by reverting the suspect file (`git checkout -- <file>`, let HMR reload, re-probe).
+The 2026-08-25 case: a newly added `finishes.wallTex` field was read unguarded, and a design saved
+before that field existed rehydrated without it → `undefined[key]` threw → **every wall in the flat
+lost its finish**, silently. Optional-chain every read of a new state field.
+
+**A `javascript_tool` result can be refused.** A snippet whose output looks like cookie/query-string
+data comes back as `[BLOCKED: Cookie/query string data]` — most often triggered by
+`fetch(url, { credentials: 'include' })` probes or by echoing response bodies. Print statuses and
+lengths (`r.status`, `text.length`), not payloads.
+
+**Console probes mutate the user's real design.** The tab is the user's session, not a fixture:
+`setWallFinish`/`setFloorFinish`/`updateRoom` write to their saved state and persist. Record what
+you change and restore it when done. Worse, some store actions have side effects beyond the field
+you set — `updateRoom` used to fork the curated flat into a *custom plan* (`forkIfDefault`), which
+silently swaps the whole renderer (`<Apartment/>` → `PlanShell`) and changes what walls look like.
+That specific fork is fixed (v0.29.5.4, appearance-only patches no longer fork), but check an
+action's implementation before driving it in someone's live session.
+
+**Two renderers, two sets of symptoms.** The curated flat renders `<Apartment/>` (walls =
+`WallSegment` face planes, floors = `RoomFloor`); a custom plan renders `PlanShell`
+(walls = boxes + `PlanWallFace` faces, floors = `PlanRoomFloor`). `isDefaultPlan(floorPlan)`
+decides. Before filing "X doesn't render", check `__store.getState().floorPlan.id` — a feature
+wired in one renderer and not the other looks like an intermittent bug.
+
+**Stale IndexedDB caches outlive reloads and look like live behaviour.** The remote catalog index
+is cached for **7 days** (`sofa-cache-index`), thumbnails in `sofa-cache-thumbs`, assets in
+`sofa-cache-assets`. A cached index from an older build can pin the app to a provider/transport
+that no longer exists — that is how ambientCG cards kept loading forever against a removed
+transport. Inspect or clear them directly:
+
+```js
+const db = await new Promise(res => { const r = indexedDB.open('sofa-cache-index'); r.onsuccess = () => res(r.result) })
+const keys = await new Promise(res => { const q = db.transaction('kv','readonly').objectStore('kv').getAllKeys(); q.onsuccess = () => res(q.result) })
+// clear one provider's cached index:
+await new Promise(res => { const q = db.transaction('kv','readwrite').objectStore('kv').delete('ambientcg'); q.onsuccess = () => res() })
+```
+
+The in-app **Clear** button in Browse materials wipes all four stores (index + thumbs + assets +
+meta) but leaves the already-loaded `remoteIndexes` in memory — reload after clearing.
+
+**The dev API does not hot-reload.** `scripts/dev-api.ts` runs under `tsx`; edits to it (or to
+`server/`, `functions/`) need a full `npm run dev` restart, while Vite HMR keeps updating the
+client around it — so the client can be running new code against an old backend. Symptom worth
+knowing: `/api/assets/...` answering `401` means "not signed in", `404` means "the key is in no
+local mirror" (`resources/`), and the dev API logs the miss once per key. Dev sessions now survive
+a restart (`.wrangler/sofa-dev-sessions.json`, v0.29.4.0) — before that, every restart silently
+signed you out and the 401 read as an outage.
+
+**HMR can drop you out of a mode.** A component file that also exports a helper fails Fast Refresh
+("Could not Fast Refresh — export is incompatible") and Vite falls back to a full reload, which
+exits the room editor / clears a selection mid-verification. Re-enter before judging what you see.
+
+**Cross-origin + credentials is a silent CORS failure.** `fetch(url)` succeeding while
+`fetch(url, { credentials: 'include' })` throws `TypeError: Failed to fetch` is the signature of a
+server answering `Access-Control-Allow-Origin: *` — the wildcard is invalid once credentials are in
+play. Test both forms in the tab before blaming the network.
 
 ### A store-level flag-off must be re-verified against EVERY consumer, not just the obvious one
 Flipping a pro-tier flag off mid-scenario (`setFeatureFlag('mepEditor', false)`) is a good way to
