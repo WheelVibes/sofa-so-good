@@ -2,6 +2,7 @@ import { getSurfaceMaterial, getWoodMaterial } from '../../materials/furnitureMa
 import { doorHingePivot, drawerSlideDistance, isCabinetOpen } from '../cabinetOpen'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { HingedDoor, SlideDrawer } from './openable'
 import { metalLeg, readNum, readStr } from './shared'
 
@@ -65,7 +66,7 @@ export function Sideboard({ props }: { props: ParamProps }) {
     return (
       <mesh position={[x, y, faceZ + 0.02]}>
         <boxGeometry args={[Math.min(bayW * 0.55, 0.2), 0.016, 0.016]} />
-        <meshStandardMaterial {...metal} />
+        <MetalMaterial {...metal} />
       </mesh>
     )
   }

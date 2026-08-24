@@ -108,12 +108,30 @@ interface Command {
   group: string
   label: string
   hint?: string
+  /** Extra search terms. The palette matched on `label` alone, so a command
+   *  whose label uses different words from the feature's own name was
+   *  unfindable — typing "measure" returned "No commands match" even though a
+   *  `measure` command exists, labelled "Toggle dimension labels"
+   *  (Chrome audit 2026-08). Ids and these keywords are searched too. */
+  keywords?: string[]
   icon: IconName
   /** Gating flag (registry-sourced commands carry their own; others use COMMAND_FLAGS). */
   flag?: FeatureFlag
   /** Docs deep-link key (registry-sourced commands carry their own). */
   docKey?: DocKey
   run: () => void
+}
+
+/** True when `q` (already lower-cased and trimmed) matches this command.
+ *
+ *  Searches the label, the command id and any explicit keywords, so the palette
+ *  finds a command by the name users actually know it by — not only by whatever
+ *  its button happens to say. */
+export function matchesQuery(cmd: Pick<Command, 'id' | 'label' | 'keywords'>, q: string): boolean {
+  if (!q) return true
+  if (cmd.label.toLowerCase().includes(q)) return true
+  if (cmd.id.toLowerCase().includes(q)) return true
+  return (cmd.keywords ?? []).some((k) => k.toLowerCase().includes(q))
 }
 
 /** Command palette (⌘K): fuzzy search across actions, panels, views, and the
@@ -172,6 +190,7 @@ export function CommandPalette() {
         group: 'Actions',
         label: 'Toggle dimension labels',
         hint: 'M',
+        keywords: ['measure', 'dimensions', 'ruler', 'size', 'distance'],
         icon: 'Measure',
         run: () => s().toggleMeasurements(),
       },
@@ -816,7 +835,7 @@ export function CommandPalette() {
   const q = query.trim().toLowerCase()
   const filtered = useMemo(() => {
     if (!q) return allowed.filter((c) => c.group !== 'Add furniture').concat()
-    return allowed.filter((c) => c.label.toLowerCase().includes(q)).slice(0, 40)
+    return allowed.filter((c) => matchesQuery(c, q)).slice(0, 40)
   }, [allowed, q])
 
   // Reset active index + focus on open / query change.

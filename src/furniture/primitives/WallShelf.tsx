@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 
 /** Wall shelf — wall-mounted, sits flat against the wall behind it (group
@@ -108,11 +109,11 @@ export function WallShelf({ props }: { props: ParamProps }) {
           <group key={i}>
             <mesh castShadow position={[x, -0.06, 0.012]}>
               <boxGeometry args={[0.02, 0.1, 0.02]} />
-              <meshStandardMaterial color={bracketColor} roughness={0.45} metalness={0.55} />
+              <MetalMaterial color={bracketColor} roughness={0.45} metalness={0.55} />
             </mesh>
             <mesh castShadow position={[x, -plankT / 2 - 0.01, depth * 0.35]}>
               <boxGeometry args={[0.02, 0.02, depth * 0.6]} />
-              <meshStandardMaterial color={bracketColor} roughness={0.45} metalness={0.55} />
+              <MetalMaterial color={bracketColor} roughness={0.45} metalness={0.55} />
             </mesh>
           </group>
         ))}

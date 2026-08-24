@@ -5,6 +5,7 @@ import { pulseShadowRefreshForMotion } from '../../scene/shadowRefreshSignal'
 import { useAnimatedSource } from '../../scene/useAnimatedSource'
 import { useStore } from '../../state/store'
 import type { ParamProps } from '../types'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
@@ -59,7 +60,7 @@ export function StandingFan({ props }: { props: ParamProps }) {
           {/* Hub */}
           <mesh rotation={[Math.PI / 2, 0, 0]}>
             <cylinderGeometry args={[0.045, 0.045, 0.04, seg(16, detail)]} />
-            <meshStandardMaterial color="#9a9c98" roughness={0.4} metalness={0.5} />
+            <MetalMaterial color="#9a9c98" roughness={0.4} metalness={0.5} />
           </mesh>
           {/* Five blades fanning around the hub */}
           {Array.from({ length: 5 }, (_, i) => {
@@ -79,11 +80,11 @@ export function StandingFan({ props }: { props: ParamProps }) {
         {/* Wire guard (front + rim) */}
         <mesh position={[0, 0, 0.04]} rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[r, 0.012, seg(8, detail), seg(32, detail)]} />
-          <meshStandardMaterial {...guard} />
+          <MetalMaterial {...guard} />
         </mesh>
         <mesh position={[0, 0, 0.04]}>
           <torusGeometry args={[r * 0.6, 0.008, seg(8, detail), seg(28, detail)]} />
-          <meshStandardMaterial {...guard} />
+          <MetalMaterial {...guard} />
         </mesh>
       </group>
     </group>

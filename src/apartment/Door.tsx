@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { type Group, Mesh, type MeshStandardMaterial } from 'three'
 import { resolveDoorLeafMaterialKind } from '../floorplan/doorMaterial'
+import { MetalMaterial } from '../furniture/primitives/MetalMaterial'
 import {
   getMetalMaterial,
   getPaintedMaterial,
@@ -247,7 +248,7 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
               position={[(direction * halfWidth) / 2 - direction * 0.04, 0, leafThick / 2 + 0.006]}
             >
               <boxGeometry args={[0.03, 0.14, 0.012]} />
-              <meshStandardMaterial color="#c9ccd1" metalness={0.6} roughness={0.35} />
+              <MetalMaterial color="#c9ccd1" metalness={0.6} roughness={0.35} />
             </mesh>
           </group>
           <group ref={foldRef} position={[direction * halfWidth, height / 2, 0]}>
@@ -294,7 +295,7 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
                       rotation={[Math.PI / 2, 0, 0]}
                     >
                       <cylinderGeometry args={[0.02, 0.02, 0.02, 8]} />
-                      <meshStandardMaterial color="#6d7177" roughness={0.5} metalness={0.7} />
+                      <MetalMaterial color="#6d7177" roughness={0.5} metalness={0.7} />
                     </mesh>
                   )),
                 ),
@@ -341,7 +342,7 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
                 <group key={face} position={[0, 0, face * (leafThick / 2 + 0.002)]}>
                   <mesh castShadow>
                     <boxGeometry args={[0.045, 0.09, 0.006]} />
-                    <meshStandardMaterial color="#c9ccd1" metalness={0.75} roughness={0.3} />
+                    <MetalMaterial color="#c9ccd1" metalness={0.75} roughness={0.3} />
                   </mesh>
                   <mesh
                     position={[direction * -0.06, 0, 0.02]}
@@ -349,7 +350,7 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
                     castShadow
                   >
                     <cylinderGeometry args={[0.009, 0.009, 0.12, 12]} />
-                    <meshStandardMaterial color="#c9ccd1" metalness={0.75} roughness={0.3} />
+                    <MetalMaterial color="#c9ccd1" metalness={0.75} roughness={0.3} />
                   </mesh>
                 </group>
               ))}
@@ -359,15 +360,15 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
             <group position={[direction * (spec.width - 0.06), 0.95, 0]}>
               <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
                 <cylinderGeometry args={[0.012, 0.012, 0.12, 12]} />
-                <meshStandardMaterial color="#c9a86a" metalness={0.7} roughness={0.35} />
+                <MetalMaterial color="#c9a86a" metalness={0.7} roughness={0.35} />
               </mesh>
               <mesh position={[0, 0, 0.06]} castShadow>
                 <sphereGeometry args={[0.025, 16, 12]} />
-                <meshStandardMaterial color="#c9a86a" metalness={0.7} roughness={0.35} />
+                <MetalMaterial color="#c9a86a" metalness={0.7} roughness={0.35} />
               </mesh>
               <mesh position={[0, 0, -0.06]} castShadow>
                 <sphereGeometry args={[0.025, 16, 12]} />
-                <meshStandardMaterial color="#c9a86a" metalness={0.7} roughness={0.35} />
+                <MetalMaterial color="#c9a86a" metalness={0.7} roughness={0.35} />
               </mesh>
             </group>
           ) : null}

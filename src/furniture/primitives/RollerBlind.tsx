@@ -8,6 +8,7 @@ import { registerAnimatedSource } from '../../scene/animatedSources'
 import { pulseShadowRefreshForMotion } from '../../scene/shadowRefreshSignal'
 import type { ParamProps } from '../types'
 import { InstancedBoxes } from './InstancedBoxes'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 import {
   ROMAN_FOLD_HEIGHT,
@@ -157,7 +158,7 @@ export function RollerBlind({ props }: { props: ParamProps }) {
       {/* Top cassette / headrail (fixed). */}
       <mesh castShadow position={[0, cassetteY, 0.02]}>
         <boxGeometry args={[width + 0.04, 0.08, 0.1]} />
-        <meshStandardMaterial {...metal} />
+        <MetalMaterial {...metal} />
       </mesh>
       {kind === 'venetian' ? (
         // Slat stack anchored at the cassette top, scaled down toward it as raised.
@@ -210,7 +211,7 @@ export function RollerBlind({ props }: { props: ParamProps }) {
       <group ref={railRef} position={[0, fabricTop - drop0, 0]}>
         <mesh castShadow position={[0, 0, 0.04]}>
           <boxGeometry args={[width + 0.02, 0.03, 0.03]} />
-          <meshStandardMaterial {...metal} />
+          <MetalMaterial {...metal} />
         </mesh>
       </group>
       {/* Side chain / tilt cord. */}

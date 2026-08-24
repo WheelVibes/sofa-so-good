@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { MetalMaterial } from './MetalMaterial'
 import { metalLeg, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
@@ -57,7 +58,7 @@ export function BathroomSink({ props }: { props: ParamProps }) {
             </mesh>
             <mesh position={[s * 0.03, cabH / 2, cd / 2 + 0.02]}>
               <boxGeometry args={[0.014, (cabH - 0.06) * 0.5, 0.018]} />
-              <meshStandardMaterial {...pullProps} />
+              <MetalMaterial {...pullProps} />
             </mesh>
           </group>
         ))}

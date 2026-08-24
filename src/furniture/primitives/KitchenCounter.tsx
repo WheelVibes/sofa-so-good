@@ -1,6 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 
 interface KitchenCounterProps {
@@ -56,7 +57,7 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
                 />
                 <mesh position={[x, y, depth / 2 + 0.01]}>
                   <boxGeometry args={[cabW * 0.4, 0.016, 0.018]} />
-                  <meshStandardMaterial {...handleMat} />
+                  <MetalMaterial {...handleMat} />
                 </mesh>
               </group>
             )
@@ -91,7 +92,7 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
           position={[x + (i % 2 ? -1 : 1) * (cabW / 2 - 0.04), cabinetH - 0.12, depth / 2 + 0.01]}
         >
           <boxGeometry args={[0.018, 0.12, 0.018]} />
-          <meshStandardMaterial {...handleMat} />
+          <MetalMaterial {...handleMat} />
         </mesh>
       </group>
     )
@@ -194,23 +195,23 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
                 {/* Bowl floor */}
                 <mesh receiveShadow position={[sx, floorY, 0]}>
                   <boxGeometry args={[bw - wallT * 2, 0.016, bd - wallT * 2]} />
-                  <meshStandardMaterial {...steel} />
+                  <MetalMaterial {...steel} />
                 </mesh>
                 {/* Bowl walls */}
                 {walls.map(([dx, dz, w, d], k) => (
                   <mesh key={k} receiveShadow position={[sx + dx, wallCY, dz]}>
                     <boxGeometry args={[w, wallH, d]} />
-                    <meshStandardMaterial {...steel} />
+                    <MetalMaterial {...steel} />
                   </mesh>
                 ))}
                 {/* Faucet base + riser + curved spout */}
                 <mesh castShadow position={[sx, totalH + 0.02, -0.15]}>
                   <cylinderGeometry args={[0.03, 0.035, 0.04, 12]} />
-                  <meshStandardMaterial {...steel} />
+                  <MetalMaterial {...steel} />
                 </mesh>
                 <mesh castShadow position={[sx, totalH + 0.15, -0.15]}>
                   <cylinderGeometry args={[0.014, 0.014, 0.26, 10]} />
-                  <meshStandardMaterial {...steel} />
+                  <MetalMaterial {...steel} />
                 </mesh>
                 <mesh
                   castShadow
@@ -218,7 +219,7 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
                   rotation={[Math.PI / 2.2, 0, 0]}
                 >
                   <cylinderGeometry args={[0.013, 0.013, 0.18, 10]} />
-                  <meshStandardMaterial {...steel} />
+                  <MetalMaterial {...steel} />
                 </mesh>
               </group>
             )}

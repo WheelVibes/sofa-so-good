@@ -199,8 +199,18 @@ export function RoomsLayer({
               // The "Labels" View toggle hides room name + dimensions
               // entirely (honoured even for the selected room).
               if (!showRoomLabels) return null
+              // Width first: the detail lines don't wrap, so a narrow room must
+              // drop them even when its area would allow 'full' (see
+              // roomLabelDetail).
+              const roomWidthM =
+                r.polygon && r.polygon.length >= 3
+                  ? Math.max(...r.polygon.map((p) => p[0])) -
+                    Math.min(...r.polygon.map((p) => p[0]))
+                  : r.width
               const detail =
-                isSel && tool === 'select' ? 'full' : roomLabelDetail(planRoomArea(r), PX)
+                isSel && tool === 'select'
+                  ? 'full'
+                  : roomLabelDetail(planRoomArea(r), PX, roomWidthM)
               if (detail === 'none') return null
               const [lx, lz] = roomLabelPosition(r)
               const px = toPx(lx)
@@ -212,11 +222,6 @@ export function RoomsLayer({
               // Wrap the name to the room's on-screen width so long names
               // (e.g. "Household Shelter") stay inside the room; over-long
               // words hyphenate. ~0.55·fontPx ≈ average glyph advance.
-              const roomWidthM =
-                r.polygon && r.polygon.length >= 3
-                  ? Math.max(...r.polygon.map((p) => p[0])) -
-                    Math.min(...r.polygon.map((p) => p[0]))
-                  : r.width
               const maxChars = Math.max(4, Math.floor((roomWidthM * PX * 0.92) / (fontPx * 0.55)))
               const nameLines = wrapLabel(r.name, maxChars)
               const lineH = fontPx + 1
@@ -225,7 +230,10 @@ export function RoomsLayer({
               // (UXW-P2-1). Only when the MEP view is active AND some label
               // detail is showing (never on the fully-zoomed-out 'none' state).
               const sockets = socketShortfall?.get(r.id)
-              const socketLine = sockets ? `${sockets.placed}/${sockets.target} sockets` : null
+              // Gated on 'full' for the same reason as the other detail lines: it
+              // is the widest string the label can carry and it never wraps.
+              const socketLine =
+                sockets && detail === 'full' ? `${sockets.placed}/${sockets.target} sockets` : null
               const totalLines =
                 nameLines.length + (detail === 'full' ? 2 : 0) + (socketLine ? 1 : 0)
               // Vertically centre the multi-line block on the label anchor.
@@ -239,7 +247,21 @@ export function RoomsLayer({
                   fontSize={fontPx}
                   fill="var(--text-2)"
                   transform={deg ? `rotate(${deg} ${px} ${pz})` : undefined}
-                  style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
+                  style={{
+                    cursor: tool === 'select' ? 'move' : 'crosshair',
+                    // Halo behind the glyphs, matching DimensionsLayer /
+                    // FurnitureLayer / MepLayer / DraftOverlayLayer. Room labels
+                    // were the one plan layer without it, and in tight rooms they
+                    // sit on top of door swing arcs and wall strokes — measured,
+                    // 3 of 11 labels collided, the worst with 56% of its box over
+                    // an arc (Chrome audit 2026-08). The label cannot move (a
+                    // small room has nowhere to put it), so make it readable
+                    // where it is.
+                    paintOrder: 'stroke',
+                    stroke: 'var(--surface)',
+                    strokeWidth: 3,
+                    strokeLinejoin: 'round',
+                  }}
                   onPointerDown={(e) => {
                     if (tool !== 'select') return
                     const willMove = beginElementDrag(e, sel?.type === 'room' && sel.id === r.id)

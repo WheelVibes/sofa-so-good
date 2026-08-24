@@ -25,6 +25,7 @@ import { loadAppearancePrefs, watchAppearancePrefs } from './appearancePrefs'
 import { startAutosave } from './autosave'
 import { loadBudgetPrefs, watchBudgetPrefs } from './budgetPrefs'
 import { loadEditorPrefs, watchEditorPrefs } from './editorPrefs'
+import { ensureDaylightFirstPaint } from './firstPaintDaylight'
 import { loadFloorPlans, watchFloorPlans } from './floorPlanStore'
 import { hydrate } from './hydrate'
 import { loadQualityPrefs, watchQualityPrefs } from './qualityPrefs'
@@ -121,7 +122,13 @@ export async function runBootstrap(): Promise<void> {
     // seed/hydrate snapshot so the first undo doesn't pop back to a blank flat.
     runStep('seed', () => {
       const s = useStore.getState()
-      if (s.items.length === 0) s.resetToDefault()
+      if (s.items.length === 0) {
+        s.resetToDefault()
+        // A fresh flat seeded after dark is invisible under `timeMode: 'system'`,
+        // so pin the very first paint to daylight. No-op in the daytime and for
+        // any hydrated design (this branch only runs on a fresh seed).
+        ensureDaylightFirstPaint()
+      }
       useStore.getState().clearHistory()
     })
 

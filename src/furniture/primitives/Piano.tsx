@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 
 /**
@@ -71,7 +72,7 @@ export function Piano({ props }: { props: ParamProps }) {
           rotation={[Math.PI / 2.2, 0, 0]}
         >
           <boxGeometry args={[0.03, 0.08, 0.012]} />
-          <meshStandardMaterial color="#c9a24b" roughness={0.3} metalness={0.7} />
+          <MetalMaterial color="#c9a24b" roughness={0.3} metalness={0.7} />
         </mesh>
       ))}
     </group>

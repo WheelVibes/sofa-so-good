@@ -25,6 +25,12 @@ export function bundleToMaterialDef(
     normal: c.normal ? blobUrl(c.normal) : undefined,
     roughness: c.roughness ? blobUrl(c.roughness) : undefined,
     ao: c.ao ? blobUrl(c.ao) : undefined,
+    // Optional extras — only some scans ship them (ambientCG: metalness on
+    // ~18%, opacity on ~2%, displacement on all). Absent channels stay
+    // undefined and cost nothing downstream.
+    metalness: c.metalness ? blobUrl(c.metalness) : undefined,
+    opacity: c.opacity ? blobUrl(c.opacity) : undefined,
+    displacement: c.displacement ? blobUrl(c.displacement) : undefined,
   }
   // SHOWROOM-FINISHES — a curated showroom pick carries hand-tuned metadata:
   // its honest name, a mean-albedo swatch, and (most importantly) the physical

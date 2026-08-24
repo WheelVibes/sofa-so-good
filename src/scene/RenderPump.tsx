@@ -28,11 +28,17 @@ export function RenderPump() {
   const invalidate = useThree((s) => s.invalidate)
   const showcaseEnabled = useQuality().showcase
 
-  // drei's loader progress — keep rendering while assets stream in. Read into a
-  // ref so the rAF loop doesn't need to re-subscribe.
-  const { active: assetsActive } = useProgress()
-  const assetsActiveRef = useRef(assetsActive)
-  assetsActiveRef.current = assetsActive
+  // drei's loader progress — keep rendering while assets stream in.
+  //
+  // Read IMPERATIVELY (`useProgress.getState()`) inside the rAF loop rather than
+  // subscribing with `useProgress()`. drei updates that store from its loading
+  // manager *during* React's render phase, so subscribing here made a mounted
+  // RenderPump set state while another component was still rendering:
+  //   "Cannot update a component (RenderPump) while rendering a different
+  //    component (TexturedRoomFloor)"
+  // — reproducible by applying a textured floor finish (Chrome audit 2026-08).
+  // Nothing is lost: the value was only ever copied into a ref and read once per
+  // frame, so the loop now reads a fresher value with no subscription at all.
 
   const showcaseRef = useRef(showcaseEnabled)
   showcaseRef.current = showcaseEnabled
@@ -111,7 +117,7 @@ export function RenderPump() {
       inputs.overlayBoot = s.bootPhase === 'ready' && !s.sceneReady
       inputs.lastOverlayRenderMs = lastOverlayRenderMs.current
       inputs.sceneReady = s.sceneReady
-      inputs.assetsActive = assetsActiveRef.current
+      inputs.assetsActive = useProgress.getState().active
       inputs.walk = s.cameraMode === 'firstPerson'
       inputs.autoRotate = s.autoRotate
       inputs.touring = Boolean(s.touring)

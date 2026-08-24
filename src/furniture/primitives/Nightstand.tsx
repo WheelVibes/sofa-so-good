@@ -1,6 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 
 /** Bedside cabinet on short legs. Styles: 'drawers' (two drawer fronts),
@@ -27,7 +28,7 @@ export function Nightstand({ props }: { props: ParamProps }) {
   const knob = (key: string, cy: number) => (
     <mesh key={key} castShadow rotation={[Math.PI / 2, 0, 0]} position={[0, cy, depth / 2 + 0.025]}>
       <cylinderGeometry args={[0.016, 0.016, 0.035, 10]} />
-      <meshStandardMaterial color="#2b2b2b" roughness={0.4} metalness={0.6} />
+      <MetalMaterial color="#2b2b2b" roughness={0.4} metalness={0.6} />
     </mesh>
   )
   const drawerFront = (key: string, cy: number, h: number) => (

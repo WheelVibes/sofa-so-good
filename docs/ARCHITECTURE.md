@@ -1111,8 +1111,18 @@ same change that reshapes a system.
   `installPolyHavenBundle` fetches each item (deps come from the API `include` map, never
   constructed) and packs it into a self-contained GLB in-browser via `convertModel`
   (`furniture/convert/`), then reuses `buildEntry`/`commit`; nothing is vendored. **Remote material
-  providers** (`catalog/remote/providers/`): Poly Haven (CORS, prod) + ambientCG (proxy, dev), gated
-  by `activeProviderIds`/`PROD_PROVIDER_IDS`. **Poly Haven supplies materials/textures (+ HDRIs
+  providers** (`catalog/remote/providers/`): Poly Haven (CORS, prod) + ambientCG, gated
+  by `activeProviderIds`/`PROD_PROVIDER_IDS`. **ambientCG has two transports behind one provider
+  id**, dispatched per call by `PROVIDERS.ambientcg` on the `ambientcgLibrary` flag (pro tier,
+  default on): `acgLibrary.ts` reads our **R2 mirror** (`acg/` prefix + `library/acg-index.json`
+  manifest) over the same-origin auth-gated `/api/assets` proxy and is the prod path, while
+  `ambientcg.ts` hits the live ambientcg.com API and is dev-only (no CORS headers). Both keep the
+  `ambientcg` id, so `ambientcg:<slug>:<res>` finish ids round-trip across either. The mirror is
+  built by `scripts/pack-ambientcg.mjs` (zips → the seven bound channels as near-lossless WebP +
+  a 256 px thumb + manifest) and published with `scripts/push-r2-library.mjs`. The bound set is
+  albedo/normal/roughness/AO/**metalness**/**opacity**/**displacement** — see
+  `src/materials/CLAUDE.md` for the binding rules (metalness map drives the scalar to 1; opacity
+  is alpha-TESTED not blended; displacement feeds POM rather than `displacementMap`). **Poly Haven supplies materials/textures (+ HDRIs
   via `scene/lighting/hdriCatalog.ts`) plus these curated model bundles — but is NOT a *browsable*
   model source** (its multi-file glTF is why), so no provider emits `kind:'furniture'` (the
   `remoteFurniture` browse is dormant until one does). Add a source: poly-pizza-style client reusing

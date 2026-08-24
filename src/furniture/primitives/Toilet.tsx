@@ -1,4 +1,5 @@
 import type { ParamProps } from '../types'
+import { MetalMaterial } from './MetalMaterial'
 import { readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
@@ -25,7 +26,7 @@ export function Toilet({ props }: { props: ParamProps }) {
         {/* Dual flush plate */}
         <mesh position={[0, 0.95, -0.165]}>
           <boxGeometry args={[0.18, 0.13, 0.01]} />
-          <meshStandardMaterial color="#d6d9dc" roughness={0.3} metalness={0.5} />
+          <MetalMaterial color="#d6d9dc" roughness={0.3} metalness={0.5} />
         </mesh>
         {/* Floating bowl */}
         <mesh castShadow position={[0, bowlY, 0.04]}>
@@ -76,7 +77,7 @@ export function Toilet({ props }: { props: ParamProps }) {
       {/* Flush button */}
       <mesh position={[0, 0.735, -0.2]}>
         <cylinderGeometry args={[0.03, 0.03, 0.02, 16]} />
-        <meshStandardMaterial color="#c0c4c8" roughness={0.3} metalness={0.6} />
+        <MetalMaterial color="#c0c4c8" roughness={0.3} metalness={0.6} />
       </mesh>
     </group>
   )

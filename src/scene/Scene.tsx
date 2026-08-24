@@ -68,11 +68,19 @@ import { MaybeXr } from './xr/MaybeXr'
  *  waits on this so the scene is already nice when revealed. */
 function SceneReadySignal() {
   const frames = useRef(0)
-  const { active } = useProgress()
   useFrame(() => {
     if (useStore.getState().sceneReady) return
     frames.current += 1
-    if (frames.current >= 4 && !active) useStore.getState().setSceneReady(true)
+    // Read drei's progress IMPERATIVELY. Subscribing with `useProgress()` made
+    // this mounted component set state while another was rendering — drei
+    // updates that store from its loading manager during React's render phase:
+    //   "Cannot update a component (SceneReadySignal) while rendering a
+    //    different component (Textured)"
+    // (Chrome audit 2026-08; same cause as the RenderPump fix). The value is
+    // only ever read here, inside the frame loop, so nothing is lost.
+    if (frames.current >= 4 && !useProgress.getState().active) {
+      useStore.getState().setSceneReady(true)
+    }
   })
   return null
 }

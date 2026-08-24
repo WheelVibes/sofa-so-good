@@ -1,0 +1,50 @@
+{
+  "name": "ca-11-remaining-surfaces",
+  "description": "Audit pass 11 — the last unopened surfaces: moodboard, comments, saved views, staging reveal, time-of-day compare, render presets and the parametric/product configurator. Each opened, probed and screenshotted.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 30000 },
+    { "name": "dismiss-first-run", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "daylight", "eval": "const s = window.__store.getState(); s.setTimeMode('manual'); s.setManualHour(13)" },
+    { "name": "reset-baseline", "eval": "const s = window.__store.getState(); s.setFloorPlanEditing(false); s.exitRoomEditor?.(); s.selectItem?.(null); s.selectRoom?.(null); s.setCatalogOpen?.(false); s.setCmdkOpen?.(false); s.setAccessibilityOpen?.(false); s.setElevationsOpen?.(false); s.setDesignScoreOpen?.(false); s.setClearancePanelOpen?.(false); s.setHistoryOpen?.(false); s.setCommentsOpen?.(false); s.setVersionsOpen?.(false); s.setRenoRulesOpen?.(false); s.setHandoverOpen?.(false); s.setCreditsOpen?.(false); if (s.budgetOpen) s.toggleBudget(); s.setCameraMode?.('orbit')" },
+    { "name": "settle-baseline", "wait": 2000 },
+    { "name": "assert-clean-baseline", "assert": { "js": "!window.__store.getState().floorPlanEditing && !document.querySelector('.plan-screen')", "message": "the pass must start from the 3D view, not whatever screen was left open" } },
+    { "name": "pro-mode", "eval": "const s = window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags()" },
+    { "name": "settle-pro", "wait": 1500 },
+
+    { "name": "open-moodboard", "eval": "window.__store.getState().setMoodboardOpen?.(true) ?? window.__store.getState().setShopTab?.('moodboard')" },
+    { "name": "settle-moodboard", "wait": 1600 },
+    { "name": "shot-moodboard", "screenshot": "01-moodboard" },
+    { "name": "probe-moodboard", "probe": { "checks": ["console", "overflow", "clipped", "naming", "covered", "contrast", "assets"] } },
+    { "name": "close-moodboard", "eval": "window.__store.getState().setMoodboardOpen?.(false)" },
+
+    { "name": "open-comments", "store": { "action": "setCommentsOpen", "args": [true] } },
+    { "name": "settle-comments", "wait": 1400 },
+    { "name": "shot-comments", "screenshot": "02-comments" },
+    { "name": "probe-comments", "probe": { "checks": ["overflow", "clipped", "naming", "covered", "contrast"] } },
+    { "name": "close-comments", "store": { "action": "setCommentsOpen", "args": [false] } },
+
+    { "name": "save-a-view", "store": { "action": "saveCurrentView", "args": ["Audit view"] } },
+    { "name": "settle-view", "wait": 1200 },
+    { "name": "assert-view-saved", "assert": { "js": "(window.__store.getState().savedViews?.length ?? 0) > 0", "message": "saveCurrentView should add a saved view" } },
+    { "name": "shot-saved-views", "screenshot": "03-saved-view" },
+
+    { "name": "open-staging", "store": { "action": "setStagingRevealOpen", "args": [true] } },
+    { "name": "settle-staging", "wait": 1600 },
+    { "name": "shot-staging", "screenshot": "04-staging-reveal" },
+    { "name": "probe-staging", "probe": { "checks": ["overflow", "clipped", "naming", "covered", "contrast"] } },
+    { "name": "close-staging", "store": { "action": "setStagingRevealOpen", "args": [false] } },
+
+    { "name": "open-timecompare", "store": { "action": "setTimeCompareOpen", "args": [true] } },
+    { "name": "settle-timecompare", "wait": 1600 },
+    { "name": "shot-timecompare", "screenshot": "05-time-compare" },
+    { "name": "probe-timecompare", "probe": { "checks": ["overflow", "clipped", "naming", "covered", "contrast"] } },
+    { "name": "close-timecompare", "store": { "action": "setTimeCompareOpen", "args": [false] } },
+
+    { "name": "open-configurator", "store": { "action": "setConfiguratorOpen", "args": [true] } },
+    { "name": "settle-config", "wait": 1600 },
+    { "name": "shot-configurator", "screenshot": "06-configurator" },
+    { "name": "probe-configurator", "probe": { "checks": ["overflow", "clipped", "naming", "covered", "contrast"] } },
+    { "name": "close-configurator", "store": { "action": "setConfiguratorOpen", "args": [false] } },
+    { "name": "final-console", "probe": { "checks": ["console"] } }
+  ]
+}

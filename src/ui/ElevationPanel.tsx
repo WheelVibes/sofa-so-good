@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { projectAllElevations, type WallElevation } from '../elevation/projectElevation'
 import { isMultiLevel, itemsOnLevel, levelAsPlan, planLevels } from '../floorplan/levels'
+import { assignRoomWallNames } from '../floorplan/roomWallNames'
 import { buildMergedCatalog } from '../furniture/catalog'
 import type { FurnitureDef, FurnitureType } from '../furniture/types'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
@@ -102,6 +103,25 @@ export function ElevationPanel() {
     // Only walls with some height — skip degenerate/zero-length segments.
     return projectAllElevations(plan, items, merged).filter((e) => e.length > 0 && e.height > 0)
   }, [merged, plan, items])
+  /**
+   * wallId → "<room> wall ##", reusing the plan editor's own room→wall
+   * allocation.
+   *
+   * The picker listed 37 buttons labelled `Wall 1 … Wall 37` with no room,
+   * orientation or thumbnail, so finding the elevation you wanted was trial and
+   * error over half the panel (Chrome audit 2026-08). The seeded default plan
+   * carries no wall names — auto-naming only runs when a room is added or
+   * renamed — so they are derived here the same way.
+   */
+  const wallNames = useMemo(() => {
+    const out = new Map<string, string>()
+    const walls = Array.isArray(plan.walls) ? plan.walls : []
+    for (const room of Array.isArray(plan.rooms) ? plan.rooms : []) {
+      for (const a of assignRoomWallNames(walls, room)) if (!out.has(a.id)) out.set(a.id, a.name)
+    }
+    for (const w of walls) if (w.name) out.set(w.id, w.name)
+    return out
+  }, [plan])
   const lighting = useMemo(
     () => (merged ? buildLightingPlan(items, merged) : { lights: [], schedule: [] }),
     [merged, items],
@@ -175,17 +195,21 @@ export function ElevationPanel() {
                   className="seg"
                   style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s-1)' }}
                 >
-                  {elevations.map((e, i) => (
-                    <button
-                      key={e.wallId}
-                      type="button"
-                      className={i === sel ? 'on' : ''}
-                      onClick={() => setSel(i)}
-                      style={{ flex: '0 0 auto' }}
-                    >
-                      Wall {i + 1}
-                    </button>
-                  ))}
+                  {elevations.map((e, i) => {
+                    const name = wallNames.get(e.wallId)
+                    return (
+                      <button
+                        key={e.wallId}
+                        type="button"
+                        className={i === sel ? 'on' : ''}
+                        onClick={() => setSel(i)}
+                        style={{ flex: '0 0 auto' }}
+                        title={`${name ?? `Wall ${i + 1}`} — ${e.length.toFixed(2)} m wide`}
+                      >
+                        {name ?? `Wall ${i + 1}`}
+                      </button>
+                    )
+                  })}
                 </div>
                 {current ? (
                   <>
@@ -196,7 +220,7 @@ export function ElevationPanel() {
                         margin: 'var(--s-3) 0 var(--s-2)',
                       }}
                     >
-                      {elevationCaption(current, sel, units)}
+                      {elevationCaption(current, sel, units, wallNames.get(current.wallId))}
                     </div>
                     {/* The SVG scales to the panel width via its viewBox. */}
                     <div

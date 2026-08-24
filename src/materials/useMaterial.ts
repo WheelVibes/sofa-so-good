@@ -1,6 +1,6 @@
 import { useTexture } from '@react-three/drei'
 import { useMemo } from 'react'
-import type { MeshStandardMaterial } from 'three'
+import type { MeshStandardMaterial, Texture } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../features/useFeature'
 import { useStore } from '../state/store'
@@ -14,7 +14,12 @@ import {
   tintedMaterialDef,
 } from './composeMaterial'
 import { GENERATED_MATERIALS } from './generatedCatalog'
-import { buildPomFloorMaterial, pomFloorEligible } from './pomFloor'
+import {
+  buildPomFloorMaterial,
+  buildPomPhotoFloorMaterial,
+  pomFloorEligible,
+  pomPhotoFloorEligible,
+} from './pomFloor'
 import type {
   MaterialCategory,
   MaterialDef,
@@ -158,7 +163,18 @@ export function useTexturedMaterial(def: TexturedMaterialDef): MeshStandardMater
   // occlusion map (remote CC0 downloads fetch it, `buildMaterial` binds it)
   // previously never had it loaded here, so photo finishes lost their baked
   // crevice/grout shading. Ordered list → positional unpack below.
-  const list = [urls.albedo, urls.normal, urls.roughness, urls.ao].filter((u): u is string => !!u)
+  // The metalness / opacity / displacement channels follow the same pattern:
+  // optional, positionally unpacked in declaration order. `useTexture` is
+  // URL-keyed, so a channel absent from the def costs nothing.
+  const list = [
+    urls.albedo,
+    urls.normal,
+    urls.roughness,
+    urls.ao,
+    urls.metalness,
+    urls.opacity,
+    urls.displacement,
+  ].filter((u): u is string => !!u)
   const tex = useTexture(list)
   const cached = getCachedMaterial(def.id)
   if (cached) return cached
@@ -169,6 +185,32 @@ export function useTexturedMaterial(def: TexturedMaterialDef): MeshStandardMater
     normal: urls.normal ? arr[next++] : undefined,
     roughness: urls.roughness ? arr[next++] : undefined,
     ao: urls.ao ? arr[next++] : undefined,
+    metalness: urls.metalness ? arr[next++] : undefined,
+    opacity: urls.opacity ? arr[next++] : undefined,
+    displacement: urls.displacement ? arr[next++] : undefined,
   }
   return buildMaterial(def, loaded)
+}
+
+/** Floor-specific variant of {@link useTexturedMaterial} (PHOTO-POM). A scanned
+ *  floor that ships a displacement map gets the same parallax-occlusion
+ *  treatment the procedural geometric patterns get, on High / Maximum only —
+ *  its joints genuinely recede instead of being faked by the normal map. Any
+ *  other case returns the plain textured material, byte-identical to before.
+ *  The base hook is always called first so hook order stays stable. */
+export function useFloorTexturedMaterial(def: TexturedMaterialDef): MeshStandardMaterial {
+  const tier = useStore((s) => s.qualityTier)
+  const pomOn = useFeature('pomFloors')
+  const base = useTexturedMaterial(def)
+  if (!pomPhotoFloorEligible(def, tier, pomOn)) return base
+  // Reuse the textures the base hook already loaded (drei's `useTexture` is
+  // URL-keyed, so this is a cache hit, not a second download).
+  return buildPomPhotoFloorMaterial(def, tier, {
+    albedo: base.map ?? undefined,
+    normal: base.normalMap ?? undefined,
+    roughness: base.roughnessMap ?? undefined,
+    ao: base.aoMap ?? undefined,
+    metalness: base.metalnessMap ?? undefined,
+    displacement: base.userData.displacementMap as Texture | undefined,
+  })
 }

@@ -75,7 +75,12 @@ export function AccessibilityPanel() {
                     {d.pass ? 'OK' : 'Narrow'}
                   </span>
                   <span className="ci-title">
-                    {isEntryWidth(d.width) ? 'Main door' : 'Door'} · {formatLength(d.width, units)}
+                    {/* Name the door, so "widen this one" is actionable — a list of
+                        identical `Door · 0.80 m` rows told you nothing about which
+                        door to widen. Falls back to the generic label only when the
+                        plan yields no name at all. */}
+                    {d.name ?? (isEntryWidth(d.width) ? 'Main door' : 'Door')} ·{' '}
+                    {formatLength(d.width, units)}
                   </span>
                 </div>
                 {!d.pass && (

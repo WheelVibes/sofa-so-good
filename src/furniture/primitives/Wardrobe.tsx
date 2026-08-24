@@ -1,7 +1,8 @@
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import { getSolidMaterial, getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import { doorHingePivot, isCabinetOpen } from '../cabinetOpen'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { MirrorMaterial } from './MirrorMaterial'
 import { HingedDoor } from './openable'
 import { readNum, readStr } from './shared'
@@ -34,7 +35,11 @@ export function Wardrobe({ props }: WardrobeProps) {
   const doorPanelW = (width - doorGap * (doorCount + 1) - 0.02) / doorCount
 
   const wood = getSurfaceMaterial(finish, color, 2, sheen)
-  const frameMetal = { color: '#b8bcc0', roughness: 0.35, metalness: 0.75 } as const
+  // Routed through the shared solid-material factory rather than spread inline, so
+  // it inherits the no-IBL metalness cap: at 0.75 metalness with no environment
+  // to reflect, these ~1 m² frame panels rendered as black slabs on the default
+  // Performance tier (Chrome audit 2026-08).
+  const frameMetal = getSolidMaterial('#b8bcc0', 0.35, 0.75)
   const open = doorStyle === 'open'
 
   // A door face is either a wood/laminate panel or (mirror finish) a reflective
@@ -105,7 +110,7 @@ export function Wardrobe({ props }: WardrobeProps) {
               {face(`mf${i}`, [x, height / 2, mainFrontZ + 0.006], [panelW, panelH, 0.02])}
               <mesh castShadow position={[handleX, height / 2, mainFrontZ + 0.03]}>
                 <boxGeometry args={[0.02, 0.22, 0.02]} />
-                <meshStandardMaterial {...handleMetal} />
+                <MetalMaterial {...handleMetal} />
               </mesh>
             </group>
           )
@@ -118,7 +123,7 @@ export function Wardrobe({ props }: WardrobeProps) {
               {face('rf', [retFrontX + 0.006, height / 2, zc], [0.02, panelH, retExposed - 0.03])}
               <mesh castShadow position={[retFrontX + 0.03, height / 2, zc - retExposed / 2 + 0.1]}>
                 <boxGeometry args={[0.02, 0.22, 0.02]} />
-                <meshStandardMaterial {...handleMetal} />
+                <MetalMaterial {...handleMetal} />
               </mesh>
             </group>
           )
@@ -148,7 +153,7 @@ export function Wardrobe({ props }: WardrobeProps) {
               its garments floating clear of the carcass). */}
           <mesh position={[cx, ry, 0]} rotation={[0, 0, Math.PI / 2]}>
             <cylinderGeometry args={[0.012, 0.012, bw + 0.02, 10]} />
-            <meshStandardMaterial color="#9aa0a6" roughness={0.3} metalness={0.7} />
+            <MetalMaterial color="#9aa0a6" roughness={0.3} metalness={0.7} />
           </mesh>
           {Array.from({ length: n }, (_, i) => {
             const x = cx - bw / 2 + 0.08 + i * ((bw - 0.16) / (n - 1))
@@ -203,7 +208,7 @@ export function Wardrobe({ props }: WardrobeProps) {
             />
             <mesh position={[cx, y + 0.08, depth / 2 - 0.02]}>
               <boxGeometry args={[bw * 0.4, 0.015, 0.02]} />
-              <meshStandardMaterial color="#8a8d92" roughness={0.3} metalness={0.7} />
+              <MetalMaterial color="#8a8d92" roughness={0.3} metalness={0.7} />
             </mesh>
           </group>
         ))}
@@ -288,7 +293,7 @@ export function Wardrobe({ props }: WardrobeProps) {
         <group key={i}>
           {/* Aluminium frame */}
           <BeveledBox castShadow position={[x, height / 2, z]} args={[panelW, panelH, 0.03]}>
-            <meshStandardMaterial {...frameMetal} />
+            <primitive object={frameMetal} attach="material" />
           </BeveledBox>
           {/* Laminate (or mirror) insert */}
           <BeveledBox
@@ -302,7 +307,7 @@ export function Wardrobe({ props }: WardrobeProps) {
           {/* Recessed edge pull (vertical channel on the leading edge) */}
           <mesh position={[x + panelW / 2 - 0.03, height / 2, z + 0.02]}>
             <boxGeometry args={[0.015, panelH - 0.2, 0.01]} />
-            <meshStandardMaterial color="#5a5e63" roughness={0.4} metalness={0.6} />
+            <MetalMaterial color="#5a5e63" roughness={0.4} metalness={0.6} />
           </mesh>
         </group>
       )
@@ -341,7 +346,7 @@ export function Wardrobe({ props }: WardrobeProps) {
               </BeveledBox>
               <mesh castShadow position={[handleX, height / 2, depth / 2 + 0.012]}>
                 <boxGeometry args={[0.02, 0.22, 0.02]} />
-                <meshStandardMaterial color="#8a8d92" roughness={0.3} metalness={0.7} />
+                <MetalMaterial color="#8a8d92" roughness={0.3} metalness={0.7} />
               </mesh>
             </HingedDoor>
           )

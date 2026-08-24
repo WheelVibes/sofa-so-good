@@ -1,0 +1,43 @@
+{
+  "name": "ca-03-mobile-coreloop",
+  "description": "Audit pass 3 — mobile viewport (390x844): home, catalog bottom sheet, place-confirm pill, inspector sheet, mobile menu, walk HUD. Tap-target sizing is checked HERE (44px is a touch guideline, not a desktop one).",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 30000 },
+    { "name": "dismiss-first-run", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "daylight", "eval": "const s = window.__store.getState(); s.setTimeMode('manual'); s.setManualHour(13)" },
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
+    { "name": "settle-mobile", "wait": 2500 },
+    { "name": "shot-mobile-home", "screenshot": "01-mobile-home" },
+    { "name": "probe-mobile-home", "probe": { "checks": ["console", "overflow", "clipped", "naming", "tapTargets", "covered", "contrast", "assets"] } },
+
+    { "name": "enter-room", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "settle-room", "wait": 2000 },
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "catalog-mounted", "waitFor": { "css": ".panel.catalog, .catalog" }, "timeout": 10000 },
+    { "name": "settle-catalog", "wait": 1200 },
+    { "name": "shot-mobile-catalog", "screenshot": "02-mobile-catalog-sheet" },
+    { "name": "probe-mobile-catalog", "probe": { "checks": ["overflow", "clipped", "naming", "tapTargets", "covered"] } },
+
+    { "name": "arm-place", "eval": "const s = window.__store.getState(); s.setCatalogOpen(false); s.setActiveDefId('sofa-3seat'); s.setPlaceConfirm(true)" },
+    { "name": "settle-arm", "wait": 1200 },
+    { "name": "shot-mobile-placeconfirm", "screenshot": "03-mobile-place-confirm" },
+    { "name": "probe-placeconfirm", "probe": { "checks": ["tapTargets", "covered", "clipped"] } },
+    { "name": "cancel-place", "eval": "const s = window.__store.getState(); s.setActiveDefId(null); s.setPlaceConfirm(false)" },
+
+    { "name": "select-in-room-item", "eval": "const s = window.__store.getState(); const it = s.items.find(i => i.defId === 'sofa-3seat') ?? s.items[0]; s.selectItem(it.id); return it.defId" },
+    { "name": "settle-select", "wait": 1400 },
+    { "name": "shot-mobile-inspector", "screenshot": "04-mobile-inspector-sheet" },
+    { "name": "probe-mobile-inspector", "probe": { "checks": ["overflow", "clipped", "naming", "tapTargets", "covered", "contrast"] } },
+    { "name": "deselect", "store": { "action": "selectItem", "args": [null] } },
+
+    { "name": "exit-room", "store": { "action": "exitRoomEditor", "args": [] } },
+    { "name": "settle-exit", "wait": 1500 },
+    { "name": "walk", "store": { "action": "setCameraMode", "args": ["walk"] } },
+    { "name": "settle-walk", "wait": 2500 },
+    { "name": "shot-mobile-walk", "screenshot": "05-mobile-walk-hud" },
+    { "name": "probe-mobile-walk", "probe": { "checks": ["overflow", "clipped", "naming", "tapTargets", "covered"] } },
+    { "name": "orbit", "store": { "action": "setCameraMode", "args": ["orbit"] } },
+    { "name": "restore-viewport", "viewport": { "width": 1200, "height": 893 } },
+    { "name": "final-console", "probe": { "checks": ["console"] } }
+  ]
+}

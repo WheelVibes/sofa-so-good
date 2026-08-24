@@ -1,6 +1,7 @@
 import { RoundedBox } from '@react-three/drei'
 import { getFabricMaterial, getUpholsteryMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 
 interface SofaBedProps {
@@ -206,7 +207,7 @@ export function SofaBed({ props }: SofaBedProps) {
           />
           <mesh castShadow position={[0, footH + baseH / 2, frontZ + 0.03]}>
             <boxGeometry args={[width * 0.28, 0.024, 0.024]} />
-            <meshStandardMaterial color="#8a8d92" roughness={0.35} metalness={0.7} />
+            <MetalMaterial color="#8a8d92" roughness={0.35} metalness={0.7} />
           </mesh>
         </group>
       )}

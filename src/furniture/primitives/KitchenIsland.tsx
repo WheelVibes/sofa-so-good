@@ -1,6 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { metalLeg, readNum, readStr } from './shared'
 
 /**
@@ -58,7 +59,7 @@ export function KitchenIsland({ props }: { props: ParamProps }) {
             />
             <mesh position={[x, cabinetH - 0.14, cabCz - cabDepth / 2 - 0.02]}>
               <boxGeometry args={[Math.min(cabW * 0.4, 0.16), 0.016, 0.016]} />
-              <meshStandardMaterial {...handle} />
+              <MetalMaterial {...handle} />
             </mesh>
           </group>
         )
@@ -125,13 +126,13 @@ export function KitchenIsland({ props }: { props: ParamProps }) {
               {/* Bowl floor */}
               <mesh receiveShadow position={[0, floorY, sz]}>
                 <boxGeometry args={[bw - wallT * 2, 0.016, bd - wallT * 2]} />
-                <meshStandardMaterial {...steel} />
+                <MetalMaterial {...steel} />
               </mesh>
               {/* Bowl walls */}
               {walls.map(([dx, dz, wx, dd], k) => (
                 <mesh key={k} receiveShadow position={[dx, wallCY, sz + dz]}>
                   <boxGeometry args={[wx, wallH, dd]} />
-                  <meshStandardMaterial {...steel} />
+                  <MetalMaterial {...steel} />
                 </mesh>
               ))}
               {/* Faucet: base + riser + curved spout (behind the basin) */}

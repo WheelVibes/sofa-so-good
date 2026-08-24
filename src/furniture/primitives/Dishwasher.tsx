@@ -1,5 +1,6 @@
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { applianceBodyMaterial, readStr } from './shared'
 
 /**
@@ -40,7 +41,7 @@ export function Dishwasher({ props }: { props: ParamProps }) {
       {/* Recessed handle bar near the top of the door */}
       <mesh castShadow position={[0, h * 0.82, d / 2 + 0.02]}>
         <boxGeometry args={[w * 0.82, 0.025, 0.02]} />
-        <meshStandardMaterial {...trim} />
+        <MetalMaterial {...trim} />
       </mesh>
       {/* Control strip on the top edge of the door (hidden when integrated) */}
       {!integrated && (
@@ -52,7 +53,7 @@ export function Dishwasher({ props }: { props: ParamProps }) {
           {[-0.18, -0.06].map((x) => (
             <mesh key={x} position={[x, h * 0.93, d / 2 + 0.014]} rotation={[Math.PI / 2, 0, 0]}>
               <cylinderGeometry args={[0.018, 0.018, 0.016, 16]} />
-              <meshStandardMaterial color="#c7cace" roughness={0.4} metalness={0.5} />
+              <MetalMaterial color="#c7cace" roughness={0.4} metalness={0.5} />
             </mesh>
           ))}
           {/* A couple of status LEDs */}

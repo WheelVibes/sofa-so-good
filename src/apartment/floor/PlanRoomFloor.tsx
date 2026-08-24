@@ -10,9 +10,9 @@ import type {
 } from '../../materials/types'
 import {
   useFloorProceduralMaterial,
+  useFloorTexturedMaterial,
   useMaterialDef,
   useSolidMaterial,
-  useTexturedMaterial,
 } from '../../materials/useMaterial'
 import {
   type UvTransform,
@@ -221,7 +221,9 @@ function Solid({ def, ...rest }: Rect & { def: SolidMaterialDef }) {
   return <FloorMesh {...rest} material={useSolidMaterial(def)} />
 }
 function Textured({ def, ...rest }: Rect & { def: TexturedMaterialDef }) {
-  return <FloorMesh {...rest} material={useTexturedMaterial(def)} tileSize={def.uvScale[0]} />
+  // Floor-specific hook: a scan carrying a displacement map gets POM on
+  // High/Maximum (PHOTO-POM), otherwise the plain textured material.
+  return <FloorMesh {...rest} material={useFloorTexturedMaterial(def)} tileSize={def.uvScale[0]} />
 }
 function Procedural({ def, ...rest }: Rect & { def: ProceduralMaterialDef }) {
   return (

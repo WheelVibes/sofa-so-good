@@ -18,6 +18,7 @@ import {
   windowGlassKindParams,
 } from '../floorplan/windowGrilleLayout'
 import { InstancedBoxes, InstancedCylinders } from '../furniture/primitives/InstancedBoxes'
+import { MetalMaterial } from '../furniture/primitives/MetalMaterial'
 import {
   GLASS_SKYCATCH_COLOR,
   glassSkyCatchIntensity,
@@ -75,7 +76,7 @@ function Grille({ w, h }: { w: number; h: number }) {
   return (
     <group position={[0, 0, GRILLE_Z]}>
       <InstancedBoxes instances={members}>
-        <meshStandardMaterial {...grilleMat} />
+        <MetalMaterial {...grilleMat} />
       </InstancedBoxes>
     </group>
   )
@@ -251,7 +252,7 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
       )}
       {invisibleCables.length > 0 && (
         <InstancedCylinders instances={invisibleCables} radialSegments={6}>
-          <meshStandardMaterial
+          <MetalMaterial
             color="#d7dade"
             roughness={0.3}
             metalness={0.7}

@@ -1,5 +1,15 @@
 # Visual verification playbook
 
+> **Chrome first (2026-08-24).** When Claude-in-Chrome is connected, drive the **real tab**
+> instead of this headless harness — see **[chrome-interactive-audit.md](chrome-interactive-audit.md)**.
+> It runs the same step vocabulary against a real GPU, real fonts and the real compositor, and
+> adds audit probes (overflow / clipped text / naming / contrast / covered / console).
+> Everything below still applies and remains the **fallback** — use it when Chrome is not
+> available, when the run must be non-interactive (CI/cron), or for the two things the Chrome
+> path structurally cannot do: **touch / `pointer: coarse` gating** (`SHOT_TOUCH=1`) and
+> **true phone viewports** (Chrome's `resize_window` clamps at ~606px, so 390×844 and 320px
+> belong here).
+
 How to actually drive this app, take useful screenshots, and review them — the
 rules, the gotchas, and the fixes found the hard way. **Read this before doing
 visual verification, and update it whenever you find a new solution to an

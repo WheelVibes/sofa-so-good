@@ -1,6 +1,7 @@
 import { getSurfaceMaterial, getWoodMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 
 /**
@@ -65,7 +66,7 @@ export function ConsoleTable({ props }: { props: ParamProps }) {
               position={[s * width * 0.22, h - topT - 0.09, (depth - inset * 2) / 2 + 0.011]}
             >
               <boxGeometry args={[width * 0.2, 0.018, 0.02]} />
-              <meshStandardMaterial {...metal} />
+              <MetalMaterial {...metal} />
             </mesh>
           ))}
         </>

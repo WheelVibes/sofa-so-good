@@ -3,6 +3,7 @@ import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
 import { type BoxInstance, InstancedBoxes } from './InstancedBoxes'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 
 interface BookshelfProps {
@@ -110,7 +111,7 @@ export function Bookshelf({ props }: BookshelfProps) {
       cabinetDoors.push(
         <mesh key={`h${s}`} position={[s * 0.02, doorY, depth / 2]}>
           <boxGeometry args={[0.012, doorH * 0.4, 0.018]} />
-          <meshStandardMaterial color={handleColor} roughness={0.4} metalness={0.6} />
+          <MetalMaterial color={handleColor} roughness={0.4} metalness={0.6} />
         </mesh>,
       )
     })

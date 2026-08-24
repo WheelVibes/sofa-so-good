@@ -26,6 +26,7 @@ import {
   liftedSheenRgb,
   sheenRough,
 } from './furnitureMaterialLogic'
+import { isIblActive, NO_IBL_METALNESS } from './iblSignal'
 import { LruCache } from './materialLru'
 import { clearcoatLayer, glassConfig, type SheenLayer, sheenLayer } from './materialRealism'
 import { buildBrushedMetalFields, DEFAULT_BRUSH_PARAMS } from './procedural/metalBrush'
@@ -1180,10 +1181,16 @@ export function getSolidMaterial(
   roughness: number,
   metalness: number,
 ): MeshStandardMaterial {
-  const key = `solid:${color}:${roughness.toFixed(2)}:${metalness.toFixed(2)}`
+  // Same no-environment cap as getMetalMaterial: a highly metallic solid has no
+  // diffuse term, so on the IBL-less Performance tier it renders black. Most
+  // appliance bodies reach three through here (`applianceBodyMaterial` →
+  // `applianceFinish` presets), not through the brushed-metal factory, so the
+  // cap has to live in both. Non-metallic solids are untouched.
+  const metal = isIblActive() ? metalness : Math.min(metalness, NO_IBL_METALNESS)
+  const key = `solid:${color}:${roughness.toFixed(2)}:${metal.toFixed(2)}`
   const hit = cache.get(key)
   if (hit) return hit
-  const m = new MeshStandardMaterial({ color, roughness, metalness })
+  const m = new MeshStandardMaterial({ color, roughness, metalness: metal })
   cache.set(key, m)
   return m
 }
@@ -1349,6 +1356,20 @@ function getBrushedMetalMaps(streak: number): { normal: Texture; rough: Texture 
  * Cached per `(finish, color, repeat, brushRotation)` so every steel body sharing
  * the same orientation shares one GPU material (don't rebuild per appliance).
  */
+/**
+ * Metalness ceiling on a tier with **no image-based lighting**.
+ *
+ * A fully metallic PBR surface has no diffuse term — everything it shows is
+ * reflected environment. The Performance tier (the default) runs `ibl: false`,
+ * so `scene.environment` is null and a `metalness: 0.9` appliance has literally
+ * nothing to reflect: the fridge, stove and range hood rendered as flat BLACK
+ * silhouettes despite their light stainless base colours (#d8dade / #cfd2d6),
+ * which is what made the default kitchen read as a grey box (Chrome audit
+ * 2026-08). Capping metalness there lets the base colour carry the look while
+ * keeping a little sheen; Medium+ (IBL on) is untouched.
+ */
+// Moved to `iblSignal.ts` — shared with `cache.ts`'s scanned metalness-map path.
+
 export function getMetalMaterial(
   color: string,
   finish: MetalFinish = 'stainless',
@@ -1361,17 +1382,21 @@ export function getMetalMaterial(
   // axis, so the key + the material are unchanged from before.
   const rotation = anisotropyRotationForNormal(faceNormal)
   const rotKey = rotation === 0 ? '' : `:a${rotation.toFixed(4)}`
-  const key = `metal:${finish}:${color}:${r}${rotKey}`
+  // The IBL state is part of the key: switching tiers must hand back a material
+  // built for that tier rather than a cached fully-metallic one.
+  const hasIbl = isIblActive()
+  const key = `metal:${finish}:${color}:${r}${rotKey}${hasIbl ? '' : ':noibl'}`
   const hit = cache.get(key)
   if (hit) return hit
   const preset = metalFinishPreset(finish)
+  const metalness = hasIbl ? preset.metalness : Math.min(preset.metalness, NO_IBL_METALNESS)
   const pbr = isFeatureEnabled('pbrSurfaces')
   if (!pbr) {
     // Flat tier: legacy look — metalness/roughness only, no brush maps.
     const m = new MeshStandardMaterial({
       color,
       roughness: preset.roughness,
-      metalness: preset.metalness,
+      metalness,
       envMapIntensity: GLOSSY_ENV_INTENSITY,
     })
     cache.set(key, m)
@@ -1386,7 +1411,7 @@ export function getMetalMaterial(
   const m = new MeshPhysicalMaterial({
     color,
     roughness: preset.roughness,
-    metalness: preset.metalness,
+    metalness,
     normalMap: normal,
     roughnessMap,
     envMapIntensity: GLOSSY_ENV_INTENSITY,

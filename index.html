@@ -122,7 +122,12 @@
       #boot-loader .bl-sub {
         margin-top: 0.35rem;
         font-size: 0.95rem;
-        color: #8a7d68;
+        /* WCAG AA against BOTH ends of the radial gradient above. #8a7d68 was
+           3.07:1 on the outer #ecdfce and 3.46:1 on the inner #f4ede1 — the boot
+           screen is the app's very first impression and its only text was failing
+           AA (audit 2026-08; the boot loader is unreachable from scenario mode, so
+           this was only measurable by probing a throttled hidden tab). */
+        color: #6b6049;
       }
       #boot-loader .bl-sub .cycling-phrase {
         display: inline-block;
@@ -132,7 +137,9 @@
         color: #ece6dc;
       }
       [data-mode='dark'] #boot-loader .bl-sub {
-        color: #9a8f7e;
+        /* Dark mode failed too: #9a8f7e was 4.09:1 against the gradient's lighter
+           centre (#36302a), which is exactly where this text sits. */
+        color: #a89c88;
       }
       @keyframes bl-fade-cycle {
         0% { opacity: 0; transform: scale(0.97); }

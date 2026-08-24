@@ -163,6 +163,7 @@ export type FeatureFlag =
   | 'furnitureMotion'
   | 'accounts'
   | 'sharedLibrary'
+  | 'ambientcgLibrary'
   | 'walkWindowFixtures'
   | 'walkScreens'
   | 'walkLights'

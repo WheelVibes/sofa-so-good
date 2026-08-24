@@ -10,9 +10,9 @@ import type {
 } from '../../materials/types'
 import {
   useFloorProceduralMaterial,
+  useFloorTexturedMaterial,
   useMaterialDef,
   useSolidMaterial,
-  useTexturedMaterial,
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry } from '../../materials/worldUv'
 import { isDragRelease } from '../../scene/clickVsDrag'
@@ -126,7 +126,9 @@ function TexturedRoomFloor({
   def,
   ...rest
 }: Omit<FloorMeshProps, 'material' | 'tileSize'> & { def: TexturedMaterialDef }) {
-  const material = useTexturedMaterial(def)
+  // Floor-specific hook: a scan carrying a displacement map gets POM on
+  // High/Maximum (PHOTO-POM), otherwise the plain textured material.
+  const material = useFloorTexturedMaterial(def)
   return <FloorMesh {...rest} material={material} tileSize={def.uvScale[0]} />
 }
 

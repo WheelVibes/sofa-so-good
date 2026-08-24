@@ -1,5 +1,6 @@
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { applianceBodyMaterial, readNum, readStr } from './shared'
 
 /**
@@ -70,7 +71,7 @@ export function WineCooler({ props }: { props: ParamProps }) {
           <group key={i}>
             <mesh position={[0, y, -0.02]}>
               <boxGeometry args={[w - 0.08, 0.008, d - 0.12]} />
-              <meshStandardMaterial {...wire} />
+              <MetalMaterial {...wire} />
             </mesh>
             {/* Bottles lying on the shelf (long axis along X), a couple per row */}
             {Array.from({ length: 2 }, (_, b) => {
@@ -109,7 +110,7 @@ export function WineCooler({ props }: { props: ParamProps }) {
       {/* Vertical bar handle on the right edge */}
       <mesh castShadow position={[w / 2 - 0.05, h / 2, d / 2 + 0.02]}>
         <boxGeometry args={[0.02, h * 0.5, 0.022]} />
-        <meshStandardMaterial {...steel} />
+        <MetalMaterial {...steel} />
       </mesh>
     </group>
   )

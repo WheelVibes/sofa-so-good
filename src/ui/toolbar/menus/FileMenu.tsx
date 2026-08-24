@@ -129,7 +129,7 @@ export function FileMenu() {
   const renoBudget = toolAction('renoBudget')
 
   return (
-    <ToolbarMenu icon="Save" label="File" active={recording || budgetOpen} width={256}>
+    <ToolbarMenu icon="Save" label="File" active={recording || budgetOpen} width={304}>
       <MenuLabel>Save & capture</MenuLabel>
       <MenuItem icon="Save" label="Save…" sub="Store the current layout" onClick={save} />
       <MenuItem
@@ -572,7 +572,13 @@ function TradePacksPicker() {
               type="button"
               className="menu-item"
               onClick={() => void openTradePack(p.id)}
-              title={p.scope}
+              // The recipient leads the title too: the row's fixed "Open / Print"
+              // suffix left ~108px for the name, so the longest trade packs
+              // ("Curtains & blinds vendor", "Carpenter / joinery") ellipsised
+              // while the tooltip showed only the scope — the truncated part was
+              // unreadable anywhere (Chrome audit 2026-08). The menu is wider now
+              // and the tooltip names the pack.
+              title={`${p.recipient} — ${p.scope}`}
             >
               <span className="min-w-0 flex-1 truncate font-medium">{p.recipient}</span>
               <span className="shrink-0 text-xs text-[var(--accent)]">Open / Print</span>

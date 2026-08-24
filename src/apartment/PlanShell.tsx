@@ -27,6 +27,8 @@ import { railingMemberInstances } from '../floorplan/railingLayout'
 import { resolvePlanRoomCeiling, resolvePlanRoomFloor } from '../floorplan/roomFinishes'
 import { isSlopedWall, slopedWallHeights, slopedWallTriangles } from '../floorplan/slopedWall'
 import {
+  DEFAULT_CROWN_COLOR,
+  DEFAULT_CROWN_HEIGHT_M,
   DEFAULT_PLAN_WALL_COLOR,
   type FloorPlan,
   type PlanRoom,
@@ -49,6 +51,7 @@ import {
 } from '../floorplan/windowGrilleLayout'
 import { BeveledBox } from '../furniture/primitives/BeveledBox'
 import { InstancedBoxes, InstancedCylinders } from '../furniture/primitives/InstancedBoxes'
+import { MetalMaterial } from '../furniture/primitives/MetalMaterial'
 import {
   GLASS_SKYCATCH_COLOR,
   glassSkyCatchIntensity,
@@ -506,6 +509,8 @@ function ThresholdRiser({ riser }: { riser: ThresholdRiserSpec }) {
 function FadeCrown({
   box,
   ceilingHeight,
+  height,
+  color,
   isExterior,
   isInterior,
   cx,
@@ -514,6 +519,8 @@ function FadeCrown({
 }: {
   box: WallBox
   ceilingHeight: number
+  height: number
+  color: string
   isExterior: boolean
   isInterior: (x: number, z: number) => boolean
   cx: number
@@ -525,12 +532,12 @@ function FadeCrown({
   return (
     <BeveledBox
       ref={ref}
-      position={[box.cx, ceilingHeight - 0.035, box.cz]}
+      position={[box.cx, ceilingHeight - height / 2, box.cz]}
       rotation={[0, box.angle, 0]}
-      args={[box.thickness + 0.024, 0.07, box.length]}
+      args={[box.thickness + 0.024, height, box.length]}
     >
       <meshStandardMaterial
-        color="#eeece6"
+        color={color}
         roughness={0.55}
         metalness={0}
         polygonOffset
@@ -673,6 +680,29 @@ function PlanLevelShell({
   // wall between two differently-offset rooms picks up ONE side's offset (the
   // probe direction below) — an acceptable simplification at the mm-scale steps
   // this feature models (see floorLevels3d.ts's module header).
+  // Crown-molding strips at the wall–ceiling junction, carrying each wall's
+  // optional per-wall override (height / colour / hidden), mirroring `skirtings`.
+  // Built per wall (not from the flattened `boxes`) so the override is in scope.
+  // Only full-height spans get trim: a half-wall or a sloped wedge has no
+  // ceiling junction to run a cornice along.
+  const crowns = useMemo(() => {
+    if (!crownMolding) return []
+    const out: { box: WallBox; height: number; color: string; isExterior: boolean }[] = []
+    for (const w of lp.walls) {
+      const cm = w.crown
+      if (cm?.hidden) continue
+      const height = cm?.height && cm.height > 0 ? cm.height : DEFAULT_CROWN_HEIGHT_M
+      const color = cm?.color ?? DEFAULT_CROWN_COLOR
+      const isExterior = w.thickness === 'external'
+      for (const box of wallBoxes(lp, w)) {
+        if (box.cy + box.height / 2 >= lp.ceilingHeight - 0.01) {
+          out.push({ box, height, color, isExterior })
+        }
+      }
+    }
+    return out
+  }, [lp, crownMolding])
+
   const skirtings = useMemo(() => {
     const out: {
       box: WallBox
@@ -998,22 +1028,22 @@ function PlanLevelShell({
       ))}
 
       {/* Crown molding at the wall–ceiling junction (full-height spans only),
-          fading/hiding with its wall so the reveal is floor-to-ceiling. */}
-      {crownMolding &&
-        boxes
-          .filter(({ box: b }) => b.cy + b.height / 2 >= lp.ceilingHeight - 0.01)
-          .map(({ box: b, isExterior }, i) => (
-            <FadeCrown
-              key={`cm${i}`}
-              box={b}
-              ceilingHeight={lp.ceilingHeight}
-              isExterior={isExterior}
-              isInterior={isInterior}
-              cx={cx}
-              cz={cz}
-              neighborIds={neighbors.get(b.wallId) ?? NO_NEIGHBORS}
-            />
-          ))}
+          fading/hiding with its wall so the reveal is floor-to-ceiling. Carries
+          the per-wall height/colour/hidden override. */}
+      {crowns.map(({ box: b, height, color, isExterior }, i) => (
+        <FadeCrown
+          key={`cm${i}`}
+          box={b}
+          ceilingHeight={lp.ceilingHeight}
+          height={height}
+          color={color}
+          isExterior={isExterior}
+          isInterior={isInterior}
+          cx={cx}
+          cz={cz}
+          neighborIds={neighbors.get(b.wallId) ?? NO_NEIGHBORS}
+        />
+      ))}
 
       {/* Doorway threshold strips — floor patches under door openings so the
           wall-thickness slot isn't a hole (DOOR-GAP-LEAK, Thresholds analog). */}
@@ -1268,7 +1298,7 @@ function FadeWindow({
       )}
       {cables.length > 0 && (
         <InstancedCylinders instances={cables} radialSegments={6}>
-          <meshStandardMaterial
+          <MetalMaterial
             color="#d7dade"
             roughness={0.3}
             metalness={0.7}

@@ -1,0 +1,274 @@
+{
+  "name": "ca-07-themes-contrast",
+  "description": "Audit pass 7 \u2014 every theme in light AND dark (a CLAUDE.md hard rule: every surface works in light + dark + 5 themes). Measures text/background contrast against WCAG AA over dense panel chrome (catalog + inspector + toolbar), not an empty canvas.",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "dismiss-first-run",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "daylight",
+      "eval": "const s = window.__store.getState(); s.setTimeMode('manual'); s.setManualHour(13)"
+    },
+    {
+      "name": "enter-room",
+      "store": {
+        "action": "enterRoomEditor",
+        "args": [
+          "livingDining"
+        ]
+      }
+    },
+    {
+      "name": "settle-room",
+      "wait": 1500
+    },
+    {
+      "name": "open-catalog",
+      "store": {
+        "action": "setCatalogOpen",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "catalog-mounted",
+      "waitFor": {
+        "css": ".panel.catalog, .catalog"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "select-item",
+      "eval": "const s = window.__store.getState(); const it = s.items.find(i => i.defId === 'sofa-3seat') ?? s.items[0]; s.selectItem(it.id)"
+    },
+    {
+      "name": "settle-ui",
+      "wait": 1200
+    },
+    {
+      "name": "theme-clay-light",
+      "eval": "const s = window.__store.getState(); s.setTheme('clay'); s.setModePref('light')"
+    },
+    {
+      "name": "settle-clay-light",
+      "wait": 600
+    },
+    {
+      "name": "probe-clay-light",
+      "probe": {
+        "checks": [
+          "contrast",
+          "clipped",
+          "assets"
+        ]
+      }
+    },
+    {
+      "name": "shot-clay-light",
+      "screenshot": "clay-light"
+    },
+    {
+      "name": "theme-clay-dark",
+      "eval": "const s = window.__store.getState(); s.setTheme('clay'); s.setModePref('dark')"
+    },
+    {
+      "name": "settle-clay-dark",
+      "wait": 600
+    },
+    {
+      "name": "probe-clay-dark",
+      "probe": {
+        "checks": [
+          "contrast",
+          "clipped",
+          "assets"
+        ]
+      }
+    },
+    {
+      "name": "shot-clay-dark",
+      "screenshot": "clay-dark"
+    },
+    {
+      "name": "theme-kampong-light",
+      "eval": "const s = window.__store.getState(); s.setTheme('kampong'); s.setModePref('light')"
+    },
+    {
+      "name": "settle-kampong-light",
+      "wait": 600
+    },
+    {
+      "name": "probe-kampong-light",
+      "probe": {
+        "checks": [
+          "contrast",
+          "clipped",
+          "assets"
+        ]
+      }
+    },
+    {
+      "name": "theme-kampong-dark",
+      "eval": "const s = window.__store.getState(); s.setTheme('kampong'); s.setModePref('dark')"
+    },
+    {
+      "name": "settle-kampong-dark",
+      "wait": 600
+    },
+    {
+      "name": "probe-kampong-dark",
+      "probe": {
+        "checks": [
+          "contrast",
+          "clipped",
+          "assets"
+        ]
+      }
+    },
+    {
+      "name": "shot-kampong-dark",
+      "screenshot": "kampong-dark"
+    },
+    {
+      "name": "theme-porcelain-light",
+      "eval": "const s = window.__store.getState(); s.setTheme('porcelain'); s.setModePref('light')"
+    },
+    {
+      "name": "settle-porcelain-light",
+      "wait": 600
+    },
+    {
+      "name": "probe-porcelain-light",
+      "probe": {
+        "checks": [
+          "contrast",
+          "clipped",
+          "assets"
+        ]
+      }
+    },
+    {
+      "name": "theme-porcelain-dark",
+      "eval": "const s = window.__store.getState(); s.setTheme('porcelain'); s.setModePref('dark')"
+    },
+    {
+      "name": "settle-porcelain-dark",
+      "wait": 600
+    },
+    {
+      "name": "probe-porcelain-dark",
+      "probe": {
+        "checks": [
+          "contrast",
+          "clipped",
+          "assets"
+        ]
+      }
+    },
+    {
+      "name": "shot-porcelain-dark",
+      "screenshot": "porcelain-dark"
+    },
+    {
+      "name": "theme-estate-light",
+      "eval": "const s = window.__store.getState(); s.setTheme('estate'); s.setModePref('light')"
+    },
+    {
+      "name": "settle-estate-light",
+      "wait": 600
+    },
+    {
+      "name": "probe-estate-light",
+      "probe": {
+        "checks": [
+          "contrast",
+          "clipped",
+          "assets"
+        ]
+      }
+    },
+    {
+      "name": "theme-estate-dark",
+      "eval": "const s = window.__store.getState(); s.setTheme('estate'); s.setModePref('dark')"
+    },
+    {
+      "name": "settle-estate-dark",
+      "wait": 600
+    },
+    {
+      "name": "probe-estate-dark",
+      "probe": {
+        "checks": [
+          "contrast",
+          "clipped",
+          "assets"
+        ]
+      }
+    },
+    {
+      "name": "shot-estate-dark",
+      "screenshot": "estate-dark"
+    },
+    {
+      "name": "theme-harbour-light",
+      "eval": "const s = window.__store.getState(); s.setTheme('harbour'); s.setModePref('light')"
+    },
+    {
+      "name": "settle-harbour-light",
+      "wait": 600
+    },
+    {
+      "name": "probe-harbour-light",
+      "probe": {
+        "checks": [
+          "contrast",
+          "clipped",
+          "assets"
+        ]
+      }
+    },
+    {
+      "name": "theme-harbour-dark",
+      "eval": "const s = window.__store.getState(); s.setTheme('harbour'); s.setModePref('dark')"
+    },
+    {
+      "name": "settle-harbour-dark",
+      "wait": 600
+    },
+    {
+      "name": "probe-harbour-dark",
+      "probe": {
+        "checks": [
+          "contrast",
+          "clipped",
+          "assets"
+        ]
+      }
+    },
+    {
+      "name": "shot-harbour-dark",
+      "screenshot": "harbour-dark"
+    },
+    {
+      "name": "restore-theme",
+      "eval": "const s = window.__store.getState(); s.setTheme('clay'); s.setModePref('light')"
+    },
+    {
+      "name": "final-console",
+      "probe": {
+        "checks": [
+          "console"
+        ]
+      }
+    }
+  ]
+}

@@ -62,19 +62,46 @@ describe('detectMaterialChannels', () => {
     expect(a.warnings.some((w) => w.includes('albedo'))).toBe(true)
   })
 
-  it('reports metalness/displacement/ARM as ignored, never as a bound map', () => {
+  it('binds metalness and displacement, and still ignores a combined ARM pack', () => {
+    // These used to be reported as unsupported. The runtime now binds a
+    // metalness map (`metalnessMap`) and ray-marches a height field in the
+    // parallax-occlusion floor path, so they are emitted. A combined ARM/ORM
+    // pack stays ignored: splitting its RGB channels needs a raster pass this
+    // filename-level module deliberately does not do.
     const { channels, ignored } = detectMaterialChannels([
       'm_diff.jpg',
       'm_metallic.jpg',
       'm_disp.jpg',
-      'm_height.jpg',
       'm_arm.jpg',
     ])
-    expect(channels).toEqual({ albedo: 'm_diff.jpg' })
-    const chans = ignored.map((i) => i.channel)
-    expect(chans).toContain('metalness')
-    expect(chans).toContain('displacement')
-    expect(chans).toContain('arm')
+    expect(channels.albedo).toBe('m_diff.jpg')
+    expect(channels.metal).toBe('m_metallic.jpg')
+    expect(channels.height).toBe('m_disp.jpg')
+    expect(ignored.map((i) => i.channel)).toContain('arm')
+  })
+
+  it('binds an opacity map', () => {
+    const { channels } = detectMaterialChannels(['p_color.jpg', 'p_opacity.jpg'])
+    expect(channels.opacity).toBe('p_opacity.jpg')
+  })
+
+  it('picks the ambientCG channel names end to end', () => {
+    const { channels } = detectMaterialChannels([
+      'Metal048C_1K-JPG_Color.jpg',
+      'Metal048C_1K-JPG_NormalGL.jpg',
+      'Metal048C_1K-JPG_NormalDX.jpg',
+      'Metal048C_1K-JPG_Roughness.jpg',
+      'Metal048C_1K-JPG_Metalness.jpg',
+      'Metal048C_1K-JPG_Displacement.jpg',
+    ])
+    expect(channels).toEqual({
+      albedo: 'Metal048C_1K-JPG_Color.jpg',
+      // GL wins over DX — three.js is OpenGL-convention.
+      normal: 'Metal048C_1K-JPG_NormalGL.jpg',
+      rough: 'Metal048C_1K-JPG_Roughness.jpg',
+      metal: 'Metal048C_1K-JPG_Metalness.jpg',
+      height: 'Metal048C_1K-JPG_Displacement.jpg',
+    })
   })
 
   it('ignores non-raster / EXR sources', () => {

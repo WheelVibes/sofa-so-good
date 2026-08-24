@@ -1,0 +1,34 @@
+{
+  "name": "ca-06-menus-themes",
+  "description": "Audit pass 6 — toolbar dropdowns screenshotted AT OPEN with no settle (the TOOLBAR-MENU-VOID stagger bug is only visible 0-600ms after mount), the command palette, and all themes in light + dark for contrast.",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 30000 },
+    { "name": "dismiss-first-run", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "daylight", "eval": "const s = window.__store.getState(); s.setTimeMode('manual'); s.setManualHour(13)" },
+
+    { "name": "open-view-menu", "click": { "text": "View" } },
+    { "name": "view-menu-mounted", "waitFor": { "css": ".menu-item" }, "timeout": 5000 },
+    { "name": "probe-view-menu-void", "probe": { "checks": ["transparent"], "scope": ".pop-panel" } },
+    { "name": "shot-view-menu-at-open", "screenshot": "01-view-menu-at-open" },
+    { "name": "settle-view-menu", "wait": 700 },
+    { "name": "shot-view-menu-settled", "screenshot": "02-view-menu-settled" },
+    { "name": "probe-view-menu", "probe": { "checks": ["overflow", "clipped", "naming", "covered", "contrast"] } },
+    { "name": "close-view-menu", "key": "Escape" },
+
+    { "name": "open-file-menu", "click": { "text": "File" } },
+    { "name": "file-menu-mounted", "waitFor": { "css": ".menu-item" }, "timeout": 5000 },
+    { "name": "probe-file-menu-void", "probe": { "checks": ["transparent"], "scope": ".pop-panel" } },
+    { "name": "shot-file-menu-at-open", "screenshot": "03-file-menu-at-open" },
+    { "name": "settle-file-menu", "wait": 700 },
+    { "name": "shot-file-menu-settled", "screenshot": "04-file-menu-settled" },
+    { "name": "probe-file-menu", "probe": { "checks": ["overflow", "clipped", "naming", "covered"] } },
+    { "name": "close-file-menu", "key": "Escape" },
+
+    { "name": "open-cmdk", "store": { "action": "setCmdkOpen", "args": [true] } },
+    { "name": "cmdk-mounted", "waitFor": { "css": ".cmdk-item" }, "timeout": 8000 },
+    { "name": "shot-cmdk", "screenshot": "05-command-palette" },
+    { "name": "probe-cmdk", "probe": { "checks": ["overflow", "clipped", "naming", "covered", "contrast"] } },
+    { "name": "close-cmdk", "store": { "action": "setCmdkOpen", "args": [false] } },
+    { "name": "final-console", "probe": { "checks": ["console"] } }
+  ]
+}

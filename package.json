@@ -1,7 +1,7 @@
 {
   "name": "sofa-so-good",
   "private": true,
-  "version": "0.28.0",
+  "version": "0.29.3",
   "type": "module",
   "main": "electron/main.mjs",
   "engines": {
@@ -21,6 +21,8 @@
     "test:watch": "NODE_OPTIONS=--no-webstorage vitest",
     "typecheck:worker": "tsc -p tsconfig.worker.json",
     "build-library-index": "node scripts/build-library-index.mjs",
+    "pull-r2-library": "node scripts/pull-r2-library.mjs",
+    "pack-ambientcg": "node scripts/pack-ambientcg.mjs",
     "lint": "biome lint",
     "format": "biome format --write",
     "format:check": "biome format",

@@ -94,11 +94,17 @@ async function fetchAsset(
   const buf = new Uint8Array(await zipRes.arrayBuffer())
   const files = unzipSync(buf)
   const channels: Record<string, Blob> = {}
+  // NormalGL (not NormalDX) — three.js is OpenGL-convention. Displacement feeds
+  // the parallax-occlusion floor path, metalness/opacity the maps of the same
+  // name; the DCC files (.blend/.usdc/.mtlx/.tres) have no browser use.
   const want: { ch: string; re: RegExp; mime: string }[] = [
     { ch: 'albedo', re: /Color\.(jpg|png)$/i, mime: 'image/jpeg' },
     { ch: 'normal', re: /NormalGL\.(jpg|png)$/i, mime: 'image/jpeg' },
     { ch: 'roughness', re: /Roughness\.(jpg|png)$/i, mime: 'image/jpeg' },
     { ch: 'ao', re: /AmbientOcclusion\.(jpg|png)$/i, mime: 'image/jpeg' },
+    { ch: 'metalness', re: /Metalness\.(jpg|png)$/i, mime: 'image/jpeg' },
+    { ch: 'opacity', re: /Opacity\.(jpg|png)$/i, mime: 'image/jpeg' },
+    { ch: 'displacement', re: /Displacement\.(jpg|png)$/i, mime: 'image/jpeg' },
   ]
   for (const [name, bytes] of Object.entries(files)) {
     for (const { ch, re, mime } of want) {

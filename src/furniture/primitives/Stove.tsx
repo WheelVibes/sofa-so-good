@@ -1,5 +1,6 @@
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { applianceBodyMaterial, readStr } from './shared'
 
 /** Freestanding cooker: oven body + cooktop with four burners and front
@@ -39,7 +40,7 @@ export function Stove({ props }: { props: ParamProps }) {
       {/* Handle */}
       <mesh position={[0, cabinetH * 0.78, d / 2 + 0.03]}>
         <boxGeometry args={[w * 0.8, 0.03, 0.03]} />
-        <meshStandardMaterial color="#9aa0a6" roughness={0.3} metalness={0.7} />
+        <MetalMaterial color="#9aa0a6" roughness={0.3} metalness={0.7} />
       </mesh>
       {/* Cooktop */}
       <BeveledBox
@@ -54,7 +55,7 @@ export function Stove({ props }: { props: ParamProps }) {
       {burners.map(([x, z], i) => (
         <mesh key={i} position={[x, cabinetH + topT + 0.005, z]} rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[0.07, 0.012, 8, 20]} />
-          <meshStandardMaterial color="#3a3a3a" roughness={0.5} metalness={0.6} />
+          <MetalMaterial color="#3a3a3a" roughness={0.5} metalness={0.6} />
         </mesh>
       ))}
       {/* Control knobs along the back lip */}

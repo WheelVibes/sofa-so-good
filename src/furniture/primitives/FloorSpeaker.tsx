@@ -1,6 +1,7 @@
 import { RoundedBox } from '@react-three/drei'
 import { getSolidMaterial, getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 
 /**
@@ -55,7 +56,7 @@ export function FloorSpeaker({ props }: { props: ParamProps }) {
       {/* Tweeter near the top */}
       <mesh position={[0, plinthH + cabH - 0.07, faceZ]}>
         <circleGeometry args={[0.022, 20]} />
-        <meshStandardMaterial {...dustMat} />
+        <MetalMaterial {...dustMat} />
       </mesh>
       {/* Woofer cones */}
       {woofers.map((wf, i) => (
@@ -67,7 +68,7 @@ export function FloorSpeaker({ props }: { props: ParamProps }) {
           {/* Centre dust cap */}
           <mesh position={[0, 0, 0.004]}>
             <circleGeometry args={[woofR * 0.32, 16]} />
-            <meshStandardMaterial {...dustMat} />
+            <MetalMaterial {...dustMat} />
           </mesh>
         </group>
       ))}

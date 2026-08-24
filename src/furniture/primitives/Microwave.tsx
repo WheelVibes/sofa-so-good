@@ -1,5 +1,6 @@
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { applianceBodyMaterial, readNum, readStr } from './shared'
 
 /** Countertop microwave: body + glazed door + control strip. Sits at
@@ -37,7 +38,7 @@ export function Microwave({ props }: { props: ParamProps }) {
       {/* Handle */}
       <mesh castShadow position={[0.16, h / 2, d / 2 + 0.02]}>
         <boxGeometry args={[0.02, h * 0.7, 0.02]} />
-        <meshStandardMaterial color="#9aa0a6" roughness={0.3} metalness={0.7} />
+        <MetalMaterial color="#9aa0a6" roughness={0.3} metalness={0.7} />
       </mesh>
     </group>
   )

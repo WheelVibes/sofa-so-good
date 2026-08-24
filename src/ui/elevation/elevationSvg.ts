@@ -25,6 +25,12 @@ export interface ElevationPalette {
   text: string
 }
 
+/** Average glyph advance as a fraction of font size, for fitting a label INSIDE a
+ *  silhouette. Deliberately less conservative than `approxTextWidth`'s 0.62,
+ *  which exists to reserve space between dimension labels — using that here
+ *  rejected names that fit comfortably (a 7-char "Cabinet" in a 1.0m item). */
+const LABEL_CHAR_RATIO = 0.52
+
 // Escape for BOTH text and attribute contexts (these SVGs render via
 // dangerouslySetInnerHTML in-app) — quotes too, so a user string can never break
 // out of an attribute if a future edit places one there.
@@ -125,9 +131,22 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
     if (labels && w > 0.35) {
       // Label centred in the silhouette, scaled to fit (and never upside down).
       const fs = Math.max(0.12, Math.min(0.22, w * 0.28, h * 0.5))
-      parts.push(
-        `<text x="${f(it.x0 + w / 2)}" y="${f(y(h / 2))}" font-size="${f(fs)}" fill="${p.text}" text-anchor="middle" dominant-baseline="middle">${esc(it.label)}</text>`,
-      )
+      // ...clipped to the silhouette. The font size has a 0.12 floor and nothing
+      // measured the text against the box, so a long name on a small piece
+      // ("Three cushions" ≈ 0.9m of text inside a 0.5m item) spilled across its
+      // neighbours and the rotated AFFL dimension labels — the elevation, which
+      // is a deliverable drawing, came out illegible (Chrome audit 2026-08).
+      // Truncating rather than dropping keeps every piece identified; the full
+      // name is still in the item schedule, and the width dimension still sits in
+      // the staggered row below.
+      const maxChars = Math.floor((w * 0.95) / (fs * LABEL_CHAR_RATIO))
+      const label =
+        it.label.length > maxChars ? `${it.label.slice(0, Math.max(1, maxChars - 1))}…` : it.label
+      if (maxChars >= 3 && fs <= h * 0.95) {
+        parts.push(
+          `<text x="${f(it.x0 + w / 2)}" y="${f(y(h / 2))}" font-size="${f(fs)}" fill="${p.text}" text-anchor="middle" dominant-baseline="middle">${esc(label)}</text>`,
+        )
+      }
     }
   }
 
@@ -287,7 +306,14 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
 }
 
 /** Short human caption for a wall elevation (panel + report headings). */
-export function elevationCaption(el: WallElevation, index: number, units: UnitSystem): string {
+export function elevationCaption(
+  el: WallElevation,
+  index: number,
+  units: UnitSystem,
+  /** Room-derived wall name, e.g. "Kitchen wall 04". Falls back to the index so
+   *  callers without the plan's naming (and unmatched walls) still read fine. */
+  name?: string,
+): string {
   const dims = `${formatLength(el.length, units)} × ${formatLength(el.height, units)}`
   const winN = el.openings.filter((o) => o.kind === 'window').length
   const doorN = el.openings.filter((o) => o.kind === 'door').length
@@ -295,5 +321,5 @@ export function elevationCaption(el: WallElevation, index: number, units: UnitSy
   if (winN) bits.push(`${winN} window${winN > 1 ? 's' : ''}`)
   if (doorN) bits.push(`${doorN} door${doorN > 1 ? 's' : ''}`)
   if (el.items.length) bits.push(`${el.items.length} item${el.items.length > 1 ? 's' : ''}`)
-  return `Wall ${index + 1} · ${bits.join(' · ')}`
+  return `${name ?? `Wall ${index + 1}`} · ${bits.join(' · ')}`
 }

@@ -5,6 +5,361 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.29.3.3 — every remaining open audit item closed
+
+- **First paint after dark now keeps the real time and turns the lights on**, replacing the
+  earlier 13:00 clock override — which worked, but silently disagreed with the time shown in the
+  Scene panel. Verified on a genuine cold start at 01:00: warm, legible, and the light toggle
+  reads ON so it is discoverable and reversible.
+- **The last ~65 inline metal accents** bypassed both shared factories and stayed dark on the
+  IBL-less default tier. A hook per site was impossible (many sit inside `.map()` callbacks), so
+  they now route through a new `<MetalMaterial>` component that subscribes to the IBL signal via
+  `useSyncExternalStore`. 105 sites converted — 52 single-line materials plus 53 spreads whose
+  source literal declares `metalness >= 0.4`. Highest metalness with no environment: **0.9 → 0.4**,
+  and switching to `high` restores the full physical value with no remount.
+- **`THREE.Clock` is upstream and not fixable here** — confirmed by installing
+  `@react-three/fiber@9.7.0` (latest) and checking: it still constructs one for its public
+  `state.clock`. The audit probe now tags dependency-owned noise as `upstream` and sorts it last,
+  so it cannot bury a real app warning.
+
+## v0.29.3.2 — the boot screen's only line of text failed WCAG AA in both modes
+
+Found by accident: reconnecting to a restarted Chrome landed on a hidden, throttled tab, so the
+app sat on its boot screen — a surface no scenario can reach (the harness waits out the boot
+before step 1, which is why `waitFor {css:"#boot-loader"}` always times out).
+
+The cycling phrase was `#8a7d68`: **3.07:1** against the outer end of its radial gradient and
+3.46:1 against the inner. Dark mode failed too — `#9a8f7e` measured **4.09:1** against the
+gradient's lighter centre, exactly where the text sits. Now `#6b6049` (4.72/5.32) and `#a89c88`
+(4.82/6.03), passing AA at both ends of both gradients.
+
+Colour literals are correct here rather than tokens: these are inline critical styles in
+`index.html` that run before any token stylesheet loads.
+
+## v0.29.3.1 — the mobile half of the audit: real touch, real phone viewports
+
+The one check the Chrome harness structurally cannot do, finally run: `SHOT_TOUCH=1` at a true
+390×844 phone viewport (and 320px), measuring tap targets **including** the invisible `::after`
+hit-area padding.
+
+- **The headless harness was silently dropping touch emulation.** Puppeteer's `setViewport`
+  REPLACES the whole config, and the scenario `viewport` step omitted `isMobile`/`hasTouch` — so
+  every scenario combining `SHOT_TOUCH=1` with a `viewport` step lost `(pointer: coarse)` from
+  that step onward and stopped exercising touch-gated paths, while still reporting green. Fixed
+  in `interact.mjs`.
+- **"Nudge apart" — the Clearance panel's primary action — was 81×27 on a phone**, ×24 down the
+  list. Now `min-height: 44px` (lifting the height, not adding overlapping expanders, per the
+  project's own precedent for stacked rows).
+- Hit-area expanders for three isolated controls: the getting-started checklist's dismiss ✕, the
+  favourites chip (icon-only, so it needed min-**width**; the existing rule only lifted height),
+  and the bottom sheet's `.sheet-grab` drag handle.
+- **Probe bug, in both harnesses:** `content: ''` computes to the EMPTY STRING, which is falsy in
+  JS — so `if (after.content && ...)` skipped every hit-area expander built that way and reported
+  compliant 26px icon buttons (26 + 2×9 = 44) as violations.
+
+Result at 390px with touch: **0 undersized tap targets** on the home screen, in the catalog
+sheet, and in a Pro panel. No horizontal overflow at 390px or 320px, and nothing off-screen at
+320px.
+
+Also corrected a wrong claim I had put in CLAUDE.md and the harness doc: tap-target sizing is
+gated on `@media (max-width: 960px)` — **width, not pointer** — so Chrome at a narrow window
+does apply it. Chrome's real limits are the ~606px window clamp and coarse-pointer JS paths.
+
+## v0.29.3.0 — per-wall crown molding, and the material model grows three real map slots
+
+Two gaps surfaced by putting a dark brick scan on a wall: the trim couldn't follow it, and half of
+what a PBR scan ships had nowhere to go.
+
+- **Crown molding is customizable per wall.** `FadeCrown` hardcoded `#eeece6` and a 0.07 m height
+  with no override of any kind, while skirting had a full one — so trim read as an obvious mismatch
+  the moment a wall took a dark finish, and the only control was the feature flag. `PlanWall.crown`
+  now mirrors `PlanWall.baseboard` exactly (`{ height?, color?, hidden? }`, additive/back-compat),
+  edited in `WallInspector`, scaled by `rescalePlan`, round-tripped by the schema. The `crowns`
+  memo is built from `lp.walls` rather than the flattened `boxes` so the override is in scope —
+  the same reason `skirtings` is. Both defaults moved to `floorplan/types.ts` so a UI inspector no
+  longer has to import from the 3D `PlanShell` to know them. Trim stays deliberately off-white by
+  default (correct over painted plaster); the override is the escape hatch.
+- **`metalnessMap` is bound, and a map now drives the scalar to 1.** Metalness was a scalar only,
+  so a scan with rust, patina or worn plating (198 of the 1121 ambientCG assets ship a map) could
+  not be expressed. three MULTIPLIES the scalar by the map, so leaving the default 0 would have
+  silently zeroed the map out — the scalar is forced to 1 and the scan decides which texels
+  are metal. With **no environment to reflect** the scalar is capped at the existing
+  `NO_IBL_METALNESS` (0.25) and the cache entry is IBL-scoped so a tier switch rebuilds: a fully
+  metallic surface has no diffuse term, which is the documented reason that constant exists for the
+  procedural metal presets. This is **consistency with that established policy, applied defensively
+  — not a fix for a reproduced regression**; the visual difference on a metal scan at the
+  Performance tier is unverified (see the note below).
+- **`alphaMap` is bound via alpha-TEST, not blending.** Perforated grates, mesh and open-weave
+  fabric are binary cutouts, so a cutout is both cheaper and more correct — and critically, a
+  blended surface would join the sorted transparent pass and fight the wall-reveal fade, which
+  animates `opacity` on these very materials.
+- **Displacement finally has a consumer: POM on photo scans.** three's `displacementMap` displaces
+  VERTICES and the shell's floors are low-poly boxes with nothing to subdivide, so binding it would
+  do nothing. Instead `pomPhotoFloorEligible` + `buildPomPhotoFloorMaterial` run the existing
+  parallax-occlusion shader patch over a scan's height field, so a photo tile floor's grout
+  genuinely recedes and occludes instead of being faked by the normal map — previously POM was
+  procedural-patterns-only. Differences from that path, all deliberate: depth is one conservative
+  constant (a scan carries no pattern label to look up), a displacement map is a hard requirement
+  (nothing to synthesise from), the `aomap_fragment` include is patched too (scans usually ship AO
+  and sampling it unshifted would slide it out from under the parallax-shifted albedo), and the
+  cache disposes only the material — its textures come from drei's URL-keyed `useTexture` and are
+  shared with the plain material for the same finish.
+- **The asset pipeline promotes metalness/displacement/opacity from "recognised but unsupported"
+  to emitted channels**, and `pack-ambientcg` emits all seven. A combined ARM/ORM pack stays
+  ignored — splitting its RGB needs a raster pass that filename-level module deliberately doesn't do.
+- **Unverified / open:** photo *wall* finishes did not render at the Performance tier in the
+  Chrome session used to check this work — a scan with **no** metalness map (Bricks030) rendered
+  equally flat grey there, so the appearance is NOT attributable to the metalness binding. The
+  finish was set on all 11 rooms and the textures served 200/image-webp, so the cause is
+  unidentified (possibly the page state after repeated HMR reloads while material modules were
+  being edited). Wall finishes rendered correctly at Maximum in the same session. Worth a fresh
+  look before relying on the Performance-tier appearance of any photo wall finish.
+- **Dev/prod parity fix:** the dev API's R2 mirror mapped keys for the legacy `ikea_optimized/`
+  layout only (`library/index.json` → `library-index.json`, `ikea/` stripped), so it **could not
+  express an `acg/` prefix at all**. `makeR2FS` now prefers the true R2-shaped layout — exactly what
+  `pull-r2-library` writes into `resources/` — falling back to the legacy tree.
+
+## v0.29.2.1 — plan room labels get the halo every other plan layer already had
+
+Measured instead of argued: intersecting each room label's box against the door-arc paths showed
+**3 of 11 labels colliding, the worst with 56% of its box over an arc**. A placement search was
+the wrong tool — the offenders are tight rooms (a 1.0 m-deep corridor, a 1.42 m-wide service
+yard) where the label has nowhere to move.
+
+`DimensionsLayer`, `FurnitureLayer`, `MepLayer` and `DraftOverlayLayer` all already draw text
+with `paintOrder: stroke` + a `--surface` halo; room labels were the only layer without it. Now
+they have it, so the glyphs punch a gap through whatever they cross — no layout change.
+
+## v0.29.2.0 — ambientCG CC0 material library, mirrored into R2 and prod-enabled
+
+Turns the 1121-asset ambientCG corpus into a browsable in-app material library, and in doing so
+closes the long-standing "ambientCG prod needs a CORS proxy" infra blocker (`TODO.md`) — not by
+standing up a proxy, but by removing the third-party dependency entirely.
+
+- **ambientCG now works in production.** Its API and CDN send no `Access-Control-Allow-Origin`,
+  which is why `PROD_PROVIDER_IDS` was Poly Haven only and the live provider was dev-proxy bound.
+  The corpus is now mirrored into our own R2 bucket under `acg/` and served same-origin through
+  the existing auth-gated `/api/assets` proxy. `PROVIDERS.ambientcg` dispatches **per call**
+  between the two transports on the `ambientcgLibrary` flag, so a runtime toggle needs no reload
+  — and both keep the `ambientcg` provider id, so `ambientcg:<slug>:<res>` finish ids round-trip
+  across either and previously-saved designs keep resolving.
+- **The packer emits only what the renderer binds.** `cache.ts` binds exactly four maps, so
+  `scripts/pack-ambientcg.mjs` keeps albedo / normal (GL) / roughness / AO and drops NormalDX,
+  Displacement, Metalness, Opacity, `.blend`, `.usdc`, `.mtlx`, `.tres` and the preview PNG —
+  half the corpus, none of which has a slot in `TexturedMaterialDef.textures`. Metalness is a
+  scalar in this codebase, never a map.
+- **Near-lossless WebP, not lossy — footprint must not cost visual quality.** Lossy WebP (VP8)
+  is always YUV 4:2:0 with no 4:4:4 mode, and a normal map stores X/Y in R/G: subsampling caps
+  fidelity at ~22 dB PSNR *regardless of the quality setting* (`smartSubsample` does not help,
+  and ambientCG ships these JPEGs 4:4:4 for exactly this reason). AVIF does 4:4:4 but tops out
+  near 36 dB with 26–53/255 channel errors and decodes far slower. Near-lossless holds **46 dB
+  with a max channel error of 2/255** at ~63% of source. 7.3 GB extracted → **2.30 GB** packed.
+- **`uvScale` is assigned per family.** A remote material with no curated entry defaults to
+  `[1, 1]` — one metre per tile, wrong for essentially every one of these, and wrong physical
+  scale is the most obvious photoreal tell. The manifest also carries a mean-albedo `swatch`
+  and an `interior` flag so the 168 exterior-only scans can be filtered without a re-upload.
+- **The manifest lands at `library/acg-index.json`, not `acg/index.json`.** `server/assets.ts`
+  exempts only the `library/` prefix from the year-long immutable cache; a manifest cached
+  immutably would outlive its own fix by up to a year.
+- **New `scripts/push-r2-library.mjs`** (upload counterpart to the pull script) with the shared
+  SigV4 client extracted to `scripts/lib/r2-client.mjs`. Both are idempotent by size match.
+- Verified in Chrome against the real renderer: Simple mode hides the flag and keeps prod on
+  Poly Haven only, Pro enables it and adds ambientCG; packed maps applied as floor/wall finishes
+  render at eye level with crisp mortar lines, intact per-brick colour variation and visible
+  normal relief at grazing angles — no chroma bleeding, no blocking, no new console errors.
+
+## v0.29.1.3 — every large metal surface now reads correctly on the default tier
+
+Finishes the black-metal bug, and corrects last round's conclusion: counting metallic materials
+said "26 bypass the factories"; measuring their world-space area said only **8 surfaces exceed
+0.4 m²** — interior door leaves (0.8 × 2.1 m at metalness 0.85) and wardrobe frame panels. The
+rest are small accents or intentionally dark parts.
+
+- **Door leaves were cached uncapped** because the shell builds its materials during the first
+  mount, before `SceneEnvironment`'s effect could set the IBL signal. Flipping the signal's
+  default to `false` broke four tests that rightly assert the physical presets (brushed brass at
+  0.95), so the state is now pushed from the store — `syncIblFromTier()` seeded at module load
+  and called on every tier change. Module init precedes any React mount.
+- **`Wardrobe.tsx`** spread its frame metal inline; it now routes through `getSolidMaterial` and
+  inherits the cap.
+
+Large metallic surfaces on the default tier: **8 → 0**, verified on a fresh boot.
+
+## v0.29.1.2 — audit round 6: accounts audited, second black-metal path closed
+
+- **Sign-in screen audited** (the dev backend was up the whole time — `/api/health` 200 via the
+  Vite proxy). Probes completely clean, fully keyboard-reachable, and correctly wired for
+  password managers (`autocomplete=username` / `current-password` with aria-labels). No
+  credentials were entered.
+- **Second black-metal path closed.** `applianceBodyMaterial` only sends a `steel` finish to the
+  brushed-metal factory; every other finish goes through `getSolidMaterial`, which had no
+  no-IBL cap. It has one now.
+- Harness: the `covered` probe treats any visible `[role="dialog"]` as an overlay, not just the
+  app's `.modal-overlay` class — the login screen is the former, which made it report the 13
+  controls behind it.
+
+Known boundary: 26 metallic materials are still built inline in primitive JSX and bypass both
+factories; routing those through the shared helpers is a multi-file refactor, logged rather
+than rushed.
+
+## v0.29.1.1 — pull the private R2 asset library back down into `resources/`
+
+- **`npm run pull-r2-library` mirrors the `sofa-assets` R2 bucket to disk.** The deployment
+  guide only ever documented the *upload* half (`rclone copy … → r2:sofa-assets/ikea`), so
+  re-hydrating a machine from the bucket meant hand-rolling an rclone invocation with the
+  right `no_check_bucket` and prefix rules. `scripts/pull-r2-library.mjs` speaks the S3 API
+  with hand-rolled SigV4 (no `rclone`/`aws` install needed): `ListObjectsV2` over `ikea/` and
+  `library/`, then parallel GETs into `resources/<key>`. It is **resumable** — any local file
+  whose size already matches the object's `Content-Length` is skipped — so an interrupted
+  3.6 GB / 14k-object pull re-runs cheaply.
+- **Credentials resolve environment → `.r2.env` → rclone remote,** so a machine already
+  configured for the upload needs no new secret: the account id is derived from the remote's
+  `…r2.cloudflarestorage.com` endpoint, which is the only place rclone records it. The script
+  prints which source it used. `.r2.env` is gitignored.
+- **`resources/` is now gitignored.** It holds non-redistributable IKEA GLBs plus multi-GB
+  ambientCG zips and was one `git add -A` away from being committed.
+
+## v0.29.1.1 — audit round 5: black metals at the default tier, second render-phase setState
+
+- **Every metallic surface rendered BLACK on the default tier.** The kitchen appliances are
+  light stainless (`#d8dade` / `#cfd2d6`) at `metalness 0.9`, but a fully metallic PBR surface
+  has no diffuse term — it shows only reflected environment — and Performance runs `ibl: false`,
+  so `scene.environment` is null and they had nothing to reflect. That is what made the default
+  kitchen read as a grey box. `getMetalMaterial` now caps metalness while no environment is
+  active, keyed into its cache so switching tiers rebuilds. The IBL state is a small signal
+  module rather than a store read: importing the store into the material layer pulled
+  `resolveFlags` into 22 tests' module mocks and broke them.
+- **A second `setState` during render.** `SceneReadySignal` subscribed to drei's `useProgress()`
+  but only read it inside `useFrame` — the same defect fixed in `RenderPump` last round, firing
+  on plan-editor entry. Now read imperatively; cold boot re-verified, since this component is
+  what lifts the boot loader.
+
+AI surfaces (design chat, style quiz, style transfer) and multi-level plans audited — both
+clean. Round 5 adds a seventh retraction: `addLevel` works fine; storeys live under
+`plan.upperLevels`, not `plan.levels`.
+
+## v0.29.1.0 — audit round 4: drawings, analysis panels and plan labels
+
+Closes the P2s deferred at the end of round 3, all found by the Chrome audit harness.
+
+- **Elevation drawings collided their own labels.** Item names are drawn centred in each
+  silhouette with the font clamped to a 0.12 floor and nothing measuring the text against the
+  box, so "Three cushions" rendered ~0.9m wide inside a 0.5m item and ran across its neighbours
+  and the rotated AFFL dimensions — in a drawing meant to be handed to a contractor. Labels are
+  now truncated to fit; the piece stays identified and its width dimension is unchanged.
+- **Analysis panels now say what they are talking about.** Accessibility listed seven identical
+  `Door · 0.80 m` rows ("widen to ≥ 0.85 m" — but which one?) and Drawings offered
+  `Wall 1 … Wall 37`. Both now reuse the plan editor's own room→element naming
+  (`Main Bedroom door 01`, `Kitchen wall 04`), including the elevation caption. The seeded
+  default plan has no element names — auto-naming only runs on room add/rename — which is
+  exactly why these lists were anonymous.
+- **Room labels no longer force unwrappable detail lines into narrow rooms.** `roomLabelDetail`
+  judged detail from area alone, so a long thin service yard or bath/WC could qualify for
+  `P 7.24 m` / `0/2 sockets`, neither of which wraps. It now considers on-screen width, and the
+  socket line is gated to full detail.
+- **Three preview canvases requested a deprecated shadow type.** `ConfiguratorPreview`,
+  `ParametricPreview` and the GLB `DesignerViewport` passed a bare `shadows`, whose r3f default
+  is `PCFSoftShadowMap` — deprecated in three r184, which warns and silently downgrades to PCF.
+  Now explicit.
+- Harness: probes are screen-reader-aware and disclosure-aware, and audit scenarios start from
+  an asserted clean baseline — `ca-11`'s first run reported 30 "covered controls" that were
+  simply state left open by an earlier run. New scenarios `ca-11`, `ca-12`.
+
+Moodboard, comments, saved views, staging reveal, time compare, the configurator, the GLB
+designer and every walk-mode interaction probe clean. Full findings, and the six retracted
+false positives that hardened the probes, in `docs/audit/chrome-interactive-audit-2026-08.md`.
+
+## v0.29.0.2 — audit round 3: Smart Start / history / rooms / File menu
+
+Final sweep of the surfaces the first two rounds never opened.
+
+- **Verified correct, not just rendered:** undo/redo round-trips a delete exactly
+  (count drops by one → undo restores → redo re-applies), room switching follows the store,
+  Smart Start probes clean, and the File menu (31 entries) has no void, overflow, clipped text
+  or contrast failures.
+- **The longest trade-pack names were unreadable** — each row is `[name truncate][Open / Print]`
+  in a fixed 256px menu (~108px for the name), and the tooltip showed the pack's *scope* rather
+  than its name, so "Curtains & blinds vendor" was readable nowhere. Menu widened to 304px and
+  the tooltip now leads with the name.
+- Harness: probes now skip **screen-reader-only** elements. The app's polite "Item deleted"
+  live region (`role="status"`, `clip-path: inset(50%)`) was being reported as text clipped to
+  1px — correct a11y markup misread as a layout bug. New scenario `ca-10`.
+
+Round 3 adds one more retraction to the record; see
+`docs/audit/chrome-interactive-audit-2026-08.md` for all four and the rule they produced
+(reproduce through the real UI before believing a store-driven finding).
+
+## v0.29.0.1 — audit round 2: eight more fixes (toolbar overlap, palette search, render-phase setState)
+
+Second sweep with the Chrome harness — themes, daylight/moods/finishes, and the Pro tool
+surfaces — plus the fixes it turned up. All verified in a live tab, not just by tests.
+
+- **"Exit room" was unclickable whenever the catalog was open.** `.toolbar` capped its width
+  with `100vw` while being centred inside `.stage-area` (already inset by the dock rails), so
+  with both docks open the island overflowed under them: the back button sat at 202..238,
+  fully beneath the 0..320 catalog. Clamping to `100%` (the stage) hands overflow to the
+  existing `.toolbar-scroll` affordances instead of hiding controls.
+- **`setState` during render.** `RenderPump` subscribed to drei's `useProgress()`, which drei
+  updates from its loading manager mid-render — so rendering a textured floor finish set state
+  on a mounted component ("Cannot update a component (RenderPump) while rendering a different
+  component (TexturedRoomFloor)"). The value was only ever read once per frame, so it is now
+  read imperatively in the rAF loop; no subscription, no warning.
+- **The command palette could not find "measure"** even though the command exists and is
+  enabled — the filter matched `label` only, and that command is labelled "Toggle dimension
+  labels". It now matches on id and an optional `keywords[]` too.
+- **Two dock panels could stack in one slot.** Every entry point calls `closeAllAuxPanels`
+  except the on-canvas Budget pill, which called `toggleBudget()` directly.
+- **An unknown render tier produced invisible geometry.** `resolveQuality` spread `undefined`
+  for a tier not in the table, so `geometryDetail` was `undefined` → `seg()` → NaN segments →
+  meshes that render as nothing. Since `qualityTier` is persisted, a renamed tier would do
+  this to returning users; it now falls back to a real preset.
+- **Design-score bars encoded severity invisibly** in the default theme — `--accent` and
+  `--danger` are ~22° apart in hue in clay, so 100/100 and 50/100 looked identical. Passing
+  bars now use `--ok`.
+- Catalog tile names wrap to two lines instead of truncating in every theme; the tour's
+  Orbit/Walk rows no longer both claim the `V` shortcut.
+- Harness: the driver now **refuses to step a hidden tab** (rAF is throttled there, so
+  captures are stale and waits time out) — it waits for focus, then suspends with a `focus`
+  directive. New scenarios `ca-07`…`ca-09`.
+
+Themes verified: all five × light/dark measured over dense panel chrome — **zero contrast
+failures**. Full findings, including three retracted false positives and why, in
+`docs/audit/chrome-interactive-audit-2026-08.md`.
+
+## v0.29.0.0 — Chrome interactive audit harness + first round of audit fixes
+
+**New harness.** `scripts/lib/chrome-audit/driver.js` drives the app through a **real Chrome
+tab** (Claude-in-Chrome) using the same step vocabulary as `shot.mjs --scenario`, plus audit
+probes (console / overflow / clipped / naming / contrast / covered / tapTargets / transparent /
+assets / ids). Six curated audit scenarios live in `scripts/scenarios/chrome/ca-*.json`; the
+how-to is `docs/chrome-interactive-audit.md` and the findings log is
+`docs/audit/chrome-interactive-audit-2026-08.md`. Visual verification now **prefers Chrome**
+and falls back to `shot.mjs` (CLAUDE.md + playbook updated) — the headless harness stays
+authoritative for touch/`pointer: coarse` gating and true phone viewports.
+
+The existing 465 puppeteer scenarios were checked before any porting: all 209 store actions
+they reference still exist, and every "missing" label is a composed/dynamic string. No
+evidence of broad staleness, so nothing was deleted wholesale.
+
+**Fixes found by the audit:**
+
+- **A cold start after dark opened to a pitch-black flat.** `timeMode` defaults to `'system'`,
+  so booting at 20:00 rendered all 87 seeded items invisible — through onboarding, the whole
+  9-step tour and the location prompt. A fresh seed now pins the first paint to daylight
+  (`ensureDaylightFirstPaint`, bootstrap `seed` step); returning designs and any explicit user
+  choice are untouched.
+- **`Done` was off-screen in the 2D plan editor at 1200px.** The header scrolls
+  (`scrollWidth 1584` vs `clientWidth 1200`) with no affordance, so the only way out of the
+  editor — plus the zoom stepper, `View`, and the area readout — sat past the right edge. The
+  trailing cluster is now sticky with an edge fade.
+- **"Sloped" could not be clicked.** The ceiling-style seg measured 301px inside a 256px
+  properties panel with `overflow: visible`. Segmented controls in panel bodies now wrap
+  (scoped — wrapping `.seg` globally stacked the plan toolbar's segs vertically).
+- **The catalog hid 15 of its 17 categories.** 1738px of chips in a 319px rail with the
+  scrollbar hidden and no fade; a right-edge mask restores the "more this way" cue.
+- **The tour contradicted its own numbering** ("STEP 2 OF 9" against a title reading
+  "1 · Look around"); the redundant title prefixes are gone.
+
 ## v0.28.0.2 — portable harness mutex (shot.mjs runs on macOS) + all 12 advisories cleared
 
 **`scripts/shot.mjs` could not run on macOS at all.** It serialised runs by

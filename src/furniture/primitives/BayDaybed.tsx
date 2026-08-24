@@ -2,6 +2,7 @@ import { RoundedBox } from '@react-three/drei'
 import { getSurfaceMaterial, getUpholsteryMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 
 /** Bay-window daybed / window bench — a freestanding sit-and-recline bench sized
@@ -60,7 +61,7 @@ export function BayDaybed({ props }: { props: ParamProps }) {
             />
             <mesh castShadow position={[cx, dy, faceZ + 0.03]}>
               <boxGeometry args={[dw * 0.32, 0.02, 0.02]} />
-              <meshStandardMaterial {...metal} />
+              <MetalMaterial {...metal} />
             </mesh>
           </group>
         )

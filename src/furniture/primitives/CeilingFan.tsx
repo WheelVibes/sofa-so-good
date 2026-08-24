@@ -6,6 +6,7 @@ import { pulseShadowRefreshForMotion } from '../../scene/shadowRefreshSignal'
 import { useAnimatedSource } from '../../scene/useAnimatedSource'
 import { useStore } from '../../state/store'
 import type { ParamProps } from '../types'
+import { MetalMaterial } from './MetalMaterial'
 import { readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
@@ -42,12 +43,12 @@ export function CeilingFan({ props }: { props: ParamProps }) {
       {/* Downrod */}
       <mesh position={[0, 0.2, 0]}>
         <cylinderGeometry args={[0.018, 0.018, 0.4, 8]} />
-        <meshStandardMaterial color="#3a3a3a" roughness={0.4} metalness={0.6} />
+        <MetalMaterial color="#3a3a3a" roughness={0.4} metalness={0.6} />
       </mesh>
       {/* Motor housing */}
       <mesh castShadow position={[0, 0, 0]}>
         <cylinderGeometry args={[0.1, 0.12, 0.12, seg(20, detail)]} />
-        <meshStandardMaterial color="#d8d8d4" roughness={0.4} metalness={0.5} />
+        <MetalMaterial color="#d8d8d4" roughness={0.4} metalness={0.5} />
       </mesh>
       {/* Light */}
       <mesh position={[0, -0.09, 0]}>

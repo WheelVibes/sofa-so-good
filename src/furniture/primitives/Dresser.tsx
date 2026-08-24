@@ -2,6 +2,7 @@ import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import { drawerSlideDistance, isCabinetOpen } from '../cabinetOpen'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { SlideDrawer } from './openable'
 import { readNum, readStr } from './shared'
 
@@ -58,13 +59,13 @@ export function Dresser({ props }: { props: ParamProps }) {
               {handle === 'knob' && (
                 <mesh position={[x, y, depth / 2 + 0.03]}>
                   <sphereGeometry args={[0.018, 12, 10]} />
-                  <meshStandardMaterial {...metal} />
+                  <MetalMaterial {...metal} />
                 </mesh>
               )}
               {handle === 'bar' && (
                 <mesh position={[x, y, depth / 2 + 0.028]}>
                   <boxGeometry args={[Math.min(dw * 0.5, 0.16), 0.016, 0.018]} />
-                  <meshStandardMaterial {...metal} />
+                  <MetalMaterial {...metal} />
                 </mesh>
               )}
               {handle === 'recessed' && (
@@ -91,7 +92,7 @@ export function Dresser({ props }: { props: ParamProps }) {
                 {/* Housing: from the wheel up into the body underside */}
                 <mesh castShadow position={[cx, legH - 0.015, cz]}>
                   <cylinderGeometry args={[0.016, 0.016, 0.03, 10]} />
-                  <meshStandardMaterial color="#2b2b2b" roughness={0.5} metalness={0.5} />
+                  <MetalMaterial color="#2b2b2b" roughness={0.5} metalness={0.5} />
                 </mesh>
                 {/* Wheel: touches the floor at y=0 */}
                 <mesh castShadow position={[cx, wheelR, cz]} rotation={[0, 0, Math.PI / 2]}>

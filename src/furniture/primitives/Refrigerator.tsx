@@ -1,5 +1,6 @@
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
+import { MetalMaterial } from './MetalMaterial'
 import { applianceBodyMaterial, readNum, readStr } from './shared'
 
 /** Appliance bodies read better with a slightly rounder edge than furniture
@@ -37,7 +38,7 @@ export function Refrigerator({ props }: { props: ParamProps }) {
       {[split + (height - split) / 2, split / 2].map((cy, i) => (
         <mesh key={i} castShadow position={[-width / 2 + 0.07, cy, depth / 2 + 0.03]}>
           <boxGeometry args={[0.03, i === 0 ? height - split - 0.2 : split - 0.2, 0.04]} />
-          <meshStandardMaterial {...handleMat} />
+          <MetalMaterial {...handleMat} />
         </mesh>
       ))}
     </group>

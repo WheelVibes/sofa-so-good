@@ -243,10 +243,16 @@ server.listen(PORT, () => {
       ? '[dev-api] admin seed: credentials loaded from .dev.vars'
       : '[dev-api] no ADMIN_EMAIL/ADMIN_PASSWORD in .dev.vars — login will have no accounts',
   )
-  const libIndex = join(libraryDir, 'library-index.json')
+  // Report whichever mirror layout is present (see `makeR2FS`): the R2-shaped
+  // tree written by `pull-r2-library`, or the legacy flat `library-index.json`.
+  const mirrors = [
+    ['ikea', join(libraryDir, 'library', 'index.json')],
+    ['ikea', join(libraryDir, 'library-index.json')],
+    ['ambientcg', join(libraryDir, 'library', 'acg-index.json')],
+  ].filter(([, f]) => existsSync(f))
   console.log(
-    existsSync(libIndex)
-      ? `[dev-api] shared library: ${libraryDir} (admin catalog will populate from disk)`
-      : `[dev-api] shared library dir not found (${libraryDir}) — run 'npm run build-library-index' or set DEV_LIBRARY_DIR; shared catalog stays empty`,
+    mirrors.length
+      ? `[dev-api] shared library: ${libraryDir} (${[...new Set(mirrors.map(([n]) => n))].join(' + ')} manifests found)`
+      : `[dev-api] no library manifest under ${libraryDir} — run 'npm run build-library-index' / 'pull-r2-library', or set DEV_LIBRARY_DIR; shared catalog stays empty`,
   )
 })
