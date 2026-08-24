@@ -1614,15 +1614,23 @@ intermittent and tier-dependent. Rules learned the hard way (v0.29.3.4, FINISH-D
   `material.color`. `o.visible === false` on a finish surface means React has HIDDEN it (a
   suspended subtree) — not a fade; the wall-reveal fade shows up as `opacity`/`transparent` instead.
 
-### The ambientCG R2 library needs a dev API that can see the mirror (else a silent 404)
-Reproducing anything with a real `ambientcg:<slug>:1k` finish needs three things, or
-`acgLibrary.fetchIndex` throws `ambientCG library 404` / `401` and the finish quietly stays on its
-fallback: the dev API pointed at the mirror (`DEV_LIBRARY_DIR=resources npm run dev:api`, since the
-default `ikea_optimized/` tree has no `library/acg-index.json` + `acg/`), an **admin login** from
-the page (`/api/assets/*` is auth-gated — `fetch('/api/auth/login', …)` in a scenario `eval` works
-and the cookie applies to the loads), and **Pro mode** (`setUiMode('pro')`) because the R2 transport
-is chosen by the `ambientcgLibrary` flag, which is `tier: 'pro'` — in Simple mode the provider falls
-back to the live ambientcg.com API, which needs the internet.
+### Driving a real ambientCG (R2) finish in a scenario: mirror + login + Pro mode
+Since v0.29.3.5 the dev API finds the mirror itself (`resources/` then `ikea_optimized/` — see
+`scripts/lib/devLibraryMirror.ts`), so `npm run dev` is enough **if** the repo has `resources/`
+(`npm run pull-r2-library`); a missing key now logs `[dev-api] LIBRARY miss: …` instead of 404ing
+silently. Two things are still on you, or `acgLibrary.fetchIndex` throws and the finish quietly
+stays on its fallback:
+- an **admin login** from the page — `/api/assets/*` is auth-gated, and
+  `fetch('/api/auth/login', {…, credentials:'include'})` in a scenario `eval` step works (the
+  cookie then applies to every map load);
+- **Pro mode** (`setUiMode('pro')`), because the R2 transport is chosen by the `ambientcgLibrary`
+  flag, which is `tier: 'pro'` — in Simple mode the provider falls back to the live ambientcg.com
+  API, which needs the internet.
+
+Applying such a finish from a scenario without going through the picker:
+`resolveRemoteAsset({provider:'ambientcg', slug:'Bricks030', kind:'material', category:'wall',
+resolutions:['1k'], …}, '1k')`, wait on
+`state.resolvedRemoteMaterials['ambientcg:Bricks030:1k'] != null`, then `setAllWallFinish(id)`.
 
 ### The harness mutex is a lock file, not `flock` (and why that matters)
 `shot.mjs` serialises ALL runs machine-wide — SwiftShader Chromium is 1–2 GB per instance and
@@ -1953,6 +1961,22 @@ not directory recursion — unit-test the recursion separately with faked
 `FileSystemEntry` objects.
 
 ### Emulating touch (long-press, coarse-pointer gates) — `SHOT_TOUCH=1`
+
+**Start every touch scenario by asserting the emulation actually took.** A touch run that
+quietly loses `(pointer: coarse)` still goes green — it just stops testing what it claims to.
+That happened for real: the `viewport` step used to drop `isMobile`/`hasTouch` (Puppeteer's
+`setViewport` replaces the whole config), so **22 touch-named scenarios that switch viewport
+mid-run were exercising no touch at all** while reporting success (fixed, and guarded by
+`scripts/lib/interact.viewport.test.mjs`). One cheap step makes the claim self-checking:
+
+```json
+{ "name": "assert-coarse-pointer",
+  "eval": "(() => { if (!matchMedia('(pointer: coarse)').matches) throw new Error('touch emulation did not take — run with SHOT_TOUCH=1') })()" }
+```
+
+Put it immediately after the viewport step, not before it.
+
+
 Touch-gated code (`matchMedia('(pointer: coarse)')`, `body.mobile` long-press)
 doesn't run under the default headless desktop profile. `SHOT_TOUCH=1` sets
 Puppeteer's `isMobile + hasTouch`, so `(pointer: coarse)` matches and touch

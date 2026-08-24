@@ -5,6 +5,46 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.29.3.6 — the dev API finds the R2 mirror itself (no more silent ambientCG 404)
+
+- **The dev `LIBRARY` shim searches both mirror layouts, so ambientCG works out of the box.** It
+  looked in `ikea_optimized/` only, with the legacy flat-scrape key rewrites — a tree that
+  **cannot express an `acg/` key at all**, and which most checkouts don't even have (the mirror
+  `pull-r2-library` writes is `resources/`, R2-shaped). So every `/api/assets/acg/…` and
+  `/api/assets/library/acg-index.json` request 404'd, `acgLibrary.fetchIndex` threw
+  `ambientCG library 404`, and an applied `ambientcg:<slug>:1k` finish silently stayed on its
+  fallback — which is what made the v0.29.3.4 investigation start out looking like a renderer bug.
+  `scripts/lib/devLibraryMirror.ts` (pure, filesystem injected as an `exists` predicate, 12 tests)
+  now resolves each key against `resources/` then `ikea_optimized/`, trying the **exact** key first
+  and the legacy rewrite second, first hit wins — so a machine with both trees serves IKEA from the
+  scrape and ambientCG from `resources/` with no configuration. `DEV_LIBRARY_DIR` still pins one
+  dir and wins outright.
+- **A miss is no longer silent.** `[dev-api] LIBRARY miss: '<key>' is in none of <dirs>` (once per
+  key) names the dirs searched and points at `pull-r2-library`; the boot log lists every mirror
+  root present and which catalog manifests each can serve, instead of one line about one dir.
+- **An applied remote finish that fails to re-resolve warns in dev** (`rehydrateRemoteFinishes`) —
+  it is the one remote-finish failure with no UI surface (the pack browser shows its own index
+  error), so a broken local mirror looked like a finish that just refused to apply.
+- Verified with no `DEV_LIBRARY_DIR` set: manifest + maps + the legacy IKEA index all serve 200, an
+  unknown key still 404s (and logs), and the full app path resolves and applies
+  `ambientcg:Bricks030:1k` to all 130 wall faces.
+
+## v0.29.3.6 — guard the touch-emulation bug so it cannot silently return
+
+The `viewport`-step fix landed in v0.29.3.1; this closes the fallout.
+
+- **Regression test** (`scripts/lib/interact.viewport.test.mjs`): the step must re-assert
+  `isMobile`/`hasTouch` when `SHOT_TOUCH=1`, and leave them off when it isn't. Mutation-checked —
+  reverting the fix fails two of the three, so the guard actually guards.
+- **Re-ran the affected sweeps under real touch.** 22 touch-named scenarios combine `SHOT_TOUCH`
+  with a mid-run `viewport` step and so were exercising no touch at all. `tap-pass-verify` (the
+  project's own tap-target sweep, explicitly "390x844 with SHOT_TOUCH") and
+  `mobile-audit-coreloop` both **pass** under genuine emulation — they were not proving what they
+  claimed, and now they do. Six other touch-named scenarios were never affected: they set the
+  size via launch-time `SHOT_VIEWPORT`, which always carried the flags.
+- **Playbook**: touch scenarios should open with a `(pointer: coarse)` assertion immediately
+  after the viewport step, so a run that loses emulation fails loudly instead of going green.
+
 ## v0.29.3.5 — audit pass 20: signed-in surfaces (shared library retry + diagnostics)
 
 Run against a session the user signed in; the audit never enters credentials.
@@ -63,11 +103,10 @@ Also resolves a duplicate `v0.29.1.1` heading created by two concurrent work str
   control proving the pre-fix version hides the surface), 4 new `renderDecision` cases, and
   `scripts/scenarios/photo-wall-finish-load.json` (asserts no wall face is ever hidden while a
   photo finish loads; offline — uses the bundled `wall-brick` set, no backend needed).
-- **Dev-server note:** the ambientCG R2 mirror only resolves when the dev API can see it —
-  `DEV_LIBRARY_DIR=resources npm run dev:api` (or an `ikea_optimized/` tree containing
-  `library/acg-index.json` + `acg/`), plus an admin login, since `/api/assets/*` is auth-gated.
-  Without it `acgLibrary.fetchIndex` throws `ambientCG library 404` and the finish silently stays
-  on its fallback.
+- **Dev-server note:** reproducing this needed the ambientCG R2 mirror to resolve locally, which
+  it did not — `acgLibrary.fetchIndex` threw `ambientCG library 404` until the dev API was pointed
+  at `resources/` by hand. Fixed properly in v0.29.3.5; an admin login is still required, since
+  `/api/assets/*` is auth-gated.
 
 ## v0.29.3.3 — every remaining open audit item closed
 
