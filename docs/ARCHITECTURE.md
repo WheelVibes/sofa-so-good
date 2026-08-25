@@ -267,6 +267,13 @@ same change that reshapes a system.
   flag — the wall counterpart of the room's floor pair), `finishDrop.ts` (drag-to-apply core; canvas drop =
   `scene/FinishDropSurface.tsx` + `scene/finishDropTarget.ts`, commit = `state/finishDropApply.ts`), `convert/`
   (`decodeImage.ts` incl. TGA/TIFF/EXR/HDR/KTX2/DDS, `reencode.ts`→WebP; 16MB cap; `decodeGpuTexture.ts` handles KTX2+DDS via pure-JS or GPU readback).
+- `src/ui/loading/frameGate.ts` — `afterFrames` / `shouldForceSceneReady`: the boot gates that
+  used to await animation frames outright (the phase-1→2 Canvas mount, `sceneReady`) fall back to
+  timers when the page is hidden, because Chrome delivers no rAF to a hidden — including merely
+  OCCLUDED — window, which left a background tab stuck on the boot cover with no canvas. Same
+  trade as `state/storage/bootstrap.ts:yieldFrame`; forcing `sceneReady` is hidden-only, so a
+  visible tab still waits for four painted frames. `npm run chrome:focus` raises the window when a
+  capture needs real pixels.
 - `src/scene/` — R3F `<Canvas>` + systems: `lighting/`, `Effects.tsx` (bloom+SMAA),
   baked grounding decals (`ContactShadow.tsx` under-furniture blob RZ1; the RD-403 wall/floor
   corner-AO strip was removed in v0.23.1.11 — it read as a black outline at wall bases from

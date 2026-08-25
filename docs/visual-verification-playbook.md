@@ -1691,12 +1691,38 @@ it — otherwise a passing run only proves the harness is inert.
 Everything below cost real time in the 2026-08-25 ambientCG/texture session. None of it is a bug
 in the app; all of it looks like one.
 
-**A backgrounded tab has no canvas.** The single biggest time-sink — see the rAF gotcha above.
-`javascript_tool` runs fine in a hidden tab, so probes return live store state while the scene is
-not mounted: `document.querySelectorAll('canvas').length === 0` and `window.__three === undefined`
-while `bootPhase` is `'ready'`. **Take a screenshot (or click) first, then probe.** A single
-screenshot may only deliver one frame; if the canvas still is not there, screenshot again or click
-once — the mount needs two.
+**A backgrounded tab has no canvas** — *fixed in the app as of v0.30.1.0, but know the shape of
+it.* Chrome delivers no `requestAnimationFrame` to a hidden page, and on macOS "hidden" includes a
+window merely OCCLUDED behind another one, not just a minimised one. Two boot gates used to wait
+on frames alone — the phase-1→2 Canvas mount and `sceneReady` — so a hidden tab sat on "Almost
+ready…" with `bootPhase: 'ready'`, zero `<canvas>` elements and no `window.__three`, which reads
+exactly like a crash. Both now fall back to timers (`ui/loading/frameGate.ts`, the same trade
+`state/storage/bootstrap.ts:yieldFrame` already made), so a hidden tab boots and can be probed.
+
+**Pixels still need the window up.** The compositor does not paint a hidden page, so a capture
+returns the last frame from whenever the window was last visible — stale, and indistinguishable
+from a fresh one. Raise it:
+
+```sh
+npm run chrome:focus          # osascript activate; also un-minimises
+npm run chrome:focus -- --check   # exit 0 when Chrome is frontmost
+```
+
+Or take the throttling out of play for the whole profile, which is what Puppeteer does by default
+(covers occlusion; a minimised window is still `hidden` per spec):
+
+```sh
+open -na "Google Chrome" --args \
+  --disable-backgrounding-occluded-windows \
+  --disable-renderer-backgrounding \
+  --disable-background-timer-throttling
+```
+
+Always confirm with `document.visibilityState` rather than assuming — and note that
+`osascript` talking to **System Events** needs Accessibility permission and BLOCKS on its prompt
+(it hung `chrome-focus` on first write, and left `UserNotificationCenter` as the frontmost app,
+which is its own kind of confusing). Ask Chrome directly instead
+(`tell application "Google Chrome" to return frontmost`) and time-box every `osascript` call.
 
 **`window.__three` can be a stale scene.** After a scene swap (plan ↔ curated shell, room editor
 enter/exit) re-read it before traversing; a traversal of the previous scene reports meshes that are

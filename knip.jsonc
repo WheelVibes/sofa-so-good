@@ -21,6 +21,11 @@
     // wrangler is the Cloudflare deploy CLI used from deployment docs/CI, not imported in code.
     "wrangler"
   ],
+  "ignoreBinaries": [
+    // macOS system binary, shelled out to by scripts/chrome-focus.mjs to raise the
+    // Chrome window before a visual check. Nothing to install.
+    "osascript"
+  ],
   "vite": {
     "config": ["vite.config.ts"]
   },

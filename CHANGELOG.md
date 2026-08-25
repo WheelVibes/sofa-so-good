@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.30.1.0 — a hidden tab boots (and a one-liner to raise the window)
+
+Chrome delivers **no** `requestAnimationFrame` to a page it considers hidden,
+and on macOS that includes a window merely OCCLUDED behind another one — not
+just a minimised one. `state/storage/bootstrap.ts:yieldFrame` handled that for
+hydration back in v0.28.0.0, but two gates were left awaiting frames outright:
+
+ * `App.tsx`'s phase-1→2 **Canvas mount** (two chained rAFs, so the loader art
+   keeps compositing), and
+ * **`sceneReady`** in `scene/Scene.tsx`, which needs four `useFrame` ticks
+   before the boot cover fades.
+
+So a background tab sat on "Almost ready…" reporting `bootPhase: 'ready'`, zero
+`<canvas>` elements and no `window.__three` — indistinguishable from a crashed
+scene, and it cost a real debugging detour this session.
+
+`ui/loading/frameGate.ts` fixes both: `afterFrames` prefers a frame (on a
+visible tab that means the compositor really painted) and falls back to a timer
+when the page is hidden — including when it goes hidden MID-wait — while
+`shouldForceSceneReady` flips `sceneReady` for a hidden page only, so a visible
+tab still waits for its four painted frames and can never be revealed unwarmed.
+
+Pixels are a separate matter: the compositor does not paint a hidden page, so a
+capture returns whatever was last on screen. **`npm run chrome:focus`**
+(`scripts/chrome-focus.mjs`) raises and un-minimises the window via `osascript`,
+which no tab-level API can do, and `-- --check` reports whether Chrome is
+frontmost so a harness can gate on it. Every `osascript` call is time-boxed and
+none of them touch **System Events** — querying that for the frontmost process
+needs Accessibility permission and blocks on its prompt, which hung the first
+version of this script. The playbook and the Chrome-audit recovery order both
+document it, along with the `--disable-backgrounding-occluded-windows` launch
+switches that avoid the problem for a whole profile.
 ## v0.30.0.5 — a saved finish rehydrates at its real tile size
 
 Verifying v0.30.0.3 in the browser (thank you for the login) turned up the hole

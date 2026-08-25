@@ -73,6 +73,7 @@ import { InfoCallout } from './ui/InfoCallout'
 import { InspectorPanel } from './ui/inspector/InspectorPanel'
 import { LightPrompt } from './ui/LightPrompt'
 import { LocationPrompt } from './ui/LocationPrompt'
+import { afterFrames } from './ui/loading/frameGate'
 import { LoadingOverlay } from './ui/loading/LoadingOverlay'
 import { stopBootPhraseRotator } from './ui/loading/startBootPhraseRotator'
 import { scheduleTransitionHide } from './ui/loading/transitionHide'
@@ -175,20 +176,19 @@ export default function App() {
 
   // Phase 1→2: hydration done — pin the phrase, then mount Canvas. The loader
   // art keeps animating (compositor layers survive main-thread warm-up work).
+  //
+  // The two frames are what let that art keep compositing, so they stay the
+  // preferred signal — but a HIDDEN page never delivers one, and awaiting them
+  // alone left a background tab (or an occluded window on macOS) on "Almost
+  // ready…" with no canvas at all, indistinguishable from a crash. `afterFrames`
+  // falls back to a timer there, the same trade `yieldFrame` makes for boot.
   useEffect(() => {
     if (bootPhase !== 'ready') {
       setSceneCanvasReady(false)
       return
     }
     stopBootPhraseRotator('Almost ready…')
-    let id2 = 0
-    const id1 = requestAnimationFrame(() => {
-      id2 = requestAnimationFrame(() => setSceneCanvasReady(true))
-    })
-    return () => {
-      cancelAnimationFrame(id1)
-      if (id2) cancelAnimationFrame(id2)
-    }
+    return afterFrames(2, () => setSceneCanvasReady(true))
   }, [bootPhase])
 
   // After an update reload: once the scene is on screen (boot finished), confirm

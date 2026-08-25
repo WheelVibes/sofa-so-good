@@ -1,6 +1,6 @@
 import { useProgress } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { Apartment } from '../apartment/Apartment'
 import { CeilingOccluder } from '../apartment/ceiling/CeilingOccluder'
 import { occluderRectsForPlan } from '../apartment/ceiling/occluderRects'
@@ -12,6 +12,7 @@ import { isDefaultPlan } from '../floorplan/planGeometry'
 import { FurnitureLayer } from '../furniture/FurnitureLayer'
 import { FurnitureMaterialLoader } from '../furniture/FurnitureMaterialLoader'
 import { useStore } from '../state/store'
+import { shouldForceSceneReady } from '../ui/loading/frameGate'
 import { MeasurementOverlay } from '../ui/MeasurementOverlay'
 import { AirconTrunking } from './AirconTrunking'
 import { AlignmentGuides } from './AlignmentGuides'
@@ -66,8 +67,31 @@ import { MaybeXr } from './xr/MaybeXr'
  *  shaders + procedural textures are warm) and nothing is still streaming
  *  through the asset loaders (restored GLB layouts). The boot loading screen
  *  waits on this so the scene is already nice when revealed. */
+/** How often to check whether a hidden page should be called ready anyway. */
+const HIDDEN_READY_POLL_MS = 200
+
 function SceneReadySignal() {
   const frames = useRef(0)
+  // A hidden page paints nothing, so the frame count below never advances and
+  // the boot cover would hide a scene that is, as far as anything can tell,
+  // finished — that is what makes a background tab look like a hang. Poll for
+  // that case only (`shouldForceSceneReady` is hidden-only, so a visible tab
+  // still waits for four real frames and can never be shown unwarmed).
+  useEffect(() => {
+    if (useStore.getState().sceneReady) return
+    const id = setInterval(() => {
+      if (
+        shouldForceSceneReady({
+          hidden: typeof document !== 'undefined' && document.hidden,
+          sceneReady: useStore.getState().sceneReady,
+          progressActive: useProgress.getState().active,
+        })
+      ) {
+        useStore.getState().setSceneReady(true)
+      }
+    }, HIDDEN_READY_POLL_MS)
+    return () => clearInterval(id)
+  }, [])
   useFrame(() => {
     if (useStore.getState().sceneReady) return
     frames.current += 1

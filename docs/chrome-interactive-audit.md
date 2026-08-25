@@ -114,12 +114,21 @@ instead of letting it corrupt a run:
 
 **Host recovery on a `focus` directive** — in order:
 
-1. `navigate` the tab to its own URL (`http://localhost:5173/`). The extension activates the
+1. **`npm run chrome:focus`** (macOS) — `osascript ... activate` raises AND un-minimises the
+   window, which no tab-level API can do. This is the one step that fixes an OS-level focus
+   problem without asking anyone, so try it first; `-- --check` reports whether Chrome is
+   frontmost (exit 0/1) if you want to gate a capture on it.
+2. `navigate` the tab to its own URL (`http://localhost:5173/`). The extension activates the
    tab it navigates, which is enough whenever the Chrome window itself is still on screen.
-2. Take a `computer` screenshot — acting on a tab also tends to activate it.
-3. Re-check with `window.__audit.visible()`, then `window.__audit.resume()`.
-4. Only if all of that fails is it an OS-level window focus problem: ask for the Chrome window
-   to be raised (minimised windows cannot be restored from inside the page).
+3. Take a `computer` screenshot — acting on a tab also tends to activate it.
+4. Re-check with `window.__audit.visible()`, then `window.__audit.resume()`.
+5. Only if all of that fails is it an OS-level problem the script cannot reach (a locked screen,
+   another user's session): ask for the Chrome window to be raised.
+
+To avoid the whole class, launch Chrome with the throttling switches Puppeteer uses by default —
+`--disable-backgrounding-occluded-windows --disable-renderer-backgrounding
+--disable-background-timer-throttling`. They cover a window sitting BEHIND another one; a
+minimised window still reports `hidden` per spec, so keep step 1 as the fallback.
 
 Check it yourself at any time with `window.__audit.visible()`.
 
