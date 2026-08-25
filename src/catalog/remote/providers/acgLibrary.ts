@@ -41,7 +41,11 @@ export interface AcgManifestItem {
    *  default to hiding these in an interior tool without a re-upload. */
   interior: boolean
   swatch: string
+  /** Metres per texture period. Written by `scripts/pack-ambientcg.mjs` from
+   *  the asset's scanned `dimensionX` where ambientCG records one, else a
+   *  family guess capped by the map's resolution (`uvScaleSource` says which). */
   uvScale: [number, number]
+  uvScaleSource?: 'scan' | 'density' | 'family'
   /** Emitted map files, keyed by channel. `albedo` is always present. */
   files: {
     albedo: string
@@ -79,6 +83,9 @@ export function entryForItem(item: AcgManifestItem): RemoteEntry {
     attribution: 'ambientCG (CC0)',
     sourceUrl: `https://ambientcg.com/view?id=${item.id}`,
     tags: [item.family, item.interior ? 'interior' : 'exterior'],
+    // The packed physical size (scanned where ambientCG records it) — without
+    // this the resolver falls back to a flat 1 m tile for every scan.
+    uvScale: item.uvScale,
     bytesEstimate: { [ACG_RESOLUTION]: item.bytes },
   }
 }
@@ -197,10 +204,30 @@ export function __resetAcgLibraryCache(): void {
   itemsBySlug.clear()
 }
 
+/**
+ * The packed physical size for a slug — pulling the manifest in if it is not
+ * already in memory. It often is NOT: a finish rehydrated from a saved id whose
+ * maps are in the IDB asset cache never calls `fetchAsset`, so nothing has
+ * loaded the manifest yet, and without this the finish renders at the 1 m
+ * fallback instead of its scanned size. Resolves to `null` when the manifest is
+ * unreachable (offline, signed out) — the caller then keeps the fallback.
+ */
+async function tileSizeFor(slug: string): Promise<[number, number] | null> {
+  if (!itemsBySlug.has(slug)) {
+    try {
+      await fetchIndex()
+    } catch {
+      return null
+    }
+  }
+  return itemsBySlug.get(slug)?.uvScale ?? null
+}
+
 export const acgLibrary: RemoteProvider = {
   id: 'ambientcg',
   fetchIndex,
   fetchThumbnail,
   fetchAsset,
+  tileSizeFor,
   validateCached,
 }

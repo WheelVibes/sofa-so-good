@@ -5,6 +5,97 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.30.0.5 — a saved finish rehydrates at its real tile size
+
+Verifying v0.30.0.3 in the browser (thank you for the login) turned up the hole
+in it: the index carried Tiles087's real 2.45 m, but the applied floor still
+resolved to 1 m. Two reasons, both about entries the app SYNTHESISES rather than
+takes from the index — a finish id rehydrated from a save
+(`ambientcg:Tiles087:2k`), a scenario step, the showroom row:
+
+ * such an entry carries no physical size at all, and
+ * when its maps come from the IDB asset cache, `fetchAsset` never runs, so
+   nothing has loaded the manifest that knows the size either.
+
+`RemoteProvider` gains `tileSizeFor(slug)` — async, because `acgLibrary` has to
+be able to pull the manifest in — and `resolveRemoteAsset` asks it whenever the
+entry has no size of its own. Verified end to end in the app: after a reload the
+saved floor finish resolves at `[2.45, 2.45]` instead of `[1, 1]`.
+
+(v0.30.0.4, folded into the v0.30.0.3 notes below, added the 256 px/m sharpness
+floor so a measured size cannot render as mush on a small map.)
+
+## v0.30.0.3 — tile size comes from the map, not a guess
+
+Follow-on from the mis-joined bathroom tiles: how big should one texture period
+be on the floor? Two things were answering that wrongly.
+
+**The resolver threw the answer away.** `bundleToMaterialDef` hardcoded
+`uvScale: curated?.uvScale ?? [1, 1]`, and the curated table only covers Poly
+Haven showroom picks — so **every ambientCG finish rendered at a flat 1 m tile**,
+whatever the packed manifest said. `RemoteEntry` now carries `uvScale` and the
+resolver uses it.
+
+**The packer guessed by family.** `pack-ambientcg.mjs` assigned one size per
+family (all `Tiles*` → 0.6 m, all `Wood*` → 1.2 m). ambientCG publishes the real
+size of the photographed patch per asset (`dimensionX`, cm) and the guesses are
+frequently nothing like it: over one API page, 16 of 28 packed assets were more
+than 1.5× off. `Wood066` is a 0.4 m scan the table stretched to 1.2 m — every
+texel over 3× the floor, so it renders blurry with planks 3× too wide — while
+`Tiles087` (the finish on the test design's living-room floor) is a **2.45 m**
+scan the table called 0.6 m. The packer now asks the API first.
+
+**The rule, in `materials/tileSize.ts`:** scanned size → a guess **capped** by
+what the map's resolution can cover at 512 px/m → the resolution alone (a user
+upload with no other signal) → the legacy 1 m. A guess may shrink a map (more
+repeats, full detail) but never stretch it, because magnification is the one
+direction mipmaps cannot recover.
+
+A **measured** size is allowed past that target, down to a 256 px/m floor —
+because the corpus says so: 214 of the 264 scanned sizes already sit inside the
+512 px/m target, and most of the rest are 2.4–3 m brick and tile scans landing
+at 340–427 px/m, the same density the procedural floors ship at and worth
+keeping at true scale. Only extremes trade scale for sharpness (a 5.4 m paving
+scan on a 1K map would be 190 px/m, so it renders at 4 m instead). Raising the
+floor to the target is a one-constant change if sharpness should always win.
+**Decided: keep true scale** — the floor stays at 256 px/m.
+
+**Re-tagging what is already packed:** `scripts/retag-acg-tile-sizes.mjs`
+rewrites the manifest from the API without touching a single image, so only the
+manifest needs re-uploading. On the current corpus: **264 of 1121 items take
+their real scanned size** (up to 5× different — `Tiles077` 0.6 → 3 m) and **55
+more are capped by map resolution**; the remaining 802 keep a family guess that
+already fits inside what a 1K map covers.
+
+## v0.30.0.2 — the break-up stops stretching tiles on non-multiple rooms
+
+Reported from a phone screenshot of Bath/WC 2: the floor tiles came out in
+blocks of **different sizes** with grout that did not meet.
+
+`breakRepetitionPlane` divided a surface into `round(size / tileSize)` EQUAL
+cells and handed each one a full texture period of UV. That only lines up when
+the room happens to be a whole number of tiles. Bath/WC 2 is 1.75 × 1.85 m with
+a 1.2 m period (`floor-tile-bath-green`, 300×600 running bond), so it got a
+single 1.75 × 0.925 m cell showing 1.2 × 1.2 of UV — the texture squeezed by
+different amounts on each axis — and a second cell starting at V 0.925, which is
+not a multiple of 1.2, so its joints could never align with its neighbour's.
+Present since RD-406 shipped; the earlier work in this branch (direction guard,
+polygon rooms) never touched cell sizing, and my verification had only used
+rooms that happened to divide evenly.
+
+Cells are now anchored to the texture period — each starts at an exact multiple
+of `tileSize`, and the last one in each axis is **clipped** by the surface edge
+rather than stretched. Every cell's world extent equals its UV extent, and every
+cell's map is a lattice symmetry of the texture (unit-scale axis permutation
+plus a half-period translation) — the property that actually lets grout meet
+across a boundary. The polygon path already anchored this way, so irregular
+rooms were unaffected.
+
+Regression tests pin it with the real bathroom numbers and a spread of room
+sizes, and assert the mapping's form rather than a corner's raw UV (a 180° cell
+starts mid-tile while its tile origin stays put — the naive assertion is wrong).
+All four fail against the previous implementation.
+
 ## v0.30.0.1 — knip: no dead exports from the new modules
 
 The dead-code scan caught seven exports with no consumer outside their own file:

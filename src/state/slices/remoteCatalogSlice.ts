@@ -155,7 +155,15 @@ export const createRemoteCatalogSlice: StateCreator<
           set({ remoteCacheBytes: meta.totalBytes })
         }
         if (bundle.kind === 'material') {
-          const def = bundleToMaterialDef(entry, resolution, bundle)
+          // A synthetic entry (a finish id rehydrated from a save, a scenario
+          // step) carries no physical size — ask the provider, whose manifest
+          // has one, rather than letting the resolver fall back to 1 m.
+          let sized = entry
+          if (!entry.uvScale) {
+            const fromProvider = await PROVIDERS[entry.provider].tileSizeFor?.(entry.slug)
+            if (fromProvider) sized = { ...entry, uvScale: fromProvider }
+          }
+          const def = bundleToMaterialDef(sized, resolution, bundle)
           set((s) => ({
             resolvedRemoteMaterials: { ...s.resolvedRemoteMaterials, [key]: def },
             remoteFetches: { ...s.remoteFetches, [key]: undefined },

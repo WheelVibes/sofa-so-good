@@ -165,6 +165,19 @@ function applyCellUv(fu: number, fv: number, t: CellUvTransform): [number, numbe
  * laid out exactly like a floor `PlaneGeometry` (XY plane, +Z normal, centred on
  * the origin), a drop-in for {@link worldUvPlaneGeometry}'s output.
  *
+ * **Cells are anchored to the TEXTURE PERIOD, not to the surface.** Each cell
+ * starts at an exact multiple of `tileSize` from the plane's UV origin and the
+ * last one in each axis is CLIPPED by the surface edge. Dividing the surface
+ * into `round(w / tileSize)` equal cells instead — as this did until v0.30.0.2 —
+ * breaks the whole premise on any room whose size is not a multiple of the tile:
+ * a 1.75 × 1.85 m bathroom with a 1.2 m period got one 1.75 × 0.925 m cell
+ * showing 1.2 × 1.2 of UV (the texture STRETCHED, differently per axis) and the
+ * next cell starting at V 0.925, which is not a multiple of 1.2, so its grout
+ * could not line up with its neighbour's. Anchoring fixes both: the UV span of
+ * every cell equals its world span (no stretch), and every boundary lands on a
+ * texture boundary, which is what lets the per-cell rotation/offset hide in the
+ * grout instead of cutting across it.
+ *
  * Pure (no globals, no flag read) + deterministic. Degenerate guards: a
  * non-positive size, a non-finite/non-positive `tileSize`, or a surface smaller
  * than two tiles in BOTH axes → returns `null` (caller keeps the plain plane; a
@@ -178,13 +191,14 @@ export function breakRepetitionPlane(
 ): BufferGeometry | null {
   if (!(width > 0) || !(height > 0)) return null
   if (!Number.isFinite(tileSize) || tileSize <= 0) return null
-  const nu = Math.round(width / tileSize)
-  const nv = Math.round(height / tileSize)
+  // Cell counts follow the texture period: a surface 1.5 tiles wide is two
+  // cells (one full, one clipped), never one stretched cell. The epsilon keeps
+  // an exact multiple from gaining a zero-width sliver.
+  const cols = Math.ceil(width / tileSize - 1e-6)
+  const rows = Math.ceil(height / tileSize - 1e-6)
   // Fewer than two tiles in BOTH axes ⇒ no neighbour to mis-align against; leave
   // it to the plain (cheaper, byte-identical) path.
-  if (nu < 2 && nv < 2) return null
-  const cols = Math.max(1, nu)
-  const rows = Math.max(1, nv)
+  if (cols < 2 && rows < 2) return null
   // Guard a pathological subdivision (huge floor + tiny tile) so we never build a
   // runaway vertex buffer; fall back to the plain plane.
   if (cols * rows > 4096) return null
@@ -204,23 +218,33 @@ export function breakRepetitionPlane(
   let vert = 0
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const x0 = -width / 2 + (c / cols) * width
-      const x1 = -width / 2 + ((c + 1) / cols) * width
+      // Cell bounds in the plane's UV metres, clipped by the surface edge — so
+      // a cell is at most one texture period and always STARTS on one.
+      const baseU = c * tileSize
+      const baseV = r * tileSize
+      const endU = Math.min(baseU + tileSize, width)
+      const endV = Math.min(baseV + tileSize, height)
+      const x0 = -width / 2 + baseU
+      const x1 = -width / 2 + endU
       // worldUvPlaneGeometry scales the default 0..1 plane UV by height, so V
       // increases with +Y. Keep that mapping (UV start anchored at the cell).
-      const y0 = -height / 2 + (r / rows) * height
-      const y1 = -height / 2 + ((r + 1) / rows) * height
-      const baseU = (c / cols) * width
-      const baseV = (r / rows) * height
+      const y0 = -height / 2 + baseV
+      const y1 = -height / 2 + endV
+      // Tile FRACTIONS of this cell — 0..1 for a full cell, 0..f for a clipped
+      // edge one. The transform still works in whole-tile space (it rotates
+      // about the tile centre), so a clipped cell shows part of a tile rather
+      // than a squeezed whole one.
+      const fu = (endU - baseU) / tileSize
+      const fv = (endV - baseV) / tileSize
       const t = cellUvTransform(c, r, quarterTurns)
-      // Tile-fraction corners (0/1) → transformed → scaled back to metre UVs by
+      // Tile-fraction corners → transformed → scaled back to metre UVs by
       // tileSize so the texture's physical scale is unchanged. Anchor each cell's
       // UV origin at its world-UV start (continuous metre scale); the transform
       // only re-phases/rotates WITHIN the tile.
       const [au, av] = applyCellUv(0, 0, t)
-      const [bu, bv] = applyCellUv(1, 0, t)
-      const [cu2, cv2] = applyCellUv(1, 1, t)
-      const [du2, dv2] = applyCellUv(0, 1, t)
+      const [bu, bv] = applyCellUv(fu, 0, t)
+      const [cu2, cv2] = applyCellUv(fu, fv, t)
+      const [du2, dv2] = applyCellUv(0, fv, t)
       // 4 corners of this cell (CCW for the +Z front face, like PlaneGeometry).
       positions[pi++] = x0
       positions[pi++] = y0

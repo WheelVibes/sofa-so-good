@@ -88,12 +88,45 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   row writes here; applying still writes the underlying self-describing id to the room (renders even
   where the name isn't present). Saving a different colour/scale is a *new* material (the id changed),
   so editing = re-seed the composer from a saved finish, tweak, and Save again.
+- **Physical tile size comes from the MAP (`tileSize.ts`)**, not a hardcoded guess. Order:
+  the provider's **scanned size** (ambientCG publishes `dimensionX`/`dimensionY` per asset — our
+  packer writes it into the manifest as `uvScale` + `uvScaleSource`), else a caller's guess
+  **capped** by what the map's resolution covers at `TARGET_TEXEL_DENSITY` (512 px/m — a 1K map
+  covers at most 2 m), else the resolution alone (a user upload), else the legacy 1 m. **A guess
+  may shrink a map, never stretch it**; a MEASURED size stands past that target (a 2.45 m tile
+  scan really is 2.45 m — 418 px/m from a 1K map, the density the procedural floors ship at) but
+  not past `MIN_TEXEL_DENSITY` (256 px/m), where scale finally yields to sharpness. **Decided
+  2026-08-25: keep true scale** — the floor stays at 256 px/m rather than the 512 px/m target, so a
+  2.4 m brick scan renders at 2.4 m (427 px/m, the density the procedural floors ship at) instead
+  of being shrunk 17% to stay crisp. Only the extremes clamp. If a future call reverses that, it is
+  one constant, but re-read this line first: physical accuracy was the deliberate choice. Magnification
+  is the one direction mipmaps cannot save,
+  and it also renders the pattern at the wrong physical size. Two bugs this fixed: the packer's
+  per-family table was >1.5× off on 16 of 28 measured assets (`Wood066` is a 0.4 m scan stretched
+  to 1.2 m — blurry, planks 3× too wide; `Tiles141` a 2 m scan squeezed into 0.6 m), and
+  `resolver.ts` **discarded the manifest value entirely**, rendering every ambientCG finish at a
+  flat 1 m. Carry `RemoteEntry.uvScale` through when adding a provider, and re-tag an already
+  packed corpus with `scripts/retag-acg-tile-sizes.mjs` (manifest-only — the maps don't change).
+  A **synthetic** entry (a finish id rehydrated from a save, a scenario step) carries no size, and
+  when its maps come from the IDB asset cache nothing has loaded the manifest either — so
+  `RemoteProvider.tileSizeFor(slug)` exists (async: `acgLibrary` pulls the manifest in if needed)
+  and `resolveRemoteAsset` asks it before building the def. Without that, every saved ambientCG
+  finish came back at 1 m on reload even with a correct manifest.
 - **Tile repetition break-up (RD-406 / MAT-006a)**: `worldUv.ts` exports the pure, deterministic
   `cellUvTransform(cu,cv)` (hash a tile cell → a 90°/180°/270° quarter-turn + a {0, 0.5} half-tile
   offset) and `breakRepetitionPlane(w,h,tileSize)` (subdivide a rect floor on the `tileSize`-metre
   grid — `tileSize` = the material `uvScale` — and re-phase/rotate each cell's UVs so a big tiled
   floor stops repeating identically). It's **pure UV math** — no shader, no 2nd UV set, no extra
-  texture. Cells snap to the texture period (boundaries land on grout) and the rotation is rigid +
+  texture. **Cells are anchored to the texture PERIOD** — each starts at an exact multiple of
+  `tileSize` and the last one per axis is CLIPPED by the surface edge. Sizing them
+  `round(size / tileSize)` instead (shipped behaviour until v0.30.0.2) broke the premise on any
+  room that is not a whole number of tiles: a 1.75 × 1.85 m bathroom with a 1.2 m period got one
+  1.75 × 0.925 m cell showing 1.2 × 1.2 of UV — the texture STRETCHED, differently per axis — and
+  its neighbour starting at V 0.925, off-period, so the grout could not meet. Every cell's world
+  extent now equals its UV extent and every cell's map is a texture-lattice symmetry (unit-scale
+  axis permutation + half-period translation), which is the property that actually lets grout
+  lines meet across a boundary — assert THAT in tests, not a corner's raw UV (a 180° cell starts
+  mid-tile while its tile origin stays put). The rotation is rigid +
   the offset a half-tile, so a 2ⁿ-grid ceramic stays grout-continuous and a non-gridded
   stone/marble/wood just varies tile-to-tile; the tiles keep their square aspect (no UV stretch),
   share boundary positions (no seam/crack), and sit at the same Y (no z-fighting). Wired into the

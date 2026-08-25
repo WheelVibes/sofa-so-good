@@ -33,6 +33,7 @@ const fetchAssetPolyhaven = vi.fn()
 const fetchIndexAmbientcg = vi.fn()
 const fetchAssetAmbientcg = vi.fn()
 const validateCachedAmbientcg = vi.fn((_entries?: unknown) => true)
+const tileSizeForAmbientcg = vi.fn(async (_slug?: string) => null as [number, number] | null)
 const activeProviderIdsMock = vi.fn(() => ['polyhaven'])
 vi.mock('../../catalog/remote/providers', () => ({
   PROVIDERS: {
@@ -46,6 +47,7 @@ vi.mock('../../catalog/remote/providers', () => ({
       fetchIndex: (...a: unknown[]) => fetchIndexAmbientcg(...a),
       fetchAsset: (...a: unknown[]) => fetchAssetAmbientcg(...a),
       validateCached: (entries: unknown) => validateCachedAmbientcg(entries),
+      tileSizeFor: (slug: string) => tileSizeForAmbientcg(slug),
     },
   },
   activeProviderIds: () => activeProviderIdsMock(),
@@ -97,6 +99,7 @@ describe('remoteCatalogSlice', () => {
     fetchAssetAmbientcg.mockReset().mockResolvedValue(furnitureBundle)
     activeProviderIdsMock.mockReset().mockReturnValue(['polyhaven'])
     validateCachedAmbientcg.mockReset().mockReturnValue(true)
+    tileSizeForAmbientcg.mockReset().mockResolvedValue(null)
     bundleToFurnitureDef.mockReset().mockReturnValue({ id: 'fake-furniture-def' })
     bundleToMaterialDef.mockReset().mockReturnValue({ id: 'fake-material-def' })
   })
@@ -229,5 +232,62 @@ describe('remoteCatalogSlice', () => {
       })
       expect(useStore.getState().remoteFetches['polyhaven:chair-01:2k']).toBeUndefined()
     })
+  })
+})
+
+describe('resolveRemoteAsset — physical tile size for a synthetic entry', () => {
+  const materialEntry: RemoteEntry = {
+    provider: 'ambientcg',
+    slug: 'Tiles087',
+    kind: 'material',
+    name: 'Tiles087',
+    category: 'floor',
+    thumbUrl: '',
+    resolutions: ['1k'],
+    attribution: 'ambientCG (CC0)',
+    sourceUrl: 'x',
+  }
+  const materialBundle: AssetBundle = { kind: 'material', channels: { albedo: new Blob(['a']) } }
+
+  // This block sits outside the main describe, so it owns its own reset — and
+  // each case uses its own slug, since a resolved key short-circuits the next
+  // resolve (that is the in-flight/already-resolved guard, not a bug here).
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+    getAsset.mockReset().mockResolvedValue(undefined)
+    getMeta.mockReset().mockResolvedValue({ schemaVersion: 1, totalBytes: 0, entries: [] })
+    putAsset.mockReset().mockResolvedValue(undefined)
+    evictUntilUnder.mockReset().mockResolvedValue(undefined)
+    fetchAssetAmbientcg.mockReset().mockResolvedValue(materialBundle)
+    tileSizeForAmbientcg.mockReset().mockResolvedValue(null)
+    bundleToMaterialDef.mockReset().mockImplementation((entry: unknown) => ({
+      id: 'def',
+      uvScale: (entry as RemoteEntry).uvScale ?? [1, 1],
+    }))
+  })
+
+  it('asks the provider when the entry carries no size', async () => {
+    // A finish id rehydrated from a save (`ambientcg:Tiles087:2k`) has no
+    // physical size, and its maps often come from the IDB cache — so nothing
+    // has loaded the manifest. Without this the floor rendered at a flat 1 m.
+    tileSizeForAmbientcg.mockResolvedValue([2.45, 2.45])
+    await useStore.getState().resolveRemoteAsset({ ...materialEntry, slug: 'AskMe' }, '1k')
+    expect(tileSizeForAmbientcg).toHaveBeenCalledWith('AskMe')
+    expect(bundleToMaterialDef.mock.calls[0][0]).toMatchObject({ uvScale: [2.45, 2.45] })
+  })
+
+  it('does not ask when the entry already knows its size', async () => {
+    await useStore
+      .getState()
+      .resolveRemoteAsset({ ...materialEntry, slug: 'KnowsOwn', uvScale: [0.6, 0.6] }, '1k')
+    expect(tileSizeForAmbientcg).not.toHaveBeenCalled()
+    expect(bundleToMaterialDef.mock.calls[0][0]).toMatchObject({ uvScale: [0.6, 0.6] })
+  })
+
+  it('resolves anyway when the provider cannot say (offline / signed out)', async () => {
+    tileSizeForAmbientcg.mockResolvedValue(null)
+    await useStore.getState().resolveRemoteAsset({ ...materialEntry, slug: 'Unknown' }, '1k')
+    expect(bundleToMaterialDef.mock.calls[0][0].uvScale).toBeUndefined()
+    expect(useStore.getState().resolvedRemoteMaterials['ambientcg:Unknown:1k']).toBeTruthy()
   })
 })
