@@ -41,7 +41,11 @@ export interface AcgManifestItem {
    *  default to hiding these in an interior tool without a re-upload. */
   interior: boolean
   swatch: string
+  /** Metres per texture period. Written by `scripts/pack-ambientcg.mjs` from
+   *  the asset's scanned `dimensionX` where ambientCG records one, else a
+   *  family guess capped by the map's resolution (`uvScaleSource` says which). */
   uvScale: [number, number]
+  uvScaleSource?: 'scan' | 'density' | 'family'
   /** Emitted map files, keyed by channel. `albedo` is always present. */
   files: {
     albedo: string
@@ -79,6 +83,9 @@ export function entryForItem(item: AcgManifestItem): RemoteEntry {
     attribution: 'ambientCG (CC0)',
     sourceUrl: `https://ambientcg.com/view?id=${item.id}`,
     tags: [item.family, item.interior ? 'interior' : 'exterior'],
+    // The packed physical size (scanned where ambientCG records it) — without
+    // this the resolver falls back to a flat 1 m tile for every scan.
+    uvScale: item.uvScale,
     bytesEstimate: { [ACG_RESOLUTION]: item.bytes },
   }
 }

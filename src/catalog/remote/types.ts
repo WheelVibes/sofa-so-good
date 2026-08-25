@@ -5,6 +5,14 @@ export type ProviderId = 'polyhaven' | 'ambientcg'
 export type Resolution = '1k' | '2k' | '4k'
 export const RESOLUTIONS: readonly Resolution[] = ['1k', '2k', '4k']
 
+/** Map edge length in pixels per resolution tier — how much floor a download
+ *  can cover sharply (`materials/tileSize.ts`). */
+export const RESOLUTION_PIXELS: Record<Resolution, number> = {
+  '1k': 1024,
+  '2k': 2048,
+  '4k': 4096,
+}
+
 export type RemoteKind = 'furniture' | 'material'
 
 export interface RemoteEntry {
@@ -19,6 +27,12 @@ export interface RemoteEntry {
   sourceUrl: string
   /** Free-form keywords from the provider (Poly Haven `tags` + `categories`). */
   tags?: string[]
+  /** Metres per texture period, when the provider knows the physical size of
+   *  the scanned patch (ambientCG records `dimensionX` per asset; our packed
+   *  manifest carries it through). Without this a scan renders at an arbitrary
+   *  1 m tile — a 0.4 m wood patch stretched 2.5x, or a 2.45 m tile floor
+   *  repeating 2.45x too often. */
+  uvScale?: [number, number]
   bytesEstimate?: Partial<Record<Resolution, number>>
 }
 

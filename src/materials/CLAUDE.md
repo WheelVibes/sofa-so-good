@@ -88,6 +88,18 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   row writes here; applying still writes the underlying self-describing id to the room (renders even
   where the name isn't present). Saving a different colour/scale is a *new* material (the id changed),
   so editing = re-seed the composer from a saved finish, tweak, and Save again.
+- **Physical tile size comes from the MAP (`tileSize.ts`)**, not a hardcoded guess. Order:
+  the provider's **scanned size** (ambientCG publishes `dimensionX`/`dimensionY` per asset — our
+  packer writes it into the manifest as `uvScale` + `uvScaleSource`), else a caller's guess
+  **capped** by what the map's resolution covers at `TARGET_TEXEL_DENSITY` (512 px/m — a 1K map
+  covers at most 2 m), else the resolution alone (a user upload), else the legacy 1 m. **A guess
+  may shrink a map, never stretch it**: magnification is the one direction mipmaps cannot save,
+  and it also renders the pattern at the wrong physical size. Two bugs this fixed: the packer's
+  per-family table was >1.5× off on 16 of 28 measured assets (`Wood066` is a 0.4 m scan stretched
+  to 1.2 m — blurry, planks 3× too wide; `Tiles141` a 2 m scan squeezed into 0.6 m), and
+  `resolver.ts` **discarded the manifest value entirely**, rendering every ambientCG finish at a
+  flat 1 m. Carry `RemoteEntry.uvScale` through when adding a provider, and re-tag an already
+  packed corpus with `scripts/retag-acg-tile-sizes.mjs` (manifest-only — the maps don't change).
 - **Tile repetition break-up (RD-406 / MAT-006a)**: `worldUv.ts` exports the pure, deterministic
   `cellUvTransform(cu,cv)` (hash a tile cell → a 90°/180°/270° quarter-turn + a {0, 0.5} half-tile
   offset) and `breakRepetitionPlane(w,h,tileSize)` (subdivide a rect floor on the `tileSize`-metre

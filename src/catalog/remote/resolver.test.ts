@@ -112,3 +112,53 @@ describe('resolver', () => {
     expect(def.id).toBe('ambientcg:wooden-chair:2k')
   })
 })
+
+describe('bundleToMaterialDef — physical tile size', () => {
+  const matEntry = (over: Partial<RemoteEntry> = {}): RemoteEntry => ({
+    provider: 'ambientcg',
+    slug: 'Tiles087',
+    kind: 'material',
+    name: 'Tiles 087',
+    category: 'floor',
+    thumbUrl: '',
+    resolutions: ['1k'],
+    attribution: 'ambientCG (CC0)',
+    sourceUrl: 'https://ambientcg.com/view?id=Tiles087',
+    ...over,
+  })
+  const bundle: AssetBundle = { kind: 'material', channels: { albedo: new Blob(['a']) } }
+
+  it('uses the size the provider scanned, not a flat 1 m guess', () => {
+    // Tiles087 is a 2.45 m scan. Rendered at the old hardcoded 1 m it repeated
+    // ~2.5x too often and its tiles came out ~2.5x too small.
+    const def = bundleToMaterialDef(matEntry({ uvScale: [2.45, 2.45] }), '1k', bundle)
+    expect(def.uvScale).toEqual([2.45, 2.45])
+  })
+
+  it('caps an unknown scan by what the download can cover sharply', () => {
+    // No size from the provider → the legacy 1 m default, which a 1K map
+    // covers at 1024 px/m. Nothing is stretched.
+    expect(bundleToMaterialDef(matEntry(), '1k', bundle).uvScale).toEqual([1, 1])
+  })
+
+  it('keeps a curated showroom size ahead of the provider entry', () => {
+    // The hand-tuned Poly Haven values were measured against the render; they
+    // stay authoritative where they exist.
+    const def = bundleToMaterialDef(
+      matEntry({ provider: 'polyhaven', slug: 'not-a-curated-slug', uvScale: [3, 3] }),
+      '1k',
+      bundle,
+    )
+    expect(def.uvScale).toEqual([3, 3])
+  })
+
+  it('never emits a non-finite UV scale', () => {
+    const def = bundleToMaterialDef(
+      matEntry({ uvScale: [Number.NaN, Number.NaN] as [number, number] }),
+      '1k',
+      bundle,
+    )
+    expect(Number.isFinite(def.uvScale[0])).toBe(true)
+    expect(def.uvScale[0]).toBeGreaterThan(0)
+  })
+})

@@ -1,8 +1,10 @@
 import type { RemoteGltfDef } from '../../furniture/types'
 import { showroomFinishFor } from '../../materials/showroomCatalog'
+import { resolveTileSize } from '../../materials/tileSize'
 import type { TexturedMaterialDef } from '../../materials/types'
 import { gltfJsonFootprint } from './gltfBounds'
 import type { AssetBundle, RemoteEntry, Resolution } from './types'
+import { RESOLUTION_PIXELS } from './types'
 
 const blobUrl = (b: Blob) => URL.createObjectURL(b)
 
@@ -38,6 +40,15 @@ export function bundleToMaterialDef(
   // generic pack-browser download keeps the provider name + the legacy 1 m
   // tile default.
   const curated = entry.provider === 'polyhaven' ? showroomFinishFor(entry.slug) : null
+  // Physical metres-per-tile, best source first: a curated showroom value, the
+  // provider's own scanned size (ambientCG ships one per asset), else the
+  // legacy 1 m default — capped either way by what this resolution can cover
+  // sharply, so a map is never asked to stretch past its own texels.
+  const tile = resolveTileSize({
+    scanMetres: curated?.uvScale?.[0] ?? entry.uvScale?.[0],
+    fallbackMetres: 1,
+    pixels: RESOLUTION_PIXELS[resolution],
+  })
   return {
     id: `${entry.provider}:${entry.slug}:${resolution}`,
     name: curated?.name ?? entry.name,
@@ -50,7 +61,7 @@ export function bundleToMaterialDef(
     sourceUrl: entry.sourceUrl,
     thumbUrl: entry.thumbUrl,
     textures: urls,
-    uvScale: curated?.uvScale ?? [1, 1],
+    uvScale: [tile.metres, tile.metres],
     runtimeUrls: urls,
   }
 }

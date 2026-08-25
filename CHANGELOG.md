@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.30.0.3 — tile size comes from the map, not a guess
+
+Follow-on from the mis-joined bathroom tiles: how big should one texture period
+be on the floor? Two things were answering that wrongly.
+
+**The resolver threw the answer away.** `bundleToMaterialDef` hardcoded
+`uvScale: curated?.uvScale ?? [1, 1]`, and the curated table only covers Poly
+Haven showroom picks — so **every ambientCG finish rendered at a flat 1 m tile**,
+whatever the packed manifest said. `RemoteEntry` now carries `uvScale` and the
+resolver uses it.
+
+**The packer guessed by family.** `pack-ambientcg.mjs` assigned one size per
+family (all `Tiles*` → 0.6 m, all `Wood*` → 1.2 m). ambientCG publishes the real
+size of the photographed patch per asset (`dimensionX`, cm) and the guesses are
+frequently nothing like it: over one API page, 16 of 28 packed assets were more
+than 1.5× off. `Wood066` is a 0.4 m scan the table stretched to 1.2 m — every
+texel over 3× the floor, so it renders blurry with planks 3× too wide — while
+`Tiles087` (the finish on the test design's living-room floor) is a **2.45 m**
+scan the table called 0.6 m. The packer now asks the API first.
+
+**The rule, in `materials/tileSize.ts`:** scanned size → a guess **capped** by
+what the map's resolution can cover at 512 px/m → the resolution alone (a user
+upload with no other signal) → the legacy 1 m. A guess may shrink a map (more
+repeats, full detail) but never stretch it, because magnification is the one
+direction mipmaps cannot recover.
+
+**Re-tagging what is already packed:** `scripts/retag-acg-tile-sizes.mjs`
+rewrites the manifest from the API without touching a single image, so only the
+manifest needs re-uploading. On the current corpus: **264 of 1121 items take
+their real scanned size** (up to 5× different — `Tiles077` 0.6 → 3 m) and **55
+more are capped by map resolution**; the remaining 802 keep a family guess that
+already fits inside what a 1K map covers.
+
 ## v0.30.0.2 — the break-up stops stretching tiles on non-multiple rooms
 
 Reported from a phone screenshot of Bath/WC 2: the floor tiles came out in

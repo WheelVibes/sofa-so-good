@@ -53,11 +53,19 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 // ------------------------------------------------------------------- taxonomy
 
 /**
- * Family → the surface the finish belongs on plus its physical tile size.
+ * Family → the surface the finish belongs on plus a FALLBACK physical tile size.
  * `uvScale` is metres-per-tile, the same convention as `builtinCatalog` and
  * `showroomCatalog` (a scan applied at the wrong physical scale is the single
  * most obvious photoreal tell, and the runtime default of [1, 1] is wrong for
  * nearly all of these).
+ *
+ * **These are guesses of last resort.** ambientCG publishes the real size of
+ * the photographed patch per asset (`dimensionX`/`dimensionY`, cm), and it is
+ * frequently nothing like the family average — measured over one API page, 16
+ * of 28 packed assets were more than 1.5x off: `Wood066` is a 0.4 m scan the
+ * table stretched to 1.2 m (every texel over 3x the floor — blurry, with planks
+ * 3x too wide), while `Tiles141` is a 2 m scan squeezed into 0.6 m. So the
+ * packer asks the API first (`fetchDimensions`) and only falls back here.
  *
  * `interior` marks families worth surfacing in a Singapore HDB/condo interior
  * tool. Exterior-only families are still packed (they cost little) but are
@@ -95,6 +103,69 @@ export function displayName(assetId) {
   const rest = assetId.slice(fam.length)
   const spaced = fam.replace(/([a-z])([A-Z])/g, '$1 $2')
   return rest ? `${spaced} ${rest}` : spaced
+}
+
+/**
+ * Real scanned size per asset, in metres, from the ambientCG API
+ * (`dimensionX`/`dimensionY` are centimetres; 0/absent means "not recorded").
+ * One paged sweep for the whole corpus rather than a call per asset.
+ *
+ * Returns an empty map on any network failure — the packer then falls back to
+ * the family table for every asset, which is exactly the old behaviour, so a
+ * pack run never fails just because the API is unreachable.
+ */
+export async function fetchDimensions(fetchImpl = fetch, log = console.log) {
+  const out = new Map()
+  const PAGE = 100
+  try {
+    for (let offset = 0; offset < 4000; offset += PAGE) {
+      const url =
+        'https://ambientcg.com/api/v2/full_json?type=Material&include=technicalData' +
+        `&limit=${PAGE}&offset=${offset}`
+      const res = await fetchImpl(url)
+      if (!res.ok) throw new Error(`ambientCG ${res.status}`)
+      const json = await res.json()
+      const assets = json.foundAssets ?? []
+      for (const a of assets) {
+        // Square-ish scans are the norm; take X and let Y ride along (the
+        // runtime's uvScale is a single period per axis anyway).
+        const cm = Number(a.dimensionX) || 0
+        if (cm > 0) out.set(a.assetId, cm / 100)
+      }
+      if (assets.length < PAGE) break
+    }
+    log(`[pack-acg] real scanned size for ${out.size} assets (ambientCG dimensionX)`)
+  } catch (err) {
+    log(`[pack-acg] dimension lookup failed (${err.message}) — falling back to the family table`)
+    return new Map()
+  }
+  return out
+}
+
+/** Texels per metre a finish should carry — mirrors `src/materials/tileSize.ts`
+ *  (`TARGET_TEXEL_DENSITY`). A 1K map therefore covers at most 2 m. */
+const TARGET_TEXEL_DENSITY = 512
+
+/**
+ * The tile size to write for one asset, in `src/materials/tileSize.ts`'s
+ * precedence: the SCANNED size when the API records one, else the family guess
+ * — but never larger than the map's own resolution can cover at the target
+ * density. That last clamp is the "a tile is at most as big as its map"
+ * rule: a 1K map asked to cover 2.2 m of concrete has 465 px/m and renders
+ * soft, so the guess is capped at 2 m rather than magnified.
+ */
+export function tileSizeFor(id, familySpec, dimensions, pixels) {
+  const scan = dimensions?.get(id)
+  if (typeof scan === 'number' && scan > 0) {
+    // Clamp the same way the runtime does: a 5 cm period moirés, a 12 m one
+    // never repeats indoors, and both mean the record is wrong.
+    const m = Math.min(8, Math.max(0.1, scan))
+    return { uvScale: [m, m], uvScaleSource: 'scan' }
+  }
+  const guess = familySpec.uvScale[0]
+  const cap = pixels > 0 ? pixels / TARGET_TEXEL_DENSITY : Number.POSITIVE_INFINITY
+  if (guess > cap) return { uvScale: [cap, cap], uvScaleSource: 'density' }
+  return { uvScale: familySpec.uvScale, uvScaleSource: 'family' }
 }
 
 // --------------------------------------------------------------------- args
@@ -161,7 +232,7 @@ async function meanColor(file) {
  * (nothing renderable — the runtime throws on a missing albedo, so such an
  * asset must never reach the manifest).
  */
-async function packAsset(id, args) {
+async function packAsset(id, args, dimensions) {
   const srcDir = path.resolve(ROOT, args.src)
   const albedoSrc = channelPath(srcDir, id, 'albedo')
   if (!albedoSrc) return null
@@ -188,6 +259,10 @@ async function packAsset(id, args) {
       ? sharp(file).webp({ lossless: true, effort: 6 }).toBuffer()
       : sharp(file).webp({ nearLossless: true, quality: args.nearLossless }).toBuffer()
 
+  // The map's own resolution caps how much floor it can cover sharply — read
+  // it rather than assuming 1K, so a future 2K pack widens the cap by itself.
+  const albedoPx = (await sharp(albedoSrc).metadata()).width ?? 0
+
   files.albedo = await emit('albedo.webp', await encodeMap(albedoSrc))
   // Thumbnail so the picker grid never downloads a full 1K albedo to draw a chip.
   await emit(
@@ -211,7 +286,10 @@ async function packAsset(id, args) {
     category: spec.category,
     interior: spec.interior,
     swatch: await meanColor(albedoSrc),
-    uvScale: spec.uvScale,
+    // Physical tile size — the scanned size when ambientCG records one, else
+    // the family guess. `uvScaleSource` keeps that visible in the manifest so a
+    // later run can tell a measured value from an assumed one.
+    ...tileSizeFor(id, spec, dimensions, albedoPx),
     files,
     bytes: Object.values(bytes).reduce((a, b) => a + b, 0),
   }
@@ -244,6 +322,8 @@ async function main() {
     `[pack-acg] ${ids.length} assets from ${args.src}, concurrency ${args.concurrency}` +
       `${args.dryRun ? ' (dry run)' : ''}`,
   )
+  // One API sweep up front: the real photographed size beats every guess.
+  const dimensions = await fetchDimensions()
   const items = []
   const skipped = []
   let srcBytes = 0
@@ -258,7 +338,7 @@ async function main() {
         const p = channelPath(srcDir, id, ch)
         if (p) srcBytes += statSync(p).size
       }
-      const entry = await packAsset(id, args)
+      const entry = await packAsset(id, args, dimensions)
       if (entry) items.push(entry)
       else skipped.push(id)
       done++

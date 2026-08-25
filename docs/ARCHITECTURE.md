@@ -258,7 +258,9 @@ same change that reshapes a system.
   (`allowsQuarterTurns`) limits directional finishes to 180° turns so a wood floor keeps one grain
   direction — and decides that by MEASURING the albedo (`analyzeTextureDirection.ts` +
   pure `textureDirection.ts`: gradient coherence + axis-profile lattice similarity), so a new
-  pattern/scan/upload classifies itself with no list to maintain), `boxUv.ts` (object-space box
+  pattern/scan/upload classifies itself with no list to maintain), `tileSize.ts` (physical metres-per-tile
+  resolved from the map — provider scan size → a guess capped by the map's resolution at
+  512 px/m → the resolution alone; a map is never stretched past its own texels), `boxUv.ts` (object-space box
   projection for parametric furniture UVs, MAT-006c, `furnitureBoxUv` flag — metre-scaled tiles
   with U on the longer face axis, so grain runs along a part instead of across it),
   `apartment/walls/wallTexTransform.ts` (per-room `wallTexScale`/`wallTexAngle`, `wallTexture`
