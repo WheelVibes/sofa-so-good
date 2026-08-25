@@ -52,7 +52,7 @@ export function horizontalFov(verticalFovDeg: number, aspect: number): number {
 }
 
 /** Vertical fov (degrees) that yields `horizontalFovDeg` across `aspect`. */
-export function verticalFovForHorizontal(horizontalFovDeg: number, aspect: number): number {
+function verticalFovForHorizontal(horizontalFovDeg: number, aspect: number): number {
   return (2 * Math.atan(Math.tan((horizontalFovDeg * DEG) / 2) / aspect)) / DEG
 }
 
