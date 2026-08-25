@@ -5,7 +5,10 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
-## v0.30.1.2 — the walk-mode minimap fills its panel
+## v0.30.2.0 — the walk-mode minimap fills its panel
+
+*(PR patch bump: ships the door-coverage/inward-swing fix of v0.30.1.1 together
+with this minimap change.)*
 
 The minimap drew into a fixed **square** 168-unit viewBox inside a 168x132
 widget, so the browser's `xMidYMid meet` letterboxed the square content down to
