@@ -103,6 +103,11 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   `resolver.ts` **discarded the manifest value entirely**, rendering every ambientCG finish at a
   flat 1 m. Carry `RemoteEntry.uvScale` through when adding a provider, and re-tag an already
   packed corpus with `scripts/retag-acg-tile-sizes.mjs` (manifest-only — the maps don't change).
+  A **synthetic** entry (a finish id rehydrated from a save, a scenario step) carries no size, and
+  when its maps come from the IDB asset cache nothing has loaded the manifest either — so
+  `RemoteProvider.tileSizeFor(slug)` exists (async: `acgLibrary` pulls the manifest in if needed)
+  and `resolveRemoteAsset` asks it before building the def. Without that, every saved ambientCG
+  finish came back at 1 m on reload even with a correct manifest.
 - **Tile repetition break-up (RD-406 / MAT-006a)**: `worldUv.ts` exports the pure, deterministic
   `cellUvTransform(cu,cv)` (hash a tile cell → a 90°/180°/270° quarter-turn + a {0, 0.5} half-tile
   offset) and `breakRepetitionPlane(w,h,tileSize)` (subdivide a rect floor on the `tileSize`-metre

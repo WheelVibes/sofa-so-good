@@ -59,6 +59,11 @@ export interface RemoteProvider {
     resolution: Resolution,
     signal?: AbortSignal,
   ): Promise<number | null>
+  /** Optional: the physical tile size the provider records for a slug, for
+   *  callers whose `RemoteEntry` was synthesised rather than taken from the
+   *  index — a persisted finish id (`<provider>:<slug>:<res>`) carries no size,
+   *  and rehydrating one at boot must not fall back to a flat 1 m tile. */
+  tileSizeFor?(slug: string): Promise<[number, number] | null>
   /** Optional: does a CACHED index still match what this provider serves? The
    *  index cache lives for a week (`bootstrapRemoteCatalog`), which outlasts a
    *  transport change — entries written by an older build can point at URLs

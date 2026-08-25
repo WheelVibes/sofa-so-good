@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.30.0.5 — a saved finish rehydrates at its real tile size
+
+Verifying v0.30.0.3 in the browser (thank you for the login) turned up the hole
+in it: the index carried Tiles087's real 2.45 m, but the applied floor still
+resolved to 1 m. Two reasons, both about entries the app SYNTHESISES rather than
+takes from the index — a finish id rehydrated from a save
+(`ambientcg:Tiles087:2k`), a scenario step, the showroom row:
+
+ * such an entry carries no physical size at all, and
+ * when its maps come from the IDB asset cache, `fetchAsset` never runs, so
+   nothing has loaded the manifest that knows the size either.
+
+`RemoteProvider` gains `tileSizeFor(slug)` — async, because `acgLibrary` has to
+be able to pull the manifest in — and `resolveRemoteAsset` asks it whenever the
+entry has no size of its own. Verified end to end in the app: after a reload the
+saved floor finish resolves at `[2.45, 2.45]` instead of `[1, 1]`.
+
+(v0.30.0.4, folded into the v0.30.0.3 notes below, added the 256 px/m sharpness
+floor so a measured size cannot render as mush on a small map.)
+
 ## v0.30.0.3 — tile size comes from the map, not a guess
 
 Follow-on from the mis-joined bathroom tiles: how big should one texture period
