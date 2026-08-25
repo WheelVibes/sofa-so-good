@@ -119,6 +119,8 @@ Zustand (sliced store), Vite, Vitest, Biome.
   cloud sync work in dev; needs Node ≥ 22 + a `.dev.vars`). `dev:web`/`dev:api` run either half. ·
   `npm test` · `npm run build` (`tsc` + Vite).
 - `npm run check`/`check:fix` — Biome (2-space/100-col/single-quote/no-semicolons).
+- `npm run chrome:focus` — raise/un-minimise the Chrome window before a visual check (macOS;
+  a hidden window paints nothing, see the playbook's Claude-in-Chrome quirks).
 - `node scripts/shot.mjs <out.png> [waitMs] [evalFile] [actionsJson]` — legacy one-shot screenshot harness.
 - `node scripts/shot.mjs --scenario <file.json|file.mjs> [--out-dir <dir>]` — **scenario mode** (recommended): runs ordered named steps (eval/waitFor/click/screenshot/store/viewport/drag/wait…) in one browser session with structured per-step logging; see `docs/visual-verification-playbook.md`.
 - `npm run optimize:glb` · `compress:glb-textures` · `scraper-server`/`price-server` (dev).
