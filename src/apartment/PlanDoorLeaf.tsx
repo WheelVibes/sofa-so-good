@@ -16,6 +16,7 @@ import {
 import { dispatchWalkInteract } from '../state/editing'
 import { useStore } from '../state/store'
 import { FLAT } from './constants'
+import { bifoldLeafFrame, SLIDING_LEAF_STANDOFF, slidingLeafFrame } from './doorLeafGeometry'
 import { getWallOwnStrength } from './walls/wallReveal'
 import {
   cornerSpreadStrength,
@@ -149,6 +150,11 @@ export function PlanDoorLeaf({
   const swing = opening.swing ?? 'right'
   const height = Math.max(0.4, opening.head - opening.sill)
   const direction = hinge === 'start' ? 1 : -1
+  // Sliding leaf sizing: oversize past the jambs + head so the closed leaf still
+  // occludes the opening despite hanging proud of the wall (see
+  // `doorLeafGeometry.ts`). Cheap to compute for every door; only the sliding
+  // branch reads it.
+  const slideFrame = slidingLeafFrame(opening.width, height)
 
   // Placement frame: a curved wall anchors the door at its mid-arc point + local
   // tangent (the swing group's local X runs along the wall); a straight wall uses
@@ -291,7 +297,7 @@ export function PlanDoorLeaf({
       // overlaps the adjacent wall segment.
       const t = angleRef.current / SWING_RAD
       if (slideRef.current)
-        slideRef.current.position.x = centerLocalX + slideDir * t * opening.width
+        slideRef.current.position.x = centerLocalX + slideDir * t * slideFrame.travel
     } else if (isDouble) {
       // Two half-width leaves hinged at BOTH jambs, swinging to the same side:
       // mirror rotations (opposite signs) about the two jamb pivots.
@@ -326,17 +332,17 @@ export function PlanDoorLeaf({
     // into the wall cavity. `slideRef` starts centred in the opening and
     // translates by up to its own width (see the `useFrame` slide branch). Local
     // +Z is the wall's 'right' normal, so the room side is +Z for a right swing.
-    const slideZ = (swing === 'right' ? 1 : -1) * (LEAF_THICK / 2 + 0.11)
+    const slideZ = (swing === 'right' ? 1 : -1) * (LEAF_THICK / 2 + SLIDING_LEAF_STANDOFF)
     return (
       <group ref={rootRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
         <group ref={slideRef} position={[centerLocalX, opening.sill, 0]}>
           <mesh
-            position={[0, height / 2, slideZ]}
+            position={[0, slideFrame.yCentre, slideZ]}
             onClick={onLeafToggle}
             material={leafMat}
             castShadow
           >
-            <boxGeometry args={[opening.width, height, LEAF_THICK]} />
+            <boxGeometry args={[slideFrame.width, slideFrame.height, LEAF_THICK]} />
           </mesh>
         </group>
       </group>
@@ -377,29 +383,26 @@ export function PlanDoorLeaf({
     // reusing the same click/toggle + fade infrastructure as the single-leaf
     // door); the inner leaf hinges at the outer leaf's far edge (`foldRef`) and
     // folds further in the same rotational sense (see the `useFrame` above).
-    const halfWidth = opening.width / 2
+    const { halfWidth, outerCentre, foldHinge, innerCentre } = bifoldLeafFrame(
+      opening.width,
+      direction,
+    )
     const onLeafClick = (e: { stopPropagation: () => void }) => {
       // Orbit mode is view-only (VIEW-EDIT-SPLIT) — see Door.tsx.
       if (!dispatchWalkInteract(useStore.getState(), opening.id, toggle)) return
       e.stopPropagation()
     }
-    const leaf = (key: string) => (
-      <mesh
-        key={key}
-        position={[(direction * halfWidth) / 2, 0, 0]}
-        onClick={onLeafClick}
-        material={leafMat}
-        castShadow
-      >
+    const leaf = (key: string, centre: number) => (
+      <mesh key={key} position={[centre, 0, 0]} onClick={onLeafClick} material={leafMat} castShadow>
         <boxGeometry args={[halfWidth, height, LEAF_THICK]} />
       </mesh>
     )
     return (
       <group ref={rootRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
         <group ref={swingRef} position={[hingeLocalX, opening.sill, 0]}>
-          <group position={[0, height / 2, 0]}>{leaf('outer')}</group>
-          <group ref={foldRef} position={[direction * halfWidth, height / 2, 0]}>
-            {leaf('inner')}
+          <group position={[0, height / 2, 0]}>{leaf('outer', outerCentre)}</group>
+          <group ref={foldRef} position={[foldHinge, height / 2, 0]}>
+            {leaf('inner', innerCentre)}
           </group>
         </group>
       </group>

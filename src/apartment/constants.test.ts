@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { buildDefaultPlan } from '../floorplan/defaultPlan'
+import { doorSwingGeometry } from '../floorplan/doorSwing'
+import { pointInRoom } from '../floorplan/types'
 import { isDemolitionRestricted } from '../floorplan/wallHackability'
 import { DOORS, INTERIOR_AREA_M2, ROOMS, WALLS, WINDOWS } from './constants'
 
@@ -136,4 +139,33 @@ describe('apartment constants', () => {
       expect(byId.get('wall-int-mid-S')!.end).toEqual(byId.get('wall-int-hs-S')!.start)
     })
   })
+})
+
+describe('bathroom doors open inward', () => {
+  // A bath/WC leaf that folds/swings out into the corridor blocks the walkway —
+  // and reads as a slab hanging in the circulation space in walk mode. The leaf's
+  // physical side is `swing` × the hinge jamb, so this is checked on the resolved
+  // normal, not the raw `swing` field.
+  const plan = buildDefaultPlan()
+  const wallOf = (id: string) => plan.walls.find((w) => w.id === id)
+
+  for (const [doorId, roomId] of [
+    ['door-bath1', 'bath1'],
+    ['door-bath2', 'bath2'],
+  ] as const) {
+    it(`${doorId} opens into ${roomId}`, () => {
+      const spec = DOORS.find((d) => d.id === doorId)
+      if (!spec) throw new Error(`missing ${doorId}`)
+      const wall = wallOf(spec.wallId)
+      if (!wall) throw new Error(`missing wall ${spec.wallId}`)
+      const opening = plan.openings.find((o) => o.id === doorId)
+      if (!opening) throw new Error(`missing opening ${doorId}`)
+      const g = doorSwingGeometry(wall, opening)
+      if (!g) throw new Error('no swing geometry')
+      // The open leaf's tip must land inside the bathroom it serves.
+      const room = plan.rooms.find((r) => r.id === roomId)
+      if (!room) throw new Error(`missing room ${roomId}`)
+      expect(pointInRoom(room, g.leafTip[0], g.leafTip[1])).toBe(true)
+    })
+  }
 })

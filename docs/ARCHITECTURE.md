@@ -125,7 +125,16 @@ same change that reshapes a system.
   backend-enabled bundle and deploys to Pages on push to `main` (wrangler-action; needs
   `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` repo secrets). Full guide: `docs/deployment-cloudflare.md`.
 - `src/apartment/` — default flat. `constants.ts` = source of truth for walls/doors/
-  windows/rooms. `walls/`, `floor/`, `Window`/`Door`/`Ceiling`/`Skirting`. `PlanShell.tsx`
+  windows/rooms. `walls/`, `floor/`, `Window`/`Door`/`Ceiling`/`Skirting`.
+  `doorLeafGeometry.ts` holds the pure multi-leaf placement maths shared by `Door.tsx` (curated
+  flat) and `PlanDoorLeaf.tsx` (custom plans), so the two renderers can't drift: **a closed door
+  must fully cover its opening** — `bifoldLeafFrame` puts the inner leaf a half-leaf BEYOND its
+  fold hinge (centred ON the pivot it covered only 3/4 of the doorway and a quarter-width slice
+  of the room showed through, `Door.tsx`'s bug), and `slidingLeafFrame` oversizes a slider past
+  both jambs + the head (`SLIDING_LEAF_OVERLAP`) because the leaf hangs proud of the wall
+  (`SLIDING_LEAF_STANDOFF`), where an exactly-opening-sized slab shows a parallax sliver of the
+  gap at any oblique angle. Bath/WC doors open INWARD — see `floorplan/doorSwing.ts`'s
+  `servedRoom`/`withInwardDoorSwings`. `PlanShell.tsx`
   renders a user-authored plan (extruded walls + per-room floor/ceiling) when active; its wall
   boxes carry `walls/PlanWallFace.tsx` interior faces so a room's WALL finish shows in the
   overview too (the box itself is only the plan's flat wall colour — before this, a picked wall

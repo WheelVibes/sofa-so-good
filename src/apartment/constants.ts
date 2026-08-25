@@ -1022,12 +1022,17 @@ export const DOORS: DoorSpec[] = [
     color: '#cfc8bd',
   },
   {
+    // Folds INTO the bath (south of `wall-int-corridor-S`), not out into the
+    // corridor: the leaf's physical side is `swing` × the hinge jamb (see
+    // `doorSwing.ts:swingForPhysicalSide`), so an END-hinged door needs
+    // `swing: 'left'` to land on the same +Z side `door-bath1` reaches with
+    // start-hinged `'right'`. It read `'right'` and folded out over the walkway.
     id: 'door-bath2',
     wallId: 'wall-int-corridor-S',
     offset: 3.35,
     width: DOOR_W,
     hinge: 'end',
-    swing: 'right',
+    swing: 'left',
     defaultOpen: false,
     style: 'bifold',
     material: 'vinyl',

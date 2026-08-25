@@ -10,8 +10,9 @@
  *   tangent `(ux, uz)`; 'left' = the opposite side.
  */
 
-import type { FloorPlan, PlanOpening, PlanWall } from './types'
-import { pointInRoom, wallLength } from './types'
+import { roomCategory } from './roomCategory'
+import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from './types'
+import { planRoomArea, pointInRoom, wallLength } from './types'
 import { isCurvedWall, pointAtArcLength } from './wallArc'
 
 export type DoorHinge = 'start' | 'end'
@@ -132,12 +133,44 @@ export function doorSwingGeometry(wall: PlanWall, o: PlanOpening): DoorSwingGeom
   return { hinge, freeJamb, leafTip, sweep, normal: [nx, nz] }
 }
 
+/** Rooms a door never opens INTO: circulation/shared space. A door between a
+ *  corridor (or the living/dining space) and a room it serves opens into the
+ *  SERVED room — the architectural convention, and the one users read as
+ *  "inward". */
+const CIRCULATION: ReadonlySet<string> = new Set(['foyer', 'living', 'dining', 'other'])
+
+/** Wet rooms — a bath/WC door opens inward (into the bathroom), never out into
+ *  the corridor where the swinging/folding leaf blocks the walkway. */
+const WET: ReadonlySet<string> = new Set(['bath', 'powder'])
+
+/**
+ * Which of two rooms a door between them SERVES — i.e. the side its leaf should
+ * open into. A wet room always wins (a bath/WC door opens inward); otherwise
+ * circulation space loses to a served room; otherwise the smaller room wins (the
+ * served space is the smaller of a room + the space it opens off). `null` when
+ * neither side is preferable (two rooms of the same class + area).
+ */
+export function servedRoom(a: PlanRoom, b: PlanRoom): PlanRoom | null {
+  const ca = roomCategory(a)
+  const cb = roomCategory(b)
+  if (WET.has(ca) !== WET.has(cb)) return WET.has(ca) ? a : b
+  if (CIRCULATION.has(ca) !== CIRCULATION.has(cb)) return CIRCULATION.has(ca) ? b : a
+  const aa = planRoomArea(a)
+  const ab = planRoomArea(b)
+  if (Math.abs(aa - ab) < 1e-6) return null
+  return aa < ab ? a : b
+}
+
 /**
  * Pick the swing side for a newly-placed door so it opens *into* the room it
  * serves — the architectural convention. Probes a short distance to each side of
- * the opening's centre: if exactly one side lands inside a room, swing toward it;
- * otherwise (both sides rooms, or neither) fall back to the default. Pure: takes
- * the would-be opening's wall + offset + width, before the opening exists.
+ * the opening's centre: if exactly one side lands inside a room, swing toward
+ * it; if BOTH sides are rooms (a bath off a corridor, a bedroom off the hall)
+ * the served room wins (`servedRoom`) — a bathroom door in particular always
+ * opens inward rather than folding out into the walkway. Falls back to the
+ * default only when neither side is a room (or the two are indistinguishable).
+ * Pure: takes the would-be opening's wall + offset + width, before the opening
+ * exists.
  */
 export function defaultDoorSwing(
   plan: FloorPlan,
@@ -153,11 +186,54 @@ export function defaultDoorSwing(
   const cz = wall.start[1] + uz * (offset + width / 2)
   const probe = 0.5
   // 'right' is the (-uz, ux) normal; 'left' the opposite.
-  const rightInside = plan.rooms.some((r) => pointInRoom(r, cx - uz * probe, cz + ux * probe))
-  const leftInside = plan.rooms.some((r) => pointInRoom(r, cx + uz * probe, cz - ux * probe))
-  if (rightInside && !leftInside) return 'right'
-  if (leftInside && !rightInside) return 'left'
+  const right = plan.rooms.find((r) => pointInRoom(r, cx - uz * probe, cz + ux * probe))
+  const left = plan.rooms.find((r) => pointInRoom(r, cx + uz * probe, cz - ux * probe))
+  if (right && !left) return 'right'
+  if (left && !right) return 'left'
+  if (right && left) {
+    const served = servedRoom(right, left)
+    if (served) return served === right ? 'right' : 'left'
+  }
   return DEFAULT_DOOR_SWING
+}
+
+/**
+ * Convert a desired PHYSICAL swing side (the `(-uz, ux)` right-hand normal =
+ * `'right'`) into the `swing` value to STORE on an opening with this `hinge`.
+ * `doorSwingGeometry` (and the 3D leaves that match it) fold the hinge jamb into
+ * the swing sign — a `'right'` door hinged at the END physically opens to the
+ * side a `'right'` door hinged at the START opens away from — so a side computed
+ * from room geometry has to be flipped for an end-hinged door or the leaf lands
+ * on the wrong face of the wall.
+ */
+export function swingForPhysicalSide(side: DoorSwing, hinge: DoorHinge): DoorSwing {
+  if (hinge === 'start') return side
+  return side === 'right' ? 'left' : 'right'
+}
+
+/**
+ * Fill in `swing` on every door opening that doesn't declare one, so the leaf
+ * opens INTO the room it serves (`defaultDoorSwing`) — a bath/WC door in
+ * particular folds/slides into the bathroom instead of out into the corridor.
+ *
+ * Applied when a plan is BUILT (the template registry's `cat()`), not at render
+ * time: baking the resolved side into the data keeps the 3D leaf, the 2D symbol,
+ * the clearance keep-out and the schedule reading one value, and leaves a
+ * user-set swing untouched. Pure — returns a new plan, or the same object when
+ * nothing needed filling.
+ */
+export function withInwardDoorSwings(plan: FloorPlan): FloorPlan {
+  const byId = new Map(plan.walls.map((w) => [w.id, w]))
+  let changed = false
+  const openings = plan.openings.map((o) => {
+    if (o.kind !== 'door' || o.swing) return o
+    const wall = byId.get(o.wallId)
+    if (!wall) return o
+    const side = defaultDoorSwing(plan, wall, o.offset, o.width)
+    changed = true
+    return { ...o, swing: swingForPhysicalSide(side, doorHinge(o)) }
+  })
+  return changed ? { ...plan, openings } : plan
 }
 
 /** SVG short-way (exactly 90°) arc sweep flag from `freeJamb` to `leafTip`

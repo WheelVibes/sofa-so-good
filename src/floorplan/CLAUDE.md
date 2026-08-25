@@ -104,6 +104,22 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   rect** (both quarters + the gap between them, `width/2` deep) rather than a literal two-arc trace.
   `style` stays a FREE string (no closed zod enum) in `types.ts` + `schema.ts` — adding a style needs
   no version bump; keep the two files' documented value list in parity.
+- **A closed door fully covers its opening, and it opens INWARD.** Multi-leaf placement maths is
+  pure + shared in `apartment/doorLeafGeometry.ts` (`bifoldLeafFrame`, `slidingLeafFrame`,
+  `SLIDING_LEAF_OVERLAP`/`_STANDOFF`) so the curated flat's `Door.tsx` and the plan's
+  `PlanDoorLeaf.tsx` can't drift — a bifold's inner leaf sits a half-leaf BEYOND its fold hinge
+  (centred on the pivot it left a quarter-width see-through slice at the free jamb), and a
+  sliding leaf is oversized past both jambs + the head because it hangs proud of the wall (an
+  exactly-opening-sized slab shows a parallax sliver at oblique angles). Swing SIDE: `doorSwing.ts`'s
+  `servedRoom` picks the room a door between two rooms serves (a wet room always wins, then
+  circulation loses, then the smaller room), `defaultDoorSwing` uses it for newly-placed doors,
+  and `withInwardDoorSwings` bakes the resolved side into every template plan's doors at BUILD
+  time (`templates/shared.ts:cat`) so the 3D leaf, 2D symbol, clearance keep-out and schedule all
+  read ONE value. A stored `swing` is a PHYSICAL side only after the hinge jamb is folded in —
+  convert with `swingForPhysicalSide` (an end-hinged door flips), never assign a computed side raw.
+  The curated flat carries its own swings in `apartment/constants.ts` (`door-bath2` is end-hinged,
+  so `swing: 'left'` is what folds it into the bath); `apartment/constants.test.ts` pins both bath
+  leaves' open tips inside their bathroom.
 - **Wall structural classification (TODO G7, `wallStructure` pro flag):**
   `PlanWall.structure?: 'load-bearing'|'rc-partition'|'brick-partition'|'drywall'|'gable-end'|'unknown'`
   (absent = `'unknown'`) is **user-declared, never verified** — the app cannot tell a
