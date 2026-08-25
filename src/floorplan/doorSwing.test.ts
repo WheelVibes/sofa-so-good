@@ -10,7 +10,10 @@ import {
   doorSwingGeometry,
   isDoubleDoor,
   isSlidingDoor,
+  servedRoom,
   slidingParkDir,
+  swingForPhysicalSide,
+  withInwardDoorSwings,
 } from './doorSwing'
 import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from './types'
 
@@ -195,5 +198,107 @@ describe('slidingParkDir', () => {
     expect(slidingParkDir(1.5, 1, 3)).toBe(-1)
     // Exact tie → -1 (toward the start).
     expect(slidingParkDir(1, 1, 3)).toBe(-1)
+  })
+})
+
+// A named room, so the category classifier (bath / corridor / bedroom) applies.
+const named = (
+  id: string,
+  name: string,
+  origin: [number, number],
+  w: number,
+  d: number,
+): PlanRoom => ({ ...room(id, origin, w, d), name })
+
+describe('servedRoom', () => {
+  it('picks the bath over the corridor it opens off', () => {
+    const bath = named('b', 'Bath/WC 2', [0, 0], 2, 2)
+    const corridor = named('c', 'Corridor', [0, -1.1], 4, 1.1)
+    expect(servedRoom(bath, corridor)?.id).toBe('b')
+    expect(servedRoom(corridor, bath)?.id).toBe('b')
+  })
+  it('picks the bedroom over the living/dining space', () => {
+    const bed = named('b', 'Bedroom 2', [0, 0], 3, 3)
+    const ld = named('l', 'Living / Dining', [0, -6], 6, 6)
+    expect(servedRoom(bed, ld)?.id).toBe('b')
+  })
+  it('picks the smaller room when neither side is wet or circulation', () => {
+    const small = named('s', 'Study', [0, 0], 2, 2)
+    const big = named('g', 'Bedroom 1', [0, -4], 4, 4)
+    expect(servedRoom(small, big)?.id).toBe('s')
+  })
+  it('is null for two indistinguishable rooms', () => {
+    expect(
+      servedRoom(named('a', 'Room A', [0, 0], 3, 3), named('b', 'Room B', [0, -3], 3, 3)),
+    ).toBe(null)
+  })
+})
+
+describe('defaultDoorSwing — both sides rooms', () => {
+  it('opens into the bath, not the corridor', () => {
+    // Bath on +Z (the 'right' normal of this +X wall), corridor on -Z.
+    const plan = makePlan([
+      named('bath', 'Bath/WC 2', [0, 0], 3, 2),
+      named('cor', 'Corridor', [0, -1.2], 3, 1.2),
+    ])
+    expect(defaultDoorSwing(plan, wall, 1, 1)).toBe('right')
+  })
+  it('opens into the bath when the bath is on the -Z side', () => {
+    const plan = makePlan([
+      named('cor', 'Corridor', [0, 0], 3, 1.2),
+      named('bath', 'Bath/WC 1', [0, -2], 3, 2),
+    ])
+    expect(defaultDoorSwing(plan, wall, 1, 1)).toBe('left')
+  })
+})
+
+describe('swingForPhysicalSide', () => {
+  it('passes a start-hinged side through', () => {
+    expect(swingForPhysicalSide('right', 'start')).toBe('right')
+    expect(swingForPhysicalSide('left', 'start')).toBe('left')
+  })
+  it('flips an end-hinged side (the hinge is folded into the swing sign)', () => {
+    expect(swingForPhysicalSide('right', 'end')).toBe('left')
+    expect(swingForPhysicalSide('left', 'end')).toBe('right')
+  })
+  it('round-trips to the intended physical normal for BOTH hinges', () => {
+    // The +Z normal of this +X wall is the 'right' side.
+    for (const hinge of ['start', 'end'] as const) {
+      const o: PlanOpening = { ...base, hinge, swing: swingForPhysicalSide('right', hinge) }
+      const g = doorSwingGeometry(wall, o)
+      expect(g?.normal).toEqual([0, 1])
+    }
+  })
+})
+
+describe('withInwardDoorSwings', () => {
+  const bathPlan = (hinge: 'start' | 'end') => ({
+    ...makePlan([
+      named('bath', 'Bath/WC 2', [0, 0], 3, 2),
+      named('cor', 'Corridor', [0, -1.2], 3, 1.2),
+    ]),
+    openings: [{ ...base, hinge }],
+  })
+
+  it('fills the swing so the leaf lands inside the bath (start hinge)', () => {
+    const filled = withInwardDoorSwings(bathPlan('start'))
+    expect(filled.openings[0].swing).toBe('right')
+    expect(doorSwingGeometry(wall, filled.openings[0])?.normal).toEqual([0, 1])
+  })
+  it('fills the swing so the leaf lands inside the bath (end hinge)', () => {
+    const filled = withInwardDoorSwings(bathPlan('end'))
+    expect(filled.openings[0].swing).toBe('left')
+    expect(doorSwingGeometry(wall, filled.openings[0])?.normal).toEqual([0, 1])
+  })
+  it('leaves an explicit swing alone and returns the same plan when nothing to fill', () => {
+    const plan = { ...bathPlan('start'), openings: [{ ...base, swing: 'left' as const }] }
+    expect(withInwardDoorSwings(plan)).toBe(plan)
+  })
+  it('ignores windows', () => {
+    const plan = {
+      ...bathPlan('start'),
+      openings: [{ ...base, kind: 'window' as const, sill: 0.9, head: 2.1 }],
+    }
+    expect(withInwardDoorSwings(plan)).toBe(plan)
   })
 })

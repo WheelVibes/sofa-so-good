@@ -5,6 +5,73 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.30.2.0 — the walk-mode minimap fills its panel
+
+*(PR patch bump: ships the door-coverage/inward-swing fix of v0.30.1.1 together
+with this minimap change.)*
+
+The minimap drew into a fixed **square** 168-unit viewBox inside a 168x132
+widget, so the browser's `xMidYMid meet` letterboxed the square content down to
+the box's SHORT side: ~18px of dead space on each side, on top of the widget's
+own 8px CSS padding, and a plan drawn at ~70% of the size the panel could hold.
+
+The viewBox now tracks the widget's **measured** pixel box (ResizeObserver, 1
+svg unit = 1 CSS px) and the pure `ui/walk/minimapGeometry.ts:fitMinimapView`
+fits the plan into it with a small `INSET` — uniform on both axes, never
+distorted, centred, and re-fit on resize (including the mobile breakpoint's
+144x112). `.minimap`'s CSS padding drops to `--s-1` so the padding you see is
+deliberate rather than accumulated. Tap-to-teleport inverts the same transform:
+`svgSquareViewBoxPoint` is now a thin wrapper over the general
+`svgViewBoxPoint`, so the letterbox term is simply zero here.
+
+The player marker also grew: a bigger outlined arrow over a soft accent halo
+(`.mm-cam-halo`), which is what makes "you are here, facing this way" readable
+over the furniture dots and a lit room fill.
+
+## v0.30.1.1 — a closed door covers its doorway, and bath doors open inward
+
+Two door bugs, one theme: what you see in walk mode at arm's length.
+
+**A closed bifold covered only 3/4 of its opening.** `Door.tsx`'s inner leaf was
+positioned AT its fold hinge instead of a half-leaf beyond it, so the two
+half-width leaves overlapped and a quarter-width slice of the doorway — the room
+behind it, the floor, the light — showed through at the free jamb. Reported from
+the flat's Bath/WC 2 door, visible on every bifold in the curated flat.
+`PlanDoorLeaf` (custom plans) had it right, which is exactly how two copies of
+the same maths drift: the placement now lives once, pure, in
+`apartment/doorLeafGeometry.ts` (`bifoldLeafFrame`), consumed by both renderers
+and unit-tested on the invariant that matters — the two leaves tile the opening
+exactly, for a start-hinged AND an end-hinged door.
+
+`slidingLeafFrame` covers the same invariant for the other style that could show
+a gap: a slider hangs PROUD of the wall, so a slab sized exactly to the opening
+shows a parallax sliver of the gap at any oblique angle. It is now oversized
+past both jambs and the head (`SLIDING_LEAF_OVERLAP`, the reason real bypass
+doors are oversize) and sits closer to the wall (`SLIDING_LEAF_STANDOFF` 30 mm,
+down from 110 mm), with the open travel following the bigger leaf so it still
+parks fully clear.
+
+**Bath/WC doors folded OUT into the corridor.** The leaf's physical side is
+`swing` × the hinge jamb, and `door-bath2` (end-hinged, `swing: 'right'`) landed
+on the corridor side — a slab hanging in the walkway you had to look past.
+Fixed in the spec (`swing: 'left'` is what folds an end-hinged door into the
+bath), and pinned by a test that resolves both bath leaves' open tips and
+asserts they land INSIDE their bathroom rather than checking the raw field.
+
+Plan doors get the rule generically: `doorSwing.ts:servedRoom` picks the room a
+door between two rooms serves (a wet room always wins, then circulation loses,
+then the smaller room), `defaultDoorSwing` uses it for newly-placed doors, and
+`withInwardDoorSwings` bakes the resolved side into every starter template's
+doors at BUILD time (`templates/shared.ts:cat`) so the 3D leaf, the 2D symbol,
+the clearance keep-out and the schedule all read ONE value.
+`swingForPhysicalSide` is the conversion nobody should skip — a computed side is
+only a stored `swing` after the hinge jamb is folded in.
+
+Verified in the real app (`scripts/scenarios/doors-inward-coverage.json`,
+`doors-inward-open.json`): the closed bifold's leaf meshes sit at the two
+half-leaf centres spanning the full opening, and opening both bath doors moves
+every leaf mesh SOUTH of the corridor wall — into the bath.
+
 ## v0.30.1.0 — a hidden tab boots (and a one-liner to raise the window)
 
 Chrome delivers **no** `requestAnimationFrame` to a page it considers hidden,

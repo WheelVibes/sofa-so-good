@@ -116,3 +116,45 @@ export function openingSegments(plan: FloorPlan): OpeningSeg[] {
   }
   return segs
 }
+
+export interface MinimapView {
+  /** World metres → svg units. */
+  scale: number
+  /** Svg-unit offset of the padded content box's left edge. */
+  offX: number
+  /** Svg-unit offset of the padded content box's top edge. */
+  offY: number
+}
+
+/**
+ * Fit the plan's content bounds into the minimap's **actual** (non-square) box.
+ *
+ * The minimap used to draw into a fixed SQUARE viewBox inside a wider-than-tall
+ * widget, so the browser's `xMidYMid meet` letterboxed the square content and
+ * the map only ever filled the box's SHORTER side — a fat empty margin left and
+ * right, on top of the widget's own CSS padding. Sizing the viewBox to the
+ * measured box (`svg` units = CSS px) and fitting here instead lets the map fill
+ * the rectangle, with `inset` as the only breathing room.
+ *
+ * `worldPad` is the metre margin kept around the apartment itself (so wall
+ * strokes and the player arrow never clip at the edge); `inset` is svg-unit
+ * padding inside the box. Uniform scale on both axes — never distorted.
+ */
+export function fitMinimapView(
+  bounds: PlanContentBounds,
+  boxW: number,
+  boxH: number,
+  inset: number,
+  worldPad: number,
+): MinimapView {
+  const contentW = bounds.maxX - bounds.minX + worldPad * 2
+  const contentH = bounds.maxZ - bounds.minZ + worldPad * 2
+  const innerW = Math.max(1, boxW - inset * 2)
+  const innerH = Math.max(1, boxH - inset * 2)
+  const scale = contentW > 0 && contentH > 0 ? Math.min(innerW / contentW, innerH / contentH) : 1
+  return {
+    scale,
+    offX: (boxW - contentW * scale) / 2,
+    offY: (boxH - contentH * scale) / 2,
+  }
+}

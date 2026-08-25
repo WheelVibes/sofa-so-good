@@ -644,7 +644,7 @@
 .fps-hud .fps-n { font-size: var(--t-sm); font-weight: 700; color: var(--text); }
 .fps-hud .fps-u { font-size: var(--t-2xs); font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
 .minimap {
-  width: 168px; height: 132px; padding: var(--s-3);
+  width: 168px; height: 132px; padding: var(--s-1);
   /* More translucent than a solid panel so the scene shows through (the frosted
      blur keeps the map legible). Token-based so it tracks all themes. */
   background: color-mix(in oklab, var(--surface) 55%, transparent);
@@ -658,6 +658,9 @@
 .mm-room.lit { fill: var(--accent-soft); stroke: var(--accent); }
 .mm-label { fill: var(--text); font-size: 6px; font-weight: 800; font-family: var(--font-ui); text-transform: uppercase; letter-spacing: 0.02em; paint-order: stroke; stroke: var(--surface); stroke-width: 1.6px; stroke-linejoin: round; }
 .mm-cam { fill: var(--accent); }
+/* Soft accent halo behind the player arrow so the marker stays legible over
+   furniture dots and a lit room fill. */
+.mm-cam-halo { fill: var(--accent); opacity: 0.22; }
 .compass {
   width: 56px; height: 56px; border-radius: var(--r-pill);
   background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-panel);

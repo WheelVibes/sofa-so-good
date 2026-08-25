@@ -1,0 +1,138 @@
+{
+  "name": "doors-inward-coverage",
+  "description": "Door leaves fully cover their opening when closed, and bath/WC + sliding doors open INWARD (into the room they serve, not out over the corridor). Curated flat: the corridor-S bath1/bath2 bifolds, closed then open. Plan doors: a template bath door forced to `sliding`, closed then parked.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const st = window.__store.getState(); st.endTour?.(); st.setOnboardingOpen?.(false); st.dismissLocationPrompt?.(); st.setManualHour?.(13); st.setLightsMode?.('on'); st.hideLoading?.(); st.dismissCallout?.('walk-mode') })()"
+    },
+    {
+      "name": "high-tier",
+      "store": {
+        "action": "setQualityTier",
+        "args": [
+          "high"
+        ]
+      }
+    },
+    {
+      "name": "three-ready",
+      "waitFor": {
+        "store": "!!window.__three && !!window.__three.controls"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "no-wall-fade",
+      "eval": "window.__store.getState().setWallRevealStrength?.(0); window.__look = (px, pz, tx, tz) => { const c = window.__three.camera; c.position.set(px, 1.5, pz); const k = window.__three.controls; k.target.set(tx, 1.1, tz); k.update(); }; 'ok'"
+    },
+    {
+      "name": "view-bath1",
+      "eval": "window.__look(2.99, 4.0, 2.99, 4.875); 'ok'"
+    },
+    {
+      "name": "settle-b1",
+      "wait": 900
+    },
+    {
+      "name": "shot-bath1-closed",
+      "screenshot": "01-bath1-closed"
+    },
+    {
+      "name": "view-bath2",
+      "eval": "window.__look(5.215, 4.0, 5.215, 4.875); 'ok'"
+    },
+    {
+      "name": "settle-b2",
+      "wait": 900
+    },
+    {
+      "name": "shot-bath2-closed",
+      "screenshot": "02-bath2-closed"
+    },
+    {
+      "name": "open-bath-doors",
+      "eval": "(() => { const st = window.__store.getState(); st.setDoorOpen('door-bath1', true); st.setDoorOpen('door-bath2', true) })()"
+    },
+    {
+      "name": "settle-open",
+      "wait": 1200
+    },
+    {
+      "name": "shot-bath2-open",
+      "screenshot": "03-bath2-open"
+    },
+    {
+      "name": "view-bath2-oblique",
+      "eval": "window.__look(4.0, 4.1, 5.215, 4.875); 'ok'"
+    },
+    {
+      "name": "settle-obl",
+      "wait": 900
+    },
+    {
+      "name": "shot-bath2-open-oblique",
+      "screenshot": "04-bath2-open-oblique"
+    },
+    {
+      "name": "load-template-plan",
+      "eval": "window.__loadTemplate('tpl-hdb-4room'); 'ok'"
+    },
+    {
+      "name": "plan-loaded",
+      "wait": 800
+    },
+    {
+      "name": "force-sliding",
+      "eval": "(() => { const st = window.__store.getState(); const plan = st.floorPlan; const area = r => (r.polygon ? 99 : r.width * r.depth); const inRect = (r, x, z) => x >= r.origin[0] - 0.05 && x <= r.origin[0] + r.width + 0.05 && z >= r.origin[1] - 0.05 && z <= r.origin[1] + r.depth + 0.05; const byId = new Map(plan.walls.map(w => [w.id, w])); const cands = []; for (const o of plan.openings) { if (o.kind !== 'door') continue; const w = byId.get(o.wallId); if (!w) continue; const len = Math.hypot(w.end[0] - w.start[0], w.end[1] - w.start[1]); if (!len) continue; const ux = (w.end[0] - w.start[0]) / len, uz = (w.end[1] - w.start[1]) / len; const cx = w.start[0] + ux * (o.offset + o.width / 2), cz = w.start[1] + uz * (o.offset + o.width / 2); const nx = -uz, nz = ux; const rA = plan.rooms.find(r => inRect(r, cx + nx * 0.5, cz + nz * 0.5)); const rB = plan.rooms.find(r => inRect(r, cx - nx * 0.5, cz - nz * 0.5)); if (!rA || !rB) continue; const small = area(rA) < area(rB) ? rA : rB; cands.push({ id: o.id, cx, cz, nx, nz, small: small.name, smallArea: area(small), inA: small === rA }); } cands.sort((a, b) => a.smallArea - b.smallArea); const pick = cands[0]; if (!pick) throw new Error('no interior door found in template'); st.updateOpening(pick.id, { style: 'sliding' }); window.__slide = pick; return JSON.stringify(pick) })()"
+    },
+    {
+      "name": "settle-plan",
+      "wait": 1200
+    },
+    {
+      "name": "view-slide-outside",
+      "eval": "(() => { const d = window.__slide; const s = d.inA ? -1 : 1; window.__look(d.cx + d.nx * s * 1.5, d.cz + d.nz * s * 1.5, d.cx, d.cz) })()"
+    },
+    {
+      "name": "settle-so",
+      "wait": 900
+    },
+    {
+      "name": "shot-slide-outside",
+      "screenshot": "05-sliding-closed-from-outside"
+    },
+    {
+      "name": "view-slide-inside",
+      "eval": "(() => { const d = window.__slide; const s = d.inA ? 1 : -1; window.__look(d.cx + d.nx * s * 1.5, d.cz + d.nz * s * 1.5, d.cx, d.cz) })()"
+    },
+    {
+      "name": "settle-si",
+      "wait": 900
+    },
+    {
+      "name": "shot-slide-inside",
+      "screenshot": "06-sliding-closed-from-inside"
+    },
+    {
+      "name": "open-slide",
+      "eval": "(() => { window.__store.getState().setDoorOpen(window.__slide.id, true) })()"
+    },
+    {
+      "name": "settle-slide-open",
+      "wait": 1200
+    },
+    {
+      "name": "shot-slide-open",
+      "screenshot": "07-sliding-open-from-inside"
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "name": "doors-inward-open",
+  "description": "Bath/WC bifolds fold INWARD (into the bath, clear of the corridor) and cover the opening when closed. Companion to doors-inward-coverage: opens them, pumps frames so the swing animates under the demand render loop, then views from the corridor and from inside the bath.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const st = window.__store.getState(); st.endTour?.(); st.setOnboardingOpen?.(false); st.dismissLocationPrompt?.(); st.setManualHour?.(13); st.setLightsMode?.('on'); st.hideLoading?.() })()"
+    },
+    {
+      "name": "high-tier",
+      "store": {
+        "action": "setQualityTier",
+        "args": [
+          "high"
+        ]
+      }
+    },
+    {
+      "name": "three-ready",
+      "waitFor": {
+        "store": "!!window.__three && !!window.__three.controls"
+      },
+      "timeout": 30000
+    },
+    {
+      "name": "no-wall-fade",
+      "eval": "(() => { window.__store.getState().setWallRevealStrength?.(0); window.__look = (px, pz, tx, tz) => { const c = window.__three.camera; c.position.set(px, 1.5, pz); const k = window.__three.controls; k.target.set(tx, 1.1, tz); k.update() } })()"
+    },
+    {
+      "name": "open-both-baths",
+      "eval": "(() => { const st = window.__store.getState(); st.setDoorOpen('door-bath1', true); st.setDoorOpen('door-bath2', true) })()"
+    },
+    {
+      "name": "pump-frames",
+      "eval": "(() => { let i = 0; const c = window.__three.camera; const id = setInterval(() => { c.position.x += (i % 2 ? -0.002 : 0.002); window.__three.controls.update(); if (++i > 60) clearInterval(id) }, 16) })()"
+    },
+    {
+      "name": "settle-anim",
+      "wait": 2000
+    },
+    {
+      "name": "view-corridor-oblique",
+      "eval": "window.__look(3.2, 4.15, 5.4, 4.9); 'ok'"
+    },
+    {
+      "name": "settle-1",
+      "wait": 1200
+    },
+    {
+      "name": "shot-corridor",
+      "screenshot": "01-corridor-doors-open"
+    },
+    {
+      "name": "view-inside-bath2",
+      "eval": "window.__look(5.0, 6.2, 5.3, 4.9); 'ok'"
+    },
+    {
+      "name": "settle-2",
+      "wait": 1200
+    },
+    {
+      "name": "shot-inside-bath2",
+      "screenshot": "02-inside-bath2-doors-open"
+    },
+    {
+      "name": "close-both",
+      "eval": "(() => { const st = window.__store.getState(); st.setDoorOpen('door-bath1', false); st.setDoorOpen('door-bath2', false) })()"
+    },
+    {
+      "name": "pump-frames-2",
+      "eval": "(() => { let i = 0; const c = window.__three.camera; const id = setInterval(() => { c.position.x += (i % 2 ? -0.002 : 0.002); window.__three.controls.update(); if (++i > 60) clearInterval(id) }, 16) })()"
+    },
+    {
+      "name": "settle-3",
+      "wait": 2000
+    },
+    {
+      "name": "shot-inside-bath2-closed",
+      "screenshot": "03-inside-bath2-closed"
+    }
+  ]
+}

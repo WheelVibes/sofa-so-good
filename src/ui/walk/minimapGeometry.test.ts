@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FloorPlan, PlanRoom } from '../../floorplan/types'
-import { openingSegments, planContentBounds, roomPathD } from './minimapGeometry'
+import { fitMinimapView, openingSegments, planContentBounds, roomPathD } from './minimapGeometry'
 
 const base = (over: Partial<PlanRoom>): PlanRoom => ({
   id: 'r',
@@ -150,5 +150,42 @@ describe('openingSegments', () => {
     )
     expect(segs.map((s) => s.id)).toEqual(['a'])
     expect(segs[0].b[0]).toBeCloseTo(4) // clamped to wall end
+  })
+})
+
+describe('fitMinimapView', () => {
+  const bounds = { minX: 0, minZ: 0, maxX: 10, maxZ: 5 }
+
+  it('fills the box on the limiting axis (no letterbox slack)', () => {
+    const { scale, offX, offY } = fitMinimapView(bounds, 152, 116, 3, 0.4)
+    const contentW = 10 + 0.8
+    const contentH = 5 + 0.8
+    // Wide content in a wide-ish box → width is the limiting axis.
+    expect(scale).toBeCloseTo((152 - 6) / contentW, 6)
+    // Exactly the inset on the limiting axis, centred slack on the other.
+    expect(offX).toBeCloseTo(3, 6)
+    expect(offY).toBeCloseTo((116 - contentH * scale) / 2, 6)
+    // And it never overflows the box.
+    expect(offX + contentW * scale).toBeLessThanOrEqual(152)
+    expect(offY + contentH * scale).toBeLessThanOrEqual(116)
+  })
+
+  it('is uniform on both axes (never distorted)', () => {
+    const tall = fitMinimapView({ minX: 0, minZ: 0, maxX: 3, maxZ: 12 }, 152, 116, 3, 0.4)
+    expect(tall.scale).toBeCloseTo((116 - 6) / (12 + 0.8), 6)
+    expect(tall.offY).toBeCloseTo(3, 6)
+  })
+
+  it('draws the plan bigger than the old letterboxed square viewBox did', () => {
+    // Old: fit into a 168-unit SQUARE viewBox, which the browser then scaled to
+    // the box's SHORT side (116 of 152x116) — so the effective px-per-metre was
+    // the square fit times that letterbox factor.
+    const oldPxPerM = ((168 - 12) / Math.max(10 + 0.8, 5 + 0.8)) * (116 / 168)
+    expect(fitMinimapView(bounds, 152, 116, 3, 0.4).scale).toBeGreaterThan(oldPxPerM)
+  })
+
+  it('survives a degenerate box or plan', () => {
+    expect(fitMinimapView(bounds, 0, 0, 3, 0.4).scale).toBeGreaterThan(0)
+    expect(fitMinimapView({ minX: 0, minZ: 0, maxX: 0, maxZ: 0 }, 152, 116, 3, 0).scale).toBe(1)
   })
 })

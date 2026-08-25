@@ -125,7 +125,16 @@ same change that reshapes a system.
   backend-enabled bundle and deploys to Pages on push to `main` (wrangler-action; needs
   `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` repo secrets). Full guide: `docs/deployment-cloudflare.md`.
 - `src/apartment/` — default flat. `constants.ts` = source of truth for walls/doors/
-  windows/rooms. `walls/`, `floor/`, `Window`/`Door`/`Ceiling`/`Skirting`. `PlanShell.tsx`
+  windows/rooms. `walls/`, `floor/`, `Window`/`Door`/`Ceiling`/`Skirting`.
+  `doorLeafGeometry.ts` holds the pure multi-leaf placement maths shared by `Door.tsx` (curated
+  flat) and `PlanDoorLeaf.tsx` (custom plans), so the two renderers can't drift: **a closed door
+  must fully cover its opening** — `bifoldLeafFrame` puts the inner leaf a half-leaf BEYOND its
+  fold hinge (centred ON the pivot it covered only 3/4 of the doorway and a quarter-width slice
+  of the room showed through, `Door.tsx`'s bug), and `slidingLeafFrame` oversizes a slider past
+  both jambs + the head (`SLIDING_LEAF_OVERLAP`) because the leaf hangs proud of the wall
+  (`SLIDING_LEAF_STANDOFF`), where an exactly-opening-sized slab shows a parallax sliver of the
+  gap at any oblique angle. Bath/WC doors open INWARD — see `floorplan/doorSwing.ts`'s
+  `servedRoom`/`withInwardDoorSwings`. `PlanShell.tsx`
   renders a user-authored plan (extruded walls + per-room floor/ceiling) when active; its wall
   boxes carry `walls/PlanWallFace.tsx` interior faces so a room's WALL finish shows in the
   overview too (the box itself is only the plan's flat wall colour — before this, a picked wall
@@ -2301,8 +2310,14 @@ same change that reshapes a system.
   collision walls (`levelAsPlan`) + furniture blockers are that storey's own. **Minimap
   tap-to-teleport** (MINIMAP-JUMP, `minimapTeleport` flag, simple): clicking/tapping
   `ui/Minimap.tsx` converts the pointer to world XZ (`ui/walk/minimapTeleport.ts`, pure —
-  `svgSquareViewBoxPoint` inverts the letterboxed square-viewBox-in-a-wider-box SVG mapping,
-  `minimapPointToWorld` inverts the component's own world→svg transform) and clamps it inside
+  `svgViewBoxPoint` inverts the SVG client→viewBox mapping (`svgSquareViewBoxPoint` is now a
+  square-viewBox wrapper over it), `minimapPointToWorld` inverts the component's own world→svg
+  transform). **The minimap's viewBox tracks its measured pixel box** (ResizeObserver, 1 svg unit
+  = 1 CSS px) and `ui/walk/minimapGeometry.ts:fitMinimapView` fits the plan into it with a small
+  `INSET`: a fixed SQUARE viewBox inside the 168x132 widget was letterboxed to the box's SHORT
+  side, so the map only ever filled ~76% of the width on top of the widget's CSS padding. The
+  player marker is an accent arrow over a soft `.mm-cam-halo` disc so it reads over furniture
+  dots and clamps it inside
   the tapped (or nearest) room's polygon clear of every wall by `WALK_PLAYER_RADIUS`
   (`clampPointToPolygon`, probes the inward normal via `pointInPolygon` so it works for
   rectangular/L-shaped/free-drawn rooms alike), facing the room's centre

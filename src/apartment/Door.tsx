@@ -12,6 +12,7 @@ import {
 import { dispatchWalkInteract } from '../state/editing'
 import { useStore } from '../state/store'
 import { DOORS, FLAT, WALLS } from './constants'
+import { bifoldLeafFrame } from './doorLeafGeometry'
 import type { DoorSpec, WallSpec } from './types'
 import { getWallOpacity } from './walls/wallReveal'
 
@@ -226,13 +227,14 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
   // Lever handle (flush/glazed — the UPVC/aluminium laminate doors in the
   // spec photos carry a modern lever on a rectangular rose, not a brass
   // knob) vs the classic knob (panel) vs a small recessed pull (bifold).
-  const halfWidth = spec.width / 2
+  const bifold = bifoldLeafFrame(spec.width, direction)
+  const halfWidth = bifold.halfWidth
 
   return (
     <group ref={rootRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
       {isBifold ? (
         <group ref={swingRef} position={[hingeLocalX, 0, 0]}>
-          <group position={[(direction * halfWidth) / 2, height / 2, 0]}>
+          <group position={[bifold.outerCentre, height / 2, 0]}>
             <mesh
               onClick={(e) => {
                 if (!dispatchWalkInteract(useStore.getState(), spec.id, toggle)) return
@@ -251,8 +253,13 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
               <MetalMaterial color="#c9ccd1" metalness={0.6} roughness={0.35} />
             </mesh>
           </group>
-          <group ref={foldRef} position={[direction * halfWidth, height / 2, 0]}>
+          <group ref={foldRef} position={[bifold.foldHinge, height / 2, 0]}>
+            {/* The inner leaf sits a HALF-LEAF beyond its fold hinge (not
+                centred on it) — centred on the pivot it overlapped the outer
+                leaf and left a quarter-width see-through slice of the doorway
+                at the free jamb (`bifoldLeafFrame`). */}
             <mesh
+              position={[bifold.innerCentre, 0, 0]}
               onClick={(e) => {
                 if (!dispatchWalkInteract(useStore.getState(), spec.id, toggle)) return
                 e.stopPropagation()

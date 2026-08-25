@@ -1,5 +1,6 @@
 /** Shared geometry + builder helpers for the starter floor-plan templates
  *  (`./hdb`, `./condo`). Pure functions over the plan model. */
+import { withInwardDoorSwings } from '../doorSwing'
 import type { FloorPlan, HousingType, PlanOpening, PlanWall, RoomCategory } from '../types'
 
 export const T = 0.1 // inset of walls from the nominal footprint edge
@@ -56,5 +57,8 @@ export function cat(
   projectName: string,
   apartmentType: string,
 ): FloorPlan {
-  return { ...plan, category: { housingType, projectName, apartmentType } }
+  // Bake the inward swing side into every door that doesn't declare one, so a
+  // bath/WC door folds into the bathroom rather than out into the corridor (and
+  // every consumer — 3D leaf, 2D symbol, clearance, schedule — reads one value).
+  return { ...withInwardDoorSwings(plan), category: { housingType, projectName, apartmentType } }
 }
