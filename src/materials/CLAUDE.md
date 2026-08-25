@@ -95,7 +95,11 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   covers at most 2 m), else the resolution alone (a user upload), else the legacy 1 m. **A guess
   may shrink a map, never stretch it**; a MEASURED size stands past that target (a 2.45 m tile
   scan really is 2.45 m — 418 px/m from a 1K map, the density the procedural floors ship at) but
-  not past `MIN_TEXEL_DENSITY` (256 px/m), where scale finally yields to sharpness. Magnification
+  not past `MIN_TEXEL_DENSITY` (256 px/m), where scale finally yields to sharpness. **Decided
+  2026-08-25: keep true scale** — the floor stays at 256 px/m rather than the 512 px/m target, so a
+  2.4 m brick scan renders at 2.4 m (427 px/m, the density the procedural floors ship at) instead
+  of being shrunk 17% to stay crisp. Only the extremes clamp. If a future call reverses that, it is
+  one constant, but re-read this line first: physical accuracy was the deliberate choice. Magnification
   is the one direction mipmaps cannot save,
   and it also renders the pattern at the wrong physical size. Two bugs this fixed: the packer's
   per-family table was >1.5× off on 16 of 28 measured assets (`Wood066` is a 0.4 m scan stretched

@@ -58,6 +58,7 @@ at 340–427 px/m, the same density the procedural floors ship at and worth
 keeping at true scale. Only extremes trade scale for sharpness (a 5.4 m paving
 scan on a 1K map would be 190 px/m, so it renders at 4 m instead). Raising the
 floor to the target is a one-constant change if sharpness should always win.
+**Decided: keep true scale** — the floor stays at 256 px/m.
 
 **Re-tagging what is already packed:** `scripts/retag-acg-tile-sizes.mjs`
 rewrites the manifest from the API without touching a single image, so only the
