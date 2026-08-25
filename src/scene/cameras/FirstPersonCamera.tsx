@@ -39,8 +39,9 @@ import { windowFixtureAimSegments } from '../../furniture/windowFixtureInteract'
 import { useStore } from '../../state/store'
 import { getRoomEditorShell } from '../roomEditorShell'
 import { resetWalkMove, walkInput } from '../walkInput'
-import { clampWalkEyeHeight, WALK_PLAYER_RADIUS } from './walkCameraSettings'
+import { clampWalkEyeHeight, WALK_PLAYER_RADIUS, walkVerticalFov } from './walkCameraSettings'
 import { _resetWalkMeasureRequest, consumeWalkMeasureRequest } from './walkMeasureRequest'
+import { resolveWalkSpawn } from './walkSpawn'
 import { _resetWalkTeleport, consumeWalkTeleport } from './walkTeleport'
 
 const DOOR_SEGMENTS: AimSegment[] = (() => {
@@ -100,7 +101,7 @@ const INTERACT_RADIUS = 2.0
 const AIM_CHECK_INTERVAL = 0.1
 
 export function FirstPersonCamera() {
-  const { camera, gl, scene } = useThree()
+  const { camera, gl, scene, size } = useThree()
   const pressed = useRef<Record<string, boolean>>({})
   // Drag-to-look orientation (radians). Yaw about world-Y, pitch about local-X.
   const yaw = useRef(0)
@@ -332,20 +333,37 @@ export function FirstPersonCamera() {
   }, [])
 
   useEffect(() => {
+    // Each branch picks a nominal standing point + a point to face; the spawn is
+    // then nudged clear of whatever furniture happens to stand there
+    // (WALK-SPAWN-CLEAR) before it is applied, so entering walk mode never puts
+    // the eye inside a table/bed/sofa.
+    let sx: number
+    let sz: number
+    let lx: number
+    let lz: number
+    let eye = eyeHeightRef.current
     if (roomEditorId) {
       // Spawn in the centre of the isolated room, looking toward its far edge
       // (default apartment or custom plan). Plan read fresh (not a dep) so a
       // plan edit during walk never re-spawns the player.
       const editorShell = getRoomEditorShell(useStore.getState().floorPlan, roomEditorId)
       const [cx, cz] = editorShell ? editorShell.shell.center : [0, 0]
-      const eye = eyeHeightRef.current
-      camera.position.set(cx, eye, cz)
-      camera.lookAt(cx, eye, cz - 1)
+      sx = cx
+      sz = cz
+      lx = cx
+      lz = cz - 1
     } else if (isDefaultPlan(useStore.getState().floorPlan)) {
-      const eye = eyeHeightRef.current
-      camera.position.set(11, eye, 6)
-      // Face into the living/dining instead of inheriting the orbit angle.
-      camera.lookAt(10.4, eye, 2.5)
+      // Arrive the way you actually enter the flat: standing in the entrance
+      // foyer (main door on the SE step wall), looking north up the long axis of
+      // the living/dining. The old spawn (11, 6) stood in the middle of the
+      // dining table with the pendant at head height — the tabletop filled the
+      // first frame and the first step jerked sideways as the furniture solver
+      // pushed the walker out, which read as a cramped flat. This point is ~6 m
+      // of clear sightline, the most open view the plan has.
+      sx = 11
+      sz = 7.5
+      lx = 10.7
+      lz = 3.2
     } else {
       const plan = useStore.getState().floorPlan
       const level = walkLevel(plan, viewLevelId)
@@ -357,9 +375,11 @@ export function FirstPersonCamera() {
         const cx = sp?.x ?? bw / 2
         const cz = sp?.z ?? bd / 2
         const span = sp?.span ?? bd
-        const eye = level.elevation + eyeHeightRef.current
-        camera.position.set(cx, eye, cz + span * 0.32)
-        camera.lookAt(cx, eye, cz - span * 0.32)
+        eye = level.elevation + eyeHeightRef.current
+        sx = cx
+        sz = cz + span * 0.32
+        lx = cx
+        lz = cz - span * 0.32
       } else {
         // Custom plan ground floor: spawn in the largest room (the default
         // flat's hand-tuned living/dining spawn would land outside an arbitrary
@@ -373,11 +393,17 @@ export function FirstPersonCamera() {
         const cx = big ? big.origin[0] + big.width / 2 : bw / 2
         const cz = big ? big.origin[1] + big.depth / 2 : bd / 2
         const span = big ? big.depth : bd
-        const eye = eyeHeightRef.current
-        camera.position.set(cx, eye, cz + span * 0.32)
-        camera.lookAt(cx, eye, cz - span * 0.32)
+        sx = cx
+        sz = cz + span * 0.32
+        lx = cx
+        lz = cz - span * 0.32
       }
     }
+    // Nudge off any furniture footprint / through-wall push, exactly like a
+    // normal step (and the minimap teleport) already does.
+    const [px, pz] = resolveWalkSpawn(sx, sz, blockers.current, collisionWalls.current)
+    camera.position.set(px, eye, pz)
+    camera.lookAt(lx, eye, lz)
     // Seed drag-to-look yaw/pitch from the spawn orientation so the first drag
     // continues smoothly from where the camera is already pointing.
     const seed = new Euler().setFromQuaternion(camera.quaternion, 'YXZ')
@@ -400,17 +426,22 @@ export function FirstPersonCamera() {
 
   // Apply the user's field-of-view to the live perspective camera, restoring the
   // previous FOV on unmount (exit walk). Reactive to the walkFov slider so a drag
-  // visibly widens/narrows the view without re-spawning the walker (PARITY-WALKCAM).
+  // visibly widens/narrows the view without re-spawning the walker (PARITY-WALKCAM),
+  // and to the viewport size: three's `fov` is the VERTICAL angle, so a tall/narrow
+  // viewport (phone portrait, a narrow window) would silently squeeze the sideways
+  // view down to tunnel vision — `walkVerticalFov` holds a horizontal floor instead
+  // (WALK-HFOV-FLOOR). Desktop-wide canvases are already past the floor, so they see
+  // exactly the slider value.
   useEffect(() => {
     if (!(camera instanceof PerspectiveCamera)) return
     const prevFov = camera.fov
-    camera.fov = walkFov
+    camera.fov = walkVerticalFov(walkFov, size.height > 0 ? size.width / size.height : 0)
     camera.updateProjectionMatrix()
     return () => {
       camera.fov = prevFov
       camera.updateProjectionMatrix()
     }
-  }, [camera, walkFov])
+  }, [camera, walkFov, size.width, size.height])
 
   const tmpForward = useRef(new Vector3())
   const tmpRight = useRef(new Vector3())

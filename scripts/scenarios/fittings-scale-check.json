@@ -1,0 +1,44 @@
+{
+  "name": "fittings-scale-check",
+  "description": "Close-up scale check on the fittings whose rendered geometry was corrected: the washing-machine door ring (was rotated flat, protruding 0.195 m out of the 0.6 m body) and the WC pan projection (was 0.545 m overall vs its 0.66 m footprint). Also probes the measured world bounding box of every placed item against its declared footprint.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { try { localStorage.setItem('hdb_onboarded','1') } catch {}; const st = window.__store.getState(); st.endTour?.(); st.setOnboardingOpen?.(false); st.dismissChecklist?.(); st.dismissLocationPrompt?.(); st.setManualHour?.(13); st.setLightsMode?.('on'); st.hideLoading?.() })()"
+    },
+    { "name": "three-ready", "waitFor": { "store": "!!window.__three && !!window.__three.controls" }, "timeout": 30000 },
+    {
+      "name": "no-wall-fade",
+      "eval": "(() => { window.__store.getState().setWallRevealStrength?.(0); window.__look = (px, py, pz, tx, ty, tz) => { const c = window.__three.camera; c.position.set(px, py, pz); const k = window.__three.controls; k.target.set(tx, ty, tz); k.update() } })()"
+    },
+    {
+      "name": "probe-item-extents",
+      "eval": "(() => { const { scene } = window.__three; const items = window.__store.getState().items; const byId = {}; for (const it of items) byId[it.id] = it; const out = []; scene.traverse(o => { const id = o.userData && o.userData.itemId; if (!id || !byId[id]) return; o.updateWorldMatrix(true, true); let box = null; o.traverse(m => { if (!m.isMesh || !m.geometry) return; if (m.material && m.material.depthWrite === false) return; let b; if (m.isInstancedMesh) { m.computeBoundingBox(); b = m.boundingBox.clone().applyMatrix4(m.matrixWorld) } else { m.geometry.computeBoundingBox(); b = m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld) } if (!box) box = b; else box.union(b) }); if (!box) return; const s = box.getSize(new box.min.constructor()); const rot = Math.abs((byId[id].rotation || 0) % Math.PI); const sw = rot > 0.7 && rot < 2.4; out.push([byId[id].defId, +(sw ? s.z : s.x).toFixed(2), +(sw ? s.x : s.z).toFixed(2), +s.y.toFixed(2)]) }); out.sort((a, b) => (a[0] < b[0] ? -1 : 1)); console.log('[probe] extents ' + JSON.stringify(out)) })()"
+    },
+    {
+      "name": "stage-fittings-in-the-open",
+      "eval": "(() => { const st = window.__store.getState(); const items = st.items.slice(); items.push({ id: 'audit-wm', defId: 'washing-machine', position: [9.6, 4.6], rotation: 0, props: {} }, { id: 'audit-wc', defId: 'toilet', position: [11.4, 4.6], rotation: 0, props: {} }, { id: 'audit-wc-wh', defId: 'toilet', position: [8.9, 7.6], rotation: 0, props: { style: 'wall-hung' } }); st.setItems(items) })()"
+    },
+    { "name": "settle-staged", "wait": 800 },
+    {
+      "name": "view-washing-machine",
+      "eval": "window.__look(9.6, 0.5, 5.8, 9.6, 0.42, 4.6); 'ok'"
+    },
+    { "name": "settle-wm", "wait": 1200 },
+    { "name": "shot-washing-machine", "screenshot": "01-washing-machine-door" },
+    {
+      "name": "view-toilet-bath2",
+      "eval": "(() => { const st = window.__store.getState(); st.setItems(st.items.map(i => (i.id === 'audit-wm' ? { ...i, position: [8.9, 3.0] } : i.id === 'audit-wc' ? { ...i, position: [9.6, 4.6] } : i))); window.__look(9.6, 0.55, 5.7, 9.6, 0.4, 4.6) })()"
+    },
+    { "name": "settle-wc", "wait": 1200 },
+    { "name": "shot-toilet", "screenshot": "02-toilet-projection" },
+    {
+      "name": "view-toilet-wall-hung",
+      "eval": "(() => { const st = window.__store.getState(); st.setItems(st.items.map(i => (i.id === 'audit-wc-wh' ? { ...i, position: [9.6, 4.6] } : i.id === 'audit-wc' ? { ...i, position: [8.9, 3.0] } : i))); window.__look(9.6, 0.55, 5.7, 9.6, 0.4, 4.6) })()"
+    },
+    { "name": "settle-wc-wh", "wait": 1200 },
+    { "name": "shot-toilet-wall-hung", "screenshot": "03-toilet-wall-hung" }
+  ]
+}

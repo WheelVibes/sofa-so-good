@@ -6,7 +6,16 @@ import { seg, useDetail } from './useDetail'
 /** WC. `style: 'close-coupled'` is a two-piece pedestal bowl + cistern;
  *  'wall-hung' floats the bowl off an in-wall cistern panel with a flush
  *  plate. Faces +Z (cistern/panel at −Z, against the wall). The seat ring +
- *  lid lie FLAT on the bowl rim (horizontal torus). */
+ *  lid lie FLAT on the bowl rim (horizontal torus).
+ *
+ *  Projection: both styles span the def's full 0.66 m footprint depth — a real
+ *  close-coupled WC projects 0.65–0.70 m from the wall and a wall-hung pan
+ *  0.49–0.55 m past its panel. The pan used to stop at 0.545 m overall (≈0.12 m
+ *  short), so the fitting read undersized against a to-scale bath. */
+/** Z-stretch that turns the pan's circular section into a realistic oval (the
+ *  wall-hung style, where the cistern adds no depth of its own). */
+const PAN_OVAL = 1.2
+
 export function Toilet({ props }: { props: ParamProps }) {
   const color = readStr(props, 'color', '#f4f4f1')
   const detail = useDetail()
@@ -20,29 +29,41 @@ export function Toilet({ props }: { props: ParamProps }) {
       <group>
         {/* In-wall cistern panel against the back wall */}
         <mesh castShadow receiveShadow position={[0, 0.55, -0.24]}>
-          <boxGeometry args={[0.5, 1.1, 0.14]} />
+          <boxGeometry args={[0.5, 1.1, 0.18]} />
           <meshStandardMaterial color="#eef0f1" roughness={0.4} metalness={0.02} />
         </mesh>
         {/* Dual flush plate */}
-        <mesh position={[0, 0.95, -0.165]}>
+        <mesh position={[0, 0.95, -0.145]}>
           <boxGeometry args={[0.18, 0.13, 0.01]} />
           <MetalMaterial color="#d6d9dc" roughness={0.3} metalness={0.5} />
         </mesh>
-        {/* Floating bowl */}
-        <mesh castShadow position={[0, bowlY, 0.04]}>
-          <cylinderGeometry args={[0.2, 0.14, 0.16, seg(24, detail)]} />
-          <meshStandardMaterial {...porcelain} />
-        </mesh>
-        {/* Seat ring lying flat on the rim */}
-        <mesh castShadow position={[0, bowlY + 0.085, 0.05]} rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[0.155, 0.028, seg(10, detail), seg(24, detail)]} />
-          <meshStandardMaterial {...seatMat} />
-        </mesh>
-        {/* Closed lid resting on the seat */}
-        <mesh castShadow position={[0, bowlY + 0.105, 0.05]}>
-          <cylinderGeometry args={[0.185, 0.185, 0.02, seg(28, detail)]} />
-          <meshStandardMaterial {...seatMat} />
-        </mesh>
+        {/* Pan: OVAL, not round — a real wall-hung pan is ~0.36 W x 0.50 D and
+            projects ~0.48 m past the cistern panel, so a circular bowl at the
+            0.40 m footprint width would be a fifth too shallow. One Z-scaled
+            group stretches the bowl + seat + lid together (local Z positions are
+            pre-divided by the scale), and the pan's back abuts the panel face at
+            z = −0.15 with no floating gap. */}
+        <group scale={[1, 1, PAN_OVAL]} position={[0, 0, 0]}>
+          {/* Floating bowl */}
+          <mesh castShadow position={[0, bowlY, 0.09 / PAN_OVAL]}>
+            <cylinderGeometry args={[0.2, 0.14, 0.16, seg(24, detail)]} />
+            <meshStandardMaterial {...porcelain} />
+          </mesh>
+          {/* Seat ring lying flat on the rim */}
+          <mesh
+            castShadow
+            position={[0, bowlY + 0.085, 0.09 / PAN_OVAL]}
+            rotation={[Math.PI / 2, 0, 0]}
+          >
+            <torusGeometry args={[0.155, 0.028, seg(10, detail), seg(24, detail)]} />
+            <meshStandardMaterial {...seatMat} />
+          </mesh>
+          {/* Closed lid resting on the seat */}
+          <mesh castShadow position={[0, bowlY + 0.105, 0.09 / PAN_OVAL]}>
+            <cylinderGeometry args={[0.185, 0.185, 0.02, seg(28, detail)]} />
+            <meshStandardMaterial {...seatMat} />
+          </mesh>
+        </group>
       </group>
     )
   }
@@ -50,27 +71,27 @@ export function Toilet({ props }: { props: ParamProps }) {
   return (
     <group>
       {/* Pedestal */}
-      <mesh castShadow receiveShadow position={[0, 0.18, 0.04]}>
+      <mesh castShadow receiveShadow position={[0, 0.18, 0.07]}>
         <cylinderGeometry args={[0.13, 0.17, 0.36, seg(18, detail)]} />
         <meshStandardMaterial {...porcelain} />
       </mesh>
       {/* Cistern — rests on the bowl's back shelf (overlaps the bowl in Z) */}
       <mesh castShadow position={[0, 0.52, -0.2]}>
-        <boxGeometry args={[0.38, 0.42, 0.18]} />
+        <boxGeometry args={[0.38, 0.42, 0.26]} />
         <meshStandardMaterial {...porcelain} />
       </mesh>
       {/* Bowl */}
-      <mesh castShadow position={[0, 0.38, 0.06]}>
+      <mesh castShadow position={[0, 0.38, 0.13]}>
         <cylinderGeometry args={[0.2, 0.16, 0.14, seg(20, detail)]} />
         <meshStandardMaterial {...porcelain} />
       </mesh>
       {/* Seat ring lying flat on the rim */}
-      <mesh castShadow position={[0, 0.455, 0.07]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh castShadow position={[0, 0.455, 0.145]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[0.155, 0.03, seg(10, detail), seg(22, detail)]} />
         <meshStandardMaterial {...seatMat} />
       </mesh>
       {/* Closed lid resting on the seat */}
-      <mesh castShadow position={[0, 0.475, 0.07]}>
+      <mesh castShadow position={[0, 0.475, 0.145]}>
         <cylinderGeometry args={[0.185, 0.185, 0.02, seg(26, detail)]} />
         <meshStandardMaterial {...seatMat} />
       </mesh>
