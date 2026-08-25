@@ -12,16 +12,16 @@ import { pointInPolygon, pointInRoom, roomPolygon } from '../../floorplan/types'
 import type { PlanContentBounds } from './minimapGeometry'
 
 /**
- * A tap/click's `clientX`/`clientY` → the minimap SVG's own viewBox-space
- * coordinates, accounting for the `.minimap` box NOT being square (168×132,
- * 144×112 on the mobile breakpoint) while the viewBox IS square (`SIZE ×
- * SIZE`) — the browser's default `preserveAspectRatio="xMidYMid meet"`
- * uniformly scales + centres the square content inside the wider box, so a
- * naive per-axis `rect.width`/`rect.height` divide (fine when box and
- * viewBox share an aspect ratio, e.g. the 2D plan editor) would stretch X and
- * Y by different factors here and misplace the tap. `rect` is whatever
- * `SVGSVGElement.getBoundingClientRect()` returns — passed in rather than
- * read here so this stays DOM-free and testable with a plain object.
+ * A tap/click's `clientX`/`clientY` → a SQUARE viewBox's own coordinate space,
+ * accounting for a box that is NOT square: the browser's default
+ * `preserveAspectRatio="xMidYMid meet"` uniformly scales + centres the square
+ * content inside the wider box, so a naive per-axis `rect.width`/`rect.height`
+ * divide (fine when box and viewBox share an aspect ratio, e.g. the 2D plan
+ * editor) would stretch X and Y by different factors and misplace the tap.
+ * `rect` is whatever `SVGSVGElement.getBoundingClientRect()` returns — passed
+ * in rather than read here so this stays DOM-free and testable with a plain
+ * object. Thin wrapper over {@link svgViewBoxPoint} (the minimap itself now
+ * uses a box-shaped viewBox, not a square one).
  */
 export function svgSquareViewBoxPoint(
   clientX: number,
@@ -29,12 +29,29 @@ export function svgSquareViewBoxPoint(
   rect: { left: number; top: number; width: number; height: number },
   viewBoxSize: number,
 ): [number, number] {
-  const rendered = Math.min(rect.width, rect.height)
-  if (rendered <= 0) return [0, 0]
-  const padX = (rect.width - rendered) / 2
-  const padY = (rect.height - rendered) / 2
-  const k = viewBoxSize / rendered
-  return [(clientX - rect.left - padX) * k, (clientY - rect.top - padY) * k]
+  return svgViewBoxPoint(clientX, clientY, rect, viewBoxSize, viewBoxSize)
+}
+
+/**
+ * General form of the above for ANY viewBox aspect — what the minimap uses now
+ * that its viewBox tracks the widget's measured (non-square) box so the map can
+ * fill it (see `fitMinimapView`). When the viewBox and the box share an aspect
+ * ratio the letterbox padding is zero and this is a plain client→svg divide;
+ * when they differ it reproduces `preserveAspectRatio="xMidYMid meet"`.
+ */
+export function svgViewBoxPoint(
+  clientX: number,
+  clientY: number,
+  rect: { left: number; top: number; width: number; height: number },
+  viewBoxW: number,
+  viewBoxH: number,
+): [number, number] {
+  if (rect.width <= 0 || rect.height <= 0 || viewBoxW <= 0 || viewBoxH <= 0) return [0, 0]
+  const k = Math.min(rect.width / viewBoxW, rect.height / viewBoxH)
+  if (k <= 0) return [0, 0]
+  const padX = (rect.width - viewBoxW * k) / 2
+  const padY = (rect.height - viewBoxH * k) / 2
+  return [(clientX - rect.left - padX) / k, (clientY - rect.top - padY) / k]
 }
 
 /**

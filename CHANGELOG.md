@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.30.1.2 — the walk-mode minimap fills its panel
+
+The minimap drew into a fixed **square** 168-unit viewBox inside a 168x132
+widget, so the browser's `xMidYMid meet` letterboxed the square content down to
+the box's SHORT side: ~18px of dead space on each side, on top of the widget's
+own 8px CSS padding, and a plan drawn at ~70% of the size the panel could hold.
+
+The viewBox now tracks the widget's **measured** pixel box (ResizeObserver, 1
+svg unit = 1 CSS px) and the pure `ui/walk/minimapGeometry.ts:fitMinimapView`
+fits the plan into it with a small `INSET` — uniform on both axes, never
+distorted, centred, and re-fit on resize (including the mobile breakpoint's
+144x112). `.minimap`'s CSS padding drops to `--s-1` so the padding you see is
+deliberate rather than accumulated. Tap-to-teleport inverts the same transform:
+`svgSquareViewBoxPoint` is now a thin wrapper over the general
+`svgViewBoxPoint`, so the letterbox term is simply zero here.
+
+The player marker also grew: a bigger outlined arrow over a soft accent halo
+(`.mm-cam-halo`), which is what makes "you are here, facing this way" readable
+over the furniture dots and a lit room fill.
+
 ## v0.30.1.1 — a closed door covers its doorway, and bath doors open inward
 
 Two door bugs, one theme: what you see in walk mode at arm's length.

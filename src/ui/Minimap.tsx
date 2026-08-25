@@ -8,14 +8,26 @@ import { cameraForwardXZ, cameraPosXZ } from '../scene/cameras/cameraForward'
 import { WALK_PLAYER_RADIUS } from '../scene/cameras/walkCameraSettings'
 import { requestWalkTeleport } from '../scene/cameras/walkTeleport'
 import { useStore } from '../state/store'
-import { openingSegments, planContentBounds, roomPathD } from './walk/minimapGeometry'
+import {
+  fitMinimapView,
+  openingSegments,
+  planContentBounds,
+  roomPathD,
+} from './walk/minimapGeometry'
 import {
   minimapPointToWorld,
   resolveMinimapTeleport,
-  svgSquareViewBoxPoint,
+  svgViewBoxPoint,
 } from './walk/minimapTeleport'
 
-const SIZE = 168
+/** Fallback box (CSS px) matching `.minimap`'s desktop size, used for the first
+ *  render before the ResizeObserver reports the real box. */
+const FALLBACK_BOX = { w: 152, h: 116 }
+/** Svg-unit breathing room inside the measured box, on top of `.minimap`'s own
+ *  CSS padding — the map otherwise reaches the frosted panel's inner edge. */
+const INSET = 3
+/** World-metre margin kept around the apartment so wall strokes and the player
+ *  arrow never clip at the map's edge. */
 const PAD = 0.4
 
 /**
@@ -30,21 +42,44 @@ export function Minimap() {
   const plan = useStore((s) => s.floorPlan)
   const items = useStore((s) => s.items)
   const catalog = useCatalog()
+  const svgRef = useRef<SVGSVGElement>(null)
   const arrowRef = useRef<SVGGElement>(null)
   const labelRef = useRef<SVGTextElement>(null)
   const roomRefs = useRef<Record<string, SVGPathElement | null>>({})
   const [, force] = useState(0)
+  // The widget's real pixel box — the viewBox tracks it (1 svg unit = 1 CSS px)
+  // so the map FILLS the rectangle instead of being letterboxed inside a square
+  // viewBox (which left a fat empty margin on the long axis). Remeasured on
+  // resize / the mobile breakpoint change.
+  const [box, setBox] = useState(FALLBACK_BOX)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: cameraMode is a real trigger — this component renders null outside walk mode, so the svg (and thus `svgRef.current`) only exists once walk mode is on; the observer must re-attach then.
+  useEffect(() => {
+    const el = svgRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const measure = () => {
+      const r = el.getBoundingClientRect()
+      if (r.width > 0 && r.height > 0)
+        setBox((prev) =>
+          Math.abs(prev.w - r.width) < 0.5 && Math.abs(prev.h - r.height) < 0.5
+            ? prev
+            : { w: r.width, h: r.height },
+        )
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [cameraMode])
 
   // Centre on the apartment's TRUE drawn bounds (walls + rooms), not the padded
   // plan extent — so the apartment sits in the middle of the widget on both axes
   // regardless of where it lives in plan space.
   const b = useMemo(() => planContentBounds(plan), [plan])
-  const W = b.maxX - b.minX
-  const D = b.maxZ - b.minZ
-  const scale = useMemo(() => (SIZE - 12) / Math.max(W + PAD * 2, D + PAD * 2), [W, D])
-  // Split the leftover space on each axis evenly to centre the content box.
-  const offX = useMemo(() => (SIZE - (W + PAD * 2) * scale) / 2, [W, scale])
-  const offY = useMemo(() => (SIZE - (D + PAD * 2) * scale) / 2, [D, scale])
+  // Uniform fit into the measured box (never distorted), centred on both axes.
+  const { scale, offX, offY } = useMemo(
+    () => fitMinimapView(b, box.w, box.h, INSET, PAD),
+    [b, box.w, box.h],
+  )
   const toX = (m: number) => (m - b.minX + PAD) * scale + offX
   const toY = (m: number) => (m - b.minZ + PAD) * scale + offY
   // World→svg transform for the room fills (so `roomPathD`'s world-metre paths
@@ -108,9 +143,9 @@ export function Minimap() {
 
   // Minimap tap-to-teleport (MINIMAP-JUMP): a click/tap converts the pointer's
   // client coords to world XZ (inverting the SAME toX/toY transform this
-  // component draws with, accounting for the `.minimap` box's letterboxed
-  // non-square aspect against the square viewBox — see
-  // `svgSquareViewBoxPoint`), clamps it inside the tapped (or nearest) room
+  // component draws with — the viewBox now matches the measured box, so
+  // `svgViewBoxPoint`'s letterbox term is zero here), clamps it inside the
+  // tapped (or nearest) room
   // clear of its walls by the walker's own collision radius, and hands the
   // landing spot + facing to `FirstPersonCamera` via the `walkTeleport`
   // module signal (it owns the live camera + furniture blockers; this
@@ -119,7 +154,7 @@ export function Minimap() {
   const handleTap = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!teleportEnabled) return
     const rect = e.currentTarget.getBoundingClientRect()
-    const [svgX, svgY] = svgSquareViewBoxPoint(e.clientX, e.clientY, rect, SIZE)
+    const [svgX, svgY] = svgViewBoxPoint(e.clientX, e.clientY, rect, box.w, box.h)
     const [wx, wz] = minimapPointToWorld(svgX, svgY, b, scale, offX, offY, PAD)
     const target = resolveMinimapTeleport(plan, wx, wz, WALK_PLAYER_RADIUS)
     if (target) requestWalkTeleport(target.x, target.z, target.yaw)
@@ -130,9 +165,10 @@ export function Minimap() {
   return (
     <div className="minimap">
       <svg
+        ref={svgRef}
         width="100%"
         height="100%"
-        viewBox={`0 0 ${SIZE} ${SIZE}`}
+        viewBox={`0 0 ${box.w} ${box.h}`}
         className={teleportEnabled ? 'mm-tap' : undefined}
         onClick={handleTap}
         aria-label={teleportEnabled ? 'Walk-mode minimap. Tap a spot to move there.' : undefined}
@@ -212,13 +248,17 @@ export function Minimap() {
         })}
         {/* Current-room name — position + text written live by the rAF. */}
         <text ref={labelRef} className="mm-label" textAnchor="middle" dominantBaseline="central" />
-        {/* Camera arrow */}
+        {/* Player marker — a soft accent halo behind a bigger, outlined arrow so
+            "you are here, facing this way" reads at a glance against any room
+            fill (the old 12-unit arrow disappeared over furniture dots). */}
         <g ref={arrowRef}>
+          <circle className="mm-cam-halo" r={7} />
           <path
             className="mm-cam"
-            d="M 0 -6 L 4 5 L 0 2 L -4 5 Z"
+            d="M 0 -8.5 L 5.5 6.5 L 0 3.4 L -5.5 6.5 Z"
             stroke="var(--surface-solid)"
-            strokeWidth={0.75}
+            strokeWidth={1.1}
+            strokeLinejoin="round"
           />
         </g>
       </svg>

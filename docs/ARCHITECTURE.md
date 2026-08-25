@@ -2310,8 +2310,14 @@ same change that reshapes a system.
   collision walls (`levelAsPlan`) + furniture blockers are that storey's own. **Minimap
   tap-to-teleport** (MINIMAP-JUMP, `minimapTeleport` flag, simple): clicking/tapping
   `ui/Minimap.tsx` converts the pointer to world XZ (`ui/walk/minimapTeleport.ts`, pure —
-  `svgSquareViewBoxPoint` inverts the letterboxed square-viewBox-in-a-wider-box SVG mapping,
-  `minimapPointToWorld` inverts the component's own world→svg transform) and clamps it inside
+  `svgViewBoxPoint` inverts the SVG client→viewBox mapping (`svgSquareViewBoxPoint` is now a
+  square-viewBox wrapper over it), `minimapPointToWorld` inverts the component's own world→svg
+  transform). **The minimap's viewBox tracks its measured pixel box** (ResizeObserver, 1 svg unit
+  = 1 CSS px) and `ui/walk/minimapGeometry.ts:fitMinimapView` fits the plan into it with a small
+  `INSET`: a fixed SQUARE viewBox inside the 168x132 widget was letterboxed to the box's SHORT
+  side, so the map only ever filled ~76% of the width on top of the widget's CSS padding. The
+  player marker is an accent arrow over a soft `.mm-cam-halo` disc so it reads over furniture
+  dots and clamps it inside
   the tapped (or nearest) room's polygon clear of every wall by `WALK_PLAYER_RADIUS`
   (`clampPointToPolygon`, probes the inward normal via `pointInPolygon` so it works for
   rectangular/L-shaped/free-drawn rooms alike), facing the room's centre
