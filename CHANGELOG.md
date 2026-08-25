@@ -5,6 +5,45 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.30.3.0 — walk mode at true scale: a clear spawn, a viewport-aware FOV, two fittings
+
+Walk mode felt cramped. An audit of the actual numbers says the *home* is fine —
+2.6 m ceiling (2.4 m baths), 2.1 m doors, real HDB 4-room room sizes, a 1.6 m eye
+height and a 0.25 m walker radius are all true-to-life, and the 77 placed pieces
+in the move-in flat measure (rendered world bbox) within a few cm of their
+declared footprints. Three things were wrong around them:
+
+- **The walk spawn stood inside the dining table.** The default flat's hand-picked
+  spawn (11, 6) is 0.2 m from the dining table's centre (11, 5.8), so entering
+  walk mode opened on a tabletop 0.2 m from the eye with the pendant at head
+  height, and the first step jerked sideways as the furniture solver pushed the
+  walker out. Every spawn (default flat, custom plan, upper storey, room editor)
+  now resolves through `scene/cameras/walkSpawn.ts:resolveWalkSpawn` — the same
+  furniture push + wall re-resolve a normal step (and the minimap teleport) uses,
+  at the same `WALK_PLAYER_RADIUS` — and the default flat spawns in the entrance
+  foyer (11, 7.5) looking north up the living/dining's long axis, the most open
+  sightline the plan has (WALK-SPAWN-CLEAR).
+- **The FOV slider lost the sideways view on a narrow viewport.** three's
+  `PerspectiveCamera.fov` is the VERTICAL angle, so the 70° default reads ~96°
+  horizontal on a 1.57 desktop canvas but only ~43° on a 390x800 phone in
+  portrait — tunnel vision that reads as a cramped flat. `walkVerticalFov(fov,
+  aspect)` now widens the vertical angle below a 3:2 reference aspect so the
+  horizontal view the slider promises is what you keep ("Hor+"), capped at the
+  slider's own 100° max: phone portrait goes 43° → ~60° horizontal, and any
+  viewport at/above 3:2 is bit-identical to before (WALK-HFOV-FLOOR).
+- **Two fittings were off.** The washing machine's door ring carried a
+  `rotation={[Math.PI/2,0,0]}` copied from the toilet's horizontal seat ring — a
+  torus already lies in the front-facing plane, so the rotation laid it flat and
+  it protruded 0.195 m out of the 0.6 m-deep body as a saucer stuck on the door
+  (measured depth 0.8 m, now 0.63 m). The WC pan spanned only 0.545 m overall
+  against its own 0.66 m footprint (a real close-coupled WC projects 0.65–0.70 m);
+  both styles now fill their declared depth (measured 0.66 m).
+
+Verified in the real browser + the headless harness: `scripts/scenarios/walk-scale-fov.json`
+(walk-in view + camera probes at desktop and 390x800) and
+`scripts/scenarios/fittings-scale-check.json` (fitting close-ups + a
+rendered-vs-declared bbox probe for every placed item).
+
 ## v0.30.2.0 — the walk-mode minimap fills its panel
 
 *(PR patch bump: ships the door-coverage/inward-swing fix of v0.30.1.1 together

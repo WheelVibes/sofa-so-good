@@ -3,7 +3,10 @@
 ## Walk mode
 
 Switch to first‑person with <kbd>V</kbd> to experience the flat at eye level — the
-best way to judge real scale and sightlines.
+best way to judge real scale and sightlines. You start where you'd actually walk
+in: just inside the entrance, looking down the length of the living/dining. Every
+dimension around you is real — a 2.6 m ceiling, 2.1 m doors, and furniture built
+to its true size — so what looks tight on screen would feel tight in the flat.
 
 - Move with <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>, look with the
   mouse.
@@ -11,6 +14,9 @@ best way to judge real scale and sightlines.
   curtains and blinds (draw open/closed, raise/lower), a monitor or TV (cycles its
   on-screen wallpaper), and any lamp or light fixture (turns it on or off).
 - You're bounded by the walls; <kbd>V</kbd> returns you to orbit.
+- The walk panel's **field of view** and **eye height** sliders set how wide the
+  view is and how tall you are (1.2–1.9 m). On a phone held upright the view
+  widens automatically so you don't lose the sides of the room.
 - On a multi‑storey home (a maisonette, terrace or loft), pick a storey under
   **View → Levels** while walking to **teleport upstairs or back down** — you
   arrive in that storey's first room, and its own walls and furniture bound

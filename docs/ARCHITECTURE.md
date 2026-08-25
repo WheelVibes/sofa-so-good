@@ -2304,7 +2304,24 @@ same change that reshapes a system.
   `walkCameraControls` flag, simple): FOV (50–100°, default 70) + eye-height (1.2–1.9 m, default
   1.6) sliders in `ui/walk/WalkCameraControls.tsx`, persisted in `editorPrefs`; pure clamp
   helpers + ranges in `scene/cameras/walkCameraSettings.ts`; FOV applies reactively to the live
-  camera (own effect, restored on exit), eye-height ref'd so a drag re-heights without re-spawn. Multi-storey (ML6c): the walker's storey follows
+  camera (own effect, restored on exit), eye-height ref'd so a drag re-heights without re-spawn.
+  **The slider is calibrated for a 3:2-or-wider viewport (WALK-HFOV-FLOOR).** three's
+  `PerspectiveCamera.fov` is the VERTICAL angle, so a narrower viewport loses sideways view rather
+  than height — 70° reads ~96° horizontal on a 1.57 desktop canvas but only ~43° on a 390x800
+  phone in portrait, tunnel vision that reads as a cramped flat even though the home is modeled at
+  true size. `walkVerticalFov(fov, aspect)` (pure, unit-tested) widens the vertical angle below
+  `WALK_FOV_REF_ASPECT` (1.5) so the HORIZONTAL view the slider promises is what you keep (the
+  "Hor+" convention), capped at `WALK_FOV_MAX`; at/above the reference aspect the slider value is
+  passed through untouched, so desktop is unchanged (phone portrait: 100° vertical / ~60°
+  horizontal). The FOV effect therefore depends on the r3f `size`, not only on `walkFov`.
+  **Spawn clearance (WALK-SPAWN-CLEAR):** every entry point into walk mode resolves its nominal
+  standing point through `scene/cameras/walkSpawn.ts:resolveWalkSpawn` — the same
+  `resolveCircleVsObbs` furniture push + `resolveMovement` wall re-resolve a normal step (and the
+  minimap teleport) uses, at the same `WALK_PLAYER_RADIUS` — so entering walk mode can't put the
+  eye inside a table/bed/sofa. The default flat's own spawn is the entrance foyer (11, 7.5) facing
+  north up the living/dining's long axis (how you actually walk in); it used to be (11, 6), dead
+  centre of the dining table, so the first frame was a tabletop 0.2 m away and the first step
+  jerked sideways as the furniture solver shoved the walker out. Multi-storey (ML6c): the walker's storey follows
   `viewLevelId` (`walkLevel`/`levelSpawnPoint` in `floorplan/levels.ts`) — picking a level in
   View→Levels while walking teleports to its first room centre at `elevation + eye`, and
   collision walls (`levelAsPlan`) + furniture blockers are that storey's own. **Minimap

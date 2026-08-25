@@ -169,6 +169,20 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   fullHeight` args) when you need a projection shift without touching the live aspect ratio R3F
   already maintains. Any future per-frame camera correction on the orbit camera should follow this
   exact pattern (pure math module + post-controls `useFrame`, position/target untouched).
+- **The walk camera's FOV is aspect-aware, and its spawn is furniture-resolved.** three's
+  `PerspectiveCamera.fov` is the VERTICAL angle, so `FirstPersonCamera` never assigns the
+  `walkFov` slider value raw — it goes through `cameras/walkCameraSettings.ts:walkVerticalFov(fov,
+  aspect)` (pure, unit-tested), which widens the vertical angle below `WALK_FOV_REF_ASPECT` (1.5)
+  so a tall/narrow viewport keeps the HORIZONTAL view the slider promises instead of collapsing to
+  tunnel vision (WALK-HFOV-FLOOR; a phone in portrait went ~43° → ~60° horizontal, and anything
+  3:2-or-wider is unchanged). The FOV effect must therefore depend on the r3f `size`, not only on
+  `walkFov`. Spawning is the mirror rule (WALK-SPAWN-CLEAR): every branch of the spawn effect picks
+  a nominal point + a look target and then routes it through `cameras/walkSpawn.ts:resolveWalkSpawn`,
+  which reuses the SAME `resolveCircleVsObbs` + `resolveMovement` solvers (and
+  `WALK_PLAYER_RADIUS`) a normal step and the minimap teleport already use — never a hand-picked
+  point applied raw, which is how the default flat ended up spawning the eye inside its dining
+  table. A new walk entry point (a new plan kind, a new "walk here" affordance) must resolve through
+  the same helper.
 - **Materials**: pass a real three `Material` to `material=`, never a props object.
 - **Mount expensive controllers once**; collapse repeat geometry via `InstancedBoxes`.
   `ContextLossGuard` must stay mounted in **both** Canvases (main + room editor).

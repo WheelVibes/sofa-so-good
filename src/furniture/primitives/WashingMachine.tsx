@@ -23,8 +23,11 @@ export function WashingMachine({ props }: { props: ParamProps }) {
         args={[w, h, d]}
         bevel={0.012}
       />
-      {/* Door ring */}
-      <mesh position={[0, h * 0.45, d / 2 + 0.003]} rotation={[Math.PI / 2, 0, 0]}>
+      {/* Door ring — a torus already lies in the XY plane (axis +Z), i.e. flat
+          ON the front face. It must NOT be rotated like the toilet's horizontal
+          seat ring: an X rotation laid it flat and it protruded 0.195 m out of
+          the 0.6 m-deep body as a saucer sticking off the door. */}
+      <mesh position={[0, h * 0.45, d / 2 + 0.003]}>
         <torusGeometry args={[0.17, 0.025, 12, 28]} />
         <MetalMaterial color="#b9bdc2" roughness={0.3} metalness={0.6} />
       </mesh>
