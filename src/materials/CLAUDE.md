@@ -93,7 +93,10 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   packer writes it into the manifest as `uvScale` + `uvScaleSource`), else a caller's guess
   **capped** by what the map's resolution covers at `TARGET_TEXEL_DENSITY` (512 px/m — a 1K map
   covers at most 2 m), else the resolution alone (a user upload), else the legacy 1 m. **A guess
-  may shrink a map, never stretch it**: magnification is the one direction mipmaps cannot save,
+  may shrink a map, never stretch it**; a MEASURED size stands past that target (a 2.45 m tile
+  scan really is 2.45 m — 418 px/m from a 1K map, the density the procedural floors ship at) but
+  not past `MIN_TEXEL_DENSITY` (256 px/m), where scale finally yields to sharpness. Magnification
+  is the one direction mipmaps cannot save,
   and it also renders the pattern at the wrong physical size. Two bugs this fixed: the packer's
   per-family table was >1.5× off on 16 of 28 measured assets (`Wood066` is a 0.4 m scan stretched
   to 1.2 m — blurry, planks 3× too wide; `Tiles141` a 2 m scan squeezed into 0.6 m), and

@@ -40,13 +40,24 @@ describe('resolveTileSize', () => {
     })
   })
 
-  it('lets a KNOWN scan size stand even when it is coarse', () => {
-    // Reality beats sharpness: a 2.45 m tile scan really is 2.45 m, and
-    // shrinking it to 2 m would render a floor whose tiles are the wrong size.
+  it('lets a KNOWN scan size stand past the target density', () => {
+    // Reality beats sharpness: a 2.45 m tile scan really is 2.45 m (418 px/m
+    // from a 1K map — the density our procedural floors ship at), and shrinking
+    // it to 2 m would render a floor whose tiles are the wrong size.
     expect(resolveTileSize({ scanMetres: 2.45, pixels: 1024 })).toEqual({
       metres: 2.45,
       source: 'scan',
     })
+  })
+
+  it('but not past the sharpness FLOOR — a 5.4 m scan on a 1K map is mush', () => {
+    // 1024 / 256 = 4 m is as far as a 1K map is allowed to stretch.
+    expect(resolveTileSize({ scanMetres: 5.4, pixels: 1024 })).toEqual({
+      metres: 4,
+      source: 'scan',
+    })
+    // A 4K download of the same scan keeps its true size.
+    expect(resolveTileSize({ scanMetres: 5.4, pixels: 4096 }).metres).toBeCloseTo(5.4, 6)
   })
 
   it('uses the fallback only when nothing about the map is known', () => {

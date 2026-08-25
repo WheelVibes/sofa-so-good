@@ -31,6 +31,14 @@ upload with no other signal) → the legacy 1 m. A guess may shrink a map (more
 repeats, full detail) but never stretch it, because magnification is the one
 direction mipmaps cannot recover.
 
+A **measured** size is allowed past that target, down to a 256 px/m floor —
+because the corpus says so: 214 of the 264 scanned sizes already sit inside the
+512 px/m target, and most of the rest are 2.4–3 m brick and tile scans landing
+at 340–427 px/m, the same density the procedural floors ship at and worth
+keeping at true scale. Only extremes trade scale for sharpness (a 5.4 m paving
+scan on a 1K map would be 190 px/m, so it renders at 4 m instead). Raising the
+floor to the target is a one-constant change if sharpness should always win.
+
 **Re-tagging what is already packed:** `scripts/retag-acg-tile-sizes.mjs`
 rewrites the manifest from the API without touching a single image, so only the
 manifest needs re-uploading. On the current corpus: **264 of 1121 items take

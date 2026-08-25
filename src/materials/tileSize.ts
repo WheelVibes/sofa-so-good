@@ -16,7 +16,9 @@
  *
  *  1. **The scanned size**, when the provider publishes one — ambientCG ships
  *    `dimensionX`/`dimensionY` (cm) per asset, which is the physical patch the
- *    photograph covers. Nothing beats knowing, so this is used as-is.
+ *    photograph covers. Nothing beats knowing, so it is used as-is unless it
+ *    would fall below `MIN_TEXEL_DENSITY` (see there: physical truth wins over
+ *    sharpness, but only down to a floor).
  *  2. **A caller's guess** (a per-family table, a curated showroom value),
  *    CAPPED by what the map's resolution can cover sharply — the "a tile is at
  *    most as big as its map" rule. A guess may shrink a texture (harmless,
@@ -37,6 +39,17 @@
  * the tile size of every 1K scan past the size of a real room.
  */
 export const TARGET_TEXEL_DENSITY = 512
+
+/**
+ * The density below which a surface reads soft no matter how true its scale is.
+ * A REAL scanned size is allowed between this and the target — measured on the
+ * packed corpus, 214 of 264 scanned sizes already sit inside the 512 px/m
+ * target, and most of the rest are the 2.4–3 m brick and tile scans that land
+ * at 340–427 px/m — the same density the procedural floors ship at, and worth
+ * keeping at their true size. Only the extremes (a 5.4 m paving scan at 190
+ * px/m) trade scale for sharpness.
+ */
+const MIN_TEXEL_DENSITY = 256
 
 /** Physical tile sizes outside this range are a data error, not a design
  *  choice — a 5 cm period tiles into moiré, a 12 m one never repeats indoors. */
@@ -71,7 +84,12 @@ const clampTile = (m: number) => Math.min(MAX_TILE_M, Math.max(MIN_TILE_M, m))
 export function resolveTileSize(input: TileSizeInput): ResolvedTileSize {
   const ok = (v: number | null | undefined): v is number =>
     typeof v === 'number' && Number.isFinite(v) && v > 0
-  if (ok(input.scanMetres)) return { metres: clampTile(input.scanMetres), source: 'scan' }
+  if (ok(input.scanMetres)) {
+    // A measured size stands, down to the sharpness floor: past that the map
+    // has too few texels for the area to read as anything.
+    const floor = ok(input.pixels) ? input.pixels / MIN_TEXEL_DENSITY : Number.POSITIVE_INFINITY
+    return { metres: clampTile(Math.min(input.scanMetres, floor)), source: 'scan' }
+  }
   const cap = ok(input.pixels) ? input.pixels / TARGET_TEXEL_DENSITY : Number.POSITIVE_INFINITY
   if (ok(input.fallbackMetres)) {
     // A guess may be smaller than the map can cover (fine — more repeats, full
