@@ -450,3 +450,126 @@ describe('direction-preserving break-up (quarterTurns=false)', () => {
     }
   })
 })
+
+describe('cells anchor to the texture period (the mis-joined bathroom tiles)', () => {
+  /** Per-cell world extent vs UV extent, and where each cell's UV starts. */
+  const cells = (geo: BufferGeometry) => {
+    const pos = geo.attributes.position
+    const uv = geo.attributes.uv
+    const out: { w: number; h: number; u: number; v: number; u0: number; v0: number }[] = []
+    for (let c = 0; c < uv.count / 4; c++) {
+      const i = c * 4
+      const xs = [0, 1, 2, 3].map((k) => pos.getX(i + k))
+      const ys = [0, 1, 2, 3].map((k) => pos.getY(i + k))
+      const us = [0, 1, 2, 3].map((k) => uv.getX(i + k))
+      const vs = [0, 1, 2, 3].map((k) => uv.getY(i + k))
+      out.push({
+        w: Math.max(...xs) - Math.min(...xs),
+        h: Math.max(...ys) - Math.min(...ys),
+        u: Math.max(...us) - Math.min(...us),
+        v: Math.max(...vs) - Math.min(...vs),
+        u0: Math.min(...us),
+        v0: Math.min(...vs),
+      })
+    }
+    return out
+  }
+
+  it('never squeezes a texture period into a smaller cell (Bath/WC 2: 1.75 × 1.85 m, 1.2 m tile)', () => {
+    // The reported bug: `round(size / tile)` equal cells gave a 1.75 × 0.925 m
+    // cell showing 1.2 × 1.2 of UV — the tiles came out a different SIZE in
+    // each band, with grout that could not meet. Every cell must map its own
+    // world extent 1:1 into UV metres.
+    for (const c of cells(breakRepetitionPlane(1.75, 1.85, 1.2, false)!)) {
+      // A quarter turn would swap the pair; this finish is directional anyway.
+      expect(c.u).toBeCloseTo(c.w, 5)
+      expect(c.v).toBeCloseTo(c.h, 5)
+    }
+  })
+
+  /**
+   * Each cell's world→UV mapping, in the plane's own UV frame (X = x + w/2).
+   * The contract is that it is a LATTICE SYMMETRY of the texture: a signed axis
+   * permutation (rotation/flip, unit scale — no stretch, no shear) plus a
+   * translation that is a whole number of half-periods. Any map of that form
+   * carries a wrapping texture's internal grid onto itself, which is what lets
+   * grout lines meet across a cell boundary; the raw UV of a corner does not
+   * say that (a 180° cell starts mid-tile while its tile ORIGIN stays put).
+   */
+  const cellMap = (geo: BufferGeometry, w: number, h: number, i: number) => {
+    const pos = geo.attributes.position
+    const uv = geo.attributes.uv
+    const X = (k: number) => pos.getX(i + k) + w / 2
+    const Y = (k: number) => pos.getY(i + k) + h / 2
+    // Corners are emitted (x0,y0) (x1,y0) (x1,y1) (x0,y1).
+    const dX = X(1) - X(0)
+    const dY = Y(3) - Y(0)
+    return {
+      a: (uv.getX(i + 1) - uv.getX(i)) / dX, // ∂u/∂X
+      b: (uv.getX(i + 3) - uv.getX(i)) / dY, // ∂u/∂Y
+      c: (uv.getY(i + 1) - uv.getY(i)) / dX, // ∂v/∂X
+      d: (uv.getY(i + 3) - uv.getY(i)) / dY, // ∂v/∂Y
+      tu:
+        uv.getX(i) -
+        ((uv.getX(i + 1) - uv.getX(i)) / dX) * X(0) -
+        ((uv.getX(i + 3) - uv.getX(i)) / dY) * Y(0),
+      tv:
+        uv.getY(i) -
+        ((uv.getY(i + 1) - uv.getY(i)) / dX) * X(0) -
+        ((uv.getY(i + 3) - uv.getY(i)) / dY) * Y(0),
+    }
+  }
+
+  it('maps every cell by a texture-lattice symmetry, so grout lines can meet', () => {
+    const tile = 1.2
+    const geo = breakRepetitionPlane(1.75, 1.85, tile)!
+    const half = tile / 2
+    const onLattice = (t: number) => {
+      const p = (((t / half) % 1) + 1) % 1
+      return Math.min(p, 1 - p)
+    }
+    for (let cell = 0; cell < geo.attributes.uv.count / 4; cell++) {
+      const m = cellMap(geo, 1.75, 1.85, cell * 4)
+      // Unit-scale axis permutation: no stretch (the reported bug), no shear.
+      for (const v of [m.a, m.b, m.c, m.d]) expect([-1, 0, 1]).toContain(Math.round(v))
+      for (const v of [m.a, m.b, m.c, m.d]) expect(Math.abs(v - Math.round(v))).toBeLessThan(1e-5)
+      expect(Math.abs(Math.abs(m.a * m.d - m.b * m.c) - 1)).toBeLessThan(1e-5)
+      // Translation lands on the half-period lattice.
+      expect(onLattice(m.tu)).toBeLessThan(1e-5)
+      expect(onLattice(m.tv)).toBeLessThan(1e-5)
+    }
+  })
+
+  it('clips the last cell instead of stretching it — and covers the surface exactly', () => {
+    const geo = breakRepetitionPlane(1.75, 1.85, 1.2, false)!
+    const cs = cells(geo)
+    expect(cs).toHaveLength(4) // ceil(1.75/1.2) × ceil(1.85/1.2)
+    expect(Math.max(...cs.map((c) => c.w))).toBeCloseTo(1.2, 5)
+    expect(Math.min(...cs.map((c) => c.w))).toBeCloseTo(0.55, 5)
+    // Summed cell area == floor area: no gap, no overlap.
+    const area = cs.reduce((a, c) => a + c.w * c.h, 0)
+    expect(area).toBeCloseTo(1.75 * 1.85, 5)
+  })
+
+  it('is unchanged on a floor that IS a whole number of tiles', () => {
+    for (const c of cells(breakRepetitionPlane(6, 6, 2, false)!)) {
+      expect(c.w).toBeCloseTo(2, 6)
+      expect(c.u).toBeCloseTo(2, 6)
+    }
+  })
+
+  it('holds for a range of real room sizes', () => {
+    for (const [w, h, t] of [
+      [3.03, 3.525, 1.2],
+      [4.2, 3.1, 0.8],
+      [2.4, 5.6, 0.6],
+    ] as [number, number, number][]) {
+      const geo = breakRepetitionPlane(w, h, t, false)
+      if (!geo) continue
+      for (const c of cells(geo)) {
+        expect(c.u).toBeCloseTo(c.w, 4)
+        expect(c.v).toBeCloseTo(c.h, 4)
+      }
+    }
+  })
+})

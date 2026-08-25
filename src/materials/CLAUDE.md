@@ -93,7 +93,16 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   offset) and `breakRepetitionPlane(w,h,tileSize)` (subdivide a rect floor on the `tileSize`-metre
   grid — `tileSize` = the material `uvScale` — and re-phase/rotate each cell's UVs so a big tiled
   floor stops repeating identically). It's **pure UV math** — no shader, no 2nd UV set, no extra
-  texture. Cells snap to the texture period (boundaries land on grout) and the rotation is rigid +
+  texture. **Cells are anchored to the texture PERIOD** — each starts at an exact multiple of
+  `tileSize` and the last one per axis is CLIPPED by the surface edge. Sizing them
+  `round(size / tileSize)` instead (shipped behaviour until v0.30.0.2) broke the premise on any
+  room that is not a whole number of tiles: a 1.75 × 1.85 m bathroom with a 1.2 m period got one
+  1.75 × 0.925 m cell showing 1.2 × 1.2 of UV — the texture STRETCHED, differently per axis — and
+  its neighbour starting at V 0.925, off-period, so the grout could not meet. Every cell's world
+  extent now equals its UV extent and every cell's map is a texture-lattice symmetry (unit-scale
+  axis permutation + half-period translation), which is the property that actually lets grout
+  lines meet across a boundary — assert THAT in tests, not a corner's raw UV (a 180° cell starts
+  mid-tile while its tile origin stays put). The rotation is rigid +
   the offset a half-tile, so a 2ⁿ-grid ceramic stays grout-continuous and a non-gridded
   stone/marble/wood just varies tile-to-tile; the tiles keep their square aspect (no UV stretch),
   share boundary positions (no seam/crack), and sit at the same Y (no z-fighting). Wired into the

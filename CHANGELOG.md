@@ -5,6 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.30.0.2 — the break-up stops stretching tiles on non-multiple rooms
+
+Reported from a phone screenshot of Bath/WC 2: the floor tiles came out in
+blocks of **different sizes** with grout that did not meet.
+
+`breakRepetitionPlane` divided a surface into `round(size / tileSize)` EQUAL
+cells and handed each one a full texture period of UV. That only lines up when
+the room happens to be a whole number of tiles. Bath/WC 2 is 1.75 × 1.85 m with
+a 1.2 m period (`floor-tile-bath-green`, 300×600 running bond), so it got a
+single 1.75 × 0.925 m cell showing 1.2 × 1.2 of UV — the texture squeezed by
+different amounts on each axis — and a second cell starting at V 0.925, which is
+not a multiple of 1.2, so its joints could never align with its neighbour's.
+Present since RD-406 shipped; the earlier work in this branch (direction guard,
+polygon rooms) never touched cell sizing, and my verification had only used
+rooms that happened to divide evenly.
+
+Cells are now anchored to the texture period — each starts at an exact multiple
+of `tileSize`, and the last one in each axis is **clipped** by the surface edge
+rather than stretched. Every cell's world extent equals its UV extent, and every
+cell's map is a lattice symmetry of the texture (unit-scale axis permutation
+plus a half-period translation) — the property that actually lets grout meet
+across a boundary. The polygon path already anchored this way, so irregular
+rooms were unaffected.
+
+Regression tests pin it with the real bathroom numbers and a spread of room
+sizes, and assert the mapping's form rather than a corner's raw UV (a 180° cell
+starts mid-tile while its tile origin stays put — the naive assertion is wrong).
+All four fail against the previous implementation.
+
 ## v0.30.0.1 — knip: no dead exports from the new modules
 
 The dead-code scan caught seven exports with no consumer outside their own file:
