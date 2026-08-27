@@ -793,3 +793,33 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   default would have made the sofa's weave depend on whether a curtain was created first. Drapery
   now passes its own `weave` (linen 0.95 / cotton 0.65) and gets its own cache entry. **Never mutate
   a material returned from this cache; add the axis to the key.**
+- **The no-IBL metalness cap must be LIVE, not baked at creation (IBL-CAP-LIVE).** A fully metallic
+  PBR surface has no diffuse term, so with `scene.environment === null` it has nothing to reflect and
+  renders black — hence `NO_IBL_METALNESS` (0.25) and the caps in `getSolidMaterial` /
+  `getMetalMaterial`. Both read `isIblActive()` ONCE, inside the factory, and baked the result into
+  the material (and, in `getSolidMaterial`, into the cache KEY). That was sound only while the tier
+  was static, and TIER-ADAPTIVE made it dynamic: the app boots at `medium` (IBL on) and the ladder
+  demotes to `performance` on weak hardware at runtime, so a material built at boot outlives the
+  environment it was built for. `getMetalMaterial` had a half-fix — `:noibl` in the key — which
+  hands a correct material to any NEW call but leaves an already-mounted mesh holding the old one;
+  only `MetalMaterial.tsx` subscribes to `subscribeIbl` and re-renders, so just its consumers
+  tracked the tier.
+  Measured on the default flat with `scripts/dev-probes/metal-tier-stale.mjs`, which switches the
+  tier live and re-reads the SAME material instances: at `performance` the wardrobes' sliding-door
+  frame panels sat at metalness **0.75** — fully uncapped — while the door pull (through
+  `MetalMaterial`) was correctly at 0.25. Scene-wide at `performance`: **69 meshes across 15
+  material kinds above the cap**.
+  Fixed by `iblSignal.ts:registerCappedMetal`, which applies the cap now and re-derives every
+  registered material whenever `setIblActive` fires; the pure `effectiveMetalness(requested, ibl)`
+  holds the rule. Two details that matter: it remembers the **requested** value, not the capped one
+  (storing the capped value is what made the old behaviour one-way — once flattened to 0.25 there
+  was no route back to 0.75), and the registry holds **WeakRefs**, pruned on each sweep, because
+  these materials live in an LRU that disposes evictions and a strong Set would pin every material
+  ever built. Both cache keys now use the requested metalness, which also collapses the two
+  IBL-split entries into one. Verified: the frame slab goes 0.75 → 0.25 on demotion and back on
+  promotion.
+  **Still outstanding, measured:** scene-wide meshes above the cap at `performance` fell 69 → **57**.
+  The remainder do not go through these two factories — they are inline `<meshStandardMaterial
+  metalness={…}>` declarations in primitives, plus `cache.ts`'s scanned `metalnessMap` binding. Any
+  new metallic material should route through `registerCappedMetal` rather than setting `metalness`
+  directly.

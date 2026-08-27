@@ -26,7 +26,7 @@ import {
   liftedSheenRgb,
   sheenRough,
 } from './furnitureMaterialLogic'
-import { isIblActive, NO_IBL_METALNESS } from './iblSignal'
+import { registerCappedMetal } from './iblSignal'
 import { LruCache } from './materialLru'
 import { clearcoatLayer, glassConfig, type SheenLayer, sheenLayer } from './materialRealism'
 import { buildBrushedMetalFields, DEFAULT_BRUSH_PARAMS } from './procedural/metalBrush'
@@ -1222,11 +1222,17 @@ export function getSolidMaterial(
   // appliance bodies reach three through here (`applianceBodyMaterial` →
   // `applianceFinish` presets), not through the brushed-metal factory, so the
   // cap has to live in both. Non-metallic solids are untouched.
-  const metal = isIblActive() ? metalness : Math.min(metalness, NO_IBL_METALNESS)
-  const key = `solid:${color}:${roughness.toFixed(2)}:${metal.toFixed(2)}`
+  //
+  // IBL-CAP-LIVE: the key is the REQUESTED metalness and the cap is applied (and
+  // re-applied on every later IBL change) by `registerCappedMetal`. Keying on the
+  // capped value instead — as this did — both split one request into two cache
+  // entries depending on boot order AND froze the cap at creation time, so a
+  // material built at the `medium` boot tier kept metalness 0.75 after the
+  // adaptive ladder demoted to `performance`.
+  const key = `solid:${color}:${roughness.toFixed(2)}:${metalness.toFixed(2)}`
   const hit = cache.get(key)
   if (hit) return hit
-  const m = new MeshStandardMaterial({ color, roughness, metalness: metal })
+  const m = registerCappedMetal(new MeshStandardMaterial({ color, roughness }), metalness)
   cache.set(key, m)
   return m
 }
@@ -1418,23 +1424,29 @@ export function getMetalMaterial(
   // axis, so the key + the material are unchanged from before.
   const rotation = anisotropyRotationForNormal(faceNormal)
   const rotKey = rotation === 0 ? '' : `:a${rotation.toFixed(4)}`
-  // The IBL state is part of the key: switching tiers must hand back a material
-  // built for that tier rather than a cached fully-metallic one.
-  const hasIbl = isIblActive()
-  const key = `metal:${finish}:${color}:${r}${rotKey}${hasIbl ? '' : ':noibl'}`
+  // IBL-CAP-LIVE: the key no longer carries the IBL state. It used to (`:noibl`),
+  // which handed a correctly-capped material to any NEW call after a tier change —
+  // but a mesh already mounted keeps the material it was given, so the cap only
+  // actually tracked the tier for consumers that re-render on it (i.e. the
+  // subscribing `MetalMaterial` component, not the primitives that call this
+  // factory directly). `registerCappedMetal` re-derives every registered
+  // material's metalness whenever `setIblActive` fires, which makes the cap
+  // correct for both paths and collapses the two cache entries back into one.
+  const key = `metal:${finish}:${color}:${r}${rotKey}`
   const hit = cache.get(key)
   if (hit) return hit
   const preset = metalFinishPreset(finish)
-  const metalness = hasIbl ? preset.metalness : Math.min(preset.metalness, NO_IBL_METALNESS)
   const pbr = isFeatureEnabled('pbrSurfaces')
   if (!pbr) {
     // Flat tier: legacy look — metalness/roughness only, no brush maps.
-    const m = new MeshStandardMaterial({
-      color,
-      roughness: preset.roughness,
-      metalness,
-      envMapIntensity: GLOSSY_ENV_INTENSITY,
-    })
+    const m = registerCappedMetal(
+      new MeshStandardMaterial({
+        color,
+        roughness: preset.roughness,
+        envMapIntensity: GLOSSY_ENV_INTENSITY,
+      }),
+      preset.metalness,
+    )
     cache.set(key, m)
     return m
   }
@@ -1444,14 +1456,16 @@ export function getMetalMaterial(
   normal.repeat.set(r, r)
   roughnessMap.repeat.set(r, r)
   normal.needsUpdate = roughnessMap.needsUpdate = true
-  const m = new MeshPhysicalMaterial({
-    color,
-    roughness: preset.roughness,
-    metalness,
-    normalMap: normal,
-    roughnessMap,
-    envMapIntensity: GLOSSY_ENV_INTENSITY,
-  })
+  const m = registerCappedMetal(
+    new MeshPhysicalMaterial({
+      color,
+      roughness: preset.roughness,
+      normalMap: normal,
+      roughnessMap,
+      envMapIntensity: GLOSSY_ENV_INTENSITY,
+    }),
+    preset.metalness,
+  )
   // Subtle brush relief — a satin grain, not a scratched groove.
   m.normalScale.set(0.2, 0.2)
   // Swept anisotropic highlight. `anisotropyRotation` is 0 (the legacy fixed U

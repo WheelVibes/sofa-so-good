@@ -5,6 +5,60 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.15 — the no-IBL metalness cap was frozen at boot
+
+Re-baselined first, as planned, and the old ranking is indeed obsolete: at
+walk/Medium/13:00 the living room now measures **mean chroma 0.165 with 3.5% of
+pixels above 0.35 saturation** (0.206 / 14.6% when this work started) and the
+bedroom **0.182 / 0.0%**. Chroma is done. The standout anomaly in the fresh data
+was a single material with metalness 0.75 and no maps — one I had dismissed in an
+earlier round as a probe artefact. It wasn't.
+
+- **`IBL-CAP-LIVE`.** A fully metallic surface has no diffuse term, so with
+  `scene.environment === null` it renders black — hence `NO_IBL_METALNESS` (0.25)
+  and the caps in `getSolidMaterial` / `getMetalMaterial`. Both read
+  `isIblActive()` once, inside the factory, and baked it into the material (and
+  into `getSolidMaterial`'s cache KEY). Sound only while the tier is static, and
+  TIER-ADAPTIVE made it dynamic: the app boots at `medium` (IBL on) and the ladder
+  demotes to `performance` on weak hardware at runtime, so materials outlive the
+  environment they were built for. `getMetalMaterial`'s `:noibl` key was a
+  half-fix — it hands a correct material to any NEW call, but a mounted mesh keeps
+  the one it was given, and only `MetalMaterial.tsx` subscribes to `subscribeIbl`.
+
+  Measured with a new `metal-tier-stale.mjs`, which switches the tier live and
+  re-reads the SAME instances: at `performance` the wardrobes' sliding-door frame
+  panels sat at metalness **0.75**, fully uncapped, while the door pull (through
+  the subscribing component) was correctly at 0.25. Scene-wide at `performance`:
+  **69 meshes across 15 material kinds above the cap** — the black-slab defect the
+  cap exists to prevent, live on the tier that serves weak hardware.
+
+  Fixed by `registerCappedMetal`, which applies the cap now and re-derives every
+  registered material when `setIblActive` fires; the pure
+  `effectiveMetalness(requested, ibl)` holds the rule. It remembers the
+  **requested** value, not the capped one — storing the capped value is what made
+  the old behaviour one-way, with no route back from 0.25 to 0.75 — and the
+  registry holds **WeakRefs** pruned on each sweep, since these materials live in
+  an LRU that disposes evictions and a strong Set would pin every material ever
+  built. Both keys now use the requested metalness, collapsing the IBL-split
+  entries into one. Verified end to end: the frame slab goes 0.75 → 0.25 on
+  demotion and back on promotion.
+
+- **Partial, and measured as such.** Scene-wide meshes above the cap at
+  `performance` fell **69 → 57**. The remaining 57 bypass these two factories —
+  inline `<meshStandardMaterial metalness={…}>` in primitives, plus `cache.ts`'s
+  scanned `metalnessMap` binding. Named as follow-up rather than left implied.
+
+- **Corrected a comment that had gone false.** `uiSlice.ts`'s module-load seed
+  said "the app always boots at 'performance'"; TIER-ADAPTIVE made that untrue
+  (`initialAutoTier` is `medium`). Seeding `performance` is still the safe
+  direction — booting capped then un-capping looks right, the reverse renders
+  black — but correctness across later tier changes no longer depends on the seed.
+
+- **An existing test pinned the old behaviour and was rewritten, not deleted.**
+  `metalNoIbl.test.ts` asserted the cache was keyed on the IBL state so a switch
+  handed back a second material. The contract is now stronger: one cached material
+  whose metalness is re-derived in place, both directions.
+
 ## v0.31.5.14 — the sofa needed weave relief, not sheen
 
 The default flat's largest furniture surface read as moulded matte plastic. The

@@ -26,8 +26,14 @@ function syncIblFromTier(tier: RenderTier, overrides: Partial<QualitySettings> |
   setIblActive(resolveQuality(tier, overrides).ibl)
 }
 
-// Seed it at module load: the app always boots at 'performance' (ibl off), and
-// the shell builds its materials before any React effect runs.
+// Seed it at module load, because the shell builds its materials before any React
+// effect runs. NOTE the seeded tier is a LOWER BOUND, not the real boot tier: this
+// used to say "the app always boots at 'performance'", which TIER-ADAPTIVE made
+// false — `initialAutoTier` is `medium` and the ladder moves at runtime. Seeding
+// `performance` (ibl off) is still the safe direction, since a metal that boots
+// capped and is then un-capped by `SceneEnvironment`'s effect looks right either
+// way, whereas the reverse renders black. Correctness across later tier changes
+// does NOT rely on this seed — see IBL-CAP-LIVE in `materials/iblSignal.ts`.
 syncIblFromTier('performance', undefined)
 
 import { DEFAULT_TONE_MAPPING_SETTING, type ToneMappingSetting } from '../../scene/toneContext'
