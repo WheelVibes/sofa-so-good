@@ -84,6 +84,54 @@ SHOT_GPU=1 node scripts/shot.mjs out.png 3000
 SHOT_GPU=1 node scripts/shot.mjs --scenario scripts/scenarios/foo.json
 ```
 
+**The ANGLE backend is platform-specific, and getting it wrong silently gives you
+SwiftShader anyway** — i.e. `SHOT_GPU=1` becomes a no-op and every GPU-only check
+you thought you ran was a software render. `shot.mjs` now picks it from
+`process.platform`: **darwin → `metal`**, win32 → `d3d11`, linux/WSL → `gl-egl`
+(the original D3D12-passthrough value, which does not exist on macOS; the
+`--enable-features=Vulkan` flag isn't a macOS Chromium feature either and is
+dropped there). Override with `SHOT_ANGLE=<backend>`. **Always confirm the
+renderer string** before trusting a GPU-only result — on this Mac it must read
+`ANGLE (Apple, ANGLE Metal Renderer: Apple M4, …)`:
+
+```js
+const gl = document.createElement('canvas').getContext('webgl2')
+const d = gl.getExtension('WEBGL_debug_renderer_info')
+gl.getParameter(d.UNMASKED_RENDERER_WEBGL)
+```
+
+## Measuring the render, not just eyeballing it (`scripts/dev-probes/`)
+
+Some rendering bugs are invisible in a single screenshot — an intermittent
+one-frame artifact, or a difference in exposure/contrast that reads as "hmm,
+looks a bit off". These probes turn those into numbers. All drive a real orbit
+gesture against a real GPU and need `npm run dev:web` running.
+
+| Probe | Answers |
+| --- | --- |
+| `blank-cause.mjs` | How many orbit frames composite BLANK, plus three's own render counters and any drawing-buffer resize around each one. `TIER=`, `HOUR=`, `REPS=`, `OVERRIDE=key=value` (a `qualityOverrides` entry, to isolate one tier axis), `URL=` (for `?ff=flag:off`). |
+| `tier-look.mjs` | Mean brightness, contrast (pixel σ) and **clipped-highlight fraction** per tier per hour — the exposure regression check. `HOURS=`, `TIERS=`. |
+| `shadow-contribution.mjs` | Whether the sun shadow map changes anything visible, by diffing the same frame with `shadowMapSize` on vs 0. |
+| `orbit-flash.mjs` | Broad multi-tier orbit sweep; writes any blank frame to disk. |
+
+Two rules learned the hard way here:
+
+- **Detect a blank frame by VARIANCE, not brightness.** A white flash is the page
+  background through a cleared buffer — an almost featureless region. A
+  brightness threshold also fires on a legitimately blown-out midday render,
+  which is how a washed-out (but perfectly valid) frame got reported as "30/30
+  blank frames". `lib.mjs:isBlank` keys on pixel σ.
+- **Measure the CENTRE of the viewport, not the canvas rect.** The canvas is
+  full-bleed and the toolbar / "Get started" card / zoom rail are drawn over it;
+  those opaque panels contribute most of the variance and mask a genuinely blank
+  canvas. `lib.mjs:centerBox` is the region to use.
+- **Pin the clock and the light mode.** The app defaults to `timeMode: 'system'`,
+  so an unpinned run renders whatever time it happens to be — a night capture has
+  full-strength bloom and lit fixtures and is not comparable to a daylight one.
+  Heavy GL instrumentation also perturbs timing enough to HIDE frame-level bugs:
+  wrapping every `gl.clear`/`drawElements` made the orbit flash disappear
+  entirely, so prefer three's own `gl.info.render` counters.
+
 Notes: GPU mode uses Chromium's `--headless=new` (not `shell`) so the compositor
 path is real; it is slower per frame than SwiftShader but renders truthfully.
 Always GPU-verify items the backlog tags `[real-GPU verify]` before striking them.

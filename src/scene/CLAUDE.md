@@ -101,6 +101,84 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     `QualityController`'s `setDpr(min(devicePixelRatio, dprMax))` clamp, or `configure()`
     stomp-resizes on every commit (bites on hi-DPI devices if the prop is dropped — r3f's
     default is `[1, 2]`).
+- **The post stack owns the view transform; the tiers below it use `gl.toneMapping` (TONE-POST).**
+  three applies `renderer.toneMapping` **only when `_currentRenderTarget === null`** (straight
+  from `WebGLRenderer.getProgram`: `if (material.toneMapped) { if (_currentRenderTarget === null
+  || isXRRenderTarget) toneMapping = _this.toneMapping }`). Under `<EffectComposer>` the scene
+  renders into an off-screen HalfFloat target and `postprocessing`'s `EffectMaterial` sets
+  `toneMapped: false`, so High/Maximum ran with **no view transform at all** — raw linear HDR
+  straight to the display, and `Lighting`'s per-frame `gl.toneMapping`/`gl.toneMappingExposure`
+  writes (the entire `grade()` + user-exposure + `toneExposureBias` model) were dead code on
+  exactly the tiers meant to look best. Measured at 13:00 on a Mac mini M4, fraction of
+  pure-white pixels: Performance/Medium 3.4% vs High/Maximum **31.8%** — the reported
+  "lighting is too aggressive on the higher tiers", and why the best tiers looked *less* real
+  than the flat one. `EffectsImpl` therefore mounts a `<ToneMapping>` effect
+  (`toneMappingPost.ts` maps the pure `ToneMappingMode` → the `postprocessing` enum, the twin of
+  `toneMappingThree.ts`), driven by the **same** `resolveToneMapping` call `Lighting` uses so the
+  look doesn't jump across the tier boundary. Exposure needs no new plumbing: the effect's shader
+  `#include`s three's `<tonemapping_pars_fragment>`, whose operators all multiply by the
+  `toneMappingExposure` uniform the renderer already uploads. **Effect order is load-bearing** —
+  AO / DoF / Bloom are scene-referred and must come BEFORE the tone mapper; HueSaturation /
+  ChromaticAberration / Vignette / Noise / SMAA are display-referred and must come AFTER.
+  `postStackGuard.test.ts` pins both the presence and the ordering.
+- **`<Bloom mipmapBlur>` is banned — it blanks whole frames on ANGLE/Metal (BLOOM-MIP-FLASH).**
+  Its `MipmapBlurPass` rebinds a chain of ~15 differently-sized half-float render targets every
+  frame; on Apple silicon that intermittently leaves the combined `EffectPass` shader sampling an
+  unready blur texture, and since the composer's final blit runs regardless, the garbage lands on
+  the default framebuffer and the WHOLE canvas goes blank. With `alpha: true` (r3f's default,
+  which the orbit view relies on to show the page background around the model) that reads as the
+  light page colour — the reported **"white flashes when rotating the view in orbit mode"** on
+  the higher tiers. Blank frames per 78 captured during a real orbit drag at Maximum: full stack
+  **4/78** (7/78 at night), Bloom alone **5/78**, everything-except-Bloom **0/78**, Bloom with
+  `mipmapBlur={false}` **0/78**. Performance/Medium never flashed — they mount no composer, which
+  is why the report was tier-specific. Ruled out first, so don't re-litigate them: WebGL context
+  loss (`webglcontextlost` never fired), drawing-buffer resizes / the DPR degrade (no
+  `setSize`/`setPixelRatio` anywhere near a blank frame, and turning `interactiveDegrade` OFF made
+  it *more* frequent), `EffectPass` rebuilds (`EffectsImpl` re-renders 0 times during an orbit),
+  every other pass individually, mip `levels` 5/6/7, and `alpha: false` (which only changed the
+  flash colour to black). Bloom also only MOUNTS when `bloomActiveForDay(dayLevel)` — in daylight
+  the ramp has zeroed its intensity, and an intensity-zeroed Bloom is not inert (its blur texture
+  is still sampled by the combined shader). Repro/verify: `node scripts/dev-probes/blank-cause.mjs`.
+- **Curtains dim the FILL, never the sun (KEY-FILL-BALANCE).** `curtainLightEffect` used to
+  multiply the sun `DirectionalLight`'s intensity by `sceneAttenuationFactor` — the scene-wide
+  AVERAGE curtain transmission. Two problems: that light *is* the sun (so one drawn bedroom
+  curtain darkened the building's exterior too), and it is the **only shadow-casting light in the
+  scene** — everything else (hemisphere, ambient, the IBL probe) is non-directional fill that
+  casts nothing. On the default furnished 4-room flat at 09:00/Maximum that left sun 0.41 against
+  ~1.10 of fill: a key:fill ratio of **0.37:1**, at which a cast shadow can only remove a small
+  fraction of a surface's light and reads as a faint tint or not at all. Turning the 4096² shadow
+  map off changed **0.47%** of pixels at 13:00 and 17:00, and the 09:00 difference was pure edge
+  aliasing — i.e. the most expensive thing the higher tiers buy was rendering nothing visible, and
+  interiors looked flat with furniture apparently floating at EVERY tier. The attenuation now
+  rides the fill (`Lighting`'s hemisphere + ambient via `fillScale`, and
+  `SceneEnvironment`'s `scene.environmentIntensity`) through the pure `look.windowFillAttenuation`,
+  which is the light curtains actually block — diffuse skylight through the glass. Same magnitude,
+  correct light: contrast (pixel σ) rose ~21% at Performance and ~10% at Maximum for a ~2-point
+  mean-brightness cost. Measure with `node scripts/dev-probes/shadow-contribution.mjs`.
+- **The boot tier is capability-detected, NOT unconditionally `performance` (TIER-AUTODETECT).**
+  This deliberately reverses the earlier "always boot the flat tier for everyone" product rule.
+  That rule guaranteed a fluid first load but made every user's first impression the flat
+  renderer — no shadows, no IBL, no AO, no graded post — which is exactly the "the graphics look
+  like animation, not real" feedback. `quality.ts:tierForCapabilities` (pure + unit-tested) reads
+  a renderer string + core count + coarse-pointer + WebGL2 and picks: software rasteriser /
+  phone-tablet / no-WebGL2 / <4 cores → `performance`; **everything else → `medium`**.
+  `high` and `maximum` are **never** auto-selected, and that ceiling is measured, not cautious —
+  sustained-orbit FPS on the M4 reference machine at Retina DPR (2560x1600 buffer), tier pinned:
+  performance 60 / medium 60 / **high 39.9 (83 ms worst frame)** / maximum 34. High clears the
+  30 fps floor on average but one bad 1.5 s window is enough for `QualityController` to step
+  down, and `scripts/dev-probes/tier-stability.mjs` showed an auto-selected High walking itself
+  to Medium then Performance inside a single orbit. A default that visibly downgrades itself is
+  worse than a slightly conservative one. Guessing too HIGH is self-correcting but ugly; guessing
+  too LOW is invisible and permanent, which was the bug — so identify weak hardware positively
+  and give everything else the benefit of the doubt. Re-measure with
+  `scripts/dev-probes/tier-fps.mjs` before moving the ceiling.
+- **The adaptive FPS guard is deaf during boot warm-up (`FPS_GUARD_WARMUP_MS`, 5 s after
+  `sceneReady`).** It samples only while the pump renders CONTINUOUSLY — and boot is exactly
+  that (loader overlay, asset streaming, shader compilation, the first shadow/IBL bakes), at the
+  least representative moment there is. This never mattered while everyone booted at Performance
+  (no tier to step down from); the moment TIER-AUTODETECT landed, the guard walked the detected
+  tier straight back down during warm-up and capability detection looked broken. Gate is the pure
+  `shouldSampleFps(sceneReady, msSinceReady)`.
 - **Bloom only blooms genuine HDR emitters, never broad daytime surfaces** (RD-409). The
   Bloom `luminanceThreshold` (`look.BLOOM.luminanceThreshold`, 1.35) sits **above** sunlit
   white walls/ceilings under the day IBL + ~1.2 graded exposure and **below** the night

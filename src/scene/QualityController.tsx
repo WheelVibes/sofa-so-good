@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react'
 import { isProfilerBenchmarkActive } from '../dev/profiler/benchmarkSignal'
 import { setProceduralBaseSize } from '../materials/procedural/generators'
 import { useStore } from '../state/store'
-import { detectDefaultTier, RENDER_TIERS } from './quality'
+import { detectDefaultTier, RENDER_TIERS, shouldSampleFps } from './quality'
 import { isRenderingContinuously } from './renderPumpSignal'
 import { useQuality } from './useQuality'
 
@@ -13,13 +13,15 @@ const FPS_FLOOR = 30
 
 /**
  * Keeps the experience fluid:
- *   - boots at the default tier ('performance' — flat & fast — for everyone),
+ *   - boots at the CAPABILITY-DETECTED default tier (TIER-AUTODETECT,
+ *     `quality.ts:tierForCapabilities`),
  *   - applies each tier's pixel-ratio clamp,
  *   - watches frame rate and steps the tier DOWN if it sustains below ~30fps.
  *
- * Higher tiers are strictly opt-in from the Graphics panel; the monitor never
- * raises the tier on its own. Auto-adjust is disabled entirely once the user
- * pins a tier manually (`qualityUserSet`).
+ * The guard is the safety net that makes an optimistic boot tier acceptable: it
+ * only ever steps DOWN, never up, and it stops entirely once the user pins a
+ * tier manually (`qualityUserSet`). It is deliberately deaf during boot warm-up
+ * — see `FPS_GUARD_WARMUP_MS`.
  */
 export function QualityController() {
   const { gl } = useThree()
@@ -67,8 +69,23 @@ export function QualityController() {
 
   // Adaptive frame-rate guard (down-only).
   const acc = useRef({ t: 0, frames: 0, lowWindows: 0 })
+  // When `sceneReady` first turned true, for the warm-up gate below.
+  const readyAt = useRef(0)
   useFrame((_, dt) => {
     const a = acc.current
+    // Ignore boot: streaming/compilation/bakes drive frames continuously at the
+    // least representative moment there is (see FPS_GUARD_WARMUP_MS). Without
+    // this the guard walked a freshly auto-detected tier straight back down
+    // during warm-up.
+    const ready = useStore.getState().sceneReady
+    if (!ready) readyAt.current = 0
+    else if (readyAt.current === 0) readyAt.current = performance.now()
+    if (!shouldSampleFps(ready, readyAt.current === 0 ? 0 : performance.now() - readyAt.current)) {
+      a.t = 0
+      a.frames = 0
+      a.lowWindows = 0
+      return
+    }
     // Only measure FPS while the pump is rendering continuously. In demand mode
     // idle frames are seconds apart, which would read as ~0 FPS and trigger a
     // spurious tier downgrade — reset the window instead.

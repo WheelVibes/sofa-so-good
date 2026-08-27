@@ -11,6 +11,7 @@ import {
   shadowParamsForFilter,
   toneExposureBias,
   warmthTintRGB,
+  windowFillAttenuation,
 } from '../look'
 import { isShadowRefreshActive } from '../shadowRefreshSignal'
 import { resolveToneMapping, toneContextFromState } from '../toneContext'
@@ -196,10 +197,13 @@ export function Lighting() {
       // --- C275: window-glass tint + curtain attenuation ---
       // All tier levels: colour modulation is free (scalar mults only).
       // No per-frame allocation: reads from module-level signals written on store change.
-      const attenuation = isFeatureEnabled('curtainLightEffect') ? getWindowAttenuation() : 1.0
       const tint = isFeatureEnabled('windowGlassTint') ? getWindowGlassTint() : NEUTRAL_TINT
 
-      sunRef.current.intensity = cur.sun * attenuation
+      // KEY-FILL-BALANCE: the sun keeps its FULL graded intensity. Curtains dim
+      // the diffuse skylight coming through the window (the fill, below), not
+      // the sun itself — see `windowFillAttenuation` for why dimming the only
+      // shadow-casting light here flattened every tier.
+      sunRef.current.intensity = cur.sun
       sunRef.current.castShadow = shadowMapSize > 0
       sunRef.current.position.set(cur.sunPos[0], cur.sunPos[1], cur.sunPos[2])
       // PERF-MAX-1: hold the shadow map frozen unless it actually needs to change.
@@ -245,7 +249,13 @@ export function Lighting() {
     // Reduce the analytical fill where IBL also lights the scene (scaled by the
     // day level, so night interiors keep their full fill). `cur.sun` is the eased
     // 0→1 day level (same signal that drives `SceneEnvironment` IBL intensity).
-    const fillScale = iblFillScale(iblActive, cur.sun)
+    // The curtain/blind attenuation rides the FILL — that is the light actually
+    // passing through the window glass (KEY-FILL-BALANCE). Read once here so the
+    // hemisphere, the ambient and (via the signal) the IBL probe all agree.
+    const fillAtten = isFeatureEnabled('curtainLightEffect')
+      ? windowFillAttenuation(getWindowAttenuation())
+      : 1
+    const fillScale = iblFillScale(iblActive, cur.sun) * fillAtten
     if (hemiRef.current) {
       hemiRef.current.intensity = cur.ambient * 1.1 * fillScale
       hemiRef.current.color.setRGB(

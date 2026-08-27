@@ -7,15 +7,19 @@ import {
   N8AO,
   Noise,
   SMAA,
+  ToneMapping,
   Vignette,
 } from '@react-three/postprocessing'
+import { KernelSize } from 'postprocessing'
 import { type ReactElement, useMemo } from 'react'
 import { Vector2 } from 'three'
 import { useStore } from '../state/store'
 import { rasterDofParams } from './cameras/cameraLensSettings'
 import { lightingFromAltitude } from './lighting/altitudeCurve'
 import { useSunPosition } from './lighting/useSunPosition'
-import { AO, BLOOM, bloomIntensityForDay, hueSatSaturation } from './look'
+import { AO, BLOOM, bloomActiveForDay, bloomIntensityForDay, hueSatSaturation } from './look'
+import { resolveToneMapping, toneContextFromState } from './toneContext'
+import { TONE_MAPPING_POST } from './toneMappingPost'
 
 interface EffectsProps {
   /** Render SSAO at full resolution (sharper, deeper) instead of half-res. */
@@ -34,18 +38,26 @@ interface EffectsProps {
 
 /**
  * Tier-aware post-processing stack.
+ *
+ * Ordered HDR → display-referred, which is the part that actually matters:
  *   - N8AO: SSAO, tuned via look.AO so corners/recesses ground deeply. Full-res
  *     + high-quality on the top (`aoFullRes`) tier, half-res elsewhere.
- *   - Bloom: gentle glow on genuinely emissive night fixtures only. Thresholded
- *     HIGH (`BLOOM.luminanceThreshold`) so broad sunlit daytime surfaces stay
- *     under the line — a lower threshold smeared a milky veil across the whole
- *     frame at High/Maximum.
+ *   - DepthOfField: a lens effect, so it belongs on the HDR side of the tone
+ *     mapper (bokeh has to average scene-referred energy to look right).
+ *   - Bloom: gentle glow on genuinely emissive night fixtures only. Also
+ *     HDR-side — it is a sensor bleed of over-range energy, which is exactly
+ *     what the tone mapper is about to compress away.
+ *   - **ToneMapping**: the view transform (TONE-POST). Under the composer three
+ *     does NOT apply `gl.toneMapping` — see `toneMappingPost.ts` for the full
+ *     mechanism — so without this pass the post tiers rendered raw linear HDR
+ *     and clipped ~32% of the frame to flat white. Everything above this line is
+ *     scene-referred (may exceed 1.0); everything below is display-referred.
  *   - HueSaturation: a touch of saturation so finishes read rich, not muddy.
  *   - ChromaticAberration (cinematic only): a sub-pixel RGB split at the frame
  *     edges — the lens signature that makes a still read "photographed".
  *   - Vignette: subtle edge darkening so the frame reads "shot, not rendered".
  *   - Noise (cinematic only): a faint, luminance-aware film grain.
- *   - SMAA: edge antialiasing (composer renders off-screen).
+ *   - SMAA: edge antialiasing, last (it wants final display-referred pixels).
  *
  * Effects are assembled into a keyed array (the composer's children typing
  * rejects conditional `null`s) so the cinematic passes drop in/out cleanly.
@@ -78,6 +90,23 @@ export default function EffectsImpl({
   // The default (1) resolves to the long-standing +0.06 baseline exactly.
   const sceneSaturation = useStore((s) => s.sceneSaturation)
 
+  // TONE-POST: the same resolved operator `Lighting` feeds the renderer, so the
+  // look is identical across the tier boundary instead of the post tiers silently
+  // running with no view transform at all. Context-aware (`'auto'` → Neutral
+  // while previewing a finish) exactly as on Performance/Medium. Subscribed as
+  // two primitive selectors so this component doesn't re-render on unrelated
+  // store writes — a re-render here changes the composer's `children` identity,
+  // which makes it tear down and rebuild every `EffectPass`.
+  const toneSetting = useStore((s) => s.toneMapping)
+  const finishPreview = useStore((s) => s.selectedRoomId != null || s.selectedWall != null)
+  const toneMode = resolveToneMapping(
+    toneSetting,
+    toneContextFromState({
+      selectedRoomId: finishPreview ? 'finish-preview' : null,
+      selectedWall: null,
+    }),
+  )
+
   const effects: ReactElement[] = [
     <N8AO
       key="ao"
@@ -87,20 +116,7 @@ export default function EffectsImpl({
       quality={aoFullRes ? 'high' : 'medium'}
       halfRes={!aoFullRes}
     />,
-    <Bloom
-      key="bloom"
-      mipmapBlur
-      luminanceThreshold={BLOOM.luminanceThreshold}
-      luminanceSmoothing={BLOOM.luminanceSmoothing}
-      intensity={bloomIntensity}
-    />,
-    <HueSaturation key="hue" saturation={hueSatSaturation(sceneSaturation)} hue={0} />,
   ]
-  if (cinematic) {
-    effects.push(
-      <ChromaticAberration key="ca" offset={caOffset} radialModulation modulationOffset={0.35} />,
-    )
-  }
   // Raster depth of field (PC2-CAM-DOF-LENS). World-space focus (metres) so the
   // model matches the HQ path tracer; half-res (`resolutionScale`) to keep the
   // bokeh convolution cheap. Mounted only when DoF is enabled upstream.
@@ -113,6 +129,59 @@ export default function EffectsImpl({
         bokehScale={bokehScale}
         resolutionScale={0.5}
       />,
+    )
+  }
+  // Mount Bloom only when the day ramp leaves it something to do. In daylight
+  // `bloomIntensityForDay` is 0, so the pass contributed nothing visible while
+  // still running its whole blur chain every frame — and an
+  // intensity-zeroed Bloom is NOT inert: its blur texture is still sampled by the
+  // combined effect shader, which is exactly the path that blanked frames (see
+  // the mipmapBlur note below). Skipping it outright is both cheaper and safer.
+  if (bloomActiveForDay(dayLevel)) {
+    effects.push(
+      <Bloom
+        key="bloom"
+        // BLOOM-MIP-FLASH: `mipmapBlur` is deliberately OFF — do not re-enable it
+        // without re-running `scripts/dev-probes/blank-cause.mjs`. Its
+        // `MipmapBlurPass` rebinds a chain of ~15 differently-sized half-float
+        // render targets every frame, and on ANGLE/Metal (Apple silicon) that
+        // intermittently leaves the combined `EffectPass` shader sampling an
+        // unready blur texture. That blanks the WHOLE frame, because the
+        // composer's final blit still runs and writes the result to the default
+        // framebuffer regardless. With `alpha: true` (r3f's default, which the
+        // orbit view relies on to show the page background around the model) a
+        // blanked frame reads as the light page colour: the reported "white
+        // flashes when rotating the view in orbit mode" on the higher tiers.
+        // Measured on a Mac mini M4 driving a real orbit drag — blank frames per
+        // 78 captured frames at Maximum:
+        //   full stack, mipmapBlur on ....... 4/78   (7/78 at night)
+        //   Bloom alone, mipmapBlur on ...... 5/78
+        //   everything EXCEPT Bloom ......... 0/78
+        //   Bloom alone, mipmapBlur off ..... 0/78
+        //   full stack, mipmapBlur off ...... 0/78   (0/78 at night)
+        // Performance/Medium never flashed (0/78): they mount no composer at all,
+        // which is why the report was tier-specific. Ruled out along the way —
+        // WebGL context loss (no `webglcontextlost` ever fired), drawing-buffer
+        // resizes / the DPR degrade (no `setSize`/`setPixelRatio` near a blank
+        // frame, and disabling `interactiveDegrade` made it *more* frequent),
+        // `EffectPass` rebuilds (this component re-renders 0 times during an
+        // orbit), every other pass individually, and mip `levels` 5/6/7.
+        // `alpha: false` only changed the flash colour to black. The Kawase blur
+        // below is the library's other supported blur path and is artifact-free.
+        mipmapBlur={false}
+        kernelSize={KernelSize.LARGE}
+        resolutionScale={0.5}
+        luminanceThreshold={BLOOM.luminanceThreshold}
+        luminanceSmoothing={BLOOM.luminanceSmoothing}
+        intensity={bloomIntensity}
+      />,
+    )
+  }
+  effects.push(<ToneMapping key="tone" mode={TONE_MAPPING_POST[toneMode]} />)
+  effects.push(<HueSaturation key="hue" saturation={hueSatSaturation(sceneSaturation)} hue={0} />)
+  if (cinematic) {
+    effects.push(
+      <ChromaticAberration key="ca" offset={caOffset} radialModulation modulationOffset={0.35} />,
     )
   }
   effects.push(<Vignette key="vig" eskil={false} offset={0.32} darkness={0.55} />)

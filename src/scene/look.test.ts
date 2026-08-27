@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   AO,
   BLOOM,
+  bloomActiveForDay,
   bloomIntensityForDay,
   clampExposure,
   DEFAULT_EXPOSURE,
@@ -17,6 +18,7 @@ import {
   TONE_MAPPING_MODES,
   toneExposureBias,
   VSM_SHADOW,
+  windowFillAttenuation,
 } from './look'
 
 describe('iblFillScale', () => {
@@ -165,5 +167,62 @@ describe('shadowParamsForFilter', () => {
       expect(p.bias).toBeLessThan(0)
       expect(p.normalBias).toBeGreaterThan(0)
     }
+  })
+})
+
+describe('bloomActiveForDay', () => {
+  it('is off at full daylight, where the ramp has zeroed the intensity', () => {
+    // Daylight must mount NO bloom pass — an intensity-zeroed Bloom still runs
+    // its blur chain and still feeds the composer's combined effect shader.
+    expect(bloomActiveForDay(1)).toBe(false)
+  })
+
+  it('is on at night, where emissive fixtures need to glow', () => {
+    expect(bloomActiveForDay(0)).toBe(true)
+  })
+
+  it('is on through the twilight ramp', () => {
+    expect(bloomActiveForDay(0.5)).toBe(true)
+    expect(bloomActiveForDay(0.99)).toBe(true)
+  })
+
+  it('agrees with the intensity ramp it gates', () => {
+    for (const d of [0, 0.1, 0.5, 0.9, 1]) {
+      expect(bloomActiveForDay(d)).toBe(bloomIntensityForDay(d) > 0)
+    }
+  })
+
+  it('treats out-of-range and non-finite day levels as night (fail-safe)', () => {
+    expect(bloomActiveForDay(Number.NaN)).toBe(true)
+    expect(bloomActiveForDay(-3)).toBe(true)
+    expect(bloomActiveForDay(5)).toBe(false)
+  })
+})
+
+describe('windowFillAttenuation (KEY-FILL-BALANCE)', () => {
+  it('passes a clear (fully open) window through unchanged', () => {
+    expect(windowFillAttenuation(1)).toBe(1)
+  })
+
+  it('passes a fully blocked window through unchanged', () => {
+    expect(windowFillAttenuation(0)).toBe(0)
+  })
+
+  it('is the identity across the open range', () => {
+    // The curtain feature's magnitude is unchanged by KEY-FILL-BALANCE — only
+    // WHICH light it applies to moved (fill, not the shadow-casting sun).
+    for (const v of [0.1, 0.25, 0.5, 0.75, 0.9]) {
+      expect(windowFillAttenuation(v)).toBeCloseTo(v, 6)
+    }
+  })
+
+  it('clamps out-of-range input', () => {
+    expect(windowFillAttenuation(1.7)).toBe(1)
+    expect(windowFillAttenuation(-0.4)).toBe(0)
+  })
+
+  it('treats a non-finite factor as fully open (fail bright, never black)', () => {
+    expect(windowFillAttenuation(Number.NaN)).toBe(1)
+    expect(windowFillAttenuation(Number.POSITIVE_INFINITY)).toBe(1)
   })
 })

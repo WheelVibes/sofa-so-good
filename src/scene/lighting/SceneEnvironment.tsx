@@ -1,14 +1,17 @@
 import { Environment, Lightformer } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useSyncExternalStore } from 'react'
+import { isFeatureEnabled } from '../../features/featureFlags'
 import { useFeature } from '../../features/useFeature'
 import { setIblActive } from '../../materials/iblSignal'
 import { useStore } from '../../state/store'
 import { contextRestoreVersion, subscribeContextRestore } from '../contextRestoreSignal'
+import { windowFillAttenuation } from '../look'
 import { useQuality } from '../useQuality'
 import { lightingFromAltitude } from './altitudeCurve'
 import { hdriById } from './hdriCatalog'
 import { useSunPosition } from './useSunPosition'
+import { getWindowAttenuation } from './windowLightSignal'
 
 /**
  * A lightweight procedural image-based-lighting environment, built once from
@@ -46,8 +49,14 @@ export function SceneEnvironment() {
   useFrame(() => {
     if (!enabled) return
     const level = lightingFromAltitude(sun.altitude).sun // 1 day → 0 night
+    // KEY-FILL-BALANCE: the probe is diffuse skylight bounce, so drawn curtains
+    // dim it along with the analytical fill in `Lighting` (they used to dim the
+    // SUN instead, which flattened the whole scene — see `windowFillAttenuation`).
+    const fillAtten = isFeatureEnabled('curtainLightEffect')
+      ? windowFillAttenuation(getWindowAttenuation())
+      : 1
     // Keep a little IBL at night so reflective surfaces aren't pure black.
-    scene.environmentIntensity = 0.12 + level * 0.55
+    scene.environmentIntensity = (0.12 + level * 0.55) * fillAtten
   })
 
   if (!enabled) {

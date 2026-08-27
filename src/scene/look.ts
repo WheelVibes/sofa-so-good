@@ -179,6 +179,57 @@ export function bloomIntensityForDay(dayLevel: number): number {
   return BLOOM.intensity * (1 - d)
 }
 
+/**
+ * Whether the Bloom pass should be MOUNTED at all for a given day level
+ * (BLOOM-MIP-FLASH). Once {@link bloomIntensityForDay} has ramped to 0 the pass
+ * has nothing to contribute, and an intensity-zeroed Bloom is not inert: it
+ * still runs its blur chain every frame AND its blur texture is still sampled by
+ * the composer's combined effect shader, which is the path that intermittently
+ * blanked whole frames on ANGLE/Metal. So daylight drops the pass entirely —
+ * cheaper *and* one less way to flash. Pure so `EffectsImpl`'s gate is testable
+ * without a renderer.
+ */
+export function bloomActiveForDay(dayLevel: number): boolean {
+  return bloomIntensityForDay(dayLevel) > 0
+}
+
+/**
+ * Where the curtain/blind attenuation is applied (KEY-FILL-BALANCE).
+ *
+ * `curtainLightEffect` models "drawn curtains dim the light entering through
+ * windows". It used to do that by multiplying the SUN directional light's
+ * intensity by the scene-average curtain transmission — which is the wrong light
+ * to dim, and it flattened the whole render:
+ *
+ *  - The directional light IS the sun. Dimming it darkens the *outside* of the
+ *    building and every sunlit exterior surface because someone drew a bedroom
+ *    curtain, and `sceneAttenuationFactor` averages across ALL windows, so the
+ *    more curtained windows a plan has the darker the entire world gets.
+ *  - It is the only SHADOW-CASTING light in the scene. Everything else
+ *    (hemisphere, ambient, the IBL probe) is non-directional fill that casts
+ *    nothing. Measured on the default furnished 4-room flat at 09:00, Maximum:
+ *    sun 0.41 vs hemisphere 0.33 + ambient 0.11 + environment 0.66 ≈ 1.10 of
+ *    fill — a key:fill ratio of 0.37:1. Below about 1:1 a cast shadow can only
+ *    remove a small fraction of a surface's light, so it reads as a faint tint
+ *    or not at all: turning the 4096² shadow map off at Maximum changed 0.47% of
+ *    pixels at 13:00 and 17:00, and the 09:00 difference was pure edge aliasing.
+ *    That is the structural reason interiors looked flat and furniture looked
+ *    like it was floating — "animation, not real" — no matter which tier was on.
+ *
+ * The light curtains actually block is the DIFFUSE skylight coming through the
+ * window, which in this renderer is exactly the fill: hemisphere + ambient + the
+ * IBL probe. Attenuating the fill keeps the feature's user-visible behaviour
+ * (drawing the curtains darkens the room) while leaving the sun at full strength
+ * so it can do its job as a key light.
+ *
+ * Pure passthrough + clamp so the site of the multiply is named, greppable and
+ * unit-testable rather than an unexplained factor at three call sites.
+ */
+export function windowFillAttenuation(attenuation: number): number {
+  if (!Number.isFinite(attenuation)) return 1
+  return clamp(attenuation, 0, 1)
+}
+
 /** Soft-shadow tuning for the sun directional light (PCFSoftShadowMap). */
 export const SOFT_SHADOW = {
   radius: 4,

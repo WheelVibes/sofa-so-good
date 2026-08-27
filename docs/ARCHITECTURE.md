@@ -925,15 +925,30 @@ same change that reshapes a system.
   table→bowl/magazines, bed→cushions, nightstand→plant/candle, desk→plant/books,
   sideboard/console→frames/sculpture). Skip via `withDecor=false`.
 - **Quality tiers** (`quality.ts`): **render** `RenderTier` = Performance/Medium/High/
-  Maximum. **Performance is the default for everyone** (flat: no shadows/IBL/post, DPR 1);
-  Medium=+sun shadows+IBL; High=+post (N8AO+Bloom+HueSat+Vignette+SMAA); Maximum=+cinematic
+  Maximum. **The boot tier is capability-detected** (TIER-AUTODETECT, `tierForCapabilities`,
+  pure + unit-tested — replaces the old unconditional Performance default, which made every
+  user's first impression the flat renderer): software rasteriser / phone-tablet / no-WebGL2 /
+  <4 cores → Performance; everything else → Medium. **High and Maximum are never auto-selected**
+  (measured: High orbits at 39.9fps with 83ms spikes on the M4 reference machine at Retina DPR,
+  enough for the adaptive guard to step it back down — `scripts/dev-probes/tier-fps.mjs`).
+  Performance is flat (no shadows/IBL/post, DPR 1);
+  Medium=+sun shadows+IBL; High=+post (N8AO+Bloom+**ToneMapping**+HueSat+Vignette+SMAA);
+  Maximum=+cinematic
   (full-res AO + film grain + chromatic aberration, `EffectsImpl` props from `aoFullRes`/`cinematic`).
   `QualityController` only steps
-  **down** for 30fps, off once pinned. **Asset quality** = separate `AssetTier`
+  **down** for 30fps, off once pinned — so an over-optimistic detection self-corrects. It is
+  deaf for `FPS_GUARD_WARMUP_MS` (5s) after `sceneReady`: boot renders continuously at its least
+  representative, and it used to walk a freshly detected tier straight back down. **Asset quality** = separate `AssetTier`
   (low/medium/high=Original LOD), follows render (`null`=Auto) but pinnable + FPS-immune.
   **Tone-mapping look** (`look.ts` `ToneMappingMode` Filmic/AgX/Neutral → three constant via
   `toneMappingThree.ts`; `Lighting` sets `gl.toneMapping`+exposure per-frame): user-selectable
-  view transform, all tiers, persisted in qualityPrefs. **Context-aware default (RD-404,
+  view transform, all tiers, persisted in qualityPrefs. **On the post tiers the view transform
+  is a composer effect, not `gl.toneMapping`** (TONE-POST, `toneMappingPost.ts`): three applies
+  `renderer.toneMapping` only when rendering to the DEFAULT framebuffer, so under
+  `<EffectComposer>` High/Maximum previously ran with no view transform at all (31.8% of the
+  frame clipped to white vs 3.4% below). `EffectsImpl` mounts `<ToneMapping>` from the same
+  `resolveToneMapping` call, and pass order is scene-referred (AO/DoF/Bloom) → tone map →
+  display-referred (HueSat/CA/Vignette/grain/SMAA). **Context-aware default (RD-404,
   `toneContext.ts`):** the stored setting is `ToneMappingSetting` = the 3 operators + `'auto'`
   (the default); `resolveToneMapping(setting, ctx)` picks Neutral while the FinishPicker is open
   (`selectedRoomId != null` — accurate product colour), AgX for a photo context, else filmic — and

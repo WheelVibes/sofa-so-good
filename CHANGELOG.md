@@ -5,6 +5,106 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.0.0 — the graphics look real: a view transform on the post tiers, no more orbit white-flash, a key light that casts
+
+User feedback: "the graphics don't look real, they look like animation style",
+plus white flashes when orbiting on the higher tiers and lighting there that was
+"too overly aggressive". All three turned out to be separate, measurable bugs
+rather than a matter of taste. Diagnosed on a Mac mini M4 (10-core GPU, Metal 4,
+16 GB unified) by driving real orbit gestures against a real GPU — the probes
+that found each one are checked in under `scripts/dev-probes/`.
+
+- **The post-processing tiers had no tone mapping at all (TONE-POST).** three
+  applies `renderer.toneMapping` **only when rendering to the default
+  framebuffer**. Under `<EffectComposer>` the scene renders into an off-screen
+  HalfFloat target and `postprocessing`'s `EffectMaterial` opts out of tone
+  mapping too — so High/Maximum sent raw linear HDR to the display with nothing
+  but an sRGB encode, and `Lighting`'s per-frame `gl.toneMapping` /
+  `gl.toneMappingExposure` writes (the whole `grade()` + user-exposure +
+  `toneExposureBias` model, and the Graphics panel's Look and Exposure dials)
+  were dead code on exactly the tiers meant to look best. At 13:00, the fraction
+  of the canvas clipped to pure white was **3.4% on Performance/Medium vs 31.8%
+  on High/Maximum** — that is the "too aggressive" lighting, and the reason the
+  top tiers read as a milky white haze rather than a room. `EffectsImpl` now
+  mounts a `<ToneMapping>` effect driven by the *same* `resolveToneMapping` call
+  `Lighting` uses, so the look no longer jumps across the tier boundary; exposure
+  needed no new plumbing, because the effect's shader includes three's own
+  `<tonemapping_pars_fragment>` and its operators read the `toneMappingExposure`
+  uniform the renderer already uploads. Clipping is now **~1%** — below the flat
+  tier, which is correct: that is the filmic shoulder doing its job. Pass order
+  is now explicitly scene-referred (AO / DoF / Bloom) → tone map → display-referred
+  (HueSaturation / CA / Vignette / grain / SMAA), pinned by a guard test.
+- **The orbit white flash was `<Bloom mipmapBlur>` (BLOOM-MIP-FLASH).** Its
+  `MipmapBlurPass` rebinds a chain of ~15 differently-sized half-float render
+  targets every frame; on ANGLE/Metal that intermittently leaves the combined
+  `EffectPass` shader sampling an unready blur texture, and because the composer's
+  final blit runs regardless, the garbage reaches the default framebuffer and the
+  whole canvas blanks. With `alpha: true` (r3f's default, which the orbit view
+  relies on to show the page background around the model) that reads as a
+  full-screen white flash. Blank frames per 78 captured during a real orbit drag
+  at Maximum: **4/78 before (7/78 at night), 0/78 after** — and 0/78 at High, at
+  night, and at dawn. Performance/Medium never flashed (they mount no composer),
+  which is why the report was tier-specific. Bloom also now only *mounts* when the
+  day ramp leaves it something to do: in daylight its intensity is already 0, but
+  an intensity-zeroed Bloom is not inert — its blur texture is still sampled by
+  the combined shader, so it could still blank a frame while contributing nothing.
+  Ruled out before landing on Bloom, and recorded in `src/scene/CLAUDE.md` so they
+  aren't re-litigated: WebGL context loss (never fired), drawing-buffer resizes and
+  the interactive DPR degrade (no resize anywhere near a blank frame — and turning
+  `interactiveDegrade` OFF made flashes *more* frequent), `EffectPass` rebuilds
+  (`EffectsImpl` re-renders 0 times during an orbit), every other pass
+  individually, mip `levels` 5/6/7, and `alpha: false` (which only changed the
+  flash colour to black).
+- **Curtains were dimming the sun instead of the skylight (KEY-FILL-BALANCE).**
+  `curtainLightEffect` multiplied the sun `DirectionalLight`'s intensity by the
+  scene-wide *average* curtain transmission. That light is the sun — so one drawn
+  bedroom curtain darkened the building's exterior — and it is the **only
+  shadow-casting light in the scene**; hemisphere, ambient and the IBL probe are
+  all non-directional fill that casts nothing. On the default furnished 4-room
+  flat at 09:00 that left sun 0.41 against ~1.10 of fill, a key:fill ratio of
+  **0.37:1**, at which a cast shadow can only remove a small fraction of a
+  surface's light. Turning the 4096² shadow map off at Maximum changed **0.47%**
+  of pixels at 13:00 and 17:00, and the 09:00 difference was pure edge aliasing —
+  the single most expensive thing the higher tiers buy was rendering nothing
+  visible, and interiors looked flat with furniture apparently floating at *every*
+  tier. The attenuation now rides the fill (hemisphere + ambient + the probe's
+  `environmentIntensity`), which is the light curtains actually block. Same
+  magnitude, correct light: contrast (pixel σ) up **~21% at Performance and ~10%
+  at Maximum** for a ~2-point mean-brightness cost.
+- **The boot tier is capability-detected again (TIER-AUTODETECT).** This reverses
+  the "always boot Performance for everyone" product rule. It guaranteed a fluid
+  first load, but it also meant every user's first impression was the deliberately
+  flat renderer — no shadows, no IBL, no ambient occlusion, no graded post — which
+  is precisely the "looks like animation" feedback, on machines that were idling.
+  `tierForCapabilities` (pure + unit-tested) reads the unmasked renderer string,
+  core count, pointer coarseness and WebGL2 support: software rasterisers, phones
+  and tablets, pre-WebGL2 and sub-4-core devices stay on **Performance**;
+  everything else boots at **Medium** — sun shadows + the IBL probe, so materials
+  finally get real reflections and soft bounce out of the box. The ceiling is
+  measured, not cautious. Sustained-orbit FPS on the M4 at Retina DPR (2560x1600
+  drawing buffer), tier pinned: Performance 60, Medium 60, **High 39.9 (83 ms
+  worst frame)**, Maximum 34. High clears the 30 fps floor on average, but one bad
+  1.5 s sample window is enough for the adaptive guard to step down — and an
+  auto-selected High demonstrably walked itself to Medium and then Performance
+  inside a single sustained orbit. A default that visibly downgrades itself is
+  worse than a slightly conservative one, so **High and Maximum stay an explicit
+  opt-in**, now described in the Graphics panel as the realistic/cinematic looks
+  rather than as "needs a dedicated GPU".
+- **The adaptive FPS guard was measuring boot.** It samples only while the pump
+  renders continuously — which is exactly what the loader, asset streaming, shader
+  compilation and the first shadow/IBL bakes do, at the least representative
+  moment there is. That never mattered while everyone booted at Performance (no
+  tier to step down from); the moment the boot tier became capability-detected, the
+  guard walked it straight back down during warm-up and detection looked broken.
+  It is now deaf for 5 s after `sceneReady` (`shouldSampleFps`, pure + tested).
+- **Harness:** `SHOT_GPU=1` was a silent no-op on macOS — it passed ANGLE's
+  WSL/D3D12 `gl-egl` backend, which does not exist there, so every "real GPU"
+  check fell back to SwiftShader. The backend is now chosen from
+  `process.platform` (darwin → `metal`, win32 → `d3d11`, else `gl-egl`), with a
+  `SHOT_ANGLE` override. New `scripts/dev-probes/` measure the render instead of
+  eyeballing it: blank-frame rate with three's render counters, per-tier
+  exposure/contrast/clipping, and shadow-map contribution.
+
 ## v0.30.3.0 — walk mode at true scale: a clear spawn, a viewport-aware FOV, two fittings
 
 Walk mode felt cramped. An audit of the actual numbers says the *home* is fine —

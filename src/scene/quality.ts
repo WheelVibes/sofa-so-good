@@ -160,10 +160,10 @@ export const QUALITY_LABEL: Record<RenderTier, string> = {
 export const QUALITY_DESCRIPTION: Record<RenderTier, string> = {
   performance:
     'Flat & fast — soft contact grounding only, no real-time shadows or effects. Best for laptops/phones without a GPU.',
-  medium: 'Sun shadows + soft reflections. Good all-round default.',
-  high: 'Adds bloom, ambient occlusion & antialiasing. Needs a dedicated GPU.',
+  medium: 'Sun shadows + soft reflections from a lighting probe. Good all-round default.',
+  high: 'Adds ambient occlusion, filmic tone mapping & antialiasing — the most realistic everyday look. Auto-selected on Apple silicon and discrete GPUs.',
   maximum:
-    'Cinematic — sharpest shadows, full-res ambient occlusion, film grain & optional lens depth-of-field. Strong GPUs only.',
+    'Cinematic — sharpest shadows, full-res ambient occlusion, film grain & optional lens depth-of-field. Never auto-selected; opt in on a strong GPU.',
 }
 
 /** Map a render tier to the asset-LOD tier it implies when asset quality is on
@@ -207,17 +207,156 @@ export function resolveQuality(
 }
 
 /**
- * The starting render tier on boot. By product decision this is ALWAYS
- * 'performance' — the flat, IKEA-style renderer — regardless of hardware, so
- * every user gets an instant, fluid first load. Higher tiers (shadows, IBL,
- * post-processing, maximum) are strictly opt-in from the Graphics panel.
+ * How long after the scene first reports ready the adaptive FPS guard stays
+ * quiet (ms).
  *
- * The `gl` argument is accepted (and ignored) so callers that pass the WebGL
- * context don't need to change; device capability no longer influences the
- * default.
+ * The guard samples only while the pump renders CONTINUOUSLY — and boot is
+ * exactly that: the loader overlay, asset streaming, shader compilation and the
+ * first shadow-map/IBL bakes all drive frames back to back, at the one moment
+ * the app is least representative of steady-state cost. Before TIER-AUTODETECT
+ * that never mattered (booting at Performance, there was no tier to step down
+ * from). Booting at a detected tier, it mattered immediately: the M4 test machine
+ * booted at High and the guard walked it straight down to Medium and then
+ * Performance during warm-up, so capability detection looked like it wasn't
+ * working at all. Wait for the scene to settle before believing a frame time.
  */
-export function detectDefaultTier(
-  _gl?: WebGLRenderingContext | WebGL2RenderingContext,
-): RenderTier {
-  return 'performance'
+export const FPS_GUARD_WARMUP_MS = 5000
+
+/**
+ * Should the adaptive FPS guard trust frame times right now? Pure so the
+ * warm-up rule is unit-testable without a renderer.
+ *
+ * @param sceneReady   the store's `sceneReady` flag
+ * @param msSinceReady ms since `sceneReady` first turned true (0 if never)
+ */
+export function shouldSampleFps(sceneReady: boolean, msSinceReady: number): boolean {
+  if (!sceneReady) return false
+  return msSinceReady >= FPS_GUARD_WARMUP_MS
+}
+
+/**
+ * Device capability signals that drive the boot tier. Plain data (no WebGL, no
+ * DOM) so {@link tierForCapabilities} stays pure and unit-testable.
+ */
+export interface DeviceCapabilities {
+  /** `WEBGL_debug_renderer_info`'s UNMASKED_RENDERER_WEBGL string, lowercased.
+   *  `''` when the extension is unavailable (treated as "unknown", not "weak"). */
+  renderer: string
+  /** `navigator.hardwareConcurrency`. 0 when unknown. */
+  cores: number
+  /** Primary pointer is coarse — a phone or tablet. */
+  coarsePointer: boolean
+  /** A WebGL2 context is available. */
+  webgl2: boolean
+}
+
+/** Software rasterisers. These report generous limits (SwiftShader advertises
+ *  16K textures) but render single-digit FPS with shadows, so they must be
+ *  matched by NAME rather than by any capability number. */
+const SOFTWARE_RENDERERS = ['swiftshader', 'llvmpipe', 'softpipe', 'software', 'microsoft basic']
+
+/**
+ * Pick the boot render tier from device capabilities (TIER-AUTODETECT).
+ *
+ * This deliberately REPLACES the previous "always boot Performance for
+ * everyone" rule. That rule guaranteed a fluid first load, but it also meant
+ * every user's first impression of the app was the flat renderer — no shadows,
+ * no IBL, no ambient occlusion, no view-transform-graded post — which is
+ * precisely the "the graphics look like animation, not real" feedback. A capable
+ * machine was rendering a deliberately styled preview and never being told there
+ * was anything better sat behind an opt-in panel.
+ *
+ * The ceiling is **Medium**, not High, and that is a measured decision rather
+ * than a cautious guess. Sustained-orbit FPS on a Mac mini M4 (10-core GPU) at a
+ * 1280x800 CSS viewport on a Retina display (2560x1600 drawing buffer), tier
+ * pinned so the adaptive guard can't interfere — `scripts/dev-probes/tier-fps.mjs`:
+ *
+ * | tier        | orbit fps | worst frame |
+ * | ----------- | --------- | ----------- |
+ * | performance | 60        | 16.8 ms     |
+ * | medium      | 60        | 16.8 ms     |
+ * | high        | 39.9      | 83.3 ms     |
+ * | maximum     | 34.0      | 83.3 ms     |
+ *
+ * Medium is effectively free (pinned at the refresh cap) while adding the two
+ * things that matter most for materials: sun shadows and the IBL probe. High
+ * averages comfortably above the 30 fps floor but spikes to 83 ms, and one bad
+ * 1.5 s sample window is enough for `QualityController` to step the tier DOWN —
+ * verified with `scripts/dev-probes/tier-stability.mjs`, where an auto-selected
+ * High walked itself to Medium and then Performance during a single sustained
+ * orbit. A default that visibly downgrades itself is worse than a slightly
+ * conservative one, so High and Maximum stay an explicit, informed opt-in.
+ *
+ * The asymmetry that shapes the rest: guessing too HIGH is self-correcting but
+ * ugly (the user watches quality drop under them); guessing too LOW is invisible
+ * and permanent, and is the bug being fixed. So identify weak hardware
+ * positively, and give everything else the benefit of the doubt.
+ *
+ * Rules, in priority order:
+ *  - **Software rasteriser** → `performance`. Never mount shadows on a CPU
+ *    renderer; this is also what the headless screenshot harness gets by default.
+ *  - **Coarse pointer (phone/tablet)** → `performance`. Thermals and fill rate,
+ *    not peak capability, are the binding constraint on mobile, and the app has
+ *    a large body of mobile-specific perf work predicated on the flat tier.
+ *  - **No WebGL2 / very low core count** → `performance`. Old or heavily
+ *    constrained device.
+ *  - **Everything else** → `medium`: sun shadows + the IBL probe, no post stack.
+ *    Materials get real reflections and soft bounce, and the per-frame cost stays
+ *    at the flat tier's — the IBL probe is a one-time bake, and the shadow map is
+ *    frozen while the camera moves (PERF-MAX-1).
+ *
+ * `high` and `maximum` are never auto-selected.
+ */
+export function tierForCapabilities(caps: DeviceCapabilities): RenderTier {
+  const r = caps.renderer.toLowerCase()
+  if (SOFTWARE_RENDERERS.some((name) => r.includes(name))) return 'performance'
+  if (caps.coarsePointer) return 'performance'
+  if (!caps.webgl2) return 'performance'
+  // `hardwareConcurrency` is 0/undefined on some privacy-hardened browsers —
+  // only treat a POSITIVE, genuinely small value as weak.
+  if (caps.cores > 0 && caps.cores < 4) return 'performance'
+  return 'medium'
+}
+
+/** Read {@link DeviceCapabilities} from a live WebGL context + the browser.
+ *  Every lookup is defensive: a blocked debug-renderer extension or a missing
+ *  `matchMedia` must degrade to "unknown", never throw during boot. */
+function readDeviceCapabilities(
+  gl?: WebGLRenderingContext | WebGL2RenderingContext,
+): DeviceCapabilities {
+  let renderer = ''
+  try {
+    const ext = gl?.getExtension('WEBGL_debug_renderer_info')
+    if (ext && gl) renderer = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) ?? '')
+  } catch {
+    // Extension blocked (privacy mode / Firefox `resistFingerprinting`) — fall
+    // through to the conservative "unknown renderer" path.
+  }
+  let coarsePointer = false
+  try {
+    coarsePointer = globalThis.matchMedia?.('(pointer: coarse)').matches === true
+  } catch {
+    /* no matchMedia (SSR / test env) */
+  }
+  return {
+    renderer,
+    cores: typeof navigator !== 'undefined' ? (navigator.hardwareConcurrency ?? 0) : 0,
+    coarsePointer,
+    // No context to inspect (the `resolveQuality` fallback path) resolves false,
+    // which lands on the conservative tier — the intended safe default.
+    webgl2: typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext,
+  }
+}
+
+/**
+ * The starting render tier on boot, chosen from device capability
+ * (TIER-AUTODETECT — see {@link tierForCapabilities} for the rules and the
+ * rationale for replacing the old unconditional `'performance'`).
+ *
+ * Called with no `gl` (the `resolveQuality` fallback for an unknown persisted
+ * tier) it resolves to `'performance'`, the safe floor.
+ */
+export function detectDefaultTier(gl?: WebGLRenderingContext | WebGL2RenderingContext): RenderTier {
+  if (!gl) return 'performance'
+  return tierForCapabilities(readDeviceCapabilities(gl))
 }
