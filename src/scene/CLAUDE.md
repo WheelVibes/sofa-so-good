@@ -157,6 +157,35 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   which is the light curtains actually block — diffuse skylight through the glass. Same magnitude,
   correct light: contrast (pixel σ) rose ~21% at Performance and ~10% at Maximum for a ~2-point
   mean-brightness cost. Measure with `node scripts/dev-probes/shadow-contribution.mjs`.
+- **What actually suppresses interior cast shadows — measured, and it is NOT what it looked like
+  (INTERIOR-SHADOW).** Run `scripts/dev-probes/interior-shadow.mjs`, an isolating ladder that
+  toggles the occluder's `castShadow` live (occluder meshes are identifiable at runtime: theirs is
+  the only material with `colorWrite: false` AND `opacity: 0`) and forces the frozen shadow map to
+  rebuild. At Maximum, 09:00, ORBIT, against a 0.18 meanAbsDiff noise floor:
+
+  | comparison                                   | pixels>8 | meanAbsDiff |
+  | -------------------------------------------- | -------- | ----------- |
+  | sun shadows, WITH sun reaching the interior   | 8.31%    | 3.17        |
+  | what the ceiling occluder blocks              | 3.94%    | 2.51        |
+  | frozen map vs forced-fresh map                | 0.02%    | 0.18        |
+
+  Three conclusions, two of which kill earlier theories:
+  · **PERF-MAX-1's frozen shadow map is CORRECT.** Forcing `shadow.autoUpdate = true` changes the
+    image by 0.02% / 0.18 — i.e. nothing. The suspicion that the map was captured before furniture
+    finished streaming and then never refreshed is disproved; don't re-litigate it.
+  · **The CeilingOccluder is not the main villain.** It blocks a real but modest amount (3.94% /
+    2.51), and disabling it does NOT produce furniture-on-floor cast shadows — A and B are
+    near-identical by eye. It is also self-limiting by geometry: it only blocks rays arriving
+    steeply from above, so it matters most near solar zenith and little at low sun.
+  · **The residual flatness is the KEY:FILL ratio, not occlusion.** The sun is ~0.99 against ~1.1
+    of combined non-shadow-casting fill (hemisphere + ambient + IBL probe), so a shadowed floor
+    patch still receives about half its light and reads as a soft tint rather than a shadow.
+    KEY-FILL-BALANCE moved this in the right direction; it has not gone far enough. Any further
+    work on interior grounding should push the ratio (or add ambient occlusion below the post
+    tiers, the only thing that shapes non-directional fill), NOT chase the occluder.
+  · **In WALK mode this ladder is uninformative** — the REAL ceiling exists there (only orbit culls
+    it), so disabling the virtual occluder changes nothing and every comparison sits at the noise
+    floor. Run it in orbit.
 - **Sun-shadow map resolution tracks TEXEL DENSITY, not the tier (SHADOW-TEXEL).**
   `Lighting` no longer uses `quality.shadowMapSize` literally — that value is now the CEILING, and
   the actual size comes from `lighting/shadowFrustum.ts:shadowMapSizeForExtent(halfExtent, tierMax)`,
@@ -171,7 +200,11 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   doesn't show: Medium+ run VSM with `radius: 6`/`blurSamples: 12`, a blur wide enough to discard
   the extra texels; and the virtual ceiling occluder leaves interiors lit almost entirely by
   non-shadow-casting fill, so there is very little cast shadow indoors to resolve at all. Re-verify
-  with `walk-shadow.mjs` before touching the target density.
+  with `walk-shadow.mjs` before touching the target density. **Verified saving** (idle machine,
+  `with-server.sh frame-time.mjs`, p50/p90): Maximum 11.1/11.7 → **9.0/10.1 ms** and its worst
+  frame 21.9 → **16.8 ms**, i.e. back inside the 16.67 ms budget instead of over it; High 8.1/8.9 →
+  8.1/8.7 (it only went 2048 → 1024, so a smaller win); Performance and Medium unchanged as
+  expected. All four tiers now hold ~59.8 drawn frames/s.
 - **Price a render feature in BOTH currencies, and against a measured noise floor**
   (`scripts/dev-probes/feature-price.mjs`). It applies one `qualityOverrides` change at a time and
   reports p90 frame cost in ms alongside two visual metrics. Measured at Maximum, 09:00, DPR 2,

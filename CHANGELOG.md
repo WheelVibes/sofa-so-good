@@ -5,6 +5,51 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.3.1 — what actually flattens interiors (it wasn't the occluder), and the texel saving confirmed
+
+Round 5 went after the biggest remaining item from the original report: interiors
+cast no shadows, so furniture looks like it is floating. The investigation killed
+two plausible theories — including one this changelog had been leaning on — and
+landed the answer somewhere else.
+
+- **New diagnostic: `scripts/dev-probes/interior-shadow.mjs`.** An isolating
+  ladder that toggles the virtual ceiling occluder's `castShadow` live (its meshes
+  are identifiable at runtime — theirs is the only material with
+  `colorWrite: false` AND `opacity: 0`) and can force the frozen shadow map to
+  rebuild, so "no sun indoors", "broken casters/receivers" and "stale shadow map"
+  can be told apart instead of argued about. At Maximum, 09:00, orbit, against a
+  0.18 meanAbsDiff noise floor: sun shadows with light reaching the interior are
+  worth **8.31% of pixels / 3.17**, the occluder blocks **3.94% / 2.51**, and a
+  forced-fresh map differs from the frozen one by **0.02% / 0.18**.
+- **PERF-MAX-1's frozen shadow map is correct — theory disproved.** Forcing
+  `shadow.autoUpdate = true` changes the image by nothing (0.02% / 0.18). The
+  suspicion that the map gets captured before furniture finishes streaming and is
+  then never refreshed is wrong, and is now recorded as such so it doesn't get
+  re-litigated.
+- **The CeilingOccluder is not the villain either.** It blocks a real but modest
+  amount, and switching it off does NOT produce furniture-on-floor shadows — the
+  two frames are near-identical by eye. It is also self-limiting by geometry: it
+  only blocks rays arriving steeply from above, so it matters near solar zenith
+  and very little at low sun.
+- **The residual flatness is the KEY:FILL ratio.** The sun sits at ~0.99 against
+  ~1.1 of combined non-shadow-casting fill (hemisphere + ambient + IBL probe), so
+  a shadowed floor patch still receives about half its light and reads as a soft
+  tint rather than a shadow. KEY-FILL-BALANCE (v0.31.0.0) moved this the right way
+  but not far enough. Further work on interior grounding should push that ratio,
+  or bring ambient occlusion below the post tiers — AO being the only thing that
+  shapes non-directional fill — and should NOT chase the occluder.
+- **Also learned: this ladder is useless in walk mode.** The REAL ceiling exists
+  there (only orbit culls it), so disabling the virtual occluder changes nothing
+  and every comparison sits at the noise floor. The first walk-mode run looked
+  like a null result for that reason alone.
+- **The SHADOW-TEXEL saving deferred from v0.31.3.0 is now verified** on an idle
+  machine (the previous window was contaminated by the sibling checkout's dev
+  server and test run at load 4.5–7.5). p50/p90 frame cost: **Maximum 11.1/11.7 →
+  9.0/10.1 ms**, with its worst frame **21.9 → 16.8 ms** — back inside the 16.67 ms
+  budget rather than over it. High 8.1/8.9 → 8.1/8.7 (it only stepped 2048 →
+  1024). Performance and Medium unchanged, as expected. All four tiers now hold
+  ~59.8 drawn frames/s.
+
 ## v0.31.3.0 — shadow maps sized by texel density, and a probe harness that can't lie
 
 Round 4. The prerequisite was to check the shadow-map resize in WALK mode rather
