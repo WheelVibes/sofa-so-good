@@ -203,7 +203,22 @@ export function resolveQuality(
   // nothing at all. A lamp keeps its pole and loses its shade, with no error
   // anywhere. Diagnosed while auditing (Chrome audit 2026-08).
   const preset = QUALITY_PRESETS[tier] ?? QUALITY_PRESETS[detectDefaultTier()]
-  return { ...preset, ...(overrides ?? {}) }
+  // Drop `undefined` override VALUES rather than spreading them (QUALITY-OVERRIDE-UNDEF).
+  // `Partial<QualitySettings>` makes `{ shadowMapSize: undefined }` type-legal, and
+  // spreading it OVERWRITES the preset with `undefined` instead of falling back to
+  // it — which reads as "off", silently and catastrophically:
+  // `castShadow={shadowMapSize > 0}` becomes `undefined > 0` = false (sun shadows
+  // gone), `postprocessing: undefined` is falsy (no composer, hence no tone
+  // mapping). It looks like a revert and behaves like a disable. This bit for real:
+  // a probe used `setQualityOverride(key, undefined)` to mean "clear", so BOTH arms
+  // of a shadow-on/off comparison ran with shadows off and the measured difference
+  // was noise. `resetQualityOverrides()` is the way to clear; this guard makes the
+  // mistake harmless if anyone reaches for the other one.
+  const clean: Partial<QualitySettings> = {}
+  for (const [k, v] of Object.entries(overrides ?? {})) {
+    if (v !== undefined) (clean as Record<string, unknown>)[k] = v
+  }
+  return { ...preset, ...clean }
 }
 
 /**

@@ -146,15 +146,50 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   scene** — everything else (hemisphere, ambient, the IBL probe) is non-directional fill that
   casts nothing. On the default furnished 4-room flat at 09:00/Maximum that left sun 0.41 against
   ~1.10 of fill: a key:fill ratio of **0.37:1**, at which a cast shadow can only remove a small
-  fraction of a surface's light and reads as a faint tint or not at all. Turning the 4096² shadow
-  map off changed **0.47%** of pixels at 13:00 and 17:00, and the 09:00 difference was pure edge
-  aliasing — i.e. the most expensive thing the higher tiers buy was rendering nothing visible, and
-  interiors looked flat with furniture apparently floating at EVERY tier. The attenuation now
+  fraction of a surface's light and reads as a faint tint or not at all. (An earlier revision of
+  this note cited "0.47% of pixels" for the shadow map's contribution; that figure came from a
+  probe whose "shadows on" arm cleared the override by writing `undefined`, which SETS
+  `shadowMapSize` to undefined and turns shadows off — so both arms were shadowless and the
+  difference was noise. See QUALITY-OVERRIDE-UNDEF. Re-measured properly, the conclusion holds:
+  see the feature-pricing bullet below.) The attenuation now
   rides the fill (`Lighting`'s hemisphere + ambient via `fillScale`, and
   `SceneEnvironment`'s `scene.environmentIntensity`) through the pure `look.windowFillAttenuation`,
   which is the light curtains actually block — diffuse skylight through the glass. Same magnitude,
   correct light: contrast (pixel σ) rose ~21% at Performance and ~10% at Maximum for a ~2-point
   mean-brightness cost. Measure with `node scripts/dev-probes/shadow-contribution.mjs`.
+- **Price a render feature in BOTH currencies, and against a measured noise floor**
+  (`scripts/dev-probes/feature-price.mjs`). It applies one `qualityOverrides` change at a time and
+  reports p90 frame cost in ms alongside two visual metrics. Measured at Maximum, 09:00, DPR 2,
+  `interactiveDegrade` pinned off:
+
+  | feature removed        | Δ p90    | pixels>8 | meanAbsDiff |
+  | ---------------------- | -------- | -------- | ----------- |
+  | sun shadows (4096 → 0) | −2.9 ms  | 0.84%    | 0.61        |
+  | post stack             | +5.7 ms  | 20.0%    | 7.35        |
+  | IBL probe              | +2.2 ms  | 10.2%    | 3.16        |
+  | *baseline repeated*    | ±1.3 ms  | 0.12%    | 0.27        |
+
+  The repeated baseline IS the noise floor — quote it, or a 0.6 reading looks meaningful when it is
+  barely 2x noise. On that basis **the sun shadow map is the worst value-per-millisecond feature in
+  the stack** (and 09:00 is its best case; at 13:00 the near-zenith sun is fully blocked by the
+  virtual ceiling occluder). At 13:00, `shadowMapSize` 1024 and 2048 were both visually
+  indistinguishable from 4096 (0.07% pixels) while ~3 ms cheaper — a resize is the obvious next
+  move, but it must be verified in WALK mode first, since these numbers are all orbit-only and map
+  resolution buys sharpness exactly where a close-up contact shadow is judged.
+
+  Four ways this probe lied before it was trustworthy — check all of them in any new one:
+  · **Clear overrides with `resetQualityOverrides()`, never by writing `undefined`** (see
+    QUALITY-OVERRIDE-UNDEF) — otherwise every case after the first silently ran with shadows and
+    the whole post stack disabled.
+  · **Reset the camera to a fixed pose before every capture.** Diffing stills taken from wherever
+    the previous case's orbit ended reported 48–70% "pixels changed" for every feature, including
+    ones that barely touch the image.
+  · **Pin `interactiveDegrade` off.** It halves DPR during a gesture but only at the post tiers, so
+    the moment a case flips `postprocessing` the comparison is between two different resolutions —
+    which measured "turning post off costs +7.6 ms".
+  · **Discard a warm-up pass and repeat the baseline at the end.** The first measured case pays
+    shader compilation: the baseline read 16.8 ms first and 12.0 ms warm, making every later case
+    look ~3 ms cheaper than it was.
 - **The tier is chosen by MEASURING FRAMES, not by detecting hardware (TIER-ADAPTIVE).**
   This replaces both the old unconditional `performance` default and the capability-detected
   default that briefly followed it. Rationale in `adaptiveTier.ts`; the short version is that in

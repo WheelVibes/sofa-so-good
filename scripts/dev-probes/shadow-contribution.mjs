@@ -81,7 +81,11 @@ for (const hour of HOURS) {
   ]) {
     await page.evaluate((s) => {
       const st = window.__store.getState()
-      if (s === null) st.setQualityOverride('shadowMapSize', undefined)
+      // NEVER clear by writing undefined — that sets shadowMapSize to undefined,
+      // so `castShadow={shadowMapSize > 0}` is false and shadows are OFF. An
+      // earlier version of this probe did exactly that for its "shadows on" arm,
+      // so both arms ran shadowless and the reported difference was pure noise.
+      if (s === null) st.resetQualityOverrides()
       else st.setQualityOverride('shadowMapSize', s)
     }, size)
     await new Promise((r) => setTimeout(r, 3500))

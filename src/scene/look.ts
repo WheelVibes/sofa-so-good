@@ -211,10 +211,12 @@ export function bloomActiveForDay(dayLevel: number): boolean {
  *    sun 0.41 vs hemisphere 0.33 + ambient 0.11 + environment 0.66 ≈ 1.10 of
  *    fill — a key:fill ratio of 0.37:1. Below about 1:1 a cast shadow can only
  *    remove a small fraction of a surface's light, so it reads as a faint tint
- *    or not at all: turning the 4096² shadow map off at Maximum changed 0.47% of
- *    pixels at 13:00 and 17:00, and the 09:00 difference was pure edge aliasing.
- *    That is the structural reason interiors looked flat and furniture looked
- *    like it was floating — "animation, not real" — no matter which tier was on.
+ *    or not at all. That is the structural reason interiors looked flat and
+ *    furniture looked like it was floating — "animation, not real" — no matter
+ *    which tier was on. (An earlier revision quoted "0.47% of pixels" here from a
+ *    probe that had shadows off in BOTH arms — see QUALITY-OVERRIDE-UNDEF in
+ *    `quality.ts`. Re-measured soundly, the sun shadow map still has the worst
+ *    value-per-millisecond in the stack; the numbers live in `src/scene/CLAUDE.md`.)
  *
  * The light curtains actually block is the DIFFUSE skylight coming through the
  * window, which in this renderer is exactly the fill: hemisphere + ambient + the

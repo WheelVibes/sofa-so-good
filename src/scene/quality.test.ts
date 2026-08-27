@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { effectiveAssetTier, QUALITY_PRESETS, RENDER_TIERS, renderToAssetTier } from './quality'
+import {
+  effectiveAssetTier,
+  QUALITY_PRESETS,
+  type QualitySettings,
+  RENDER_TIERS,
+  renderToAssetTier,
+  resolveQuality,
+} from './quality'
 
 describe('renderToAssetTier', () => {
   it('maps each render tier to the right asset-LOD tier', () => {
@@ -80,5 +87,42 @@ describe('quality presets', () => {
     for (const t of RENDER_TIERS) {
       if (QUALITY_PRESETS[t].dof) expect(QUALITY_PRESETS[t].postprocessing).toBe(true)
     }
+  })
+})
+
+describe('resolveQuality — undefined override values (QUALITY-OVERRIDE-UNDEF)', () => {
+  it('falls back to the preset instead of spreading undefined', () => {
+    // `Partial<QualitySettings>` makes this type-legal, and a naive spread
+    // overwrites the preset with `undefined`. That is not a revert, it is a
+    // silent DISABLE: `castShadow={shadowMapSize > 0}` becomes `undefined > 0`
+    // = false, and `postprocessing: undefined` is falsy so the composer (and
+    // with it all tone mapping) never mounts.
+    const preset = QUALITY_PRESETS.maximum
+    const r = resolveQuality('maximum', {
+      shadowMapSize: undefined,
+      postprocessing: undefined,
+    } as Partial<QualitySettings>)
+    expect(r.shadowMapSize).toBe(preset.shadowMapSize)
+    expect(r.postprocessing).toBe(preset.postprocessing)
+  })
+
+  it('still applies real override values', () => {
+    expect(resolveQuality('maximum', { shadowMapSize: 1024 }).shadowMapSize).toBe(1024)
+    expect(resolveQuality('maximum', { postprocessing: false }).postprocessing).toBe(false)
+  })
+
+  it('keeps falsy-but-defined overrides, which are meaningful', () => {
+    // 0 and false are legitimate values — only `undefined` is the sentinel.
+    expect(resolveQuality('maximum', { shadowMapSize: 0 }).shadowMapSize).toBe(0)
+    expect(resolveQuality('maximum', { ibl: false }).ibl).toBe(false)
+  })
+
+  it('ignores an all-undefined override map entirely', () => {
+    const r = resolveQuality('high', {
+      shadowMapSize: undefined,
+      ibl: undefined,
+      dof: undefined,
+    } as Partial<QualitySettings>)
+    expect(r).toEqual(QUALITY_PRESETS.high)
   })
 })

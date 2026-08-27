@@ -5,6 +5,53 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.2.1 — a silent-disable footgun, and four ways the measurements were lying
+
+Round 3 set out to price each tier feature in milliseconds so the interior-shadow
+gap could be attacked with real numbers. It found the numbers themselves were
+untrustworthy — including one I had already reported — so this round fixes the
+instrument and the footgun behind it.
+
+- **`setQualityOverride(key, undefined)` silently DISABLES rather than reverts
+  (QUALITY-OVERRIDE-UNDEF).** `Partial<QualitySettings>` makes it type-legal, and
+  `resolveQuality` spread it straight over the preset, so `shadowMapSize:
+  undefined` made `castShadow={undefined > 0}` false (no sun shadows) and
+  `postprocessing: undefined` was falsy (no composer, hence no tone mapping). It
+  looks like a revert and behaves like a disable. `resolveQuality` now drops
+  undefined override VALUES and falls back to the preset, with tests; the correct
+  way to clear remains `resetQualityOverrides()`. No shipping UI path passed
+  undefined, so this was latent for users — but it had already corrupted a
+  measurement.
+- **Correction: the "4096² shadow map changes only 0.47% of pixels" figure was
+  wrong.** That probe cleared its override by writing `undefined`, so its
+  "shadows on" arm ran shadowless too — both arms were identical and the 0.47%
+  was noise. Re-measured soundly, the *conclusion* survives: at Maximum, 09:00,
+  DPR 2, removing sun shadows saves 2.9 ms and moves the image by a
+  mean-absolute-difference of 0.61 against a measured noise floor of 0.27 — the
+  worst value-per-millisecond feature in the stack, and 09:00 is its best case.
+  For comparison the post stack moves 7.35 and the IBL probe 3.16.
+- **Three more measurement errors found and fixed** in
+  `scripts/dev-probes/feature-price.mjs`, all of which had produced
+  confident-looking nonsense: stills were diffed across DIFFERENT camera poses
+  (reporting 48–70% "pixels changed" for every feature); `interactiveDegrade`
+  halves DPR only at the post tiers, so flipping `postprocessing` compared two
+  resolutions and measured "turning post off costs +7.6 ms"; and the first
+  measured case absorbed shader compilation, so the baseline read 16.8 ms first
+  and 12.0 ms warm and made every later case look ~3 ms cheaper. The probe now
+  resets the camera between captures, pins the degrade off, discards a warm-up
+  pass and repeats the baseline at the end as an explicit noise floor.
+- **Report two visual metrics, not one.** `pixels>8` misses a soft effect that
+  shifts a large area by a few levels (a broad 5/255 shadow darkening reads as
+  ~0%), while `meanAbsDiff` is dominated by large flat regions and misses small
+  sharp changes. Judging a feature on either alone is how "buys nothing" gets
+  claimed about something subtle.
+
+Deferred to the next round with a hard prerequisite: `shadowMapSize` 1024 and
+2048 both measured visually indistinguishable from 4096 at 13:00 (0.07% pixels)
+while ~3 ms cheaper, so a resize looks free — but every number here is orbit-only,
+and map resolution buys sharpness exactly where a close-up walk-mode contact
+shadow is judged. Verify in walk mode before changing it.
+
 ## v0.31.2.0 — the tier is measured, not guessed (and the old measurement was wrong)
 
 Round 2 of the continuous graphics loop, prompted by a good question: this ships
