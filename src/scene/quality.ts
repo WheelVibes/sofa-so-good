@@ -256,58 +256,30 @@ export interface DeviceCapabilities {
 const SOFTWARE_RENDERERS = ['swiftshader', 'llvmpipe', 'softpipe', 'software', 'microsoft basic']
 
 /**
- * Pick the boot render tier from device capabilities (TIER-AUTODETECT).
+ * Best-effort CEILING from device capabilities (TIER-AUTODETECT).
  *
- * This deliberately REPLACES the previous "always boot Performance for
- * everyone" rule. That rule guaranteed a fluid first load, but it also meant
- * every user's first impression of the app was the flat renderer — no shadows,
- * no IBL, no ambient occlusion, no view-transform-graded post — which is
- * precisely the "the graphics look like animation, not real" feedback. A capable
- * machine was rendering a deliberately styled preview and never being told there
- * was anything better sat behind an opt-in panel.
+ * Deliberately not the primary signal any more — `scene/adaptiveTier.ts` decides
+ * the tier by MEASURING frames, because in a browser we cannot see the hardware:
+ * `WEBGL_debug_renderer_info` is deprecated in Firefox and slated for removal,
+ * disabled by `privacy.resistFingerprinting`, blockable, farbled by Brave, and
+ * generic on Safari (every Apple device reports "Apple GPU"). This function's
+ * only job is to keep the classes of device that must NEVER climb the ladder off
+ * it, using signals that are cheap and mostly unrestricted:
  *
- * The ceiling is **Medium**, not High, and that is a measured decision rather
- * than a cautious guess. Sustained-orbit FPS on a Mac mini M4 (10-core GPU) at a
- * 1280x800 CSS viewport on a Retina display (2560x1600 drawing buffer), tier
- * pinned so the adaptive guard can't interfere — `scripts/dev-probes/tier-fps.mjs`:
- *
- * | tier        | orbit fps | worst frame |
- * | ----------- | --------- | ----------- |
- * | performance | 60        | 16.8 ms     |
- * | medium      | 60        | 16.8 ms     |
- * | high        | 39.9      | 83.3 ms     |
- * | maximum     | 34.0      | 83.3 ms     |
- *
- * Medium is effectively free (pinned at the refresh cap) while adding the two
- * things that matter most for materials: sun shadows and the IBL probe. High
- * averages comfortably above the 30 fps floor but spikes to 83 ms, and one bad
- * 1.5 s sample window is enough for `QualityController` to step the tier DOWN —
- * verified with `scripts/dev-probes/tier-stability.mjs`, where an auto-selected
- * High walked itself to Medium and then Performance during a single sustained
- * orbit. A default that visibly downgrades itself is worse than a slightly
- * conservative one, so High and Maximum stay an explicit, informed opt-in.
- *
- * The asymmetry that shapes the rest: guessing too HIGH is self-correcting but
- * ugly (the user watches quality drop under them); guessing too LOW is invisible
- * and permanent, and is the bug being fixed. So identify weak hardware
- * positively, and give everything else the benefit of the doubt.
- *
- * Rules, in priority order:
  *  - **Software rasteriser** → `performance`. Never mount shadows on a CPU
- *    renderer; this is also what the headless screenshot harness gets by default.
- *  - **Coarse pointer (phone/tablet)** → `performance`. Thermals and fill rate,
- *    not peak capability, are the binding constraint on mobile, and the app has
- *    a large body of mobile-specific perf work predicated on the flat tier.
- *  - **No WebGL2 / very low core count** → `performance`. Old or heavily
- *    constrained device.
- *  - **Everything else** → `medium`: sun shadows + the IBL probe, no post stack.
- *    Materials get real reflections and soft bounce, and the per-frame cost stays
- *    at the flat tier's — the IBL probe is a one-time bake, and the shadow map is
- *    frozen while the camera moves (PERF-MAX-1).
+ *    renderer. Matched by NAME because these advertise generous limits
+ *    (SwiftShader reports 16K textures) — the one place the renderer string is
+ *    genuinely worth reading, and it fails safe when blocked.
+ *  - **Coarse pointer (phone/tablet)** → `performance`. Thermals and fill rate
+ *    bind on mobile, not peak capability, and a sustained-FPS probe is
+ *    especially misleading there (a phone reads fast right up until it throttles).
+ *  - **No WebGL2 / fewer than 4 cores** → `performance`. Old or constrained.
+ *  - **Everything else** → `high`, i.e. "no opinion, let measurement decide".
  *
- * `high` and `maximum` are never auto-selected.
+ * Returning `high` is NOT a claim that the device can run High — it is the
+ * absence of a veto. The ladder still has to earn each rung.
  */
-export function tierForCapabilities(caps: DeviceCapabilities): RenderTier {
+export function capabilityCeilingTier(caps: DeviceCapabilities): RenderTier {
   const r = caps.renderer.toLowerCase()
   if (SOFTWARE_RENDERERS.some((name) => r.includes(name))) return 'performance'
   if (caps.coarsePointer) return 'performance'
@@ -315,7 +287,22 @@ export function tierForCapabilities(caps: DeviceCapabilities): RenderTier {
   // `hardwareConcurrency` is 0/undefined on some privacy-hardened browsers —
   // only treat a POSITIVE, genuinely small value as weak.
   if (caps.cores > 0 && caps.cores < 4) return 'performance'
-  return 'medium'
+  return 'high'
+}
+
+/**
+ * The tier to boot at on a FIRST visit, before anything has been measured.
+ *
+ * Conservative on purpose: `medium` is measurably free on capable hardware
+ * (vsync-capped 60 fps, same as the flat tier) while already adding the two
+ * things that matter most for materials — sun shadows and the IBL probe — and it
+ * mounts no post stack, so there is no composer and no watchdog exposure. The
+ * ladder probes upward from here; a repeat visitor skips this entirely and boots
+ * at their persisted `autoMaxTier`.
+ */
+export function initialAutoTier(caps: DeviceCapabilities): RenderTier {
+  const ceiling = capabilityCeilingTier(caps)
+  return ceiling === 'performance' ? 'performance' : 'medium'
 }
 
 /** Read {@link DeviceCapabilities} from a live WebGL context + the browser.
@@ -349,14 +336,21 @@ function readDeviceCapabilities(
 }
 
 /**
- * The starting render tier on boot, chosen from device capability
- * (TIER-AUTODETECT — see {@link tierForCapabilities} for the rules and the
- * rationale for replacing the old unconditional `'performance'`).
- *
- * Called with no `gl` (the `resolveQuality` fallback for an unknown persisted
- * tier) it resolves to `'performance'`, the safe floor.
+ * The starting render tier on boot for a device with no measured history
+ * (TIER-AUTODETECT + TIER-ADAPTIVE). Called with no `gl` — the `resolveQuality`
+ * fallback for an unrecognised persisted tier — it resolves to `'performance'`,
+ * the safe floor.
  */
 export function detectDefaultTier(gl?: WebGLRenderingContext | WebGL2RenderingContext): RenderTier {
   if (!gl) return 'performance'
-  return tierForCapabilities(readDeviceCapabilities(gl))
+  return initialAutoTier(readDeviceCapabilities(gl))
+}
+
+/** The capability ceiling for a live context — what the adaptive ladder may not
+ *  climb past, regardless of measured frame rate. */
+export function detectCapabilityCeiling(
+  gl?: WebGLRenderingContext | WebGL2RenderingContext,
+): RenderTier {
+  if (!gl) return 'performance'
+  return capabilityCeilingTier(readDeviceCapabilities(gl))
 }

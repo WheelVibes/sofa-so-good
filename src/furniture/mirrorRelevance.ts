@@ -22,14 +22,17 @@
  * So a single bathroom mirror — a few dozen pixels tall in the default orbit
  * view — was **43% of the frame's draw calls**. It is also fixed-resolution
  * (512²/1024²), which is why the tier's cost barely moved with screen
- * resolution: 7x the viewport pixels changed orbit FPS by only ~9%, because the
- * frame was never fill-bound in the first place. Measured effect of dropping it
- * (`scripts/dev-probes/tier-fps.mjs`, 2560x1600 buffer):
+ * resolution: 7x the viewport pixels changed the frame budget by only ~9%,
+ * because the frame was never fill-bound in the first place.
  *
- * | tier    | real mirror | cheap pane |
- * | ------- | ----------- | ---------- |
- * | high    | 41.9 fps    | 58.4 fps   |
- * | maximum | 32.4 fps    | 56.5 fps   |
+ * The cost is best stated in draw calls, which `render-attrib.mjs` measures
+ * directly: gating the mirror took an orbit frame at High from **4,002 draw calls
+ * to 2,283**, and from two full-scene passes to one. (An earlier version of this
+ * note quoted "41.9 → 58.4 fps"; those figures came from `tier-fps.mjs`, which
+ * counted `requestAnimationFrame` ticks rather than renders. Under
+ * `frameloop="demand"` those are not the same thing — see `scene/frameCost.ts` —
+ * so they were a ceiling proxy, not a frame rate. Use
+ * `scripts/dev-probes/frame-time.mjs`, which reports true per-frame cost.)
  *
  * ## The rule
  *

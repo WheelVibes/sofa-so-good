@@ -186,6 +186,14 @@ export interface UiSlice {
    *  still can't hold 30fps, it sheds the sun-shadow pass (the biggest
    *  remaining cost). Not a user setting; reset when a tier is picked manually. */
   autoShadowsOff: boolean
+  /** TIER-ADAPTIVE learned ceiling: the highest tier the adaptive ladder may
+   *  reach on THIS device, recorded when a tier FAILS. `null` = nothing learned
+   *  yet. Persisted per-device by `qualityPrefs` so a device that already proved
+   *  it can't hold a tier never probes it again. */
+  autoMaxTier: RenderTier | null
+  /** True once a SETTLED tier has been restored from persisted prefs, so the
+   *  one-time capability boot pick must not overwrite it (TIER-ADAPTIVE). */
+  qualityAutoSettled: boolean
   /** Bumped whenever a DLC/catalog furniture material finishes building into
    *  the shared cache, so memoised furniture re-renders to pick it up. */
   materialEpoch: number
@@ -243,6 +251,8 @@ export interface UiSlice {
   cycleQuality: () => void
   /** Adaptive auto-adjust (does not set qualityUserSet). */
   autoSetQualityTier: (t: RenderTier) => void
+  /** Record the TIER-ADAPTIVE learned ceiling (does not set qualityUserSet). */
+  setAutoMaxTier: (t: RenderTier | null) => void
   /** Override a single quality setting (marks qualityUserSet). */
   setQualityOverride: <K extends keyof QualitySettings>(key: K, value: QualitySettings[K]) => void
   /** Drop all overrides so settings follow the tier preset again. */
@@ -298,6 +308,8 @@ export const UI_INITIAL: Pick<
   | 'wallRevealScope'
   | 'drawingLayers'
   | 'autoShadowsOff'
+  | 'autoMaxTier'
+  | 'qualityAutoSettled'
   | 'backdrop'
   | 'hdriId'
   | 'customBackdropUrl'
@@ -341,6 +353,8 @@ export const UI_INITIAL: Pick<
   wallRevealScope: 'exterior' as const,
   drawingLayers: {} as DrawingLayerVisibility,
   autoShadowsOff: false,
+  autoMaxTier: null,
+  qualityAutoSettled: false,
   snapEnabled: false,
   gridSize: 0.5,
   backdrop: 'city' as BackdropKind,
@@ -471,6 +485,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
       lightsMode: LIGHTS_CYCLE[(LIGHTS_CYCLE.indexOf(s.lightsMode) + 1) % LIGHTS_CYCLE.length],
     })),
   setAutoShadowsOff: (v) => set({ autoShadowsOff: v }),
+  setAutoMaxTier: (t) => set({ autoMaxTier: t }),
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
   setGridSize: (m) => set({ gridSize: m }),
   setBackdrop: (backdrop) => set({ backdrop }),

@@ -197,7 +197,10 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   43% of the whole frame** for a bathroom pane a few dozen pixels tall. It is also
   FIXED-resolution (512²/1024²), which is why the post tiers' cost barely tracked screen
   resolution at all (7× the viewport pixels moved orbit FPS by ~9%; the frame was never
-  fill-bound). Dropping it measured `high` 41.9 → 58.4 fps and `maximum` 32.4 → 56.5 fps.
+  fill-bound). Gating it took an orbit frame at High from **4,002 draw calls to 2,283** and from
+  two full-scene passes to one. (Earlier revisions of this note quoted an fps gain; those numbers
+  came from a probe counting `requestAnimationFrame` ticks, which under `frameloop="demand"` is not
+  the render rate — see `scene/frameCost.ts`. Measure cost with `scripts/dev-probes/frame-time.mjs`.)
   So `mirrorReflectorConfig(tier)` now only says a reflection is PERMITTED; `useMirrorRelevance`
   decides whether it is WORTH it, and every `MeshReflectorMaterial` call site goes through it
   (`MirrorMaterial` — used by `Mirror`/`WallMirror`/`FloorMirror`/`Wardrobe` — plus `GltfModel`'s

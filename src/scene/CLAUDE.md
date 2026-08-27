@@ -155,23 +155,42 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   which is the light curtains actually block — diffuse skylight through the glass. Same magnitude,
   correct light: contrast (pixel σ) rose ~21% at Performance and ~10% at Maximum for a ~2-point
   mean-brightness cost. Measure with `node scripts/dev-probes/shadow-contribution.mjs`.
-- **The boot tier is capability-detected, NOT unconditionally `performance` (TIER-AUTODETECT).**
-  This deliberately reverses the earlier "always boot the flat tier for everyone" product rule.
-  That rule guaranteed a fluid first load but made every user's first impression the flat
-  renderer — no shadows, no IBL, no AO, no graded post — which is exactly the "the graphics look
-  like animation, not real" feedback. `quality.ts:tierForCapabilities` (pure + unit-tested) reads
-  a renderer string + core count + coarse-pointer + WebGL2 and picks: software rasteriser /
-  phone-tablet / no-WebGL2 / <4 cores → `performance`; **everything else → `medium`**.
-  `high` and `maximum` are **never** auto-selected, and that ceiling is measured, not cautious —
-  sustained-orbit FPS on the M4 reference machine at Retina DPR (2560x1600 buffer), tier pinned:
-  performance 60 / medium 60 / **high 39.9 (83 ms worst frame)** / maximum 34. High clears the
-  30 fps floor on average but one bad 1.5 s window is enough for `QualityController` to step
-  down, and `scripts/dev-probes/tier-stability.mjs` showed an auto-selected High walking itself
-  to Medium then Performance inside a single orbit. A default that visibly downgrades itself is
-  worse than a slightly conservative one. Guessing too HIGH is self-correcting but ugly; guessing
-  too LOW is invisible and permanent, which was the bug — so identify weak hardware positively
-  and give everything else the benefit of the doubt. Re-measure with
-  `scripts/dev-probes/tier-fps.mjs` before moving the ceiling.
+- **The tier is chosen by MEASURING FRAMES, not by detecting hardware (TIER-ADAPTIVE).**
+  This replaces both the old unconditional `performance` default and the capability-detected
+  default that briefly followed it. Rationale in `adaptiveTier.ts`; the short version is that in
+  a browser the hardware isn't legible — `WEBGL_debug_renderer_info` is deprecated in Firefox and
+  slated for removal, disabled by `privacy.resistFingerprinting`, farbled by Brave, and generic on
+  Safari — and hardware identity is the wrong KIND of signal anyway (the thing actually capping the
+  post tiers was a mirror's extra scene pass, a *content* cost, and 7x the viewport pixels moved
+  the frame budget by ~9%). `quality.ts:capabilityCeilingTier` survives only as a best-effort
+  **veto** (software rasteriser / phone / no-WebGL2 / <4 cores → `performance`; everything else →
+  `high`, meaning "no opinion"). First visit boots `initialAutoTier` (conservative `medium`);
+  `QualityController` then walks the ladder both ways and the settled tier persists, so a repeat
+  visit skips the ramp (`qualityAutoSettled` stops the boot pick stomping it).
+- **The ladder's signal is frame COST in ms, never frame RATE (`scene/frameCost.ts`).** This Canvas
+  is `frameloop="demand"`, so rate measures how often the pump chose to draw, not how fast the
+  device can draw: measured 59.7 rAF/s against **30.5 actual renders/s while each frame cost
+  5.7 ms**. A rate-based guard reads that as "30 fps, failing" and demotes a scene using a third of
+  its budget — the first cut of this ladder did exactly that, walking Medium down to Performance on
+  hardware with two tiers of headroom. Rate is equally useless upward because vsync clamps it
+  (Performance and Medium both report exactly 60). True p90 cost per displayed frame on the M4
+  reference machine at 2560x1600: performance 4.7 ms / medium 6.0 / high 8.9 / maximum 11.7,
+  against a 16.7 ms budget. The meter wraps `renderer.render` and **SUMS every call inside one
+  animation frame** — the post stack issues ~18 SIBLING render calls per frame, so per-call timing
+  reports the parts and inflates the apparent rate to ~1000/s. Because an idle demand-mode frame
+  renders nothing and therefore contributes no sample, cost-based sampling also removed the need
+  for the old `isRenderingContinuously()` gate. Any future adaptive-quality logic must read cost,
+  not rate. Verify end-to-end with `scripts/dev-probes/tier-ladder.mjs` (add `CPU=6` to throttle
+  and exercise the DOWNWARD half) and `frame-time.mjs`.
+- **Promotion is a PROBE with a LEARNED CEILING.** Cost tells you what the current tier uses, not
+  what the next one would cost (the step between rungs is content-dependent), so the ladder steps
+  up on evidence and steps back if it doesn't hold. Oscillation is therefore the real risk, and it
+  is prevented by `autoMaxTier` — the rung that FAILED, persisted per device and never retried —
+  **not** by a wider threshold. `autoMaxTier` must never be set on the way UP: conflating "highest
+  reached" with "learned ceiling" caps the ladder at the rung it just reached, so `performance`
+  would climb to `medium` and then never to `high`. `maximum` is never auto-selected. Verified:
+  unthrottled boots `medium` → promotes to `high` at ~11 s and holds; at `CPU=6` it demotes to
+  `performance` at ~8 s, learns the ceiling and holds; both survive a reload.
 - **The adaptive FPS guard is deaf during boot warm-up (`FPS_GUARD_WARMUP_MS`, 5 s after
   `sceneReady`).** It samples only while the pump renders CONTINUOUSLY — and boot is exactly
   that (loader overlay, asset streaming, shader compilation, the first shadow/IBL bakes), at the

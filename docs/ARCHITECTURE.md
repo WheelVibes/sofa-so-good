@@ -926,11 +926,15 @@ same change that reshapes a system.
   sideboard/console→frames/sculpture). Skip via `withDecor=false`.
 - **Quality tiers** (`quality.ts`): **render** `RenderTier` = Performance/Medium/High/
   Maximum. **The boot tier is capability-detected** (TIER-AUTODETECT, `tierForCapabilities`,
-  pure + unit-tested — replaces the old unconditional Performance default, which made every
-  user's first impression the flat renderer): software rasteriser / phone-tablet / no-WebGL2 /
-  <4 cores → Performance; everything else → Medium. **High and Maximum are never auto-selected**
-  (measured: High orbits at 39.9fps with 83ms spikes on the M4 reference machine at Retina DPR,
-  enough for the adaptive guard to step it back down — `scripts/dev-probes/tier-fps.mjs`).
+  pure + unit-tested) is now only a best-effort **veto** — software rasteriser / phone-tablet /
+  no-WebGL2 / <4 cores → Performance, everything else → High meaning "no opinion". The tier is
+  actually chosen by MEASURING frames (`scene/adaptiveTier.ts` + `scene/frameCost.ts`,
+  TIER-ADAPTIVE): first visit boots `initialAutoTier` (conservative Medium), then the ladder steps
+  both ways on p90 render COST per displayed frame (never frame rate — under `frameloop="demand"`
+  rate measures demand, not capability, and vsync clamps it). Promotion is a probe; oscillation is
+  prevented by a persisted learned ceiling (`autoMaxTier` = the rung that failed). **Maximum is
+  never auto-selected.** Measured p90 cost at 2560x1600: performance 4.7ms / medium 6.0 / high 8.9
+  / maximum 11.7, budget 16.7ms (`scripts/dev-probes/frame-time.mjs`).
   Performance is flat (no shadows/IBL/post, DPR 1);
   Medium=+sun shadows+IBL; High=+post (N8AO+Bloom+**ToneMapping**+HueSat+Vignette+SMAA);
   Maximum=+cinematic

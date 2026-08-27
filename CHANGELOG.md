@@ -5,6 +5,68 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.2.0 — the tier is measured, not guessed (and the old measurement was wrong)
+
+Round 2 of the continuous graphics loop, prompted by a good question: this ships
+on Cloudflare Pages and runs in a browser, so should the quality default really
+be based on detecting hardware? It shouldn't, and chasing that turned up a bigger
+problem — the app had been measuring the wrong thing all along.
+
+- **Hardware detection is demoted to a veto (TIER-ADAPTIVE).**
+  `WEBGL_debug_renderer_info` is deprecated in Firefox and slated for removal,
+  disabled by `privacy.resistFingerprinting`, blockable, farbled by Brave, and
+  deliberately generic on Safari (every Apple device reports "Apple GPU", so an
+  M-series desktop is indistinguishable from a phone). It is also the wrong KIND
+  of signal: the thing actually capping the post tiers last round was a mirror's
+  extra scene pass — a content cost no renderer string predicts — and 7x the
+  viewport pixels moved the frame budget by only ~9%, so a resolution heuristic
+  would have been confidently wrong too. `capabilityCeilingTier` now only vetoes
+  the classes that must never climb (software rasteriser, phone/tablet,
+  pre-WebGL2, <4 cores); for everything else it returns "no opinion".
+- **Frame RATE was never the right signal, and the existing guard was misreading
+  it.** Under `frameloop="demand"` rate measures how often the pump chose to
+  draw, not how fast the device can draw. Measured during a real orbit: **59.7
+  requestAnimationFrame ticks/s against 30.5 actual renders/s, while each frame
+  cost 5.7 ms.** The old 30fps floor reads that as failing and demotes a scene
+  using a third of its budget — and the first cut of this round's ladder did
+  exactly that, walking Medium down to Performance on hardware with two tiers of
+  headroom. Rate is equally useless for promotion because vsync clamps it:
+  Performance and Medium both report exactly 60, so there is no headroom to read.
+- **The ladder now reads per-displayed-frame COST** (`scene/frameCost.ts`), which
+  wraps `renderer.render` and sums every call inside one animation frame. Summing
+  is load-bearing: the post stack issues ~18 *sibling* render calls per frame, so
+  timing them individually reports the parts and inflates the apparent rate to
+  ~1000/s. True p90 cost at 2560x1600, against a 16.7 ms budget:
+
+  | tier        | p50     | p90     | max     | drawn frames/s |
+  | ----------- | ------- | ------- | ------- | -------------- |
+  | performance |  4.5 ms |  4.7 ms | 11.4 ms | 59.9           |
+  | medium      |  5.7 ms |  6.0 ms | 14.1 ms | 59.9           |
+  | high        |  8.1 ms |  8.9 ms | 15.5 ms | 59.7           |
+  | maximum     | 11.1 ms | 11.7 ms | 21.9 ms | 59.5           |
+
+  All four tiers hold the display rate here — which is why nothing should have
+  been demoting in the first place.
+- **Promotion is a probe with a learned ceiling.** Cost says what the current
+  tier uses, not what the next would cost, so the ladder steps up on evidence and
+  steps back if it doesn't hold; oscillation is prevented by `autoMaxTier` (the
+  rung that FAILED, persisted per device, never retried) rather than by a wider
+  threshold. A subtle trap found while building it: `autoMaxTier` must not be set
+  on the way UP, or every success caps the ladder at the rung just reached and
+  Performance can reach Medium but never High. Maximum is never auto-selected.
+  Verified end-to-end with a new `scripts/dev-probes/tier-ladder.mjs`:
+  unthrottled, it boots Medium and promotes to High at ~11 s then holds; under
+  `CPU=6` throttling it demotes to Performance at ~8 s, learns the ceiling and
+  holds; both survive a reload, which now boots straight to the settled tier.
+- **Correction to the previous two entries.** Their fps figures (`high 41.9 →
+  57.9`, `maximum 32.4 → 57.6`, `medium 60`) came from a probe counting
+  `requestAnimationFrame` ticks, which as above is not the render rate — they
+  were a ceiling proxy and overstate the frame rate. The draw-call and
+  scene-pass measurements in those entries were taken directly and stand
+  (4,002 → 2,283 draw calls; two full-scene passes → one), as do the
+  clipped-highlight and contrast numbers. Frame-cost claims should come from
+  `scripts/dev-probes/frame-time.mjs` from now on.
+
 ## v0.31.1.0 — one bathroom mirror was 43% of every frame
 
 Round 1 of the continuous graphics loop. Chasing why the post tiers were stuck
