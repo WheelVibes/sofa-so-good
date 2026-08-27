@@ -434,9 +434,27 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     (sat 0.017 → 0.008 → 0.004 → 0.004), because more scattering means more total radiance and the
     dome climbs further onto the operator's shoulder. Every arm sat at luma 234–237, pinned near the
     top of the range. `turbidity` 3 changed nothing.
-  · **So the lever is the dome's absolute RADIANCE, not its colour.** It needs an intensity scale so
-    it lands where a view transform still preserves hue, rather than on the shoulder where every
-    operator rolls it to white.
+  · **And the radiance is not the lever either — the dome emits genuinely WHITE light.** Scaling
+    `toneMappingExposure` live (`sky-tune.mjs EXPOSURES=`) is monotonic but far too weak: a **4x**
+    cut (x0.25) lifts zenith saturation only 0.017 → **0.041**, with luma still 193. If the sky were
+    a saturated blue merely rolled off by the operator, dimming would reveal the blue. It does not,
+    so the shader's per-channel ratio is ≈1:1:1 before any transform.
+  · **Not a near-sun aureole either.** Preetham is legitimately white close to the sun, and Singapore
+    at 13:00 has the sun near the zenith — but measured across altitudes the zenith saturation is
+    0.027 / 0.024 / 0.017 / 0.014 / 0.007 at 08:00 / 10:00 / 13:00 / 16:00 / 18:00. Never above 0.03,
+    so there is no hour at which this sky is blue.
+  **Four hypotheses tested and rejected: the tone curve, the scattering parameters, the global
+  exposure, and the sun-angle. Do not re-test them.** What remains is that the app's exposure (1.38)
+  is tuned for interiors and this dome's absolute output is simply in a different range — which means
+  a fix is a DESIGN change (render the sky through its own exposure / replace the drei dome with the
+  in-repo analytic `lighting/skyGradient.ts` painted at controlled values, as the walk-mode `sky`
+  backdrop already does), not a parameter tweak. Two rounds went into parameter tweaks; start from
+  the design if this is picked up again.
+  · One probe note worth keeping: `sky-tune.mjs` re-asserts its uniforms INSIDE a wrapped
+    `renderer.render`, because `<Sky>` is a React component and drei re-applies `rayleigh` et al.
+    from props on every re-render — and the `setManualHour` nudge used to force a frame IS a store
+    change. The corrected sweep reproduced the naive one exactly, so that race did not bite here,
+    but the pattern is the same one that invalidated `warm-cast.mjs`'s first illuminant arm.
   **The safety fact that makes such a change cheap:** this dome is purely visual. `Sky.tsx` renders
   geometry and writes neither `scene.background` nor `scene.environment` — the IBL is the separate
   procedural Lightformer probe in `SceneEnvironment.tsx`. So dimming it cannot disturb interior

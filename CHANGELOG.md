@@ -5,6 +5,43 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.18 — the sky emits white light; four hypotheses closed
+
+Second and final parameter-level round on SKY-BLOWN. The remaining two hypotheses
+are now rejected too, so the next attempt should start from a design change rather
+than re-testing any of these.
+
+- **Radiance is not the lever.** Scaling `toneMappingExposure` live is monotonic
+  but far too weak: a **4x** cut lifts zenith saturation only 0.017 → **0.041**,
+  luma still 193. If the sky were a saturated blue merely rolled off by the
+  operator, dimming would reveal it. It doesn't — the shader's per-channel ratio
+  is ≈1:1:1 before any transform. The dome emits genuinely white light.
+
+- **Not a near-sun aureole.** Preetham is legitimately white near the sun and
+  Singapore at 13:00 has the sun overhead, so this was a real possibility. Measured
+  across altitudes, zenith saturation is 0.027 / 0.024 / 0.017 / 0.014 / 0.007 at
+  08:00 / 10:00 / 13:00 / 16:00 / 18:00 — never above 0.03. There is no hour at
+  which this sky is blue.
+
+- **Re-ran the `rayleigh` sweep with uniforms re-asserted inside `renderer.render`**,
+  because `<Sky>` is a React component and drei re-applies its props on every
+  re-render — and the `setManualHour` nudge used to force a frame IS a store
+  change. The corrected sweep reproduced the naive one exactly (1 → 10 gives
+  0.017 → 0.004 → 0.004 → 0.000, brightening to a flat 238/238/238), so that race
+  did not bite here. Worth keeping the pattern: it is the one that invalidated
+  `warm-cast.mjs`'s first illuminant arm.
+
+- **Four hypotheses now closed: tone curve, scattering parameters, global exposure,
+  sun angle.** What remains is that the app's exposure (1.38) is tuned for interiors
+  and this dome's absolute output is in a different range — a DESIGN change (give the
+  sky its own exposure, or replace the drei dome with the in-repo analytic
+  `lighting/skyGradient.ts` painted at controlled values, as the walk-mode `sky`
+  backdrop already does). Two rounds went into parameter tweaks; that is enough.
+
+- **New probe `sky-tune.mjs`** — sweeps the sky dome's live shader uniforms, or
+  `toneMappingExposure`, and reports the zenith colour. Finds the dome by looking
+  for a material carrying a `rayleigh` uniform, so it needs no pose or defId.
+
 ## v0.31.5.17 — the orbit sky is real, and blown out to white
 
 Investigation round, no app-code change. The queued target was "the orbit surround

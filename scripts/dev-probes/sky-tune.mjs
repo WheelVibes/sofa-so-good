@@ -139,13 +139,70 @@ async function measure(tag) {
   return { r, g, b, sat: mx === 0 ? 0 : (mx - mn) / mx, luma: 0.2126 * r + 0.7152 * g + 0.0722 * b }
 }
 
+/**
+ * Optional EXPOSURE sweep, to separate "the sky has no blue" from "the sky is too
+ * bright for its blue to survive the view transform". Scales
+ * `renderer.toneMappingExposure` live. This darkens the WHOLE frame, so it is a
+ * mechanism test, not a proposal — if the zenith gains saturation as exposure
+ * falls, the dome's radiance is the lever and its scattering parameters are not.
+ */
+const EXPOSURES = (process.env.EXPOSURES || '').split(',').filter(Boolean).map(Number)
+if (EXPOSURES.length) {
+  const base = await page.evaluate(() => window.__three.gl.toneMappingExposure)
+  console.log(`base toneMappingExposure = ${base}`)
+  console.log('exposure                  zenith rgb              b-r    sat    luma')
+  for (const e of EXPOSURES) {
+    await page.evaluate(
+      (v, b) => {
+        const gl = window.__three.gl
+        gl.toneMappingExposure = b * v
+        // Lighting rewrites exposure every frame, so re-assert inside render.
+        if (!window.__expPatch) {
+          const orig = gl.render.bind(gl)
+          window.__expPatch = { mul: 1, base: b }
+          gl.render = (...a) => {
+            gl.toneMappingExposure = window.__expPatch.base * window.__expPatch.mul
+            return orig(...a)
+          }
+        }
+        window.__expPatch.mul = v
+        const st = window.__store.getState()
+        st.setManualHour(st.manualHour)
+      },
+      e,
+      base,
+    )
+    const m = await measure(`exp${e}`)
+    console.log(
+      `x${String(e).padEnd(24)} ${m.r.toFixed(1).padStart(6)} ${m.g.toFixed(1).padStart(6)} ${m.b.toFixed(1).padStart(6)}  ${(m.b - m.r).toFixed(1).padStart(5)}  ${m.sat.toFixed(3)}  ${m.luma.toFixed(1)}`,
+    )
+  }
+  await browser.close()
+  process.exit(0)
+}
+
 console.log('arm                       zenith rgb              b-r    sat    luma')
 for (const arm of SWEEP) {
   await page.evaluate((pairs) => {
-    for (const [k, v] of pairs) {
-      if (window.__sky.uniforms[k]) window.__sky.uniforms[k].value = v
+    // Re-assert INSIDE `renderer.render`. `Sky` is a React component and drei's
+    // `<Sky>` re-applies `rayleigh`/`turbidity`/… from props on every re-render —
+    // and the `setManualHour` nudge used to force a frame IS a store change, so it
+    // re-renders and stomps a uniform written from the outside. An earlier version
+    // of this sweep wrote the uniforms plainly and its arms were therefore
+    // measuring some mixture of the swept and the shipped values. Same race as
+    // `Lighting` rewriting the light colours every frame (see warm-cast.mjs).
+    const gl = window.__three.gl
+    if (!window.__skyPatch) {
+      const orig = gl.render.bind(gl)
+      window.__skyPatch = { pairs: [] }
+      gl.render = (...a) => {
+        for (const [k, v] of window.__skyPatch.pairs) {
+          if (window.__sky.uniforms[k]) window.__sky.uniforms[k].value = v
+        }
+        return orig(...a)
+      }
     }
-    window.__sky.needsUpdate = true
+    window.__skyPatch.pairs = pairs
     const st = window.__store.getState()
     st.setManualHour(st.manualHour)
   }, arm)
