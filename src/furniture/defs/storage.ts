@@ -125,7 +125,7 @@ export const STORAGE_DEFS = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -182,7 +182,7 @@ export const STORAGE_DEFS = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -308,7 +308,7 @@ export const STORAGE_DEFS = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -390,7 +390,7 @@ export const STORAGE_DEFS = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -453,7 +453,16 @@ export const STORAGE_DEFS = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'wood',
+        // FURNITURE-WOOD-SCALE keeps `mat:floor-wood-oak` HERE, deliberately: unlike
+        // every other piece in this sweep, `TvConsole`'s `color` default is #3a2f24 —
+        // nearly black. A `mat:` finish supplies its own albedo and ignores that
+        // colour, so switching to the procedural `wood` painter (which MULTIPLIES it)
+        // woke up a dark value nobody had validated: measured over a raycast mask at
+        // walk/Medium/09:00, mean luminance fell 61.8 -> 37.7 while chroma only went
+        // 0.794 -> 0.612. Less lurid, but nearly black is not an improvement. Fixing
+        // this piece properly means re-choosing its `color`, which needs its own
+        // measurement.
+        default: 'mat:floor-wood-oak',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -534,7 +543,7 @@ export const STORAGE_DEFS = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -595,7 +604,7 @@ export const STORAGE_DEFS = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -841,7 +850,7 @@ export const STORAGE_DEFS = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },

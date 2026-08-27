@@ -23,7 +23,7 @@ export const BEDS_DEFS = {
         kind: 'enum',
         key: 'frameFinish',
         label: 'Frame finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -88,7 +88,7 @@ export const BEDS_DEFS = {
         kind: 'enum',
         key: 'frameFinish',
         label: 'Frame finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -152,7 +152,7 @@ export const BEDS_DEFS = {
         kind: 'enum',
         key: 'frameFinish',
         label: 'Frame finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -216,7 +216,7 @@ export const BEDS_DEFS = {
         kind: 'enum',
         key: 'frameFinish',
         label: 'Frame finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -278,7 +278,7 @@ export const BEDS_DEFS = {
         kind: 'enum',
         key: 'finish',
         label: 'Frame finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },

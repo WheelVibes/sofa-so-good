@@ -455,3 +455,27 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   the room, sized `widthFrac`×host width and self-lifting via the def's `mountHeight` (the def is
   `mounted`+`noClip`). Artifact-safe: the host already occupies a clear wall span, so the art never
   overlaps a door/window. Deterministic seeded art tint; excluded from the surface-prop budget/cap.
+- **Furniture wears the FURNITURE wood painter, not the floor's (FURNITURE-WOOD-SCALE).** 21 defs
+  across `defs/{beds,decor,kids,storage,tables}.ts` defaulted their wood finish to
+  `mat:floor-wood-oak`, described in the C264 test as "the CC0 oak mat". It is not a CC0 photo
+  material: that id is `kind: 'procedural'`, pattern `wood`, **`uvScale: [1.9, 1.2]` metres** — the
+  FLOOR plank painter. On a 0.55 m coffee-table top that is a ~3x scale mismatch, and it rendered
+  as saturated orange-red decking. Measured over a raycast mask (`surface-detail.mjs`, which
+  selects by `DEF=<defId>` so no NDC guessing is involved) at walk/Medium/09:00, all arms in ONE
+  run: `mat:floor-wood-oak` chroma **0.669 with 96.9% of its pixels past 0.35 saturation** against
+  the whole frame's ~0.18 and the sofa's 0.220; the procedural `wood` painter **0.474 / 84.4%**
+  with by far the calmest microcontrast (1.50 vs 3.51). Two lighter catalog woods were measured and
+  rejected ON SIGHT despite better numbers — `mat:floor-wood-ash` (0.243) streaks like driftwood
+  and `mat:floor-wood-maple` (0.313) reads as animal-print blotch, its microcontrast of 8.66 being
+  noise rather than grain. **Higher microcontrast is not automatically better; look at it.**
+  **The swap is piece-dependent, and this is the part to remember:** a `mat:<id>` finish supplies
+  its own albedo and IGNORES the primitive's `color` prop, while the procedural `wood` painter
+  MULTIPLIES it. So switching wakes up a `color` default that may never have been validated.
+  `tv-console` is exactly that case — `TvConsole`'s `color` is #3a2f24, nearly black, and the swap
+  took its mean luminance 61.8 → 37.7 for a chroma gain of only 0.794 → 0.612. It deliberately
+  keeps `mat:floor-wood-oak` (see the comment at its def) until its colour is re-chosen. Before
+  changing a `mat:` finish default to a procedural one, check the primitive's `color` default:
+  everything else in the sweep sits between #6f553f and #cdb89c and is fine.
+  Secondary defect fixed along the way: `mat:floor-wood-oak` was NOT among the `finish` enum's own
+  `options`, so the default was unselectable and a user who changed the finish could never return
+  to it. `'wood'` is the first listed option.

@@ -22,8 +22,17 @@
  * a programmatic `lookAt`. A mask sidesteps both: whatever the controller points
  * at, the right pixels are still found.
  *
- * Env: `POINT=x,y` (NDC of a pixel ON the surface, measured off a screenshot),
- * `MODE`, `TIER`, `HOUR`, `LABEL`.
+ * Two ways to name the surface, and **prefer `DEF`**:
+ *   `DEF=coffee-table`  a catalog `defId`. The probe finds that item's meshes via
+ *                       `Furniture.tsx`'s `userData.itemId` tag and seeds from the
+ *                       largest one. Robust, and it survives a camera change.
+ *   `POINT=x,y`         NDC of a pixel on the surface, measured off a screenshot.
+ *                       Only use this when there is no `defId` (shell surfaces).
+ *                       Eyeballed NDC has silently missed its target more than
+ *                       once here — it hit a candle cluster while trying to pick a
+ *                       dining table — so the probe reports what it actually hit.
+ *
+ * Env: `DEF` or `POINT`, plus `MODE`, `TIER`, `HOUR`, `LABEL`.
  */
 import fs from 'node:fs'
 import puppeteer from 'puppeteer'
@@ -37,6 +46,22 @@ const HOUR = Number(process.env.HOUR || 9)
 const MODE = process.env.MODE || 'walk'
 const LABEL = process.env.LABEL || 'surface'
 const POINT = (process.env.POINT || '0.42,-0.12').split(',').map(Number)
+const DEF = process.env.DEF || null
+/**
+ * Optional A/B: a comma-separated list of `finish` prop values to try on the
+ * `DEF` item(s), measured in ONE run over the identical view and mask. This is
+ * the honest way to compare candidate finishes — a source edit per candidate
+ * needs a run each and invites quoting numbers across states. The mask is built
+ * from the FIRST value, so every case covers the same pixels.
+ */
+const FINISHES = (process.env.FINISHES || '').split(',').filter(Boolean)
+/**
+ * Which prop the finish values are written to. NOT always `finish`: beds and some
+ * decor carry their wood on `frameFinish`, and writing the wrong key makes every
+ * arm of the A/B byte-identical — which reads as "this change does nothing"
+ * rather than "the mutation never landed". Check the def's `paramSchema`.
+ */
+const PROP = process.env.PROP || 'finish'
 fs.mkdirSync(OUT, { recursive: true })
 
 const browser = await puppeteer.launch({
@@ -95,20 +120,98 @@ await page.evaluate((v) => {
 await new Promise((r) => setTimeout(r, 2500))
 await assertSceneAlive(page, 'after setup')
 
+/** Set the `finish` prop on every item with the target defId, via the app's own
+ *  action so the whole material-resolution path runs exactly as for a user. */
+async function applyFinish(finish) {
+  if (!DEF || !finish) return
+  const wrote = await page.evaluate(
+    (def, f, prop) => {
+      const st = window.__store.getState()
+      const items = st.items.filter((x) => x.defId === def)
+      for (const i of items) st.updateItemProps(i.id, { [prop]: f })
+      return items.length
+    },
+    DEF,
+    finish,
+    PROP,
+  )
+  if (!wrote) throw new Error(`no items with defId ${DEF} — nothing was changed`)
+  // Catalog/DLC materials (`mat:<id>`) build asynchronously in
+  // FurnitureMaterialLoader, and until they land the primitive falls back to a
+  // procedural wood — measuring inside that window compares the fallback.
+  await new Promise((r) => setTimeout(r, 4500))
+  await assertSceneAlive(page, `${PROP} ${finish}`)
+}
+if (FINISHES.length) await applyFinish(FINISHES[0])
+
 const GX = 96
 const GY = 60
 const found = await page.evaluate(
-  (pt, gx, gy) => {
+  (pt, gx, gy, def) => {
     const { scene, camera, raycaster } = window.__three
     const rc = new raycaster.constructor()
     const visible = (k) => {
       const m = Array.isArray(k.object.material) ? k.object.material[0] : k.object.material
       return k.object.visible && m && m.colorWrite !== false && !(m.transparent && m.opacity < 0.05)
     }
-    rc.setFromCamera({ x: pt[0], y: pt[1] }, camera)
-    const seed = rc.intersectObjects(scene.children, true).find(visible)
-    if (!seed) return { n: 0, why: 'no hit at POINT' }
-    const ref = Array.isArray(seed.object.material) ? seed.object.material[0] : seed.object.material
+    let ref = null
+    let seededFrom = ''
+    if (def) {
+      // Find the item(s) with this defId, then their meshes via the itemId tag
+      // Furniture.tsx puts on each piece's group. Seed from the mesh with the
+      // largest world-space bounding-box diagonal — the piece's dominant surface
+      // (a table's top, not its handle).
+      const ids = new Set(
+        window.__store
+          .getState()
+          .items.filter((i) => i.defId === def)
+          .map((i) => i.id),
+      )
+      if (!ids.size) return { n: 0, why: `no item with defId ${def}` }
+      let best = null
+      let bestSize = -1
+      scene.traverse((o) => {
+        if (!o.isMesh || !o.material) return
+        let node = o
+        let hit = false
+        while (node) {
+          if (node.userData?.itemId && ids.has(node.userData.itemId)) {
+            hit = true
+            break
+          }
+          node = node.parent
+        }
+        if (!hit) return
+        if (!o.geometry.boundingBox) o.geometry.computeBoundingBox()
+        const bb = o.geometry.boundingBox
+        if (!bb) return
+        if (!o.userData.__s) o.userData.__s = new o.position.constructor()
+        const sc = o.getWorldScale(o.userData.__s)
+        const size = Math.abs((bb.max.x - bb.min.x) * sc.x) * Math.abs((bb.max.z - bb.min.z) * sc.z)
+        if (size > bestSize) {
+          bestSize = size
+          best = o
+        }
+      })
+      if (!best) return { n: 0, why: `defId ${def} has no meshes in the scene` }
+      ref = Array.isArray(best.material) ? best.material[0] : best.material
+      seededFrom = `defId ${def} (largest mesh, footprint ${bestSize.toFixed(2)} m2)`
+    } else {
+      rc.setFromCamera({ x: pt[0], y: pt[1] }, camera)
+      const seed = rc.intersectObjects(scene.children, true).find(visible)
+      if (!seed) return { n: 0, why: 'no hit at POINT' }
+      ref = Array.isArray(seed.object.material) ? seed.object.material[0] : seed.object.material
+      // Report what the ray ACTUALLY hit, so a mis-measured NDC is visible
+      // instead of silently measuring the wrong object.
+      let node = seed.object
+      let itemId = null
+      while (node && !itemId) {
+        if (node.userData?.itemId) itemId = node.userData.itemId
+        node = node.parent
+      }
+      const item = window.__store.getState().items.find((i) => i.id === itemId)
+      seededFrom = `POINT ${pt.join(',')} -> ${item?.defId ?? 'shell/unknown'} at ${seed.distance.toFixed(2)} m`
+    }
     // Group by shared MAP SOURCE when there is a map (clones share it), else by
     // the material object itself.
     const src = ref.normalMap?.source ?? ref.map?.source ?? null
@@ -141,6 +244,7 @@ const found = await page.evaluate(
       n,
       mask,
       mats: mats.length,
+      seededFrom,
       hex: ref.color ? `#${ref.color.getHexString()}` : null,
       rough: ref.roughness ?? null,
       metal: ref.metalness ?? null,
@@ -150,11 +254,15 @@ const found = await page.evaluate(
         normalMap: !!ref.normalMap,
         roughnessMap: !!ref.roughnessMap,
       },
+      sheen: ref.sheen ?? null,
+      sheenRoughness: ref.sheenRoughness ?? null,
+      clearcoat: ref.clearcoat ?? null,
     }
   },
   POINT,
   GX,
   GY,
+  DEF,
 )
 
 if (!found.n) {
@@ -169,65 +277,88 @@ const CW = W / GX
 const CH = H / GY
 const BW = Math.max(1, Math.floor(CW * 0.5))
 const BH = Math.max(1, Math.floor(CH * 0.5))
-const buf = await page.screenshot({ type: 'png' })
-fs.writeFileSync(`${OUT}/${LABEL}-${MODE}-${TIER}-h${HOUR}.png`, buf)
-const { data, info } = await sharp(buf).removeAlpha().raw().toBuffer({ resolveWithObject: true })
-const lum = (i) => 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]
+async function measure(tag) {
+  const buf = await page.screenshot({ type: 'png' })
+  fs.writeFileSync(`${OUT}/${LABEL}-${MODE}-${TIER}-h${HOUR}${tag ? `-${tag}` : ''}.png`, buf)
+  const { data, info } = await sharp(buf).removeAlpha().raw().toBuffer({ resolveWithObject: true })
+  const lum = (i) => 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]
 
-let cSum = 0
-let over = 0
-let lSum = 0
-let lSq = 0
-let cells = 0
-let step = 0
-let steps = 0
-for (let iy = 0; iy < GY; iy++) {
-  for (let ix = 0; ix < GX; ix++) {
-    if (!found.mask[iy * GX + ix]) continue
-    const x0 = Math.round(ix * CW + (CW - BW) / 2)
-    const y0 = Math.round(iy * CH + (CH - BH) / 2)
-    let r = 0
-    let g = 0
-    let b = 0
-    let n = 0
-    for (let y = y0; y < y0 + BH; y++) {
-      for (let x = x0; x < x0 + BW; x++) {
-        const i = (y * info.width + x) * 3
-        r += data[i]
-        g += data[i + 1]
-        b += data[i + 2]
-        n++
-        if (x < x0 + BW - 1) {
-          step += Math.abs(lum(i + 3) - lum(i))
-          steps++
+  let cSum = 0
+  let over = 0
+  let lSum = 0
+  let lSq = 0
+  let cells = 0
+  let step = 0
+  let steps = 0
+  for (let iy = 0; iy < GY; iy++) {
+    for (let ix = 0; ix < GX; ix++) {
+      if (!found.mask[iy * GX + ix]) continue
+      const x0 = Math.round(ix * CW + (CW - BW) / 2)
+      const y0 = Math.round(iy * CH + (CH - BH) / 2)
+      let r = 0
+      let g = 0
+      let b = 0
+      let n = 0
+      for (let y = y0; y < y0 + BH; y++) {
+        for (let x = x0; x < x0 + BW; x++) {
+          const i = (y * info.width + x) * 3
+          r += data[i]
+          g += data[i + 1]
+          b += data[i + 2]
+          n++
+          if (x < x0 + BW - 1) {
+            step += Math.abs(lum(i + 3) - lum(i))
+            steps++
+          }
         }
       }
+      r /= n
+      g /= n
+      b /= n
+      const mx = Math.max(r, g, b)
+      const mn = Math.min(r, g, b)
+      const sat = mx === 0 ? 0 : (mx - mn) / mx
+      cSum += sat
+      if (sat > 0.35) over++
+      const l = 0.2126 * r + 0.7152 * g + 0.0722 * b
+      lSum += l
+      lSq += l * l
+      cells++
     }
-    r /= n
-    g /= n
-    b /= n
-    const mx = Math.max(r, g, b)
-    const mn = Math.min(r, g, b)
-    const sat = mx === 0 ? 0 : (mx - mn) / mx
-    cSum += sat
-    if (sat > 0.35) over++
-    const l = 0.2126 * r + 0.7152 * g + 0.0722 * b
-    lSum += l
-    lSq += l * l
-    cells++
+  }
+  const mean = lSum / cells
+  const sd = Math.sqrt(Math.max(0, lSq / cells - mean * mean))
+  return {
+    chroma: cSum / cells,
+    over: (100 * over) / cells,
+    mean,
+    sd,
+    micro: step / steps,
   }
 }
-const mean = lSum / cells
-const sd = Math.sqrt(Math.max(0, lSq / cells - mean * mean))
+
 console.log(`${LABEL}  mode=${MODE} tier=${TIER} hour=${HOUR}`)
+console.log(`  seeded from: ${found.seededFrom}`)
 console.log(
-  `  seed material: ${found.type} ${found.hex} rough=${found.rough} metal=${found.metal} ` +
-    `map=${found.maps.map ? 'y' : '.'} nrm=${found.maps.normalMap ? 'y' : '.'} rgh=${found.maps.roughnessMap ? 'y' : '.'}  (${found.mats} materials share it)`,
+  `  seed material: ${found.type} ${found.hex} rough=${found.rough} metal=${found.metal}` +
+    (found.sheen != null ? ` sheen=${found.sheen}/${found.sheenRoughness}` : '') +
+    (found.clearcoat ? ` clearcoat=${found.clearcoat}` : '') +
+    `  map=${found.maps.map ? 'y' : '.'} nrm=${found.maps.normalMap ? 'y' : '.'} rgh=${found.maps.roughnessMap ? 'y' : '.'}  (${found.mats} materials share it)`,
 )
 console.log(
   `  masked ${found.n}/${GX * GY} screen cells (${((100 * found.n) / (GX * GY)).toFixed(1)}%)`,
 )
-console.log(
-  `  chroma=${(cSum / cells).toFixed(3)}  >0.35=${((100 * over) / cells).toFixed(1)}%  mean=${mean.toFixed(1)}  sigma=${sd.toFixed(2)}  microcontrast=${(step / steps).toFixed(3)}`,
-)
+const show = (tag, r) =>
+  console.log(
+    `  ${tag.padEnd(24)} chroma=${r.chroma.toFixed(3)}  >0.35=${r.over.toFixed(1).padStart(5)}%  mean=${r.mean.toFixed(1).padStart(6)}  sigma=${r.sd.toFixed(2).padStart(6)}  microcontrast=${r.micro.toFixed(3)}`,
+  )
+if (!FINISHES.length) {
+  show('as shipped', await measure(''))
+} else {
+  console.log(`  A/B writes prop '${PROP}' on defId '${DEF}'`)
+  for (const f of FINISHES) {
+    await applyFinish(f)
+    show(f, await measure(f.replace(/[^\w-]/g, '_')))
+  }
+}
 await browser.close()

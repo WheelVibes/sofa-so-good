@@ -5,6 +5,55 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.9 — furniture was wearing the floor's wood
+
+The two tables were the loudest remaining objects in both views, and the cause was
+not their colour swatch.
+
+- **`FURNITURE-WOOD-SCALE`.** 21 defs across `defs/{beds,decor,kids,storage,tables}.ts`
+  defaulted their wood finish to `mat:floor-wood-oak`, which the C264 test called
+  "the CC0 oak mat". It is not a CC0 photo material: that id is
+  `kind: 'procedural'`, pattern `wood`, **`uvScale: [1.9, 1.2]` metres** — the FLOOR
+  plank painter. On a 0.55 m coffee-table top that is a ~3x scale mismatch, and it
+  rendered as saturated orange-red decking. Measured over a raycast mask
+  (`surface-detail.mjs`, now selecting by `DEF=<defId>`), all arms in ONE run at
+  walk/Medium/09:00:
+
+  | finish                 | chroma | >0.35 sat | mean  | microcontrast |
+  | ---------------------- | ------ | --------- | ----- | ------------- |
+  | `mat:floor-wood-oak`   | 0.669  | 96.9%     | 84.3  | 3.51          |
+  | **`wood`** (shipped)   | 0.474  | 84.4%     | 92.7  | **1.50**      |
+  | `mat:floor-wood-ash`   | 0.243  | 0.0%      | 136.7 | 5.64          |
+  | `mat:floor-wood-maple` | 0.313  | 28.1%     | 120.8 | 8.66          |
+
+  The whole frame sits at ~0.18 chroma and the sofa at 0.220, so 0.669 was far out
+  of family. Ash and maple have the best numbers and were **rejected on sight**:
+  ash streaks like driftwood, maple reads as animal-print blotch — its 8.66
+  microcontrast is noise, not grain. Higher microcontrast is not automatically
+  better.
+
+- **The swap is piece-dependent, which the measurement caught.** A `mat:<id>`
+  finish supplies its own albedo and IGNORES the primitive's `color` prop; the
+  procedural `wood` painter MULTIPLIES it. So switching wakes up a `color` default
+  that may never have been validated. `tv-console` is exactly that: `TvConsole`'s
+  `color` is #3a2f24, nearly black, and the swap took its mean luminance
+  **61.8 → 37.7** for a chroma gain of only 0.794 → 0.612. Less lurid, but nearly
+  black is not an improvement, so that one def deliberately keeps
+  `mat:floor-wood-oak` until its colour is re-chosen. Every other piece in the
+  sweep sits between #6f553f and #cdb89c.
+
+- **Secondary defect fixed.** `mat:floor-wood-oak` was NOT among the `finish`
+  enum's own `options`, so the default was unselectable — a user who changed the
+  finish could never get back to it. `'wood'` is the first listed option.
+
+- **Probe improvements.** `surface-detail.mjs` gained `DEF=<defId>` selection
+  (finds the item's largest mesh via `userData.itemId` — no more eyeballed NDC,
+  which had previously hit a candle cluster while aiming at a table), a
+  `FINISHES=a,b,c` one-run A/B through the app's own `updateItemProps`, and
+  `PROP=` because beds carry their wood on `frameFinish` — writing the wrong key
+  made every arm byte-identical, which reads as "no effect" rather than "the
+  mutation never landed". It now throws if no items matched.
+
 ## v0.31.5.8 — the upholstery weave was aliased too, for much less gain
 
 The second of the two Nyquist-broken noise fields, fixed and honestly priced.

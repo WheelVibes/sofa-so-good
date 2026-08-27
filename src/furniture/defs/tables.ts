@@ -71,7 +71,7 @@ export const TABLES_DEFS = {
         kind: 'enum',
         key: 'finish',
         label: 'Top finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -141,7 +141,7 @@ export const TABLES_DEFS = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -206,7 +206,7 @@ export const TABLES_DEFS = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -263,7 +263,7 @@ export const TABLES_DEFS = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -490,7 +490,7 @@ export const TABLES_DEFS = {
         kind: 'enum',
         key: 'finish',
         label: 'Top finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -555,7 +555,7 @@ export const TABLES_DEFS = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -613,7 +613,7 @@ export const TABLES_DEFS = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'mat:floor-wood-oak',
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
