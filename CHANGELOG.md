@@ -5,6 +5,70 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.2 — the picture was more colourful than anything in it
+
+Round 10 went looking for the "graphics look like animation" complaint in the
+default flat's surfaces, with content changes now in scope. The brief predicted
+flat, untextured walls. Measurement said otherwise, twice, and the thing it did
+find was one line of default data.
+
+- **Dropped the living/dining room's `wall-paint-warm` override (WARM-WALL-CAST).**
+  The default flat painted its largest room's walls a cream (#e9d8c4, HSV
+  saturation 0.16). A new probe (`chroma-audit.mjs`, which raycasts a 96x60 screen
+  grid and attributes every hit to the material it landed on) showed that wall was
+  the single biggest surface in the app: **21.8% of the living-room walk view and
+  33.6% of the dining view**, ahead of the ceiling and the floor. It was also the
+  reason the rendered image carried more chroma than any material in it — at
+  09:00/Medium every high-coverage albedo sits between 0.00 and 0.22 saturation,
+  yet the frame measured **mean chroma 0.206 with 14.6% of pixels above 0.35**. A
+  warm cast across the surfaces a viewer reads as neutral is the most reliable
+  giveaway that an image was rendered rather than photographed, and a cream wall
+  under a warm morning sun is warm twice over. The room now takes the plain
+  off-white plaster default, which is also what HDB actually hands a flat over
+  with; `wall-paint-warm` stays in the catalog and in the style presets, where a
+  user picks it deliberately.
+
+  Measured as an A/B inside ONE run (`warm-cast.mjs`, via the app's own
+  `setWallFinish` so the whole finish pipeline runs), cream -> off-white:
+
+  | view              | chroma        | pixels >0.35 sat | contrast (sigma) | clipped         |
+  | ----------------- | ------------- | ---------------- | ---------------- | --------------- |
+  | walk/medium/09:00 | 0.206 → 0.180 | 14.6% → 11.1%    | 54.77 → 54.52    | 1.90% → 2.02%   |
+  | walk/medium/13:00 | 0.219 → 0.191 | 17.7% → 13.6%    | 55.82 → 55.53    | 1.90% → 1.99%   |
+  | walk/medium/18:00 | 0.224 → 0.195 | 17.7% → 13.8%    | 55.83 → 55.80    | 1.64% → 1.79%   |
+  | walk/maximum/09:00| 0.206 → 0.182 | 15.4% → 11.9%    | 54.32 → 54.06    | 2.10% → 2.00%   |
+  | orbit/medium/09:00| 0.190 → 0.184 | 13.5% → 13.5%    | 46.81 → 47.03    | 1.17% → 1.17%   |
+  | orbit/maximum/13:00| 0.209 → 0.201| 17.5% → 16.6%    | 48.27 → 48.32    | 1.19% → 1.19%   |
+
+  Contrast is unchanged everywhere and clipping stays flat, so the win costs
+  nothing in either currency. Frame cost is unchanged by construction: both
+  finishes are the same `plaster` procedural pattern sharing the same singleton
+  256² normal + roughness maps, and only `material.color` differs — no new
+  texture, draw call or shader program. Effect is view-dependent and the mode
+  matters: orbit moves a third as much, because the dollhouse view is mostly
+  floor and furniture seen from above with the near walls faded by the reveal.
+
+- **Two predictions falsified, both recorded so they aren't re-tried.** A new
+  `wall-detail.mjs` swept the wall materials one CHANNEL at a time. The
+  hypothesis — that the plaster normal must be invisible indoors, because
+  interiors are fill-lit and `AmbientLight` is perfectly direction-independent —
+  was wrong: against a 0.80 meanAbsDiff noise floor, `normalScale` x6 moved the
+  image **6.21** (20.4% of pixels) and removing the normal map moved it **1.86**,
+  while the albedo mottle the brief called for moved 2.31 with only **0.64%** of
+  pixels past the threshold, i.e. a broad 1% darkening rather than detail. x6 is
+  also plainly gaudy on inspection (popcorn-ceiling stucco), so the shipped
+  strength is about right and the walls needed no new texture art at all.
+  Separately, `warm-cast.mjs` forced the sun, hemisphere and ambient colours to
+  neutral white and moved chroma only 0.206 → 0.203 — so the cast was NOT in the
+  lighting, and the day/night warmth that carries time-of-day is left alone.
+
+- **New probes.** `chroma-audit.mjs` (coverage x saturation ranking),
+  `warm-cast.mjs` (illuminant vs finish), `wall-detail.mjs` (per-channel sweep)
+  and `pick-surface.mjs`, which resolves a screen point to a furniture `defId`
+  plus its exact material values — that is how "the two saturated orange blocks
+  in the foreground" became "dining-chair backrests at 1.75 m", and it is a much
+  better way to turn a visual review into a fix than guessing from a still.
+
 ## v0.31.5.1 — the flat tier was rendering three times its light budget
 
 Round 9 chased the last outliers — ~151 ms at Performance and ~142 ms at High,

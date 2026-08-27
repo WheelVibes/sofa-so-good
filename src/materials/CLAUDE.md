@@ -217,6 +217,37 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   ±0.002). Recipe to recalibrate after any lighting/tonemap change: render the close-up scenario,
   `sharp`-sample the surface region, `newSwatch = target ÷ (render ÷ oldSwatch)` per channel,
   iterate once. Never eyeball-revert a calibrated swatch toward its board hex.
+- **The DEFAULT flat's painted walls stay near-neutral (WARM-WALL-CAST).** `livingDining` used to
+  override its walls to `wall-paint-warm` (#e9d8c4, HSV saturation 0.16). That was the single
+  largest surface in the app — `scripts/dev-probes/chroma-audit.mjs` raycasts a 96x60 screen grid
+  and attributes each hit to its material, and the cream wall covered **21.8% of the living-room
+  walk view and 33.6% of the dining view**, ahead of the ceiling and the floor. It was also the
+  measured reason the picture was more colourful than anything in it: at 09:00/Medium every
+  high-coverage albedo sits at 0.00–0.22 saturation, yet the rendered frame carried **mean chroma
+  0.206 with 14.6% of pixels above 0.35 saturation**. An unbalanced colour cast on the surfaces a
+  viewer reads as neutral is the most reliable giveaway that an image was rendered rather than
+  photographed, and a cream wall under a warm morning illuminant is warm twice over. Dropping the
+  override (`scripts/dev-probes/warm-cast.mjs`, an A/B inside ONE run via the app's own
+  `setWallFinish`) took walk/Medium/09:00 to **chroma 0.180, 11.1% above 0.35**, with contrast
+  (sigma) 54.8 -> 54.5 and the clipped fraction flat at ~1.9% — no cost in either currency. Two
+  things this rule is NOT:
+  · **Not a claim about the lighting.** The same run forced the sun/hemisphere/ambient colours to
+    neutral white and moved chroma only 0.206 -> 0.203, so the cast lived in the FINISH. The
+    day/night warmth that carries time-of-day is correct and untouched — do not "white-balance"
+    the grade on the strength of this finding. (That diagnostic arm is also a cautionary tale: its
+    first version re-asserted the neutral colours on a `setInterval` and came back BYTE-IDENTICAL
+    to the baseline, because `Lighting` rewrites the light colours every frame from the altitude
+    curve and always won the race. It reads exactly like "the illuminant contributes nothing".
+    Neutralising inside a wrapped `renderer.render` is the only point guaranteed to land after
+    `Lighting`'s write and before the draw.)
+  · **Not a ban on warm paint.** `wall-paint-warm` stays in the catalog and in the style presets
+    (Warm Minimal, Japandi, Modern Luxe, …), where the user is choosing it deliberately. The rule
+    binds the DEFAULT only, and `builtinCatalog.test.ts` pins it: every painted-plaster entry in
+    `DEFAULT_WALL` + `DEFAULT_ROOM_WALL` must sit below 0.10 HSV saturation. Tiled wet-wall
+    finishes (glazed porcelain in the kitchen/baths) are a spec choice and are exempt.
+  Effect is view-dependent, so quote the mode: in ORBIT the same A/B moves chroma only
+  0.190 -> 0.184, because the dollhouse view is mostly floor and furniture seen from above with
+  the near walls faded by the reveal. Walk mode is where wall finishes are judged.
 - **Joint widths are real-world millimetres (JOINT-SCALE).** Convert a painter's joint band to
   mm before shipping it: `band_px / S × uvScale_m × 1000` (both sides of the boundary count).
   Real values: rectified porcelain ≈ 2–3 mm, classic ceramic grout ≈ 3–5 mm, wood/vinyl

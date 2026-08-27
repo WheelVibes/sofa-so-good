@@ -575,11 +575,30 @@ export const DEFAULT_ROOM_FLOOR: Partial<Record<RoomId, MaterialId>> = {
 /** SNV spec wall finishes: glazed porcelain wall tile in the kitchen AND both
  *  bathrooms — the sample boards (SNV-BOARDS) show a white-cream wall tile in
  *  the bathroom too, not the grey the earlier guess used; everything else
- *  stays painted plaster (skim-coat + paint, per spec) — livingDining keeps
- *  its existing warm-paint override. `wall-tile-grey` stays in the catalog as
- *  an option. */
+ *  stays painted plaster (skim-coat + paint, per spec), i.e. `DEFAULT_WALL`.
+ *  `wall-tile-grey` stays in the catalog as an option.
+ *
+ *  **`livingDining` no longer overrides to `wall-paint-warm` (WARM-WALL-CAST).**
+ *  That cream (#e9d8c4, HSV saturation 0.16) was a legacy override, not a spec
+ *  finish — HDB hands a flat over skim-coated and painted off-white. It was also
+ *  the largest single surface in the app: `scripts/dev-probes/chroma-audit.mjs`
+ *  measured it covering **21.8% of the living-room walk view and 33.6% of the
+ *  dining view**, more than any other material. And it was the measured reason
+ *  the picture was more colourful than anything in it — at 09:00/Medium the
+ *  highest-coverage surfaces all sit at 0.00–0.22 saturation, yet the rendered
+ *  frame carried mean chroma 0.206 with 14.6% of pixels above 0.35. A cream wall
+ *  under a warm morning illuminant is orange twice over, and an overall colour
+ *  cast on the neutral surfaces is the most reliable giveaway that an image was
+ *  rendered rather than photographed. Dropping the override
+ *  (`scripts/dev-probes/warm-cast.mjs`, walk/Medium/09:00) took mean chroma
+ *  **0.206 → 0.180** and pixels above 0.35 saturation **14.6% → 11.1%**, with
+ *  contrast (σ) unchanged at 54.8 → 54.5 and the clipped fraction flat at ~1.9%.
+ *  For contrast, forcing the sun/hemisphere/ambient colours to neutral white in
+ *  the same run moved it only 0.206 → 0.203 — so the cast lived in the FINISH,
+ *  not in the light, and the day/night warmth that carries time-of-day is
+ *  untouched. `wall-paint-warm` remains in the catalog and in the style presets
+ *  (Warm Minimal, Japandi, …), where a user is choosing it deliberately. */
 export const DEFAULT_ROOM_WALL: Partial<Record<RoomId, MaterialId>> = {
-  livingDining: 'wall-paint-warm',
   bath1: 'wall-tile-white',
   bath2: 'wall-tile-white',
   kitchen: 'wall-tile-white',

@@ -113,6 +113,10 @@ gesture against a real GPU and need `npm run dev:web` running.
 | `tier-look.mjs` | Mean brightness, contrast (pixel σ) and **clipped-highlight fraction** per tier per hour — the exposure regression check. `HOURS=`, `TIERS=`. |
 | `shadow-contribution.mjs` | Whether the sun shadow map changes anything visible, by diffing the same frame with `shadowMapSize` on vs 0. |
 | `orbit-flash.mjs` | Broad multi-tier orbit sweep; writes any blank frame to disk. |
+| `chroma-audit.mjs` | Which surfaces make the frame look CARTOON, ranked by coverage x saturation. Raycasts a 96x60 screen grid and attributes each hit to its material, then reports coverage %, HSV saturation, roughness/metalness and which maps are bound — plus the rendered frame's own chroma. `MODE=walk\|orbit`, `TIER=`, `HOUR=`, `TOP=`. |
+| `warm-cast.mjs` | Whether a warm colour cast belongs to the ILLUMINANT or to the FINISH, as an A/B inside one run. Neutralises the light colours from inside a wrapped `renderer.render` (a `setInterval` loses the race against `Lighting`'s per-frame write and reports a byte-identical no-op) and repaints the living/dining wall via the app's own `setWallFinish`. |
+| `wall-detail.mjs` | What each wall CHANNEL is worth: `normalScale` x6, normal removed, a subtle albedo mottle added, against a repeated-baseline noise floor. Use before authoring texture art for a surface. |
+| `pick-surface.mjs` | "What IS that?" — resolves screen NDC points to a furniture `defId` plus the exact material values (albedo hex, saturation, roughness, metalness, bound maps, size, distance). Turns a visual review into something fixable. `POINTS=label:x,y;…`. |
 
 **Pin the port, and pass it via `SSG_URL`.** Every probe navigates through
 `lib.mjs:appUrl()` (`SSG_URL` → `URL` → `localhost:5173`) rather than a hardcoded

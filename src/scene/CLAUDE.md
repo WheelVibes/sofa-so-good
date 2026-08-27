@@ -288,6 +288,25 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   painted plaster), not by a load failure — and the missing `aoMap` matters much less now that
   screen-space AO runs from Medium up (TIER-AO). Changing the default flat's wall finishes to
   textured plaster is a CONTENT decision, not a bug fix; don't file it as one.
+  Two follow-ups measured the same walls further, and both landed against the obvious guess:
+  · **The wall's responsive channel is the NORMAL, not the albedo** (`wall-detail.mjs`). The
+    prediction was the opposite: since interiors are fill-lit and `AmbientLight` is perfectly
+    direction-independent, a normal map "should" be invisible indoors. Measured at walk/Medium/
+    09:00 against a 0.80 meanAbsDiff noise floor: `normalScale` x6 moved the image **6.21**
+    (20.4% of pixels), removing the normal map entirely moved it **1.86**, and adding a subtle
+    albedo mottle moved it **2.31 but with only 0.64% of pixels past the threshold** — i.e. a
+    broad ~1% darkening rather than visible detail. So the plaster normal IS doing work (the IBL
+    probe is directional enough to reveal it) and there is no missing-albedo problem to fix. x6
+    is also plainly gaudy on inspection — popcorn-ceiling stucco — so the shipped strength is
+    about right. Don't "add an albedo texture to the walls"; it buys a tint, not detail.
+  · **What DID read as cartoon was a colour cast, and it came from ONE default finish.** See
+    WARM-WALL-CAST in `src/materials/CLAUDE.md`, plus the two probes that found it:
+    `chroma-audit.mjs` (raycast a screen grid, rank materials by coverage x saturation — the
+    rendered frame carried mean chroma 0.206 while every high-coverage albedo sat at ≤0.22) and
+    `warm-cast.mjs` (separates the illuminant's share from the finish's; the illuminant owned
+    0.003 of it). `pick-surface.mjs` resolves an NDC point to a furniture `defId` + its exact
+    material values, which is how "those two saturated orange blocks" became "dining-chair
+    backrests at 1.75 m". Prefer these to eyeballing a still.
 - **Price a render feature in BOTH currencies, and against a measured noise floor**
   (`scripts/dev-probes/feature-price.mjs`). It applies one `qualityOverrides` change at a time and
   reports p90 frame cost in ms alongside two visual metrics. Measured at Maximum, 09:00, DPR 2,
