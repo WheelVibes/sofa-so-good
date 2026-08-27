@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.14 — the sofa needed weave relief, not sheen
+
+The default flat's largest furniture surface read as moulded matte plastic. The
+obvious suspect was its sheen layer. It wasn't.
+
+- **Sheen is nearly inert here.** Measured on the sofa
+  (`surface-detail.mjs DEF=sofa-3seat MASK=item`, walk/Medium/09:00, all arms in
+  ONE run, first arm repeated and identical), the entire space — `sheen` 0 / 0.4 /
+  1 crossed with `sheenRoughness` 0.6 / 0.4 / 0.3 / 0.2 — moved microcontrast only
+  **1.24 → 1.68** and mean 130.5 → 138.9, chroma flat at 0.153. And `sheen = 0`
+  sits mid-range at 1.513, **above** the shipped 0.4/0.6's 1.346: a broad sheen
+  lobe fills in the weave's own shading rather than revealing it.
+
+- **The weave normal is the lever.** `normalScale` 0.65 / 1.3 / 2.0 / 3.0 gave
+  microcontrast **1.346 / 2.115 / 2.879 / 3.829**. Shipped **1.3** — the crop
+  reads as woven textile across the whole sofa, where 2.0 becomes a regular grid
+  that looks like mesh screen. The shipped source change re-measured to 2.106
+  against the live arm's 2.115, cross-validating the sweep. Frame cost unchanged
+  on an idle machine (4.5/4.8, 8.3/8.9, 10.3/10.9, 11.3/11.8 ms).
+
+- **FABRIC-WEAVE-KEY — a latent shared-cache bug found on the way, and it would
+  have broken this change.** `getDraperyMaterial` called `getFabricMaterial` and
+  then re-set `normalScale` on the returned instance, with a comment claiming its
+  `rough=0.98` key "never collides with cotton's 0.95 or any other caller". True
+  for linen, false for cotton: a cotton curtain and a woven-fabric sofa of the same
+  colour and pattern both key `fab:<color>:0.95:<pattern>`, so drapery was stomping
+  a shared cached material. Invisible only because both wanted 0.65 — raising the
+  upholstery default would have made the sofa's weave depend on whether a curtain
+  happened to be created first. The relief is now a `weave` parameter folded into
+  the cache key; drapery passes its own (linen 0.95 / cotton 0.65) and keeps its
+  calmer look. Curtains measure 1.755 microcontrast, unchanged by construction.
+
 ## v0.31.5.13 — the last def off the floor painter, and a silent-default trap
 
 `tv-console` was the one piece FURNITURE-WOOD-SCALE (v0.31.5.9) held back, because

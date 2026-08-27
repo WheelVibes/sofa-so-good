@@ -92,6 +92,32 @@ const PROP = process.env.PROP || 'finish'
  */
 const NORMAL_SCALES = (process.env.NORMAL_SCALES || '').split(',').filter(Boolean).map(Number)
 /**
+ * Generic live MATERIAL-property sweep, one arm per `;`-separated group, each
+ * group a comma-separated `key=value` list applied to every masked material:
+ *
+ *   MATPROPS='sheen=0;sheen=0.4;sheen=1,sheenRoughness=0.25'
+ *
+ * Values parse as numbers when numeric, else as strings (so `sheenColor=#ffffff`
+ * works via `Color.set`). Every arm restores the captured originals first, so an
+ * arm never inherits the previous one's state.
+ *
+ * Use this for anything shading-related that lives on the material rather than in
+ * the texture bake — `sheen`/`sheenRoughness`/`sheenColor`, `clearcoat`,
+ * `roughness`, `metalness`. Note `sheen` in three is a Fresnel-weighted
+ * retroreflective lobe driven mostly by the ENVIRONMENT, so it is near-inert on
+ * `performance` (no IBL) and shows most at GRAZING angles — measure a grazing view,
+ * not just head-on, or a real difference will read as nothing.
+ */
+const MATPROPS = (process.env.MATPROPS || '')
+  .split(';')
+  .filter(Boolean)
+  .map((group) =>
+    group.split(',').map((kv) => {
+      const [k, v] = kv.split('=')
+      return [k.trim(), Number.isNaN(Number(v)) ? v.trim() : Number(v)]
+    }),
+  )
+/**
  * Props to set ONCE on the `DEF` item(s) before the mask is built, as
  * `key=value,key=value`. Use it to pin the context a sweep runs in — e.g.
  * `PRESET=finish=wood` before sweeping `PROP=color`, since the sweep itself only
@@ -197,6 +223,45 @@ if (PRESET.length) {
   await assertSceneAlive(page, 'after PRESET')
 }
 if (FINISHES.length) await applyFinish(FINISHES[0])
+
+/** Apply one MATPROPS arm, restoring the captured originals first. */
+async function applyMatProps(pairs) {
+  const n = await page.evaluate((kvs) => {
+    const wd = window.__sd
+    if (!wd?.mats?.length) return 0
+    if (!wd.orig) {
+      // Snapshot every key any arm will touch, so a restore is exact.
+      wd.orig = wd.mats.map((m) => ({
+        m,
+        sheen: m.sheen,
+        sheenRoughness: m.sheenRoughness,
+        sheenColor: m.sheenColor?.clone?.() ?? null,
+        clearcoat: m.clearcoat,
+        roughness: m.roughness,
+        metalness: m.metalness,
+      }))
+    }
+    for (const o of wd.orig) {
+      for (const k of ['sheen', 'sheenRoughness', 'clearcoat', 'roughness', 'metalness'])
+        if (o[k] !== undefined) o.m[k] = o[k]
+      if (o.sheenColor && o.m.sheenColor) o.m.sheenColor.copy(o.sheenColor)
+      o.m.needsUpdate = true
+    }
+    for (const m of wd.mats) {
+      for (const [k, v] of kvs) {
+        if (k === 'sheenColor') m.sheenColor?.set(v)
+        else m[k] = v
+      }
+      m.needsUpdate = true
+    }
+    const st = window.__store.getState()
+    st.setManualHour(st.manualHour)
+    return wd.mats.length
+  }, pairs)
+  if (!n) throw new Error('no materials captured for the MATPROPS sweep')
+  await new Promise((r) => setTimeout(r, 1600))
+  await assertSceneAlive(page, `matprops ${JSON.stringify(pairs)}`)
+}
 
 /** Set every masked material's normalScale (uniform x/y). */
 async function applyNormalScale(v) {
@@ -439,7 +504,14 @@ const show = (tag, r) =>
   console.log(
     `  ${tag.padEnd(24)} chroma=${r.chroma.toFixed(3)}  >0.35=${r.over.toFixed(1).padStart(5)}%  mean=${r.mean.toFixed(1).padStart(6)}  sigma=${r.sd.toFixed(2).padStart(6)}  microcontrast=${r.micro.toFixed(3)}`,
   )
-if (NORMAL_SCALES.length) {
+if (MATPROPS.length) {
+  console.log(`  MATPROPS sweep over ${found.mats} masked material(s)`)
+  for (const arm of MATPROPS) {
+    await applyMatProps(arm)
+    const tag = arm.map(([k, v]) => `${k}=${v}`).join(',')
+    show(tag, await measure(tag.replace(/[^\w.=-]/g, '_')))
+  }
+} else if (NORMAL_SCALES.length) {
   console.log(`  normalScale sweep over ${found.mats} masked material(s)`)
   for (const v of NORMAL_SCALES) {
     await applyNormalScale(v)

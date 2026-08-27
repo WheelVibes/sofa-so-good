@@ -770,3 +770,26 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   `getSurfaceMaterial('brass')` with a canonical brass tint + exposed as a side-table top finish).
   Tests: `procedural/patterns/heritagePatterns.test.ts` (peranakan multi-colour/matte + limewash
   cloudier-than-plaster) and `catAMaterials.test.ts` (bouclé/sintered/brass, both `pbrSurfaces` modes).
+- **Woven upholstery reads as foam without weave RELIEF, and SHEEN is not the lever
+  (FABRIC-WEAVE-KEY).** The default flat's sofa is its largest furniture surface and read as moulded
+  matte plastic in close-up. Measured on it (`surface-detail.mjs DEF=sofa-3seat MASK=item`,
+  walk/Medium/09:00, every arm in ONE run with the first repeated and identical):
+  · **Sheen is nearly inert.** The whole space — `sheen` 0 / 0.4 / 1 crossed with `sheenRoughness`
+    0.6 / 0.4 / 0.3 / 0.2 — moved microcontrast only **1.24 → 1.68** and mean 130.5 → 138.9, with
+    chroma flat at 0.153. Worse, `sheen = 0` sits mid-range at 1.513, ABOVE the shipped 0.4/0.6's
+    1.346: a broad sheen lobe FILLS IN the weave's own shading instead of revealing it. Note also
+    that three's sheen is a Fresnel-weighted retroreflective lobe driven mostly by the environment,
+    so it is near-dead on `performance` (no IBL) and shows most at grazing angles.
+  · **The weave normal is the lever.** `normalScale` 0.65 / 1.3 / 2.0 / 3.0 gave microcontrast
+    **1.346 / 2.115 / 2.879 / 3.829**. Shipped **1.3**: the crop reads as woven textile across the
+    whole sofa, where 2.0 becomes a regular grid that looks like mesh screen. The shipped source
+    change re-measured to 2.106 against the live arm's 2.115.
+  **The relief is now a PARAMETER folded into the cache key, and that was a latent bug.**
+  `getDraperyMaterial` used to call `getFabricMaterial` and then re-set `normalScale` on the
+  returned instance, with a comment claiming its `rough=0.98` key "never collides with cotton's 0.95
+  or any other caller". True for linen, FALSE for cotton: a cotton curtain and a woven-fabric sofa
+  of the same colour and pattern both key `fab:<color>:0.95:<pattern>`, so drapery was stomping a
+  shared cached material. It was invisible only because both wanted 0.65 — raising the upholstery
+  default would have made the sofa's weave depend on whether a curtain was created first. Drapery
+  now passes its own `weave` (linen 0.95 / cotton 0.65) and gets its own cache entry. **Never mutate
+  a material returned from this cache; add the axis to the key.**

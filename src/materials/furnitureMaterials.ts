@@ -595,9 +595,33 @@ export function getFabricMaterial(
   /** <1 makes the cloth translucent (sheer curtains/blinds). Folded into the
    *  cache key; default 1 keeps every existing caller byte-identical. */
   opacity = 1,
+  /**
+   * Weave relief (`normalScale`), FOLDED INTO THE CACHE KEY (FABRIC-WEAVE-KEY).
+   *
+   * It has to be a parameter rather than a post-hoc mutation, because this cache
+   * is shared across callers that want different relief: `getDraperyMaterial`
+   * used to call this and then re-set `normalScale` on the returned instance,
+   * with a comment claiming its `rough=0.98` key "never collides with cotton's
+   * 0.95 or any other caller". That is true for LINEN and false for COTTON — a
+   * cotton curtain and a woven-fabric sofa of the same colour and pattern both
+   * key `fab:<color>:0.95:<pattern>`, so the drapery call stomped the sofa's
+   * weave. It was invisible only because both wanted 0.65; raising the upholstery
+   * default made it an order-dependent bug, so the mutation is gone.
+   *
+   * Default 1.3 (was 0.65): measured on the default flat's sofa
+   * (`surface-detail.mjs DEF=sofa-3seat MASK=item`, walk/Medium/09:00), the weave
+   * normal is the only responsive lever for "the panels read like moulded foam" —
+   * microcontrast 1.346 / 2.115 / 2.879 / 3.829 at 0.65 / 1.3 / 2.0 / 3.0. At 1.3
+   * the weave reads across the whole sofa as woven textile; at 2.0 it becomes a
+   * regular grid that looks like mesh screen. SHEEN is NOT the lever: the entire
+   * space (`sheen` 0 -> 1 x `sheenRoughness` 0.6 -> 0.2) moved microcontrast only
+   * 1.24 -> 1.68, with `sheen = 0` sitting mid-range ABOVE the shipped 0.4/0.6 —
+   * a broad sheen lobe fills in the weave's own shading rather than revealing it.
+   */
+  weave = 1.3,
 ): MeshStandardMaterial {
   const sheer = opacity < 1
-  const key = `fab:${color}:${rough.toFixed(2)}:${pattern}${doubleSided ? ':2s' : ''}${sheer ? `:o${opacity.toFixed(2)}` : ''}`
+  const key = `fab:${color}:${rough.toFixed(2)}:${pattern}${doubleSided ? ':2s' : ''}${sheer ? `:o${opacity.toFixed(2)}` : ''}:w${weave.toFixed(2)}`
   const hit = cache.get(key)
   if (hit) return hit
   const patterned =
@@ -615,8 +639,7 @@ export function getFabricMaterial(
     ...(doubleSided ? { side: DoubleSide } : {}),
     ...(sheer ? { transparent: true, opacity, depthWrite: false } : {}),
   })
-  // Sharper weave relief so linen/cotton catch grazing light without noise.
-  m.normalScale.set(0.65, 0.65)
+  m.normalScale.set(weave, weave)
   const sheen = sheenLayer('fabric')
   if (sheen) applySheen(m, color, sheen)
   cache.set(key, m)
@@ -877,15 +900,21 @@ export function getDraperyMaterial(
   // `sheer` weave falls through to cotton; its translucency now comes from
   // `opacity`, set from the opacity level by the caller.)
   const linen = kind === 'linen'
-  const m = getFabricMaterial(color, linen ? 0.98 : 0.95, pattern, doubleSided, opacity)
-  // Linen's rough roughness alone is a near-imperceptible delta up close — give
-  // it a visibly looser, coarser weave relief than cotton's finer one (the same
-  // shared fabric normal map, just a stronger intensity) so the two weaves read
-  // distinctly rather than only differing by a hairline roughness value. Safe
-  // to mutate the cached instance: linen's `rough=0.98` key never collides with
-  // cotton's `0.95` or any other `getFabricMaterial` caller.
-  m.normalScale.set(linen ? 0.95 : 0.65, linen ? 0.95 : 0.65)
-  return m
+  // Drapery keeps the calmer weave relief it was tuned with — curtains already
+  // read as cloth from their folds and vertical gathers, and they occupy a large
+  // share of the frame, so the upholstery's stronger 1.3 would be loud here.
+  // Passed as a PARAMETER (folded into the cache key) rather than mutated onto the
+  // returned instance: cotton's key collides with the woven-fabric upholstery of
+  // the same colour/pattern, so the old post-hoc `normalScale.set` was stomping a
+  // shared cached material. See FABRIC-WEAVE-KEY in `getFabricMaterial`.
+  return getFabricMaterial(
+    color,
+    linen ? 0.98 : 0.95,
+    pattern,
+    doubleSided,
+    opacity,
+    linen ? 0.95 : 0.65,
+  )
 }
 
 /** Flat painted material — matte by default, or glossy (lacquered) when
