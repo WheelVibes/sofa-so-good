@@ -818,8 +818,21 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   ever built. Both cache keys now use the requested metalness, which also collapses the two
   IBL-split entries into one. Verified: the frame slab goes 0.75 → 0.25 on demotion and back on
   promotion.
-  **Still outstanding, measured:** scene-wide meshes above the cap at `performance` fell 69 → **57**.
-  The remainder do not go through these two factories — they are inline `<meshStandardMaterial
-  metalness={…}>` declarations in primitives, plus `cache.ts`'s scanned `metalnessMap` binding. Any
-  new metallic material should route through `registerCappedMetal` rather than setting `metalness`
-  directly.
+  **The remaining 57 need NO action — measured, don't sweep them.** Scene-wide meshes above the cap
+  at `performance` fell 69 → 57, and the leftovers do bypass these factories (inline
+  `<meshStandardMaterial metalness={…}>` in primitives, plus `cache.ts`'s scanned `metalnessMap`
+  binding). But a threshold violation is not a defect. Enumerated, every one sits in a narrow
+  **0.30–0.40** band — `#e6e7e4@0.35 x34` dominates, then a handful of dark trims at 0.30–0.40 —
+  where the diffuse term is still 60–70%, nowhere near the no-diffuse black the cap exists to
+  prevent (the fixed slab was **0.75**). Capping all 57 live and diffing the centre slab at
+  `performance`/13:00 moved the frame **0.04% of pixels, meanAbsDiff 0.02** — pure noise against the
+  0.2–0.8 floors these probes usually report. So the cap's purpose is satisfied; a 57-call-site sweep
+  would be churn. Still route any NEW metallic material through `registerCappedMetal`, because a
+  future preset could ask for 0.8.
+  · **`setManualHour(h)` is NOT a side-effect-free redraw nudge** — it switches `timeMode` to manual
+    and jumps the scene to `manualHour` (it even ticks the onboarding checklist's "Scrub the time of
+    day"). `metal-tier-stale.mjs` used it purely as an invalidate without pinning the clock first, so
+    its two captures straddled a live-clock night and a manual daylight hour: the diff read
+    **98.97% of pixels, meanAbsDiff 96.37** and looked like a colossal metalness effect. An
+    implausibly LARGE result needs proving exactly as much as a null one. Pin
+    `setTimeMode('manual')` + `setManualHour(h)` at the top of every probe.

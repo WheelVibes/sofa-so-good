@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.16 — the remaining 57 uncapped metals need no fix (measured)
+
+No app-code change this round. The value is a follow-up retired on evidence and a
+committed probe with a real methodology bug fixed.
+
+- **v0.31.5.15 left "57 meshes still above the 0.25 cap at `performance`" as
+  follow-up. Enumerated and measured, they need no action.** The probe now lists
+  the offenders rather than counting them: every one sits in a narrow **0.30–0.40**
+  band — `#e6e7e4@0.35 x34` dominates, then a handful of dark trims — where the
+  diffuse term is still 60–70%, nowhere near the no-diffuse black the cap exists to
+  prevent. The defect that WAS real measured 0.75. Capping all 57 live and diffing
+  the centre slab at `performance`/13:00 moved the frame **0.04% of pixels,
+  meanAbsDiff 0.02** — pure noise against the 0.2–0.8 floors these probes usually
+  report. A 57-call-site sweep would have been churn dressed as rigour. New
+  metallic materials should still route through `registerCappedMetal`, because a
+  future preset could ask for 0.8.
+
+- **`setManualHour(h)` is not a side-effect-free redraw nudge, and it invalidated
+  the first version of that measurement.** Probes use it to force a frame under
+  `frameloop="demand"`, but it also switches `timeMode` to manual and jumps the
+  scene to `manualHour`. `metal-tier-stale.mjs` used it purely as an invalidate and
+  never pinned the clock, so its two captures straddled the live local time (night,
+  at the hour it ran) and manual daylight. The diff read **98.97% of pixels /
+  meanAbsDiff 96.37** and looked like a colossal metalness effect. The tell was in
+  the screenshots: the onboarding checklist's "Scrub the time of day" is unticked
+  in the first and ticked in the second. Pinned the clock; the same measurement
+  then read 0.04% / 0.02.
+
+  **An implausibly LARGE result deserves the same suspicion as a byte-identical
+  one.** Every other probe here pins `setTimeMode('manual')` + `setManualHour(h)`
+  at the top; this one, added last round, did not. Written up in the playbook.
+
+- **Also confirmed from the fresh re-baseline:** the chroma work is done (living
+  room 0.165 mean chroma / 3.5% of pixels above 0.35 saturation; bedroom
+  0.182 / 0.0%), so saturation should not be re-litigated without new data.
+
 ## v0.31.5.15 — the no-IBL metalness cap was frozen at boot
 
 Re-baselined first, as planned, and the old ranking is indeed obsolete: at

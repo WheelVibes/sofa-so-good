@@ -25,7 +25,9 @@
  * flat's wardrobes (whose sliding-door "aluminium frame" is a ~1 m2 panel at
  * metalness 0.75) plus a scene-wide census, before and after each switch.
  */
+import fs from 'node:fs'
 import puppeteer from 'puppeteer'
+import sharp from 'sharp'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 
 const DEF = process.env.DEF || 'wardrobe-3door'
@@ -56,6 +58,21 @@ await page.waitForSelector('canvas', { timeout: 60000 })
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
 await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
+// Pin the CLOCK before anything else. `setManualHour(h)` is NOT a side-effect-free
+// redraw nudge — it switches `timeMode` to manual and jumps the scene to
+// `manualHour`. This probe used it purely as an invalidate and never pinned the
+// time, so its first capture was the live clock (night, at the hour this ran) and
+// the second was daylight: a whole-frame day/night flip that read as
+// "pixels>8 = 98.97%, meanAbsDiff 96.37" and looked like a colossal metalness
+// effect. It even ticked the onboarding checklist's "Scrub the time of day".
+await page.evaluate(
+  (h) => {
+    const st = window.__store.getState()
+    st.setTimeMode('manual')
+    st.setManualHour(h)
+  },
+  Number(process.env.HOUR || 13),
+)
 // Pin the tier BEFORE the furniture materials are first built, so the starting
 // IBL state is the one baked into them.
 await page.evaluate((t) => window.__store.getState().setQualityTier(t), START)
@@ -96,6 +113,9 @@ async function census(def) {
       item: [...item.entries()].sort(),
       highMetalMeshes: hi.reduce((a, [, n]) => a + n, 0),
       highMetalKinds: hi.length,
+      // The actual offenders, so the fix targets measured materials rather than a
+      // grep's guess about which `metalness:` literals matter.
+      offenders: hi.sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} x${n}`),
       env: !!window.__three.scene.environment,
     }
   }, def)
@@ -122,6 +142,57 @@ console.log(`  ${DEF} materials (colour@metalness x meshes): ${JSON.stringify(af
 console.log(
   `  scene-wide: ${after.highMetalMeshes} meshes across ${after.highMetalKinds} material kinds above the 0.25 cap`,
 )
+if (!after.env && after.offenders.length) {
+  console.log('  offenders (colour@metalness x meshes) — no environment to reflect:')
+  for (const o of after.offenders) console.log(`    ${o}`)
+}
+// Does the REMAINING over-cap band actually matter? A threshold violation is not
+// a defect: the cap exists because a fully metallic surface has no diffuse term
+// and renders black, but at metalness 0.35 the diffuse term is still 65%. So
+// measure it — cap every offender live and diff the frame, pose-independently.
+const capImpact = await (async () => {
+  const box = { left: 320, top: 144, width: 640, height: 440 } // centre slab, DOM-free
+  const shot = async () => {
+    await new Promise((r) => setTimeout(r, 1200))
+    return page.screenshot({ type: 'png' })
+  }
+  const raw = async (buf) => await sharp(buf).extract(box).removeAlpha().raw().toBuffer()
+  const bufA = await shot()
+  fs.writeFileSync('/tmp/ssg-metal/capA.png', bufA)
+  const a = await raw(bufA)
+  const n = await page.evaluate((cap) => {
+    let touched = 0
+    window.__three.scene.traverse((o) => {
+      if (!o.isMesh || !o.material) return
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (m.metalness != null && m.metalness > cap) {
+          m.metalness = cap
+          m.needsUpdate = true
+          touched++
+        }
+      }
+    })
+    const st = window.__store.getState()
+    st.setManualHour(st.manualHour)
+    return touched
+  }, 0.25)
+  const bufB = await shot()
+  fs.writeFileSync('/tmp/ssg-metal/capB.png', bufB)
+  const b = await raw(bufB)
+  let changedPx = 0
+  let abs = 0
+  for (let i = 0; i < a.length; i++) {
+    const d = Math.abs(a[i] - b[i])
+    abs += d
+    if (d > 8) changedPx++
+  }
+  return { touched: n, pct: (100 * changedPx) / a.length, mean: abs / a.length }
+})()
+console.log(
+  `\ncapping the remaining ${capImpact.touched} over-cap materials live, at ${THEN}:` +
+    `  pixels>8=${capImpact.pct.toFixed(2)}%  meanAbsDiff=${capImpact.mean.toFixed(2)}`,
+)
+
 const changed = JSON.stringify(before.item) !== JSON.stringify(after.item)
 console.log(
   `\nitem metalness ${changed ? 'UPDATED' : 'UNCHANGED'} across the tier switch` +

@@ -122,6 +122,15 @@ gesture against a real GPU and need `npm run dev:web` running.
 | `tone-curve.mjs` | Whole-frame sweep of the view transform (filmic / agx / neutral) and the post-saturation dial across the day in either view mode: mean, contrast, clipped fraction, chroma. Use this — never one material's numbers — to judge a change that applies to the whole image. `HOURS=`, `TONES=`, `SATS=`. |
 | `snv-response.mjs` | TONE-CALIBRATION guard: the mean RENDERED RGB of a masked SNV floor under each tone operator, plus the peak-normalised per-channel response and how far it drifts. Run before any lighting or tone-mapping change, since the five SNV swatches were solved against that response. |
 
+**`setManualHour(h)` is not a side-effect-free redraw nudge.** Probes use it to force a frame
+under `frameloop="demand"`, but it also switches `timeMode` to manual and jumps the scene to
+`manualHour` — so in a probe that never pinned the clock, the first capture is the LIVE local time
+and a later one is daylight. That produced a diff of **98.97% of pixels / meanAbsDiff 96.37** which
+looked like an enormous material effect and was a day/night flip (it also ticked the onboarding
+checklist's "Scrub the time of day", which is the tell in the screenshot). Corrected, the same
+measurement read 0.04% / 0.02. **Pin `setTimeMode('manual')` + `setManualHour(h)` before anything
+else**, and treat an implausibly LARGE result with the same suspicion as a byte-identical one.
+
 **Never quote an exposure or clipping number from the FULL CANVAS rect.** The toolbar, the
 "Get started" card and the zoom/compass rail are DOM panels drawn over the canvas, and they are
 translucent — their brightness tracks whatever the canvas puts behind them, so they differ per
