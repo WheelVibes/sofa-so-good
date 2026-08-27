@@ -20,14 +20,16 @@ const EffectsImpl = lazyWithRetry(() => import('./EffectsImpl'))
  * (`dofFocusDistance`); a lower f-stop → a larger bokeh + tighter focus range.
  */
 export function Effects() {
-  const { postprocessing, aoFullRes, cinematic, dof } = useQuality()
+  const { postprocessing, ao, aoFullRes, cinematic, dof } = useQuality()
   const dofFStop = useStore((s) => s.dofFStop)
   const dofFocusDistance = useStore((s) => s.dofFocusDistance)
-  if (!postprocessing) return null
+  // A composer mounts for the FULL stack or for AO alone (TIER-AO).
+  if (!postprocessing && !ao) return null
   const dofEnabled = dof && isFeatureEnabled('cameraDof') && dofFStop > 0
   return (
     <Suspense fallback={null}>
       <EffectsImpl
+        full={postprocessing}
         aoFullRes={aoFullRes}
         cinematic={cinematic}
         dof={dofEnabled}

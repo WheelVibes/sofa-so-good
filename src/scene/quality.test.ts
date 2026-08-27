@@ -126,3 +126,36 @@ describe('resolveQuality — undefined override values (QUALITY-OVERRIDE-UNDEF)'
     expect(r).toEqual(QUALITY_PRESETS.high)
   })
 })
+
+describe('the ao tier flag (TIER-AO)', () => {
+  it('gives medium ambient occlusion without the full post stack', () => {
+    // Medium is the tier the adaptive ladder auto-selects for most browsers, and
+    // AO is the only pass that shapes non-directional fill — which is what
+    // interiors here are lit by. Measured: 2.2ms for a meanAbsDiff of 12.94, the
+    // best value-per-millisecond of any feature in the stack.
+    expect(QUALITY_PRESETS.medium.ao).toBe(true)
+    expect(QUALITY_PRESETS.medium.postprocessing).toBe(false)
+  })
+
+  it('keeps the flat tier flat', () => {
+    // Performance's grounding cue is the cheap ContactShadow decal, not a composer.
+    expect(QUALITY_PRESETS.performance.ao).toBe(false)
+    expect(QUALITY_PRESETS.performance.postprocessing).toBe(false)
+  })
+
+  it('is implied by the full post stack', () => {
+    // The full stack always contains N8AO, so a tier with postprocessing must
+    // report ao too or callers would have to special-case it.
+    for (const tier of RENDER_TIERS) {
+      const p = QUALITY_PRESETS[tier]
+      if (p.postprocessing) expect(p.ao).toBe(true)
+    }
+  })
+
+  it('never has aoFullRes without ao', () => {
+    for (const tier of RENDER_TIERS) {
+      const p = QUALITY_PRESETS[tier]
+      if (p.aoFullRes) expect(p.ao).toBe(true)
+    }
+  })
+})

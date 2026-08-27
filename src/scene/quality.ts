@@ -35,6 +35,24 @@ export interface QualitySettings {
   ibl: boolean
   /** Run the post-processing stack (bloom + AO + SMAA). GPU-intensive. */
   postprocessing: boolean
+  /**
+   * Mount ambient occlusion, WITHOUT the rest of the post stack (TIER-AO).
+   *
+   * AO is the only thing that shapes non-directional fill, and interiors here are
+   * lit almost entirely by fill: the real ceiling (walk) and the virtual ceiling
+   * occluder (orbit) keep the sun off interior surfaces, so the otherwise healthy
+   * ~2.2:1 key:fill ratio has nothing to act on indoors. Without AO a room has no
+   * corner darkening and no contact darkening under furniture — which is the
+   * "looks like animation, not real" read.
+   *
+   * Kept separate from `postprocessing` so `medium` — the tier the adaptive ladder
+   * auto-selects for most browsers — can have AO without paying for bloom, DoF,
+   * grain, chromatic aberration or SMAA. Implied by `postprocessing` (the full
+   * stack always includes AO); a tier with `ao` but not `postprocessing` mounts a
+   * minimal composer: AO + the tone mapper (mandatory — see `toneMappingPost.ts`,
+   * a composer disables three's own view transform) + HueSaturation.
+   */
+  ao: boolean
   /** Max simultaneous furniture point lights at night. */
   maxFixtureLights: number
   /** Upper device-pixel-ratio clamp. */
@@ -85,6 +103,9 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     shadowMapSize: 0,
     ibl: false,
     postprocessing: false,
+    // The flat tier stays flat: its grounding cue is the cheap ContactShadow
+    // blob decal, not a composer.
+    ao: false,
     maxFixtureLights: 2,
     dprMax: 1,
     wallReveal: true,
@@ -103,6 +124,10 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     shadowMapSize: 1024,
     ibl: true,
     postprocessing: false,
+    // TIER-AO: AO without the rest of the stack. This is the tier most browsers
+    // land on, and it is the difference between a room that has corners and one
+    // that reads as flat shading.
+    ao: true,
     maxFixtureLights: 6,
     dprMax: 1.5,
     wallReveal: true,
@@ -119,6 +144,7 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     shadowMapSize: 2048,
     ibl: true,
     postprocessing: true,
+    ao: true,
     maxFixtureLights: 8,
     dprMax: 2,
     wallReveal: true,
@@ -135,6 +161,7 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     shadowMapSize: 4096,
     ibl: true,
     postprocessing: true,
+    ao: true,
     maxFixtureLights: 12,
     dprMax: 2,
     wallReveal: true,

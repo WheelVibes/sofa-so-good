@@ -22,6 +22,12 @@ import { resolveToneMapping, toneContextFromState } from './toneContext'
 import { TONE_MAPPING_POST } from './toneMappingPost'
 
 interface EffectsProps {
+  /**
+   * Run the FULL post stack. When false the composer mounts in AO-ONLY mode
+   * (TIER-AO): ambient occlusion + the tone mapper + HueSaturation, and nothing
+   * else — no bloom, DoF, chromatic aberration, vignette, grain or SMAA.
+   */
+  full?: boolean
   /** Render SSAO at full resolution (sharper, deeper) instead of half-res. */
   aoFullRes?: boolean
   /** Add the cinematic finish: faint film grain + subtle chromatic aberration. */
@@ -61,8 +67,17 @@ interface EffectsProps {
  *
  * Effects are assembled into a keyed array (the composer's children typing
  * rejects conditional `null`s) so the cinematic passes drop in/out cleanly.
+ *
+ * `full={false}` is AO-ONLY mode (TIER-AO), used by `medium`: ambient occlusion,
+ * the tone mapper and HueSaturation only. AO is the one pass that shapes
+ * non-directional fill, and interiors here are fill-lit, so it is what makes a
+ * room read as having corners. The tone mapper is NOT optional in that mode —
+ * mounting any composer disables three's own view transform (see
+ * `toneMappingPost.ts`), so dropping it would blow the highlights exactly the way
+ * High/Maximum used to.
  */
 export default function EffectsImpl({
+  full = true,
   aoFullRes = false,
   cinematic = false,
   dof = false,
@@ -120,7 +135,7 @@ export default function EffectsImpl({
   // Raster depth of field (PC2-CAM-DOF-LENS). World-space focus (metres) so the
   // model matches the HQ path tracer; half-res (`resolutionScale`) to keep the
   // bokeh convolution cheap. Mounted only when DoF is enabled upstream.
-  if (dof) {
+  if (full && dof) {
     effects.push(
       <DepthOfField
         key="dof"
@@ -137,7 +152,7 @@ export default function EffectsImpl({
   // intensity-zeroed Bloom is NOT inert: its blur texture is still sampled by the
   // combined effect shader, which is exactly the path that blanked frames (see
   // the mipmapBlur note below). Skipping it outright is both cheaper and safer.
-  if (bloomActiveForDay(dayLevel)) {
+  if (full && bloomActiveForDay(dayLevel)) {
     effects.push(
       <Bloom
         key="bloom"
@@ -179,14 +194,22 @@ export default function EffectsImpl({
   }
   effects.push(<ToneMapping key="tone" mode={TONE_MAPPING_POST[toneMode]} />)
   effects.push(<HueSaturation key="hue" saturation={hueSatSaturation(sceneSaturation)} hue={0} />)
-  if (cinematic) {
+  if (full && cinematic) {
     effects.push(
       <ChromaticAberration key="ca" offset={caOffset} radialModulation modulationOffset={0.35} />,
     )
   }
-  effects.push(<Vignette key="vig" eskil={false} offset={0.32} darkness={0.55} />)
-  if (cinematic) effects.push(<Noise key="noise" premultiply opacity={0.035} />)
-  effects.push(<SMAA key="smaa" />)
+  if (full) effects.push(<Vignette key="vig" eskil={false} offset={0.32} darkness={0.55} />)
+  if (full && cinematic) effects.push(<Noise key="noise" premultiply opacity={0.035} />)
+  // SMAA belongs to the full stack. In AO-only mode the composer instead keeps
+  // real MSAA (below), which is both cheaper here and better on edges.
+  if (full) effects.push(<SMAA key="smaa" />)
 
-  return <EffectComposer multisampling={0}>{effects}</EffectComposer>
+  // Antialiasing has to be replaced, not dropped, when the full stack is off: the
+  // Canvas is created with `antialias: true`, but a composer renders the scene
+  // into its OWN off-screen target, so the canvas' MSAA no longer applies. With
+  // `multisampling={0}` and no SMAA an AO-only Medium would have visibly worse
+  // edges than Medium had with no composer at all — a realism regression sold as
+  // a realism feature. 4 samples is the measured `MAX_SAMPLES` on this GPU class.
+  return <EffectComposer multisampling={full ? 0 : 4}>{effects}</EffectComposer>
 }

@@ -37,6 +37,7 @@ const ALL_CASES = [
   { label: 'geometryDetail 0.7', ov: { geometryDetail: 0.7 } },
   { label: 'ibl off', ov: { ibl: false } },
   { label: 'contactShadows off', ov: { contactShadows: false } },
+  { label: 'ao off (TIER-AO)', ov: { ao: false } },
 ]
 
 /**

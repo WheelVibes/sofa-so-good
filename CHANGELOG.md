@@ -5,6 +5,51 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.4.0 — ambient occlusion for the tier most browsers actually get
+
+Round 6. Two tasks were queued: push the key:fill ratio, and get ambient
+occlusion below the post tiers. The first turned out to be already done — and the
+claim that it wasn't was my own error.
+
+- **Correction: the key:fill ratio is fine.** v0.31.3.1 said the sun was "~0.99
+  against ~1.1 of fill", concluding interiors were flat because a shadow only
+  removed half a surface's light. That quoted the PRE-KEY-FILL-BALANCE fill
+  numbers next to a POST-fix sun — the same class of error this branch has been
+  catching in probes, this time in reasoning. Measured live with a new
+  `scripts/dev-probes/light-balance.mjs`: sun 0.985–1.000 against fill
+  0.455–0.457, i.e. **2.17–2.19:1 in daylight**, a healthy photographic ratio that
+  KEY-FILL-BALANCE already achieved. Pushing it further would only risk
+  reintroducing the blown highlights fixed in v0.31.0.0, so it was left alone.
+  The real reason interiors stay flat is simpler: indoors the sun reaches almost
+  nothing (real ceiling in walk, occluder in orbit, walls everywhere), so the
+  ratio has nothing to act on and interiors are effectively fill-ONLY.
+- **Ambient occlusion now runs below the post tiers (TIER-AO).**
+  `QualitySettings.ao` is separate from `postprocessing`, and `medium` gets
+  `ao: true, postprocessing: false` — a minimal composer with N8AO + the tone
+  mapper + HueSaturation and nothing else. This is the tier the adaptive ladder
+  auto-selects for most browsers, and AO is the only pass that shapes fill-only
+  lighting, so it is the difference between a room that has corners and one that
+  reads as flat shading.
+- **Measured, and it is the best value in the stack by a wide margin.** At Medium,
+  idle machine, 09:00: **2.2 ms for pixels>8 = 25.81% / meanAbsDiff 12.94**
+  against a ~0 noise floor. For comparison the full post stack is 5.7 ms for 7.35,
+  the IBL probe 2.2 ms for 3.16, and sun shadows 2.9 ms for 0.61. Medium lands at
+  8.4 ms p90 — half the 16.67 ms budget — still holding 59.9 drawn frames/s, and
+  its clipped-highlight fraction is unchanged (AO darkens corners, not highlights).
+- **Visually verified in both views.** In orbit, wall/floor junctions and room
+  corners now darken. In walk mode the coffee table, TV console and sofa have real
+  contact darkening where they meet the floor, instead of floating on fake blob
+  decals — which was the specific complaint that started this whole line of work.
+- **Two traps found while building it**, both now pinned by
+  `postStackGuard.test.ts`: the tone mapper is MANDATORY in AO-only mode (mounting
+  any composer disables three's own view transform, so omitting it would blow
+  Medium's highlights exactly as High/Maximum used to); and antialiasing has to be
+  REPLACED rather than dropped, because a composer renders to its own off-screen
+  target so the Canvas' `antialias: true` MSAA stops applying — SMAA belongs to the
+  full stack, so the AO-only path sets `multisampling={4}` instead. Without that,
+  adding AO would have visibly worsened Medium's edges: a regression shipped as a
+  feature.
+
 ## v0.31.3.1 — what actually flattens interiors (it wasn't the occluder), and the texel saving confirmed
 
 Round 5 went after the biggest remaining item from the original report: interiors
@@ -31,13 +76,11 @@ landed the answer somewhere else.
   two frames are near-identical by eye. It is also self-limiting by geometry: it
   only blocks rays arriving steeply from above, so it matters near solar zenith
   and very little at low sun.
-- **The residual flatness is the KEY:FILL ratio.** The sun sits at ~0.99 against
-  ~1.1 of combined non-shadow-casting fill (hemisphere + ambient + IBL probe), so
-  a shadowed floor patch still receives about half its light and reads as a soft
-  tint rather than a shadow. KEY-FILL-BALANCE (v0.31.0.0) moved this the right way
-  but not far enough. Further work on interior grounding should push that ratio,
-  or bring ambient occlusion below the post tiers — AO being the only thing that
-  shapes non-directional fill — and should NOT chase the occluder.
+- **The residual flatness is the KEY:FILL ratio.** *(Corrected in v0.31.4.0 — this
+  was wrong. The figures quoted the pre-KEY-FILL-BALANCE fill next to a post-fix
+  sun; measured live the ratio is a healthy 2.17–2.19:1. The real answer is that
+  the sun reaches almost nothing indoors, so interiors are fill-ONLY and only
+  ambient occlusion shapes them.)*
 - **Also learned: this ladder is useless in walk mode.** The REAL ceiling exists
   there (only orbit culls it), so disabling the virtual occluder changes nothing
   and every comparison sits at the noise floor. The first walk-mode run looked

@@ -157,6 +157,24 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   which is the light curtains actually block — diffuse skylight through the glass. Same magnitude,
   correct light: contrast (pixel σ) rose ~21% at Performance and ~10% at Maximum for a ~2-point
   mean-brightness cost. Measure with `node scripts/dev-probes/shadow-contribution.mjs`.
+- **Ambient occlusion is available BELOW the post tiers (TIER-AO).** `QualitySettings.ao` is
+  separate from `postprocessing`: `medium` has `ao: true, postprocessing: false`, which mounts a
+  MINIMAL composer — N8AO + the tone mapper + HueSaturation and nothing else. This matters because
+  `medium` is the tier the adaptive ladder auto-selects for most browsers, and because interiors
+  here are fill-lit, so AO is the only pass that gives a room corners or grounds furniture on the
+  floor. Measured at Medium (`feature-price.mjs`, idle, 09:00): **2.2 ms for pixels>8 = 25.81% /
+  meanAbsDiff 12.94** against a ~0 noise floor — the best value-per-millisecond of anything in the
+  stack by a wide margin (post stack 5.7 ms for 7.35, IBL 2.2 ms for 3.16, sun shadows 2.9 ms for
+  0.61). Medium sits at 8.4 ms p90, half the 16.67 ms budget, still 59.9 drawn fps. Two traps when
+  touching this path:
+  · **The tone mapper is mandatory in AO-only mode.** Mounting ANY composer disables three's own
+    view transform (TONE-POST), so an AO-only path without `<ToneMapping>` would blow Medium's
+    highlights exactly the way High/Maximum used to.
+  · **Antialiasing must be REPLACED, not dropped.** The Canvas is created `antialias: true`, but a
+    composer renders into its own off-screen target so that MSAA stops applying. SMAA belongs to
+    the full stack, so the AO-only path sets `multisampling={4}` on the composer instead —
+    otherwise adding AO would visibly WORSEN Medium's edges, shipping a regression as a feature.
+  `postStackGuard.test.ts` pins both.
 - **What actually suppresses interior cast shadows — measured, and it is NOT what it looked like
   (INTERIOR-SHADOW).** Run `scripts/dev-probes/interior-shadow.mjs`, an isolating ladder that
   toggles the occluder's `castShadow` live (occluder meshes are identifiable at runtime: theirs is
@@ -177,12 +195,16 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     2.51), and disabling it does NOT produce furniture-on-floor cast shadows — A and B are
     near-identical by eye. It is also self-limiting by geometry: it only blocks rays arriving
     steeply from above, so it matters most near solar zenith and little at low sun.
-  · **The residual flatness is the KEY:FILL ratio, not occlusion.** The sun is ~0.99 against ~1.1
-    of combined non-shadow-casting fill (hemisphere + ambient + IBL probe), so a shadowed floor
-    patch still receives about half its light and reads as a soft tint rather than a shadow.
-    KEY-FILL-BALANCE moved this in the right direction; it has not gone far enough. Any further
-    work on interior grounding should push the ratio (or add ambient occlusion below the post
-    tiers, the only thing that shapes non-directional fill), NOT chase the occluder.
+  · **The residual flatness is NOT the key:fill ratio either.** An earlier revision of this note
+    said the sun was "~0.99 against ~1.1 of fill" — that was wrong, and wrong in an instructive
+    way: it quoted the PRE-KEY-FILL-BALANCE fill numbers next to a POST-fix sun. Measured live
+    (`scripts/dev-probes/light-balance.mjs`): sun 0.985–1.000 against fill 0.455–0.457, i.e.
+    **2.17–2.19:1 in daylight** — a healthy photographic ratio that KEY-FILL-BALANCE already
+    achieved. Pushing it further would only risk the blown highlights fixed in v0.31.0.0. The
+    reason interiors stay flat is simpler: indoors the sun reaches almost nothing (real ceiling in
+    walk, occluder in orbit, walls everywhere), so the ratio has nothing to act on and interiors
+    are effectively fill-ONLY. The only thing that shapes fill-only lighting is ambient occlusion
+    — see TIER-AO below.
   · **In WALK mode this ladder is uninformative** — the REAL ceiling exists there (only orbit culls
     it), so disabling the virtual occluder changes nothing and every comparison sits at the noise
     floor. Run it in orbit.

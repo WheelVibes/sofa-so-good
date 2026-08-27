@@ -66,4 +66,22 @@ describe('post-processing stack guards', () => {
   it('gates Bloom on the day ramp so daylight mounts no bloom pass at all', () => {
     expect(SRC).toContain('bloomActiveForDay(dayLevel)')
   })
+
+  it('keeps the tone mapper in AO-ONLY mode too (TIER-AO)', () => {
+    // Mounting ANY composer disables three's own view transform, so the AO-only
+    // path must still tone-map or Medium would blow its highlights exactly the way
+    // High/Maximum used to. The ToneMapping push must therefore NOT be gated on
+    // `full`, while bloom / vignette / grain / SMAA must be.
+    expect(CODE).toMatch(/effects\.push\(<ToneMapping/)
+    expect(CODE).not.toMatch(/if \(full\)\s*effects\.push\(<ToneMapping/)
+    expect(CODE).toMatch(/if \(full\) effects\.push\(<Vignette/)
+    expect(CODE).toMatch(/if \(full\) effects\.push\(<SMAA/)
+  })
+
+  it('replaces antialiasing rather than dropping it in AO-only mode', () => {
+    // A composer renders to its own off-screen target, so the Canvas' MSAA no
+    // longer applies. Without SMAA (full-stack only) the AO-only path needs real
+    // multisampling, or Medium's edges would get WORSE than before it had AO.
+    expect(CODE).toContain('multisampling={full ? 0 : 4}')
+  })
 })
