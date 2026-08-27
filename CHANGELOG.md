@@ -5,6 +5,49 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.6 — AgX is the default view transform
+
+Shipped with the user's sign-off, on the evidence gathered in v0.31.5.4 and
+v0.31.5.5. `DEFAULT_TONE_MAPPING` moves from ACES Filmic to AgX.
+
+- **Why.** three's `ACESFilmicToneMapping` applies its curve PER CHANNEL, so on a
+  warm mid-dark surface it crushes blue far harder than red and invents
+  saturation the albedo never had — a #7a5c3c wood whose own sRGB HSV saturation
+  is 0.508 rendered at 0.833, of which ~0.21 was the curve. Measured whole-frame
+  at Medium across walk + orbit at 09:00 / 13:00 / 18:00 / 21:00, filmic → AgX:
+  blown-to-white pixels **1.94% → 0.28%** (a 4–7x cut at every hour in both view
+  modes), mean chroma 0.180 → 0.152, pixels past 0.35 saturation 11.1% → 4.0%,
+  mean brightness 185.9 → 176.7. AgX's lower pixel sigma (54.5 → 43.3) is partly
+  an artefact — clipping inflates variance, so some of filmic's "contrast" was
+  the blown pixels themselves. Khronos Neutral was measured and rejected: perfect
+  highlights, but chroma 0.307 in daylight and 0.518 at 21:00 in orbit (89% of
+  pixels past 0.35), i.e. hard toward the cartoon look this work is removing.
+
+- **Verified after the switch.** `tier-look.mjs` across four tiers x four hours;
+  bloom lock-step (RD-409) confirmed visually at 21:00/Maximum — fixtures still
+  glow, and it cannot regress because Bloom runs BEFORE the tone mapper on
+  scene-referred values. Both tier paths already honoured the setting
+  (Performance mounts no composer and reads `TONE_MAPPING_THREE` →
+  `AgXToneMapping`; Medium and up go through the `<ToneMapping>` effect via
+  `TONE_MAPPING_POST`). No frame cost — it is a shader constant.
+
+- **Accepted cost.** The five board-matched SNV finishes shift by 0.05–0.13 of
+  peak-normalised response: a subtle paling and de-warming, largest on the
+  bathroom floor, which loses some of the sage undertone SNV-BOARDS calls for.
+  They could not be re-verified — the board photos are gitignored and absent, and
+  the calibration's "response" is not single-valued across view modes (both
+  recorded in TONE-CALIBRATION). Reviewed as crops, none of the five breaks.
+
+- **A pre-existing defect this exposed — do NOT attribute it to AgX.** At 13:00,
+  `tier-look.mjs` reports **6.78% blown pixels on Performance AND Medium** against
+  0.03% on High/Maximum. Measured on both sides of the switch it is unchanged
+  (filmic 6.79 / 6.85%, AgX 6.78 / 6.78%) while the post tiers improved
+  1.28 → 0.03% and 1.50 → 0.04%. So AgX fixes clipping only where the composer
+  runs, and something is blowing ~7% of the midday frame at the two lower tiers
+  regardless of the curve — plausibly the full stack's Vignette merely hiding it
+  at the post tiers. Next round should find the blown REGION (a masked or
+  quadrant histogram, not a whole-frame fraction).
+
 ## v0.31.5.5 — the calibration that blocks the tone switch cannot be reproduced
 
 Round 13 went to switch the default view transform to AgX and re-solve the five

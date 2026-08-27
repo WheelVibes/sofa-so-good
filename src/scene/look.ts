@@ -38,7 +38,42 @@ export type ToneMappingMode = 'filmic' | 'agx' | 'neutral'
 
 export const TONE_MAPPING_MODES: ToneMappingMode[] = ['filmic', 'agx', 'neutral']
 
-export const DEFAULT_TONE_MAPPING: ToneMappingMode = 'filmic'
+/**
+ * The default view transform (TONE-CURVE-CHOICE, `materials/CLAUDE.md`).
+ *
+ * **AgX, not ACES Filmic.** three's `ACESFilmicToneMapping` applies its curve PER
+ * CHANNEL, so on a warm mid-dark surface it crushes blue far harder than red and
+ * invents saturation the albedo never had: a #7a5c3c wood whose own sRGB HSV
+ * saturation is 0.508 rendered at **0.833**, of which ~0.21 was the curve. It
+ * also clipped highlights hard. Measured whole-frame at Medium across walk +
+ * orbit at 09:00/13:00/18:00/21:00, filmic → AgX:
+ *
+ *   - blown-to-white pixels **1.94% → 0.28%** (a 4–7x cut at EVERY hour, both
+ *     view modes) — visibly recovering ceiling gradation and curtain weave;
+ *   - mean chroma 0.180 → 0.152, pixels past 0.35 saturation 11.1% → 4.0%;
+ *   - mean brightness 185.9 → 176.7.
+ *
+ * Read AgX's lower pixel sigma (54.5 → 43.3) with care: clipping INFLATES
+ * variance, so much of filmic's apparent "contrast" was the blown pixels.
+ * Khronos Neutral was measured too and is clearly wrong as a default despite
+ * perfect highlights — it pushes chroma to 0.307 in daylight and 0.518 at 21:00
+ * in orbit (89% of pixels past 0.35 saturation), i.e. hard toward the cartoon
+ * look this replaced.
+ *
+ * Both tier paths already honour it: Performance mounts no composer and reads
+ * `TONE_MAPPING_THREE` (`AgXToneMapping`), Medium and up go through the
+ * `<ToneMapping>` effect via `TONE_MAPPING_POST` (see TONE-POST). An explicit
+ * user pick still wins, and `'auto'` still picks Neutral while previewing
+ * finishes (accurate product colour).
+ *
+ * The known cost, accepted deliberately with the user's sign-off: the five
+ * board-matched SNV finishes shift by 0.05–0.13 of peak-normalised response — a
+ * subtle paling and de-warming, largest on the bathroom floor, which loses some
+ * of the sage undertone SNV-BOARDS calls for. They could not be re-verified
+ * because the board photos are not in the repo, and the calibration's "response"
+ * is not single-valued across view modes (both documented in TONE-CALIBRATION).
+ */
+export const DEFAULT_TONE_MAPPING: ToneMappingMode = 'agx'
 
 export const TONE_MAPPING_LABEL: Record<ToneMappingMode, string> = {
   filmic: 'Filmic',

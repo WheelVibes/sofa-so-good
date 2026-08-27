@@ -109,9 +109,14 @@ describe('grade', () => {
 })
 
 describe('tone mapping look', () => {
-  it('defaults to filmic (no regression from the historical ACES look)', () => {
-    expect(DEFAULT_TONE_MAPPING).toBe('filmic')
+  // TONE-CURVE-CHOICE: the default moved off ACES Filmic. Measured whole-frame,
+  // filmic -> AgX cut blown-to-white pixels 1.94% -> 0.28% at every hour in both
+  // view modes, and removed the ~0.21 of saturation the per-channel curve was
+  // adding to warm mid-dark surfaces. Filmic remains an explicit user choice.
+  it('defaults to AgX, and keeps filmic selectable', () => {
+    expect(DEFAULT_TONE_MAPPING).toBe('agx')
     expect(TONE_MAPPING_MODES).toContain('filmic')
+    expect(TONE_MAPPING_MODES).toContain('agx')
   })
 
   it('gives a positive exposure bias for every mode, boosting only AgX', () => {

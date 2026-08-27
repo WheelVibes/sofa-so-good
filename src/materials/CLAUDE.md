@@ -234,8 +234,8 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
     recorded (0.56, 0.61, 0.68) is both stale AND measured under conditions the note does not
     pin down. Before relying on this rule again, decide WHICH view/pose/hour defines the
     calibration and record it with the numbers.
-- **The default view transform is the biggest single realism lever left, and it is BLOCKED on the
-  SNV swatches (TONE-CURVE-CHOICE).** Measured, not argued. three's `ACESFilmicToneMapping`
+- **The default view transform is AgX, not ACES Filmic (TONE-CURVE-CHOICE) — SHIPPED v0.31.5.6
+  with the user's sign-off.** Measured, not argued. three's `ACESFilmicToneMapping`
   applies its curve PER CHANNEL, so on a warm mid-dark surface it crushes blue much harder than
   red and saturation climbs. The default flat's furniture wood makes this concrete
   (`scripts/dev-probes/wood-detail.mjs`, walk/Medium/09:00, wood pixels only via a raycast mask,
@@ -276,8 +276,15 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   else. But the drift is **0.171 in blue, ~85x the ±0.002 the calibration holds to**, so switching
   would push those five finishes visibly cooler than the boards they were matched to. Re-solving
   them is part of the same change, not a follow-up.
-  **Status: the blocker is real but it is NOT the ±0.002 tolerance — it is that the decision is a
-  default-look change nobody has signed off.** The recalibration route was attempted and is closed:
+  **Status: shipped.** `DEFAULT_TONE_MAPPING` in `scene/look.ts` is `'agx'`; both tier paths
+  already honoured it (Performance reads `TONE_MAPPING_THREE` → `AgXToneMapping`, Medium and up go
+  through the `<ToneMapping>` effect via `TONE_MAPPING_POST`), and an explicit user pick still
+  wins. Verified after the switch: `tier-look.mjs` across four tiers x four hours, bloom lock-step
+  confirmed visually at 21:00/Maximum (fixtures still glow, RD-409 untouched — Bloom runs BEFORE
+  the tone mapper on scene-referred values, so its threshold semantics do not move), and the frame
+  cost is a shader-constant change with no cost. The known cost was accepted deliberately: the
+  five board-matched SNV finishes shift subtly paler/cooler, largest on the bathroom floor.
+  The recalibration route was attempted and is closed:
   the board photos are absent from the repo, and the response the recipe solves against is not
   single-valued (see TONE-CALIBRATION above). So the five swatches can be neither re-derived nor
   verified. Measured drift across all five surfaces, filmic → AgX, at 13:00/Medium in orbit with
@@ -299,7 +306,17 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   those five — but applying it would re-bake filmic's distortion into the swatches and is not
   obviously right. **Do not ship this switch autonomously**: it alters the default appearance of
   the whole app and knowingly moves five finishes that were matched to physical exhibition boards
-  the user photographed. It needs the user's call, and ideally those photos back in reach.
+  the user photographed — it needed the user's call, which it has. If the board photos come back
+  into reach, re-verify those five (and pin WHICH view/pose/hour defines the calibration first).
+  **A separate, pre-existing defect this measurement exposed — do not attribute it to AgX.** At
+  13:00 `tier-look.mjs` reports **6.78% blown pixels on Performance AND Medium** against 0.03% on
+  High/Maximum. Measured on both sides of the switch it is unchanged (filmic 6.79 / 6.85%, AgX
+  6.78 / 6.78%), while the post tiers improved 1.28 → 0.03% and 1.50 → 0.04%. So AgX fixes
+  clipping only where the composer runs, and something at the two lower tiers is blowing ~7% of
+  the frame at midday regardless of the curve. The likely mechanism is the full stack's Vignette
+  (offset 0.32 / darkness 0.55) darkening the frame edges where those pixels live — which would
+  make it a genuine flat-tier exposure defect that the post tiers merely hide. Worth its own
+  round: find the blown REGION first (a masked/quadrant histogram, not a whole-frame fraction).
 - **Every procedural noise field must stay inside its tile's NYQUIST limit (WOOD-PORE-NYQUIST).**
   `makeFbm(seed, octaves, baseFreq)` multiplies its input by `baseFreq * 2 ** octave`, and callers
   scale the input again (`fbm(u * 18, …)`), so the finest octave lands at
