@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.17 — the orbit sky is real, and blown out to white
+
+Investigation round, no app-code change. The queued target was "the orbit surround
+is a flat gradient, give it a real sky". That premise was wrong, and the real
+defect underneath it is now localised.
+
+- **The surround is already a real sun-driven sky.** `lighting/Sky.tsx` mounts
+  drei's `<Sky>` — a Preetham atmospheric shader fed by `skyFromAltitude` — and it
+  responds to the clock (background luma 81 at 06:00 and 21:00 against ~232 at
+  13:00). Not a gradient, not the page background.
+
+- **But its colour is gone.** At 13:00 the ZENITH measures rgb 229/232/233, HSV
+  saturation **0.017**, and is indistinguishable from the horizon (0.017 vs 0.021)
+  where Preetham should show a strong blue gradient.
+
+- **Not the tone curve.** Washed out under all three operators — filmic **0.008**,
+  AgX 0.017, Neutral 0.073. AgX is the best of them, so TONE-CURVE-CHOICE is not
+  implicated.
+
+- **Not the scattering parameters either, which is the counter-intuitive bit.**
+  Sweeping the live uniforms with a new `sky-tune.mjs`, raising `rayleigh` — the
+  BLUE scattering term — from the shipped 1 through 2 / 3 / 4 made it monotonically
+  WORSE: saturation 0.017 → 0.008 → 0.004 → 0.004. More scattering means more total
+  radiance, so the dome climbs further onto the operator's shoulder. Every arm sat
+  at luma 234–237, pinned near the top of the range. `turbidity` 3 changed nothing.
+
+- **So the lever is the dome's absolute RADIANCE, not its colour** — it needs an
+  intensity scale that lands it where a view transform still preserves hue. Not
+  attempted this round rather than half-tuned into the tree.
+
+  **The fact that makes that change cheap and safe:** the dome is purely visual.
+  `Sky.tsx` renders geometry and writes neither `scene.background` nor
+  `scene.environment` (the IBL is the separate Lightformer probe in
+  `SceneEnvironment.tsx`), so dimming it cannot disturb interior lighting, the
+  key:fill ratio, or the bloom lock-step. Only background pixels move.
+
 ## v0.31.5.16 — the remaining 57 uncapped metals need no fix (measured)
 
 No app-code change this round. The value is a follow-up retired on evidence and a

@@ -417,6 +417,30 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   raw for the renderer. An explicit pick wins; `'auto'` picks Neutral while previewing finishes,
   AgX for a photo context, else filmic. Keep `look.ts` pure (no three) — the three constant comes
   from `toneMappingThree.ts`.
+- **The orbit surround is a REAL sun-driven sky, and it is blown out to a colourless white
+  (SKY-BLOWN).** Worth stating because it is easy to assume the opposite in both directions. It is
+  NOT a flat gradient or the page background: `lighting/Sky.tsx` mounts drei's `<Sky>` — a Preetham
+  atmospheric shader fed by `altitudeCurve.ts:skyFromAltitude` — and it responds to the clock
+  (sampled at the dollhouse background, luma 81 at 06:00 and 21:00 against ~232 at 13:00).
+  But at 13:00 its ZENITH measures rgb 229/232/233, HSV saturation **0.017**, and is
+  indistinguishable from the horizon (0.017 vs 0.021) when Preetham should show a strong blue
+  gradient between them.
+  · **Not the tone curve.** The zenith is washed out under all three operators — filmic **0.008**,
+    AgX 0.017, Khronos Neutral 0.073 — so AgX is actually the best of them and TONE-CURVE-CHOICE is
+    not implicated.
+  · **Not the scattering parameters either, and this is the counter-intuitive part.** Sweeping the
+    live shader uniforms (`scripts/dev-probes/sky-tune.mjs`), raising `rayleigh` — the BLUE
+    scattering term — from the shipped 1 through 2 / 3 / 4 made it monotonically WORSE
+    (sat 0.017 → 0.008 → 0.004 → 0.004), because more scattering means more total radiance and the
+    dome climbs further onto the operator's shoulder. Every arm sat at luma 234–237, pinned near the
+    top of the range. `turbidity` 3 changed nothing.
+  · **So the lever is the dome's absolute RADIANCE, not its colour.** It needs an intensity scale so
+    it lands where a view transform still preserves hue, rather than on the shoulder where every
+    operator rolls it to white.
+  **The safety fact that makes such a change cheap:** this dome is purely visual. `Sky.tsx` renders
+  geometry and writes neither `scene.background` nor `scene.environment` — the IBL is the separate
+  procedural Lightformer probe in `SceneEnvironment.tsx`. So dimming it cannot disturb interior
+  lighting, the key:fill ratio, or the bloom lock-step (RD-409); only the background pixels move.
 - **Backdrops paint `scene.background` only — never `scene.environment`.** Walk-mode
   surroundings (`SceneBackdrop.tsx`) bake an equirect into `scene.background`; the static photo
   presets (`backdropEquirect.ts`/`backdropHorizon.ts`) and the sun-driven `sky` (RD-412,
