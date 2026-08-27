@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.7 — the "7% blown at the flat tiers" was the toolbar
+
+Round 14's top target was a defect that does not exist. Retracting it, and fixing
+the probe that manufactured it.
+
+- **Retraction.** v0.31.5.6 reported that at 13:00 the Performance and Medium
+  tiers blow 6.78% of the frame against 0.03% on High/Maximum, and proposed the
+  full post stack's Vignette as the mechanism hiding it. Both the number and the
+  story were wrong. `tier-look.mjs` — the repo's designated exposure-regression
+  check — reported the **full canvas rect**, and that is dominated by DOM chrome:
+  the toolbar, the "Get started" card and the zoom/compass rail are drawn over the
+  canvas AND are translucent, so their brightness tracks whatever the canvas puts
+  behind them and differs per tier. That mimics a render regression exactly.
+
+- **Where the pixels actually were.** A 4x4 grid over the full canvas put them in
+  the top-centre cells (22.1% and 21.6% — the toolbar), the bottom-left cell
+  (54.4% — the "Get started" card) and the bottom-right rail (6.7%), with every
+  interior cell at **0.0%**. Re-measured over `lib.mjs:centerBox` on the identical
+  saved frames, and then live across 09:00 / 13:00 / 18:00 / 21:00 x four tiers,
+  the 3D render clips **0.02–0.05% everywhere**, with the flat tiers marginally
+  the cleanest. There is no flat-tier exposure problem.
+
+- **Probe fixed.** `tier-look.mjs` now computes both and prints the DOM-free
+  centre slab as its authoritative number, labelling the full-canvas figure
+  "DOM chrome — do NOT quote". `lib.mjs:centerBox` already existed for precisely
+  this and its own docstring says so; this probe simply was not using it, which
+  means every exposure figure it has ever produced included UI panels.
+
+- **What this does NOT affect.** The AgX switch stands: `tone-curve.mjs` always
+  measured a centre slab, so filmic → AgX cutting clipping 1.94% → 0.28% is a
+  measurement of the render and is unchanged. Re-verified post-switch on the slab:
+  clipping 0.02–0.05% at every tier and hour, mean 193–203 in daylight and 103–118
+  at 21:00, contrast 35–50.
+
 ## v0.31.5.6 — AgX is the default view transform
 
 Shipped with the user's sign-off, on the evidence gathered in v0.31.5.4 and
@@ -38,15 +72,9 @@ v0.31.5.5. `DEFAULT_TONE_MAPPING` moves from ACES Filmic to AgX.
   the calibration's "response" is not single-valued across view modes (both
   recorded in TONE-CALIBRATION). Reviewed as crops, none of the five breaks.
 
-- **A pre-existing defect this exposed — do NOT attribute it to AgX.** At 13:00,
-  `tier-look.mjs` reports **6.78% blown pixels on Performance AND Medium** against
-  0.03% on High/Maximum. Measured on both sides of the switch it is unchanged
-  (filmic 6.79 / 6.85%, AgX 6.78 / 6.78%) while the post tiers improved
-  1.28 → 0.03% and 1.50 → 0.04%. So AgX fixes clipping only where the composer
-  runs, and something is blowing ~7% of the midday frame at the two lower tiers
-  regardless of the curve — plausibly the full stack's Vignette merely hiding it
-  at the post tiers. Next round should find the blown REGION (a masked or
-  quadrant histogram, not a whole-frame fraction).
+- **A "pre-existing flat-tier defect" was reported here and it was NOT REAL** —
+  see v0.31.5.7, which corrects it. The 6.78% figure came from the full canvas
+  rect, which is dominated by translucent DOM chrome, not by the render.
 
 ## v0.31.5.5 — the calibration that blocks the tone switch cannot be reproduced
 

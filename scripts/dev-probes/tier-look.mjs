@@ -3,12 +3,35 @@
  * pinned hours, from an identical camera pose, and reports exposure statistics
  * (mean / contrast / clipped-highlight fraction) so "the higher tiers are too
  * bright" is a measurement rather than an impression.
+ *
+ * ## The authoritative number is the CENTRE SLAB, not the full canvas
+ *
+ * This probe used to report only the full canvas rect, and that is dominated by
+ * **DOM chrome, not by the render**. The toolbar, the "Get started" card and the
+ * zoom/compass rail are opaque-ish panels drawn OVER the canvas; they are also
+ * translucent, so their brightness tracks whatever the canvas puts behind them
+ * and they therefore differ per tier — which makes them look exactly like a
+ * render regression.
+ *
+ * How badly: at 13:00 the full-canvas clipped fraction read **6.79% on
+ * Performance and 6.85% on Medium against 1.28% / 1.50% on High / Maximum**, and
+ * that got written up as "~7% of the midday frame is blown at the flat tiers".
+ * Re-measured on the IDENTICAL saved frames over `lib.mjs:centerBox`, the 3D
+ * render clips **0.03% / 0.26% / 0.25% / 0.27%** — i.e. nothing, at every tier.
+ * A 4x4 grid of the full canvas put the blown pixels in the top-centre cells
+ * (22% — the toolbar), the bottom-left cell (54% — the "Get started" card) and
+ * the bottom-right rail, with every interior cell at 0.0%.
+ *
+ * So both are printed, the centre slab is the one to quote, and any future
+ * exposure claim from this probe must come from the slab. `lib.mjs:centerBox`
+ * exists for exactly this reason and its own docstring says so; this probe simply
+ * was not using it.
  */
 
 import fs from 'node:fs'
 import path from 'node:path'
 import puppeteer from 'puppeteer'
-import { appUrl, frameStats } from './lib.mjs'
+import { appUrl, centerBox, frameStats } from './lib.mjs'
 
 const OUT = process.env.OUT || '/tmp/ssg-look'
 const TIERS = (process.env.TIERS || 'performance,medium,high,maximum').split(',')
@@ -72,10 +95,15 @@ for (const hour of HOURS) {
     const buf = await page.screenshot({ type: 'png' })
     const name = `h${String(hour).padStart(2, '0')}-${tier}.png`
     fs.writeFileSync(path.join(OUT, name), buf)
-    const s = await frameStats(buf, box)
-    rows.push({ hour, tier, ...s })
+    // Full canvas (kept for continuity, and to keep the DOM contribution
+    // visible) and the DOM-free centre slab, which is the authoritative one.
+    const full = await frameStats(buf, box)
+    const cb = centerBox(box.w, box.h)
+    const s = await frameStats(buf, { x: box.x + cb.x, y: box.y + cb.y, w: cb.w, h: cb.h })
+    rows.push({ hour, tier, ...s, fullClipped: full.clipped })
     console.log(
-      `h=${String(hour).padStart(2)} ${tier.padEnd(12)} mean=${String(s.mean).padStart(6)} contrast(sd)=${String(s.sd).padStart(6)} clipped=${(s.clipped * 100).toFixed(2)}%`,
+      `h=${String(hour).padStart(2)} ${tier.padEnd(12)} SLAB mean=${String(s.mean).padStart(6)} contrast(sd)=${String(s.sd).padStart(6)} clipped=${(s.clipped * 100).toFixed(2)}%` +
+        `   | full-canvas clipped=${(full.clipped * 100).toFixed(2)}% (DOM chrome — do NOT quote)`,
     )
   }
 }

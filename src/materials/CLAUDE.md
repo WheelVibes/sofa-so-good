@@ -308,15 +308,21 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   the whole app and knowingly moves five finishes that were matched to physical exhibition boards
   the user photographed — it needed the user's call, which it has. If the board photos come back
   into reach, re-verify those five (and pin WHICH view/pose/hour defines the calibration first).
-  **A separate, pre-existing defect this measurement exposed — do not attribute it to AgX.** At
-  13:00 `tier-look.mjs` reports **6.78% blown pixels on Performance AND Medium** against 0.03% on
-  High/Maximum. Measured on both sides of the switch it is unchanged (filmic 6.79 / 6.85%, AgX
-  6.78 / 6.78%), while the post tiers improved 1.28 → 0.03% and 1.50 → 0.04%. So AgX fixes
-  clipping only where the composer runs, and something at the two lower tiers is blowing ~7% of
-  the frame at midday regardless of the curve. The likely mechanism is the full stack's Vignette
-  (offset 0.32 / darkness 0.55) darkening the frame edges where those pixels live — which would
-  make it a genuine flat-tier exposure defect that the post tiers merely hide. Worth its own
-  round: find the blown REGION first (a masked/quadrant histogram, not a whole-frame fraction).
+  **A "flat-tier clipping defect" was reported here and it was NOT REAL — corrected v0.31.5.7.**
+  The claim was that at 13:00 `tier-look.mjs` showed 6.78% blown pixels on Performance and Medium
+  against 0.03% on High/Maximum, i.e. a flat-tier exposure defect the post tiers merely hid behind
+  their Vignette. It was a MEASUREMENT artefact: that probe reported the FULL CANVAS rect, which
+  is dominated by DOM chrome — the toolbar, the "Get started" card and the zoom rail are drawn
+  over the canvas AND are translucent, so their brightness tracks the canvas behind them and
+  differs per tier, which mimics a render regression precisely. A 4x4 grid of the full canvas put
+  the blown pixels in the top-centre cells (22% — toolbar), the bottom-left cell (54% — the card)
+  and the bottom-right rail, with every interior cell at **0.0%**. Re-measured over
+  `lib.mjs:centerBox`, the 3D render clips **0.02–0.05% at EVERY tier and EVERY hour** (09/13/18/
+  21:00 x four tiers), with the flat tiers marginally the cleanest. There is no flat-tier exposure
+  problem. `tier-look.mjs` now prints the DOM-free slab as its authoritative number and labels the
+  full-canvas figure "do NOT quote". The AgX clipping numbers above are unaffected — `tone-curve.mjs`
+  always measured a centre slab. Lesson: `centerBox` exists for this and its docstring says so;
+  a whole-canvas fraction is a UI measurement wearing a render costume.
 - **Every procedural noise field must stay inside its tile's NYQUIST limit (WOOD-PORE-NYQUIST).**
   `makeFbm(seed, octaves, baseFreq)` multiplies its input by `baseFreq * 2 ** octave`, and callers
   scale the input again (`fbm(u * 18, …)`), so the finest octave lands at

@@ -121,6 +121,17 @@ gesture against a real GPU and need `npm run dev:web` running.
 | `tone-curve.mjs` | Whole-frame sweep of the view transform (filmic / agx / neutral) and the post-saturation dial across the day in either view mode: mean, contrast, clipped fraction, chroma. Use this — never one material's numbers — to judge a change that applies to the whole image. `HOURS=`, `TONES=`, `SATS=`. |
 | `snv-response.mjs` | TONE-CALIBRATION guard: the mean RENDERED RGB of a masked SNV floor under each tone operator, plus the peak-normalised per-channel response and how far it drifts. Run before any lighting or tone-mapping change, since the five SNV swatches were solved against that response. |
 
+**Never quote an exposure or clipping number from the FULL CANVAS rect.** The toolbar, the
+"Get started" card and the zoom/compass rail are DOM panels drawn over the canvas, and they are
+translucent — their brightness tracks whatever the canvas puts behind them, so they differ per
+tier and mimic a render regression exactly. This produced a fully-written-up phantom defect
+("~7% of the midday frame is blown at the flat tiers", v0.31.5.6, corrected in v0.31.5.7): the
+full-canvas clipped fraction read 6.78% on Performance/Medium against 0.03% on High/Maximum,
+while the same frames measured over `lib.mjs:centerBox` clip **0.02–0.05% at every tier and
+hour**. A 4x4 grid localised the blown pixels to the toolbar (22%), the card (54%) and the rail,
+with every interior cell at 0.0%. Use `centerBox`, or a raycast mask; if you print the full-canvas
+figure at all, label it as chrome.
+
 **In WALK mode you cannot aim the camera — `FirstPersonCamera` owns the orientation.**
 A programmatic `camera.lookAt(...)` in walk mode is silently discarded: the controller rewrites
 the camera's rotation from its own yaw/pitch state every frame. Measured in
