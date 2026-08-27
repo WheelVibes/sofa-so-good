@@ -5,6 +5,49 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.10 — half the procedural noise fields are aliased
+
+Two Nyquist-broken fields had been found one at a time. This round swept all of
+them, and the answer is that it is not two fields, it is a class.
+
+- **21 of 42 fbm fields across the procedural painters alias at 256.** Worst:
+  `patterns/fabric.ts:fibre` at **3.44 cycles/texel** against a 0.5 limit,
+  `patterns/stone.ts:pores` 2.81, `stoneSurface.ts:fine` 1.72,
+  `tileSurface.ts:peel` 1.41. Thirteen alias even at 512.
+
+- **The binding tile size is 256, not 512** — `generators.ts:BASE_SIZE` is 256 on
+  the Performance tier, so every pattern bakes at 256 there whatever its
+  `PATTERN_SIZE_CAP`. A field tuned safe only at 512 still ships noise to those
+  users. This is why the sweep found so much: the earlier fixes had been reasoned
+  against 256 by luck rather than by rule.
+
+- **Enforced, not noted: `nyquistAudit.test.ts`.** It parses the painter sources,
+  computes every field's top-octave frequency and fails on any aliased field not
+  on an explicit `KNOWN_ALIASED` allowlist. The allowlist may only SHRINK — the
+  test also fails if an entry no longer exists or no longer aliases, so it cannot
+  rot into an exemption set, and a separate assertion guards against the parser
+  silently matching nothing. It earned its keep immediately by catching a field
+  the ad-hoc sweep had missed (`patterns/tile.ts:grain`). The remaining 18 are now
+  tracked debt with their measured frequencies in comments.
+
+- **`patterns/wood.ts` fixed first, because it paints the FLOORS**:
+  `fineGrain`/`fine` 28 → 6, `microRough` 70 → 25, `micro` 90 → 12 — all now
+  ~0.38 cycles/texel at 256. **No visible change claimed.** Those fields
+  contribute ±0.03 to an albedo factor, ±0.04 to roughness and ±0.0175
+  respectively, so a whisper is the expected outcome.
+
+  Being explicit about a measurement that did not work: a floor before/after came
+  back byte-identical (chroma 0.207, mean 197.5, microcontrast 1.202 both sides).
+  That is **inconclusive, not a null result** — the mask was seeded from a
+  hand-picked NDC point that resolved to "shell/unknown" with 30 materials sharing
+  a map source, so it probably was not a wood-painted surface. The lesson is the
+  one already written down: don't eyeball NDC. `snv-response.mjs`'s room +
+  face-normal mask is the right tool for floors.
+
+- **Deferred:** `tv-console`'s colour (the one def still on the floor painter) was
+  this round's nominal top target and did not get done — the audit was the larger
+  finding and took the round.
+
 ## v0.31.5.9 — furniture was wearing the floor's wood
 
 The two tables were the loudest remaining objects in both views, and the cause was

@@ -323,6 +323,30 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   full-canvas figure "do NOT quote". The AgX clipping numbers above are unaffected — `tone-curve.mjs`
   always measured a centre slab. Lesson: `centerBox` exists for this and its docstring says so;
   a whole-canvas fraction is a UI measurement wearing a render costume.
+- **HALF the procedural noise fields alias, and the limit that binds is 256 (NYQUIST-AUDIT).**
+  After two fields were found broken one at a time (WOOD-PORE-NYQUIST, FABRIC-FINE-NYQUIST), a full
+  sweep of every `makeFbm` call site against its tile size found **21 of 42 fields over the
+  0.5 cycles/texel limit** — worst offenders `patterns/fabric.ts:fibre` at **3.44**,
+  `patterns/stone.ts:pores` at 2.81, `stoneSurface.ts:fine` at 1.72, `tileSurface.ts:peel` at 1.41.
+  Thirteen of them alias even at 512.
+  **The binding size is 256, not 512.** `generators.ts:BASE_SIZE` is 256 on the Performance tier,
+  so every pattern bakes at 256 there regardless of its `PATTERN_SIZE_CAP` — a field tuned to be
+  safe only at 512 still ships noise to those users. Bound new fields at 256.
+  This is now an enforced test, not a note: `nyquistAudit.test.ts` parses the painter sources,
+  computes each field's top-octave frequency, and fails on any aliased field that is not on an
+  explicit `KNOWN_ALIASED` allowlist. **The allowlist may only shrink** — fixing an entry means
+  deleting its line, and the test also fails if an entry no longer exists or no longer aliases, so
+  it cannot rot into a meaningless exemption set. It caught a field the ad-hoc sweep had missed
+  (`patterns/tile.ts:grain`) on its first run. A comment asking people to remember was tried
+  implicitly and failed — the second occurrence was introduced long after the first.
+  `patterns/wood.ts` was fixed first because it paints the FLOORS: `fineGrain`/`fine` 28 -> 6,
+  `microRough` 70 -> 25, `micro` 90 -> 12, all now ~0.38 cycles/texel at 256. **Expect no visible
+  change** — those fields contribute +-0.03 to an albedo factor, +-0.04 to roughness and +-0.0175
+  respectively. An attempt to measure a floor before/after came back BYTE-IDENTICAL, but that
+  measurement is inconclusive rather than a null result: the raycast mask seeded from a
+  hand-picked NDC point resolved to "shell/unknown" with 30 materials sharing a map source, so it
+  probably was not a wood-painted surface at all. Use `snv-response.mjs`'s room+face-normal mask
+  for floors, not an eyeballed point.
 - **The upholstery weave had the same defect, with a much smaller payoff (FABRIC-FINE-NYQUIST).**
   `procedural/upholsterySeams.ts:buildUpholsteryHeight` — the LIVE fabric path, since `pbrSurfaces`
   defaults true — built its sub-weave fuzz from `makeFbm(seed, 4, 120)` sampled at `(u, v)`, i.e.
