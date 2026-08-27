@@ -323,6 +323,24 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   full-canvas figure "do NOT quote". The AgX clipping numbers above are unaffected — `tone-curve.mjs`
   always measured a centre slab. Lesson: `centerBox` exists for this and its docstring says so;
   a whole-canvas fraction is a UI measurement wearing a render costume.
+- **The upholstery weave had the same defect, with a much smaller payoff (FABRIC-FINE-NYQUIST).**
+  `procedural/upholsterySeams.ts:buildUpholsteryHeight` — the LIVE fabric path, since `pbrSurfaces`
+  defaults true — built its sub-weave fuzz from `makeFbm(seed, 4, 120)` sampled at `(u, v)`, i.e.
+  **3.75 cycles per texel** on the 256² tile, seven times Nyquist, contributing
+  `fine(u, v) * 0.2` of the height. (The `fine` field in `furnitureMaterials.ts:getFabricNormal`
+  that the same bug report named is the LEGACY branch, only reached with `pbrSurfaces` OFF — check
+  which branch is live before fixing.) The fields are now data (`FABRIC_FIELDS`) so a test can
+  bound them, and `fine` is `{ octaves: 4, baseFreq: 11 }` = 0.34 cycles/texel.
+  **The ceiling on this one is low, and it is worth understanding why:** the weave grid itself is
+  `sin(x * 2.4)` ≈ **0.38 cycles/texel**, already near the limit, so there is no room in a 256²
+  tile for a fuzz an order of magnitude finer — "fine fuzz below the weave" was never
+  representable. Measured on the sofa (`scripts/dev-probes/surface-detail.mjs`, walk/Medium/09:00,
+  749 masked cells, two runs over the identical view): microcontrast **1.681 → 1.617, only −3.8%**,
+  with chroma (0.187), mean (152.8) and sigma (32.2) identical to three decimals — against the wood
+  pore's −34%. Isolated, the channel itself improves a lot (its own texel-step/sigma ratio 0.732 →
+  0.105, where a degenerate white-noise reference is 1.133); it simply carries a fifth of the
+  amplitude at two-thirds the normal strength. Shipped as a correctness fix with no claimed visual
+  win — do not go looking for one in a still.
 - **Every procedural noise field must stay inside its tile's NYQUIST limit (WOOD-PORE-NYQUIST).**
   `makeFbm(seed, octaves, baseFreq)` multiplies its input by `baseFreq * 2 ** octave`, and callers
   scale the input again (`fbm(u * 18, …)`), so the finest octave lands at

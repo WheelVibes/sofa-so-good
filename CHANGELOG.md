@@ -5,6 +5,43 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.8 — the upholstery weave was aliased too, for much less gain
+
+The second of the two Nyquist-broken noise fields, fixed and honestly priced.
+
+- **`FABRIC-FINE-NYQUIST`.** `upholsterySeams.ts:buildUpholsteryHeight` — the LIVE
+  fabric path, since `pbrSurfaces` defaults true — built its sub-weave fuzz from
+  `makeFbm(seed, 4, 120)` at `(u, v)`: **3.75 cycles per texel** on a 256² tile,
+  seven times Nyquist, contributing a fifth of the height amplitude. Worth noting
+  for anyone chasing the same report: the `fine` field in
+  `furnitureMaterials.ts:getFabricNormal` is the LEGACY branch and is dead with
+  the flag on — check which branch is live first.
+
+- **The gain is small and the reason is structural.** The weave grid is
+  `sin(x * 2.4)` ≈ 0.38 cycles/texel, already near the limit, so a fuzz an order
+  of magnitude finer was never representable in a 256² tile. Measured on the sofa
+  (`surface-detail.mjs`, walk/Medium/09:00, 749 masked cells, two runs over the
+  identical view): microcontrast **1.681 → 1.617, −3.8%**, with chroma (0.187),
+  mean (152.8) and sigma (32.2) identical to three decimals — against the wood
+  pore's −34%. Isolated, the channel improves a lot (texel-step/sigma 0.732 →
+  0.105, versus 1.133 for a degenerate white-noise reference); it just carries a
+  fifth of the amplitude at two-thirds the normal strength. **Shipped as a
+  correctness fix with no claimed visual win** — there is nothing to see in a
+  still, and this entry is not going to pretend otherwise.
+
+- **The Nyquist rule is now general and enforced.**
+  `NYQUIST_CYCLES_PER_TEXEL` + `topOctaveCyclesPerTexel` moved from `woodPore.ts`
+  into `noise.ts`, where `makeFbm` lives (re-exported so wood-side imports are
+  unchanged). Both fields are now data — `WOOD_PORE` and `FABRIC_FIELDS` — with
+  tests that bound every field AND assert the OLD parameters fail, so neither can
+  be silently reintroduced. A test that only pins the new value has no teeth.
+
+- **New probe: `surface-detail.mjs`**, the generalisation of `wood-detail.mjs`'s
+  masking half. Ray through an NDC point → group materials sharing that map source
+  → mask their screen cells → report chroma / >0.35-sat / mean / sigma /
+  microcontrast over those pixels only. Works in walk mode despite the camera
+  being un-aimable, because the mask does not depend on the pose.
+
 ## v0.31.5.7 — the "7% blown at the flat tiers" was the toolbar
 
 Round 14's top target was a defect that does not exist. Retracting it, and fixing

@@ -40,29 +40,12 @@
  * worker, and a throw there would take the whole material down for a tuning
  * mistake that a test catches for free.
  */
-import { clamp01, makeFbm } from './noise'
+import { clamp01, makeFbm, NYQUIST_CYCLES_PER_TEXEL, topOctaveCyclesPerTexel } from './noise'
 
-/** Highest spatial frequency a tile of `size` texels can represent, in cycles
- *  per texel. Above this a field aliases into noise instead of carrying detail. */
-export const NYQUIST_CYCLES_PER_TEXEL = 0.5
-
-/**
- * Cycles per texel in the TOP (finest) octave of an fbm field — the octave that
- * decides whether the field is resolvable at all.
- *
- * `makeFbm(seed, octaves, baseFreq)` multiplies its input by
- * `baseFreq * 2 ** octave`, and callers additionally scale the input
- * (`fbm(u * uvScale, …)`), so the finest octave lands at
- * `baseFreq * 2 ** (octaves - 1) * uvScale` cycles across the tile.
- */
-export function topOctaveCyclesPerTexel(
-  baseFreq: number,
-  octaves: number,
-  uvScale: number,
-  size: number,
-): number {
-  return (baseFreq * 2 ** (octaves - 1) * uvScale) / size
-}
+// The Nyquist helpers moved to `noise.ts` (they describe `makeFbm`, and a second
+// field turned out to need them — FABRIC-FINE-NYQUIST). Re-exported here so the
+// wood-side callers and tests keep one import.
+export { NYQUIST_CYCLES_PER_TEXEL, topOctaveCyclesPerTexel }
 
 /** How much longer a pore is along the grain than across it. Preserved from the
  *  original field so the streak character is unchanged — only the absolute
