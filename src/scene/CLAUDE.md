@@ -157,6 +157,21 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   which is the light curtains actually block — diffuse skylight through the glass. Same magnitude,
   correct light: contrast (pixel σ) rose ~21% at Performance and ~10% at Maximum for a ~2-point
   mean-brightness cost. Measure with `node scripts/dev-probes/shadow-contribution.mjs`.
+- **Sun-shadow map resolution tracks TEXEL DENSITY, not the tier (SHADOW-TEXEL).**
+  `Lighting` no longer uses `quality.shadowMapSize` literally — that value is now the CEILING, and
+  the actual size comes from `lighting/shadowFrustum.ts:shadowMapSizeForExtent(halfExtent, tierMax)`,
+  which targets a constant ~20 mm world-space texel (`SHADOW_TEXEL_TARGET_M`) over the plan-fitted
+  frustum. A fixed per-tier number meant the same setting gave wildly different quality depending on
+  plan size: 4096 over the default flat is 4.6 mm/texel, the same 4096 over a 40 m custom plan is
+  19.5 mm/texel. Now the default flat resolves to 1024 at every tier and a 40 m plan scales up to
+  its tier ceiling. Justification is measured, in WALK mode at 09:00 standing next to furniture —
+  the viewpoint where a contact shadow is actually judged — sweeping 4096/2048/1024/512
+  (`scripts/dev-probes/walk-shadow.mjs`): living-room meanAbsDiff **0.43 / 0.21 / 0.43 against a
+  0.35 noise floor**, with NO monotonic degradation (512 was no worse than 2048). Two reasons it
+  doesn't show: Medium+ run VSM with `radius: 6`/`blurSamples: 12`, a blur wide enough to discard
+  the extra texels; and the virtual ceiling occluder leaves interiors lit almost entirely by
+  non-shadow-casting fill, so there is very little cast shadow indoors to resolve at all. Re-verify
+  with `walk-shadow.mjs` before touching the target density.
 - **Price a render feature in BOTH currencies, and against a measured noise floor**
   (`scripts/dev-probes/feature-price.mjs`). It applies one `qualityOverrides` change at a time and
   reports p90 frame cost in ms alongside two visual metrics. Measured at Maximum, 09:00, DPR 2,

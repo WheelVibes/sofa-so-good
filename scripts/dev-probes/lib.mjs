@@ -69,3 +69,31 @@ export function centerBox(vpW, vpH) {
 export function appUrl() {
   return process.env.SSG_URL || process.env.URL || 'http://localhost:5173/'
 }
+
+/**
+ * Throw if the R3F error boundary has replaced the scene.
+ *
+ * Call after every state change a probe makes, before trusting a screenshot.
+ * When the 3D scene throws, the app swaps in a "Something went wrong" card — and
+ * a card is perfectly stable, so a probe diffing frames reports 0.00 difference
+ * for every setting and reads as "this feature changes nothing". That is exactly
+ * how a shadow-resolution sweep once returned 0.00 across 512/1024/2048/4096.
+ *
+ * The usual cause in this worktree is Vite answering `504 (Outdated Optimize
+ * Dep)` for the lazily-imported `EffectsImpl` chunk, because `node_modules` is
+ * symlinked to the sibling checkout and the two dev servers share
+ * `node_modules/.vite`. Start the probe server with
+ * `--config vite.probe.config.ts` to give it its own cache dir.
+ */
+export async function assertSceneAlive(page, label = '') {
+  const bad = await page.evaluate(() =>
+    /Something went wrong in the 3D scene/.test(document.body.innerText || ''),
+  )
+  if (bad) {
+    throw new Error(
+      `3D scene crashed${label ? ` (${label})` : ''} — the error boundary is showing, so every ` +
+        'screenshot from here is the error card, not the render. Restart the probe dev server ' +
+        'with `--config vite.probe.config.ts` (see assertSceneAlive docs).',
+    )
+  }
+}

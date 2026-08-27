@@ -131,6 +131,32 @@ SSG_URL=http://localhost:5199/ node scripts/dev-probes/tier-fps.mjs
 `--strictPort` is the load-bearing flag: it makes a port clash fail loudly
 instead of quietly relocating.
 
+**Run probes through `scripts/dev-probes/with-server.sh`.** It owns the dev
+server's whole lifetime inside one invocation, which removes three separate
+failure modes that all produce confident-looking wrong data:
+
+```bash
+scripts/dev-probes/with-server.sh frame-time.mjs DSF=2 SECONDS=10
+```
+
+- A backgrounded dev server does not reliably survive between shell invocations,
+  so a probe in a later call hits `ERR_CONNECTION_REFUSED` — or, worse, connects
+  to an orphaned server from the sibling checkout on 5173 and measures the wrong
+  branch.
+- It uses `vite.probe.config.ts`, which gives the probe server its own
+  `cacheDir`. Because this worktree symlinks `node_modules` to the sibling
+  checkout, the two share Vite's optimizer cache; when one re-optimizes the other
+  answers **`504 (Outdated Optimize Dep)`** for the lazy `EffectsImpl` chunk,
+  R3F's error boundary replaces the scene, and every screenshot silently captures
+  a "Something went wrong in the 3D scene" card. A card is perfectly stable, so
+  frame diffs then read **0.00 for every setting** — a whole shadow-resolution
+  sweep "proved" 512 was identical to 4096 that way. `lib.mjs:assertSceneAlive`
+  now throws on it; call it after every state change a probe makes.
+- It prints the load average and warns above 3.0. **Millisecond numbers are
+  meaningless on a busy machine** — the sibling checkout's `npm run dev` and test
+  runs are the usual cause, and they are the user's, so wait rather than kill.
+  Visual diffs are unaffected by load.
+
 Two rules learned the hard way here:
 
 - **Detect a blank frame by VARIANCE, not brightness.** A white flash is the page

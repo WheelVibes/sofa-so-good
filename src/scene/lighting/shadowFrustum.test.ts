@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { FloorPlan, PlanRoom, PlanWall } from '../../floorplan/types'
-import { planShadowBounds, shadowFrustumForPlan } from './shadowFrustum'
+import {
+  planShadowBounds,
+  SHADOW_MAP_MIN,
+  SHADOW_TEXEL_TARGET_M,
+  shadowFrustumForPlan,
+  shadowMapSizeForExtent,
+} from './shadowFrustum'
 
 const wall = (sx: number, sz: number, ex: number, ez: number): PlanWall => ({
   id: `w-${sx}-${sz}`,
@@ -75,5 +81,62 @@ describe('shadowFrustumForPlan', () => {
   it('caps the half-extent so shadow texels do not blow out', () => {
     const f = shadowFrustumForPlan(plan([], [room(0, 0, 200, 200)], [200, 200]))
     expect(f.halfExtent).toBe(40)
+  })
+})
+
+describe('shadowMapSizeForExtent (SHADOW-TEXEL)', () => {
+  it('passes shadows-off straight through', () => {
+    // 0 means "this tier renders no sun shadows", not "a ceiling to scale into".
+    expect(shadowMapSizeForExtent(9.5, 0)).toBe(0)
+  })
+
+  it('holds texel density roughly constant as the plan grows', () => {
+    const density = (h: number, max: number) => (2 * h) / shadowMapSizeForExtent(h, max)
+    // Same tier ceiling, 4x the plan: density must not collapse by 4x the way a
+    // fixed per-tier resolution would.
+    const small = density(9.5, 4096)
+    const large = density(40, 4096)
+    expect(large / small).toBeLessThan(1.2)
+  })
+
+  it('lands at ~20mm/texel on the default flat', () => {
+    const size = shadowMapSizeForExtent(9.5, 4096)
+    expect((2 * 9.5) / size).toBeLessThanOrEqual(SHADOW_TEXEL_TARGET_M)
+    expect((2 * 9.5) / size).toBeGreaterThan(SHADOW_TEXEL_TARGET_M / 2)
+  })
+
+  it('never exceeds the tier ceiling', () => {
+    expect(shadowMapSizeForExtent(40, 1024)).toBeLessThanOrEqual(1024)
+    expect(shadowMapSizeForExtent(40, 2048)).toBeLessThanOrEqual(2048)
+  })
+
+  it('spends LESS than the tier allows when the plan is small', () => {
+    // The whole point: Maximum on the default flat no longer burns a 4096 map.
+    expect(shadowMapSizeForExtent(9.5, 4096)).toBeLessThan(4096)
+  })
+
+  it('scales UP for a big plan, where density genuinely needs it', () => {
+    expect(shadowMapSizeForExtent(40, 4096)).toBeGreaterThan(shadowMapSizeForExtent(9.5, 4096))
+  })
+
+  it('returns powers of two', () => {
+    for (const h of [5, 9.5, 12, 20, 33, 40]) {
+      const v = shadowMapSizeForExtent(h, 4096)
+      expect(Number.isInteger(Math.log2(v))).toBe(true)
+    }
+  })
+
+  it('never drops below the floor, even for a tiny plan', () => {
+    expect(shadowMapSizeForExtent(0.5, 4096)).toBe(SHADOW_MAP_MIN)
+  })
+
+  it('honours a tier ceiling below the floor', () => {
+    expect(shadowMapSizeForExtent(9.5, 256)).toBe(256)
+  })
+
+  it('survives degenerate extents', () => {
+    expect(shadowMapSizeForExtent(0, 4096)).toBe(SHADOW_MAP_MIN)
+    expect(shadowMapSizeForExtent(Number.NaN, 4096)).toBe(SHADOW_MAP_MIN)
+    expect(shadowMapSizeForExtent(-5, 4096)).toBe(SHADOW_MAP_MIN)
   })
 })

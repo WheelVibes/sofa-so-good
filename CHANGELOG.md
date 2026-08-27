@@ -5,6 +5,49 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.3.0 — shadow maps sized by texel density, and a probe harness that can't lie
+
+Round 4. The prerequisite was to check the shadow-map resize in WALK mode rather
+than orbit, because resolution buys sharpness exactly where a close-up contact
+shadow is judged. Doing that first turned up a dev-environment trap that had been
+silently faking a result.
+
+- **`504 (Outdated Optimize Dep)` was producing fake measurements.** This worktree
+  symlinks `node_modules` to the sibling checkout, so both dev servers share
+  Vite's optimizer cache; when one re-optimizes, the other fails to serve the
+  lazily-imported `EffectsImpl` chunk, R3F's error boundary replaces the scene
+  with a "Something went wrong" card, and every screenshot captures the card. A
+  card is perfectly stable — so the first walk-mode shadow sweep reported
+  **0.00 difference between 512 and 4096** and looked like a clean result. Fixed
+  three ways: `vite.probe.config.ts` gives the probe server its own `cacheDir`,
+  `lib.mjs:assertSceneAlive` throws when the error boundary is up, and
+  `scripts/dev-probes/with-server.sh` owns the server's lifetime inside one
+  invocation (which also stops a probe silently connecting to an orphaned server
+  from the other checkout and measuring the wrong branch).
+- **Sun-shadow map resolution now tracks texel density (SHADOW-TEXEL).**
+  `quality.shadowMapSize` becomes a CEILING; the size actually used comes from
+  `shadowMapSizeForExtent(halfExtent, tierMax)`, targeting a constant ~20 mm
+  world-space texel over the plan-fitted frustum. The old fixed-per-tier number
+  meant the same setting gave very different quality by plan size — 4096 is
+  4.6 mm/texel over the default flat but 19.5 mm/texel over a 40 m custom plan.
+  Now the default flat resolves to 1024 at every tier, and a large plan scales up
+  to its ceiling where the density genuinely needs it.
+- **Measured in walk mode, standing next to furniture at 09:00** — the viewpoint
+  the change could plausibly hurt. Sweeping 4096/2048/1024/512 gave living-room
+  meanAbsDiff **0.43 / 0.21 / 0.43 against a 0.35 noise floor**, with no monotonic
+  degradation: 512 was no worse than 2048. Two reasons it doesn't show — Medium+
+  run VSM with `radius: 6`/`blurSamples: 12`, a blur wide enough to discard the
+  extra texels, and the virtual ceiling occluder leaves interiors lit almost
+  entirely by non-shadow-casting fill, so there is barely any cast shadow indoors
+  to resolve. Orbit stills before/after confirm it: `maximum` meanAbsDiff 0.331 /
+  0.10% of pixels, inside the established noise floor.
+- **The millisecond saving is NOT verified.** The machine was busy with the
+  sibling checkout's dev server and a test run (load average 4.5–7.5) for the
+  whole measurement window, and frame-cost numbers are meaningless under load.
+  The change is shipped on the strength of the visual evidence and the unit-tested
+  density logic; re-measure the saving with `with-server.sh frame-time.mjs` on an
+  idle machine before quoting a number.
+
 ## v0.31.2.1 — a silent-disable footgun, and four ways the measurements were lying
 
 Round 3 set out to price each tier feature in milliseconds so the interior-shadow

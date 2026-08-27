@@ -18,7 +18,7 @@ import { resolveToneMapping, toneContextFromState } from '../toneContext'
 import { TONE_MAPPING_THREE } from '../toneMappingThree'
 import { useQuality } from '../useQuality'
 import { lightingFromAltitude } from './altitudeCurve'
-import { shadowFrustumForPlan } from './shadowFrustum'
+import { shadowFrustumForPlan, shadowMapSizeForExtent } from './shadowFrustum'
 import { updateStatusBarTint } from './statusBarTint'
 import { type SunPosition, sunDirectionToScene } from './sunPosition'
 import { useSunPosition } from './useSunPosition'
@@ -75,7 +75,7 @@ function targetVals(sun: SunPosition, orientation: number, center: [number, numb
 export function Lighting() {
   const sunPos = useSunPosition()
   const orientation = useStore((s) => s.orientationDeg)
-  const shadowMapSize = useQuality().shadowMapSize
+  const tierShadowMax = useQuality().shadowMapSize
   // PHOTO-SOFTSHADOW: Medium+ tiers run VSM (real blurred penumbrae via
   // radius/blurSamples); the renderer-level filter switch lives in
   // ShadowFilterController — here we only feed the matching per-light params.
@@ -94,6 +94,11 @@ export function Lighting() {
   // apartment-centred box misses shadows on a large or origin-offset custom plan.
   const floorPlan = useStore((s) => s.floorPlan)
   const { center, halfExtent } = useMemo(() => shadowFrustumForPlan(floorPlan), [floorPlan])
+  // SHADOW-TEXEL: size the map for a constant world-space texel density over the
+  // plan-fitted frustum rather than taking the tier's number literally. The tier
+  // value is the CEILING. See `shadowMapSizeForExtent` for the walk-mode
+  // measurements behind the target density.
+  const shadowMapSize = shadowMapSizeForExtent(halfExtent, tierShadowMax)
   // A persistent target so the directional light always points at the plan
   // centre regardless of where the sun sits; re-aim it when the centre moves.
   const sunTarget = useMemo(() => new Object3D(), [])
