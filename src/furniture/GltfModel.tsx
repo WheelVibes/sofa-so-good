@@ -12,7 +12,9 @@ import { baseUrl, lodUrlsForBase, prewarmLod, resolveLodUrlSync } from './gltf/l
 import { detectMirrorPlane, hideMirrorMesh, type MirrorPlane } from './gltf/mirrorPlane'
 import { applyTextureBudget } from './gltf/textureBudget'
 import { detectSupportPlaneY, type HorizontalBand } from './ikea/supportPlane'
+import { MetalMaterial } from './primitives/MetalMaterial'
 import { mirrorReflectorConfig } from './primitives/MirrorMaterial'
+import { useMirrorRelevance } from './primitives/useMirrorRelevance'
 
 /** Public footprint shape: axis-aligned size in metres at scale=1, plus the
  *  local-space center offset of that bbox. Many GLBs are not centered on their
@@ -518,6 +520,10 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides, reflective }:
  *  and size it to the two large bbox extents. */
 function ReflectorOverlay({ plane, resolution }: { plane: MirrorPlane; resolution: number }) {
   const { center, axis, sx, sy, sz } = plane
+  // MIRROR-RELEVANCE: a detected GLB mirror pays the same extra-scene-pass cost
+  // as a parametric one, so it goes through the same relevance + budget gate.
+  // `true` because reaching here already means the tier permits a reflection.
+  const { real, attachRef } = useMirrorRelevance(true)
   const rotation: [number, number, number] =
     axis === 'x' ? [0, Math.PI / 2, 0] : axis === 'y' ? [-Math.PI / 2, 0, 0] : [0, 0, 0]
   // Plane local X/Y → world extents depend on which axis is the normal.
@@ -525,17 +531,31 @@ function ReflectorOverlay({ plane, resolution }: { plane: MirrorPlane; resolutio
   return (
     <mesh position={center} rotation={rotation}>
       <planeGeometry args={args} />
-      <MeshReflectorMaterial
-        resolution={resolution}
-        mirror={1}
-        blur={[0, 0]}
-        mixBlur={0}
-        mixStrength={1.1}
-        roughness={0}
-        metalness={0}
-        color="#dfe8ee"
-        side={2}
-      />
+      {real ? (
+        <MeshReflectorMaterial
+          ref={attachRef}
+          resolution={resolution}
+          mirror={1}
+          blur={[0, 0]}
+          mixBlur={0}
+          mixStrength={1.1}
+          roughness={0}
+          metalness={0}
+          color="#dfe8ee"
+          side={2}
+        />
+      ) : (
+        <MetalMaterial
+          ref={attachRef}
+          color="#dfe8ee"
+          roughness={0.07}
+          metalness={0.7}
+          envMapIntensity={2.0}
+          emissive="#b9c6d0"
+          emissiveIntensity={0.16}
+          side={2}
+        />
+      )}
     </mesh>
   )
 }

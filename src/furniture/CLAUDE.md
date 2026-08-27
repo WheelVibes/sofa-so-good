@@ -189,6 +189,31 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   unit. Gated by the `cabinetOpen` flag (simple tier — a furnish/view delight, not an analytical
   tool). The inspector control lives in `ui/inspector/ParametricBody.tsx`, shown only when the flag
   is on AND `supportsCabinetOpen(def)`.
+- **Real planar mirrors are gated on RELEVANCE, not just on tier (MIRROR-RELEVANCE).**
+  drei's `<MeshReflectorMaterial>` re-renders the ENTIRE scene from the mirror's plane inside its
+  own `useFrame`, unconditionally — no frustum test, no visibility test, no throttle. Attributed
+  with `scripts/dev-probes/render-attrib.mjs` on a Mac mini M4, ONE orbit frame at High: the
+  beauty pass was 2130 draw calls and the mirror's reflection was **1710 draw calls / 464K tris —
+  43% of the whole frame** for a bathroom pane a few dozen pixels tall. It is also
+  FIXED-resolution (512²/1024²), which is why the post tiers' cost barely tracked screen
+  resolution at all (7× the viewport pixels moved orbit FPS by ~9%; the frame was never
+  fill-bound). Dropping it measured `high` 41.9 → 58.4 fps and `maximum` 32.4 → 56.5 fps.
+  So `mirrorReflectorConfig(tier)` now only says a reflection is PERMITTED; `useMirrorRelevance`
+  decides whether it is WORTH it, and every `MeshReflectorMaterial` call site goes through it
+  (`MirrorMaterial` — used by `Mirror`/`WallMirror`/`FloorMirror`/`Wardrobe` — plus `GltfModel`'s
+  detected-GLB `ReflectorOverlay`). Rules, pure + unit-tested in `mirrorRelevance.ts`:
+  the pane must cover ≥ `MIRROR_REAL_ON_FRACTION` of viewport HEIGHT to engage and drops below
+  `MIRROR_REAL_OFF_FRACTION` to release (wide hysteresis band — every flip is a material swap,
+  i.e. a shader recompile), and at most `MIRROR_REAL_BUDGET` panes hold a reflection at once.
+  **Resolve hysteresis and the budget TOGETHER over the whole candidate set** (`rankRealMirrors`),
+  never per pane: a pane cannot see that a bigger mirror already claimed the budget, and the
+  first cut of this let two bathroom mirrors both render a full extra scene pass. The gate is
+  throttled on a camera-move threshold (like `lighting/chooseEmitters.ts`) and never flips while
+  a camera gesture is held (like `InteractiveDprController`). Verify BOTH directions with
+  `node scripts/dev-probes/mirror-gate.mjs` — a gate that never upgrades has silently deleted the
+  feature while looking like a pure perf win. NOTE when writing such a probe: drei's reflector
+  EXTENDS `MeshStandardMaterial`, so `material.type` cannot tell the two apart — discriminate on
+  its `uniforms.textureMatrix`.
 - **Categories**: 16 `FurnitureCategory` values. A new one must update the union,
   `FURNITURE_CATEGORIES`, **every** exhaustive `Record<FurnitureCategory,…>` consumer the
   type-checker flags, and `ui/catalog/CategoryTabs`/`CategoryIcon`. Category is auto-detected

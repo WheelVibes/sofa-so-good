@@ -8,6 +8,10 @@ import puppeteer from 'puppeteer'
 
 const TIERS = (process.env.TIERS || 'performance,medium,high,maximum').split(',')
 const DSF = Number(process.env.DSF || 2)
+// Viewport in CSS px. The DPR ceiling (`dprMax`) caps the pixel RATIO but not
+// the viewport SIZE, so a large display is the uncapped cost variable: a 5K iMac
+// fullscreen at DPR 2 is ~14.7M drawing-buffer pixels against ~4.1M on a laptop.
+const [VPW, VPH] = (process.env.VP || '1280,800').split(',').map(Number)
 const browser = await puppeteer.launch({
   headless: true,
   args: [
@@ -21,13 +25,13 @@ const browser = await puppeteer.launch({
 })
 const page = await browser.newPage()
 await page.emulateTimezone('Asia/Singapore')
-await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: DSF })
+await page.setViewport({ width: VPW, height: VPH, deviceScaleFactor: DSF })
 await page.evaluateOnNewDocument(() => {
   try {
     localStorage.setItem('hdb_onboarded', '1')
   } catch {}
 })
-await page.goto('http://localhost:5173/', { waitUntil: 'domcontentloaded' })
+await page.goto(process.env.URL || 'http://localhost:5173/', { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('canvas', { timeout: 60000 })
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
 await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
@@ -46,7 +50,11 @@ const b = await page.evaluate(() => {
 })
 const cx = b.x + b.w / 2,
   cy = b.y + b.h / 2
-console.log(`viewport 1280x800 @ dpr ${DSF}  (drawing buffer ${1280 * DSF}x${800 * DSF})`)
+console.log(
+  `viewport ${VPW}x${VPH} @ dpr ${DSF}  (drawing buffer ${VPW * DSF}x${VPH * DSF} = ${(
+    (VPW * DSF * VPH * DSF) / 1e6
+  ).toFixed(1)}M px)`,
+)
 for (const tier of TIERS) {
   // setQualityTier pins `qualityUserSet`, disabling the adaptive guard.
   await page.evaluate((t) => window.__store.getState().setQualityTier(t), tier)

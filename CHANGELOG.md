@@ -5,6 +5,55 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.1.0 — one bathroom mirror was 43% of every frame
+
+Round 1 of the continuous graphics loop. Chasing why the post tiers were stuck
+around 40 fps turned up something that had nothing to do with resolution: at High
+and Maximum three was calling `renderer.render()` **18 times per animation frame**
+with 5,742 draw calls, against 1 render and 1,137 draw calls on
+Performance/Medium. Attributing each of those calls
+(`scripts/dev-probes/render-attrib.mjs`) found two full-scene passes, not one:
+
+```
+ 1  target=512x512   drawcalls=1710  tris=464280   <- a mirror's reflection
+ 2  target=1280x800  drawcalls=2130  tris=604836   <- the actual beauty pass
+ …  16 fullscreen-quad passes (post stack)         drawcalls=1 each
+```
+
+drei's `<MeshReflectorMaterial>` re-renders the entire scene from the mirror's
+plane in its own `useFrame` — unconditionally, with no frustum, visibility or
+throttle check. So a bathroom mirror a few dozen pixels tall in the dollhouse
+view was **43% of the frame's draw calls**. It is also fixed-resolution
+(512²/1024²), which explains a result that had been puzzling: 7x the viewport
+pixels changed orbit FPS by only ~9%, because these frames were never fill-bound.
+
+- **Mirrors now earn their reflection (MIRROR-RELEVANCE).** The tier still says
+  whether a real planar reflection is *permitted*; a new pure, unit-tested
+  relevance rule decides whether it is *worth it*. A pane must cover a minimum
+  fraction of viewport height to engage, with a wide hysteresis band to release
+  (every flip is a material swap, i.e. a shader recompile), and at most one pane
+  holds a reflection at a time. Hysteresis and that budget are resolved together
+  over the whole candidate set — the first cut decided per-pane, and two bathroom
+  mirrors promptly both rendered a full extra scene pass, since neither could see
+  that the other had already claimed the budget. The gate is throttled on a
+  camera-move threshold (like the fixture-light budget) and never flips
+  mid-gesture (like the interactive DPR degrade).
+- **Measured on a Mac mini M4 at 2560x1600**, sustained orbit:
+
+  | tier    | before    | after     |
+  | ------- | --------- | --------- |
+  | high    | 41.9 fps  | 57.9 fps  |
+  | maximum | 32.4 fps  | 57.6 fps  |
+
+  Draw calls per frame 4,002 → 2,283; full-scene passes 2 → 1. The orbit view is
+  visually unchanged (mean absolute pixel difference 0.87 at High, 0.36 at
+  Maximum), and walking up to a mirror still gets a true reflection — verified in
+  both directions with a new `scripts/dev-probes/mirror-gate.mjs`, which was
+  worth writing: a gate that never upgrades would have silently deleted the
+  mirror feature while looking like a pure win. (It also has to discriminate on
+  `uniforms.textureMatrix`, because drei's reflector extends
+  `MeshStandardMaterial` and so reports the same `material.type` as the fallback.)
+
 ## v0.31.0.0 — the graphics look real: a view transform on the post tiers, no more orbit white-flash, a key light that casts
 
 User feedback: "the graphics don't look real, they look like animation style",
