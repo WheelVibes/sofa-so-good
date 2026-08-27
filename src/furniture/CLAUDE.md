@@ -479,3 +479,34 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   Secondary defect fixed along the way: `mat:floor-wood-oak` was NOT among the `finish` enum's own
   `options`, so the default was unselectable and a user who changed the finish could never return
   to it. `'wood'` is the first listed option.
+- **A def's `paramSchema` default is the EFFECTIVE default; a primitive's `readStr` fallback is
+  DEAD whenever the def declares the same key (PARAM-DEFAULT-AUTHORITY).** `defaultParamProps(def)`
+  materialises every schema default into the item's props at creation, so `readStr(props, 'color',
+  '#8a6b48')` inside the primitive never fires — the stored prop always wins. This is silent and
+  expensive: changing only `TVConsole.tsx`'s fallback produced a BYTE-IDENTICAL measurement, and so
+  did a second attempt whose regex missed the schema's one-line form
+  (`{ kind: 'color', key: 'color', label: 'Colour', default: '#3a2f24' },` — a pattern written for
+  the multi-line form does not match it). Change BOTH, and confirm with `git diff` that the edit
+  landed where you meant: a slice taken from `'<defId>': {` to the next `\n  '` over-runs the def,
+  because sibling keys are not all quoted. Byte-identical means "prove the mutation landed" before
+  it means anything about the render.
+- **`tv-console` is resolved — FURNITURE-WOOD-SCALE now covers all 21 defs (v0.31.5.13).** It was
+  the one piece held back, because a `mat:` finish supplies its own albedo and IGNORES the
+  primitive's `color` while the procedural `wood` painter MULTIPLIES it, so the switch had woken up
+  an unvalidated #3a2f24 (nearly black). Swept item-masked at walk/Medium/09:00 against
+  `finish='wood'` — mean 72.7 / 97.5 / 109.9 / 122.1 / 131.8 and chroma 0.521 / 0.497 / 0.489 /
+  0.415 / 0.396 for #3a2f24 / #6f553f / #8a6b48 / #a08464 / #b89a72. Shipped #8a6b48 (mean 109.9,
+  chroma 0.489): #a08464 measured lower chroma and looked near-identical, so the tiebreak was
+  coherence — #8a6b48 is exactly the dresser and nightstand default, so the flat's wood furniture
+  reads as one family. The shipped state re-measured to the swept arm exactly, which cross-validates
+  the live-sweep method against a real source change.
+  **Mask by ITEM, not by painter, for a per-item decision** (`surface-detail.mjs MASK=item`). The
+  first sweep used the default painter mask and covered 402 cells across 17 materials sharing the
+  wood tile, so the entire #3a2f24 -> #a08464 range moved mean only 80.2 -> 92.9 — most of the mask
+  was other furniture. Item-masked it is 106 cells and the range moves 72.7 -> 122.1.
+  **The other dark `color` defaults are NOT the same trap.** A grep of
+  `readStr(props, 'color'|'topColor'|'frameColor'|'legColor')` across `primitives/` flags 33 values
+  below luminance 70, but they are dark BY DESIGN on small parts (`legColor` on chairs/sofas/tables,
+  which goes straight to `getWoodMaterial` and was always live) or on legitimately dark objects
+  (appliances, speakers, a piano, picture frames). The trap only existed where a def's finish
+  default WAS `mat:<id>`, and all 21 of those were checked in v0.31.5.9.

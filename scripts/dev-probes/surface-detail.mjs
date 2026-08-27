@@ -48,6 +48,19 @@ const LABEL = process.env.LABEL || 'surface'
 const POINT = (process.env.POINT || '0.42,-0.12').split(',').map(Number)
 const DEF = process.env.DEF || null
 /**
+ * What the mask covers:
+ *   'painter' (default) — every material sharing the seed's map SOURCE. Right for
+ *                         "how does this painter look", since three clones the
+ *                         shared tile per repeat.
+ *   'item'              — only meshes belonging to the `DEF` item(s). Right for a
+ *                         per-ITEM decision such as its `color` prop.
+ * Getting this wrong dilutes the measurement badly: a tv-console colour sweep
+ * under 'painter' covered 402 cells across 17 shared-wood materials, and the whole
+ * #3a2f24 -> #a08464 range moved mean only 80.2 -> 92.9 because most of the mask
+ * was other furniture wearing the same tile.
+ */
+const MASK = process.env.MASK || 'painter'
+/**
  * Optional A/B: a comma-separated list of `finish` prop values to try on the
  * `DEF` item(s), measured in ONE run over the identical view and mask. This is
  * the honest way to compare candidate finishes — a source edit per candidate
@@ -78,6 +91,16 @@ const PROP = process.env.PROP || 'finish'
  * DIRECTION, then measure the real bake.
  */
 const NORMAL_SCALES = (process.env.NORMAL_SCALES || '').split(',').filter(Boolean).map(Number)
+/**
+ * Props to set ONCE on the `DEF` item(s) before the mask is built, as
+ * `key=value,key=value`. Use it to pin the context a sweep runs in — e.g.
+ * `PRESET=finish=wood` before sweeping `PROP=color`, since the sweep itself only
+ * writes one prop.
+ */
+const PRESET = (process.env.PRESET || '')
+  .split(',')
+  .filter(Boolean)
+  .map((kv) => kv.split('='))
 fs.mkdirSync(OUT, { recursive: true })
 
 const browser = await puppeteer.launch({
@@ -158,6 +181,21 @@ async function applyFinish(finish) {
   await new Promise((r) => setTimeout(r, 4500))
   await assertSceneAlive(page, `${PROP} ${finish}`)
 }
+if (PRESET.length) {
+  const n = await page.evaluate(
+    (def, pairs) => {
+      const st = window.__store.getState()
+      const items = st.items.filter((x) => x.defId === def)
+      for (const i of items) st.updateItemProps(i.id, Object.fromEntries(pairs))
+      return items.length
+    },
+    DEF,
+    PRESET,
+  )
+  if (!n) throw new Error(`PRESET: no items with defId ${DEF}`)
+  await new Promise((r) => setTimeout(r, 4500))
+  await assertSceneAlive(page, 'after PRESET')
+}
 if (FINISHES.length) await applyFinish(FINISHES[0])
 
 /** Set every masked material's normalScale (uniform x/y). */
@@ -178,7 +216,7 @@ async function applyNormalScale(v) {
 const GX = 96
 const GY = 60
 const found = await page.evaluate(
-  (pt, gx, gy, def) => {
+  (pt, gx, gy, def, maskMode) => {
     const { scene, camera, raycaster } = window.__three
     const rc = new raycaster.constructor()
     const visible = (k) => {
@@ -187,6 +225,14 @@ const found = await page.evaluate(
     }
     let ref = null
     let seededFrom = ''
+    const itemIds = new Set(
+      def
+        ? window.__store
+            .getState()
+            .items.filter((i) => i.defId === def)
+            .map((i) => i.id)
+        : [],
+    )
     if (def) {
       // Find the item(s) with this defId, then their meshes via the itemId tag
       // Furniture.tsx puts on each piece's group. Seed from the mesh with the
@@ -262,10 +308,18 @@ const found = await page.evaluate(
         const hit = rc.intersectObjects(scene.children, true).find(visible)
         let ok = 0
         if (hit) {
-          const m = Array.isArray(hit.object.material)
-            ? hit.object.material[0]
-            : hit.object.material
-          if (mats.includes(m)) ok = 1
+          if (maskMode === 'item') {
+            let node = hit.object
+            while (node && !ok) {
+              if (node.userData?.itemId && itemIds.has(node.userData.itemId)) ok = 1
+              node = node.parent
+            }
+          } else {
+            const m = Array.isArray(hit.object.material)
+              ? hit.object.material[0]
+              : hit.object.material
+            if (mats.includes(m)) ok = 1
+          }
         }
         mask.push(ok)
         n += ok
@@ -295,6 +349,7 @@ const found = await page.evaluate(
   GX,
   GY,
   DEF,
+  MASK,
 )
 
 if (!found.n) {
@@ -378,7 +433,7 @@ console.log(
     `  map=${found.maps.map ? 'y' : '.'} nrm=${found.maps.normalMap ? 'y' : '.'} rgh=${found.maps.roughnessMap ? 'y' : '.'}  (${found.mats} materials share it)`,
 )
 console.log(
-  `  masked ${found.n}/${GX * GY} screen cells (${((100 * found.n) / (GX * GY)).toFixed(1)}%)`,
+  `  masked ${found.n}/${GX * GY} screen cells (${((100 * found.n) / (GX * GY)).toFixed(1)}%) — mask=${MASK}`,
 )
 const show = (tag, r) =>
   console.log(

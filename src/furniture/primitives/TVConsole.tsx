@@ -18,7 +18,17 @@ interface TVConsoleProps {
  */
 export function TVConsole({ props }: TVConsoleProps) {
   const width = readNum(props, 'width', 1.8)
-  const color = readStr(props, 'color', '#3a2f24')
+  // FURNITURE-WOOD-SCALE: was #3a2f24, nearly black. That was harmless while the
+  // def's finish was a `mat:` catalog material (which supplies its own albedo and
+  // ignores this prop), but the procedural `wood` painter MULTIPLIES it, so the
+  // colour had never actually been validated. Swept item-masked at walk/Medium/
+  // 09:00 against finish='wood': #3a2f24 / #6f553f / #8a6b48 / #a08464 / #b89a72
+  // gave mean 72.7 / 97.5 / 109.9 / 122.1 / 131.8 and chroma 0.521 / 0.497 /
+  // 0.489 / 0.415 / 0.396. #a08464 measured slightly lower chroma and looked
+  // near-identical; #8a6b48 was chosen because it is squarely in the target band
+  // AND matches the Dresser and Nightstand defaults, so the flat's wood furniture
+  // reads as one family.
+  const color = readStr(props, 'color', '#8a6b48')
   const finish = readStr(props, 'finish', 'wood')
   const sheen = readNum(props, 'sheen', 0)
   const base = readStr(props, 'base', 'block')

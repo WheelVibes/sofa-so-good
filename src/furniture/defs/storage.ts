@@ -426,7 +426,16 @@ export const STORAGE_DEFS = {
         default: 1.8,
         unit: 'm',
       },
-      { kind: 'color', key: 'color', label: 'Colour', default: '#3a2f24' },
+      // FURNITURE-WOOD-SCALE: was #3a2f24 (nearly black). THIS line is the effective
+      // default — `defaultParamProps` materialises a def's paramSchema value into the
+      // item's props, so `TVConsole`'s own `readStr(..., '#8a6b48')` fallback never
+      // fires and editing that alone changed nothing (the measurement came back
+      // byte-identical twice before this was found). Swept item-masked at
+      // walk/Medium/09:00 against finish='wood': mean 72.7 / 97.5 / 109.9 / 122.1 /
+      // 131.8 and chroma 0.521 / 0.497 / 0.489 / 0.415 / 0.396 for #3a2f24 / #6f553f /
+      // #8a6b48 / #a08464 / #b89a72. #8a6b48 is in the target band AND matches the
+      // dresser and nightstand defaults, so the wood furniture reads as one family.
+      { kind: 'color', key: 'color', label: 'Colour', default: '#8a6b48' },
       {
         kind: 'enum',
         key: 'base',
@@ -453,16 +462,14 @@ export const STORAGE_DEFS = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        // FURNITURE-WOOD-SCALE keeps `mat:floor-wood-oak` HERE, deliberately: unlike
-        // every other piece in this sweep, `TvConsole`'s `color` default is #3a2f24 —
-        // nearly black. A `mat:` finish supplies its own albedo and ignores that
-        // colour, so switching to the procedural `wood` painter (which MULTIPLIES it)
-        // woke up a dark value nobody had validated: measured over a raycast mask at
-        // walk/Medium/09:00, mean luminance fell 61.8 -> 37.7 while chroma only went
-        // 0.794 -> 0.612. Less lurid, but nearly black is not an improvement. Fixing
-        // this piece properly means re-choosing its `color`, which needs its own
-        // measurement.
-        default: 'mat:floor-wood-oak',
+        // FURNITURE-WOOD-SCALE, resolved: `tv-console` was the one def held back from
+        // the procedural `wood` painter, because `TvConsole`'s `color` default was
+        // #3a2f24 (nearly black) and a `mat:` finish IGNORES that colour while the
+        // procedural painter MULTIPLIES it — the switch alone dropped mean luminance
+        // 61.8 -> 37.7. Its colour is now #8a6b48 (see TvConsole.tsx) and the switch
+        // is safe: item-masked at walk/Medium/09:00, mean 72.7 -> 109.9 and chroma
+        // 0.521 -> 0.489.
+        default: 'wood',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },

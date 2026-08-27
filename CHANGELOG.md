@@ -5,6 +5,58 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.13 — the last def off the floor painter, and a silent-default trap
+
+`tv-console` was the one piece FURNITURE-WOOD-SCALE (v0.31.5.9) held back, because
+a `mat:` finish supplies its own albedo and IGNORES the primitive's `color` while
+the procedural `wood` painter MULTIPLIES it — so the switch had woken up an
+unvalidated #3a2f24, nearly black.
+
+- **Swept its colour, item-masked, in one run** at walk/Medium/09:00 against
+  `finish='wood'`:
+
+  | colour   | chroma | >0.35 sat | mean  |
+  | -------- | ------ | --------- | ----- |
+  | #3a2f24  | 0.521  | 61.3%     | 72.7  |
+  | #6f553f  | 0.497  | 71.7%     | 97.5  |
+  | **#8a6b48** | 0.489 | 74.5%  | **109.9** |
+  | #a08464  | 0.415  | 62.3%     | 122.1 |
+  | #b89a72  | 0.396  | 52.8%     | 131.8 |
+
+  Shipped #8a6b48. #a08464 measured lower chroma and looked near-identical on the
+  crop, so the tiebreak was coherence: #8a6b48 is exactly the dresser and
+  nightstand default, so the flat's wood furniture now reads as one family. The
+  shipped state re-measured to the swept arm exactly (0.489 / 109.9 / 37.68 /
+  1.759), which cross-validates the live-sweep method against a real source change.
+  Reviewed on a crop: was a glossy near-black lacquered unit, now a mid-warm
+  timber console matching the tables.
+
+- **`MASK=item` added to `surface-detail.mjs`, because the first sweep was
+  meaningless.** Under the default painter mask it covered 402 cells across 17
+  materials sharing the wood tile, so the whole #3a2f24 → #a08464 range moved mean
+  only 80.2 → 92.9 — most of the mask was other furniture. Item-masked it is 106
+  cells and the range moves 72.7 → 122.1. Painter mask for "how does this painter
+  look"; item mask for a per-item prop decision.
+
+- **PARAM-DEFAULT-AUTHORITY — the trap that cost two byte-identical runs.** A def's
+  `paramSchema` default is the EFFECTIVE default: `defaultParamProps` materialises
+  it into the item's props, so a primitive's `readStr(props, 'color', …)` fallback
+  never fires when the def declares the same key. Editing only `TVConsole.tsx`
+  changed nothing. The second attempt also failed, because a pattern written for
+  the multi-line schema form does not match the one-line form
+  (`{ kind: 'color', key: 'color', label: 'Colour', default: '#3a2f24' },`), and a
+  slice taken from `'<defId>': {` to the next `\n  '` over-runs the def since
+  sibling keys are not all quoted — the diff showed four colour params and two
+  finish defaults inside what I thought was one def. `git diff` was what finally
+  settled it. Byte-identical means "prove the mutation landed" first.
+
+- **The other dark colour defaults are not the same trap.** 33 values across
+  `primitives/` sit below luminance 70, but they are dark by design on small parts
+  (`legColor`, which goes straight to `getWoodMaterial` and was always live) or on
+  legitimately dark objects (appliances, speakers, a piano, picture frames). The
+  trap only existed where a def's finish default WAS `mat:<id>`, and all 21 of
+  those were checked in v0.31.5.9.
+
 ## v0.31.5.12 — the Nyquist sweep is closed: 5 fixed, 14 verdicts
 
 Finished the allowlist by applying NYQUIST-HARM first, which settled every
