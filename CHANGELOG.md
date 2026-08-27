@@ -5,6 +5,63 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.4 — the tone curve is inventing most of the saturation
+
+Round 12 asked why a wood albedo with an sRGB HSV saturation of 0.508 renders at
+0.833, and was told to look for a root cause before repainting swatches across
+five primitives. There is one, it is the view transform, and this round ships the
+small part of it and documents why the large part is blocked.
+
+- **Zeroed the post-processing saturation baseline (POST-SAT-NEUTRAL).**
+  `BASE_POST_SATURATION` was +0.06 — "a touch of saturation so finishes read
+  rich, not muddy" — which assumed the view transform delivered the albedo
+  faithfully. Measured over the default flat's wood (walk/Medium/09:00, wood
+  pixels only via a raycast mask, in-run noise floor 0.00), the excess
+  saturation decomposes as ~0.05 from the surface being dark, **0.069 from this
+  constant**, and ~0.21 from three's `ACESFilmicToneMapping` applying its curve
+  per channel. Adding a deliberate boost on top of a transform that already
+  over-saturates is doubling down.
+
+  Whole-frame, across walk + orbit at 09:00 / 13:00 / 21:00, removing it is
+  small and uniformly positive: mean chroma −0.010 to −0.018 (walk 09:00
+  0.180 → 0.170; orbit 21:00 0.328 → 0.310), pixels above 0.35 saturation −2.4
+  to −3.5 points, with mean brightness (±0.2), contrast (±0.11) and the clipped
+  fraction all unmoved. Reviewed at a crop: the sofa and cushions keep their
+  colour, nothing reads muddy. The user's saturation dial is unaffected in
+  spirit — 1 is now neutral and still moves either way across its full range.
+
+- **The large lever is measured, argued and NOT shipped (TONE-CURVE-CHOICE).**
+  Switching the default operator from filmic to AgX takes the wood from 0.833 to
+  0.678 chroma, and whole-frame at walk/Medium/09:00 takes clipped highlights
+  from **1.94% to 0.28%** — a 4–7x cut at every hour, visibly recovering ceiling
+  gradation and curtain weave that filmic was clipping away. Khronos Neutral is
+  clearly wrong as a default despite perfect highlights (chroma 0.307 in
+  daylight, 0.518 at 21:00 in orbit, 89% of pixels past 0.35 saturation).
+
+  It is blocked on one thing. `snv-response.mjs` (new) measures the SNV floor's
+  per-channel render response, and AgX's rendered proportions
+  (1.000 / 0.838 / 0.661) reproduce the swatch's own (1.000 / 0.836 / 0.659)
+  almost exactly — AgX is the faithful transform, and filmic's distortion was
+  being compensated locally in five calibrated finishes while going
+  uncompensated everywhere else. But the response drift is **0.171 in blue,
+  ~85x the ±0.002 the TONE-CALIBRATION recipe holds to**, so switching would push
+  those five finishes visibly cooler than the exhibition boards they were matched
+  to. Re-solving them belongs in the same change.
+
+  And that re-solve has to start by fixing a contradiction: TONE-CALIBRATION
+  records the response as roughly (0.56, 0.61, 0.68) R/G/B, "blue boosted ~19%
+  over red". Measured now on the same floor it is **(0.849, 0.818, 0.704)** —
+  blue is the WEAKEST channel. Opposite direction, so those figures are stale
+  (TONE-POST, KEY-FILL-BALANCE and WARM-WALL-CAST have all changed the lighting
+  mix since) and the swatches cannot be re-derived from the recorded formula.
+
+- **New probes.** `tone-curve.mjs` (whole-frame view-transform + saturation sweep
+  across the day in both view modes) and `snv-response.mjs` (the calibration
+  guard — run it before any lighting or tone change). Its floor mask is by
+  world-space face NORMAL, not geometry extents: an extent-based classifier
+  borrowed from `material-audit.mjs` matched zero cells, because that one only
+  works on axis-aligned boxes and these floors are rotated planes.
+
 ## v0.31.5.3 — the wood grain was aliased into white noise
 
 Round 11 went after the furniture wood, which round 10's visual review had left

@@ -44,6 +44,10 @@ describe('hueSatSaturation', () => {
 
   it('0 desaturates (negative pass value), 2 saturates, both within the pass range', () => {
     expect(hueSatSaturation(0)).toBeLessThan(0)
+    // POST-SAT-NEUTRAL: the baseline is deliberately neutral. The tone curve
+    // already over-saturates warm mid-dark surfaces (a 0.508-saturation albedo
+    // renders at 0.833), so a positive baseline on top compounds it.
+    expect(BASE_POST_SATURATION).toBe(0)
     expect(hueSatSaturation(0)).toBeGreaterThanOrEqual(-1)
     expect(hueSatSaturation(2)).toBeGreaterThan(BASE_POST_SATURATION)
     expect(hueSatSaturation(2)).toBeLessThanOrEqual(1)

@@ -100,10 +100,35 @@ export function warmthTintRGB(bias: number): [number, number, number] {
   return [1 + 0.14 * b, 1, 1 - 0.16 * b]
 }
 
-/** Map the user scene-saturation multiplier onto the HueSaturation pass's
- *  `saturation` param (-1..1). The pass ships a +0.06 baseline ("finishes read
- *  rich, not muddy") — the default multiplier 1 must reproduce exactly that. */
-export const BASE_POST_SATURATION = 0.06
+/**
+ * Map the user scene-saturation multiplier onto the HueSaturation pass's
+ * `saturation` param (-1..1). The default multiplier 1 must reproduce exactly
+ * this baseline.
+ *
+ * **The baseline is 0, not the historical +0.06 (POST-SAT-NEUTRAL).** The old
+ * value was there so "finishes read rich, not muddy", which assumed the view
+ * transform delivered the albedo faithfully. It does not: three's
+ * `ACESFilmicToneMapping` applies its curve PER CHANNEL, so on a warm mid-dark
+ * surface it crushes blue far harder than red and saturation climbs. Measured
+ * over the default flat's wood at walk/Medium/09:00 (wood pixels only via a
+ * raycast mask, in-run noise floor 0.00), a #7a5c3c albedo whose own sRGB HSV
+ * saturation is 0.508 rendered at **0.833** — and the decomposition put ~0.21 of
+ * that on the tone curve, 0.069 on THIS constant, and only ~0.05 on the surface
+ * being dark. Adding a deliberate saturation boost on top of a transform that
+ * already over-saturates is doubling down, so the boost is gone.
+ *
+ * Removing it is small and uniformly positive — measured whole-frame across
+ * walk + orbit at 09:00 / 13:00 / 21:00, mean chroma fell 0.010–0.018 (e.g.
+ * walk 09:00 0.180 → 0.170, orbit 21:00 0.328 → 0.310) and the fraction of
+ * pixels above 0.35 saturation fell 2.4–3.5 points, with mean brightness
+ * (±0.2), contrast (±0.11) and the clipped fraction all unmoved. It is NOT the
+ * main fix; the tone curve is (see TONE-CURVE-CHOICE in `materials/CLAUDE.md`),
+ * and that one is blocked on re-solving the five calibrated SNV swatches.
+ *
+ * The user dial is unaffected in spirit: 1 is now neutral and the slider still
+ * moves saturation either way across its full 0..2 range.
+ */
+export const BASE_POST_SATURATION = 0
 
 export function hueSatSaturation(sceneSaturation: number): number {
   const s = clampSceneSaturation(sceneSaturation)

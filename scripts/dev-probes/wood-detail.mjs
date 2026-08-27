@@ -218,6 +218,9 @@ if (!found.woods) {
 async function applyCase(key) {
   await page.evaluate((k) => {
     const wd = window.__wood
+    // Restore the grade too, or a tone case leaks into every later one.
+    window.__store.getState().setToneMapping('auto')
+    window.__store.getState().setSceneSaturation(1)
     for (const o of wd.orig) {
       o.m.map = o.map
       o.m.normalMap = o.normalMap
@@ -285,6 +288,26 @@ async function applyCase(key) {
       }
     }
     if (k === 'G') for (const m of wd.mats) m.normalMap = null
+    // TONE / GRADE cases. These touch no material at all — they ask whether the
+    // saturation is being ADDED by the view transform rather than authored. The
+    // arithmetic says a #7a5c3c albedo (sRGB HSV saturation 0.508) rendered at
+    // the measured mean luminance of ~58/255 should encode to ~0.54; the wood
+    // measures 0.83, so ~0.3 comes from somewhere downstream.
+    if (k === 'L') window.__store.getState().setToneMapping('neutral')
+    if (k === 'M') window.__store.getState().setToneMapping('agx')
+    if (k === 'N') window.__store.getState().setToneMapping('filmic')
+    // `hueSatSaturation` = BASE_POST_SATURATION (0.06) + (sceneSaturation - 1),
+    // so 0.94 puts the HueSaturation pass at exactly 0.
+    if (k === 'O') window.__store.getState().setSceneSaturation(0.94)
+    if (k === 'P') {
+      // Hold hue and saturation, raise LIGHTNESS — isolates how much of the
+      // measured chroma is simply an artefact of the surface being dark.
+      for (const o of wd.orig) {
+        const hsl = { h: 0, s: 0, l: 0 }
+        o.m.color.getHSL(hsl)
+        o.m.color.setHSL(hsl.h, hsl.s, Math.min(1, hsl.l * 1.8))
+      }
+    }
     if (k === 'I') for (const m of wd.mats) m.roughness = 0.65
     if (k === 'J') for (const m of wd.mats) m.roughness = 0.8
     if (k === 'K') {
@@ -437,6 +460,11 @@ const CASES = [
   { key: 'I', label: 'roughness 0.5 -> 0.65' },
   { key: 'J', label: 'roughness 0.5 -> 0.80' },
   { key: 'K', label: 'desaturated + roughness 0.7' },
+  { key: 'L', label: 'tone: NEUTRAL (Khronos)' },
+  { key: 'M', label: 'tone: AgX' },
+  { key: 'N', label: 'tone: filmic (explicit)' },
+  { key: 'O', label: 'post saturation 0.06 -> 0' },
+  { key: 'P', label: 'colour lightened x1.8' },
   { key: 'H', label: 'baseline repeated (noise)' },
 ]
 const px = {}
@@ -472,4 +500,9 @@ show('A vs G  (normal map worth)', 'G')
 show('A vs I  (roughness 0.65)', 'I')
 show('A vs J  (roughness 0.80)', 'J')
 show('A vs K  (candidate: desat + rough 0.7)', 'K')
+show('A vs L  (tone neutral)', 'L')
+show('A vs M  (tone AgX)', 'M')
+show('A vs N  (tone filmic explicit)', 'N')
+show('A vs O  (post saturation off)', 'O')
+show('A vs P  (lightened x1.8)', 'P')
 await browser.close()

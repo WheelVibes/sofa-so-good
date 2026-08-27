@@ -217,6 +217,55 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   ±0.002). Recipe to recalibrate after any lighting/tonemap change: render the close-up scenario,
   `sharp`-sample the surface region, `newSwatch = target ÷ (render ÷ oldSwatch)` per channel,
   iterate once. Never eyeball-revert a calibrated swatch toward its board hex.
+- **The default view transform is the biggest single realism lever left, and it is BLOCKED on the
+  SNV swatches (TONE-CURVE-CHOICE).** Measured, not argued. three's `ACESFilmicToneMapping`
+  applies its curve PER CHANNEL, so on a warm mid-dark surface it crushes blue much harder than
+  red and saturation climbs. The default flat's furniture wood makes this concrete
+  (`scripts/dev-probes/wood-detail.mjs`, walk/Medium/09:00, wood pixels only via a raycast mask,
+  in-run noise floor 0.00): a #7a5c3c albedo whose own sRGB HSV saturation is **0.508** renders at
+  **0.833**, with 97.8% of its pixels past 0.35 saturation while the whole frame sits at 0.18. The
+  excess decomposes cleanly — lightening the albedo x1.8 gives 0.784 (so darkness is worth only
+  ~0.05, matching what a pure sRGB encode predicts at that luminance), zeroing the HueSaturation
+  baseline gives 0.764 (0.069 — now shipped, see POST-SAT-NEUTRAL in `scene/look.ts`), and
+  switching to AgX gives **0.678**. The remaining ~0.21 is the curve.
+  A whole-frame sweep (`scripts/dev-probes/tone-curve.mjs`, walk + orbit x 09/13/18/21:00) says the
+  same thing globally and adds the highlight story:
+
+  | operator | mean          | contrast (sigma) | clipped         | chroma        | >0.35 sat     |
+  | -------- | ------------- | ---------------- | --------------- | ------------- | ------------- |
+  | filmic   | 185.9         | 54.5             | 1.94%           | 0.180         | 11.1%         |
+  | **agx**  | 176.7         | 43.3             | **0.28%**       | **0.152**     | **4.0%**      |
+  | neutral  | 173.2         | 59.5             | 0.05%           | 0.307         | 27.4%         |
+
+  (walk/Medium/09:00; the ordering is identical at every other hour and in orbit.) AgX cuts blown
+  highlights **4–7x** at every hour and visibly recovers ceiling gradation and curtain weave that
+  filmic was clipping away. Khronos Neutral is clearly WRONG as a default despite its perfect
+  highlights — it pushes chroma to 0.307 in daylight and 0.518 at 21:00 in orbit (89% of pixels
+  past 0.35), i.e. hard toward the cartoon look. Read AgX's lower sigma with care: **clipping
+  inflates variance**, so some of filmic's "contrast" is the blown pixels themselves.
+  **Why it is not shipped yet.** TONE-CALIBRATION (below) solved five SNV swatches as
+  `boardTone / response` against the render, and `scripts/dev-probes/snv-response.mjs` measures
+  exactly how far that moves. On the living/dining floor (`floor-vinyl-oak`, swatch #d6b38d) at
+  13:00, peak-normalised per-channel response:
+
+  | operator | R / G / B response   | rendered RGB          |
+  | -------- | -------------------- | --------------------- |
+  | filmic   | 1.000 / 0.963 / 0.829 | 181.8 / 146.5 / 99.3  |
+  | agx      | 0.998 / 0.997 / 1.000 | 173.2 / 144.7 / 114.3 |
+
+  AgX's rendered channel proportions (1.000 / 0.838 / 0.661) reproduce the SWATCH's own
+  proportions (1.000 / 0.836 / 0.659) almost exactly — it is the faithful transform, and filmic's
+  distortion was being compensated LOCALLY in five finishes while going uncompensated everywhere
+  else. But the drift is **0.171 in blue, ~85x the ±0.002 the calibration holds to**, so switching
+  would push those five finishes visibly cooler than the boards they were matched to. Re-solving
+  them is part of the same change, not a follow-up.
+  **One contradiction to resolve first, and do NOT skip it:** TONE-CALIBRATION records the render
+  response as roughly (0.56, 0.61, 0.68) R/G/B — "blue boosted ~19% over red". Measured now, the
+  absolute response on that same floor is **(0.849, 0.818, 0.704)**, i.e. blue is the WEAKEST
+  channel. The direction is opposite, so the recorded numbers are stale (plausibly: TONE-POST,
+  KEY-FILL-BALANCE and WARM-WALL-CAST all changed the lighting mix since), and the swatches cannot
+  be re-derived from that formula. Recalibrate against the board PHOTOS per the documented recipe,
+  and refresh the response figures in TONE-CALIBRATION while you are there.
 - **Every procedural noise field must stay inside its tile's NYQUIST limit (WOOD-PORE-NYQUIST).**
   `makeFbm(seed, octaves, baseFreq)` multiplies its input by `baseFreq * 2 ** octave`, and callers
   scale the input again (`fbm(u * 18, …)`), so the finest octave lands at
