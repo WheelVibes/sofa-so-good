@@ -108,9 +108,20 @@ const census = () =>
         if (m.transmission > 0) transmissive++
       }
     })
+    // Count the LIGHTS too: their number is baked into every lit material's
+    // program cache key, so a change here recompiles the whole scene.
+    let point = 0
+    let spot = 0
+    window.__three.scene.traverse((o) => {
+      if (o.isPointLight) point++
+      else if (o.isSpotLight) spot++
+    })
     return {
       materials: ids.size,
       transmissive,
+      point,
+      spot,
+      lightsMode: window.__store.getState().lightsMode,
       programs: window.__three.gl.info.programs?.length ?? -1,
     }
   })
@@ -186,6 +197,9 @@ for (const [sig, n] of Object.entries(diffTally.tally)
   console.log(`  ${n} program(s) differ only at field(s) ${sig || '(none)'}`)
   for (const line of diffTally.examples[sig] || []) console.log(`      ${line}`)
 }
+console.log(
+  `lights — before: ${before.point} point + ${before.spot} spot (lightsMode ${before.lightsMode})   after: ${after.point} point + ${after.spot} spot`,
+)
 console.log(
   `material census — before gesture: ${before.materials} materials / ${before.programs} programs` +
     `   after: ${after.materials} materials / ${after.programs} programs` +

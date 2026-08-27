@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.1 — the flat tier was rendering three times its light budget
+
+Round 9 chased the last outliers — ~151 ms at Performance and ~142 ms at High,
+against p50s of 4.5 ms and 11.0 ms. Diffing the program cache keys (the technique
+that cracked v0.31.5.0) named them in one run, and the answer was a correctness bug
+wearing a performance costume.
+
+- **`FurnitureLights` never re-picked on a TIER change.** Its gate watched items,
+  camera mode, light mood and camera movement — but not `maxLights`, the tier's
+  `maxFixtureLights`. Switching to Performance therefore left **18 point lights
+  live** (medium's 6x3 orbit budget) instead of Performance's 6, and they only
+  dropped when the camera next moved — recompiling every lit material in one
+  **150 ms** frame, because three bakes the light count into each material's
+  program cache key. So the flat tier was quietly rendering **three times its own
+  light budget**, and the stall was the delayed correction.
+- **A light-set change also requested no frame.** The live set lives in React
+  state, so `RenderPump`'s store subscription never saw it; under
+  `frameloop="demand"` a newly-mounted light drew nothing until something unrelated
+  invalidated. That deferred the shader compile to the user's first gesture even
+  when the count was right.
+
+Both fixed — `maxLights` is in the change check, and `invalidate()` fires whenever
+the set changes, so the count settles during the tier-change loading overlay that
+is already up for this kind of work.
+
+| tier        | worst frame before | after       | programs/gesture |
+| ----------- | ------------------ | ----------- | ---------------- |
+| performance | 150.6 ms           | **11.7 ms** | 25 → 1           |
+| high        | 142 ms             | **22.4 ms** | 25 → 1           |
+| maximum     | 213 ms             | **17.7 ms** | 29 → 1           |
+
+Zero spikes over 25 ms at any tier; p50/p90 unchanged. The visual side-effect is a
+correction rather than a regression: Performance's contrast rose **27.2 → 36.8** and
+its mean fell 237.4 → 233.4 once it stopped over-lighting by 3x. Medium and Maximum
+render byte-identically.
+
 ## v0.31.5.0 — the 210ms first-interaction stall was a light count changing
 
 Round 8 closed the last measured defect: at Maximum, one frame inside the first

@@ -57,6 +57,21 @@ export function FurnitureLights() {
   const lightMoodRaw = useStore((s) => s.lightMood)
   const lightMood = moodEnabled ? lightMoodRaw : 'none'
   const { camera } = useThree()
+  // The live-light set lives in REACT state, not the Zustand store, so
+  // `RenderPump`'s `subscribe(markDirty)` never sees it change (LIGHT-SET-INVALIDATE).
+  // Under `frameloop="demand"` that means mounting or dropping a fixture light
+  // requests no frame at all: the lights sit in the tree undrawn until something
+  // unrelated happens to invalidate. Two consequences, both measured —
+  //   (1) a newly-lit fixture can visibly fail to appear until the next
+  //       interaction, and
+  //   (2) three never sees the new light COUNT, so every lit material's shader
+  //       compile is deferred to whatever frame renders next. That was the first
+  //       frame of the user's first camera gesture: 0 -> 6 lights at Performance
+  //       and +25 programs in one frame, costing 150 ms
+  //       (`scripts/dev-probes/frame-spikes.mjs`).
+  // Invalidating on a set change fixes both, and moves the compile to boot where
+  // the loading overlay already hides it.
+  const invalidate = useThree((s) => s.invalidate)
   const levelRef = useRef(0)
   const [active, setActive] = useState<ActiveLight[]>([])
   const lastKeyRef = useRef('')
@@ -69,6 +84,16 @@ export function FurnitureLights() {
   // A mood change re-tints/re-scales the SAME active set without moving the
   // camera or touching `items` — needs its own change check.
   const lastMoodRef = useRef(lightMood)
+  // So does a TIER change (LIGHT-BUDGET-REPICK): `maxLights` is the tier's
+  // `maxFixtureLights`, and the budget derived from it decides how many fixtures
+  // are live. Without this check a tier switch left the OLD tier's light count
+  // mounted until the camera next moved — measured going medium → Performance,
+  // 18 point lights stayed up and only dropped to 6 on the first camera gesture,
+  // which recompiled every lit material in one 150 ms frame (three bakes the light
+  // count into each material's program cache key). Re-picking here instead means
+  // the count changes during the tier-change loading overlay, which is already up
+  // for exactly this kind of work.
+  const lastMaxRef = useRef(maxLights)
 
   // Binary all-on / all-off (the sun-following 'auto' mode was removed).
   const level = lightsMode === 'on' ? 1 : 0
@@ -81,6 +106,7 @@ export function FurnitureLights() {
       if (active.length > 0) {
         setActive([])
         lastKeyRef.current = ''
+        invalidate()
       }
       return
     }
@@ -92,10 +118,12 @@ export function FurnitureLights() {
     const itemsChanged = lastItemsRef.current !== items
     const modeChanged = lastModeRef.current !== cameraMode
     const moodChanged = lastMoodRef.current !== lightMood
+    const budgetChanged = lastMaxRef.current !== maxLights
     if (
       !itemsChanged &&
       !modeChanged &&
       !moodChanged &&
+      !budgetChanged &&
       movedSq < CAM_RECOMPUTE_SQ &&
       lastKeyRef.current !== ''
     )
@@ -105,6 +133,7 @@ export function FurnitureLights() {
     lastItemsRef.current = items
     lastModeRef.current = cameraMode
     lastMoodRef.current = lightMood
+    lastMaxRef.current = maxLights
     const emitters: { item: FurnitureItem; spec: EmitterSpec; d2: number }[] = []
     for (const item of items) {
       const spec = resolveEmitterSpec(item.defId, item.props)
@@ -167,6 +196,7 @@ export function FurnitureLights() {
         }
       }),
     )
+    invalidate()
   })
 
   if (active.length === 0) return null

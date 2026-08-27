@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { QUALITY_PRESETS } from '../quality'
+import { QUALITY_PRESETS, RENDER_TIERS } from '../quality'
 import {
   chooseEmitters,
   fixtureLightBudget,
@@ -139,5 +139,29 @@ describe('lightSlotCount (LIGHT-COUNT-STABLE)', () => {
 
   it('survives a non-finite budget', () => {
     expect(lightSlotCount(5, Number.NaN)).toBeGreaterThanOrEqual(5)
+  })
+})
+
+describe('the tier budget genuinely changes the light count (LIGHT-BUDGET-REPICK)', () => {
+  it('gives different tiers different orbit budgets', () => {
+    // This is WHY FurnitureLights must re-pick on a tier change and not only on
+    // camera movement: the budget really does change, so the light COUNT changes
+    // — and three bakes that count into every lit material's program cache key.
+    // Measured: switching medium -> Performance left 18 point lights mounted until
+    // the first camera gesture, which then dropped them to 6 and recompiled every
+    // lit material in one 150ms frame.
+    const budgets = RENDER_TIERS.map((t) =>
+      fixtureLightBudget('orbit', QUALITY_PRESETS[t].maxFixtureLights),
+    )
+    expect(new Set(budgets).size).toBeGreaterThan(1)
+  })
+
+  it('rises monotonically with the tier', () => {
+    let prev = -1
+    for (const t of RENDER_TIERS) {
+      const b = fixtureLightBudget('orbit', QUALITY_PRESETS[t].maxFixtureLights)
+      expect(b).toBeGreaterThanOrEqual(prev)
+      prev = b
+    }
   })
 })

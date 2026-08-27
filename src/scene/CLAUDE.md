@@ -157,6 +157,26 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   which is the light curtains actually block — diffuse skylight through the glass. Same magnitude,
   correct light: contrast (pixel σ) rose ~21% at Performance and ~10% at Maximum for a ~2-point
   mean-brightness cost. Measure with `node scripts/dev-probes/shadow-contribution.mjs`.
+- **Re-pick the fixture lights when the TIER changes, and INVALIDATE when the set changes
+  (LIGHT-BUDGET-REPICK / LIGHT-SET-INVALIDATE).** `FurnitureLights` gated its nearest-N re-pick on
+  items / camera-mode / mood / camera-moved — but NOT on `maxLights`, the tier's
+  `maxFixtureLights`. So a tier change left the OLD tier's light count mounted until the camera
+  next moved. Measured switching to Performance: **18 point lights stayed live** (medium's 6x3
+  orbit budget) and only dropped to Performance's 6 on the first camera gesture — which recompiled
+  every lit material in one **150 ms** frame, because three bakes the light count into each
+  material's program cache key. Two bugs in one: the tier's perf budget was not being honoured, and
+  the scene was over-lit by 3x until the user happened to move.
+  Separately, the live set lives in REACT state, so `RenderPump`'s `subscribe(markDirty)` never saw
+  it change — under `frameloop="demand"` a newly-mounted light requested no frame at all, so three
+  never saw the new count and the compile was deferred to whatever rendered next (the user's first
+  gesture). Both fixed: `maxLights` is in the change check, and `invalidate()` is called whenever
+  the set changes. Measured across all three tiers, worst frame during a gesture:
+  Performance **150.6 → 11.7 ms**, High **142 → 22.4 ms**, Maximum **213 → 17.7 ms**; programs
+  compiled per gesture 25–29 → **1**; zero spikes over 25 ms anywhere; p50/p90 unchanged. The
+  visual side-effect is a real correction, not a regression: Performance's contrast rose 27.2 → 36.8
+  and its mean fell 237.4 → 233.4 once it stopped rendering three times its light budget. Medium and
+  Maximum are byte-identical. Any future per-frame pick that depends on a tier value needs the tier
+  in its change check, and any React-state scene change needs an `invalidate()`.
 - **Never let the LIGHT COUNT change during interaction (LIGHT-COUNT-STABLE).** three bakes the
   number of point/spot lights into every lit material's program cache key, so adding or removing a
   single light recompiles EVERY lit material. `FurnitureLights` re-picks the live emitter set
