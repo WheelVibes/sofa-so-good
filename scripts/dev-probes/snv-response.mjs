@@ -1,48 +1,64 @@
 /**
- * TONE-CALIBRATION guard: how far do the SNV floor swatches drift if the view
- * transform changes?
+ * TONE-CALIBRATION guard: what a change of view transform does to the five
+ * render-calibrated SNV finishes.
  *
  * `materials/CLAUDE.md:TONE-CALIBRATION` records that the five Serangoon North
- * Vista finish swatches are deliberately MORE saturated/warm than the sample
- * boards they match, because they were solved as `boardTone / response` against
- * a measured per-channel render response of roughly (0.56, 0.61, 0.68) R/G/B —
- * blue boosted ~19% over red, which greys out warm albedos. It also says to
- * recalibrate after "any lighting/tonemap change".
+ * Vista finish swatches are deliberately more saturated/warm than the exhibition
+ * sample boards they match, because they were solved as `boardTone / response`
+ * against the render and verified until "the rendered proportions match the board
+ * photo's (to +-0.002)". It also says to recalibrate after any lighting or
+ * tone-mapping change. So TONE-CURVE-CHOICE — switching the default operator —
+ * cannot be judged on whole-frame numbers alone.
  *
- * So a change of default tone operator cannot be shipped on whole-frame numbers
- * alone: it could silently push those five finishes off the boards they were
- * matched to. This measures the recipe's first step directly — the mean RENDERED
- * RGB of a masked SNV floor — under each operator in ONE run, and reports the
- * per-channel response (`render / swatch`) plus how much the response RATIO
- * (the thing the calibration actually solved against) moves.
+ * This measures, per surface and per operator:
+ *   - the mean RENDERED RGB of the masked surface,
+ *   - the peak-normalised per-channel response (`render / swatch`), which is the
+ *     quantity the calibration was solved against, and
+ *   - the per-channel multiplier that would make a LATER operator reproduce the
+ *     FIRST operator's render exactly (`firstRender / thisRender`).
  *
- * A small ratio change means the swatches stay on the boards and the tone change
- * is safe; a large one means recalibrating the five swatches is part of the same
- * commit.
+ * That last column matters because the board photos are NOT in the repo
+ * (`assets/guidelines/` is gitignored and absent from every checkout), so the
+ * boards cannot be used as ground truth here. The available honest move is
+ * therefore render-PRESERVING: if the current swatches match the boards under
+ * the current operator, then keeping each surface's render invariant across the
+ * switch keeps the board match by construction, whatever the board tone is.
  *
- * The floor is masked by raycast rather than by a fixed rectangle, because the
- * floor's screen region differs per view and a rectangle would average in
- * furniture (the mistake that made `wood-detail.mjs`'s first version blind).
+ * Two things this probe learned the hard way:
+ *   - **Mask by world-space face NORMAL, not geometry extents.** An extent-based
+ *     classifier borrowed from `material-audit.mjs` matched ZERO cells: that one
+ *     works because "the shell is axis-aligned boxes", and these floors are
+ *     rotated planes whose LOCAL box is tall in Y and zero in Z.
+ *   - **Derive the camera pose from the PLAN, not by hand.** Hand-picked poses
+ *     silently missed rooms (the first kitchen pose found no floor at all), and
+ *     they break whenever the default plan changes. Each target names a room id
+ *     and the probe places the eye at that room's centre.
  */
+import fs from 'node:fs'
 import puppeteer from 'puppeteer'
 import sharp from 'sharp'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 
+const OUT = process.env.OUT || '/tmp/ssg-snv'
 const TIER = process.env.TIER || 'medium'
 const DSF = Number(process.env.DSF || 2)
 const HOUR = Number(process.env.HOUR || 13)
-const TONES = (process.env.TONES || 'filmic,agx,neutral').split(',')
-/** Room -> the SNV finish it defaults to, and that finish's catalog swatch. */
+const TONES = (process.env.TONES || 'filmic,agx').split(',')
+fs.mkdirSync(OUT, { recursive: true })
+
+/** The five render-calibrated SNV finishes, each with the room it defaults in
+ *  and which surface kind to mask. `floor-tile-beige-300` shares its swatch and
+ *  painter with `floor-tile-beige`, so the household shelter stands in for both. */
 const TARGETS = [
+  { key: 'livingDining-floor', room: 'livingDining', surface: 'floor', finish: 'floor-vinyl-oak' },
+  { key: 'kitchen-floor', room: 'kitchen', surface: 'floor', finish: 'floor-tile-beige' },
+  { key: 'bath1-floor', room: 'bath1', surface: 'floor', finish: 'floor-tile-bath-green' },
+  { key: 'bath1-wall', room: 'bath1', surface: 'wall', finish: 'wall-tile-white' },
   {
-    room: 'livingDining',
-    finish: 'floor-vinyl-oak',
-    view: { pos: [10.6, 1.6, 6.4], look: [10.0, 0.1, 4.2] },
-  },
-  {
-    room: 'kitchen',
-    finish: 'floor-tile-beige',
-    view: { pos: [6.2, 1.6, 6.0], look: [6.2, 0.1, 4.2] },
+    key: 'householdShelter-floor',
+    room: 'householdShelter',
+    surface: 'floor',
+    finish: 'floor-tile-beige-300',
   },
 ]
 
@@ -80,9 +96,23 @@ await page
   .waitForFunction(() => !window.__store.getState().loading?.active, { timeout: 60000 })
   .catch(() => {})
 await new Promise((r) => setTimeout(r, 4000))
-await page.evaluate(() => window.__store.getState().setCameraMode('firstPerson'))
-await new Promise((r) => setTimeout(r, 3500))
+// Deliberately STAYS IN ORBIT. Walk mode's `FirstPersonCamera` owns the camera
+// orientation every frame and silently discards a programmatic `lookAt` — this
+// probe measured a forward vector of exactly (-0.07, 0, -1) for five different
+// requested pitches, so every "floor" sample was actually a grazing sliver of
+// slab plus whatever else was level with the eye. Orbit's `OrbitControls`
+// recomputes its orientation from position + `controls.target`, both of which
+// CAN be set, so the pose is reproducible and verifiable (see the pose-held
+// check below). Orbit is also where a finish is chosen in this app.
 await assertSceneAlive(page, 'after setup')
+
+const swatches = await page.evaluate(
+  async (ids) => {
+    const mod = await import('/src/materials/builtinCatalog.ts')
+    return Object.fromEntries(ids.map((id) => [id, mod.BUILTIN_MATERIALS[id]?.swatch ?? null]))
+  },
+  TARGETS.map((t) => t.finish),
+)
 
 const W = 1280 * DSF
 const H = 800 * DSF
@@ -92,34 +122,68 @@ const CW = W / GX
 const CH = H / GY
 
 /**
- * Mask the ROOM FLOOR by the ray's world-space face NORMAL, not by geometry
- * extents.
- *
- * An earlier version of this classified surfaces from their LOCAL bounding-box
- * extents (borrowed from `material-audit.mjs`, whose own note says it works
- * because "the shell is axis-aligned boxes"). Floors here are rotated PLANES, so
- * in local space a floor's box is tall in Y and zero in Z — the test reported
- * `h=5.47 fp=0` for nearly every ray and matched zero cells. A face normal is
- * orientation-proof: the floor is whatever faces up, at floor height.
+ * Frame a plan room's floor (or its far wall) from ORBIT, by setting both the
+ * camera position and `controls.target` — the two things OrbitControls derives
+ * its orientation from, so the pose actually holds.
  */
-async function floorMask() {
+async function place(room, surface) {
   return page.evaluate(
-    (gx, gy) => {
+    (roomId, kind) => {
+      const st = window.__store.getState()
+      const r = st.floorPlan.rooms.find((x) => x.id === roomId)
+      if (!r) return { ok: false, why: `no room ${roomId}` }
+      const cx = r.origin[0] + r.width / 2
+      const cz = r.origin[1] + r.depth / 2
+      const { camera, controls } = window.__three
+      if (!controls) return { ok: false, why: 'no orbit controls exposed' }
+      // Close enough that the room's own surface fills the frame, high enough to
+      // clear the (orbit-culled) ceiling. A steep look-down for a floor; a low,
+      // near-level approach for a wall.
+      const span = Math.max(r.width, r.depth)
+      if (kind === 'floor') {
+        controls.target.set(cx, 0, cz)
+        camera.position.set(cx + span * 0.25, span * 0.9 + 1.2, cz + span * 0.25)
+      } else {
+        controls.target.set(cx, 1.4, r.origin[1] + 0.05)
+        camera.position.set(cx, 1.6, cz + Math.max(1.0, r.depth * 0.6))
+      }
+      controls.update()
+      camera.updateMatrixWorld()
+      st.setManualHour(st.manualHour)
+      window.__snvWant = {
+        pos: camera.position.toArray().map((v) => +v.toFixed(2)),
+        fwd: camera
+          .getWorldDirection(new camera.position.constructor())
+          .toArray()
+          .map((v) => +v.toFixed(2)),
+      }
+      return { ok: true, centre: [+cx.toFixed(2), +cz.toFixed(2)] }
+    },
+    room,
+    surface,
+  )
+}
+
+/** Mask a surface by the ray's WORLD face normal (orientation-proof). */
+async function surfaceMask(kind) {
+  return page.evaluate(
+    (gx, gy, k) => {
       const { scene, camera, raycaster } = window.__three
       const rc = new raycaster.constructor()
-      const mask = []
-      let n = 0
       const nrm = new camera.position.constructor()
+      const mask = []
+      const diag = []
+      let n = 0
       for (let iy = 0; iy < gy; iy++) {
         for (let ix = 0; ix < gx; ix++) {
           rc.setFromCamera(
             { x: ((ix + 0.5) / gx) * 2 - 1, y: -(((iy + 0.5) / gy) * 2 - 1) },
             camera,
           )
-          const hit = rc.intersectObjects(scene.children, true).find((k) => {
-            const m = Array.isArray(k.object.material) ? k.object.material[0] : k.object.material
+          const hit = rc.intersectObjects(scene.children, true).find((q) => {
+            const m = Array.isArray(q.object.material) ? q.object.material[0] : q.object.material
             return (
-              k.object.visible &&
+              q.object.visible &&
               m &&
               m.colorWrite !== false &&
               !(m.transparent && m.opacity < 0.05)
@@ -128,18 +192,31 @@ async function floorMask() {
           let ok = 0
           if (hit?.face) {
             nrm.copy(hit.face.normal).transformDirection(hit.object.matrixWorld)
-            // Up-facing, at floor height, and not a rug/mat (those sit a few cm
-            // proud of the slab and would contaminate the finish's own colour).
-            if (nrm.y > 0.9 && hit.point.y < 0.06) ok = 1
+            if (k === 'floor') {
+              // |ny|, not ny: a rotated PlaneGeometry's GEOMETRIC normal can
+              // point down while the material renders DoubleSide, so a signed
+              // test drops half the real floor. Height still excludes rugs and
+              // mats, which sit proud of the slab and would contaminate the
+              // finish's own colour.
+              if (Math.abs(nrm.y) > 0.9 && hit.point.y < 0.06) ok = 1
+            } else if (Math.abs(nrm.y) < 0.3 && hit.point.y > 0.9 && hit.point.y < 2.2) ok = 1
+            diag.push(`|ny|=${Math.abs(nrm.y).toFixed(1)} y=${hit.point.y.toFixed(2)}`)
           }
           mask.push(ok)
           n += ok
         }
       }
-      return { mask, n, diag: [] }
+      const hist = new Map()
+      for (const d of diag) hist.set(d, (hist.get(d) ?? 0) + 1)
+      return {
+        mask,
+        n,
+        diag: [...hist.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8),
+      }
     },
     GX,
     GY,
+    kind,
   )
 }
 
@@ -170,30 +247,54 @@ async function maskedMeanRgb(buf, mask) {
   return n ? [r / n, g / n, b / n] : null
 }
 
-console.log(`tier=${TIER} hour=${HOUR} dpr=${DSF} — SNV floor render response per tone operator\n`)
+const hexRgb = (h) => [1, 3, 5].map((i) => Number.parseInt(h.slice(i, i + 2), 16))
+const pk = (v) => {
+  const m = Math.max(...v)
+  return v.map((x) => x / m)
+}
+
+console.log(`tier=${TIER} hour=${HOUR} dpr=${DSF} — SNV surface response, ${TONES.join(' vs ')}\n`)
 for (const t of TARGETS) {
-  const swatch = await page.evaluate(async (finish) => {
-    const mod = await import('/src/materials/builtinCatalog.ts')
-    return mod.BUILTIN_MATERIALS[finish]?.swatch ?? null
-  }, t.finish)
-  await page.evaluate((v) => {
-    const { camera } = window.__three
-    camera.position.set(...v.pos)
-    camera.lookAt(...v.look)
-    camera.updateMatrixWorld()
-    const st = window.__store.getState()
-    st.setManualHour(st.manualHour)
-  }, t.view)
+  const swatch = swatches[t.finish]
+  const placed = await place(t.room, t.surface)
+  if (!placed.ok) {
+    console.log(`${t.key}: ${placed.why}\n`)
+    continue
+  }
   await new Promise((r) => setTimeout(r, 2200))
-  const { mask, n, diag } = await floorMask()
-  console.log(`${t.room} / ${t.finish}  swatch ${swatch}  floor covers ${n}/${GX * GY} cells`)
+  // Verify the pose SURVIVED. Walk mode's controller owns the camera each frame,
+  // so a programmatic `lookAt` may simply be overwritten — which would make every
+  // per-surface number a measurement of whatever the controller was pointing at.
+  const pose = await page.evaluate(() => {
+    const { camera } = window.__three
+    return {
+      want: window.__snvWant,
+      got: {
+        pos: camera.position.toArray().map((v) => +v.toFixed(2)),
+        fwd: camera
+          .getWorldDirection(new camera.position.constructor())
+          .toArray()
+          .map((v) => +v.toFixed(2)),
+      },
+    }
+  })
+  const kept =
+    JSON.stringify(pose.want.fwd) === JSON.stringify(pose.got.fwd) &&
+    JSON.stringify(pose.want.pos) === JSON.stringify(pose.got.pos)
+  const { mask, n, diag } = await surfaceMask(t.surface)
+  console.log(
+    `${t.key}  (${t.finish}, swatch ${swatch})  ${n}/${GX * GY} cells` +
+      (kept ? '' : `  POSE NOT HELD want fwd ${pose.want.fwd} got ${pose.got.fwd}`),
+  )
+  if (n > 0 && n < 200)
+    console.log(`  SMALL SAMPLE — top ray hits: ${diag.map(([k2, c]) => `${k2} x${c}`).join('  ')}`)
   if (!n) {
     console.log(
-      `  (no floor matched — top ray hits: ${diag.map(([k, c]) => `${k} x${c}`).join('  |  ')})\n`,
+      `  NO SURFACE MATCHED — top ray hits: ${diag.map(([k2, c]) => `${k2} x${c}`).join('  ')}\n`,
     )
     continue
   }
-  const sw = swatch ? [1, 3, 5].map((i) => Number.parseInt(sw_(swatch, i), 16)) : null
+  const sw = swatch ? hexRgb(swatch) : null
   const rows = []
   for (const tone of TONES) {
     await page.evaluate((tn) => {
@@ -202,38 +303,39 @@ for (const t of TARGETS) {
       st.setManualHour(st.manualHour)
     }, tone)
     await new Promise((r) => setTimeout(r, 2200))
-    await assertSceneAlive(page, `${t.room} ${tone}`)
+    await assertSceneAlive(page, `${t.key} ${tone}`)
     const buf = await page.screenshot({ type: 'png' })
+    fs.writeFileSync(`${OUT}/${t.key}-${tone}-h${HOUR}.png`, buf)
     const rgb = await maskedMeanRgb(buf, mask)
     rows.push({ tone, rgb })
-    const resp = sw ? rgb.map((v, i) => v / sw[i]) : null
-    // The calibration solved against the RATIO between channels, so normalise
-    // the response by its own peak — that is the quantity that must hold.
-    const norm = resp ? resp.map((v) => v / Math.max(...resp)) : null
+    const resp = sw ? pk(rgb.map((v, i) => v / sw[i])) : null
     console.log(
-      `  ${tone.padEnd(8)} render rgb ${rgb.map((v) => v.toFixed(1).padStart(6)).join(' ')}` +
-        (norm ? `   response(peak-normalised) ${norm.map((v) => v.toFixed(3)).join(' / ')}` : ''),
+      `  ${tone.padEnd(8)} render ${rgb.map((v) => v.toFixed(1).padStart(6)).join(' ')}` +
+        (resp ? `   response ${resp.map((v) => v.toFixed(3)).join(' / ')}` : ''),
     )
   }
-  // Drift of the peak-normalised response vs the first operator listed.
-  if (sw) {
+  if (sw && rows.length > 1) {
     const base = rows[0]
-    const bResp = base.rgb.map((v, i) => v / sw[i])
-    const bNorm = bResp.map((v) => v / Math.max(...bResp))
+    const bResp = pk(base.rgb.map((v, i) => v / sw[i]))
     for (const r of rows.slice(1)) {
-      const resp = r.rgb.map((v, i) => v / sw[i])
-      const norm = resp.map((v) => v / Math.max(...resp))
-      const drift = norm.map((v, i) => Math.abs(v - bNorm[i]))
+      const resp = pk(r.rgb.map((v, i) => v / sw[i]))
+      const drift = resp.map((v, i) => Math.abs(v - bResp[i]))
+      // The render-preserving multiplier: scale the swatch by this and the later
+      // operator reproduces the first one's render.
+      const mult = base.rgb.map((v, i) => v / r.rgb[i])
+      const newSw = sw.map((v, i) => Math.round(Math.min(255, v * mult[i])))
+      // NOTE on the +-0.002 figure TONE-CALIBRATION claims: this probe has shown
+      // the response is NOT single-valued (the same floor reads blue-strongest
+      // in orbit and blue-weakest in walk), so treat the tolerance as historical
+      // context, not a gate. See TONE-CALIBRATION in materials/CLAUDE.md.
       console.log(
-        `  drift ${base.tone} -> ${r.tone}: ${drift.map((v) => v.toFixed(3)).join(' / ')}  (max ${Math.max(...drift).toFixed(3)}; the calibration holds to +-0.002)`,
+        `  drift ${base.tone}->${r.tone} ${drift.map((v) => v.toFixed(3)).join(' / ')} (max ${Math.max(...drift).toFixed(3)})`,
+      )
+      console.log(
+        `  render-preserving swatch for ${r.tone}: x${mult.map((v) => v.toFixed(3)).join('/')} -> #${newSw.map((v) => v.toString(16).padStart(2, '0')).join('')}`,
       )
     }
   }
   console.log('')
 }
 await browser.close()
-
-/** Two hex digits of a #rrggbb string starting at `i`. */
-function sw_(hex, i) {
-  return hex.slice(i, i + 2)
-}

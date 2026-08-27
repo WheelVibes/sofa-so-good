@@ -5,6 +5,66 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.5 — the calibration that blocks the tone switch cannot be reproduced
+
+Round 13 went to switch the default view transform to AgX and re-solve the five
+render-calibrated SNV swatches, as v0.31.5.4 said was needed. The switch is NOT
+shipped, for two reasons found by trying: the ground truth is not in the repo,
+and the quantity the calibration is defined against turns out not to be
+single-valued. Both are now recorded, along with a probe bug that had been
+quietly degrading walk-mode measurements.
+
+- **`assets/guidelines/` is gitignored (`.gitignore:77`) and absent from every
+  checkout.** TONE-CALIBRATION and SNV-BOARDS both name the exhibition sample-board
+  photos as ground truth; they were user-supplied images, not repo assets. A
+  recalibration without them is not a calibration, so that route is closed here.
+
+- **There is no single render response per surface, so `boardTone ÷ response` has
+  no well-defined right-hand side.** The `livingDining` floor (`floor-vinyl-oak`,
+  #d6b38d) under filmic at 13:00/Medium measures a peak-normalised response of
+  **0.923 / 0.970 / 1.000 in orbit** — blue the STRONGEST channel — and
+  **0.998 / 1.000 / 0.921 in walk** — blue the WEAKEST. Same surface, same
+  operator, same hour; orbit culls the ceiling so the slab takes cool sky IBL
+  directly and walk does not. It moves with pose within a mode too. A swatch
+  therefore cannot hold to ±0.002 across the app's own two view modes, and the
+  recorded (0.56, 0.61, 0.68) is stale as well as under-specified.
+
+- **Measured the full filmic → AgX drift anyway, on all five surfaces.** From
+  plan-derived orbit poses with world-normal masks and 837–3910 sampled cells
+  each: `livingDining` floor 0.083, `kitchen` floor 0.085, `bath1` floor 0.132,
+  `bath1` wall 0.054, `householdShelter` floor 0.051. Reviewed as cropped stills,
+  none BREAKS — each still reads as the finish it should be, the change being a
+  subtle paling and de-warming, largest on the bathroom floor which loses some of
+  the sage undertone SNV-BOARDS calls for. The probe also prints a
+  render-preserving multiplier per surface (the scale that makes AgX reproduce
+  filmic's render exactly) as an honest fallback, though applying it would re-bake
+  filmic's distortion into the swatches.
+
+  **Verdict: AgX is held, not abandoned.** Its whole-frame case is strong and
+  unchanged (clipping 1.94% → 0.28% at every hour in both view modes, wood chroma
+  0.833 → 0.678, visible recovery of ceiling gradation and curtain weave). But it
+  changes the default appearance of the entire app and knowingly moves five
+  finishes matched to physical boards, so it is the user's call, not an
+  autonomous one.
+
+- **Walk-mode probes cannot aim the camera, and this was silently corrupting
+  samples.** `FirstPersonCamera` rewrites the camera's rotation from its own
+  yaw/pitch every frame, so a programmatic `lookAt` is discarded. Five different
+  requested pitches (forward vectors `0,-0.89,-0.45` through `0,-0.03,-1`) all
+  came back as exactly `-0.07, 0, -1`; only the position survives. It does not
+  look like a failure — asking for a steep look at the floor yields a level view
+  of whatever is at eye height, which is how a "floor" sample came out as 69 of
+  4000 cells with most rays hitting the ceiling at y=2.60. `snv-response.mjs` now
+  measures from ORBIT (where `controls.target` + position genuinely determine the
+  pose, taking that sample 69 → 1563 cells) and asserts the pose held, printing
+  `POSE NOT HELD` with both vectors. Written up in the playbook.
+
+  No earlier conclusion is invalidated by this: the wood work identified surfaces
+  by raycast mask (pose-independent by construction) and WARM-WALL-CAST /
+  POST-SAT-NEUTRAL were A/Bs within one run at one reproducible pose. The claim
+  it does dent is the precision of v0.31.5.4's single SNV response figure, which
+  that entry had already flagged as suspect.
+
 ## v0.31.5.4 — the tone curve is inventing most of the saturation
 
 Round 12 asked why a wood albedo with an sRGB HSV saturation of 0.508 renders at

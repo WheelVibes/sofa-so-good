@@ -121,6 +121,27 @@ gesture against a real GPU and need `npm run dev:web` running.
 | `tone-curve.mjs` | Whole-frame sweep of the view transform (filmic / agx / neutral) and the post-saturation dial across the day in either view mode: mean, contrast, clipped fraction, chroma. Use this — never one material's numbers — to judge a change that applies to the whole image. `HOURS=`, `TONES=`, `SATS=`. |
 | `snv-response.mjs` | TONE-CALIBRATION guard: the mean RENDERED RGB of a masked SNV floor under each tone operator, plus the peak-normalised per-channel response and how far it drifts. Run before any lighting or tone-mapping change, since the five SNV swatches were solved against that response. |
 
+**In WALK mode you cannot aim the camera — `FirstPersonCamera` owns the orientation.**
+A programmatic `camera.lookAt(...)` in walk mode is silently discarded: the controller rewrites
+the camera's rotation from its own yaw/pitch state every frame. Measured in
+`snv-response.mjs`, five different requested pitches (forward vectors from
+`0,-0.89,-0.45` to `0,-0.03,-1`) all came back as exactly `-0.07, 0, -1`. Only the POSITION
+survives. This is silent and it does not look like a failure — a probe that asks for a
+steep look at the floor gets a level view of whatever is at eye height, and its "floor"
+sample is a grazing sliver plus a lot of curtain. Two safe patterns:
+
+- **Measure from ORBIT.** `OrbitControls` derives its orientation from the camera position and
+  `controls.target`, both of which you can set (`window.__three.controls`); call
+  `controls.update()` afterwards. That is what `snv-response.mjs` does now, and it took the
+  living/dining floor's usable sample from 69 to 1563 of 4000 cells.
+- **Or don't depend on the pose at all** — identify the surface with a RAYCAST MASK
+  (`wood-detail.mjs`) so whatever the controller happens to be pointing at is classified
+  correctly. This is why the wood measurements were unaffected by the same bug.
+
+Either way, **assert the pose held**: read the camera's world direction back after setting it
+and compare with what you asked for. `snv-response.mjs` prints `POSE NOT HELD` with both
+vectors, which is how this was found at all.
+
 **Pin the port, and pass it via `SSG_URL`.** Every probe navigates through
 `lib.mjs:appUrl()` (`SSG_URL` → `URL` → `localhost:5173`) rather than a hardcoded
 host. Vite silently falls forward to 5174+ when 5173 is taken, so a stray dev

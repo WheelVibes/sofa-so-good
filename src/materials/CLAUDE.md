@@ -208,15 +208,32 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   — default 1 reproduces the shipped +0.06 baseline exactly). Both persist per-device via
   `qualityPrefs` beside `exposure`, gated by the `colorGrade` flag (simple tier) in
   `GraphicsSettings`. Keep every new dial byte-identical-neutral at its default.
-- **SNV swatches are render-calibrated (TONE-CALIBRATION).** The five SNV finish swatches are
-  deliberately MORE saturated/warm than the boards they match: the midday lighting mix (cool sky
-  IBL + hemisphere fill) has a measured per-channel response of roughly (0.56, 0.61, 0.68) R/G/B
-  on floors — blue is boosted ~19% over red, which greys out warm albedos. Each swatch is solved
-  as `boardTone ÷ response` (peak-normalised), then verified by sampling the mean RGB of
-  real-GPU screenshots until the rendered proportions match the board photo's (they now match to
-  ±0.002). Recipe to recalibrate after any lighting/tonemap change: render the close-up scenario,
-  `sharp`-sample the surface region, `newSwatch = target ÷ (render ÷ oldSwatch)` per channel,
-  iterate once. Never eyeball-revert a calibrated swatch toward its board hex.
+- **SNV swatches are render-calibrated (TONE-CALIBRATION) — but the recipe is NOT reproducible
+  in this repo, and the "response" is not single-valued.** The historical record: the five SNV
+  finish swatches are deliberately MORE saturated/warm than the boards they match, because the
+  midday lighting mix (cool sky IBL + hemisphere fill) was measured with a per-channel response of
+  roughly (0.56, 0.61, 0.68) R/G/B on floors — blue boosted ~19% over red, greying out warm
+  albedos. Each swatch was solved as `boardTone ÷ response` (peak-normalised) and verified against
+  the board photo to ±0.002. The stated recipe is: render the close-up scenario, `sharp`-sample
+  the surface, `newSwatch = target ÷ (render ÷ oldSwatch)` per channel, iterate once. Never
+  eyeball-revert a calibrated swatch toward its board hex.
+  **Two findings that bound how much weight that ±0.002 can carry.** Both came out of trying to
+  execute the recipe for TONE-CURVE-CHOICE (`scripts/dev-probes/snv-response.mjs`, rebuilt to
+  cover all five surfaces from plan-derived orbit poses with world-normal masks and 837–3910
+  sampled cells each):
+  · **The board photos are not in the repo.** `assets/guidelines/` is gitignored
+    (`.gitignore:77`) and absent from every checkout, so the ground truth the recipe depends on
+    cannot be sampled here. Any recalibration attempted without it is not a calibration.
+  · **There is no single render response per surface.** The `livingDining` floor
+    (`floor-vinyl-oak`, #d6b38d) under filmic at 13:00/Medium measures a peak-normalised response
+    of **0.923 / 0.970 / 1.000 in ORBIT** — blue the STRONGEST channel — and
+    **0.998 / 1.000 / 0.921 in WALK** — blue the WEAKEST. Same surface, same operator, same hour;
+    orbit culls the ceiling so the slab takes cool sky IBL directly, walk does not. The response
+    also moves with pose within a single mode. So `boardTone ÷ response` has no well-defined
+    right-hand side, a swatch cannot hold to ±0.002 across the app's own two view modes, and the
+    recorded (0.56, 0.61, 0.68) is both stale AND measured under conditions the note does not
+    pin down. Before relying on this rule again, decide WHICH view/pose/hour defines the
+    calibration and record it with the numbers.
 - **The default view transform is the biggest single realism lever left, and it is BLOCKED on the
   SNV swatches (TONE-CURVE-CHOICE).** Measured, not argued. three's `ACESFilmicToneMapping`
   applies its curve PER CHANNEL, so on a warm mid-dark surface it crushes blue much harder than
@@ -259,13 +276,30 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   else. But the drift is **0.171 in blue, ~85x the ±0.002 the calibration holds to**, so switching
   would push those five finishes visibly cooler than the boards they were matched to. Re-solving
   them is part of the same change, not a follow-up.
-  **One contradiction to resolve first, and do NOT skip it:** TONE-CALIBRATION records the render
-  response as roughly (0.56, 0.61, 0.68) R/G/B — "blue boosted ~19% over red". Measured now, the
-  absolute response on that same floor is **(0.849, 0.818, 0.704)**, i.e. blue is the WEAKEST
-  channel. The direction is opposite, so the recorded numbers are stale (plausibly: TONE-POST,
-  KEY-FILL-BALANCE and WARM-WALL-CAST all changed the lighting mix since), and the swatches cannot
-  be re-derived from that formula. Recalibrate against the board PHOTOS per the documented recipe,
-  and refresh the response figures in TONE-CALIBRATION while you are there.
+  **Status: the blocker is real but it is NOT the ±0.002 tolerance — it is that the decision is a
+  default-look change nobody has signed off.** The recalibration route was attempted and is closed:
+  the board photos are absent from the repo, and the response the recipe solves against is not
+  single-valued (see TONE-CALIBRATION above). So the five swatches can be neither re-derived nor
+  verified. Measured drift across all five surfaces, filmic → AgX, at 13:00/Medium in orbit with
+  837–3910 sampled cells each (peak-normalised response, max channel):
+
+  | surface                        | swatch   | drift | visual effect                     |
+  | ------------------------------ | -------- | ----- | --------------------------------- |
+  | `livingDining` floor (vinyl)   | #d6b38d  | 0.083 | slightly paler, still pale timber |
+  | `kitchen` floor (stone tile)   | #cfb38e  | 0.085 | slightly paler                    |
+  | `bath1` floor (porcelainStone) | #a69e83  | 0.132 | less olive, more neutral greige   |
+  | `bath1` wall (porcelain)       | #eddfc4  | 0.054 | marginally cooler                 |
+  | `householdShelter` floor       | #cfb38e  | 0.051 | marginally paler                  |
+
+  Reviewed as cropped stills, none of the five BREAKS under AgX — each still reads as the finish it
+  is meant to be; the change is a subtle paling and de-warming, largest on the bathroom floor which
+  loses some of the sage undertone SNV-BOARDS calls for. The probe also prints a
+  **render-preserving multiplier** per surface (the per-channel scale that makes AgX reproduce
+  filmic's render exactly), which is the honest fallback if the switch is wanted without moving
+  those five — but applying it would re-bake filmic's distortion into the swatches and is not
+  obviously right. **Do not ship this switch autonomously**: it alters the default appearance of
+  the whole app and knowingly moves five finishes that were matched to physical exhibition boards
+  the user photographed. It needs the user's call, and ideally those photos back in reach.
 - **Every procedural noise field must stay inside its tile's NYQUIST limit (WOOD-PORE-NYQUIST).**
   `makeFbm(seed, octaves, baseFreq)` multiplies its input by `baseFreq * 2 ** octave`, and callers
   scale the input again (`fbm(u * 18, …)`), so the finest octave lands at
