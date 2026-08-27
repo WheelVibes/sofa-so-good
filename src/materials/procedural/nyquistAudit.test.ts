@@ -61,8 +61,16 @@ const TILE = 256
  * debt, not an exemption. ONLY REMOVE ENTRIES.
  */
 const KNOWN_ALIASED: ReadonlyArray<{ file: string; field: string }> = [
-  { file: 'patterns/fabric.ts', field: 'fibre' }, // 3.44 cycles/texel
-  { file: 'patterns/stone.ts', field: 'pores' }, // 2.81
+  // patterns/fabric.ts:fibre FIXED in v0.31.5.11 (was 3.44 — the worst in the repo).
+  //
+  // `patterns/stone.ts:pores` is a deliberate KEEP, not pending work. It aliases at
+  // 2.81 cycles/texel, but it is THRESHOLDED (`p > 0.86`), so only ~14% of texels
+  // fire and the aliasing shows up as sparse dark pinholes — which is exactly what
+  // concrete pinholes look like. Verified on a close-up: it reads as plausible
+  // mottled concrete, and "fixing" it would replace correct-looking sparse specks
+  // with broad blobs. Frequency alone does not determine harm; AMPLITUDE and
+  // THRESHOLDING do. Check the call site before touching any entry below.
+  { file: 'patterns/stone.ts', field: 'pores' }, // 2.81 — thresholded, verified OK
   { file: 'stoneSurface.ts', field: 'fine' }, // 1.72
   { file: 'tileSurface.ts', field: 'peel' }, // 1.41
   { file: 'patterns/wall.ts', field: 'grain' }, // 1.25

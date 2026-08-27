@@ -5,6 +5,43 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.11 — aliasing hurts only when it is loud and unthresholded
+
+Started working down the 18-entry Nyquist allowlist worst-first. The top two
+entries gave opposite verdicts, which is the useful result.
+
+- **`patterns/fabric.ts:fibre` (3.44 cycles/texel, the worst in the repo) was
+  genuinely broken — FIXED.** It is UNTHRESHOLDED and drives three channels at
+  full amplitude: albedo `0.82 + fib * 0.3`, the ENTIRE height field, and
+  roughness. On a close-up it rendered as harsh black-and-white static, closer to
+  TV snow than to carpet pile. baseFreq 110 → 12 (~0.38 cycles/texel at 256):
+  microcontrast **9.084 → 4.010, −56%** — the highest reading measured anywhere in
+  this work — with chroma flat (0.155) and mean 104.4 → 118.0.
+
+- **`patterns/stone.ts:pores` (2.81) is a deliberate KEEP, not pending work.** It
+  is THRESHOLDED (`p > 0.86`), so only ~14% of texels fire and the aliasing shows
+  as sparse dark specks — exactly what concrete pinholes look like. The close-up
+  reads as plausible mottled concrete; "fixing" it would trade correct-looking
+  specks for broad blobs. Its allowlist entry now records that as a decision.
+
+  **The general rule this establishes (NYQUIST-HARM): frequency alone does not
+  determine harm.** Unthresholded + high amplitude + feeding the HEIGHT (which
+  `heightToNormalRGBA` turns into a per-texel random normal) is the damaging
+  combination. Read the call site before changing a frequency — a mechanical sweep
+  of the remaining 17 would have made some surfaces worse.
+
+- **Honest limit on the carpet fix: it no longer looks like static, but it does
+  not yet look like carpet** — it reads as mottled grey stone. The remaining cue is
+  `normalStrength = 6`, tuned against the old per-texel field; over a smooth
+  low-frequency one it carves broad polished swirls. Recorded at the call site as
+  the next step.
+
+- **A tuning attempt was reverted for doing nothing.** Halving the albedo swing
+  (`0.82 + fib * 0.3` → `0.90 + fib * 0.14`, mean-preserving) moved microcontrast
+  4.010 → 4.007 and sigma 22.52 → 22.40, and the crop was indistinguishable. The
+  albedo was never the dominant cue, so the change was removed rather than shipped
+  with a confident comment.
+
 ## v0.31.5.10 — half the procedural noise fields are aliased
 
 Two Nyquist-broken fields had been found one at a time. This round swept all of

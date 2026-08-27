@@ -323,6 +323,30 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   full-canvas figure "do NOT quote". The AgX clipping numbers above are unaffected — `tone-curve.mjs`
   always measured a centre slab. Lesson: `centerBox` exists for this and its docstring says so;
   a whole-canvas fraction is a UI measurement wearing a render costume.
+- **Frequency alone does NOT determine whether aliasing hurts — amplitude and thresholding do
+  (NYQUIST-HARM).** Working down the NYQUIST-AUDIT allowlist worst-first immediately produced two
+  opposite verdicts from the top two entries, both confirmed on close-up crops of a table top
+  wearing the finish (`surface-detail.mjs DEF=coffee-table FINISHES=mat:<id>`):
+  · **`patterns/fabric.ts:fibre` (3.44 cycles/texel) was genuinely broken and is FIXED.** It is
+    UNTHRESHOLDED and drives three channels at full amplitude — albedo `0.82 + fib * 0.3`, the
+    ENTIRE height field, and roughness — so the aliasing rendered as harsh black-and-white static,
+    closer to TV snow than carpet pile. baseFreq 110 -> 12; close-up microcontrast **9.08 -> 4.01
+    (-56%)**, the highest reading measured anywhere in this work.
+  · **`patterns/stone.ts:pores` (2.81) is a deliberate KEEP.** It is THRESHOLDED (`p > 0.86`), so
+    only ~14% of texels fire and the aliasing appears as sparse dark specks — which is precisely
+    what concrete pinholes look like. The close-up reads as plausible mottled concrete, and
+    "fixing" it would trade correct-looking sparse specks for broad blobs. Its allowlist entry says
+    so, and the entry is a decision rather than debt.
+  **So read the CALL SITE before changing a frequency.** Unthresholded + high amplitude + feeding
+  the HEIGHT (which `heightToNormalRGBA` turns into a per-texel random normal) is the damaging
+  combination; thresholded sparse speckle in the albedo is usually fine or even desirable.
+  **And a lowered frequency does not automatically look right.** Carpet after the fix no longer
+  looks like static but reads as mottled grey STONE, because `normalStrength = 6` was tuned against
+  the old per-texel field and over a smooth low-frequency one it carves broad polished swirls. An
+  attempt to correct that by halving the albedo swing was REVERTED for moving nothing (microcontrast
+  4.010 -> 4.007, sigma 22.52 -> 22.40, crop indistinguishable) — the albedo was never the dominant
+  cue. Whoever picks this up next: the normal strength is the lever, and it needs its own
+  before/after.
 - **HALF the procedural noise fields alias, and the limit that binds is 256 (NYQUIST-AUDIT).**
   After two fields were found broken one at a time (WOOD-PORE-NYQUIST, FABRIC-FINE-NYQUIST), a full
   sweep of every `makeFbm` call site against its tile size found **21 of 42 fields over the

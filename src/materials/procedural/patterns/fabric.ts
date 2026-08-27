@@ -5,7 +5,26 @@ import { clamp01, makeFbm } from '../noise'
 export function carpetFields(base: [number, number, number], seed: number, S: number): Fields {
   const f = blank(S)
   f.normalStrength = 6
-  const fibre = makeFbm(seed + 11, 4, 110)
+  // NYQUIST-AUDIT: was baseFreq 110, whose top octave ran at 880 cycles = 3.44 per
+  // texel on a 256 tile — the single worst-aliased field in the codebase, and
+  // unlike the thresholded speckle fields it is UNTHRESHOLDED and drives three
+  // channels at full amplitude (albedo `0.82 + fib * 0.3`, the ENTIRE height, and
+  // roughness). It rendered as harsh black-and-white static, closer to TV snow
+  // than to carpet pile. Real pile is 2-5 mm and this tile carries ~5.9 mm per
+  // texel at its [1.5, 1.5] m uvScale, so pile is simply not representable here;
+  // what IS representable is the broad tonal drift real carpet shows from pile
+  // direction and wear. Bounded to ~0.38 cycles/texel at 256: microcontrast on a
+  // close-up fell 9.08 -> 4.01 (-56%), the highest reading measured anywhere.
+  //
+  // **This does NOT yet make carpet read as carpet** — it now reads as mottled
+  // grey stone. The remaining cue is `normalStrength = 6` above, which was tuned
+  // against the old per-texel field and, over a smooth low-frequency one, carves
+  // broad polished-looking swirls. Lowering it is the next step and needs its own
+  // before/after. An attempt to fix the look by halving the albedo swing instead
+  // (`0.82 + fib * 0.3` -> `0.90 + fib * 0.14`) was REVERTED: it moved
+  // microcontrast 4.010 -> 4.007 and sigma 22.52 -> 22.40, i.e. nothing, and the
+  // crop was indistinguishable. The albedo was never the dominant cue here.
+  const fibre = makeFbm(seed + 11, 4, 12)
   const blotch = makeFbm(seed + 31, 3, 8)
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
