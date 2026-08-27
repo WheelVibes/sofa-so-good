@@ -5,6 +5,46 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.19 — orbit gets an analytic sky with no ground
+
+SKY-BLOWN resolved. The drei `<Sky>` dome is gone, replaced by a purpose-built
+surround baked from the in-repo analytic Preetham model.
+
+- **What shipped.** `lighting/skySurround.ts` (pure, no three, 10 unit tests) paints
+  an equirect that is `skyRadiance` above the horizon and a DIMMED CONTINUATION of
+  the horizon below it — never the brown ground tint that made the first attempt
+  worse. `lighting/Sky.tsx` maps it onto a `BackSide` sphere at 256x128, re-baked
+  debounced through the same `shouldRebuildSky` predicate the walk backdrop uses,
+  disposing the previous texture.
+
+- **The interior is BYTE-IDENTICAL.** An interior-only region at orbit/Medium/13:00
+  reads mean 191.43, sigma 36.43, clipped 1.124%, chroma 0.162 both before and
+  after — which is exactly the safety property claimed: the surround writes neither
+  `scene.background` nor `scene.environment`, so interior lighting, the key:fill
+  ratio and the bloom lock-step cannot move. Frame cost unchanged (4.5/4.8, 8.4/9.0,
+  10.4/10.9, 11.4/12.0 ms p50/p90). Walk mode unaffected.
+
+- **Night is the biggest win** — a deep dark surround with the lit flat glowing
+  against it, where the old dome gave a flat grey. Daylight is a soft graded
+  backdrop instead of a blown flat white.
+
+- **It is not blue, and should not be.** The orbit camera is pitched ~25 degrees
+  DOWN, so every visible background direction is at or below the horizon, where a
+  real sky IS pale. An earlier round sampled the top of the frame and called it the
+  "zenith"; it was the horizon.
+
+- **Two bugs the unit tests caught**, both general to spherical sampling: passing
+  `[v.x, EPS, v.z]` as a "horizon" direction does NOT give constant elevation,
+  because `v` is a unit vector whose horizontal length shrinks as it tilts — the
+  elevation drifts into Perez's steep near-horizon region and the surround came out
+  non-monotonic. And at the exact nadir the azimuth is undefined, where a `|| 1`
+  divisor fallback collapses the sample to the ZENITH, making the underside the
+  BRIGHTEST part of the surround (0.552 against 0.370).
+
+- **Deliberately not behind the `proceduralSky` flag.** That flag is `tier: 'pro'`
+  and Simple mode — the app default — forces pro flags off, so gating on it would
+  leave the white dome in place for exactly the users who see the default look.
+
 ## v0.31.5.18 — the sky emits white light; five hypotheses closed
 
 Second and final parameter-level round on SKY-BLOWN. The remaining two hypotheses

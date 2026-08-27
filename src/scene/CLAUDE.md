@@ -417,8 +417,8 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   raw for the renderer. An explicit pick wins; `'auto'` picks Neutral while previewing finishes,
   AgX for a photo context, else filmic. Keep `look.ts` pure (no three) — the three constant comes
   from `toneMappingThree.ts`.
-- **The orbit surround is a REAL sun-driven sky, and it is blown out to a colourless white
-  (SKY-BLOWN).** Worth stating because it is easy to assume the opposite in both directions. It is
+- **The orbit surround is an ANALYTIC sky with no ground (SKY-ANALYTIC-ORBIT) — the drei `<Sky>`
+  dome it replaced was blown out to a colourless white (SKY-BLOWN, resolved v0.31.5.19).** Worth stating because it is easy to assume the opposite in both directions. It is
   NOT a flat gradient or the page background: `lighting/Sky.tsx` mounts drei's `<Sky>` — a Preetham
   atmospheric shader fed by `altitudeCurve.ts:skyFromAltitude` — and it responds to the clock
   (sampled at the dollhouse background, luma 81 at 06:00 and 21:00 against ~232 at 13:00).
@@ -459,7 +459,25 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
       actually fills the orbit background, not the page behind the alpha canvas: hiding it changes
       the sampled pixels from 231.9/235.0/236.0 to the page's warm 234/219/209.
   **Five hypotheses tested and rejected: the tone curve, the scattering parameters, the global
-  exposure, the sun-angle, and reusing the walk-mode equirect. Do not re-test them.** What remains is that the app's exposure (1.38)
+  exposure, the sun-angle, and reusing the walk-mode equirect. Do not re-test them.**
+  **RESOLVED** by `lighting/skySurround.ts` + a rewritten `lighting/Sky.tsx`: a `BackSide` sphere
+  mapped with a small (256x128) equirect baked from `paintSkySurround`, which is `skyRadiance` above
+  the horizon and a DIMMED CONTINUATION of the horizon below it (never a ground tint), re-baked
+  debounced through the same `shouldRebuildSky` predicate the walk backdrop uses. Verified: the
+  interior is **byte-identical** — an interior-only region at orbit/Medium/13:00 reads mean 191.43,
+  sigma 36.43, clipped 1.124%, chroma 0.162 both before and after — which is the safety property
+  claimed above (background only, no `scene.background` / `scene.environment` writes). Frame cost
+  unchanged (4.5/4.8, 8.4/9.0, 10.4/10.9, 11.4/12.0 ms p50/p90). Night is the biggest visible win:
+  a deep dark surround with the lit flat glowing against it, instead of the old flat grey.
+  · **It is not blue, and should not be.** The orbit camera is pitched ~25 degrees DOWN, so every
+    visible background direction is at or below the horizon, where a real sky IS pale. Sampling the
+    top of the frame is sampling the horizon, not the zenith — an earlier round mislabelled it.
+  · Two bugs the unit tests caught, both worth keeping in mind for any similar spherical sampling:
+    passing `[v.x, EPS, v.z]` as a "horizon" direction does NOT give a constant elevation, because
+    `v` is a unit vector whose horizontal length shrinks as it tilts — the effective elevation drifts
+    into Perez's steep near-horizon region and the surround came out non-monotonic. And at the exact
+    nadir the azimuth is undefined, where a `|| 1` divisor fallback collapses the sample to the
+    ZENITH, making the underside the BRIGHTEST part (0.552 against 0.370). What remains is that the app's exposure (1.38)
   is tuned for interiors and this dome's absolute output is simply in a different range — which means
   a fix is a DESIGN change (render the sky through its own exposure / replace the drei dome with the
   in-repo analytic `lighting/skyGradient.ts` painted at controlled values, as the walk-mode `sky`

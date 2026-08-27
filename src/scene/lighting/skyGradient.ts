@@ -31,7 +31,7 @@ function dot(a: Vec3, b: Vec3): number {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
-function normalize(v: Vec3): Vec3 {
+export function normalize(v: Vec3): Vec3 {
   const len = Math.hypot(v[0], v[1], v[2]) || 1
   return [v[0] / len, v[1] / len, v[2] / len]
 }
@@ -173,7 +173,7 @@ export function skyRadiance(view: Vec3, params: SkyParams): Vec3 {
 }
 
 /** Linear → sRGB (gamma) for an 8-bit framebuffer byte. */
-function encodeByte(linear: number): number {
+export function encodeByte(linear: number): number {
   const c = clamp(linear, 0, 1)
   const s = c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055
   return clamp(Math.round(s * 255), 0, 255)
