@@ -33,6 +33,7 @@ import { buildBrushedMetalFields, DEFAULT_BRUSH_PARAMS } from './procedural/meta
 import { clamp01, heightToNormalRGBA, hexToRgb, makeFbm } from './procedural/noise'
 import { DEFAULT_STONE_SURFACE_PARAMS, makeRoughDrift } from './procedural/stoneSurface'
 import { buildUpholsteryHeight, DEFAULT_SEAM_PARAMS } from './procedural/upholsterySeams'
+import { makeWoodPore } from './procedural/woodPore'
 
 /** A furniture finish that points at a catalog/DLC material is encoded as
  *  `mat:<materialId>`. The material itself is built (from its procedural
@@ -102,8 +103,14 @@ function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
   const warpN = makeFbm(7777, 4, 3)
   const figureN = makeFbm(0x51ed, 4, 8)
   // Pores: high frequency across the grain, very low along it → fine streaks
-  // that run lengthwise (the v axis) instead of an isotropic speckle.
-  const poreN = makeFbm(0x2c7a, 3, 48)
+  // that run lengthwise (the v axis) instead of an isotropic speckle. The field
+  // lives in the pure `woodPore.ts` because its frequency has to stay inside the
+  // 256² tile's Nyquist limit and that is easy to get catastrophically wrong:
+  // the original `makeFbm(0x2c7a, 3, 48)` sampled at `u * 18` put even its
+  // COARSEST octave at 3.4 cycles per texel, so it baked white noise instead of
+  // hairlines and every wood surface read as pebbly moulded plastic
+  // (WOOD-PORE-NYQUIST).
+  const poreN = makeWoodPore()
   const albedo = new Uint8ClampedArray(N * N * 4)
   const height = new Float32Array(N * N)
   const rough = new Uint8ClampedArray(N * N * 4)
@@ -145,7 +152,7 @@ function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
       const late = s ** 4 // 0 earlywood … 1 dark latewood line
       // Long open pores streaking along the grain (sampled wide in u, narrow
       // in v so the noise smears into lengthwise hairlines, not dots).
-      const pore = clamp01((poreN(u * 18, v * 1.2) - 0.6) * 2.5)
+      const pore = poreN(u, v)
       const figure = (figureN(u * 1.2, v * 3) - 0.5) * 0.05
       // White-ish luminance so material.color tints it into real wood; the
       // latewood lines, pores, per-board tone + seam grooves darken it. The

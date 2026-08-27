@@ -217,6 +217,45 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   ±0.002). Recipe to recalibrate after any lighting/tonemap change: render the close-up scenario,
   `sharp`-sample the surface region, `newSwatch = target ÷ (render ÷ oldSwatch)` per channel,
   iterate once. Never eyeball-revert a calibrated swatch toward its board hex.
+- **Every procedural noise field must stay inside its tile's NYQUIST limit (WOOD-PORE-NYQUIST).**
+  `makeFbm(seed, octaves, baseFreq)` multiplies its input by `baseFreq * 2 ** octave`, and callers
+  scale the input again (`fbm(u * 18, …)`), so the finest octave lands at
+  `baseFreq * 2 ** (octaves - 1) * uvScale` cycles across the tile. A tile of N texels can only
+  represent 0.5 cycles per texel; past that the field does not carry fine detail, it aliases into
+  deterministic WHITE NOISE. The furniture wood tile's pore field was
+  `makeFbm(0x2c7a, 3, 48)` at `(u * 18, v * 1.2)` on a 256² tile —
+  **13.5 cycles per texel at the top octave, 3.4 even at the coarsest**, i.e. 27x over the limit
+  with no octave resolvable at all. Its own comment described "long open pores streaking along the
+  grain … lengthwise hairlines, not dots"; what it actually baked was per-texel noise, and
+  `heightToNormalRGBA(height, N, 3)` turned that into a per-texel random normal. Under specular
+  light that reads as a pebbly dimple field, which is why every wood furniture surface in the app
+  looked like moulded plastic or gingerbread rather than timber — see the before/after crops in
+  `scripts/dev-probes/wood-detail.mjs`'s output directory.
+  The field now lives in the pure `procedural/woodPore.ts`, which exports
+  `topOctaveCyclesPerTexel` + `NYQUIST_CYCLES_PER_TEXEL` and keeps the original **15:1 u:v streak
+  anisotropy by construction** (`vScale = uScale / PORE_ANISOTROPY`) so a density retune can't
+  silently destroy the streak character. `woodPore.test.ts` pins the limit, pins the anisotropy,
+  and — the assertion with teeth — checks the field is SMOOTHER texel-to-texel than its own
+  standard deviation, then shows the OLD parameters fail that same check.
+  Verified as a before/after on the identical view (walk/Medium/09:00, wood pixels only via a
+  raycast mask, in-run noise floor 0.00): pixel-to-pixel microcontrast **1.50 → 0.99 (−34%)** in
+  walk and **4.93 → 4.40 (−11%)** in orbit, with wood chroma (0.831 → 0.833), mean luminance
+  (57.8 → 57.9), grain contrast (24.26 → 24.29) and the clipped fraction (2.01% → 1.91%) all
+  unmoved — the signature of a correct de-alias: the artefact goes, the design stays.
+  Three notes for whoever works here next:
+  · **A cell-MEAN metric cannot see this class of bug.** The probe's first version block-averaged
+    each sampled cell and reported the baseline unchanged (chroma 0.831 → 0.833) while the dimples
+    had visibly vanished. Measure microcontrast alongside it, or measure nothing.
+  · **`repeat` is not the fix, and it is worse than it looks.** Sweeping the wood tile finer
+    (`repeat` x4 / x8) does move the image a lot (meanAbsDiff 7.14 / 8.25 over wood pixels), but
+    the tile bakes `PLANKS = 3` board seams AND `PI * 7` growth rings into one frequency — real
+    boards are ~120–180 mm wide and real rings ~2–10 mm, so no single `repeat` can serve both. At
+    x4 a 0.44 m chair back is sliced into four hard-seamed strips and reads as corrugated
+    cardboard. If small furniture parts ever need finer grain, they need a SEAMLESS variant of the
+    tile, not a bigger `repeat`.
+  · **`getFabricNormal`'s `fine` field has the same defect, unfixed:** `makeFbm(4242, 4, 120)` at
+    `(u, v)` on the same 256² tile is **3.75 cycles per texel**. It was left alone deliberately so
+    this change measured one thing; fix it on its own and measure it on its own.
 - **The DEFAULT flat's painted walls stay near-neutral (WARM-WALL-CAST).** `livingDining` used to
   override its walls to `wall-paint-warm` (#e9d8c4, HSV saturation 0.16). That was the single
   largest surface in the app — `scripts/dev-probes/chroma-audit.mjs` raycasts a 96x60 screen grid

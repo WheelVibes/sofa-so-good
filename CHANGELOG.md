@@ -5,6 +5,66 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.3 — the wood grain was aliased into white noise
+
+Round 11 went after the furniture wood, which round 10's visual review had left
+as the loudest remaining cartoon cue in both walk and orbit. The brief's leading
+guess was tile density. The actual defect was a sampling error, and it had been
+baking noise into every wood surface in the app.
+
+- **The wood pore field was sampled 27x past its tile's Nyquist limit
+  (WOOD-PORE-NYQUIST).** `makeFbm(seed, octaves, baseFreq)` multiplies its input
+  by `baseFreq * 2 ** octave`, and the caller scaled it again, so the furniture
+  wood tile's pore field — `makeFbm(0x2c7a, 3, 48)` at `(u * 18, v * 1.2)` on a
+  256² tile — ran at **13.5 cycles per texel at the top octave and 3.4 at the
+  coarsest**, against a limit of 0.5. Not one octave was resolvable. Its own
+  comment promised "long open pores streaking along the grain … lengthwise
+  hairlines, not dots"; what it baked was deterministic white noise, and
+  `heightToNormalRGBA(height, N, 3)` turned that into a per-texel random normal.
+  Under specular light that is a pebbly dimple field — which is exactly why the
+  dining chairs rendered as pimply gingerbread blocks and the tables as moulded
+  toffee, while the FLOOR wood (a separate painter, correctly sampled) looked
+  fine all along.
+
+  The field moved to a pure `procedural/woodPore.ts` that exports
+  `topOctaveCyclesPerTexel` + `NYQUIST_CYCLES_PER_TEXEL` and preserves the
+  original 15:1 u:v streak anisotropy by construction, so retuning density
+  cannot silently flatten the streaks. Measured as a before/after on the
+  identical view (walk/Medium/09:00, over WOOD PIXELS ONLY via a raycast mask,
+  in-run noise floor 0.00):
+
+  | metric                   | walk          | orbit         |
+  | ------------------------ | ------------- | ------------- |
+  | microcontrast (speckle)  | 1.50 → **0.99** | 4.93 → **4.40** |
+  | wood chroma              | 0.831 → 0.833 | 0.721 → 0.725 |
+  | wood mean luminance      | 57.8 → 57.9   | 62.7 → 62.4   |
+  | wood grain contrast (σ)  | 24.26 → 24.29 | 46.80 → 46.60 |
+  | frame clipped            | 2.01% → 1.91% | 1.17% → 1.17% |
+
+  A 34% / 11% drop in pixel-to-pixel speckle with every other number unmoved is
+  the signature of a correct de-alias: the artefact goes, the design stays. Frame
+  cost is unchanged — same tile, same size, same map count, one cheaper fbm.
+
+- **Three things this round measured and did NOT ship.** Tile density moves the
+  image more than anything (`repeat` x4 / x8 → meanAbsDiff 7.14 / 8.25 over wood
+  pixels) but is the wrong lever: the tile bakes `PLANKS = 3` board seams and
+  `PI * 7` growth rings into one frequency, and real boards are ~120–180 mm wide
+  against ~2–10 mm rings, so no single `repeat` serves both — at x4 a 0.44 m
+  chair back becomes four hard-seamed strips and reads as corrugated cardboard.
+  Roughness is nearly inert (0.5 → 0.65 / 0.80 moves 0.54 / 1.31), so the
+  lacquer sheen is not roughness-driven. Desaturating the base colour is the one
+  remaining large lever (wood chroma 0.833 → 0.674, meanAbsDiff 8.16) and is left
+  for its own change, since it touches several primitives' prop defaults.
+
+- **`wood-detail.mjs`, and a metric lesson worth keeping.** The probe's first
+  version used the standard centre slab and reported EVERY case at the noise
+  floor — because the chair backs sit at ~90% of the frame height, outside the
+  slab. Its second version measured the right pixels but block-averaged them, so
+  it reported the baseline unchanged (chroma 0.831 → 0.833) while the dimples had
+  visibly vanished from the frame. It now masks wood by raycast AND reports
+  microcontrast next to the cell means. A metric that cannot see what you changed
+  is worse than no metric.
+
 ## v0.31.5.2 — the picture was more colourful than anything in it
 
 Round 10 went looking for the "graphics look like animation" complaint in the
