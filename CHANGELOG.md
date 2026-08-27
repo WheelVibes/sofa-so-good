@@ -5,7 +5,7 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
-## v0.31.5.18 — the sky emits white light; four hypotheses closed
+## v0.31.5.18 — the sky emits white light; five hypotheses closed
 
 Second and final parameter-level round on SKY-BLOWN. The remaining two hypotheses
 are now rejected too, so the next attempt should start from a design change rather
@@ -37,6 +37,26 @@ than re-testing any of these.
   sky its own exposure, or replace the drei dome with the in-repo analytic
   `lighting/skyGradient.ts` painted at controlled values, as the walk-mode `sky`
   backdrop already does). Two rounds went into parameter tweaks; that is enough.
+
+- **Attempted the design fix and REVERTED it.** With the go-ahead to ship a design
+  change, the analytic in-repo sky was wired in as the orbit `scene.background`.
+  `lighting/skyGradient.ts` is the right colour source — sampled headlessly it gives
+  zenith saturation 0.54–0.68, a pale horizon (0.09–0.23) and a warm low-sun horizon
+  (0.63), all in a controlled LDR range. But `paintSkyEquirect` fills the **lower
+  hemisphere with a ground tint**, and the orbit camera looks DOWNWARD, so the
+  visible background is mostly below the horizon: the dollhouse rendered on a dull
+  brown-grey (zenith 175/165/152, warm r>g>b), worse than the white it replaced.
+  An equirect built for a walk-mode WINDOW view is the wrong shape for a top-down
+  orbit. Reverted; the constraint is recorded so the next attempt starts from a
+  sky-only surround rather than reusing the walk backdrop.
+
+- **Two gating traps found on the way.** The first attempt gated the orbit surround
+  on the `proceduralSky` flag and measured byte-identical, because that flag is
+  `tier: 'pro'` and **Simple mode — the app default — forces pro flags off**.
+  Anything that changes the DEFAULT look must not sit behind a pro-tier flag. Also
+  confirmed that `Sky.tsx`'s dome, not the page behind the alpha canvas, is what
+  fills the orbit background: hiding it moves the sampled pixels from
+  231.9/235.0/236.0 to the page's warm 234/219/209.
 
 - **New probe `sky-tune.mjs`** — sweeps the sky dome's live shader uniforms, or
   `toneMappingExposure`, and reports the zenith colour. Finds the dome by looking

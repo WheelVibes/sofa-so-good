@@ -147,6 +147,30 @@ async function measure(tag) {
  * falls, the dome's radiance is the lever and its scattering parameters are not.
  */
 const EXPOSURES = (process.env.EXPOSURES || '').split(',').filter(Boolean).map(Number)
+// HIDE=1 toggles the sky dome's visibility to prove whether the measured
+// background pixels are the DOME or the page showing through the alpha canvas.
+if (process.env.HIDE) {
+  const shown = await measure('dome-visible')
+  await page.evaluate(() => {
+    window.__three.scene.traverse((o) => {
+      if (o.material?.uniforms?.rayleigh) o.visible = false
+    })
+    const st = window.__store.getState()
+    st.setManualHour(st.manualHour)
+  })
+  const hidden = await measure('dome-hidden')
+  const f = (m) =>
+    `rgb ${m.r.toFixed(1)} ${m.g.toFixed(1)} ${m.b.toFixed(1)}  sat=${m.sat.toFixed(3)}  luma=${m.luma.toFixed(1)}`
+  console.log(`dome visible: ${f(shown)}`)
+  console.log(`dome hidden : ${f(hidden)}`)
+  console.log(
+    Math.abs(shown.luma - hidden.luma) < 2
+      ? 'IDENTICAL — the measured background is NOT the dome (page shows through)'
+      : 'DIFFERENT — the dome is what fills the background',
+  )
+  await browser.close()
+  process.exit(0)
+}
 if (EXPOSURES.length) {
   const base = await page.evaluate(() => window.__three.gl.toneMappingExposure)
   console.log(`base toneMappingExposure = ${base}`)

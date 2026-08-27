@@ -443,8 +443,23 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     at 13:00 has the sun near the zenith — but measured across altitudes the zenith saturation is
     0.027 / 0.024 / 0.017 / 0.014 / 0.007 at 08:00 / 10:00 / 13:00 / 16:00 / 18:00. Never above 0.03,
     so there is no hour at which this sky is blue.
-  **Four hypotheses tested and rejected: the tone curve, the scattering parameters, the global
-  exposure, and the sun-angle. Do not re-test them.** What remains is that the app's exposure (1.38)
+  · **A FIFTH attempt was made and REVERTED: painting the in-repo analytic equirect as the orbit
+    `scene.background`.** `lighting/skyGradient.ts` is the right colour source — sampled headlessly
+    it gives zenith saturation 0.54–0.68, a pale horizon (0.09–0.23) and a warm low-sun horizon
+    (0.63), all in a controlled LDR range. But `paintSkyEquirect` fills the **lower hemisphere with
+    a ground tint**, and the orbit camera looks DOWNWARD at the dollhouse, so the visible background
+    is mostly below the horizon: the flat rendered on a dull brown-grey (zenith sample 175/165/152,
+    warm r>g>b) which is worse than the white it replaced. An equirect built for a walk-mode WINDOW
+    view is the wrong shape for a top-down orbit. Whatever replaces the dome must be sky-only, or
+    must orient/clamp so the camera never sees the ground half.
+    · Two gating traps found on the way, both worth remembering: the first attempt gated the orbit
+      surround on the `proceduralSky` flag and measured BYTE-IDENTICAL, because that flag is
+      `tier: 'pro'` and **Simple mode — the app default — forces pro flags off**. Anything that
+      changes the DEFAULT look must not sit behind a pro-tier flag. And `Sky.tsx`'s dome is what
+      actually fills the orbit background, not the page behind the alpha canvas: hiding it changes
+      the sampled pixels from 231.9/235.0/236.0 to the page's warm 234/219/209.
+  **Five hypotheses tested and rejected: the tone curve, the scattering parameters, the global
+  exposure, the sun-angle, and reusing the walk-mode equirect. Do not re-test them.** What remains is that the app's exposure (1.38)
   is tuned for interiors and this dome's absolute output is simply in a different range — which means
   a fix is a DESIGN change (render the sky through its own exposure / replace the drei dome with the
   in-repo analytic `lighting/skyGradient.ts` painted at controlled values, as the walk-mode `sky`
