@@ -8,12 +8,12 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import puppeteer from 'puppeteer'
-import { frameStats } from './lib.mjs'
+import { appUrl, frameStats } from './lib.mjs'
 
 const OUT = process.env.OUT || '/tmp/ssg-look'
 const TIERS = (process.env.TIERS || 'performance,medium,high,maximum').split(',')
 const HOURS = (process.env.HOURS || '13').split(',').map(Number)
-const URL_ = process.env.URL || 'http://localhost:5173/'
+const URL_ = appUrl()
 fs.mkdirSync(OUT, { recursive: true })
 
 const browser = await puppeteer.launch({

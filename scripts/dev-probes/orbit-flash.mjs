@@ -8,10 +8,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import puppeteer from 'puppeteer'
-import { centerBox, frameStats, isBlank } from './lib.mjs'
+import { appUrl, centerBox, frameStats, isBlank } from './lib.mjs'
 
 const OUT = process.env.OUT || '/tmp/ssg-shots'
-const URL_ = process.env.URL || 'http://localhost:5173/'
+const URL_ = appUrl()
 const REPS = Number(process.env.REPS || 1)
 const TIERS = (process.env.TIERS || 'performance,medium,high,maximum').split(',')
 const FRAMES = Number(process.env.FRAMES || 26)

@@ -6,6 +6,7 @@
  * continuously, and reports the tier plus measured FPS afterwards.
  */
 import puppeteer from 'puppeteer'
+import { appUrl } from './lib.mjs'
 
 const browser = await puppeteer.launch({
   headless: true,
@@ -30,7 +31,7 @@ await page.evaluateOnNewDocument(() => {
     localStorage.clear()
   } catch {}
 })
-await page.goto('http://localhost:5173/', { waitUntil: 'domcontentloaded' })
+await page.goto(appUrl(), { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('canvas', { timeout: 60000 })
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
 await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())

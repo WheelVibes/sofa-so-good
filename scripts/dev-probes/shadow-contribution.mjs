@@ -11,7 +11,7 @@
 import fs from 'node:fs'
 import puppeteer from 'puppeteer'
 import sharp from 'sharp'
-import { centerBox } from './lib.mjs'
+import { appUrl, centerBox } from './lib.mjs'
 
 const OUT = '/tmp/ssg-shadow'
 fs.mkdirSync(OUT, { recursive: true })
@@ -50,7 +50,7 @@ await page.evaluateOnNewDocument(() => {
     localStorage.setItem('hdb_onboarded', '1')
   } catch {}
 })
-await page.goto('http://localhost:5173/', { waitUntil: 'domcontentloaded' })
+await page.goto(appUrl(), { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('canvas', { timeout: 60000 })
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
 await page.evaluate(() => {

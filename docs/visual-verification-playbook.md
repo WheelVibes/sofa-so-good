@@ -114,6 +114,23 @@ gesture against a real GPU and need `npm run dev:web` running.
 | `shadow-contribution.mjs` | Whether the sun shadow map changes anything visible, by diffing the same frame with `shadowMapSize` on vs 0. |
 | `orbit-flash.mjs` | Broad multi-tier orbit sweep; writes any blank frame to disk. |
 
+**Pin the port, and pass it via `SSG_URL`.** Every probe navigates through
+`lib.mjs:appUrl()` (`SSG_URL` → `URL` → `localhost:5173`) rather than a hardcoded
+host. Vite silently falls forward to 5174+ when 5173 is taken, so a stray dev
+server from ANOTHER checkout answering on 5173 will serve a different branch's
+code to every probe — the run still succeeds and the numbers look plausible, they
+are just measuring the wrong tree. This actually happened mid-session: an orphaned
+`sofa-so-good` dev server held 5173 while the work was in a worktree. Start the
+server on a dedicated port and say so explicitly:
+
+```bash
+npx vite --port 5199 --strictPort &          # from the worktree
+SSG_URL=http://localhost:5199/ node scripts/dev-probes/tier-fps.mjs
+```
+
+`--strictPort` is the load-bearing flag: it makes a port clash fail loudly
+instead of quietly relocating.
+
 Two rules learned the hard way here:
 
 - **Detect a blank frame by VARIANCE, not brightness.** A white flash is the page

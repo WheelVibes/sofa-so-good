@@ -9,6 +9,7 @@
  * whether it was the screen), which is what identifies the pass.
  */
 import puppeteer from 'puppeteer'
+import { appUrl } from './lib.mjs'
 
 const TIER = process.env.TIER || 'high'
 const DSF = Number(process.env.DSF || 2)
@@ -32,7 +33,7 @@ await page.evaluateOnNewDocument(() => {
     localStorage.setItem('hdb_onboarded', '1')
   } catch {}
 })
-await page.goto(process.env.URL || 'http://localhost:5173/', { waitUntil: 'domcontentloaded' })
+await page.goto(appUrl(), { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('canvas', { timeout: 60000 })
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
 await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())

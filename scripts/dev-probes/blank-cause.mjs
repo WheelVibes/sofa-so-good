@@ -10,7 +10,7 @@
 
 import fs from 'node:fs'
 import puppeteer from 'puppeteer'
-import { centerBox, frameStats, isBlank } from './lib.mjs'
+import { appUrl, centerBox, frameStats, isBlank } from './lib.mjs'
 
 const OUT = '/tmp/ssg-cause'
 const TIER = process.env.TIER || 'maximum'
@@ -37,7 +37,7 @@ await page.evaluateOnNewDocument(() => {
     localStorage.setItem('hdb_onboarded', '1')
   } catch {}
 })
-await page.goto(process.env.URL || 'http://localhost:5173/', { waitUntil: 'domcontentloaded' })
+await page.goto(appUrl(), { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('canvas', { timeout: 60000 })
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
 await page.evaluate(() => {

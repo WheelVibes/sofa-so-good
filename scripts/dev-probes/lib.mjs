@@ -56,3 +56,16 @@ export function isBlank(s) {
 export function centerBox(vpW, vpH) {
   return { x: vpW * 0.28, y: vpH * 0.18, w: vpW * 0.44, h: vpH * 0.55 }
 }
+
+/**
+ * Base URL of the dev server under test.
+ *
+ * Do NOT hardcode `localhost:5173`. Vite silently falls forward to 5174+ when
+ * 5173 is taken, and a stray dev server from ANOTHER checkout answering on 5173
+ * will happily serve a different branch's code to every probe — the measurement
+ * still "works", it is just measuring the wrong tree. Start the server on a
+ * known port and pass it here via `SSG_URL`.
+ */
+export function appUrl() {
+  return process.env.SSG_URL || process.env.URL || 'http://localhost:5173/'
+}
