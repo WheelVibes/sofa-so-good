@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { QUALITY_PRESETS } from '../quality'
-import { chooseEmitters, fixtureLightBudget, ORBIT_BUDGET_MULTIPLIER } from './chooseEmitters'
+import {
+  chooseEmitters,
+  fixtureLightBudget,
+  LIGHT_SLOT_STEP,
+  lightSlotCount,
+  ORBIT_BUDGET_MULTIPLIER,
+} from './chooseEmitters'
 
 describe('fixtureLightBudget', () => {
   it('walk mode uses the raw maxFixtureLights cap', () => {
@@ -81,5 +87,57 @@ describe('chooseEmitters', () => {
 
   it('handles a zero budget by dropping all lights', () => {
     expect(chooseEmitters(ranked, 'firstPerson', 0)).toHaveLength(0)
+  })
+})
+
+describe('lightSlotCount (LIGHT-COUNT-STABLE)', () => {
+  it('renders nothing for no emitters', () => {
+    // Four dead lights in an unlit scene would be pure waste.
+    expect(lightSlotCount(0, 36)).toBe(0)
+    expect(lightSlotCount(-3, 36)).toBe(0)
+  })
+
+  it('rounds up to the quantisation step', () => {
+    expect(lightSlotCount(1, 36)).toBe(LIGHT_SLOT_STEP)
+    expect(lightSlotCount(LIGHT_SLOT_STEP, 36)).toBe(LIGHT_SLOT_STEP)
+    expect(lightSlotCount(LIGHT_SLOT_STEP + 1, 36)).toBe(LIGHT_SLOT_STEP * 2)
+  })
+
+  it('absorbs the +/-1 wobble that caused the recompiles', () => {
+    // The measured defect: the live set moved 18 -> 19 as the camera moved, and
+    // three bakes the light COUNT into every lit material's program cache key, so
+    // 29 materials recompiled in one frame (204-214ms). Both counts must now map
+    // to the same number of slots.
+    expect(lightSlotCount(18, 36)).toBe(lightSlotCount(19, 36))
+    expect(lightSlotCount(17, 36)).toBe(lightSlotCount(20, 36))
+  })
+
+  it('never exceeds the tier budget', () => {
+    // The budget is itself a program boundary, but one the user only crosses on a
+    // tier change — which already happens behind a loading overlay.
+    expect(lightSlotCount(10, 12)).toBeLessThanOrEqual(12)
+    expect(lightSlotCount(11, 12)).toBeLessThanOrEqual(12)
+  })
+
+  it('never returns fewer slots than there are live emitters', () => {
+    // Dropping a real light to satisfy the budget is the caller's job
+    // (`chooseEmitters`); this function must never silently unlight a fixture.
+    for (let n = 1; n <= 40; n++) {
+      expect(lightSlotCount(n, 12)).toBeGreaterThanOrEqual(Math.min(n, n))
+    }
+    expect(lightSlotCount(20, 5)).toBe(20)
+  })
+
+  it('pads by at most step-1 lights', () => {
+    // The cost ceiling: padding to the full budget would trade a one-off compile
+    // for a permanent per-fragment cost.
+    for (let n = 1; n <= 40; n++) {
+      const slots = lightSlotCount(n, 100)
+      expect(slots - n).toBeLessThan(LIGHT_SLOT_STEP)
+    }
+  })
+
+  it('survives a non-finite budget', () => {
+    expect(lightSlotCount(5, Number.NaN)).toBeGreaterThanOrEqual(5)
   })
 })

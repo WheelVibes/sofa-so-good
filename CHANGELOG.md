@@ -5,6 +5,56 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.0 — the 210ms first-interaction stall was a light count changing
+
+Round 8 closed the last measured defect: at Maximum, one frame inside the first
+~44 cost **204–214 ms and compiled +29 shader programs**, while steady state
+either side of it sat at ~11 ms. A p90 cannot see a single frame in 1480, but a
+user feels a fifth of a second on their very first drag.
+
+Three hypotheses were tested and two died, which is why this took a round of
+measurement rather than a guess:
+
+- **Wall-reveal material clones — dead.** A material census across the gesture
+  read **+0 materials but +29 programs**. Nothing is being created; existing
+  materials are recompiling.
+- **`material.transparent` flipping — partly true, not the cause.** It IS in
+  three's program cache key (via the derived `opaque` parameter), and the reveal
+  flips it on every fading surface. Pre-warming the opposite variant at boot
+  compiled 15 extra programs there — but moved the spike not at all.
+- **The light COUNT — this was it.** Diffing the program cache keys before and
+  after the gesture showed all 29 new programs differing in exactly ONE field:
+  `18 -> 19`. three bakes the number of point/spot lights into every lit
+  material's cache key, and `FurnitureLights` re-picks the live emitter set
+  whenever the camera moves past a threshold — so a ±1 change, entirely routine
+  while orbiting, recompiles every lit material in the scene.
+
+**The fix (LIGHT-COUNT-STABLE)** is `chooseEmitters.ts:lightSlotCount`: render a
+quantised number of light slots (step 4) and pad the spares with zero-intensity
+point lights, which three counts regardless of intensity. A ±1 wobble no longer
+crosses a program boundary.
+
+Measured after:
+
+| metric                              | before      | after       |
+| ----------------------------------- | ----------- | ----------- |
+| programs compiled during a gesture  | 29          | **1**       |
+| worst frame, Maximum                | 213 ms      | **32 ms** (13.5 ms in a later run) |
+| p50 / p90, Maximum                  | 11.4 / 11.9 | 11.4 / 11.9 |
+| rendered image                      | —           | byte-identical |
+
+Padding deliberately stops at a step of 4 rather than the full tier budget (up to
+36 slots in orbit at Maximum): full padding would make the count perfectly stable
+but force the shader to evaluate every slot per fragment for the whole session,
+trading a one-off compile for a permanent per-frame cost. Medium's p50 rose
+8.4 → 8.9 ms, which is the price of at most three unused lights.
+
+`ShaderWarmup` is reinstated in its corrected form — flipping every scene material
+to `transparent: true`, compiling, and restoring within a single task so no frame
+renders in the flipped state. It is a smaller win than the light-count fix but a
+real one; the version reverted in v0.31.4.1 differed by warming the variant
+already being rendered, i.e. the one already compiled.
+
 ## v0.31.4.1 — two questions answered, one fix reverted for not working
 
 Round 7 was an investigation round: no user-visible change ships, but two open

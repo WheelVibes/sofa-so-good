@@ -9,7 +9,7 @@ import { resolveIesSpot } from '../../lighting/ies/iesStore'
 import { applyMoodPreset } from '../../lighting/moodPresets'
 import { useStore } from '../../state/store'
 import { useQuality } from '../useQuality'
-import { chooseEmitters } from './chooseEmitters'
+import { chooseEmitters, fixtureLightBudget, lightSlotCount } from './chooseEmitters'
 import { setFixtureGlow } from './fixtureGlow'
 
 /** Below this level the fixtures are off — render no fixture lights at all. */
@@ -170,6 +170,15 @@ export function FurnitureLights() {
   })
 
   if (active.length === 0) return null
+  // LIGHT-COUNT-STABLE: render a QUANTISED number of slots and pad the spares
+  // with zero-intensity point lights. three bakes the light count into every lit
+  // material's program cache key, so a ±1 change in the live set — routine while
+  // orbiting, since the set is re-picked on camera movement — recompiles every
+  // lit material. Measured, that cost 204-214ms on the first gesture frame with
+  // +29 programs, all differing in one cache-key field (18 -> 19). A padded light
+  // is counted by three regardless of intensity, so the count holds steady.
+  const slots = lightSlotCount(active.length, fixtureLightBudget(cameraMode, maxLights))
+  const padding = Math.max(0, slots - active.length)
   return (
     <>
       {active.map((l) =>
@@ -186,6 +195,20 @@ export function FurnitureLights() {
           />
         ),
       )}
+      {padding > 0 &&
+        Array.from({ length: padding }, (_, i) => (
+          // Intensity 0 contributes nothing to the image; it exists purely to
+          // hold the light COUNT steady. Positioned at the origin with a tiny
+          // distance so it can never influence anything even if the intensity
+          // were somehow non-zero.
+          <pointLight
+            key={`slot-pad-${i}`}
+            position={[0, -1000, 0]}
+            intensity={0}
+            distance={0.001}
+            decay={2}
+          />
+        ))}
     </>
   )
 }

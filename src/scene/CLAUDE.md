@@ -157,28 +157,36 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   which is the light curtains actually block — diffuse skylight through the glass. Same magnitude,
   correct light: contrast (pixel σ) rose ~21% at Performance and ~10% at Maximum for a ~2-point
   mean-brightness cost. Measure with `node scripts/dev-probes/shadow-contribution.mjs`.
-- **Maximum's frame outliers are SHADER COMPILES, not steady-state cost (FRAME-SPIKES).** Measured
-  with `scripts/dev-probes/frame-spikes.mjs`, which correlates each frame's cost against
-  `gl.info.programs.length` and against whether a real planar mirror is granted. At Maximum, DPR 2,
-  over ~1480 frames of continuous orbit: **p50 10.9 / p90 11.4 / p99 12.0 ms** — a very tight
-  distribution, comfortably inside the 16.67 ms budget — with only **3 outliers, ALL inside the
-  first 44 frames**, the worst being **206–214 ms on a single frame that compiled +25 shader
-  programs**. So the tiers are not slow; the FIRST interaction after boot or a tier change stalls
-  for a fifth of a second, which is exactly when a user forms an impression and is invisible to a
-  p90. Ruled out and settled: **the mirror gate is not involved** (0 of ~1480 frames had a real
-  reflection granted — MIRROR-RELEVANCE behaves as designed at the dollhouse pose), and it is not
-  the composer's own resize.
-  **An attempted fix was reverted, deliberately.** A `ShaderWarmup` controller calling
-  `gl.compileAsync(scene, camera)` plus driven `advance()` frames during the loading overlay did
-  NOT move the spike in any variant (immediate rAFs, or spread over 1.5 s to cover the lazy
-  `EffectsImpl` import). Two reasons it can't: `compileAsync` walks only the SCENE's materials, so
-  the composer's fullscreen passes — which live in its own internal scenes — are untouched; and the
-  leading remaining suspect is not a pass at all. **Next hypothesis to test: the wall reveal clones
-  a material PER MESH on first fade** (it must — the walls share one finish material, so fading in
-  place would fade them all, see WALL-REVEAL-ANGLE-GRADED), and ~25 fresh materials on the first
-  frame of a camera gesture is ~25 fresh programs. If that is it, the fix is to create the clones
-  at MOUNT rather than on first fade, so the compile lands behind the boot overlay. Verify by
-  counting distinct `material.uuid`s before and after a gesture before changing anything.
+- **Never let the LIGHT COUNT change during interaction (LIGHT-COUNT-STABLE).** three bakes the
+  number of point/spot lights into every lit material's program cache key, so adding or removing a
+  single light recompiles EVERY lit material. `FurnitureLights` re-picks the live emitter set
+  whenever the camera moves past a threshold, so a ±1 change is routine while orbiting — and it
+  cost **204–214 ms on the first frame of the first camera gesture, compiling +29 programs**
+  (`scripts/dev-probes/frame-spikes.mjs`). Steady state either side of that frame was ~11 ms, so
+  this single stall WAS the defect: invisible to a p90, and landing exactly when a user forms an
+  impression. Diffing the program cache keys named it precisely — all 29 differed in one field,
+  `18 -> 19`, a light count incrementing.
+  The fix is `chooseEmitters.ts:lightSlotCount`: render a QUANTISED number of slots
+  (`LIGHT_SLOT_STEP` = 4) and pad the spares with zero-intensity point lights, which three counts
+  regardless of intensity (`WebGLLights.setup` increments `pointLength` unconditionally). Measured
+  after: programs compiled during a gesture **29 → 1**, worst frame **213 → 32 ms** (and 13.5 ms in
+  a later run), p50/p90 unchanged within noise, and the rendered image byte-identical (medium
+  236.29/27.89/6.85%, maximum 223/29.56/1.49% — same as before the change). Do NOT pad to the full
+  tier budget (up to 36 slots in orbit at Maximum): that makes the count perfectly stable but forces
+  the shader to evaluate every slot per fragment for the whole session, trading a one-off compile
+  for a permanent cost. Any future feature that varies a light count at runtime needs the same
+  treatment.
+  Ruled out along the way, don't re-investigate: the mirror gate (0 of ~1480 orbit frames granted a
+  reflection); wall-reveal material CLONES (a census showed +0 materials across the gesture, so
+  nothing is being created); and `material.transparent` flipping (it IS in the cache key via
+  `opaque`, and pre-warming the opposite variant compiled 15 extra programs at boot but moved the
+  spike not at all — the remaining 29 were the light count).
+- **`ShaderWarmup` pre-compiles the transparent variant at boot.** It flips every scene material to
+  `transparent: true`, compiles, and restores — all in ONE task, so no frame renders in the flipped
+  state. This is a smaller win than LIGHT-COUNT-STABLE and was kept because the reveal genuinely
+  does flip `transparent` on ~15 materials' worth of programs. An earlier version that called
+  `compileAsync` in the CURRENT state was reverted for doing nothing: warming the variant already
+  being rendered is by definition warming the one already compiled.
 - **Ambient occlusion is available BELOW the post tiers (TIER-AO).** `QualitySettings.ao` is
   separate from `postprocessing`: `medium` has `ao: true, postprocessing: false`, which mounts a
   MINIMAL composer — N8AO + the tone mapper + HueSaturation and nothing else. This matters because

@@ -38,6 +38,7 @@ import { RendererTierController, SHADOW_FILTER_THREE } from './RendererTierContr
 import { RenderPump } from './RenderPump'
 import { getRoomEditorShell } from './roomEditorShell'
 import { ScreenshotController } from './ScreenshotController'
+import { ShaderWarmup } from './ShaderWarmup'
 import { HoverHighlight } from './selection/HoverHighlight'
 import { MarqueeCameraTracker } from './selection/MarqueeSelector'
 import { ResizeGizmo } from './selection/ResizeGizmo'
@@ -171,6 +172,7 @@ export function RoomEditorScene() {
       <AnnotationsOverlay />
       <Effects />
       <QualityController />
+      <ShaderWarmup />
       <ScreenshotController />
       <FrameRenderedNotifier />
       {import.meta.env.DEV ? <DevCameraExpose /> : null}

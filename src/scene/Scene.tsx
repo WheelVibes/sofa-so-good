@@ -50,6 +50,7 @@ import { RenderPump } from './RenderPump'
 import { SceneBackdrop } from './SceneBackdrop'
 import { SceneExportController } from './SceneExportController'
 import { ScreenshotController } from './ScreenshotController'
+import { ShaderWarmup } from './ShaderWarmup'
 import { ShowcaseController } from './ShowcaseController'
 import { HoverHighlight } from './selection/HoverHighlight'
 import { MarqueeCameraTracker } from './selection/MarqueeSelector'
@@ -208,6 +209,7 @@ export function Scene() {
         <Effects />
         <ShowcaseController />
         <QualityController />
+        <ShaderWarmup />
         {import.meta.env.DEV && profilerEnabled ? <ProfilerProbe /> : null}
         <AnisotropyController />
         <RendererTierController />

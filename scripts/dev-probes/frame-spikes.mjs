@@ -92,6 +92,38 @@ await page.evaluate(() => {
   requestAnimationFrame(tick)
 })
 
+// Census of distinct material instances, and how many are shadow-receiving /
+// transmissive. The wall reveal must clone a material PER MESH on first fade (a
+// room's walls share one finish material, so fading in place would fade them
+// all — WALL-REVEAL-ANGLE-GRADED), and a fresh material is a fresh program. If
+// ~25 materials appear across the first gesture, that is the +25 compiles.
+const census = () =>
+  page.evaluate(() => {
+    const ids = new Set()
+    let transmissive = 0
+    window.__three.scene.traverse((o) => {
+      if (!o.isMesh || !o.material) return
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+        ids.add(m.uuid)
+        if (m.transmission > 0) transmissive++
+      }
+    })
+    return {
+      materials: ids.size,
+      transmissive,
+      programs: window.__three.gl.info.programs?.length ?? -1,
+    }
+  })
+const before = await census()
+
+// Snapshot the program list so the NEW programs can be named after the gesture.
+// three's `info.programs` entries carry a `cacheKey` — the exact parameter string
+// the program was compiled for — which turns "+25 compiled" from a number into a
+// list of what actually recompiled and why.
+await page.evaluate(() => {
+  window.__progBefore = new Set((window.__three.gl.info.programs || []).map((p) => p.cacheKey))
+})
+
 const box = await page.evaluate(() => {
   const r = document.querySelector('canvas').getBoundingClientRect()
   return { x: r.x, y: r.y, w: r.width, h: r.height }
@@ -108,6 +140,57 @@ while ((Date.now() - t0) / 1000 < SECONDS) {
   i++
 }
 await page.mouse.up()
+
+const newPrograms = await page.evaluate(() => {
+  const out = []
+  for (const p of window.__three.gl.info.programs || []) {
+    if (!window.__progBefore.has(p.cacheKey)) out.push(p.cacheKey)
+  }
+  return out
+})
+
+const after = await census()
+console.log(`\nNEW programs compiled during the gesture: ${newPrograms.length}`)
+// Name the CHANGED parameter rather than eyeballing the blob: for each new key,
+// find the pre-existing key it is closest to (fewest differing comma-separated
+// fields) and report which field indices differ. A single recurring index across
+// all 29 is the parameter that flipped.
+const diffTally = await page.evaluate((news) => {
+  const olds = [...window.__progBefore]
+  const tally = {}
+  const examples = {}
+  for (const nk of news) {
+    const nf = nk.split(',')
+    let best = null
+    let bestDiff = null
+    for (const ok of olds) {
+      const of = ok.split(',')
+      if (of.length !== nf.length) continue
+      const d = []
+      for (let i = 0; i < nf.length; i++) if (nf[i] !== of[i]) d.push(i)
+      if (!bestDiff || d.length < bestDiff.length) {
+        bestDiff = d
+        best = of
+      }
+    }
+    if (!bestDiff) continue
+    const sig = bestDiff.join('+')
+    tally[sig] = (tally[sig] || 0) + 1
+    if (!examples[sig]) examples[sig] = bestDiff.map((i) => `field[${i}]: ${best[i]} -> ${nf[i]}`)
+  }
+  return { tally, examples }
+}, newPrograms)
+for (const [sig, n] of Object.entries(diffTally.tally)
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 6)) {
+  console.log(`  ${n} program(s) differ only at field(s) ${sig || '(none)'}`)
+  for (const line of diffTally.examples[sig] || []) console.log(`      ${line}`)
+}
+console.log(
+  `material census — before gesture: ${before.materials} materials / ${before.programs} programs` +
+    `   after: ${after.materials} materials / ${after.programs} programs` +
+    `   (+${after.materials - before.materials} materials, +${after.programs - before.programs} programs)`,
+)
 
 const r = await page.evaluate(() => {
   cancelAnimationFrame(window.__sp.raf)
