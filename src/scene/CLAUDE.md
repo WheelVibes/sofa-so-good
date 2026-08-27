@@ -157,6 +157,28 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   which is the light curtains actually block — diffuse skylight through the glass. Same magnitude,
   correct light: contrast (pixel σ) rose ~21% at Performance and ~10% at Maximum for a ~2-point
   mean-brightness cost. Measure with `node scripts/dev-probes/shadow-contribution.mjs`.
+- **Maximum's frame outliers are SHADER COMPILES, not steady-state cost (FRAME-SPIKES).** Measured
+  with `scripts/dev-probes/frame-spikes.mjs`, which correlates each frame's cost against
+  `gl.info.programs.length` and against whether a real planar mirror is granted. At Maximum, DPR 2,
+  over ~1480 frames of continuous orbit: **p50 10.9 / p90 11.4 / p99 12.0 ms** — a very tight
+  distribution, comfortably inside the 16.67 ms budget — with only **3 outliers, ALL inside the
+  first 44 frames**, the worst being **206–214 ms on a single frame that compiled +25 shader
+  programs**. So the tiers are not slow; the FIRST interaction after boot or a tier change stalls
+  for a fifth of a second, which is exactly when a user forms an impression and is invisible to a
+  p90. Ruled out and settled: **the mirror gate is not involved** (0 of ~1480 frames had a real
+  reflection granted — MIRROR-RELEVANCE behaves as designed at the dollhouse pose), and it is not
+  the composer's own resize.
+  **An attempted fix was reverted, deliberately.** A `ShaderWarmup` controller calling
+  `gl.compileAsync(scene, camera)` plus driven `advance()` frames during the loading overlay did
+  NOT move the spike in any variant (immediate rAFs, or spread over 1.5 s to cover the lazy
+  `EffectsImpl` import). Two reasons it can't: `compileAsync` walks only the SCENE's materials, so
+  the composer's fullscreen passes — which live in its own internal scenes — are untouched; and the
+  leading remaining suspect is not a pass at all. **Next hypothesis to test: the wall reveal clones
+  a material PER MESH on first fade** (it must — the walls share one finish material, so fading in
+  place would fade them all, see WALL-REVEAL-ANGLE-GRADED), and ~25 fresh materials on the first
+  frame of a camera gesture is ~25 fresh programs. If that is it, the fix is to create the clones
+  at MOUNT rather than on first fade, so the compile lands behind the boot overlay. Verify by
+  counting distinct `material.uuid`s before and after a gesture before changing anything.
 - **Ambient occlusion is available BELOW the post tiers (TIER-AO).** `QualitySettings.ao` is
   separate from `postprocessing`: `medium` has `ao: true, postprocessing: false`, which mounts a
   MINIMAL composer — N8AO + the tone mapper + HueSaturation and nothing else. This matters because
@@ -227,6 +249,17 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   frame 21.9 → **16.8 ms**, i.e. back inside the 16.67 ms budget instead of over it; High 8.1/8.9 →
   8.1/8.7 (it only went 2048 → 1024, so a smaller win); Performance and Medium unchanged as
   expected. All four tiers now hold ~59.8 drawn frames/s.
+- **Surface materials are NOT broken — measured, don't re-audit (MATERIAL-AUDIT).**
+  `scripts/dev-probes/material-audit.mjs` walks the live scene graph and reports which PBR maps are
+  actually bound, classified GEOMETRICALLY (r3f meshes carry no `name`, so a name-based classifier
+  reports everything as "other"). At Medium, after texture streaming settles: walls 114 meshes with
+  25 albedo / 59 normal / 51 roughness; large floors 4 with 1 / 3 / 1; furniture+other 962 with
+  169 / 312 / 215. **`aoMap` is bound on ZERO materials** at any tier. Zero failed non-font
+  requests, anisotropy up to 16, 138 textures uploaded at 1024². So most walls are flat near-white
+  solids by AUTHORING (a solid albedo plus a subtle normal/roughness is a defensible model for
+  painted plaster), not by a load failure — and the missing `aoMap` matters much less now that
+  screen-space AO runs from Medium up (TIER-AO). Changing the default flat's wall finishes to
+  textured plaster is a CONTENT decision, not a bug fix; don't file it as one.
 - **Price a render feature in BOTH currencies, and against a measured noise floor**
   (`scripts/dev-probes/feature-price.mjs`). It applies one `qualityOverrides` change at a time and
   reports p90 frame cost in ms alongside two visual metrics. Measured at Maximum, 09:00, DPR 2,

@@ -5,6 +5,52 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.4.1 — two questions answered, one fix reverted for not working
+
+Round 7 was an investigation round: no user-visible change ships, but two open
+questions are now settled with measurements, and an attempted fix was reverted
+because it demonstrably did not work.
+
+- **Surface materials are not broken.** With lighting and AO now sound, flat cream
+  walls were the obvious next suspect. A new
+  `scripts/dev-probes/material-audit.mjs` walks the live scene and reports which
+  PBR maps are actually bound, classified geometrically (r3f meshes carry no
+  `name`, so a name-based classifier reports every surface as "other" — the first
+  attempt did exactly that and told us nothing). At Medium: walls 114 meshes with
+  25 albedo / 59 normal / 51 roughness; large floors 4 with 1 / 3 / 1;
+  furniture+other 962 with 169 / 312 / 215. `aoMap` is bound on **zero** materials
+  at any tier. Zero failed non-font requests, anisotropy up to 16, 138 textures at
+  1024². So most walls are flat near-white solids by AUTHORING, not by a load
+  failure — and a solid albedo with a subtle normal/roughness is a defensible
+  model for painted plaster. Changing the default flat's finishes is a content
+  decision, not a bug fix.
+- **Maximum's frame outliers are shader compiles, and the mirror gate is
+  innocent.** `scripts/dev-probes/frame-spikes.mjs` correlates each frame's cost
+  against `gl.info.programs.length` and against whether a real planar reflection
+  is granted. Over ~1480 frames of continuous orbit at Maximum: **p50 10.9 / p90
+  11.4 / p99 12.0 ms**, a very tight distribution well inside the 16.67 ms budget,
+  with only **3 outliers, all inside the first 44 frames** — the worst being
+  **206–214 ms on one frame that compiled +25 shader programs**. The tiers are not
+  slow; the FIRST interaction after boot or a tier change stalls for a fifth of a
+  second, which a p90 cannot see. **0 of ~1480 frames had a mirror reflection
+  granted**, so the MIRROR-RELEVANCE gate is behaving as designed and the ~2 ms
+  run-to-run swing blamed on it in v0.31.3.0 was something else.
+- **A `ShaderWarmup` fix was written, measured, and reverted.** Calling
+  `gl.compileAsync(scene, camera)` plus driving `advance()` frames during the
+  loading overlay did not move the spike in any variant — immediate rAFs, or spread
+  over 1.5 s to cover the lazy `EffectsImpl` import. It can't: `compileAsync` walks
+  only the SCENE's materials, so the composer's own fullscreen passes are
+  untouched, and the leading suspect isn't a pass anyway. An earlier run appeared
+  to cut spikes 3 → 1, but the next run showed 3 again — it was noise. Shipping
+  code that doesn't do what its docstring claims is worse than shipping nothing,
+  so it's out, with the reasoning recorded in `src/scene/CLAUDE.md`.
+- **Next hypothesis, recorded rather than guessed at:** the wall reveal must clone
+  a material per mesh on first fade (the walls share one finish material, so
+  fading in place would fade them all), and ~25 fresh materials on the first frame
+  of a camera gesture is ~25 fresh programs. If so the fix is to clone at mount, so
+  the compile lands behind the boot overlay. To be verified by counting distinct
+  `material.uuid`s across a gesture before touching anything.
+
 ## v0.31.4.0 — ambient occlusion for the tier most browsers actually get
 
 Round 6. Two tasks were queued: push the key:fill ratio, and get ambient
