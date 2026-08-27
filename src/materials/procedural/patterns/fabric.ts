@@ -4,7 +4,17 @@ import { clamp01, makeFbm } from '../noise'
 
 export function carpetFields(base: [number, number, number], seed: number, S: number): Fields {
   const f = blank(S)
-  f.normalStrength = 6
+  // NYQUIST-AUDIT follow-up: 6 was tuned against the OLD per-texel `fibre` field,
+  // where a strong bake turned fine noise into fine tooth. Over the corrected
+  // low-frequency field it carved broad polished swirls and the carpet read as
+  // stone. A live `normalScale` sweep on a close-up (1 / 0.5 / 0.25 / 0.1, one
+  // run, first arm repeated and identical) gave microcontrast
+  // 4.010 / 2.739 / 1.838 / 1.353. NOTE the two knobs are NOT proportional: this
+  // 4x cut in bake strength measured **1.349**, i.e. where `normalScale` 0.1 (a
+  // 10x cut) landed, because `heightToNormalRGBA` renormalises and saturates.
+  // Carpet should be soft and matte, so the flatter result is right; the swirls
+  // are gone and microcontrast is down 4.010 -> 1.349 (-66%).
+  f.normalStrength = 1.5
   // NYQUIST-AUDIT: was baseFreq 110, whose top octave ran at 880 cycles = 3.44 per
   // texel on a 256 tile — the single worst-aliased field in the codebase, and
   // unlike the thresholded speckle fields it is UNTHRESHOLDED and drives three
@@ -65,7 +75,14 @@ export function stripeFields(base: [number, number, number], seed: number, S: nu
 export function grasscloth(base: [number, number, number], seed: number, S: number): Fields {
   const f = blank(S)
   f.normalStrength = 1.4
-  const warp = makeFbm(seed + 7, 3, 70)
+  // NYQUIST-AUDIT: was baseFreq 70 = 1.09 cycles/texel at 256. This field is a
+  // PHASE WARP — `sin(v * S * 0.85 + warp * 3)` — so per-texel noise displaced the
+  // weave line by up to 3 radians (nearly half a cycle) at every texel, scrambling
+  // the horizontal weave into noise rather than meandering it. `line` also carries
+  // HALF the height field, so the damage was structural, not cosmetic. A warp
+  // wants to be low-frequency by definition: 8 gives a gentle meander at ~0.13
+  // cycles/texel.
+  const warp = makeFbm(seed + 7, 3, 8)
   const slub = makeFbm(seed + 13, 2, 14)
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {

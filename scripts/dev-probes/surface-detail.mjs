@@ -62,6 +62,22 @@ const FINISHES = (process.env.FINISHES || '').split(',').filter(Boolean)
  * rather than "the mutation never landed". Check the def's `paramSchema`.
  */
 const PROP = process.env.PROP || 'finish'
+/**
+ * Optional second A/B: `material.normalScale` values to sweep, in ONE run, after
+ * the finish is applied.
+ *
+ * `normalScale` is a RENDER-TIME multiplier on the sampled tangent-space normal,
+ * whereas a painter's `normalStrength` scales the height->normal bake. Sweeping
+ * this live finds a ballpark in one run instead of one source edit + one browser
+ * launch per arm — but **the two are NOT proportional, so always confirm with a
+ * real `normalStrength` change.** Measured on carpet: `normalScale` 1 / 0.5 /
+ * 0.25 / 0.1 gave microcontrast 4.010 / 2.739 / 1.838 / 1.353, and a genuine
+ * `normalStrength` 6 -> 1.5 (a 4x cut) landed at **1.349** — i.e. where
+ * `normalScale` 0.1 (a 10x cut) did, not where 0.25 did. `heightToNormalRGBA`
+ * normalises `(-dx, -dy, 1)`, so its response saturates: use the sweep to pick a
+ * DIRECTION, then measure the real bake.
+ */
+const NORMAL_SCALES = (process.env.NORMAL_SCALES || '').split(',').filter(Boolean).map(Number)
 fs.mkdirSync(OUT, { recursive: true })
 
 const browser = await puppeteer.launch({
@@ -143,6 +159,21 @@ async function applyFinish(finish) {
   await assertSceneAlive(page, `${PROP} ${finish}`)
 }
 if (FINISHES.length) await applyFinish(FINISHES[0])
+
+/** Set every masked material's normalScale (uniform x/y). */
+async function applyNormalScale(v) {
+  const n = await page.evaluate((val) => {
+    const mats = window.__sd?.mats
+    if (!mats?.length) return 0
+    for (const m of mats) m.normalScale?.set(val, val)
+    const st = window.__store.getState()
+    st.setManualHour(st.manualHour)
+    return mats.length
+  }, v)
+  if (!n) throw new Error('no materials captured for the normalScale sweep')
+  await new Promise((r) => setTimeout(r, 1600))
+  await assertSceneAlive(page, `normalScale ${v}`)
+}
 
 const GX = 96
 const GY = 60
@@ -240,6 +271,7 @@ const found = await page.evaluate(
         n += ok
       }
     }
+    window.__sd = { mats }
     return {
       n,
       mask,
@@ -352,7 +384,13 @@ const show = (tag, r) =>
   console.log(
     `  ${tag.padEnd(24)} chroma=${r.chroma.toFixed(3)}  >0.35=${r.over.toFixed(1).padStart(5)}%  mean=${r.mean.toFixed(1).padStart(6)}  sigma=${r.sd.toFixed(2).padStart(6)}  microcontrast=${r.micro.toFixed(3)}`,
   )
-if (!FINISHES.length) {
+if (NORMAL_SCALES.length) {
+  console.log(`  normalScale sweep over ${found.mats} masked material(s)`)
+  for (const v of NORMAL_SCALES) {
+    await applyNormalScale(v)
+    show(`normalScale ${v}`, await measure(`ns${v}`))
+  }
+} else if (!FINISHES.length) {
   show('as shipped', await measure(''))
 } else {
   console.log(`  A/B writes prop '${PROP}' on defId '${DEF}'`)

@@ -323,6 +323,35 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   full-canvas figure "do NOT quote". The AgX clipping numbers above are unaffected — `tone-curve.mjs`
   always measured a centre slab. Lesson: `centerBox` exists for this and its docstring says so;
   a whole-canvas fraction is a UI measurement wearing a render costume.
+- **The Nyquist sweep is CLOSED: 5 fields fixed, 14 verdicts recorded (NYQUIST-CLOSED).** Working
+  the allowlist with NYQUIST-HARM applied first settled every remaining entry without a mechanical
+  sweep. Fixed and removed: all four `patterns/wood.ts` fields, `patterns/fabric.ts:fibre` (3.44),
+  `patterns/fabric.ts:warp` (1.09) and `tileSurface.ts:peel` (1.41). The other 14 are **recorded
+  verdicts, not pending work**, grouped in `nyquistAudit.test.ts` by why they are harmless:
+  thresholded sparse speckle that reads as real pinholes (`stone.ts:pores` 2.81 and
+  `stoneSurface.ts:fine` 1.72, both verified on a crop), roughness-ONLY whispers where there is no
+  normal map to corrupt (`tile.ts`/`stone.ts:microRough`, `plasterSurface.ts:fine` — MAT-003's
+  ±0.04 nap drift on every default wall), and albedo whispers at ≤ ±0.025 of the shade factor.
+  · **`patterns/fabric.ts:warp` was the subtle one worth catching.** It is a PHASE warp —
+    `sin(v * S * 0.85 + warp * 3)` — so per-texel noise displaced the weave line by up to 3 radians
+    (nearly half a cycle) at EVERY texel, scrambling grasscloth's horizontal weave into noise
+    instead of meandering it, and `line` carries half the height field. baseFreq 70 → 8. The crops
+    are unambiguous: a random speckled hatch before, coherent flowing fibre runs after.
+  · **And it is the case that proves the metric's blind spot.** That clear visual fix moved
+    microcontrast only 2.086 → 1.951 (−6.5%), with chroma, mean and sigma flat. **Microcontrast
+    measures AMPLITUDE, not COHERENCE** — a scrambled-phase field and a meandering one have similar
+    texel-to-texel magnitude. This is the mirror of the usual trap: here the numbers under-report a
+    real improvement. Always look.
+  · **`normalScale` is NOT a proportional proxy for a painter's `normalStrength`.** Carpet's live
+    sweep gave microcontrast 4.010 / 2.739 / 1.838 / 1.353 at `normalScale` 1 / 0.5 / 0.25 / 0.1,
+    but a real `normalStrength` 6 → 1.5 (a 4x cut) measured **1.349** — where `normalScale` 0.1 (a
+    10x cut) landed. `heightToNormalRGBA` normalises `(-dx, -dy, 1)`, so its response saturates.
+    Use a live sweep to pick a DIRECTION, then confirm with the real bake.
+  · **Carpet is improved but still not carpet, and that is where it stops.** Aliasing gone (static
+    → soft matte, microcontrast 9.084 → 1.349, −85% across both changes) but it reads as speckled
+    terrazzo, because the remaining cue is the ALBEDO speckle, not the normal. `floor-carpet-grey`
+    is a non-default, user-selectable finish and two rounds went into it — a prioritisation error
+    worth not repeating. Default surfaces first.
 - **Frequency alone does NOT determine whether aliasing hurts — amplitude and thresholding do
   (NYQUIST-HARM).** Working down the NYQUIST-AUDIT allowlist worst-first immediately produced two
   opposite verdicts from the top two entries, both confirmed on close-up crops of a table top

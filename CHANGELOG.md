@@ -5,6 +5,51 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.12 — the Nyquist sweep is closed: 5 fixed, 14 verdicts
+
+Finished the allowlist by applying NYQUIST-HARM first, which settled every
+remaining entry without a mechanical sweep.
+
+- **`patterns/fabric.ts:warp` (1.09) was the subtle catch.** It is a PHASE warp —
+  `sin(v * S * 0.85 + warp * 3)` — so per-texel noise displaced the weave line by
+  up to 3 radians (nearly half a cycle) at EVERY texel, scrambling grasscloth's
+  horizontal weave into noise rather than meandering it, and `line` carries half
+  the height field. baseFreq 70 → 8. The crops are unambiguous: a random speckled
+  hatch before, coherent flowing fibre runs after.
+
+  **This is the case that proves the metric's blind spot.** That clear visual fix
+  moved microcontrast only **2.086 → 1.951 (−6.5%)** with chroma, mean and sigma
+  flat. Microcontrast measures AMPLITUDE, not COHERENCE — a scrambled-phase field
+  and a meandering one have similar texel-to-texel magnitude. The mirror of the
+  usual trap: the numbers under-reported a real improvement.
+
+- **`tileSurface.ts:peel` (1.41) fixed as a correctness change** — unthresholded
+  and on the HEIGHT, so no sparse-speckle defence, but amplitude is only 0.06.
+  `PEEL_FREQ` 90 → 12. No visual win claimed.
+
+- **14 entries are now recorded VERDICTS, not debt**, grouped by why they are
+  harmless: thresholded sparse speckle that reads as real pinholes
+  (`stone.ts:pores` 2.81, `stoneSurface.ts:fine` 1.72 — both verified on crops),
+  roughness-ONLY whispers with no normal map to corrupt (`tile.ts`/`stone.ts:
+  microRough`, and `plasterSurface.ts:fine`, MAT-003's ±0.04 nap drift on every
+  default wall), and albedo whispers at ≤ ±0.025 of the shade factor. The test
+  still fails if any of them stops existing or stops aliasing.
+
+- **Carpet: finished as far as it goes, and it is not far enough.**
+  `normalStrength` 6 → 1.5 removed the polished swirls (microcontrast 4.010 →
+  1.349; 9.084 → 1.349, −85%, across both rounds' changes). It now reads as soft
+  matte speckled terrazzo rather than carpet, because the remaining cue is the
+  ALBEDO speckle. Stopping here: `floor-carpet-grey` is a non-default,
+  user-selectable finish and two rounds went into it — a prioritisation error
+  worth naming. Default surfaces first.
+
+- **`normalScale` is not a proportional proxy for `normalStrength`.** The live
+  sweep gave 4.010 / 2.739 / 1.838 / 1.353 at 1 / 0.5 / 0.25 / 0.1, but a real
+  `normalStrength` 6 → 1.5 (a 4x cut) measured 1.349 — where `normalScale` 0.1 (a
+  10x cut) landed, because `heightToNormalRGBA` renormalises and saturates. The
+  probe's docstring said "near-equivalent"; that claim is corrected in place. Use
+  a sweep for DIRECTION, then measure the real bake.
+
 ## v0.31.5.11 — aliasing hurts only when it is loud and unthresholded
 
 Started working down the 18-entry Nyquist allowlist worst-first. The top two

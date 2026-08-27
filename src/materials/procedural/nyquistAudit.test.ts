@@ -61,24 +61,35 @@ const TILE = 256
  * debt, not an exemption. ONLY REMOVE ENTRIES.
  */
 const KNOWN_ALIASED: ReadonlyArray<{ file: string; field: string }> = [
-  // patterns/fabric.ts:fibre FIXED in v0.31.5.11 (was 3.44 — the worst in the repo).
+  // FIXED and removed from this list: patterns/wood.ts (v0.31.5.10);
+  // patterns/fabric.ts:fibre 3.44, patterns/fabric.ts:warp 1.09 and
+  // tileSurface.ts:peel 1.41 (v0.31.5.11-12).
   //
-  // `patterns/stone.ts:pores` is a deliberate KEEP, not pending work. It aliases at
-  // 2.81 cycles/texel, but it is THRESHOLDED (`p > 0.86`), so only ~14% of texels
-  // fire and the aliasing shows up as sparse dark pinholes — which is exactly what
-  // concrete pinholes look like. Verified on a close-up: it reads as plausible
-  // mottled concrete, and "fixing" it would replace correct-looking sparse specks
-  // with broad blobs. Frequency alone does not determine harm; AMPLITUDE and
-  // THRESHOLDING do. Check the call site before touching any entry below.
-  { file: 'patterns/stone.ts', field: 'pores' }, // 2.81 — thresholded, verified OK
-  { file: 'stoneSurface.ts', field: 'fine' }, // 1.72
-  { file: 'tileSurface.ts', field: 'peel' }, // 1.41
-  { file: 'patterns/wall.ts', field: 'grain' }, // 1.25
-  { file: 'patterns/tile.ts', field: 'sand' }, // 1.25
-  { file: 'patterns/tile.ts', field: 'microRough' }, // 1.17
-  { file: 'patterns/stone.ts', field: 'microRough' }, // 1.09
-  { file: 'patterns/fabric.ts', field: 'warp' }, // 1.09
-  { file: 'plasterSurface.ts', field: 'fine' }, // 1.00
+  // Everything remaining is a RECORDED VERDICT, not pending work. Per NYQUIST-HARM,
+  // aliasing is damaging when a field is unthresholded AND high-amplitude AND feeds
+  // the HEIGHT (which `heightToNormalRGBA` turns into a per-texel random normal).
+  // These all fail at least one of those, and two were confirmed correct on a
+  // close-up crop. Do not "fix" them without re-reading the call site and looking
+  // at the surface — a mechanical sweep would replace correct sparse speckle with
+  // broad blobs.
+  //
+  // THRESHOLDED sparse speckle — reads as real pinholes, verified on a crop:
+  { file: 'patterns/stone.ts', field: 'pores' }, // 2.81 — `p > 0.86`, ~14% fires; concrete looks right
+  { file: 'stoneSurface.ts', field: 'fine' }, // 1.72 — `n <= 0.8` gate + ramp, ROUGHNESS only
+  //
+  // ROUGHNESS-ONLY at whisper amplitude — texel-scale roughness variation reads as
+  // a desirable specular break-up, and there is no normal map to corrupt:
+  { file: 'patterns/tile.ts', field: 'microRough' }, // 1.17 — +-0.035 / +-0.04 on roughness
+  { file: 'patterns/stone.ts', field: 'microRough' }, // 1.09 — +-0.035 on roughness
+  // MAT-003's roller-nap drift, on every default painted wall. Its own docstring
+  // calls it "a whisper (+-~0.04 of the multiplier)" and it is ROUGHNESS ONLY —
+  // the plaster normal comes from `plasterFields`, not from this field — so the
+  // per-texel component reads as a faint specular break-up, which is the point.
+  { file: 'plasterSurface.ts', field: 'fine' }, // 1.00 — roughness only, +-0.04
+  //
+  // ALBEDO whispers (<= +-0.02 of the shade factor):
+  { file: 'patterns/wall.ts', field: 'grain' }, // 1.25 — +-0.015 batten / +-0.02 fluted
+  { file: 'patterns/tile.ts', field: 'sand' }, // 1.25 — +-0.025 / +-0.02
   { file: 'patterns/wall.ts', field: 'brush' }, // 0.94
   { file: 'patterns/tile.ts', field: 'speck' }, // 0.94
   { file: 'patterns/tile.ts', field: 'striate' }, // 0.94
