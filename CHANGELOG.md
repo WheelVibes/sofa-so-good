@@ -5,6 +5,44 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.22 — bloom DOES clear the threshold on non-emissive surfaces at night
+
+BLOOM-NIGHT-NEARFIELD. No behaviour change; one new probe and a corrected invariant.
+
+The Maximum night frame carries soft white haloes along the wall top caps that Medium
+(AO-only composer, no Bloom) does not. RD-409 states the Bloom threshold sits "above
+broad lit surfaces", which would rule that out. Measured, the claim is true of the case
+it was validated against and false in general.
+
+`scripts/dev-probes/bloom-threshold.mjs` reads the domain the threshold actually tests:
+the scene rendered into a FLOAT render target, which three leaves untone-mapped because
+it only applies `renderer.toneMapping` when the target is null (TONE-POST), so the
+buffer holds the same scene-referred linear HDR that Bloom — which runs before the tone
+mapper — sees. Pixels are bucketed by a geometric mask, and reported as p50/p90/p99 plus
+a fraction over threshold, never a mean.
+
+  13:00, lamps OFF: cap p99 0.424, max 0.424, 0% over 1.35; wall max 0.469, 0% over
+  21:00, lamps ON:  cap p99 2.03,  max 2.06,  5.32% over;   wall max 8.22,  2.3% over
+
+The daytime row confirms RD-409's original finding and validates the probe — sunlit
+surfaces sit at 0.42-0.47. With the fixtures on, ordinary non-emissive painted surfaces
+clear the threshold too, which is the halo.
+
+It is not a misplaced light and not a threshold error. All 280 over-threshold pixels lie
+0.74-1.15 m from a live fixture (p50 0.98 m); the hottest, 8.22, is 0.51 m from an
+intensity-9 lamp, and nothing is embedded in geometry. It is inverse-square falloff:
+three's `pointLight` is a delta light with no bulb radius, so irradiance goes as 1/d²
+without bound. A real lamp half a metre from a wall blooms in a photograph too, so the
+behaviour is defensible and NOTHING WAS CHANGED. The threshold specifically must not be
+moved — it is pinned in lock-step with `fixtureGlow`, and it would not touch the 1/d²
+near-field that produces the hot pixels anyway. If revisited, the lever is the light
+model (finite bulb radius / near-field clamp), not the post stack.
+
+Probe trap recorded with it: the first daytime control ran with the lamps ON and came
+back nearly identical to night (cap 5.32% over in both), which reads as an insensitive
+probe. It was not — the lamps were lit in both arms. The control that tests RD-409's
+claim is 13:00 with the lamps OFF.
+
 ## v0.31.5.21 — two night hypotheses tested, both refuted; the light budget verified
 
 No behaviour change. Two probes and three recorded verdicts, so none of this gets

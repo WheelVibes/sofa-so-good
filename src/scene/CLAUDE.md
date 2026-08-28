@@ -426,6 +426,42 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   (no tier to step down from); the moment TIER-AUTODETECT landed, the guard walked the detected
   tier straight back down during warm-up and capability detection looked broken. Gate is the pure
   `shouldSampleFps(sceneReady, msSinceReady)`.
+- **Bloom's threshold clears DAYTIME surfaces but NOT night fixture near-fields — measured, and
+  the wording above used to overstate it (BLOOM-NIGHT-NEARFIELD).** RD-409 says the threshold sits
+  "above broad lit surfaces". That is true of the case it was validated against and false in
+  general. `scripts/dev-probes/bloom-threshold.mjs` reads the domain the threshold actually tests
+  — the scene rendered into a FLOAT render target, which three leaves untone-mapped because it
+  only applies `renderer.toneMapping` when the target is null (TONE-POST), so the buffer holds the
+  same scene-referred linear HDR Bloom sees — and buckets pixels by a geometric mask
+  (wall-shaped up-facing caps / vertical walls / emissive materials):
+
+  | state              | cap p99 | cap max | cap over 1.35 | wall max | wall over |
+  | ------------------ | ------- | ------- | ------------- | -------- | --------- |
+  | 13:00, lamps OFF   | 0.424   | 0.424   | **0%**        | 0.469    | **0%**    |
+  | 21:00, lamps ON    | 2.03    | 2.06    | **5.32%**     | 8.22     | 2.3%      |
+
+  The daytime row CONFIRMS RD-409's original finding and validates the probe: sunlit surfaces sit
+  at 0.42-0.47, nowhere near 1.35, so the threshold really does clear daylight. But with the
+  fixtures on, ordinary non-emissive painted surfaces clear it too — which is what draws the soft
+  white haloes along the wall top caps at Maximum that Medium (AO-only composer, no Bloom) does
+  not have.
+  **It is NOT a misplaced light and NOT a threshold error.** Every one of the 280 over-threshold
+  pixels lies 0.74-1.15 m from a live fixture (p50 0.98 m), and the hottest (8.22) is 0.51 m from
+  an intensity-9 lamp — nothing is embedded in geometry. It is plain inverse-square falloff: three's
+  `pointLight` is a DELTA light with no bulb radius, so irradiance goes as 1/d² without bound, and
+  a wall half a metre from a lamp genuinely reaches several times the threshold. A real lamp at
+  that distance would bloom in a photograph too, so the behaviour is defensible and **nothing was
+  changed**. Do NOT "fix" this by moving `luminanceThreshold`: it is pinned in lock-step with
+  `fixtureGlow` (the test asserts `BLOOM_LUMINANCE_THRESHOLD === look.BLOOM.luminanceThreshold`
+  and that every emitter peak clears it), so moving it either re-blooms daylight or stops fixtures
+  glowing — and it would not touch the 1/d² near-field that actually produces the hot pixels.
+  If this is ever revisited, the lever is the LIGHT MODEL (a finite bulb radius / near-field
+  clamp), not the post stack. Re-measure with the probe before and after; it prints p50/p90/p99 and
+  a fraction-over-threshold, never a mean.
+  **One probe trap worth keeping:** the first "daytime control" ran with `lightsMode: 'on'` and came
+  back nearly identical to night (cap over 5.32% in BOTH), which looks like the probe is insensitive.
+  It was not — the lamps were lit in both arms, so the same near-field hot spots existed in both. The
+  control that actually tests RD-409's claim is 13:00 with the lamps OFF.
 - **Bloom only blooms genuine HDR emitters, never broad daytime surfaces** (RD-409). The
   Bloom `luminanceThreshold` (`look.BLOOM.luminanceThreshold`, 1.35) sits **above** sunlit
   white walls/ceilings under the day IBL + ~1.2 graded exposure and **below** the night
