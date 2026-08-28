@@ -14,6 +14,9 @@
 
 import type { Camera, Object3D, Scene, Texture, WebGLRenderer } from 'three'
 import { mmToFov } from '../cameras/cameraLensSettings'
+import type { ToneMappingMode } from '../look'
+import { AUTO_PHOTO_MODE } from '../toneContext'
+import { TONE_MAPPING_THREE } from '../toneMappingThree'
 import { aiDenoiseEligible } from './hqAiDenoiseMath'
 import type { HqAovImages } from './hqAovPasses'
 import { classifyProbePixels, HqBlankRenderError } from './hqBlankProbe'
@@ -47,6 +50,22 @@ export interface HqRenderOptions {
    *  active `hdriEnvironment` selection, resolved via `hqEnvironmentUrl`.
    *  Undefined → the neutral 2-colour gradient sky (procedural mode). */
   hdriUrl?: string
+  /**
+   * View transform for the still (HQ-TONE-MATCH). Defaults to the app's
+   * photo-mode policy (`AUTO_PHOTO_MODE`, i.e. AgX) rather than the ACES Filmic
+   * this used to hardcode — the whole point of the HQ render is a faithful
+   * version of what the user is looking at, and the app resolved away from filmic
+   * in TONE-CURVE-CHOICE precisely because it blows highlights.
+   */
+  toneMapping?: ToneMappingMode
+  /**
+   * `toneMappingExposure` for the still. Defaults to 1, but callers should pass
+   * the LIVE renderer's value: `Lighting` grades exposure across the day/night
+   * curve (0.78 night floor to 1.20 full day) on top of the user's own exposure
+   * setting, so a still fixed at 1 renders a night scene too bright and a midday
+   * one slightly dark.
+   */
+  exposure?: number
   /** Called after every sample with (done, max). */
   onProgress?: (samples: number, maxSamples: number) => void
   /** Called once accumulation reaches maxSamples. */
@@ -258,14 +277,18 @@ export async function createHqRenderSession(
     import('three-gpu-pathtracer'),
     import('three'),
   ])
-  const { WebGLRenderer, ACESFilmicToneMapping } = three
+  const { WebGLRenderer } = three
 
   const canvas = document.createElement('canvas')
   canvas.width = opts.width
   canvas.height = opts.height
   const renderer = new WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: true })
   renderer.setSize(opts.width, opts.height, false)
-  renderer.toneMapping = ACESFilmicToneMapping
+  // HQ-TONE-MATCH: use the app's resolved view transform, not a hardcoded ACES
+  // Filmic. `TONE_MAPPING_THREE` is the same registry `Lighting` maps through, so
+  // the still and the viewport cannot drift apart.
+  renderer.toneMapping = TONE_MAPPING_THREE[opts.toneMapping ?? AUTO_PHOTO_MODE]
+  renderer.toneMappingExposure = opts.exposure ?? 1
 
   const tracer = new WebGLPathTracer(renderer)
   // Interior-tuned quality (PHOTO-PT-TUNE): enough transmissive bounces that

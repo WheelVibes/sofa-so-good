@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.36 — the HQ render was exporting a different image than you were looking at
+
+HQ-TONE-MATCH. Found by auditing the HQ-render / scene-export paths, which this work had
+never verified.
+
+`pathtrace/hqRenderSession.ts` hardcoded `renderer.toneMapping = ACESFilmicToneMapping` and
+left `toneMappingExposure` at 1. Both are wrong, on the one feature whose entire purpose is
+a faithful high-quality image of what the user is looking at.
+
+It contradicted the app's own policy twice. `toneContext.ts` sets AUTO_PHOTO_MODE = 'agx' —
+and an HQ render is exactly a photo context — while DEFAULT_TONE_MAPPING has been AgX since
+TONE-CURVE-CHOICE. Worse, an EXPLICIT user pick was ignored outright: someone who chose
+Neutral still got filmic in their export.
+
+The gap is not subtle. tone-curve.mjs at walk/Medium/09:00 measured filmic against AgX at
+mean 185.9 vs 176.7, sigma 54.5 vs 43.3, clipped **1.94% vs 0.28%**, chroma 0.180 vs 0.152
+— the "photo" carried roughly seven times the blown highlights of the viewport it was
+meant to reproduce.
+
+Exposure was wrong too: `Lighting` grades toneMappingExposure across the day/night curve
+(0.78 night floor to 1.20 full day) on top of the user's own exposure setting, so a still
+pinned at 1 renders night too bright and midday slightly dark. That value is written
+per-frame with no pure function to recompute it from, so `HqRenderSource` now carries the
+live `gl` and the modal passes `gl.toneMappingExposure` through.
+
+The session takes `toneMapping` / `exposure` options and maps through the SAME
+TONE_MAPPING_THREE registry `Lighting` uses, so the still and the viewport cannot drift
+apart; the modal resolves via the same pure `resolveToneMapping`. If a caller omits it the
+default is AUTO_PHOTO_MODE, never filmic. `hqToneMatch.test.ts` pins the policy, including
+the explicit-pick case the hardcode broke worst.
+
 ## v0.31.5.35 — a transient boot tier permanently pins texture resolution
 
 PROCEDURAL-BAKE-STALE (open), and a CORRECTION to v0.31.5.34.

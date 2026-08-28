@@ -5,10 +5,10 @@ import { setHqRenderSource } from './pathtrace/hqRenderSource'
 /** Registers the live scene + camera for the HQ-render modal (the path-traced
  *  still uses its OWN offscreen renderer — only the graph + pose are shared). */
 export function HqRenderController() {
-  const { scene, camera } = useThree()
+  const { scene, camera, gl } = useThree()
   useEffect(() => {
-    setHqRenderSource(() => ({ scene, camera }))
+    setHqRenderSource(() => ({ scene, camera, gl }))
     return () => setHqRenderSource(null)
-  }, [scene, camera])
+  }, [scene, camera, gl])
   return null
 }

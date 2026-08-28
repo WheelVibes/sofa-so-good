@@ -608,6 +608,27 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   **corner-AO strip is retired** (RD-403, removed v0.23.1.11): from a top-down/plan camera the
   0.32 m gradient read as a hard black outline hugging every wall base, and it only ever ran on
   the tiers with no SSAO — don't reintroduce a baked wall-base darkening decal.
+- **The HQ path-traced still uses the app's RESOLVED view transform, not its own
+  (HQ-TONE-MATCH).** `pathtrace/hqRenderSession.ts` hardcoded
+  `renderer.toneMapping = ACESFilmicToneMapping` and left `toneMappingExposure` at 1. Both
+  were wrong, and on the one feature whose entire purpose is a faithful high-quality image:
+  · **It contradicted the app's own policy twice over.** `toneContext.ts` sets
+    `AUTO_PHOTO_MODE = 'agx'` — a photo context is exactly what an HQ render IS — and
+    `DEFAULT_TONE_MAPPING` is AgX as well since TONE-CURVE-CHOICE. Worse, an EXPLICIT user
+    pick was ignored: someone who chose Neutral still got filmic in their export.
+  · **The difference is not subtle.** `tone-curve.mjs` at walk/Medium/09:00 measured filmic
+    against AgX at mean 185.9 vs 176.7, sigma 54.5 vs 43.3, **clipped 1.94% vs 0.28%** and
+    chroma 0.180 vs 0.152 — so the "photo" carried roughly SEVEN TIMES the blown highlights
+    of the viewport it was supposed to reproduce.
+  · **Exposure was wrong too.** `Lighting` grades `toneMappingExposure` across the day/night
+    curve (0.78 night floor to 1.20 full day) on top of the user's own exposure, so a still
+    pinned at 1 renders night too bright and midday slightly dark. There is no pure function
+    to recompute it from — it is written per-frame — so `HqRenderSource` now carries the live
+    `gl` and the modal passes `gl.toneMappingExposure` straight through.
+  · The session takes `toneMapping`/`exposure` options and maps through the SAME
+    `TONE_MAPPING_THREE` registry `Lighting` uses, so the still and the viewport cannot drift
+    apart; the modal resolves via the same pure `resolveToneMapping`. Default if a caller
+    omits it is `AUTO_PHOTO_MODE`, never filmic.
 - **Tone mapping is context-aware** (`toneContext.ts`, pure + unit-tested). The stored user
   setting is `ToneMappingSetting` (`auto` | filmic | agx | neutral); `Lighting` resolves the
   concrete operator each frame via `resolveToneMapping(setting, ctx)` — never read `st.toneMapping`

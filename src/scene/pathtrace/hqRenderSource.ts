@@ -4,11 +4,16 @@
  * `HqRenderController` inside the Canvas.
  */
 
-import type { Camera, Scene } from 'three'
+import type { Camera, Scene, WebGLRenderer } from 'three'
 
 export interface HqRenderSource {
   scene: Scene
   camera: Camera
+  /** The LIVE renderer, so the still can read the graded `toneMappingExposure`
+   *  the viewport is actually using (HQ-TONE-MATCH). `Lighting` rewrites it every
+   *  frame from the day/night curve plus the user's exposure, so there is no pure
+   *  function to recompute it from — reading it is the only way to match. */
+  gl: WebGLRenderer
 }
 
 let source: (() => HqRenderSource) | null = null
