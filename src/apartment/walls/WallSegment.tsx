@@ -37,6 +37,7 @@ import {
   wallCornerMiter,
   wallThicknessMetres,
 } from '../wallSegments'
+import { useWallFaceMaterial } from './useWallFaceMaterial'
 import { extrudeWallBody, WALL_STRUCTURE_COLOR } from './wallBodyGeometry'
 import { buildWallBodyOutline } from './wallBodyShape'
 import {
@@ -126,20 +127,8 @@ function FacePlane({
   // when segLen/segHeight change (ceiling-height / wall-thickness edits) or on
   // unmount, else every wall-face plane leaks across the session (BUG-006).
   useDisposeGeometry(geometry)
-  // Clone so this wall's face can fade for camera-reveal independently of the
-  // shared, cached finish material (which other walls also use). Textures are
-  // shared by reference, so disposing the clone frees only its own GPU program.
-  // polygonOffset biases the depth test in rasterizer units so the face always
-  // wins over the wall body it sits 1 mm above — the world-space offset alone
-  // z-fights at zoomed-out orbit distances (depth precision shrinks with range).
-  const faded = useMemo(() => {
-    const m = material.clone()
-    m.polygonOffset = true
-    m.polygonOffsetFactor = -1
-    m.polygonOffsetUnits = -1
-    return m
-  }, [material])
-  useEffect(() => () => faded.dispose(), [faded])
+  // Per-face clone + depth bias + PERF-C swap tracking, shared with PlanWallFace.
+  const faded = useWallFaceMaterial(material)
   return (
     <mesh
       position={[segMid, segMidY, z]}

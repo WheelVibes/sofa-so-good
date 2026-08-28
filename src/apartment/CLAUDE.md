@@ -46,3 +46,38 @@ Full code map in `docs/ARCHITECTURE.md`.
   `derivation` note tracing it to `assets/floor_plan/default.png` — keep it current when
   you move an edge, including WHY (which wall face moved, and by how much).
 - `INTERIOR_AREA_M2` is the overlap-free sum of `roomArea` (shoelace over each outline).
+- **A per-face material CLONE must track the source's texture swaps
+  (WALL-FACE-CLONE-STALE).** Both wall implementations render the interior face as a
+  separate plane 1 mm proud of the wall body, on a CLONE of the shared cached finish —
+  so one face can fade for the camera reveal without touching the material every other
+  surface in the room renders with, and so it can carry its own `polygonOffset` (the
+  world-space offset alone z-fights at zoomed-out orbit distances). Both then cloned in
+  a `useMemo` keyed on `[material]` and never touched it again. That is a bug, because
+  procedural textures arrive in TWO stages: PERF-C bakes a cheap
+  `PROCEDURAL_QUICK_PREVIEW_SIZE` (**64²**) placeholder synchronously, then an
+  OffscreenCanvas worker delivers the real 512² maps ~80 ms later and hot-swaps them onto
+  the CACHED material. `Material.clone()` copies texture slots by REFERENCE, and the
+  source material's IDENTITY never changes across that swap — only its map fields do — so
+  the memo never re-ran and **every wall face in the app rendered the 64² preview
+  permanently**, at one eighth linear resolution, pointing at textures the swap had
+  already disposed.
+  Measured in walk mode by raycasting the walls and reading the map off the material three
+  is actually drawing with (`scripts/dev-probes/bath-tile-size.mjs`, 12x12 rays x 4 yaws
+  per room): both bathrooms and the kitchen came back **64² on every ray**, and cropped
+  frames show the grout as a soft smeared band with no line in it. After the fix all three
+  rooms read **512²** and resolve to the real `wall-tile-white@512` texture, and the joints
+  are hairline-crisp. This was the true cause of the "bathroom tile joint is out of spec"
+  finding — see BATH-TILE-OK in `src/materials/CLAUDE.md`.
+  Both sites now go through `walls/useWallFaceMaterial.ts` (clone + depth bias + re-sync on
+  `proceduralSwapSignal`, with an `invalidate()` since the Canvas is `frameloop="demand"`);
+  the copy rule itself is the pure, unit-tested `materials/materialMapSync.ts`. Two details
+  are load-bearing: the hook syncs ONCE on mount as well as on the signal (the swap can land
+  before the effect attaches, and no future notification would ever correct that clone), and
+  `syncMaterialMaps` returns whether anything changed so the global signal — which fires for
+  every material's swap — doesn't request a frame for a face it has nothing to do with.
+  **Any other clone of a cached finish material needs the same treatment.**
+  `useWallReveal`'s fade clones are exempt only because they are transient (created on fade,
+  restored to the original when the wall goes opaque); `PlanDoorLeaf`/`Door` clone non-
+  procedural bases. A new one that persists must use the hook, or it will silently ship a
+  64² surface that no test and no tier setting will reveal.
+

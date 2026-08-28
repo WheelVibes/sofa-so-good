@@ -662,40 +662,64 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
     remaining lever is the latewood contrast/power term or genuine fine grain lines — not the
     meander, the ring count, the coarsen factor, the roughness or the pore field, all now
     settled.
-- **A transient boot tier PERMANENTLY pins procedural texture resolution
-  (PROCEDURAL-BAKE-STALE, open).** `generators.ts` documents "Performance (the app default)
-  drops to 256 squared ... while Medium+ keeps 512 squared", and `QualityController` applies
-  it in a tier-keyed effect — but only to NEW generations ("existing textures keep their size
-  until regenerated; cache keys carry the size"). Nothing re-resolves an already-MOUNTED
-  material, so whatever the tier was during the first bake is what the GPU keeps.
-  Measured with `scripts/dev-probes/bake-size.mjs`, which prints the live setting and the
-  actual texture histogram side by side:
+- **A transient boot tier can pin procedural texture resolution (PROCEDURAL-BAKE-STALE, PARTLY
+  RESOLVED — the headline claim was wrong).** `generators.ts` documents "Performance drops to
+  256 squared ... while Medium+ keeps 512 squared", and `QualityController` applies it in a
+  tier-keyed effect — but only to NEW generations ("existing textures keep their size until
+  regenerated; cache keys carry the size"). Nothing re-resolves an already-MOUNTED material, so
+  whatever the tier was during the first bake is what that surface keeps. The adaptive ladder
+  makes this reachable in an ordinary boot: it passes through `performance` on its way to the
+  settled tier, and a console trace of every `buildMaterial` shows the app building **both**
+  generations of every 512-capped def in one boot — `wall-tile-white@512` first, then
+  `wall-tile-white@256` — with all 13 worker upgrades landing correctly.
+  **What this note originally concluded from `bake-size.mjs` was wrong, and instructively so.**
+  It read "256² x80, no 512² at all" as "every 512-capped pattern renders at quarter resolution".
+  Two things were mixed up in that one number: the 80 textures at 256 are overwhelmingly patterns
+  whose `PATTERN_SIZE_CAP` **is** 256 (they are correct), and the genuinely broken entries were
+  the **three** sitting at `64x64` — one material's albedo/normal/roughness, the tiled wall faces
+  stuck on the quick preview via WALL-FACE-CLONE-STALE. Fixing the clones moved exactly those
+  three:
 
-  | state                 | getProceduralBaseSize() | textures on the GPU        |
-  | --------------------- | ----------------------- | -------------------------- |
-  | as booted (medium)    | **512**                 | 256² x80, **no 512² at all** |
-  | after setTier medium  | 512                     | unchanged                  |
-  | after setTier maximum | 512                     | **512² x12** appear         |
+  | state                 | getProceduralBaseSize() | textures on the GPU (v0.31.5.37 → .38) |
+  | --------------------- | ----------------------- | -------------------------------------- |
+  | as booted (medium)    | 512                     | `64² x3` → **`512² x3`**, 256² x80 either way |
+  | after setTier maximum | 512                     | 512² x12 → **512² x15**, 256² x80 → 68 |
 
-  The setting and the reality disagree at the settled default tier, and only a tier CHANGE
-  forces the re-bake. So a Medium user keeps quarter-resolution maps for exactly the patterns
-  whose `PATTERN_SIZE_CAP` is 512 (tile, porcelain, subway, stoneTile, parquet, brick…) —
-  the high-frequency ones that cap exists for. This is meta-rule (x), a tier-dependent value
-  frozen at creation, extended from a scalar to a texture.
+  · **A real remainder is still OPEN, and it is the 12.** Switching to `maximum` moves 12
+    textures from 256 to 512 that stay at 256 at the settled Medium default — and since
+    `BASE_SIZE` is 512 at BOTH tiers, `effectivePatternSize` cannot explain the difference.
+    The likely reading is the original one, correctly scoped: those surfaces are bound to the
+    `@256` generation built during the ladder's transient `performance` pass, and only the
+    remount a tier change forces re-resolves them. They are NOT wall faces (those are fixed),
+    so the clone fix does not reach them.
   · **The fix needs its own mechanism.** Cache keys already carry the size, so a size change
-    naturally yields NEW keys — but a mounted surface never re-requests, so it keeps the old
-    instance. `proceduralSwapSignal` is not it: only `RenderPump` subscribes, to request a
-    frame after a worker hot-swap. The tier-change loading overlay is the natural place to
-    force a re-resolve, since it is already up for exactly this kind of work.
-- **CORRECTION to BATH-TILE-OK (v0.31.5.34): the joint is 4.7 mm, not 2.34 mm, and that is
-  OUT of spec.** That verdict computed JOINT-SCALE at S=512 — but PROCEDURAL-BAKE-STALE means
-  the tile actually bakes at **256** on the settled Medium default, and `1 px / 256 x 1200 mm`
-  = **4.69 mm**, nearly double the 2-3 mm JOINT-SCALE allows for rectified porcelain.
-  **The painter is still correct** — `porcelainFields`' own options (`cols 2, rows 4,
-  groutDiv 500, rectified`) are right, and at its intended 512 bake the joint IS 2.34 mm. The
-  defect is the bake size it actually receives, so fixing PROCEDURAL-BAKE-STALE fixes the
-  joint too; do NOT "fix" the joint by editing the painter. The 600x300 mm tile size and the
-  light hairline joint colour from that entry stand unchanged (both are size-independent).
+    yields NEW keys — but a mounted surface never re-requests, so it keeps the old instance.
+    The tier-change loading overlay is the natural place to force a re-resolve, since it is
+    already up for exactly this kind of work. Note that subscribing `useProceduralMaterial` to
+    the tier was TRIED (v0.31.5.37, reverted): it moved the histogram not at all, because
+    `buildMaterial` already re-keys on every call and the early cache return hands back the
+    same stale instance regardless of how many times the component re-renders.
+  This is still meta-rule (x) — a tier-dependent value frozen at creation, extended from a
+  scalar to a texture — just at one twelfth the scale first claimed.
+- **BATH-TILE-OK stands, and the joint IS 2.34 mm (v0.31.5.38 closes this).** The history here
+  is worth keeping because two of the three readings were wrong. v0.31.5.34 computed JOINT-SCALE
+  at S=512 and called it fine; v0.31.5.35 "corrected" that to 4.69 mm on the belief that the tile
+  really bakes at 256; and the truth was worse than either — the bathroom walls were rendering
+  the **64-square quick preview**, a 1 px joint at S=64 being ~18.75 mm, which is why the grout
+  read as a soft smeared band rather than a line in a cropped frame. The cause was not the bake
+  size at all but a stale CLONE (WALL-FACE-CLONE-STALE, in `src/apartment/CLAUDE.md`). With the
+  faces re-synced the tile renders at its intended **512** and the joint is **2.34 mm**, inside
+  the 2-3 mm JOINT-SCALE allows for rectified porcelain.
+  **The painter was never at fault** — `porcelainFields`' options (`cols 2, rows 4, groutDiv 500,
+  rectified`) are right at its intended bake, so do NOT "fix" a joint by editing the painter
+  until you have confirmed the size the surface actually RECEIVES. The 600x300 mm tile size and
+  the hairline joint colour stand unchanged (both size-independent).
+  · **Method note, the reason this took three passes:** every reading that went wrong came from
+    querying the CACHE (`getBuiltMaterial(id)`, a whole-scene texture histogram) instead of the
+    material three is actually DRAWING with. The cache lookup returns an instance no mesh
+    necessarily uses, and a histogram cannot say which def a 256-square map belongs to. Raycast
+    the surface and read `hit.object.material` — `scripts/dev-probes/bath-tile-size.mjs` does
+    exactly that, labelling each hit by TEXTURE uuid (materials get cloned, textures do not).
 - **Furniture materials** come from `furnitureMaterials.ts` helpers (real three `Material`
   instances: tintable wood/stone/fabric, `getSolidMaterial`, the `mat:<id>` DLC resolver).
   **Drapery (CURTAIN-FABRIC):** `getDraperyMaterial(kind, color, pattern, doubleSided)` is the

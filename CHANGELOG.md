@@ -5,6 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.38 — wall faces rendered the 64² texture preview forever (WALL-FACE-CLONE-STALE)
+
+**Fixed** — every interior wall face in the app rendered its finish at **64x64**, one eighth
+linear resolution, permanently. Both `WallSegment` and `PlanWallFace` clone the shared cached
+finish material for the face plane (so it can fade independently and carry its own
+`polygonOffset`), in a `useMemo` keyed on the source material. But procedural textures arrive in
+two stages — PERF-C bakes a 64² quick preview synchronously, then a worker hot-swaps the real
+512² maps onto the cached material ~80 ms later — and `clone()` copies texture slots by
+reference while the source's identity never changes across that swap. The memo never re-ran, so
+the clones kept pointing at the preview textures, which the swap had already disposed.
+
+Both sites now share `apartment/walls/useWallFaceMaterial.ts`, which re-syncs the clone's maps
+from `proceduralSwapSignal` (plus an `invalidate()`, since the Canvas is `frameloop="demand"`).
+The copy rule is the pure, unit-tested `materials/materialMapSync.ts`.
+
+Verified on a real GPU by raycasting the walls in walk mode and reading the map off the material
+three is actually drawing with (`scripts/dev-probes/bath-tile-size.mjs`): both bathrooms and the
+kitchen went from **64² on every ray** to **512²**, resolving to the real `wall-tile-white@512`
+texture; cropped frames show the tile grout going from a soft smeared band to a hairline joint.
+This also closes the bathroom-tile joint question — at its intended 512 bake the joint is
+**2.34 mm**, inside the 2-3 mm spec for rectified porcelain, so neither the painter nor the
+`bake-size` reading needed changing.
+
+Also corrected the PROCEDURAL-BAKE-STALE note, whose headline claim ("every 512-capped pattern
+renders at quarter resolution") was wrong: of the boot texture histogram, only three entries were
+genuinely broken — this material's three maps. A smaller, separate stale-generation issue affecting
+12 textures remains open and is documented in `src/materials/CLAUDE.md`.
+
+
 ## v0.31.5.37 — the glTF export was shipping 61 invisible helper meshes
 
 EXPORT-HELPERS. Second finding from the output-path audit that produced HQ-TONE-MATCH.
