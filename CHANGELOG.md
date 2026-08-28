@@ -5,6 +5,45 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.31 — furniture wood stops looking like cling film
+
+WOOD-GLOSS. A material fix aimed squarely at the original "looks like animation, not
+real" report, found by finally reviewing WALK mode rather than the orbit dollhouse.
+
+v0.31.5.30 closed the dollhouse (every tier reads fine there) and noted that a dollhouse
+view is mostly wall faces and floors at DISTANCE, so no surface fills the frame. Standing
+the walk camera in the default flat's living/dining room made the gap obvious: the floor,
+walls, sofa and curtains all read well, while the **dining table, chair backs, sideboard
+and TV console showed bright wavy specular ribbons** — crumpled cling film over timber.
+
+Root cause, visible in the material table itself: `getWoodMaterial` defaulted to
+`roughness 0.5` while painted is 0.72, concrete 0.85 and marble 0.12. The app rendered
+oiled timber SHINIER THAN PAINT, and that tight specular lobe mirrored the grain normal's
+low-frequency waviness.
+
+Swept live over the 90 wood-signature materials in one run at the same pose
+(`scripts/dev-probes/walk-tour.mjs ROUGH=0.5,0.7,0.85`): 0.5 shows strong ribbons, 0.7
+still carries them, 0.85 removes them. `WOOD_BASE_ROUGHNESS = 0.85` ships the value that
+was measured, applied at all THREE wood sites — the `getWoodMaterial` default plus the two
+`getSurfaceMaterial` wood branches that hardcoded 0.5 and would otherwise have won over it.
+
+Verified by re-capturing the SAME walk pose: the ribbons are gone, the grain survives as
+grain, and the floor (a different painter path via `cache.ts`) is unchanged.
+`src/materials/woodGloss.test.ts` pins the value, asserts wood is never glossier than
+paint again, and confirms an explicit caller override and the roughness cache key still
+work.
+
+Scope stated honestly: this fixes the SHINE, not the grain SHAPE — the painter's
+low-frequency cathedral banding is still soft under close inspection, it simply no longer
+behaves like varnish. Doors (`Door.tsx`, `PlanDoorLeaf.tsx`) pass an explicit 0.45 and are
+deliberately left alone; they are a surface this work has not reviewed, and they should
+change on their own evidence rather than by side effect.
+
+New probe `scripts/dev-probes/walk-tour.mjs` stands the walk camera in the flat with poses
+DERIVED from the plan (yaw via the app's own `requestWalkTeleport`, pitch via the dev
+`window.__walkLook` lever, since walk mode discards `lookAt`). It currently resolves only
+one room — extending it to the bedrooms, kitchen and bathrooms is the obvious follow-up.
+
 ## v0.31.5.30 — the tier most mobile users get is fine; AO-at-performance retired on evidence
 
 PERF-TIER-LOOKS-FINE. No render change; a new probe and a null result that closes a

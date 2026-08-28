@@ -597,6 +597,33 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   (explicit user-material deletion) uses the same ownership-aware disposal via `LruCache.delete`.
   When adding a new texture-producing branch to `buildMaterial`, tag its per-material textures
   with `own()` if and only if they are never shared with another cache entry.
+- **Furniture wood was GLOSSIER THAN PAINT, and that is what read as "animation" (WOOD-GLOSS).**
+  `getWoodMaterial` defaulted to `roughness 0.5` while this same file gives painted 0.72,
+  concrete 0.85 and marble 0.12 — so the app rendered oiled timber shinier than paint, which
+  is backwards. The consequence is not a subtle tint: the specular lobe at 0.5 is tight
+  enough to turn the grain normal's low-frequency waviness into **mirror ribbons**, and on
+  the default flat's dining table (walk pose, 13:00) the top read as crumpled cling film
+  over timber — repeated on the chair backs, the sideboard and the TV console. It is the
+  single most "rendered, not photographed" surface in the default walk view.
+  Swept live over the 90 wood-signature materials in the scene
+  (`scripts/dev-probes/walk-tour.mjs ROUGH=0.5,0.7,0.85`, one run, same pose): **0.5** shows
+  strong ribbons, **0.7** still carries them, **0.85** removes them — the grain survives as
+  grain and the surface reads as matte satin timber. `WOOD_BASE_ROUGHNESS = 0.85` ships the
+  value that was measured; do not interpolate to a prettier number without re-running that
+  sweep.
+  · **Applied at all THREE wood sites**, because the default alone is not enough: the two
+    `getSurfaceMaterial` wood branches passed a hardcoded `0.5` and would have won over it.
+    A caller can still ask for a shinier wood explicitly, and `rough` is in the cache key, so
+    a matte and a satin wood of the same colour cannot collide.
+  · **Scope, honestly stated:** this fixes the SHINE, not the grain SHAPE. The painter's
+    low-frequency cathedral banding is still soft and wavy under close inspection; it simply
+    no longer behaves like varnish. If wood is revisited, the next lever is the band
+    structure in `procedural/patterns/wood.ts`, not the roughness.
+  · **Not changed here, deliberately:** `Door.tsx` and `PlanDoorLeaf.tsx` pass an explicit
+    `0.45`, so a wooden door keeps the old glossier character. Doors are a surface this work
+    has not reviewed — change them on their own evidence rather than by side effect.
+  · Watch the argument positions: `getWoodMaterial(color, repeat, rough)`. Call sites like
+    `getWoodMaterial(legColor, 0.4)` are setting **repeat**, not roughness.
 - **Furniture materials** come from `furnitureMaterials.ts` helpers (real three `Material`
   instances: tintable wood/stone/fabric, `getSolidMaterial`, the `mat:<id>` DLC resolver).
   **Drapery (CURTAIN-FABRIC):** `getDraperyMaterial(kind, color, pattern, doubleSided)` is the

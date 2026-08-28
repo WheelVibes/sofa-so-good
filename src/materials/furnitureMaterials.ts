@@ -1105,7 +1105,11 @@ export function getSurfaceMaterial(
       if (Math.abs(r - 1) < 0.005) return built
       return getFurnitureMatWithRepeat(matId, built, r)
     }
-    return getWoodMaterial(color, repeat, sheen > 0 ? sheenRough(0.5, sheen) : 0.5)
+    return getWoodMaterial(
+      color,
+      repeat,
+      sheen > 0 ? sheenRough(WOOD_BASE_ROUGHNESS, sheen) : WOOD_BASE_ROUGHNESS,
+    )
   }
   if (kind === 'painted')
     return getPaintedMaterial(color, false, sheen > 0 ? sheenRough(0.72, sheen) : undefined)
@@ -1124,12 +1128,44 @@ export function getSurfaceMaterial(
   // Brushed gold/brass hardware finish — a canonical warm brass tone (like the
   // primitives that hardcode a brass tint), brushed via the dedicated preset.
   if (kind === 'brass') return getMetalMaterial('#b8923f', 'brushed-brass', repeat)
-  return getWoodMaterial(color, repeat, sheen > 0 ? sheenRough(0.5, sheen) : 0.5)
+  return getWoodMaterial(
+    color,
+    repeat,
+    sheen > 0 ? sheenRough(WOOD_BASE_ROUGHNESS, sheen) : WOOD_BASE_ROUGHNESS,
+  )
 }
+
+/**
+ * Base roughness for furniture wood (WOOD-GLOSS).
+ *
+ * This was **0.5**, which made timber GLOSSIER THAN PAINT in this very file (painted
+ * 0.72, concrete 0.85, marble 0.12) — backwards for an oiled/satin finish, and the
+ * specular lobe it produced was tight enough to turn the grain normal's low-frequency
+ * waviness into mirror ribbons. On the default flat's dining table, seen from a walk
+ * pose at 13:00, the top read as crumpled cling film over timber rather than wood: bright
+ * wavy highlight bands with wobbling edges, repeated on the chair backs, the sideboard
+ * and the TV console. That is the single most "rendered, not photographed" surface in the
+ * default walk view, and it is what the "looks like animation" report was pointing at.
+ *
+ * Swept live over the 90 wood-signature materials in the scene at 0.5 / 0.7 / 0.85
+ * (`scripts/dev-probes/walk-tour.mjs ROUGH=…`): 0.5 shows strong mirror ribbons, 0.7 still
+ * carries them, and **0.85 removes them** — the grain survives as grain and the surface
+ * reads as matte satin timber. 0.85 is the value that was measured, so it is the value
+ * shipped; do not interpolate to a prettier-looking number without re-running the sweep.
+ *
+ * Applied at every wood site so a caller cannot silently reintroduce the old value: the
+ * `getWoodMaterial` default AND the two `getSurfaceMaterial` wood branches, which used to
+ * pass a hardcoded 0.5 and would otherwise win over the default.
+ */
+export const WOOD_BASE_ROUGHNESS = 0.85
 
 /** Wood material whose grain is tinted by `color`. `repeat` tiles the grain
  *  (defaults suit a ~1 m piece). `rough` overrides roughness (shine control). */
-export function getWoodMaterial(color: string, repeat = 1, rough = 0.5): MeshStandardMaterial {
+export function getWoodMaterial(
+  color: string,
+  repeat = 1,
+  rough = WOOD_BASE_ROUGHNESS,
+): MeshStandardMaterial {
   const key = `wood:${color}:${repeat}:${rough.toFixed(2)}`
   const hit = cache.get(key)
   if (hit) return hit
