@@ -438,3 +438,52 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   (no new field on `FurnitureItem`), and `scene/cameras/FirstPersonCamera.tsx` for the walk-mode
   ground-height follow. Plan-room feature only — the curated default flat has no `floorLevelMm`
   concept and is unaffected.
+
+- **Swapping to a SMALLER plan strands every ATTACHED piece outside the home
+  (PLAN-SWAP-STRANDED, v0.31.5.43 — measured, NOT fixed; the one-line fix makes it
+  worse).** Three user paths change the architecture, and only one keeps furniture:
+  · the **template picker** calls `replaceFloorPlan(tpl, { furniture: 'clear' })` behind a
+    danger confirm that names the item count and mentions undo — nothing can strand, so the
+    "beds in corridors after switching apartment type" worry is REFUTED for that path;
+  · the **SH3D import** calls the low-level `setFloorPlan` but `setItems` the imported
+    file's own furniture first, in one history step — it owns the furniture exactly as that
+    API's contract requires;
+  · **`replaceFloorPlan(plan, { furniture: 'rehome' })`** is the only path where furniture
+    crosses an architecture change (`resetFloorPlan`, and loading a SAVED apartment, where
+    keeping the user's pieces is the entire point).
+  Measured on the rehome path with `scripts/dev-probes/plan-swap-rehome.mjs` — furnished
+  default 4-room (87 items), reset between arms so each swap starts identical:
+
+  | target plan            | centre outside every room | footprint crosses out |
+  | ---------------------- | ------------------------- | --------------------- |
+  | *(baseline, 4-room)*   | 2                         | 7                     |
+  | `tpl-condo-penthouse`  | 4                         | 6                     |
+  | `tpl-hdb-2room`        | **32**                    | **46**                |
+  | `tpl-studio`           | **37**                    | **48**                |
+
+  A similar-sized plan is fine (penthouse ≈ baseline). Swapping to a much smaller one
+  leaves **~37% of the home floating in the void** — the frame shows curtains, a ceiling
+  fan, a TV, a rug with its books and candle, wall art, a range hood and a cove light
+  hanging beside the shell, at coordinates like `wall-art@12.5,6.55` in a plan whose rooms
+  end at x = 5.8.
+  · **The cause is the skip predicate, and it is CORRECT as written.**
+    `floorPlanSlice` passes `skip: (defId) => def.mounted || def.noClip`, and
+    `rehomeStrandedItems` only relocates what is left — free-standing floor furniture.
+    Everything ATTACHED to something else keeps its old coordinates: `mounted` (25 defs:
+    wall art, sconces, cove light, range hood, ceiling fan, aircon…) is positioned against a
+    WALL, and `noClip` (25 defs) is overwhelmingly SURFACE DECOR resting on other furniture
+    (book stacks, vases, cushions, tea set, tabletop decor) plus window/door attachments
+    (curtains, roller blinds, pet gate). Only `rug` and `pet-cooling-mat` are genuine floor
+    pieces in that set.
+  · **So do NOT "fix" this by widening the skip.** Re-homing every `noClip` def would rip
+    the decor off tables and scatter it to room centres — cushions and tea sets sitting on
+    the floor mid-room is worse than the current failure, and it would regress the common
+    case (a same-size saved plan) to buy the rare one. Moving `mounted` pieces to a room
+    centre floats them in mid-air for the same reason.
+  · **The real fix is structural and is a product decision, so it is deliberately NOT taken
+    here:** an attached piece needs to move WITH its host (or be re-anchored to a wall in
+    the new plan, or dropped with consent), which means modelling the host relationship that
+    `rehomeStrandedItems` currently cannot see. Note the blast radius is bounded — the
+    picker clears, the importer replaces, and a saved apartment is usually about the size of
+    the one it replaces, which is the penthouse row above.
+

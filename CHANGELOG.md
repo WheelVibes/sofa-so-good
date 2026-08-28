@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.43 — swapping to a smaller plan strands attached furniture (measured, not fixed)
+
+The worry was that changing apartment type leaves the old flat's furniture standing in the
+new architecture. For the **template picker that is refuted**: it calls
+`replaceFloorPlan(tpl, { furniture: 'clear' })` behind a danger confirm naming the item
+count, and the SH3D importer replaces items with the imported file's own furniture in one
+history step. Only `replaceFloorPlan(plan, { furniture: 'rehome' })` keeps furniture across
+an architecture change — used by "reset to default" and by loading a saved apartment.
+
+Measured there with the new `dev-probes/plan-swap-rehome.mjs` (furnished 4-room, 87 items,
+reset between arms), counting items whose centre is outside every room of the new plan:
+baseline 2, `tpl-condo-penthouse` 4, **`tpl-hdb-2room` 32, `tpl-studio` 37**. A similar-sized
+plan is fine; a much smaller one leaves ~37% of the home floating in the void — the frame
+shows curtains, a ceiling fan, a TV, a rug with its books, wall art and a range hood hanging
+beside the shell.
+
+**No code changed, deliberately.** The cause is `skip: (defId) => def.mounted || def.noClip`,
+and that predicate is correct: `rehomeStrandedItems` only relocates free-standing floor
+furniture, and everything attached to something else keeps its coordinates. `noClip` is
+overwhelmingly surface decor resting on other furniture (book stacks, vases, cushions, tea
+sets) plus window/door attachments; only `rug` and `pet-cooling-mat` are genuine floor
+pieces. Widening the skip would rip decor off tables and scatter it to room centres — worse
+than the current failure, and it would regress the common same-size case to buy the rare one.
+The real fix needs an attached piece to move WITH its host or re-anchor to a wall in the new
+plan, which means modelling a host relationship the re-homer cannot currently see — a product
+decision, not a one-liner. Documented in `src/floorplan/CLAUDE.md` as PLAN-SWAP-STRANDED.
+
+Probe note: the first version of this census reported 0 stranded items while the rendered
+frame plainly showed furniture in the void. It read `it.x`/`it.z` (items store
+`position: [x, z]`) and `st.catalog` (the store has no such field, so `if (!def) continue`
+skipped every item). A zero that means "measured nothing" — the frame caught it.
+
+
 ## v0.31.5.42 — SHADOW-TEXEL's scaling regime is unreachable in shipped content (docs + probe)
 
 SHADOW-TEXEL targets a constant ~20 mm world-space shadow texel over the plan-fitted
