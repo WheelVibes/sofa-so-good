@@ -35,8 +35,20 @@ export interface QualitySettings {
   ibl: boolean
   /** Run the post-processing stack (bloom + AO + SMAA). GPU-intensive. */
   postprocessing: boolean
-  /** Max simultaneous furniture point lights at night. */
-  maxFixtureLights: number
+  /** Merge fixtures that sit within 1.0 m of each other and are the same kind
+   *  into one light (`lighting/fixtureLights.ts:aggregateFixtureLights`). Every
+   *  point light costs a full GGX BRDF per fragment.
+   *
+   *  ON AT EVERY TIER. It was originally gated to Performance/Medium to keep
+   *  High/Maximum "exactly as authored" — but the profiler on real hardware
+   *  says the opposite of what that assumed: Performance renders the whole
+   *  scene in ~3 ms with 5x headroom and no measurable light cost, while
+   *  Maximum spends 9.75 ms of a 32 ms frame on fixture lights (30%, and it
+   *  misses 60 fps). The saving is needed precisely where it was switched off,
+   *  and the merge rule is conservative enough by construction (same def, same
+   *  bulb colour, within 1.0 m) that there is no fidelity argument for
+   *  withholding it. Kept as a setting so the profiler can still A/B it. */
+  mergeCoincidentLights: boolean
   /** Upper device-pixel-ratio clamp. */
   dprMax: number
   /** Fade exterior walls between camera and interior (cheap; always on). */
@@ -82,10 +94,10 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
   // single biggest cost on a GPU-less laptop is real-time shadow mapping — this
   // tier renders without it and stays fluid.
   performance: {
+    mergeCoincidentLights: true,
     shadowMapSize: 0,
     ibl: false,
     postprocessing: false,
-    maxFixtureLights: 2,
     dprMax: 1,
     wallReveal: true,
     // Cheap blob grounding (no shadow map) — the only contact cue on the flat
@@ -100,10 +112,10 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     envResolution: 64,
   },
   medium: {
+    mergeCoincidentLights: true,
     shadowMapSize: 1024,
     ibl: true,
     postprocessing: false,
-    maxFixtureLights: 6,
     dprMax: 1.5,
     wallReveal: true,
     contactShadows: true,
@@ -116,10 +128,10 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     envResolution: 96,
   },
   high: {
+    mergeCoincidentLights: true,
     shadowMapSize: 2048,
     ibl: true,
     postprocessing: true,
-    maxFixtureLights: 8,
     dprMax: 2,
     wallReveal: true,
     contactShadows: true,
@@ -132,10 +144,10 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     envResolution: 192,
   },
   maximum: {
+    mergeCoincidentLights: true,
     shadowMapSize: 4096,
     ibl: true,
     postprocessing: true,
-    maxFixtureLights: 12,
     dprMax: 2,
     wallReveal: true,
     contactShadows: true,

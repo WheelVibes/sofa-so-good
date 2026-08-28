@@ -1,29 +1,61 @@
 import type { QualitySettings } from '../../scene/quality'
+import type { LightsMode } from '../../state/slices/uiSlice'
 import type { EffectCost } from './profilerTypes'
 
+/** Store-level render inputs a sweep step can switch off. Not every expensive
+ *  thing is a quality PRESET setting — fixture lights are a user switch — and
+ *  the sweep has to be able to measure those too, or they stay invisible in the
+ *  one report anyone actually looks at. */
+export interface SweepStorePatch {
+  lightsMode?: LightsMode
+}
+
 export interface SweepStep {
-  key: keyof QualitySettings
+  /** Stable key for the report row. */
+  key: string
   label: string
-  /** The value to force the setting to in order to DISABLE the effect. */
-  disabledValue: QualitySettings[keyof QualitySettings]
+  /** Disable by forcing a quality-preset override to this value… */
+  quality?: {
+    key: keyof QualitySettings
+    /** The value to force the setting to in order to DISABLE the effect. */
+    value: QualitySettings[keyof QualitySettings]
+  }
+  /** …or by patching the store (for render inputs that aren't preset settings).
+   *  A step whose patch already matches live state is skipped by the engine —
+   *  a guaranteed-zero row is noise, not data. */
+  store?: SweepStorePatch
 }
 
 /** Heavy render effects, toggled one at a time and ranked by measured cost. */
 export const COST_SWEEP: SweepStep[] = [
-  { key: 'postprocessing', label: 'Post-processing (bloom/AO/SMAA)', disabledValue: false },
-  { key: 'shadowMapSize', label: 'Sun shadows', disabledValue: 0 },
-  { key: 'ibl', label: 'IBL reflections', disabledValue: false },
-  { key: 'dof', label: 'Depth of field', disabledValue: false },
-  { key: 'contactShadows', label: 'Contact shadows', disabledValue: false },
-  { key: 'maxFixtureLights', label: 'Fixture lights', disabledValue: 0 },
-  { key: 'geometryDetail', label: 'Geometry detail', disabledValue: 0.5 },
-  { key: 'dprMax', label: 'Pixel ratio (DPR)', disabledValue: 1 },
+  {
+    key: 'postprocessing',
+    label: 'Post-processing (bloom/AO/SMAA)',
+    quality: { key: 'postprocessing', value: false },
+  },
+  { key: 'shadowMapSize', label: 'Sun shadows', quality: { key: 'shadowMapSize', value: 0 } },
+  { key: 'ibl', label: 'IBL reflections', quality: { key: 'ibl', value: false } },
+  { key: 'dof', label: 'Depth of field', quality: { key: 'dof', value: false } },
+  {
+    key: 'contactShadows',
+    label: 'Contact shadows',
+    quality: { key: 'contactShadows', value: false },
+  },
+  {
+    key: 'geometryDetail',
+    label: 'Geometry detail',
+    quality: { key: 'geometryDetail', value: 0.5 },
+  },
+  { key: 'dprMax', label: 'Pixel ratio (DPR)', quality: { key: 'dprMax', value: 1 } },
+  // Fixture lights multiply FILL cost: three unrolls the point-light loop and
+  // `RE_Direct_Physical` runs the full BRDF per light per fragment with no
+  // early-out on an attenuated-to-zero light, so N lights ≈ N× the lighting
+  // maths on every lit fragment on screen. Measured by switching them off, so
+  // the row reads 0 in a scene where they're already off (the engine skips it).
+  { key: 'fixtureLights', label: 'Fixture lights', store: { lightsMode: 'off' } },
 ]
 
-export type MeasureFn = (override?: {
-  key: keyof QualitySettings
-  value: QualitySettings[keyof QualitySettings]
-}) => Promise<number>
+export type MeasureFn = (step?: SweepStep) => Promise<number>
 
 /**
  * Measure a baseline average frame time, then for each step measure with just
@@ -41,10 +73,10 @@ export async function runSweep(
   const out: EffectCost[] = []
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i]
-    const disabledMs = await measure({ key: step.key, value: step.disabledValue })
+    const disabledMs = await measure(step)
     const deltaMs = baselineMs - disabledMs
     const fpsGain = 1000 / disabledMs - 1000 / baselineMs
-    out.push({ key: String(step.key), label: step.label, baselineMs, disabledMs, deltaMs, fpsGain })
+    out.push({ key: step.key, label: step.label, baselineMs, disabledMs, deltaMs, fpsGain })
     onProgress?.(i + 1, steps.length, step.label)
   }
   return out.sort((a, b) => b.deltaMs - a.deltaMs)

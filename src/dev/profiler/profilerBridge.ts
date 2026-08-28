@@ -7,6 +7,11 @@ interface BridgeRefs {
   gl: WebGLRenderer
   scene: Scene
   invalidate: () => void
+  /** r3f's SYNCHRONOUS render driver. The cost sweep needs to time one full
+   *  pipeline render (including the post composer, which renders from its own
+   *  `useFrame`) on demand — `invalidate` only schedules one for the next rAF,
+   *  and an rAF-delta measurement is pinned at the display refresh. */
+  advance: (timestamp: number, runGlobalEffects?: boolean) => void
 }
 
 /** Max samples retained for the sparkline (~2s at 60fps of throttled emits). */

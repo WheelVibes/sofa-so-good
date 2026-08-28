@@ -297,15 +297,6 @@ export function GraphicsSettings({
             />
 
             <SliderField
-              label="Night light fixtures"
-              min={0}
-              max={12}
-              step={1}
-              value={eff.maxFixtureLights}
-              format={(v) => `${v} max`}
-              onChange={(v) => setOverride('maxFixtureLights', v)}
-            />
-            <SliderField
               label="Resolution scale"
               min={0.75}
               max={2}

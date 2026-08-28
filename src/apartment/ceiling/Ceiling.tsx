@@ -2,6 +2,7 @@ import { isFeatureEnabled } from '../../features/featureFlags'
 import type { MaterialId } from '../../materials/types'
 import { useStore } from '../../state/store'
 import { ROOMS } from '../constants'
+import { roomOutline, roomParts } from '../roomGeometry'
 import { RoomCeiling } from './RoomCeiling'
 import { RoomCeilingTile } from './RoomCeilingTile'
 
@@ -25,34 +26,19 @@ export function Ceiling() {
           // for the room's main rectangle.
           const cfg = planRoom?.ceiling
           if (cfg && cfg.style !== 'flat' && isFeatureEnabled('ceilingDesign')) {
-            const poly: [number, number][] = [
-              [r.origin[0], r.origin[1]],
-              [r.origin[0] + r.width, r.origin[1]],
-              [r.origin[0] + r.width, r.origin[1] + r.depth],
-              [r.origin[0], r.origin[1] + r.depth],
-            ]
+            // A designed ceiling takes the room's whole outline (`buildCeiling`
+            // falls back to a flat plane for a shape it can't tray/coffer).
+            const poly = roomOutline(r).map(([x, z]) => [x, z] as [number, number])
             return [<RoomCeiling key={r.id} polygon={poly} height={h} config={cfg} />]
           }
-          const tiles: { cx: number; cz: number; w: number; d: number; key: string }[] = [
-            {
-              cx: r.origin[0] + r.width / 2,
-              cz: r.origin[1] + r.depth / 2,
-              w: r.width,
-              d: r.depth,
-              key: r.id,
-            },
-          ]
-          if (r.extension) {
-            const ex = r.origin[0] + r.extension.offset[0]
-            const ez = r.origin[1] + r.extension.offset[1]
-            tiles.push({
-              cx: ex + r.extension.width / 2,
-              cz: ez + r.extension.depth / 2,
-              w: r.extension.width,
-              d: r.extension.depth,
-              key: `${r.id}-ext`,
-            })
-          }
+          // One flat tile per rect piece — a room may have any number.
+          const tiles = roomParts(r).map((rect, i) => ({
+            cx: (rect.x0 + rect.x1) / 2,
+            cz: (rect.z0 + rect.z1) / 2,
+            w: rect.x1 - rect.x0,
+            d: rect.z1 - rect.z0,
+            key: i === 0 ? r.id : `${r.id}-part${i}`,
+          }))
           // A per-room finish paints/textures the ceiling; otherwise plain white.
           const finishId =
             (ceilingFinishes?.[r.id] as MaterialId | undefined) ??
@@ -73,7 +59,16 @@ export function Ceiling() {
           return tiles.map((t) => (
             <mesh key={t.key} position={[t.cx, h, t.cz]} rotation={[Math.PI / 2, 0, 0]}>
               <planeGeometry args={[t.w, t.d]} />
-              <meshStandardMaterial color="#fafafa" roughness={1} />
+              {/* LAMBERT, not Standard. Three unrolls its point-light loop and
+                  runs a full GGX BRDF per light per fragment; a plain white
+                  ceiling at roughness 1 has no specular lobe worth evaluating,
+                  and in walk mode it is one of the largest surfaces on screen —
+                  so this is pure waste multiplied by the fixture-light count.
+                  Lambert's per-light work is a dot product. Only valid because
+                  this material is a fixed matte white with no finish: a ceiling
+                  the user has FINISHED goes through `RoomCeilingTile` and keeps
+                  its PBR material. */}
+              <meshLambertMaterial color="#fafafa" />
             </mesh>
           ))
         })}

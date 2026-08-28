@@ -22,16 +22,17 @@ export function ProfilerProbe() {
   const gl = useThree((s) => s.gl)
   const scene = useThree((s) => s.scene)
   const invalidate = useThree((s) => s.invalidate)
+  const advance = useThree((s) => s.advance)
   const tier = useStore((s) => s.qualityTier)
 
   useEffect(() => {
-    profilerBridge.register({ gl, scene, invalidate })
+    profilerBridge.register({ gl, scene, invalidate, advance })
     const prevAuto = gl.info.autoReset
     gl.info.autoReset = false
     return () => {
       gl.info.autoReset = prevAuto
     }
-  }, [gl, scene, invalidate])
+  }, [gl, scene, invalidate, advance])
 
   useEffect(() => {
     profilerBridge.setTier(tier)

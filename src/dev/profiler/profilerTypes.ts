@@ -64,6 +64,9 @@ export interface ProfilerApi {
   getSnapshot: () => MetricsSnapshot
   runCostBreakdown: (
     onProgress?: (done: number, total: number, label: string) => void,
+    /** `{ quick: true }` = fewer frames per measurement (ranks the effects
+     *  without the minutes-long wait on a slow GPU). */
+    opts?: { quick?: boolean },
   ) => Promise<EffectCost[]>
   getObjectBreakdown: () => ObjectCost[]
   /** Select an item in the main window (for the Objects tab click-through). */
