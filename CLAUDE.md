@@ -12,7 +12,7 @@ Zustand (sliced store), Vite, Vitest, Biome.
 > detail. The full code map is **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**. Area-specific
 > rules live in path-scoped `CLAUDE.md` files that load only when you work in that folder:
 > `src/state/`, `src/furniture/`, `src/scene/`, `src/ui/`, `src/materials/`, `src/lighting/`,
-> `src/floorplan/`. Other reference
+> `src/floorplan/`, `src/apartment/`. Other reference
 > docs: `DESIGN.md` (design-system contract — tokens, motion, naming, do/don'ts),
 > `docs/visual-verification-playbook.md`, `docs/interior-design-guidelines.md`,
 > `REFERENCES.md` (competitor apps to study), `CHANGELOG.md`/`TASKS.md`/`TODO.md`.

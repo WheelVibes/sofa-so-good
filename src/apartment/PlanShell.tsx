@@ -23,6 +23,7 @@ import {
 import { traceBuildingOutline, type WallSeg } from '../floorplan/footprint'
 import { levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
 import { planWallThickness, type WallBox, wallBoxes } from '../floorplan/planGeometry'
+import { planRoomRects } from '../floorplan/planRoomShell'
 import { railingMemberInstances } from '../floorplan/railingLayout'
 import { resolvePlanRoomCeiling, resolvePlanRoomFloor } from '../floorplan/roomFinishes'
 import { isSlopedWall, slopedWallHeights, slopedWallTriangles } from '../floorplan/slopedWall'
@@ -151,20 +152,11 @@ function revealFacingToward(
 /** Interior room rectangles (+ L-extensions) for a level, for the point-in-room
  *  outward probe. Polygon rooms fall back to their origin/width/depth bounds. */
 function levelRoomRects(rooms: readonly PlanRoom[]): RoomRect[] {
-  return rooms.map((r) => ({
-    x: r.origin[0],
-    z: r.origin[1],
-    w: r.width,
-    d: r.depth,
-    ext: r.extension
-      ? {
-          x: r.origin[0] + r.extension.offset[0],
-          z: r.origin[1] + r.extension.offset[1],
-          w: r.extension.width,
-          d: r.extension.depth,
-        }
-      : undefined,
-  }))
+  // One entry per rect piece — `planRoomRects` resolves a room's shape however
+  // it is declared (rect, L-extension, or a polygon, which reports its bbox).
+  return rooms.flatMap((r) =>
+    planRoomRects(r).map((p) => ({ x: p.x0, z: p.z0, w: p.x1 - p.x0, d: p.z1 - p.z0 })),
+  )
 }
 
 /** Target opacity (1 = solid, →0.15/0 = faded) for a wall box given the current

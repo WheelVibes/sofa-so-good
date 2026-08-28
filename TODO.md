@@ -4,6 +4,26 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## Wall reveal (v0.30.9.0, 2026-08-28)
+- [ ] **Adjacent walls settle at DIFFERENT fade opacities, so a joint shows a hard step.**
+  This is the "different opacity bands at joints/corners" report, and it is NOT a compositing
+  bug — the earlier double-composite theory was measured and disproved. Each wall's fade depth
+  comes from its OWN facing angle (`wallRevealMath.ts:revealStrength`), so two walls meeting at
+  a corner have different orientations, settle at different opacities, and step where they meet.
+  Each band is uniform across a whole wall's width, which is why they read as wide vertical
+  strips rather than hairlines.
+  Evidence that ruled out the alternative: single-layer transparency via stencil was implemented
+  end-to-end (attachment on the Canvas, `clearPass.stencil` on the composer's `RenderPass`,
+  distance-keyed `renderOrder` so the NEAR wall wins) and pixel-diffed on a real GPU — it changed
+  **94 pixels** of a 1400x900 frame. Real, but a hairline, not the bands. The machinery was
+  removed as not worth its complexity; the isolated proof that the mechanism itself works (two
+  50% quads: 128/191 without a stencil, 128/128 with) is in the v0.30.9.0 changelog entry.
+  The lever to look at is `cornerSpreadStrength` — it already exists to pull a wall's neighbour
+  along when one fades, but it is CAPPED at the leader's own strength and gated by a smooth
+  ramp, so a step survives. Softening the discontinuity means either raising/removing that cap
+  at shared corners specifically, or blending each wall's strength toward its corner
+  neighbours' before the opacity is applied.
+
 ## Showroom finishes (v0.26.0.0, 2026-08-19)
 - [ ] **Showroom picks for furniture `mat:` finishes.** A resolved showroom finish already works
   as a `mat:polyhaven:<slug>:1k` furniture finish (and rehydrates — the boot scan covers item

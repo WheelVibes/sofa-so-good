@@ -33,7 +33,7 @@ function windowBoundDef(): ParametricDef {
  *  checks only consider item-item overlap, so moves/rotations always pass). */
 function placeOne(defId: string, props: Record<string, number | string> = {}): string {
   const s = useStore.getState()
-  s.newFloorPlan('Test plan')
+  s.newFloorPlan({ name: 'Test plan', shell: true })
   // Strip the seeded boundary walls/openings so a transform can't bump a wall.
   s.setFloorPlan({ ...useStore.getState().floorPlan, walls: [], openings: [], rooms: [] })
   s.setItems([])

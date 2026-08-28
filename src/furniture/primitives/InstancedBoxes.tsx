@@ -51,11 +51,15 @@ export function InstancedBoxes({
   instances,
   castShadow,
   receiveShadow,
+  userData,
   children,
 }: {
   instances: BoxInstance[]
   castShadow?: boolean
   receiveShadow?: boolean
+  /** Forwarded to the instanced mesh — lets a caller tag the whole bucket (e.g.
+   *  `markWallOverlay()` so the wall-reveal fade can cull it). */
+  userData?: Record<string, unknown>
   /** The shared material element, e.g. `<meshStandardMaterial .../>`. */
   children: React.ReactNode
 }) {
@@ -90,6 +94,7 @@ export function InstancedBoxes({
       args={[undefined as never, undefined as never, count]}
       castShadow={castShadow}
       receiveShadow={receiveShadow}
+      userData={userData}
     >
       <boxGeometry args={[1, 1, 1]} />
       {children}
@@ -117,6 +122,7 @@ export function InstancedCylinders({
   thetaLength = Math.PI * 2,
   castShadow,
   receiveShadow,
+  userData,
   children,
 }: {
   instances: BoxInstance[]
@@ -125,6 +131,8 @@ export function InstancedCylinders({
   thetaLength?: number
   castShadow?: boolean
   receiveShadow?: boolean
+  /** Forwarded to the instanced mesh — see {@link InstancedBoxes}. */
+  userData?: Record<string, unknown>
   children: React.ReactNode
 }) {
   const ref = useRef<InstancedMesh>(null)
@@ -156,6 +164,7 @@ export function InstancedCylinders({
       args={[undefined as never, undefined as never, count]}
       castShadow={castShadow}
       receiveShadow={receiveShadow}
+      userData={userData}
     >
       <cylinderGeometry args={[1, 1, 1, radialSegments, 1, false, thetaStart, thetaLength]} />
       {children}
