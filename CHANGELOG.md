@@ -5,6 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.49 — door leaves rendered as wet plastic; the "survey complete" claim was wrong
+
+**The claim was untested.** "The DEFAULT-SURFACE SURVEY IS COMPLETE" had been carried for ten
+rounds without verification. The new `dev-probes/surface-coverage.mjs` censuses what actually
+renders (11 rooms x 4 yaws x 1600 rays, grouped by drawn material): door leaves plus frames are
+**~13% of the walk view** — more than the bathroom tile three rounds went into — and nothing had
+ever photographed one. (The ceiling, the other suspect, is 1.45% and fine.)
+
+**Fixed** — the bedroom door leaf rendered as a wavy, wet-looking corrugated panel rather than a
+flush laminate door. `Door.tsx` and `PlanDoorLeaf.tsx` built it with
+`getWoodMaterial(leafColor, 1, 0.45)`, an explicit roughness against the `WOOD_BASE_ROUGHNESS`
+of 0.85 that WOOD-GLOSS (v0.31.5.31) settled. Both now use the default.
+
+Four arms at one pose, one variable each (`dev-probes/door-ab.mjs`): `normalScale 0` removed the
+ripples entirely, proving they are the wood-grain normal stretched over a 0.8 x 2.1 m panel;
+`repeat 2` made them WORSE (finer, denser corrugations), so tiling is not the lever; **roughness
+0.85 was clearly best** — a matte timber panel with subtle grain. After the change the drawn leaf
+reports `roughness: 0.85` and the frame byte-matches the winning arm (mean 156.4 / sigma 27.65,
+against 156.1 / 29.63 before).
+
+This overturns a deliberate earlier choice — `woodGloss.test.ts` carried "doors deliberately pass
+their own value" — which is why it needed frames rather than an argument. That comment is
+corrected; the test still pins the API contract that a caller *can* ask for shinier wood.
+
+**Residual, stated plainly:** the grain normal still ripples at door scale, much less at 0.85. A
+flush door has almost no relief, so a lower `normalScale` for leaves is the honest follow-up — not
+measured here (the `normalScale 0` arm ran at the old 0.45), so it needs its own A/B first.
+
+
 ## v0.31.5.48 — fold the graphics-realism run's probe traps into the playbook (docs)
 
 Ten rounds of auditing accumulated harness knowledge that lived only in commit messages, so

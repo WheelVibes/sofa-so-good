@@ -103,3 +103,29 @@ Full code map in `docs/ARCHITECTURE.md`.
   triggered earlier would flip it. Nothing was changed (a fix that moves no metric does not
   ship, meta-rule ii), but if a stale fade ever appears, this is the mechanism.
 
+- **Door leaves are ~13% of the walk view and were the largest UNEXAMINED surface in the flat
+  (DOOR-GLOSS, v0.31.5.49).** "The default-surface survey is complete" had been asserted for ten
+  rounds and was never tested; it was wrong. `scripts/dev-probes/surface-coverage.mjs` censuses
+  what actually RENDERS — 11 rooms x 4 yaws x 1600 rays, grouped by the drawn material — and door
+  leaves plus frames come to **~13% of the view**, more than the bathroom tile that three earlier
+  rounds went into and far more than the ceiling (**1.45%**, a `MeshLambertMaterial` with no maps,
+  which is fine because you barely see it at 1.6 m eye height).
+  · **The bedroom leaf rendered as wavy, wet-looking corrugated plastic**, not a flush laminate
+    door. `Door.tsx` / `PlanDoorLeaf.tsx` built it with `getWoodMaterial(leafColor, 1, 0.45)` —
+    an explicit roughness against the `WOOD_BASE_ROUGHNESS` of 0.85 that WOOD-GLOSS settled.
+  · **Four arms at one pose, one variable each** (`dev-probes/door-ab.mjs`, mutating the drawn
+    material in-probe): `normalScale 0` removed the ripples entirely (so they ARE the wood-grain
+    normal, stretched over a 0.8 x 2.1 m panel); `repeat 2` made them WORSE — finer, denser
+    corrugations, so tiling is not the lever; **roughness 0.85 was clearly best**, a matte timber
+    panel with subtle grain. Shipped that, and the drawn leaf now reports `roughness: 0.85` with
+    the frame byte-matching the winning arm (mean 156.4 / sigma 27.65, against 156.1 / 29.63
+    before).
+  · **This overturns a deliberate earlier choice, which is why it needed the frames.**
+    `woodGloss.test.ts` carried "doors deliberately pass their own value"; that comment is now
+    corrected. The test itself still pins the API contract (a caller CAN ask for shinier wood) —
+    only the doors stopped using it.
+  · **The residual, stated plainly: the grain normal still ripples at door scale**, just far less
+    at 0.85. A flush door has almost no relief, so the honest follow-up is a lower `normalScale`
+    for door leaves — NOT measured here (the `normalScale 0` arm was run at the old 0.45), so it
+    needs its own A/B before anyone ships a number.
+

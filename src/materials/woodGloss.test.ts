@@ -37,7 +37,9 @@ describe('furniture wood gloss (WOOD-GLOSS)', () => {
   })
 
   it('still lets a caller ask for a shinier wood explicitly', () => {
-    // Doors deliberately pass their own value; the default must not override a caller.
+    // The API must honour an explicit caller value — that contract is what this pins.
+    // (The DOORS no longer use it: DOOR-GLOSS v0.31.5.49 dropped their 0.45 after measuring
+    // that it read as wet plastic rather than a flush laminate leaf.)
     expect(getWoodMaterial('#a87f4f', 1, 0.45).roughness).toBe(0.45)
   })
 

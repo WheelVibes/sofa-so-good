@@ -152,7 +152,11 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
       leafMaterialKind === 'vinyl'
         ? getVinylMaterial(leafColor)
         : leafMaterialKind === 'wood'
-          ? getWoodMaterial(leafColor, 1, 0.45)
+          ? // DOOR-GLOSS: no explicit roughness — use the settled `WOOD_BASE_ROUGHNESS`.
+            // The old 0.45 made a leaf read as wet corrugated plastic rather than a flush
+            // laminate door (measured with `dev-probes/door-ab.mjs`); doors are ~13% of the
+            // walk view, so it was the largest unexamined surface in the flat.
+            getWoodMaterial(leafColor, 1)
           : leafMaterialKind === 'metal'
             ? getMetalMaterial(leafColor, 'satin')
             : getPaintedMaterial(leafColor)
