@@ -309,6 +309,42 @@ GPU-session gotchas (2026-07-11 sweep):
   demand-mode frames pump and the controller's rAF decision loop actually runs. Guard scenario:
   `scripts/scenarios/interactive-dpr-seamless.json` (assert every resize `sameTask: true`).
 
+## Phone probes must BOOT as the device, or they silently measure a desktop
+
+`scene/quality.ts` reads device capabilities **once at boot** (`readDeviceCapabilities` →
+`capabilityCeilingTier`, the veto that drops phones to the `performance` tier). Anything
+emulated *after* `page.goto` is therefore invisible to it, and the failure is silent: the
+probe reports a plausible tier and you conclude the app is mis-detecting phones when in
+fact it was never shown one. This cost a full round — `phone-view.mjs` booted at 1280x800
+and switched to phone viewports afterwards, which produced "every phone viewport settles
+on **medium**, so the documented phone veto never fires". Booted correctly the same app
+reports `matchMedia('(pointer: coarse)') = true`, `maxTouchPoints = 1` and a live tier of
+**`performance`** — the veto works exactly as documented.
+
+Three traps, all of which have to be handled together (`scripts/dev-probes/phone-view.mjs`
+is the working model):
+
+1. **`setViewport({ isMobile, hasTouch })` does NOT set `matchMedia('(pointer: coarse)')`.**
+   It sets device metrics and touch, and the pointer media feature stays `fine` — which is
+   the single signal `capabilityCeilingTier` leans on hardest.
+2. **Puppeteer's `page.emulateMediaFeatures` REJECTS `pointer`** outright with
+   `Error: Unsupported media feature: pointer` — its allowlist covers only
+   `prefers-color-scheme`, `prefers-reduced-motion`, `color-gamut` and `forced-colors`.
+   Use a raw CDP session instead:
+   `(await page.createCDPSession()).send('Emulation.setEmulatedMedia', { features: [{ name: 'pointer', value: 'coarse' }] })`.
+3. **A device-metrics override RESETS emulated media**, so the CDP call must come *after*
+   `setViewport` and *before* `goto`.
+
+Have the probe PRINT what the page sees (`matchMedia`, `maxTouchPoints`,
+`navigator.hardwareConcurrency`, `navigator.userAgentData?.mobile`) next to the resulting
+tier. That one line is what distinguishes "the app is wrong" from "the harness never
+delivered the signal", and the general rule is worth keeping: **before filing a defect
+against the app, confirm the harness actually delivered the input the code reads.**
+
+Note also that the phone tier is `performance` — flat shading, no AO, no IBL, no post — so
+a probe that accidentally boots as a desktop is not just reporting the wrong tier label, it
+is rendering a materially different image from the one most mobile users see.
+
 ## Scenario mode (recommended — use this for anything multi-step)
 
 **Harness runs are serialized machine-wide.** `shot.mjs` takes an exclusive lock file

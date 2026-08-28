@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.29 — the phone quality veto works; my probe was booting as a desktop
+
+A correction of my own earlier claim, not an app defect. No src change beyond the version.
+
+While verifying ASPECT-REFRAME (.28) I reported that the adaptive ladder settled on
+**medium** at every phone viewport, despite `quality.ts:capabilityCeilingTier` being
+documented to veto phones to `performance` — and flagged that every mobile user might be
+running a tier above their budget. That was wrong, and the cause was the harness.
+
+`scene/quality.ts` reads device capabilities ONCE at boot, and
+`scripts/dev-probes/phone-view.mjs` booted at 1280x800 and only switched to phone
+viewports afterwards, so the detector was shown a desktop every time. Booting as the
+device under test — metrics, touch, and the coarse-pointer media feature, all before
+`goto` — the same build reports `matchMedia('(pointer: coarse)') = true`,
+`maxTouchPoints = 1` and a live tier of **`performance`**. The veto fires exactly as
+documented.
+
+Three traps had to be handled together, now written up in
+`docs/visual-verification-playbook.md`: `setViewport({isMobile, hasTouch})` does not set
+the `pointer` media feature; puppeteer's `emulateMediaFeatures` rejects `pointer` outright
+("Unsupported media feature"), so it needs a raw CDP `Emulation.setEmulatedMedia`; and a
+device-metrics override resets emulated media, so that call must come after `setViewport`
+and before `goto`. The probe now also prints the capability signals the page actually sees
+next to the resulting tier — the line that distinguishes "the app is wrong" from "the
+harness never delivered the signal".
+
+Bonus: this re-verified ASPECT-REFRAME at the REAL phone tier (`performance`, dprMax 1).
+The numbers are identical to the medium-tier run — desktop 55.2/55.9, phone-390
+91.5/26.2, phone-320 91.2/31.8, and the landscape->portrait rotation still reports
+91.5% w "(fits)" — confirming the .28 framing fix is tier-independent geometry.
+
 ## v0.31.5.28 — rotating a phone no longer clips the flat
 
 ASPECT-REFRAME. The first render-visible fix since v0.31.5.20.

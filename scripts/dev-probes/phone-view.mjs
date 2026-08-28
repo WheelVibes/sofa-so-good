@@ -42,12 +42,46 @@ const browser = await puppeteer.launch({
 })
 const page = await browser.newPage()
 await page.emulateTimezone('Asia/Singapore')
-await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 2 })
+// BOOT AS THE DEVICE UNDER TEST. `quality.ts` reads device capabilities ONCE at boot,
+// so anything emulated after `goto` is invisible to the veto: an earlier version of this
+// probe booted at 1280x800 and only switched to phone viewports later, which showed the
+// detector a desktop every time and made the phone veto look broken when it had simply
+// never been asked. Set metrics, touch and the pointer media feature BEFORE load.
+if (process.env.BOOT_PHONE !== '0') {
+  await page.setViewport({
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 3,
+    isMobile: true,
+    hasTouch: true,
+  })
+} else {
+  await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 2 })
+}
 await page.evaluateOnNewDocument(() => {
   try {
     localStorage.setItem('hdb_onboarded', '1')
   } catch {}
 })
+// `quality.ts:readDeviceCapabilities` reads `matchMedia('(pointer: coarse)')`, and
+// puppeteer's `setViewport({ isMobile, hasTouch })` does NOT set that media feature —
+// so without this a "phone" probe reports a fine pointer and the phone veto in
+// `capabilityCeilingTier` never fires, making the ladder look broken when it is the
+// harness that is lying. Must be set BEFORE load: capabilities are read once at boot.
+if (process.env.COARSE !== '0') {
+  // Straight to CDP: puppeteer's `emulateMediaFeatures` allowlist rejects `pointer`
+  // ("Unsupported media feature"), but the protocol itself supports it, and this is
+  // real media emulation rather than a `matchMedia` shim. Sent AFTER the device-metrics
+  // override above, which otherwise resets emulated media, and before `goto`.
+  const cdp = await page.createCDPSession()
+  await cdp.send('Emulation.setEmulatedMedia', {
+    features: [
+      { name: 'pointer', value: 'coarse' },
+      { name: 'any-pointer', value: 'coarse' },
+      { name: 'hover', value: 'none' },
+    ],
+  })
+}
 await page.goto(appUrl(), { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('canvas', { timeout: 60000 })
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
@@ -119,6 +153,37 @@ const VIEWPORTS = [
   { label: 'phone-390', width: 390, height: 844, deviceScaleFactor: 3 },
   { label: 'phone-320', width: 320, height: 568, deviceScaleFactor: 2 },
 ]
+
+// Prove the emulated signal actually reached the code that reads it before drawing any
+// conclusion about the veto (meta-rule xxvii): report what the page sees AND what the
+// app's own capability detection makes of it.
+const caps = await page.evaluate(async () => {
+  const q = await import('/src/scene/quality.ts')
+  const gl = window.__three?.gl?.getContext?.()
+  const read = gl ? q.readDeviceCapabilities?.(gl) : null
+  const st = window.__store.getState()
+  return {
+    matchMediaCoarse: globalThis.matchMedia?.('(pointer: coarse)')?.matches === true,
+    maxTouchPoints: navigator.maxTouchPoints,
+    cores: navigator.hardwareConcurrency,
+    uaMobile: navigator.userAgentData?.mobile ?? null,
+    caps: read ?? null,
+    ceiling: read ? q.capabilityCeilingTier(read) : null,
+    initialAuto: read ? q.initialAutoTier?.(read) : null,
+    liveTier: st.qualityTier,
+    autoSettled: st.qualityAutoSettled ?? null,
+  }
+})
+console.log('capability detection as the PAGE sees it:')
+console.log(`  matchMedia('(pointer: coarse)') = ${caps.matchMediaCoarse}`)
+console.log(
+  `  maxTouchPoints=${caps.maxTouchPoints}  cores=${caps.cores}  uaData.mobile=${caps.uaMobile}`,
+)
+console.log(`  readDeviceCapabilities -> ${JSON.stringify(caps.caps)}`)
+console.log(
+  `  capabilityCeilingTier=${caps.ceiling}  initialAutoTier=${caps.initialAuto}  ` +
+    `live tier=${caps.liveTier}  autoSettled=${caps.autoSettled}\n`,
+)
 
 console.log(`hour=${HOUR} — default flat, orbit, true phone viewports\n`)
 console.log('viewport     css        buffer          dpr   tier         meshes  lit  p50')
