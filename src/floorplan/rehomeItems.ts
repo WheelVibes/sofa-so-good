@@ -26,7 +26,7 @@ import { type FloorPlan, type PlanRoom, pointInRoom } from './types'
 
 /** The minimum an item's centre may sit outside a room rect before it counts as
  *  stranded — a little slack for a piece placed flush against a wall. */
-export const REHOME_OUT_TOL = 0.2
+const REHOME_OUT_TOL = 0.2
 
 /** How far inside the room edge a rescued item is placed, so its BODY lands
  *  inside too rather than its centre landing exactly on the wall line. */

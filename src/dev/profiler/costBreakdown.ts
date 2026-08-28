@@ -6,7 +6,7 @@ import type { EffectCost } from './profilerTypes'
  *  thing is a quality PRESET setting — fixture lights are a user switch — and
  *  the sweep has to be able to measure those too, or they stay invisible in the
  *  one report anyone actually looks at. */
-export interface SweepStorePatch {
+interface SweepStorePatch {
   lightsMode?: LightsMode
 }
 

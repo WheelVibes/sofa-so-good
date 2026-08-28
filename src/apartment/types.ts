@@ -19,7 +19,7 @@ export type Vec2 = readonly [number, number]
 
 /** An additional rectangle making up part of a room, offset from the room's
  *  `origin`. A room may declare ANY NUMBER of these. */
-export interface RoomExtension {
+interface RoomExtension {
   offset: Vec2
   width: number
   depth: number

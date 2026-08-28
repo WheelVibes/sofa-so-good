@@ -34,8 +34,9 @@ export function isRectilinear(polygon: readonly PlanVec2[]): boolean {
   return true
 }
 
-/** Bounding box of a polygon. */
-export function polygonBounds2(polygon: readonly PlanVec2[]): Rect2 {
+/** Bounding box of a polygon. Module-private: the only caller is the
+ *  non-rectilinear fallback in {@link decomposeRectilinear}. */
+function polygonBounds2(polygon: readonly PlanVec2[]): Rect2 {
   const xs = polygon.map((p) => p[0])
   const zs = polygon.map((p) => p[1])
   return { x0: Math.min(...xs), z0: Math.min(...zs), x1: Math.max(...xs), z1: Math.max(...zs) }
