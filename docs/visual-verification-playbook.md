@@ -122,6 +122,17 @@ gesture against a real GPU and need `npm run dev:web` running.
 | `tone-curve.mjs` | Whole-frame sweep of the view transform (filmic / agx / neutral) and the post-saturation dial across the day in either view mode: mean, contrast, clipped fraction, chroma. Use this — never one material's numbers — to judge a change that applies to the whole image. `HOURS=`, `TONES=`, `SATS=`. |
 | `sky-tune.mjs` | Sweeps the orbit sky dome's LIVE shader uniforms (`rayleigh`, `turbidity`, `mieCoefficient`…) in one run and reports the ZENITH colour — the part that should be bluest. Finds the dome by looking for a material carrying a `rayleigh` uniform, so it needs no pose or defId. `SWEEP='rayleigh=1;rayleigh=3,turbidity=3'`. |
 | `snv-response.mjs` | TONE-CALIBRATION guard: the mean RENDERED RGB of a masked SNV floor under each tone operator, plus the peak-normalised per-channel response and how far it drifts. Run before any lighting or tone-mapping change, since the five SNV swatches were solved against that response. |
+| `bath-tile-size.mjs` | What resolution a WALL is actually drawn at: walks to each wet room, raycasts the walls and reads the map off `hit.object.material`, labelled by TEXTURE uuid against the cache's own builds. Use whenever a cache lookup and the picture disagree. |
+| `floor-look.mjs` | The same for FLOORS — pitches the eye down (`__walkLook.setPitch`) in each room, since a 1.6 m eye at yaw-only never hits one. |
+| `stale-gen.mjs` | WHICH textures change size across a tier change, named by def rather than bucketed by size — labels every bound texture against both `@512` and `@256` cache generations and diffs the two tiers. |
+| `plan-shadow-texel.mjs` | Per-plan shadow-map size and world texel for every `PLAN_TEMPLATES` entry, plus synthetic large plans. Module math only, no rendering — the cheap way to find out whether a regime is reachable in shipped content at all. |
+| `plan-swap-rehome.mjs` | How much furniture is left outside every room after a plan swap, using the app's own `itemFootprint`. Reports a BASELINE arm so the count has scale. |
+| `hq-tone.mjs` | The HQ path-traced still vs the viewport's view transform, as two arms in one run (shipped policy vs forced `filmic`). Prints resolved tone + exposure + achieved samples. |
+| `window-hours.mjs` | What the exterior looks like through a window across the clock — one plan-derived window pose, fixtures opened once, only the hour varying. |
+| `tile-breakup.mjs` | A pro-flag A/B done correctly: both arms in Pro, one flag varied via `?ff=`, applied BEFORE boot because the floor bakes it. Prints `uiMode` + the flag's resolved value. |
+| `reveal-step.mjs` | The wall-reveal opacity STEP across every shared corner, from the app's own `getWallOpacity` / `getWallOwnStrength` / `cornerNeighbors`, with `toward` per wall. |
+| `light-units.mjs` | Live census of every light (type, intensity, decay) at day and night plus `toneMappingExposure` — the units sanity check before comparing anything to a real fixture. |
+| `fade-clone.mjs` | Every mid-fade material at boot framing / mid-drag / after a drag, labelled by texture uuid — for "is this clone stale?". |
 
 **`setManualHour(h)` is not a side-effect-free redraw nudge.** Probes use it to force a frame
 under `frameloop="demand"`, but it also switches `timeMode` to manual and jumps the scene to
@@ -308,6 +319,54 @@ GPU-session gotchas (2026-07-11 sweep):
   to clear long-frame holds, and a store nudge (e.g. `setManualHour`) after each edge so
   demand-mode frames pump and the controller's rAF decision loop actually runs. Guard scenario:
   `scripts/scenarios/interactive-dpr-seamless.json` (assert every resize `sameTask: true`).
+
+## When a probe reports ZERO, suspect the probe first (the false-zero family)
+
+A zero is the easiest number to believe and the easiest to fake. Four of these cost real time
+in the 2026-08-29 graphics-realism run; in three of them the FRAME showed the opposite and was
+what caught it. Symptom-first:
+
+| Symptom | Cause | Check |
+| --- | --- | --- |
+| Census returns 0 while the frame plainly shows the thing | Read a field that does not exist. Items are `position: [x, z]` (**not** `it.x`/`it.z`), and there is **no `st.catalog`** — build it with `buildMergedCatalog({userFurniture, resolvedRemoteFurniture, packFurniture})`. A `if (!def) continue` guard then skips every item and the loop body never runs. | Read the TYPE/store shape first; validate the metric on a case where it MUST be non-zero (the default flat scores 2/7, not 0). |
+| HQ still comes back fully transparent, all four channels 0 | `createHqRenderSession` does **not** auto-start — `session.start()` kicks the rAF accumulation. Without it `samples` stays 0 and `toDataURL()` returns an empty canvas that mimics PT-BLANK-GUARD's driver failure, with no error raised. | Assert `session.samples` advanced before reading a pixel. |
+| Ray mask finds 0 "outside" pixels through a window | `Sky.tsx` mounts the dome as a REAL scene object, so no ray ever escapes — it always terminates on the dome. Window glass also reads as opaque to a naive `transparent && opacity < 0.9` test. | Treat a dome hit as "sees outside", or stop rewriting the classifier and measure the picture. |
+| Every window reports 0 exterior pixels | Not a bug: **the default flat ships with its curtains DRAWN.** | Check the app's own default before calling a featureless frame a broken pose. |
+
+**A blank/empty/zero result is a broken CALL before it is a broken system.** Print the arm's own
+state (`uiMode=pro tileBreakup=false`, `samples=24`, `tier=medium`) next to the number, so a run
+that measured nothing is visibly distinguishable from a run that measured zero.
+
+## Flag and bake ORDER decide whether an A/B measures anything
+
+- **Simple mode beats a dev override.** `resolveFlags` returns false on the
+  `tier === 'pro' && uiMode === 'simple'` branch *before* the override branch, so `?ff=<flag>:on`
+  is inert in Simple. Both arms of a pro-flag comparison must run in **Pro**, varying only that
+  flag.
+- **A flag a material BAKES must be set before boot.** Floors read `tileBreakup` through
+  `isFeatureEnabled` when they build; toggling it at runtime leaves the already-built floor
+  stale, so the A/B compares an object with itself. Set it in the URL / `evaluateOnNewDocument`
+  and confirm the resolved value in-page.
+- **Check the UNITS before comparing to the real world.** The lighting rig is RELATIVE, not
+  photometric — the sun is a `DirectionalLight` at **0.999** where a physical midday sun is
+  ~100,000 lux, and fixture point lights run at 2.6–9, nine times the sun's number. Comparing a
+  9 to a real 800 lm bulb's ~64 cd would have multiplied the whole emitter table and blown out
+  every night interior. `light-units.mjs` prints the census.
+
+## Editing probes without measuring the old file
+
+- **Never background a compound command whose first part is a Python edit.** If the edit throws,
+  the traceback goes to the task log unseen and the rest of the chain runs the UNCHANGED file —
+  you measure the old code believing the edit landed. Edit in the foreground, `grep` to confirm,
+  then launch.
+- **Biome reformats what you write, so a second edit anchored on your own earlier text silently
+  misses** (it collapses multi-line `console.log`s and re-wraps blocks). Re-grep the ACTUAL
+  current text before the next anchor, and after a multi-part edit grep for both the new
+  identifiers (present?) and the old ones (gone?) — a half-applied edit produced a
+  `ReferenceError` for a variable its other half was meant to declare.
+- **Slice copied probe boilerplate AFTER `page`/`browser` exist.** Cutting at the first
+  `const OUT`/`const HOUR` drops the browser setup and the probe dies with "page is not defined";
+  then grep the copy for a duplicate `const OUT` or a stray `fs.mkdirSync(OUT)` it dragged along.
 
 ## Phone probes must BOOT as the device, or they silently measure a desktop
 

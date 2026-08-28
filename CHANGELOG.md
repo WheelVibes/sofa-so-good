@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.48 — fold the graphics-realism run's probe traps into the playbook (docs)
+
+Ten rounds of auditing accumulated harness knowledge that lived only in commit messages, so
+the next session would have paid for it again. `docs/visual-verification-playbook.md` is the
+documented home for exactly this. Added, symptom-first and deduplicated against what the
+playbook already said:
+
+- **"When a probe reports ZERO, suspect the probe first"** — the false-zero family as a
+  symptom→cause→check table. A census reading a field that does not exist (items are
+  `position: [x, z]`, there is no `st.catalog`) returns 0 while the frame shows the opposite;
+  `createHqRenderSession` without `session.start()` yields an all-zero transparent canvas that
+  mimics PT-BLANK-GUARD's driver failure with no error; a ray mask finds no "outside" pixels
+  because the sky dome is a real scene object so no ray escapes, and glass reads as opaque to a
+  naive transparency test; and every window reporting zero is simply the flat shipping with its
+  curtains drawn. The standing rule: print the arm's own state next to the number, so a run that
+  measured NOTHING is distinguishable from one that measured zero.
+- **"Flag and bake ORDER decide whether an A/B measures anything"** — Simple mode beats a dev
+  override (`?ff=` is inert in Simple, so both arms must run in Pro); a flag a material bakes
+  must be set before boot or the comparison is an object against itself; and check the UNITS
+  before comparing to the real world (the rig is relative — sun at 0.999 vs a physical
+  ~100,000 lux).
+- **"Editing probes without measuring the old file"** — never background a compound command
+  whose first part is a Python edit (a thrown edit's traceback goes to the task log unseen while
+  the chain runs the unchanged file); biome reformats, so a second anchor on your own earlier
+  text silently misses; slice copied probe heads after `page`/`browser` exist.
+
+Also indexed the 11 durable probes this run produced (`bath-tile-size`, `floor-look`,
+`stale-gen`, `plan-shadow-texel`, `plan-swap-rehome`, `hq-tone`, `window-hours`, `tile-breakup`,
+`reveal-step`, `light-units`, `fade-clone`) in the existing probe table.
+
+
 ## v0.31.5.47 — emitter intensities are RELATIVE, not candela (comment fix + probe)
 
 FIXTURE-NEARFIELD-REFUTED closed the falloff-shape question by arithmetic and named the
