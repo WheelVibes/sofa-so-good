@@ -351,6 +351,47 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   frame 21.9 → **16.8 ms**, i.e. back inside the 16.67 ms budget instead of over it; High 8.1/8.9 →
   8.1/8.7 (it only went 2048 → 1024, so a smaller win); Performance and Medium unchanged as
   expected. All four tiers now hold ~59.8 drawn frames/s.
+  · **The scaling half of this rule is UNREACHABLE in shipped content — measured, so do
+    not go looking for a big-plan regression in the starter plans (v0.31.5.42).** The
+    justification above is all from the default 4-room flat, and the obvious worry was that
+    a large plan (Executive / 3Gen / Jumbo / Maisonette, condo penthouse, landed terrace)
+    scales up to its tier ceiling into a regime nothing had looked at. Running **all 19
+    `PLAN_TEMPLATES`** through the app's own `shadowFrustumForPlan` +
+    `shadowMapSizeForExtent` (`scripts/dev-probes/plan-shadow-texel.mjs`, module math only,
+    no rendering): **every one resolves to 1024 at every tier, 18.6–18.8 mm/texel** — inside
+    the 20 mm target. `wanted = 2*halfExtent / 0.02`, so 1024 is left only above halfExtent
+    **10.24 m**, i.e. a plan spanning ~15.5 m; the largest shipped plan is `tpl-hdb-jumbo` at
+    **14.2 x 13.0 m**, and 18 of the 19 sit BELOW the `MIN_HALF` 9.5 floor and are clamped up
+    to it. So `high`/`maximum`'s 2048/4096 ceilings are dead weight for shipped content —
+    which is exactly why SHADOW-TEXEL's measured saving was so large (Maximum dropped
+    4096 -> 1024 on the default flat).
+    · **18 identical readings looked like meta-rule (xxv) and were not.** Every plan
+      reporting the same 9.50 is the signature of a variable never reaching the system, so
+      the raw bounds were dumped before drawing any conclusion: they are correct and
+      plan-specific (each span matches that plan's declared `extent` minus wall thickness).
+      The plans really are all that small. Check the bounds before filing the bug.
+  · **The tier CEILING silently defeats the texel target on a large CUSTOM plan, and that is
+    by design but was never stated.** Only a user-drawn plan can reach the scaling regime;
+    synthetic square plans through the same two pure functions give:
+
+    | plan span | halfExtent | medium        | high         | maximum      |
+    | --------- | ---------- | ------------- | ------------ | ------------ |
+    | 16 m      | 10.5       | 1024/20.5 mm  | 2048/10.3 mm | 2048/10.3 mm |
+    | 30 m      | 17.5       | 1024/34.2 mm  | 2048/17.1 mm | 2048/17.1 mm |
+    | 40 m      | 22.5       | 1024/43.9 mm  | 2048/22.0 mm | 4096/11.0 mm |
+    | 90 m      | 40.0 (cap) | 1024/**78.1 mm** | 2048/39.1 mm | 4096/19.5 mm |
+
+    At `maximum` the target holds everywhere (10.3–19.5 mm) right up to the `MAX_HALF` 40 m
+    cap — the design works where it has the resolution to work. At `medium`, whose 1024
+    ceiling cannot scale, a 90 m custom plan gets **78 mm/texel, 3.9x the target**. That is
+    the documented meaning of `tierMax` ("a tier can still cap the spend") and the right
+    trade — letting Medium allocate 4096 would blow the frame budget on exactly the hardware
+    the cap exists for — but Medium is what the adaptive ladder auto-selects for most
+    browsers, so the consequence is worth knowing before anyone quotes "~20 mm everywhere".
+    Nothing was changed: no shipped plan reaches it, and the alternative is worse.
+    Note the density is deliberately SAWTOOTHED, not monotonic, because the size rounds up to
+    a power of two — a 40 m plan at maximum (4096/11.0 mm) is finer than a 30 m one
+    (2048/17.1 mm). That is the clamp working, not a bug.
 - **Surface materials are NOT broken — measured, don't re-audit (MATERIAL-AUDIT).**
   `scripts/dev-probes/material-audit.mjs` walks the live scene graph and reports which PBR maps are
   actually bound, classified GEOMETRICALLY (r3f meshes carry no `name`, so a name-based classifier

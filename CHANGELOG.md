@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.42 — SHADOW-TEXEL's scaling regime is unreachable in shipped content (docs + probe)
+
+SHADOW-TEXEL targets a constant ~20 mm world-space shadow texel over the plan-fitted
+frustum instead of a literal per-tier `shadowMapSize`, and every number justifying it was
+measured on the default 4-room flat. The open question was what happens on a LARGE plan,
+which the note says scales up to its tier ceiling. Answer: **no shipped plan gets there.**
+
+`dev-probes/plan-shadow-texel.mjs` runs all 19 `PLAN_TEMPLATES` through the app's own
+`shadowFrustumForPlan` + `shadowMapSizeForExtent` (module math, no rendering). Every one
+resolves to **1024 at every tier, 18.6–18.8 mm/texel**, inside the target. 1024 is left only
+above halfExtent 10.24 m — a plan spanning ~15.5 m — and the largest shipped plan
+(`tpl-hdb-jumbo`) is 14.2 × 13.0 m, with 18 of 19 clamped UP to the `MIN_HALF` 9.5 floor.
+So the 2048/4096 ceilings are dead weight for shipped content, which is why SHADOW-TEXEL's
+measured saving was so large in the first place.
+
+No code changed — a fix that moves no metric does not ship.
+
+Two things recorded that were not obvious:
+
+- **18 identical readings looked like a bug and were not.** Every plan reporting the same
+  9.50 half-extent is the classic signature of a variable never reaching the system, so the
+  raw bounds were dumped before concluding: they are correct and plan-specific (each span
+  matches that plan's declared extent minus wall thickness). The plans really are that small.
+
+- **The tier ceiling silently defeats the texel target on a large CUSTOM plan.** Only a
+  user-drawn plan reaches the scaling regime. At `maximum` the target holds everywhere
+  (10.3–19.5 mm) up to the 40 m `MAX_HALF` cap. At `medium`, whose 1024 ceiling cannot scale,
+  a 90 m custom plan gets **78 mm/texel — 3.9× the target**. That is the documented meaning
+  of `tierMax` and the right trade (letting Medium allocate 4096 would blow the frame budget
+  on the hardware the cap exists for), but Medium is what the adaptive ladder auto-selects
+  for most browsers, so it is worth knowing before anyone quotes "~20 mm everywhere".
+
+
 ## v0.31.5.41 — HQ-TONE-MATCH verified by a rendered A/B (docs + probe, no behaviour change)
 
 v0.31.5.36 stopped the HQ path-traced still hardcoding ACES Filmic + exposure 1 and routed
