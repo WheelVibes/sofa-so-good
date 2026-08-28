@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.28 — rotating a phone no longer clips the flat
+
+ASPECT-REFRAME. The first render-visible fix since v0.31.5.20.
+
+`OrbitCamera` framed the dollhouse once on attach and read the viewport size
+point-in-time rather than as a dependency, so nothing re-fitted when the viewport
+changed. Portrait -> landscape was harmless (the flat just got smaller); landscape ->
+portrait CLIPPED it, because the landscape fit solves the vertical FOV at ~2.6r while
+portrait needs ~5.3r for the narrower horizontal FOV. Measured with the new
+`scripts/dev-probes/phone-view.mjs` — frame at 844x390, rotate to 390x844, camera
+untouched — the plan spanned **191.1% of the viewport width**, with whole rooms cut off
+both edges in the captured frame. Rotating a phone is the everyday way to hit it.
+
+The framing body is now a `frameNow(force)` callback shared by the attach effect and a
+new `size`-keyed effect, with `framedRef` remembering the aspect solved for and the pose
+produced. Two pure, unit-tested predicates in `cameras/frameSelection.ts` gate the re-fit,
+and both guards matter: `aspectChangedMaterially` keys on a RATIO (1.2) rather than a
+pixel delta, so a continuous window drag never re-frames while a rotation (a 4.7x change)
+always does; and `poseIsStillFramed` requires the camera to be exactly where auto-framing
+left it (5 cm), so a deliberate zoom or pan is never yanked away — being pulled out of
+your own zoom on rotate would be worse than the clipping.
+
+Verified on a real GPU: rotated portrait **191.1% -> 91.5% w x 26.2% h**, identical to a
+fresh load at 390x844, with the whole flat visible and margins both sides. 320x568 also
+improved (75.1% -> 91.2% w — it had been holding the stale 390 framing), 390x844 is
+unchanged, and the desktop 1280x800 control is unchanged at 55.2% w x 55.9% h.
+
+Two adjacent theories were measured and REJECTED rather than shipped: the bounding-sphere
+fit is not wasteful (at 390x844 the flat already fills 91.5% of the width; the ~26% height
+is inherent to a wide, shallow plan on a 0.46-aspect screen, and zooming in would crop the
+plan), and the phone pixel budget is fine (DPR correctly clamped 3 -> 1.5 by medium's
+`dprMax`, a 0.74 Mpx buffer against the 2.3 Mpx desktop frame).
+
 ## v0.31.5.27 — the profiler measures throughput, not frame budget: question closed
 
 PROFILER-THROUGHPUT-NOT-BUDGET. No code change; a new probe and a settled answer.

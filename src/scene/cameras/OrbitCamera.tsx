@@ -1,6 +1,6 @@
 import { OrthographicCamera as DreiOrthographicCamera, OrbitControls } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { MOUSE, OrthographicCamera, PerspectiveCamera, TOUCH, Vector3 } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../../apartment/constants'
@@ -14,7 +14,13 @@ import { beginCameraGesture, endCameraGesture } from '../cameraMotionSignal'
 import { getRoomEditorShell } from '../roomEditorShell'
 import { cameraPose } from './cameraForward'
 import { flyDurationFor, flyPose, smoothstep as smooth } from './cameraTween'
-import { clampOrbitDistance, FRAME_MARGIN, fitDistanceForFov } from './frameSelection'
+import {
+  aspectChangedMaterially,
+  clampOrbitDistance,
+  FRAME_MARGIN,
+  fitDistanceForFov,
+  poseIsStillFramed,
+} from './frameSelection'
 import { orthoZoomForPerspective, perspectiveDistanceForOrthoZoom } from './orthoProjection'
 import { computeVerticalLock } from './verticalLock'
 import { VIEW_TOUR_LEG_SECONDS, type ViewTourFrame, viewTourFrames } from './viewTour'
@@ -182,51 +188,102 @@ export function OrbitCamera() {
   // plan edit never yanks the camera; always runs in a perspective context
   // (ortho is gated off in the room editor, and the first overview frame happens
   // at boot before any toggle).
-  const framedRef = useRef<{ done: boolean; room: string | null }>({ done: false, room: null })
-  // biome-ignore lint/correctness/useExhaustiveDependencies: frames only on first attach / room switch; viewport-size reads are point-in-time, not deps.
+  const framedRef = useRef<{
+    done: boolean
+    room: string | null
+    /** Aspect the current framing was solved for, and the pose it produced —
+     *  both needed to decide whether a later resize should re-fit (ASPECT-REFRAME). */
+    aspect: number
+    pos: [number, number, number] | null
+    target: [number, number, number] | null
+  }>({ done: false, room: null, aspect: 0, pos: null, target: null })
+  const frameNow = useCallback(
+    (force = false) => {
+      const c = controlsRef.current ?? attachedControls
+      if (!c) return
+      const room = roomEditorId ?? null
+      if (!force && framedRef.current.done && framedRef.current.room === room) return
+      const cam = cameraRef.current
+      const heightPx = gl.domElement.clientHeight || 1
+      const widthPx = gl.domElement.clientWidth || 1
+      const fovRad = ((perspCamRef.current?.fov ?? REF_FOV_DEG) * Math.PI) / 180
+      const aspect = widthPx / heightPx
+      const plan = useStore.getState().floorPlan
+      if (room) {
+        const editorShell = getRoomEditorShell(plan, room)
+        if (!editorShell) return
+        const [cx, cz] = editorShell.shell.center
+        const r = Math.max(editorShell.shell.radius, 1.5)
+        // Orbit pivots about the room's true 3D centre (footprint centre at
+        // mid-wall height), so the room sits centred on screen and the turntable
+        // spins around it rather than a floor-level point that biases it high.
+        const midH = APPROX_WALL_H / 2
+        c.target.set(cx, midH, cz)
+        // Fit the whole room (footprint + wall height) to the viewport so it fills
+        // the dollhouse view on load — aspect-aware (portrait phones fit to width),
+        // with a small margin so it isn't edge-to-edge.
+        const radius = Math.hypot(r, midH) * 1.04
+        const dist = fitDistance(radius, fovRad, aspect)
+        const inv = 1 / Math.hypot(0.82, 0.6, 0.82)
+        cam.position.set(cx + 0.82 * inv * dist, midH + 0.6 * inv * dist, cz + 0.82 * inv * dist)
+        c.update()
+        framedRef.current = {
+          done: true,
+          room,
+          aspect,
+          pos: cam.position.toArray() as [number, number, number],
+          target: c.target.toArray() as [number, number, number],
+        }
+        return
+      }
+      // Dollhouse overview framed to fit the active plan in the current viewport.
+      const { pos, target } = dollhouseFraming(plan, fovRad, aspect)
+      cam.position.set(...pos)
+      c.target.set(...target)
+      c.update()
+      // If we booted straight into (or exited a room back into) parallel
+      // projection, translate this framing distance into the ortho zoom — the
+      // ortho camera ignores distance, so without this the persisted-ortho boot
+      // would keep its seed zoom instead of fitting the flat.
+      applyOrthoZoom.current(pos, target)
+      framedRef.current = {
+        done: true,
+        room,
+        aspect,
+        pos: cam.position.toArray() as [number, number, number],
+        target: c.target.toArray() as [number, number, number],
+      }
+    },
+    [roomEditorId, attachedControls, gl],
+  )
+
+  useEffect(() => {
+    frameNow()
+  }, [frameNow])
+
+  /**
+   * ASPECT-REFRAME. The framing above solves for the viewport it ran in and never
+   * re-runs on resize, which CLIPS the flat on a phone rotation: framed at 844x390
+   * then rotated to 390x844, the plan spanned 191% of the viewport width with whole
+   * rooms cut off both edges (`scripts/dev-probes/phone-view.mjs`). Re-fit — but only
+   * when BOTH hold, or the cure is worse than the disease:
+   *   · the aspect changed MATERIALLY (a ratio, not a pixel — a window drag fires
+   *     continuously and must not re-frame), and
+   *   · the camera is still exactly where auto-framing put it, so a deliberate zoom
+   *     or pan is never yanked away. Any user gesture disqualifies the re-fit until
+   *     the next explicit frame request.
+   */
+  const size = useThree((s) => s.size)
   useEffect(() => {
     const c = controlsRef.current ?? attachedControls
-    if (!c) return
-    const room = roomEditorId ?? null
-    if (framedRef.current.done && framedRef.current.room === room) return
-    framedRef.current = { done: true, room }
     const cam = cameraRef.current
-    const heightPx = gl.domElement.clientHeight || 1
-    const widthPx = gl.domElement.clientWidth || 1
-    const fovRad = ((perspCamRef.current?.fov ?? REF_FOV_DEG) * Math.PI) / 180
-    const aspect = widthPx / heightPx
-    const plan = useStore.getState().floorPlan
-    if (room) {
-      const editorShell = getRoomEditorShell(plan, room)
-      if (!editorShell) return
-      const [cx, cz] = editorShell.shell.center
-      const r = Math.max(editorShell.shell.radius, 1.5)
-      // Orbit pivots about the room's true 3D centre (footprint centre at
-      // mid-wall height), so the room sits centred on screen and the turntable
-      // spins around it rather than a floor-level point that biases it high.
-      const midH = APPROX_WALL_H / 2
-      c.target.set(cx, midH, cz)
-      // Fit the whole room (footprint + wall height) to the viewport so it fills
-      // the dollhouse view on load — aspect-aware (portrait phones fit to width),
-      // with a small margin so it isn't edge-to-edge.
-      const radius = Math.hypot(r, midH) * 1.04
-      const dist = fitDistance(radius, fovRad, aspect)
-      const inv = 1 / Math.hypot(0.82, 0.6, 0.82)
-      cam.position.set(cx + 0.82 * inv * dist, midH + 0.6 * inv * dist, cz + 0.82 * inv * dist)
-      c.update()
-      return
-    }
-    // Dollhouse overview framed to fit the active plan in the current viewport.
-    const { pos, target } = dollhouseFraming(plan, fovRad, aspect)
-    cam.position.set(...pos)
-    c.target.set(...target)
-    c.update()
-    // If we booted straight into (or exited a room back into) parallel
-    // projection, translate this framing distance into the ortho zoom — the
-    // ortho camera ignores distance, so without this the persisted-ortho boot
-    // would keep its seed zoom instead of fitting the flat.
-    applyOrthoZoom.current(pos, target)
-  }, [roomEditorId, attachedControls])
+    const f = framedRef.current
+    if (!c || !cam || !f.done || !f.pos || !f.target) return
+    const aspect = (size.width || 1) / (size.height || 1)
+    if (!aspectChangedMaterially(f.aspect, aspect)) return
+    if (!poseIsStillFramed(cam.position.toArray(), c.target.toArray(), f.pos, f.target)) return
+    frameNow(true)
+  }, [size, frameNow, attachedControls])
 
   // Projection-swap continuity (R3-FEAT-3). drei's <OrbitControls> re-creates its
   // internal controls instance whenever the default camera changes (its useMemo

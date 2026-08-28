@@ -870,6 +870,35 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `transparent`), keep parts from intersecting, and orbit to a side/profile angle to confirm
   contact (top-down hides float/sink). Visually verify per the playbook — green tests are
   not proof the render is right.
+- **The dollhouse RE-FITS on a material aspect change (ASPECT-REFRAME).** `OrbitCamera`'s
+  framing effect frames once on first attach / room switch and read the viewport size
+  point-in-time rather than as a dependency, so nothing re-fitted when the viewport changed.
+  Portrait -> landscape that is harmless (the flat just gets smaller), but landscape ->
+  portrait CLIPS it: the landscape fit solves the vertical FOV at ~2.6r while portrait needs
+  ~5.3r for the narrower horizontal FOV. Measured with `scripts/dev-probes/phone-view.mjs`
+  (frame at 844x390, rotate to 390x844, camera untouched): the plan spanned **191.1% of the
+  viewport width**, and the frame shows whole rooms cut off BOTH edges. A phone rotation is
+  the everyday way to hit this.
+  The framing body is now a `frameNow(force)` callback shared by the original attach effect
+  and a new `size`-keyed effect, and `framedRef` remembers the aspect it solved for plus the
+  pose it produced. The re-fit fires only when BOTH hold, and both guards matter:
+  · `aspectChangedMaterially` (pure, `frameSelection.ts`) gates on a RATIO (1.2), not a pixel
+    delta — a window drag fires continuously and must never re-frame, while a rotation is a
+    4.7x change.
+  · `poseIsStillFramed` (pure) requires the camera to be exactly where auto-framing left it
+    (5 cm), so a deliberate zoom or pan is NEVER yanked away. Any user gesture disqualifies
+    the re-fit until the next explicit frame request — being pulled out of your own zoom on
+    rotate would be worse than the clipping this fixes.
+  Verified: rotated portrait went **191.1% -> 91.5% w x 26.2% h**, identical to a fresh load
+  at 390x844 (so the re-fit reproduces native framing, it doesn't approximate it), with the
+  whole flat visible and margins both sides. 320x568 also improved (75.1% -> 91.2% w — it had
+  been holding the stale 390 framing), 390x844 is unchanged, and desktop 1280x800 is unchanged
+  at 55.2% w x 55.9% h.
+  **Two things this is NOT, both measured, so don't re-file them:** the sphere fit is not
+  wasteful (at 390x844 the flat already fills 91.5% of the width; the ~26% height is inherent
+  to a wide, shallow plan on a 0.46-aspect screen and zooming in would CROP the plan), and the
+  phone pixel budget is fine (DPR is correctly clamped 3 -> 1.5 by medium's `dprMax`, giving a
+  0.74 Mpx buffer — smaller than the 2.3 Mpx desktop frame).
 - **Every new orbit-camera retarget reuses the shared `startFly` tween, never a raw
   `camera.position.set`/`controls.update()` snap.** `OrbitCamera.tsx` funnels saved view,
   double-click focus, top-down, reset/home, and frame-selection (FEAT-A, `Z` — `scene/cameras/

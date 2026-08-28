@@ -86,6 +86,61 @@ export function fitDistanceForFov(radius: number, vFovRad: number, aspect: numbe
   return radius / Math.max(0.1, Math.sin(fov / 2))
 }
 
+/**
+ * ASPECT-REFRAME — when a viewport change is big enough to need a re-fit.
+ *
+ * `OrbitCamera` frames the dollhouse once on attach and reads the viewport size
+ * point-in-time, not as a dependency, so nothing re-fits when the viewport changes.
+ * Going portrait -> landscape that is harmless (the flat just gets smaller), but
+ * landscape -> portrait CLIPS it: the landscape fit solves the vertical FOV at ~2.6r
+ * while portrait needs ~5.3r for the narrower horizontal FOV. Measured on a phone
+ * rotation (844x390 framed, then rotated to 390x844 with the camera untouched) the flat
+ * spanned **191% of the viewport width** — whole rooms cut off both edges.
+ *
+ * A resize handler must not be hair-trigger: a browser window drag fires continuously,
+ * and re-framing on every pixel would fight the user. This gates on a RATIO so only a
+ * material change qualifies — a phone rotation (0.46 -> 2.16, a 4.7x change) always does,
+ * a few pixels of window drag never does.
+ */
+export const REFIT_ASPECT_RATIO = 1.2
+
+/** Did the aspect change enough to be worth re-fitting? Symmetric in the two
+ *  arguments, so widening and narrowing are treated alike. */
+export function aspectChangedMaterially(
+  prev: number,
+  next: number,
+  ratio = REFIT_ASPECT_RATIO,
+): boolean {
+  if (!Number.isFinite(prev) || !Number.isFinite(next)) return false
+  if (prev <= 0 || next <= 0) return false
+  const r = prev > next ? prev / next : next / prev
+  return r >= ratio
+}
+
+/**
+ * Tolerance (in metres) within which the live camera pose still counts as the one
+ * the auto-framing last set. Re-fitting is only safe while the user has NOT moved
+ * the camera — otherwise a rotation would yank away a deliberate zoom or pan, which
+ * is worse than the clipping it fixes.
+ */
+export const REFIT_POSE_EPS_M = 0.05
+
+/** Is the live pose still (within {@link REFIT_POSE_EPS_M}) the one auto-framing set?
+ *  Compares position and target as flat [x,y,z] triples so this stays three.js-free. */
+export function poseIsStillFramed(
+  livePos: readonly number[],
+  liveTarget: readonly number[],
+  framedPos: readonly number[],
+  framedTarget: readonly number[],
+  eps = REFIT_POSE_EPS_M,
+): boolean {
+  const near = (a: readonly number[], b: readonly number[]) =>
+    a.length === 3 &&
+    b.length === 3 &&
+    a.every((v, i) => Number.isFinite(v) && Number.isFinite(b[i]) && Math.abs(v - b[i]) <= eps)
+  return near(livePos, framedPos) && near(liveTarget, framedTarget)
+}
+
 /** Mirrors the `<OrbitControls minDistance/maxDistance>` props in
  *  `OrbitCamera.tsx` — a frame request must never ask for a distance the
  *  controls would immediately clamp away from right after the fly lands. */
