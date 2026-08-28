@@ -108,7 +108,7 @@ describe('PlanInspector — multi-wall selection: bulk Structure', () => {
 
   function selectTwoWalls() {
     const s = useStore.getState()
-    s.newFloorPlan('G7 bulk demo')
+    s.newFloorPlan({ name: 'G7 bulk demo', shell: true })
     s.setFloorPlan({
       ...useStore.getState().floorPlan,
       walls: [

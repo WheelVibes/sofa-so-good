@@ -7,28 +7,34 @@ describe('COST_SWEEP', () => {
     expect(keys).toContain('shadowMapSize')
     expect(keys).toContain('postprocessing')
     expect(keys).toContain('ibl')
-    expect(keys).toContain('maxFixtureLights')
     expect(keys).toContain('dprMax')
+    // Fixture lights multiply per-fragment lighting maths, so they have to be
+    // measurable — they are a store switch, not a quality preset setting.
+    expect(keys).toContain('fixtureLights')
   })
-  it('disables shadows/lights by dropping them to 0', () => {
-    expect(COST_SWEEP.find((s) => s.key === 'shadowMapSize')?.disabledValue).toBe(0)
-    expect(COST_SWEEP.find((s) => s.key === 'maxFixtureLights')?.disabledValue).toBe(0)
-    expect(COST_SWEEP.find((s) => s.key === 'postprocessing')?.disabledValue).toBe(false)
+  it('disables shadows by dropping them to 0, effects by false', () => {
+    expect(COST_SWEEP.find((s) => s.key === 'shadowMapSize')?.quality?.value).toBe(0)
+    expect(COST_SWEEP.find((s) => s.key === 'postprocessing')?.quality?.value).toBe(false)
+  })
+  it('disables fixture lights with a store patch, not a quality override', () => {
+    const step = COST_SWEEP.find((s) => s.key === 'fixtureLights')
+    expect(step?.quality).toBeUndefined()
+    expect(step?.store).toEqual({ lightsMode: 'off' })
   })
 })
 
 describe('runSweep', () => {
   const steps: SweepStep[] = [
-    { key: 'postprocessing', label: 'Post', disabledValue: false },
-    { key: 'ibl', label: 'IBL', disabledValue: false },
+    { key: 'postprocessing', label: 'Post', quality: { key: 'postprocessing', value: false } },
+    { key: 'ibl', label: 'IBL', quality: { key: 'ibl', value: false } },
   ]
 
   it('ranks effects by frame-time saved, computes deltas + fps gain', async () => {
     // Baseline 20ms/frame (50fps). Disabling Post → 10ms (100fps); IBL → 18ms.
-    const measure = vi.fn(async (override?: { key: string }) => {
-      if (!override) return 20
-      if (override.key === 'postprocessing') return 10
-      if (override.key === 'ibl') return 18
+    const measure = vi.fn(async (step?: SweepStep) => {
+      if (!step) return 20
+      if (step.key === 'postprocessing') return 10
+      if (step.key === 'ibl') return 18
       return 20
     })
     const out = await runSweep(steps, measure)

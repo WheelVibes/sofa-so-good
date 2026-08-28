@@ -23,7 +23,7 @@ function s() {
  *  them (so collision checks only see item-item overlap). Returns their ids. */
 function placeAndMarquee(n: number): string[] {
   const a = useStore.getState()
-  a.newFloorPlan('Align test')
+  a.newFloorPlan({ name: 'Align test', shell: true })
   a.setFloorPlan({ ...useStore.getState().floorPlan, walls: [], openings: [], rooms: [] })
   a.setItems([])
   const ids: string[] = []

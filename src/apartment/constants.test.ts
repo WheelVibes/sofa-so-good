@@ -17,15 +17,24 @@ describe('apartment constants', () => {
     // legitimate further loss (~2.37 m², mostly the household shelter, now
     // correctly modeled at 300 mm RC on all four sides), landing the honest
     // rect sum at ≈87.8 m² (see apartment/constants.ts's INTERIOR_AREA_M2
-    // comment for the accounting).
+    // comment for the accounting). v0.30.3.2 drops a further ≈2.4 m²: that
+    // figure DOUBLE-COUNTED livingDining's declared overlap with bedroom3 + the
+    // corridor (~2.6 m², since redeclared as three exact non-overlapping
+    // parts), against ~0.3 m² of floor at the kitchen boundary that no room had
+    // claimed at all. ≈85.4 m² is the first honest interior total.
+    // Summed independently here (every declared part of every room) as the
+    // test's own fixture, rather than re-importing the code under test.
     const sum = Object.values(ROOMS)
       .filter((r) => !r.external)
-      .reduce((acc, r) => {
-        const main = r.width * r.depth
-        const ext = r.extension ? r.extension.width * r.extension.depth : 0
-        return acc + main + ext
-      }, 0)
-    expect(Math.abs(sum - 87.8)).toBeLessThan(0.5)
+      .reduce(
+        (acc, r) =>
+          acc + r.width * r.depth + (r.extensions ?? []).reduce((a, e) => a + e.width * e.depth, 0),
+        0,
+      )
+    expect(Math.abs(sum - 85.4)).toBeLessThan(0.5)
+    // No room's parts overlap each other, so the part sum equals the union area
+    // `INTERIOR_AREA_M2` reports (`roomGeometry.ts:roomFloorArea`, a shoelace
+    // over each room's outline).
     expect(Math.abs(INTERIOR_AREA_M2 - sum)).toBeLessThan(0.01)
   })
 

@@ -14,7 +14,7 @@ import { useStore } from '../state/store'
 import { DOORS, FLAT, WALLS } from './constants'
 import { bifoldLeafFrame } from './doorLeafGeometry'
 import type { DoorSpec, WallSpec } from './types'
-import { getWallOpacity } from './walls/wallReveal'
+import { getWallOpacity, isWallOverlayBranch, markWallOverlay } from './walls/wallReveal'
 
 const SWING_RAD = Math.PI / 2
 const SWING_SECONDS = 0.2
@@ -80,7 +80,7 @@ function SecurityGate({
   const barSpan = width - memberT * 2
 
   return (
-    <group position={[hingeLocalX, 0, gateZ]} ref={gateRef}>
+    <group position={[hingeLocalX, 0, gateZ]} ref={gateRef} userData={markWallOverlay()}>
       <group position={[(direction * width) / 2, height / 2, 0]}>
         {/* Outer frame: top/bottom rails + two stiles. */}
         <mesh position={[0, height / 2 - memberT / 2, 0]} material={gateMat} castShadow>
@@ -171,6 +171,15 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
       const changed = fading !== transparentRef.current
       transparentRef.current = fading
       root.traverse((o) => {
+        // A revealed wall shows the door's LEAF and FRAME only. The security
+        // gate (8 bars + 6 rails) and the handles are each another translucent
+        // layer composited over the wall behind them — the same stacking the
+        // wall's own overlays and the window's grille/mullions are culled for
+        // (see `markWallOverlay`). Tagged on the GROUP, so this test walks up.
+        if (isWallOverlayBranch(o)) {
+          o.visible = !fading
+          if (fading) return
+        }
         if (!(o instanceof Mesh)) return
         const m = o.material as MeshStandardMaterial
         m.transparent = fading
@@ -344,7 +353,10 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
           {/* Handle. */}
           {isFlush || isGlazed ? (
             /* Modern stainless lever on a rectangular rose, both faces. */
-            <group position={[direction * (spec.width - 0.08), height * 0.42, 0]}>
+            <group
+              position={[direction * (spec.width - 0.08), height * 0.42, 0]}
+              userData={markWallOverlay()}
+            >
               {[1, -1].map((face) => (
                 <group key={face} position={[0, 0, face * (leafThick / 2 + 0.002)]}>
                   <mesh castShadow>

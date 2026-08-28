@@ -31,7 +31,7 @@ function normalDef(): ParametricDef {
 /** Place a single item on a wall-less custom plan and return the live item. */
 function placeOne(defId: string): FurnitureItem {
   const s = useStore.getState()
-  s.newFloorPlan('Test plan')
+  s.newFloorPlan({ name: 'Test plan', shell: true })
   s.setFloorPlan({ ...useStore.getState().floorPlan, walls: [], openings: [], rooms: [] })
   s.setItems([])
   const id = s.addItem({ defId: defId as never, position: [0, 0], rotation: 0, props: {} })

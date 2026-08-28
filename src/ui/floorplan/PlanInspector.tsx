@@ -245,13 +245,15 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
             title={allLocked ? 'Unlock every selected wall' : 'Lock every selected wall'}
             onClick={() => a.setWallsLocked(wallSelIds, !allLocked, levelId)}
           />
+          {/* "Delete all" read as "delete everything in the plan"; it only ever
+              deleted the SELECTION (same as pressing Delete), so it says so. */}
           <ActBtn
-            label="Delete all"
+            label={`Delete ${wallSelIds.length} selected`}
             icon={<Icon.Trash width={16} height={16} />}
             danger
             title={
               lockedCount
-                ? `Delete the ${wallSelIds.length - lockedCount} unlocked walls (locked ones are kept)`
+                ? `Delete the ${wallSelIds.length - lockedCount} unlocked selected walls (locked ones are kept)`
                 : 'Delete every selected wall'
             }
             onClick={() => a.removeWalls(wallSelIds, levelId)}

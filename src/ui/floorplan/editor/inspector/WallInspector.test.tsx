@@ -7,7 +7,7 @@ import { STRUCTURE_OPTIONS, WallInspector } from './WallInspector'
 /** A single wall on a blank custom plan, selected for the inspector. */
 function placeWall(): string {
   const s = useStore.getState()
-  s.newFloorPlan('Test plan')
+  s.newFloorPlan({ name: 'Test plan', shell: true })
   s.setFloorPlan({
     ...useStore.getState().floorPlan,
     walls: [{ id: 'w1', start: [0, 0], end: [4, 0], thickness: 'internal' }],

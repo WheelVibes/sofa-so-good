@@ -136,6 +136,10 @@
    chevron is a bare <svg>, not an .icn, so it needs an explicit selector). */
 .onb-choice > div { flex: 1; min-width: 0; }
 .onb-choice > svg { flex: none; margin-left: auto; color: var(--text-3); }
+
+/* NewPlanModal: the line under the two choices that states what is destroyed.
+   Reading copy, so --lh-body; caption weight/colour from the type ladder. */
+.newplan-note { margin-top: var(--s-3); font-size: var(--t-xs); font-weight: 600; line-height: var(--lh-body); color: var(--text-3); }
 .onb-choice:hover > svg { color: var(--accent-soft-text); }
 
 /* ============================================================

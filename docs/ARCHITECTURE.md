@@ -126,6 +126,26 @@ same change that reshapes a system.
   `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` repo secrets). Full guide: `docs/deployment-cloudflare.md`.
 - `src/apartment/` — default flat. `constants.ts` = source of truth for walls/doors/
   windows/rooms. `walls/`, `floor/`, `Window`/`Door`/`Ceiling`/`Skirting`.
+  **A room may be ANY shape, and `roomGeometry.ts` is the only thing that resolves it.**
+  A `RoomDef` is a primary rect plus any number of `extensions` (each an offset rect —
+  an L needs one, the living/dining's east column + shelter-side strip + entrance foyer
+  needs two, there is no cap), or an explicit free-form `polygon` in absolute metres for a
+  shape no union of rectangles can describe. `apartment/roomGeometry.ts` is the ONE reader:
+  `roomParts` (non-overlapping rects — a rectilinear polygon is decomposed back into rects,
+  memoised per definition), `roomOutline` (the outline polygon), `roomBounds`,
+  `roomContains`, `roomFloorArea` (shoelace over the outline, so touching parts count once)
+  and `needsTriangulatedFloor` (a polygon with a diagonal edge → `RoomFloor`'s triangulated
+  branch instead of rect planes). Every consumer goes through it — `floor/Floor.tsx`,
+  `ceiling/Ceiling.tsx`, `roomShellGeometry.ts` (`roomShell`, the room editor),
+  `walls/wallRoomSides.ts`, `walls/WallSegment.tsx`'s interior probe, `apartment/rooms.ts`,
+  `layout/autoArrange.ts`, `scene/cameras/suggestViews.ts` — so a room's rendered footprint,
+  its highlighted footprint and its reported area are always the same shape. **Room
+  footprints must not overlap**; `roomGeometry.test.ts` asserts that, that no room overlaps
+  itself, and that no cell enclosed by the external walls lacks both a floor and a wall.
+  `floorplan/defaultPlan.ts` maps the shape into the `PlanRoom` vocabulary through one
+  function (`planRoomShapeOf`): a rect or single-extension L crosses as-is, anything richer
+  becomes a `PlanRoom.polygon`, so the hover highlight, room editor, area/perimeter, 2D plan,
+  minimap and walk teleport never see a truncated footprint.
   `doorLeafGeometry.ts` holds the pure multi-leaf placement maths shared by `Door.tsx` (curated
   flat) and `PlanDoorLeaf.tsx` (custom plans), so the two renderers can't drift: **a closed door
   must fully cover its opening** — `bifoldLeafFrame` puts the inner leaf a half-leaf BEYOND its
@@ -187,6 +207,24 @@ same change that reshapes a system.
   `wallBaseboard` flag, custom plans only). Furniture also supports multi-axis tilt (`pitch`/`roll`, `furniture/tiltRotation.ts`,
   `tiltFurniture` flag). `duplicateRoom.ts` (pure room clone — offset polygon + finishes + own boundary
   walls/openings, re-flowed names; powers the `floorPlanSlice.duplicateRoom` action). 2D editor = `ui/floorplan/`.
+  **Replacing the plan goes through ONE action: `floorPlanSlice.replaceFloorPlan(plan,
+  {furniture})`.** It snapshots history ONCE (so plan + furniture undo together), clears the plan
+  selection, prunes finishes (`pruneFinishesForPlan` — per-ROOM maps AND the per-FACE
+  `wallAccents`/`wallTex`, keyed `${wallId}:${roomId}`), and takes an explicit answer for the
+  furniture already placed: `'clear'` (New, apply a template — a different home, the old layout has
+  nothing to stand in) or `'rehome'` (reset to default, load a saved apartment — keep it and pull
+  anything now outside a room back inside via pure `floorplan/rehomeItems.ts`, shared with the load
+  path in `state/schema.ts`). Leaving furniture untouched is NOT an option: items are world-space
+  with no room back-pointer, which is how "Reset to HDB" used to strand a whole layout. `newFloorPlan
+  ({name, shell})` makes a TRULY empty plan (no walls/rooms; `shell: true` seeds a 5.4 × 4.4 m
+  starter room) and always clears furniture; `resetFloorPlan` and `loadSavedPlan` re-home. Bare
+  `setFloorPlan` is the low-level primitive for callers that already own history + furniture
+  (SH3D import, the AI-draft builder). **The user-facing wrappers all live in `ui/planActions.ts`**,
+  which owns the confirm copy for every destructive plan/furniture action so the desktop Plan menu,
+  its mobile sheet, the template picker, the plan library, the File menu, its mobile sheet and ⌘K
+  can't word (or guard) the same operation differently — gated by the `planReset` flag (simple tier)
+  where it appears outside the editor. "New apartment…" is the one that opens a chooser
+  (`ui/floorplan/NewPlanModal.tsx`) rather than a yes/no confirm, because it has two outcomes.
   `tiltFurniture` flag). `insetRoom.ts` (PARITY-ROOM-INSET, pure) — `insetPolygon(points, dist)`
   offsets every edge of a room polygon by a signed distance (dist>0 shrinks for a dropped
   soffit, dist<0 grows for a setback) and re-intersects adjacent offset edges (convex + concave

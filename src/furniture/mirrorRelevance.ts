@@ -39,7 +39,7 @@
  * Spend the extra scene pass only when the mirror is big enough on screen for a
  * real reflection to be legible, and only for a bounded number of mirrors at
  * once — the same shape as the existing fixture-light budget
- * (`scene/lighting/chooseEmitters.ts`), which caps simultaneous point lights
+ * (the fixture-light selection in `scene/lighting/fixtureLights.ts`), which bounds live lights
  * rather than lighting every emitter in the home. Below the threshold the
  * long-standing tier-cheap fake-shiny pane renders instead, which at that size
  * is visually indistinguishable.

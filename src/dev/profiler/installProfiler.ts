@@ -9,7 +9,7 @@ export function installProfilerApi(): void {
   const apiObj: ProfilerApi = {
     subscribe: (cb) => profilerBridge.subscribe(cb),
     getSnapshot: () => profilerBridge.getSnapshot(),
-    runCostBreakdown: (onProgress) => runCostBreakdown(onProgress),
+    runCostBreakdown: (onProgress, opts) => runCostBreakdown(onProgress, opts),
     getObjectBreakdown: () => getObjectBreakdown(),
     selectItem: (id) => useStore.getState().selectItem(id),
   }

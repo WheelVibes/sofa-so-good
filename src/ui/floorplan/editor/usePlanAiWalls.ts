@@ -39,7 +39,7 @@ export function applyAiPlanDraft(result: AiPlanResult): {
   // unrecoverable (BUG: AI-draft history spam).
   st.pushHistory()
   st.runWithoutHistory(() => {
-    st.newFloorPlan('AI draft')
+    st.newFloorPlan({ name: 'AI draft' })
     const wallIds: string[] = []
     for (const w of result.walls) {
       wallIds.push(

@@ -26,6 +26,31 @@ describe('roomShell', () => {
     expect(shell.rects.length).toBeGreaterThan(0)
   })
 
+  // REGRESSION (room-overlap bug): livingDining's SOURCE rect reaches west into
+  // bedroom3 and the corridor (see floor/floorRects.ts), so building the editor
+  // shell from `roomRects` gave the Living/Dining editor a floor slab covering
+  // two rooms that weren't being edited. It now builds from the carved rects.
+  it('builds livingDining from its carved footprint, not its overlapping source rect', () => {
+    const shell = roomShell('livingDining')
+    const b3 = roomShell('bedroom3')
+    const corridor = roomShell('corridor')
+    // Deep inside bedroom3 / the corridor — both inside the RAW livingDining rect.
+    expect(shell.contains(8.7, 2.5)).toBe(false)
+    expect(shell.contains(8.7, 4.3)).toBe(false)
+    // ...but the open strip east of the household shelter is still its own.
+    expect(shell.contains(8.7, 6.0)).toBe(true)
+    for (const a of shell.rects) {
+      for (const b of [...b3.rects, ...corridor.rects]) {
+        const overlaps =
+          a.x0 < b.x1 - 1e-6 && b.x0 < a.x1 - 1e-6 && a.z0 < b.z1 - 1e-6 && b.z0 < a.z1 - 1e-6
+        expect(overlaps).toBe(false)
+      }
+    }
+    // The bedroom3/LD partition now reads as one of its own walls (the raw rect
+    // put its west edge 0.76 m past that wall, so it never matched).
+    expect(shell.walls.map((w) => w.wallId)).toContain('wall-int-b3-LD')
+  })
+
   it('clips a shared wall to the room footprint span', () => {
     const shell = roomShell('bedroom2')
     const n = shell.walls.find((w) => w.wallId === 'wall-ext-N-west')

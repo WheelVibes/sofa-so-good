@@ -7,7 +7,7 @@ import { RoomInspector } from './RoomInspector'
 /** A single custom-plan room, selected for the inspector. */
 function placeRoom(name = "Ella's room"): string {
   const s = useStore.getState()
-  s.newFloorPlan('Test plan')
+  s.newFloorPlan({ name: 'Test plan', shell: true })
   s.setFloorPlan({
     ...useStore.getState().floorPlan,
     walls: [],

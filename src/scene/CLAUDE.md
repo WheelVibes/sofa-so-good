@@ -18,13 +18,72 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   goes idle, so the last continuous frame predates the commit and demand mode would otherwise
   leave the new content undrawn until some unrelated change requested a frame. Any future
   load-then-commit path gets this for free — don't hand-roll a second edge detector.
-- **Fixture lights are budget-capped in BOTH view modes** (`lighting/FurnitureLights.tsx` +
-  pure `lighting/chooseEmitters.ts`, PERF-002). Real point/spot lights from emitting furniture
-  are ranked nearest-to-camera and capped to the tier's `maxFixtureLights`: walk to N, orbit to
-  `N * ORBIT_BUDGET_MULTIPLIER`. Never light every emitter (a night home reaches 30–50 — linear
-  per-fragment fill cost). The pick is gated off the per-frame path (camera-move threshold +
-  items-identity + mode change); keep new emitter logic going through `chooseEmitters` so the cap
-  stays tier-aware and the scene never goes dark (ambient/fill + emissive materials remain).
+- **`lightsMode` is ONE switch for the whole home: on lights every fixture, off lights none.**
+  No camera-proximity culling, in either view mode. `lighting/FurnitureLights.tsx` renders the
+  set the pure `lighting/fixtureLights.ts:fixtureLightsFor` returns — every item that passes its
+  own per-item gate (`isItemEmitter`: `props.lightOn === 'no'` is a hard per-light switch that
+  still wins), in stable ITEM order, never camera order. This REPLACES the old nearest-N budget
+  (`chooseEmitters` + the tier's `maxFixtureLights`, PERF-002, both deleted): capping to the 2
+  nearest emitters on the default Performance tier meant that walking through a 19-emitter flat
+  switched lamps on and off around you — invisible as a budget, very visible as flicker. The only
+  remaining cap is `MAX_LIVE_FIXTURE_LIGHTS` (64), a shader-uniform guard against a driver-level
+  compile failure, applied in item order so it can never read as proximity switching. **Do not
+  reintroduce a camera-distance cull here** — if fixture-light fill cost needs managing again,
+  it has to be something the user can see and control (a per-light switch, a scene-wide off),
+  not a silent budget. The component has no per-frame path at all now: the set is a `useMemo`
+  over items/mood/flag, and `setFixtureGlow` is written on switch change.
+- **Fixture lights are the dominant fragment cost — optimise the SHADER, not the light count.**
+  Three unrolls the point-light loop (`lights_fragment_begin.glsl`) and `RE_Direct_Physical`
+  runs a full `BRDF_GGX_Multiscatter` per light per fragment with **no early-out on a light
+  attenuated to zero** — so N lights ≈ N× the lighting maths on every lit fragment, whether or
+  not the light reaches it. **Measured on real hardware** (Apple M4, ANGLE Metal, 1280x800,
+  night, fixed camera, full pipeline via `advance`): at **Maximum** the 19 default-flat fixtures
+  cost **9.10 ms of a 34.54 ms frame (26%)** — roughly **0.5 ms per light** — while at
+  **Performance** the whole scene renders in 3.2 ms and the light cost is below the noise floor.
+  So this is a High/Maximum concern only, and it scales with the fixture COUNT: an authored
+  design with a 40-downlight false ceiling would spend ~20 ms on lighting alone.
+  (Ignore the 73% that a headless software rasteriser reported — SwiftShader is ALU-bound and
+  over-weights shading by an order of magnitude.) Consequences to design around:
+  · **A cheaper BRDF is NOT the lever — measured, don't re-propose it.** `RE_Direct_Lambert`
+    is one dot product against GGX's D+V+F+multiscatter, so swapping matte surfaces to Lambert
+    looks like the obvious fix. On the real pipeline it isn't: converting every matte
+    `MeshStandardMaterial` (247 of them) saved **2.17 ms of 34.54 (6%)** and only took the light
+    cost from 9.10 → 7.70 ms, because the expensive fragments are the 57 `MeshPhysicalMaterial`
+    furniture surfaces, not the matte architecture. Walls alone saved **0.23 ms**. Downgrading
+    Physical → Standard where no physical-only feature is used is lossless but applies to only
+    4 of 57 materials (sheen 27, anisotropy 10, clearcoat 9, transmission 7 are genuinely in
+    use) and saved nothing. The one exception kept: the plain white ceiling in
+    `ceiling/Ceiling.tsx` is `meshLambertMaterial` — free, since it is an inline matte-white
+    material outside the finish cache. If this is ever revisited, note that deriving a Lambert
+    twin from a CACHED finish material goes stale: the finish system mutates those in place
+    (procedural upgrade swap, tint/recolor).
+  · **Baking into an irradiance volume was spiked and REJECTED — don't re-propose it.**
+    three 0.184 ships `LightProbeGrid` (`examples/jsm/lighting/`) and the core shader supports
+    it (`USE_LIGHT_PROBES_GRID`, SH in a 3D texture atlas), and it LOOKS fine — a warm, plausibly
+    lit home. It does not pay: a 420-probe volume over the default flat costs **6.19 ms** of
+    per-fragment SH sampling to replace **9.10 ms** of light evaluation, i.e. **2.43 ms net (7%)**
+    at Maximum — because a trilinear 3D-texture fetch across 7 sub-volumes per fragment at DPR 2
+    is not cheap either. It also bakes for **4.4 s synchronously** (one cubemap render per probe)
+    and would have to re-bake whenever a lamp moves, a finish changes or the sun moves, and it
+    supplies DIFFUSE irradiance only — no specular highlight, no sharp pool under a bulb.
+  · **What is left is the light COUNT.** 0.5 ms per fixture is intrinsic to a real point light,
+    and every alternative to paying it has now been measured and rejected. Merging coincident
+    fixtures (below) is the only lever that survived. For scale: at Maximum, geometry detail
+    (7.70 ms) and DPR (7.35 ms) each cost about the same as all 19 lights, and both are already
+    user-facing dials — Maximum missing 60 fps is a tier-budget problem, not a lighting one.
+  · Per-object light culling is NOT available: three filters lights with
+    `object.layers.test(camera.layers)` in `projectObject` — that is the CAMERA's layers, so
+    per-room light layers only work with a render pass per room, which costs more than it saves.
+- **Coincident same-kind fixtures merge on the low tiers** (`fixtureLights.ts:
+  aggregateFixtureLights`, `quality.mergeCoincidentLights`, on for Performance/Medium). A
+  false-ceiling downlight grid is several identical bulbs 0.6–0.8 m apart that read as one
+  source, and each costs a full BRDF per fragment. The rule is deliberately narrow — same
+  `defId`, same bulb colour, never an IES spot, within `MERGE_RADIUS_M` (1.0 m) of the
+  cluster's FIRST member (head-anchored, so a long row can't chain-collapse to its centre).
+  **1.0 m is chosen to sit below the tightest pair in the shipped flat** (two sconces 1.2 m
+  apart, which must stay two pools of light) — the default layout merges nothing, by design.
+  Don't widen it to buy a saving in the default flat: that is the lighting design being
+  rearranged for performance, which is the thing this whole area is not allowed to do.
 - **Tier-gate GPU cost.** Read `RenderTier`; **Performance is the default for everyone**
   (flat: no shadows/IBL/post, DPR 1). Heavy effects (real mirrors, post stack) are
   High/Maximum only (`mirrorReflectorConfig(tier)` is the pattern).
@@ -157,48 +216,28 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   which is the light curtains actually block — diffuse skylight through the glass. Same magnitude,
   correct light: contrast (pixel σ) rose ~21% at Performance and ~10% at Maximum for a ~2-point
   mean-brightness cost. Measure with `node scripts/dev-probes/shadow-contribution.mjs`.
-- **Re-pick the fixture lights when the TIER changes, and INVALIDATE when the set changes
-  (LIGHT-BUDGET-REPICK / LIGHT-SET-INVALIDATE).** `FurnitureLights` gated its nearest-N re-pick on
-  items / camera-mode / mood / camera-moved — but NOT on `maxLights`, the tier's
-  `maxFixtureLights`. So a tier change left the OLD tier's light count mounted until the camera
-  next moved. Measured switching to Performance: **18 point lights stayed live** (medium's 6x3
-  orbit budget) and only dropped to Performance's 6 on the first camera gesture — which recompiled
-  every lit material in one **150 ms** frame, because three bakes the light count into each
-  material's program cache key. Two bugs in one: the tier's perf budget was not being honoured, and
-  the scene was over-lit by 3x until the user happened to move.
-  Separately, the live set lives in REACT state, so `RenderPump`'s `subscribe(markDirty)` never saw
-  it change — under `frameloop="demand"` a newly-mounted light requested no frame at all, so three
-  never saw the new count and the compile was deferred to whatever rendered next (the user's first
-  gesture). Both fixed: `maxLights` is in the change check, and `invalidate()` is called whenever
-  the set changes. Measured across all three tiers, worst frame during a gesture:
-  Performance **150.6 → 11.7 ms**, High **142 → 22.4 ms**, Maximum **213 → 17.7 ms**; programs
-  compiled per gesture 25–29 → **1**; zero spikes over 25 ms anywhere; p50/p90 unchanged. The
-  visual side-effect is a real correction, not a regression: Performance's contrast rose 27.2 → 36.8
-  and its mean fell 237.4 → 233.4 once it stopped rendering three times its light budget. Medium and
-  Maximum are byte-identical. Any future per-frame pick that depends on a tier value needs the tier
-  in its change check, and any React-state scene change needs an `invalidate()`.
-- **A zero point-light census is CORRECT at the default `lightsMode`, and the night budget is
-  VERIFIED — don't re-file either as a bug (NIGHT-LIGHT-BUDGET).** `lightsMode` defaults to
-  **`'off'`**, and `FurnitureLights` returns `null` on an empty active set, so not even
-  LIGHT-COUNT-STABLE's zero-intensity padding slots exist. A scene census therefore reports
-  **0 point lights at 21:00 exactly as at 13:00**, which looks like a broken light budget and is
-  not one. `scripts/dev-probes/night-lights.mjs` measures the state that actually engages PERF-002
-  — orbit, 21:00, `lightsMode: 'on'` — and the budget holds exactly to spec on the default flat
-  (19 emitting items, so the cap genuinely binds at the low tiers):
-
-  | tier        | maxFixtureLights | orbit budget | lit | padded | slots |
-  | ----------- | ---------------- | ------------ | --- | ------ | ----- |
-  | performance | 2                | 6            | 6   | 0      | 6     |
-  | medium      | 6                | 18           | 18  | 0      | 18    |
-  | high        | 8                | 24           | 19  | 1      | 20    |
-  | maximum     | 12               | 36           | 19  | 1      | 20    |
-
-  Performance and Medium saturate at the budget (so `lightSlotCount`'s "never above budget" clamp
-  wins over the quantisation and padding is 0 — the count is stable because it is pinned at the
-  cap); High and Maximum have budget to spare, so the 19 live lights round up to `ceil(19/4)*4`
-  = 20 and one padding slot appears. Frame cost with every light live stays inside the 16.67 ms
-  budget at every tier: **6.8 / 9.0 / 12.9 / 12.3 ms p50**. Zero spot lights (the IES path is off
-  by default).
+- **RETIRED: LIGHT-BUDGET-REPICK / LIGHT-SET-INVALIDATE.** These fixed a per-frame nearest-N
+  re-pick that no longer exists. `FurnitureLights` used to hold the live set in REACT state and
+  re-rank it on camera movement, so (a) a tier change left the old tier's light count mounted until
+  the camera next moved, and (b) a set change requested no frame under `frameloop="demand"`, which
+  deferred every lit material's recompile to the user's first gesture (measured 150 ms, +25
+  programs). Both are structurally impossible now: the set is a `useMemo` over STORE values only
+  (`items`, `lightMood`, the IES flag, the tier's `mergeCoincidentLights`) with no camera input, so
+  every change that alters it is already a store change `RenderPump`'s `subscribe(markDirty)` sees,
+  and there is no per-frame path left to re-pick on. The general lesson is why this entry survives:
+  **a scene change held in React state rather than the store requests no frame in demand mode** —
+  if you add one, call `invalidate()`.
+- **A zero point-light census is CORRECT at the default `lightsMode` — don't re-file it as a bug
+  (NIGHT-LIGHT-BUDGET).** `lightsMode` defaults to **`'off'`**, and `FurnitureLights` renders
+  nothing at all in that state, so a census of the live scene reports **0 point lights at 21:00
+  exactly as at 13:00**. That reads as a broken light system and is simply the switch being off.
+  `scripts/dev-probes/night-lights.mjs` measures the state that actually mounts lights (orbit,
+  21:00, `lightsMode: 'on'`) and reports the live count and frame cost per tier.
+  **The nearest-N budget this note originally verified is GONE** — staging deleted `chooseEmitters`
+  and `maxFixtureLights` (see the `lightsMode` bullet above), so the per-tier cap table that used to
+  sit here has been removed rather than left to rot: it described 6/18/24/36 orbit budgets that no
+  longer exist. What survives is the measurement that the default flat carries **19 emitting
+  items** — the number any fixture-cost claim should be read against.
 - **Wall TOP CAPS are bimodal at night BY DESIGN, not blown out (NIGHT-WALL-CAP).** Orbit culls the
   real ceiling, so every wall ends in a horizontal up-facing cap, and at night those caps read as a
   hard dark line along some walls and a bright one along others — which looks like an inked-outline
@@ -220,30 +259,22 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   run reported cap 115.3 vs wall 58.7 and looked like a clean refutation, when the caps were in
   fact split 42/177), and an eyeballed NDC point cannot be carried between probes with different
   poses — mask by world normal instead (meta-rule xii).
-- **Never let the LIGHT COUNT change during interaction (LIGHT-COUNT-STABLE).** three bakes the
-  number of point/spot lights into every lit material's program cache key, so adding or removing a
-  single light recompiles EVERY lit material. `FurnitureLights` re-picks the live emitter set
-  whenever the camera moves past a threshold, so a ±1 change is routine while orbiting — and it
-  cost **204–214 ms on the first frame of the first camera gesture, compiling +29 programs**
-  (`scripts/dev-probes/frame-spikes.mjs`). Steady state either side of that frame was ~11 ms, so
-  this single stall WAS the defect: invisible to a p90, and landing exactly when a user forms an
-  impression. Diffing the program cache keys named it precisely — all 29 differed in one field,
-  `18 -> 19`, a light count incrementing.
-  The fix is `chooseEmitters.ts:lightSlotCount`: render a QUANTISED number of slots
-  (`LIGHT_SLOT_STEP` = 4) and pad the spares with zero-intensity point lights, which three counts
-  regardless of intensity (`WebGLLights.setup` increments `pointLength` unconditionally). Measured
-  after: programs compiled during a gesture **29 → 1**, worst frame **213 → 32 ms** (and 13.5 ms in
-  a later run), p50/p90 unchanged within noise, and the rendered image byte-identical (medium
-  236.29/27.89/6.85%, maximum 223/29.56/1.49% — same as before the change). Do NOT pad to the full
-  tier budget (up to 36 slots in orbit at Maximum): that makes the count perfectly stable but forces
-  the shader to evaluate every slot per fragment for the whole session, trading a one-off compile
-  for a permanent cost. Any future feature that varies a light count at runtime needs the same
-  treatment.
+- **RETIRED: LIGHT-COUNT-STABLE's slot padding — but the COMPILE fact behind it is permanent.**
+  three bakes the number of point/spot lights into every lit material's program cache key, so a
+  +-1 change recompiles EVERY lit material: measured at **204-214 ms on the first frame of the first
+  camera gesture, +29 programs**, all differing in one cache-key field (`18 -> 19`). The remedy was
+  to render a QUANTISED number of slots and pad the spares with zero-intensity point lights (three
+  counts a light regardless of intensity). That padding is gone with `chooseEmitters`, and correctly
+  so: it existed only because the live set was re-ranked on camera movement, and the set no longer
+  depends on the camera at all — the count now changes only on a design edit, which already pays a
+  recompile the user attributes to their own action.
+  **Keep the underlying rule:** any future feature that varies a light count DURING interaction will
+  hit the same stall, and quantise-and-pad is the known remedy. Do NOT pad to a large fixed budget —
+  that trades a one-off compile for a permanent per-fragment cost in every slot.
   Ruled out along the way, don't re-investigate: the mirror gate (0 of ~1480 orbit frames granted a
-  reflection); wall-reveal material CLONES (a census showed +0 materials across the gesture, so
-  nothing is being created); and `material.transparent` flipping (it IS in the cache key via
-  `opaque`, and pre-warming the opposite variant compiled 15 extra programs at boot but moved the
-  spike not at all — the remaining 29 were the light count).
+  reflection); wall-reveal material CLONES (a census showed +0 materials across the gesture); and
+  `material.transparent` flipping (it IS in the cache key, but pre-warming the opposite variant
+  compiled 15 extra programs at boot and moved the spike not at all — the 29 were the light count).
 - **`ShaderWarmup` pre-compiles the transparent variant at boot.** It flips every scene material to
   `transparent: true`, compiles, and restores — all in ONE task, so no frame renders in the flipped
   state. This is a smaller win than LIGHT-COUNT-STABLE and was kept because the reveal genuinely
@@ -736,6 +767,41 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   (`setWallOwnStrength`), so spread can't cascade wall→wall→wall around the perimeter. All curve/adjacency math is pure in `wallRevealMath.ts`;
   `PlanShell`/`PlanDoorLeaf` (custom plans in orbit) share the same graded curve (corner spread
   there is deferred — `WallBox` carries no wall id yet, see TODO.md).
+- **A T-junction always RETRACTS; only a true corner spans (WALL-TJUNCTION-RETRACT).**
+  `wallSegments.ts:wallCornerAbut` used one alphabetical tie-break (`wall.id < other.id`) for
+  every join. At a real corner that is right — both walls end there, one must span the notch.
+  At a T-junction only the STEM ends: there is no notch, and winning the coin-flip drove the
+  stem's body from the through wall's centreline to its FAR face, overlapping it by the
+  NEIGHBOUR'S FULL THICKNESS. Invisible while both are opaque; a hard-edged double-composite the
+  moment they fade — and the width is the neighbour's thickness, so a 100 mm partition into
+  another partition hid a 100 mm block while the same partition into a **300 mm** RC wall painted
+  a 300 mm-wide, full-height bright band down the reveal. That is why it looked like a
+  "different thickness" bug: the thickness set the severity, the tie-break set whether it
+  happened at all. `wallCornerAbut` now checks whether the neighbour also ends at the point
+  (`mutual`) and retracts unconditionally when it does not.
+- **A fading wall renders ONE layer per side — overlays are culled (WALL-FADE-OVERLAY-CULL).**
+  The wall body is deliberately one watertight extruded shape so it has no internal seams when
+  it fades. Everything sitting ON it undoes that: an interior face plane (1 mm proud), a
+  baseboard, a crown, the accent-selection highlight. With `depthWrite` on and back-to-front
+  transparent sorting the body blends first and the overlay blends over it, so the wall
+  composites TWICE wherever an overlay covers it and once where it doesn't — density bands down
+  the wall, and a heavier band along every base/ceiling junction. At an outside corner it is
+  worse again: a face plane is extended by the abutting wall's half-thickness so the finish
+  reaches the outer edge, which is invisible while that neighbour is opaque and a third layer
+  once it isn't. So every overlay mesh is tagged with `wallReveal.ts:markWallOverlay()` and
+  hidden for the duration of the fade (`WallSegment`'s traverse and `useWallReveal`, i.e. orbit
+  AND the room editor); they return the instant the wall is opaque, where depth testing — not
+  blending — resolves them and the finish must be visible.
+  **An OPENING in a fading wall shows frame + glass only**, on the same mark and for the same
+  reason: a window is a frame + glass + sill + mullions + safety grille + louvre slats +
+  invisible-grille cables, and a door adds a security gate (8 bars + 6 rails) and handles —
+  each its own translucent layer over the wall. `Window.tsx` / `Door.tsx` cull everything that
+  is not frame, glass or the door leaf; a door's gate and handles are tagged on their GROUP and
+  matched with `isWallOverlayBranch` so a multi-mesh sub-assembly needs one mark, not one per
+  member. Glass BLOCKS stay — they are the glazing, not detail. Measured on the default flat
+  mid-fade at a corner: 49 visible translucent meshes before, 31 after (all cylinders gone),
+  leaving exactly wall body + frame + glass. **Anything new drawn on a wall face or inside an
+  opening must carry the mark**, or it reintroduces the banding.
 - **`depthWrite` stays ON through the whole wall/door/window fade (WALL-FADE-DEPTHWRITE).** Every
   reveal-fade site — `WallSegment`, `useWallReveal`, `PlanShell` (wall + trim), `PlanRoomShell`,
   `Skirting`, `Door`, `PlanDoorLeaf`, `Window` (incl. glass) — sets `material.depthWrite = true`

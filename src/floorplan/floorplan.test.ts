@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { INTERIOR_AREA_M2 } from '../apartment/constants'
+import { INTERIOR_AREA_M2, ROOMS, roomArea } from '../apartment/constants'
 import { buildDefaultPlan } from './defaultPlan'
 import { planLevels } from './levels'
 import { PLAN_TEMPLATES, templateCategoryTree } from './templates'
@@ -171,10 +171,17 @@ describe('floor plan model', () => {
   })
 
   it("default plan's total area matches the fixed flat's interior area", () => {
-    // buildDefaultPlan seeds every ROOM (incl. acLedge); INTERIOR_AREA_M2 sums
-    // the non-external rooms. The plan total should be at least that.
+    // `buildDefaultPlan` seeds every ROOM, so the plan total is the non-external
+    // interior (INTERIOR_AREA_M2) plus the external rooms — just the ~2.2 m² AC
+    // ledge. Both sides count a multi-part room's footprint ONCE (each is a
+    // shoelace over the room's outline), so this is an equality, not a bound:
+    // the two shape resolvers, `apartment/roomGeometry.ts` and
+    // `floorplan/types.ts`'s `roomPolygon`, must agree on every room.
+    const externalArea = Object.values(ROOMS)
+      .filter((r) => r.external)
+      .reduce((sum, r) => sum + roomArea(r), 0)
     const total = planTotalArea(buildDefaultPlan())
-    expect(total).toBeGreaterThanOrEqual(INTERIOR_AREA_M2 - 0.01)
+    expect(total).toBeCloseTo(INTERIOR_AREA_M2 + externalArea, 6)
   })
 
   it('measures wall length', () => {

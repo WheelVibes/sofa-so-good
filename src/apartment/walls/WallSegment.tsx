@@ -28,6 +28,7 @@ import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
 import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
 import { APARTMENT_EXT_D, APARTMENT_EXT_W, FLAT, ROOMS, WALLS } from '../constants'
+import { roomParts } from '../roomGeometry'
 import type { RoomId, WallSpec } from '../types'
 import {
   buildWallSegments,
@@ -38,7 +39,13 @@ import {
 } from '../wallSegments'
 import { extrudeWallBody, WALL_STRUCTURE_COLOR } from './wallBodyGeometry'
 import { buildWallBodyOutline } from './wallBodyShape'
-import { getWallOwnStrength, setWallOpacity, setWallOwnStrength } from './wallReveal'
+import {
+  getWallOwnStrength,
+  isWallOverlay,
+  markWallOverlay,
+  setWallOpacity,
+  setWallOwnStrength,
+} from './wallReveal'
 import {
   cornerNeighbors,
   cornerSpreadStrength,
@@ -54,23 +61,13 @@ import {
 import { wallSidesSpans } from './wallRoomSides'
 import { useWallTexTransform } from './wallTexTransform'
 
-// Interior room rectangles (+ L-extensions) for the point-in-room test that
-// orients each wall's "outward" normal — robust to the flat's non-rectangular,
-// notched perimeter (a single bounding-box centre mis-judges offset walls).
-const ROOM_RECTS: RoomRect[] = Object.values(ROOMS).map((r) => ({
-  x: r.origin[0],
-  z: r.origin[1],
-  w: r.width,
-  d: r.depth,
-  ext: r.extension
-    ? {
-        x: r.origin[0] + r.extension.offset[0],
-        z: r.origin[1] + r.extension.offset[1],
-        w: r.extension.width,
-        d: r.extension.depth,
-      }
-    : undefined,
-}))
+// Every interior room rectangle (a room contributes one entry per part) for the
+// point-in-room test that orients each wall's "outward" normal — robust to the
+// flat's non-rectangular, notched perimeter (a single bounding-box centre
+// mis-judges offset walls).
+const ROOM_RECTS: RoomRect[] = Object.values(ROOMS).flatMap((r) =>
+  roomParts(r).map((p) => ({ x: p.x0, z: p.z0, w: p.x1 - p.x0, d: p.z1 - p.z0 })),
+)
 const isInteriorPoint = (x: number, z: number) => pointInRooms(x, z, ROOM_RECTS, 0.05)
 
 // Precomputed corner adjacency for the whole flat (WALLS is static): wall id →
@@ -149,8 +146,10 @@ function FacePlane({
       rotation={[0, yRot, 0]}
       material={faded}
       geometry={geometry}
-      // Drop-target tag for the canvas finish drag (scene/finishDropTarget.ts).
-      userData={roomId ? finishSurfaceUserData('wall', roomId) : undefined}
+      // Drop-target tag for the canvas finish drag (scene/finishDropTarget.ts),
+      // plus the overlay mark so the reveal fade can hide this plane and leave
+      // the body as the single composited layer (see `markWallOverlay`).
+      userData={markWallOverlay(roomId ? finishSurfaceUserData('wall', roomId) : undefined)}
       onClick={
         onSelect
           ? (e) => {
@@ -176,7 +175,7 @@ function FaceHighlight({
   const z = sign * (thickness / 2 + FACE_OFFSET + 0.004)
   const yRot = sign === 1 ? 0 : Math.PI
   return (
-    <mesh position={[segMid, segMidY, z]} rotation={[0, yRot, 0]}>
+    <mesh position={[segMid, segMidY, z]} rotation={[0, yRot, 0]} userData={markWallOverlay()}>
       <planeGeometry args={[segLen, segHeight]} />
       <meshBasicMaterial color="#4a90d9" transparent opacity={0.25} depthWrite={false} />
     </mesh>
@@ -206,6 +205,7 @@ function Baseboard({
       castShadow
       receiveShadow
       args={[segLen, BASEBOARD_H, 0.018]}
+      userData={markWallOverlay()}
     >
       <meshStandardMaterial color="#eeece6" roughness={0.55} metalness={0} />
     </BeveledBox>
@@ -233,7 +233,11 @@ function CrownMolding({
 }) {
   const z = sign * (thickness / 2 + 0.004)
   return (
-    <BeveledBox position={[segMid, segTop - CROWN_H / 2, z]} args={[segLen, CROWN_H, CROWN_T]}>
+    <BeveledBox
+      position={[segMid, segTop - CROWN_H / 2, z]}
+      args={[segLen, CROWN_H, CROWN_T]}
+      userData={markWallOverlay()}
+    >
       <meshStandardMaterial
         color="#eeece6"
         roughness={0.55}
@@ -506,7 +510,11 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     transparentRef.current = transparent
     group.traverse((o) => {
       if (!(o instanceof Mesh)) return
-      o.visible = visible
+      // Overlays (face planes, trim, the accent highlight) are hidden for the
+      // duration of the fade so the watertight body is the ONLY thing blending
+      // — otherwise every overlay adds a second composited layer over the body
+      // and the wall shows density bands / a denser stripe at each corner.
+      o.visible = visible && !(transparent && isWallOverlay(o.userData))
       const mat = o.material as MeshStandardMaterial | MeshStandardMaterial[]
       const apply = (m: MeshStandardMaterial) => {
         m.transparent = transparent

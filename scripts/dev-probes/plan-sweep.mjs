@@ -9,8 +9,8 @@
  *
  *  - SHADOW-TEXEL: `shadowMapSizeForExtent` targets a constant ~20 mm world texel
  *    over the plan-fitted frustum, so a bigger plan climbs toward the tier ceiling.
- *  - PERF-002 / `chooseEmitters`: fixture lights are ranked and capped per tier, and
- *    a bigger flat holds more emitters.
+ *  - Fixture lights: `lightsMode` lights every emitter (the old per-tier nearest-N
+ *    cap is gone), so a bigger flat holds more emitters and pays more fill cost.
  *  - ORBIT-CEILING: `occluderRectsForPlan` builds one invisible shadow-caster per
  *    room footprint.
  *  - WALL-REVEAL-CORNER-SPREAD: adjacency work scales with wall count.

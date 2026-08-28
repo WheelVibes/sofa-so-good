@@ -1334,7 +1334,7 @@ describe('schema', () => {
     // Default flat → no floorPlan in the payload (rebuilt from constants).
     expect(serialize(useStore.getState()).floorPlan).toBeUndefined()
     // A custom plan is persisted and restored.
-    useStore.getState().newFloorPlan('Saved Studio')
+    useStore.getState().newFloorPlan({ name: 'Saved Studio', shell: true })
     const customId = useStore.getState().floorPlan.id
     const out = serialize(useStore.getState())
     expect(out.floorPlan?.name).toBe('Saved Studio')

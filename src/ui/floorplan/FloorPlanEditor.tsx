@@ -36,6 +36,7 @@ import { SliderField } from '../controls/SliderField'
 import { openDocs } from '../docsUrl'
 import { InfoCallout } from '../InfoCallout'
 import { evictPanoStop } from '../panorama/panoImageIdb'
+import { confirmGeneratePlan, confirmResetPlanToDefault, openNewPlan } from '../planActions'
 import { useIsMobile } from '../useIsMobile'
 import { centerBackdrop, rescaleBackdropAnchored } from './editor/backdropPlacement'
 import { DrawToolPalette } from './editor/DrawToolPalette'
@@ -360,6 +361,11 @@ export function FloorPlanEditor() {
   const { aiBusy, runAiWalls } = usePlanAiWalls(backdrop, setBackdrop)
   const aiWalls = useFeature('aiWalls')
   const { genBusy, runAiGenerate } = usePlanAiGenerate()
+  // The AI draft replaces the plan and clears the furniture, so it gets the same
+  // guard as New / Reset (it used to run straight from the click).
+  const confirmAndRunAiGenerate = async () => {
+    if (await confirmGeneratePlan()) runAiGenerate()
+  }
   const fAiPlanGen = useFeature('aiPlanGenerate')
   // Persistent wall-length labels (on by default; toggle in the editor header).
   // Dimensions default OFF — they're the densest overlay and collide with walls
@@ -2011,22 +2017,25 @@ export function FloorPlanEditor() {
   // shown in the mobile Plan-tools sheet).
   const fileActions = (
     <>
+      {/* Both of these destroy work, so both are guarded and both share their
+          wording with the File menu / ⌘K copies (`ui/planActions.ts`). "New…"
+          opens a chooser rather than a yes/no confirm: empty canvas or starter
+          room, and it says that it clears the furniture too. */}
       <button
         type="button"
-        onClick={() => {
-          // Fresh apartment: clear the inherited furniture (undoable) so the
-          // new shell starts empty rather than full of the old layout.
-          a.pushHistory()
-          a.setItems([])
-          a.newFloorPlan()
-        }}
-        title="Start a fresh, empty apartment shell"
+        onClick={openNewPlan}
+        title="Start a new apartment — empty canvas or a starter room (clears the current plan and its furniture)"
         className="btn btn-sm"
       >
-        New
+        New…
       </button>
-      <button type="button" onClick={() => a.resetFloorPlan()} className="btn btn-sm">
-        Reset to HDB
+      <button
+        type="button"
+        onClick={() => void confirmResetPlanToDefault()}
+        title="Replace the plan with the default HDB 4-room flat (furniture is kept and re-homed)"
+        className="btn btn-sm"
+      >
+        Reset to HDB…
       </button>
       {/* Text brief → editable floor plan via a BYO-key LLM (marquee L). Lands as
           an undoable draft (blank plan → walls/openings/rooms), exactly like AI
@@ -2034,7 +2043,7 @@ export function FloorPlanEditor() {
       {fAiPlanGen ? (
         <button
           type="button"
-          onClick={runAiGenerate}
+          onClick={() => void confirmAndRunAiGenerate()}
           disabled={genBusy}
           title="Experimental: describe a home in words and let an LLM draft an editable plan (your API key)"
           className="btn btn-sm"

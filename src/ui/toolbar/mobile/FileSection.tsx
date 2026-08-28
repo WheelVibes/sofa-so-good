@@ -23,6 +23,12 @@ import { openSh3dImport } from '../../openSh3dImport'
 import { openSh3fImport } from '../../openSh3fImport'
 import { openShoppingList } from '../../openShoplist'
 import { openTradePack } from '../../openTradePack'
+import {
+  confirmClearFurniture,
+  confirmResetPlanToDefault,
+  confirmRestoreDemoFurniture,
+  openNewPlan,
+} from '../../planActions'
 import { TRADE_PACKS } from '../../tradePacks'
 import { exportGroupLabel } from '../exportGroupLabel'
 import { Icon } from '../icons'
@@ -50,6 +56,7 @@ export function FileSection({
   const budgetOpen = useStore((st) => st.budgetOpen)
   const renoBudgetOpen = useStore((st) => st.renoBudgetOpen)
 
+  const fPlanReset = useFeature('planReset')
   const fPanorama = useFeature('panorama')
   const fPanoTour = useFeature('panoTour')
   const fHqRender = useFeature('hqRender')
@@ -373,29 +380,32 @@ export function FileSection({
           onClick={act(() => openSh3fImport())}
         />
       ) : null}
+      {/* Same four entries, same wording and same guards as the desktop File
+          menu — both call `ui/planActions.ts` so the two can't drift. */}
+      {fPlanReset ? (
+        <>
+          <Item icon="FloorPlan" label="New apartment…" onClick={act(async () => openNewPlan())} />
+          <Item
+            icon="Reset"
+            label="Reset apartment…"
+            onClick={act(async () => {
+              await confirmResetPlanToDefault()
+            })}
+          />
+        </>
+      ) : null}
       <Item
         icon="Reset"
-        label="Reset to default"
+        label="Restore demo furniture…"
         onClick={act(async () => {
-          const ok = await s.getState().confirmAction({
-            title: 'Reset to default',
-            message: 'Reset to the floor-plan default? You can undo this with Ctrl/⌘+Z.',
-            confirmLabel: 'Reset',
-          })
-          if (ok) s.getState().resetToDefault()
+          await confirmRestoreDemoFurniture()
         })}
       />
       <Item
-        icon="Reset"
-        label="Clear all furniture"
+        icon="Trash"
+        label="Clear furniture…"
         onClick={act(async () => {
-          const ok = await s.getState().confirmAction({
-            title: 'Clear all furniture',
-            message: 'Remove every placed item? You can undo this with Ctrl/⌘+Z.',
-            confirmLabel: 'Clear all',
-            danger: true,
-          })
-          if (ok) s.getState().resetToEmpty()
+          await confirmClearFurniture()
         })}
       />
       <div className="m-sub-h">Saved layouts</div>

@@ -1,20 +1,21 @@
 /**
- * NIGHT-LIGHTS — the fixture-light budget at night, which nothing has measured.
+ * NIGHT-LIGHTS — fixture lights at night, the state nothing else measures.
  *
- * Every probe in this suite has run with `lightsMode` at its DEFAULT, which is
- * `'off'`. `FurnitureLights` renders nothing at all in that state (it returns null
- * on an empty active set, so even LIGHT-COUNT-STABLE's zero-intensity padding slots
- * are absent), so a census of the live scene correctly reports zero point lights —
- * at 21:00 exactly as at 13:00. That reading looks like a broken light budget and is
- * not one; this probe exercises the state that actually engages PERF-002.
+ * Every other probe here runs with `lightsMode` at its DEFAULT, which is `'off'`.
+ * `FurnitureLights` renders nothing at all in that state, so a census of the live
+ * scene correctly reports zero point lights at 21:00 exactly as at 13:00. That
+ * reading looks like a broken light system and is simply the switch being off.
  *
- * With the lights ON at 21:00 in orbit it reports, per tier: how many of the flat's
- * items are emitters at all, how many lights went live, how many of those are the
- * quantised zero-intensity padding, and the tier's own expected budget
- * (`maxFixtureLights * ORBIT_BUDGET_MULTIPLIER`) — so an over- or under-spend shows
- * up as a number that disagrees with the tier rather than as a suspicion. Frame cost
- * comes along because a night home is where the per-fragment fill cost of many live
- * lights is paid.
+ * With the lights ON at 21:00 in orbit this reports, per tier: how many of the flat's
+ * items are emitters at all, how many lights actually went live, and the frame cost —
+ * a night home is where the per-fragment fill cost of many live lights is paid.
+ *
+ * NOTE: this probe originally checked a per-tier nearest-N BUDGET
+ * (`maxFixtureLights * ORBIT_BUDGET_MULTIPLIER`). That budget no longer exists —
+ * `chooseEmitters` and `maxFixtureLights` were deleted because capping to the nearest
+ * few emitters made lamps switch on and off as the camera moved. `lightsMode` is now
+ * one switch for the whole home, so the expected live count is simply "every emitter",
+ * and the interesting number is the COST of rendering them all.
  */
 import fs from 'node:fs'
 import puppeteer from 'puppeteer'
@@ -134,7 +135,7 @@ async function cost() {
 console.log(
   `hour=${HOUR} mode=orbit lightsMode=on — ${emitterCount} emitting items on the default flat\n`,
 )
-console.log('tier          maxFix  budget  point  lit  padded  spot  p50    p90    max')
+console.log('tier          point  lit  padded  spot  merged  p50    p90    max')
 
 for (const tier of TIERS) {
   await page.evaluate((t) => window.__store.getState().setQualityTier(t), tier)
@@ -143,19 +144,20 @@ for (const tier of TIERS) {
     .catch(() => {})
   await new Promise((r) => setTimeout(r, 3500))
   await assertSceneAlive(page, `tier ${tier}`)
-  const maxFix = await page.evaluate(async () => {
+  // Coincident same-kind fixtures are merged on every tier now, so the live count
+  // can legitimately sit BELOW the emitter count without any camera-proximity cull.
+  const merged = await page.evaluate(async () => {
     const q = await import('/src/scene/quality.ts')
     const st = window.__store.getState()
-    return q.QUALITY_PRESETS[st.qualityTier].maxFixtureLights
+    return q.QUALITY_PRESETS[st.qualityTier].mergeCoincidentLights
   })
-  const budget = maxFix * 3 // ORBIT_BUDGET_MULTIPLIER
   const c = await census()
   const t = await cost()
   fs.writeFileSync(`${OUT}/night-${tier}.png`, await page.screenshot({ type: 'png' }))
   console.log(
-    `${tier.padEnd(13)} ${String(maxFix).padStart(6)} ${String(budget).padStart(7)} ` +
-      `${String(c.point).padStart(6)} ${String(c.lit).padStart(4)} ${String(c.padded).padStart(7)} ` +
-      `${String(c.spot).padStart(5)} ${String(t.p50).padStart(5)} ${String(t.p90).padStart(6)} ${String(t.max).padStart(6)}`,
+    `${tier.padEnd(13)} ` +
+      `${String(c.point).padStart(5)} ${String(c.lit).padStart(4)} ${String(c.padded).padStart(7)} ` +
+      `${String(c.spot).padStart(5)} ${String(merged).padStart(7)} ${String(t.p50).padStart(5)} ${String(t.p90).padStart(6)} ${String(t.max).padStart(6)}`,
   )
 }
 

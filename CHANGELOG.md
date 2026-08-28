@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.24 — merge staging: the fixture-light cap is gone, and three notes retired with it
+
+Merges `origin/staging` (6 commits: flat geometry + wall reveal, arbitrary room
+shapes, guarded plan replacement, the dev profiler rework, and the fixture-light
+change). Seven files conflicted; the substantive one is the lighting.
+
+**Staging deleted `chooseEmitters.ts` and the tier's `maxFixtureLights`** — the
+nearest-N fixture budget — because capping to the 2 nearest emitters on Performance
+made lamps switch on and off around you as you moved: invisible as a budget, very
+visible as flicker. `lightsMode` is now one switch for the whole home. The deletion is
+accepted in full, and three notes of mine that documented the removed system have been
+reconciled rather than left to contradict it:
+
+  · LIGHT-BUDGET-REPICK / LIGHT-SET-INVALIDATE — RETIRED. Both fixed a per-frame
+    nearest-N re-pick that no longer exists; the set is now a `useMemo` over store
+    values with no camera input, so every change to it is already a store change
+    `RenderPump` sees. The transferable rule is kept: a scene change held in React
+    state rather than the store requests no frame in demand mode.
+  · LIGHT-COUNT-STABLE's slot padding — RETIRED. It existed only because the set was
+    re-ranked on camera movement. The compile fact behind it is permanent and kept: a
+    +-1 light count recompiles every lit material (204-214 ms, +29 programs).
+  · NIGHT-LIGHT-BUDGET (v0.31.5.21) — the per-tier cap table is deleted rather than
+    left to rot. What survives is still true and still useful: `lightsMode` defaults to
+    OFF, so a zero point-light census is correct and not a bug, and the default flat
+    carries 19 emitting items.
+
+`quality.ts` keeps this branch's `ao` (TIER-AO) alongside staging's
+`mergeCoincidentLights`; `maxFixtureLights` is dropped from all four tiers.
+`scripts/dev-probes/night-lights.mjs` read `maxFixtureLights` and would have thrown —
+it now reports live count, merge state and cost instead of a budget.
+
+Verified after the merge: 9218 tests, tsc + biome clean; all 19 emitters live at every
+tier (Performance was previously capped to 6); the room-editor lock-step still holds
+(render calls 13 = 13 at Medium); and the orbit frame renders correctly with the
+v0.31.5.20 sky surround intact.
+
 ## v0.31.5.23 — the room-editor lock-step verified at runtime for the first time
 
 EDITOR-LOCKSTEP. No behaviour change; one new probe and a recorded verdict.
@@ -1481,6 +1517,376 @@ that found each one are checked in under `scripts/dev-probes/`.
   `SHOT_ANGLE` override. New `scripts/dev-probes/` measure the render instead of
   eyeballing it: blank-frame rate with three's render counters, per-tier
   exposure/contrast/clipping, and shadow-map contribution.
+## v0.30.9.0 — chased the wall-reveal bands to ground: the cause is per-wall fade depth, not compositing
+
+No behaviour change ships here. The corner bands were investigated end-to-end on
+a real GPU and the compositing theory — that a corner blends the fade twice
+because the view ray crosses two wall bodies — is **disproved**.
+
+Single-layer transparency via stencil was implemented completely: the mechanism
+verified in isolation first (two overlapping 50% quads on an Apple M4 read
+**128 single / 191 overlapping** with no stencil, and **128 / 128** with one —
+and **191** again when the render target has no stencil attachment, which is how
+it silently no-ops), then wired up properly — `stencil: true` on the Canvas,
+`clearPass.stencil = true` on the composer's `RenderPass` (postprocessing's
+`ClearPass` defaults it to false, so the ref otherwise persists for the life of
+the target and every faded wall vanishes from frame 2), and a distance-keyed
+`renderOrder` so the NEAR wall claims the pixel rather than the far one (three
+sorts transparents back-to-front, which hands a corner to the wrong wall).
+
+Pixel-diffed on the GPU with everything in place, it changed **94 pixels of a
+1400x900 frame**. Real, but a hairline — not the wide bands. So the machinery
+was removed rather than carried for that.
+
+**The actual cause**, now in `TODO.md`: each wall's fade depth comes from its own
+facing angle (`revealStrength`), so two walls meeting at a corner settle at
+different opacities and step where they meet. Each band is uniform across a whole
+wall's width, which is exactly why they read as wide vertical strips. The lever is
+`cornerSpreadStrength`, which already pulls a neighbour along but caps at the
+leader's own strength, so a step survives.
+
+Kept from this line of work (all measured, all still in): the T-junction
+retraction fix, the fade's overlay cull, and frame+glass-only openings.
+
+## v0.30.8.1 — a T-junction is not a corner: the reveal's bright bands at unequal-thickness joins
+
+A faded wall showed a hard-edged bright vertical band wherever a partition met a
+thicker wall. `wallSegments.ts:wallCornerAbut` applied ONE tie-break to every
+join — `wall.id < other.id` decides which wall spans the corner and which butts
+into it. That is correct at a real corner, where both walls end at the point and
+one must fill the notch. At a **T-junction** only the stem ends: there is no
+notch, so winning the coin-flip did nothing except drive the stem's body from the
+through wall's centreline all the way to its FAR face, overlapping it by the
+neighbour's FULL thickness.
+
+Opaque, that overlap is buried and invisible. Translucent, it is a second
+composited layer with a hard edge — and its width is the NEIGHBOUR's thickness,
+so a 100 mm partition into another partition hid a 100 mm block while the same
+partition into a 300 mm RC wall painted a 300 mm-wide, full-height bright band.
+Hence the "only with different thickness" symptom: thickness set the severity,
+the alphabetical tie-break set whether it happened at all.
+
+`wallCornerAbut` now checks whether the neighbour also ends at the shared point
+and retracts unconditionally when it does not; the span/butt tie-break is kept
+for true corners, where it is still needed and where the spanner's extra length
+is genuinely buried. Covered by three cases in `wallSegments.test.ts` (stem
+retracts whichever way the id falls; a true corner still has exactly one spanner;
+a free end is untouched).
+
+## v0.30.8.0 — measured lighting on High/Maximum: every optimisation on the list fails on real hardware
+
+Asked to optimise lighting on the heavy tiers, so I measured them properly — and
+the sweep was still misattributing cost by an order of magnitude.
+
+- **The sweep now settles until the frame cost stops moving** (`settleUntilStable`,
+  capped at 240 frames). Applying a quality override reallocates render targets
+  and recompiles materials — shadow-map resize, PMREM rebuild, the post stack
+  re-creating its buffers — and at Maximum that landed INSIDE the 20-frame
+  window. It reported sun shadows at 11.16 ms where a controlled fixed-camera A/B
+  measured map generation at 0.51 ms and shadow sampling at zero.
+- **`DevCameraExpose` exposes r3f's `advance`.** A harness measuring with
+  `gl.render(scene, camera)` skips the post composer and under-reports whatever
+  the post stack re-renders geometry for: the same 19 lights measured 1.36 ms on
+  a bare scene render and 9.10 ms on the real pipeline.
+
+**What lighting actually costs** (Apple M4, ANGLE Metal, 1280x800, night, fixed
+camera, full pipeline): at **Maximum** the 19 fixtures are **9.10 ms of a
+34.54 ms frame (26%)** — about **0.5 ms per fixture**; at **Performance** the
+whole scene is 3.20 ms and the light cost is below the noise floor.
+
+**Four optimisations measured and rejected** (all recorded in
+`src/scene/CLAUDE.md` so they aren't re-proposed):
+
+| Candidate | Result |
+| --- | --- |
+| Matte architecture → `MeshLambertMaterial` | 247 materials, saves **2.17 ms (6%)**; light cost only 9.10 → 7.70. The expensive fragments are the 57 `MeshPhysicalMaterial` furniture surfaces, not matte architecture. Walls alone: **0.23 ms** |
+| Lossless `MeshPhysicalMaterial` → `MeshStandardMaterial` | applies to **4 of 57** (sheen 27, anisotropy 10, clearcoat 9, transmission 7 genuinely in use) — **0 ms** |
+| Per-object light culling | not available: three filters lights by the CAMERA's layers |
+| Irradiance probe grid (`LightProbeGrid`) | **spiked** — renders a believable home, but the volume costs **6.19 ms** of SH sampling to replace 9.10 ms of lights (**2.43 ms net, 7%**), plus a **4.4 s synchronous bake** of 420 probes that must re-run whenever a lamp, finish or the sun moves, and supplies diffuse only. Spike deleted |
+
+So the 9.10 ms is intrinsic to nineteen real point lights, and the only surviving
+lever is the fixture COUNT — coincident-fixture merging, already shipped and now
+on at every tier (it merges nothing in the shipped flat by design, and pays for
+an authored downlight grid). For scale, at Maximum geometry detail (7.70 ms) and
+pixel ratio (7.35 ms) each cost about the same as all 19 lights and are already
+user-facing dials: Maximum missing 60 fps is a tier-budget problem, not a
+lighting one.
+
+## v0.30.7.0 — the profiler was blind on real hardware; a faded wall now renders once
+
+Ran the sweep on this machine (ANGLE Metal, Apple M4) and it reported **0.00 ms
+for every effect**. The cause was the measurement itself: it timed
+`requestAnimationFrame` deltas, which are pinned to the display refresh, so on
+any GPU that comfortably makes 60 fps every row reads 16.67 ms and every saving
+reads zero. The report was structurally blind to exactly the hardware people run
+on — which is why the earlier headless numbers (a software rasteriser, never
+reaching vsync) looked so different.
+
+- **The sweep times real render work.** `measureRenderMs` drives r3f's
+  synchronous `advance` — the full pipeline, post composer included — and blocks
+  on `gl.finish()` so the GPU has completed before the clock stops. Renders are
+  timed in batches of 10 because `performance.now()` is clamped to 100 µs in a
+  non-cross-origin-isolated page, which is coarser than most single effects, and
+  the MEDIAN batch is reported so one compositor hiccup can't dominate.
+  `ProfilerProbe` registers `advance` on the bridge for this.
+
+**What it actually costs, on an M4** (default flat, night, 19 fixtures, 1280x800):
+
+| Tier | Baseline | Top costs |
+| --- | --- | --- |
+| Performance | **3.20 ms** | nothing measurable — 5x headroom |
+| Maximum | **32.44 ms** | sun shadows 11.16 ms (34%), **fixture lights 9.75 ms (30%)**, IBL 6.86 ms (21%) |
+
+So the 73% figure from the headless rasteriser was an ALU-bound artefact, and
+the real conclusion is narrower: lighting is worth optimising on High/Maximum,
+where the frame misses 60 fps — and not at all on the default tier.
+
+> **Superseded by v0.30.8.0.** The Maximum row above is itself wrong: the sweep
+> did not settle after applying a quality override, so a reallocation/recompile
+> was counted as the effect's cost. Sun shadows are ~0.5 ms, not 11.16; fixture
+> lights are 9.10 ms, not 9.75 by luck. See v0.30.8.0 for corrected figures.
+
+- **`mergeCoincidentLights` is now on at EVERY tier.** It shipped gated to
+  Performance/Medium to keep High/Maximum "exactly as authored"; the measurement
+  says that gated it off precisely where it was needed and on where it does
+  nothing. The merge rule is conservative enough by construction that there is no
+  fidelity argument for withholding it.
+
+**A fading wall now renders one layer per side (WALL-FADE-OVERLAY-CULL).** The
+wall body is deliberately one watertight shape so it has no internal seams when
+it fades — but every overlay on it undid that. With `depthWrite` on and
+back-to-front transparent sorting, the body blends first and the face plane /
+baseboard / crown / accent highlight blend over it, so the wall composited TWICE
+wherever an overlay covered it and once where it didn't: density bands down the
+wall and a heavy doubled band along every base and ceiling junction. At an
+outside corner a face plane is additionally extended by the abutting wall's
+half-thickness (invisible while that neighbour is opaque, a third layer once it
+isn't). Overlays are now tagged (`markWallOverlay`) and hidden for the duration
+of the fade, on both fade paths (orbit `WallSegment` and the room editor's
+`useWallReveal`), returning the moment the wall is opaque and depth testing —
+not blending — resolves them.
+
+**An opening in a fading wall now shows frame + glass only.** Same mark, same
+reason: a window is a frame + glass + sill + mullions + safety grille + louvre
+slats + invisible-grille cables, and a door adds a security gate (8 bars + 6
+rails) and handles — each its own translucent layer stacked over the wall, which
+is what produced the vertical density banding visible through a faded wall at
+close range. `Window.tsx` and `Door.tsx` now cull everything that is not frame,
+glass or the door leaf. A door's gate and handles are tagged on their GROUP and
+matched with `isWallOverlayBranch`, so a multi-mesh sub-assembly needs one mark
+rather than one per member; glass BLOCKS stay, being the glazing itself.
+`InstancedBoxes`/`InstancedCylinders` gained a pass-through `userData` so an
+instanced bucket can be tagged as a whole.
+
+Verified by A/B capture on the GPU at three corners: the doubled trim bands along
+every faded wall disappear, then the gate/grille lattice does. A live scene probe
+counts the translucent layers visible mid-fade at a corner: **49 before, 31
+after** — every cylinder gone (gate bars + grille cables), leaving exactly wall
+body (9) + window/door frames (12) + glass (10).
+
+## v0.30.6.0 — profiler can see fixture lights, and they turn out to be 73% of the frame
+
+Measurement first. The cost sweep could only toggle `QualitySettings` keys, so
+the one thing that had just got more expensive — fixture lights — was invisible
+in the only report anyone reads.
+
+- **The sweep can disable store-level render inputs, not just quality presets.**
+  A `SweepStep` now carries either a `quality` override or a `store` patch
+  (`SweepStorePatch`, currently `lightsMode`); the engine restores every patched
+  field between steps and skips a step whose patch already matches live state.
+  Adds a **Fixture lights** row to the breakdown.
+- **`runCostBreakdown(onProgress, { quick: true })`** — a full sweep is
+  `(settle + sample) x (1 + steps)` = 720 driven frames, which is minutes on a
+  slow GPU and never finishes under a headless software rasteriser. Quick mode
+  ranks the effects in a quarter of the frames.
+
+**What it measured** (default flat, night, all 19 fixtures on, Performance tier,
+900x600, headless): switching the fixture lights off took the frame from
+**520 ms → 140 ms — 73% of frame time**. Every other row landed within ~6% of
+baseline, which at that tier is the noise floor. The headless renderer is a
+software rasteriser and over-weights ALU-heavy shading, so treat the ratio as
+directional — but it confirms the shader reading exactly: three unrolls its
+point-light loop and `RE_Direct_Physical` runs a full `BRDF_GGX_Multiscatter`
+per light per fragment with **no early-out on a light attenuated to zero**.
+
+Two optimisations follow from that, both shipped here:
+
+- **Cheaper per-light maths beats fewer lights.** `RE_Direct_Lambert` is one dot
+  product where GGX is D+V+F+multiscatter, so the plain white ceiling
+  (`ceiling/Ceiling.tsx`) is now `meshLambertMaterial`: at roughness 1 it has no
+  specular lobe worth evaluating, and in walk mode it is one of the largest
+  surfaces on screen. A ceiling the user has FINISHED still gets its PBR
+  material.
+- **Coincident same-kind fixtures merge on Performance/Medium**
+  (`aggregateFixtureLights`, `quality.mergeCoincidentLights`). A false-ceiling
+  downlight grid is several identical bulbs 0.6–0.8 m apart that read as one
+  source. The rule is narrow on purpose — same def, same bulb colour, never an
+  IES spot, within 1.0 m of the cluster's first member (head-anchored, so a long
+  row can't chain-collapse to its centre). **1.0 m sits below the tightest pair
+  in the shipped flat** (two sconces at 1.2 m, which must stay two pools of
+  light), so the default layout merges nothing — verified live at 19 lights in
+  orbit, 19 in walk, 19 after moving the camera, 0 with the switch off. The
+  saving is for authored designs; widening the radius to manufacture one in the
+  default flat would be the lighting design being rearranged for performance.
+
+Also recorded in `src/scene/CLAUDE.md`: per-object light culling is not
+available in three's forward renderer (`projectObject` filters lights by the
+CAMERA's layers), and extending the Lambert swap to walls has to go through
+`materials/cache.ts:buildMaterial` rather than deriving a twin from the cached
+Standard material — the finish system mutates those in place, so a twin would go
+stale mid-finish-change.
+
+## v0.30.5.1 — the lights switch means all of them
+
+The **Lights** switch was documented as "flip it on to light every fixture … or
+off to keep them all dark", and that is not what it did. Real point lights were
+ranked by distance to the camera and capped to the render tier's
+`maxFixtureLights` — **2** on the default Performance tier, ×3 in orbit — so of
+the 19 emitters in the furnished default flat, 6 were lit in orbit and 2 in walk
+mode, and *which* 2 changed as you moved. Walking through the home switched lamps
+on and off around you. The cap was invisible as a budget and very visible as
+flicker.
+
+- **`lightsMode` is now one switch for the whole home.** On lights every fixture,
+  off lights none, in both view modes. Nothing in the fixture-light path reads
+  the camera any more: the new pure `scene/lighting/fixtureLights.ts` maps items →
+  lights in stable ITEM order, and `chooseEmitters.ts` (the nearest-N budget) is
+  deleted.
+- **A fixture's own switch still wins.** `props.lightOn === 'no'` — the walk-mode
+  per-light toggle and the inspector's light-source override — keeps that one
+  fixture dark regardless of the scene-wide switch, exactly as before. That is now
+  the *only* thing that turns an individual light off.
+- **The `maxFixtureLights` quality setting is gone** (preset field, the "Night
+  light fixtures" slider in Graphics settings, the dev profiler's sweep entry).
+  Nothing consumed it any more, and a slider that does nothing is worse than no
+  slider. A stale persisted override is ignored harmlessly.
+- **What remains is a GPU guard, not a budget**: `MAX_LIVE_FIXTURE_LIGHTS` (64).
+  Enough simultaneous point lights overflow a driver's fragment-uniform limit and
+  fail shader compilation outright — a black scene, not a slow one. It sits far
+  above any real design (the default flat is 19) and drops the excess in item
+  order, so it can never present as proximity switching.
+- `FurnitureLights` has no per-frame path left at all: the set is a `useMemo` over
+  items/mood/flag (it used to rebuild-and-sort on camera movement), and the shared
+  fixture-glow factor is written on switch change instead of every frame.
+
+Trade-off, stated plainly: a night scene now pays for every emitter instead of
+2–6. That cost is real but it is the behaviour the switch promises, and the user
+can already control it where they can see it — the scene-wide switch, or a
+per-light one. I could not get a trustworthy number for it from the headless
+harness (software rasteriser; run-to-run variance exceeded the effect), so no
+figure is claimed here.
+
+Verified in the running app: 19 lights in orbit, 19 in walk, still 19 after moving
+the camera, 18 with one fixture switched off, 0 with the switch off
+(`scripts/scenarios/fixture-lights-all-on.json`, assertions in-page).
+
+## v0.30.5.0 — starting over: one guarded path, honest labels, no stranded furniture
+
+There WAS a way to clear the plan and start from scratch, but it was reachable only
+from inside the 2D editor, it wasn't actually blank, and whether an action asked
+before destroying your work depended on which button you happened to press:
+"New" wiped the plan AND every placed item with no prompt, while "Clear all
+furniture" confirmed politely. Three File-menu / onboarding entries said "reset to
+the floor-plan default" or "a blank flat" and only ever touched furniture.
+
+- **One plan-replacement path.** `floorPlanSlice.replaceFloorPlan(plan, {furniture})`
+  snapshots history ONCE (plan + furniture undo together), prunes finishes, and takes
+  an explicit answer for the furniture already placed: `'clear'` (New, apply a
+  template) or `'rehome'` (reset to default, load a saved apartment). Leaving it
+  untouched is no longer an option — items are world-space with no room back-pointer,
+  which is how "Reset to HDB" and "Load…" used to leave a whole layout floating in
+  the void. The re-homing itself is now pure + shared (`floorplan/rehomeItems.ts`)
+  with the load path in `state/schema.ts`, instead of the load path being the only
+  place that did it.
+- **A truly blank plan.** `newFloorPlan()` makes a plan with no walls and no rooms
+  (it always seeded a 5.4 × 4.4 m shell while its tooltip promised "a fresh, empty
+  apartment shell"). The shell is still available, as a choice.
+- **Every destructive action is guarded, and worded once.** `ui/planActions.ts` owns
+  the confirm copy for all of them, so the desktop Plan menu, its mobile sheet, the
+  template picker, the plan library, the File menu, its mobile sheet and ⌘K can't
+  disagree. Newly guarded: **New** (was: no prompt at all), **Reset to HDB**,
+  **applying a template**, **loading a saved apartment**, **deleting a saved
+  apartment** (not undoable — the copy says so), and the **AI plan draft**.
+- **Labels name the level they act on.** File ▾ now reads *New apartment… · Reset
+  apartment… · Restore demo furniture… (plan unchanged) · Clear furniture… (plan
+  unchanged)*; onboarding's "Start empty — A blank flat" is now "Start unfurnished —
+  The default 4-room shell, empty"; the plan inspector's "Delete all" (which only
+  ever deleted the wall SELECTION) says "Delete N selected".
+- **Reachable without opening the 2D editor**: plan-level New / Reset join the File
+  menu and its mobile sheet, plus three ⌘K commands (new / reset / clear furniture),
+  behind the new `planReset` flag (simple tier, on in both modes). "New apartment…"
+  opens a chooser (empty canvas / starter room) rather than a yes/no confirm, and
+  hops into the 2D editor — an empty canvas in the 3D view is a blank screen with no
+  visible next step.
+- **Finish hygiene extended to per-FACE entries.** `pruneFinishesForPlan` dropped
+  stale per-ROOM finishes but never touched `wallAccents`/`wallTex` (keyed
+  `${wallId}:${roomId}`), so a swapped plan carried the previous plan's accent walls
+  around forever. The dev/scenario `window.__loadTemplate` hook now goes through the
+  same guarded path, so a harness can't reach a state the UI cannot produce.
+
+Cover: `state/slices/planReplace.test.ts` (furniture policy, single-undo, finishes
+hygiene, empty-vs-shell), `ui/planActions.test.ts` (every action asks first and does
+nothing when declined), `floorplan/rehomeItems.test.ts`, `features/planReset.test.ts`
+(both modes). Scenario: `scripts/scenarios/plan-reset-guards.json`.
+
+## v0.30.4.0 — a room can be any shape: N parts or a free polygon, resolved in one place
+
+The default flat's `RoomDef` could only describe **a rectangle plus at most one
+L-extension**. Living/dining is three pieces — the east column, the circulation
+strip east of the household shelter, and the entrance foyer — so it was declared
+as ONE oversized rect reaching 0.76 m west of the B3/LD partition, deliberately
+overlapping bedroom 3 and the corridor, with a render-time overlap-carve in the
+floor renderer to sort out who painted what. Two user-visible defects fell out of
+that, and both are fixed by fixing the model rather than the symptom.
+
+- **The room model is now general.** `RoomDef` takes **any number** of
+  `extensions` (offset rects — an L needs one, a T or U two, no cap) **or** an
+  explicit free-form `polygon` in absolute metres for a shape no union of
+  rectangles can describe. A rectilinear polygon is decomposed back into rects so
+  every rect-based renderer (floor planes, ceiling tiles, wall-edge clipping)
+  keeps working; a polygon with a diagonal edge renders as a triangulated floor
+  (`RoomFloor`'s new polygon branch, mirroring `PlanRoomFloor`'s). Living/dining
+  is now three exact, non-overlapping parts.
+- **One reader for a room's shape.** New pure `apartment/roomGeometry.ts` —
+  `roomParts` / `roomOutline` / `roomBounds` / `roomContains` / `roomFloorArea` /
+  `needsTriangulatedFloor`. Every consumer was rewired to it: `Floor.tsx`,
+  `Ceiling.tsx`, `roomShellGeometry.ts` (the room editor), `wallRoomSides.ts`,
+  `WallSegment.tsx`'s interior probe, `apartment/rooms.ts`, `autoArrange.ts`,
+  `suggestViews.ts`, and `defaultPlan.ts`. Each of those previously resolved the
+  shape itself and so saw only a room's first rectangle — `apartment/rooms.ts`'s
+  `roomPolygon`/`roomCentroid`/`roomArea` reported the main rect for an L-shaped
+  room, and `suggestViews` framed a multi-part room off part of itself.
+- **Living/dining no longer overlaps the corridor and bedroom 3.** Hovering it in
+  the overview lit a slab over the corridor, and its room editor isolated two
+  rooms that weren't being edited, because everything except the floor renderer
+  drew the raw rect. `defaultPlan.ts` maps the shape into the plan vocabulary
+  through one function, so a multi-part room reaches the plan as an explicit
+  `PlanRoom.polygon` — the hover highlight, room editor, area/perimeter, 2D plan,
+  minimap and walk teleport now all agree with the 3D floor.
+- **The white gaps between the kitchen and living/dining floors are gone.** Two
+  bands of bare background showed through. (1) The L/D's south edge sat at
+  z=6.775 — the face of a 100 mm wall on the shelter's centreline — while the
+  kitchen's north face had moved to 6.975 when the household-shelter ring went to
+  300 mm RC; east of the shelter (x>8.215) there is no wall on that line at all,
+  so the 0.2 m mismatch was a 1.37 x 0.2 m hole. (2) The kitchen's SE strip
+  started at z=8.285 while the entrance foyer stopped at 8.135, and
+  `wall-ext-SE-step` only begins at x=10.2, so nothing covered the 0.32 x 0.15 m
+  sliver between them.
+- **The overlap-carve is deleted** (`floor/floorRects.ts`, ~130 lines). Rooms
+  declare exact non-overlapping footprints, so there is nothing to carve — and
+  nothing left to silently paper over a bad declaration. `state/schema.ts`'s
+  stranded-item rehoming, which hand-read `extension` and so ignored polygon
+  rooms entirely, now goes through `planRoomRects`/`pointInRoom`.
+- **`INTERIOR_AREA_M2` is honest for the first time**: `roomArea` is a shoelace
+  over the room's outline, so a multi-part room counts a shared edge once. The
+  interior total drops 87.8 → ≈85.4 m² — the old figure double-counted
+  living/dining's 2.6 m² overlap, against ~0.3 m² of floor no room had claimed.
+
+Regression cover in `roomGeometry.test.ts`: no two rooms overlap, no room
+overlaps itself, and no cell enclosed by the external walls lacks both a floor and
+a wall (a flood-fill that reproduces both white gaps). Restoring the old
+single-rect declaration fails three of them. Scenario:
+`scripts/scenarios/kitchen-ld-floor-seam.json`.
 
 ## v0.30.3.0 — walk mode at true scale: a clear spawn, a viewport-aware FOV, two fittings
 

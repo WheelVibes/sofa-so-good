@@ -41,6 +41,7 @@ import { openSh3fImport } from './openSh3fImport'
 import { openShoppingList } from './openShoplist'
 import { ProUpsellHint } from './ProUpsellHint'
 import { pickPaletteFromPhoto } from './paletteFromPhoto'
+import { confirmClearFurniture, confirmResetPlanToDefault, openNewPlan } from './planActions'
 import { Icon, type IconName } from './toolbar/icons'
 
 /** ⌘K command id → the feature flag that gates it (so a disabled feature can't
@@ -52,6 +53,8 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   report: 'report',
   'reno-ics': 'report',
   floorplan: 'floorPlanEditor',
+  'plan-new': 'planReset',
+  'plan-reset': 'planReset',
   'palette-from-photo': 'paletteFromPhoto',
   panorama: 'panorama',
   'pano-tour': 'panoTour',
@@ -547,6 +550,37 @@ export function CommandPalette() {
         label: 'Floor plan editor',
         icon: 'FloorPlan',
         run: () => s().setFloorPlanEditing(true),
+      },
+      // Starting over was reachable only from inside the 2D editor. Both are
+      // guarded (`ui/planActions.ts`) — the palette runs the same confirmed
+      // action the menus do, never a raw store call.
+      {
+        id: 'plan-new',
+        group: 'Tools & panels',
+        label: 'New apartment (clear the plan)',
+        keywords: ['new', 'blank', 'empty', 'clear plan', 'start over', 'scratch', 'reset plan'],
+        icon: 'FloorPlan',
+        run: () => openNewPlan(),
+      },
+      {
+        id: 'plan-reset',
+        group: 'Tools & panels',
+        label: 'Reset apartment to the default flat',
+        keywords: ['reset', 'default', 'hdb', 'restore plan'],
+        icon: 'Reset',
+        run: () => {
+          void confirmResetPlanToDefault()
+        },
+      },
+      {
+        id: 'clear-furniture',
+        group: 'Tools & panels',
+        label: 'Clear all furniture',
+        keywords: ['empty', 'remove items', 'delete all', 'unfurnish'],
+        icon: 'Trash',
+        run: () => {
+          void confirmClearFurniture()
+        },
       },
       {
         id: 'ai-plan-generate',

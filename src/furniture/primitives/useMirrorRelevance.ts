@@ -23,7 +23,7 @@ import { MIRROR_REAL_BUDGET, mirrorScreenFraction, rankRealMirrors } from '../mi
  *    `useSyncExternalStore` shape the scene layer already uses for cross-tree
  *    per-frame state.
  *  - **Throttled, not per-frame.** Re-published only when the camera has moved
- *    past `CAMERA_MOVE_EPS_SQ`, the same trick `lighting/chooseEmitters.ts` uses
+ *    past `CAMERA_MOVE_EPS_SQ` — the trick the retired `lighting/chooseEmitters.ts` used
  *    to keep the fixture-light budget off the per-frame path. A parked camera
  *    costs one squared-distance compare per frame.
  *  - **Never flips mid-gesture.** Each flip swaps the material, which means a

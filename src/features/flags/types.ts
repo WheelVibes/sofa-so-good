@@ -16,6 +16,7 @@ export type FeatureFlag =
   | 'history'
   | 'shareExport'
   | 'floorPlanEditor'
+  | 'planReset'
   | 'smartStart'
   | 'layoutReroll'
   | 'textBrief'

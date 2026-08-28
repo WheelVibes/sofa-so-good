@@ -170,6 +170,11 @@ export interface UiSlice {
    */
   presentationIncludeTour: boolean
   setPresentationIncludeTour: (v: boolean) => void
+  /** Whether the "Start a new apartment" chooser is open (`NewPlanModal`).
+   *  Lives here because the 2D editor's Plan menu, the File menu and ⌘K all
+   *  open the same guarded chooser. */
+  newPlanOpen: boolean
+  setNewPlanOpen: (open: boolean) => void
   /** Whether the budget / shopping-list panel is open. */
   budgetOpen: boolean
   /** Whether the whole-renovation budget allocator panel is open (BSJ-1). */
@@ -336,6 +341,7 @@ export const UI_INITIAL: Pick<
   | 'showcaseAccumulating'
   | 'roomEditor'
   | 'roomOrder'
+  | 'newPlanOpen'
   | 'bootPhase'
   | 'sceneReady'
   | 'loading'
@@ -370,6 +376,7 @@ export const UI_INITIAL: Pick<
   density: 'comfortable' as Density,
   presenting: false,
   presentationIncludeTour: false,
+  newPlanOpen: false,
   budgetOpen: false,
   renoBudgetOpen: false,
   clearanceOn: false,
@@ -519,6 +526,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
       const i = GRID_SIZES.indexOf(s.gridSize as (typeof GRID_SIZES)[number])
       return { gridSize: GRID_SIZES[(i + 1) % GRID_SIZES.length] }
     }),
+  setNewPlanOpen: (open) => set({ newPlanOpen: open }),
   toggleBudget: () => set((s) => ({ budgetOpen: !s.budgetOpen })),
   toggleRenoBudget: () => set((s) => ({ renoBudgetOpen: !s.renoBudgetOpen })),
   toggleClearance: () => set((s) => ({ clearanceOn: !s.clearanceOn })),

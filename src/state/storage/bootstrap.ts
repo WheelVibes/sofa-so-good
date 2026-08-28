@@ -285,7 +285,10 @@ async function exposeDevHelpers(): Promise<void> {
   const { PLAN_TEMPLATES } = await import('../../floorplan/templates')
   ;(window as unknown as { __loadTemplate?: unknown }).__loadTemplate = (id: string) => {
     const tpl = PLAN_TEMPLATES.find((t) => t.id === id)
-    if (tpl) useStore.getState().setFloorPlan(JSON.parse(JSON.stringify(tpl)))
+    // Same path the TemplatePicker uses (minus its confirm): undoable, furniture
+    // cleared, finishes pruned. It used to call bare `setFloorPlan`, so a
+    // scenario harness saw a state the UI can never produce.
+    if (tpl) useStore.getState().replaceFloorPlan(structuredClone(tpl), { furniture: 'clear' })
   }
   // Expose material upload helper for the screenshot / scenario harness.
   const { persistUserMaterial } = await import('../../materials/upload/persist')
