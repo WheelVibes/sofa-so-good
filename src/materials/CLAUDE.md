@@ -662,26 +662,40 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
     remaining lever is the latewood contrast/power term or genuine fine grain lines — not the
     meander, the ring count, the coarsen factor, the roughness or the pore field, all now
     settled.
-- **The bathroom tile is CORRECT — verified by arithmetic, don't re-file it (BATH-TILE-OK).**
-  This was the last DEFAULT surface never properly judged; the 44-frame walk survey left an
-  impression of "glossy with large soft highlight blobs". Both halves of that impression were
-  wrong.
-  · **The numbers match the spec exactly.** `porcelainFields` passes its OWN options —
-    `cols: 2, rows: 4, groutDiv: 500, rectified: true` — so at the 512 bake and
-    `wall-tile-white`'s `uvScale [1.2, 1.2]`: the joint is `1 px / 512 x 1200 mm` =
-    **2.34 mm**, precisely the 2-3 mm JOINT-SCALE requires of rectified porcelain, and the
-    tile is `1.2/2 x 1.2/4` = **600 x 300 mm**, matching its "300x600" name. Joints are LIGHT
-    (`0.9-1.0` x the grout RGB, never the `tile` painter's 0.62-dark grout), the face/joint
-    height step is a shallow 0.95 -> 0.72 rather than a canyon, and `normalStrength: 3` keeps
-    it near-flat. Confirmed on a close crop: light hairline joints, gentle glaze, no chunky
-    bevel.
-  · **The "highlight blobs" were the MIRROR**, not the tile — a specular reflection of the
-    ceiling light in the bathroom mirror, which is what a mirror should do.
-  · **The methodological trap that nearly produced a false defect:** computing JOINT-SCALE
-    with the PAINTER'S DEFAULTS (`groutDiv 150`, `cols 4`, `rows 8`) gives a 7 mm joint and a
-    300x150 mm tile — a 3x-too-wide joint and a tile that contradicts its own name, i.e. two
-    plausible-looking bugs. Neither exists. **Always read the options the WRAPPER passes, not
-    the signature defaults**, before doing the arithmetic.
+- **A transient boot tier PERMANENTLY pins procedural texture resolution
+  (PROCEDURAL-BAKE-STALE, open).** `generators.ts` documents "Performance (the app default)
+  drops to 256 squared ... while Medium+ keeps 512 squared", and `QualityController` applies
+  it in a tier-keyed effect — but only to NEW generations ("existing textures keep their size
+  until regenerated; cache keys carry the size"). Nothing re-resolves an already-MOUNTED
+  material, so whatever the tier was during the first bake is what the GPU keeps.
+  Measured with `scripts/dev-probes/bake-size.mjs`, which prints the live setting and the
+  actual texture histogram side by side:
+
+  | state                 | getProceduralBaseSize() | textures on the GPU        |
+  | --------------------- | ----------------------- | -------------------------- |
+  | as booted (medium)    | **512**                 | 256² x80, **no 512² at all** |
+  | after setTier medium  | 512                     | unchanged                  |
+  | after setTier maximum | 512                     | **512² x12** appear         |
+
+  The setting and the reality disagree at the settled default tier, and only a tier CHANGE
+  forces the re-bake. So a Medium user keeps quarter-resolution maps for exactly the patterns
+  whose `PATTERN_SIZE_CAP` is 512 (tile, porcelain, subway, stoneTile, parquet, brick…) —
+  the high-frequency ones that cap exists for. This is meta-rule (x), a tier-dependent value
+  frozen at creation, extended from a scalar to a texture.
+  · **The fix needs its own mechanism.** Cache keys already carry the size, so a size change
+    naturally yields NEW keys — but a mounted surface never re-requests, so it keeps the old
+    instance. `proceduralSwapSignal` is not it: only `RenderPump` subscribes, to request a
+    frame after a worker hot-swap. The tier-change loading overlay is the natural place to
+    force a re-resolve, since it is already up for exactly this kind of work.
+- **CORRECTION to BATH-TILE-OK (v0.31.5.34): the joint is 4.7 mm, not 2.34 mm, and that is
+  OUT of spec.** That verdict computed JOINT-SCALE at S=512 — but PROCEDURAL-BAKE-STALE means
+  the tile actually bakes at **256** on the settled Medium default, and `1 px / 256 x 1200 mm`
+  = **4.69 mm**, nearly double the 2-3 mm JOINT-SCALE allows for rectified porcelain.
+  **The painter is still correct** — `porcelainFields`' own options (`cols 2, rows 4,
+  groutDiv 500, rectified`) are right, and at its intended 512 bake the joint IS 2.34 mm. The
+  defect is the bake size it actually receives, so fixing PROCEDURAL-BAKE-STALE fixes the
+  joint too; do NOT "fix" the joint by editing the painter. The 600x300 mm tile size and the
+  light hairline joint colour from that entry stand unchanged (both are size-independent).
 - **Furniture materials** come from `furnitureMaterials.ts` helpers (real three `Material`
   instances: tintable wood/stone/fabric, `getSolidMaterial`, the `mat:<id>` DLC resolver).
   **Drapery (CURTAIN-FABRIC):** `getDraperyMaterial(kind, color, pattern, doubleSided)` is the

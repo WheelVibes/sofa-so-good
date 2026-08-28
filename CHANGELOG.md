@@ -5,6 +5,48 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.35 — a transient boot tier permanently pins texture resolution
+
+PROCEDURAL-BAKE-STALE (open), and a CORRECTION to v0.31.5.34.
+
+Chasing why a fresh `material-audit.mjs` at medium found no 512-square textures at all,
+the new `scripts/dev-probes/bake-size.mjs` prints the live setting and the actual GPU
+texture histogram side by side:
+
+  as booted (medium)     getProceduralBaseSize()=512   256² x80, NO 512² at all
+  after setTier medium   getProceduralBaseSize()=512   unchanged
+  after setTier maximum  getProceduralBaseSize()=512   512² x12 appear
+
+The setting and the reality disagree at the settled default tier. `QualityController`
+applies the size in a tier-keyed effect but only to NEW generations — nothing re-resolves
+an already-MOUNTED material, so whatever tier was live during the first bake is what the
+GPU keeps, and only a tier CHANGE forces a re-bake. A Medium user therefore keeps
+quarter-resolution maps for exactly the patterns whose PATTERN_SIZE_CAP is 512 (tile,
+porcelain, subway, stoneTile, parquet, brick) — the high-frequency ones that cap exists
+for. This is meta-rule (x), a tier-dependent value frozen at creation, extended from a
+scalar to a texture.
+
+CORRECTION to BATH-TILE-OK. That verdict computed JOINT-SCALE at S=512 and reported a
+2.34 mm joint, comfortably inside the 2-3 mm rectified-porcelain spec. But the tile really
+bakes at 256, where 1px / 256 x 1200 mm = **4.69 mm** — nearly double the allowance. So the
+joint IS out of spec today. The painter is still correct: porcelainFields' own options
+(cols 2, rows 4, groutDiv 500, rectified) are right, and at the intended 512 bake the joint
+is 2.34 mm. The defect is the bake size it receives, so fixing PROCEDURAL-BAKE-STALE fixes
+the joint too — do NOT edit the painter. The 600x300 mm tile size and the light hairline
+joint colour from that entry stand (both size-independent).
+
+The fix needs its own mechanism and is deliberately not rushed here: cache keys already
+carry the size, so a change yields new keys, but a mounted surface never re-requests.
+`proceduralSwapSignal` is not reusable for it — only RenderPump subscribes, to request a
+frame after a worker hot-swap. The tier-change loading overlay is the natural place to
+force a re-resolve.
+
+Also recorded: `aoMap` is still bound on 0 of 1122 materials, and is being CLOSED rather
+than built. Binding it needs a second UV set on the shell's low-poly boxes plus an AO
+channel baked per procedural painter, and it would only help `performance` — the one tier
+without SSAO (TIER-AO runs from Medium up), which PERF-TIER-LOOKS-FINE measured as visually
+fine and which already ships ContactShadow blob decals.
+
 ## v0.31.5.34 — the bathroom tile is correct; the default-surface survey is complete
 
 BATH-TILE-OK. No render change — a null result reached by arithmetic, and it closes the
