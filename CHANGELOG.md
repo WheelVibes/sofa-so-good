@@ -5,6 +5,43 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.30 — the tier most mobile users get is fine; AO-at-performance retired on evidence
+
+PERF-TIER-LOOKS-FINE. No render change; a new probe and a null result that closes a
+long-standing suspicion.
+
+The phone veto puts real phones on `performance` — no AO, no IBL, no post stack, DPR 1 —
+and until v0.31.5.29 made the harness able to boot a phone profile, no frame of that tier
+had ever been reviewed in this work. TIER-AO's claim that AO is "the difference between a
+room that has corners and one that reads as flat shading" made it the prime suspect for
+the original "looks like animation, not real" report.
+
+`scripts/dev-probes/phone-tier-look.mjs` (new) holds the viewport FIXED at 390x844 and
+varies ONLY the tier, at 13:00 and 21:00, reporting interior stats over a centre slab
+(never the full canvas) alongside the live systems:
+
+  13h  performance ibl=false  mean 179.1  sigma 27.1  dark 0%
+  13h  medium      ibl=true   mean 179.3  sigma 21.7  dark 0%
+  13h  maximum     ibl=true   mean 180.3  sigma 22.0  dark 0.1%
+  21h  performance            mean  87.5  sigma 85.7  dark 47.9%
+  21h  medium                 mean  83.3  sigma 80.7  dark 46.5%
+  21h  maximum                mean  84.8  sigma 82.2  dark 46.2%
+
+`performance` is not flatter — its slab contrast is HIGHER at 13:00, and the three tiers
+are within noise at night. Sigma alone cannot settle it (DPR differs 1 / 1.5 / 2 and lower
+resolution inflates per-pixel variance), so the verdict rests on the cropped frames:
+`performance` is crisp, warm and legible, fully competitive with `medium` and if anything
+less hazy than `maximum` at phone size. The visible tier deltas are the documented post
+effects — at 21:00 `maximum` has bloom glow on lit surfaces and smoothly-shaded fan blades
+where `performance` has harder edges and no glow, exactly as RD-409 specifies.
+
+So AO at `performance` is retired as a target on evidence, not merely on the earlier
+"cannot be honestly verified on an M4" caution. The flat tier already ships ContactShadow
+blob decals for grounding, and the dollhouse orbit view — mostly wall faces and floors at
+distance — is not where screen-space AO earns the 25.81% TIER-AO measured in a close
+interior view at Medium. If "not real" is re-opened, the place to look is WALK mode
+close-ups, not the phone dollhouse.
+
 ## v0.31.5.29 — the phone quality veto works; my probe was booting as a desktop
 
 A correction of my own earlier claim, not an app defect. No src change beyond the version.

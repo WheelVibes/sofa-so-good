@@ -564,6 +564,40 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   nothing and pins `showcaseAccumulating=false`; the `showcase` quality flag is `false` on
   every tier. Grounding comes from the cues above — don't reintroduce a scene-wide
   shadow-catcher plane.
+- **The `performance` tier is NOT the "flat/cartoon" problem — measured on a real phone
+  profile, don't re-file it (PERF-TIER-LOOKS-FINE).** `performance` is what the phone veto
+  actually gives most mobile users (no AO, no IBL, no post stack, DPR 1), and until the
+  harness could boot a phone profile no frame of it had ever been reviewed. TIER-AO's note
+  that AO is "the difference between a room that has corners and one that reads as flat
+  shading" made it the prime suspect for the original "looks like animation" report.
+  Measured with `scripts/dev-probes/phone-tier-look.mjs`, which holds the viewport FIXED at
+  390x844 and varies ONLY the tier (meta-rule xvi), on the default flat in orbit:
+
+  | hour | tier        | ibl   | slab mean | sigma | dark% |
+  | ---- | ----------- | ----- | --------- | ----- | ----- |
+  | 13   | performance | false | 179.1     | 27.1  | 0     |
+  | 13   | medium      | true  | 179.3     | 21.7  | 0     |
+  | 13   | maximum     | true  | 180.3     | 22.0  | 0.1   |
+  | 21   | performance | false | 87.5      | 85.7  | 47.9  |
+  | 21   | medium      | true  | 83.3      | 80.7  | 46.5  |
+  | 21   | maximum     | true  | 84.8      | 82.2  | 46.2  |
+
+  `performance` is not flatter — its slab contrast is HIGHER at 13:00 (27.1 against 21.7 /
+  22.0) and all three tiers are within noise at night. Read the sigma column with care: DPR
+  differs per tier (1 / 1.5 / 2) and lower resolution inflates per-pixel variance, so sigma
+  cannot settle this on its own — the verdict comes from the cropped frames, which show
+  `performance` crisp, warm and legible, fully competitive with `medium` and if anything
+  less hazy than `maximum` at phone size.
+  **The visible tier deltas are the documented post effects, not a deficiency:** at 21:00
+  `maximum` has soft bloom glow on lit surfaces and smoothly-shaded fan blades where
+  `performance` has harder edges and no fixture glow (RD-409 mounts Bloom only at the post
+  tiers). Nothing here reads as missing corner darkening.
+  **Consequence: AO at `performance` is retired as a target on EVIDENCE, not just on the
+  earlier "cannot be honestly verified on an M4" caution.** The flat tier already ships the
+  ContactShadow blob decals (RZ1) for grounding, and the dollhouse orbit view — mostly wall
+  faces and floors seen at distance — is not where screen-space AO earns its 25.81%; that
+  figure was measured at Medium in a close interior view. If the "not real" complaint is
+  ever re-opened, look at WALK mode close-ups, not the phone dollhouse.
 - **Cheap baked AO on the flat tier.** With no SSAO on Performance/Medium, grounding is
   faked with shared-texture alpha decals: `ContactShadow.tsx` (under-furniture blob, RZ1; also a
   fainter/tighter **surface decal under small decor** resting on a table/shelf — PC2-CONTACT-AO-DECOR,
