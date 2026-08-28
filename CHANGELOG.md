@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.23 — the room-editor lock-step verified at runtime for the first time
+
+EDITOR-LOCKSTEP. No behaviour change; one new probe and a recorded verdict.
+
+`src/scene/CLAUDE.md` requires `RoomEditorScene.tsx` to stay in lock-step with
+`Scene.tsx`'s render systems so a finish looks the same in the editor as in orbit at
+the user's tier. That had never been checked against a running app — every fix in this
+graphics work landed in the main scene, and the editor was assumed to inherit the
+shared modules.
+
+`scripts/dev-probes/editor-lockstep.mjs` censuses both canvases in ONE session (they
+are mutually exclusive in `App.tsx`, so it enters and exits the editor) by each
+system's runtime signature rather than by component name. Every capability matches, at
+medium/13:00 and maximum/21:00 alike: ibl, shadow type (VSM), sun shadow map 1024, dpr
+(1.5 / 2), cameraFar 400, maxAnisotropy 16, live point lights, and — the load-bearing
+one — render() calls per animation frame, 13 = 13 at Medium's AO-only composer and
+45 = 45 at Maximum's full stack. That last one proves the tier-gated post stack mounts
+identically, which no source-level check can establish. cameraFar 400 confirms
+v0.31.5.20's shared `SCENE_CAMERA_FAR` reached the editor.
+
+The only difference is the Sky dome, and it is deliberate: `RoomEditorScene` documents
+ROOM-EDITOR-BACKDROP and paints a flat `#e6eaef` background instead, because a faded
+exterior wall in an isolated room reveals the background directly, so a bright sky bled
+through the fade and the shower glass's transmission sampled it and lit up cyan. The
+dotted translucent plane around the room is `GridOverlay`, an authoring affordance.
+
+Two probe traps recorded, because both produced a confident wrong answer first: a
+source-level grep for mounted components is not evidence (`<Sky` matched inside a JSX
+comment explaining why the Sky is deliberately NOT mounted), and `renderCalls` came back
+0 for the editor and read as "no post stack" when both canvases are `frameloop="demand"`
+and an idle one simply renders nothing — the probe now drags the camera while sampling.
+
 ## v0.31.5.22 — bloom DOES clear the threshold on non-emissive surfaces at night
 
 BLOOM-NIGHT-NEARFIELD. No behaviour change; one new probe and a corrected invariant.

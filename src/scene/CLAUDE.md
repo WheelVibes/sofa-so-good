@@ -643,6 +643,44 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 - **Materials**: pass a real three `Material` to `material=`, never a props object.
 - **Mount expensive controllers once**; collapse repeat geometry via `InstancedBoxes`.
   `ContextLossGuard` must stay mounted in **both** Canvases (main + room editor).
+- **The room-editor lock-step is VERIFIED at runtime, and the ONE difference is deliberate
+  (EDITOR-LOCKSTEP).** The rule below had never been checked against a running app — every fix in
+  the graphics-realism work landed in `Scene.tsx`, and the editor was assumed to inherit the shared
+  modules. `scripts/dev-probes/editor-lockstep.mjs` censuses both canvases in ONE session (they are
+  mutually exclusive in `App.tsx`, so it enters and exits the editor) by each system's runtime
+  SIGNATURE rather than by component name — `scene.environment` for the IBL, a big
+  `MeshBasicMaterial` sphere for the Sky, a shadow-casting `DirectionalLight` + its map size,
+  `gl.shadowMap.type`, `colorWrite:false`/`opacity:0` meshes for the occluder, live point lights,
+  and render() calls per animation frame for the post stack. Measured, every capability matches:
+
+  | | medium / 13:00 | maximum / 21:00 |
+  | --------------- | -------------- | --------------- |
+  | ibl             | true = true    | true = true     |
+  | shadowType      | 3 = 3 (VSM)    | 3 = 3 (VSM)     |
+  | sunShadowMap    | 1024 = 1024    | 1024 = 1024     |
+  | dpr             | 1.5 = 1.5      | 2 = 2           |
+  | cameraFar       | 400 = 400      | 400 = 400       |
+  | maxAnisotropy   | 16 = 16        | 16 = 16         |
+  | renderCalls/frame | 13 = 13      | 45 = 45         |
+  | point lights    | 18 = 18        | 20 = 20 (19 lit)|
+
+  `renderCalls` is the load-bearing one: it proves the tier-gated post stack mounts identically
+  (13 sibling render calls at Medium's AO-only composer, 45 at Maximum's full stack), which no
+  source-level check can establish. `cameraFar` 400 confirms SKY-DOME-FAR's shared constant reached
+  the editor.
+  **The only difference is the Sky dome (`domeRadius` 200 vs null), and it is deliberate** —
+  `RoomEditorScene` documents ROOM-EDITOR-BACKDROP and paints a flat `#e6eaef` background instead:
+  a faded exterior wall in an ISOLATED room reveals the background directly (nothing is behind it),
+  so a bright sky bled through the fade as a blown-out band and the shower glass's transmission
+  sampled it and lit up cyan. The dotted translucent plane visible around the room in the editor is
+  `GridOverlay`, an authoring affordance, not an artefact.
+  **Two probe traps recorded, because both produced a confident wrong answer first:**
+  · **A source-level `grep` for mounted components is not evidence.** `<Sky` matched inside a JSX
+    COMMENT explaining why the Sky is deliberately NOT mounted, so the static diff reported the
+    editor as having it. Census the live graph.
+  · **`renderCalls` came back 0 for the editor and looked like "no post stack".** Both canvases are
+    `frameloop="demand"`, so an idle one renders nothing — the count measured the pump, not the
+    stack. The probe now drags the camera while sampling, and the two agree exactly.
 - The room editor uses a **separate Canvas that mirrors the main orbit render stack**
   (`RoomEditorScene.tsx`): `frameloop="demand"` + `RenderPump`, the tier-driven shadow filter
   (VSM on Medium+, PCF on Performance — `RendererTierController` + the Canvas `shadows` prop),
