@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.46 — the wall-reveal "opacity bands" re-diagnosed and quantified (docs + probe)
+
+TODO.md / TASKS.md were reviewed against nine rounds of audits to find entries that later
+measurements had overtaken. The backlog is in good shape — TODO.md holds open items only, the
+real-GPU frontier entries are correctly blocked on a WebGPU adapter, and the rest of the
+rendering entries are content/authoring matters. **One entry was materially wrong**, and it is
+the oldest open rendering item.
+
+It read: "adjacent walls settle at DIFFERENT fade opacities because their orientations differ,
+so a joint shows a hard step", and nominated `cornerSpreadStrength` as the lever. Measured with
+the new `dev-probes/reveal-step.mjs` — which uses the app's own registry (`getWallOpacity` /
+`getWallOwnStrength`) and adjacency (`cornerNeighbors`) at the default boot framing — 37 walls,
+44 shared corners, **10 corners with a step > 0.25, every one of them exactly 0.629**:
+
+- Settled opacity is **bimodal, not varied**: every wall is either 1.0 (own-strength 0) or
+  0.371 (own-strength 0.662), nothing between. Differently-facing walls all land on the same
+  value.
+- That is correct behaviour. `facingToward` dots the wall's outward normal with the CAMERA
+  FORWARD, and the default dollhouse view looks down a 45-degree diagonal (measured forward XZ
+  `[-0.64, -0.64]`). On a rectilinear plan both visible facade directions sit at the same 45
+  degrees, so every camera-facing wall gets `toward` = 0.707 → `smoothstep(0.25, 1, 0.707)` =
+  0.662 → opacity 0.371, while walls facing away are held opaque by the deliberate far-wall rule.
+- **So `cornerSpreadStrength` is the wrong lever.** The two faded walls at a corner already match
+  exactly — there is nothing to blend. What steps is faded-against-far, and far walls are opaque
+  on purpose (the retired binary target existed to stop them resting as washed half-translucent
+  panes). Softening that boundary reintroduces what that rule prevents.
+
+The entry stays OPEN — the band is real and visible in the default view — but now carries a
+number a fix must move, and points away from a lever that could not have worked. Scope is stated
+honestly: one pose, the default boot framing; an off-diagonal azimuth or a non-rectilinear plan
+would spread the `toward` values and has not been measured.
+
+
 ## v0.31.5.45 — the Simple/Pro split audited in full; it is correct (docs + probe)
 
 Two earlier rounds tripped over the same thing from different directions — SKY-ANALYTIC-ORBIT

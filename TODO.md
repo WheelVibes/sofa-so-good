@@ -5,24 +5,37 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 `TASKS.md`.
 
 ## Wall reveal (v0.30.9.0, 2026-08-28)
-- [ ] **Adjacent walls settle at DIFFERENT fade opacities, so a joint shows a hard step.**
-  This is the "different opacity bands at joints/corners" report, and it is NOT a compositing
-  bug — the earlier double-composite theory was measured and disproved. Each wall's fade depth
-  comes from its OWN facing angle (`wallRevealMath.ts:revealStrength`), so two walls meeting at
-  a corner have different orientations, settle at different opacities, and step where they meet.
-  Each band is uniform across a whole wall's width, which is why they read as wide vertical
-  strips rather than hairlines.
-  Evidence that ruled out the alternative: single-layer transparency via stencil was implemented
-  end-to-end (attachment on the Canvas, `clearPass.stencil` on the composer's `RenderPass`,
-  distance-keyed `renderOrder` so the NEAR wall wins) and pixel-diffed on a real GPU — it changed
-  **94 pixels** of a 1400x900 frame. Real, but a hairline, not the bands. The machinery was
-  removed as not worth its complexity; the isolated proof that the mechanism itself works (two
-  50% quads: 128/191 without a stencil, 128/128 with) is in the v0.30.9.0 changelog entry.
-  The lever to look at is `cornerSpreadStrength` — it already exists to pull a wall's neighbour
-  along when one fades, but it is CAPPED at the leader's own strength and gated by a smooth
-  ramp, so a step survives. Softening the discontinuity means either raising/removing that cap
-  at shared corners specifically, or blending each wall's strength toward its corner
-  neighbours' before the opacity is applied.
+- [ ] **A hard opacity step shows where a FADED wall meets a structurally-OPAQUE one.**
+  (Re-diagnosed and quantified v0.31.5.46 — the previous wording, "adjacent walls settle at
+  different fade opacities because their orientations differ", is measurably wrong and would
+  have sent a fix at the wrong lever. Kept open: the band itself is real and visible in the
+  default orbit view.)
+  **Measured** with `scripts/dev-probes/reveal-step.mjs`, which reads the app's own registry
+  (`wallReveal.ts:getWallOpacity` / `getWallOwnStrength`) and adjacency
+  (`wallRevealMath.ts:cornerNeighbors`) at the default boot framing: 37 walls, 44 shared
+  corners, **10 corners with a step > 0.25, every one of them exactly 0.629**.
+  · **Settled opacity is BIMODAL, not varied.** Every wall is either **1.0** (own-strength 0)
+    or **0.371** (own-strength 0.662) — nothing in between. Differently-facing walls
+    (`E-mid`, `S`, `NE-jog-W`, `SW-bedroom`) all land on the SAME value.
+  · **That is correct behaviour, not saturation.** `facingToward` dots the wall's outward
+    normal with the CAMERA FORWARD, and the default dollhouse view looks down a 45-degree
+    diagonal — measured forward XZ `[-0.64, -0.64]`. On a rectilinear plan only two facade
+    directions are visible and both sit at the same 45 degrees, so every camera-facing wall
+    gets `toward` = **0.707**, `smoothstep(0.25, 1, 0.707)` = 0.662, opacity 0.371. Walls
+    facing away get `toward` = -0.707 → strength 0 → opaque, by the deliberate far-wall rule.
+  · **So `cornerSpreadStrength` is the WRONG lever** (the previous entry nominated it): the two
+    faded walls at a corner already match each other exactly, so there is nothing to blend.
+    What steps is faded-against-far — and far walls are held opaque on purpose, because the
+    retired binary target existed to stop them resting as "washed half-translucent panes".
+    Softening that boundary reintroduces exactly what that rule prevents.
+  · **Scope stated honestly:** this is ONE pose — the default boot framing, which is also the
+    pose every user lands on. Orbiting off the diagonal, or a non-rectilinear plan, would
+    spread the `toward` values and give a genuine range of opacities; that case has not been
+    measured. Any fix should be judged against the 10/44 corner count and the 0.629 step at
+    this pose, and re-measured at an off-diagonal azimuth before being called general.
+  Still ruled out, from the original investigation: single-layer transparency via stencil was
+  built end-to-end and pixel-diffed on a real GPU — it moved **94 pixels** of a 1400x900 frame
+  (a hairline, not the bands), and the machinery was removed as not worth its complexity.
 
 ## Showroom finishes (v0.26.0.0, 2026-08-19)
 - [ ] **Showroom picks for furniture `mat:` finishes.** A resolved showroom finish already works
