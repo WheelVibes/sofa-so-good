@@ -651,6 +651,35 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     `TONE_MAPPING_THREE` registry `Lighting` uses, so the still and the viewport cannot drift
     apart; the modal resolves via the same pure `resolveToneMapping`. Default if a caller
     omits it is `AUTO_PHOTO_MODE`, never filmic.
+  · **VERIFIED BY A RENDERED A/B on a real GPU (v0.31.5.41) — this note previously said it was
+    verified by unit tests and reading ONLY, and that caveat is now retired.**
+    `scripts/dev-probes/hq-tone.mjs` stands at one fixed walk pose in the living/dining room and
+    renders the still twice in ONE run, changing exactly one variable (meta-rule xvi): once as the
+    modal now requests it, and once with `toneMapping: 'filmic'` forced, i.e. the pre-fix
+    behaviour. At 24 samples, 320², identical pose, identical live exposure **1.38**:
+
+    | arm                        | resolved tone | clipped | mean  | sigma |
+    | -------------------------- | ------------- | ------- | ----- | ----- |
+    | hq-auto (shipped policy)   | **agx**       | 0.18%   | 174.5 | 38.0  |
+    | hq-filmic (pre-fix)        | filmic        | 0.66%   | 191.9 | 49.9  |
+
+    So filmic blows **3.7x** the highlights of the shipped operator at the same exposure, the
+    shipped path resolves to AgX rather than filmic, and the live graded 1.38 reaches the
+    session instead of the old hardcoded 1. The two arms DIFFERING is the load-bearing part —
+    identical readings would have meant the option never reached the renderer (meta-rule xxv).
+    Cropping confirms it: the filmic arm blows the ceiling and the fan and washes the whole
+    frame, while AgX holds the fan's blade detail and the floor's warmth.
+  · **The pathtracer DOES compile and render under ANGLE/metal headless — PT-BLANK-GUARD is
+    about OTHER drivers.** It was reasonable to expect the megakernel to fail here (that guard
+    exists because it does fail on e.g. WSL D3D12/ANGLE), so this was written up as possibly
+    unverifiable. It renders fine: 24 samples, sigma 38-50, opaque.
+  · **Probe trap, and it mimics the driver failure exactly:** `createHqRenderSession` does NOT
+    auto-start. It builds the tracer, and `session.start()` kicks the rAF accumulation loop.
+    Omitting it leaves `samples` at 0 and `toDataURL()` returns a **fully transparent** canvas —
+    all four channels 0 — which is indistinguishable at a glance from PT-BLANK-GUARD's
+    black/white failure signature, and the session reports no error. A blank frame is a broken
+    CALL before it is a broken GPU: check `session.samples` advanced before believing any number
+    off that canvas (meta-rule iv).
 - **Tone mapping is context-aware** (`toneContext.ts`, pure + unit-tested). The stored user
   setting is `ToneMappingSetting` (`auto` | filmic | agx | neutral); `Lighting` resolves the
   concrete operator each frame via `resolveToneMapping(setting, ctx)` — never read `st.toneMapping`

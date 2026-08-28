@@ -5,6 +5,41 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.41 — HQ-TONE-MATCH verified by a rendered A/B (docs + probe, no behaviour change)
+
+v0.31.5.36 stopped the HQ path-traced still hardcoding ACES Filmic + exposure 1 and routed
+it through the same `TONE_MAPPING_THREE` registry and live `gl.toneMappingExposure` the
+viewport uses — but it shipped verified by unit tests and by reading ONLY, never by a
+rendered before/after, and the docs said so. That gap is now closed.
+
+`scripts/dev-probes/hq-tone.mjs` stands at one fixed walk pose and renders the still twice
+in ONE run, changing exactly one variable: once as the modal now requests it, once with
+`toneMapping: 'filmic'` forced (the pre-fix behaviour). At 24 samples, 320², identical pose,
+identical live exposure 1.38:
+
+| arm                      | resolved tone | clipped | mean  | sigma |
+| ------------------------ | ------------- | ------- | ----- | ----- |
+| hq-auto (shipped policy) | **agx**       | 0.18%   | 174.5 | 38.0  |
+| hq-filmic (pre-fix)      | filmic        | 0.66%   | 191.9 | 49.9  |
+
+Filmic blows 3.7× the highlights at the same exposure; the shipped path resolves to AgX, and
+the live graded 1.38 reaches the session instead of the old hardcoded 1. The arms DIFFERING
+is the load-bearing part — identical readings would have meant the option never reached the
+renderer. Cropped frames agree: filmic blows the ceiling and fan and washes the frame, AgX
+holds the fan's blade detail and the floor's warmth.
+
+Two things worth recording that were expected to go the other way:
+
+- **The pathtracer does compile and render under ANGLE/metal headless.** PT-BLANK-GUARD exists
+  because the megakernel fails GLSL validation on some drivers, so this verification was written
+  up as possibly structurally impossible. It is not — it renders fine here.
+- **`createHqRenderSession` does NOT auto-start**, and omitting `session.start()` mimics the
+  driver failure exactly: samples stay at 0 and `toDataURL()` returns a fully transparent canvas
+  (all four channels 0) with no error reported. My first run hit this and looked like a blank-GPU
+  result. A blank frame is a broken CALL before it is a broken GPU — check `session.samples`
+  advanced before trusting anything read off that canvas.
+
+
 ## v0.31.5.40 — clone audit: no further stale materials (docs + probes, no behaviour change)
 
 Two consecutive defects (v0.31.5.38 wall faces, v0.31.5.39 floors) came from a material
