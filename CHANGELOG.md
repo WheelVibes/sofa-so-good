@@ -5,6 +5,47 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.37 — the glTF export was shipping 61 invisible helper meshes
+
+EXPORT-HELPERS. Second finding from the output-path audit that produced HQ-TONE-MATCH.
+
+`export/sceneGltf.ts:buildExportRoot` prunes by `noExport` TAG, helper TYPE and Camera —
+never by appearance. That is not something to work around: `colorWrite: false` is a WebGL
+renderer state with no glTF equivalent, so an invisible mesh has no way to tell an importer
+it was never meant to be seen. Two render-only populations were therefore shipping into
+every export as real geometry:
+
+  CeilingOccluder  10 planes — the virtual ceiling that lets orbit light interiors through
+                   windows. Exported, an importer gets solid caps over every room; and since
+                   the occluder is present in WALK mode too, they are coincident with the
+                   REAL ceiling and would z-fight.
+  ContactShadow    51 planes — the RZ1 fake grounding cue, a transparent plane with a
+                   painted blob texture under every piece of furniture, exporting as a grey
+                   disc on the floor of the user's model.
+
+Both now carry `noExportUserData()` on their root, matching Sky, MeasurementOverlay,
+CommentPins, WalkMeasureOverlay and AnnotationsOverlay.
+
+Verified with `scripts/dev-probes/export-helpers.mjs`, which runs the app's OWN
+buildExportRoot over the live scene so the check cannot drift from the exporter: scene 10
+occluders + 51 contact planes, export 0 and 0, total meshes 1122 -> 1060. The non-zero
+SCENE counts matter as much as the zeros — they prove the probe can see the populations at
+all. `exportHelpers.test.ts` pins that appearance alone does not prune and that a tag on a
+parent group takes the whole subtree.
+
+Also from this audit, recorded rather than filed: `captureCanvas` grabs the live canvas so
+it inherits the viewport by construction; `PanoramaController` explicitly calls
+`setRenderTarget(null)` before `gl.render`, so the tone transform DOES apply (it does bypass
+the composer, so a panorama at High/Maximum carries no bloom or AO — inherent to a
+six-face cube capture); `SceneBackdrop` renders no meshes.
+
+HQ-TONE-MATCH verification gap, still OPEN and stated plainly: a headless attempt to render
+the path-traced still (scripts/dev-probes/hq-still.mjs, 320x200, filmic vs agx) TIMED OUT
+waiting for samples under both operators. That is not the uniform black/white signature
+PT-BLANK-GUARD documents, so it is not evidence of a megakernel compile failure either — it
+simply did not accumulate headlessly. .36 therefore remains verified by unit tests and code
+reading only, not by a rendered before/after.
+
 ## v0.31.5.36 — the HQ render was exporting a different image than you were looking at
 
 HQ-TONE-MATCH. Found by auditing the HQ-render / scene-export paths, which this work had

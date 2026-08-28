@@ -1,4 +1,5 @@
 import { DoubleSide, MeshBasicMaterial } from 'three'
+import { noExportUserData } from '../../export/sceneGltf'
 import type { OccluderRect } from './occluderRects'
 
 /**
@@ -28,7 +29,12 @@ OCCLUDER_MAT.shadowSide = DoubleSide
  */
 export function CeilingOccluder({ rects }: { rects: OccluderRect[] }) {
   return (
-    <group>
+    // EXPORT-HELPERS: never ship these to glTF/OBJ. They are a render-only stand-in
+    // for the ceiling orbit culls — invisible via `colorWrite: false`, which is a
+    // WebGL renderer state with NO glTF equivalent, so an importer would get solid
+    // planes capping every room. In walk mode they are also coincident with the REAL
+    // ceiling, which would z-fight.
+    <group userData={noExportUserData()}>
       {rects.map((r) => (
         <mesh
           key={r.id}

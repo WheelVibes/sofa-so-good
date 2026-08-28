@@ -608,6 +608,28 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   **corner-AO strip is retired** (RD-403, removed v0.23.1.11): from a top-down/plan camera the
   0.32 m gradient read as a hard black outline hugging every wall base, and it only ever ran on
   the tiers with no SSAO — don't reintroduce a baked wall-base darkening decal.
+- **Render-only helpers must tag themselves out of the glTF/OBJ export (EXPORT-HELPERS).**
+  `export/sceneGltf.ts:buildExportRoot` prunes by `noExport` TAG, helper TYPE and Camera —
+  **never by appearance**. That is not an oversight to work around: `colorWrite: false` is a
+  WebGL renderer state with no glTF equivalent, so an invisible mesh has no way to tell an
+  importer it was never meant to be seen. Two populations were shipping into every export as
+  real geometry, measured on the default flat with `scripts/dev-probes/export-helpers.mjs`
+  (which runs the app's OWN `buildExportRoot` so the check cannot drift from the exporter):
+  · **`CeilingOccluder` — 10 planes.** The virtual ceiling that lets orbit light interiors
+    through windows. Exported, an importer gets solid caps over every room; and since the
+    occluder is present in WALK mode too (deliberately, for consistency), those planes are
+    coincident with the REAL ceiling and would z-fight.
+  · **`ContactShadow` — 51 planes.** The RZ1 fake grounding cue: a transparent plane with a
+    painted blob texture under every piece of furniture, which exports as a grey disc on the
+    floor of the user's model.
+  Both now carry `noExportUserData()` on their root, matching `Sky`, `MeasurementOverlay`,
+  `CommentPins`, `WalkMeasureOverlay` and `AnnotationsOverlay`. Verified: scene 10 occluders
+  + 51 contact planes, export **0 and 0**, total meshes 1122 -> 1060. The non-zero SCENE
+  counts matter as much as the zero export ones — they prove the probe can see the
+  populations at all (a run where both columns read 0 proves nothing).
+  **When adding any new render-only helper — a gizmo, an overlay, a shadow catcher, a
+  proxy — tag it at creation.** `exportHelpers.test.ts` pins that appearance alone does not
+  prune, and that a tag on a parent group takes the whole subtree.
 - **The HQ path-traced still uses the app's RESOLVED view transform, not its own
   (HQ-TONE-MATCH).** `pathtrace/hqRenderSession.ts` hardcoded
   `renderer.toneMapping = ACESFilmicToneMapping` and left `toneMappingExposure` at 1. Both
