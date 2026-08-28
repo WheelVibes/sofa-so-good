@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.33 — furniture wood stops reading as zebra moiré
+
+WOOD-BANDS. The second half of the wood problem: v0.31.5.31 fixed the SHINE, this fixes
+the grain SHAPE.
+
+Walking the flat after WOOD-GLOSS made it plain on the DEFAULT main-bedroom wardrobe:
+hard zigzag chevron bands, identical and periodic across every panel — printed wallpaper
+rather than timber. It is the same artefact SNV-BOARDS already warns about ("never the
+natural painter's wavy cathedral bands, which read as zebra moiré"), reached from the
+other direction.
+
+The arithmetic is the diagnosis. `furnitureMaterials.ts:getWoodMaps` lays the rings as
+`(u + waver + phase) * PI * 7`, so a waver of W displaces a ring by `W * 7` half-cycles —
+and the shipped 0.12 gave **~0.84, nearly a whole band**, while varying with `v`. A wide
+band that wanders almost its own width as it rises cannot read as figure. A sawn board's
+rings run essentially parallel; figure comes from ring spacing and latewood contrast, not
+lateral wander. `FURNITURE_WOOD_WAVER = 0.04` (0.28 half-cycles).
+
+The two tempting knobs were deliberately left alone: raising the ring count would undo
+Wave 4A's fix for the busy watermark, and `FURNITURE_WOOD_COARSEN` is FURNITURE-WOOD-SCALE,
+settled across all 21 defs. The meander was the one term purely harmful at this scale.
+
+Floors are unaffected by construction — this painter serves the furniture `wood` finish
+only, while floors use the separate `woodFields` painter — and that was checked in the
+frames regardless. Verified as a CROSS-RUN A/B at an identical deterministic pose, which is
+the honest fallback: the waver is baked into a canvas texture at module init and cannot be
+swept live within one run. Chevrons gone, bands parallel with gentle undulation; dining
+table, chair backs, sideboard and the wooden door all still matte with no ribbons.
+
+Scope stated honestly: this removes the moiré, it does not ADD crispness — the grain is
+still soft with little fine line detail between rings. The remaining lever, if wood is
+revisited, is the latewood contrast term or genuine fine grain lines; the meander, ring
+count, coarsen factor, roughness and pore field are all now settled.
+
 ## v0.31.5.32 — walk-tour probe lands, a correction, and the next wood defect named
 
 Ships the tool that found WOOD-GLOSS, corrects an overstatement in the v0.31.5.31 entry,

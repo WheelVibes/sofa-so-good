@@ -95,6 +95,29 @@ function getFabricNormal(): Texture {
 }
 
 let woodMaps: { albedo: Texture; normal: Texture; rough: Texture } | null = null
+/**
+ * Sideways meander of the furniture wood's growth rings, in u-units (WOOD-BANDS).
+ *
+ * Wave 4A calmed this wood by cutting the rings 11 -> 7 and the waver 0.25 -> 0.12, and
+ * `FURNITURE_WOOD_COARSEN` halves the repeat so the grain does not squish into a busy
+ * watermark on a tall panel. Those two together left each ring VERY wide — and at 0.12 the
+ * waver still shifted a ring by ~0.84 of a half-cycle (0.12 x 7), nearly a whole band, while
+ * varying with `v`. A wide band that snakes almost a full band-width as it rises does not
+ * read as figure; it reads as a hard zigzag CHEVRON repeating identically across every
+ * panel — printed wallpaper, not timber. On the default main-bedroom wardrobe that was the
+ * most obviously synthetic surface left in the flat once WOOD-GLOSS fixed the shine, and it
+ * is the same "zebra moiré" SNV-BOARDS warns about, reached from the other direction.
+ *
+ * A sawn board's rings run essentially PARALLEL; the figure comes from ring spacing and
+ * latewood contrast, not from lateral wander. So the meander is cut rather than the ring
+ * count (raising the count would undo Wave 4A's fix for the busy watermark) and rather than
+ * the coarsen factor (FURNITURE-WOOD-SCALE, settled across all 21 defs).
+ *
+ * FLOORS ARE UNAFFECTED: this painter serves the furniture `wood` finish only — the floor
+ * uses the separate `woodFields` painter in `procedural/patterns/wood.ts`.
+ */
+export const FURNITURE_WOOD_WAVER = 0.04
+
 function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
   if (woodMaps) return woodMaps
   // Layered noise: low-freq warp bends the growth rings into cathedral
@@ -144,7 +167,7 @@ function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
       // worst on dark tints (tv-console/crib). Fewer, calmer, straighter grain
       // lines (waver 0.25→0.12, 11→7 rings) and a shallower latewood darkening
       // (so a dark tint keeps its value range instead of crushing to near-black).
-      const waver = (warpN(u * 0.6, v * 2.5) - 0.5) * 0.12
+      const waver = (warpN(u * 0.6, v * 2.5) - 0.5) * FURNITURE_WOOD_WAVER
       const ring = (u + waver + phase) * Math.PI * 7
       // Latewood lines: sharp dark bands where the ring turns over. Raising
       // the sine to a power tightens the dark line so earlywood stays pale.

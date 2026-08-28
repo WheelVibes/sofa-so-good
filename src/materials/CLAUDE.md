@@ -634,22 +634,34 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   went. Only the claim about the tool was wrong. The probe now teleports through the real
   module function, asserts the camera reached the intended point, and captures four facings
   per room.
-- **The wood GRAIN SHAPE is the next real defect: coarsened cathedral bands read as zebra
-  moiré (WOOD-BANDS, open).** WOOD-GLOSS fixed the shine; walking the flat afterwards shows
-  the shape problem clearly on the DEFAULT main-bedroom wardrobe. Cropped at close range the
-  panels carry hard **zigzag chevron bands, identical and periodic across every panel** —
-  printed wallpaper, not timber, with no fine grain between the waves. This is precisely the
-  artefact SNV-BOARDS already warns about ("never the natural painter's wavy cathedral bands,
-  which read as zebra moiré"), reached here by a different route: `FURNITURE_WOOD_COARSEN`
-  scales the floor-tuned grain up for furniture, which on a tall wardrobe door magnifies the
-  cathedral band until one wave spans the panel.
-  Evidence: `/tmp/ssg-r4/mainBedroom-y3.png` from
-  `scripts/dev-probes/walk-tour.mjs` (11 rooms x 4 facings). Whoever picks this up: the lever
-  is the band frequency/amplitude in `procedural/patterns/wood.ts`'s natural painter, or the
-  coarsen factor — NOT roughness (already settled) and NOT the pore field
-  (WOOD-PORE-NYQUIST, settled). Sweep it live in one run at a pose you have proven the camera
-  reached, and check the FLOOR at the same time, since it shares the painter and is currently
-  fine.
+- **The furniture wood's rings snaked almost a full band-width and read as zebra moiré
+  (WOOD-BANDS, fixed).** WOOD-GLOSS fixed the shine; walking the flat afterwards exposed the
+  SHAPE problem on the DEFAULT main-bedroom wardrobe — hard **zigzag chevron bands, identical
+  and periodic across every panel**, printed wallpaper rather than timber. Same artefact
+  SNV-BOARDS warns about ("never the natural painter's wavy cathedral bands, which read as
+  zebra moiré"), reached from the other direction.
+  The arithmetic makes it obvious. `getWoodMaps` lays the rings as
+  `(u + waver + phase) * PI * 7`, so a waver of W displaces a ring by `W * 7` half-cycles —
+  and the shipped 0.12 gave **~0.84, nearly a whole band**, while varying with `v`. A wide
+  band that wanders almost its own width as it rises cannot read as figure. A sawn board's
+  rings run essentially PARALLEL; the figure comes from ring spacing and latewood contrast,
+  not lateral wander. `FURNITURE_WOOD_WAVER = 0.04` (0.28 half-cycles) is the shipped value.
+  · **Deliberately NOT the other two knobs.** Raising the ring count would undo Wave 4A's fix
+    for the busy watermark, and `FURNITURE_WOOD_COARSEN` is FURNITURE-WOOD-SCALE, settled
+    across all 21 defs. The meander was the one term that was purely harmful at this scale.
+  · **Floors are unaffected by construction** — this painter serves the furniture `wood`
+    finish only; the floor uses the separate `woodFields` painter in
+    `procedural/patterns/wood.ts`. Verified anyway in the same frames.
+  · Verified as a CROSS-RUN A/B at an identical deterministic pose (mainBedroom, yaw -pi/2),
+    which is the honest fallback here: the waver is baked into a canvas texture at module
+    init, so it cannot be swept live inside one run. Chevrons gone, bands parallel with gentle
+    undulation; the dining table, chair backs, sideboard and the wooden door all still read as
+    matte timber with no ribbons.
+  · **Scope, stated honestly:** this removes the moiré, it does not ADD crispness. The grain
+    is still soft with little fine line detail between rings. If wood is revisited again, the
+    remaining lever is the latewood contrast/power term or genuine fine grain lines — not the
+    meander, the ring count, the coarsen factor, the roughness or the pore field, all now
+    settled.
 - **Furniture materials** come from `furnitureMaterials.ts` helpers (real three `Material`
   instances: tintable wood/stone/fabric, `getSolidMaterial`, the `mat:<id>` DLC resolver).
   **Drapery (CURTAIN-FABRIC):** `getDraperyMaterial(kind, color, pattern, doubleSided)` is the

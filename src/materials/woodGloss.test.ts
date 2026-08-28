@@ -1,6 +1,11 @@
 // @vitest-environment happy-dom
 import { beforeAll, describe, expect, it } from 'vitest'
-import { getPaintedMaterial, getWoodMaterial, WOOD_BASE_ROUGHNESS } from './furnitureMaterials'
+import {
+  FURNITURE_WOOD_WAVER,
+  getPaintedMaterial,
+  getWoodMaterial,
+  WOOD_BASE_ROUGHNESS,
+} from './furnitureMaterials'
 
 // happy-dom has no real 2D context; stub the minimum the canvas bakes need (the
 // same shim the MAT-004 / metalNoIbl material tests use).
@@ -42,5 +47,23 @@ describe('furniture wood gloss (WOOD-GLOSS)', () => {
     expect(matte).not.toBe(shiny)
     expect(matte.roughness).toBe(0.85)
     expect(shiny.roughness).toBe(0.45)
+  })
+})
+
+describe('furniture wood grain shape (WOOD-BANDS)', () => {
+  it('keeps the ring meander well under one half-cycle', () => {
+    // `getWoodMaps` lays 7 rings across the tile as `(u + waver + phase) * PI * 7`, so a
+    // waver of W shifts a ring by W * 7 half-cycles. At the old 0.12 that was ~0.84 — a
+    // wide band snaking nearly a WHOLE band-width as it rose, which read as hard zigzag
+    // chevrons ("zebra moiré", the artefact SNV-BOARDS warns about) on the default
+    // main-bedroom wardrobe. A sawn board's rings run essentially parallel.
+    const RINGS = 7
+    expect(FURNITURE_WOOD_WAVER * RINGS).toBeLessThan(0.35)
+    // ...but not zero: a perfectly ruled grid reads as printed paper, not timber.
+    expect(FURNITURE_WOOD_WAVER).toBeGreaterThan(0)
+  })
+
+  it('ships the value that was measured', () => {
+    expect(FURNITURE_WOOD_WAVER).toBe(0.04)
   })
 })
