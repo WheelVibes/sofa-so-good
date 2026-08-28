@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.27 — the profiler measures throughput, not frame budget: question closed
+
+PROFILER-THROUGHPUT-NOT-BUDGET. No code change; a new probe and a settled answer.
+
+v0.31.5.26 left two candidate causes for the profiler's unstable frame number: a noisy
+measurement primitive, or destabilisation from applying/restoring overrides.
+`scripts/dev-probes/profiler-noise.mjs` (new) settles it by repeating the engine's own
+`measureRenderMs` verbatim N times with NO override applied and nothing else touched —
+no store write, no remount, nothing varying between iterations.
+
+  quick (15 samples): 30.40 - 46.53 ms  (1.53x spread)
+  full  (60 samples): 34.36 - 47.02 ms  (1.37x spread)
+
+So the noise is in the PRIMITIVE, the sweep steps and the settle predicate are innocent,
+and more samples does not fix it.
+
+The larger finding is what those numbers mean. `measureRenderMs` drives `advance(...,
+true)` back-to-back with a `ctx.finish()` per batch — no vsync pacing, no CPU/GPU
+overlap, no idle recovery — so it measures how long a render takes with the GPU
+saturated, NOT whether a frame fits a 60 Hz budget. The two differ by ~4x here: 30-47 ms
+against 10.6-11.4 ms of paced submit cost in the same session. **Maximum MEETS the 60 fps
+budget**, and the 34.54 ms quoted in the fixture-light commit is a throughput number, not
+a frame time.
+
+The primitive's ~±8 ms noise also swamps the per-effect costs it is meant to resolve
+(`night-lights.mjs` measures the entire 19-fixture set at 0.1 ms on performance and 1.6 ms
+on maximum), which is why five of eight effects have come out with NEGATIVE cost in real
+runs. The sweep can rank only very large effects; a row under ~10 ms is noise.
+
+Documented in `src/dev/profiler/CLAUDE.md`, including the two fixes built and reverted
+before the cause was known (a pre-sweep warm-up, and a paired per-step baseline) so
+neither is re-attempted, and the honest route if per-effect cost is ever genuinely needed:
+measure the app in its PACED state and toggle the effect between two long runs.
+
 ## v0.31.5.26 — the profiler's frame number is unstable; Maximum does meet 60 fps
 
 No render change, and no profiler change either — two fixes were built, measured and
