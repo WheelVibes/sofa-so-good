@@ -12,7 +12,37 @@ import {
   WALLS,
   WINDOWS,
 } from '../apartment/constants'
+import { roomOutline } from '../apartment/roomGeometry'
+import type { RoomDef } from '../apartment/types'
 import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from './types'
+
+/**
+ * Map a `RoomDef`'s shape onto the `PlanRoom` vocabulary.
+ *
+ * `RoomDef` allows any number of `extensions` plus a free `polygon`; `PlanRoom`
+ * carries either ONE `extension` or an explicit `polygon` (which subsumes every
+ * shape). So: a plain rect and a single-extension L map across as-is — that's
+ * the same shape in both vocabularies, and it keeps the 2D editor's L-extension
+ * inspector working for the MB foyer / kitchen strip. Anything richer (two or
+ * more extensions, or an explicit polygon) becomes a `PlanRoom.polygon` of the
+ * room's real outline, so no plan consumer ever sees a truncated footprint.
+ */
+function planRoomShapeOf(room: RoomDef): Partial<PlanRoom> {
+  const exts = room.extensions ?? []
+  if (!room.polygon && exts.length <= 1) {
+    const e = exts[0]
+    return e
+      ? {
+          extension: {
+            offset: [e.offset[0], e.offset[1]] as [number, number],
+            width: e.width,
+            depth: e.depth,
+          },
+        }
+      : {}
+  }
+  return { polygon: roomOutline(room).map(([x, z]) => [x, z] as [number, number]) }
+}
 
 export function buildDefaultPlan(): FloorPlan {
   const walls: PlanWall[] = WALLS.map((w) => ({
@@ -63,21 +93,17 @@ export function buildDefaultPlan(): FloorPlan {
     ),
   ]
 
+  // Each room's shape crosses into the plan vocabulary through ONE mapper, so a
+  // multi-part room (living/dining) reaches every plan consumer — hover
+  // highlight, room editor, area/perimeter, 2D plan, minimap, walk teleport —
+  // as the same footprint the 3D floor renders.
   const rooms: PlanRoom[] = Object.values(ROOMS).map((r) => ({
     id: r.id,
     name: r.name,
     origin: [r.origin[0], r.origin[1]],
     width: r.width,
     depth: r.depth,
-    ...(r.extension
-      ? {
-          extension: {
-            offset: [r.extension.offset[0], r.extension.offset[1]] as [number, number],
-            width: r.extension.width,
-            depth: r.extension.depth,
-          },
-        }
-      : {}),
+    ...planRoomShapeOf(r),
     ...(r.ceilingHeight != null ? { ceilingHeight: r.ceilingHeight } : {}),
   }))
 

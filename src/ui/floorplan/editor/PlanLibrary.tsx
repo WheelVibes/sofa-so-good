@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useStore } from '../../../state/store'
 import { Select } from '../../controls/Select'
+import { confirmDeleteSavedPlan, confirmLoadSavedPlan } from '../../planActions'
 import { SaveTemplateModal } from '../SaveTemplateModal'
 
 export function PlanLibrary() {
   const saved = useStore((s) => s.savedPlans)
   const plan = useStore((s) => s.floorPlan)
-  const a = useStore.getState()
   const [saveOpen, setSaveOpen] = useState(false)
   return (
     <div className="flex items-center gap-1">
@@ -23,7 +23,10 @@ export function PlanLibrary() {
         <Select
           value=""
           onChange={(v) => {
-            if (v) a.loadSavedPlan(v)
+            // Loading replaces the whole plan — confirm first (it used to swap
+            // on the select's change event with no way back but Ctrl+Z).
+            const entry = saved.find((p) => p.id === v)
+            if (entry) void confirmLoadSavedPlan(entry.id, entry.name)
           }}
           title="Load a saved apartment"
           className="input"
@@ -39,7 +42,8 @@ export function PlanLibrary() {
         <button
           onClick={() => {
             const m = saved.find((p) => p.name === plan.name)
-            if (m) a.deleteSavedPlan(m.id)
+            // Library deletion is NOT part of the undo history, so it must ask.
+            if (m) void confirmDeleteSavedPlan(m.id, m.name)
           }}
           title="Delete this saved apartment from the library"
           className="btn btn-danger btn-sm"

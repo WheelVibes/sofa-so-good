@@ -30,7 +30,7 @@ describe('floor-plan edits are undoable', () => {
     const before = useStore.getState().floorPlan
     const nameBefore = before.name
     const roomsBefore = before.rooms.length
-    useStore.getState().newFloorPlan('Blank')
+    useStore.getState().newFloorPlan({ name: 'Blank', shell: true })
     expect(useStore.getState().floorPlan.name).toBe('Blank') // plan replaced
     useStore.getState().undo()
     // Prior plan fully restored — the "New apartment" action is undoable.

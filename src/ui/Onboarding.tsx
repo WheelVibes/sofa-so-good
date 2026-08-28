@@ -196,8 +196,8 @@ export function Onboarding() {
                     <Icon.FloorPlan width={20} height={20} />
                   </span>
                   <div>
-                    <b>Start empty</b>
-                    <em>A blank flat — furnish it from scratch</em>
+                    <b>Start unfurnished</b>
+                    <em>The default 4-room shell, empty — furnish it yourself</em>
                   </div>
                   <Icon.ChevronRight width={18} height={18} />
                 </button>

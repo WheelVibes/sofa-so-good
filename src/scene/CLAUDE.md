@@ -18,13 +18,72 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   goes idle, so the last continuous frame predates the commit and demand mode would otherwise
   leave the new content undrawn until some unrelated change requested a frame. Any future
   load-then-commit path gets this for free — don't hand-roll a second edge detector.
-- **Fixture lights are budget-capped in BOTH view modes** (`lighting/FurnitureLights.tsx` +
-  pure `lighting/chooseEmitters.ts`, PERF-002). Real point/spot lights from emitting furniture
-  are ranked nearest-to-camera and capped to the tier's `maxFixtureLights`: walk to N, orbit to
-  `N * ORBIT_BUDGET_MULTIPLIER`. Never light every emitter (a night home reaches 30–50 — linear
-  per-fragment fill cost). The pick is gated off the per-frame path (camera-move threshold +
-  items-identity + mode change); keep new emitter logic going through `chooseEmitters` so the cap
-  stays tier-aware and the scene never goes dark (ambient/fill + emissive materials remain).
+- **`lightsMode` is ONE switch for the whole home: on lights every fixture, off lights none.**
+  No camera-proximity culling, in either view mode. `lighting/FurnitureLights.tsx` renders the
+  set the pure `lighting/fixtureLights.ts:fixtureLightsFor` returns — every item that passes its
+  own per-item gate (`isItemEmitter`: `props.lightOn === 'no'` is a hard per-light switch that
+  still wins), in stable ITEM order, never camera order. This REPLACES the old nearest-N budget
+  (`chooseEmitters` + the tier's `maxFixtureLights`, PERF-002, both deleted): capping to the 2
+  nearest emitters on the default Performance tier meant that walking through a 19-emitter flat
+  switched lamps on and off around you — invisible as a budget, very visible as flicker. The only
+  remaining cap is `MAX_LIVE_FIXTURE_LIGHTS` (64), a shader-uniform guard against a driver-level
+  compile failure, applied in item order so it can never read as proximity switching. **Do not
+  reintroduce a camera-distance cull here** — if fixture-light fill cost needs managing again,
+  it has to be something the user can see and control (a per-light switch, a scene-wide off),
+  not a silent budget. The component has no per-frame path at all now: the set is a `useMemo`
+  over items/mood/flag, and `setFixtureGlow` is written on switch change.
+- **Fixture lights are the dominant fragment cost — optimise the SHADER, not the light count.**
+  Three unrolls the point-light loop (`lights_fragment_begin.glsl`) and `RE_Direct_Physical`
+  runs a full `BRDF_GGX_Multiscatter` per light per fragment with **no early-out on a light
+  attenuated to zero** — so N lights ≈ N× the lighting maths on every lit fragment, whether or
+  not the light reaches it. **Measured on real hardware** (Apple M4, ANGLE Metal, 1280x800,
+  night, fixed camera, full pipeline via `advance`): at **Maximum** the 19 default-flat fixtures
+  cost **9.10 ms of a 34.54 ms frame (26%)** — roughly **0.5 ms per light** — while at
+  **Performance** the whole scene renders in 3.2 ms and the light cost is below the noise floor.
+  So this is a High/Maximum concern only, and it scales with the fixture COUNT: an authored
+  design with a 40-downlight false ceiling would spend ~20 ms on lighting alone.
+  (Ignore the 73% that a headless software rasteriser reported — SwiftShader is ALU-bound and
+  over-weights shading by an order of magnitude.) Consequences to design around:
+  · **A cheaper BRDF is NOT the lever — measured, don't re-propose it.** `RE_Direct_Lambert`
+    is one dot product against GGX's D+V+F+multiscatter, so swapping matte surfaces to Lambert
+    looks like the obvious fix. On the real pipeline it isn't: converting every matte
+    `MeshStandardMaterial` (247 of them) saved **2.17 ms of 34.54 (6%)** and only took the light
+    cost from 9.10 → 7.70 ms, because the expensive fragments are the 57 `MeshPhysicalMaterial`
+    furniture surfaces, not the matte architecture. Walls alone saved **0.23 ms**. Downgrading
+    Physical → Standard where no physical-only feature is used is lossless but applies to only
+    4 of 57 materials (sheen 27, anisotropy 10, clearcoat 9, transmission 7 are genuinely in
+    use) and saved nothing. The one exception kept: the plain white ceiling in
+    `ceiling/Ceiling.tsx` is `meshLambertMaterial` — free, since it is an inline matte-white
+    material outside the finish cache. If this is ever revisited, note that deriving a Lambert
+    twin from a CACHED finish material goes stale: the finish system mutates those in place
+    (procedural upgrade swap, tint/recolor).
+  · **Baking into an irradiance volume was spiked and REJECTED — don't re-propose it.**
+    three 0.184 ships `LightProbeGrid` (`examples/jsm/lighting/`) and the core shader supports
+    it (`USE_LIGHT_PROBES_GRID`, SH in a 3D texture atlas), and it LOOKS fine — a warm, plausibly
+    lit home. It does not pay: a 420-probe volume over the default flat costs **6.19 ms** of
+    per-fragment SH sampling to replace **9.10 ms** of light evaluation, i.e. **2.43 ms net (7%)**
+    at Maximum — because a trilinear 3D-texture fetch across 7 sub-volumes per fragment at DPR 2
+    is not cheap either. It also bakes for **4.4 s synchronously** (one cubemap render per probe)
+    and would have to re-bake whenever a lamp moves, a finish changes or the sun moves, and it
+    supplies DIFFUSE irradiance only — no specular highlight, no sharp pool under a bulb.
+  · **What is left is the light COUNT.** 0.5 ms per fixture is intrinsic to a real point light,
+    and every alternative to paying it has now been measured and rejected. Merging coincident
+    fixtures (below) is the only lever that survived. For scale: at Maximum, geometry detail
+    (7.70 ms) and DPR (7.35 ms) each cost about the same as all 19 lights, and both are already
+    user-facing dials — Maximum missing 60 fps is a tier-budget problem, not a lighting one.
+  · Per-object light culling is NOT available: three filters lights with
+    `object.layers.test(camera.layers)` in `projectObject` — that is the CAMERA's layers, so
+    per-room light layers only work with a render pass per room, which costs more than it saves.
+- **Coincident same-kind fixtures merge on the low tiers** (`fixtureLights.ts:
+  aggregateFixtureLights`, `quality.mergeCoincidentLights`, on for Performance/Medium). A
+  false-ceiling downlight grid is several identical bulbs 0.6–0.8 m apart that read as one
+  source, and each costs a full BRDF per fragment. The rule is deliberately narrow — same
+  `defId`, same bulb colour, never an IES spot, within `MERGE_RADIUS_M` (1.0 m) of the
+  cluster's FIRST member (head-anchored, so a long row can't chain-collapse to its centre).
+  **1.0 m is chosen to sit below the tightest pair in the shipped flat** (two sconces 1.2 m
+  apart, which must stay two pools of light) — the default layout merges nothing, by design.
+  Don't widen it to buy a saving in the default flat: that is the lighting design being
+  rearranged for performance, which is the thing this whole area is not allowed to do.
 - **Tier-gate GPU cost.** Read `RenderTier`; **Performance is the default for everyone**
   (flat: no shadows/IBL/post, DPR 1). Heavy effects (real mirrors, post stack) are
   High/Maximum only (`mirrorReflectorConfig(tier)` is the pattern).
@@ -241,6 +300,41 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   (`setWallOwnStrength`), so spread can't cascade wall→wall→wall around the perimeter. All curve/adjacency math is pure in `wallRevealMath.ts`;
   `PlanShell`/`PlanDoorLeaf` (custom plans in orbit) share the same graded curve (corner spread
   there is deferred — `WallBox` carries no wall id yet, see TODO.md).
+- **A T-junction always RETRACTS; only a true corner spans (WALL-TJUNCTION-RETRACT).**
+  `wallSegments.ts:wallCornerAbut` used one alphabetical tie-break (`wall.id < other.id`) for
+  every join. At a real corner that is right — both walls end there, one must span the notch.
+  At a T-junction only the STEM ends: there is no notch, and winning the coin-flip drove the
+  stem's body from the through wall's centreline to its FAR face, overlapping it by the
+  NEIGHBOUR'S FULL THICKNESS. Invisible while both are opaque; a hard-edged double-composite the
+  moment they fade — and the width is the neighbour's thickness, so a 100 mm partition into
+  another partition hid a 100 mm block while the same partition into a **300 mm** RC wall painted
+  a 300 mm-wide, full-height bright band down the reveal. That is why it looked like a
+  "different thickness" bug: the thickness set the severity, the tie-break set whether it
+  happened at all. `wallCornerAbut` now checks whether the neighbour also ends at the point
+  (`mutual`) and retracts unconditionally when it does not.
+- **A fading wall renders ONE layer per side — overlays are culled (WALL-FADE-OVERLAY-CULL).**
+  The wall body is deliberately one watertight extruded shape so it has no internal seams when
+  it fades. Everything sitting ON it undoes that: an interior face plane (1 mm proud), a
+  baseboard, a crown, the accent-selection highlight. With `depthWrite` on and back-to-front
+  transparent sorting the body blends first and the overlay blends over it, so the wall
+  composites TWICE wherever an overlay covers it and once where it doesn't — density bands down
+  the wall, and a heavier band along every base/ceiling junction. At an outside corner it is
+  worse again: a face plane is extended by the abutting wall's half-thickness so the finish
+  reaches the outer edge, which is invisible while that neighbour is opaque and a third layer
+  once it isn't. So every overlay mesh is tagged with `wallReveal.ts:markWallOverlay()` and
+  hidden for the duration of the fade (`WallSegment`'s traverse and `useWallReveal`, i.e. orbit
+  AND the room editor); they return the instant the wall is opaque, where depth testing — not
+  blending — resolves them and the finish must be visible.
+  **An OPENING in a fading wall shows frame + glass only**, on the same mark and for the same
+  reason: a window is a frame + glass + sill + mullions + safety grille + louvre slats +
+  invisible-grille cables, and a door adds a security gate (8 bars + 6 rails) and handles —
+  each its own translucent layer over the wall. `Window.tsx` / `Door.tsx` cull everything that
+  is not frame, glass or the door leaf; a door's gate and handles are tagged on their GROUP and
+  matched with `isWallOverlayBranch` so a multi-mesh sub-assembly needs one mark, not one per
+  member. Glass BLOCKS stay — they are the glazing, not detail. Measured on the default flat
+  mid-fade at a corner: 49 visible translucent meshes before, 31 after (all cylinders gone),
+  leaving exactly wall body + frame + glass. **Anything new drawn on a wall face or inside an
+  opening must carry the mark**, or it reintroduces the banding.
 - **`depthWrite` stays ON through the whole wall/door/window fade (WALL-FADE-DEPTHWRITE).** Every
   reveal-fade site — `WallSegment`, `useWallReveal`, `PlanShell` (wall + trim), `PlanRoomShell`,
   `Skirting`, `Door`, `PlanDoorLeaf`, `Window` (incl. glass) — sets `material.depthWrite = true`

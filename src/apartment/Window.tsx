@@ -29,7 +29,7 @@ import { getFixtureGlow } from '../scene/lighting/fixtureGlow'
 import { useStore } from '../state/store'
 import { WALLS, WINDOWS } from './constants'
 import type { WallSpec, WindowSpec } from './types'
-import { getWallOpacity } from './walls/wallReveal'
+import { getWallOpacity, isWallOverlay, markWallOverlay } from './walls/wallReveal'
 
 function findWall(wallId: string): WallSpec | undefined {
   return WALLS.find((w) => w.id === wallId)
@@ -47,9 +47,21 @@ const GLASS_D = 0.02
 
 const frameMat = { color: '#e6e7e4', roughness: 0.45, metalness: 0.35 } as const
 
-function Bar({ w, h, x, y }: { w: number; h: number; x: number; y: number }) {
+function Bar({
+  w,
+  h,
+  x,
+  y,
+  detail,
+}: {
+  w: number
+  h: number
+  x: number
+  y: number
+  detail?: boolean
+}) {
   return (
-    <mesh position={[x, y, 0]} castShadow>
+    <mesh position={[x, y, 0]} castShadow userData={detail ? markWallOverlay() : undefined}>
       <boxGeometry args={[w, h, FRAME_D]} />
       <meshStandardMaterial {...frameMat} />
     </mesh>
@@ -75,7 +87,7 @@ function Grille({ w, h }: { w: number; h: number }) {
   }))
   return (
     <group position={[0, 0, GRILLE_Z]}>
-      <InstancedBoxes instances={members}>
+      <InstancedBoxes instances={members} userData={markWallOverlay()}>
         <MetalMaterial {...grilleMat} />
       </InstancedBoxes>
     </group>
@@ -137,6 +149,17 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
     opaqueTransparentRef.current = fading
     g.traverse((o) => {
       if (!(o instanceof Mesh)) return
+      // A revealed wall shows FRAME + GLASS only. Every other member of the
+      // window — mullions, safety grille, louvre slats, invisible-grille cables,
+      // sash bars, the interior sill — is another translucent layer composited
+      // over the wall behind it, and the stack is what reads as vertical density
+      // banding through a faded wall (the wall's own overlays are culled the
+      // same way, see `markWallOverlay`). They come back the moment the wall is
+      // opaque, where depth testing resolves them instead of blending.
+      if (isWallOverlay(o.userData)) {
+        o.visible = !fading
+        if (fading) return
+      }
       const m = o.material as MeshStandardMaterial
       const isGlass = m === glass
       const base = isGlass ? glassBase : 1
@@ -240,18 +263,22 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
       <Bar w={FRAME_T} h={h} x={-w / 2 + FRAME_T / 2} y={0} />
       <Bar w={FRAME_T} h={h} x={w / 2 - FRAME_T / 2} y={0} />
       {/* Mullions */}
-      {verticalMullion && <Bar w={FRAME_T * 0.8} h={h} x={0} y={0} />}
-      {horizontalMullion && <Bar w={w} h={FRAME_T * 0.8} x={0} y={0} />}
+      {verticalMullion && <Bar w={FRAME_T * 0.8} h={h} x={0} y={0} detail />}
+      {horizontalMullion && <Bar w={w} h={FRAME_T * 0.8} x={0} y={0} detail />}
       {/* Safety grille — slim vertical bars on the interior side, now opt-in
           via `style: 'grille'` (GLASS-KINDS) rather than always-on. */}
       {style === 'grille' && <Grille w={w - FRAME_T} h={h - FRAME_T} />}
       {louvreSlats.length > 0 && (
-        <InstancedBoxes instances={louvreSlats} castShadow>
+        <InstancedBoxes instances={louvreSlats} castShadow userData={markWallOverlay()}>
           <meshStandardMaterial color="#cfd2d4" roughness={0.5} metalness={0.4} />
         </InstancedBoxes>
       )}
       {invisibleCables.length > 0 && (
-        <InstancedCylinders instances={invisibleCables} radialSegments={6}>
+        <InstancedCylinders
+          instances={invisibleCables}
+          radialSegments={6}
+          userData={markWallOverlay()}
+        >
           <MetalMaterial
             color="#d7dade"
             roughness={0.3}
@@ -262,7 +289,7 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
         </InstancedCylinders>
       )}
       {sashMembers.length > 0 && (
-        <InstancedBoxes instances={sashMembers} castShadow>
+        <InstancedBoxes instances={sashMembers} castShadow userData={markWallOverlay()}>
           <meshStandardMaterial color="#e6e7e4" roughness={0.45} metalness={0.35} />
         </InstancedBoxes>
       )}
@@ -295,7 +322,12 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
       </group>
       {/* Interior sill ledge (kept OUTSIDE the hinge-tilt group — a real sill
           doesn't tilt with an open awning/hopper sash). */}
-      <mesh position={[localX, spec.sill - 0.02, 0.06]} castShadow receiveShadow>
+      <mesh
+        position={[localX, spec.sill - 0.02, 0.06]}
+        castShadow
+        receiveShadow
+        userData={markWallOverlay()}
+      >
         <boxGeometry args={[w + 0.1, 0.04, 0.16]} />
         <meshStandardMaterial color="#eceae4" roughness={0.7} />
       </mesh>

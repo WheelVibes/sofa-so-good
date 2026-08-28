@@ -285,22 +285,21 @@ export function cornerNeighbors(
 /** A rectangle (+ optional L-shaped extension) in plan metres — the shape both
  *  the fixed-apartment `RoomDef` and the custom-plan `PlanRoom` reduce to for a
  *  point-in-room test. */
+/** One axis-aligned piece of a room's footprint. A room contributes as MANY of
+ *  these as it has parts — the list handed to {@link pointInRooms} is flat, so a
+ *  room built from three rectangles is simply three entries. */
 export interface RoomRect {
   x: number
   z: number
   w: number
   d: number
-  ext?: { x: number; z: number; w: number; d: number }
 }
 
-/** True if `(x, z)` lies inside any room rectangle (or its L-extension). A small
- *  `pad` lets a probe just inside a wall still register as interior. */
+/** True if `(x, z)` lies inside any room rectangle. A small `pad` lets a probe
+ *  just inside a wall still register as interior. */
 export function pointInRooms(x: number, z: number, rooms: readonly RoomRect[], pad = 0): boolean {
   for (const r of rooms) {
     if (x >= r.x - pad && x <= r.x + r.w + pad && z >= r.z - pad && z <= r.z + r.d + pad)
-      return true
-    const e = r.ext
-    if (e && x >= e.x - pad && x <= e.x + e.w + pad && z >= e.z - pad && z <= e.z + e.d + pad)
       return true
   }
   return false

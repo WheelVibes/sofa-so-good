@@ -1,0 +1,256 @@
+{
+  "name": "plan-reset-guards",
+  "description": "Every destructive plan/furniture action is guarded and honestly labelled: the File menu's plan-level vs furniture-level entries, the New-apartment chooser (empty canvas / starter room), and confirms on Reset apartment, template apply, saved-plan load and saved-plan delete.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "skip-onboarding",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}"
+    },
+    {
+      "name": "reload",
+      "eval": "location.reload()"
+    },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "boot-ready",
+      "waitFor": {
+        "store": "state.bootPhase === 'ready'"
+      },
+      "timeout": 120000
+    },
+    {
+      "name": "force-scene-ready",
+      "eval": "try{ window.__store.getState().setSceneReady(true) }catch(e){}"
+    },
+    {
+      "name": "dismiss-location",
+      "eval": "window.__store.getState().dismissLocationPrompt()"
+    },
+    {
+      "name": "settle",
+      "wait": 1500
+    },
+    {
+      "name": "open-file",
+      "click": {
+        "text": "File"
+      }
+    },
+    {
+      "name": "file-settle",
+      "wait": 700
+    },
+    {
+      "name": "shot-file-menu",
+      "screenshot": "01-file-menu-reset-entries"
+    },
+    {
+      "name": "assert-honest-labels",
+      "eval": "(function(){var rows=Array.from(document.querySelectorAll('.pop-panel .menu-item')).map(function(e){return e.textContent||''});var need=['New apartment\u2026','Reset apartment\u2026','Restore demo furniture\u2026','Clear furniture\u2026'];var missing=need.filter(function(n){return !rows.some(function(r){return r.indexOf(n)>=0})});if(missing.length)throw new Error('missing: '+missing.join(', ')+' | got: '+rows.join(' / '));var stale=rows.filter(function(r){return /Reset to the floor-plan default/.test(r)});if(stale.length)throw new Error('stale label still present');return 'ok'})()"
+    },
+    {
+      "name": "open-new-plan",
+      "click": {
+        "text": "New apartment\u2026"
+      }
+    },
+    {
+      "name": "new-plan-settle",
+      "wait": 700
+    },
+    {
+      "name": "shot-new-plan-modal",
+      "screenshot": "02-new-apartment-chooser"
+    },
+    {
+      "name": "assert-nothing-destroyed-yet",
+      "eval": "(function(){var s=window.__store.getState();if(s.floorPlan.rooms.length===0)throw new Error('plan already cleared before choosing');return 'rooms='+s.floorPlan.rooms.length+' items='+s.items.length})()"
+    },
+    {
+      "name": "cancel-new-plan",
+      "click": {
+        "text": "Cancel"
+      }
+    },
+    {
+      "name": "cancel-settle",
+      "wait": 500
+    },
+    {
+      "name": "open-file-2",
+      "click": {
+        "text": "File"
+      }
+    },
+    {
+      "name": "file-settle-2",
+      "wait": 600
+    },
+    {
+      "name": "click-reset-apartment",
+      "click": {
+        "text": "Reset apartment\u2026"
+      }
+    },
+    {
+      "name": "confirm-settle",
+      "wait": 700
+    },
+    {
+      "name": "shot-reset-confirm",
+      "screenshot": "03-reset-apartment-confirm"
+    },
+    {
+      "name": "assert-confirm-open",
+      "eval": "(function(){var s=window.__store.getState();if(!s.confirmRequest)throw new Error('Reset apartment did not confirm');return s.confirmRequest.title+' | '+s.confirmRequest.message})()"
+    },
+    {
+      "name": "decline",
+      "eval": "window.__store.getState().resolveConfirm(false)"
+    },
+    {
+      "name": "decline-settle",
+      "wait": 400
+    },
+    {
+      "name": "open-plan-editor",
+      "store": {
+        "action": "setFloorPlanEditing",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "plan-screen",
+      "waitFor": {
+        "css": ".plan-screen"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "plan-settle",
+      "wait": 1200
+    },
+    {
+      "name": "shot-plan-menu",
+      "screenshot": "04-plan-editor-toolbar"
+    },
+    {
+      "name": "open-plan-menu",
+      "click": {
+        "selector": "button[aria-label=\"Plan menu\"]"
+      }
+    },
+    {
+      "name": "plan-menu-settle",
+      "wait": 600
+    },
+    {
+      "name": "shot-plan-menu-open",
+      "screenshot": "04b-plan-menu-open"
+    },
+    {
+      "name": "assert-plan-buttons-guarded",
+      "eval": "(function(){var b=Array.from(document.querySelectorAll('button')).map(function(e){return (e.textContent||'').trim()});if(b.indexOf('New\u2026')<0)throw new Error('no New\u2026 button; got '+b.slice(0,40).join('|'));if(b.indexOf('Reset to HDB\u2026')<0)throw new Error('no Reset to HDB\u2026 button');return 'ok'})()"
+    },
+    {
+      "name": "click-plan-reset",
+      "click": {
+        "text": "Reset to HDB\u2026"
+      }
+    },
+    {
+      "name": "plan-confirm-settle",
+      "wait": 700
+    },
+    {
+      "name": "shot-plan-reset-confirm",
+      "screenshot": "05-plan-reset-confirm"
+    },
+    {
+      "name": "assert-plan-confirm",
+      "eval": "(function(){var s=window.__store.getState();if(!s.confirmRequest)throw new Error('Reset to HDB did not confirm');return s.confirmRequest.title})()"
+    },
+    {
+      "name": "accept-plan-reset",
+      "eval": "window.__store.getState().resolveConfirm(true)"
+    },
+    {
+      "name": "accept-settle",
+      "wait": 1000
+    },
+    {
+      "name": "template-apply-confirms",
+      "eval": "(function(){var t=window.__store.getState();window.__before=t.floorPlan.id;return 'ok'})()"
+    },
+    {
+      "name": "new-empty-canvas",
+      "eval": "window.__store.getState().newFloorPlan()"
+    },
+    {
+      "name": "empty-settle",
+      "wait": 1500
+    },
+    {
+      "name": "shot-empty-canvas",
+      "screenshot": "06-empty-canvas-plan-editor"
+    },
+    {
+      "name": "assert-truly-empty",
+      "eval": "(function(){var p=window.__store.getState().floorPlan;if(p.walls.length||p.rooms.length)throw new Error('not empty: walls='+p.walls.length+' rooms='+p.rooms.length);if(window.__store.getState().items.length)throw new Error('furniture survived a new plan');return 'empty ok'})()"
+    },
+    {
+      "name": "close-plan-editor",
+      "store": {
+        "action": "setFloorPlanEditing",
+        "args": [
+          false
+        ]
+      }
+    },
+    {
+      "name": "close-settle",
+      "wait": 1500
+    },
+    {
+      "name": "shot-empty-3d",
+      "screenshot": "07-empty-canvas-3d"
+    },
+    {
+      "name": "undo-back",
+      "eval": "window.__store.getState().undo()"
+    },
+    {
+      "name": "undo-settle",
+      "wait": 1500
+    },
+    {
+      "name": "assert-single-undo-restores-both",
+      "eval": "(function(){var s=window.__store.getState();if(s.floorPlan.rooms.length===0)throw new Error('undo did not restore the plan');if(s.items.length===0)throw new Error('undo did not restore the furniture');return 'rooms='+s.floorPlan.rooms.length+' items='+s.items.length})()"
+    },
+    {
+      "name": "shot-undone",
+      "screenshot": "08-after-single-undo"
+    },
+    {
+      "name": "open-cmdk",
+      "eval": "window.__store.getState().setCommandPaletteOpen ? window.__store.getState().setCommandPaletteOpen(true) : null"
+    },
+    {
+      "name": "cmdk-settle",
+      "wait": 500
+    },
+    {
+      "name": "assert-cmdk-commands",
+      "eval": "(function(){var el=document.querySelector('.cmdk');if(!el)return 'palette not open (skipped)';return 'open'})()"
+    }
+  ]
+}

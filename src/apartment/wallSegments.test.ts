@@ -253,3 +253,42 @@ describe('buildWallSegments', () => {
     expect(seg).toContainEqual({ start: 1, end: 2.5, bottom: 2.1, top: ceiling })
   })
 })
+
+describe('wallCornerAbut — T-junction vs true corner', () => {
+  const w = (id: string, start: [number, number], end: [number, number], thicknessM: number) =>
+    ({ id, start, end, thickness: 'internal', thicknessM, cutouts: [] }) as WallSpec
+
+  it('always RETRACTS the stem at a T-junction, whichever way the id tie-break falls', () => {
+    // Stem ends on the MIDDLE of a 0.3 m through wall. Only the stem terminates,
+    // so there is no corner notch to fill — extending it would drive its body
+    // from the through wall's centreline to its far face, a 0.3 m overlap that
+    // double-composites the moment both fade (the reveal's bright band).
+    const through = w('a-through', [0, 0], [10, 0], 0.3)
+    const stemLoses = w('z-stem', [5, 0], [5, 4], 0.1) // id > through → butter
+    const stemWins = w('A-stem', [5, 0], [5, 4], 0.1) // id < through → was spanner
+    for (const stem of [stemLoses, stemWins]) {
+      const abut = wallCornerAbut(stem, [through, stem], true, 0)
+      expect(abut, stem.id).toBeLessThan(0)
+      // Retracts to the through wall's NEAR face: half of 0.3.
+      expect(abut, stem.id).toBeCloseTo(-0.15, 6)
+    }
+  })
+
+  it('still spans exactly one side of a TRUE corner, so the notch is filled', () => {
+    // Both walls END at (5,0): one must span or the corner square is empty.
+    const a = w('a-wall', [0, 0], [5, 0], 0.2)
+    const b = w('b-wall', [5, 0], [5, 5], 0.1)
+    const all = [a, b]
+    const abutA = wallCornerAbut(a, all, false, 0)
+    const abutB = wallCornerAbut(b, all, true, 0)
+    expect(Math.sign(abutA)).not.toBe(Math.sign(abutB))
+    // The spanner extends by the NEIGHBOUR's half-thickness.
+    expect(abutA).toBeCloseTo(0.05, 6)
+    expect(abutB).toBeCloseTo(-0.1, 6)
+  })
+
+  it('leaves a free end alone', () => {
+    const lone = w('lone', [0, 0], [3, 0], 0.1)
+    expect(wallCornerAbut(lone, [lone], false, 0)).toBe(0)
+  })
+})

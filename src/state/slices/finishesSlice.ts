@@ -1,6 +1,6 @@
-import { ROOMS } from '../../apartment/constants'
+import { ROOMS, WALLS } from '../../apartment/constants'
 import type { RoomId } from '../../apartment/types'
-import { allPlanRooms, levelOfRoom, withLevelGeometry } from '../../floorplan/levels'
+import { allPlanRooms, levelOfRoom, planLevels, withLevelGeometry } from '../../floorplan/levels'
 import type { FloorPlan } from '../../floorplan/types'
 import {
   DEFAULT_FLOOR,
@@ -74,27 +74,50 @@ function planWithRoomTexture(
   }))
 }
 
-/** Drop finish entries for room ids that belong to neither the fixed flat nor
- *  the given plan — hygiene when a different plan is activated, so a stale
- *  custom-room key from the previous plan can't shadow the new plan's own
- *  per-room finishes. Returns the same maps object when nothing was pruned. */
+/** Drop finish entries whose room — or, for the per-face maps, whose wall — no
+ *  longer exists in either the fixed flat or the given plan. Hygiene when a
+ *  different plan is activated, so a stale key from the previous plan can't
+ *  shadow the new plan's own finishes (or resurrect an accent wall when a later
+ *  plan happens to reuse an id). Covers the per-ROOM maps (floor/walls/ceiling)
+ *  AND the per-FACE ones (`wallAccents`/`wallTex`, keyed `${wallId}:${roomId}` —
+ *  these were left untouched, so a swapped plan carried the old plan's accent
+ *  walls around forever). Returns the same maps object when nothing was pruned. */
 export function pruneFinishesForPlan(
   finishes: FinishesSlice['finishes'],
   plan: FloorPlan,
 ): FinishesSlice['finishes'] {
   const valid = new Set<string>([...Object.keys(ROOMS), ...allPlanRooms(plan).map((r) => r.id)])
+  const validWalls = new Set<string>([
+    ...WALLS.map((w) => w.id),
+    ...planLevels(plan).flatMap((l) => l.walls.map((w) => w.id)),
+  ])
+  // A face key is `${wallId}:${roomId}`; the wall id may itself contain no
+  // colon in any plan we author, but split from the RIGHT so an odd id can't
+  // silently mis-parse into a "valid" pair.
+  const faceValid = (k: string) => {
+    const i = k.lastIndexOf(':')
+    if (i < 0) return false
+    return validWalls.has(k.slice(0, i)) && valid.has(k.slice(i + 1))
+  }
   const stale = (k: string) => !valid.has(k)
-  const floorStale = Object.keys(finishes.floor).some(stale)
-  const wallStale = Object.keys(finishes.walls).some(stale)
-  const ceilStale = Object.keys(finishes.ceiling).some(stale)
-  if (!floorStale && !wallStale && !ceilStale) return finishes
+  const anyStale =
+    Object.keys(finishes.floor).some(stale) ||
+    Object.keys(finishes.walls).some(stale) ||
+    Object.keys(finishes.ceiling).some(stale) ||
+    Object.keys(finishes.wallAccents ?? {}).some((k) => !faceValid(k)) ||
+    Object.keys(finishes.wallTex ?? {}).some((k) => !faceValid(k))
+  if (!anyStale) return finishes
   const keep = <V>(rec: Record<string, V>): Record<string, V> =>
     Object.fromEntries(Object.entries(rec).filter(([k]) => valid.has(k)))
+  const keepFace = <V>(rec: Record<string, V> | undefined): Record<string, V> =>
+    Object.fromEntries(Object.entries(rec ?? {}).filter(([k]) => faceValid(k)))
   return {
     ...finishes,
     floor: keep(finishes.floor) as Record<RoomId, MaterialId>,
     walls: keep(finishes.walls) as Record<RoomId, MaterialId>,
     ceiling: keep(finishes.ceiling) as Record<RoomId, MaterialId>,
+    wallAccents: keepFace(finishes.wallAccents),
+    wallTex: keepFace(finishes.wallTex),
   }
 }
 

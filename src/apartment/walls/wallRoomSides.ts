@@ -14,6 +14,7 @@
  */
 
 import { ROOMS } from '../constants'
+import { roomParts } from '../roomGeometry'
 import type { RoomId, WallSpec } from '../types'
 import { wallThicknessMetres } from '../wallSegments'
 
@@ -32,22 +33,7 @@ const RECTS: Rect[] = (() => {
   for (const id of Object.keys(ROOMS) as RoomId[]) {
     const r = ROOMS[id]
     if (r.external) continue
-    out.push({
-      roomId: id,
-      x0: r.origin[0],
-      z0: r.origin[1],
-      x1: r.origin[0] + r.width,
-      z1: r.origin[1] + r.depth,
-    })
-    if (r.extension) {
-      out.push({
-        roomId: id,
-        x0: r.origin[0] + r.extension.offset[0],
-        z0: r.origin[1] + r.extension.offset[1],
-        x1: r.origin[0] + r.extension.offset[0] + r.extension.width,
-        z1: r.origin[1] + r.extension.offset[1] + r.extension.depth,
-      })
-    }
+    for (const part of roomParts(r)) out.push({ roomId: id, ...part })
   }
   return out
 })()

@@ -87,3 +87,49 @@ export function setWallOwnStrength(wallId: string, strength: number): void {
 export function getWallOwnStrength(wallId: string): number {
   return wallOwnStrength.get(wallId) ?? 0
 }
+
+/**
+ * Marks a mesh as an OVERLAY sitting on top of a wall's body — an interior face
+ * plane, a baseboard, a crown, the accent-selection highlight.
+ *
+ * The body is deliberately ONE watertight extruded shape so it has no internal
+ * seams when it fades for the camera reveal. Every overlay on top of it undoes
+ * that: with `depthWrite` on and back-to-front transparent sorting, the body
+ * blends first and the overlay blends over it, so a translucent wall composites
+ * TWICE wherever an overlay covers it and only once where it doesn't — vertical
+ * density bands down the wall. At an outside corner it is worse: a face plane is
+ * deliberately extended by the abutting wall's half-thickness so the finish
+ * reaches the outer edge, which is invisible while that neighbour is opaque and
+ * a third composited layer once it isn't.
+ *
+ * So overlays are HIDDEN for the duration of a fade (see `WallSegment` /
+ * `useWallReveal`): a revealing wall renders as exactly one surface per side —
+ * the body, with its neutral lift — and the seams cannot occur. They come back
+ * the instant the wall is opaque again, where depth testing (not blending)
+ * resolves them correctly and the finish must be visible.
+ */
+export function markWallOverlay(extra?: Record<string, unknown>): Record<string, unknown> {
+  return { ...extra, wallOverlay: true }
+}
+
+/** True when `userData` came from {@link markWallOverlay}. */
+export function isWallOverlay(userData: unknown): boolean {
+  return !!userData && (userData as { wallOverlay?: unknown }).wallOverlay === true
+}
+
+/**
+ * {@link isWallOverlay} for a whole sub-assembly: true when the object OR any
+ * ancestor carries the mark. Lets a multi-mesh detail (a door's security gate,
+ * a handle) be tagged once on its group instead of on every member.
+ *
+ * The traverse that uses this must set `visible` on the tagged object and stop
+ * descending, so the walk stays shallow.
+ */
+export function isWallOverlayBranch(o: { userData?: unknown; parent?: unknown } | null): boolean {
+  let cur = o
+  while (cur) {
+    if (isWallOverlay(cur.userData)) return true
+    cur = (cur.parent ?? null) as typeof cur
+  }
+  return false
+}

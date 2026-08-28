@@ -69,6 +69,7 @@ import { ErrorBoundary } from './ui/ErrorBoundary'
 import { FinishPicker } from './ui/FinishPicker'
 import { FixturePrompt } from './ui/FixturePrompt'
 import { FpsCounter } from './ui/FpsCounter'
+import { NewPlanModal } from './ui/floorplan/NewPlanModal'
 import { InfoCallout } from './ui/InfoCallout'
 import { InspectorPanel } from './ui/inspector/InspectorPanel'
 import { LightPrompt } from './ui/LightPrompt'
@@ -558,6 +559,9 @@ export default function App() {
         <LocationPrompt />
         <PromptModal />
         <ConfirmModal />
+        {/* Guarded "start a new apartment" chooser — openable from the 2D
+            editor's Plan menu, the File menu and ⌘K, so it mounts app-wide. */}
+        <NewPlanModal />
         {visualScene.floorPlan ? (
           <Suspense fallback={null}>
             <FloorPlanEditor />

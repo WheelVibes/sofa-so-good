@@ -97,6 +97,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  planReset: {
+    label: 'New / reset apartment',
+    description: 'Start a new plan, reset to the default flat, or clear furniture',
+    default: true,
+    tier: 'simple',
+  },
   smartStart: {
     label: 'Smart Start',
     description: 'One-click furnish wizard',

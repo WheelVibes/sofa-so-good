@@ -1,53 +1,31 @@
-import { useFrame, useThree } from '@react-three/fiber'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Object3D } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../../features/useFeature'
-import { type EmitterSpec, resolveEmitterSpec } from '../../furniture/lightEmitters'
-import type { FurnitureItem } from '../../furniture/types'
-import { resolveIesSpot } from '../../lighting/ies/iesStore'
-import { applyMoodPreset } from '../../lighting/moodPresets'
 import { useStore } from '../../state/store'
 import { useQuality } from '../useQuality'
-import { chooseEmitters } from './chooseEmitters'
 import { setFixtureGlow } from './fixtureGlow'
-
-/** Below this level the fixtures are off — render no fixture lights at all. */
-const MIN_DARKNESS = 0.04
-/** Camera-move (squared metres) below which the nearest-lights ranking can't have
- *  meaningfully changed — skip the rebuild+sort entirely. */
-const CAM_RECOMPUTE_SQ = 0.2 * 0.2
-
-interface ActiveLight {
-  id: string
-  position: [number, number, number]
-  color: string
-  baseIntensity: number
-  distance: number
-  /** Lighting-mood brightness multiplier (`moodPresets.ts`), composed on top of
-   *  the shared `lightsMode` level at render time — `1` when the feature is off
-   *  or the mood is `'none'`. */
-  moodMultiplier: number
-  /** IES photometric spot params, when the fixture uses an IES profile (else a
-   *  plain omni point light is rendered). */
-  spot?: { angle: number; penumbra: number }
-}
+import { aggregateFixtureLights, type FixtureLight, fixtureLightsFor } from './fixtureLights'
 
 /**
  * Drives real point lights from light-emitting furniture (lamps, pendants).
- * Lights are all on or all off (`lightsMode`) and cast no shadows; while off,
- * nothing renders (zero cost). The live set is capped to the nearest emitters within the tier's
- * `maxFixtureLights` budget in BOTH view modes (`chooseEmitters`, PERF-002):
- * walk caps to N, orbit to a larger but still bounded `N * multiplier` — instead
- * of the old orbit path that lit every emitter (30–50 live lights in a furnished
- * night home). The nearest-N rank + camera-move/items/mode gate keep the pick
- * off the per-frame path.
+ *
+ * **`lightsMode` is one switch for the whole home: on lights every fixture, off
+ * lights none.** No camera-proximity culling — this used to rank emitters by
+ * distance and keep only the nearest `maxFixtureLights` (2 on the default
+ * Performance tier, ×3 in orbit), which in a 19-emitter flat meant lamps
+ * switching on and off around you as you walked. Selection + placement is the
+ * pure `fixtureLights.ts`; the only remaining cap there is a GPU shader-uniform
+ * guard far above any real design.
+ *
+ * A fixture's OWN switch still wins (`props.lightOn === 'no'`, the walk-mode
+ * per-light toggle) — that item never enters the set, in either mode.
+ *
+ * While off, nothing renders (zero cost). Fixture lights cast no shadows.
  */
 export function FurnitureLights() {
   const items = useStore(useShallow((s) => s.items))
   const lightsMode = useStore((s) => s.lightsMode)
-  const cameraMode = useStore((s) => s.cameraMode)
-  const maxLights = useQuality().maxFixtureLights
   const iesEnabled = useFeature('iesLights')
   // Lighting mood presets (UX round-3 #3): composed on top of `lightsMode`,
   // never in place of it — see `lighting/moodPresets.ts` composition doc.
@@ -56,118 +34,30 @@ export function FurnitureLights() {
   const moodEnabled = useFeature('lightMoodPresets')
   const lightMoodRaw = useStore((s) => s.lightMood)
   const lightMood = moodEnabled ? lightMoodRaw : 'none'
-  const { camera } = useThree()
-  const levelRef = useRef(0)
-  const [active, setActive] = useState<ActiveLight[]>([])
-  const lastKeyRef = useRef('')
-  // Inputs that determine the nearest-emitter set — recompute only when one moves.
-  const lastCamRef = useRef({ x: Number.POSITIVE_INFINITY, z: Number.POSITIVE_INFINITY })
-  const lastItemsRef = useRef(items)
-  // The budget differs by mode, so a mode switch (orbit↔walk) must re-pick even if
-  // the camera barely moved between the two poses.
-  const lastModeRef = useRef(cameraMode)
-  // A mood change re-tints/re-scales the SAME active set without moving the
-  // camera or touching `items` — needs its own change check.
-  const lastMoodRef = useRef(lightMood)
 
   // Binary all-on / all-off (the sun-following 'auto' mode was removed).
   const level = lightsMode === 'on' ? 1 : 0
-  levelRef.current = level
 
-  useFrame(() => {
-    const dark = levelRef.current
-    setFixtureGlow(dark)
-    if (dark < MIN_DARKNESS) {
-      if (active.length > 0) {
-        setActive([])
-        lastKeyRef.current = ''
-      }
-      return
-    }
-    // Gate the rebuild+sort on a real input change: a stationary camera at night
-    // re-ran the full nearest-N scan every frame for no result change.
-    const cx = camera.position.x
-    const cz = camera.position.z
-    const movedSq = (cx - lastCamRef.current.x) ** 2 + (cz - lastCamRef.current.z) ** 2
-    const itemsChanged = lastItemsRef.current !== items
-    const modeChanged = lastModeRef.current !== cameraMode
-    const moodChanged = lastMoodRef.current !== lightMood
-    if (
-      !itemsChanged &&
-      !modeChanged &&
-      !moodChanged &&
-      movedSq < CAM_RECOMPUTE_SQ &&
-      lastKeyRef.current !== ''
-    )
-      return
-    lastCamRef.current.x = cx
-    lastCamRef.current.z = cz
-    lastItemsRef.current = items
-    lastModeRef.current = cameraMode
-    lastMoodRef.current = lightMood
-    const emitters: { item: FurnitureItem; spec: EmitterSpec; d2: number }[] = []
-    for (const item of items) {
-      const spec = resolveEmitterSpec(item.defId, item.props)
-      if (!spec) continue
-      const dx = item.position[0] - cx
-      const dz = item.position[1] - cz
-      emitters.push({ item, spec, d2: dx * dx + dz * dz })
-    }
-    emitters.sort((a, b) => a.d2 - b.d2)
-    // Cap the live point/spot lights to the tier's `maxFixtureLights` budget in
-    // BOTH modes (PERF-002): walk caps to nearest N; orbit gets a larger but still
-    // bounded budget (whole home visible) instead of the old "render every emitter",
-    // which reached 30–50 live lights in a furnished night home. The dropped lights
-    // are the farthest from the camera; ambient/fill + emissive materials remain, so
-    // the scene never goes dark.
-    const chosen = chooseEmitters(emitters, cameraMode, maxLights)
-    // Key includes the IES profile prop (re-picking a profile on the same set
-    // of lit items still triggers a rebuild) and the mood (re-tints/re-scales
-    // the same set without an items/mode/camera change).
-    const key = chosen
-      .map((e) => `${e.item.id}:${e.item.props.iesProfile ?? ''}:${lightMood}`)
-      .join(',')
-    if (key === lastKeyRef.current) return // set unchanged → no re-render
-    lastKeyRef.current = key
-    setActive(
-      chosen.map(({ item, spec }) => {
-        // Per-item bulb colour (warm/neutral/cool) overrides the emitter default.
-        const rawBulb =
-          typeof item.props.lightColor === 'string' ? item.props.lightColor : spec.color
-        // Lighting mood preset (UX round-3 #3): tints the bulb colour + supplies
-        // a brightness multiplier applied on top of the shared `lightsMode`
-        // level at render time — composes with, never replaces, that level.
-        const { color: bulb, intensityMultiplier: moodMultiplier } = applyMoodPreset(
-          lightMood,
-          item.defId,
-          rawBulb,
-        )
-        // Local bulb offset (e.g. an arc lamp's reach) → world, via rotation.
-        const [ox, oz] = spec.offset?.(item.props) ?? [0, 0]
-        const r = item.rotation
-        const wx = item.position[0] + ox * Math.cos(r) + oz * Math.sin(r)
-        const wz = item.position[1] - ox * Math.sin(r) + oz * Math.cos(r)
-        // Per-item intensity override (PARITY-FURNLIGHT) — a brightness slider.
-        const baseIntensity =
-          typeof item.props.lightIntensity === 'number' ? item.props.lightIntensity : spec.intensity
-        // IES photometric profile (PC-IES-LIGHT): if the item references one (and
-        // the feature is on) drive a directional SpotLight with the profile's
-        // cone/penumbra; otherwise a plain omni point light. Parsed+cached once.
-        const iesId =
-          iesEnabled && typeof item.props.iesProfile === 'string' ? item.props.iesProfile : ''
-        const iesSpot = iesId ? resolveIesSpot(iesId, baseIntensity) : null
-        return {
-          id: item.id,
-          position: [wx, spec.height(item.props), wz],
-          color: bulb,
-          baseIntensity: iesSpot ? iesSpot.intensity : baseIntensity,
-          distance: spec.distance,
-          moodMultiplier,
-          spot: iesSpot ? { angle: iesSpot.angle, penumbra: iesSpot.penumbra } : undefined,
-        }
-      }),
-    )
-  })
+  // Shared "lights are on" factor the fixture primitives poll to glow their
+  // emissive shades. It only changes with the switch, so it is written on
+  // change rather than every frame (this component no longer has a per-frame
+  // path at all).
+  useEffect(() => {
+    setFixtureGlow(level)
+  }, [level])
+
+  // Merge fixtures that read as one light (a downlight grid) on the tiers that
+  // need the headroom — every light costs a full BRDF per fragment. Never on
+  // High/Maximum, where the lighting design is rendered exactly as authored.
+  const mergeLights = useQuality().mergeCoincidentLights
+
+  // Nothing depends on the camera, so the set is a plain memo: it changes only
+  // when the design, the mood, the IES flag or the tier does.
+  const active = useMemo(() => {
+    if (level <= 0) return []
+    const lights = fixtureLightsFor(items, { lightMood, iesEnabled })
+    return mergeLights ? aggregateFixtureLights(lights) : lights
+  }, [level, items, lightMood, iesEnabled, mergeLights])
 
   if (active.length === 0) return null
   return (
@@ -195,7 +85,7 @@ export function FurnitureLights() {
  * The target sits directly below the bulb on the floor so the cone shines down;
  * `angle`/`penumbra` come from the parsed IES profile's field/beam geometry.
  */
-function IesSpotLight({ light, level }: { light: ActiveLight; level: number }) {
+function IesSpotLight({ light, level }: { light: FixtureLight; level: number }) {
   const [x, y, z] = light.position
   // A stable target object placed on the floor directly under the bulb → the cone
   // shines straight down. Created once and re-positioned when the bulb moves.

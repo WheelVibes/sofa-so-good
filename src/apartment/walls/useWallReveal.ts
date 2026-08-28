@@ -3,7 +3,7 @@ import { type RefObject, useEffect, useRef } from 'react'
 import { type Material, type Mesh, type MeshStandardMaterial, type Object3D, Vector3 } from 'three'
 import { registerAnimatedSource } from '../../scene/animatedSources'
 import { useStore } from '../../state/store'
-import { getWallOwnStrength, setWallOpacity, setWallOwnStrength } from './wallReveal'
+import { getWallOwnStrength, isWallOverlay, setWallOpacity, setWallOwnStrength } from './wallReveal'
 import {
   cornerSpreadStrength,
   DEFAULT_WALL_REVEAL_STRENGTH,
@@ -193,6 +193,14 @@ export function useWallReveal(objRef: RefObject<Object3D | null>, args: WallReve
     root.traverse((o) => {
       const m = o as Mesh
       if (!m.isMesh || !m.material) return
+      // Overlays on the wall body (face planes, trim, highlights) are hidden for
+      // the duration of the fade — each one is a second layer composited over
+      // the body, which reads as a density band down the wall and a denser
+      // stripe at every corner. See `markWallOverlay`.
+      if (isWallOverlay(m.userData)) {
+        m.visible = visible && !transparent
+        if (transparent) return
+      }
       if (transparent) {
         let entry = fadeStateRef.current.get(m)
         if (!entry) {

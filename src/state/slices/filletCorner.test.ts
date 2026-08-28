@@ -28,7 +28,7 @@ describe('filletCorner', () => {
   }
 
   it('rounds a real corner and inserts one connecting wall', () => {
-    useStore.getState().newFloorPlan()
+    useStore.getState().newFloorPlan({ shell: true })
     const pair = connectedPair()
     expect(pair).not.toBeNull()
     const before = useStore.getState().floorPlan.walls.length
@@ -41,7 +41,7 @@ describe('filletCorner', () => {
   })
 
   it('returns false for two walls that do not share a corner', () => {
-    useStore.getState().newFloorPlan()
+    useStore.getState().newFloorPlan({ shell: true })
     const walls = useStore.getState().floorPlan.walls
     // Fabricate a clearly non-touching id pair by reusing the same id twice.
     expect(useStore.getState().filletCorner(walls[0].id, walls[0].id, 0.3, 'round', 'ground')).toBe(
@@ -50,7 +50,7 @@ describe('filletCorner', () => {
   })
 
   it('is one undo step', () => {
-    useStore.getState().newFloorPlan()
+    useStore.getState().newFloorPlan({ shell: true })
     const pair = connectedPair()
     const past = useStore.getState().past.length
     useStore.getState().filletCorner(pair![0], pair![1], 0.3, 'bevel', 'ground')

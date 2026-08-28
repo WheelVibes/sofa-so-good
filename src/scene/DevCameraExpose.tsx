@@ -9,7 +9,7 @@ import { useEffect } from 'react'
  * mount site.
  */
 export function DevCameraExpose() {
-  const { camera, gl, controls, scene, raycaster } = useThree()
+  const { camera, gl, controls, scene, raycaster, advance } = useThree()
   useEffect(() => {
     ;(window as unknown as { __three?: unknown }).__three = {
       camera,
@@ -17,7 +17,12 @@ export function DevCameraExpose() {
       controls,
       scene,
       raycaster,
+      // r3f's SYNCHRONOUS render driver. A harness measuring cost must drive
+      // the REAL pipeline (post composer included) — `gl.render(scene, camera)`
+      // skips the composer and under-reports anything the post stack re-renders
+      // the geometry for.
+      advance,
     }
-  }, [camera, gl, controls, scene, raycaster])
+  }, [camera, gl, controls, scene, raycaster, advance])
   return null
 }

@@ -154,6 +154,8 @@ export function wallEndAbutmentThickness(
  * Free ends (no abutting wall) return 0. Symmetric: at any shared corner one
  * wall's id wins the tie-break so exactly one spans and one butts, and both agree.
  */
+const CORNER_EPS = 0.02 // m: endpoints within this are "the same corner"
+
 export function wallCornerAbut(
   wall: WallSpec,
   allWalls: readonly WallSpec[],
@@ -163,11 +165,27 @@ export function wallCornerAbut(
   const other = wallEndAbutmentNeighbor(wall, allWalls, atStart)
   if (!other) return 0
   const half = wallThicknessMetres(other) / 2
-  // Spanner (id wins) extends to fill the corner; butter retracts, buried by ε.
+  const point = atStart ? wall.start : wall.end
+  const near = (p: readonly [number, number]) =>
+    Math.hypot(p[0] - point[0], p[1] - point[1]) < CORNER_EPS
+  // Does the NEIGHBOUR also end here, or does it run through?
+  const mutual = near(other.start) || near(other.end)
+  // A T-JUNCTION (the neighbour runs through) always RETRACTS to the through
+  // wall's near face. There is no corner notch to fill — only this wall ends
+  // here — so the spanner half of the tie-break has nothing to do except drive
+  // this body from the through wall's centreline all the way to its FAR face,
+  // overlapping it by the neighbour's FULL thickness. That is invisible while
+  // both are opaque and a hard-edged double-composite the moment they fade: a
+  // 100 mm partition into a 100 mm partition hides a 100 mm block, but the same
+  // partition into a 300 mm RC wall paints a 300 mm-wide, full-height bright
+  // band down the reveal. Which of the two it did came down to `wall.id <
+  // other.id` — an alphabetical coin-flip.
+  if (!mutual) return -(half - clearance)
+  // A true corner where BOTH walls end: one must span to fill the notch, the
+  // other butts into it. Id order is an arbitrary but STABLE tie-break, and the
+  // spanner's extra length is genuinely buried inside its neighbour.
   return wall.id < other.id ? half : -(half - clearance)
 }
-
-const CORNER_EPS = 0.02 // m: endpoints within this are "the same corner"
 
 /** How this wall's end joins its neighbour. `miter` = a true L-corner (both walls
  *  END at the shared point) — the walls are cut to the corner's angle-bisector so

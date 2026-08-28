@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { PLAN_TEMPLATES, templateCategoryTree } from '../../floorplan/templates'
 import type { FloorPlan, HousingType } from '../../floorplan/types'
-import { useStore } from '../../state/store'
 import { Select } from '../controls/Select'
+import { confirmApplyTemplate } from '../planActions'
 
 /**
  * Cascading template picker: Housing type › Project › Apartment type. Choosing
@@ -20,12 +20,11 @@ export function TemplatePicker() {
   const projects = housing ? [...(tree.get(housing)?.keys() ?? [])] : []
   const apartments = housing && project ? (tree.get(housing)?.get(project) ?? []) : []
 
+  // Applying a template replaces the plan AND clears the furniture, so it is
+  // confirmed like every other destructive plan swap (`ui/planActions.ts`) —
+  // it used to fire straight off the third dropdown's change event.
   const apply = (tpl: FloorPlan) => {
-    const a = useStore.getState()
-    a.pushHistory()
-    a.setItems([])
-    a.setFloorPlan(JSON.parse(JSON.stringify(tpl)))
-    a.setPlanSelection(null)
+    void confirmApplyTemplate(tpl)
   }
 
   return (

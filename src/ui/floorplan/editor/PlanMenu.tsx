@@ -30,6 +30,9 @@ export function PlanMenu({
         className={`btn btn-sm${open || active ? ' on' : ''}`}
         aria-haspopup="menu"
         aria-expanded={open}
+        // Without this the accessible name is "Plan ▾" — screen readers
+        // announce the glyph. Also the stable handle scenarios click by.
+        aria-label={`${label} menu`}
         onClick={() => setOpen((v) => !v)}
       >
         {label} ▾

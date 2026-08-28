@@ -1,3 +1,4 @@
+import { roomFloorArea } from './roomGeometry'
 import type { DoorSpec, FlatSpec, RoomDef, RoomId, WallSpec, WindowSpec } from './types'
 
 // Apartment external bounding box. NW external corner is at (0, 0).
@@ -98,15 +99,17 @@ export const ROOMS: Record<RoomId, RoomDef> = {
     origin: [0.25, 0.2],
     width: 3.03,
     depth: 3.525,
-    extension: {
-      // MB foyer: the western stretch of the corridor band belongs to MB
-      // (no MB south wall — the main body flows into the foyer). It ends at
-      // the small N-S partition at cx=3.475 which hosts the MB door; bath1
-      // is entered from this foyer through the door on its south wall.
-      offset: [0, 3.525],
-      width: 3.175,
-      depth: 1.1,
-    },
+    extensions: [
+      {
+        // MB foyer: the western stretch of the corridor band belongs to MB
+        // (no MB south wall — the main body flows into the foyer). It ends at
+        // the small N-S partition at cx=3.475 which hosts the MB door; bath1
+        // is entered from this foyer through the door on its south wall.
+        offset: [0, 3.525],
+        width: 3.175,
+        depth: 1.1,
+      },
+    ],
     derivation:
       'L-shape: bedroom + south foyer. Main body mm x=[0,3230] z=[0,3675] (plan: 3230-wide first bay, 3675-deep bedroom band); single window on the north wall (west wall is solid — confirmed against the 3D reference render/video). Foyer spans the corridor band z=[3675,4775] west of the MB-door partition at x=3375. West wall (wall-ext-W) thickened to 300 mm RC/gable-end (v0.23.1.8): interior face 0.20→0.25 trims width 3230−150−50=3030 mm (and the foyer extension by the same 50 mm); east/north/south faces unaffected.',
   },
@@ -135,7 +138,7 @@ export const ROOMS: Record<RoomId, RoomDef> = {
     width: 5.6,
     depth: 1.0,
     derivation:
-      "Central circulation strip mm z=[3675,4775] (1100 deep per the plan annotation) from the MB-door partition (x=3375) east to the open L/D edge (x=9075). North wall carries the B2/B3 doors; south wall the bath2 + HS doors. The open strip east of the HS (x=[8115,9075] z=[4775,6725]) is carried by the livingDining rect (which overlaps this strip + B3/corridor slivers; the floor renderer carves overlaps toward the smaller room, as in the previous plan). NOTE (v0.23.1.8): `wall-int-hs-N`, bounding this rect along the household-shelter stretch (x=[5.765,8.215]), thickened to 300 mm RC — its extra 100 mm of mass now juts 100 mm south into this rect over that stretch only. A single rect can't express a thickness that varies along its length, so this corridor rect is left at the THIN corridor-S wall face (z=3.825) unchanged; walls render over the floor, so the RC overlap is visually correct despite the un-carved rect (same treatment as `wall-int-b3-LD-col` vs. bedroom3, above).",
+      "Central circulation strip mm z=[3675,4775] (1100 deep per the plan annotation) from the MB-door partition (x=3375) east to the open L/D edge (x=9075). North wall carries the B2/B3 doors; south wall the bath2 + HS doors. The open strip SOUTH of this band and east of the HS (x=[8365,9125] z=[4825,6975]) is circulation into the living/dining and is declared as one of livingDining's parts, meeting this rect's south edge exactly (it used to be swallowed by an oversized L/D rect that overlapped this one). NOTE (v0.23.1.8): `wall-int-hs-N`, bounding this rect along the household-shelter stretch (x=[5.765,8.215]), thickened to 300 mm RC — its extra 100 mm of mass now juts 100 mm south into this rect over that stretch only. A single rect can't express a thickness that varies along its length, so this corridor rect is left at the THIN corridor-S wall face (z=3.825) unchanged; walls render over the floor, so the RC overlap is visually correct despite the un-carved rect (same treatment as `wall-int-b3-LD-col` vs. bedroom3, above).",
   },
   bath1: {
     id: 'bath1',
@@ -192,18 +195,22 @@ export const ROOMS: Record<RoomId, RoomDef> = {
     // annotated 2200 mm interior depth exactly (see wall-ext-S's derivation).
     // North wall thickening (above) trims a further 0.1 m: 2.2 → 2.1.
     depth: 2.1,
-    extension: {
-      // Small east strip between the open kitchen/LD boundary and the SE jog
-      // wall, south of the entrance foyer. offset[1] reduced by the same
-      // 0.1 as the origin shift above (keeping the strip's absolute z-span
-      // anchored at [8.285, 9.075] — an accounting boundary independent of
-      // the HS wall, unaffected by this pass); width trimmed 0.42 → 0.37 for
-      // `wall-ext-SE-jog-W`'s thickening (its interior/west face moves
-      // 10.1 → 10.05, eating 50 mm off this strip's east edge).
-      offset: [3.505, 1.31],
-      width: 0.37,
-      depth: 0.79,
-    },
+    extensions: [
+      {
+        // Small east strip between the open kitchen/LD boundary and the SE jog
+        // wall, south of the entrance foyer. Its NORTH edge is the L/D foyer's
+        // south edge (z=8.135): `wall-ext-SE-step` only starts at x=10.2, so
+        // for x=[9.73,10.2] there is NO wall on that line and the two floors
+        // must meet exactly — the old 8.285 north edge (a thin-wall face, left
+        // behind when the step wall went to 300 mm) opened a 0.15 m white gap
+        // there. Width trimmed 0.42 → 0.37 for `wall-ext-SE-jog-W`'s
+        // thickening (its interior/west face moves 10.1 → 10.05, eating 50 mm
+        // off this strip's east edge).
+        offset: [3.505, 1.16],
+        width: 0.37,
+        depth: 0.94,
+      },
+    ],
     derivation:
       'South band, mm x=[6075,10100] z=[6725,9075] (4025 wide per the bottom chain, 2200 interior depth per the plan annotation — the south wall is 300 mm thick, not the usual 200 mm, so the interior face sits at z=9075 rather than 9125; see wall-ext-S). Bounded west by the SY partition (x=6075), north by the HS south wall — thickened to 300 mm RC (v0.23.1.8): north face 6875+100=6975 mm ⇒ depth 2200−100=2100 mm. OPEN to the L/D on the east — the accounting boundary follows the dashed line at x≈9630 up to the entrance foyer, with the strip to the SE jog (x=10100, also thickened to 300 mm, trimming the strip width 420→370 mm) as the extension.',
   },
@@ -221,28 +228,50 @@ export const ROOMS: Record<RoomId, RoomDef> = {
   livingDining: {
     id: 'livingDining',
     name: 'Living / Dining',
-    // West wall of the main rect (wall-int-shelter-LD, the HS ring's east
-    // wall) thickened to 300 mm RC (v0.23.1.8): its LD-facing face moves
-    // 8.265 → 8.365, trimming width 4.26 → 4.16 (north/south/east
-    // unaffected).
-    origin: [8.365, 1.3],
-    width: 4.16,
-    depth: 5.475,
-    extension: {
-      // Entrance foyer: the strip along the SE step wall (which hosts the
-      // main door), east of the kitchen's open boundary. Open-plan with the
-      // L/D main and the kitchen — no partitions. offset[0] reduced by the
-      // same 0.1 as origin[0] above (its absolute west edge is the virtual
-      // x≈9.73 accounting line shared with the kitchen extension, unaffected
-      // by this pass). Depth trimmed 1.41 → 1.36: `wall-ext-SE-step`, the
-      // foyer's real south wall, thickened to 300 mm — its interior face
-      // moves 8.235−100=8.135 → 8.235−150=8.085, eating the extra 50 mm.
-      offset: [1.365, 5.475],
-      width: 2.795,
-      depth: 1.36,
-    },
+    // THREE parts, each bounded by a real wall face — the L/D is not an L. It
+    // used to be declared as one oversized rect reaching 0.76 m west of the
+    // B3/LD partition (to carry the open strip east of the household shelter),
+    // which meant its declared footprint OVERLAPPED bedroom3 and the corridor
+    // and only the floor renderer's overlap-carve ever resolved that. Now that
+    // a room may declare any number of parts, each one states the real space it
+    // covers and nothing overlaps.
+    //
+    // Main: the east column, x=[9.125,12.525] z=[1.3,6.975]. West face is
+    // `wall-int-b3-LD`'s LD side (9.125); north is the NE-jog wall (1.3);
+    // south is the kitchen's north face / the HS ring's 300 mm south face
+    // (6.975 — 6.775 was a 100 mm-wall face left behind when the ring went to
+    // 300 mm, and east of the shelter there is no wall on that line at all, so
+    // the mismatch showed as a white gap against the kitchen floor).
+    origin: [9.125, 1.3],
+    width: 3.4,
+    depth: 5.675,
+    extensions: [
+      {
+        // Circulation strip east of the household shelter, x=[8.365,9.125]
+        // z=[4.825,6.975]: open on every side except its west face, which is
+        // `wall-int-shelter-LD` (the HS ring's east wall, 300 mm ⇒ face 8.365).
+        // Its north edge meets the corridor's south edge (4.825) and its south
+        // edge the kitchen's north face (6.975), so the three floors close up
+        // with no seam.
+        offset: [-0.76, 3.525],
+        width: 0.76,
+        depth: 2.15,
+      },
+      {
+        // Entrance foyer: the strip along the SE step wall (which hosts the
+        // main door), east of the kitchen's open boundary — x=[9.73,12.525]
+        // z=[6.975,8.135]. Open-plan with the L/D main and the kitchen (no
+        // partitions); its west edge is the virtual x=9.73 accounting line
+        // shared with the kitchen's east strip, and it reaches
+        // `wall-ext-SE-step` (300 mm, interior face 8.085 — the last 50 mm
+        // renders under the wall).
+        offset: [0.605, 5.675],
+        width: 2.795,
+        depth: 1.16,
+      },
+    ],
     derivation:
-      "East column, L-shape, mm main x=[9075,12525] z=[1100,6725] (3450 wide per the top chain; north wall inset 1100 — the NE notch — with a 2450 window; east wall solid, 7035 tall per the right chain), widened west to the HS east wall face to carry the open strip east of the shelter (overlapping B3/corridor slivers, carved at render like the previous plan). West face thickened v0.23.1.8 with the HS ring (wall-int-shelter-LD → 300 mm RC): face 8265+100=8365 mm ⇒ width 4260−100=4160 mm. Entrance foyer extension x=[9630,12525] z=[6725,8135] reaching the SE step wall (main door, also thickened to 300 mm — depth trimmed 1410→1360 mm), 990 recess below per the right chain. NOTE (v0.23.2.0): the east wall (`wall-ext-E`) is now split into `wall-ext-E-col1`/`-mid`/`-col2`; the two 300 mm structural segments (z=[1.2,2.95] and z=[6.5,8.235]) push the interior face 12.525→12.475 (50 mm into the room) over those two stretches only — the un-thickened `-mid` segment (z=[2.95,6.5]) keeps the 200 mm face at 12.425. Left un-derived for the same reason as bedroom3's NE corner above (thickness varies along the wall's length; the extra RC mass renders over the floor).",
+      "East column + shelter-side strip + entrance foyer (three parts). Main mm x=[9075,12525] z=[1100,6975] (3450 wide per the top chain; north wall inset 1100 — the NE notch — with a 2450 window; east wall solid, 7035 tall per the right chain; south edge is the kitchen's north face, the HS ring's 300 mm south face at 6975). Strip east of the shelter x=[8365,9125] z=[4825,6975], bounded west by wall-int-shelter-LD (300 mm RC since v0.23.1.8: face 8265+100=8365 mm). Entrance foyer x=[9630,12525] z=[6975,8135] reaching the SE step wall (main door, also thickened to 300 mm), 990 recess below per the right chain. Before v0.30.3.2 this was ONE rect from x=8365 spanning the whole column, which overlapped bedroom3 and the corridor by 2.6 m² and was only resolved by the floor renderer's carve. NOTE (v0.23.2.0): the east wall (`wall-ext-E`) is now split into `wall-ext-E-col1`/`-mid`/`-col2`; the two 300 mm structural segments (z=[1.2,2.95] and z=[6.5,8.235]) push the interior face 12.525→12.475 (50 mm into the room) over those two stretches only — the un-thickened `-mid` segment (z=[2.95,6.5]) keeps the 200 mm face at 12.425. Left un-derived for the same reason as bedroom3's NE corner above (thickness varies along the wall's length; the extra RC mass renders over the floor).",
   },
   acLedge: {
     id: 'acLedge',
@@ -1139,10 +1168,13 @@ export const WINDOWS: WindowSpec[] = [
 // landing the rect sum at ≈ 87.8 m², enforced by the constants test (updated
 // to match — see its comment). The AC ledge (external) is on top, toward
 // the 93 m² gross figure.
+// v0.30.3.2: `roomArea` is now the shoelace over the room's OUTLINE
+// (`roomGeometry.ts:roomFloorArea`) rather than a naive sum of its parts, so a
+// multi-part room counts a shared/overlapping edge once. With livingDining's
+// declared parts no longer overlapping bedroom3 + the corridor, this constant
+// is a true non-overlapping interior total for the first time.
 export function roomArea(r: RoomDef): number {
-  const main = r.width * r.depth
-  const ext = r.extension ? r.extension.width * r.extension.depth : 0
-  return main + ext
+  return roomFloorArea(r)
 }
 
 export const INTERIOR_AREA_M2 = Object.values(ROOMS)

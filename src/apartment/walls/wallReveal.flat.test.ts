@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ROOMS, WALLS } from '../constants'
+import { roomParts } from '../roomGeometry'
 import { wallThicknessMetres } from '../wallSegments'
 import {
   cornerNeighbors,
@@ -25,20 +26,9 @@ import {
 // outward normal (strength → 1); looking OUT through it from inside means the
 // forward runs along the outward normal (strength 0 → fully opaque).
 
-const ROOM_RECTS: RoomRect[] = Object.values(ROOMS).map((r) => ({
-  x: r.origin[0],
-  z: r.origin[1],
-  w: r.width,
-  d: r.depth,
-  ext: r.extension
-    ? {
-        x: r.origin[0] + r.extension.offset[0],
-        z: r.origin[1] + r.extension.offset[1],
-        w: r.extension.width,
-        d: r.extension.depth,
-      }
-    : undefined,
-}))
+const ROOM_RECTS: RoomRect[] = Object.values(ROOMS).flatMap((r) =>
+  roomParts(r).map((p) => ({ x: p.x0, z: p.z0, w: p.x1 - p.x0, d: p.z1 - p.z0 })),
+)
 const isInterior = (x: number, z: number) => pointInRooms(x, z, ROOM_RECTS, 0.05)
 
 /** Outward normal + midpoint of a wall, the way WallSegment computes it. */

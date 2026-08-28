@@ -116,6 +116,21 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   a prompt nor an Undo toast, on a trash icon wedged 6px from the edit icon in a
   three-button row — `deleteComment` does push history, but nothing told the user
   that.
+- **Replacing the plan / clearing the design goes through `ui/planActions.ts`.** Every
+  destructive plan-or-furniture action (new plan, reset to the default flat, apply a template,
+  load or delete a saved apartment, AI plan draft, clear furniture, restore the demo layout)
+  has exactly one implementation there, confirm copy included — so the desktop Plan menu, its
+  mobile sheet, the template picker, the plan library, the File menu, its mobile sheet and ⌘K
+  cannot word the same operation differently or, as before, disagree about whether it even
+  asks (the old "New" wiped the plan AND all furniture with no prompt, while "Clear all
+  furniture" confirmed). Never call `newFloorPlan`/`resetFloorPlan`/`loadSavedPlan`/
+  `deleteSavedPlan`/`replaceFloorPlan`/`resetToEmpty`/`resetToDefault` straight from a
+  component — add a wrapper here instead. **Labels must name the level they act on**: a
+  furniture-only action says so ("Clear furniture… — Remove every placed item, plan
+  unchanged"), a plan-level one says what happens to the furniture. "New apartment…" opens
+  `NewPlanModal` rather than a confirm because it has two outcomes (empty canvas / starter
+  room), and it hops into the 2D editor afterwards — an empty canvas in the 3D view is a blank
+  screen with no visible next step.
 - **Empty states use the shared `EmptyState`** (`src/ui/EmptyState.tsx`): icon (from the
   `Icon` set) + title + optional one-line description + optional CTA, on the `.empty-mini`
   token vocabulary. Any panel/list that can be empty must render it (don't hand-roll inline
