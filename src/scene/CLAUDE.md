@@ -426,6 +426,59 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `high`, meaning "no opinion"). First visit boots `initialAutoTier` (conservative `medium`);
   `QualityController` then walks the ladder both ways and the settled tier persists, so a repeat
   visit skips the ramp (`qualityAutoSettled` stops the boot pick stomping it).
+- **A near-field / bulb-radius clamp CANNOT fix the fixture hot spots — refuted by arithmetic,
+  don't build it (FIXTURE-NEARFIELD-REFUTED).** BLOOM-NIGHT-NEARFIELD found non-emissive surfaces
+  reaching 8.22 in scene-referred HDR at 0.51 m from an intensity-9 lamp, and the obvious physical
+  fix is to treat the emitter as a sphere rather than a point (`1/max(d², r²)` instead of `1/d²`).
+  It cannot work here. three ALREADY clamps: `lights_pars_begin.glsl`'s `getDistanceAttenuation`
+  is `1.0 / max( pow(lightDistance, decayExponent), 0.01 )`, and at `decay = 2` that 0.01 IS a
+  **0.1 m bulb radius**. For a sphere clamp to change anything at d = 0.51 m it would need
+  `r² >= 0.26`, i.e. a bulb **51 cm in radius**; a realistic lampshade (r ~= 0.15 m) leaves
+  `max(0.26, 0.0225) = 0.26` — byte-identical. **The hot spots are not in the near field at all**
+  (measured at 0.74-1.15 m, p50 0.98 m), they are simply where a lamp sits relative to a wall, and
+  a real lamp 0.5 m from a wall does throw a bright pool. If fixture brightness is ever revisited
+  the lever is the emitter INTENSITY table in `furniture/lightEmitters.ts`, not the falloff shape.
+- **Fixture lights cost almost nothing on the flat tiers and ~1.7 ms on the post tiers
+  (FIXTURE-COST).** Measured with `scripts/dev-probes/night-lights.mjs`, which now runs a
+  lights-OFF control arm at each tier so the delta is the fixtures and nothing else (meta-rule xvi),
+  on the default flat at 21:00 in orbit with all **19** emitters live (the per-tier nearest-N cap is
+  gone — see the `lightsMode` bullet):
+
+  | tier        | lights off p50 | lights on p50 | fixture cost | on p90 | on max |
+  | ----------- | -------------- | ------------- | ------------ | ------ | ------ |
+  | performance | 6.9 ms         | 7.0 ms        | **0.1 ms**   | 8.0    | 9.1    |
+  | medium      | 8.3 ms         | 8.6 ms        | **0.3 ms**   | 9.1    | 9.5    |
+  | high        | 9.8 ms         | 11.6 ms       | **1.8 ms**   | 13.1   | 13.6   |
+  | maximum     | 10.1 ms        | 11.7 ms       | **1.6 ms**   | 12.5   | 13.7   |
+
+  Every tier stays inside the 16.67 ms budget with every fixture lit, so removing the cap did not
+  cost the flat tiers anything measurable. **These are SUBMIT-time numbers** (see the caveat below)
+  and they disagree with the dev profiler's 9.10 ms-of-34.54 ms figure for the same 19 fixtures at
+  Maximum; that disagreement is unresolved — see below.
+- **`gl.finish()` inside the rAF loop measures VSYNC, not GPU work — a failed method, recorded so
+  it is not retried (COST-SIGNAL-VSYNC).** `frameCost.ts` concedes it measures CPU submit time and
+  assumes submit "tracks well enough"; staging's reworked profiler reports Maximum spending 9.10 ms
+  of a **34.54 ms** frame on fixtures where this suite measures the whole frame at ~11.7 ms, so the
+  assumption looked testable. `scripts/dev-probes/cost-signal.mjs` measured both signals over the
+  same frames — submit (sum of `render()` durations) against completion (first render start to
+  after a `raw.finish()` at frame end):
+
+  | tier | submit p50 | completion p50 | ratio |
+  | ---- | ---------- | -------------- | ----- |
+  | performance | 4.7 | **16.5** | 3.51 |
+  | medium      | 7.5 | **16.5** | 2.20 |
+  | high        | 9.2 | 9.6      | 1.04 |
+  | maximum     | 10.4| 10.9     | 1.05 |
+
+  **The result refutes the METHOD, not the meter.** Performance — the cheapest tier — reports the
+  HIGHEST completion time, pinned at 16.5 ms against a 16.67 ms refresh interval. If completion
+  measured GPU work the cheapest tier would be the fastest; instead `finish()` is blocking on the
+  presentation queue, which is the same "rate is clamped by vsync" trap this file already documents
+  for frame RATE, reappearing in a completion-time metric. So this probe CANNOT adjudicate whether
+  submit time under-reports GPU work, and the discrepancy with the dev profiler stays OPEN. The
+  profiler avoids the trap by driving a synchronous `advance` outside the rAF/present loop and
+  settling until the cost stops moving — **use `src/dev/profiler` for that question, not a
+  finish() in a rAF callback.**
 - **The ladder's signal is frame COST in ms, never frame RATE (`scene/frameCost.ts`).** This Canvas
   is `frameloop="demand"`, so rate measures how often the pump chose to draw, not how fast the
   device can draw: measured 59.7 rAF/s against **30.5 actual renders/s while each frame cost

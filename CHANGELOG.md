@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.25 — the near-field fix is refuted by arithmetic; fixture cost measured
+
+No render change. One new probe, one probe improved, three recorded findings — one of
+which is a negative result about my own method.
+
+**FIXTURE-NEARFIELD-REFUTED.** The queued fix was a finite bulb radius / near-field
+clamp for the fixture hot spots (8.22 in scene-referred HDR at 0.51 m). It cannot work.
+three ALREADY clamps: `getDistanceAttenuation` is `1.0 / max(pow(d, decay), 0.01)`, and
+at decay 2 that 0.01 is a 0.1 m bulb radius. For a sphere clamp to change anything at
+0.51 m it would need r² >= 0.26 — a bulb 51 cm in radius. A realistic lampshade
+(r ~= 0.15 m) is byte-identical. The hot spots are not in the near field at all; they
+are at 0.74-1.15 m, which is simply where a lamp sits relative to a wall. Not built, per
+meta-rule (ii).
+
+**FIXTURE-COST.** `night-lights.mjs` now runs a lights-OFF control arm per tier, so the
+delta is the fixtures and nothing else. On the default flat at 21:00 with all 19
+emitters live (the nearest-N cap is gone), fixture cost is 0.1 ms at performance, 0.3 at
+medium, 1.8 at high, 1.6 at maximum — every tier inside the 16.67 ms budget. Removing
+the cap cost the flat tiers nothing measurable.
+
+**COST-SIGNAL-VSYNC — a failed method, recorded so it is not retried.** `frameCost.ts`
+measures CPU submit time and assumes it tracks GPU work; staging's profiler reports
+Maximum at 9.10 ms of a 34.54 ms frame where this suite measures ~11.7 ms total, so the
+assumption looked testable. `cost-signal.mjs` measured submit against completion
+(`raw.finish()` at frame end) over the same frames. The result refutes the METHOD:
+performance, the CHEAPEST tier, reports the HIGHEST completion time (16.5 ms, ratio
+3.51), pinned at the 16.67 ms refresh interval. `finish()` is blocking on the
+presentation queue, not measuring GPU work — the same vsync trap this repo already
+documents for frame RATE. The discrepancy with the dev profiler stays OPEN and should be
+settled with `src/dev/profiler`, which drives a synchronous advance outside the
+rAF/present loop.
+
 ## v0.31.5.24 — merge staging: the fixture-light cap is gone, and three notes retired with it
 
 Merges `origin/staging` (6 commits: flat geometry + wall reveal, arbitrary room

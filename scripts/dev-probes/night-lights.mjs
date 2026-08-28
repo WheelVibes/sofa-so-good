@@ -135,7 +135,7 @@ async function cost() {
 console.log(
   `hour=${HOUR} mode=orbit lightsMode=on — ${emitterCount} emitting items on the default flat\n`,
 )
-console.log('tier          point  lit  padded  spot  merged  p50    p90    max')
+console.log('tier          lit  merged   offP50  onP50   fixtureCost  onP90   onMax')
 
 for (const tier of TIERS) {
   await page.evaluate((t) => window.__store.getState().setQualityTier(t), tier)
@@ -151,13 +151,20 @@ for (const tier of TIERS) {
     const st = window.__store.getState()
     return q.QUALITY_PRESETS[st.qualityTier].mergeCoincidentLights
   })
+  // Lights OFF arm first — the control differs in exactly one variable, so the
+  // delta is the fixture cost and nothing else (meta-rule xvi).
+  await page.evaluate(() => window.__store.getState().setLightsMode('off'))
+  await new Promise((r) => setTimeout(r, 1500))
+  const tOff = await cost()
+  await page.evaluate(() => window.__store.getState().setLightsMode('on'))
+  await new Promise((r) => setTimeout(r, 1500))
   const c = await census()
   const t = await cost()
   fs.writeFileSync(`${OUT}/night-${tier}.png`, await page.screenshot({ type: 'png' }))
   console.log(
-    `${tier.padEnd(13)} ` +
-      `${String(c.point).padStart(5)} ${String(c.lit).padStart(4)} ${String(c.padded).padStart(7)} ` +
-      `${String(c.spot).padStart(5)} ${String(merged).padStart(7)} ${String(t.p50).padStart(5)} ${String(t.p90).padStart(6)} ${String(t.max).padStart(6)}`,
+    `${tier.padEnd(13)} ${String(c.lit).padStart(3)} ${String(merged).padStart(7)} ` +
+      `${String(tOff.p50).padStart(8)} ${String(t.p50).padStart(6)} ` +
+      `${(t.p50 - tOff.p50).toFixed(1).padStart(12)} ${String(t.p90).padStart(7)} ${String(t.max).padStart(7)}`,
   )
 }
 
