@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.45 — the Simple/Pro split audited in full; it is correct (docs + probe)
+
+Two earlier rounds tripped over the same thing from different directions — SKY-ANALYTIC-ORBIT
+measured byte-identical because `proceduralSky` is pro-only, and WINDOW-TIME-INVARIANT found
+the sun-driven exterior unreachable for default users for the same reason. So the whole split
+was enumerated: **205 flags, 108 `pro` / 97 `simple`.** No re-tiering was done; a new
+`src/features/CLAUDE.md` records the result.
+
+The overwhelming majority of `pro` entries gate genuinely analytical/professional surfaces
+exactly as the root rule intends (drawings, checks, quotes, CAD export, AI, versions, MEP and
+trade sheets, the asset designer). The audit looked for the narrow class that gates **passive
+rendering quality** — what a default user never sees and could not ask for:
+
+- Inert by default anyway, so the tier costs nothing: `hdriEnvironment` (needs a user-picked
+  HDRI; `hdriId` defaults null), `iesLights` (needs a fixture with an IES profile),
+  `pomFloors` (additionally tier-gated to High/Maximum).
+- Correctly pro because they are instruments, not the default look: `cameraDof`,
+  `twoPointPerspective`, `parallelProjection`.
+- **`tileBreakup` is the one true passive-look flag — and it is immaterial.** It gates the
+  floor-tile repetition break-up, and the default flat has tiled floors in the kitchen, both
+  baths and the shelter, so on paper it is realism denied to default users. Measured with the
+  new `dev-probes/tile-breakup.mjs` (both arms in Pro, one flag varied, applied pre-boot
+  because the floor bakes it, eye pitched at the floor in each tiled room): kitchen 0.11
+  meanAbsDiff / 0.01% of pixels, bath1 0.36 / 0.69%, bath2 0.22 / 0.38%, shelter 0.27 / 0.01%
+  — at or below the ~0.27 / 0.12% noise floor except a marginal bath1. Cropping shows why: the
+  procedural `stoneTile` painter already varies each tile. Re-tiering it would hand Simple
+  users a change they cannot see.
+- `proceduralSky` remains the only pro flag denying default users a visible capability, and
+  that is already recorded as WINDOW-TIME-INVARIANT — a content decision.
+
+Also recorded, because it silently defeats any attempt to A/B a pro flag: **Simple mode beats
+a dev override.** `resolveFlags` returns false on the `tier === 'pro' && uiMode === 'simple'`
+branch *before* reaching the override branch, so `?ff=<flag>:on` is ineffective in Simple —
+both arms of such a comparison must run in Pro.
+
+
 ## v0.31.5.44 — the default exterior never follows the clock (measured, content decision)
 
 `REFERENCES.md` is a feature/UX parity list and this harness cannot measure a competitor's
