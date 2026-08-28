@@ -5,6 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.47 — emitter intensities are RELATIVE, not candela (comment fix + probe)
+
+FIXTURE-NEARFIELD-REFUTED closed the falloff-shape question by arithmetic and named the
+emitter table in `furniture/lightEmitters.ts` the only remaining lever for fixture
+brightness. This examines it — and the first thing to check turned out to be the units.
+
+The field was documented as "candela; renderer uses physical units". It is not. Censused live
+with the new `dev-probes/light-units.mjs`: the sun is a `DirectionalLight` at **0.999** where
+a physical midday sun is ~100,000 lux, and the 19 fixture point lights run at **2.6–9** — nine
+times the sun's number. The rig is eyeball-calibrated against the tone curve (exposure 1.38 by
+day, 0.897 at night), not photometric.
+
+That comment was an active hazard rather than a harmless inaccuracy: taken literally, the
+ceiling light (9) sits against a real 9 W LED bulb at ~800 lm / 4-pi = ~64 cd and reads as 7x
+too dim, so the "obvious" correction is to multiply the whole table — which would blow out
+every night interior. The comment is now explicit about the units, quotes the census, and says
+what to compare instead.
+
+**No value changed — the table is defensible.** What is meaningful is the ordering and the
+fixture-to-fill ratio, and both are sound: room lighting (ceiling-light 9, ceiling-fan 8) >
+task (floor-lamp 7, table-lamp 4) > accent (sconce 3.5, vanity 2.8, cove 2.6, aquarium 2.4);
+and the day/night ramp drops the fill ~8x (hemisphere 0.136 → 0.057, ambient 0.043 → 0.018,
+sun 0.999 → 0.013) while the fixtures hold constant, so lamps take over at night by
+construction — ~150:1 over the hemisphere fill at 21:00. The near-field hot spots
+BLOOM-NIGHT-NEARFIELD found remain ordinary 1/d² behaviour, not an intensity error.
+
+Documented as LIGHT-UNITS-RELATIVE in `src/furniture/CLAUDE.md`.
+
+
 ## v0.31.5.46 — the wall-reveal "opacity bands" re-diagnosed and quantified (docs + probe)
 
 TODO.md / TASKS.md were reviewed against nine rounds of audits to find entries that later

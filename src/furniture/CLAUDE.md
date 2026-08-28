@@ -510,3 +510,36 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   which goes straight to `getWoodMaterial` and was always live) or on legitimately dark objects
   (appliances, speakers, a piano, picture frames). The trap only existed where a def's finish
   default WAS `mat:<id>`, and all 21 of those were checked in v0.31.5.9.
+
+- **Emitter intensities are RELATIVE, not photometric — do not "correct" them against a real
+  fixture (LIGHT-UNITS-RELATIVE, v0.31.5.47).** `lightEmitters.ts` described its `intensity`
+  field as "candela; renderer uses physical units". That is wrong, and it is the kind of wrong
+  that causes damage: taken literally, the shipped ceiling light (9) sits against a real 9 W
+  LED bulb at ~800 lm / 4-pi = **~64 cd** and reads as 7x too dim, so the obvious "fix" is to
+  multiply the whole table — which would blow out every night interior.
+  Censused live with `scripts/dev-probes/light-units.mjs`:
+
+  | light            | day 13:00 | night 21:00 |
+  | ---------------- | --------- | ----------- |
+  | DirectionalLight (sun) | **0.999** | 0.013 |
+  | HemisphereLight  | 0.136     | 0.057       |
+  | AmbientLight     | 0.043     | 0.018       |
+  | PointLight (19 fixtures) | 2.6–9 | 2.6–9   |
+  | `toneMappingExposure`    | 1.38  | 0.897     |
+
+  A sun at **0.999** where a physical midday sun is ~100,000 lux settles it: the rig is
+  eyeball-calibrated against the tone curve. The fixtures being **9x the sun's number** makes
+  the point twice over (and three treats a DirectionalLight as irradiance and a PointLight as
+  intensity/d², so the two are not on one scale anyway).
+  · **What IS meaningful is ordering and the fixture-to-fill ratio, and both are sound.** Room
+    lighting (ceiling-light 9, ceiling-fan 8) > task (floor-lamp 7, table-lamp 4) > accent
+    (sconce 3.5, vanity 2.8, cove 2.6, aquarium 2.4). The day/night ramp drops the fill ~8x
+    while the fixtures hold constant, so lamps take over at night by construction — ~150:1
+    over the hemisphere fill at 21:00, which is why NIGHT-WALL-CAP measures lit-room wall caps
+    at roughly twice the vertical walls.
+  · **So the table is DEFENSIBLE and nothing was changed.** FIXTURE-NEARFIELD-REFUTED named
+    this table the only remaining lever for fixture brightness after ruling out the falloff
+    shape by arithmetic; this closes the follow-up — the lever exists, but nothing measured
+    says it is set wrong. The near-field hot spots BLOOM-NIGHT-NEARFIELD found are ordinary
+    1/d² behaviour, not an intensity error.
+

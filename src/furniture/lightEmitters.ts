@@ -10,7 +10,26 @@ export interface EmitterSpec {
   /** Emit height above the floor, in metres. May read item params. */
   height: (props: ParamProps) => number
   color: string
-  /** Peak intensity at full darkness (candela; renderer uses physical units). */
+  /**
+   * Peak intensity at full darkness, in this scene's own RELATIVE units — NOT candela,
+   * despite what this comment used to claim (LIGHT-UNITS-RELATIVE, v0.31.5.47).
+   *
+   * The whole rig is eyeball-calibrated against the tone curve, not photometric: censused
+   * live, the sun is a `DirectionalLight` at **0.999** where a real midday sun would be
+   * ~100,000 lux, and these point lights run at **2.6-9** — nine times the sun's number.
+   * So do NOT "correct" a value by comparing it to a real fixture: a 9 W LED bulb is
+   * ~800 lm / 4-pi = ~64 cd, which would read as this ceiling light being 7x too dim, and
+   * changing it on that basis would blow out every night interior.
+   *
+   * What IS meaningful is the ordering and the fixture-to-fill ratio. Room lighting
+   * (ceiling-light 9, ceiling-fan 8) sits above task (floor-lamp 7, table-lamp 4) above
+   * accent (sconce 3.5, vanity 2.8, cove 2.6, aquarium 2.4); and because the day/night
+   * ramp drops the fill (~8x: hemisphere 0.136 -> 0.057, ambient 0.043 -> 0.018, sun
+   * 0.999 -> 0.013) while these stay fixed, the fixtures take over at night by
+   * construction — measured ~150:1 over the hemisphere fill at 21:00.
+   *
+   * Re-measure with `scripts/dev-probes/light-units.mjs` before touching any of it.
+   */
   intensity: number
   /** Falloff distance in metres. */
   distance: number
