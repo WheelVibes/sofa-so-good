@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.39 — floors were pinned to the 256² generation by a transient boot tier (PROCEDURAL-BAKE-STALE)
+
+**Fixed** — the four floor finishes in the default flat (`floor-vinyl-oak`,
+`floor-tile-beige`, `floor-tile-beige-300`, `floor-tile-bath-green`) rendered from the
+**256²** texture generation at the settled Medium default, where the app's own rule says
+Medium+ gets 512². The adaptive ladder passes through `performance` on its way to the
+settled tier, which sets the procedural base size to 256; the floors resolved their
+material during that window and nothing ever re-resolved them.
+
+The cause is effect ORDER. `QualityController` writes the base size from a `useEffect`
+keyed on the tier, so React renders first — a hook subscribed to `qualityTier` re-resolves
+while the size still holds the old value — and the effect writes afterwards with nothing
+left to re-render. (That is exactly what v0.31.5.37 attempted and reverted for moving
+nothing.) `setProceduralBaseSize` now notifies a `proceduralBaseSizeSignal` on a real
+change, and `useProceduralMaterial` subscribes to it, so a consumer cannot wake before the
+new size is readable. Cache keys already carried the size, so re-running `buildMaterial`
+returns the right generation — the missing piece was ever running it again.
+
+Verified on a real GPU. `dev-probes/stale-gen.mjs` (labels every bound texture by uuid
+against both cache generations, then diffs Medium against Maximum) went from 8 diff lines
+to **none**; `dev-probes/floor-look.mjs` pitches the eye down at the floor and reads the
+map off the material three is actually drawing with, reporting every room's floor
+**256² → 512²** at identical poses and ray counts across a cross-run A/B.
+
+The visual delta is modest and pose-dependent, as the generator's own "near-identical at
+typical viewing distances" note predicts: living/dining floor meanAbsDiff **1.09 / 3.42%
+of pixels** against a ~0.27 / 0.12% documented noise floor, corridor 0.39 / 1.47%, small
+bath tiles below noise at eye height. This ships as a correctness fix — the app promised
+512 at Medium+ and delivered 256 — not as a dramatic image change.
+
+This closes PROCEDURAL-BAKE-STALE. Its original headline ("every 512-capped pattern
+renders at quarter resolution") was wrong: most of the 256² textures in that histogram are
+patterns whose cap IS 256, the tiled walls in it were the separate WALL-FACE-CLONE-STALE
+bug fixed in v0.31.5.38, and the real residual was these four floors.
+
+
 ## v0.31.5.38 — wall faces rendered the 64² texture preview forever (WALL-FACE-CLONE-STALE)
 
 **Fixed** — every interior wall face in the app rendered its finish at **64x64**, one eighth

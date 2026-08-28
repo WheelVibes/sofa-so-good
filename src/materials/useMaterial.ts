@@ -1,5 +1,5 @@
 import { useTexture } from '@react-three/drei'
-import { useDeferredValue, useMemo } from 'react'
+import { useDeferredValue, useMemo, useSyncExternalStore } from 'react'
 import type { MeshStandardMaterial, Texture } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../features/useFeature'
@@ -20,6 +20,10 @@ import {
   pomFloorEligible,
   pomPhotoFloorEligible,
 } from './pomFloor'
+import {
+  getProceduralBaseSizeVersion,
+  subscribeProceduralBaseSize,
+} from './proceduralBaseSizeSignal'
 import type {
   MaterialCategory,
   MaterialDef,
@@ -156,8 +160,22 @@ export function useSolidMaterial(def: SolidMaterialDef): MeshStandardMaterial {
 }
 
 /** Hook for procedural materials — generates PBR maps on first use and
- *  caches them; synchronous, never suspends. */
+ *  caches them; synchronous, never suspends.
+ *
+ *  Subscribes to the procedural BASE_SIZE so a surface that is already MOUNTED
+ *  re-resolves when the quality tier changes the generation size
+ *  (PROCEDURAL-BAKE-STALE). Cache keys already carry the size, so re-running
+ *  `buildMaterial` after a change hands back the right generation — the missing
+ *  piece was ever running it again. Subscribing to `qualityTier` instead does NOT
+ *  work and was reverted in v0.31.5.37: `QualityController` writes the size from an
+ *  effect, so a tier subscriber re-renders BEFORE the write and re-resolves at the
+ *  old size. See `proceduralBaseSizeSignal.ts`. */
 export function useProceduralMaterial(def: ProceduralMaterialDef): MeshStandardMaterial {
+  useSyncExternalStore(
+    subscribeProceduralBaseSize,
+    getProceduralBaseSizeVersion,
+    getProceduralBaseSizeVersion,
+  )
   const cached = getCachedMaterial(def.id)
   if (cached) return cached
   return buildMaterial(def)

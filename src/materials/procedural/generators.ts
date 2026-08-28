@@ -12,6 +12,7 @@
 import { CanvasTexture, RepeatWrapping, SRGBColorSpace, type Texture } from 'three'
 import { isFeatureEnabled } from '../../features/featureFlags'
 import { applyAnisotropy } from '../anisotropy'
+import { notifyProceduralBaseSize } from '../proceduralBaseSizeSignal'
 import type { ProceduralPattern } from '../types'
 import type { Fields } from './fieldKit'
 import { clamp01, hashSeed, heightToNormalRGBA, hexToRgb } from './noise'
@@ -47,7 +48,13 @@ let S = 512
 let BASE_SIZE = 512
 
 export function setProceduralBaseSize(px: 256 | 512): void {
+  if (BASE_SIZE === px) return
   BASE_SIZE = px
+  // A mounted surface resolved its material at the OLD size and nothing else would
+  // re-render it — `QualityController` writes this from an effect, i.e. AFTER the
+  // render that reacted to the tier change (PROCEDURAL-BAKE-STALE). Notifying here
+  // guarantees subscribers wake with the new value already readable.
+  notifyProceduralBaseSize()
 }
 
 export function getProceduralBaseSize(): number {

@@ -662,45 +662,50 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
     remaining lever is the latewood contrast/power term or genuine fine grain lines — not the
     meander, the ring count, the coarsen factor, the roughness or the pore field, all now
     settled.
-- **A transient boot tier can pin procedural texture resolution (PROCEDURAL-BAKE-STALE, PARTLY
-  RESOLVED — the headline claim was wrong).** `generators.ts` documents "Performance drops to
+- **A transient boot tier used to pin procedural texture resolution — RESOLVED in
+  v0.31.5.39 (PROCEDURAL-BAKE-STALE).** `generators.ts` documents "Performance drops to
   256 squared ... while Medium+ keeps 512 squared", and `QualityController` applies it in a
   tier-keyed effect — but only to NEW generations ("existing textures keep their size until
-  regenerated; cache keys carry the size"). Nothing re-resolves an already-MOUNTED material, so
-  whatever the tier was during the first bake is what that surface keeps. The adaptive ladder
-  makes this reachable in an ordinary boot: it passes through `performance` on its way to the
-  settled tier, and a console trace of every `buildMaterial` shows the app building **both**
-  generations of every 512-capped def in one boot — `wall-tile-white@512` first, then
-  `wall-tile-white@256` — with all 13 worker upgrades landing correctly.
-  **What this note originally concluded from `bake-size.mjs` was wrong, and instructively so.**
-  It read "256² x80, no 512² at all" as "every 512-capped pattern renders at quarter resolution".
-  Two things were mixed up in that one number: the 80 textures at 256 are overwhelmingly patterns
-  whose `PATTERN_SIZE_CAP` **is** 256 (they are correct), and the genuinely broken entries were
-  the **three** sitting at `64x64` — one material's albedo/normal/roughness, the tiled wall faces
-  stuck on the quick preview via WALL-FACE-CLONE-STALE. Fixing the clones moved exactly those
-  three:
-
-  | state                 | getProceduralBaseSize() | textures on the GPU (v0.31.5.37 → .38) |
-  | --------------------- | ----------------------- | -------------------------------------- |
-  | as booted (medium)    | 512                     | `64² x3` → **`512² x3`**, 256² x80 either way |
-  | after setTier maximum | 512                     | 512² x12 → **512² x15**, 256² x80 → 68 |
-
-  · **A real remainder is still OPEN, and it is the 12.** Switching to `maximum` moves 12
-    textures from 256 to 512 that stay at 256 at the settled Medium default — and since
-    `BASE_SIZE` is 512 at BOTH tiers, `effectivePatternSize` cannot explain the difference.
-    The likely reading is the original one, correctly scoped: those surfaces are bound to the
-    `@256` generation built during the ladder's transient `performance` pass, and only the
-    remount a tier change forces re-resolves them. They are NOT wall faces (those are fixed),
-    so the clone fix does not reach them.
-  · **The fix needs its own mechanism.** Cache keys already carry the size, so a size change
-    yields NEW keys — but a mounted surface never re-requests, so it keeps the old instance.
-    The tier-change loading overlay is the natural place to force a re-resolve, since it is
-    already up for exactly this kind of work. Note that subscribing `useProceduralMaterial` to
-    the tier was TRIED (v0.31.5.37, reverted): it moved the histogram not at all, because
-    `buildMaterial` already re-keys on every call and the early cache return hands back the
-    same stale instance regardless of how many times the component re-renders.
-  This is still meta-rule (x) — a tier-dependent value frozen at creation, extended from a
-  scalar to a texture — just at one twelfth the scale first claimed.
+  regenerated; cache keys carry the size"). Nothing re-resolved an already-MOUNTED material,
+  so whatever the size was during the first bake was what that surface kept. The adaptive
+  ladder makes this reachable in an ordinary boot: it passes through `performance` on the way
+  to the settled tier, and a console trace of every `buildMaterial` (attach `page.on('console')`
+  BEFORE `goto`) shows the app building **both** generations of every 512-capped def in one
+  boot — `floor-tile-beige@512` and then `floor-tile-beige@256` — with all worker upgrades
+  landing. **The bakes were always fine; the BINDING was stale.**
+  · **The defect was exactly four floor finishes, not "every 512-capped pattern".** This note
+    originally read `bake-size.mjs`'s "256² x80, no 512² at all" as the latter, which was
+    wrong twice over: most of those 80 are patterns whose `PATTERN_SIZE_CAP` **is** 256, and
+    the tiled walls in that count were a separate bug (WALL-FACE-CLONE-STALE, v0.31.5.38).
+    `scripts/dev-probes/stale-gen.mjs` names them instead of bucketing them — it labels every
+    bound texture by uuid against the material the cache builds for each def at BOTH
+    generations, then diffs Medium against Maximum. The residual was
+    `floor-vinyl-oak`, `floor-tile-beige`, `floor-tile-beige-300` and `floor-tile-bath-green`,
+    3 maps each = the 12.
+  · **The cause is EFFECT ORDER, and it is why a tier subscription cannot work.**
+    `QualityController` writes the size from a `useEffect` keyed on the tier, so React renders
+    first — a hook subscribed to `qualityTier` re-resolves while `BASE_SIZE` still holds the
+    OLD value — and the effect writes afterwards with nothing left to re-render. That is
+    precisely what v0.31.5.37 tried and reverted for moving nothing. Subscribing to the SIZE
+    inverts the order: `setProceduralBaseSize` notifies `proceduralBaseSizeSignal` on a real
+    change, so a subscriber cannot wake before the new value is readable, and
+    `useProceduralMaterial` re-runs `buildMaterial` (whose key already carries the size) to get
+    the right generation. `proceduralBaseSizeSignal.test.ts` pins the ordering property
+    directly: the size read INSIDE a listener is the new one.
+  · **Verified real-GPU, and quote the honest magnitude.** `stale-gen.mjs`'s Medium→Maximum
+    diff went from 8 lines (4 finishes leaving `@256`, 4 arriving at `@512`) to **empty**, and
+    `floor-look.mjs` — which pitches the eye down at the floor and reads the map off the
+    material three is actually DRAWING with — reports every room's floor `@256` → `@512` at
+    identical poses and ray counts (a cross-run A/B, since the size is fixed at mount). The
+    VISUAL delta is modest and pose-dependent, as `generators.ts`'s own "near-identical at
+    typical viewing distances" comment predicts: living/dining floor meanAbsDiff **1.09 /
+    3.42% of pixels** against this repo's ~0.27 / 0.12% documented noise floor, corridor 0.39
+    / 1.47%, and the small bath tiles BELOW noise at eye height. This shipped as a correctness
+    fix — the app promised 512 at Medium+ and delivered 256 — not as a dramatic image change.
+  This was meta-rule (x) — a tier-dependent value frozen at creation, extended from a scalar
+  to a texture — and the general lesson survives the fix: **any module-level value a component
+  reads during render, written from an effect elsewhere, needs a signal rather than a
+  subscription to whatever TRIGGERED the write.**
 - **BATH-TILE-OK stands, and the joint IS 2.34 mm (v0.31.5.38 closes this).** The history here
   is worth keeping because two of the three readings were wrong. v0.31.5.34 computed JOINT-SCALE
   at S=512 and called it fine; v0.31.5.35 "corrected" that to 4.69 mm on the belief that the tile
