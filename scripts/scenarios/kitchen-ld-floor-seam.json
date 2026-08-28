@@ -1,0 +1,140 @@
+{
+  "name": "kitchen-ld-floor-seam",
+  "description": "Regression: the kitchen and living/dining floor finishes must meet with no white gap; the Living/Dining hover highlight and room editor must cover its three declared parts (east column + the circulation strip east of the household shelter + the entrance foyer) and NOT spill into the corridor or bedroom 3.",
+  "url": "http://localhost:5173/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "perf-tier",
+      "eval": "window.__store.getState().setQualityTier('performance')"
+    },
+    {
+      "name": "midday",
+      "eval": "window.__store.getState().setManualHour(13)"
+    },
+    {
+      "name": "clear-furniture",
+      "eval": "window.__store.getState().setItems([])"
+    },
+    {
+      "name": "settle-boot",
+      "wait": 2500
+    },
+    {
+      "name": "top-view",
+      "store": {
+        "action": "requestTopView",
+        "args": []
+      }
+    },
+    {
+      "name": "settle-top",
+      "wait": 2000
+    },
+    {
+      "name": "shot-top-view",
+      "screenshot": "01-top-view-floors"
+    },
+    {
+      "name": "focus-seam",
+      "eval": "window.__store.getState().focusOn([9.2, 7.0])"
+    },
+    {
+      "name": "settle-seam",
+      "wait": 1800
+    },
+    {
+      "name": "shot-kitchen-ld-seam",
+      "screenshot": "02-kitchen-ld-seam"
+    },
+    {
+      "name": "focus-foyer",
+      "eval": "window.__store.getState().focusOn([10.0, 8.2])"
+    },
+    {
+      "name": "settle-foyer",
+      "wait": 1500
+    },
+    {
+      "name": "shot-foyer-strip",
+      "screenshot": "03-foyer-kitchen-strip"
+    },
+    {
+      "name": "back-to-top",
+      "store": {
+        "action": "requestTopView",
+        "args": []
+      }
+    },
+    {
+      "name": "settle-top2",
+      "wait": 1800
+    },
+    {
+      "name": "hover-ld",
+      "eval": "window.__store.getState().setHoveredRoom('livingDining')"
+    },
+    {
+      "name": "settle-hover",
+      "wait": 1200
+    },
+    {
+      "name": "shot-hover-ld",
+      "screenshot": "04-hover-living-dining"
+    },
+    {
+      "name": "hover-corridor",
+      "eval": "window.__store.getState().setHoveredRoom('corridor')"
+    },
+    {
+      "name": "settle-hover2",
+      "wait": 900
+    },
+    {
+      "name": "shot-hover-corridor",
+      "screenshot": "05-hover-corridor"
+    },
+    {
+      "name": "clear-hover",
+      "eval": "window.__store.getState().setHoveredRoom(null)"
+    },
+    {
+      "name": "seed-ld-item",
+      "eval": "window.__store.getState().setItems([{id:'ld-sofa',defId:'sofa-3seat',position:[11.2,3.2],rotation:1.5708,props:{}}])"
+    },
+    {
+      "name": "enter-ld-editor",
+      "store": {
+        "action": "enterRoomEditor",
+        "args": [
+          "livingDining"
+        ]
+      }
+    },
+    {
+      "name": "assert-active",
+      "waitFor": {
+        "store": "state.roomEditor.active === true"
+      },
+      "timeout": 8000
+    },
+    {
+      "name": "settle-editor",
+      "wait": 2500
+    },
+    {
+      "name": "shot-ld-editor",
+      "screenshot": "06-living-dining-editor"
+    }
+  ]
+}

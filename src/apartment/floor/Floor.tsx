@@ -4,8 +4,8 @@ import { worldUvPlaneGeometry } from '../../materials/worldUv'
 import { useDisposeGeometry } from '../../scene/geometryUtil'
 import { useStore } from '../../state/store'
 import { ROOMS } from '../constants'
+import { needsTriangulatedFloor, roomOutline, roomParts } from '../roomGeometry'
 import type { RoomId } from '../types'
-import { computeRoomFloorRects } from './floorRects'
 import { RoomFloor } from './RoomFloor'
 
 const SLAB_LIFT = 0.001
@@ -13,10 +13,7 @@ const SLAB_LIFT = 0.001
 /**
  * A plain concrete floor slab for an EXTERNAL room (e.g. the AC ledge) —
  * no finish-picker wiring, no click-to-enter, just a neutral concrete plane
- * at the same floor level as the interior rooms. `computeRoomFloorRects`
- * (the carve logic feeding `RoomFloor` above) deliberately excludes external
- * rooms — they have no interior floor finish to carve around — so this
- * renders the room's own rect(s) directly instead.
+ * at the same floor level as the interior rooms.
  */
 function ExternalSlab({
   origin,
@@ -42,20 +39,20 @@ function ExternalSlab({
 }
 
 /**
- * Renders one mesh per non-overlapping floor sub-rect, grouped by room.
- * Source ROOMS rectangles overlap in places (e.g. livingDining's NW
- * corner reaches into bedroom3 and the corridor); `computeRoomFloorRects`
- * clips each room's rects against smaller-area rooms so overlap regions
- * are owned by the more specific room. AC ledge / external rooms are
- * skipped — they have no interior floor.
+ * Renders each room's floor, grouped by room. A room's shape comes from the ONE
+ * reader, `roomGeometry.ts`: `roomParts` for the rect pieces (a multi-part room
+ * — the MB + its foyer, the L/D's column + shelter strip + entrance foyer —
+ * emits one mesh per piece, all sharing the room's floor material so the finish
+ * wraps without a visible seam), or `roomOutline` for a room declared with a
+ * non-rectilinear polygon, which renders as a single triangulated mesh.
  *
- * L-shaped rooms (mainBedroom, livingDining) emit one mesh per piece,
- * all sharing the room's floor material so the finish wraps without a
- * visible seam.
+ * Room footprints must not overlap (asserted in `roomGeometry.test.ts`) — this
+ * used to run an overlap-carve here because livingDining was declared as one
+ * oversized rect reaching into bedroom3 and the corridor. AC ledge / external
+ * rooms are skipped; they get a plain concrete slab instead.
  */
 export function Floor() {
   const finishes = useStore(useShallow((s) => s.finishes.floor))
-  const roomRects = useMemo(() => computeRoomFloorRects(), [])
 
   return (
     <group>
@@ -64,25 +61,36 @@ export function Floor() {
         if (r.external) {
           return (
             <group key={id}>
-              <ExternalSlab origin={r.origin} width={r.width} depth={r.depth} />
-              {r.extension && (
+              {roomParts(r).map((rect, i) => (
                 <ExternalSlab
-                  origin={[
-                    r.origin[0] + r.extension.offset[0],
-                    r.origin[1] + r.extension.offset[1],
-                  ]}
-                  width={r.extension.width}
-                  depth={r.extension.depth}
+                  key={i}
+                  origin={[rect.x0, rect.z0]}
+                  width={rect.x1 - rect.x0}
+                  depth={rect.z1 - rect.z0}
                 />
-              )}
+              ))}
             </group>
           )
         }
         const matId = finishes[id]
-        const rects = roomRects[id]
+        if (needsTriangulatedFloor(r)) {
+          const b = roomParts(r)[0]
+          return (
+            <group key={id}>
+              <RoomFloor
+                roomId={id}
+                origin={[b.x0, b.z0]}
+                width={b.x1 - b.x0}
+                depth={b.z1 - b.z0}
+                polygon={roomOutline(r).map(([x, z]) => [x, z])}
+                materialId={matId}
+              />
+            </group>
+          )
+        }
         return (
           <group key={id}>
-            {rects.map((rect, i) => (
+            {roomParts(r).map((rect, i) => (
               <RoomFloor
                 key={i}
                 roomId={id}

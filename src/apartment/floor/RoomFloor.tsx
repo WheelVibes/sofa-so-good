@@ -16,7 +16,7 @@ import {
   useMaterialDef,
   useSolidMaterial,
 } from '../../materials/useMaterial'
-import { worldUvPlaneGeometry } from '../../materials/worldUv'
+import { worldUvPlaneGeometry, worldUvShapeGeometry } from '../../materials/worldUv'
 import { isDragRelease } from '../../scene/clickVsDrag'
 import { finishSurfaceUserData } from '../../scene/finishDropTarget'
 import { useDisposeGeometry } from '../../scene/geometryUtil'
@@ -36,6 +36,13 @@ interface RoomFloorProps {
   width: number
   depth: number
   materialId: MaterialId
+  /** Absolute-metre outline for a room piece no rectangle can describe (a
+   *  diagonal/splayed wall — `roomGeometry.ts:needsTriangulatedFloor`). When
+   *  set it replaces the origin/width/depth plane with a triangulated shape;
+   *  `origin`/`width`/`depth` then only carry the bounding box. Mirrors
+   *  `PlanRoomFloor`'s polygon branch so the curated flat and custom plans
+   *  render a non-rectangular floor the same way. */
+  polygon?: [number, number][]
 }
 
 interface FloorMeshProps {
@@ -43,6 +50,7 @@ interface FloorMeshProps {
   origin: [number, number]
   width: number
   depth: number
+  polygon?: [number, number][]
   material: MeshStandardMaterial
   /** Tile period in metres (material `uvScale`) for the RD-406 repetition
    *  break-up — only tiling (procedural/textured) finishes pass it. */
@@ -58,6 +66,7 @@ function FloorMesh({
   origin,
   width,
   depth,
+  polygon,
   material,
   tileSize,
   quarterTurns = true,
@@ -74,14 +83,19 @@ function FloorMesh({
   const texAngle = tex?.angle
   const geometry = useMemo(
     () =>
-      worldUvPlaneGeometry(
-        width,
-        depth,
-        { scale: texScale, angle: texAngle },
-        breakup,
-        quarterTurns,
-      ),
-    [width, depth, breakup, quarterTurns, texScale, texAngle],
+      polygon
+        ? // Triangulated, ABSOLUTE-coordinate shape — hence the [0, y, 0] mesh
+          // position below. Takes the same break-up/lay-direction transform as
+          // the plane so a non-rectangular room's finish matches its neighbours.
+          worldUvShapeGeometry(polygon, { scale: texScale, angle: texAngle }, breakup, quarterTurns)
+        : worldUvPlaneGeometry(
+            width,
+            depth,
+            { scale: texScale, angle: texAngle },
+            breakup,
+            quarterTurns,
+          ),
+    [polygon, width, depth, breakup, quarterTurns, texScale, texAngle],
   )
   // Geometry passed via `geometry=` isn't R3F-owned: dispose on resize/unmount.
   useDisposeGeometry(geometry)
@@ -133,7 +147,9 @@ function FloorMesh({
   }, [roomId])
   return (
     <mesh
-      position={[origin[0] + width / 2, FLOOR_LIFT, origin[1] + depth / 2]}
+      position={
+        polygon ? [0, FLOOR_LIFT, 0] : [origin[0] + width / 2, FLOOR_LIFT, origin[1] + depth / 2]
+      }
       rotation={[-Math.PI / 2, 0, 0]}
       receiveShadow
       onClick={onClick}

@@ -21,8 +21,9 @@
  * for a marginal framing improvement.
  */
 import { APARTMENT_EXT_D, APARTMENT_EXT_W, ROOMS } from '../../apartment/constants'
+import { roomBounds } from '../../apartment/roomGeometry'
 import { isDefaultPlan } from '../../floorplan/planGeometry'
-import { type FloorPlan, planBounds } from '../../floorplan/types'
+import { type FloorPlan, type PlanRoom, planBounds, roomPolygon } from '../../floorplan/types'
 import type { FurnitureItem } from '../../furniture/types'
 import { fitDistanceForFov } from './frameSelection'
 
@@ -67,23 +68,24 @@ function roomRectsForPlan(plan: FloorPlan): RoomRect[] {
   if (isDefaultPlan(plan)) {
     return Object.values(ROOMS)
       .filter((r) => !r.external)
-      .map((r) => ({
-        id: r.id,
-        name: r.name,
-        ox: r.origin[0],
-        oz: r.origin[1],
-        width: r.width,
-        depth: r.depth,
-      }))
+      .map((r) => {
+        // Bounds over the room's WHOLE footprint, not just its primary rect —
+        // a multi-part room framed off rect 1 alone cuts off the rest of itself.
+        const b = roomBounds(r)
+        return {
+          id: r.id,
+          name: r.name,
+          ox: b.x0,
+          oz: b.z0,
+          width: b.x1 - b.x0,
+          depth: b.z1 - b.z0,
+        }
+      })
   }
-  return plan.rooms.map((r) => ({
-    id: r.id,
-    name: r.name,
-    ox: r.origin[0],
-    oz: r.origin[1],
-    width: r.width,
-    depth: r.depth,
-  }))
+  return plan.rooms.map((r) => {
+    const [minX, minZ, maxX, maxZ] = planRoomBounds(r)
+    return { id: r.id, name: r.name, ox: minX, oz: minZ, width: maxX - minX, depth: maxZ - minZ }
+  })
 }
 
 /** True if a world XZ point falls inside a room's bounding rect. */
@@ -192,4 +194,13 @@ export function suggestViews(plan: FloorPlan, items: FurnitureItem[]): Suggested
     .map((r) => cornerViewForRoom(r, items))
     .filter((v): v is SuggestedView => v !== null)
   return [...roomViews, overviewView(plan)]
+}
+
+/** `[minX, minZ, maxX, maxZ]` over a PLAN room's whole outline (rect,
+ *  L-extension or explicit polygon) — `roomPolygon` resolves all three. */
+function planRoomBounds(r: PlanRoom): [number, number, number, number] {
+  const poly = roomPolygon(r)
+  const xs = poly.map((p) => p[0])
+  const zs = poly.map((p) => p[1])
+  return [Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs)]
 }

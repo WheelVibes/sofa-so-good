@@ -1,4 +1,5 @@
 import { ROOMS } from '../apartment/constants'
+import { roomContains, roomParts } from '../apartment/roomGeometry'
 import type { RoomId } from '../apartment/types'
 import { broadphaseNeighbours, canPlace } from '../collision/placement'
 import type { CollisionWall } from '../collision/walls'
@@ -59,22 +60,11 @@ function baseFootprint(item: FurnitureItem, def: FurnitureDef): { w: number; d: 
   return { w, d }
 }
 
-/** Which room (by id) an [x,z] point falls in — main rect or extension. */
+/** Which room (by id) an [x,z] point falls in — any of its parts. */
 export function roomOf(position: [number, number]): RoomId | null {
   const [x, z] = position
   for (const [id, r] of Object.entries(ROOMS) as [RoomId, (typeof ROOMS)[RoomId]][]) {
-    const inMain =
-      x >= r.origin[0] &&
-      x <= r.origin[0] + r.width &&
-      z >= r.origin[1] &&
-      z <= r.origin[1] + r.depth
-    let inExt = false
-    if (r.extension) {
-      const ex = r.origin[0] + r.extension.offset[0]
-      const ez = r.origin[1] + r.extension.offset[1]
-      inExt = x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth
-    }
-    if (inMain || inExt) return id
+    if (roomContains(r, x, z)) return id
   }
   return null
 }
@@ -249,22 +239,19 @@ function usableRect(roomId: RoomId): Rect {
   }
 }
 
-/** A room's L-shape EXTENSION as its own inset rect (the settle fallback's
- *  extra search area — see `settle`), or `undefined` for a plain rectangular
- *  room. Not used by the tuned per-kind arrangers (they target the main
- *  `usableRect` only); this only widens the LAST-RESORT safety net. */
+/** A room's non-primary parts as inset rects (the settle fallback's extra search
+ *  area — see `settle`), largest first, or `undefined` for a single-rect room.
+ *  Not used by the tuned per-kind arrangers (they target the main `usableRect`
+ *  only); this only widens the LAST-RESORT safety net, so the biggest secondary
+ *  part is the useful one. */
 function extensionRectOf(roomId: RoomId): Rect | undefined {
-  const r = ROOMS[roomId]
-  if (!r.extension) return undefined
   const inset = 0.15
-  const ex = r.origin[0] + r.extension.offset[0]
-  const ez = r.origin[1] + r.extension.offset[1]
-  return {
-    x0: ex + inset,
-    z0: ez + inset,
-    x1: ex + r.extension.width - inset,
-    z1: ez + r.extension.depth - inset,
-  }
+  const extras = roomParts(ROOMS[roomId])
+    .slice(1)
+    .map((p) => ({ x0: p.x0 + inset, z0: p.z0 + inset, x1: p.x1 - inset, z1: p.z1 - inset }))
+    .filter((r) => r.x1 > r.x0 && r.z1 > r.z0)
+    .sort((a, b) => (b.x1 - b.x0) * (b.z1 - b.z0) - (a.x1 - a.x0) * (a.z1 - a.z0))
+  return extras[0]
 }
 
 /** Rooms whose seating should face a focal (TV) wall, and which edge it is.

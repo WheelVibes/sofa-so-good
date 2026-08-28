@@ -331,11 +331,18 @@ describe('cornerNeighbors (WALL-REVEAL-CORNER-SPREAD adjacency)', () => {
 })
 
 describe('pointInRooms', () => {
-  it('detects points inside the rect and its L-extension', () => {
-    const r: RoomRect[] = [{ x: 0, z: 0, w: 2, d: 2, ext: { x: 2, z: 0, w: 2, d: 1 } }]
+  it("detects points inside any of a room's parts", () => {
+    // A room contributes one entry per part — the list is flat, so a room of
+    // three rectangles is three entries and there is no cap at one extension.
+    const r: RoomRect[] = [
+      { x: 0, z: 0, w: 2, d: 2 },
+      { x: 2, z: 0, w: 2, d: 1 },
+      { x: 4, z: 0, w: 1, d: 3 },
+    ]
     expect(pointInRooms(1, 1, r)).toBe(true)
-    expect(pointInRooms(3, 0.5, r)).toBe(true) // in extension
-    expect(pointInRooms(3, 1.5, r)).toBe(false) // outside both
+    expect(pointInRooms(3, 0.5, r)).toBe(true) // second part
+    expect(pointInRooms(4.5, 2.5, r)).toBe(true) // third part
+    expect(pointInRooms(3, 1.5, r)).toBe(false) // outside all
   })
 
   it('honours the pad', () => {

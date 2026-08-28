@@ -1,4 +1,5 @@
 import { DOORS, ROOMS, WALLS, WINDOWS } from './constants'
+import { roomBounds, roomContains, roomParts } from './roomGeometry'
 import type { DoorSpec, RoomDef, RoomId, WallSpec, WindowSpec } from './types'
 import type { WallCutoutSpan } from './walls/wallBodyShape'
 
@@ -28,32 +29,11 @@ export interface ClippedWall {
 const EDGE_EPS = 0.16 // wall-on-edge collinearity (spans wall half-thickness)
 const POINT_EPS = 0.06 // point-in-room containment tolerance
 
-/** One or two axis-aligned interior rects covering the room (main + extension). */
+/** The room's footprint as rects — re-exported from the shared reader so the
+ *  room editor and the floor renderer can never resolve a room's shape
+ *  differently. @see roomGeometry.ts */
 export function roomRects(room: RoomDef): Rect[] {
-  const rects: Rect[] = [
-    {
-      x0: room.origin[0],
-      z0: room.origin[1],
-      x1: room.origin[0] + room.width,
-      z1: room.origin[1] + room.depth,
-    },
-  ]
-  if (room.extension) {
-    const ox = room.origin[0] + room.extension.offset[0]
-    const oz = room.origin[1] + room.extension.offset[1]
-    rects.push({ x0: ox, z0: oz, x1: ox + room.extension.width, z1: oz + room.extension.depth })
-  }
-  return rects
-}
-
-function pointInRects(x: number, z: number, rects: Rect[]): boolean {
-  return rects.some(
-    (r) =>
-      x >= r.x0 - POINT_EPS &&
-      x <= r.x1 + POINT_EPS &&
-      z >= r.z0 - POINT_EPS &&
-      z <= r.z1 + POINT_EPS,
-  )
+  return roomParts(room)
 }
 
 /** For an axis-aligned wall on a rect edge, the sub-segment overlapping that
@@ -166,7 +146,7 @@ export interface RoomShell {
 
 export function roomShell(roomId: RoomId): RoomShell {
   const room = ROOMS[roomId]
-  const rects = roomRects(room)
+  const rects = roomParts(room)
 
   const walls: ClippedWall[] = []
   for (const w of WALLS) {
@@ -193,10 +173,7 @@ export function roomShell(roomId: RoomId): RoomShell {
     if (c && pointOnSpan(c, cw.start, cw.end)) doorIds.push(d.id)
   }
 
-  const x0 = Math.min(...rects.map((r) => r.x0))
-  const z0 = Math.min(...rects.map((r) => r.z0))
-  const x1 = Math.max(...rects.map((r) => r.x1))
-  const z1 = Math.max(...rects.map((r) => r.z1))
+  const { x0, z0, x1, z1 } = roomBounds(room)
   const center: [number, number] = [(x0 + x1) / 2, (z0 + z1) / 2]
   const radius = Math.hypot(x1 - x0, z1 - z0) / 2
 
@@ -208,6 +185,6 @@ export function roomShell(roomId: RoomId): RoomShell {
     doorIds,
     center,
     radius,
-    contains: (x, z) => pointInRects(x, z, rects),
+    contains: (x, z) => roomContains(room, x, z, POINT_EPS),
   }
 }

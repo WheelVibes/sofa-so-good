@@ -17,14 +17,27 @@ type WindowId = string
 /** Position in metres from the apartment origin (0,0 at NW external corner, +X east, +Z south). */
 export type Vec2 = readonly [number, number]
 
+/** An additional rectangle making up part of a room, offset from the room's
+ *  `origin`. A room may declare ANY NUMBER of these. */
+export interface RoomExtension {
+  offset: Vec2
+  width: number
+  depth: number
+}
+
 export interface RoomDef {
   id: RoomId
   name: string
-  /** NW corner of the *interior* of the room (after wall thickness). */
+  /**
+   * NW corner of the *interior* of the room (after wall thickness) — the
+   * origin of the room's primary rectangle, and the frame every `extensions`
+   * offset is measured from. For a room declared by an explicit {@link polygon},
+   * `origin`/`width`/`depth` describe its bounding box instead.
+   */
   origin: Vec2
-  /** Interior width (X-axis). */
+  /** Interior width (X-axis) of the primary rectangle (or the polygon's bbox). */
   width: number
-  /** Interior depth (Z-axis). */
+  /** Interior depth (Z-axis) of the primary rectangle (or the polygon's bbox). */
   depth: number
   /** Optional ceiling override; defaults to FLAT.ceilingHeight. */
   ceilingHeight?: number
@@ -32,16 +45,23 @@ export interface RoomDef {
   /** Free-form derivation note for traceability (see spec §6.2). */
   derivation?: string
   /**
-   * Optional secondary rectangle for L-shaped rooms (e.g. living/dining that
-   * wraps around another space). Offset is relative to the room's `origin`.
-   * The two rectangles are treated as a single logical room for finishes,
-   * floor rendering, and area accounting.
+   * Any number of additional rectangles, each offset from the room's `origin`.
+   * A room's shape is the UNION of its primary rect and these — an L needs one,
+   * a T or U needs two, and there is no cap. All parts are treated as a single
+   * logical room for finishes, floor/ceiling rendering, and area accounting,
+   * and must not overlap another ROOM (see `floor/roomGeometry.ts`).
    */
-  extension?: {
-    offset: Vec2
-    width: number
-    depth: number
-  }
+  extensions?: readonly RoomExtension[]
+  /**
+   * Explicit free-form outline in ABSOLUTE world metres, for a room no union of
+   * axis-aligned rectangles can describe (a diagonal or splayed wall). Wins over
+   * `extensions`; `origin`/`width`/`depth` then only carry the bounding box, for
+   * the framing/label consumers that want one. Rectilinear polygons are
+   * decomposed back into rects by `roomGeometry.ts:roomParts` so the rect-based
+   * renderers (floor tiles, ceiling tiles, wall clipping) keep working; a
+   * genuinely non-rectilinear outline renders as a triangulated floor.
+   */
+  polygon?: readonly Vec2[]
 }
 
 type CutoutKind = 'door' | 'window'
