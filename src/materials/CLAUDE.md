@@ -624,6 +624,32 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
     has not reviewed — change them on their own evidence rather than by side effect.
   · Watch the argument positions: `getWoodMaterial(color, repeat, rough)`. Call sites like
     `getWoodMaterial(legColor, 0.4)` are setting **repeat**, not roughness.
+- **CORRECTION to the WOOD-GLOSS entry above:** when that fix shipped (v0.31.5.31) the
+  commit message and this file described `walk-tour.mjs` as standing the camera "in the flat
+  with poses derived from the plan". It was not. The probe called `requestWalkTeleport` as
+  `store.requestWalkTeleport?.(…)`, but that is a MODULE function in
+  `scene/cameras/walkTeleport.ts`, not a store action — so the optional call was a silent
+  no-op and every frame in that round was the DEFAULT WALK SPAWN. **WOOD-GLOSS itself
+  stands**: its A/B varied roughness only, at one fixed pose, and the mirror ribbons visibly
+  went. Only the claim about the tool was wrong. The probe now teleports through the real
+  module function, asserts the camera reached the intended point, and captures four facings
+  per room.
+- **The wood GRAIN SHAPE is the next real defect: coarsened cathedral bands read as zebra
+  moiré (WOOD-BANDS, open).** WOOD-GLOSS fixed the shine; walking the flat afterwards shows
+  the shape problem clearly on the DEFAULT main-bedroom wardrobe. Cropped at close range the
+  panels carry hard **zigzag chevron bands, identical and periodic across every panel** —
+  printed wallpaper, not timber, with no fine grain between the waves. This is precisely the
+  artefact SNV-BOARDS already warns about ("never the natural painter's wavy cathedral bands,
+  which read as zebra moiré"), reached here by a different route: `FURNITURE_WOOD_COARSEN`
+  scales the floor-tuned grain up for furniture, which on a tall wardrobe door magnifies the
+  cathedral band until one wave spans the panel.
+  Evidence: `/tmp/ssg-r4/mainBedroom-y3.png` from
+  `scripts/dev-probes/walk-tour.mjs` (11 rooms x 4 facings). Whoever picks this up: the lever
+  is the band frequency/amplitude in `procedural/patterns/wood.ts`'s natural painter, or the
+  coarsen factor — NOT roughness (already settled) and NOT the pore field
+  (WOOD-PORE-NYQUIST, settled). Sweep it live in one run at a pose you have proven the camera
+  reached, and check the FLOOR at the same time, since it shares the painter and is currently
+  fine.
 - **Furniture materials** come from `furnitureMaterials.ts` helpers (real three `Material`
   instances: tintable wood/stone/fabric, `getSolidMaterial`, the `mat:<id>` DLC resolver).
   **Drapery (CURTAIN-FABRIC):** `getDraperyMaterial(kind, color, pattern, doubleSided)` is the

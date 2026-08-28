@@ -5,6 +5,44 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.32 — walk-tour probe lands, a correction, and the next wood defect named
+
+Ships the tool that found WOOD-GLOSS, corrects an overstatement in the v0.31.5.31 entry,
+and records the defect that fix did NOT address.
+
+**Correction.** v0.31.5.31 described `walk-tour.mjs` as standing the camera "in the flat
+with poses DERIVED from the plan". It did not. The probe called `requestWalkTeleport` as
+`store.requestWalkTeleport?.(…)`, but that is a MODULE function in
+`scene/cameras/walkTeleport.ts`, not a store action — the optional call was a silent no-op
+and every frame in that round was the DEFAULT WALK SPAWN (`bath1.png` was the living room,
+minimap label included). WOOD-GLOSS itself STANDS: its A/B varied roughness only, at one
+fixed pose, and the mirror ribbons visibly went. Only the claim about the tool was wrong.
+
+**The probe, now honest.** `scripts/dev-probes/walk-tour.mjs` resolves all 11 rooms through
+the app's own `roomEditorShell.ts:getRoomEditorShell`, teleports via the real module
+function, stands AT each room centre, ASSERTS the camera reached the intended point, and
+captures four facings per room. Three traps fixed along the way, each worth remembering:
+differing file hashes are not proof the view changed (the ceiling fan animates, so 11
+identical views hashed 11 ways); backing off `radius * 0.8` pushed edge rooms through the
+exterior wall (the kitchen came back featureless grey with the minimap arrow outside the
+plan); and a HIGH-detail frame can be as useless as a blank one — a fixed yaw at a galley
+kitchen's centre put a wall cabinet 0.6 m from the lens, sailing past a sigma guard while
+showing nothing judgeable.
+
+**WOOD-BANDS (open).** With the shine fixed, the shape problem is unmistakable on the
+default main-bedroom wardrobe: hard zigzag chevron bands, identical and periodic across
+every panel — printed wallpaper rather than timber, with no fine grain between waves. This
+is the artefact SNV-BOARDS already warns about ("never the natural painter's wavy cathedral
+bands, which read as zebra moiré"), reached by a different route: `FURNITURE_WOOD_COARSEN`
+scales the floor-tuned grain up for furniture, and on a tall wardrobe door that magnifies
+one cathedral wave until it spans the panel. The lever is the band frequency/amplitude in
+`procedural/patterns/wood.ts` or the coarsen factor — not roughness (settled) and not the
+pore field (settled).
+
+Survey result for the rooms reviewed for the first time: kitchen worktop, cabinet fronts,
+extractor hood, fridge steel, beds and curtains all read plausibly; bathroom tile is
+glossy with large soft highlight blobs but defensible for glazed porcelain.
+
 ## v0.31.5.31 — furniture wood stops looking like cling film
 
 WOOD-GLOSS. A material fix aimed squarely at the original "looks like animation, not

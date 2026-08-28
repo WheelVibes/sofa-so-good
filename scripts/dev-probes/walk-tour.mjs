@@ -102,6 +102,8 @@ await new Promise((r) => setTimeout(r, 4000))
 await assertSceneAlive(page, 'after setup')
 
 const TIER = process.env.TIER || 'medium'
+/** Look direction, radians. YXZ Euler Y: forward is (-sin, 0, -cos), so 0 looks -Z. */
+const YAW = Number(process.env.YAW || 0)
 
 await page.evaluate((t) => window.__store.getState().setQualityTier(t), TIER)
 await page
@@ -116,59 +118,83 @@ await page.evaluate(() => {
 await page.waitForFunction(() => !!window.__walkLook, { timeout: 20000 })
 await new Promise((r) => setTimeout(r, 3000))
 
-/** One eye point per room, derived from the plan: stand back from the room centre and
- *  aim along the room's LONGEST axis so the far wall and its furniture fill the frame. */
-const poses = await page.evaluate(() => {
+/**
+ * One eye point per room, derived from the app's OWN room geometry.
+ *
+ * An earlier version looked for `polygon`/`points`/`rect` on `floorPlan.rooms` and found
+ * exactly ONE room, because the curated default flat does not describe rooms that way.
+ * `roomEditorShell.ts:getRoomEditorShell` already resolves any room — curated or custom —
+ * to a shell with a `center` and `radius`, and it is what `OrbitCamera` uses for the room
+ * editor framing, so reusing it means the tour cannot silently miss rooms again.
+ *
+ * Yaw is computed, not guessed: `FirstPersonCamera` applies it as a YXZ Euler Y, so forward
+ * is `(-sin(yaw), 0, -cos(yaw))` and aiming from P at T is `atan2(-dx, -dz)`.
+ */
+const poses = await page.evaluate(async (yawArg) => {
+  const [{ ROOMS }, { getRoomEditorShell }] = await Promise.all([
+    import('/src/apartment/constants.ts'),
+    import('/src/scene/roomEditorShell.ts'),
+  ])
   const plan = window.__store.getState().floorPlan
   const out = []
-  for (const r of plan.rooms ?? []) {
-    const pts = r.polygon ?? r.points ?? null
-    let cx
-    let cz
-    let w
-    let d
-    if (pts?.length) {
-      const xs = pts.map((p) => p[0] ?? p.x)
-      const zs = pts.map((p) => p[1] ?? p.y ?? p.z)
-      cx = (Math.min(...xs) + Math.max(...xs)) / 2
-      cz = (Math.min(...zs) + Math.max(...zs)) / 2
-      w = Math.max(...xs) - Math.min(...xs)
-      d = Math.max(...zs) - Math.min(...zs)
-    } else if (r.rect) {
-      cx = r.rect.x + r.rect.w / 2
-      cz = r.rect.y + r.rect.h / 2
-      w = r.rect.w
-      d = r.rect.h
-    } else continue
-    if (!Number.isFinite(cx) || Math.min(w, d) < 1.4) continue
-    // Stand back along the longer axis, looking down it.
-    const alongX = w >= d
-    const back = Math.min(alongX ? w : d, 4) / 2 - 0.4
-    const pos = alongX ? [cx - back, 1.6, cz] : [cx, 1.6, cz - back]
-    const yaw = alongX ? -Math.PI / 2 : 0
-    out.push({ id: r.id ?? r.name ?? 'room', pos, yaw, w: +w.toFixed(1), d: +d.toFixed(1) })
+  for (const id of Object.keys(ROOMS)) {
+    const res = getRoomEditorShell(plan, id)
+    const shell = res?.shell
+    if (!shell?.center) continue
+    const [cx, cz] = shell.center
+    const r = shell.radius ?? 1.5
+    if (r < 0.9) continue // utility slivers (ac ledge etc.) have nothing to review
+    // Stand AT the centre. Backing off by `radius * 0.8` along +Z pushed the camera
+    // through the exterior wall for edge rooms (the kitchen came back a featureless grey
+    // with the minimap arrow outside the plan outline), and the walk collision resolver
+    // then has nowhere valid to put it. The centre of a room whose radius clears the
+    // player capsule is always inside it.
+    const pos = [cx, 1.6, cz]
+    out.push({
+      id,
+      pos,
+      yaw: yawArg,
+      radius: +r.toFixed(2),
+      want: [+cx.toFixed(2), +cz.toFixed(2)],
+    })
   }
   return out
-})
+}, YAW)
 
 console.log(`tier=${TIER} hour=${HOUR} — walk tour, ${poses.length} rooms\n`)
+// FOUR yaws per room. A single fixed facing is a lottery: standing at the centre of a
+// galley kitchen with yaw 0 puts a wall cabinet 0.6 m from the lens, which passes a
+// sigma guard (the frame is full of detail) while being useless for judging anything.
+// Sweeping the cardinal directions means no room's review depends on a lucky aim.
+const YAWS = [0, Math.PI / 2, Math.PI, -Math.PI / 2]
 for (const p of poses) {
-  await page.evaluate((q) => {
-    const st = window.__store.getState()
-    // Position + yaw through the app's own teleport (MINIMAP-JUMP), which is the path
-    // FirstPersonCamera consumes; a raw camera.position write is overwritten next frame.
-    st.requestWalkTeleport?.(q.pos[0], q.pos[2], q.yaw)
-    window.__walkLook?.setPitch(-0.05)
-  }, p)
-  await new Promise((r) => setTimeout(r, 2500))
-  await assertSceneAlive(page, p.id)
-  fs.writeFileSync(`${OUT}/${p.id}.png`, await page.screenshot({ type: 'png' }))
+  for (let i = 0; i < YAWS.length; i++) {
+    await page.evaluate(
+      async (q) => {
+        // `requestWalkTeleport` is a MODULE function (`cameras/walkTeleport.ts`), NOT a
+        // store action — calling it as `store.requestWalkTeleport?.()` is a silent no-op
+        // and left every "room" frame sitting at the default walk spawn.
+        const { requestWalkTeleport } = await import('/src/scene/cameras/walkTeleport.ts')
+        requestWalkTeleport(q.pos[0], q.pos[2], q.yaw)
+        window.__walkLook?.setPitch(-0.05)
+      },
+      { ...p, yaw: YAWS[i] },
+    )
+    await new Promise((r) => setTimeout(r, 1800))
+    await assertSceneAlive(page, `${p.id}-y${i}`)
+    fs.writeFileSync(`${OUT}/${p.id}-y${i}.png`, await page.screenshot({ type: 'png' }))
+  }
   const at = await page.evaluate(() => {
     const c = window.__three.camera
     return c.position.toArray().map((v) => +v.toFixed(2))
   })
-  console.log(`  ${String(p.id).padEnd(18)} ${p.w}x${p.d} m  camera at ${at.join(', ')}`)
+  const moved = Math.hypot(at[0] - p.want[0], at[2] - p.want[1])
+  console.log(
+    `  ${String(p.id).padEnd(18)} r=${p.radius}m  at ${at.join(', ')}  ` +
+      `${moved >= 3 ? `<-- DID NOT REACH centre (${moved.toFixed(1)} m)` : 'ok, 4 yaws'}`,
+  )
 }
+
 // ROUGHNESS A/B on the furniture wood, in ONE run from the same pose.
 // `getWoodMaterial(color, repeat, rough = 0.5)` also binds a roughness MAP, so the
 // scalar multiplies it; at 0.5 the specular lobe is tight enough to turn the grain
@@ -178,9 +204,9 @@ for (const p of poses) {
 const ROUGH = (process.env.ROUGH || '').split(',').filter(Boolean).map(Number)
 if (ROUGH.length) {
   const target = poses[0]
-  await page.evaluate((q) => {
-    const st = window.__store.getState()
-    st.requestWalkTeleport?.(q.pos[0], q.pos[2], q.yaw)
+  await page.evaluate(async (q) => {
+    const { requestWalkTeleport } = await import('/src/scene/cameras/walkTeleport.ts')
+    requestWalkTeleport(q.pos[0], q.pos[2], q.yaw)
     window.__walkLook?.setPitch(-0.18)
   }, target)
   await new Promise((r) => setTimeout(r, 2500))
