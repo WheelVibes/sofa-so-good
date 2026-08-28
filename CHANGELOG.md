@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.34 — the bathroom tile is correct; the default-surface survey is complete
+
+BATH-TILE-OK. No render change — a null result reached by arithmetic, and it closes the
+last DEFAULT surface that had never been properly judged.
+
+The 44-frame walk survey left an impression of bathroom tile that was "glossy with large
+soft highlight blobs". Both halves were wrong.
+
+The numbers match the spec exactly. `porcelainFields` passes its own options — cols 2,
+rows 4, groutDiv 500, rectified true — so at the 512 bake with `wall-tile-white`'s
+uvScale [1.2, 1.2] the joint is 1px / 512 x 1200 mm = **2.34 mm**, precisely the 2-3 mm
+JOINT-SCALE requires of rectified porcelain, and the tile is 1.2/2 x 1.2/4 =
+**600 x 300 mm**, matching its "300x600" name. Joints are LIGHT (0.9-1.0 x grout RGB, not
+the `tile` painter's 0.62-dark grout), the height step is a shallow 0.95 -> 0.72, and
+normalStrength 3 keeps it near-flat. A close crop confirms it: light hairline joints,
+gentle glaze, no chunky bevel.
+
+And the "highlight blobs" were the MIRROR — a specular reflection of the ceiling light,
+which is what a mirror should do.
+
+Recorded with it, because it nearly produced a false defect: computing JOINT-SCALE from the
+PAINTER'S DEFAULTS (groutDiv 150, cols 4, rows 8) yields a 7 mm joint and a 300x150 mm tile
+— a 3x-too-wide joint and a tile contradicting its own name, two convincing-looking bugs
+that do not exist. Always read the options the WRAPPER passes, not the signature defaults.
+
+Default-surface survey status: floors, walls, sofa, curtains, dining table, chair backs,
+sideboard, TV console, wardrobe, doors, kitchen worktop, cabinet fronts, extractor hood,
+fridge steel, beds and bathroom tile have now all been reviewed in walk mode. Two real
+defects were found and fixed (WOOD-GLOSS .31, WOOD-BANDS .33); everything else reads
+plausibly.
+
 ## v0.31.5.33 — furniture wood stops reading as zebra moiré
 
 WOOD-BANDS. The second half of the wood problem: v0.31.5.31 fixed the SHINE, this fixes

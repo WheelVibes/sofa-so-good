@@ -662,6 +662,26 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
     remaining lever is the latewood contrast/power term or genuine fine grain lines — not the
     meander, the ring count, the coarsen factor, the roughness or the pore field, all now
     settled.
+- **The bathroom tile is CORRECT — verified by arithmetic, don't re-file it (BATH-TILE-OK).**
+  This was the last DEFAULT surface never properly judged; the 44-frame walk survey left an
+  impression of "glossy with large soft highlight blobs". Both halves of that impression were
+  wrong.
+  · **The numbers match the spec exactly.** `porcelainFields` passes its OWN options —
+    `cols: 2, rows: 4, groutDiv: 500, rectified: true` — so at the 512 bake and
+    `wall-tile-white`'s `uvScale [1.2, 1.2]`: the joint is `1 px / 512 x 1200 mm` =
+    **2.34 mm**, precisely the 2-3 mm JOINT-SCALE requires of rectified porcelain, and the
+    tile is `1.2/2 x 1.2/4` = **600 x 300 mm**, matching its "300x600" name. Joints are LIGHT
+    (`0.9-1.0` x the grout RGB, never the `tile` painter's 0.62-dark grout), the face/joint
+    height step is a shallow 0.95 -> 0.72 rather than a canyon, and `normalStrength: 3` keeps
+    it near-flat. Confirmed on a close crop: light hairline joints, gentle glaze, no chunky
+    bevel.
+  · **The "highlight blobs" were the MIRROR**, not the tile — a specular reflection of the
+    ceiling light in the bathroom mirror, which is what a mirror should do.
+  · **The methodological trap that nearly produced a false defect:** computing JOINT-SCALE
+    with the PAINTER'S DEFAULTS (`groutDiv 150`, `cols 4`, `rows 8`) gives a 7 mm joint and a
+    300x150 mm tile — a 3x-too-wide joint and a tile that contradicts its own name, i.e. two
+    plausible-looking bugs. Neither exists. **Always read the options the WRAPPER passes, not
+    the signature defaults**, before doing the arithmetic.
 - **Furniture materials** come from `furnitureMaterials.ts` helpers (real three `Material`
   instances: tintable wood/stone/fabric, `getSolidMaterial`, the `mat:<id>` DLC resolver).
   **Drapery (CURTAIN-FABRIC):** `getDraperyMaterial(kind, color, pattern, doubleSided)` is the
