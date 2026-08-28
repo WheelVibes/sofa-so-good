@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.50 — door grain: the right lever was TILING, and v0.31.5.49 had its sign backwards
+
+v0.31.5.49 fixed the door leaf's gloss and left a residual: "the grain normal still ripples at
+door scale", proposing a lower `normalScale`. **Both of that round's supporting arms were
+measured at the OLD 0.45 gloss, and both conclusions inverted once the gloss was fixed.**
+
+Re-swept at the shipped 0.85:
+
+- **`normalScale` is not the lever.** 0 / 0.1 / 0.2 / 0.3 / 0.45 are all but indistinguishable,
+  and at `normalScale 0` the soft vertical banding is STILL present — so at this gloss the bands
+  are the ALBEDO grain, which `normalScale` cannot touch. The `.49` `normal0` arm only looked
+  decisive because 0.45 specular exaggerates relief. Nothing shipped for it (meta-rule ii).
+- **Grain TILING is the lever, and `.49` called its sign wrong.** That round reported `repeat 2`
+  as "worse" — true at 0.45 gloss, where it read as denser corrugation. At 0.85 it is clearly
+  better: repeat 1 stretches the grain over a 0.8 x 2.1 m panel into broad soft bands, repeat 2
+  reads as timber, repeat 3 goes busy and striped.
+
+**Shipped** `getWoodMaterial(leafColor, 2)` on `Door.tsx` and `PlanDoorLeaf.tsx` — also the grain
+density WOOD-BANDS (v0.31.5.33) settled for furniture, so it is principled rather than tuned.
+Verified on a real GPU: the drawn leaf reports `roughness: 0.85, repeat: [2, 2]`. Doors are ~13%
+of the walk view (`surface-coverage.mjs`), the largest surface class this run had left unexamined.
+
+The lesson, now in `src/apartment/CLAUDE.md`: **an A/B arm is only valid at the state you will
+ship.** Two conclusions survived into a written residual because both were measured against a
+gloss the same round then changed.
+
+
 ## v0.31.5.49 — door leaves rendered as wet plastic; the "survey complete" claim was wrong
 
 **The claim was untested.** "The DEFAULT-SURFACE SURVEY IS COMPLETE" had been carried for ten

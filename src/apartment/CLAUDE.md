@@ -124,8 +124,22 @@ Full code map in `docs/ARCHITECTURE.md`.
     `woodGloss.test.ts` carried "doors deliberately pass their own value"; that comment is now
     corrected. The test itself still pins the API contract (a caller CAN ask for shinier wood) —
     only the doors stopped using it.
-  · **The residual, stated plainly: the grain normal still ripples at door scale**, just far less
-    at 0.85. A flush door has almost no relief, so the honest follow-up is a lower `normalScale`
-    for door leaves — NOT measured here (the `normalScale 0` arm was run at the old 0.45), so it
-    needs its own A/B before anyone ships a number.
+  · **CORRECTION (v0.31.5.50): both residual claims above were artefacts of measuring at the
+    OLD gloss, and the follow-up they proposed was the wrong lever.** Re-swept at the shipped
+    0.85: `normalScale` 0 / 0.1 / 0.2 / 0.3 / 0.45 are all but indistinguishable, and at
+    `normalScale 0` the soft vertical banding is STILL THERE — so at this gloss the bands are
+    the ALBEDO grain, not the normal map. The `.49` `normal0` arm only looked decisive because
+    0.45 specular exaggerates relief. Nothing was shipped for `normalScale` (meta-rule ii).
+  · **The real lever is grain TILING, and `.49` got its sign backwards for the same reason.**
+    That round called `repeat 2` "worse" — true at 0.45 gloss, where it read as denser
+    corrugation. At 0.85 it is clearly BETTER: repeat 1 stretches the grain over a 0.8 x 2.1 m
+    panel into broad soft bands, repeat 2 reads as timber, repeat 3 goes busy and striped
+    (bamboo-like). Shipped `getWoodMaterial(leafColor, 2)` on both door paths — which is also
+    the grain density WOOD-BANDS (v0.31.5.33) settled for furniture, so it is a principled
+    value rather than a tuned one. Verified: the drawn leaf reports `roughness: 0.85,
+    repeat: [2, 2]`.
+  · **The lesson worth more than the fix: an A/B arm is only valid at the state you will SHIP.**
+    Two conclusions from `.49` survived into a written residual because both were measured
+    against a gloss that the same round then changed. Re-run the sweep after any change that
+    alters how the varied parameter is perceived.
 

@@ -191,46 +191,52 @@ const found = await page.evaluate(() => {
 if (!found) throw new Error('no textured leaf under the crosshair — pose suspect')
 console.log(`leaf: ${JSON.stringify(found)}\n`)
 
-const ARMS = [
-  ['shipped', () => {}],
-  [
-    'rough085',
-    (m) => {
-      m.roughness = 0.85
-    },
-  ],
-  [
-    'repeat2',
-    (m) => {
-      for (const k of ['map', 'normalMap', 'roughnessMap']) m[k]?.repeat.set(2, 2)
-    },
-  ],
-  [
-    'normal0',
-    (m) => {
-      m.normalScale.set(0, 0)
-    },
-  ],
-]
+// The shipped leaf is NOW roughness 0.85 (DOOR-GLOSS v0.31.5.49), so this sweeps the one
+// thing that round could not conclude: how much grain relief a door should carry AT that
+// gloss. The old `normal0` arm ran at 0.45, so its result cannot be reused (meta-rule xxiii).
+const SCALES = (process.env.SCALES || '0,0.1,0.2,0.3,0.45').split(',').map(Number)
+/** Grain TILING arms, swept at the same 0.85 gloss. v0.31.5.49 tested `repeat 2` only at the
+ *  OLD 0.45 roughness, where specular exaggerated relief — so that verdict cannot be carried
+ *  over either (the same mistake as the `normal0` arm). */
+const REPEATS = (process.env.REPEATS || '').split(',').filter(Boolean).map(Number)
 
-for (const [name] of ARMS) {
-  await page.evaluate((arm) => {
+for (const ns of SCALES) {
+  const state = await page.evaluate((v) => {
     const m = window.__leaf
     const s = window.__leafShipped
-    // Restore the shipped state first, so each arm differs from SHIPPED in one variable.
+    // Restore shipped, then vary exactly one thing.
     m.roughness = s.roughness
-    m.normalScale.set(s.nsx, s.nsy)
     for (const k of ['map', 'normalMap', 'roughnessMap']) m[k]?.repeat.set(s.rx, s.ry)
-    if (arm === 'rough085') m.roughness = 0.85
-    if (arm === 'repeat2')
-      for (const k of ['map', 'normalMap', 'roughnessMap']) m[k]?.repeat.set(2, 2)
-    if (arm === 'normal0') m.normalScale.set(0, 0)
+    m.normalScale.set(v, v)
     m.needsUpdate = true
     window.__store.getState().setManualHour(13)
-  }, name)
+    return { roughness: m.roughness, normalScale: m.normalScale.x }
+  }, ns)
   await new Promise((r) => setTimeout(r, 1200))
+  const name = `ns${String(ns).replace('.', '_')}`
   fs.writeFileSync(`${OUTDIR}/${name}.png`, await page.screenshot({ type: 'png' }))
-  console.log(`  ${name} captured`)
+  // Print the arm's OWN state beside its label — a sweep that silently failed to mutate
+  // would otherwise look like "no value makes a difference" (meta-rule iv).
+  console.log(`  ${name.padEnd(8)} roughness=${state.roughness} normalScale=${state.normalScale}`)
+}
+
+for (const rp of REPEATS) {
+  const state = await page.evaluate((v) => {
+    const m = window.__leaf
+    const s = window.__leafShipped
+    m.roughness = s.roughness
+    m.normalScale.set(s.nsx, s.nsy)
+    for (const k of ['map', 'normalMap', 'roughnessMap']) m[k]?.repeat.set(v, v)
+    m.needsUpdate = true
+    window.__store.getState().setManualHour(13)
+    return { roughness: m.roughness, repeat: m.map.repeat.x, normalScale: m.normalScale.x }
+  }, rp)
+  await new Promise((r) => setTimeout(r, 1200))
+  const name = `rp${String(rp).replace('.', '_')}`
+  fs.writeFileSync(`${OUTDIR}/${name}.png`, await page.screenshot({ type: 'png' }))
+  console.log(
+    `  ${name.padEnd(8)} roughness=${state.roughness} repeat=${state.repeat} normalScale=${state.normalScale}`,
+  )
 }
 
 console.log(`\nframes -> ${OUTDIR}`)

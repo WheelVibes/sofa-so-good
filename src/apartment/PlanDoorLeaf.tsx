@@ -136,11 +136,12 @@ export function PlanDoorLeaf({
       leafMaterialKind === 'vinyl'
         ? getVinylMaterial(leafColor)
         : leafMaterialKind === 'wood'
-          ? // DOOR-GLOSS: no explicit roughness — use the settled `WOOD_BASE_ROUGHNESS`.
-            // The old 0.45 made a leaf read as wet corrugated plastic rather than a flush
-            // laminate door (measured with `dev-probes/door-ab.mjs`); doors are ~13% of the
-            // walk view, so it was the largest unexamined surface in the flat.
-            getWoodMaterial(leafColor, 1)
+          ? // DOOR-GLOSS: settled `WOOD_BASE_ROUGHNESS` (the old explicit 0.45 read as wet
+            // corrugated plastic), and grain `repeat` 2 — the density WOOD-BANDS settled for
+            // furniture. At repeat 1 the grain stretches over a 0.8 x 2.1 m panel into broad
+            // soft bands; at 2 it reads as timber, at 3 it goes busy. Both measured with
+            // `dev-probes/door-ab.mjs` AT THIS GLOSS; doors are ~13% of the walk view.
+            getWoodMaterial(leafColor, 2)
           : leafMaterialKind === 'metal'
             ? getMetalMaterial(leafColor, 'satin')
             : getPaintedMaterial(leafColor)
