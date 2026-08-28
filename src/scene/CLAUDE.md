@@ -177,6 +177,49 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   and its mean fell 237.4 → 233.4 once it stopped rendering three times its light budget. Medium and
   Maximum are byte-identical. Any future per-frame pick that depends on a tier value needs the tier
   in its change check, and any React-state scene change needs an `invalidate()`.
+- **A zero point-light census is CORRECT at the default `lightsMode`, and the night budget is
+  VERIFIED — don't re-file either as a bug (NIGHT-LIGHT-BUDGET).** `lightsMode` defaults to
+  **`'off'`**, and `FurnitureLights` returns `null` on an empty active set, so not even
+  LIGHT-COUNT-STABLE's zero-intensity padding slots exist. A scene census therefore reports
+  **0 point lights at 21:00 exactly as at 13:00**, which looks like a broken light budget and is
+  not one. `scripts/dev-probes/night-lights.mjs` measures the state that actually engages PERF-002
+  — orbit, 21:00, `lightsMode: 'on'` — and the budget holds exactly to spec on the default flat
+  (19 emitting items, so the cap genuinely binds at the low tiers):
+
+  | tier        | maxFixtureLights | orbit budget | lit | padded | slots |
+  | ----------- | ---------------- | ------------ | --- | ------ | ----- |
+  | performance | 2                | 6            | 6   | 0      | 6     |
+  | medium      | 6                | 18           | 18  | 0      | 18    |
+  | high        | 8                | 24           | 19  | 1      | 20    |
+  | maximum     | 12               | 36           | 19  | 1      | 20    |
+
+  Performance and Medium saturate at the budget (so `lightSlotCount`'s "never above budget" clamp
+  wins over the quantisation and padding is 0 — the count is stable because it is pinned at the
+  cap); High and Maximum have budget to spare, so the 19 live lights round up to `ceil(19/4)*4`
+  = 20 and one padding slot appears. Frame cost with every light live stays inside the 16.67 ms
+  budget at every tier: **6.8 / 9.0 / 12.9 / 12.3 ms p50**. Zero spot lights (the IES path is off
+  by default).
+- **Wall TOP CAPS are bimodal at night BY DESIGN, not blown out (NIGHT-WALL-CAP).** Orbit culls the
+  real ceiling, so every wall ends in a horizontal up-facing cap, and at night those caps read as a
+  hard dark line along some walls and a bright one along others — which looks like an inked-outline
+  artefact. Measured it is not one. `scripts/dev-probes/wall-cap.mjs` masks GEOMETRICALLY (raycast
+  grid, keep hits whose world normal points up and whose hit point is above 2.0 m, which excludes
+  floors and worktops) and compares both hours in ONE run at orbit/Medium with the lights on:
+
+  | hour  | cap mean | p10   | p50   | p90   | dark (<40) | wall mean | cap/wall |
+  | ----- | -------- | ----- | ----- | ----- | ---------- | --------- | -------- |
+  | 13:00 | 185.3    | 170.8 | 180.9 | 203.8 | 0%         | 184.3     | 1.005    |
+  | 21:00 | 115.8    | 42.2  | 129.5 | 176.7 | 4.5%       | 58.6      | 1.976    |
+
+  So at night the caps are on average nearly **twice as bright as the vertical walls**, not darker
+  — the caps are lit from the rooms below them, and the dark ones are exactly the caps over rooms
+  whose lamps are off. Every dark sample is an ordinary wall body (`#f1f0ec`, `W x 2.6 x 0.2`),
+  the same material as the bright ones, so there is no second material or mis-shaded cap geometry
+  to find. At ~4.5% of caps and caps being ~3% of the frame, the dark bands are ~0.15% of pixels.
+  **Two lessons worth more than the verdict:** a MEAN cannot see a bimodal population (the first
+  run reported cap 115.3 vs wall 58.7 and looked like a clean refutation, when the caps were in
+  fact split 42/177), and an eyeballed NDC point cannot be carried between probes with different
+  poses — mask by world normal instead (meta-rule xii).
 - **Never let the LIGHT COUNT change during interaction (LIGHT-COUNT-STABLE).** three bakes the
   number of point/spot lights into every lit material's program cache key, so adding or removing a
   single light recompiles EVERY lit material. `FurnitureLights` re-picks the live emitter set

@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.21 — two night hypotheses tested, both refuted; the light budget verified
+
+No behaviour change. Two probes and three recorded verdicts, so none of this gets
+re-litigated.
+
+**NIGHT-LIGHT-BUDGET.** A census reading zero point lights at 21:00 looked like a
+broken fixture budget. It is not: `lightsMode` defaults to `'off'` and
+`FurnitureLights` returns null on an empty set, so not even LIGHT-COUNT-STABLE's
+zero-intensity padding slots exist, and zero is the correct reading. The new
+`scripts/dev-probes/night-lights.mjs` measures the state that actually engages
+PERF-002 — orbit, 21:00, lights on — and the budget holds exactly to spec across all
+four tiers on the default flat (19 emitting items, so the cap really binds):
+performance 6/6 lit, medium 18/18, high 19 lit + 1 pad = 20 slots, maximum the same.
+Cost with every light live stays inside budget: 6.8 / 9.0 / 12.9 / 12.3 ms p50.
+
+**NIGHT-WALL-CAP.** The wall top caps read as a hard inked lattice at night. Measured
+with a geometric mask (world normal up, hit above 2.0 m, which excludes floors and
+worktops), they are on average nearly TWICE as bright as the vertical walls at 21:00
+(115.8 vs 58.6), not darker. The caps are bimodal — p10 42.2, p90 176.7 — and the dark
+ones are exactly the caps over rooms whose lamps are off, on the same material as the
+bright ones. ~0.15% of frame pixels. Not a defect.
+
+Two methodological notes recorded with it, both of which nearly produced a wrong
+answer: a MEAN cannot see a bimodal population (the first run's cap-vs-wall means read
+as a clean refutation while the caps were in fact split 42/177), and an eyeballed NDC
+point cannot be carried between probes that use different poses.
+
 ## v0.31.5.20 — the sky surround was more than half clipped by the camera far plane
 
 SKY-DOME-FAR. The surround dome shipped in v0.31.5.19 was world-anchored at
