@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.26 — the profiler's frame number is unstable; Maximum does meet 60 fps
+
+No render change, and no profiler change either — two fixes were built, measured and
+reverted. What lands is a corrected claim and a probe.
+
+`scripts/dev-probes/profiler-frame.mjs` (new) runs the repo's own dev profiler
+headlessly: it flips `uiMode` to 'pro' so the devOnly `profiler` flag resolves, calls
+`window.__profiler.runCostBreakdown`, and measures plain submit-time cost before and
+after the sweep in the same session.
+
+**PROFILER-UNSTABLE-BASELINE.** On the default flat at Maximum/21:00, the profiler's
+baseline frame for the SAME scene at the SAME settings measured 34.92 / 42.59 / 12.73 /
+~26 / 33.56 ms across five runs — a 3.6x swing. The report contradicts itself as a
+result: with a low baseline several independent effects each appear to save ~70% of the
+frame; with a high one, five of eight effects come out with NEGATIVE cost. Plain
+submit-time cost over the same sessions is flat (10.6-11.4 ms before a sweep,
+11.0-11.3 ms after), so the instability is in the measurement, not the machine.
+
+**Maximum MEETS the 60 fps budget**, and the 34.54 ms figure quoted in the fixture-light
+commit should not be relied on — it is one draw from that distribution. The ~11 ms
+submit figure is corroborated by `night-lights.mjs` (11.7 ms p50) and by every sweep row
+that lands low.
+
+Two fixes were attempted and REVERTED under meta-rule (xiv), both recorded so they are
+not re-attempted: (1) warming the pipeline before the first measurement — a run WITHOUT
+it read 12.73 ms and a run WITH it read 33.56 ms, so the apparent cold/warm effect was
+variance at n=1 and my earlier claim that warming fixed it was wrong; (2) a paired
+per-step baseline — structurally right for a drifting benchmark, but it doubled runtime
+and left three deltas negative, because the variance is finer-grained than a pair can
+cancel.
+
+The prime suspect is the settle predicate (`settleUntilStable` only asks whether render
+time stopped CHANGING; quick mode accepts a single 6-frame window within 5%, while
+applying an override recompiles materials and reallocates render targets). The decisive
+test is recorded and not yet run: measure the baseline N times with no override at all.
+
 ## v0.31.5.25 — the near-field fix is refuted by arithmetic; fixture cost measured
 
 No render change. One new probe, one probe improved, three recorded findings — one of
