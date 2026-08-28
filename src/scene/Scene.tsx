@@ -39,6 +39,7 @@ import { FurnitureLights } from './lighting/FurnitureLights'
 import { Lighting } from './lighting/Lighting'
 import { SceneEnvironment } from './lighting/SceneEnvironment'
 import { Sky } from './lighting/Sky'
+import { SCENE_CAMERA_FAR } from './lighting/skyDome'
 import { DEFAULT_TONE_MAPPING, shadowFilterForTier } from './look'
 import { PanoramaController } from './PanoramaController'
 import { PlacementDropAnimator } from './PlacementDropAnimator'
@@ -150,7 +151,7 @@ export function Scene() {
       // recompiles live in RendererTierController.
       shadows={{ type: shadowMapType }}
       dpr={dprRange}
-      camera={{ position: [12, 8, 12], fov: 45, near: 0.1, far: 400 }}
+      camera={{ position: [12, 8, 12], fov: 45, near: 0.1, far: SCENE_CAMERA_FAR }}
       gl={{
         antialias: true,
         powerPreference: 'high-performance',

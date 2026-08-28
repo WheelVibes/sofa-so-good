@@ -30,6 +30,7 @@ import { CurtainLightController } from './lighting/CurtainLightController'
 import { FurnitureLights } from './lighting/FurnitureLights'
 import { Lighting } from './lighting/Lighting'
 import { SceneEnvironment } from './lighting/SceneEnvironment'
+import { SCENE_CAMERA_FAR } from './lighting/skyDome'
 import { DEFAULT_TONE_MAPPING, shadowFilterForTier } from './look'
 import { PlacementDropAnimator } from './PlacementDropAnimator'
 import { PlacementGhost } from './PlacementGhost'
@@ -109,7 +110,7 @@ export function RoomEditorScene() {
         position: [cx + r * 1.6, r * 1.8, cz + r * 1.6],
         fov: 45,
         near: 0.05,
-        far: 400,
+        far: SCENE_CAMERA_FAR,
       }}
       gl={{
         antialias: true,

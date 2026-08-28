@@ -469,6 +469,27 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   claimed above (background only, no `scene.background` / `scene.environment` writes). Frame cost
   unchanged (4.5/4.8, 8.4/9.0, 10.4/10.9, 11.4/12.0 ms p50/p90). Night is the biggest visible win:
   a deep dark surround with the lit flat glowing against it, instead of the old flat grey.
+  · **The dome TRACKS THE CAMERA and its radius is a shared, test-asserted constant
+    (SKY-DOME-FAR).** As first shipped it was world-anchored at `DOME_RADIUS = 400` under a
+    comment claiming that sat "well inside the camera far plane" — but both Canvases set
+    `far: 400` as their own unrelated literal, so the radius EQUALLED the far plane. Seen from
+    inside a `BackSide` sphere the centre of frame shows the sphere's FAR wall, which sits at
+    `radius + camera distance from origin` — measured 430.2 m at the boot pose against `far` 400,
+    with **436 of 825 dome vertices beyond the frustum**. So the middle of the orbit background
+    was cut away and the page colour showed through, bounded by the 32x24 sphere's facets: a
+    faceted polygon of page in a field of sky. It survived a full round of sky work because every
+    probe measured interior slabs and the surround's own COLOUR, never its COVERAGE.
+    Fixed by `lighting/skyDome.ts`: the far plane is now one shared `SCENE_CAMERA_FAR` both
+    Canvases import, the radius is `SKY_DOME_RADIUS` (200), the pure `domeRadiusIsSafe` holds the
+    invariant and `skyDome.test.ts` asserts the shipped pair passes AND that the pair which
+    shipped the bug fails. `Sky.tsx` also copies `camera.position` onto the dome each frame — a
+    sky has no parallax, so tracking is the physically right model, and it is what makes a fixed
+    radius PROVABLE rather than plausible: the dome is then exactly its radius away in every
+    direction at every orbit distance on every plan. Verified real-GPU with
+    `scripts/dev-probes/dome-clip.mjs`: distances 369.8-430.2 / 436 clipped vertices became
+    **200.0-200.0 / 0 clipped**, and the background renders full-bleed and uniform at 13:00/Medium
+    and 21:00/Maximum alike (night still reads as night, no banding). Any future change to either
+    number must go through that module, or the test fails.
   · **It is not blue, and should not be.** The orbit camera is pitched ~25 degrees DOWN, so every
     visible background direction is at or below the horizon, where a real sky IS pale. Sampling the
     top of the frame is sampling the horizon, not the zenith — an earlier round mislabelled it.

@@ -5,6 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.20 — the sky surround was more than half clipped by the camera far plane
+
+SKY-DOME-FAR. The surround dome shipped in v0.31.5.19 was world-anchored at
+`DOME_RADIUS = 400` under a comment asserting that sat "well inside the camera far
+plane". Both Canvases set `far: 400` as their own unrelated literal in a different
+file, so the radius EQUALLED it. Seen from inside a `BackSide` sphere the centre of
+frame shows the sphere's FAR wall, at `radius + the camera's distance from origin`:
+measured 430.2 m at the boot pose, with **436 of 825 dome vertices outside the
+frustum**. The middle of the orbit background was cut away and the page colour showed
+through, bounded by the 32x24 sphere's own facets — a faceted polygon of page sitting
+in a field of sky. It survived the round that introduced it because every probe
+measured interior slabs and the surround's COLOUR, never its COVERAGE; it was found by
+looking at a frame from an unrelated discovery sweep.
+
+Fixed as a contract rather than a number. `scene/lighting/skyDome.ts` now owns both
+values — `SCENE_CAMERA_FAR` (imported by `Scene.tsx` and `RoomEditorScene.tsx` instead
+of a literal) and `SKY_DOME_RADIUS` — plus the pure `domeRadiusIsSafe`, and
+`skyDome.test.ts` asserts the shipped pair passes and the pair that shipped the bug
+fails. `Sky.tsx` additionally copies `camera.position` onto the dome each frame: a sky
+has no parallax, so tracking is the physically correct model, and it makes a fixed
+radius provable instead of plausible — the dome is then exactly its radius away in
+every direction, at every orbit distance, on every plan.
+
+Verified on a real GPU with the new `scripts/dev-probes/dome-clip.mjs`: dome distances
+369.8-430.2 m with 436 clipped vertices became **200.0-200.0 m with 0 clipped**. The
+background renders full-bleed and uniform at 13:00/Medium and 21:00/Maximum; night
+still reads as night with no horizon banding, and the interior is untouched (the dome
+writes neither `scene.background` nor `scene.environment`).
+
 ## v0.31.5.19 — orbit gets an analytic sky with no ground
 
 SKY-BLOWN resolved. The drei `<Sky>` dome is gone, replaced by a purpose-built

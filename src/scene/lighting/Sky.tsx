@@ -1,18 +1,21 @@
+import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BackSide, CanvasTexture, type Texture } from 'three'
+import { BackSide, CanvasTexture, type Mesh, type Texture } from 'three'
 import { noExportUserData } from '../../export/sceneGltf'
 import { useStore } from '../../state/store'
 import { isPhotoBackdropActive } from '../SceneBackdrop'
 import { skyFromAltitude } from './altitudeCurve'
+import { SKY_DOME_RADIUS } from './skyDome'
 import { type SkyState, shouldRebuildSky } from './skyRebuild'
 import { paintSkySurround } from './skySurround'
 import { orientedSunDirection } from './sunPosition'
 import { useSunPosition } from './useSunPosition'
 
-/** Radius of the surround dome. Large enough to sit outside any plan the app
- *  ships (the landed/penthouse extents are tens of metres) and outside the orbit
- *  camera's far dolly, but well inside the camera far plane. */
-const DOME_RADIUS = 400
+/** Radius of the surround dome — see `skyDome.ts` (SKY-DOME-FAR) for why this is a
+ *  shared, test-asserted constant rather than a literal, and why the dome tracks the
+ *  camera. The previous world-anchored 400 EQUALLED the camera far plane and left
+ *  more than half the dome clipped. */
+const DOME_RADIUS = SKY_DOME_RADIUS
 
 /** Equirect size for the baked surround. The field is smooth by construction — no
  *  sun disc, no high-frequency detail — so this is ample, and a small texture keeps
@@ -62,6 +65,7 @@ export function Sky() {
   const [texture, setTexture] = useState<Texture | null>(null)
   const lastBaked = useRef<SkyState | null>(null)
   const texRef = useRef<Texture | null>(null)
+  const meshRef = useRef<Mesh>(null)
 
   // Re-bake (debounced) only when the sun crosses `shouldRebuildSky`'s threshold —
   // the same predicate and cadence the walk-mode backdrop uses, so a time-of-day
@@ -106,10 +110,21 @@ export function Sky() {
 
   const geometryArgs = useMemo(() => [DOME_RADIUS, 32, 24] as const, [])
 
+  // Track the camera so the dome is exactly DOME_RADIUS away in EVERY direction, at
+  // every orbit distance and on every plan (SKY-DOME-FAR). A sky has no parallax, so
+  // this is also the physically right model — and it is what makes a fixed radius
+  // provably safe against the far plane instead of safe-looking. Default priority,
+  // so it runs after drei's `<OrbitControls>` update (priority -1) has moved the
+  // camera for this frame.
+  useFrame(({ camera }) => {
+    const m = meshRef.current
+    if (m) m.position.copy(camera.position)
+  })
+
   if (backdropActive || !texture) return null
   return (
     <group userData={noExportUserData()}>
-      <mesh frustumCulled={false} renderOrder={-1}>
+      <mesh ref={meshRef} frustumCulled={false} renderOrder={-1}>
         <sphereGeometry args={geometryArgs as unknown as [number, number, number]} />
         <meshBasicMaterial map={texture} side={BackSide} depthWrite={false} fog={false} />
       </mesh>
