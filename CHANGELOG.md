@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.44 — the default exterior never follows the clock (measured, content decision)
+
+`REFERENCES.md` is a feature/UX parity list and this harness cannot measure a competitor's
+renderer, so no competitor number is invented here. Instead the parity question was turned
+inward onto a default surface no round had examined: **what the user sees through a window.**
+
+Two findings, both from frames rather than statistics:
+
+- **You cannot see out at all by default — the flat ships with its curtains drawn.** Facing
+  any of the 5 window openings in walk mode finds essentially no exterior pixels; the pose is
+  right, the glass is simply covered, and the UI offers "E — Open curtains". The backdrop the
+  app bakes is invisible in the out-of-box state.
+- **With the curtains open the view is good, but it is the same at every hour.** New
+  `dev-probes/window-hours.mjs` holds one plan-derived window pose, opens the fixtures once,
+  then sweeps the clock with nothing else changed. Same crop at 9 / 13 / 21: mean rgb
+  198.8/187.2/171.8, 198.2/186.4/170.5, 181.6/166.9/146.7 — 09:00 and 13:00 identical within
+  ~1 unit, and 21:00 darker only because global exposure dims the whole frame. Warm lit tower
+  windows are painted at midday exactly as at night.
+
+That is by construction: `backdrop` defaults to `'city'`, a static authored palette, while the
+sun-driven `sky` backdrop (RD-412) is gated on `proceduralSky` — which the app's own
+`featureFlags.test.ts` pins as false in `simple` and true in `pro`. Simple is the default, so
+a default user can never get a time-following exterior. It is the same gate that made
+SKY-ANALYTIC-ORBIT's first attempt measure byte-identical.
+
+**No code changed.** Which backdrop ships by default, whether curtains start drawn, and
+whether the sun-driven sky should be simple-tier are content/product decisions, not rendering
+defects. Documented as WINDOW-TIME-INVARIANT in `src/scene/CLAUDE.md`.
+
+Probe note: a ray-based "through the glass" mask was written and abandoned — it reported 0
+exterior rays even with the curtains open, because `Sky.tsx` mounts the dome as a real scene
+object (no ray ever escapes) and the window glass reads as opaque to a naive transparency
+test. The frame was the more honest instrument; the misleading probe was deleted rather than
+shipped.
+
+
 ## v0.31.5.43 — swapping to a smaller plan strands attached furniture (measured, not fixed)
 
 The worry was that changing apartment type leaves the old flat's furniture standing in the

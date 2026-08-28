@@ -823,6 +823,37 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   geometry and writes neither `scene.background` nor `scene.environment` — the IBL is the separate
   procedural Lightformer probe in `SceneEnvironment.tsx`. So dimming it cannot disturb interior
   lighting, the key:fill ratio, or the bloom lock-step (RD-409); only the background pixels move.
+- **The DEFAULT exterior does not follow the clock, and the sun-driven one is PRO-GATED
+  (WINDOW-TIME-INVARIANT, v0.31.5.44 — measured, and a CONTENT decision rather than a
+  bug).** Every audit so far has looked at surfaces inside the home; this is about what is
+  beyond the glass, which is half of what makes a walk-through read as a real flat.
+  · **You cannot see it at all by default: the flat ships with its CURTAINS DRAWN.** Facing
+    any of the 5 window openings in walk mode, a ray grid finds essentially no exterior
+    pixels — the pose is right, the glass is simply covered, and the UI offers "E — Open
+    curtains". So the backdrop the app bakes is invisible in the out-of-box state.
+  · With the curtains opened, the view IS there and reads well — a city skyline with lit
+    windows and a horizon glow. But it is the same view at every hour.
+    `scripts/dev-probes/window-hours.mjs` stands at one fixed window pose (derived from the
+    plan's own opening), opens the fixtures ONCE, then sweeps the clock changing nothing
+    else. Same crop, hour 9 / 13 / 21: mean rgb **198.8/187.2/171.8**, **198.2/186.4/170.5**,
+    181.6/166.9/146.7 — 09:00 and 13:00 are identical within ~1 unit, and 21:00 is ~9%
+    darker only because the global day/night exposure dims the whole frame (the white
+    window grille in the crop dims with it). The exterior CONTENT never changes: warm lit
+    tower windows are painted at 13:00 exactly as at 21:00.
+  · **That is by construction, not a fault in the baker.** `backdrop` defaults to `'city'`,
+    and `BACKDROP_PRESETS.city` is a static authored palette (sky `#5d8fc4`→`#dfe8ec`,
+    buildings `[74,86,104]`, `windowColor rgba(255,221,160,0.55)`, `litScale 1`). The
+    sun-driven alternative is the `sky` backdrop (RD-412) — and that is gated on the
+    `proceduralSky` flag, which `featureFlags.test.ts` pins as **false in `simple` and true
+    in `pro`**. Simple is the app default, so a default user can never get a time-following
+    exterior. This is the same gate that made SKY-ANALYTIC-ORBIT's first attempt measure
+    byte-identical.
+  · **Nothing was changed.** Which backdrop ships by default, whether curtains start drawn,
+    and whether the sun-driven sky should be simple-tier are CONTENT/PRODUCT decisions, not
+    rendering defects — and meta-rule (xiii) is a rule about not hiding a fix behind a pro
+    flag, not a licence to re-tier someone else's feature unilaterally. Recorded so the
+    trade-off is visible: the app has a sun-following exterior and the default user does not
+    see it, behind curtains they must open first.
 - **Backdrops paint `scene.background` only — never `scene.environment`.** Walk-mode
   surroundings (`SceneBackdrop.tsx`) bake an equirect into `scene.background`; the static photo
   presets (`backdropEquirect.ts`/`backdropHorizon.ts`) and the sun-driven `sky` (RD-412,
