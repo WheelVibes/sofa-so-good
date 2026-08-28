@@ -187,7 +187,7 @@ describe('history slice', () => {
       // Right after a load, baseline == the active plan.
       expect(s().baselinePlan).toEqual(planA)
 
-      s().newFloorPlan('Plan B')
+      s().newFloorPlan({ name: 'Plan B', shell: true })
       const planB = s().floorPlan
       expect(planB.walls).not.toEqual(planA.walls) // genuinely different geometry
       expect(s().baselinePlan).toEqual(planB)
@@ -208,7 +208,7 @@ describe('history slice', () => {
     it('redo re-applies the later baselinePlan along with floorPlan', () => {
       s().clearHistory()
       const planA = s().floorPlan
-      s().newFloorPlan('Plan B')
+      s().newFloorPlan({ name: 'Plan B', shell: true })
       const planB = s().floorPlan
       s().undo()
       s().redo()
@@ -230,9 +230,9 @@ describe('history slice', () => {
     it('multiple loads in a row undo back through each prior baseline correctly', () => {
       s().clearHistory()
       const planA = s().floorPlan
-      s().newFloorPlan('Plan B')
+      s().newFloorPlan({ name: 'Plan B', shell: true })
       const planB = s().floorPlan
-      s().newFloorPlan('Plan C')
+      s().newFloorPlan({ name: 'Plan C', shell: true })
       const planC = s().floorPlan
       expect(s().baselinePlan).toEqual(planC)
       s().undo() // back to B
@@ -515,7 +515,7 @@ describe('HistorySnapshot completeness guard (TEST-4)', () => {
       s().clearHistory()
       const beforePlan = s().floorPlan
       const beforeBaseline = s().baselinePlan
-      s().newFloorPlan('Plan B')
+      s().newFloorPlan({ name: 'Plan B', shell: true })
       expect(s().floorPlan).not.toEqual(beforePlan)
       expect(s().baselinePlan).toEqual(s().floorPlan)
       s().undo()

@@ -92,8 +92,10 @@ describe('applyAiPlanDraft (store apply path — no network)', () => {
     })
     expect(counts).toEqual({ walls: 2, openings: 2, rooms: 0 })
     const plan = useStore.getState().floorPlan
-    // A fresh plan seeds 4 shell walls; the 2 AI walls are added on top.
-    expect(plan.walls).toHaveLength(6)
+    // The AI draft starts from an EMPTY canvas, so the plan holds exactly the
+    // walls the model returned — it used to inherit the 4 starter-shell walls
+    // and draft on top of them.
+    expect(plan.walls).toHaveLength(2)
     expect(plan.openings).toHaveLength(2)
     const kinds = plan.openings.map((o) => o.kind).sort()
     expect(kinds).toEqual(['door', 'window'])

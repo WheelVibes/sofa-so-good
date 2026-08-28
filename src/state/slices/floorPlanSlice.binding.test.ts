@@ -60,7 +60,7 @@ describe('room rename re-flows auto-named walls / doors / windows', () => {
 
   it('renaming a room renames its auto-named boundary walls + openings, but not custom-named ones', () => {
     const s = useStore.getState()
-    s.newFloorPlan('Naming test')
+    s.newFloorPlan({ name: 'Naming test', shell: true })
     // A closed square room boundary.
     const top = s.addWall({ start: [0, 0], end: [4, 0], thickness: 'internal' })
     s.addWall({ start: [4, 0], end: [4, 4], thickness: 'internal' })
@@ -99,7 +99,7 @@ describe('opening name edit clears the auto flag', () => {
   beforeEach(() => useStore.getState().__resetForTest())
   it('updateOpening with nameAuto: undefined makes the name permanent', () => {
     const s = useStore.getState()
-    s.newFloorPlan('x')
+    s.newFloorPlan({ name: 'x', shell: true })
     const wid = s.addWall({ start: [0, 0], end: [4, 0], thickness: 'internal' })
     const oid = s.addOpening({
       kind: 'window',

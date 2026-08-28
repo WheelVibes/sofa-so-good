@@ -22,6 +22,7 @@ import {
 } from '../../floorplan/mepPoints'
 import { mirrorPlanRegion } from '../../floorplan/mirrorPlanRegion'
 import { DEFAULT_PLAN_ID } from '../../floorplan/planGeometry'
+import { rehomeStrandedItems } from '../../floorplan/rehomeItems'
 import { type RescaleOptions, type RescaleSpec, rescalePlan } from '../../floorplan/rescalePlan'
 import {
   assignRoomOpeningNames,
@@ -52,6 +53,7 @@ import {
   wallLength,
 } from '../../floorplan/types'
 import { joinAdjacentWalls, reverseWallGeometry } from '../../floorplan/wallOps'
+import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import { buildMergedCatalog } from '../../furniture/catalog'
 import { deriveElectricalPoints, derivePlumbingPoints } from '../../furniture/mepSuggest'
 import { buildLightingPlan } from '../../lighting2d/lightingPlan'
@@ -223,14 +225,32 @@ export interface FloorPlanSlice {
   /** Remove a saved plan from the library. */
   deleteSavedPlan: (id: string) => void
 
+  /** LOW-LEVEL plan swap: no history push, no furniture handling. Prefer
+   *  {@link replaceFloorPlan}, which is the guarded path every user-facing
+   *  "load / reset / new plan" goes through; this exists for callers that
+   *  already own the history step and the furniture (the SH3D import, the AI
+   *  draft builder, dev/test seeding). */
   setFloorPlan: (plan: FloorPlan) => void
   setFloorPlanEditing: (open: boolean) => void
   toggleFloorPlanEditing: () => void
   setPlanSelection: (sel: PlanSelection) => void
-  /** Reset the active plan back to the default HDB flat. */
+  /**
+   * THE plan-replacement path. One undo step covers the plan, the finishes
+   * pruning and the furniture, so any "load / reset / new" is a single Ctrl+Z.
+   *
+   * `furniture` says what happens to the pieces already placed — there is no
+   * third option, because leaving them untouched is what stranded them:
+   *  - `'clear'` — empty the scene (a fresh start: New, apply a template).
+   *  - `'rehome'` — keep them, pulling anything now outside a room back inside
+   *    (`floorplan/rehomeItems.ts`; reset to the default flat, load a saved
+   *    apartment — the layout is still meaningful, it just needs nudging).
+   */
+  replaceFloorPlan: (plan: FloorPlan, opts: { furniture: 'clear' | 'rehome' }) => void
+  /** Reset the active plan back to the default HDB flat (furniture re-homed). */
   resetFloorPlan: () => void
-  /** Replace the active plan with a fresh blank room shell. */
-  newFloorPlan: (name?: string) => void
+  /** Replace the active plan with a fresh one and clear the furniture.
+   *  `shell: true` seeds a 5.4 × 4.4 m starter room instead of a bare canvas. */
+  newFloorPlan: (opts?: { name?: string; shell?: boolean }) => void
   /** Patch the top-level plan metadata (name, ceilingHeight, extent, wallColor). */
   updateFloorPlanMeta: (
     patch: Partial<
@@ -460,8 +480,26 @@ export const FLOOR_PLAN_INITIAL: Pick<
   savedPlans: [],
 }
 
-/** A minimal starter plan: one 5×4 m room inside a 5.4×4.4 m external shell. */
-function blankPlan(name: string): FloorPlan {
+/** A TRULY empty plan — no walls, no rooms, no openings. `extent` still carries
+ *  a sensible canvas size so every bounds/camera-framing consumer
+ *  (`planBounds`, the dollhouse fit) has finite numbers to work with while the
+ *  user draws the first wall. */
+function emptyPlan(name: string, extent: PlanVec2 = [8, 6]): FloorPlan {
+  return {
+    id: planId('plan'),
+    name,
+    ceilingHeight: 2.6,
+    extent: [extent[0], extent[1]],
+    walls: [],
+    openings: [],
+    rooms: [],
+  }
+}
+
+/** A minimal starter plan: one 5×4 m room inside a 5.4×4.4 m external shell.
+ *  The alternative to {@link emptyPlan} for "New" — something to push around
+ *  rather than a bare canvas. */
+function starterShellPlan(name: string): FloorPlan {
   const W = 5.4
   const D = 4.4
   const t: PlanWall['thickness'] = 'external'
@@ -514,17 +552,9 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   loadSavedPlan: (id) => {
     const found = get().savedPlans.find((p) => p.id === id)
     if (!found) return
-    // Snapshot first so loading a saved plan over the current one is undoable.
-    get().pushHistory()
-    set((s) => {
-      const fresh = clonePlan(found)
-      return {
-        floorPlan: fresh,
-        baselinePlan: clonePlan(found),
-        planSelection: null,
-        finishes: pruneFinishesForPlan(s.finishes, fresh),
-      }
-    })
+    // The saved apartment is a real layout, so keep the furniture and re-home
+    // whatever its rooms no longer cover.
+    get().replaceFloorPlan(clonePlan(found), { furniture: 'rehome' })
   },
   deleteSavedPlan: (id) => set((s) => ({ savedPlans: s.savedPlans.filter((p) => p.id !== id) })),
   // Opening or closing the editor starts with a clean slate — clear any element
@@ -636,30 +666,40 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       })),
     }))
   },
-  resetFloorPlan: () => {
-    // Snapshot first so "Reset to HDB" is undoable — otherwise a hand-built
-    // custom plan is destroyed with no way back.
+  replaceFloorPlan: (plan, { furniture }) => {
+    // ONE snapshot for the whole swap, so plan + furniture undo together and a
+    // hand-built design is never destroyed with no way back (BUG-013).
     get().pushHistory()
-    const fresh = buildDefaultPlan()
     set((s) => ({
-      floorPlan: fresh,
-      baselinePlan: clonePlan(fresh),
+      floorPlan: plan,
+      baselinePlan: clonePlan(plan),
       planSelection: null,
-      finishes: pruneFinishesForPlan(s.finishes, fresh),
+      selectedWallIds: [],
+      finishes: pruneFinishesForPlan(s.finishes, plan),
+      // Furniture is stored in WORLD coordinates with no room back-pointer, so
+      // it cannot simply be left alone across a plan swap: either it goes, or
+      // it gets pulled back inside the new rooms.
+      ...(furniture === 'clear'
+        ? { items: [], selectedItemId: null, selectedItemIds: [], hiddenItemIds: [] }
+        : {
+            items: rehomeStrandedItems(plan, s.items, {
+              skip: (defId) => {
+                const def = BUILTIN_CATALOG[defId]
+                return !!def?.mounted || !!def?.noClip
+              },
+            }),
+          }),
     }))
   },
-  newFloorPlan: (name = 'New apartment') => {
-    // Snapshot first so starting a blank plan is undoable — consistent with
-    // resetFloorPlan / loadSavedPlan; otherwise the prior plan is lost with no
-    // way back (BUG-013).
-    get().pushHistory()
-    const fresh = blankPlan(name)
-    set((s) => ({
-      floorPlan: fresh,
-      baselinePlan: clonePlan(fresh),
-      planSelection: null,
-      finishes: pruneFinishesForPlan(s.finishes, fresh),
-    }))
+  resetFloorPlan: () => {
+    get().replaceFloorPlan(buildDefaultPlan(), { furniture: 'rehome' })
+  },
+  newFloorPlan: ({ name = 'New apartment', shell = false } = {}) => {
+    // A new plan means a new home: the previous layout has no meaning against
+    // geometry that no longer exists, so the scene starts empty.
+    get().replaceFloorPlan(shell ? starterShellPlan(name) : emptyPlan(name), {
+      furniture: 'clear',
+    })
   },
   updateFloorPlanMeta: (patch) => {
     get().pushHistoryCoalesced('plan-meta')

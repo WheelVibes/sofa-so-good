@@ -32,6 +32,12 @@ import { openSh3dImport } from '../../openSh3dImport'
 import { openSh3fImport } from '../../openSh3fImport'
 import { openShoppingList } from '../../openShoplist'
 import { openTradePack } from '../../openTradePack'
+import {
+  confirmClearFurniture,
+  confirmResetPlanToDefault,
+  confirmRestoreDemoFurniture,
+  openNewPlan,
+} from '../../planActions'
 import { TRADE_PACKS } from '../../tradePacks'
 import { viewInAr } from '../../viewInAr'
 import { exportGroupLabel } from '../exportGroupLabel'
@@ -57,8 +63,7 @@ export function FileMenu() {
   const fRenderCompare = useFeature('renderCompare')
   const fStagingReveal = useFeature('stagingReveal')
   const fTimeCompare = useFeature('timeCompare')
-  const resetToDefault = useStore((s) => s.resetToDefault)
-  const resetToEmpty = useStore((s) => s.resetToEmpty)
+  const fPlanReset = useFeature('planReset')
   const fShare = useFeature('shareExport')
   const fMoodboard = useFeature('moodboard')
   const fReport = useFeature('report')
@@ -427,32 +432,37 @@ export function FileMenu() {
           onClick={() => openSh3fImport()}
         />
       ) : null}
+      {/* PLAN-level resets. These were reachable only from inside the 2D editor,
+          while the two FURNITURE-level ones below sat here labelled "Default" /
+          "Empty" — wording that reads like a plan reset but only ever touched
+          furniture. Both levels now live together, each saying which it is. */}
+      {fPlanReset ? (
+        <>
+          <MenuItem
+            icon="FloorPlan"
+            label="New apartment…"
+            sub="Empty canvas or starter room — clears furniture"
+            onClick={openNewPlan}
+          />
+          <MenuItem
+            icon="Reset"
+            label="Reset apartment…"
+            sub="Back to the default HDB 4-room plan"
+            onClick={() => void confirmResetPlanToDefault()}
+          />
+        </>
+      ) : null}
       <MenuItem
         icon="Reset"
-        label="Default"
-        sub="Reset to the floor-plan default"
-        onClick={async () => {
-          const ok = await useStore.getState().confirmAction({
-            title: 'Reset to default',
-            message: 'Reset to the floor-plan default? You can undo this with Ctrl/⌘+Z.',
-            confirmLabel: 'Reset',
-          })
-          if (ok) resetToDefault()
-        }}
+        label="Restore demo furniture…"
+        sub="The move-in layout — plan unchanged"
+        onClick={() => void confirmRestoreDemoFurniture()}
       />
       <MenuItem
-        icon="Reset"
-        label="Empty"
-        sub="Clear all furniture"
-        onClick={async () => {
-          const ok = await useStore.getState().confirmAction({
-            title: 'Clear all furniture',
-            message: 'Remove every placed item? You can undo this with Ctrl/⌘+Z.',
-            confirmLabel: 'Clear all',
-            danger: true,
-          })
-          if (ok) resetToEmpty()
-        }}
+        icon="Trash"
+        label="Clear furniture…"
+        sub="Remove every placed item — plan unchanged"
+        onClick={() => void confirmClearFurniture()}
       />
       {slots.length === 0 ? (
         <EmptyState {...SAVED_EMPTY.layouts} />

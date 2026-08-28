@@ -36,7 +36,7 @@ describe('floorPlanSlice', () => {
   })
 
   it('moveWallTo drags a wall and keeps connected walls joined at the corner', () => {
-    useStore.getState().newFloorPlan('Connectivity test')
+    useStore.getState().newFloorPlan({ name: 'Connectivity test', shell: true })
     // Two walls meeting at the corner (2,0): A = (0,0)->(2,0), B = (2,0)->(2,2).
     const a = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
     const b = useStore.getState().addWall({ start: [2, 0], end: [2, 2], thickness: 'internal' })
@@ -52,7 +52,7 @@ describe('floorPlanSlice', () => {
   })
 
   it('keeps a locked wall anchored when a connected wall is moved (detaches at the corner)', () => {
-    useStore.getState().newFloorPlan('Lock connectivity test')
+    useStore.getState().newFloorPlan({ name: 'Lock connectivity test', shell: true })
     // A = (0,0)->(2,0), B = (2,0)->(2,2) meet at (2,0). Lock B.
     const a = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
     const b = useStore.getState().addWall({ start: [2, 0], end: [2, 2], thickness: 'internal' })
@@ -69,7 +69,7 @@ describe('floorPlanSlice', () => {
   })
 
   it('refuses to drag a locked wall itself (moveWallTo / moveWallVertex are no-ops)', () => {
-    useStore.getState().newFloorPlan('Lock self test')
+    useStore.getState().newFloorPlan({ name: 'Lock self test', shell: true })
     const a = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
     useStore.getState().setWallsLocked([a], true)
     useStore.getState().moveWallTo(a, [5, 5], [7, 5])
@@ -82,7 +82,7 @@ describe('floorPlanSlice', () => {
   })
 
   it('renames the ground floor (groundName) and an upper level', () => {
-    useStore.getState().newFloorPlan('Rename levels')
+    useStore.getState().newFloorPlan({ name: 'Rename levels', shell: true })
     const up = useStore.getState().addLevel()
     useStore.getState().renameLevel('ground', 'Level 1')
     useStore.getState().renameLevel(up, 'Roof')
@@ -92,7 +92,7 @@ describe('floorPlanSlice', () => {
   })
 
   it('addLevel stacks the new storey off the level below its OWN ceiling height (BUG-6 class)', () => {
-    useStore.getState().newFloorPlan('AddLevel stacking')
+    useStore.getState().newFloorPlan({ name: 'AddLevel stacking', shell: true })
     const a = useStore.getState().addLevel()
     // Give the first upper storey a tall ceiling, distinct from the 2.6 ground.
     useStore.setState((s) => ({
@@ -112,7 +112,7 @@ describe('floorPlanSlice', () => {
   })
 
   it('duplicateLevel stacks the copy off the level below its own ceiling height', () => {
-    useStore.getState().newFloorPlan('DuplicateLevel stacking')
+    useStore.getState().newFloorPlan({ name: 'DuplicateLevel stacking', shell: true })
     const a = useStore.getState().addLevel()
     useStore.setState((s) => ({
       floorPlan: {
@@ -130,7 +130,7 @@ describe('floorPlanSlice', () => {
   })
 
   it('shortening a wall by dragging re-clamps its openings to stay on the wall (BUG: wall-drag opening drift)', () => {
-    useStore.getState().newFloorPlan('Opening clamp')
+    useStore.getState().newFloorPlan({ name: 'Opening clamp', shell: true })
     // A 4 m wall from (0,0) to (4,0) with a 0.9 m door near the far end (offset 3.0).
     const w = useStore.getState().addWall({ start: [0, 0], end: [4, 0], thickness: 'internal' })
     const o = useStore.getState().addOpening({
@@ -150,7 +150,7 @@ describe('floorPlanSlice', () => {
   })
 
   it('reorders upper levels and re-stacks their elevations', () => {
-    useStore.getState().newFloorPlan('Reorder levels')
+    useStore.getState().newFloorPlan({ name: 'Reorder levels', shell: true })
     const a = useStore.getState().addLevel() // first upper (lowest)
     const b = useStore.getState().addLevel() // second upper (highest)
     const before = useStore.getState().floorPlan.upperLevels ?? []
@@ -167,7 +167,7 @@ describe('floorPlanSlice', () => {
   })
 
   it('moveLevel re-stacks elevations off the level BELOW, not each level’s own ceiling (BUG-6)', () => {
-    useStore.getState().newFloorPlan('Restack test')
+    useStore.getState().newFloorPlan({ name: 'Restack test', shell: true })
     // Ground ceiling defaults to 2.6 (blankPlan). Three upper storeys with
     // distinct ceiling heights, none equal to the ground's — a bug that swaps
     // "own ceiling" for "ceiling of the level below" changes every elevation.
@@ -209,7 +209,7 @@ describe('floorPlanSlice', () => {
   })
 
   it('duplicates a wall as a new, unlocked, unnamed copy offset from the source', () => {
-    useStore.getState().newFloorPlan('Dup wall test')
+    useStore.getState().newFloorPlan({ name: 'Dup wall test', shell: true })
     const id = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
     useStore.getState().updateWall(id, { name: 'Custom', locked: true })
     const newId = useStore.getState().duplicateWall(id)
@@ -223,7 +223,7 @@ describe('floorPlanSlice', () => {
   })
 
   it('duplicates an opening onto the same wall, nudged along it and clamped', () => {
-    useStore.getState().newFloorPlan('Dup opening test')
+    useStore.getState().newFloorPlan({ name: 'Dup opening test', shell: true })
     const wid = useStore.getState().addWall({ start: [0, 0], end: [4, 0], thickness: 'internal' })
     const oid = useStore
       .getState()
@@ -237,7 +237,7 @@ describe('floorPlanSlice', () => {
   })
 
   it('BUG-7: widening an opening near a wall end re-clamps its offset to stay on the wall', () => {
-    useStore.getState().newFloorPlan('Widen opening test')
+    useStore.getState().newFloorPlan({ name: 'Widen opening test', shell: true })
     // Wall is 2 m; door starts at 1.5 with width 0.4 — ends flush at 1.9.
     const wid = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
     const oid = useStore
@@ -269,7 +269,7 @@ describe('floorPlanSlice', () => {
   })
 
   it('auto-names boundary walls on room allocation, never overriding a custom name', () => {
-    useStore.getState().newFloorPlan('Naming test')
+    useStore.getState().newFloorPlan({ name: 'Naming test', shell: true })
     for (const w of [...useStore.getState().floorPlan.walls]) useStore.getState().removeWall(w.id)
     // Four walls tracing a 4×3 rectangle.
     const top = useStore.getState().addWall({ start: [0, 0], end: [4, 0], thickness: 'internal' })
@@ -299,7 +299,7 @@ describe('floorPlanSlice', () => {
   })
 
   it('multi-selects walls, then bulk-locks and bulk-deletes them', () => {
-    useStore.getState().newFloorPlan('Multi test')
+    useStore.getState().newFloorPlan({ name: 'Multi test', shell: true })
     for (const w of [...useStore.getState().floorPlan.walls]) useStore.getState().removeWall(w.id)
     const a = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
     const b = useStore.getState().addWall({ start: [2, 0], end: [2, 2], thickness: 'internal' })
@@ -335,7 +335,7 @@ describe('floorPlanSlice', () => {
   })
 
   it('setPlanMarqueeSelection populates item + wall selections atomically', () => {
-    useStore.getState().newFloorPlan('Marquee test')
+    useStore.getState().newFloorPlan({ name: 'Marquee test', shell: true })
     for (const w of [...useStore.getState().floorPlan.walls]) useStore.getState().removeWall(w.id)
     const w1 = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
     const w2 = useStore.getState().addWall({ start: [2, 0], end: [2, 2], thickness: 'internal' })
@@ -361,7 +361,7 @@ describe('floorPlanSlice', () => {
   })
 
   it('a plain selection clears the multi-selection extras', () => {
-    useStore.getState().newFloorPlan('Multi clear test')
+    useStore.getState().newFloorPlan({ name: 'Multi clear test', shell: true })
     const a = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
     const b = useStore.getState().addWall({ start: [2, 0], end: [2, 2], thickness: 'internal' })
     useStore.getState().setPlanSelection({ type: 'wall', id: a })
@@ -393,7 +393,7 @@ describe('floorPlanSlice', () => {
 
   it('splits a wall into two segments at the midpoint, re-homing openings', () => {
     const s = useStore.getState()
-    s.newFloorPlan('Split test')
+    s.newFloorPlan({ name: 'Split test', shell: true })
     const wid = useStore.getState().addWall({ start: [0, 0], end: [4, 0], thickness: 'internal' })
     // One opening on the first half, one on the second half.
     const oA = useStore
@@ -422,7 +422,7 @@ describe('floorPlanSlice', () => {
 
   it('moveWallVertex drags shared corner endpoints together', () => {
     const s = useStore.getState()
-    s.newFloorPlan('Corner test')
+    s.newFloorPlan({ name: 'Corner test', shell: true })
     // Two walls meeting at [2,0].
     const w1 = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
     const w2 = useStore.getState().addWall({ start: [2, 0], end: [2, 2], thickness: 'internal' })
@@ -439,7 +439,7 @@ describe('floorPlanSlice', () => {
 
   it('saves the active plan to the library and loads it back', () => {
     const s = useStore.getState()
-    s.newFloorPlan('Test Apartment')
+    s.newFloorPlan({ name: 'Test Apartment', shell: true })
     s.updateFloorPlanMeta({ name: 'Test Apartment' })
     const savedId = s.saveCurrentPlan('Test Apartment')
     expect(useStore.getState().savedPlans.some((p) => p.id === savedId)).toBe(true)
@@ -452,7 +452,7 @@ describe('floorPlanSlice', () => {
 
   it('makes Reset to HDB undoable (restores the custom plan)', () => {
     const s = useStore.getState()
-    s.newFloorPlan('My Custom Flat')
+    s.newFloorPlan({ name: 'My Custom Flat', shell: true })
     expect(useStore.getState().floorPlan.name).toBe('My Custom Flat')
     s.resetFloorPlan()
     expect(useStore.getState().floorPlan.id).toBe('default-hdb-4room')
@@ -462,9 +462,9 @@ describe('floorPlanSlice', () => {
 
   it('makes loading a saved plan undoable', () => {
     const s = useStore.getState()
-    s.newFloorPlan('Plan A')
+    s.newFloorPlan({ name: 'Plan A', shell: true })
     const idA = s.saveCurrentPlan('Plan A')
-    s.newFloorPlan('Plan B') // current working plan
+    s.newFloorPlan({ name: 'Plan B', shell: true }) // current working plan
     useStore.getState().loadSavedPlan(idA)
     expect(useStore.getState().floorPlan.name).toBe('Plan A')
     useStore.getState().undo()
@@ -473,7 +473,7 @@ describe('floorPlanSlice', () => {
 
   it('re-saving under the same name updates rather than duplicates', () => {
     const s = useStore.getState()
-    s.newFloorPlan('Dupe')
+    s.newFloorPlan({ name: 'Dupe', shell: true })
     s.saveCurrentPlan('Dupe')
     s.saveCurrentPlan('Dupe')
     expect(useStore.getState().savedPlans.filter((p) => p.name === 'Dupe').length).toBe(1)
@@ -750,7 +750,7 @@ describe('per-storey editing — level routing for the 2D editor (F13/ML4b)', ()
   })
 
   it('duplicateRoom adds one room + its own offset boundary walls, selects it, one undo step', () => {
-    useStore.getState().newFloorPlan('Dup room test')
+    useStore.getState().newFloorPlan({ name: 'Dup room test', shell: true })
     for (const w of [...useStore.getState().floorPlan.walls]) useStore.getState().removeWall(w.id)
     // Four walls tracing a 4×3 rectangle + a room over them.
     useStore.getState().addWall({ start: [0, 0], end: [4, 0], thickness: 'internal' })
@@ -797,7 +797,7 @@ describe('mirrorFloorPlan (PARITY-PLAN-MIRROR-REGION)', () => {
   beforeEach(() => useStore.getState().__resetForTest())
 
   it('mirrors plan walls + furniture about an explicit axis in ONE undo step', () => {
-    useStore.getState().newFloorPlan('Mirror test')
+    useStore.getState().newFloorPlan({ name: 'Mirror test', shell: true })
     useStore.getState().setItems([])
     const wid = useStore.getState().addWall({ start: [1, 1], end: [3, 1], thickness: 'internal' })
     // One furniture item to mirror alongside the walls.
@@ -843,7 +843,7 @@ describe('mirrorFloorPlan (PARITY-PLAN-MIRROR-REGION)', () => {
   })
 
   it('double-mirror about the same axis restores the plan (composition)', () => {
-    useStore.getState().newFloorPlan('Double mirror')
+    useStore.getState().newFloorPlan({ name: 'Double mirror', shell: true })
     const wid = useStore.getState().addWall({ start: [0, 0], end: [2, 2], thickness: 'internal' })
     const wBefore = useStore.getState().floorPlan.walls.find((w) => w.id === wid)!
     useStore.getState().mirrorFloorPlan(3)
@@ -861,7 +861,7 @@ describe('mirrorFloorPlan (PARITY-PLAN-MIRROR-REGION)', () => {
   })
 
   it('defaults the axis to the plan centre-X when unset', () => {
-    useStore.getState().newFloorPlan('Centre mirror')
+    useStore.getState().newFloorPlan({ name: 'Centre mirror', shell: true })
     const wid = useStore.getState().addWall({ start: [1, 0], end: [3, 0], thickness: 'internal' })
     useStore.getState().mirrorFloorPlan()
     // Mirror runs without throwing and reflects the wall (X changes, Z fixed).

@@ -26,6 +26,7 @@ import {
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import { allPlanRooms, GROUND_LEVEL_ID, levelAsPlan, planLevels } from '../floorplan/levels'
 import { isDefaultPlan } from '../floorplan/planGeometry'
+import { rehomeStrandedItems } from '../floorplan/rehomeItems'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import { defaultLayout } from '../furniture/defaultLayout'
 import { clampCustomMetaEntries } from '../furniture/itemMetaLimits'
@@ -939,49 +940,11 @@ export function applySerialized(
   // void strip. Such an item is clamped to the nearest point inside its
   // nearest room (inset 0.3 m so its body lands inside too). Items inside any
   // room (with a small tolerance for wall-flush placement) are untouched.
-  const OUT_TOL = 0.2
-  const rehomeStranded = (
-    it: SerializedState['items'][number],
-  ): SerializedState['items'][number] => {
-    const def = BUILTIN_CATALOG[it.defId]
-    if (def?.mounted || def?.noClip) return it
-    const lp = levelPlans.get(it.levelId ?? GROUND_LEVEL_ID) ?? levelPlans.get(GROUND_LEVEL_ID)
-    if (!lp || lp.rooms.length === 0) return it
-    const [x, z] = it.position
-    const rects = lp.rooms.flatMap((r) => {
-      const main = {
-        x0: r.origin[0],
-        z0: r.origin[1],
-        x1: r.origin[0] + r.width,
-        z1: r.origin[1] + r.depth,
-      }
-      if (!r.extension) return [main]
-      const ex = r.origin[0] + r.extension.offset[0]
-      const ez = r.origin[1] + r.extension.offset[1]
-      return [main, { x0: ex, z0: ez, x1: ex + r.extension.width, z1: ez + r.extension.depth }]
-    })
-    const inside = rects.some(
-      (rc) =>
-        x >= rc.x0 - OUT_TOL &&
-        x <= rc.x1 + OUT_TOL &&
-        z >= rc.z0 - OUT_TOL &&
-        z <= rc.z1 + OUT_TOL,
-    )
-    if (inside) return it
-    // Clamp to the nearest room rect, inset so the item's body lands inside.
-    let best: [number, number] | null = null
-    let bestD = Number.POSITIVE_INFINITY
-    for (const rc of rects) {
-      const inset = Math.min(0.3, (rc.x1 - rc.x0) / 2, (rc.z1 - rc.z0) / 2)
-      const cx = Math.min(Math.max(x, rc.x0 + inset), rc.x1 - inset)
-      const cz = Math.min(Math.max(z, rc.z0 + inset), rc.z1 - inset)
-      const d = Math.hypot(cx - x, cz - z)
-      if (d < bestD) {
-        bestD = d
-        best = [cx, cz]
-      }
-    }
-    return best ? { ...it, position: best } : it
+  // Wall-mounted / no-clip pieces are anchored to something other than the
+  // floor, so "outside every room" is normal for them — never move those.
+  const skipRehome = (defId: string) => {
+    const def = BUILTIN_CATALOG[defId]
+    return !!def?.mounted || !!def?.noClip
   }
   const rehomeWindowBound = (
     it: SerializedState['items'][number],
@@ -999,11 +962,11 @@ export function applySerialized(
   // `z.number()` admits NaN/Infinity, so a corrupt or hand-edited save could
   // otherwise feed NaN into the Three.js matrices and break (or crash-loop)
   // the whole renderer.
-  const items = state.items
+  const itemsBeforeRehome = state.items
     .filter((it) => knownDefIds.has(it.defId) && hasFiniteItemTransform(it))
     .map(rehomeWindowBound)
     .filter((it): it is SerializedState['items'][number] => it != null)
-    .map(rehomeStranded)
+  const items = rehomeStrandedItems(plan, itemsBeforeRehome, { skip: skipRehome })
   // Backfill default-layout items a NEWER defaults revision introduced (e.g.
   // the W1 bedroom curtains): only for saves of the DEFAULT flat that still
   // carry default-layout furnishing, and only for revisions this save hasn't
