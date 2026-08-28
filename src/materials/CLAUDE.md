@@ -964,3 +964,34 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
     **98.97% of pixels, meanAbsDiff 96.37** and looked like a colossal metalness effect. An
     implausibly LARGE result needs proving exactly as much as a null one. Pin
     `setTimeMode('manual')` + `setManualHour(h)` at the top of every probe.
+- **CLONE AUDIT — every persistent clone of a cached finish, checked (v0.31.5.40, CLEAN).**
+  Two consecutive defects (WALL-FACE-CLONE-STALE .38, PROCEDURAL-BAKE-STALE .39) came from a
+  material resolved or cloned before PERF-C's worker upgrade landed, so the remaining
+  `.clone()` sites were swept rather than assumed. **Nothing else is stale**, and the
+  strongest single piece of evidence is global: `PROCEDURAL_QUICK_PREVIEW_SIZE` is **64**, no
+  legitimate texture in this app is 64², and after .38/.39 the default flat's scene histogram
+  contains **no 64² texture at all**. Any stranded clone would appear there.
+  Site by site, with the reason each is exempt — check these before adding a new one:
+  · `apartment/Door.tsx` / `apartment/PlanDoorLeaf.tsx` — clone `getVinylMaterial` /
+    `getWoodMaterial` / `getMetalMaterial` / `getPaintedMaterial`, which bake their maps
+    SYNCHRONOUSLY in `furnitureMaterials.ts` and are never worker-swapped. Exempt by source,
+    not by timing.
+  · `apartment/walls/useWallReveal.ts` — persistent per-mesh clone, safe on timing only. See
+    CLONE-AUDIT in `src/apartment/CLAUDE.md`; do not restate it as "transient".
+  · `furniture/Furniture.tsx` — the drag ghost clones whatever the mesh currently holds and
+    restores on drop; genuinely transient, and by drag time the upgrade has landed.
+  · **`getFurnitureMatWithRepeat` is the highest-risk site left, and it is where to look
+    first if this ever recurs.** It clones the base material AND each texture, then caches
+    the result globally per `(id, repeat)` — so unlike a component clone it can never be
+    rebuilt by a re-render, and wood always routes through it ("always serve the softened
+    clone for wood, even at r≈1"). It is clean today only because furniture materials are
+    pre-built by `FurnitureMaterialLoader` and upgraded before any repeat variant is asked
+    for. Verified live: applying a `mat:` finish to six items with `updateItemProps` and
+    re-reading the DRAWN map size at t+120 ms / t+4 s / t+10 s gives **1024²** throughout
+    (`scripts/dev-probes/finish-apply.mjs`) — that finish is a photo/DLC material, so no
+    preview is involved at all.
+  The general rule this leaves: **a clone is only exempt if its SOURCE is never
+  asynchronously swapped.** "It gets restored later" and "it is only used briefly" are not
+  exemptions — the first says nothing about the clone's lifetime, and the second is a timing
+  argument that a slower machine can invalidate.
+

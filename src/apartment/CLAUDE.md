@@ -80,4 +80,26 @@ Full code map in `docs/ARCHITECTURE.md`.
   restored to the original when the wall goes opaque); `PlanDoorLeaf`/`Door` clone non-
   procedural bases. A new one that persists must use the hook, or it will silently ship a
   64² surface that no test and no tier setting will reveal.
+- **The wall-reveal fade clone is PERSISTENT, not transient — it is safe on TIMING, and
+  that distinction is the whole point of this note (CLONE-AUDIT, v0.31.5.40).** An earlier
+  revision of the WALL-FACE-CLONE-STALE bullet above excused `useWallReveal`'s clones as
+  "transient (created on fade, restored to the original when the wall goes opaque)". The
+  restore is real, but the CLONE is not thrown away: it is created on the FIRST fade and
+  cached in a `fadeStateRef` WeakMap for the mesh's lifetime, deliberately, so a React
+  re-render cannot strand a wall on its opaque original mid-fade. So it is exactly the
+  shape meta-rule (xli) warns about — and if it were created inside PERF-C's ~80 ms
+  pre-upgrade window it would show 64² preview maps on every fade for the rest of the
+  session, in the DEFAULT orbit view.
+  **Measured, it does not happen** (`scripts/dev-probes/fade-clone.mjs`, which censuses
+  every mid-fade material at boot framing, mid-drag and after the drag, labelling each by
+  TEXTURE uuid against the cache's own builds). Of **123 mid-fade materials** the only
+  procedural finish map is `wall-tile-white@512` — the correct upgraded generation — and
+  there is no 64² anywhere. The reason is ordering: the first fade happens after boot
+  framing settles, long after the ~80 ms upgrade. Most fading surfaces carry no map at all
+  (plain wall bodies, glass), because WALL-FADE-OVERLAY-CULL hides the textured interior
+  face plane for the duration of the fade.
+  **Do not re-file this as safe-because-transient.** It is safe because of a timing margin,
+  and a timing margin is not a guarantee — a slower first paint, a larger bake, or a fade
+  triggered earlier would flip it. Nothing was changed (a fix that moves no metric does not
+  ship, meta-rule ii), but if a stale fade ever appears, this is the mechanism.
 

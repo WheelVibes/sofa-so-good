@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.40 — clone audit: no further stale materials (docs + probes, no behaviour change)
+
+Two consecutive defects (v0.31.5.38 wall faces, v0.31.5.39 floors) came from a material
+resolved or cloned before PERF-C's worker texture upgrade landed, so every remaining
+persistent `.clone()` of a cached finish was swept rather than assumed safe. **Nothing
+else is stale.** No code changed — a fix that moves no metric does not ship.
+
+The strongest evidence is global: `PROCEDURAL_QUICK_PREVIEW_SIZE` is 64, no legitimate
+texture in the app is 64², and after .38/.39 the default flat contains **no 64² texture at
+all**. Any stranded clone would show up there.
+
+Two things are now recorded that were previously wrong or unstated:
+
+- **`useWallReveal`'s fade clones are PERSISTENT, not transient.** The clone is created on
+  the first fade and cached in a WeakMap for the mesh's lifetime (deliberately — so a React
+  re-render cannot strand a wall on its opaque original mid-fade). It is safe on TIMING, not
+  lifetime: measured across 123 mid-fade materials at boot framing, mid-drag and after the
+  drag, the only procedural finish map is `wall-tile-white@512` and there is no 64² anywhere.
+  Recording the right reason matters, because "transient" invites a future regression.
+- **`getFurnitureMatWithRepeat` is the highest-risk remaining site.** It clones the base
+  material and each texture and caches the result globally per `(id, repeat)`, so unlike a
+  component clone no re-render can ever rebuild it, and wood always routes through it. Clean
+  today only because furniture materials are pre-built and upgraded before any repeat variant
+  is requested.
+
+New probes: `fade-clone.mjs` (censuses mid-fade materials, labelled by texture uuid) and
+`finish-apply.mjs` (applies a `mat:` finish at runtime and re-reads the DRAWN map size at
+t+120 ms / t+4 s / t+10 s — 1024² throughout).
+
+
 ## v0.31.5.39 — floors were pinned to the 256² generation by a transient boot tier (PROCEDURAL-BAKE-STALE)
 
 **Fixed** — the four floor finishes in the default flat (`floor-vinyl-oak`,
