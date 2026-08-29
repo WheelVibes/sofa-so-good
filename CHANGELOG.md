@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.84 — the five open graphics decisions, written up for a one-line answer
+
+No app code changed. Every measurable axis is clean (`.77`–`.81` per-class ranking, `.82` tier
+parity, `.83` time-of-day), so the remaining work is a decision rather than a measurement. New
+`docs/open-graphics-decisions.md`, linked from the root `CLAUDE.md` docs list, presents all five
+items with: what a user would SEE in plain language, the measured evidence with probe and pose
+named, the exact change and its blast radius, what genuinely needs a human, and a recommendation.
+Nothing has been applied and nothing was decided unilaterally.
+
+**Item (a)'s blocker is cleared.** `.72` flagged "DEFAULT-GLOOM's premise may be stale" and said
+not to act until settled. Re-reading the record: `.74` had already settled it with a wall-clock
+table and a falsifying arm (13:00 vs 22:00 boot, only **2 of 133 store scalars** differ —
+`lastSavedAt` and `lightsMode`), and `.83` independently rediscovered the mechanism: the guard
+fires at first paint against the REAL wall clock before a probe switches to manual time. `.72`'s
+anomaly was that inheritance, not a changed default. Meta-rule (xvii-b), twelfth round — the answer
+to the blocker was already in the repo.
+
+**Correction to a figure this loop had been repeating (meta-rule lxiv).** PLAN-SWAP-STRANDED was
+being summarised as "strands ~37% of items". The probe table reports item COUNTS, not percentages:
+37 of 87 items for `tpl-studio` is ~43%. `floorplan/CLAUDE.md` glosses the same number as "~37% of
+the home", conflating count with percent. The counts are the measured values and are quoted as such.
+
 ## v0.31.5.83 — the boot view holds across the day; at 21:00 the lamps carry brightness, not chroma
 
 One dev-probe improvement (`chroma-audit` gains `LIGHTS=` and a resolved-state print) and a clean

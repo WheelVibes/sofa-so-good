@@ -15,7 +15,9 @@ Zustand (sliced store), Vite, Vitest, Biome.
 > `src/floorplan/`, `src/apartment/`. Other reference
 > docs: `DESIGN.md` (design-system contract — tokens, motion, naming, do/don'ts),
 > `docs/visual-verification-playbook.md`, `docs/interior-design-guidelines.md`,
-> `REFERENCES.md` (competitor apps to study), `CHANGELOG.md`/`TASKS.md`/`TODO.md`.
+> `REFERENCES.md` (competitor apps to study), `CHANGELOG.md`/`TASKS.md`/`TODO.md`,
+> `docs/open-graphics-decisions.md` (five measured graphics items awaiting a product/content
+> call — do NOT decide these unilaterally).
 
 ## Hard rules (always)
 - **Keep docs current in the same change.** After adding/removing/reshaping a system,
