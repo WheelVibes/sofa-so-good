@@ -482,6 +482,35 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   · `composerPlan()` is the pure invariant, unit-tested: **a composer mounts for every tier**;
     `full`/`ao` decide only which passes it carries, never whether it exists.
 
+- **`maximum` reviewed for the first time, and all four tiers agree on tone (TIER-SWEEP-COMPLETE,
+  v0.31.5.68).** Every visual judgement in `.20`–`.67` was made at `medium` or `performance`;
+  `maximum` is the only tier with `aoFullRes`, the full post stack, DoF and the highest
+  `envResolution`/`shadowMapSize`, and none of it had been looked at. An 11-room / 44-frame
+  `walk-tour.mjs TIER=maximum` at 13:00: **no bloom veil, no crushed blacks, no milky curve, no
+  DoF on the wrong plane.** AO grounds the corners more deeply than `medium` and the plaster reads
+  correctly; 354 visible meshes / **117,676 triangles** against medium's 87,228 (the higher
+  `geometryDetail`), 0 empty frames.
+  · **`tier-look.mjs` across all four tiers at 13:00** — the quantitative version of the same
+    question:
+
+    | tier | slab mean | contrast (σ) | clipped |
+    | --- | --- | --- | --- |
+    | performance | 180.87 | 22.07 | 0.07% |
+    | medium | 178.22 | 23.07 | 0.05% |
+    | high | 178.48 | 22.21 | 0.04% |
+    | maximum | 179.36 | 22.61 | 0.05% |
+
+    A spread of **2.7 luminance and 1.0 σ across the whole ladder**. Nobody has to worry that the
+    tiers drift apart tonally; they do not.
+  · **This also discharges the `.67` risk (meta-rule lxix).** Mounting a composer at `performance`
+    moved the view transform from `gl.toneMapping` to the `ToneMapping` PASS. If that transfer
+    were imperfect the tier would sit visibly apart in the table above — it sits within 2.7 of the
+    others, and the DARK case confirms it too: `walk-tour TIER=performance HOUR=22 LIGHTS=on` is
+    clean, walls present, fixtures reading as fixtures, no crushed blacks. Tone in the dark is
+    where a botched transfer would show first.
+  · **The `.67` fix is stable across runs**, re-measured a day-part later: `performance` 113.7,
+    `medium` 112.6 (walls present at both; the defect read ~151).
+
 - **Price a render feature in BOTH currencies, and against a measured noise floor**
   (`scripts/dev-probes/feature-price.mjs`). It applies one `qualityOverrides` change at a time and
   reports p90 frame cost in ms alongside two visual metrics. Measured at Maximum, 09:00, DPR 2,

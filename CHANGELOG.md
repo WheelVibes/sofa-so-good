@@ -5,6 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.68 — `maximum` reviewed at last, and the tier ladder is tonally consistent
+
+No code changed. Three verifications, all clean.
+
+**`maximum` had never been looked at.** Every visual judgement in this run was made at `medium` or
+`performance`, yet `maximum` is the only tier with `aoFullRes`, the full post stack, DoF and the
+highest `envResolution`/`shadowMapSize`. An 11-room / 44-frame tour at 13:00 shows **no bloom veil,
+no crushed blacks, no milky curve and no DoF on the wrong plane** — AO grounds corners more deeply
+than `medium`, plaster reads correctly, 117,676 triangles against medium's 87,228, zero empty
+frames.
+
+**All four tiers agree on tone.** `tier-look.mjs` at 13:00: slab mean 180.87 / 178.22 / 178.48 /
+179.36 for performance / medium / high / maximum, contrast 22.07–23.07, clipped 0.04–0.07%. A
+spread of 2.7 luminance across the whole ladder.
+
+**That doubles as the `.67` risk check.** Mounting a composer at `performance` moved the view
+transform from `gl.toneMapping` to the `ToneMapping` pass; an imperfect transfer would show as
+that tier sitting apart in the table above, and it does not. The dark case agrees:
+`walk-tour TIER=performance HOUR=22 LIGHTS=on` is clean — walls present, fixtures reading as
+fixtures, no crushed blacks — and tone in the dark is where a botched transfer would surface first.
+
+**The `.67` fix is stable across runs:** re-measured hours later, `performance` 113.7 and `medium`
+112.6 (the defect read ~151).
+
+**Next target, chosen by measurement rather than hunch:** the census sweeps at eye height with a
+slight downward pitch, so FLOORS barely register in it despite being underfoot in every frame.
+`floor-look.mjs` exists precisely because a 1.6 m eye at yaw-only never hits one. That is the
+largest surface class this run has never judged.
+
 ## v0.31.5.67 — a composer mounts at every tier; `performance` gets its walls back
 
 **The fix.** `Effects.tsx` used to `return null` when a tier wanted neither the full post stack nor
