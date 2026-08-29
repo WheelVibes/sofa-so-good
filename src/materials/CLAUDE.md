@@ -496,6 +496,25 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
     recurs, make `surface-coverage.mjs` print a sample room per class** rather than guessing rooms
     one probe run at a time.
 
+- **Floors re-verified after the plaster and composer changes — CLEAN, and the earlier floor work
+  holds (FLOOR-RECHECK, v0.31.5.69).** `.56` retuned `PLASTER_UV_SCALE` and `.67` moved every tier
+  onto a composer; both could have disturbed floors, which this run had never looked at. They did
+  not.
+  · **Every named floor resolves at its full bake** — `floor-look.mjs` reports
+    `floor-vinyl-oak@512` in `mainBedroom` / `bedroom2` / `bedroom3` / `corridor` / `livingDining`,
+    `floor-tile-bath-green@512` in both baths and `floor-tile-beige-300@512` in the household
+    shelter. No 64² or 128² preview stranded on a floor anywhere.
+  · **The living/dining floor matches SNV-BOARDS as written**: pale grey-washed rift-oak print,
+    fine straight striations along the strip, hairline V-seams, matte — no cathedral banding, no
+    moiré, no exaggerated grout, and the plank scale reads physically plausible at a steep pitch.
+  · **Meta-rule (xvii-b) earned its place again.** The premise for the round was "floors are the
+    largest class never judged" — true of THIS RUN, false of the repo. SNV-BOARDS matched each
+    floor painter against photographs of the actual Serangoon North Vista sample boards,
+    JOINT-SCALE converts every joint band to real millimetres, and `snvBoards.test.ts` pins the
+    painter signatures. That is better ground truth than anything this loop could derive, so the
+    round was scoped as a REGRESSION CHECK rather than a re-audit. Do not retune floor colour or
+    joints without reading TONE-CALIBRATION and SNV-BOARDS first.
+
 - **HALF the procedural noise fields alias, and the limit that binds is 256 (NYQUIST-AUDIT).**
   After two fields were found broken one at a time (WOOD-PORE-NYQUIST, FABRIC-FINE-NYQUIST), a full
   sweep of every `makeFbm` call site against its tile size found **21 of 42 fields over the

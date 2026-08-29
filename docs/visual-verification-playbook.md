@@ -347,6 +347,22 @@ what caught it. Symptom-first:
 state (`uiMode=pro tileBreakup=false`, `samples=24`, `tier=medium`) next to the number, so a run
 that measured nothing is visibly distinguishable from a run that measured zero.
 
+## `floor-look.mjs` stands at the ROOM CENTRE, which in a utility room is occupied
+
+The probe teleports to each room's shell centre and pitches the eye down. In a bedroom or living
+room that lands on open floor. In the **kitchen** the centre IS the counter run, so the downward
+rays hit the sink and worktop; in the **service yard** a ceiling drying rack fills the volume and
+the rays hit its rails. Both rooms therefore report **few or no floor hits** —
+`kitchen 128|OTHER x1`, `serviceYard 128|OTHER x12`, no named floor — which reads exactly like a
+missing or unbaked floor.
+
+**It is occlusion, and the FRAMES are what show it:** the beige stone tile is plainly visible at
+the bottom of both frames, correctly jointed. Another instance of "when a probe reports zero,
+suspect the probe" — and of the fix being to look rather than to add an arm.
+
+If a future round needs those two floors sampled properly, offset the pose toward the open part of
+the room, or raycast straight DOWN from the camera instead of through the screen grid.
+
 ## Flag and bake ORDER decide whether an A/B measures anything
 
 - **Simple mode beats a dev override.** `resolveFlags` returns false on the

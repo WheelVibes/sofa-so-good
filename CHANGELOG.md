@@ -5,6 +5,34 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.69 — floors re-verified after the plaster and composer changes; clean
+
+No code changed. A regression check, deliberately scoped that way.
+
+**Floors hold up.** `.56` retuned `PLASTER_UV_SCALE` and `.67` moved every tier onto a composer;
+neither disturbed the floors, which this run had never looked at. Every named floor resolves at its
+full bake — `floor-vinyl-oak@512` in the four dry rooms and the corridor,
+`floor-tile-bath-green@512` in both baths, `floor-tile-beige-300@512` in the household shelter —
+with no 64² or 128² preview stranded anywhere. The living/dining floor matches SNV-BOARDS as
+written: pale grey-washed rift-oak print, fine straight striations, hairline V-seams, matte, no
+moiré and no exaggerated grout.
+
+**The round's premise was half wrong, and checking first is what caught it.** "Floors are the
+largest class never judged" was true of this run and false of the repo: SNV-BOARDS matched each
+floor painter against photographs of the actual sample boards, JOINT-SCALE converts joint bands to
+real millimetres, and `snvBoards.test.ts` pins the painter signatures. That is better ground truth
+than this loop can derive, so the work was scoped as a regression check rather than a re-audit —
+meta-rule (xvii-b).
+
+**Two rooms reported no floor, and it is occlusion.** `floor-look.mjs` stands at each room's shell
+centre: in the kitchen that IS the counter run, and the service yard is filled by a ceiling drying
+rack, so the downward rays hit worktops and rails. The frames show the tile plainly, correctly
+jointed. Recorded in the playbook's false-zero section with the fix for a future round (offset the
+pose, or raycast straight down from the camera).
+
+Next by coverage: the ceiling — 1.45%, a `MeshLambertMaterial` with no maps — is now the largest
+class this run has never examined.
+
 ## v0.31.5.68 — `maximum` reviewed at last, and the tier ladder is tonally consistent
 
 No code changed. Three verifications, all clean.
