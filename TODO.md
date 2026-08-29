@@ -4,6 +4,33 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## Wall mottle — the flat's largest surface (candidate, v0.31.5.55, 2026-08-29)
+
+**Not yet diagnosed; recorded so the next round starts from evidence rather than from a hunch.**
+The `.55` coverage re-run established that walls are **~45% of the walk view**, and the biggest
+single class (`#f5f5f0`, ~31.5%, `normalMap + roughnessMap`, **no albedo `map`**) does not read
+as painted plaster in the frames. Cropped in on `livingDining` from
+`/tmp/surface-coverage/livingDining.png`, it shows broad soft grey blotches at roughly a
+20–40 cm scale — closer to damp-stained concrete or stucco than to interior paint, which should
+be near-flat with only a fine orange-peel grain.
+
+This is the highest-coverage surface in the flat, so by meta-rule (viii) it outranks anything
+else currently open. Candidate mechanisms, all falsifiable and none yet tested:
+
+- the wall normal map's world-scale `repeat` is too low, so its noise octaves land at
+  decimetre scale instead of millimetre;
+- the drawn map is a stale low-res bake (PERF-C's 64² preview never swapped for this class) —
+  `stale-gen.mjs` / `bath-tile-size.mjs` label textures by uuid against the cache's own builds
+  and would settle it;
+- the mottle is authored into the ROUGHNESS map and only reads as albedo variation under the
+  current lighting.
+
+Measure before changing anything: `surface-detail.mjs` with a `POINT` on the wall reports
+microcontrast, which is the only metric here that can see a high-frequency vs low-frequency
+difference. Note that `wall-detail.mjs` already swept what each wall CHANNEL is worth
+(normalScale x6, normal removed, albedo mottle added) — check its recorded result before
+proposing a channel change (meta-rule xvii-b).
+
 ## Wall reveal (v0.30.9.0, 2026-08-28)
 - [ ] **The default orbit pose parks every near wall at a MILKY 0.371 — the curve's head-on
   floor is unreachable from the boot camera.** (Re-framed again in v0.31.5.53; the "hard step at

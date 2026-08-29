@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.55 — harness round: the coverage table re-verified, and this run's lessons written down
+
+No code changed. With the defect queue empty and the four open items being product calls, this
+round hardened the instruments the loop steers by.
+
+**The `surface-coverage.mjs` census is unchanged after the door work.** Every prompt in this run
+orders its priorities from that table, so a stale one misdirects future rounds. Re-run against
+`.49`/`.50`: identical to the second decimal — curtains 3.50%, metal utility doors 3.39%, wooden
+leaf 2.79%, bifold bath leaves 1.93%, ceiling 1.45%, 322 classes over 70,400 rays. That is the
+expected result, because coverage is geometry and those rounds changed only roughness and grain
+tiling; a shift would have meant an unintended geometry change. Stated plainly for the first
+time: **walls are ~45% of the walk view** (`#f5f5f0` ~31.5% with no albedo map, `#ffffff` ~13.4%
+with one) against ~10% for every door class combined — recorded as an observation, not a defect.
+
+**Seven probes from this run were missing from the playbook index** — including
+`surface-coverage.mjs` and `walk-tour.mjs`, the two the recent rounds lean on hardest. An
+unindexed probe is a probe the next round rebuilds from scratch. All are now described.
+
+**Three lessons folded in:** a Node-side variable is not visible inside `page.evaluate` (pass it
+in an argument object — this bit again in `tier-drift.mjs`); a surprising frame earns a
+state-verification probe BEFORE a diagnosis (the dark contact sheet was worth trusting precisely
+because the tier-demotion hypothesis was tested first and lost); and compounding defaults must be
+separated one variable at a time with the shipped state as arm zero, each arm printing its own
+state (had lights and curtains been flipped together, the curtains would have inherited credit
+for a 2.3–2.5x effect that is entirely the lights').
+
+**Nothing was pruned from `scripts/dev-probes/`, and that is the finding.** A pairwise similarity
+scan over all 63 probes tops out at 56%, which is shared browser-setup boilerplate; the closest
+suspected pair (`bath-tile-size.mjs` vs `floor-look.mjs`/`class-id.mjs`) answers a genuinely
+different question — what resolution a wall is DRAWN at, labelled by texture uuid against the
+cache's own builds. Deleting a probe to satisfy a hygiene checklist would have cost capability
+(meta-rule ii).
+
 ## v0.31.5.54 — discovery pass: the out-of-box flat renders at ~40% of its lit brightness
 
 With no measured open default-look defects left, this round went back to LOOKING: a 24-frame

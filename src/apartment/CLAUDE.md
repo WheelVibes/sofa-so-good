@@ -143,6 +143,23 @@ Full code map in `docs/ARCHITECTURE.md`.
     against a gloss that the same round then changed. Re-run the sweep after any change that
     alters how the varied parameter is perceived.
 
+- **The coverage census is STABLE across the door work, and the wall classes dominate it
+  (COVERAGE-RECHECK, v0.31.5.55).** The priorities these rounds are ordered by come from
+  `surface-coverage.mjs`, so a stale table would misdirect every future round. Re-run after
+  `.49`/`.50` changed both door paths: **the ranking is unchanged to the second decimal** —
+  curtains `#c8bca8` 3.50%, metal utility doors `#9aa0a6` 3.39%, wooden leaf `#a9825c` 2.79%,
+  bifold bath leaves `#cfc8bd` 1.93%, ceiling 1.45%, 322 distinct classes over 70,400 rays.
+  That is the expected result and worth having: coverage is GEOMETRY, and `.49`/`.50` changed
+  only `roughness` and grain `repeat`, so a shifted table would have meant an unintended
+  geometry or material-identity change rather than a finish change.
+  · **The census's own headline, stated plainly for the first time:** the flat's walls are
+    **~45% of the walk view**, split across two finishes — `#f5f5f0` at ~31.5% carrying
+    `normalMap + roughnessMap` and **no albedo `map`**, and `#ffffff` at ~13.4% carrying
+    `map + normalMap + roughnessMap`. Every door class in the flat put together is ~10%.
+    Recorded as an observation, not a defect: WALL-DETAIL (`wall-detail.mjs`) already swept what
+    each wall channel is worth, and nothing here contradicts it. If a future round wants a
+    high-coverage target, this is where the pixels are.
+
 - **The coverage census's unnamed classes, IDENTIFIED — and the biggest one was not a door
   (SURFACE-CLASS-ID, v0.31.5.51).** `surface-coverage.mjs` ranks what a walk-mode user sees but
   labels each class only by material + colour + bbox, so two of the top classes went into the

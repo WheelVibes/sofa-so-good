@@ -133,6 +133,13 @@ gesture against a real GPU and need `npm run dev:web` running.
 | `reveal-step.mjs` | The wall-reveal opacity STEP across every shared corner, from the app's own `getWallOpacity` / `getWallOwnStrength` / `cornerNeighbors`, with `toward` per wall. |
 | `light-units.mjs` | Live census of every light (type, intensity, decay) at day and night plus `toneMappingExposure` — the units sanity check before comparing anything to a real fixture. |
 | `fade-clone.mjs` | Every mid-fade material at boot framing / mid-drag / after a drag, labelled by texture uuid — for "is this clone stale?". |
+| `surface-coverage.mjs` | **What the walk-mode user actually SEES, ranked** — 11 rooms x 4 yaws x 1600 rays, grouped into surface CLASSES by drawn material + colour + bbox, reported as a coverage %. This is the table meta-rule (viii) prioritises from; re-run it after anything that adds or removes geometry. It labels a class only by its shape, so pair it with `class-id.mjs` before naming one. |
+| `class-id.mjs` | **"What IS that class?"** — enumerates every mesh carrying a given colour and prints world position, size, ancestor chain and nearest plan opening. `Group{itemId}` in the chain means FURNITURE; apartment components never carry one. This is what proved the biggest "door-like" class was actually the curtains. `COLOURS=aabbcc,ddeeff`. |
+| `door-look.mjs` / `door-ab.mjs` | The door leaf: its resolved material values, and a four-arm one-variable-each sweep (`roughness`, `normalScale`, grain `repeat`) mutating the DRAWN material in-probe. |
+| `finish-apply.mjs` | Whether a wall/floor finish request reaches the drawn material, rather than only the store. |
+| `walk-tour.mjs` | **The contact sheet** — a walk of every room at several yaws, written as frames to look at. Not a metric: this is the meta-rule (v) instrument, and it is what surfaced DEFAULT-GLOOM after the measured defect queue was empty. Run it whenever you think there is nothing left to find. |
+| `tier-drift.mjs` | State-verification: prints resolved tier / IBL / exposure / hour+timeMode at intervals across a long run, to establish whether a surprising frame is the scene drifting or the scene genuinely looking like that. |
+| `default-gloom.mjs` | Per-room mean brightness under the shipped defaults vs one default changed at a time (`lightsMode`, then curtains on top). Each arm prints its OWN `lightsMode` and tier beside its number. |
 
 **`setManualHour(h)` is not a side-effect-free redraw nudge.** Probes use it to force a frame
 under `frameloop="demand"`, but it also switches `timeMode` to manual and jumps the scene to
@@ -364,9 +371,53 @@ that measured nothing is visibly distinguishable from a run that measured zero.
   current text before the next anchor, and after a multi-part edit grep for both the new
   identifiers (present?) and the old ones (gone?) — a half-applied edit produced a
   `ReferenceError` for a variable its other half was meant to declare.
+- **A Node-side variable is NOT visible inside `page.evaluate`.** The callback is serialised and
+  run in the browser, so a loop counter, a config const or anything else from the probe's own
+  scope is simply undefined there — `ReferenceError: i is not defined`, thrown from inside the
+  page and surfacing as a probe crash rather than as a scoping mistake. Pass it explicitly:
+  `page.evaluate((a) => …, { i, hour, tier })`. This one has bitten repeatedly (most recently
+  `tier-drift.mjs`) because the offending line reads like ordinary JavaScript.
 - **Slice copied probe boilerplate AFTER `page`/`browser` exist.** Cutting at the first
   `const OUT`/`const HOUR` drops the browser setup and the probe dies with "page is not defined";
   then grep the copy for a duplicate `const OUT` or a stray `fs.mkdirSync(OUT)` it dragged along.
+
+## A surprising frame earns a STATE-VERIFICATION probe before it earns a diagnosis
+
+Meta-rule (xi) says dismissing a finding as a probe artefact needs its own evidence. The
+converse is just as load-bearing: **accepting** a surprising finding needs evidence that the
+scene was in the state you think it was.
+
+DEFAULT-GLOOM (v0.31.5.54) came out of a `walk-tour.mjs` contact sheet in which almost every
+interior read dark grey at 13:00. The obvious explanation was the adaptive tier ladder demoting
+under the load of a long run — no IBL at `performance` would darken interiors in exactly that
+way, and it would have made the whole sheet an artefact of the harness. So that hypothesis was
+tested FIRST, with `tier-drift.mjs` printing the resolved tier / IBL / exposure / hour+timeMode
+at five points across 24 teleports. It came back `medium / IBL true / exposure 1.38 /
+13:00 manual`, unchanged throughout, and reproduced the same dark frame.
+
+The hypothesis lost, and that is what made the finding trustworthy — the dark sheet was now a
+measurement of the product rather than of the probe. Write the refutation down next to the
+result: a finding that survived a named, falsifiable attempt to explain it away is worth much
+more than one that was merely never challenged.
+
+## Separate compounding defaults ONE VARIABLE AT A TIME, with the shipped state as arm zero
+
+When several defaults could each be dimming (or flattening, or greying) the out-of-box picture,
+the instinct is to flip them all and report the difference. That number is unattributable and
+tends to over-credit whichever lever you were already suspicious of.
+
+`default-gloom.mjs` is the pattern: arm 0 is the **shipped defaults untouched** (meta-rule xxiv),
+arm 1 changes exactly one (`lightsMode: 'on'`), arm 2 adds exactly one more (curtains open), and
+**every arm prints its own `lightsMode` and tier beside its number** (meta-rule iv). The result
+was unambiguous — lights are worth 2.3–2.5x in all four rooms, and opening every curtain on top
+of that is worth between −0.4 and +4.6, i.e. nothing. Had the two been flipped together, the
+curtains would have inherited credit for the lights' effect, and the earlier
+WINDOW-TIME-INVARIANT note would have been promoted instead of demoted to MINOR.
+
+Note also what did NOT happen: nothing shipped. `lightsMode` defaulting to `'off'` at midday is
+a defensible product choice, and the daylight model demonstrably works (rooms brighten correctly
+when the switch flips). Measuring a lever precisely is a complete result; deciding to pull it is
+a product call, not a rendering one.
 
 ## Phone probes must BOOT as the device, or they silently measure a desktop
 
