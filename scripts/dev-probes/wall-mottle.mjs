@@ -372,6 +372,87 @@ async function applyAo(pairs) {
 // Meta-rule (xvii): the comment is not evidence either way. Apply the finish
 // through the app's own `setWallFinish` and read the repeat back off the DRAWN
 // material.
+// PICK=x,y (NDC) + YAW= : "what IS that thing in the frame?" — teleport to the
+// room at a named yaw, raycast one screen point, and report the DRAWN material
+// plus the object's world position, size, ancestor chain and nearest plan
+// opening. `Group{itemId}` in the chain means FURNITURE; apartment components
+// never carry one. Use when you have a suspicious pixel but not a colour, which
+// is what `class-id.mjs` needs as its input.
+const PICK = process.env.PICK ? process.env.PICK.split(',').map(Number) : null
+const YAW = Number(process.env.YAW || 0)
+if (PICK) {
+  await page.evaluate(
+    async (q) => {
+      const { requestWalkTeleport } = await import('/src/scene/cameras/walkTeleport.ts')
+      requestWalkTeleport(q.x, q.z, q.yaw)
+    },
+    { x: pose[0], z: pose[1], yaw: (YAW * Math.PI) / 2 },
+  )
+  await new Promise((r) => setTimeout(r, 1800))
+  fs.writeFileSync(`${OUT}/pick.png`, await page.screenshot({ type: 'png' }))
+  const hit = await page.evaluate(async (pt) => {
+    const { scene, camera } = window.__three
+    const rc = new window.__three.raycaster.constructor()
+    rc.setFromCamera({ x: pt[0], y: pt[1] }, camera)
+    const r = rc.intersectObjects(scene.children, true)
+    const h = r.find((o) => o.object.visible && o.object.material?.colorWrite !== false)
+    if (!h) return null
+    const m = h.object.material
+    const g = h.object.geometry
+    g?.computeBoundingBox?.()
+    const bb = g?.boundingBox
+    const chain = []
+    for (let o = h.object.parent; o; o = o.parent) {
+      chain.push(o.userData?.itemId ? `${o.type}{itemId}` : o.type)
+    }
+    const plan = window.__store.getState().floorPlan
+    let best = null
+    let bestD = 1e9
+    for (const op of plan.openings ?? []) {
+      const d = Math.hypot((op.x ?? 0) - h.point.x, (op.y ?? op.z ?? 0) - h.point.z)
+      if (d < bestD) {
+        bestD = d
+        best = op
+      }
+    }
+    const tex = (t) =>
+      !t ? '—' : `${t.image?.width}x${t.image?.height} repeat=${t.repeat.x.toFixed(2)}`
+    return {
+      type: m.type,
+      hex: `#${m.color?.getHexString?.() ?? '??'}`,
+      rough: m.roughness,
+      metal: m.metalness,
+      normalScale: m.normalScale ? m.normalScale.x : null,
+      map: tex(m.map),
+      normalMap: tex(m.normalMap),
+      roughnessMap: tex(m.roughnessMap),
+      at: [h.point.x, h.point.y, h.point.z].map((v) => v.toFixed(2)).join(','),
+      size: bb
+        ? [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z]
+            .map((v) => v.toFixed(2))
+            .join('x')
+        : '?',
+      chain: chain.join(' < '),
+      opening: best ? `${best.id} (${best.kind}) d=${bestD.toFixed(2)}m` : 'none',
+    }
+  }, PICK)
+  if (!hit) {
+    console.log(`PICK ${PICK} hit nothing — check the frame at ${OUT}/pick.png`)
+  } else {
+    console.log(`PICK ${PICK} in ${ROOM} @ yaw ${YAW}  -> frame ${OUT}/pick.png\n`)
+    console.log(`  ${hit.type} ${hit.hex} rough=${hit.rough} metal=${hit.metal}`)
+    console.log(`  normalScale   ${hit.normalScale}`)
+    console.log(`  map           ${hit.map}`)
+    console.log(`  normalMap     ${hit.normalMap}`)
+    console.log(`  roughnessMap  ${hit.roughnessMap}`)
+    console.log(`  at [${hit.at}]  size ${hit.size}`)
+    console.log(`  chain: ${hit.chain}`)
+    console.log(`  nearest opening: ${hit.opening}`)
+  }
+  await browser.close()
+  process.exit(0)
+}
+
 const COMPOSED = process.env.COMPOSED === '1'
 if (COMPOSED) {
   const read = async (label, skipDefault = true) => {

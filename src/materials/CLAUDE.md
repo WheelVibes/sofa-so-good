@@ -446,6 +446,26 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   · Verified at the shipped state: builtin 1.667 (unchanged), composed ×1 1.667, ×2 0.833,
     ×0.5 3.333.
 
+- **No second dead control — the plaster branch was the only one (DEF-FIELD-SWEEP, v0.31.5.58).**
+  `.57` found the composer's tile-size slider inert on plaster because `cache.ts` never read
+  `def.uvScale` there. Meta-rule (l) says an ignored parameter can hide drift, so every other
+  branch was checked against the controls the composer actually offers (colour, Scale, Gloss,
+  sat/bright, and Repaint/Shade for textured bases):
+
+  | branch | `uvScale` | `roughness` | verdict |
+  | --- | --- | --- | --- |
+  | `procedural` (non-plaster) | honoured — `t.repeat.set(1 / def.uvScale[…])` on all three maps, and passed to the worker upgrade | honoured via `roughOverride` | clean |
+  | `textured` | honoured on both the recolored canvas and the shared loader maps | honoured | clean |
+  | `procedural` plaster | **was ignored**, fixed in `.57` | honoured | fixed |
+  | `solid` | has no `uvScale` field; `tintedMaterialDef` drops the token | — | **unreachable** |
+
+  · **The `solid` case is not a latent bug.** The Scale slider is ungated in
+    `MaterialComposer.tsx`, so a solid base would silently swallow it — but there are **zero**
+    `kind: 'solid'` entries in either `builtinCatalog` or `generatedCatalog`, so no user can
+    select one. Recorded rather than "fixed": a guard for an unreachable case is untestable code.
+  · sat/bright are baked into the swatch by `adjustColorTone` before the def is built, so they
+    cannot be dropped by a branch; Repaint/Shade is already gated on `baseMat?.kind === 'textured'`.
+
 - **HALF the procedural noise fields alias, and the limit that binds is 256 (NYQUIST-AUDIT).**
   After two fields were found broken one at a time (WOOD-PORE-NYQUIST, FABRIC-FINE-NYQUIST), a full
   sweep of every `makeFbm` call site against its tile size found **21 of 42 fields over the

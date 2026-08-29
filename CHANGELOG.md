@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.58 — the flat grey door is correct, and there is no second dead control
+
+No code changed. Three audits, all closing rather than opening work.
+
+**The census is stable.** `surface-coverage.mjs` after two rounds of material work on the flat's
+largest surface: identical ranking to the second decimal, 322 classes over 70,400 rays. Coverage
+is geometry, so that is the expected result — and now that the loop has changed appearance twice
+without changing the table, a future shift would clearly signal an unintended geometry change.
+
+**The flat grey slab is the bifold bath leaf, and its flatness is the finish.** With the wall
+mottle gone it started reading as a featureless slab, and it measures `roughness 0.35` — glossier
+than the 0.45 that DOOR-GLOSS condemned on the wooden leaves. But `getVinylMaterial` is a
+deliberate, documented finish ("the standard SG toilet/utility bifold-door finish… no wood grain")
+that `constants.ts` requests explicitly, and DOOR-GLOSS was about WOOD at a gloss that exaggerated
+a stretched grain. A real PVC bifold door is a flat pale slab. The falsifiable half passed: if
+`pbrSurfaces` were off this path returns a map-less `MeshStandardMaterial` — genuinely dead flat
+and a real bug — and the drawn material is a `MeshPhysicalMaterial` with the shared paint
+micro-normal bound at `normalScale 0.2`.
+
+**No second dead control.** The `procedural` and `textured` branches both honour `uvScale` and
+`roughness`; plaster was the only one that did not. The `solid` branch would swallow the Scale
+token, but there are zero `kind: 'solid'` entries in either catalog, so it is unreachable — a
+guard there would be untestable code.
+
+Also corrected: `#caa478` (1.69%) is a furniture wall-slat panel (`Group{itemId}` in its chain),
+not the door frame an earlier note guessed from its 0.4 x 2.0 proportions.
+
+New `wall-mottle.mjs` `PICK=x,y YAW=n` mode: name the thing under a suspicious PIXEL when you do
+not have a colour to feed `class-id.mjs`.
+
 ## v0.31.5.57 — the composer's tile-size slider did nothing on plaster
 
 Follow-up to PLASTER-STRETCH, and the walk-tour re-shoot that had to come with it.

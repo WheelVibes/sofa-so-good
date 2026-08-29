@@ -160,6 +160,34 @@ Full code map in `docs/ARCHITECTURE.md`.
     each wall channel is worth, and nothing here contradicts it. If a future round wants a
     high-coverage target, this is where the pixels are.
 
+- **The flat grey slab is the bifold bath leaf, and it is CORRECT (BIFOLD-VINYL, v0.31.5.58).**
+  With the wall mottle gone (`.56`), an interior door in `mainBedroom` started reading as a
+  featureless grey slab — no grain, no depth. The suspicion was DOOR-GLOSS all over again on a
+  path that round missed: the wooden leaves were fixed from `roughness` 0.45 to 0.85, and this
+  one measures **0.35, glossier still**.
+  · **Identified by picking the pixel, not by guessing the colour** (new `wall-mottle.mjs`
+    `PICK=x,y YAW=n` mode): `MeshPhysicalMaterial #cfc8bd, 0.40 x 2.10 x 0.05, rough 0.35,
+    metal 0.05, normalScale 0.2, normalMap 256² @ repeat 1.0, no albedo map` — the bifold bath
+    leaf `.51` NAMED but never judged (that round evaluated the curtains and the metal doors and
+    said "both hold up"; the bifold was only listed).
+  · **The analogy does not hold and nothing was changed (meta-rule ii).** `getVinylMaterial` is a
+    deliberate, documented finish — "the standard SG toilet/utility bifold-door finish… slightly
+    glossy, subtle plastic sheen, rougher than a lacquered `gloss` paint, smoother/flatter than
+    matte `painted`, with no wood grain" — and `constants.ts` asks for it explicitly with
+    `material: 'vinyl'`. DOOR-GLOSS was about WOOD at a gloss that contradicted
+    `WOOD_BASE_ROUGHNESS` and exaggerated a stretched grain into corrugation. Vinyl has no grain,
+    and its sheen is the point. **A real PVC bifold door IS a flat pale slab**; the frame is
+    reporting the finish accurately.
+  · **The falsifiable part passed.** If `pbrSurfaces` were off, this path returns a plain
+    `MeshStandardMaterial` with NO maps — genuinely dead flat, and a real bug. Measured on the
+    DRAWN material: `MeshPhysicalMaterial` with the shared paint micro-normal bound at
+    `normalScale 0.2`. The PBR branch is live, so the flatness is the finish and not a missing
+    map.
+  · **`#caa478` (1.69%) is NOT a door frame**, as an earlier round's note guessed from its
+    0.4 x 2.0 proportions. It is a **furniture wall-slat panel** — `Group{itemId}` in the ancestor
+    chain, `rough 0.85`, all three maps at `repeat 2.0`. Same lesson as the curtains in `.51`:
+    a bbox that looks like a door panel is not evidence that it is one.
+
 - **The coverage census's unnamed classes, IDENTIFIED — and the biggest one was not a door
   (SURFACE-CLASS-ID, v0.31.5.51).** `surface-coverage.mjs` ranks what a walk-mode user sees but
   labels each class only by material + colour + bbox, so two of the top classes went into the
