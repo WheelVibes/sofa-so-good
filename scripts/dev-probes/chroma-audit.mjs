@@ -34,6 +34,12 @@ const OUT = process.env.OUT || '/tmp/ssg-chroma'
 const TIER = process.env.TIER || 'medium'
 const DSF = Number(process.env.DSF || 2)
 const HOUR = Number(process.env.HOUR || 9)
+// LIGHTS=on|off — this probe sets `timeMode: 'manual'` below, so
+// `ensureDaylightFirstPaint` (which requires 'system') can NEVER fire here. At an
+// evening HOUR that leaves the shipped `lightsMode: 'off'` default, i.e. a sun
+// position no real user ever sees unlit. Set it explicitly to measure the boot a
+// user actually gets after 18:00. Same convention as `walk-tour.mjs`.
+const LIGHTS = process.env.LIGHTS || ''
 const MODE = process.env.MODE || 'walk'
 const TOP = Number(process.env.TOP || 18)
 fs.mkdirSync(OUT, { recursive: true })
@@ -68,6 +74,9 @@ await page.evaluate((h) => {
   s.setManualHour(h)
 }, HOUR)
 await page.evaluate((t) => window.__store.getState().setQualityTier(t), TIER)
+if (LIGHTS) {
+  await page.evaluate((v) => window.__store.getState().setLightsMode?.(v), LIGHTS)
+}
 await page
   .waitForFunction(() => !window.__store.getState().loading?.active, { timeout: 60000 })
   .catch(() => {})
@@ -168,8 +177,15 @@ for (const view of VIEWS) {
     return max === 0 ? 0 : (max - min) / max
   }
 
+  // Print the arm's OWN resolved state, not just what was requested — a mutation
+  // that silently failed to land is otherwise invisible in the table below.
+  const resolvedState = await page.evaluate(() => {
+    const st = window.__store.getState()
+    return `${st.qualityTier}/${st.lightsMode}/${st.timeMode}${st.manualHour}`
+  })
   console.log(
-    `\n=== ${MODE}/${view.name}  tier=${TIER} hour=${HOUR} — ${report.hits}/${report.total} rays hit geometry`,
+    `\n=== ${MODE}/${view.name}  tier=${TIER} hour=${HOUR} lights=${LIGHTS || '(default)'}` +
+      ` — resolved ${resolvedState} — ${report.hits}/${report.total} rays hit geometry`,
   )
   console.log('  cover%  sat  rough metal map nrm  colour   material')
   // The "chroma budget": coverage x saturation. A surface only pushes the frame

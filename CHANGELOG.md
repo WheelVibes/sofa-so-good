@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.83 — the boot view holds across the day; at 21:00 the lamps carry brightness, not chroma
+
+One dev-probe improvement (`chroma-audit` gains `LIGHTS=` and a resolved-state print) and a clean
+audit of the last unswept measurable axis. Every orbit/boot number in `.56`–`.82` was `HOUR=9`,
+yet the flat boots `timeMode:'system'`, so a real user arrives at whatever hour it is.
+
+**Hypothesis: the boot view degrades away from 09:00. FALSIFIED.** Orbit/medium: 09:00 chroma
+0.158 / 3.2% past 0.35; 13:00 unlit 0.107 / 4.1%; 18:00 0.182 / 4.2%; 21:00 lit 0.249 / 15.9%.
+The evening rise is the LOW SUN, not the lamps — turning fixtures off at 21:00 moves chroma
+0.249 -> 0.248 and the tail only 15.9% -> 14.1%. For scale, the REJECTED Khronos Neutral operator
+measures 0.518 chroma and 89% past 0.35 at the same hour, so AgX is ~3.5x better on both, and the
+cropped frame reads as a warm lit room rather than a cartoon.
+
+**The fixtures are load-bearing for BRIGHTNESS, not colour.** Differential over identical pixel
+regions in the two 21:00 frames: mean luminance **132.2 lights-on vs 16.9 lights-off**, ~7.8x. So
+`ensureDaylightFirstPaint` is what stands between an evening visitor and a near-black boot. Chroma
+was simply the wrong lens for that question — the two metrics disagree completely, and only the
+luminance one answers it.
+
+**The probe fix caught its own bug immediately.** `chroma-audit` sets `timeMode:'manual'`, so
+`ensureDaylightFirstPaint` cannot fire inside it — but it fires at FIRST PAINT against the REAL
+wall clock, before that switch. Run at 22:25 local, all four original arms silently resolved to
+`lights=on`, including the "13:00" arm meant to represent an unlit daytime boot, and the intended
+lights-off control read byte-identical to its pair — a no-op. The new `resolved <tier>/<lights>/
+<mode><hour>` line is what exposed it. Pass `LIGHTS=` explicitly; never infer lighting from `HOUR=`.
+
 ## v0.31.5.82 — the boot view holds up on the performance tier
 
 No app code changed. A clean audit on a new axis: every finding in `.56`–`.81` was measured at

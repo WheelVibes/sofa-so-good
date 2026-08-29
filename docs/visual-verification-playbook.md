@@ -3280,3 +3280,17 @@ roughness, metalness, and equally unmapped): the same run then masks **515 cells
   body's 1.408 beats both mapped benchmarks (plaster 0.961, wood 0.862), but much of it
   is slab boundaries against bright interior faces, not surface detail. Read it as an
   upper bound; it refutes "this reads flat", it does not prove "this is richly textured".
+
+**Gotcha — a probe that sets `timeMode:'manual'` still inherits the REAL wall clock's
+daylight guard.** `ensureDaylightFirstPaint` runs at FIRST PAINT off the system clock,
+BEFORE a probe switches to manual time. So a run started after 18:00 local boots with
+`lightsMode:'on'` and every arm silently inherits it. In `.83`, launched at 22:25, all
+four hours of a boot sweep resolved to `lights=on` — including the "13:00" arm meant to
+represent an unlit daytime boot — and the intended lights-off control read byte-identical
+to its pair, a no-op (meta-rule lxxxiii). The same script run at 10:00 would have produced
+different numbers from identical arguments.
+· **`chroma-audit` now takes `LIGHTS=on|off` and prints `resolved <tier>/<lights>/<mode><hour>`.**
+  Pass it explicitly and READ the resolved field; never infer the lighting state from `HOUR=`.
+  `walk-tour` already had this option — when a probe lacks it, that is a gap, not a default.
+· **This is why "RECORD THE LOCAL TIME of every run" is in the setup rules.** It is not
+  bookkeeping: the wall clock silently changes what the app boots into.
