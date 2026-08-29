@@ -4,47 +4,47 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
-## Interior walls vanish when NO EffectComposer mounts — isolated to ONE gate (v0.31.5.63)
+## Walls vanish with NO EffectComposer — composer presence is decisive; MECHANISM STILL UNKNOWN (v0.31.5.64)
 
-**Confirmed, reproducible, and narrowed to a single line. Root cause inside the no-composer render
-path is still unknown; do NOT guess a fix. This is the highest-priority open item — `performance`
-is the tier the capability ceiling drops PHONES to.**
+**IMPORTANT CORRECTION to `.62`/`.63`: this has only ever been observed in HEADLESS
+puppeteer + ANGLE-Metal. It has NOT been reproduced in a real browser, so the earlier claim that
+"phones would see this" is UNSUPPORTED and should not be repeated until it is.** The next round's
+first job is to decide whether this is a product defect or a harness artefact.
 
-**Discriminator (mean luminance of the centre band of `mainBedroom` yaw 2, 64x40 downsample):**
-**~112 = walls present, ~151 = walls gone.** Clean separation, no judgement call.
+**Discriminator:** centre-band mean luminance of `mainBedroom` yaw 2 — **~112 = walls present,
+~151 = walls gone**.
 
-| arm (base `medium`, one override) | centre | verdict |
+| arm | centre | verdict |
 | --- | --- | --- |
-| baseline `medium` | 112.6 | walls present |
-| `geometryDetail=0.7` | 112.6 | present — exonerated |
-| `ibl=false` | 112.4 | present — exonerated |
-| `shadowMapSize=0` | 112.7 | present — exonerated |
-| `dprMax=1` | 112.6 | present — exonerated |
-| `envResolution=64` | 113.2 | present — exonerated |
-| **`ao=false`** | **150.7** | **WALLS GONE** |
-| **`ao=false` + `postprocessing=true`** | **112.6** | **present** |
-| `performance` tier (two independent runs) | 150.7 / 152.8 | walls gone |
+| `medium` (baseline) | 112.6 | present |
+| `performance` (two runs) | 150.7 / 152.8 | **gone** |
+| `medium` + `geometryDetail=0.7` / `ibl=false` / `shadowMapSize=0` / `dprMax=1` / `envResolution=64` | 112.4–113.2 | present — all exonerated |
+| `medium` + `ao=false` | 150.7 | gone |
+| `medium` + `ao=false` + `postprocessing=true` | 112.6 | present — **AO exonerated** |
+| **`performance` + `postprocessing=true`** (all else still performance) | **112.5** | **present** |
+| `performance` + `polygonOffset` stripped from 285 materials | 152.8 | gone — **polygonOffset exonerated** |
 
-**AO is NOT the cause.** The last two rows are the whole argument: turning AO off removes the
-walls, but turning AO off *while forcing the post stack on* does not. The trigger is therefore the
-**absence of an `EffectComposer`**, not the AO effect.
+**Established:** the trigger is `src/scene/Effects.tsx:27` — `if (!postprocessing && !ao) return
+null`. Only `performance` has both false, so it alone renders with no `EffectComposer`, and forcing
+a composer on AT THAT TIER restores the walls with every other performance setting intact.
 
-**The gate is `src/scene/Effects.tsx:27` — `if (!postprocessing && !ao) return null`.** Of the four
-tiers only `performance` has BOTH false, so it is the only one that renders with no composer at
-all, and that path drops interior wall faces. Every other tier mounts a composer (medium mounts one
-for AO alone) and draws walls correctly.
+**Refuted so far:** all six tier settings individually except the composer gate; AO itself;
+`polygonOffset` on wall faces; missing geometry, culling, alpha, and probe timing (`.62` —
+`visible=true, opacity=1, transparent=false, colorWrite=true`, maps bound, frustum census identical
+at 354 meshes); and a dither/discard path (`.63` — no `discard` exists in the codebase).
 
-**Still unknown: WHY the direct-render path drops them.** The walls are in the scene, in the
-frustum, `visible=true`, `opacity=1`, `transparent=false`, `colorWrite=true`, with maps bound
-(`.62`), and the frustum census is identical at 354 meshes. Candidates not yet tested: something
-the composer normally does to `gl.autoClear` / render targets; the wall-reveal fade depending on a
-pass that only exists with a composer; or a draw-order interaction with the sky dome (a REAL scene
-object, per SKY-DOME-FAR `.20`) in the direct path.
+**The one structural difference left.** `Scene.tsx` creates the canvas with `antialias: true` and
+`preserveDrawingBuffer: true`. A composer renders into its OWN offscreen target (`EffectsImpl`
+notes this explicitly and compensates with `multisampling={4}`), so **the direct path is the only
+one that rasterises into a multisampled DEFAULT framebuffer**. MSAA + `preserveDrawingBuffer` on
+the default framebuffer under headless ANGLE-Metal is exactly where driver-level resolve bugs live
+— which is also why the environment caveat above matters.
 
-**Next step:** instrument the no-composer path directly — wrap `renderer.render` and log what is
-drawn, or bisect by mounting an `EffectComposer` with an empty pass list to see whether mere
-presence fixes it. A unit test should pin the pure rule once the mechanism is known: no tier
-combination may leave a wall face undrawn in walk mode.
+**Next steps, in order:** (1) reproduce or fail to reproduce OUTSIDE headless — a real browser via
+the interact harness, or `SHOT_GPU=1`; (2) if it reproduces, bisect the canvas config
+(`antialias: false`, then `preserveDrawingBuffer: false`) since neither is testable through
+`qualityOverrides`; (3) only then decide the fix — mounting an always-on composer is a heavy
+answer for a tier whose entire purpose is to avoid one.
 
 ## Curtain cuts through the bedside lamps — DIAGNOSED, fix is a CONTENT decision (v0.31.5.61)
 

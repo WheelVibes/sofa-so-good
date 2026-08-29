@@ -5,6 +5,34 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.64 — composer presence is decisive at the real tier, and an earlier claim is corrected
+
+No app code changed. Two more hypotheses refuted, the isolation tightened to the shipped tier, and
+a correction to `.62`/`.63`.
+
+**Confirmed at `performance` itself:** forcing `postprocessing=true` with every other performance
+setting intact (`shadowMapSize 0`, `ibl false`, `ao false`, `dprMax 1`, `geometryDetail 0.7`,
+`envResolution 64`) restores the walls — 112.5 against the tier's own 150.7 / 152.8. So the trigger
+is `Effects.tsx:27`'s `if (!postprocessing && !ao) return null`, and it holds at the state that
+actually ships, not just as a `medium`-plus-override proxy.
+
+**`polygonOffset` is exonerated.** Wall faces are the only surfaces that set it
+(`useWallFaceMaterial`) and the only ones that vanish, which made it the obvious mechanism.
+Stripped from 285 materials at `performance`: walls still gone, 152.8.
+
+**Correction: the claim that "this is what a phone user sees" is UNSUPPORTED.** It has only ever
+been observed in headless puppeteer + ANGLE-Metal, and no real browser has been tested. The
+capability ceiling does drop phones to `performance`, so the inference was reasonable, but it was
+an inference stacked on a headless-only observation and two rounds stated it as fact.
+
+With every application-level explanation refuted, the one structural difference left is where the
+scene rasterises: a composer renders to its own offscreen target, while the direct path uses the
+multisampled DEFAULT framebuffer created with `antialias: true, preserveDrawingBuffer: true` — a
+plausible app bug, and also exactly where headless driver artefacts live. The next experiment is
+therefore a different ENVIRONMENT, not a twelfth arm in the same one. Recorded in the playbook.
+
+`wall-mottle.mjs` gained `CLEARPOLY=1` (strip `polygonOffset` scene-wide and re-measure).
+
 ## v0.31.5.63 — the wall dissolve is isolated to one line, and AO is innocent
 
 No app code changed; the mechanism inside the no-composer path is still unknown and a guessed fix

@@ -430,6 +430,28 @@ Note also that a preset diff built from the literal source text can MISS keys �
 settings object printed by the probe surfaced `wallReveal`, which the text diff had not shown.
 Print the resolved object, do not infer it.
 
+## Before calling a headless finding a product defect, ask whether a real browser sees it
+
+`.62`–`.64` chased "interior walls vanish at `performance` tier" through eleven measured arms and
+narrowed it to one gate. Every app-level explanation was refuted in turn: six tier settings, AO
+itself, `polygonOffset`, missing geometry, culling, alpha, probe timing, and a dither/discard path
+that does not exist in the codebase.
+
+What survived is a difference in **where the scene rasterises**: with a composer it goes to an
+offscreen target, without one it goes to a multisampled DEFAULT framebuffer created with
+`antialias: true, preserveDrawingBuffer: true`. That is a plausible app bug — and also exactly the
+configuration where headless ANGLE-Metal driver artefacts live.
+
+**Two rounds asserted "this is what a phone user sees" without ever testing a real browser.** The
+capability ceiling does drop phones to `performance`, so the inference was reasonable, but it was
+still an inference stacked on a headless-only observation. Reproducibility is not the same as
+generality: eleven consistent arms in one environment say the effect is real IN THAT ENVIRONMENT.
+
+**Rule: when every application-level hypothesis has been refuted and only a
+framebuffer/driver-level difference remains, the next experiment is a DIFFERENT ENVIRONMENT, not a
+twelfth arm in the same one.** State the caveat in the write-up the moment the suspicion arises,
+and correct earlier claims explicitly rather than letting them stand.
+
 ## A surprising frame earns a STATE-VERIFICATION probe before it earns a diagnosis
 
 Meta-rule (xi) says dismissing a finding as a probe artefact needs its own evidence. The

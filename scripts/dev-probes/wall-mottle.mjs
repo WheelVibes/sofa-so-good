@@ -495,6 +495,29 @@ if (PICK) {
     { x: pose[0], z: pose[1], yaw: (YAW * Math.PI) / 2 },
   )
   await new Promise((r) => setTimeout(r, 1800))
+  // CLEARPOLY=1 — strip `polygonOffset` from every material carrying it, then
+  // re-measure. Wall FACES are the only surfaces in the flat that set it
+  // (`useWallFaceMaterial`), and they are also the only surfaces that vanish
+  // when no composer mounts, so this asks directly whether the two are related.
+  if (process.env.CLEARPOLY === '1') {
+    const n = await page.evaluate(() => {
+      let k = 0
+      window.__three.scene.traverse((o) => {
+        const m = o.material
+        if (!m || Array.isArray(m) || !m.polygonOffset) return
+        m.polygonOffset = false
+        m.polygonOffsetFactor = 0
+        m.polygonOffsetUnits = 0
+        m.needsUpdate = true
+        k++
+      })
+      const st = window.__store.getState()
+      st.setManualHour(st.manualHour)
+      return k
+    })
+    console.log(`CLEARPOLY: polygonOffset stripped from ${n} material(s)`)
+    await new Promise((r) => setTimeout(r, 1500))
+  }
   fs.writeFileSync(`${OUT}/pick.png`, await page.screenshot({ type: 'png' }))
   const hit = await page.evaluate(async (pt) => {
     const { scene, camera } = window.__three
