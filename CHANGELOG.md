@@ -5,6 +5,34 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.66 — the wall fix's blocker is resolved: flipping `preserveDrawingBuffer` is not an option
+
+No app code changed. `.65` left the fix blocked on one unknown — whether Export/Record survive
+without `preserveDrawingBuffer`. Measured, and they do not.
+
+**Five features read the main canvas** with `document.querySelector('canvas').toDataURL()`:
+`openReport`, `openMoodboard`, `openShareCard`, `slotThumbs` and `NavCluster`. None forces a render
+first. Exercised through the app's own readback path at `performance`:
+
+| `preserveDrawingBuffer` | `toDataURL` size | mean lum | non-black | verdict |
+| --- | --- | --- | --- | --- |
+| `true` (shipped) | 1,434,094 B | 99.3 | 100.0% | real image |
+| `false` | 30,786 B | 0.0 | 0.0% | **BLANK — capture broken** |
+
+So the one-line fix trades one defect for five, and the flag's comment is accurate. **Option 1 is
+dead**, which is a real result: it removes the tempting wrong answer.
+
+**Option 2 (mount a composer when `!postprocessing && !ao`) is the leading candidate but is not
+ship-ready.** `EffectsImpl` has no no-effect mode — it always mounts `N8AO` — so `Effects.tsx`
+cannot currently return a bare composer, and an AO-only composer would push AO cost onto the tier
+that exists for weak devices. Doing it properly needs an `EffectsImpl` no-effect mode plus a frame
+cost measured with `feature-price.mjs` / `frame-time.mjs` before shipping. A tried-and-reverted
+experiment confirmed the shape of that work rather than guessing at it.
+
+`wall-mottle.mjs` gained `CAPTURE=1`, which drives the app's real `toDataURL` path and reports
+whether the result is a real image or blank. `Scene.tsx` and `Effects.tsx` were both edited
+temporarily and restored; `git diff` on each is empty.
+
 ## v0.31.5.65 — root cause: `preserveDrawingBuffer` + no composer drops interior walls
 
 No app code changed — the fix is a real trade-off against Export/Record and needs a decision, not a

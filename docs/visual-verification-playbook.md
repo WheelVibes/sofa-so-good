@@ -471,6 +471,24 @@ last held — at boot, the OUTSIDE orbit view of sky, city and ground, which is 
 "missing walls" frame looks like. `PUMP` distinguishes "never drawn" from "never repainted". Here
 twelve renders changed nothing, which killed the stale-buffer reading and left the real cause.
 
+## Test the feature a setting protects, through the app's own code path
+
+`preserveDrawingBuffer: true` carried a comment naming Export and Record as its reason. That
+comment was the only thing standing between a proven one-line fix and shipping it — and a comment
+is not evidence (meta-rule xvii), in either direction.
+
+The check that settled it drove **the app's own readback**, not a puppeteer screenshot:
+`document.querySelector('canvas').toDataURL('image/png')`, decoded and measured. With the flag on:
+1.4 MB, 100% non-black. With it off: 30 KB, 0.0% non-black — a fully blank PNG. The comment was
+right, and five call sites would have broken.
+
+Two things to copy:
+- **A puppeteer screenshot would NOT have caught this.** `page.screenshot()` uses the browser's own
+  compositor and works regardless of `preserveDrawingBuffer`. Only the in-page readback fails. When
+  a setting protects an in-app capture feature, exercise THAT API.
+- **Grep for every consumer before judging blast radius.** The comment named two features; the
+  codebase had five call sites doing the same `toDataURL` on the main canvas.
+
 ## A surprising frame earns a STATE-VERIFICATION probe before it earns a diagnosis
 
 Meta-rule (xi) says dismissing a finding as a probe artefact needs its own evidence. The

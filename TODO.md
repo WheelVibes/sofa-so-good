@@ -35,20 +35,33 @@ persistent, not transient: twelve forced renders do not recover them.
 missing geometry, culling, alpha, probe timing, stale composite, and any dither/discard path (none
 exists in the codebase).
 
-**Fix options — NOT decided, because both have real costs:**
-1. **`preserveDrawingBuffer: false`.** One-line, provably fixes it. But the prop is deliberate:
-   *"Keep the drawing buffer readable so the in-app Export (PNG) and Record (MP4/WebM) capture
-   features reliably grab rendered frames."* Dropping it risks breaking Export and Record, which
-   are user-facing and were NOT tested here.
-2. **Always mount a composer** (even an empty one) when `!postprocessing && !ao`. Fixes it without
-   touching capture — but adds an offscreen target and a fullscreen blit to the one tier whose
-   entire purpose is avoiding exactly that cost.
-3. **The correct long-term shape:** drop `preserveDrawingBuffer` and make Export/Record render
-   synchronously immediately before reading pixels, which is the standard pattern and removes the
-   need for a preserved buffer at all. Largest change, needs Export/Record regression testing.
+**Fix options — OPTION 1 IS NOW RULED OUT BY MEASUREMENT (v0.31.5.66).**
 
-**Recommendation:** option 3 if Export/Record can be verified; option 2 as a safe interim. Option 1
-only with capture testing.
+1. ~~`preserveDrawingBuffer: false`~~ — **DEAD.** Five features read the main canvas with
+   `document.querySelector('canvas').toDataURL()` — `openReport`, `openMoodboard`,
+   `openShareCard`, `slotThumbs`, `NavCluster` — and none forces a render first. Measured
+   through the app's own readback path at `performance`:
+
+   | `preserveDrawingBuffer` | `toDataURL` size | mean lum | non-black | verdict |
+   | --- | --- | --- | --- | --- |
+   | `true` (shipped) | 1,434,094 B | 99.3 | 100.0% | real image |
+   | `false` | 30,786 B | 0.0 | 0.0% | **BLANK — capture broken** |
+
+   The flag is load-bearing exactly as its comment claims. Flipping it trades one defect for five.
+
+2. **Mount a composer when `!postprocessing && !ao`** — the leading candidate, but NOT
+   ship-ready as-is. `EffectsImpl` has **no no-effect mode**: it always mounts `N8AO`, so
+   `Effects.tsx` cannot currently return a *bare* composer. Doing this properly needs (a) an
+   `EffectsImpl` mode that mounts `EffectComposer` with no effects, and (b) a **frame-cost
+   measurement** — this adds an offscreen target plus a fullscreen blit to the one tier that
+   exists for weak devices, so `feature-price.mjs` / `frame-time.mjs` must price it BEFORE it
+   ships. Capture keeps working under this option because the composer blits to the canvas and
+   the flag stays on.
+3. **Render synchronously immediately before each readback** and drop the flag. Correct long-term
+   shape, but touches five call sites plus the `MediaRecorder`/`captureStream` path in
+   `recordViewTour.ts`, each needing its own verification.
+
+**Recommendation:** option 2, built properly and priced first; option 3 as the eventual cleanup.
 
 ## Curtain cuts through the bedside lamps — DIAGNOSED, fix is a CONTENT decision (v0.31.5.61)
 

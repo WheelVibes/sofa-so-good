@@ -610,6 +610,52 @@ if (PICK) {
   process.exit(0)
 }
 
+// CAPTURE=1 — exercise the app's OWN canvas-readback path, the one five features
+// use (`openReport`, `openMoodboard`, `openShareCard`, `slotThumbs`, `NavCluster`
+// all do `document.querySelector('canvas').toDataURL()`). With
+// `preserveDrawingBuffer: false` and `frameloop="demand"`, a readback after the
+// buffer has been presented returns a BLANK image — which is exactly why that
+// flag is set, and exactly what must be verified before flipping it.
+if (process.env.CAPTURE === '1') {
+  const out = await page.evaluate(() => {
+    const c = document.querySelector('canvas')
+    if (!c) return { ok: false, why: 'no canvas' }
+    let url = ''
+    try {
+      url = c.toDataURL('image/png')
+    } catch (e) {
+      return { ok: false, why: `threw: ${e}` }
+    }
+    return { ok: true, len: url.length, url }
+  })
+  if (!out.ok) {
+    console.log(`CAPTURE failed: ${out.why}`)
+  } else {
+    const buf = Buffer.from(out.url.split(',')[1], 'base64')
+    fs.writeFileSync(`${OUT}/capture.png`, buf)
+    const { data, info } = await sharp(buf)
+      .removeAlpha()
+      .resize(64, 40, { fit: 'fill' })
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+    let sum = 0
+    let nonBlack = 0
+    for (let k = 0; k < info.width * info.height; k++) {
+      const l = 0.2126 * data[k * 3] + 0.7152 * data[k * 3 + 1] + 0.0722 * data[k * 3 + 2]
+      sum += l
+      if (l > 4) nonBlack++
+    }
+    const mean = sum / (info.width * info.height)
+    const pct = (100 * nonBlack) / (info.width * info.height)
+    console.log(
+      `CAPTURE toDataURL: ${out.len} bytes, mean lum ${mean.toFixed(1)}, ` +
+        `${pct.toFixed(1)}% non-black -> ${pct < 5 ? 'BLANK (capture BROKEN)' : 'REAL IMAGE (capture works)'}`,
+    )
+  }
+  await browser.close()
+  process.exit(0)
+}
+
 const COMPOSED = process.env.COMPOSED === '1'
 if (COMPOSED) {
   const read = async (label, skipDefault = true) => {
