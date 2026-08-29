@@ -140,6 +140,7 @@ gesture against a real GPU and need `npm run dev:web` running.
 | `walk-tour.mjs` | **The contact sheet** — a walk of every room at several yaws, written as frames to look at. Not a metric: this is the meta-rule (v) instrument, and it is what surfaced DEFAULT-GLOOM after the measured defect queue was empty. Run it whenever you think there is nothing left to find. |
 | `tier-drift.mjs` | State-verification: prints resolved tier / IBL / exposure / hour+timeMode at intervals across a long run, to establish whether a surprising frame is the scene drifting or the scene genuinely looking like that. |
 | `default-gloom.mjs` | Per-room mean brightness under the shipped defaults vs one default changed at a time (`lightsMode`, then curtains on top). Each arm prints its OWN `lightsMode` and tier beside its number. |
+| `wall-mottle.mjs` | Why a wall surface looks wrong: four one-variable arms (baseline, AO off, normalMap off, roughnessMap off) over a raycast mask, reporting mean / sigma / **microcontrast** / corner-grounding, with a crop per arm. `SWEEP='intensity=1.5;aoRadius=0.35'` retunes the live `look.ts:AO` object; `REPEATS=1.2,0.6,0.3` sweeps metres-per-tile on the drawn texture. Prints the repeat read back off the DRAWN material, which is what caught a catalog edit that never reached the screen. |
 
 **`setManualHour(h)` is not a side-effect-free redraw nudge.** Probes use it to force a frame
 under `frameloop="demand"`, but it also switches `timeMode` to manual and jumps the scene to
@@ -418,6 +419,46 @@ Note also what did NOT happen: nothing shipped. `lightsMode` defaulting to `'off
 a defensible product choice, and the daylight model demonstrably works (rooms brighten correctly
 when the switch flips). Measuring a lever precisely is a complete result; deciding to pull it is
 a product call, not a rendering one.
+
+## A MASK that spans many surfaces makes sigma lie — microcontrast is the honest metric
+
+PLASTER-STRETCH (v0.31.5.56) nearly shipped the wrong fix on a very tidy number. The wall mask
+covered 35.7% of the screen across dozens of wall segments at different brightnesses, so its
+**sigma measured segment-to-segment luminance**, not the within-surface blotching under
+investigation. Turning SSAO off collapsed that sigma by 58% and produced a complete, plausible
+story about N8AO's half-res noise.
+
+The `normalMap off` FRAME killed it: a perfectly smooth painted wall **with AO still on**. Of the
+three metrics only **microcontrast** — mean |neighbour difference| at full resolution — tracked
+the actual defect (0.442 -> 0.206 when the normal map went away, against 0.442 -> 0.421 when AO
+did). Sigma and mean are cell-mean statistics and are blind to exactly the high-frequency channel
+that "does this surface look right" usually turns on.
+
+- If the mask spans more than one lighting condition, **do not quote its sigma as surface
+  contrast.** Either report microcontrast, or narrow the mask to one segment.
+- The confirming sweep is worth the extra arm: reducing AO intensity 3.0 -> 1.0 moved the
+  blotch metric and the corner-grounding metric *together* (ratio 2.44 -> 1.67), i.e. the shipped
+  tuning was already optimal and there was no AO fix to find. A lever that trades one-for-one is
+  not a lever.
+
+## A texture's tiling can have a SECOND HOME, and editing the catalog is then a no-op
+
+The same round retuned `uvScale` on all eleven plaster wall paints and the drawn material came
+back **unchanged at `repeat=0.40`**. `procedural/generators.ts:buildPlasterMaps` carried its own
+hardcoded `repeat.set(1 / 2.5, 1 / 2.5)` — twice — under a comment asserting the very catalog
+value it was silently outranking.
+
+Two things saved this from shipping as a "fix" that moved no pixels:
+
+1. **Reading the tiling back off the DRAWN material**, not off the source. The probe printed
+   `normalMap 256x256 repeat=0.40` in both runs.
+2. **Meta-rule (xxv).** Three metrics identical to two decimals across a code change is not a
+   null result, it is a mutation that did not land — the same reflex that has fired four times
+   before on innocent cases fired here on a guilty one.
+
+Generalise: a shared/cached texture built once for a whole pattern is a plausible second home for
+any per-material parameter (`repeat`, `wrapS`, `anisotropy`, colour space). Grep for the literal,
+not just the field name.
 
 ## Phone probes must BOOT as the device, or they silently measure a desktop
 

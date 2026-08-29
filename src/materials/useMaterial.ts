@@ -4,7 +4,7 @@ import type { MeshStandardMaterial, Texture } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../features/useFeature'
 import { useStore } from '../state/store'
-import { BUILTIN_MATERIALS } from './builtinCatalog'
+import { BUILTIN_MATERIALS, PLASTER_UV_SCALE } from './builtinCatalog'
 import { buildMaterial, getCachedMaterial } from './cache'
 import {
   composedMaterialDef,
@@ -92,7 +92,9 @@ function customColorDef(id: string): MaterialDef {
     kind: 'procedural',
     pattern: 'plaster',
     swatch: id,
-    uvScale: [2.5, 2.5],
+    // Shares the catalog's plaster tiling so a custom wall colour gets the same
+    // orange peel as a curated one (PLASTER-STRETCH).
+    uvScale: PLASTER_UV_SCALE,
   }
 }
 

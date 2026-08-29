@@ -11,6 +11,32 @@
 import type { RoomId } from '../apartment/types'
 import type { MaterialCategory, MaterialDef, MaterialId, ProceduralPattern } from './types'
 
+/**
+ * Metres per tile for the ORANGE-PEEL PLASTER normal (PLASTER-STRETCH,
+ * v0.31.5.56).
+ *
+ * This shipped at `2.5` — one 256-square tile stretched across 2.5 m of wall —
+ * which is why the flat's single largest surface (walls are ~45% of the walk
+ * view) rendered as decimetre-scale grey cloud rather than paint. Orange peel is
+ * a MILLIMETRE texture; stretched 2.5 m it stops reading as texture at all. Same
+ * mechanism as DOOR-GRAIN (v0.31.5.50), on a much bigger surface.
+ *
+ * 0.6 is a principled value rather than a tuned one: at a 256-square tile it puts
+ * one texel at ~2.3 mm, which is the size of a real orange-peel bump. Measured on
+ * the drawn wall (`dev-probes/wall-mottle.mjs`), masked microcontrast goes
+ * 0.442 -> 0.961 (+117%) with mean and sigma unmoved — i.e. the change is purely
+ * the high-frequency channel, which is exactly the claim.
+ *
+ * **Do not chase the peak.** 0.3 m measures slightly higher (1.072) but 0.15 m
+ * FALLS BACK to 0.913 — the NYQUIST-AUDIT rolloff, the tile aliasing against the
+ * screen. 0.6 sits a full octave clear of that edge.
+ *
+ * Deliberately NOT applied to `limewash`, which keeps 2.5: limewash really is a
+ * broad cloudy finish, and the same number is right there for the same reason it
+ * was wrong here.
+ */
+export const PLASTER_UV_SCALE: [number, number] = [0.6, 0.6]
+
 function floor(
   id: string,
   name: string,
@@ -32,7 +58,7 @@ function wall(id: string, name: string, swatch: string): MaterialDef {
     kind: 'procedural',
     pattern: 'plaster',
     swatch,
-    uvScale: [2.5, 2.5],
+    uvScale: PLASTER_UV_SCALE,
   }
 }
 
@@ -250,7 +276,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     kind: 'procedural',
     pattern: 'plaster',
     swatch: '#f5f5f0',
-    uvScale: [2.5, 2.5],
+    uvScale: PLASTER_UV_SCALE,
   },
   'wall-paint-warm': {
     id: 'wall-paint-warm',
@@ -259,7 +285,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     kind: 'procedural',
     pattern: 'plaster',
     swatch: '#e9d8c4',
-    uvScale: [2.5, 2.5],
+    uvScale: PLASTER_UV_SCALE,
   },
   'wall-paint-sage': {
     id: 'wall-paint-sage',
@@ -268,7 +294,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     kind: 'procedural',
     pattern: 'plaster',
     swatch: '#a7b59a',
-    uvScale: [2.5, 2.5],
+    uvScale: PLASTER_UV_SCALE,
   },
   'wall-paint-charcoal': {
     id: 'wall-paint-charcoal',
@@ -277,7 +303,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     kind: 'procedural',
     pattern: 'plaster',
     swatch: '#3a3a3a',
-    uvScale: [2.5, 2.5],
+    uvScale: PLASTER_UV_SCALE,
   },
   'wall-paint-blue': {
     id: 'wall-paint-blue',
@@ -286,7 +312,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     kind: 'procedural',
     pattern: 'plaster',
     swatch: '#a9c1d6',
-    uvScale: [2.5, 2.5],
+    uvScale: PLASTER_UV_SCALE,
   },
   'wall-paint-blush': {
     id: 'wall-paint-blush',
@@ -295,7 +321,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     kind: 'procedural',
     pattern: 'plaster',
     swatch: '#e6c8c0',
-    uvScale: [2.5, 2.5],
+    uvScale: PLASTER_UV_SCALE,
   },
   'wall-paint-greige': {
     id: 'wall-paint-greige',
@@ -304,7 +330,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     kind: 'procedural',
     pattern: 'plaster',
     swatch: '#cdc6ba',
-    uvScale: [2.5, 2.5],
+    uvScale: PLASTER_UV_SCALE,
   },
   'wall-paint-terracotta': {
     id: 'wall-paint-terracotta',
@@ -313,7 +339,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     kind: 'procedural',
     pattern: 'plaster',
     swatch: '#c08763',
-    uvScale: [2.5, 2.5],
+    uvScale: PLASTER_UV_SCALE,
   },
   'wall-paint-navy': {
     id: 'wall-paint-navy',
@@ -322,7 +348,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     kind: 'procedural',
     pattern: 'plaster',
     swatch: '#3b4a63',
-    uvScale: [2.5, 2.5],
+    uvScale: PLASTER_UV_SCALE,
   },
   'wall-paint-forest': {
     id: 'wall-paint-forest',
@@ -331,7 +357,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     kind: 'procedural',
     pattern: 'plaster',
     swatch: '#4a5e4a',
-    uvScale: [2.5, 2.5],
+    uvScale: PLASTER_UV_SCALE,
   },
 
   // Expanded curated palette — popular contemporary interior wall colours.

@@ -4,7 +4,14 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
-## Wall mottle — the flat's largest surface (candidate, v0.31.5.55, 2026-08-29)
+## Wall mottle — the flat's largest surface — ✅ FIXED (PLASTER-STRETCH, v0.31.5.56)
+
+**Resolved 2026-08-29.** The mottle was the orange-peel plaster normal stretched over 2.5 m;
+`PLASTER_UV_SCALE` is now 0.6 and `generators.ts` no longer carries a second hardcoded copy of
+the number. Microcontrast 0.442 -> 0.961 at the shipped state. Full write-up in
+`src/materials/CLAUDE.md`. The candidate list below is kept because two of its three guesses were
+WRONG and the reasoning is worth not repeating:
+
 
 **Not yet diagnosed; recorded so the next round starts from evidence rather than from a hunch.**
 The `.55` coverage re-run established that walls are **~45% of the walk view**, and the biggest

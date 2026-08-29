@@ -376,6 +376,47 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   4.010 -> 4.007, sigma 22.52 -> 22.40, crop indistinguishable) — the albedo was never the dominant
   cue. Whoever picks this up next: the normal strength is the lever, and it needs its own
   before/after.
+- **The flat's LARGEST surface was rendering as damp concrete, and one duplicated literal was
+  why the fix didn't land (PLASTER-STRETCH, v0.31.5.56).** The `.55` census put walls at **~45%
+  of the walk view**; cropped in, the `#f5f5f0` class showed broad soft grey clouds at ~20-40 cm
+  rather than paint. `dev-probes/wall-mottle.mjs` ran four one-variable arms at one pose:
+
+  | arm | mean | sigma | microcontrast |
+  | --- | --- | --- | --- |
+  | base (shipped) | 85.4 | 18.03 | 0.442 |
+  | AO off | 99.2 | **7.53** | 0.421 |
+  | normalMap off | 85.2 | 17.83 | **0.206** |
+  | roughnessMap off | 85.4 | 18.03 | 0.442 |
+
+  · **The numbers pointed at SSAO and the FRAMES overruled them.** AO-off collapsed sigma by 58%,
+    which read as "N8AO at aoRadius 0.7 / intensity 3.0 / half-res is blotching the wall" — a
+    tidy story. But the `normalMap off` FRAME shows a perfectly smooth painted wall **with AO
+    still on**. The mask spans 35.7% of the screen across many wall segments at different
+    brightnesses, so its sigma is dominated by segment-to-segment luminance, not by within-wall
+    blotching. **Microcontrast was the only honest metric of the three**, and it named the normal
+    map (0.442 -> 0.206, -53%). A follow-up AO sweep confirmed the dead end from the other side:
+    intensity 3.0 -> 2.0 -> 1.5 -> 1.0 moves sigma and corner grounding together (2.44 -> 2.25 ->
+    2.03 -> 1.67 ground/sigma), so the shipped AO tuning has the BEST ratio of every arm tested
+    and reducing it only buys less AO. Nothing was changed in `look.ts`.
+  · **Root cause: the orange-peel plaster tile was stretched over 2.5 m.** `uvScale: [2.5, 2.5]`
+    on every wall paint, against a real orange peel of ~1-3 mm. Stretched that far a fine grain
+    stops reading as texture and becomes cloud — the DOOR-GRAIN lesson (v0.31.5.50) on a surface
+    twenty times the size. Swept metres-per-tile on the drawn material: microcontrast 0.442
+    (2.5 m) -> 0.678 (1.2) -> **0.961 (0.6)** -> 1.072 (0.3) -> 0.913 (0.15).
+  · **Shipped 0.6, not the peak.** At a 256-square tile 0.6 m puts one texel at ~2.3 mm, the size
+    of a real orange-peel bump — a principled value rather than a tuned one. 0.3 measures higher
+    but 0.15 FALLS BACK, which is the NYQUIST-AUDIT rolloff; 0.6 sits a full octave clear of it.
+  · **`limewash` deliberately keeps 2.5**, and that is the control: limewash really is a broad
+    cloudy finish, so the same number is correct there for the reason it was wrong for plaster.
+  · **The first attempt at this fix changed nothing on screen, and the probe caught it.**
+    Retuning all eleven catalog entries left the drawn material at `repeat=0.40` — because
+    `procedural/generators.ts:buildPlasterMaps` carried its OWN hardcoded
+    `repeat.set(1 / 2.5, 1 / 2.5)` (twice), with a comment asserting the catalog value it was
+    silently outranking. Both now read `PLASTER_UV_SCALE`. **If a texture's tiling has a second
+    home, editing the catalog is a no-op** — read the repeat back off the DRAWN material, which
+    is what turned an identical-readings run (meta-rule xxv) into a found bug rather than a
+    shipped non-fix.
+
 - **HALF the procedural noise fields alias, and the limit that binds is 256 (NYQUIST-AUDIT).**
   After two fields were found broken one at a time (WOOD-PORE-NYQUIST, FABRIC-FINE-NYQUIST), a full
   sweep of every `makeFbm` call site against its tile size found **21 of 42 fields over the

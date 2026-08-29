@@ -12,6 +12,7 @@
 import { CanvasTexture, RepeatWrapping, SRGBColorSpace, type Texture } from 'three'
 import { isFeatureEnabled } from '../../features/featureFlags'
 import { applyAnisotropy } from '../anisotropy'
+import { PLASTER_UV_SCALE } from '../builtinCatalog'
 import { notifyProceduralBaseSize } from '../proceduralBaseSizeSignal'
 import type { ProceduralPattern } from '../types'
 import type { Fields } from './fieldKit'
@@ -357,8 +358,11 @@ function buildPlasterMaps(): void {
   try {
     const f = plasterFields([255, 255, 255], hashSeed('plaster:shared'), S)
     plasterNormalTex = toTexture(heightToNormalRGBA(f.height, S, f.normalStrength), false)
-    // Wall faces carry metre UVs and all wall paints tile at 2.5 m.
-    plasterNormalTex.repeat.set(1 / 2.5, 1 / 2.5)
+    // Wall faces carry metre UVs, so this is metres-per-tile. It MUST track the
+    // catalog: this literal was duplicated here as `2.5` and silently outranked
+    // the catalog entries, so retuning `uvScale` on every wall paint changed
+    // nothing on screen (PLASTER-STRETCH, v0.31.5.56).
+    plasterNormalTex.repeat.set(1 / PLASTER_UV_SCALE[0], 1 / PLASTER_UV_SCALE[1])
     if (isFeatureEnabled('pbrSurfaces')) {
       const roughData = new Uint8ClampedArray(S * S * 4)
       for (let i = 0; i < S * S; i++) {
@@ -370,7 +374,7 @@ function buildPlasterMaps(): void {
         roughData[i * 4 + 3] = 255
       }
       plasterRoughTex = toTexture(roughData, false)
-      plasterRoughTex.repeat.set(1 / 2.5, 1 / 2.5)
+      plasterRoughTex.repeat.set(1 / PLASTER_UV_SCALE[0], 1 / PLASTER_UV_SCALE[1])
     }
   } finally {
     S = prev

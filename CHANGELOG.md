@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.56 — the flat's largest surface stopped looking like damp concrete
+
+Walls are **~45% of the walk view** (the `.55` census), and cropped in, the biggest class rendered
+as broad soft grey clouds at 20-40 cm rather than as paint.
+
+**Root cause: the orange-peel plaster normal was stretched over 2.5 m.** Real orange peel is a
+1-3 mm texture; tiled at `uvScale: [2.5, 2.5]` a fine grain stops reading as texture at all and
+becomes cloud. This is the DOOR-GRAIN lesson (v0.31.5.50) on a surface twenty times the size.
+Shipped `PLASTER_UV_SCALE = [0.6, 0.6]`: at a 256-square tile that puts one texel at ~2.3 mm, the
+size of a real orange-peel bump. Measured on the drawn wall, masked microcontrast **0.442 -> 0.961
+(+117%)** with mean (85.4 -> 85.3) and sigma (18.03 -> 17.89) unmoved — the change is purely the
+high-frequency channel, which is exactly the claim. `limewash` deliberately keeps 2.5, and is the
+control: it really is a broad cloudy finish.
+
+**The numbers pointed at SSAO and the frames overruled them.** Turning AO off collapsed the mask's
+sigma by 58%, which looked conclusive. But the `normalMap off` frame shows a perfectly smooth
+painted wall *with AO still on*: the mask spans 35.7% of the screen across wall segments at
+different brightnesses, so its sigma measures segment-to-segment luminance, not blotching.
+Microcontrast was the only honest metric and it named the normal map. A confirming AO sweep found
+intensity 3.0 has the best corner-grounding-per-unit-blotch ratio of every value tested, so
+nothing changed in `look.ts`.
+
+**The first attempt shipped no pixels, and the probe caught it.** Retuning all eleven catalog
+entries left the drawn material at `repeat=0.40`, because `procedural/generators.ts` carried its
+own hardcoded `repeat.set(1 / 2.5, 1 / 2.5)` — twice, under a comment asserting the catalog value
+it was silently outranking. Both now read the shared constant. Reading the repeat back off the
+DRAWN material is what turned an identical-readings run into a found bug rather than a shipped
+non-fix.
+
+New `dev-probes/wall-mottle.mjs` (four one-variable arms, plus `SWEEP=` for AO tuning and
+`REPEATS=` for metres-per-tile) and `plasterUvScale.test.ts` pinning the plaster/limewash split.
+
 ## v0.31.5.55 — harness round: the coverage table re-verified, and this run's lessons written down
 
 No code changed. With the defect queue empty and the four open items being product calls, this
