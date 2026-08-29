@@ -5,6 +5,44 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.95 — TEMPLATE-WALK: a shipped template renders on both storeys; the probe could not show it
+
+**A clean audit plus an instrument fix.** Nothing changed in `src/`. Every visual
+judgement in `.20`–`.94` was the default 4-room flat; 19 `PLAN_TEMPLATES` ship and none
+had ever been walked.
+
+**The instrument was the blocker, and it failed SILENTLY.** `walk-tour.mjs` derived poses
+from `Object.keys(ROOMS)` — the default flat's hardcoded constant table — so touring any
+other template would have produced ZERO poses and an empty tour, reading as "nothing to
+see" rather than "this probe cannot do that". Poses now come from the loaded plan
+(`isDefaultPlan(plan)` preserves the `ROOMS` order for the default flat). New knobs:
+`PLAN=<template id>`, `LEVEL=<upper level id>`, `FURNISH=1`. **Regression verified**: the
+default tour still reports 11 rooms, 354 meshes / 87,486 tris.
+
+**`tpl-hdb-maisonette` is the first multi-storey plan ever rendered in a review.** Its
+`upperLevels[0]` (`em-up`) sits at elevation 2.9 m, and `FirstPersonCamera` already
+stands the walker at `level.elevation + eyeHeight` — the storey was reachable all along,
+just never looked at. Ground 7 rooms / 28 frames, upper 8 rooms / 32 frames, zero empty
+frames; walls, cornices, doors, floors and the storey offset all correct.
+
+**`applyLayoutPreset` IS multi-storey aware — I predicted it was not and was wrong.**
+Measured on the same upper storey: 63 visible meshes / 15,698 tris when only re-homed, vs
+**213 / 93,677** after `furniture: 'clear'` + `applyLayoutPreset('move-in')`.
+
+**You cannot judge a template through the SWAP path.** `replaceFloorPlan(tpl,
+{ furniture: 'rehome' })` pulls the OLD flat's 87 items into the new shell: the maisonette
+living room came back with sofas overlapping and a coffee table intersecting a sofa, while
+every upper room stayed bare. That is `rehomeStrandedItems` doing what PLAN-SWAP-STRANDED
+(`.90`) documents — it pulls items inside a room, it does not space them — so it is
+expected, and `.90`'s confirm already warns the user. Use `FURNISH=1` to review a
+template's design; use the rehome path only to review the swap.
+
+**Unverified observation, recorded not claimed:** on the upper storey the minimap still
+drew the ground plan and labelled the room "LIVING / DINING". Seen in both upper arms,
+not investigated — a lead to confirm.
+
+npm test 991 files / 9282 tests green; tsc + biome clean.
+
 ## v0.31.5.94 — PHONE-WALK-CLEAN: the phone tier's walk view is clean; the PROBE was not
 
 **A clean audit, and an instrument fix.** Nothing changed in `src/`. PERF-TIER-LOOKS-FINE

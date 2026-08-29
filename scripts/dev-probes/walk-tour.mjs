@@ -106,6 +106,14 @@ await assertSceneAlive(page, 'after setup')
 // always calls `setQualityTier`, so a phone-profile run (BOOT_PHONE=1 COARSE=1)
 // booted to the veto's `performance` and was then FORCED back to `medium` — the
 // arm would not have been a phone arm at all (meta-rules iv, xvi).
+// PLAN=<template id> swaps in a shipped PLAN_TEMPLATE before touring, and
+// LEVEL=<upper level id> tours that storey instead of the ground floor. Without
+// them the tour is hardwired to the default flat — see the pose block below.
+const PLAN = process.env.PLAN || ''
+const LEVEL = process.env.LEVEL || ''
+/** FURNISH=1 — clear the old furniture and auto-furnish the template instead. */
+const FURNISH = process.env.FURNISH === '1'
+
 const TIER = process.env.TIER || 'medium'
 const TIER_AUTO = TIER === 'auto'
 /** Look direction, radians. YXZ Euler Y: forward is (-sin, 0, -cos), so 0 looks -Z. */
@@ -126,6 +134,34 @@ await page
   .waitForFunction(() => !window.__store.getState().loading?.active, { timeout: 60000 })
   .catch(() => {})
 await new Promise((r) => setTimeout(r, 3000))
+if (PLAN) {
+  const swapped = await page.evaluate(
+    async ({ id, furnish }) => {
+      const { PLAN_TEMPLATES } = await import('/src/floorplan/templates.ts')
+      const tpl = PLAN_TEMPLATES.find((t) => t.id === id)
+      if (!tpl) return null
+      // 'rehome' is the real SWAP path (PLAN-SWAP-STRANDED, v0.31.5.90) and keeps the
+      // old flat's furniture; FURNISH=1 instead CLEARS and auto-furnishes, which is
+      // the only way to judge the TEMPLATE rather than the swap.
+      const st = window.__store.getState()
+      st.replaceFloorPlan(structuredClone(tpl), { furniture: furnish ? 'clear' : 'rehome' })
+      if (furnish) st.applyLayoutPreset('move-in')
+      return tpl.name
+    },
+    { id: PLAN, furnish: FURNISH },
+  )
+  if (!swapped) throw new Error(`PLAN template not found: ${PLAN}`)
+  await new Promise((r) => setTimeout(r, 2500))
+  console.log(`plan swapped -> ${swapped} (${PLAN})`)
+}
+if (LEVEL) {
+  // The walk camera stands at `level.elevation + eyeHeight` for whichever level
+  // `viewLevelId` selects (FirstPersonCamera, ML6c) — this is how an upper storey
+  // is reached at all.
+  await page.evaluate((id) => window.__store.getState().setViewLevel(id), LEVEL)
+  await new Promise((r) => setTimeout(r, 1200))
+}
+
 await page.evaluate(() => {
   const st = window.__store.getState()
   st.setCameraMode('firstPerson')
@@ -146,36 +182,52 @@ await new Promise((r) => setTimeout(r, 3000))
  * Yaw is computed, not guessed: `FirstPersonCamera` applies it as a YXZ Euler Y, so forward
  * is `(-sin(yaw), 0, -cos(yaw))` and aiming from P at T is `atan2(-dx, -dz)`.
  */
-const poses = await page.evaluate(async (yawArg) => {
-  const [{ ROOMS }, { getRoomEditorShell }] = await Promise.all([
-    import('/src/apartment/constants.ts'),
-    import('/src/scene/roomEditorShell.ts'),
-  ])
-  const plan = window.__store.getState().floorPlan
-  const out = []
-  for (const id of Object.keys(ROOMS)) {
-    const res = getRoomEditorShell(plan, id)
-    const shell = res?.shell
-    if (!shell?.center) continue
-    const [cx, cz] = shell.center
-    const r = shell.radius ?? 1.5
-    if (r < 0.9) continue // utility slivers (ac ledge etc.) have nothing to review
-    // Stand AT the centre. Backing off by `radius * 0.8` along +Z pushed the camera
-    // through the exterior wall for edge rooms (the kitchen came back a featureless grey
-    // with the minimap arrow outside the plan outline), and the walk collision resolver
-    // then has nowhere valid to put it. The centre of a room whose radius clears the
-    // player capsule is always inside it.
-    const pos = [cx, 1.6, cz]
-    out.push({
-      id,
-      pos,
-      yaw: yawArg,
-      radius: +r.toFixed(2),
-      want: [+cx.toFixed(2), +cz.toFixed(2)],
-    })
-  }
-  return out
-}, YAW)
+const poses = await page.evaluate(
+  async (yawArg, levelId) => {
+    const [{ ROOMS }, { getRoomEditorShell }, { isDefaultPlan }] = await Promise.all([
+      import('/src/apartment/constants.ts'),
+      import('/src/scene/roomEditorShell.ts'),
+      import('/src/floorplan/planGeometry.ts'),
+    ])
+    const plan = window.__store.getState().floorPlan
+    // Room ids come from the LOADED PLAN, not from `ROOMS`. `ROOMS` is the default
+    // flat's hardcoded constant table, so touring any other template through it
+    // yielded ZERO poses — the instrument was hardwired to one plan and would have
+    // reported an empty tour rather than a missing capability (meta-rule cix).
+    // `ROOMS` order is kept for the default flat so existing runs are unchanged.
+    const upper = (plan.upperLevels ?? []).find((l) => l.id === levelId)
+    const ids = upper
+      ? upper.rooms.map((r) => r.id)
+      : isDefaultPlan(plan)
+        ? Object.keys(ROOMS)
+        : (plan.rooms ?? []).map((r) => r.id)
+    const out = []
+    for (const id of ids) {
+      const res = getRoomEditorShell(plan, id)
+      const shell = res?.shell
+      if (!shell?.center) continue
+      const [cx, cz] = shell.center
+      const r = shell.radius ?? 1.5
+      if (r < 0.9) continue // utility slivers (ac ledge etc.) have nothing to review
+      // Stand AT the centre. Backing off by `radius * 0.8` along +Z pushed the camera
+      // through the exterior wall for edge rooms (the kitchen came back a featureless grey
+      // with the minimap arrow outside the plan outline), and the walk collision resolver
+      // then has nowhere valid to put it. The centre of a room whose radius clears the
+      // player capsule is always inside it.
+      const pos = [cx, 1.6, cz]
+      out.push({
+        id,
+        pos,
+        yaw: yawArg,
+        radius: +r.toFixed(2),
+        want: [+cx.toFixed(2), +cz.toFixed(2)],
+      })
+    }
+    return out
+  },
+  YAW,
+  LEVEL,
+)
 
 const liveState = await page.evaluate(() => {
   const st = window.__store.getState()

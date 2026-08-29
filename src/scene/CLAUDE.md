@@ -694,6 +694,43 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   nothing and pins `showcaseAccumulating=false`; the `showcase` quality flag is `false` on
   every tier. Grounding comes from the cues above — don't reintroduce a scene-wide
   shadow-catcher plane.
+- **A shipped TEMPLATE renders correctly on BOTH storeys — but the tour probe was
+  hardwired to the default flat and could never have shown you (TEMPLATE-WALK,
+  v0.31.5.95). Nothing changed in `src/`.** Every visual judgement in `.20`–`.94` was
+  the default 4-room flat; 19 `PLAN_TEMPLATES` ship and none had been walked.
+  · **The instrument was the blocker, and it failed SILENTLY.** `walk-tour.mjs` derived
+    its poses from `Object.keys(ROOMS)` — the default flat's hardcoded constant table —
+    so touring any other template would have produced **zero poses and an empty tour**,
+    reading as "nothing to see" rather than "this probe cannot do that". Poses now come
+    from the LOADED plan (`isDefaultPlan(plan)` keeps the `ROOMS` order for the default
+    flat, so existing runs are unchanged — **verified: still 11 rooms, 354 meshes /
+    87,486 tris**). New knobs: `PLAN=<template id>`, `LEVEL=<upper level id>`,
+    `FURNISH=1`. Second instrument trap in two rounds; see meta-rule (cix).
+  · **`tpl-hdb-maisonette` is the first MULTI-STOREY plan ever rendered in a review.**
+    Its `upperLevels[0]` (`em-up`) sits at elevation 2.9 m, and `FirstPersonCamera`
+    already stands the walker at `level.elevation + eyeHeight` for whatever
+    `viewLevelId` selects — so the storey was reachable all along, just never looked at.
+    Ground 7 rooms / 28 frames, upper 8 rooms / 32 frames, **zero empty frames**; walls,
+    cornices, doors, floors and the storey offset all render correctly.
+  · **`applyLayoutPreset` IS multi-storey aware — I predicted it was not and was wrong.**
+    `furnishPlanItems` takes `plan.rooms`, which looked ground-only. Measured on the same
+    upper storey: **63 visible meshes / 15,698 tris when only re-homed vs 213 / 93,677
+    after `furniture: 'clear'` + `applyLayoutPreset('move-in')`.** The furnished upper
+    master bedroom shows bed, headboard and wall art.
+  · **You cannot judge a TEMPLATE through the SWAP path, and that is a probe-design
+    lesson, not a defect.** `replaceFloorPlan(tpl, { furniture: 'rehome' })` — the real
+    user path — pulls the OLD flat's 87 items into the new shell: the maisonette living
+    room came back with sofas overlapping each other and a coffee table intersecting a
+    sofa, while every upper room stayed bare. That is `rehomeStrandedItems` doing exactly
+    what PLAN-SWAP-STRANDED (`.90`) documents — it pulls items inside a room, it does not
+    space them — so it is expected, and `.90`'s confirm already warns the user. **Use
+    `FURNISH=1` to review a template's own design; use the default rehome path only to
+    review the swap.**
+  · **UNVERIFIED observation, recorded so it is not lost:** while standing on the upper
+    storey the minimap still drew the GROUND plan and labelled the room
+    "LIVING / DINING". It appeared in both upper-level arms but was not investigated, so
+    treat it as a lead to confirm, not a finding.
+
 - **PERF-TIER-LOOKS-FINE's open lead is now CLOSED: the phone tier's WALK view is clean
   too (PHONE-WALK-CLEAN, v0.31.5.94). Nothing was changed in `src/`.** That note ends
   *"If the 'not real' complaint is ever re-opened, look at WALK mode close-ups, not the
