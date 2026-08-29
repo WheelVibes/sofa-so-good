@@ -547,6 +547,27 @@ Two things to copy:
 - **Grep for every consumer before judging blast radius.** The comment named two features; the
   codebase had five call sites doing the same `toDataURL` on the main canvas.
 
+## Every probe here suppresses the first-run path — so nobody had seen it
+
+`lib.mjs`-style probe heads seed `hdb_onboarded` in `evaluateOnNewDocument` and call
+`dismissLocationPrompt()` before `sceneReady`. That is correct for measuring the SCENE — overlays
+would cover it — but it means the first-run path is invisible to the entire probe suite. Seventy
+rounds of frames were all captured after onboarding was already dismissed.
+
+`first-run.mjs` is the deliberate opposite: it suppresses nothing, pins the WALL clock
+(`FAKE_HOUR=`, because the app boots `timeMode: 'system'`), and captures a timed sequence from
+first paint, printing the store's own first-run flags beside each shot. It found that the
+after-dark first paint is 89% near-black DURING onboarding — the exact failure
+`firstPaintDaylight.ts` was written to prevent — because the guard lights the interior while the
+boot camera is outside.
+
+**Two transferable points:**
+- **A guard is only as good as the VIEW it was validated in.** Interior-lights-on fixes the
+  interior; the first thing a user sees was the orbit exterior, and nobody had measured that.
+- **Mask the chrome, not the frame.** Quote the mean over the region outside the modal card and the
+  toolbar. A whole-canvas figure here is dominated by a large white card and says nothing about
+  whether the scene is legible.
+
 ## Pin the page WALL CLOCK — the app boots in `timeMode: 'system'`
 
 Probes pin `setTimeMode('manual')` + `setManualHour(h)` and then reason as though time is

@@ -12,6 +12,51 @@ with `ao={false}` keeping `N8AO` off at `performance`. Discriminator `mainBedroo
 image (1.45 MB / 100% non-black). Priced at `performance`: p50 4.1 ms / p90 4.4 ms / 59.9 fps
 before AND after. Full write-up in `src/scene/CLAUDE.md`; `composerPlan()` pins the invariant.
 
+## FIRST-PAINT-ORBIT: the daylight guard is measured against the wrong view (v0.31.5.75)
+
+**Measured defect against a DOCUMENTED intent. The fix is a design choice, so it is filed rather
+than shipped.**
+
+`state/storage/firstPaintDaylight.ts` exists to stop this exact thing: *"a brand-new visitor
+opening the app after dark is shown a **pitch-black flat**: the move-in demo seeds 87 items and
+every one of them is invisible, **through onboarding**, the whole 9-step tour and the location
+prompt"*. It switches interior lights on outside 08:00–18:00.
+
+**It does not achieve that.** New `first-run.mjs` suppresses NOTHING — no `hdb_onboarded` seed, no
+`dismissLocationPrompt()` — pins the wall clock, and measures the screen OUTSIDE the modal card and
+toolbar:
+
+| wall clock | t=0 (splash) | onboarding carousel up (t=5 s, 9 s) |
+| --- | --- | --- |
+| 13:00 | mean 181.1, 0.0% near-black | mean **143.4**, **0.0%** near-black |
+| 22:00 | mean 185.8, 0.0% near-black | mean **23.9**, **89.0%** near-black |
+
+At 22:00, with the guard having correctly set `lightsMode: 'on'` (verified in the same run),
+**89% of the visible screen is near-black** during onboarding.
+
+**Why the guard misses it: the boot camera is ORBIT, outside the building.** `Scene.tsx` boots at
+`[12, 8, 12]` looking in; orbit culls the ceiling so you see down into the flat, but at night you
+are still looking at an exterior from 17 m away, where interior fixture lights barely register.
+The guard was validated on the INTERIOR — and there it works: `.60`'s 22:00 walk-tour with lights
+on is warm and legible. Two different views, one of which nobody had shot.
+
+**The falsifying arm is built in:** the 13:00 run uses the same modal, the same blurred scrim and
+the same code path, and reads 0.0% near-black. So the darkness is the SCENE, not the scrim.
+
+**Options, none obviously right — this is a design call:**
+1. **Lift the exterior/ambient at night for the first paint only** — smallest change, but invents
+   light that is not physically there, which this repo has resisted elsewhere.
+2. **Boot the camera closer / inside for a fresh seed** — makes the interior lights (which the
+   guard already turns on) actually visible, and shows off the 87 seeded items the onboarding copy
+   is describing. Changes the signature first impression.
+3. **Accept it** — a dark exterior at 22:00 is honest, and the carousel is the focus anyway. But
+   then `firstPaintDaylight.ts`'s stated goal should be narrowed to "the interior, once you are in
+   it", because it does not currently hold for first paint.
+
+**Related to open item (a).** Note the daylight case is NOT dark (143.4, 0% near-black), so this is
+a separate axis from DEFAULT-GLOOM: (a) asks whether daytime interiors should be lit; this asks
+whether the night FIRST PAINT is legible at all.
+
 ## `lightsMode` at boot — EXPLAINED, and it is a deliberate feature (v0.31.5.74)
 
 **RETRACTION of `.73`'s framing.** `.73` called this "a regression of a shipped product decision —

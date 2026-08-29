@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.75 — the daylight first-paint guard is measured against the wrong view
+
+No app code changed; the fix is a design call and is filed with options.
+
+**The one condition nobody had swept: what a genuinely NEW user meets.** Every probe in this repo
+suppresses the first-run path — they seed `hdb_onboarded` and call `dismissLocationPrompt()` before
+`sceneReady` — so every frame judged in `.20`–`.74` was captured after the onboarding carousel, the
+9-step tour and the location prompt were already gone. New `first-run.mjs` suppresses nothing.
+
+**`firstPaintDaylight.ts` exists to prevent exactly one thing** — *"a brand-new visitor opening the
+app after dark is shown a pitch-black flat … through onboarding"* — and it does not achieve it.
+Measuring the screen outside the modal card and toolbar:
+
+| wall clock | t=0 (splash) | onboarding carousel up |
+| --- | --- | --- |
+| 13:00 | mean 181.1, 0.0% near-black | mean **143.4**, **0.0%** near-black |
+| 22:00 | mean 185.8, 0.0% near-black | mean **23.9**, **89.0%** near-black |
+
+At 22:00 the guard correctly sets `lightsMode: 'on'` (verified in the same run) and **89% of the
+visible screen is still near-black**.
+
+**Why: the boot camera is ORBIT, outside the building.** `Scene.tsx` boots at `[12, 8, 12]`; orbit
+culls the ceiling so you see down into the flat, but you are 17 m away looking at an exterior, where
+interior fixture lights barely register. The guard was validated on the INTERIOR, and there it
+works — `.60`'s 22:00 walk-tour with lights on is warm and legible. Two different views; only one
+had ever been shot.
+
+**The falsifying arm is built in:** the 13:00 run uses the same modal, the same blurred scrim and
+the same code path and reads 0.0% near-black, so the darkness is the scene rather than the scrim.
+
+Three options are written up in `TODO.md` (lift the night exterior for first paint only; boot the
+camera closer for a fresh seed; or accept it and narrow the guard's stated goal). This is a
+separate axis from open item (a) — the daylight first paint is not dark.
+
 ## v0.31.5.74 — the clock-dependent lights are a deliberate feature; `.73`'s "regression" is retracted
 
 No app code changed. The mechanism is named, and the previous round's framing was wrong.
