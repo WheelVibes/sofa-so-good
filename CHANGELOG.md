@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.51 — the coverage census's unnamed classes identified; the biggest was not a door
+
+`surface-coverage.mjs` ranks what a walk-mode user sees but labels each class only by material +
+colour + bbox, so two top classes had gone into the loop's notes as "door-like" on the strength
+of their shape. The new `dev-probes/class-id.mjs` enumerates every mesh of a given colour with
+its world position, size, ancestor chain and nearest plan opening — evidence from the app rather
+than inference from proportions:
+
+- **`#c8bca8`, 3.50% — CURTAINS**, not a door. Its ancestor chain carries `Group{itemId}`, which
+  apartment components never have, so it is a furniture item; it is taller than a door leaf
+  (2.55 m) because it hangs from a rail, and it repeats along every window wall.
+- **`#9aa0a6`, 3.39%** — the metal blast / utility doors at `door-householdShelter` (0.14 m
+  thick) and `door-serviceYard`, correctly metallic.
+- **`#cfc8bd`** — bifold bathroom leaves, two per opening (0.4 m each across a 0.8 m door).
+
+**Both hold up; no code changed.** The curtain reads as matte fabric with soft pleats and a
+visible fine weave; the metal doors carry sensible metalness.
+
+The method note that matters: a 1.0 x 2.55 x 0.1 box standing in a wall looks exactly like a tall
+door panel, which is how it got mislabelled in the first place. `Group{itemId}` in the ancestor
+chain is the cheap discriminator between furniture and apartment geometry — check it before
+naming a class, because a wrong label sends the next round at the wrong file.
+
+Noted but not filed: door handles are visibly octagonal at close range, too small a fraction of
+any frame to justify work on the current evidence.
+
+
 ## v0.31.5.50 — door grain: the right lever was TILING, and v0.31.5.49 had its sign backwards
 
 v0.31.5.49 fixed the door leaf's gloss and left a residual: "the grain normal still ripples at

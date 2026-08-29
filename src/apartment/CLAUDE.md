@@ -143,3 +143,28 @@ Full code map in `docs/ARCHITECTURE.md`.
     against a gloss that the same round then changed. Re-run the sweep after any change that
     alters how the varied parameter is perceived.
 
+- **The coverage census's unnamed classes, IDENTIFIED — and the biggest one was not a door
+  (SURFACE-CLASS-ID, v0.31.5.51).** `surface-coverage.mjs` ranks what a walk-mode user sees but
+  labels each class only by material + colour + bbox, so two of the top classes went into the
+  loop's notes as "door-like" on the strength of their shape. One of them was not.
+  `scripts/dev-probes/class-id.mjs` enumerates every mesh carrying a given colour and reports its
+  WORLD POSITION, size, ancestor chain and nearest plan opening — the app's own evidence rather
+  than an inference from proportions:
+
+  | class | coverage | what it actually is |
+  | --- | --- | --- |
+  | `#c8bca8` Physical, 1.0 x 2.55 x 0.1, rough 0.95 | **3.50%** | **CURTAINS** — a furniture ITEM (its chain carries `Group{itemId}`, which apartment components never have), repeated along every window wall. Not a door: it is taller than a leaf because it hangs from a rail. |
+  | `#9aa0a6` Physical, 0.8 x 2.1, metal 0.25 | 3.39% | the **metal blast / utility doors** at `door-householdShelter` (0.14 m thick — the HDB shelter door) and `door-serviceYard`. |
+  | `#cfc8bd` Physical, 0.4 x 2.1, rough 0.35 | — | **bifold bathroom leaves**, TWO per opening (0.4 m each across a 0.8 m door) at `door-bath1` / `door-bath2`. |
+
+  · **Both hold up; nothing was changed.** The curtain reads as matte fabric with soft pleats and
+    a visible fine weave from its normal map — plausible at conversational distance. The metal
+    doors carry the right metalness for a blast door.
+  · **The lesson is the method.** A bbox of 1.0 x 2.55 x 0.1 standing in a wall looks exactly like
+    a tall door panel, and that is how it got recorded. The `Group{itemId}` in the ancestor chain
+    is the cheap discriminator between FURNITURE and APARTMENT geometry — use it before naming a
+    class, because a wrong label sends the next round at the wrong file.
+  · Minor, unmeasured observation for whoever looks next: the door handles are visibly OCTAGONAL
+    at close range. They are a small fraction of any frame, so no coverage number justifies work
+    on them yet — noted rather than filed.
+
