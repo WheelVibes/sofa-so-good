@@ -466,6 +466,36 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   · sat/bright are baked into the swatch by `adjustColorTone` before the def is built, so they
     cannot be dropped by a branch; Repaint/Shade is already gated on `baseMat?.kind === 'textured'`.
 
+- **The census is NOT merging surfaces — hypothesis refuted, and the `#ffffff` class is the wet-room
+  tile (CENSUS-KEYING, v0.31.5.59).** `cache.ts`'s general procedural branch does
+  `m.color.set('#ffffff')` with the tint baked into the albedo, so it was reasonable to suspect
+  that `surface-coverage.mjs` — which keys classes by base colour — had been collapsing every
+  non-plaster procedural finish into one `#ffffff` bucket, and that the priority table this whole
+  run steers by was over-reporting a class that is really several.
+  · **Tested with a new opt-in `KEYBY=map` mode** that adds the map SOURCE uuid to the class key.
+    Every `#ffffff` row came back on the SAME source (`t9`), and the total class count moved only
+    **322 -> 323**. If the artefact hypothesis were right the count would have jumped. **The
+    census is honest**; the default colour keying stays.
+  · Incidentally confirmed by the same run: all `#f5f5f0` rows share one source (the plaster
+    singleton, as designed), `#a9825c` and `#caa478` share the wood tile (door leaf and wall-slat
+    panel, both at `repeat 2` after `.50`), and `#cfc8bd` / `#e3dfd6` share the paint micro-normal
+    (`getVinylMaterial` / `getPaintedMaterial`, as `.58` established).
+  · **`#ffffff` is `wall-tile-white`** — "Glazed porcelain tile (white, 300x600)",
+    `DEFAULT_ROOM_WALL` for `bath1` / `bath2` / `kitchen`. Its ~13.4% is arithmetically right: the
+    tour stands in 3 of 11 rooms where it is the default, and those rooms are small enough that
+    the walls fill the frame.
+  · **It does NOT have a stretch of its own** — the specific thing this round was sent to check.
+    `uvScale: [1.2, 1.2]` against a 300x600 mm tile pattern puts **4 tiles across and 2 down per
+    repeat, i.e. exactly 300x600 mm each**. Correct by construction rather than by tuning, and the
+    opposite of the plaster bug. Bathroom tile is also territory three earlier rounds already
+    measured (`bath-tile-size.mjs` exists for it) — meta-rule (xvii-b).
+  · **Method note, because it cost four probe runs:** `wall-mottle.mjs` seeds from the largest
+    vertical class AT A POSE, which is the wrong tool for "go find class X" — standing in kitchen
+    seeded the painted cabinetry, bath1 seeded the shower glass, and mainBedroom seeded the
+    curtains. The census knows which room each class came from and throws it away. **If this
+    recurs, make `surface-coverage.mjs` print a sample room per class** rather than guessing rooms
+    one probe run at a time.
+
 - **HALF the procedural noise fields alias, and the limit that binds is 256 (NYQUIST-AUDIT).**
   After two fields were found broken one at a time (WOOD-PORE-NYQUIST, FABRIC-FINE-NYQUIST), a full
   sweep of every `makeFbm` call site against its tile size found **21 of 42 fields over the

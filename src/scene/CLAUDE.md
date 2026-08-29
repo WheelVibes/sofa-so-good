@@ -422,6 +422,18 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     0.003 of it). `pick-surface.mjs` resolves an NDC point to a furniture `defId` + its exact
     material values, which is how "those two saturated orange blocks" became "dining-chair
     backrests at 1.75 m". Prefer these to eyeballing a still.
+- **Everything this run judged was at 13:00; 19:00 is CLEAN and flatters the flat
+  (SECOND-HOUR, v0.31.5.59).** Flat noon is the condition least likely to reveal a normal-map or
+  gloss problem, so the whole `.20`-`.58` body of work was re-shot as an 11-room / 44-frame
+  `walk-tour.mjs` at `HOUR=19`, with the low sun raking across the west-facing openings.
+  · **Nothing broke, and the two shipped plaster rounds hold up under raking light** — the
+    condition that would most easily have exposed a normal map tiled too fine (`.56` shipped 0.6 m
+    with the Nyquist rolloff measured one octave away at 0.15 m). No shimmer, no moire.
+  · The curtains in particular read markedly BETTER at 19:00 than at 13:00 — the low sun picks out
+    the pleats and the fabric gains real depth, where flat noon renders it as a soft grey wall.
+    That is worth knowing before anyone retunes curtain material on the strength of a midday
+    frame, and it is a second argument for looking at more than one hour.
+
 - **Price a render feature in BOTH currencies, and against a measured noise floor**
   (`scripts/dev-probes/feature-price.mjs`). It applies one `qualityOverrides` change at a time and
   reports p90 frame cost in ms alongside two visual metrics. Measured at Maximum, 09:00, DPR 2,

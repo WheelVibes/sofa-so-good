@@ -5,6 +5,30 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.59 — the census is honest, the second-largest surface is correct, and 19:00 is clean
+
+No app code changed. One hypothesis refuted, one class identified, one new condition swept.
+
+**The census is not merging surfaces.** Since `cache.ts`'s procedural branch bakes the tint into
+the albedo and leaves `m.color` white, `surface-coverage.mjs` — which keys by base colour — was
+suspected of collapsing every non-plaster procedural finish into one `#ffffff` bucket, which would
+have meant the priority table this whole run steers by was over-reporting a class that is really
+several. A new opt-in `KEYBY=map` mode adds the map SOURCE uuid to the key: every `#ffffff` row
+came back on the same source, and the class count moved only **322 -> 323**. The artefact
+hypothesis predicted a jump. Default keying stays.
+
+**`#ffffff` (~13.4%, the second-largest thing in the flat) is `wall-tile-white`** — glazed
+porcelain 300x600, the `DEFAULT_ROOM_WALL` for both baths and the kitchen. It does not have a
+stretch of its own, which is what this round was sent to check: `uvScale: [1.2, 1.2]` puts exactly
+4 tiles across and 2 down per repeat, i.e. 300x600 mm each. Correct by construction — the opposite
+of the plaster bug.
+
+**19:00 is clean.** Everything judged in this run was at 13:00, which is the condition least likely
+to reveal a normal-map or gloss problem. An 11-room / 44-frame re-shoot under a low sun shows no
+shimmer and no moire — the specific risk `.56`'s 0.6 m tile carried, with the Nyquist rolloff
+measured one octave away. The curtains read markedly better at 19:00 than at noon, which is worth
+knowing before anyone retunes them off a midday frame.
+
 ## v0.31.5.58 — the flat grey door is correct, and there is no second dead control
 
 No code changed. Three audits, all closing rather than opening work.

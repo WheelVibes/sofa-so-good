@@ -132,6 +132,7 @@ const rooms = await page.evaluate(async () => {
   return out
 })
 
+const KEYBY = process.env.KEYBY || 'colour'
 const YAWS = [0, Math.PI / 2, Math.PI, -Math.PI / 2]
 const totals = new Map()
 let samples = 0
@@ -146,41 +147,60 @@ for (const room of rooms) {
       { ...room, yaw: YAWS[i] },
     )
     await new Promise((r) => setTimeout(r, 700))
-    const hits = await page.evaluate(() => {
-      const { scene, camera } = window.__three
-      const THREE = window.__three
-      const rc = new THREE.raycaster.constructor()
-      const n = new camera.position.constructor()
-      const acc = new Map()
-      const N = 40
-      for (let j = 0; j < N; j++) {
-        for (let k = 0; k < N; k++) {
-          rc.setFromCamera({ x: ((k + 0.5) / N) * 2 - 1, y: 1 - ((j + 0.5) / N) * 2 }, camera)
-          const r = rc.intersectObjects(scene.children, true)
-          const h = r.find((o) => o.object.visible && o.object.material?.colorWrite !== false)
-          if (!h) continue
-          const m = h.object.material
-          if (!m) continue
-          n.copy(h.face?.normal ?? { x: 0, y: 1, z: 0 }).transformDirection(h.object.matrixWorld)
-          const maps =
-            ['map', 'normalMap', 'roughnessMap', 'aoMap', 'metalnessMap']
-              .filter((s) => m[s])
-              .join('+') || 'none'
-          const g = h.object.geometry
-          g?.computeBoundingBox?.()
-          const bb = g?.boundingBox
-          const sz = bb
-            ? [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z]
-                .map((v) => v.toFixed(1))
-                .join('x')
-            : '?'
-          const orient = Math.abs(n.y) > 0.7 ? (h.point.y > 1.9 ? 'ceil' : 'floor') : 'vert'
-          const key = `${orient}|${m.type}|#${m.color?.getHexString?.() ?? '??'}|${maps}|${sz}`
-          acc.set(key, (acc.get(key) ?? 0) + 1)
+    const hits = await page.evaluate(
+      (opt) => {
+        const { scene, camera } = window.__three
+        const THREE = window.__three
+        const rc = new THREE.raycaster.constructor()
+        const n = new camera.position.constructor()
+        const acc = new Map()
+        const N = 40
+        for (let j = 0; j < N; j++) {
+          for (let k = 0; k < N; k++) {
+            rc.setFromCamera({ x: ((k + 0.5) / N) * 2 - 1, y: 1 - ((j + 0.5) / N) * 2 }, camera)
+            const r = rc.intersectObjects(scene.children, true)
+            const h = r.find((o) => o.object.visible && o.object.material?.colorWrite !== false)
+            if (!h) continue
+            const m = h.object.material
+            if (!m) continue
+            n.copy(h.face?.normal ?? { x: 0, y: 1, z: 0 }).transformDirection(h.object.matrixWorld)
+            const maps =
+              ['map', 'normalMap', 'roughnessMap', 'aoMap', 'metalnessMap']
+                .filter((s) => m[s])
+                .join('+') || 'none'
+            const g = h.object.geometry
+            g?.computeBoundingBox?.()
+            const bb = g?.boundingBox
+            const sz = bb
+              ? [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z]
+                  .map((v) => v.toFixed(1))
+                  .join('x')
+              : '?'
+            const orient = Math.abs(n.y) > 0.7 ? (h.point.y > 1.9 ? 'ceil' : 'floor') : 'vert'
+            // KEYBY=map — the general procedural branch bakes the tint into the
+            // ALBEDO and leaves `m.color` white, so grouping by colour collapses
+            // every non-plaster procedural finish (tile, batten, slat, grasscloth)
+            // into one `#ffffff` bucket. Keying by the map SOURCE splits them.
+            // Kept opt-in so the default table stays comparable across rounds.
+            let tex = ''
+            if (opt.keyByMap) {
+              const src = m.map?.source?.uuid ?? m.normalMap?.source?.uuid ?? null
+              if (src) {
+                window.__srcIds ??= new Map()
+                if (!window.__srcIds.has(src)) window.__srcIds.set(src, window.__srcIds.size + 1)
+                tex = `|t${window.__srcIds.get(src)}`
+              } else {
+                tex = '|t-'
+              }
+            }
+            const key = `${orient}|${m.type}|#${m.color?.getHexString?.() ?? '??'}|${maps}|${sz}${tex}`
+            acc.set(key, (acc.get(key) ?? 0) + 1)
+          }
         }
-      }
-      return [...acc.entries()]
-    })
+        return [...acc.entries()]
+      },
+      { keyByMap: KEYBY === 'map' },
+    )
     for (const [k, v] of hits) totals.set(k, (totals.get(k) ?? 0) + v)
     samples += 1600
     if (i === 0) {
@@ -191,12 +211,15 @@ for (const room of rooms) {
 
 const rows = [...totals.entries()].sort((a, b) => b[1] - a[1])
 console.log(`${rooms.length} rooms x ${YAWS.length} yaws = ${samples} rays\n`)
-console.log('cover%  orient material            colour    maps                        size')
+console.log(`keyed by ${KEYBY === 'map' ? 'MAP SOURCE (tN)' : 'colour'}`)
+console.log(
+  'cover%  orient material            colour    maps                        size          tex',
+)
 for (const [k, v] of rows.slice(0, 26)) {
-  const [orient, type, col, maps, sz] = k.split('|')
+  const [orient, type, col, maps, sz, tex] = k.split('|')
   const pct = ((100 * v) / samples).toFixed(2)
   console.log(
-    `${pct.padStart(6)}  ${orient.padEnd(5)} ${type.replace('Mesh', '').replace('Material', '').padEnd(10)} ${col.padEnd(9)} ${maps.padEnd(27)} ${sz}`,
+    `${pct.padStart(6)}  ${orient.padEnd(5)} ${type.replace('Mesh', '').replace('Material', '').padEnd(10)} ${col.padEnd(9)} ${maps.padEnd(27)} ${(sz ?? '').padEnd(14)}${tex ?? ''}`,
   )
 }
 console.log(`\n${rows.length} distinct surface classes; frames -> ${OUTDIR}`)
