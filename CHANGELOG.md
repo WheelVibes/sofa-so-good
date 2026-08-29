@@ -5,6 +5,41 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.54 — discovery pass: the out-of-box flat renders at ~40% of its lit brightness
+
+With no measured open default-look defects left, this round went back to LOOKING: a 24-frame
+walk-tour contact sheet at 13:00 / medium, reviewed as a user would. Almost every interior came
+back dark grey.
+
+**It is not a probe artefact and not the tier.** The new `tier-drift.mjs` holds one pose through
+24 teleports and reports medium / IBL true / exposure 1.38 / 13:00 manual, stable throughout,
+reproducing the same dark frame — so the sheet is honest. (The adaptive-ladder-demotion
+hypothesis was tested first and refuted.)
+
+Three separately-defensible defaults compound — lights off, curtains drawn, interior doors
+closed — so the new `default-gloom.mjs` separated them at four room-centre poses, one variable
+at a time:
+
+| room | default | lightsMode on | + curtains opened |
+| --- | --- | --- | --- |
+| bath1 | 78.8 | **192.9** | 196.4 |
+| kitchen | 83.3 | **188.8** | 193.4 |
+| livingDining | 76.0 | **175.1** | 175.5 |
+| mainBedroom | 74.8 | **190.2** | 189.8 |
+
+**The switch is the lever; the curtains are not.** Lights on is worth 2.3–2.5x in every room;
+opening every curtain on top adds between −0.4 and +4.6, i.e. nothing.
+
+NIGHT-LIGHT-BUDGET already records that `lightsMode` defaults to off and that a zero point-light
+census "reads as a broken light system and is simply the switch being off" — but frames it as a
+trap for someone auditing lights, not as the dominant driver of how the flat looks on a first
+walk-through. It is both.
+
+**Nothing changed.** Lights-off at 13:00 is physically reasonable and the daylight model works —
+rooms brighten correctly when the switch flips. Whether a first-run user should walk into a lit
+home is a product decision, not a rendering defect.
+
+
 ## v0.31.5.53 — wall-reveal: the corner step is WON'T-FIX; the real issue is the default pose
 
 The wall-reveal entry was the last measured open default-look item. Investigating the proposed

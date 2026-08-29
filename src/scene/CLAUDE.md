@@ -1175,3 +1175,35 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   click" `dropRedundantHistory()` path, which would otherwise leave an orphaned, un-undoable
   duplicate stacked on the original (item-COUNT changes aren't visible to that path's
   position-only `changed` check).
+
+- **The out-of-box flat renders at ~40% of its lit brightness, and `lightsMode: \'off\'` is
+  essentially the whole reason (DEFAULT-GLOOM, v0.31.5.54 — measured, NOT changed).** A 24-frame
+  walk-tour contact sheet at 13:00/medium came back with almost every interior dark grey. That is
+  not a probe artefact and not the tier: `tier-drift.mjs` holds one pose through 24 teleports and
+  reports **medium / IBL true / exposure 1.38 / 13:00 manual, stable throughout**, reproducing the
+  same dark frame. Three separately-defensible defaults compound — lights off, curtains drawn
+  (WINDOW-TIME-INVARIANT), interior doors closed — so `default-gloom.mjs` separated them at four
+  room-centre poses, one variable at a time:
+
+  | room          | default | lightsMode on | + curtains opened |
+  | ------------- | ------- | ------------- | ----------------- |
+  | bath1         | 78.8    | **192.9**     | 196.4             |
+  | kitchen       | 83.3    | **188.8**     | 193.4             |
+  | livingDining  | 76.0    | **175.1**     | 175.5             |
+  | mainBedroom   | 74.8    | **190.2**     | 189.8             |
+
+  · **The switch is the lever; the curtains are not.** Turning the lights on is worth **2.3–2.5x**
+    in every room. Opening every curtain on top of that adds between −0.4 and +4.6 — nothing.
+    So the gloom is one boolean, and the curtain default (which an earlier round flagged) is a
+    minor contributor by comparison.
+  · **This is already half-documented and the consequence understated.** NIGHT-LIGHT-BUDGET
+    records that `lightsMode` defaults to off and that a zero point-light census "reads as a
+    broken light system and is simply the switch being off" — but it frames that as a trap for
+    someone auditing lights, not as the dominant driver of how the whole flat looks on a first
+    walk-through. It is both.
+  · **Nothing was changed: this is a PRODUCT decision, not a defect.** Lights-off at 13:00 is
+    physically reasonable (you do not switch a light on at midday) and the daylight model is
+    working — the rooms brighten correctly when the switch flips. Whether a first-run user should
+    walk into a lit home is a product call, and re-tiering someone else\'s default on my own
+    judgement is exactly what meta-rule (xiii)\'s scope forbids.
+
