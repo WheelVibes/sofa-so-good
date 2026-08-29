@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.63 — the wall dissolve is isolated to one line, and AO is innocent
+
+No app code changed; the mechanism inside the no-composer path is still unknown and a guessed fix
+would be worse than none. But the defect is now narrowed from "a tier" to a single gate.
+
+Built a numeric discriminator first — mean luminance of a fixed centre band at one pose, where
+**~112 = walls present and ~151 = walls gone** — then swept the six settings that differ between
+`medium` and `performance`, one at a time, from the good tier. Five were exonerated
+(`geometryDetail`, `ibl`, `shadowMapSize`, `dprMax`, `envResolution`, all 112.4–113.2) and
+`ao=false` reproduced the defect exactly at 150.7, against the tier's own 150.7 / 152.8.
+
+**Then the obvious reading was falsified.** `ao=false` **plus** `postprocessing=true` puts the
+walls back at 112.6 — so AO is innocent. The real trigger is `src/scene/Effects.tsx:27`,
+`if (!postprocessing && !ao) return null`: of the four tiers only `performance` has both false, so
+it is the only one that renders with **no `EffectComposer` at all**, and that path drops interior
+wall faces. The named setting was a proxy; one extra arm turned a plausible wrong answer into the
+right one.
+
+Still unknown: why the direct-render path drops them. The walls are in the scene, in the frustum,
+`visible`, opaque, with maps bound, and the frustum census is identical at 354 meshes. Recorded
+with the next step — instrument the no-composer path, or mount a composer with an empty pass list
+to test whether mere presence is what fixes it.
+
+`wall-mottle.mjs` gained `OVERRIDE=key=value[,...]`, which prints the fully resolved settings
+object. That mattered: a preset diff built from source text missed `wallReveal`, which the resolved
+object showed.
+
 ## v0.31.5.62 — interior walls dissolve at `performance` tier (confirmed defect)
 
 No app code changed; the fix needs the shader path located first. `walk-tour.mjs` gained a

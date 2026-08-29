@@ -126,6 +126,29 @@ await page.evaluate(() => {
 await page.waitForFunction(() => !!window.__walkLook, { timeout: 20000 })
 await new Promise((r) => setTimeout(r, 3000))
 
+// OVERRIDE=key=value[,key=value] — apply single `qualityOverrides` entries on top
+// of TIER, so a tier-linked defect can be attributed to ONE SETTING rather than to
+// the tier as a whole. Prints the resolved value it actually set.
+if (process.env.OVERRIDE) {
+  for (const pair of process.env.OVERRIDE.split(',')) {
+    const [k, v] = pair.split('=')
+    await page.evaluate(
+      (a) =>
+        window.__store
+          .getState()
+          .setQualityOverride(a.k, a.v === 'true' ? true : a.v === 'false' ? false : Number(a.v)),
+      { k, v },
+    )
+  }
+  await new Promise((r) => setTimeout(r, 3500))
+  const live = await page.evaluate(async () => {
+    const { resolveQuality } = await import('/src/scene/quality.ts')
+    const st = window.__store.getState()
+    return JSON.stringify(resolveQuality(st.qualityTier, st.qualityOverrides))
+  })
+  console.log(`OVERRIDE ${process.env.OVERRIDE} -> resolved ${live}\n`)
+}
+
 const ROOM = process.env.ROOM || 'livingDining'
 const DSF = 2
 const GX = 96

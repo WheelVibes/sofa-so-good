@@ -404,6 +404,32 @@ reads **1 call / 1 triangle** and looks catastrophic. Count the meshes the camer
 instead — visible, parents visible, bounding sphere inside the frustum — which is what
 `walk-tour.mjs` now reports (354 meshes / ~87.6k triangles for the default flat at eye level).
 
+## Isolate the SETTING, not the tier — and build a numeric discriminator first
+
+`.62` had a confirmed tier defect ("walls vanish at `performance`") and no mechanism. `.63` closed
+it to one line of code without reading much source at all, by doing two things in order.
+
+**1. Build a discriminator before running arms.** Eyeballing eight frames would have been slow and
+arguable. The mean luminance of a fixed centre band (64x40 downsample) of one pose separated the
+two states cleanly and with no judgement call: **~112 = walls present, ~151 = walls gone**. Get a
+number that distinguishes the two states you already have, THEN sweep.
+
+**2. Sweep the preset delta one entry at a time, from the GOOD tier.** Diff the two presets, then
+run the good tier plus exactly one of the bad tier's values (`wall-mottle.mjs OVERRIDE=key=value`,
+which prints the fully resolved settings object so the arm's own state is beside its number). Six
+settings differed; five were exonerated in two batches and one reproduced the defect exactly
+(150.7 against the tier's own 150.7 / 152.8).
+
+**3. Then falsify the obvious reading.** `ao=false` reproduced it, which reads as "AO causes it".
+Adding one more arm — `ao=false` **plus** `postprocessing=true` — put the walls back, proving AO is
+innocent and that the real trigger is `Effects.tsx`'s `if (!postprocessing && !ao) return null`,
+i.e. **no composer mounting at all**. The named setting was a proxy, not the cause. One extra arm
+turned a plausible wrong answer into the right one.
+
+Note also that a preset diff built from the literal source text can MISS keys — the resolved
+settings object printed by the probe surfaced `wallReveal`, which the text diff had not shown.
+Print the resolved object, do not infer it.
+
 ## A surprising frame earns a STATE-VERIFICATION probe before it earns a diagnosis
 
 Meta-rule (xi) says dismissing a finding as a probe artefact needs its own evidence. The

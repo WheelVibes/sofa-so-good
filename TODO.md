@@ -4,38 +4,47 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
-## Interior walls DISSOLVE in walk mode at `performance` tier — CONFIRMED defect (v0.31.5.62)
+## Interior walls vanish when NO EffectComposer mounts — isolated to ONE gate (v0.31.5.63)
 
-**Reproducible, one-variable, with frames. Root cause not yet located; the leading hypothesis is
-named below. This is the highest-priority open item — `performance` is the tier the capability
-ceiling drops PHONES to, so this is what a phone user would see.**
+**Confirmed, reproducible, and narrowed to a single line. Root cause inside the no-composer render
+path is still unknown; do NOT guess a fix. This is the highest-priority open item — `performance`
+is the tier the capability ceiling drops PHONES to.**
 
-**The A/B (same probe, same pose, same hour, tier is the only variable):**
+**Discriminator (mean luminance of the centre band of `mainBedroom` yaw 2, 64x40 downsample):**
+**~112 = walls present, ~151 = walls gone.** Clean separation, no judgement call.
 
-| | `medium` | `performance` |
+| arm (base `medium`, one override) | centre | verdict |
 | --- | --- | --- |
-| `mainBedroom-y2` | full room: plaster walls, door, ceiling, skirting | **walls gone** — city backdrop visible straight through |
-| visible meshes in frustum | **354** | **354** |
-| triangles | 87,618 | 87,228 |
+| baseline `medium` | 112.6 | walls present |
+| `geometryDetail=0.7` | 112.6 | present — exonerated |
+| `ibl=false` | 112.4 | present — exonerated |
+| `shadowMapSize=0` | 112.7 | present — exonerated |
+| `dprMax=1` | 112.6 | present — exonerated |
+| `envResolution=64` | 113.2 | present — exonerated |
+| **`ao=false`** | **150.7** | **WALLS GONE** |
+| **`ao=false` + `postprocessing=true`** | **112.6** | **present** |
+| `performance` tier (two independent runs) | 150.7 / 152.8 | walls gone |
 
-**The geometry is present and opaque.** A raycast through the frame centre at `performance` hits
-the wall: `MeshStandardMaterial #f5f5f0, opacity=1, transparent=false, visible=true,
-colorWrite=true`, plaster maps bound at `repeat 1.67`. So this is NOT missing geometry, NOT a
-culling difference, NOT alpha, and NOT the probe failing to load — all three of `.61`'s candidates
-are refuted.
+**AO is NOT the cause.** The last two rows are the whole argument: turning AO off removes the
+walls, but turning AO off *while forcing the post stack on* does not. The trigger is therefore the
+**absence of an `EffectComposer`**, not the AO effect.
 
-**Leading hypothesis: a DITHERED / SCREEN-DOOR fade is dissolving the walls.** The `PICK` frame
-(`/tmp/wperf/pick.png`) shows the wall **partially rasterised** — one pillar survives, the top edge
-is ragged with stair-stepped blocks. That is the signature of a per-fragment `discard`, which
-would leave `opacity` at 1 and the mesh "visible" exactly as measured. The wall-reveal system is
-the obvious suspect (see `.53`, wall-reveal POSE) — something is running its fade in WALK mode,
-where walls should be fully opaque, and only at this tier.
+**The gate is `src/scene/Effects.tsx:27` — `if (!postprocessing && !ao) return null`.** Of the four
+tiers only `performance` has BOTH false, so it is the only one that renders with no composer at
+all, and that path drops interior wall faces. Every other tier mounts a composer (medium mounts one
+for AO alone) and draws walls correctly.
 
-**Next step:** find the reveal/dissolve shader path and check what it keys on per tier — a
-`qualityOverrides` field, a `pbrSurfaces`-style flag, or a fallback branch taken when the post
-stack is absent (`performance` has `postprocessing: false` AND `ao: false`). Isolate with
-`blank-cause.mjs OVERRIDE=<key>=<value>` one axis at a time rather than switching the whole tier,
-so the responsible setting is named rather than guessed.
+**Still unknown: WHY the direct-render path drops them.** The walls are in the scene, in the
+frustum, `visible=true`, `opacity=1`, `transparent=false`, `colorWrite=true`, with maps bound
+(`.62`), and the frustum census is identical at 354 meshes. Candidates not yet tested: something
+the composer normally does to `gl.autoClear` / render targets; the wall-reveal fade depending on a
+pass that only exists with a composer; or a draw-order interaction with the sky dome (a REAL scene
+object, per SKY-DOME-FAR `.20`) in the direct path.
+
+**Next step:** instrument the no-composer path directly — wrap `renderer.render` and log what is
+drawn, or bisect by mounting an `EffectComposer` with an empty pass list to see whether mere
+presence fixes it. A unit test should pin the pure rule once the mechanism is known: no tier
+combination may leave a wall face undrawn in walk mode.
 
 ## Curtain cuts through the bedside lamps — DIAGNOSED, fix is a CONTENT decision (v0.31.5.61)
 
