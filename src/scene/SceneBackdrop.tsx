@@ -32,15 +32,29 @@ export const BACKDROPS: { id: BackdropKind; label: string; sub: string }[] = [
  *  (first-person) mode, and only for a kind that has imagery — `none` is the
  *  plain dome, and `custom` needs an uploaded photo. Both the static photo
  *  presets and the `sky` procedural backdrop occupy the same background slot, so
- *  the DreiSky dome hides whenever this is true. Pure / unit-testable. */
+ *  the surround dome hides whenever this is true. Pure / unit-testable.
+ *
+ *  `skyAvailable` is the load-bearing argument (WINDOW-SKY-DEFAULT). This
+ *  predicate does double duty: it tells `SceneBackdrop` to paint, AND it tells
+ *  `lighting/Sky.tsx` to STAND DOWN so its dome can't occlude the painted
+ *  background. For `sky` those two only agree while something can actually paint
+ *  it — `SkyBackdrop` mounts only when the `proceduralSky` feature is on. With
+ *  the feature off, returning `true` claimed the background slot for a painter
+ *  that never ran and simultaneously suppressed the dome, leaving the window a
+ *  flat dead grey slab (measured at the `win-mainBedroom-N` pose). So `sky` is
+ *  active only when it is available; otherwise the sun-driven surround dome —
+ *  which is deliberately NOT flag-gated (SKY-ANALYTIC-ORBIT) — takes the view
+ *  back. Default `true` keeps every existing caller's behaviour. */
 export function isPhotoBackdropActive(
   kind: BackdropKind,
   cameraMode: CameraMode,
   hasCustomImage = false,
+  skyAvailable = true,
 ): boolean {
   if (cameraMode !== 'firstPerson') return false
   if (kind === 'none') return false
   if (kind === 'custom') return hasCustomImage
+  if (kind === 'sky') return skyAvailable
   return true
 }
 
@@ -69,7 +83,7 @@ export function SceneBackdrop() {
   // `sky` is owned by SkyBackdrop; when the flag is off it falls back to no
   // backdrop (the plain dome) rather than a static photo.
   const isSky = kind === 'sky'
-  const active = isPhotoBackdropActive(kind, cameraMode, !!customUrl) && !isSky
+  const active = isPhotoBackdropActive(kind, cameraMode, !!customUrl, proceduralSky) && !isSky
 
   useEffect(() => {
     if (!active) return
@@ -113,7 +127,7 @@ export function SceneBackdrop() {
 
   // The sun-driven sky mounts only when its feature is on AND the sky kind is
   // selected + active in walk mode.
-  if (proceduralSky && isSky && isPhotoBackdropActive(kind, cameraMode, !!customUrl)) {
+  if (proceduralSky && isSky && isPhotoBackdropActive(kind, cameraMode, !!customUrl, true)) {
     return <SkyBackdrop />
   }
   return null

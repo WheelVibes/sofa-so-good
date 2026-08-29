@@ -7,6 +7,7 @@
  * Every call is fail-soft: a storage error never propagates (the backdrop is a
  * convenience, not data worth crashing over).
  */
+import { UI_INITIAL } from '../slices/uiSlice'
 import { useStore } from '../store'
 import { IdbAssetStore } from './IdbAssetStore'
 
@@ -68,12 +69,14 @@ export async function applyWalkBackdropFile(file: File): Promise<string | null> 
 }
 
 /** Clear the custom walk backdrop everywhere: IDB, the live URL, and the store
- *  (reverting the selection to City if `custom` was active). */
+ *  (reverting the selection to the app default if `custom` was active). */
 export async function clearWalkBackdrop(): Promise<void> {
   await removeWalkBackdrop()
   const s = useStore.getState()
   s.setCustomBackdropUrl(null)
-  if (s.backdrop === 'custom') s.setBackdrop('city')
+  // Fall back to the APP DEFAULT, not a hardcoded 'city' — dropping the custom
+  // photo should return the user to the shipped view (WINDOW-SKY-DEFAULT).
+  if (s.backdrop === 'custom') s.setBackdrop(UI_INITIAL.backdrop)
 }
 
 /** Boot hydration: if a backdrop photo was persisted, expose it as a live object

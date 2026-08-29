@@ -59,9 +59,33 @@ ever expressed a preference is never overridden.
 
 ---
 
-## (b) WINDOW-TIME-INVARIANT — ⚠️ PARTLY SHIPPED in v0.31.5.88 (curtains open); the time-invariance is now VISIBLE
+## (b) WINDOW-TIME-INVARIANT — ✅ SHIPPED (curtains open v0.31.5.88; sun-driven default v0.31.5.92)
 
-> **Status: option 1 of 3 done, and it changed the picture.** The default flat now ships with
+> **Status: CLOSED. Option 2 chosen by the user and shipped in v0.31.5.92** — `backdrop` now
+> defaults to `'sky'`, the sun-driven analytic backdrop, so the exterior tracks the clock the
+> interior is already graded by. Measured at the `win-mainBedroom-N` pose: 09:00 -> 13:00 moved
+> from **0.1 rgb** (time-invariant) to **16-25 rgb with a hue flip** (warm morning -> cool midday),
+> and 21:00 is a genuinely dark warm night.
+>
+> **It required option 3 as well, and that is a measured finding rather than scope creep.**
+> `proceduralSky` was pro-tier and Simple forces pro flags off, so `'sky'` in Simple selected a
+> backdrop nothing could paint — verified in a frame: a **flat dead grey window**, worse than the
+> city preset. The flag is now simple-tier, matching this repo's own rule that anything changing
+> the DEFAULT look must not sit behind a pro flag. `isPhotoBackdropActive` was also root-caused so
+> the dead-slab state is unreachable at any flag setting.
+>
+> **Option 1 (re-author the `city` palette) was NOT taken, and `.91`'s reason for dismissing it was
+> wrong.** `.91` claimed `BACKDROP_PRESETS` "is not the lever" after an edit measured
+> byte-identical; that was a broken probe (it used `toggleWindowFixture` to "open" curtains that
+> v0.31.5.88 already ships open, so it closed them). A clean mutation moves the frame decisively.
+> The presets ARE editable — the option was simply not the one chosen.
+>
+> **Trade-off accepted:** the `sky` backdrop has no skyline, so the default view loses the HDB
+> towers and gains a time-tracking sky. `city`/`dusk` remain one click away in the picker.
+>
+> Historical status below.
+>
+> **Option 1 of 3 done (v0.31.5.88), and it changed the picture.** The default flat now ships with
 > `drawAmount: 0` on all four curtains, so the baked city backdrop is finally visible; the def's own
 > default stays drawn for user-placed curtains. **But opening them exposes what drawn curtains were
 > hiding**: at `HOUR=13` a walk frame now shows a dark sky with lit tower windows and glowing street
@@ -243,10 +267,10 @@ the demo apartment and leaves the placement rules untouched.
 | # | Item | Kind | Recommendation |
 | --- | --- | --- | --- |
 | a | DEFAULT-GLOOM | one-line behaviour | ✅ **SHIPPED v0.31.5.86** — guard extended to daylight |
-| b | WINDOW-TIME-INVARIANT | content + flag policy | ⚠️ **PARTLY SHIPPED v0.31.5.88** — curtains open; static backdrop now visibly wrong-time |
+| b | WINDOW-TIME-INVARIANT | content + flag policy | ✅ **SHIPPED v0.31.5.88 + v0.31.5.92** — curtains open; default backdrop now the sun-driven sky |
 | c | PLAN-SWAP-STRANDED | structural vs interim | ✅ **SHIPPED v0.31.5.90** — confirm now names the count; skip untouched |
 | d | wall-reveal POSE | design parameter | ❌ **CLOSED v0.31.5.89** — no defect; premise retracted |
 | e | Curtain vs nightstand | content | ✅ **SHIPPED v0.31.5.87** — curtain narrowed + nightstands outboard |
 
-(a) is shipped. The rest are approved and being implemented one committed round at a time; each is
-marked here as it lands.
+**All five items are now resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
+((d)). Each was implemented in its own committed round and marked here as it landed.

@@ -333,7 +333,7 @@ same change that reshapes a system.
   plain procedural sky with no surroundings (`isPhotoBackdropActive(kind, cameraMode, hasCustom)` gates it;
   `Sky.tsx` hides its dome when active). Presets `city/dusk/park/hills` bake procedurally
   (`backdropEquirect.ts` + pure `backdropHorizon.ts` buildings/treeline/hills generators); the `sky` preset is a
-  **sun-driven procedural sky** (RD-412, `proceduralSky` flag, pro tier) baked from the pure analytic Preetham
+  **sun-driven procedural sky** (RD-412, `proceduralSky` flag, simple tier — it is the DEFAULT `backdrop` since WINDOW-SKY-DEFAULT v0.31.5.92, and a pro flag is forced off in Simple) baked from the pure analytic Preetham
   core `lighting/skyGradient.ts` (`skyRadiance`/`paintSkyEquirect`) via `backdropEquirect.ts`
   `bakeSkyEquirect(sunDir, turbidity)`, re-baked (debounced + old texture disposed) when the sun crosses the
   pure `lighting/skyRebuild.ts` `shouldRebuildSky` threshold — **walk-mode `scene.background` only, never

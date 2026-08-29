@@ -5,6 +5,53 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.92 — WINDOW-SKY-DEFAULT: the view out of the window now follows the clock
+
+**Open decision (b), approved by the user and shipped — closing the last of the five items.**
+v0.31.5.88 opened the default flat's curtains and thereby made a long-standing defect VISIBLE: the
+default `city` backdrop is a static palette authored at one time of day, painting warm lit tower
+windows at every hour, so a 13:00 walk frame showed a night skyline at midday. Measured at the
+`win-mainBedroom-N` pose, same crop: 09:00 rgb(97.5, 100.4, 102.5) against 13:00 rgb(97.4, 100.3,
+102.4) — **identical to 0.1**.
+
+**`backdrop` now defaults to `'sky'`**, the sun-driven analytic backdrop, so the exterior tracks
+the clock the interior is already graded by:
+
+| hour | before (`city`) | after (`sky`) |
+| ---- | --------------- | ------------- |
+| 09   | rgb(97.5, 100.4, 102.5) | rgb(121.4, 121.3, 118.8) |
+| 13   | rgb(97.4, 100.3, 102.4) | rgb(137.2, 143.1, 146.0) |
+| 21   | rgb(77.6, 78.8, 78.8)   | rgb(55.1, 50.8, 41.3)    |
+
+09:00 -> 13:00 goes from 0.1 to **16-25 units with a hue flip** (warm morning -> cool midday), and
+night is darker and warmer instead of flat grey.
+
+**Two coupled halves — either alone is a regression, and that was measured before building.**
+`proceduralSky` was `tier: 'pro'` and Simple (the app default) forces pro flags off, so
+`backdrop: 'sky'` in Simple selected a backdrop nothing could paint: the window rendered a **flat
+dead grey slab**, worse than what it replaced. The flag is now `tier: 'simple'` — the same rule
+`src/scene/CLAUDE.md` already records, that anything changing the DEFAULT look must not sit behind
+a pro-tier flag, and a window view is core realism rather than an analytical tool.
+
+**Root-caused so the dead-slab state is unreachable at any flag setting.**
+`isPhotoBackdropActive` does double duty: it tells `SceneBackdrop` to paint AND tells
+`lighting/Sky.tsx`'s surround dome to stand down. It returned `true` for `sky` unconditionally,
+claiming the background slot for a painter that never ran while suppressing the dome that would
+have covered for it. It now takes a `skyAvailable` argument (defaulted `true`, so no other caller
+changes) which both call sites feed from the live feature.
+
+**`.91`'s "the presets are not the lever" finding is RETRACTED — it was a broken probe.**
+`window-hours.mjs` opened curtains with `toggleWindowFixture`, which FLIPS; since v0.31.5.88 ships
+them open, the probe was CLOSING them, so both arms compared two covered windows. It now sets the
+open value explicitly and prints its full resolved state. With that fixed, mutating
+`BACKDROP_PRESETS.city` moves the frame decisively (sky-patch blue 102.5 -> 169.0). A content fix
+that changes a default can silently invalidate an instrument written against the old one.
+
+**Tests discriminate — each half verified by reverting it:** the default-backdrop assertion fails
+on `'city'`, the tier assertions fail on `'pro'` (4 tests), and the predicate guard's own test
+fails when the `sky` branch is removed. Trade-off accepted: the `sky` backdrop has no skyline, so
+the default view loses the HDB towers; `city`/`dusk` stay one click away in the picker.
+
 ## v0.31.5.90 — PLAN-SWAP-STRANDED: the plan-swap confirm now tells the truth
 
 **Open decision (c), approved by the user and shipped — with one correction to the recommendation.**

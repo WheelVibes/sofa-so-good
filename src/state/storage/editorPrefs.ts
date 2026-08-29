@@ -9,7 +9,7 @@
  */
 import { clampWalkEyeHeight, clampWalkFov } from '../../scene/cameras/walkCameraSettings'
 import type { PlanLabelMode } from '../../ui/floorplan/planLabels'
-import type { BackdropKind, Density } from '../slices/uiSlice'
+import { type BackdropKind, type Density, UI_INITIAL } from '../slices/uiSlice'
 import { useStore } from '../store'
 
 const KEY = 'sofa.editor.v1'
@@ -52,7 +52,11 @@ export function loadEditorPrefs(): void {
       roomOrder?: unknown
       motionEnabled?: boolean
     }
-    const backdrops: BackdropKind[] = ['city', 'dusk', 'park', 'hills', 'custom', 'none']
+    // Must list EVERY BackdropKind: an omitted kind is silently coerced to the
+    // fallback below, so a user's saved pick is lost on reload. `'sky'` was missing
+    // and became load-bearing when it turned into the default (WINDOW-SKY-DEFAULT,
+    // v0.31.5.92) — without it a returning user booted back into `'city'`.
+    const backdrops: BackdropKind[] = ['city', 'dusk', 'park', 'hills', 'sky', 'custom', 'none']
     // Restore the collapsed-layer map defensively — only string→boolean entries.
     const layersCollapsed: Record<string, boolean> = {}
     if (p.layersCollapsed && typeof p.layersCollapsed === 'object') {
@@ -70,7 +74,7 @@ export function loadEditorPrefs(): void {
       units: p.units === 'imperial' ? 'imperial' : 'metric',
       backdrop: backdrops.includes((p.backdrop ?? '') as BackdropKind)
         ? (p.backdrop as BackdropKind)
-        : 'city',
+        : UI_INITIAL.backdrop,
       hdriId: typeof p.hdriId === 'string' ? p.hdriId : null,
       uiMode: p.uiMode === 'pro' ? 'pro' : 'simple',
       walkFov: typeof p.walkFov === 'number' ? clampWalkFov(p.walkFov) : cur.walkFov,

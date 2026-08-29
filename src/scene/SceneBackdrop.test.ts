@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { resolveFlags } from '../features/featureFlags'
+import { UI_INITIAL } from '../state/slices/uiSlice'
 import { BACKDROP_PRESETS } from './backdropEquirect'
 import { BACKDROPS, isPhotoBackdropActive } from './SceneBackdrop'
 
@@ -11,9 +12,29 @@ describe('isPhotoBackdropActive', () => {
 
   it('treats the sun-driven `sky` kind as an active backdrop in walk mode', () => {
     // The procedural sky occupies the same `scene.background` slot, so the
-    // DreiSky dome hides for it too (SkyBackdrop owns the paint).
+    // surround dome hides for it too (SkyBackdrop owns the paint).
     expect(isPhotoBackdropActive('sky', 'firstPerson')).toBe(true)
     expect(isPhotoBackdropActive('sky', 'orbit')).toBe(false)
+  })
+
+  it('does NOT claim the background slot for `sky` when its painter is unavailable', () => {
+    // WINDOW-SKY-DEFAULT. This predicate does double duty: it tells SceneBackdrop
+    // to paint AND tells the surround dome to stand down. For `sky` with the
+    // `proceduralSky` feature off, nothing paints — so claiming the slot left the
+    // window a flat dead grey slab (measured at win-mainBedroom-N). Returning
+    // false hands the view back to the always-on sun-driven dome.
+    expect(isPhotoBackdropActive('sky', 'firstPerson', false, false)).toBe(false)
+    expect(isPhotoBackdropActive('sky', 'firstPerson', false, true)).toBe(true)
+  })
+
+  it('leaves every OTHER kind unaffected by sky availability', () => {
+    // The new argument must be scoped to `sky` alone — a static photo preset
+    // paints from BACKDROP_PRESETS and never depends on the procedural feature.
+    for (const kind of ['city', 'dusk', 'park', 'hills'] as const) {
+      expect(isPhotoBackdropActive(kind, 'firstPerson', false, false)).toBe(true)
+    }
+    expect(isPhotoBackdropActive('custom', 'firstPerson', true, false)).toBe(true)
+    expect(isPhotoBackdropActive('none', 'firstPerson', false, true)).toBe(false)
   })
 
   it('is inactive in orbit mode (surroundings not needed for the dollhouse)', () => {
@@ -54,8 +75,23 @@ describe('backdrop flags tiering (both modes)', () => {
     }
   })
 
-  it('proceduralSky (the `sky` backdrop) is pro-tier: off in Simple, on in Pro', () => {
-    expect(resolveFlags(false, {}, false, 'simple').proceduralSky).toBe(false)
-    expect(resolveFlags(false, {}, false, 'pro').proceduralSky).toBe(true)
+  it('proceduralSky is SIMPLE-tier, so the default `sky` backdrop can actually paint', () => {
+    // WINDOW-SKY-DEFAULT: `backdrop` defaults to `'sky'`, and a pro-tier flag is
+    // forced off in Simple — the app default — so a pro tier here would make the
+    // DEFAULT window view unreachable for the default user. Pinned in BOTH modes.
+    for (const mode of ['simple', 'pro'] as const) {
+      expect(resolveFlags(false, {}, false, mode).proceduralSky).toBe(true)
+    }
+  })
+
+  it('the default backdrop is the sun-driven sky, and it is paintable in Simple', () => {
+    // The pair is the actual invariant: either half alone is a regression. A
+    // `'sky'` default with the feature off renders NOTHING; the feature on with a
+    // `'city'` default leaves the time-invariant skyline as what users see.
+    expect(UI_INITIAL.backdrop).toBe('sky')
+    const flags = resolveFlags(false, {}, false, 'simple')
+    expect(
+      isPhotoBackdropActive(UI_INITIAL.backdrop, 'firstPerson', false, flags.proceduralSky),
+    ).toBe(true)
   })
 })

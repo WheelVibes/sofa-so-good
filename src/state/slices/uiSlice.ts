@@ -369,7 +369,13 @@ export const UI_INITIAL: Pick<
   qualityAutoSettled: false,
   snapEnabled: false,
   gridSize: 0.5,
-  backdrop: 'city' as BackdropKind,
+  // WINDOW-SKY-DEFAULT (v0.31.5.92): `'sky'`, not `'city'`. The static `city`
+  // preset is authored at ONE time of day and paints warm lit tower windows at
+  // every hour, so with the curtains open (v0.31.5.88) the default flat showed a
+  // night skyline at 13:00 — measured identical to 0.1 rgb between 09:00 and
+  // 13:00. `'sky'` is the sun-driven analytic backdrop, so the view out of the
+  // window tracks the clock the interior is already graded by.
+  backdrop: 'sky' as BackdropKind,
   hdriId: null as string | null,
   customBackdropUrl: null,
   uiMode: 'simple' as UiMode,

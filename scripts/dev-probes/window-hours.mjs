@@ -20,6 +20,10 @@ import puppeteer from 'puppeteer'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 
 const HOUR = Number(process.env.HOUR || 13)
+/** Override the backdrop kind (`city` | `dusk` | `park` | `hills` | `sky` | `none`).
+ *  Unset = leave the app default alone, which is the arm that matters for a
+ *  default-user question. */
+const BACKDROP = process.env.BACKDROP || ''
 const OUT = process.env.OUT || '/tmp/bath-tile'
 fs.mkdirSync(OUT, { recursive: true })
 
@@ -161,19 +165,47 @@ await page.evaluate(async (q) => {
 }, pose)
 await new Promise((r) => setTimeout(r, 1200))
 
-// Open every curtain/blind ONCE, so the only variable across arms is the hour.
+if (BACKDROP) {
+  await page.evaluate((b) => window.__store.getState().setBackdrop(b), BACKDROP)
+  await new Promise((r) => setTimeout(r, 1500))
+}
+
+// Force every curtain/blind OPEN, so the only variable across arms is the hour.
+// NOT `toggleWindowFixture`: that FLIPS, and since WINDOW-TIME-INVARIANT
+// (v0.31.5.88) the default flat already ships `drawAmount: 0`, so a blind toggle
+// now CLOSES the very windows this probe exists to look through (meta-rule ci —
+// check a new change against the last one). Set the open value explicitly.
 const opened = await page.evaluate(() => {
   const st = window.__store.getState()
-  const ids = (st.items ?? [])
-    .filter((it) => it.defId === 'curtains' || it.defId === 'roller-blind')
-    .map((it) => it.id)
-  for (const id of ids) st.toggleWindowFixture(id)
-  return ids.length
+  const fixtures = (st.items ?? []).filter(
+    (it) => it.defId === 'curtains' || it.defId === 'roller-blind',
+  )
+  for (const it of fixtures) {
+    st.updateItemProps(it.id, it.defId === 'curtains' ? { drawAmount: 0 } : { lower: 0 })
+  }
+  return fixtures.length
 })
 await new Promise((r) => setTimeout(r, 1500))
-console.log(
-  `pose=${pose.id}  backdrop=${await page.evaluate(() => window.__store.getState().backdrop)}`,
-)
+// PRINT THE RESOLVED STATE (meta-rule iv) — an arm that silently resolves to a
+// different backdrop / camera mode / tier is not the arm you think you ran.
+const resolved = await page.evaluate(async () => {
+  const st = window.__store.getState()
+  const { isPhotoBackdropActive } = await import('/src/scene/SceneBackdrop.tsx')
+  const { isFeatureEnabled } = await import('/src/features/featureFlags.ts')
+  const fx = (st.items ?? [])
+    .filter((it) => it.defId === 'curtains' || it.defId === 'roller-blind')
+    .map((it) => `${it.defId}:${it.props?.drawAmount ?? it.props?.lower}`)
+  return {
+    backdrop: st.backdrop,
+    cameraMode: st.cameraMode,
+    tier: st.qualityTier,
+    uiMode: st.uiMode,
+    proceduralSky: isFeatureEnabled('proceduralSky'),
+    photoBackdropActive: isPhotoBackdropActive(st.backdrop, st.cameraMode, !!st.customBackdropUrl),
+    fixtures: fx.join(' '),
+  }
+})
+console.log(`pose=${pose.id}  resolved=${JSON.stringify(resolved)}`)
 console.log(`opened ${opened} window fixtures; sweeping hours with nothing else changed\n`)
 
 for (const hr of [9, 13, 21]) {

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { UI_INITIAL } from '../slices/uiSlice'
 import { useStore } from '../store'
 import {
   applyWalkBackdropFile,
@@ -53,11 +54,13 @@ describe('applyWalkBackdropFile', () => {
 })
 
 describe('clearWalkBackdrop', () => {
-  it('removes the photo and reverts a custom selection to city', async () => {
+  it('removes the photo and reverts a custom selection to the app default', async () => {
     await applyWalkBackdropFile(imageFile())
     await clearWalkBackdrop()
     expect(useStore.getState().customBackdropUrl).toBeNull()
-    expect(useStore.getState().backdrop).toBe('city')
+    // The APP DEFAULT, not a hardcoded literal — dropping the custom photo should
+    // return the user to the shipped view (WINDOW-SKY-DEFAULT).
+    expect(useStore.getState().backdrop).toBe(UI_INITIAL.backdrop)
     expect(await loadWalkBackdrop()).toBeNull()
   })
 })

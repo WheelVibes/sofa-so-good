@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BackSide, CanvasTexture, type Mesh, type Texture } from 'three'
 import { noExportUserData } from '../../export/sceneGltf'
+import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
 import { isPhotoBackdropActive } from '../SceneBackdrop'
 import { skyFromAltitude } from './altitudeCurve'
@@ -57,7 +58,10 @@ export function Sky() {
   const kind = useStore((s) => s.backdrop)
   const cameraMode = useStore((s) => s.cameraMode)
   const hasCustom = useStore((s) => !!s.customBackdropUrl)
-  const backdropActive = isPhotoBackdropActive(kind, cameraMode, hasCustom)
+  // Pass the feature through: a `sky` backdrop whose painter is switched off must
+  // NOT suppress this dome, or the window shows nothing at all (WINDOW-SKY-DEFAULT).
+  const proceduralSky = useFeature('proceduralSky')
+  const backdropActive = isPhotoBackdropActive(kind, cameraMode, hasCustom, proceduralSky)
 
   const sunDir = orientedSunDirection(sunPos, orientation)
   const turbidity = skyFromAltitude(sunPos.altitude).turbidity
