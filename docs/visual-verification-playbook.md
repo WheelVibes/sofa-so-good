@@ -3233,3 +3233,28 @@ lever — when the honest reading is that the lever is already pulled.
   argument (`page.evaluate((k, histPostSat) => …, key, HISTORICAL_POST_SATURATION)`) or the arm
   dies with a `ReferenceError` in browser context. Same family as "when slicing a probe head,
   keep the IMPORTS".
+
+**Gotcha — an NDC POINT is NOT portable between probes, and a bad seed used to
+produce a confident number for the SKY.** Each probe sets up its own orbit camera,
+so a point measured off `chroma-audit`'s orbit frame does not address the same
+geometry in `surface-detail` or `pick-surface`. Copying NDC across probes in `.79`
+put a `surface-detail` seed on the sky dome (`Sky.tsx`, unlit `BackSide`
+`MeshBasicMaterial`, **198.82 m** out). The probe reported the hit — it always did —
+then carried on, masked **58.4%** of the frame as "the painter", and printed
+`microcontrast=0.481` as if it were a surface reading. Reporting a suspicious seed is
+not the same as refusing it.
+· **`surface-detail.mjs` now REFUSES such a seed** (`SEED_MAX_DISTANCE`, default 60 m —
+  the flat is ~11 m across and the orbit camera sits ~17 m out): it exits 1 with
+  "seed hit the BACKDROP, not the flat … NDC is not portable between probes". The
+  `DEF=` path is untouched — the control arm `DEF=wardrobe-3door` still measures, and
+  agrees with `wood-detail`'s baseline on all five statistics (chroma 0.601, 97.8%
+  past 0.35, mean 92.2, sigma 17.79, microcontrast 0.86).
+· **Aim by RAYCAST, not by eye.** `.79` burned four attempts on hand-placed NDC and
+  hand-placed pixel boxes: picks meant for a wall top kept landing on the wall FACE,
+  and hand-boxed "microcontrast" put an unmapped slab (2.745) ABOVE a mapped face
+  (1.544) because the boxes straddled edges and railings. Prefer `DEF=`; when you must
+  use a POINT, confirm it with `pick-surface` **in the same probe's framing** first.
+· **Simultaneous contrast will lie to you about COLOUR.** The wall tops in the boot
+  frame read as cool slate against the warm cream faces. Measured, every one of them is
+  WARM (blue minus red is -18 to -32, the same sign and similar magnitude as the faces).
+  Sample the pixels before writing "it looks blue".

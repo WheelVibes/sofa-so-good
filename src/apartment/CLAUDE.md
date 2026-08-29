@@ -315,3 +315,24 @@ Full code map in `docs/ARCHITECTURE.md`.
     at close range. They are a small fraction of any frame, so no coverage number justifies work
     on them yet — noted rather than filed.
 
+
+- **Where the wall body's screen share actually comes from: the BOOT view, and its EXTERIOR
+  faces (WALLBODY-ORBIT, v0.31.5.79).** `.71`/`.72` judged `#f1f0ec` at its *walk* census figures
+  (2.45 down / 1.97 level / 2.57 up) and NIGHT-WALL-CAP judged its night caps. Neither covers the
+  **orbit/dollhouse pose, which is the BOOT view** — and there `chroma-audit` puts `#f1f0ec` at
+  **19.0%**, second only to the sky. That is a ~10x jump over any walk pose and it was unexplained.
+  · **It is not the wall TOPS.** The tops are thin in screen space; four hand-aimed picks intended
+    for them all landed on the mapped face (`#f5f5f0`) instead. Two raycast picks that DID resolve
+    to `#f1f0ec` came back `[3.39, 2.6, 0.1]` and `[2.15, 2.6, 0.3]` — the large **exterior** faces
+    of the perimeter slabs, i.e. the outside of the flat, which a dollhouse camera looks straight at.
+    `class-id.mjs` confirms 34 instances, chain `Group < Group < Group < Scene` (**no**
+    `Group{itemId}` — shell, not furniture), and confirms `map=. nrm=. rghMap=.`: genuinely
+    unmapped, `rough 0.95`, versus the mapped face beside it.
+  · **This does NOT yet promote the class.** The obvious follow-up — a masked microcontrast against
+    the known-good benchmarks — was NOT obtained: the seed landed on the sky dome and the number it
+    produced was discarded (see `.79` in the playbook, and the new `SEED_MAX_DISTANCE` guard that
+    now refuses that seed). **The flatness question for the wall body in the boot view is therefore
+    OPEN, not clean.** Whoever picks it up: seed by raycast in `surface-detail`'s OWN framing, and
+    weigh any fix against meta-rule (lxviii) — 34 slabs on the Performance tier is not free.
+  · Meta-rule (xvii-b) paid a **ninth** round on the way in: `#f1f0ec` is `WALL_STRUCTURE_COLOR`
+    (`apartment/walls/wallBodyGeometry.ts`), already named and judged above under another name.

@@ -60,6 +60,10 @@ const DEF = process.env.DEF || null
  * was other furniture wearing the same tile.
  */
 const MASK = process.env.MASK || 'painter'
+// Furthest a POINT seed may legitimately land. The flat is ~11 m across and the
+// orbit camera sits ~17 m out; the sky dome is ~199 m. Anything past this is the
+// backdrop, not a surface worth measuring.
+const SEED_MAX_DISTANCE = Number(process.env.SEED_MAX_DISTANCE || 60)
 /**
  * Optional A/B: a comma-separated list of `finish` prop values to try on the
  * `DEF` item(s), measured in ONE run over the identical view and mask. This is
@@ -281,7 +285,7 @@ async function applyNormalScale(v) {
 const GX = 96
 const GY = 60
 const found = await page.evaluate(
-  (pt, gx, gy, def, maskMode) => {
+  (pt, gx, gy, def, maskMode, seedMaxDistance) => {
     const { scene, camera, raycaster } = window.__three
     const rc = new raycaster.constructor()
     const visible = (k) => {
@@ -353,6 +357,23 @@ const found = await page.evaluate(
       }
       const item = window.__store.getState().items.find((i) => i.id === itemId)
       seededFrom = `POINT ${pt.join(',')} -> ${item?.defId ?? 'shell/unknown'} at ${seed.distance.toFixed(2)} m`
+      // REFUSE a seed that landed on the backdrop. Reporting the hit is not
+      // enough — the run used to continue and print a confident microcontrast
+      // for the SKY DOME (`Sky.tsx`, an unlit BackSide MeshBasicMaterial ~199 m
+      // out), which masked 58% of the frame and looked like a real reading.
+      // NDC is only meaningful inside ONE probe's own framing: each probe sets
+      // its own orbit camera, so a point copied from another probe's frame can
+      // silently miss the flat entirely.
+      const isBackdrop = ref?.isMeshBasicMaterial === true && ref.side === 1
+      if (isBackdrop || seed.distance > seedMaxDistance) {
+        return {
+          n: 0,
+          why:
+            `seed hit the BACKDROP, not the flat — ${seededFrom}` +
+            ` (${isBackdrop ? 'unlit BackSide material' : `beyond ${seedMaxDistance} m`}).` +
+            " NDC is not portable between probes; re-measure the point off THIS probe's own frame.",
+        }
+      }
     }
     // Group by shared MAP SOURCE when there is a map (clones share it), else by
     // the material object itself.
@@ -415,6 +436,7 @@ const found = await page.evaluate(
   GY,
   DEF,
   MASK,
+  SEED_MAX_DISTANCE,
 )
 
 if (!found.n) {

@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.79 — surface-detail printed a confident microcontrast for the SKY; refuse that seed
+
+No app code changed. One dev-probe guard, one naming result, and one question left explicitly open.
+
+**The probe fix.** An NDC POINT is not portable between probes — each sets up its own orbit
+camera. A point copied from `chroma-audit`'s orbit frame put a `surface-detail` seed on the sky
+dome (`Sky.tsx`, unlit `BackSide` `MeshBasicMaterial`, **198.82 m** out). The probe reported the
+hit, as it always did, then carried on, masked **58.4%** of the frame as "the painter", and
+printed `microcontrast=0.481` as though it were a surface reading. Reporting a suspicious seed is
+not refusing it. `surface-detail.mjs` now exits 1 on a backdrop seed (`SEED_MAX_DISTANCE`,
+default 60 m; the flat is ~11 m across, the orbit camera ~17 m out). The `DEF=` path is untouched:
+the control arm `DEF=wardrobe-3door` still measures and agrees with `wood-detail`'s baseline on
+all five statistics (chroma 0.601, 97.8% past 0.35, mean 92.2, sigma 17.79, microcontrast 0.86).
+
+**What `#f1f0ec` actually is in the boot view.** It is the wall body (`WALL_STRUCTURE_COLOR`),
+already judged at its walk-census figures and for its night caps — meta-rule (xvii-b), ninth round
+running. New: at **19.0%** of the orbit/boot census it is second only to the sky, ~10x any walk
+pose. That share is not the wall tops but the large **exterior** faces of the perimeter slabs
+(raycast picks resolve `[3.39, 2.6, 0.1]` and `[2.15, 2.6, 0.3]`), which a dollhouse camera looks
+straight at. 34 instances, no `Group{itemId}`, and genuinely unmapped (`map=. nrm=. rghMap=.`).
+
+**Left open, deliberately.** The masked microcontrast that would settle whether it reads flat was
+the measurement that hit the sky, so it was discarded rather than reported. The flatness question
+for the wall body in the boot view is OPEN, not clean; any fix must be weighed against 34 slabs of
+cost on the Performance tier.
+
 ## v0.31.5.78 — fix a stale wood-detail arm that was measuring the opposite of its label
 
 No app code changed. One dev-probe fix, plus a clean audit of the flat's highest-saturation class.
