@@ -5,37 +5,41 @@ when an item ships it is **removed from this file entirely**. Maintainability re
 `TASKS.md`.
 
 ## Wall reveal (v0.30.9.0, 2026-08-28)
-- [ ] **A hard opacity step shows where a FADED wall meets a structurally-OPAQUE one.**
-  (Re-diagnosed and quantified v0.31.5.46 — the previous wording, "adjacent walls settle at
-  different fade opacities because their orientations differ", is measurably wrong and would
-  have sent a fix at the wrong lever. Kept open: the band itself is real and visible in the
-  default orbit view.)
-  **Measured** with `scripts/dev-probes/reveal-step.mjs`, which reads the app's own registry
-  (`wallReveal.ts:getWallOpacity` / `getWallOwnStrength`) and adjacency
-  (`wallRevealMath.ts:cornerNeighbors`) at the default boot framing: 37 walls, 44 shared
-  corners, **10 corners with a step > 0.25, every one of them exactly 0.629**.
-  · **Settled opacity is BIMODAL, not varied.** Every wall is either **1.0** (own-strength 0)
-    or **0.371** (own-strength 0.662) — nothing in between. Differently-facing walls
-    (`E-mid`, `S`, `NE-jog-W`, `SW-bedroom`) all land on the SAME value.
-  · **That is correct behaviour, not saturation.** `facingToward` dots the wall's outward
-    normal with the CAMERA FORWARD, and the default dollhouse view looks down a 45-degree
-    diagonal — measured forward XZ `[-0.64, -0.64]`. On a rectilinear plan only two facade
-    directions are visible and both sit at the same 45 degrees, so every camera-facing wall
-    gets `toward` = **0.707**, `smoothstep(0.25, 1, 0.707)` = 0.662, opacity 0.371. Walls
-    facing away get `toward` = -0.707 → strength 0 → opaque, by the deliberate far-wall rule.
-  · **So `cornerSpreadStrength` is the WRONG lever** (the previous entry nominated it): the two
-    faded walls at a corner already match each other exactly, so there is nothing to blend.
-    What steps is faded-against-far — and far walls are held opaque on purpose, because the
-    retired binary target existed to stop them resting as "washed half-translucent panes".
-    Softening that boundary reintroduces exactly what that rule prevents.
-  · **Scope stated honestly:** this is ONE pose — the default boot framing, which is also the
-    pose every user lands on. Orbiting off the diagonal, or a non-rectilinear plan, would
-    spread the `toward` values and give a genuine range of opacities; that case has not been
-    measured. Any fix should be judged against the 10/44 corner count and the 0.629 step at
-    this pose, and re-measured at an off-diagonal azimuth before being called general.
-  Still ruled out, from the original investigation: single-layer transparency via stencil was
-  built end-to-end and pixel-diffed on a real GPU — it moved **94 pixels** of a 1400x900 frame
-  (a hairline, not the bands), and the machinery was removed as not worth its complexity.
+- [ ] **The default orbit pose parks every near wall at a MILKY 0.371 — the curve's head-on
+  floor is unreachable from the boot camera.** (Re-framed again in v0.31.5.53; the "hard step at
+  joints" framing is now closed as WON'T-FIX, see below. What remains is a design-parameter
+  question, not a bug, and it needs a product decision rather than a patch.)
+  **Measured** (`scripts/dev-probes/reveal-step.mjs`, default boot framing): `WALL-REVEAL-STRENGTH`
+  defaults to 0.95, which the docs describe as a head-on opacity FLOOR of `1 - fade` = **0.05** —
+  a near wall head-on is meant to be barely an outline. But `revealStrength` is
+  `smoothstep(0.25, 1, toward)` and `toward` only reaches 1 when a wall faces the camera dead-on.
+  The dollhouse boot pose looks down a 45-degree diagonal (camera forward XZ `[-0.64, -0.64]`), so
+  **every** visible facade sits at `toward` = 0.707 → strength 0.662 → opacity **0.371**, and
+  none of them ever approaches the floor unless the user orbits to put a wall head-on.
+  0.371 is exactly the "washed mid-band" that the retired binary target was introduced to prevent
+  — it was fixed for FAR walls (structurally, via the orientation check) and reappears on NEAR
+  walls as a consequence of the default camera angle. Cropped frames show it plainly: the kitchen
+  and dining furniture read through a milky sheet.
+  · **Whoever picks this up is choosing between two defensible looks**, so measure, do not tune:
+    a deeper default fade makes the cutaway cleaner but pushes near walls toward invisible, and
+    the current value is what `wallRevealStrength` exposes to the user anyway. Judge on frames at
+    the BOOT pose, not head-on.
+  · **CLOSED as WON'T-FIX: "ease the faded wall toward its opaque neighbour near the shared
+    corner."** Two independent reasons, both measured/read rather than argued.
+    (a) **The architecture cannot express it.** Opacity is a single scalar per material —
+    `useWallReveal.ts` and `WallSegment.tsx` both assign `material.opacity = cur` for the whole
+    mesh — so a gradient across a wall's width needs either split geometry (which reintroduces
+    the multi-layer compositing WALL-FADE-OVERLAY-CULL exists to remove) or an `onBeforeCompile`
+    alpha patch that would then have to survive the fade CLONE (meta-rule xli), the overlay cull,
+    WALL-FADE-DEPTHWRITE and the composer. That is disproportionate to a boundary artefact.
+    (b) **The gradient would have to act where the design forbids it.** What steps is a faded wall
+    against a STRUCTURALLY OPAQUE far wall (the two faded walls at a corner already match exactly
+    — 10 of 44 corners step by precisely 0.629, and every faded wall reads 0.371). Easing across
+    that boundary means fading the far wall near the corner, which is the washed-pane failure the
+    far-wall rule exists to prevent. `cornerSpreadStrength`, which the original entry nominated,
+    cannot help for the same reason.
+    So the step is the CUTAWAY BOUNDARY, not a compositing fault — a dollhouse view with an open
+    top has to end somewhere.
 
 ## Showroom finishes (v0.26.0.0, 2026-08-19)
 - [ ] **Showroom picks for furniture `mat:` finishes.** A resolved showroom finish already works

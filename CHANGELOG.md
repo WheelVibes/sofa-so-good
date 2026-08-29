@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.53 — wall-reveal: the corner step is WON'T-FIX; the real issue is the default pose
+
+The wall-reveal entry was the last measured open default-look item. Investigating the proposed
+fix — easing a faded wall toward its opaque neighbour near a shared corner — closes that framing
+and surfaces a better-posed question underneath it. No code changed.
+
+**WON'T-FIX, for two independent reasons:**
+
+- **The architecture cannot express it.** Opacity is a single scalar per material —
+  `useWallReveal.ts` and `WallSegment.tsx` both assign `material.opacity = cur` for the whole
+  mesh — so a gradient across a wall's width needs split geometry (reintroducing the multi-layer
+  compositing WALL-FADE-OVERLAY-CULL exists to remove) or an `onBeforeCompile` alpha patch that
+  must then survive the fade clone, the overlay cull, WALL-FADE-DEPTHWRITE and the composer.
+  Disproportionate to a boundary artefact.
+- **The gradient would act where the design forbids it.** What steps is a faded wall against a
+  STRUCTURALLY OPAQUE far wall — the two faded walls at a corner already match exactly (10 of 44
+  corners step by precisely 0.629; every faded wall reads 0.371). Easing across that boundary
+  means fading the far wall, which is the washed-pane failure the far-wall rule prevents. So the
+  step is the CUTAWAY BOUNDARY: a dollhouse view with an open top has to end somewhere.
+
+**What the measurement actually exposes** is more interesting and is now the open entry:
+`WALL-REVEAL-STRENGTH` defaults to 0.95, described as a head-on opacity floor of `1 - fade` =
+**0.05** — a near wall head-on should be barely an outline. But `revealStrength` is
+`smoothstep(0.25, 1, toward)`, and the dollhouse boot pose looks down a 45-degree diagonal
+(camera forward XZ `[-0.64, -0.64]`), so **every** visible facade sits at `toward` = 0.707 →
+opacity **0.371** and never approaches that floor unless the user orbits a wall head-on. 0.371 is
+precisely the "washed mid-band" the retired binary target was introduced to prevent — fixed
+structurally for FAR walls, reappearing on NEAR walls as a consequence of the default camera
+angle. Cropped frames show the kitchen and dining furniture reading through a milky sheet.
+
+That is a design-parameter choice between two defensible looks, not a defect, so it is left for a
+product decision with the numbers attached rather than tuned here.
+
+
 ## v0.31.5.52 — glass audited: the transmission tier gate fires, nothing changed
 
 Glass is ~4% of the walk view and was the last top-coverage class with no evidence behind it.
