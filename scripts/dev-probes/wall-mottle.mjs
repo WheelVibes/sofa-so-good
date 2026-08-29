@@ -364,6 +364,69 @@ async function applyAo(pairs) {
 // texture, so this is the DOOR-GRAIN lesson (v0.31.5.50) on a bigger surface:
 // a fine grain stretched over a large panel stops reading as texture and starts
 // reading as broad soft cloud. Sweeping the metres-per-tile directly.
+// COMPOSED=1: does a USER-COMPOSED plaster finish get the same tiling as the
+// built-in wall paints, and does the composer's tile-scale multiplier do anything?
+// `COMPOSE_TEXTURES` still declares `{ pattern: 'plaster', uvScale: [2.5, 2.5] }`
+// under a comment claiming it mirrors the catalog — a third home for the number
+// that `.56` left alone because it was never proven to be on any drawn path.
+// Meta-rule (xvii): the comment is not evidence either way. Apply the finish
+// through the app's own `setWallFinish` and read the repeat back off the DRAWN
+// material.
+const COMPOSED = process.env.COMPOSED === '1'
+if (COMPOSED) {
+  const read = async (label, skipDefault = true) => {
+    const r = await page.evaluate((skip) => {
+      const { scene } = window.__three
+      let found = null
+      scene.traverse((o) => {
+        const m = o.material
+        if (found || !m || Array.isArray(m)) return
+        // Match the plaster branch's signature scalars, and prefer a NON-default
+        // colour so the freshly applied finish wins over the 99 untouched walls.
+        if (
+          m.normalMap &&
+          Math.abs(m.roughness - 0.92) < 0.001 &&
+          (!skip || m.color.getHexString() !== 'f5f5f0')
+        ) {
+          found = {
+            hex: `#${m.color.getHexString()}`,
+            repeat: m.normalMap.repeat.x,
+            size: m.normalMap.image?.width,
+          }
+        }
+      })
+      return found
+    }, skipDefault)
+    console.log(
+      `  ${label.padEnd(34)} ${r ? `${r.hex} repeat=${r.repeat.toFixed(3)} tile=${r.size}` : 'NOT FOUND'}`,
+    )
+  }
+  console.log('plaster tiling on the DRAWN material:')
+  await read('builtin wall-paint-white', false)
+  // A DISTINCT COLOUR PER ARM. Three identical repeats would otherwise be
+  // indistinguishable from a `setWallFinish` that never applied (meta-rule xxv);
+  // the hex changing arm to arm is the proof that it did.
+  for (const [scale, colour] of [
+    [1, '#c8a0a0'],
+    [2, '#a0c8a0'],
+    [0.5, '#a0a0c8'],
+  ]) {
+    await page.evaluate(
+      async (a) => {
+        const { composeMaterialId } = await import('/src/materials/composeMaterial.ts')
+        window.__store
+          .getState()
+          .setWallFinish('livingDining', composeMaterialId('plaster', a.colour, a.scale))
+      },
+      { scale, colour },
+    )
+    await new Promise((r) => setTimeout(r, 2500))
+    await read(`composed plaster ${colour}, scale ${scale}`)
+  }
+  await browser.close()
+  process.exit(0)
+}
+
 const REPEATS = (process.env.REPEATS || '').split(',').filter(Boolean).map(Number)
 if (REPEATS.length) {
   await run('base')

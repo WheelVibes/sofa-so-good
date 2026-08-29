@@ -5,6 +5,31 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.57 — the composer's tile-size slider did nothing on plaster
+
+Follow-up to PLASTER-STRETCH, and the walk-tour re-shoot that had to come with it.
+
+**The `.56` fix holds everywhere.** 11 rooms / 44 frames at 13:00 / medium: painted plaster in
+every room, and no aliasing at grazing angles or on far walls — the one risk the 0.6 m tile
+carried, since 0.15 m had demonstrated the rolloff exists.
+
+**`COMPOSE_TEXTURES` was a third home for the plaster tile size, and it was inert.** `cache.ts`'s
+plaster branch never read `def.uvScale` at all — it returns the shared normal/roughness singletons
+with the repeat baked in. So the eleven catalog values were decorative for plaster too; only
+`generators.ts` was ever load-bearing. The consequence was a **dead control**: a composed plaster
+finish at ×1, ×2 and ×0.5 drew identical tiling, with a different swatch colour per arm proving
+the finish had applied each time. The slider is ungated in `MaterialComposer.tsx` and "Plaster
+(paint)" is the first entry in its dropdown.
+
+`getPlasterNormal(uvScale?)` / `getPlasterRoughness(uvScale?)` now clone only when a non-default
+scale is requested, memoised per scale. `Texture.clone()` shares the image, so the singleton's
+memory saving survives on the default path — every wall in the shipped flat. Verified on the drawn
+material: builtin 1.667 (unchanged), composed ×1 1.667, ×2 0.833, ×0.5 3.333.
+
+**`COMPOSE_TEXTURES` now imports `PLASTER_UV_SCALE` rather than restating it**, and that mattered:
+once the branch honours `def.uvScale`, the stale 2.5 would have put the old stretch straight back
+on every composed plaster finish. A dead value stops being harmless the moment you make it live.
+
 ## v0.31.5.56 — the flat's largest surface stopped looking like damp concrete
 
 Walls are **~45% of the walk view** (the `.55` census), and cropped in, the biggest class rendered

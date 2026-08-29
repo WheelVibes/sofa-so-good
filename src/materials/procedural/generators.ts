@@ -336,19 +336,47 @@ export const PROCEDURAL_QUICK_PREVIEW_SIZE = 64
 const PLASTER_BASE_ROUGHNESS = 0.92
 let plasterNormalTex: Texture | null = null
 let plasterRoughTex: Texture | null = null
-export function getPlasterNormal(): Texture {
+// PLASTER-SCALE (v0.31.5.57) — the composer's "Scale" slider was a DEAD CONTROL
+// on plaster. The branch that builds a plaster material ignores `def.uvScale`
+// entirely and hands back these singletons, whose repeat is baked in, so ×0.5,
+// ×1 and ×2 all rendered byte-identical tiling (proved by varying the swatch
+// colour so the finish was demonstrably applied each time). Everything else in
+// the composer honours the slider.
+//
+// Rather than give every wall colour its own texture set — the memory saving the
+// singleton exists for — clone ONLY when a non-default scale is asked for.
+// `Texture.clone()` shares the underlying image, so a clone costs a texture
+// object and its own GPU upload, not another 256-square bake, and distinct
+// user-chosen scales are few. The default path still returns the singleton.
+const scaledPlaster = new Map<string, Texture>()
+function atScale(base: Texture, uvScale: [number, number] | undefined): Texture {
+  if (!uvScale) return base
+  const [u, v] = uvScale
+  if (u === PLASTER_UV_SCALE[0] && v === PLASTER_UV_SCALE[1]) return base
+  const key = `${base.uuid}@${u}x${v}`
+  const hit = scaledPlaster.get(key)
+  if (hit) return hit
+  const t = base.clone()
+  t.repeat.set(1 / u, 1 / v)
+  t.needsUpdate = true
+  scaledPlaster.set(key, t)
+  return t
+}
+
+/** The shared orange-peel normal, or a repeat-scaled clone when a composed
+ *  finish asks for a non-default tile size. */
+export function getPlasterNormal(uvScale?: [number, number]): Texture {
   if (!plasterNormalTex) buildPlasterMaps()
   // `buildPlasterMaps` always populates the normal (only the rough map is gated).
-  return plasterNormalTex as Texture
+  return atScale(plasterNormalTex as Texture, uvScale)
 }
 
 /** MAT-003 — the shared roller-nap roughness-drift map for plaster walls, or
  *  `null` when `pbrSurfaces` is off (legacy flat matte). A multiplier over the
  *  material's base roughness scalar (tint-independent, like the normal). */
-export function getPlasterRoughness(): Texture | null {
-  if (plasterRoughTex) return plasterRoughTex
-  buildPlasterMaps()
-  return plasterRoughTex
+export function getPlasterRoughness(uvScale?: [number, number]): Texture | null {
+  if (!plasterRoughTex) buildPlasterMaps()
+  return plasterRoughTex ? atScale(plasterRoughTex, uvScale) : null
 }
 
 function buildPlasterMaps(): void {

@@ -417,6 +417,35 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
     is what turned an identical-readings run (meta-rule xxv) into a found bug rather than a
     shipped non-fix.
 
+- **The composer's "Scale" slider was a DEAD CONTROL on plaster, and the walk-tour is clean
+  (PLASTER-SCALE, v0.31.5.57).** Follow-up to PLASTER-STRETCH. Two questions, both answered
+  against the drawn material rather than the source:
+  · **The `.56` fix holds everywhere.** An 11-room / 44-frame `walk-tour.mjs` re-shoot at
+    13:00 / medium reads as painted plaster in every room, and — the one risk 0.6 carried — there
+    is **no aliasing** at grazing angles or on far walls, where anisotropy is doing its job.
+  · **`COMPOSE_TEXTURES` was a THIRD home for the number, and it was inert.** `cache.ts`'s plaster
+    branch never read `def.uvScale` at all: it returns the shared `getPlasterNormal()` /
+    `getPlasterRoughness()` singletons whose repeat is baked in. So the eleven catalog `uvScale`
+    values were decorative for plaster too — only `generators.ts` was ever load-bearing. Measured:
+    a composed plaster finish at ×1, ×2 and ×0.5 came back **repeat 1.667 in all three**, with a
+    DIFFERENT SWATCH COLOUR per arm proving `setWallFinish` had applied each time (meta-rule xxv —
+    three identical readings are a failed mutation until something else moves).
+  · **The slider is ungated in `MaterialComposer.tsx`** and "Plaster (paint)" is the FIRST entry in
+    its dropdown, so this was the most reachable dead control in the finish UI: it updates the id,
+    reads "1.75×", and changed nothing.
+  · **Fix: `getPlasterNormal(uvScale?)` / `getPlasterRoughness(uvScale?)` clone ONLY when a
+    non-default scale is asked for**, memoised per `(uuid, u, v)`. `Texture.clone()` shares the
+    underlying image, so a clone costs a texture object and its own upload, not another
+    256-square bake — the singleton's memory saving survives on the default path, which is
+    every wall in the shipped flat. `cache.ts` passes `def.uvScale` through.
+  · **`COMPOSE_TEXTURES` now IMPORTS `PLASTER_UV_SCALE`**, and that mattered: once the branch
+    honours `def.uvScale`, its stale 2.5 would have put the old stretch straight back on every
+    composed plaster finish. **A dead value stops being harmless the moment you make it live** —
+    when wiring up an ignored parameter, re-audit everything that was allowed to drift while
+    nobody was reading it.
+  · Verified at the shipped state: builtin 1.667 (unchanged), composed ×1 1.667, ×2 0.833,
+    ×0.5 3.333.
+
 - **HALF the procedural noise fields alias, and the limit that binds is 256 (NYQUIST-AUDIT).**
   After two fields were found broken one at a time (WOOD-PORE-NYQUIST, FABRIC-FINE-NYQUIST), a full
   sweep of every `makeFbm` call site against its tile size found **21 of 42 fields over the

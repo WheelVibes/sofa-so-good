@@ -460,6 +460,21 @@ Generalise: a shared/cached texture built once for a whole pattern is a plausibl
 any per-material parameter (`repeat`, `wrapS`, `anisotropy`, colour space). Grep for the literal,
 not just the field name.
 
+## A DEAD value stops being harmless the moment you make it live
+
+`COMPOSE_TEXTURES` carried `{ pattern: 'plaster', uvScale: [2.5, 2.5] }` for a long time under a
+comment claiming it mirrored the catalog. It was provably inert — the plaster branch in `cache.ts`
+ignored `def.uvScale` entirely — so nobody noticed when the catalog moved to 0.6 and it did not.
+
+The moment that ignored parameter was wired up (to fix the composer's dead tile-size slider), the
+stale copy would have put the old 2.5 m stretch straight back on every composed plaster finish.
+The fix and the regression were the same commit.
+
+**When you make a previously-ignored parameter load-bearing, re-audit every place that was free to
+drift while nobody was reading it.** Grep the field name AND the literal, and prefer importing one
+constant over restating a number in a second table — a comment asserting that two tables agree is
+not a mechanism that keeps them agreeing.
+
 ## Phone probes must BOOT as the device, or they silently measure a desktop
 
 `scene/quality.ts` reads device capabilities **once at boot** (`readDeviceCapabilities` →

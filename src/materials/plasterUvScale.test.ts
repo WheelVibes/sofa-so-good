@@ -43,3 +43,30 @@ describe('plaster UV scale', () => {
     }
   })
 })
+
+/**
+ * PLASTER-SCALE (v0.31.5.57) — the composer's "Scale" slider was a dead control
+ * on plaster: `cache.ts`'s plaster branch handed back the shared singleton and
+ * ignored `def.uvScale`, so x0.5, x1 and x2 all drew identical tiling. These pin
+ * the two halves of the fix that are pure logic.
+ */
+describe('composed plaster tiling', () => {
+  it('derives its tile size from the catalog rather than restating it', async () => {
+    const { COMPOSE_TEXTURES } = await import('./composeMaterial')
+    const plaster = COMPOSE_TEXTURES.find((t) => t.pattern === 'plaster')
+    // A stale copy here would put the old 2.5 m stretch back on every composed
+    // plaster finish, now that the plaster branch honours `def.uvScale`.
+    expect(plaster?.uvScale).toEqual(PLASTER_UV_SCALE)
+  })
+
+  it('scales that tile size by the slider, in both directions', async () => {
+    const { composeMaterialId, composedMaterialDef } = await import('./composeMaterial')
+    const at = (scale: number) => {
+      const def = composedMaterialDef(composeMaterialId('plaster', '#f5f5f0', scale), 'wall')
+      return def && 'uvScale' in def ? def.uvScale?.[0] : null
+    }
+    expect(at(1)).toBeCloseTo(PLASTER_UV_SCALE[0])
+    expect(at(2)).toBeCloseTo(PLASTER_UV_SCALE[0] * 2)
+    expect(at(0.5)).toBeCloseTo(PLASTER_UV_SCALE[0] * 0.5)
+  })
+})
