@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.70 — the ceiling is 30× bigger than the census said; the verdict holds, the reason did not
+
+No app code changed. One long-standing claim retired and replaced with a measured one, plus a probe
+bug found by its own null result.
+
+**`.49` waved the ceiling through as "fine because you barely see it at 1.6 m eye height."** That
+reason is false. `surface-coverage.mjs` sweeps at eye level with a slight DOWNWARD tilt, so it
+under-counts the ceiling exactly as it under-counted floors. Same 11 rooms × 4 yaws × 1600 rays,
+one variable changed:
+
+| pose | ceiling | all vertical |
+| --- | --- | --- |
+| level (the shipped census) | **1.45%** | ~75% |
+| up (`PITCH=0.75`) | **43.87%** | 28.88% |
+
+Looking up, the ceiling is the single largest thing in view — larger than every wall combined.
+
+**The verdict survives for a different reason.** Cropped in at `livingDining` and at `bath1` (the
+smallest room, ceiling nearest), the mapless `meshLambertMaterial` reads as smooth matte painted
+plaster with a natural falloff, and next to the tiled bath walls it is correctly the smoothest
+surface in the room. A real ceiling IS smooth — skim-coated, seen at 2.6 m and at grazing angles
+where wall-scale orange peel would not register. So Lambert is a good model, not a shortcut that
+happens to be hidden. "You barely see it" would have justified ignoring a stain, a bad cornice or a
+fixture artefact on a number off by 30×; "a ceiling is smooth" is falsifiable and points at the
+right pose to check.
+
+**A probe bug, caught by meta-rule (xxv).** The first `PITCH` run returned a census byte-identical
+to the level one (ceiling 1.46 vs 1.45, every other row unchanged) — a failed mutation, not a null
+result. `requestWalkTeleport` resets the look, so pitching inside the same `page.evaluate` is
+silently undone. Fixed: pitch after the teleport settles, in its own call.
+
+`surface-coverage.mjs` and `floor-look.mjs` both take `PITCH=` now, so the same rigs answer "how
+much of this do I see when I actually look at it".
+
 ## v0.31.5.69 — floors re-verified after the plaster and composer changes; clean
 
 No code changed. A regression check, deliberately scoped that way.

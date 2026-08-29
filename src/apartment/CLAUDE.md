@@ -188,6 +188,36 @@ Full code map in `docs/ARCHITECTURE.md`.
     chain, `rough 0.85`, all three maps at `repeat 2.0`. Same lesson as the curtains in `.51`:
     a bbox that looks like a door panel is not evidence that it is one.
 
+- **The ceiling is 1.45% of the view LEVEL and 43.87% when you glance UP — the old reason was
+  wrong even though the verdict holds (CEILING-POSE, v0.31.5.70).** `.49` waved the ceiling
+  through as "fine because you barely see it at 1.6 m eye height". That reason is false: the
+  census sweeps at eye level with a slight DOWNWARD tilt, so it under-counts the ceiling exactly
+  as it under-counted floors. Re-run with `surface-coverage.mjs PITCH=0.75` (the glance-up pose),
+  same 11 rooms x 4 yaws x 1600 rays:
+
+  | pose | ceiling | all vertical |
+  | --- | --- | --- |
+  | level (the shipped census) | **1.45%** | ~75% |
+  | **up (`PITCH=0.75`)** | **43.87%** | 28.88% |
+
+  A **30x** swing. Looking up, the ceiling is the single largest thing in view — larger than every
+  wall combined.
+  · **The verdict survives for a different reason.** Cropped in at `livingDining` and at `bath1`
+    (the smallest room, where the ceiling is nearest), the mapless `meshLambertMaterial` reads as
+    smooth matte painted plaster with a natural falloff — and next to the tiled bath walls it is
+    correctly the smoothest surface in the room. **A real ceiling IS smooth**: skim-coated, seen at
+    2.6 m and at grazing angles where wall-scale orange peel would not register. So the Lambert is
+    a good model, not a shortcut that happens to be hidden.
+  · **Retire "you barely see it" and keep "a ceiling is smooth."** The first claim would have
+    justified ignoring anything up there — a stain, a badly-lit cornice, a fixture artefact — on a
+    number that is off by 30x. The replacement claim is falsifiable and points the right way: if a
+    ceiling ever looks wrong, the pose to check it at is `PITCH=0.75`, not the census pose.
+  · **If a future round DOES want ceiling texture**, the cost is already recorded in
+    `src/scene/CLAUDE.md`: Lambert -> Standard across 247 materials bought 2.17 ms of 34.54, so the
+    ceiling alone is cheap. The real constraint is the caveat filed with it — deriving a Lambert
+    twin from a CACHED finish material goes stale, because the finish system mutates those in
+    place.
+
 - **The coverage census's unnamed classes, IDENTIFIED — and the biggest one was not a door
   (SURFACE-CLASS-ID, v0.31.5.51).** `surface-coverage.mjs` ranks what a walk-mode user sees but
   labels each class only by material + colour + bbox, so two of the top classes went into the

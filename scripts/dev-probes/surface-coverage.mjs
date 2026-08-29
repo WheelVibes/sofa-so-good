@@ -133,6 +133,9 @@ const rooms = await page.evaluate(async () => {
 })
 
 const KEYBY = process.env.KEYBY || 'colour'
+/** Eye pitch, radians. The default census sweeps LEVEL, which under-counts both
+ *  the floor and the ceiling; `PITCH=0.75` is the "glance up at the fan" pose. */
+const PITCH = Number(process.env.PITCH ?? 0)
 const YAWS = [0, Math.PI / 2, Math.PI, -Math.PI / 2]
 const totals = new Map()
 let samples = 0
@@ -147,6 +150,13 @@ for (const room of rooms) {
       { ...room, yaw: YAWS[i] },
     )
     await new Promise((r) => setTimeout(r, 700))
+    // Pitch AFTER the teleport has settled, in its own call — `requestWalkTeleport`
+    // resets the look, so setting pitch in the same evaluate is silently undone.
+    // The tell was a census byte-identical to the level one (meta-rule xxv).
+    if (PITCH) {
+      await page.evaluate((p) => window.__walkLook?.setPitch?.(p), PITCH)
+      await new Promise((r) => setTimeout(r, 400))
+    }
     const hits = await page.evaluate(
       (opt) => {
         const { scene, camera } = window.__three
@@ -210,7 +220,7 @@ for (const room of rooms) {
 }
 
 const rows = [...totals.entries()].sort((a, b) => b[1] - a[1])
-console.log(`${rooms.length} rooms x ${YAWS.length} yaws = ${samples} rays\n`)
+console.log(`${rooms.length} rooms x ${YAWS.length} yaws = ${samples} rays  (pitch ${PITCH})\n`)
 console.log(`keyed by ${KEYBY === 'map' ? 'MAP SOURCE (tN)' : 'colour'}`)
 console.log(
   'cover%  orient material            colour    maps                        size          tex',

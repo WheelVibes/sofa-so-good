@@ -96,6 +96,8 @@ await new Promise((r) => setTimeout(r, 4000))
 await assertSceneAlive(page, 'after setup')
 
 const TIER = process.env.TIER || 'medium'
+/** Radians. Negative looks DOWN (floors, the original use); positive looks UP. */
+const PITCH = Number(process.env.PITCH ?? -0.75)
 
 await page.evaluate((t) => window.__store.getState().setQualityTier(t), TIER)
 await page
@@ -137,7 +139,11 @@ for (const room of rooms) {
   await new Promise((r) => setTimeout(r, 600))
   // Pitch the eye DOWN at the floor — the whole point of this probe. A 1.6 m eye at
   // yaw-only looks straight ahead and never hits a floor at all.
-  await page.evaluate(() => window.__walkLook?.setPitch?.(-0.75))
+  // PITCH= lets the same rig look UP as well as down. The census (`surface-coverage`)
+  // sweeps at eye level with only a slight downward tilt, so it under-counts the
+  // ceiling for exactly the reason it under-counted floors — a realistic glance up
+  // at a fan or a cornice is not in it. Default keeps the original floor pitch.
+  await page.evaluate((p) => window.__walkLook?.setPitch?.(p), PITCH)
   await new Promise((r) => setTimeout(r, 900))
 
   const hit = await page.evaluate(async () => {

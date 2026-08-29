@@ -330,6 +330,26 @@ GPU-session gotchas (2026-07-11 sweep):
   demand-mode frames pump and the controller's rAF decision loop actually runs. Guard scenario:
   `scripts/scenarios/interactive-dpr-seamless.json` (assert every resize `sameTask: true`).
 
+## A coverage census measures ONE POSE — say which, and re-shoot before trusting it
+
+`surface-coverage.mjs` sweeps 11 rooms x 4 yaws at eye height with a slight downward tilt. That is
+a defensible default, and it is also the reason two of this run's conclusions were built on numbers
+that describe a pose rather than a product:
+
+- **floors** barely appear in it, which is why `floor-look.mjs` exists at all (`.69`);
+- **the ceiling** reads 1.45% — and **43.87% at `PITCH=0.75`**, a glance up at a fan. A 30x swing
+  (`.70`). "You barely see it" was quoted for ten rounds off the level number.
+
+Both probes now take `PITCH=` so the same rig answers "how much of this do I see when I actually
+look at it". **When you quote a coverage figure, quote the pose with it**, and before dismissing a
+surface as too small to matter, re-shoot at the pose a user would actually adopt to look at it.
+
+**Set the pitch AFTER the teleport settles, in its own `page.evaluate`.** `requestWalkTeleport`
+resets the look, so pitching in the same call is silently undone — and the tell was a census
+byte-identical to the level one (ceiling 1.46 vs 1.45, every other row unchanged). That is
+meta-rule (xxv) catching a probe bug rather than a product one: identical readings across a change
+are a failed mutation until something else moves.
+
 ## When a probe reports ZERO, suspect the probe first (the false-zero family)
 
 A zero is the easiest number to believe and the easiest to fake. Four of these cost real time
