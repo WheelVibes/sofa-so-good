@@ -1322,3 +1322,21 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     it is NOT a measurement of the blob decal in isolation.
   · `tier-look` at h13 (performance 180.8 / medium 178.21 / high 178.48, sd 22.09/23.09/22.22) was
     a RE-RUN — the four-tier tone agreement was already on record. Meta-rule (xvii-b), eleventh round.
+
+- **The `performance`-tier "EMPTY flat" contradiction is CLOSED — it does not reproduce
+  (PERF-EMPTY-CLOSED, v0.31.5.85).** `.61` recorded a contradiction it could not settle:
+  `walk-tour.mjs TIER=performance` returned 44 frames of an empty flat (no walls, no furniture,
+  just ground and backdrop) while `wall-mottle.mjs` at the same tier found the geometry fully
+  mounted. Re-run at the shipped state, `walk-tour.mjs TIER=performance LIGHTS=on` (22:45 local,
+  resolved `performance/on/manual13`): **44 frames, mean 75% content, 354 visible meshes in
+  frustum, 87,228 triangles, ZERO empties**, all 11 rooms `ok, 4 yaws`. A cropped frame shows
+  walls, ceiling, curtain weave and rail, TV and a fan blade. `.82` independently got real frames
+  from `chroma-audit TIER=performance`.
+  · **The most likely original cause was probe TIMING, not culling** — a stale `frameloop="demand"`
+    composite captured before the scene drew, which is exactly what the two instruments disagreeing
+    while the scene graph was fully mounted implies.
+  · **The instrument that would catch a recurrence already exists.** `walk-tour.mjs` carries the
+    EMPTY-FRAME GUARD (`EMPTY_PCT`, default 12) comparing every cell against the backdrop corner,
+    plus `assertSceneAlive` per pose — so a silently empty shot now fails loudly instead of being
+    written to disk looking plausible. That was `TODO.md`'s recorded next step and it is done;
+    meta-rule (xvii-b), THIRTEENTH round.

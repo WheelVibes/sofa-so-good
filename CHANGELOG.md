@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.85 — the performance-tier "EMPTY flat" contradiction does not reproduce; closed
+
+No app code changed. With the audit finished and the five decisions handed over, the one item still
+recorded as unresolved was `.61`'s contradiction: `walk-tour.mjs TIER=performance` returned 44
+frames of an empty flat while `wall-mottle.mjs` at the same tier found geometry fully mounted.
+
+**It does not reproduce.** `walk-tour.mjs TIER=performance LIGHTS=on` (22:45 local, resolved
+`performance/on/manual13`): **44 frames, mean 75% content, 354 visible meshes in frustum, 87,228
+triangles, zero empties**, all 11 rooms `ok, 4 yaws`. A cropped frame shows walls, ceiling, curtain
+weave and rail, TV and a fan blade. `.82` independently got real frames from
+`chroma-audit TIER=performance`. The likely original cause was probe timing — a stale
+`frameloop="demand"` composite captured before the scene drew — rather than a culling difference,
+which is what two instruments disagreeing over a fully-mounted scene graph implies.
+
+**The guard that would catch a recurrence already existed** — `walk-tour.mjs` carries the
+empty-frame guard (`EMPTY_PCT`, default 12, every cell compared against the backdrop corner) plus
+`assertSceneAlive` per pose. That was `TODO.md`'s recorded next step, already done; meta-rule
+(xvii-b), thirteenth round. Checked before building, so nothing was rebuilt.
+
 ## v0.31.5.84 — the five open graphics decisions, written up for a one-line answer
 
 No app code changed. Every measurable axis is clean (`.77`–`.81` per-class ranking, `.82` tier
