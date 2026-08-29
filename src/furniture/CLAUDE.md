@@ -606,3 +606,25 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
     of orbit rays hit a white mapped `MeshBasicMaterial` — `scene/lighting/Sky.tsx:129`, drawn
     `side={BackSide}`, `depthWrite={false}`, `fog={false}`. Unlit on purpose, sat 0.00, so it
     carries zero chroma budget. Being top of a coverage table is not being a defect (meta-rule lii).
+
+- **The bedside lamps no longer have a notch bitten out of them (CURTAIN-NIGHTSTAND, v0.31.5.87 —
+  shipped on the user's decision).** `.61` diagnosed it correctly and left it: the render was never
+  wrong, the curtain plane simply passed through the shades (shade z 0.30-0.60, curtain panel
+  z 0.48-0.58, `side=2` so the shade's inside showed through the bite). Fixed as CONTENT in
+  `defaults/mainBedroom.ts`, not by touching the placement rules.
+  · **There was no z solution, and none at the old curtain width either — that is why `.61`'s three
+    candidates all failed.** The room's north interior wall is at z 0.20, so a 0.40-deep nightstand
+    against it always reaches z >= 0.60 and cannot clear a panel at 0.48-0.58; `.61` measured the
+    only z fix as 0.33 m out into the room, which reads wrong for a bedside table. In x, the 2.2 m
+    curtain spanned 0.6-2.8 while the west wall forces the left nightstand's centre to x >= 0.425
+    (max x >= 0.65) — so no placement existed at that width.
+  · **Both had to move.** Curtain `width 2.2 -> 1.9` (x 0.75-2.65, still overhanging the
+    `x=[0.8,2.6]` glass ~0.05 each side, so the window stays covered), and the nightstands, their
+    table lamps and the desk plant went outboard to **x 0.475 / 2.925** — symmetric about the window
+    centre, clear of the bed (x 0.95-2.45) and inside the room (x 0.20-3.28).
+  · **Pinned by `defaults/mainBedroom.test.ts`**, which asserts the x spans do not overlap, that the
+    curtain still covers the glass, that each nightstand fits the room, and that the lamps and plant
+    stay co-located with their nightstand. It **fails 4 of 9 on the old geometry** — verified by
+    restoring it — so it discriminates rather than merely passing.
+  · Verified visually: `walk-tour HOUR=13 LIGHTS=on`, `mainBedroom-y0` cropped on the lamp/curtain
+    junction shows a complete unbroken shade with bare wall between it and the curtain edge.

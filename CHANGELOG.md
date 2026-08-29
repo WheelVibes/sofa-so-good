@@ -5,6 +5,31 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.87 — CURTAIN-NIGHTSTAND: the bedside lamps no longer have a notch bitten out
+
+**Open decision (e), approved by the user and shipped as CONTENT.** `.61` diagnosed this correctly
+and left it alone: the render was never wrong, the curtain plane simply passed through the lamp
+shades (shade z 0.30-0.60, curtain panel z 0.48-0.58, `side=2` so the shade's inside showed through
+the bite). The fix is in `defaults/mainBedroom.ts`; the placement rules are untouched.
+
+**Why `.61`'s three candidates all failed — the arithmetic.** The room's north interior wall is at
+z 0.20, so a 0.40-deep nightstand against it always reaches **z >= 0.60** and cannot clear a panel
+at 0.48-0.58; there is no z solution, which is why `.61` measured the only one as 0.33 m out into
+the room. And in x, the 2.2 m curtain spanned 0.6-2.8 while the west wall forces the left
+nightstand's centre to x >= 0.425 (max x >= 0.65) — so at that width no placement existed either.
+
+**Both had to move.** Curtain `width 2.2 -> 1.9` (x 0.75-2.65, still overhanging the `x=[0.8,2.6]`
+glass ~0.05 each side, so the window stays covered) and the nightstands, their table lamps and the
+desk plant went outboard to **x 0.475 / 2.925** — symmetric about the window centre, clear of the
+bed (x 0.95-2.45) and inside the room (x 0.20-3.28).
+
+**Pinned by a new `defaults/mainBedroom.test.ts`** (9 assertions: x spans disjoint, glass still
+covered, nightstands inside the room, lamps and plant co-located with their nightstand). It **fails
+4 of 9 on the old geometry** — verified by restoring it and re-running — so it discriminates rather
+than merely passing. Verified visually with `walk-tour HOUR=13 LIGHTS=on`: `mainBedroom-y0` cropped
+on the lamp/curtain junction shows a complete unbroken shade with bare wall between it and the
+curtain edge.
+
 ## v0.31.5.86 — DEFAULT-GLOOM: the first-paint lights guard now applies in daylight too
 
 **Open decision (a), approved by the user and shipped.** `ensureDaylightFirstPaint` used to bail out

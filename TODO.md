@@ -107,7 +107,18 @@ stays `on` — so the daytime case flipped and the night case is untouched. Both
 (`timeMode !== 'system'`, `lightsMode !== 'off'`) are unchanged, so a user who has ever expressed a
 preference is still never overridden.
 
-## Curtain cuts through the bedside lamps — DIAGNOSED, fix is a CONTENT decision (v0.31.5.61)
+## Curtain cuts through the bedside lamps — RESOLVED as content (v0.31.5.61 -> v0.31.5.87)
+
+**FIXED in v0.31.5.87, on the user's decision.** Taken in **x**, because the arithmetic says there
+is no z solution: the curtain panel hangs at z 0.48-0.58 and the room's north interior wall is at
+z 0.20, so a 0.40-deep nightstand against that wall always reaches z >= 0.60. Nor was there an x
+solution at the old curtain width — 2.2 m spanned x 0.6-2.8, while the west wall forces the left
+nightstand's centre to x >= 0.425 (max x >= 0.65). So BOTH had to move: the curtain narrowed
+2.2 -> 1.9 (x 0.75-2.65, still overhanging the 0.8-2.6 glass on both sides) and the nightstands,
+lamps and desk plant went outboard to x 0.475 / 2.925. Pinned by `defaults/mainBedroom.test.ts`,
+which fails 4 of its 9 assertions on the old geometry. The original diagnosis is kept below.
+
+### Original diagnosis (v0.31.5.61)
 
 **Mechanism settled. The remaining question is a design choice, not a rendering one, so it is
 listed with the other open product items rather than fixed unilaterally.**

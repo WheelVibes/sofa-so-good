@@ -161,7 +161,16 @@ to binary.
 
 ---
 
-## (e) Curtain cuts through the bedside lamps
+## (e) Curtain cuts through the bedside lamps — ✅ DECIDED: fix as content, SHIPPED in v0.31.5.87
+
+> **Status: done.** Fixed in `defaults/mainBedroom.ts`, not in the placement rules. The arithmetic
+> showed there was no z placement (the north wall at z 0.20 forces a 0.40-deep nightstand to reach
+> z >= 0.60, into the 0.48-0.58 panel) and none in x at the old 2.2 m width either — so the curtain
+> narrowed to 1.9 (x 0.75-2.65, still covering the 0.8-2.6 glass) AND the nightstands, lamps and
+> plant moved outboard to x 0.475 / 2.925. Pinned by `defaults/mainBedroom.test.ts`, which fails 4
+> of 9 on the old geometry. Original write-up below.
+
+### Original write-up
 
 **What you would see.** Both `mainBedroom` bedside lamp shades render with a clean V-notch bitten
 out of the top edge, curtain visible through the bite — at 13:00 and 22:00 alike.
@@ -198,7 +207,7 @@ the demo apartment and leaves the placement rules untouched.
 | b | WINDOW-TIME-INVARIANT | content + flag policy | **Ship curtains open; keep `proceduralSky` pro** |
 | c | PLAN-SWAP-STRANDED | structural vs interim | **Add a confirm; do NOT widen the skip** |
 | d | wall-reveal POSE | design parameter | **Retune the curve for the 45° boot pose** |
-| e | Curtain vs nightstand | content | **Fix in `defaults/mainBedroom.ts`** |
+| e | Curtain vs nightstand | content | ✅ **SHIPPED v0.31.5.87** — curtain narrowed + nightstands outboard |
 
 (a) is shipped. The rest are approved and being implemented one committed round at a time; each is
 marked here as it lands.
