@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.88 — the default flat ships with its curtains open (and that exposes a trade-off)
+
+**Open decision (b), option 1, approved by the user and shipped.** `.44` measured that the app bakes
+a city backdrop the out-of-box user never sees: facing any of the 5 window openings in walk mode, a
+ray grid found essentially no exterior pixels, because every curtain shipped drawn. `drawAmount: 0`
+is now set on all four curtain entries in `defaults/`. The DEF default stays `drawAmount: 1`, so a
+curtain the user places themselves still arrives drawn — both halves pinned by
+`defaults/curtainsOpen.test.ts`.
+
+**Checked, not assumed: opening cannot re-introduce `.87`'s lamp intersection.** `panelTransform`
+bunches each panel to the outer edge at `drawAmount 0` (`bunchW = max(0.12, width * 0.07)`), so the
+1.9 m bedroom curtain's panels occupy x 0.750-0.883 and 2.517-2.650 — inside the drawn span, still
+disjoint from the nightstands at x 0.25-0.70 and 2.70-3.15. In general an open panel is a subset of
+the drawn span in x, so anything clear when drawn is clear when open. Confirmed in the frame: both
+lamp shades render intact with the curtains gathered at the sides.
+
+**⚠️ But it makes WINDOW-TIME-INVARIANT visible, and that is a real trade-off.** With the curtains
+drawn, nobody could see that the backdrop never changes. Open, a `HOUR=13` walk frame shows a dark
+sky with lit tower windows and glowing street lamps — a night skyline at midday, next to a TV
+playing a bright daylight image. The backdrop is a static authored `city` palette and
+`proceduralSky` stays pro-gated (false in Simple) by the same decision, so nothing makes it follow
+the sun for a default user. The window view is a clear improvement over no view at all, which is
+what was approved — but item (b) is marked PARTLY shipped rather than done, and the remaining
+options are re-stated in `docs/open-graphics-decisions.md`, including a new cheap one: re-author the
+static palette to read as daytime, which leaves the Simple/Pro flag contract untouched.
+
 ## v0.31.5.87 — CURTAIN-NIGHTSTAND: the bedside lamps no longer have a notch bitten out
 
 **Open decision (e), approved by the user and shipped as CONTENT.** `.61` diagnosed this correctly

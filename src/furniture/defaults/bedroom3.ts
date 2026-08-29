@@ -116,6 +116,12 @@ export const bedroom3: LayoutEntry[] = [
     defId: 'curtains',
     position: [7.7, 0.28],
     rotation: 0,
-    props: { width: 1.9, height: 2.55, color: '#c8bca8', standoff: CURTAIN_SILL_STANDOFF },
+    props: {
+      width: 1.9,
+      height: 2.55,
+      color: '#c8bca8',
+      standoff: CURTAIN_SILL_STANDOFF,
+      drawAmount: 0,
+    },
   },
 ]

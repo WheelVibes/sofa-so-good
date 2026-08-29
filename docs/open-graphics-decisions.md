@@ -59,7 +59,22 @@ ever expressed a preference is never overridden.
 
 ---
 
-## (b) WINDOW-TIME-INVARIANT — the world outside the window never changes
+## (b) WINDOW-TIME-INVARIANT — ⚠️ PARTLY SHIPPED in v0.31.5.88 (curtains open); the time-invariance is now VISIBLE
+
+> **Status: option 1 of 3 done, and it changed the picture.** The default flat now ships with
+> `drawAmount: 0` on all four curtains, so the baked city backdrop is finally visible; the def's own
+> default stays drawn for user-placed curtains. **But opening them exposes what drawn curtains were
+> hiding**: at `HOUR=13` a walk frame now shows a dark sky with lit tower windows and glowing street
+> lamps — a night skyline at midday, beside a TV playing a bright daylight image. The backdrop is a
+> static authored palette and `proceduralSky` remains pro-gated per the same decision, so nothing
+> makes it track the sun in Simple.
+>
+> **This is worth re-deciding now that it is visible.** Options 2 and 3 from the original write-up
+> are unchanged and still open: default `backdrop` to `'sky'`, or ungate `proceduralSky` in Simple.
+> A third possibility this round surfaces: re-author the static `city` palette to read as daytime,
+> which keeps the flag contract intact and costs only content. Original write-up below.
+
+### Original write-up
 
 **What you would see.** By default you see nothing outside: the flat ships with its **curtains
 drawn**, so all five window openings are covered. Open them (the UI offers "E — Open curtains") and
@@ -204,7 +219,7 @@ the demo apartment and leaves the placement rules untouched.
 | # | Item | Kind | Recommendation |
 | --- | --- | --- | --- |
 | a | DEFAULT-GLOOM | one-line behaviour | ✅ **SHIPPED v0.31.5.86** — guard extended to daylight |
-| b | WINDOW-TIME-INVARIANT | content + flag policy | **Ship curtains open; keep `proceduralSky` pro** |
+| b | WINDOW-TIME-INVARIANT | content + flag policy | ⚠️ **PARTLY SHIPPED v0.31.5.88** — curtains open; static backdrop now visibly wrong-time |
 | c | PLAN-SWAP-STRANDED | structural vs interim | **Add a confirm; do NOT widen the skip** |
 | d | wall-reveal POSE | design parameter | **Retune the curve for the 45° boot pose** |
 | e | Curtain vs nightstand | content | ✅ **SHIPPED v0.31.5.87** — curtain narrowed + nightstands outboard |

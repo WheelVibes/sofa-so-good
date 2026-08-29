@@ -87,7 +87,13 @@ export const mainBedroom: LayoutEntry[] = [
     defId: 'curtains',
     position: [1.7, 0.28],
     rotation: 0,
-    props: { width: 1.9, height: 2.55, color: '#c8bca8', standoff: CURTAIN_SILL_STANDOFF },
+    props: {
+      width: 1.9,
+      height: 2.55,
+      color: '#c8bca8',
+      standoff: CURTAIN_SILL_STANDOFF,
+      drawAmount: 0,
+    },
   },
   // Reading sconces flanking the bed on the north wall.
   {

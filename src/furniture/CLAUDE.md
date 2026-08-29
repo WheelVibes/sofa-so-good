@@ -628,3 +628,26 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
     restoring it — so it discriminates rather than merely passing.
   · Verified visually: `walk-tour HOUR=13 LIGHTS=on`, `mainBedroom-y0` cropped on the lamp/curtain
     junction shows a complete unbroken shade with bare wall between it and the curtain edge.
+
+- **The default flat now ships with its curtains OPEN (WINDOW-TIME-INVARIANT, v0.31.5.88 — shipped
+  on the user's decision).** `.44` measured that the app bakes a city backdrop the out-of-box user
+  never sees: facing any of the 5 window openings in walk mode, a ray grid found essentially no
+  exterior pixels, because every curtain shipped drawn. `drawAmount: 0` is now set on all four
+  curtain entries in `defaults/` (mainBedroom, bedroom2, bedroom3, livingDining).
+  · **The DEF default stays `drawAmount: 1`.** Staging the demo flat must not change what happens
+    when a user drops a new curtain on a window — that still arrives drawn. Both halves are pinned
+    by `defaults/curtainsOpen.test.ts`.
+  · **Opening cannot re-introduce the `.87` lamp intersection, and this was checked rather than
+    assumed.** `panelTransform` bunches each panel to the outer edge at `drawAmount 0`:
+    `bunchW = max(0.12, width * 0.07)`, so the 1.9 m bedroom curtain's panels occupy x 0.750-0.883
+    and 2.517-2.650 — inside the drawn span and still disjoint from the nightstands at x 0.25-0.70
+    and 2.70-3.15. In general an open panel is a SUBSET of the drawn span in x, so anything that
+    cleared when drawn also clears when open. (Fold depth does grow — `depthScale` 1.0 -> 1.8 — but
+    that is in z, and x-disjointness alone rules out intersection.)
+  · **⚠️ It also makes WINDOW-TIME-INVARIANT VISIBLE.** The backdrop is a static authored `city`
+    palette; `.44` measured it identical at 09:00 and 13:00 to within ~1 rgb unit. With the curtains
+    drawn nobody saw that. Open, a `HOUR=13` walk frame shows a dark sky with lit tower windows and
+    glowing street lamps — a night skyline at midday, next to a TV playing a bright daylight image.
+    The sun-driven alternative is the `sky` backdrop, still gated on `proceduralSky` (false in
+    Simple, the app default) by the user's own decision. **This is a live trade-off, not a solved
+    problem** — see `docs/open-graphics-decisions.md` item (b).
