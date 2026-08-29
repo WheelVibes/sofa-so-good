@@ -76,16 +76,23 @@ function roomCoverRects(r: PlanRoom): Rect2[] {
   return planRoomRects(r)
 }
 
-function rehomeOne<T extends RehomableItem>(
+/**
+ * The strandedness test itself: is this item's centre outside every room of its
+ * storey, beyond the flush-to-wall tolerance? Returns the item's level plan and
+ * cover rects too, so the caller can clamp without recomputing them.
+ *
+ * Factored out so `countStrandedAfterRehome` asks the SAME question that decides
+ * what actually moves — a dialog that quotes a number derived from a second,
+ * parallel implementation would drift from the behaviour it describes.
+ */
+function outsideEveryRoom<T extends RehomableItem>(
   it: T,
   levelPlans: Map<string, FloorPlan>,
-  skip?: (defId: string) => boolean,
-): T {
-  if (skip?.(it.defId)) return it
+): { outside: boolean; rects: Rect2[] } {
   const lp = levelPlans.get(it.levelId ?? GROUND_LEVEL_ID) ?? levelPlans.get(GROUND_LEVEL_ID)
   // No plan / no rooms to move into: leave the item exactly where it is rather
   // than inventing a position (an empty canvas is a legitimate state).
-  if (!lp || lp.rooms.length === 0) return it
+  if (!lp || lp.rooms.length === 0) return { outside: false, rects: [] }
   const [x, z] = it.position
   const rects = lp.rooms.flatMap(roomCoverRects)
   const inside =
@@ -97,7 +104,46 @@ function rehomeOne<T extends RehomableItem>(
         z >= rc.z0 - REHOME_OUT_TOL &&
         z <= rc.z1 + REHOME_OUT_TOL,
     )
-  if (inside) return it
+  return { outside: !inside, rects }
+}
+
+/**
+ * How many items this plan swap will LEAVE outside every room.
+ *
+ * Not the same as "how many are outside now": anything the re-home pass can move
+ * gets pulled back inside, so the only pieces left stranded are the SKIPPED ones
+ * (wall-mounted / no-clip — see `isAnchoredToNonFloor`). That is the number worth
+ * showing a user before a destructive plan swap, because it is exactly what they
+ * will find floating in the void afterwards (PLAN-SWAP-STRANDED).
+ *
+ * Pure, and shares `outsideEveryRoom` with the re-home pass so the count cannot
+ * disagree with the behaviour.
+ */
+export function countStrandedAfterRehome<T extends RehomableItem>(
+  plan: FloorPlan,
+  items: readonly T[],
+  opts: { skip?: (defId: string) => boolean } = {},
+): number {
+  if (items.length === 0) return 0
+  const levelPlans = new Map(planLevels(plan).map((l) => [l.id, levelAsPlan(plan, l)]))
+  let n = 0
+  for (const it of items) {
+    // Not skipped -> the pass relocates it -> it will NOT be left outside.
+    if (!opts.skip?.(it.defId)) continue
+    if (outsideEveryRoom(it, levelPlans).outside) n++
+  }
+  return n
+}
+
+function rehomeOne<T extends RehomableItem>(
+  it: T,
+  levelPlans: Map<string, FloorPlan>,
+  skip?: (defId: string) => boolean,
+): T {
+  if (skip?.(it.defId)) return it
+  const { outside, rects } = outsideEveryRoom(it, levelPlans)
+  if (!outside) return it
+  const [x, z] = it.position
   let best: [number, number] | null = null
   let bestD = Number.POSITIVE_INFINITY
   for (const rc of rects) {

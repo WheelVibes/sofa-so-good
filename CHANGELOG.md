@@ -5,6 +5,41 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.90 — PLAN-SWAP-STRANDED: the plan-swap confirm now tells the truth
+
+**Open decision (c), approved by the user and shipped — with one correction to the recommendation.**
+The recommendation was "add a confirm naming the count". Both rehome paths
+(`confirmResetPlanToDefault`, `confirmLoadSavedPlan`) **already had danger confirms**, so nothing
+needed adding. The defect was what they SAID: both promised *"Your furniture is kept — anything left
+outside a room is moved back inside"*, which is true only of free-standing floor pieces. On a swap to
+`tpl-studio` that sentence is followed by 37 of 87 items sitting outside the new shell.
+
+**`rehomeClause` now names the number.** New pure `countStrandedAfterRehome` in
+`floorplan/rehomeItems.ts` counts the pieces the pass will LEAVE outside — the skipped
+(wall-mounted / no-clip) ones outside every room; anything the pass can move is not stranded, so
+warning about it would be wrong. It shares the strandedness test with `rehomeOne` via a new
+`outsideEveryRoom` helper, so the quoted number cannot drift from the behaviour it describes. The
+count runs against the plan ACTUALLY being loaded, so a same-sized apartment still reads
+reassuringly, and the copy degrades to the old reassuring sentence when the count is zero.
+
+**The skip predicate is untouched, as recommended** — widening it would rip decor off tables and
+float wall art mid-air. But it WAS duplicated: `state/schema.ts` and `floorPlanSlice` each carried
+their own inline `!!def?.mounted || !!def?.noClip`, in the very two call sites `rehomeItems.ts`'s
+header says are shared "so the two can't drift". Both now import the one
+`furniture/anchoredDefs.ts:isAnchoredToNonFloor`, and so does the count.
+
+**No feature flag**, deliberately: this rewords the copy of an existing destructive confirm rather
+than adding a panel, tool, export or mode, so there is no new user-facing surface to gate.
+
+**The test discriminates.** `floorplan/countStranded.test.ts` (6 assertions) includes the crux — a
+free-standing item outside a room must NOT be counted — plus a test that the count equals what
+`rehomeStrandedItems` actually leaves outside. Replacing the implementation with the naive "count
+everything outside" version **fails 3 of 6**, verified by installing it and re-running.
+
+**Correction to this repo's own docs (meta-rule lxiv).** `floorplan/CLAUDE.md` glossed the probe's
+figures as "~37% of the home floating in the void". They are item COUNTS, not percentages: 37 of 87
+is ~43%. Corrected in place.
+
 ## v0.31.5.89 — wall-reveal (d) closed as NO DEFECT; `.53`/`.84`'s premise retracted
 
 No code changed. Item (d) was approved for implementation, but re-confirming its numbers before

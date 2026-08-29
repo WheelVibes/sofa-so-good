@@ -461,8 +461,10 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
   | `tpl-hdb-2room`        | **32**                    | **46**                |
   | `tpl-studio`           | **37**                    | **48**                |
 
-  A similar-sized plan is fine (penthouse ≈ baseline). Swapping to a much smaller one
-  leaves **~37% of the home floating in the void** — the frame shows curtains, a ceiling
+  A similar-sized plan is fine (penthouse ≈ baseline). **Those are item COUNTS, not percentages
+  — 37 of 87 items is ~43%** (an earlier revision of this paragraph read "~37% of the home",
+  conflating the count with a percent; corrected v0.31.5.90). Swapping to a much smaller one
+  leaves **dozens of pieces floating in the void** — the frame shows curtains, a ceiling
   fan, a TV, a rug with its books and candle, wall art, a range hood and a cove light
   hanging beside the shell, at coordinates like `wall-art@12.5,6.55` in a plan whose rooms
   end at x = 5.8.
@@ -480,7 +482,21 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
     the floor mid-room is worse than the current failure, and it would regress the common
     case (a same-size saved plan) to buy the rare one. Moving `mounted` pieces to a room
     centre floats them in mid-air for the same reason.
-  · **The real fix is structural and is a product decision, so it is deliberately NOT taken
+  · **What SHIPPED instead (v0.31.5.90, on the user's decision): the confirm now tells the truth
+    and names the number.** The two rehome paths — `confirmResetPlanToDefault` and
+    `confirmLoadSavedPlan` in `ui/planActions.ts` — already had danger confirms, so nothing needed
+    adding; what they SAID was wrong. Both promised "Your furniture is kept — anything left outside
+    a room is moved back inside", which is only true of free-standing floor pieces. `rehomeClause`
+    now counts the pieces that will actually be left outside via the pure
+    `countStrandedAfterRehome` and words it honestly ("N wall-mounted or surface items … stay where
+    they are and may end up outside the new plan"), computed against the plan ACTUALLY being loaded
+    so a same-sized apartment still reads reassuringly. The skip predicate is untouched.
+  · **The predicate itself is now shared, which this file's own no-drift claim had assumed.**
+    `rehomeItems.ts`'s header says the load path and `replaceFloorPlan` are shared "so the two
+    can't drift" — but each passed its OWN inline copy of `!!def?.mounted || !!def?.noClip`. Both
+    now import `furniture/anchoredDefs.ts:isAnchoredToNonFloor`, as does the count, so the number a
+    dialog quotes is derived from the same rule that decides what moves.
+  · **The real STRUCTURAL fix is still a product decision and is deliberately NOT taken
     here:** an attached piece needs to move WITH its host (or be re-anchored to a wall in
     the new plan, or dropped with consent), which means modelling the host relationship that
     `rehomeStrandedItems` currently cannot see. Note the blast radius is bounded — the

@@ -108,7 +108,18 @@ actually hit, which is that they never see outside at all.
 
 ---
 
-## (c) PLAN-SWAP-STRANDED — attached furniture is left floating when you swap to a smaller plan
+## (c) PLAN-SWAP-STRANDED — ✅ DECIDED, SHIPPED in v0.31.5.90 (as an honest confirm)
+
+> **Status: done, and the recommendation needed one correction.** Both rehome paths ALREADY had
+> danger confirms, so nothing needed adding — what they SAID was wrong. Each promised "Your
+> furniture is kept — anything left outside a room is moved back inside", which is true only of
+> free-standing floor pieces. The confirm now counts what will really be left outside (pure
+> `countStrandedAfterRehome`, computed against the plan actually being loaded) and says so. The
+> skip predicate is untouched, as recommended. Also fixed: the `mounted || noClip` rule was
+> duplicated between the two rehome call sites that `rehomeItems.ts` claims "can't drift" — now one
+> shared `isAnchoredToNonFloor`. Original write-up below.
+
+### Original write-up
 
 **What you would see.** Load a saved apartment or reset to a much smaller plan, and wall art,
 curtains, the ceiling fan, the TV, the range hood, a cove light and a rug with its books and candle
@@ -233,7 +244,7 @@ the demo apartment and leaves the placement rules untouched.
 | --- | --- | --- | --- |
 | a | DEFAULT-GLOOM | one-line behaviour | ✅ **SHIPPED v0.31.5.86** — guard extended to daylight |
 | b | WINDOW-TIME-INVARIANT | content + flag policy | ⚠️ **PARTLY SHIPPED v0.31.5.88** — curtains open; static backdrop now visibly wrong-time |
-| c | PLAN-SWAP-STRANDED | structural vs interim | **Add a confirm; do NOT widen the skip** |
+| c | PLAN-SWAP-STRANDED | structural vs interim | ✅ **SHIPPED v0.31.5.90** — confirm now names the count; skip untouched |
 | d | wall-reveal POSE | design parameter | ❌ **CLOSED v0.31.5.89** — no defect; premise retracted |
 | e | Curtain vs nightstand | content | ✅ **SHIPPED v0.31.5.87** — curtain narrowed + nightstands outboard |
 

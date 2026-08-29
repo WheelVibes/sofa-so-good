@@ -13,7 +13,10 @@
  * Every one of these is a single undo step — the confirm copy says so, and
  * `replaceFloorPlan` guarantees it by snapshotting once for plan + furniture.
  */
+import { buildDefaultPlan } from '../floorplan/defaultPlan'
+import { countStrandedAfterRehome } from '../floorplan/rehomeItems'
 import type { FloorPlan } from '../floorplan/types'
+import { isAnchoredToNonFloor } from '../furniture/anchoredDefs'
 import { useStore } from '../state/store'
 
 /** How many placed items the action is about to remove, phrased for a sentence. */
@@ -24,6 +27,34 @@ function itemsClause(): string {
 }
 
 const UNDO_HINT = 'You can undo this with Ctrl/⌘+Z.'
+
+/**
+ * What a re-homing plan swap will actually do to the furniture, phrased for a
+ * sentence (PLAN-SWAP-STRANDED).
+ *
+ * The old copy promised "anything left outside a room is moved back inside",
+ * which is only true of free-standing floor pieces. Wall-mounted and no-clip
+ * items are deliberately NOT re-homed — moving them would float wall art in
+ * mid-air and rip decor off tables — so on a swap to a much smaller plan they
+ * stay where they were, outside the new shell. Measured on the furnished default
+ * 4-room (87 items): 37 land outside every room on `tpl-studio`, 32 on
+ * `tpl-hdb-2room`. Saying "moved back inside" and then leaving 37 pieces in the
+ * void is the part worth fixing; this names the number instead.
+ */
+function rehomeClause(plan: FloorPlan): string {
+  const items = useStore.getState().items
+  const stranded = countStrandedAfterRehome(plan, items, { skip: isAnchoredToNonFloor })
+  if (stranded === 0) {
+    return 'Your furniture is kept, and anything left outside a room is moved back inside.'
+  }
+  const n =
+    stranded === 1 ? '1 wall-mounted or surface item' : `${stranded} wall-mounted or surface items`
+  return (
+    'Your furniture is kept: free-standing pieces outside a room are moved back inside, but ' +
+    `${n} (wall art, curtains, tabletop decor and the like) stay where they are and may end up ` +
+    'outside the new plan.'
+  )
+}
 
 /** Open the guarded "Start a new apartment" chooser (`NewPlanModal`), which owns
  *  the confirmation — it has two outcomes, so a yes/no confirm can't express it. */
@@ -38,7 +69,7 @@ export async function confirmResetPlanToDefault(): Promise<boolean> {
   const s = useStore.getState()
   const ok = await s.confirmAction({
     title: 'Reset the apartment',
-    message: `Replace the current floor plan with the default HDB 4-room flat? Your furniture is kept — anything left outside a room is moved back inside. ${UNDO_HINT}`,
+    message: `Replace the current floor plan with the default HDB 4-room flat? ${rehomeClause(buildDefaultPlan())} ${UNDO_HINT}`,
     confirmLabel: 'Reset plan',
     danger: true,
   })
@@ -66,9 +97,15 @@ export async function confirmApplyTemplate(tpl: FloorPlan): Promise<boolean> {
  *  the user's own home coming back, not a different one). */
 export async function confirmLoadSavedPlan(id: string, name: string): Promise<boolean> {
   const s = useStore.getState()
+  // Count against the plan actually being loaded — a swap to a much smaller
+  // apartment strands far more than a same-sized one, so a fixed sentence would
+  // be wrong in both directions.
+  const target = s.savedPlans.find((p) => p.id === id)
   const ok = await s.confirmAction({
     title: `Load “${name}”`,
-    message: `Replace the current floor plan with this saved apartment? Your furniture is kept — anything left outside a room is moved back inside. ${UNDO_HINT}`,
+    message: `Replace the current floor plan with this saved apartment? ${
+      target ? rehomeClause(target) : 'Your furniture is kept.'
+    } ${UNDO_HINT}`,
     confirmLabel: 'Load',
     danger: true,
   })
