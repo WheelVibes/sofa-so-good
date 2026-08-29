@@ -5,6 +5,34 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.80 — the wall body does not read flat; two probe fixes to prove it
+
+No app code changed. Two dev-probe fixes, and the boot-view question `.79` left open is closed.
+
+**Why it could not be measured before.** The apartment shell carries no `defId`, so
+`surface-detail`'s reliable path was unavailable, and after `.79` an NDC POINT is known not to be
+portable between probes. Two fixes:
+- **`COLOUR=<hex>` seeds with no coordinates at all.** `COLOUR=f1f0ec` finds 34 meshes, matching
+  `class-id.mjs` exactly — which is how the new seed was validated.
+- **`MASK=painter` no longer collapses to a single material when there is no map.** It groups by
+  shared map SOURCE, correct for texture-sharing clones; with no map it fell back to the seed
+  material object alone. The wall body is 34 sibling slabs sharing a look without sharing a
+  texture, so the first run masked **10 of 5760 cells (0.2%)** for a class the census puts at 19%
+  of the boot pose, and quoted a microcontrast over those 10 cells. Unmapped materials now group
+  by equivalence (same type, albedo, roughness, metalness, equally unmapped): **515 cells (8.9%)**,
+  all 34 materials. The mapped path is provably unchanged — control arm `DEF=wardrobe-3door` still
+  reads 17 materials, 402 cells, chroma 0.601, mean 92.2, sigma 17.79, microcontrast 0.862.
+
+**The verdict.** Wall body: microcontrast **1.408**, sigma 23.48, mean 167.7, chroma 0.075, 0.0%
+past 0.35 saturation — ABOVE both mapped benchmarks (plaster 0.961, wood 0.862). "Unmapped
+therefore flat" has no support. Read the figure as an upper bound: the class is 34 narrow bands,
+so much of its cell-scale variation is slab edges against bright interior faces rather than
+surface detail. Accepted as correct — the crop shows the outside of the flat, largely in shade,
+plus section-cut wall tops, which every reference app renders as a plain fill.
+
+**Note.** 8.9% here vs 19.0% in `.79` is not a contradiction: `surface-detail MODE=orbit` frames
+the flat smaller than `chroma-audit MODE=orbit`. The same MODE name is not the same camera.
+
 ## v0.31.5.79 — surface-detail printed a confident microcontrast for the SKY; refuse that seed
 
 No app code changed. One dev-probe guard, one naming result, and one question left explicitly open.

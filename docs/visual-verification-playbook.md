@@ -3258,3 +3258,25 @@ not the same as refusing it.
   frame read as cool slate against the warm cream faces. Measured, every one of them is
   WARM (blue minus red is -18 to -32, the same sign and similar magnitude as the faces).
   Sample the pixels before writing "it looks blue".
+
+**Gotcha — `MASK=painter` collapsed to a SINGLE material for anything UNMAPPED.**
+The painter mask groups by shared map SOURCE, which is right for clones that share a
+texture. With no map there is no source to share, so the grouping fell back to the
+seed material OBJECT alone. The wall body is **34 sibling slabs that share a look
+without sharing a texture**, so `.80` first measured **10 of 5760 cells (0.2%)** for a
+class the census puts at 19% of the boot pose — a microcontrast over 10 cells, quoted
+with no warning. Unmapped materials now group by EQUIVALENCE (same type, albedo,
+roughness, metalness, and equally unmapped): the same run then masks **515 cells
+(8.9%)** with all 34 materials. The mapped path is unchanged — control arm
+`DEF=wardrobe-3door` still reads 17 materials, 402 cells, microcontrast 0.862 exactly.
+· **`COLOUR=<hex>` seeds `surface-detail` with no coordinates at all.** The apartment
+  SHELL has no `defId`, and after `.79` an NDC POINT is known not to be portable
+  between probes — so neither existing path could reliably address it. `COLOUR=f1f0ec`
+  found 34 meshes, matching `class-id.mjs` exactly, which is how the seed was validated.
+· **The same MODE name is NOT the same camera.** `surface-detail MODE=orbit` frames the
+  flat smaller than `chroma-audit MODE=orbit`, so the identical class reads 8.9% in one
+  and 19.0% in the other. Quote the PROBE as well as the pose.
+· **A microcontrast over a class of narrow separated bands is EDGE-dominated.** The wall
+  body's 1.408 beats both mapped benchmarks (plaster 0.961, wood 0.862), but much of it
+  is slab boundaries against bright interior faces, not surface detail. Read it as an
+  upper bound; it refutes "this reads flat", it does not prove "this is richly textured".

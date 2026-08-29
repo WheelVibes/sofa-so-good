@@ -336,3 +336,25 @@ Full code map in `docs/ARCHITECTURE.md`.
     weigh any fix against meta-rule (lxviii) — 34 slabs on the Performance tier is not free.
   · Meta-rule (xvii-b) paid a **ninth** round on the way in: `#f1f0ec` is `WALL_STRUCTURE_COLOR`
     (`apartment/walls/wallBodyGeometry.ts`), already named and judged above under another name.
+
+- **The wall body does NOT read flat, and the boot-view question `.79` left open is now CLOSED
+  (WALLBODY-JUDGED, v0.31.5.80).** `.79` established `#f1f0ec` is 19.0% of `chroma-audit`'s
+  orbit/BOOT census, 34 unmapped shell slabs beside a mapped `#f5f5f0` face, but could not
+  measure it: the seed hit the sky dome. Two probe fixes made the measurement possible — a
+  coordinate-free `COLOUR=<hex>` seed (the shell has no `defId`), and a painter mask that groups
+  UNMAPPED materials by equivalence instead of collapsing to one instance (0.2% -> 8.9% of cells).
+  · **Measured, `surface-detail MODE=orbit COLOUR=f1f0ec MASK=painter`, 34 materials, 515/5760
+    cells: microcontrast 1.408, sigma 23.48, mean 167.7, chroma 0.075, 0.0% past 0.35 saturation.**
+    That is ABOVE both mapped benchmarks (plaster post-fix 0.961, shared wood painter 0.862), so
+    the "unmapped therefore flat" hypothesis has no support. Chroma is a non-issue outright.
+  · **Read that number as an UPPER BOUND (meta-rule lxxi).** The class is 34 narrow bands — wall
+    tops seen edge-on plus the perimeter slabs' exterior faces — so much of its cell-scale
+    variation is slab boundaries against bright interior faces, not surface detail. It refutes
+    "reads flat"; it does not establish "richly textured".
+  · **Accepted as correct, with evidence (meta-rule xi).** What the crop shows is the OUTSIDE of
+    the flat, largely in shade: an exterior/corridor face and the section-cut tops, which every
+    reference app renders as a plain fill. Unmapped is the right authoring choice here, and the
+    mapped face is the surface the user actually looks at from inside.
+  · **8.9% here vs 19.0% in `.79` is not a contradiction** — `surface-detail MODE=orbit` frames
+    the flat smaller than `chroma-audit MODE=orbit`. The same MODE name is not the same camera;
+    quote the probe as well as the pose.

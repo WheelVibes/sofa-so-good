@@ -47,6 +47,11 @@ const MODE = process.env.MODE || 'walk'
 const LABEL = process.env.LABEL || 'surface'
 const POINT = (process.env.POINT || '0.42,-0.12').split(',').map(Number)
 const DEF = process.env.DEF || null
+// Seed by ALBEDO HEX instead of a screen point. The apartment SHELL (wall body,
+// ceiling, floors) carries no `defId`, and an NDC seed is not portable between
+// probes (`.79` put one on the sky dome), so neither existing path can reliably
+// address it. Matching the material colour needs no coordinates at all.
+const COLOUR = (process.env.COLOUR || '').replace(/^#/, '').toLowerCase() || null
 /**
  * What the mask covers:
  *   'painter' (default) — every material sharing the seed's map SOURCE. Right for
@@ -285,7 +290,7 @@ async function applyNormalScale(v) {
 const GX = 96
 const GY = 60
 const found = await page.evaluate(
-  (pt, gx, gy, def, maskMode, seedMaxDistance) => {
+  (pt, gx, gy, def, maskMode, seedMaxDistance, colour) => {
     const { scene, camera, raycaster } = window.__three
     const rc = new raycaster.constructor()
     const visible = (k) => {
@@ -342,6 +347,30 @@ const found = await page.evaluate(
       if (!best) return { n: 0, why: `defId ${def} has no meshes in the scene` }
       ref = Array.isArray(best.material) ? best.material[0] : best.material
       seededFrom = `defId ${def} (largest mesh, footprint ${bestSize.toFixed(2)} m2)`
+    } else if (colour) {
+      // Largest-footprint mesh whose albedo matches, mirroring the defId branch.
+      let best = null
+      let bestSize = -1
+      let matches = 0
+      scene.traverse((o) => {
+        if (!o.isMesh || !o.material) return
+        const m = Array.isArray(o.material) ? o.material[0] : o.material
+        if (!m?.color || m.color.getHexString().toLowerCase() !== colour) return
+        matches++
+        if (!o.geometry.boundingBox) o.geometry.computeBoundingBox()
+        const bb = o.geometry.boundingBox
+        if (!bb) return
+        if (!o.userData.__s) o.userData.__s = new o.position.constructor()
+        const sc = o.getWorldScale(o.userData.__s)
+        const size = Math.abs((bb.max.x - bb.min.x) * sc.x) * Math.abs((bb.max.y - bb.min.y) * sc.y)
+        if (size > bestSize) {
+          bestSize = size
+          best = o
+        }
+      })
+      if (!best) return { n: 0, why: `no mesh with albedo #${colour}` }
+      ref = Array.isArray(best.material) ? best.material[0] : best.material
+      seededFrom = `COLOUR #${colour} (${matches} meshes, largest face ${bestSize.toFixed(2)} m2)`
     } else {
       rc.setFromCamera({ x: pt[0], y: pt[1] }, camera)
       const seed = rc.intersectObjects(scene.children, true).find(visible)
@@ -375,15 +404,31 @@ const found = await page.evaluate(
         }
       }
     }
-    // Group by shared MAP SOURCE when there is a map (clones share it), else by
-    // the material object itself.
+    // Group by shared MAP SOURCE when there is a map (clones share it). With NO
+    // map there is no source to share, and grouping by the material OBJECT alone
+    // collapses the painter to a single instance: the wall body is 34 sibling
+    // slabs that share a look without sharing a texture, so `.80` first measured
+    // 10 of 5760 cells (0.2%) for a class the census puts at 19% of this pose.
+    // For unmapped materials, group by EQUIVALENCE of the properties that make
+    // the look instead — same type, albedo, roughness, metalness, and equally
+    // unmapped.
     const src = ref.normalMap?.source ?? ref.map?.source ?? null
+    const refHex = ref.color?.getHexString()
+    const sameLook = (m) =>
+      m.type === ref.type &&
+      m.color?.getHexString() === refHex &&
+      m.roughness === ref.roughness &&
+      m.metalness === ref.metalness &&
+      !m.map &&
+      !m.normalMap &&
+      !m.roughnessMap
     const mats = []
     scene.traverse((o) => {
       if (!o.isMesh || !o.material) return
       for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
         const ms = m.normalMap?.source ?? m.map?.source ?? null
-        if ((src && ms === src) || m === ref) if (!mats.includes(m)) mats.push(m)
+        if ((src && ms === src) || m === ref || (!src && sameLook(m)))
+          if (!mats.includes(m)) mats.push(m)
       }
     })
     const mask = []
@@ -437,6 +482,7 @@ const found = await page.evaluate(
   DEF,
   MASK,
   SEED_MAX_DISTANCE,
+  COLOUR,
 )
 
 if (!found.n) {
