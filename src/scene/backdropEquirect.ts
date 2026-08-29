@@ -42,13 +42,13 @@ interface Preset {
 
 export const BACKDROP_PRESETS: Record<PhotoBackdropKind, Preset> = {
   city: {
-    sky: ['#5d8fc4', '#9fc0db', '#dfe8ec'],
-    ground: ['#c4c6c0', '#9a9c96'],
+    sky: ['#6fb0e8', '#a6d0ef', '#dfeaf2'],
+    ground: ['#d2d4ce', '#a8aaa2'],
     horizon: 'buildings',
-    building: [74, 86, 104],
-    windowColor: 'rgba(255,221,160,0.55)',
-    litScale: 1,
-    haze: '#dfe8ec',
+    building: [182, 177, 166],
+    windowColor: 'rgba(52,66,84,0.5)',
+    litScale: 4.2,
+    haze: '#dfeaf2',
   },
   dusk: {
     sky: ['#3a3a6b', '#8a5a8f', '#f3a25c'],

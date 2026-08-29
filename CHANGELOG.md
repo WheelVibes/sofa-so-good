@@ -5,6 +5,49 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.93 — CITY-DAYLIGHT: the "Daytime HDB skyline" is now actually daytime
+
+Follow-up to v0.31.5.92, which moved the DEFAULT backdrop to the sun-driven sky and
+noted the trade-off that `city` keeps the skyline. `city` is still one click away in
+the picker and its entry reads "Daytime HDB skyline" — but it painted a NIGHT scene.
+
+**The mechanism:** `buildingWindows` returns only the LIT windows, and the equirect is
+baked once, so `windowColor` burns into the facade at every hour. `city` shipped
+`rgba(255,221,160,0.55)` — warm interior glow — over dark slate `[74,86,104]` blocks.
+
+**Measured** at `win-mainBedroom-N`, 13:00, curtains open (left third of the upper glass
+band, away from the centre lamp reflection):
+
+| arm                | mean rgb                  | r−b   |
+| ------------------ | ------------------------- | ----- |
+| city BEFORE        | (92.7, 96.0, 98.4)        | −5.7  |
+| city AFTER         | (132.6, 129.3, 123.0)     | +9.6  |
+| sky backdrop (control) | (135.8, 140.4, 142.4) | −6.6  |
+
++40 brightness and a hue polarity flip — cold and dark to warm and sunlit. The `sky`
+control is comparably bright but COOL, which is right for open sky against concrete.
+
+**The fix is a polarity rule, not a repaint.** By day a window is a hole into an unlit
+interior, so it is DARKER than the sunlit facade; by night the interior is the only
+light source, so it is BRIGHTER. `city` now satisfies the first (`building
+[182,177,166]`, `windowColor rgba(52,66,84,0.5)`, denser `litScale` so the grid reads as
+glazing) and `dusk` still satisfies the second. `backdropDaylight.test.ts` pins both,
+and **fails 2 of 5 on the old palette** — verified by restoring it. Pinning the polarity
+rather than literal hexes lets the presets be re-tuned without letting the day/night
+inversion return silently.
+
+**Two metrics were built and discarded before one discriminated.** A "warm lit-window
+pixel" count read 9.9% for `city` and 9.5% for the `sky` backdrop, which has no towers
+at all — it was counting lamp reflections in the glass; narrowed to the left third it
+read 13.9 / 14.3 / 13.3% across the three arms because the cream grille bars dominate.
+Mean brightness plus hue polarity is what actually separates them.
+
+**Two iterations, both inspected in a frame.** v1 (neutral grey concrete) fixed the
+polarity but read as flat overcast — towers and sky at the same grey. v2 warmed the
+concrete and deepened the zenith, which separates sunlit facade from blue sky.
+
+npm test 991 files / 9282 tests green; tsc + biome clean.
+
 ## v0.31.5.92 — WINDOW-SKY-DEFAULT: the view out of the window now follows the clock
 
 **Open decision (b), approved by the user and shipped — closing the last of the five items.**
