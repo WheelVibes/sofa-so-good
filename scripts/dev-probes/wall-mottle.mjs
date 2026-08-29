@@ -501,6 +501,12 @@ if (PICK) {
     const tex = (t) =>
       !t ? '—' : `${t.image?.width}x${t.image?.height} repeat=${t.repeat.x.toFixed(2)}`
     return {
+      // The wall-reveal fade drives OPACITY, so a wall that raycasts but does not
+      // appear will show up here even though the frustum census counts it.
+      opacity: m.opacity,
+      transparent: m.transparent,
+      visible: h.object.visible,
+      colorWrite: m.colorWrite,
       type: m.type,
       hex: `#${m.color?.getHexString?.() ?? '??'}`,
       rough: m.roughness,
@@ -524,6 +530,9 @@ if (PICK) {
   } else {
     console.log(`PICK ${PICK} in ${ROOM} @ yaw ${YAW}  -> frame ${OUT}/pick.png\n`)
     console.log(`  ${hit.type} ${hit.hex} rough=${hit.rough} metal=${hit.metal}`)
+    console.log(
+      `  opacity=${hit.opacity} transparent=${hit.transparent} visible=${hit.visible} colorWrite=${hit.colorWrite}`,
+    )
     console.log(`  normalScale   ${hit.normalScale}`)
     console.log(`  map           ${hit.map}`)
     console.log(`  normalMap     ${hit.normalMap}`)

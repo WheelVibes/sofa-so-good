@@ -4,33 +4,38 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
-## `performance` tier: walk-tour frames show an EMPTY flat while the scene graph is FULL (v0.31.5.61)
+## Interior walls DISSOLVE in walk mode at `performance` tier — CONFIRMED defect (v0.31.5.62)
 
-**Unexplained contradiction. Do NOT report this as a tier rendering bug until it is resolved —
-and do not dismiss it as a probe artefact either (meta-rule xi).**
+**Reproducible, one-variable, with frames. Root cause not yet located; the leading hypothesis is
+named below. This is the highest-priority open item — `performance` is the tier the capability
+ceiling drops PHONES to, so this is what a phone user would see.**
 
-`walk-tour.mjs TIER=performance` (resolved state printed: `performance/off/manual13`) returned 44
-frames in which **every room is empty** — no walls, no floor finish, no furniture, just the ground
-plane and the city backdrop, in `mainBedroom`, `kitchen` and others. The minimap and the
-"Turn off ceiling light" interaction prompt both render, so the app is alive and the items exist.
+**The A/B (same probe, same pose, same hour, tier is the only variable):**
 
-**But the scene graph at the same tier is fully populated.** `wall-mottle.mjs TIER=performance`
-seeded the curtain class with **61 materials covering 34.4% of the frame** and found all
-**3 `table-lamp` items / 9 meshes**, byte-comparable to `medium`. So the geometry is mounted and
-the raycaster hits it.
+| | `medium` | `performance` |
+| --- | --- | --- |
+| `mainBedroom-y2` | full room: plaster walls, door, ceiling, skirting | **walls gone** — city backdrop visible straight through |
+| visible meshes in frustum | **354** | **354** |
+| triangles | 87,618 | 87,228 |
 
-**Candidate explanations, none tested:**
-1. **Probe timing.** `walk-tour` sets the tier and then teleports through 11 rooms; a
-   `performance` switch may remount more than the fixed wait covers. But the frames are not blank
-   — backdrop, ground, one wood slat panel and one lamp DO draw, which is a partial render, not an
-   unloaded one.
-2. **`frameloop="demand"`** not being kicked after the tier change, so the composite is stale.
-3. **A real culling / geometry-detail difference at `performance`** that removes the shell in walk
-   mode while leaving it in the scene graph — which would be a genuine defect.
+**The geometry is present and opaque.** A raycast through the frame centre at `performance` hits
+the wall: `MeshStandardMaterial #f5f5f0, opacity=1, transparent=false, visible=true,
+colorWrite=true`, plaster maps bound at `repeat 1.67`. So this is NOT missing geometry, NOT a
+culling difference, NOT alpha, and NOT the probe failing to load — all three of `.61`'s candidates
+are refuted.
 
-**Next step:** compare the two probes' setup order directly, and add a frame-level assertion to
-`walk-tour` (e.g. non-background pixel fraction per frame) so an empty shot fails loudly instead
-of being written to disk looking plausible. Also re-run at `maximum`, which was never reached.
+**Leading hypothesis: a DITHERED / SCREEN-DOOR fade is dissolving the walls.** The `PICK` frame
+(`/tmp/wperf/pick.png`) shows the wall **partially rasterised** — one pillar survives, the top edge
+is ragged with stair-stepped blocks. That is the signature of a per-fragment `discard`, which
+would leave `opacity` at 1 and the mesh "visible" exactly as measured. The wall-reveal system is
+the obvious suspect (see `.53`, wall-reveal POSE) — something is running its fade in WALK mode,
+where walls should be fully opaque, and only at this tier.
+
+**Next step:** find the reveal/dissolve shader path and check what it keys on per tier — a
+`qualityOverrides` field, a `pbrSurfaces`-style flag, or a fallback branch taken when the post
+stack is absent (`performance` has `postprocessing: false` AND `ao: false`). Isolate with
+`blank-cause.mjs OVERRIDE=<key>=<value>` one axis at a time rather than switching the whole tier,
+so the responsible setting is named rather than guessed.
 
 ## Curtain cuts through the bedside lamps — DIAGNOSED, fix is a CONTENT decision (v0.31.5.61)
 

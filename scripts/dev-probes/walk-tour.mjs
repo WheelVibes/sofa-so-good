@@ -19,6 +19,7 @@
  */
 import fs from 'node:fs'
 import puppeteer from 'puppeteer'
+import sharp from 'sharp'
 import { appUrl, assertSceneAlive } from './lib.mjs'
 
 const HOUR = Number(process.env.HOUR || 13)
@@ -182,6 +183,10 @@ console.log(
 // galley kitchen with yaw 0 puts a wall cabinet 0.6 m from the lens, which passes a
 // sigma guard (the frame is full of detail) while being useless for judging anything.
 // Sweeping the cardinal directions means no room's review depends on a lucky aim.
+/** Below this fraction of non-background cells a frame is treated as EMPTY. */
+const EMPTY_PCT = Number(process.env.EMPTY_PCT || 12)
+const frameStats = []
+const empties = []
 const YAWS = [0, Math.PI / 2, Math.PI, -Math.PI / 2]
 for (const p of poses) {
   for (let i = 0; i < YAWS.length; i++) {
@@ -198,7 +203,82 @@ for (const p of poses) {
     )
     await new Promise((r) => setTimeout(r, 1800))
     await assertSceneAlive(page, `${p.id}-y${i}`)
-    fs.writeFileSync(`${OUT}/${p.id}-y${i}.png`, await page.screenshot({ type: 'png' }))
+    // Three's OWN submission counters for the frame just drawn. A tier that
+    // renders far fewer calls/triangles at the same pose has dropped geometry
+    // before the rasteriser, which is a different failure from one that draws it
+    // and looks wrong. `advance` is r3f's synchronous driver, so this measures
+    // the real pipeline under `frameloop="demand"` rather than a stale composite.
+    // NOT `gl.info.render.calls` — with the post stack mounted the last render
+    // is the final fullscreen pass, so that counter reads 1 and tells you
+    // nothing (it did exactly that on the first attempt). Count the meshes the
+    // camera can actually see instead: visible, and intersecting the frustum.
+    const info = await page.evaluate(() => {
+      const { scene, camera } = window.__three
+      camera.updateMatrixWorld()
+      const proto = Object.getPrototypeOf(camera.projectionMatrix)
+      const m = proto.constructor
+        ? new camera.projectionMatrix.constructor().multiplyMatrices(
+            camera.projectionMatrix,
+            camera.matrixWorldInverse,
+          )
+        : null
+      if (!m) return { vis: -1, tris: -1 }
+      // Plane extraction, so the probe does not need THREE.Frustum imported.
+      const e = m.elements
+      const planes = [
+        [e[3] - e[0], e[7] - e[4], e[11] - e[8], e[15] - e[12]],
+        [e[3] + e[0], e[7] + e[4], e[11] + e[8], e[15] + e[12]],
+        [e[3] + e[1], e[7] + e[5], e[11] + e[9], e[15] + e[13]],
+        [e[3] - e[1], e[7] - e[5], e[11] - e[9], e[15] - e[13]],
+        [e[3] - e[2], e[7] - e[6], e[11] - e[10], e[15] - e[14]],
+        [e[3] + e[2], e[7] + e[6], e[11] + e[10], e[15] + e[14]],
+      ].map(([a, b, c, d]) => {
+        const n = Math.hypot(a, b, c) || 1
+        return [a / n, b / n, c / n, d / n]
+      })
+      let vis = 0
+      let tris = 0
+      scene.traverse((o) => {
+        if (!o.isMesh || !o.visible) return
+        for (let q = o.parent; q; q = q.parent) if (!q.visible) return
+        const g = o.geometry
+        if (!g) return
+        g.computeBoundingSphere?.()
+        const bs = g.boundingSphere
+        if (!bs) return
+        const c = bs.center.clone().applyMatrix4(o.matrixWorld)
+        const sc = o.matrixWorld.getMaxScaleOnAxis?.() ?? 1
+        const r = bs.radius * sc
+        for (const [a, b, cc, d] of planes) {
+          if (a * c.x + b * c.y + cc * c.z + d < -r) return
+        }
+        vis++
+        tris += (g.index ? g.index.count : (g.attributes?.position?.count ?? 0)) / 3
+      })
+      return { vis, tris: Math.round(tris) }
+    })
+    const shot = await page.screenshot({ type: 'png' })
+    fs.writeFileSync(`${OUT}/${p.id}-y${i}.png`, shot)
+    // EMPTY-FRAME GUARD (meta-rule lvii). ~180 frames have been judged in this
+    // run and a silently empty one would have looked plausible on disk. Compare
+    // every cell against the top-left corner (always backdrop at eye level);
+    // a frame where almost nothing differs from the background is not a frame.
+    const { data, info: meta } = await sharp(shot)
+      .removeAlpha()
+      .resize(64, 40, { fit: 'fill' })
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+    const lum = (k) => 0.2126 * data[k] + 0.7152 * data[k + 1] + 0.0722 * data[k + 2]
+    const bg = lum(0)
+    let differing = 0
+    for (let k = 0; k < meta.width * meta.height; k++) {
+      if (Math.abs(lum(k * 3) - bg) > 8) differing++
+    }
+    const content = (100 * differing) / (meta.width * meta.height)
+    frameStats.push({ id: `${p.id}-y${i}`, content, ...info })
+    if (content < EMPTY_PCT) {
+      empties.push(`${p.id}-y${i} (${content.toFixed(1)}% content, ${info.calls} calls)`)
+    }
   }
   const at = await page.evaluate(() => {
     const c = window.__three.camera
@@ -258,5 +338,14 @@ if (ROUGH.length) {
   }
 }
 
+const avg = (f) => (frameStats.reduce((a, b) => a + f(b), 0) / frameStats.length).toFixed(0)
+console.log(
+  `\n${frameStats.length} frames — mean ${avg((f) => f.content)}% content, ` +
+    `${avg((f) => f.vis)} visible meshes in frustum, ${avg((f) => f.tris)} triangles`,
+)
+if (empties.length) {
+  console.log(`\n!! ${empties.length} EMPTY FRAME(S) (< ${EMPTY_PCT}% content):`)
+  for (const e of empties) console.log(`   ${e}`)
+}
 console.log(`\nframes -> ${OUT}`)
 await browser.close()

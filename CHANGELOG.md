@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.62 — interior walls dissolve at `performance` tier (confirmed defect)
+
+No app code changed; the fix needs the shader path located first. `walk-tour.mjs` gained a
+per-frame frustum census and an empty-frame guard.
+
+**`.61`'s contradiction is resolved, and all three of its candidates were wrong.** Re-run as a
+clean one-variable A/B — same probe, same poses, same hour, tier the only difference:
+
+| | `medium` | `performance` |
+| --- | --- | --- |
+| `mainBedroom-y2` | full room | **walls gone**, city backdrop straight through |
+| visible meshes in frustum | 354 | 354 |
+| triangles | 87,618 | 87,228 |
+
+A raycast through the frame centre at `performance` hits the wall with `opacity=1,
+transparent=false, visible=true, colorWrite=true` and its plaster maps bound. So it is not missing
+geometry, not culling, not alpha, and not probe timing. **The `PICK` frame shows the wall
+PARTIALLY rasterised** — one pillar surviving, ragged stair-stepped top edge — which is the
+signature of a per-fragment `discard`, i.e. a dithered/screen-door fade dissolving the walls in
+walk mode at this tier only. `performance` is the tier the capability ceiling drops phones to.
+Filed as the top open item with the next step: isolate the responsible setting with
+`blank-cause.mjs OVERRIDE=` one axis at a time instead of switching the whole tier.
+
+**Instrument work, and an honest limit on it.** `walk-tour.mjs` now reports visible-meshes-in-
+frustum and triangles per frame, and flags frames below a content threshold. The guard caught a
+genuinely dark store room — **but it scored the wall-less frame at 87% and passed it**, because a
+bright city backdrop differs from the background just as much as a wall does. A content-fraction
+guard catches a BLANK frame, not a WRONG one; the cross-arm diff is what catches this. Recorded in
+the playbook, along with why `gl.info.render.calls` is useless here (with post mounted it reads
+1 call, being the final fullscreen pass).
+
 ## v0.31.5.61 — the lamp/curtain defect is diagnosed, and `performance` frames contradict the scene
 
 No app code changed. One diagnosis completed, one contradiction found and deliberately not

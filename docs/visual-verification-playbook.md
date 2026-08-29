@@ -384,6 +384,26 @@ that measured nothing is visibly distinguishable from a run that measured zero.
   `const OUT`/`const HOUR` drops the browser setup and the probe dies with "page is not defined";
   then grep the copy for a duplicate `const OUT` or a stray `fs.mkdirSync(OUT)` it dragged along.
 
+## An "empty frame" guard that counts non-background pixels does NOT catch a missing WALL
+
+`walk-tour.mjs` gained a guard that flags any frame whose non-background cell fraction falls below
+a threshold. It works — it caught a genuinely dark store room at 6.5% — and it is worth having.
+
+**But it scored a frame with no walls at 87% content and passed it**, because what replaced the
+walls was a bright city backdrop, which differs from the corner pixel just as much as a wall does.
+A content-fraction guard detects a BLANK frame; it cannot detect a WRONG one.
+
+The guard that would have caught this is a **cross-arm comparison**: the same pose at two tiers
+should produce similar frames, and `medium` 73% vs `performance` 87% is a 14-point swing on
+identical geometry. When a probe sweeps an axis, diff each frame against the baseline arm rather
+than judging each frame alone.
+
+**Also: do not use `gl.info.render.calls` to ask "was the geometry submitted".** With the post
+stack mounted, the last render before you read the counter is the final fullscreen pass, so it
+reads **1 call / 1 triangle** and looks catastrophic. Count the meshes the camera can actually see
+instead — visible, parents visible, bounding sphere inside the frustum — which is what
+`walk-tour.mjs` now reports (354 meshes / ~87.6k triangles for the default flat at eye level).
+
 ## A surprising frame earns a STATE-VERIFICATION probe before it earns a diagnosis
 
 Meta-rule (xi) says dismissing a finding as a probe artefact needs its own evidence. The
