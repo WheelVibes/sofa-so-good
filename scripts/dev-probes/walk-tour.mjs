@@ -105,7 +105,17 @@ const TIER = process.env.TIER || 'medium'
 /** Look direction, radians. YXZ Euler Y: forward is (-sin, 0, -cos), so 0 looks -Z. */
 const YAW = Number(process.env.YAW || 0)
 
+// LIGHTS=on — at night the shipped `lightsMode: 'off'` default (DEFAULT-GLOOM,
+// v0.31.5.54) gives a near-black frame, which is not the condition the emitter
+// table and `fixtureGlow.ts` were tuned for. Each run prints its own resolved
+// mode beside the tier (meta-rule iv).
+const LIGHTS = process.env.LIGHTS || ''
+
 await page.evaluate((t) => window.__store.getState().setQualityTier(t), TIER)
+if (LIGHTS) {
+  await page.evaluate((v) => window.__store.getState().setLightsMode?.(v), LIGHTS)
+  await new Promise((r) => setTimeout(r, 2000))
+}
 await page
   .waitForFunction(() => !window.__store.getState().loading?.active, { timeout: 60000 })
   .catch(() => {})
@@ -161,7 +171,13 @@ const poses = await page.evaluate(async (yawArg) => {
   return out
 }, YAW)
 
-console.log(`tier=${TIER} hour=${HOUR} — walk tour, ${poses.length} rooms\n`)
+const liveState = await page.evaluate(() => {
+  const st = window.__store.getState()
+  return `${st.qualityTier}/${st.lightsMode}/${st.timeMode}${st.manualHour}`
+})
+console.log(
+  `tier=${TIER} hour=${HOUR} lights=${LIGHTS || '(default)'} — resolved ${liveState} — walk tour, ${poses.length} rooms\n`,
+)
 // FOUR yaws per room. A single fixed facing is a lottery: standing at the centre of a
 // galley kitchen with yaw 0 puts a wall cabinet 0.6 m from the lens, which passes a
 // sigma guard (the frame is full of detail) while being useless for judging anything.

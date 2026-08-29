@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.60 — night with the lights on is clean, and it turned up a lamp/curtain defect
+
+No app code changed. New `LIGHTS=` env on `walk-tour.mjs`, one condition swept, one defect found
+and deliberately left un-diagnosed.
+
+**Night with the lights on is clean.** Everything this run had judged was daylight, and 22:00 with
+`lightsMode: 'on'` is the condition the emitter table (LIGHT-UNITS-RELATIVE) and `fixtureGlow.ts`
+were actually tuned for. All 11 rooms: fixtures read as fixtures — the fan light shows a lit
+diffuser, a restrained bloom halo and real ceiling spill, so the bloom threshold both clears the
+fixture and avoids a milky veil. **The plaster's new 0.6 m tile survives a close point source**,
+which is a harsher normal-map test than `.59`'s 19:00 sun: a lamp a metre away rakes the wall far
+more steeply than any sun angle. No shimmer, no moire. (Lights-OFF at 22:00 is a near-black frame
+and not the interesting case — that is DEFAULT-GLOOM, and it is why `LIGHTS=` has to be set
+explicitly. The run prints its own resolved `tier/lightsMode/timeMode` beside the frames.)
+
+**One real defect, and it is not a lighting defect.** Both bedside lamp shades in `mainBedroom`
+render with a clean V-shaped notch bitten out of the top edge, with curtain visible through the
+bite — a torn paper cutout rather than a shade. It reproduces at 13:00, so night only made it
+obvious. Measured: the pixel inside the notch is the curtain at world z 0.55, and the camera looks
+-Z from z 2.51, so a lamp on that nightstand should be NEARER and should occlude it.
+
+**The mechanism is left open on purpose.** Either the curtain is being transparent-sorted past a
+nearer surface (a render bug with a blast radius well beyond this lamp) or the shade genuinely has
+a gap in its mesh. Discriminating needs the shade's own world z, and two `PICK=` attempts both hit
+the curtain instead — eyeballed NDC missing its target, which is the trap `.59` already recorded.
+Written up in `TODO.md` with both hypotheses and the note not to eyeball a third time.
+
+**Not done this round:** the non-`medium` tier sweep. Every frame this run has judged is still
+`medium`.
+
 ## v0.31.5.59 — the census is honest, the second-largest surface is correct, and 19:00 is clean
 
 No app code changed. One hypothesis refuted, one class identified, one new condition swept.

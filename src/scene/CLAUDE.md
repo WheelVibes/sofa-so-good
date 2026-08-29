@@ -434,6 +434,21 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     That is worth knowing before anyone retunes curtain material on the strength of a midday
     frame, and it is a second argument for looking at more than one hour.
 
+- **NIGHT WITH THE LIGHTS ON is clean, and it is the condition the emitter table was tuned for
+  (NIGHT-SWEEP, v0.31.5.60).** Everything `.20`-`.59` judged was daylight; `walk-tour.mjs
+  HOUR=22 LIGHTS=on` (new `LIGHTS=` env; the run prints its resolved `tier/lightsMode/timeMode`
+  so the arm's own state sits beside the frames, meta-rule iv) swept all 11 rooms. Note that
+  lights-OFF at 22:00 is a near-black frame and NOT the interesting case — DEFAULT-GLOOM (`.54`)
+  is why this needs setting explicitly.
+  · **Fixtures read as fixtures, not as floating blobs.** The living/dining fan light shows a lit
+    diffuser with a restrained bloom halo at the rim and real spill onto the ceiling — the bloom
+    threshold is doing its job (no milky veil, and the fixture still clears it).
+  · **The plaster's new 0.6 m tile survives a close point source**, which is a harsher normal-map
+    test than the 19:00 sun `.59` used: a lamp ~1 m away rakes the wall far more steeply than any
+    sun angle. No shimmer, no moire; the wall reads as warm painted plaster.
+  · **One real defect found, and it is NOT a lighting defect** — see "Bedside lamp / curtain
+    interpenetration" in `TODO.md`. It reproduces at 13:00 too; night only made it visible.
+
 - **Price a render feature in BOTH currencies, and against a measured noise floor**
   (`scripts/dev-probes/feature-price.mjs`). It applies one `qualityOverrides` change at a time and
   reports p90 frame cost in ms alongside two visual metrics. Measured at Maximum, 09:00, DPR 2,

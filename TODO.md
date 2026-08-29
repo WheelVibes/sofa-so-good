@@ -4,6 +4,40 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
+## Bedside lamp / curtain interpenetration (candidate, v0.31.5.60, 2026-08-29)
+
+**Observed and reproduced; mechanism NOT yet diagnosed. Do not guess it — two attempts to pick
+the shade both missed.**
+
+In `mainBedroom` at yaw 0, both bedside lamp shades render with a clean **V-shaped notch bitten
+out of the top edge**, with curtain fabric visible through the bite. It looks like a torn paper
+cutout rather than a lamp shade.
+
+**What is measured:**
+- It is present at **13:00 and at 22:00 with the lights on** (`/tmp/tour56/mainBedroom-y0.png`,
+  `/tmp/tour-night/mainBedroom-y0.png`), so it is NOT a lighting or bloom artefact. Night only
+  made it obvious, because a lit shade draws the eye.
+- The pixel inside the notch is the **CURTAIN** — `#c8bca8` `MeshPhysicalMaterial`,
+  1.00 x 2.55 x 0.10, `Group{itemId}` (a furniture item, per `.51`), at world **z = 0.55**.
+- The camera stands at `[1.84, 1.6, 2.51]` looking -Z, so **smaller z is FURTHER from the
+  camera**. The north wall / window is at z ~= 0.53.
+
+**The two live hypotheses, both consistent with the above:**
+1. **Depth-sort / transparency bug.** A lamp on a nightstand against that wall should sit at
+   z ~= 0.75, i.e. NEARER the camera than the curtain, and should therefore occlude it. If the
+   shade really is nearer and the curtain still draws over it, the curtain is being
+   transparent-sorted past a nearer surface (or the shade is losing its depth write).
+2. **A genuine gap in the shade geometry**, through which the curtain is correctly visible. The
+   notch is suspiciously clean and geometric, which cuts both ways — a cone with a seam would
+   also look like this.
+
+**To discriminate, get the SHADE's own world z** and compare with the curtain's 0.55. Two
+`wall-mottle.mjs PICK=` attempts (`-0.033,0.3275` and `0.0016,0.281`) both hit the curtain
+instead — eyeballed NDC missing its target, exactly meta-rule (liv). **Do not eyeball a third
+time.** Either find the lamp item's `defId` and use `surface-detail.mjs DEF=`, or add a mode that
+picks by ITEM rather than by pixel. If it is hypothesis 1 it is a render bug with a blast radius
+well beyond this lamp; if it is 2 it is a mesh/content fix.
+
 ## Wall mottle — the flat's largest surface — ✅ FIXED (PLASTER-STRETCH, v0.31.5.56)
 
 **Resolved 2026-08-29.** The mottle was the orange-peel plaster normal stretched over 2.5 m;
