@@ -694,6 +694,47 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   nothing and pins `showcaseAccumulating=false`; the `showcase` quality flag is `false` on
   every tier. Grounding comes from the cues above — don't reintroduce a scene-wide
   shadow-catcher plane.
+- **PERF-TIER-LOOKS-FINE's open lead is now CLOSED: the phone tier's WALK view is clean
+  too (PHONE-WALK-CLEAN, v0.31.5.94). Nothing was changed in `src/`.** That note ends
+  *"If the 'not real' complaint is ever re-opened, look at WALK mode close-ups, not the
+  phone dollhouse"* — every phone judgement to that point was the ORBIT dollhouse. This
+  is that follow-up, and it finds nothing.
+  · **The instrument had to be fixed first, and this is the part worth remembering.**
+    `walk-tour.mjs` called `setQualityTier(TIER)` unconditionally with `TIER` defaulting
+    to `'medium'`. A phone-profile run therefore booted to the capability veto's
+    `performance` and was then **forced back to `medium`** — the arm would not have been
+    a phone arm at all, and the probe would have reported a desktop tier under a phone
+    viewport without saying so. `TIER=auto` now skips the override and the run prints
+    its resolved tier. **No earlier finding is invalidated**: `.82` and `.85` both passed
+    `TIER=performance` explicitly.
+  · **Measured, 44 frames per arm, 11 rooms x 4 yaws, 13:00, both resolving
+    `performance/on/manual13` — the ONLY difference is the phone profile**
+    (`BOOT_PHONE=1 COARSE=1`, 1170x2532 at DPR 3) against the desktop 1280x800 at DPR 2.
+    Centre band, UI chrome excluded:
+
+    | arm     | mean luma | sigma | clipped | dark  |
+    | ------- | --------- | ----- | ------- | ----- |
+    | phone   | 194.9     | 20.59 | 0.113%  | 0.07% |
+    | desktop | 196.1     | 19.68 | 0.033%  | 0.04% |
+
+    **1.2 luminance apart**, with clipping and crush both negligible. Read the sigma
+    column with the caveat this file already records for PERF-TIER-LOOKS-FINE: lower DPR
+    inflates per-pixel variance, so the phone's slightly higher 20.59 is NOT evidence it
+    has more contrast.
+  · **The frames carry the verdict, not the table.** `kitchen-y1` shows subway tile with
+    real grout lines and specular hits, a dark stone worktop, cabinet handles and a
+    frosted service-yard door; `livingDining-y0` shows the fan's lit diffuser, the
+    aircon, curtain pleats, TV content and coffee-table decor. Legible, warm, materially
+    differentiated — the opposite of the "cartoon" complaint. Zero empty frames.
+  · **An over-claim I made and retracted mid-round (meta-rule lxiv).** The first phone
+    frame looked to me like a blown-out white void across the top fifth. Measured, it is
+    **0.10% clipped on average and 0.7% at worst** across all 44 frames. It is a bright
+    ceiling, not a clipped one. **A bright field is not a blown one — measure before
+    filing it.**
+  · **Mesh counts differ for a boring reason.** Phone 246 visible meshes / 57,895 tris
+    vs desktop 354 / 87,096 — the narrow portrait frustum simply sees less of the flat.
+    No content is dropped.
+
 - **The `performance` tier is NOT the "flat/cartoon" problem — measured on a real phone
   profile, don't re-file it (PERF-TIER-LOOKS-FINE).** `performance` is what the phone veto
   actually gives most mobile users (no AO, no IBL, no post stack, DPR 1), and until the

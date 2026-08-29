@@ -5,6 +5,47 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.94 — PHONE-WALK-CLEAN: the phone tier's walk view is clean; the PROBE was not
+
+**A clean audit, and an instrument fix.** Nothing changed in `src/`. PERF-TIER-LOOKS-FINE
+ends with an explicit open lead — *"If the 'not real' complaint is ever re-opened, look at
+WALK mode close-ups, not the phone dollhouse"* — because every phone-tier judgement to
+date was the ORBIT dollhouse. This is that follow-up.
+
+**The instrument had to be fixed before the question could even be asked.**
+`walk-tour.mjs` called `setQualityTier(TIER)` unconditionally with `TIER` defaulting to
+`'medium'`, so a phone-profile run booted to the capability veto's `performance` and was
+then FORCED back to `medium` — it would have reported a desktop tier under a phone
+viewport without saying so. `TIER=auto` now leaves the detected tier alone. **No earlier
+finding is invalidated**: `.82` and `.85` both passed `TIER=performance` explicitly.
+
+**Measured**, 44 frames per arm, 11 rooms x 4 yaws, 13:00, both arms resolving
+`performance/on/manual13`, the only difference being the phone profile
+(`BOOT_PHONE=1 COARSE=1`, 1170x2532 @ DPR 3) vs desktop 1280x800 @ DPR 2:
+
+| arm     | mean luma | sigma | clipped | dark  |
+| ------- | --------- | ----- | ------- | ----- |
+| phone   | 194.9     | 20.59 | 0.113%  | 0.07% |
+| desktop | 196.1     | 19.68 | 0.033%  | 0.04% |
+
+1.2 luminance apart; clipping and crush both negligible. Sigma carries the DPR caveat
+this repo already records — lower DPR inflates per-pixel variance, so the phone's 20.59
+is not evidence of more contrast.
+
+**The frames carry the verdict.** `kitchen-y1`: subway tile with grout lines and specular
+hits, dark stone worktop, cabinet handles, frosted service-yard door. `livingDining-y0`:
+fan diffuser lit, aircon, curtain pleats, TV content, coffee-table decor. Legible and
+materially differentiated — the opposite of "cartoon". Zero empty frames.
+
+**One over-claim made and retracted mid-round.** The first phone frame read to me as a
+blown-out white void across the top fifth; measured, it is 0.10% clipped on average and
+0.7% at worst. A bright ceiling, not a clipped one.
+
+Mesh counts differ only because the narrow portrait frustum sees less: phone 246 meshes /
+57,895 tris vs desktop 354 / 87,096. No content is dropped.
+
+npm test 991 files / 9282 tests green; tsc + biome clean.
+
 ## v0.31.5.93 — CITY-DAYLIGHT: the "Daytime HDB skyline" is now actually daytime
 
 Follow-up to v0.31.5.92, which moved the DEFAULT backdrop to the sun-driven sky and

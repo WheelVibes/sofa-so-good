@@ -102,7 +102,12 @@ await page
 await new Promise((r) => setTimeout(r, 4000))
 await assertSceneAlive(page, 'after setup')
 
+// `TIER=auto` leaves the capability-detected tier ALONE. Without it this probe
+// always calls `setQualityTier`, so a phone-profile run (BOOT_PHONE=1 COARSE=1)
+// booted to the veto's `performance` and was then FORCED back to `medium` — the
+// arm would not have been a phone arm at all (meta-rules iv, xvi).
 const TIER = process.env.TIER || 'medium'
+const TIER_AUTO = TIER === 'auto'
 /** Look direction, radians. YXZ Euler Y: forward is (-sin, 0, -cos), so 0 looks -Z. */
 const YAW = Number(process.env.YAW || 0)
 
@@ -112,7 +117,7 @@ const YAW = Number(process.env.YAW || 0)
 // mode beside the tier (meta-rule iv).
 const LIGHTS = process.env.LIGHTS || ''
 
-await page.evaluate((t) => window.__store.getState().setQualityTier(t), TIER)
+if (!TIER_AUTO) await page.evaluate((t) => window.__store.getState().setQualityTier(t), TIER)
 if (LIGHTS) {
   await page.evaluate((v) => window.__store.getState().setLightsMode?.(v), LIGHTS)
   await new Promise((r) => setTimeout(r, 2000))
