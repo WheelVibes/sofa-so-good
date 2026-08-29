@@ -995,3 +995,27 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   exemptions — the first says nothing about the clone's lifetime, and the second is a timing
   argument that a slower machine can invalidate.
 
+- **Glass is CORRECT and the tier gate demonstrably fires — audited, nothing changed
+  (GLASS-TIER-VERIFIED, v0.31.5.52).** Glass is ~4% of the walk view and was the last
+  top-coverage class with no evidence behind it. `materialRealism.ts` documents transmission as
+  High/Maximum-only because it costs an extra render pass, but a comment is not evidence that a
+  gate fires (meta-rule xvii), so `class-id.mjs` censused the same meshes on both sides of it:
+
+  | surface | Medium (the default) | Maximum |
+  | --- | --- | --- |
+  | window panes (all 4 N windows) | `MeshStandardMaterial`, opacity 0.28, transparent, no transmission field at all | `MeshPhysicalMaterial`, **transmission 0.92**, ior 1.5, thickness 0.01, opacity 1 |
+  | bathroom windows | `MeshStandard`, roughness 0.6 (frosted), opacity 0.28 | — |
+  | shower screen (a furniture item — `Group{itemId}`) | `MeshPhysical`, transmission **0**, opacity 0.22 | transmission **0.81**, thickness 0.02, opacity 1 |
+
+  · **The gate is better than the doc claims.** It swaps the material TYPE, not just a field, so
+    Medium does not pay for the physical shader on windows at all — only the shower screen stays
+    `MeshPhysical` below the gate.
+  · **That residual is a known non-lever, so do NOT file it.** A shower screen sitting on
+    `MeshPhysical` with `transmission: 0` looks like waste (its `ior: 1.5` and `thickness: 0` do
+    nothing at that setting), but `src/scene/CLAUDE.md` already measured the general case:
+    downgrading Physical → Standard where no physical-only feature is used "applies to only 4 of
+    57 materials and saved nothing". Checked before proposing, per the same rule that stopped the
+    emitter table being multiplied.
+  · So the cheap-looking flat pane a Medium user sees is a DELIBERATE, documented cost decision
+    that works, not an oversight — which is what the round was sent to find out.
+

@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.52 — glass audited: the transmission tier gate fires, nothing changed
+
+Glass is ~4% of the walk view and was the last top-coverage class with no evidence behind it.
+`materialRealism.ts` documents transmission as High/Maximum-only (it costs an extra render pass),
+but a comment is not evidence that a gate fires, so `class-id.mjs` — extended with
+transmission / ior / thickness / opacity fields and an optional tier arm — censused the same
+meshes on both sides:
+
+| surface | Medium (default) | Maximum |
+| --- | --- | --- |
+| window panes (4 N windows) | `MeshStandardMaterial`, opacity 0.28, no transmission field | `MeshPhysicalMaterial`, transmission **0.92**, ior 1.5, thickness 0.01 |
+| bathroom windows | `MeshStandard`, roughness 0.6 (frosted), opacity 0.28 | — |
+| shower screen (furniture item) | `MeshPhysical`, transmission **0**, opacity 0.22 | transmission **0.81**, thickness 0.02, opacity 1 |
+
+The gate works, and is better than its own doc claims: it swaps the material TYPE rather than
+zeroing a field, so Medium never pays for the physical shader on windows.
+
+**No code changed.** The one apparent residual — the shower screen staying `MeshPhysical` below
+the gate with `transmission: 0`, where its `ior`/`thickness` do nothing — is a known non-lever:
+`src/scene/CLAUDE.md` already measured that downgrading Physical → Standard where no
+physical-only feature is used "applies to only 4 of 57 materials and saved nothing". Checked
+before proposing.
+
+So the flat-looking pane a default user sees is a deliberate, documented cost decision that
+works, not an oversight.
+
+
 ## v0.31.5.51 — the coverage census's unnamed classes identified; the biggest was not a door
 
 `surface-coverage.mjs` ranks what a walk-mode user sees but labels each class only by material +

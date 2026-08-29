@@ -118,6 +118,19 @@ fs.mkdirSync(OUTDIR, { recursive: true })
 
 const TARGETS = (process.env.COLOURS || 'c8bca8,9aa0a6,cfc8bd').split(',')
 
+// Optional tier switch BEFORE the census: transmission is documented as High/Maximum only
+// (`materialRealism.ts:transmissionTiers`), and a comment is not evidence that the gate fires
+// (meta-rule xvii). Setting it here lets the same census run on both sides of the gate.
+if (process.env.TIER) {
+  await page.evaluate((t) => window.__store.getState().setQualityTier(t), process.env.TIER)
+  await page
+    .waitForFunction(() => !window.__store.getState().loading?.active, { timeout: 60000 })
+    .catch(() => {})
+  await new Promise((r) => setTimeout(r, 5000))
+  const got = await page.evaluate(() => window.__store.getState().qualityTier)
+  console.log(`tier set to ${got}\n`)
+}
+
 const out = await page.evaluate(async (colours) => {
   const { getMetalMaterial, getVinylMaterial, getPaintedMaterial, getWoodMaterial } = await import(
     '/src/materials/furnitureMaterials.ts'
@@ -161,6 +174,13 @@ const out = await page.evaluate(async (colours) => {
         chain: chain.join(' < '),
         rough: m.roughness != null ? +m.roughness.toFixed(2) : null,
         metal: m.metalness != null ? +m.metalness.toFixed(2) : null,
+        // Glass needs its own fields: a pane that is merely TRANSPARENT tints, while one
+        // with transmission actually refracts what is behind it (and costs a lot more).
+        transmission: m.transmission != null ? +m.transmission.toFixed(2) : null,
+        ior: m.ior != null ? +m.ior.toFixed(2) : null,
+        thickness: m.thickness != null ? +m.thickness.toFixed(2) : null,
+        opacity: m.opacity != null ? +m.opacity.toFixed(2) : null,
+        transparent: !!m.transparent,
       })
     }
   })
@@ -210,7 +230,8 @@ for (const f of out.found.slice(0, 14)) {
   }
   console.log(
     `#${f.hex} ${f.type.padEnd(9)} at [${f.pos.join(',')}] size ${JSON.stringify(f.size)} ` +
-      `rough=${f.rough} metal=${f.metal}`,
+      `rough=${f.rough} metal=${f.metal} transmission=${f.transmission} ior=${f.ior} ` +
+      `thickness=${f.thickness} opacity=${f.opacity} transparent=${f.transparent}`,
   )
   console.log(
     `   nearest opening: ${best ? `${best.id} (${best.kind}) d=${bestD.toFixed(2)}m` : 'none'}` +
