@@ -350,6 +350,28 @@ byte-identical to the level one (ceiling 1.46 vs 1.45, every other row unchanged
 meta-rule (xxv) catching a probe bug rather than a product one: identical readings across a change
 are a failed mutation until something else moves.
 
+## Do not sum a TRUNCATED table — and never compare a per-class figure with an all-class total
+
+`surface-coverage.mjs` prints its top 26 classes. Twice in this run that truncation produced a
+wrong number that looked authoritative:
+
+- `.70` quoted the ceiling as **1.45% at eye level**. That was ONE printed class — the largest
+  single ceiling slab — not the ceiling. The real level total is **4.54%**.
+- The same round quoted **43.87%** looking up, from `awk`-summing the printed rows. The real total
+  is **45.81%**.
+
+The headline ("the level census under-reports the ceiling") survived; the ratio quoted for it
+(30x) did not — it is about 10x. **A per-class figure and an all-class total are different units.**
+If a probe prints a ranked head, it must also print the aggregate you intend to quote, or you will
+eventually sum the head and call it the whole.
+
+`surface-coverage.mjs` now prints a per-ORIENTATION total over every class, and dumps
+`classes.json` so multiple runs can be joined without re-shooting.
+
+**Corollary for any coverage claim:** state (a) the pose, (b) whether the number is one class or a
+sum, and (c) what the denominator is. The three-pose table in `src/apartment/CLAUDE.md` is written
+that way.
+
 ## When a probe reports ZERO, suspect the probe first (the false-zero family)
 
 A zero is the easiest number to believe and the easiest to fake. Four of these cost real time

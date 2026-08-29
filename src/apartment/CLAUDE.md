@@ -188,6 +188,46 @@ Full code map in `docs/ARCHITECTURE.md`.
     chain, `rough 0.85`, all three maps at `repeat 2.0`. Same lesson as the curtains in `.51`:
     a bbox that looks like a door panel is not evidence that it is one.
 
+- **The priority table this run steered by was a SINGLE-POSE artefact, and `.70`'s own numbers were
+  wrong too (POSE-HONEST-COVERAGE, v0.31.5.71).** `surface-coverage.mjs` now reports a total share
+  per ORIENTATION over EVERY class, not just the printed top-26 — which is what exposed both
+  problems. Same 11 rooms x 4 yaws x 1600 rays at each pitch:
+
+  | pose | vertical | ceiling | floor | (no hit) | classes |
+  | --- | --- | --- | --- | --- | --- |
+  | down (`PITCH=-0.75`) | 69.93% | 0.00% | **26.36%** | 3.71% | 401 |
+  | level (`PITCH=0`, the shipped census) | **88.61%** | 4.54% | 1.34% | 5.52% | 322 |
+  | up (`PITCH=0.75`) | 47.16% | **45.81%** | 0.00% | 7.03% | 161 |
+
+  · **CORRECTION to `.70`.** That round reported the ceiling as "1.45% level -> 43.87% up, a 30x
+    swing". Both figures were wrong in the same way: **1.45% was ONE printed CLASS** (the largest
+    single ceiling slab) and 43.87% was a hand-sum of the truncated top-26 rows. The honest
+    comparison is **4.54% -> 45.81%, about 10x**. The conclusion is unchanged and if anything
+    cleaner — the level census badly under-reports the ceiling, and "you barely see it" was never
+    true — but comparing a per-class figure with an all-class total is exactly the kind of
+    apples-to-oranges error the loop is supposed to catch.
+  · **Pose-weighted table (20/60/20 down/level/up).** The weighting is a JUDGEMENT, not a
+    measurement, and is stated so it can be argued with: a walking user looks level most of the
+    time, glances down at floor finishes and furniture, and up at fans/lights/ceiling designs less
+    often — but this is an interior-design tool where all three are deliberately inspected.
+
+    | surface | pose-honest share | level-only share |
+    | --- | --- | --- |
+    | vertical (walls, doors, curtains, joinery) | **76.6%** | 88.6% |
+    | **ceiling** | **11.9%** | 4.5% |
+    | floor | **6.1%** | 1.3% |
+
+  · **The ceiling is the SECOND-largest surface in the flat, and floors are third** — not the
+    footnotes the level table made them. Every "prioritise by measured coverage" decision from
+    `.49` to `.70` used the level-only figure, so treat those rankings as valid for VERTICAL
+    surfaces and silent about the other two.
+  · **Nothing else jumped.** No skirting, cornice, worktop or wall-unit underside class rises the
+    way the ceiling does; the down pose simply redistributes area from walls to floor, and the up
+    pose from walls to ceiling. The two surfaces the level census hid are the two this loop has
+    now judged (`.69` floors CLEAN, `.70` ceiling CLEAN).
+  · `surface-coverage.mjs` writes `classes.json` per run so the three poses can be joined into a
+    weighted PER-CLASS ranking without re-shooting each one (~4 min apiece).
+
 - **The ceiling is 1.45% of the view LEVEL and 43.87% when you glance UP — the old reason was
   wrong even though the verdict holds (CEILING-POSE, v0.31.5.70).** `.49` waved the ceiling
   through as "fine because you barely see it at 1.6 m eye height". That reason is false: the

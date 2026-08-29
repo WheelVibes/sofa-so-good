@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.71 — the priority table was a single-pose artefact, and `.70`'s numbers were wrong
+
+No app code changed. The coverage instrument now reports a total per ORIENTATION over every class,
+which exposed two problems at once.
+
+**Correction to `.70`.** It reported the ceiling as "1.45% level → 43.87% up, a 30× swing". Both
+figures were wrong the same way: 1.45% was ONE printed class (the largest ceiling slab) and 43.87%
+was a hand-sum of the truncated top-26 rows. The honest comparison is **4.54% → 45.81%, about 10×**.
+The conclusion stands — the level census badly under-reports the ceiling and "you barely see it"
+was never true — but comparing a per-class figure with an all-class total is precisely the error
+this loop exists to catch.
+
+**The three-pose census**, same rooms/yaws/rays, pitch the only variable:
+
+| pose | vertical | ceiling | floor | (no hit) |
+| --- | --- | --- | --- | --- |
+| down (−0.75) | 69.93% | 0.00% | **26.36%** | 3.71% |
+| level (0) | **88.61%** | 4.54% | 1.34% | 5.52% |
+| up (+0.75) | 47.16% | **45.81%** | 0.00% | 7.03% |
+
+**Pose-weighted 20/60/20** (a stated judgement, not a measurement): vertical **76.6%**, ceiling
+**11.9%**, floor **6.1%**. So the ceiling is the second-largest surface in the flat and floors are
+third — not the footnotes the level-only table made them. Every "prioritise by measured coverage"
+call from `.49` to `.70` used the level figure; treat those rankings as valid for vertical surfaces
+and silent about the other two.
+
+**Nothing else jumped.** No skirting, cornice, worktop or wall-unit underside behaves like the
+ceiling did; the down pose just moves area from walls to floor and the up pose from walls to
+ceiling. The two surfaces the level census hid are the two already judged clean (`.69` floors,
+`.70` ceiling), so this retires the concern rather than opening work.
+
+`surface-coverage.mjs` also dumps `classes.json` per run, so the three poses can be joined into a
+weighted per-class ranking later without re-shooting each (~4 min apiece).
+
 ## v0.31.5.70 — the ceiling is 30× bigger than the census said; the verdict holds, the reason did not
 
 No app code changed. One long-standing claim retired and replaced with a measured one, plus a probe

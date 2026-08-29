@@ -232,5 +232,30 @@ for (const [k, v] of rows.slice(0, 26)) {
     `${pct.padStart(6)}  ${orient.padEnd(5)} ${type.replace('Mesh', '').replace('Material', '').padEnd(10)} ${col.padEnd(9)} ${maps.padEnd(27)} ${(sz ?? '').padEnd(14)}${tex ?? ''}`,
   )
 }
+// Per-ORIENTATION totals over EVERY class, not just the printed top-N. The
+// printed table is truncated, so summing it by eye (or by awk) understates any
+// orientation whose area is spread across many small classes — which is exactly
+// how the ceiling looks when a room's slab is split per room.
+const byOrient = new Map()
+for (const [k, v] of rows) {
+  const o = k.split('|')[0]
+  byOrient.set(o, (byOrient.get(o) ?? 0) + v)
+}
+console.log('\ntotal share by orientation (ALL classes, not just the rows above):')
+for (const [o, v] of [...byOrient.entries()].sort((a, b) => b[1] - a[1])) {
+  console.log(`  ${o.padEnd(6)} ${((100 * v) / samples).toFixed(2)}%`)
+}
+const hit = [...byOrient.values()].reduce((a, b) => a + b, 0)
+console.log(`  ${'(miss)'.padEnd(6)} ${(100 - (100 * hit) / samples).toFixed(2)}%`)
+// Dump EVERY class, so a later round can join the three poses into a weighted
+// per-class ranking without re-shooting all of them (~4 min each).
+fs.writeFileSync(
+  `${OUTDIR}/classes.json`,
+  JSON.stringify(
+    { pitch: PITCH, samples, classes: rows.map(([k, v]) => ({ k, pct: (100 * v) / samples })) },
+    null,
+    1,
+  ),
+)
 console.log(`\n${rows.length} distinct surface classes; frames -> ${OUTDIR}`)
 await browser.close()
