@@ -12,56 +12,56 @@ with `ao={false}` keeping `N8AO` off at `performance`. Discriminator `mainBedroo
 image (1.45 MB / 100% non-black). Priced at `performance`: p50 4.1 ms / p90 4.4 ms / 59.9 fps
 before AND after. Full write-up in `src/scene/CLAUDE.md`; `composerPlan()` pins the invariant.
 
-## `lightsMode` still follows the sun, and that mode was REMOVED in 2026-07-24 (v0.31.5.73)
+## `lightsMode` at boot — EXPLAINED, and it is a deliberate feature (v0.31.5.74)
 
-**Settled by measurement; mechanism NOT yet located in `src/`. This supersedes the `.72` flag.**
+**RETRACTION of `.73`'s framing.** `.73` called this "a regression of a shipped product decision —
+the app is still doing the thing that was removed for being surprising". **That is wrong.** The
+mechanism is `src/state/storage/firstPaintDaylight.ts` — `ensureDaylightFirstPaint()` — which is
+deliberate, documented, unit-tested, and was added AFTER the `'auto'` removal, not in spite of it.
 
-`lightsMode` at boot depends on the USER'S REAL LOCAL TIME OF DAY. One variable, `lights-boot.mjs`
-with the page wall clock pinned before load, everything else identical:
+```
+DAYLIGHT_START = 8, DAYLIGHT_END = 18
+ensureDaylightFirstPaint(now = new Date()):
+  if timeMode !== 'system'   -> no-op   (never overrides a real preference)
+  if lightsMode !== 'off'    -> no-op
+  if isDaylightHour(now)     -> no-op
+  else setLightsMode('on')
+```
 
-| page wall clock | `lightsMode` at `sceneReady` |
-| --- | --- |
-| 13:00 | **`off`** |
-| 22:00 | **`on`** |
+Its own header explains the reasoning: `timeMode` defaults to `'system'`, so a brand-new visitor
+opening the app after dark was shown a **pitch-black flat** — the move-in demo seeds 87 items and
+every one is invisible, through onboarding, the whole 9-step tour and the location prompt (Chrome
+audit 2026-08, boot at 20:00). It also records that overriding the CLOCK was tried first and
+rejected, because it silently disagreed with the time shown in the Scene panel.
 
-It is not a race (polled every 500 ms for 20 s from `sceneReady`: constant), not a probe setup step
-(printed after each of goto → sceneReady → setTimeMode/setManualHour → setQualityTier →
-setCameraMode → dismissCallout → teleport: unchanged throughout), and not tier-dependent
-(`performance` / `medium` / `maximum` all identical).
+**The two are different behaviours.** The removed `'auto'` mode was CONTINUOUS follow-the-sun —
+lights turning themselves on and off as time passed, which users found surprising. This is a
+ONE-SHOT first-paint guard, fresh seed only, both settings still untouched. `.73` conflated them.
 
-**This reconciles every earlier observation**, which is what makes it trustworthy:
+**Every observation now fits exactly**, including the one that looked like noise: `DAYLIGHT_END` is
+18, so `.68` at 17:40 local was still inside daylight and read `off`.
 
-| round | local time of run | observed |
-| --- | --- | --- |
-| `.54` DEFAULT-GLOOM | ~10:04 | `off` |
-| `.62` | ~14:20 | `off` |
-| `.68` | ~17:40 | `off` |
-| `.72` | ~20:00 | `on` |
-| `.73` (this) | ~20:30+ | `on` |
+| round | local time | daylight window? | `lightsMode` |
+| --- | --- | --- | --- |
+| `.54` | 10:04 | yes | `off` |
+| `.62` | 14:20 | yes | `off` |
+| `.68` | 17:40 | yes (just) | `off` |
+| `.72` | 20:00 | no | `on` |
+| `.73`/`.74` | 20:30+ | no | `on` |
 
-**So `.54` was RIGHT, but CONDITIONAL.** Its premise holds for a daytime visitor, and the
-2.3–2.5x lights-on measurement stands for that case. It does NOT hold in the evening, when the app
-already boots lit — so "the out-of-box walk-through reads at ~40% of its lit brightness" applies to
-DAYTIME first-runs only. Open item (a) is narrowed, not withdrawn.
+**The falsifying arm passed** (meta-rule lxii): booting at 13:00 vs 22:00 and diffing the WHOLE
+store, only **2 of 133 scalars** differ — `lastSavedAt` (the faked clock) and `lightsMode`. Same 87
+items, no onboarding/callout/seed flag differs. So the clock is not selecting a different startup
+path; the lights are the effect, not a symptom.
 
-**The bigger finding: this behaviour was deliberately removed.** `uiSlice.ts` says so in as many
-words — *"The old 'auto' follow-the-sun mode was removed 2026-07-24 — users found lights turning
-themselves on surprising; legacy saves normalize via `normalizeLightsMode`"* — and `LightsMode` is
-now the binary `'on' | 'off'` with the slice initialising `'off'`. The app is still doing the thing
-that was removed for being surprising.
-
-**Not yet found:** what actually sets it. `normalizeLightsMode` is only called on the load
-(`schema.ts`) and camera-view (`cameraViewsSlice.ts`) paths; no `setLightsMode` / `setState` in
-`src/` writes it at boot; a grep for time-of-day thresholds near the lighting layer found nothing.
-Candidates not yet tested: a shipped default/starter design carrying the value, an autosave or
-onboarding path that runs before `sceneReady`, or a `lightMood` preset selected by time. Note also
-that pinning the clock could in principle move a first-run gate rather than the lights themselves —
-worth one falsifying arm before the fix.
-
-**Next step:** instrument the store — wrap `setLightsMode` and subscribe to `lightsMode` changes
-from `evaluateOnNewDocument`, log every write with a stack, then boot at 22:00. That names the
-writer instead of guessing. Then decide with the user whether the fix is to honour the documented
-removal (always boot `off`) or to keep the behaviour and update the comment.
+**What this means for open item (a) DEFAULT-GLOOM — it is now a much sharper question.** Outside
+08:00–18:00 the app ALREADY does what `.54` proposed, and `firstPaintDaylight.ts` records the
+measured opinion that a night render with lights on "is not just legible, it is the more inviting
+first impression of the two". So the open decision is precisely: **should the first-paint guard
+also apply during daylight hours?** That is a one-line change (`isDaylightHour` → always) with an
+existing precedent, an existing test file, and `.54`'s 2.3–2.5x measurement as the daytime payoff.
+Still the user's call — but it is no longer "change a default", it is "extend a guard that already
+exists".
 
 ## Curtain cuts through the bedside lamps — DIAGNOSED, fix is a CONTENT decision (v0.31.5.61)
 

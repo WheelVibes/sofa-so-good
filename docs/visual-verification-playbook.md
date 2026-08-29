@@ -563,6 +563,25 @@ before any app code, then reads the store at `sceneReady`. **When a result refus
 across sessions, check the wall clock before blaming the probe** — and record the local time a run
 executed at, so a later disagreement can be reconciled instead of re-litigated.
 
+## "This looks like a removed feature that survived" — check the DATE and the SHAPE first
+
+`.73` found the app changing `lightsMode` by the wall clock, read `uiSlice.ts`'s note that the
+follow-the-sun `'auto'` mode was *removed 2026-07-24 because users found lights turning themselves
+on surprising*, and reported a regression. It was not one: the behaviour is
+`firstPaintDaylight.ts`, added in **2026-08** — AFTER the removal — and it is a different shape.
+
+- removed `'auto'`: **continuous** follow-the-sun, lights change as time passes.
+- shipped guard: **one-shot** at first paint, fresh seed only, both settings still untouched.
+
+Two cheap checks would have caught it before the write-up: **(a) when was the removal, and is the
+behaviour newer?** and **(b) does the observed behaviour have the same SHAPE as the removed one, or
+only the same trigger?** A shared trigger (the clock) is not a shared feature.
+
+Also worth copying: the instrumentation that localised it. Wrapping `setState` from
+`evaluateOnNewDocument` and logging every write that changes the key reported **zero** writes — which
+is itself the finding, because it proves the value is decided at INITIAL-STATE CONSTRUCTION, before
+`window.__store` exists, and sends you to the store's creation path instead of hunting setters.
+
 ## A surprising frame earns a STATE-VERIFICATION probe before it earns a diagnosis
 
 Meta-rule (xi) says dismissing a finding as a probe artefact needs its own evidence. The

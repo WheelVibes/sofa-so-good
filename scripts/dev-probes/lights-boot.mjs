@@ -101,6 +101,40 @@ if (process.env.FAKE_HOUR) {
     }
   }, Number(process.env.FAKE_HOUR))
 }
+// WATCH=1 — name the WRITER. Installed before any app code: poll for
+// `window.__store`, then wrap its `setState` so every write that changes
+// `lightsMode` records a stack. Also snapshots scalar state so the 13:00 vs
+// 22:00 arms can be diffed WHOLE — pinning the clock might be selecting a
+// different startup PATH, with the lights only a symptom (meta-rule lxii).
+if (process.env.WATCH === '1') {
+  await page.evaluateOnNewDocument(() => {
+    window.__lightsWrites = []
+    const install = () => {
+      const st = window.__store
+      if (!st?.setState) return false
+      const orig = st.setState.bind(st)
+      st.setState = (partial, replace) => {
+        const before = st.getState().lightsMode
+        const r = orig(partial, replace)
+        const after = st.getState().lightsMode
+        if (before !== after) {
+          window.__lightsWrites.push({
+            from: before,
+            to: after,
+            stack: new Error().stack?.split('\n').slice(1, 7).join(' | '),
+          })
+        }
+        return r
+      }
+      return true
+    }
+    if (!install()) {
+      const iv = setInterval(() => {
+        if (install()) clearInterval(iv)
+      }, 5)
+    }
+  })
+}
 await page.goto(appUrl(), { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('canvas', { timeout: 60000 })
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
@@ -130,6 +164,35 @@ const read = async (label) => {
 // "seeding/selecting items right after sceneReady gets clobbered by the move-in
 // seed"), so if the value flips partway through, the disagreement between `.54`
 // and `.72` is a RACE, not a preference.
+if (process.env.WATCH === '1') {
+  const out = await page.evaluate(() => {
+    const s = window.__store.getState()
+    return {
+      writes: window.__lightsWrites ?? [],
+      scalars: Object.fromEntries(
+        Object.entries(s)
+          .filter(
+            ([, v]) => typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean',
+          )
+          .sort(([a], [b]) => a.localeCompare(b)),
+      ),
+      items: Array.isArray(s.items) ? s.items.length : null,
+    }
+  })
+  console.log(`lightsMode=${out.scalars.lightsMode}   items=${out.items}`)
+  console.log(`\n${out.writes.length} write(s) that CHANGED lightsMode:`)
+  for (const w of out.writes) console.log(`  ${w.from} -> ${w.to}\n     ${w.stack}`)
+  fs.writeFileSync(
+    `/tmp/lights-scalars-${process.env.FAKE_HOUR || 'now'}.json`,
+    JSON.stringify(out.scalars, null, 1),
+  )
+  console.log(
+    `\nscalar store snapshot -> /tmp/lights-scalars-${process.env.FAKE_HOUR || 'now'}.json`,
+  )
+  await browser.close()
+  process.exit(0)
+}
+
 if (process.env.POLL === '1') {
   console.log('lightsMode polled from sceneReady, nothing else called:\n')
   let prev = null

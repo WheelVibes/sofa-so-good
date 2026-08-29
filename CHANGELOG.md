@@ -5,6 +5,46 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.74 — the clock-dependent lights are a deliberate feature; `.73`'s "regression" is retracted
+
+No app code changed. The mechanism is named, and the previous round's framing was wrong.
+
+**RETRACTION.** `.73` called the clock-dependent `lightsMode` "a regression of a shipped product
+decision — the app is still doing the thing that was removed for being surprising". That is wrong.
+The mechanism is `state/storage/firstPaintDaylight.ts`'s `ensureDaylightFirstPaint()`: deliberate,
+documented, unit-tested, and added AFTER the `'auto'` removal rather than surviving it. Outside
+08:00–18:00, on a FRESH SEED and only while `timeMode` and `lightsMode` are both untouched
+defaults, it switches the interior lights on.
+
+Its header gives the reason: `timeMode` defaults to `'system'`, so a new visitor opening after dark
+was shown a **pitch-black flat** — 87 seeded items, all invisible, through onboarding, the 9-step
+tour and the location prompt (Chrome audit 2026-08, boot at 20:00). Overriding the clock was tried
+first and rejected for silently disagreeing with the Scene panel.
+
+**The two behaviours are different**, which is what `.73` conflated: the removed `'auto'` mode was
+CONTINUOUS follow-the-sun (lights changing as time passes — the surprising part); this is a
+ONE-SHOT first-paint guard.
+
+**Every observation now fits, including the one that looked like noise:** `DAYLIGHT_END` is 18, so
+`.68` at 17:40 local was still inside daylight and read `off`. `.54` 10:04 off, `.62` 14:20 off,
+`.68` 17:40 off, `.72` 20:00 on, `.73`/`.74` 20:30+ on.
+
+**The falsifying arm passed.** Booting at 13:00 vs 22:00 and diffing the whole store: only **2 of
+133 scalars** differ — `lastSavedAt` (the faked clock) and `lightsMode`. Same 87 items, no
+onboarding/callout/seed flag differs. The clock is not selecting a different startup path.
+
+**Open item (a) is now a much sharper question.** Outside 08:00–18:00 the app already does what
+`.54` proposed, and `firstPaintDaylight.ts` records the measured opinion that a night render with
+lights on "is not just legible, it is the more inviting first impression of the two". So the
+decision is precisely: **should the first-paint guard also apply during daylight hours?** One line,
+an existing precedent, an existing test file, and `.54`'s 2.3–2.5× as the daytime payoff. Still the
+user's call — but no longer "change a default", rather "extend a guard that already exists".
+
+`lights-boot.mjs` gained `WATCH=1` (wraps `setState` from `evaluateOnNewDocument`, logs every write
+that changes `lightsMode`, and dumps a 133-key scalar snapshot for whole-store diffing). It showed
+**zero** post-creation writes, which is what proved the value is decided at initial-state
+construction rather than by a later setter.
+
 ## v0.31.5.73 — `lightsMode` follows the real clock, and that mode was removed a month ago
 
 No app code changed. The `.72` flag is settled, and it turned into something bigger than a
