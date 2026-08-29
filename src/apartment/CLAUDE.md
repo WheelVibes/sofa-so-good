@@ -358,3 +358,27 @@ Full code map in `docs/ARCHITECTURE.md`.
   · **8.9% here vs 19.0% in `.79` is not a contradiction** — `surface-detail MODE=orbit` frames
     the flat smaller than `chroma-audit MODE=orbit`. The same MODE name is not the same camera;
     quote the probe as well as the pose.
+
+- **Baseboard + crown are ONE class, and both are correct (TRIM-JUDGED, v0.31.5.81).** `#eeece6`
+  is `DEFAULT_CROWN_COLOR` / the baseboard in `walls/WallSegment.tsx` (`roughness 0.55`, no maps).
+  `class-id.mjs` finds **230 instances in matched PAIRS per wall segment** — `y=0.04` at height
+  0.09 (baseboard, at the floor) and `y=2.56` at height 0.07 (crown, at the 2.6 m ceiling) — chain
+  `Group < Group < Group < Group < Scene`, i.e. shell overlay, no `Group{itemId}`. That 0.07 m
+  matches the height the CHANGELOG records for `FadeCrown` before it became per-wall customisable.
+  · **Measured** (`surface-detail MODE=orbit COLOUR=eeece6 MASK=painter`, 230 materials, 102/5760
+    cells = 1.8%, against a 1.9% census share): microcontrast **2.068**, sigma 23.06, chroma 0.116,
+    **0.0%** past 0.35 saturation. Nothing to fix — `rough 0.55` is right for painted trim.
+  · **Read 2.068 as an EXTREME upper bound (meta-rule xcii).** The class is 230 strips 0.07–0.09 m
+    tall; at cell scale it is almost ALL edge. It refutes "reads flat" and says little else.
+  · **This class is also the best validation of `.80`'s mask fix**: 230 sibling unmapped materials
+    now group by equivalence. Before it, the painter would have collapsed to a single instance.
+
+- **Kitchen cabinetry `#e3dfd6` is correct, and shares an already-judged painter (v0.31.5.81).**
+  `KitchenCounter.tsx` / `WallCabinet.tsx` (`kitchen.ts` defaults). `surface-detail COLOUR=e3dfd6`
+  masks 123/5760 cells (2.1%, census 2.7%) and reports microcontrast **1.024**, sigma 27.02, chroma
+  0.175, **0.0%** past 0.35 saturation — above both benchmarks (plaster 0.961, wood 0.862).
+  · **The mask spans 34 materials across TWO colours (meta-rule lxxxii).** `#e3dfd6` and `#cfc8bd`
+    share the paint micro-normal via `getVinylMaterial`/`getPaintedMaterial`, exactly as `.58` and
+    `materials/CLAUDE.md` already record — so this measures the shared PAINTER, not the cabinets
+    alone, and `.58` had already judged the `#cfc8bd` member (the bifold bath leaf, "flat was
+    right"). Meta-rule (xvii-b) pays a **tenth** round.

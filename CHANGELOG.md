@@ -5,6 +5,31 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.81 — baseboard/crown and kitchen cabinetry are both correct
+
+No app code changed. A clean audit of the last two unjudged classes in the boot-view ranking,
+made cheap by `.80`'s coordinate-free `COLOUR=` seed. Both were named from source before a probe
+finished — meta-rule (xvii-b), tenth round running.
+
+**`#eeece6` is the baseboard AND the crown molding — one class, two roles.** `class-id.mjs` finds
+230 instances in matched pairs per wall segment: `y=0.04` at height 0.09 (baseboard, at the floor)
+and `y=2.56` at height 0.07 (crown, at the 2.6 m ceiling), no `Group{itemId}` — shell overlay.
+The 0.07 m matches the crown height this CHANGELOG records for `FadeCrown`. Measured over 230
+materials, 102/5760 cells (1.8%, against a 1.9% census share): microcontrast **2.068**, sigma
+23.06, chroma 0.116, **0.0%** past 0.35 saturation. `roughness 0.55` is right for painted trim.
+Read 2.068 as an extreme upper bound (meta-rule xcii) — 230 strips 0.07–0.09 m tall are almost all
+edge at cell scale. This class is also the sharpest validation of `.80`'s mask fix: 230 sibling
+unmapped materials now group by equivalence where the painter would previously have collapsed to one.
+
+**`#e3dfd6` is kitchen cabinetry, on a painter `.58` already judged.** `KitchenCounter.tsx` /
+`WallCabinet.tsx`. 123/5760 cells (2.1%, census 2.7%): microcontrast **1.024**, sigma 27.02, chroma
+0.175, **0.0%** past 0.35 saturation — above both benchmarks (plaster 0.961, wood 0.862). The mask
+spans 34 materials across TWO colours: `#e3dfd6` and `#cfc8bd` share the paint micro-normal via
+`getVinylMaterial`/`getPaintedMaterial`, as `.58` and `materials/CLAUDE.md` already record, so this
+measures the shared painter rather than the cabinets alone (meta-rule lxxxii).
+
+Neither class shows any chroma concern: both sit at 0.0% of pixels past 0.35 saturation.
+
 ## v0.31.5.80 — the wall body does not read flat; two probe fixes to prove it
 
 No app code changed. Two dev-probe fixes, and the boot-view question `.79` left open is closed.
