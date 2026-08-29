@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.73 — `lightsMode` follows the real clock, and that mode was removed a month ago
+
+No app code changed. The `.72` flag is settled, and it turned into something bigger than a
+correction.
+
+**`lightsMode` at boot depends on the user's real local time of day.** New `lights-boot.mjs` pins
+the page wall clock before load and reads the store at `sceneReady` with nothing else called:
+**13:00 → `off`, 22:00 → `on`**. Not a race (polled 500 ms × 20 s: constant), not a probe setup
+step (printed after each of goto → sceneReady → time → tier → camera → callout → teleport:
+unchanged), not tier-dependent (all three tiers identical).
+
+**It reconciles every earlier observation**, which is what makes it trustworthy: `.54` ran ~10:04
+and saw `off`; `.62` ~14:20 and `.68` ~17:40 saw `off`; `.72` ~20:00 and this round ~20:30 saw `on`.
+
+**So `.54` was right but CONDITIONAL.** Its premise holds for a daytime visitor and the 2.3–2.5×
+measurement stands for that case; in the evening the app already boots lit. "The out-of-box
+walk-through reads at ~40% of its lit brightness" applies to DAYTIME first-runs only. Open item (a)
+is narrowed, not withdrawn.
+
+**The bigger finding: this behaviour was deliberately removed.** `uiSlice.ts` states it plainly —
+*"The old 'auto' follow-the-sun mode was removed 2026-07-24 — users found lights turning themselves
+on surprising"* — `LightsMode` is now binary `'on' | 'off'` and the slice initialises `'off'`. The
+app is still doing the thing that was removed for being surprising.
+
+**The mechanism is NOT located and is not guessed at.** `normalizeLightsMode` runs only on the load
+and camera-view paths; nothing in `src/` writes `lightsMode` at boot; no time-of-day threshold near
+the lighting layer. Written up in `TODO.md` with the instrumentation that would name the writer
+(wrap `setLightsMode` and subscribe to store changes from `evaluateOnNewDocument`, then boot at
+22:00), plus the falsifying arm worth running first — pinning the clock could in principle move a
+first-run gate rather than the lights.
+
 ## v0.31.5.72 — the pose-honest per-class ranking promotes nothing unjudged; a flag on DEFAULT-GLOOM
 
 No app code changed.

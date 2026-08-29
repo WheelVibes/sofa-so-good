@@ -547,6 +547,22 @@ Two things to copy:
 - **Grep for every consumer before judging blast radius.** The comment named two features; the
   codebase had five call sites doing the same `toDataURL` on the main canvas.
 
+## Pin the page WALL CLOCK — the app boots in `timeMode: 'system'`
+
+Probes pin `setTimeMode('manual')` + `setManualHour(h)` and then reason as though time is
+controlled. It is not: that only pins the SCENE clock. The app boots in `timeMode: 'system'`, and
+anything keyed to the user's real time of day is invisible to a probe that never controls it —
+including which frames you get, if the state differs.
+
+That is how four rounds disagreed about whether `lightsMode` defaults to `off`: the runs that saw
+`off` happened to execute in the afternoon, and the ones that saw `on` in the evening. Nobody was
+wrong; nobody was controlling the variable.
+
+`lights-boot.mjs FAKE_HOUR=h` installs a `Date` stub via `evaluateOnNewDocument` so it is in place
+before any app code, then reads the store at `sceneReady`. **When a result refuses to reproduce
+across sessions, check the wall clock before blaming the probe** — and record the local time a run
+executed at, so a later disagreement can be reconciled instead of re-litigated.
+
 ## A surprising frame earns a STATE-VERIFICATION probe before it earns a diagnosis
 
 Meta-rule (xi) says dismissing a finding as a probe artefact needs its own evidence. The

@@ -12,35 +12,56 @@ with `ao={false}` keeping `N8AO` off at `performance`. Discriminator `mainBedroo
 image (1.45 MB / 100% non-black). Priced at `performance`: p50 4.1 ms / p90 4.4 ms / 59.9 fps
 before AND after. Full write-up in `src/scene/CLAUDE.md`; `composerPlan()` pins the invariant.
 
-## ⚠️ DEFAULT-GLOOM's premise may be STALE — `lightsMode` resolved `on` at boot (v0.31.5.72)
+## `lightsMode` still follows the sun, and that mode was REMOVED in 2026-07-24 (v0.31.5.73)
 
-**Flag on open item (a), not a resolution. Re-verify before acting on that item.**
+**Settled by measurement; mechanism NOT yet located in `src/`. This supersedes the `.72` flag.**
 
-`.54` DEFAULT-GLOOM is the biggest open lever reported to the user: "`lightsMode` defaults to
-`'off'`, and lights-on is worth 2.3–2.5× brightness in every room". Two clean runs this round
-contradict the first half:
+`lightsMode` at boot depends on the USER'S REAL LOCAL TIME OF DAY. One variable, `lights-boot.mjs`
+with the page wall clock pinned before load, everything else identical:
 
-| run | tier | hour | `LIGHTS` env | resolved `lightsMode` |
-| --- | --- | --- | --- | --- |
-| `.72` walk-tour | medium | 8 | **not set** | **`on`** |
-| `.72` walk-tour | medium | 13 | **not set** | **`on`** |
-| `.62` walk-tour | performance | 13 | not set | `off` |
-| `.68` walk-tour | maximum | 13 | not set | `off` |
+| page wall clock | `lightsMode` at `sceneReady` |
+| --- | --- |
+| 13:00 | **`off`** |
+| 22:00 | **`on`** |
 
-So it is NOT hour-dependent (8 and 13 agree), and `uiSlice.ts` still initialises
-`lightsMode: 'off'` with nothing in `src/` auto-setting it — `schema.ts` does allow an
-`'auto' | 'on' | 'off'` enum, and the value is persisted. The runs that read `off` all passed an
-explicit `TIER=`; the runs that read `on` did not. That correlation is probably spurious but it is
-the only structural difference visible so far.
+It is not a race (polled every 500 ms for 20 s from `sceneReady`: constant), not a probe setup step
+(printed after each of goto → sceneReady → setTimeMode/setManualHour → setQualityTier →
+setCameraMode → dismissCallout → teleport: unchanged throughout), and not tier-dependent
+(`performance` / `medium` / `maximum` all identical).
 
-**Why it matters:** if the flat sometimes boots with lights ON, then "the out-of-box walk-through
-reads at ~40% of its lit brightness" is not unconditionally true, and the user should not act on
-`.54` until this is settled.
+**This reconciles every earlier observation**, which is what makes it trustworthy:
 
-**Next step:** boot with NO probe env at all and read `lightsMode` immediately after `sceneReady`,
-before any tier/hour/camera call — i.e. isolate whether some setup step in the probes flips it,
-rather than the app. Then re-run `default-gloom.mjs`, which prints each arm's own `lightsMode`, and
-confirm or retract `.54`'s premise explicitly (meta-rule lxiv).
+| round | local time of run | observed |
+| --- | --- | --- |
+| `.54` DEFAULT-GLOOM | ~10:04 | `off` |
+| `.62` | ~14:20 | `off` |
+| `.68` | ~17:40 | `off` |
+| `.72` | ~20:00 | `on` |
+| `.73` (this) | ~20:30+ | `on` |
+
+**So `.54` was RIGHT, but CONDITIONAL.** Its premise holds for a daytime visitor, and the
+2.3–2.5x lights-on measurement stands for that case. It does NOT hold in the evening, when the app
+already boots lit — so "the out-of-box walk-through reads at ~40% of its lit brightness" applies to
+DAYTIME first-runs only. Open item (a) is narrowed, not withdrawn.
+
+**The bigger finding: this behaviour was deliberately removed.** `uiSlice.ts` says so in as many
+words — *"The old 'auto' follow-the-sun mode was removed 2026-07-24 — users found lights turning
+themselves on surprising; legacy saves normalize via `normalizeLightsMode`"* — and `LightsMode` is
+now the binary `'on' | 'off'` with the slice initialising `'off'`. The app is still doing the thing
+that was removed for being surprising.
+
+**Not yet found:** what actually sets it. `normalizeLightsMode` is only called on the load
+(`schema.ts`) and camera-view (`cameraViewsSlice.ts`) paths; no `setLightsMode` / `setState` in
+`src/` writes it at boot; a grep for time-of-day thresholds near the lighting layer found nothing.
+Candidates not yet tested: a shipped default/starter design carrying the value, an autosave or
+onboarding path that runs before `sceneReady`, or a `lightMood` preset selected by time. Note also
+that pinning the clock could in principle move a first-run gate rather than the lights themselves —
+worth one falsifying arm before the fix.
+
+**Next step:** instrument the store — wrap `setLightsMode` and subscribe to `lightsMode` changes
+from `evaluateOnNewDocument`, log every write with a stack, then boot at 22:00. That names the
+writer instead of guessing. Then decide with the user whether the fix is to honour the documented
+removal (always boot `off`) or to keep the behaviour and update the comment.
 
 ## Curtain cuts through the bedside lamps — DIAGNOSED, fix is a CONTENT decision (v0.31.5.61)
 
