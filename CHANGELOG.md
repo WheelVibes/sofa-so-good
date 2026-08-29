@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.89 — wall-reveal (d) closed as NO DEFECT; `.53`/`.84`'s premise retracted
+
+No code changed. Item (d) was approved for implementation, but re-confirming its numbers before
+touching the curve (meta-rule lxxiii) falsified the premise the approval rested on, so it went back
+to the user, who closed it as designed.
+
+**The retracted claim (meta-rule lxiv).** `.53` and my `.84` write-up both said the parameter
+"promises a 0.05 head-on floor and the shipped default pose never gets near it, so the intent and
+the behaviour disagree". **False.** With `REVEAL_ONSET = 0.25`, head-on (`toward` = 1) yields
+opacity **0.0500** — the floor is delivered exactly where it is promised. The dollhouse boot pose
+looks down a 45° diagonal, so `toward` = 0.707 → strength **0.6616** → opacity **0.3715**, matching
+the recorded 0.371 / own-strength 0.662. An intermediate angle giving an intermediate opacity is the
+ANGLE-GRADED curve working.
+
+**`.53` also re-applied reasoning to the class it was written to exempt.** `WALL-REVEAL-ANGLE-GRADED`
+states the "washed mid-band" risk belongs to FAR walls — structurally excluded, `facingToward` ≤ 0 →
+strength 0 → opaque — while NEAR walls "SHOULD fade gradually and are EXPECTED to rest anywhere along
+the curve".
+
+**And the obvious lever cannot do it.** `smoothstep(onset, 1, 0.707)` gives opacity 0.3715 / 0.2864 /
+0.2468 at onset 0.25 / 0.10 / 0.00 — even onset 0 lands nowhere near 0.05. Reaching the floor at 45°
+requires narrowing the domain (≈ `smoothstep(0.25, 0.707)`): precisely the "fast-ramp bias"
+`wallRevealMath.ts` forbids, flattening all grading above 45° and effectively reversing the
+BINARY-TARGET → ANGLE-GRADED decision. Verified visually first — the boot frame shows kitchen
+cabinets, microwave and counter reading clearly through the near façade, a legible dollhouse cutaway.
+
 ## v0.31.5.88 — the default flat ships with its curtains open (and that exposes a trade-off)
 
 **Open decision (b), option 1, approved by the user and shipped.** `.44` measured that the app bakes

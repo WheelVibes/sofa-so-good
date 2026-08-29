@@ -1340,3 +1340,25 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     plus `assertSceneAlive` per pose — so a silently empty shot now fails loudly instead of being
     written to disk looking plausible. That was `TODO.md`'s recorded next step and it is done;
     meta-rule (xvii-b), THIRTEENTH round.
+
+- **The 0.371 boot-pose opacity is NOT a defect — `.53`/`.84`'s framing was wrong, and the user
+  closed it as designed (WALL-REVEAL-POSE-RETRACTED, v0.31.5.89).** No code changed.
+  · **The claim was that "the parameter promises a 0.05 head-on floor and the shipped boot pose
+    never gets near it, so intent and behaviour disagree". That is false.** Verified exactly:
+    `revealStrength(1)` with `REVEAL_ONSET = 0.25` gives opacity **0.0500** — the floor IS delivered
+    **head-on**, which is precisely what `WALL-REVEAL-STRENGTH` documents. The dollhouse boot pose
+    looks down a 45° diagonal, so `toward` = 0.707 → strength **0.6616** → opacity **0.3715**
+    (matching the recorded 0.371 / own-strength 0.662). An intermediate angle producing an
+    intermediate opacity is the ANGLE-GRADED curve working, not failing.
+  · **`WALL-REVEAL-ANGLE-GRADED` already answered the "washed mid-band" worry.** The class that must
+    never rest mid-band is the FAR walls, and they are excluded *structurally* (`facingToward` ≤ 0 →
+    strength exactly 0 → opaque). NEAR walls "are exactly the ones that SHOULD fade gradually and are
+    EXPECTED to rest anywhere along the curve". `.53` re-applied the retired binary target's
+    reasoning to the very class that decision exempted.
+  · **The onset lever cannot deliver the request anyway.** `smoothstep(onset, 1, 0.707)` at
+    `onset` 0.25 / 0.10 / 0.00 gives opacity 0.3715 / 0.2864 / **0.2468** — even onset 0 lands
+    nowhere near 0.05. Reaching the floor at 45° requires narrowing the domain (≈
+    `smoothstep(0.25, 0.707)`), i.e. exactly the "fast-ramp bias" this file forbids, and it would
+    flatten all grading above 45°.
+  · **Verified visually before deciding**: the boot frame crop shows kitchen cabinets, microwave and
+    counter reading clearly through the near façade — a legible dollhouse cutaway, not a fault.

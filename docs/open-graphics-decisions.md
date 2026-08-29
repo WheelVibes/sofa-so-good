@@ -148,7 +148,20 @@ choice, and it does not spend structural effort on a rare path before you have d
 
 ---
 
-## (d) wall-reveal POSE — near walls sit in a milky mid-band at the default camera angle
+## (d) wall-reveal POSE — ❌ CLOSED as NO DEFECT in v0.31.5.89 (my premise was wrong)
+
+> **Status: closed, no code change, on the user's decision.** The write-up below claimed the
+> parameter "promises 0.05 head-on and the shipped default pose never gets near it". **That is
+> false.** Verified exactly: head-on (`toward` = 1) yields opacity **0.0500** — the floor is
+> delivered where it is promised. The boot pose is a 45° diagonal (`toward` = 0.707), giving
+> strength 0.6616 → opacity 0.3715, which is an angle-graded curve behaving correctly at an
+> intermediate angle. `WALL-REVEAL-ANGLE-GRADED` already ruled that near walls "SHOULD fade
+> gradually and are EXPECTED to rest anywhere along the curve"; the mid-band worry applies to FAR
+> walls, which are excluded structurally. The onset lever cannot reach the floor either (onset 0
+> only gets to 0.2468), so the request needs a steepened curve — the "fast-ramp bias" that decision
+> explicitly rejected. Original write-up kept below as the record of the error.
+
+### Original write-up — contains the false premise
 
 **What you would see.** At the dollhouse boot pose, every near-facing façade is a translucent milky
 sheet rather than the near-invisible outline the feature intends; kitchen and dining furniture read
@@ -221,7 +234,7 @@ the demo apartment and leaves the placement rules untouched.
 | a | DEFAULT-GLOOM | one-line behaviour | ✅ **SHIPPED v0.31.5.86** — guard extended to daylight |
 | b | WINDOW-TIME-INVARIANT | content + flag policy | ⚠️ **PARTLY SHIPPED v0.31.5.88** — curtains open; static backdrop now visibly wrong-time |
 | c | PLAN-SWAP-STRANDED | structural vs interim | **Add a confirm; do NOT widen the skip** |
-| d | wall-reveal POSE | design parameter | **Retune the curve for the 45° boot pose** |
+| d | wall-reveal POSE | design parameter | ❌ **CLOSED v0.31.5.89** — no defect; premise retracted |
 | e | Curtain vs nightstand | content | ✅ **SHIPPED v0.31.5.87** — curtain narrowed + nightstands outboard |
 
 (a) is shipped. The rest are approved and being implemented one committed round at a time; each is
