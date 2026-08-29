@@ -4,39 +4,78 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
-## Bedside lamp / curtain interpenetration (candidate, v0.31.5.60, 2026-08-29)
+## `performance` tier: walk-tour frames show an EMPTY flat while the scene graph is FULL (v0.31.5.61)
 
-**Observed and reproduced; mechanism NOT yet diagnosed. Do not guess it — two attempts to pick
-the shade both missed.**
+**Unexplained contradiction. Do NOT report this as a tier rendering bug until it is resolved —
+and do not dismiss it as a probe artefact either (meta-rule xi).**
 
-In `mainBedroom` at yaw 0, both bedside lamp shades render with a clean **V-shaped notch bitten
-out of the top edge**, with curtain fabric visible through the bite. It looks like a torn paper
-cutout rather than a lamp shade.
+`walk-tour.mjs TIER=performance` (resolved state printed: `performance/off/manual13`) returned 44
+frames in which **every room is empty** — no walls, no floor finish, no furniture, just the ground
+plane and the city backdrop, in `mainBedroom`, `kitchen` and others. The minimap and the
+"Turn off ceiling light" interaction prompt both render, so the app is alive and the items exist.
 
-**What is measured:**
-- It is present at **13:00 and at 22:00 with the lights on** (`/tmp/tour56/mainBedroom-y0.png`,
-  `/tmp/tour-night/mainBedroom-y0.png`), so it is NOT a lighting or bloom artefact. Night only
-  made it obvious, because a lit shade draws the eye.
-- The pixel inside the notch is the **CURTAIN** — `#c8bca8` `MeshPhysicalMaterial`,
-  1.00 x 2.55 x 0.10, `Group{itemId}` (a furniture item, per `.51`), at world **z = 0.55**.
-- The camera stands at `[1.84, 1.6, 2.51]` looking -Z, so **smaller z is FURTHER from the
-  camera**. The north wall / window is at z ~= 0.53.
+**But the scene graph at the same tier is fully populated.** `wall-mottle.mjs TIER=performance`
+seeded the curtain class with **61 materials covering 34.4% of the frame** and found all
+**3 `table-lamp` items / 9 meshes**, byte-comparable to `medium`. So the geometry is mounted and
+the raycaster hits it.
 
-**The two live hypotheses, both consistent with the above:**
-1. **Depth-sort / transparency bug.** A lamp on a nightstand against that wall should sit at
-   z ~= 0.75, i.e. NEARER the camera than the curtain, and should therefore occlude it. If the
-   shade really is nearer and the curtain still draws over it, the curtain is being
-   transparent-sorted past a nearer surface (or the shade is losing its depth write).
-2. **A genuine gap in the shade geometry**, through which the curtain is correctly visible. The
-   notch is suspiciously clean and geometric, which cuts both ways — a cone with a seam would
-   also look like this.
+**Candidate explanations, none tested:**
+1. **Probe timing.** `walk-tour` sets the tier and then teleports through 11 rooms; a
+   `performance` switch may remount more than the fixed wait covers. But the frames are not blank
+   — backdrop, ground, one wood slat panel and one lamp DO draw, which is a partial render, not an
+   unloaded one.
+2. **`frameloop="demand"`** not being kicked after the tier change, so the composite is stale.
+3. **A real culling / geometry-detail difference at `performance`** that removes the shell in walk
+   mode while leaving it in the scene graph — which would be a genuine defect.
 
-**To discriminate, get the SHADE's own world z** and compare with the curtain's 0.55. Two
-`wall-mottle.mjs PICK=` attempts (`-0.033,0.3275` and `0.0016,0.281`) both hit the curtain
-instead — eyeballed NDC missing its target, exactly meta-rule (liv). **Do not eyeball a third
-time.** Either find the lamp item's `defId` and use `surface-detail.mjs DEF=`, or add a mode that
-picks by ITEM rather than by pixel. If it is hypothesis 1 it is a render bug with a blast radius
-well beyond this lamp; if it is 2 it is a mesh/content fix.
+**Next step:** compare the two probes' setup order directly, and add a frame-level assertion to
+`walk-tour` (e.g. non-background pixel fraction per frame) so an empty shot fails loudly instead
+of being written to disk looking plausible. Also re-run at `maximum`, which was never reached.
+
+## Curtain cuts through the bedside lamps — DIAGNOSED, fix is a CONTENT decision (v0.31.5.61)
+
+**Mechanism settled. The remaining question is a design choice, not a rendering one, so it is
+listed with the other open product items rather than fixed unilaterally.**
+
+Both `mainBedroom` bedside lamp shades render with a clean V-notch bitten out of the top edge,
+curtain visible through the bite, at 13:00 and at 22:00 alike.
+
+**Hypothesis A (transparency sort) is REFUTED.** Measured on the drawn materials, both the lamp
+shade and the curtain are `transparent=false, opacity=1, depthWrite=true, depthTest=true,
+renderOrder=0`. No transparency sorting is involved anywhere. This is not a render bug, and there
+is nothing else in the flat sorting wrongly against the curtains.
+
+**Hypothesis B (geometry) is CONFIRMED, with coordinates.** They simply interpenetrate:
+
+| | world z span |
+| --- | --- |
+| lamp shade (`#f0e4c4`, 0.30 x 0.16 x 0.30, `side=2`) | **0.30 – 0.60** |
+| curtain panel (`#c8bca8`, 0.10 deep) | **0.48 – 0.58** |
+
+The curtain plane passes straight through the shade; the "notch" is an ordinary intersection,
+correctly rendered. `side=2` (DoubleSide) is why the shade's inside is visible through the cut.
+`defaults/mainBedroom.ts` puts the nightstands at `[0.67, 0.45]` / `[2.73, 0.45]` and the 2.2 m
+curtain at `[1.7, 0.28]`, spanning x 0.6–2.8 — so both nightstands sit **under** the curtain.
+
+**`CURTAIN_SILL_STANDOFF` is NOT the lever (meta-rule xvii-b).** Its 0.2 is derived in
+`placement/windowSnap.ts`: the sill ledge projects ~0.14 past the centre-line and the fullest folds
+dig 0.09 back, so `standoff >= 0.14 + 0.09 - 0.05`; 0.20 leaves 0.02 of margin, and the previous
+0.16 read as the curtain embedded in the wall. Reducing it re-introduces a fixed bug.
+
+**Three candidate fixes, all measured, none clean:**
+1. **`length: 'sill'`** (a mode the `Curtain` primitive already supports). Hem lands at
+   `sillY - 0.1 = 0.85` against a shade whose top is at **0.92** — reduces the overlap to 0.07 m
+   but does NOT eliminate it, and restyles the room's only window.
+2. **Move the nightstands out.** For a 0.30 m shade to clear a curtain ending at z 0.58 the
+   nightstand centre needs z >= ~0.73, i.e. a 0.4 m nightstand standing 0.33 m off the wall. Looks
+   wrong.
+3. **Narrow the curtain to the glass** (x 0.8–2.6 instead of 0.6–2.8). The left nightstand spans
+   x ~0.42–0.92, so it still overlaps. `CURTAIN_OVERHANG` is also deliberate (covers the window).
+
+**Recommendation if the user wants it fixed:** (1) plus dropping the lamp a little, or accept that
+a bedside table under a floor-length curtain is what the layout asks for. Note `bedroom2` has the
+same arrangement 0.15 m further out and is only marginally better — this is not a `mainBedroom`
+outlier.
 
 ## Wall mottle — the flat's largest surface — ✅ FIXED (PLASTER-STRETCH, v0.31.5.56)
 

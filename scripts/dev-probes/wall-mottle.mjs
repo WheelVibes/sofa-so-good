@@ -378,6 +378,89 @@ async function applyAo(pairs) {
 // opening. `Group{itemId}` in the chain means FURNITURE; apartment components
 // never carry one. Use when you have a suspicious pixel but not a colour, which
 // is what `class-id.mjs` needs as its input.
+// DEFPOS=<defId> — target an ITEM instead of a pixel (meta-rule lv: two eyeballed
+// NDC picks in `.60` both hit the curtain a few pixels from the lamp). Reports
+// every mesh of every item with that defId — world bbox, material, and the flags
+// that decide DEPTH SORTING (`transparent`, `depthWrite`, `depthTest`,
+// `renderOrder`, `side`) — alongside the same flags for a named comparison class,
+// so "does A sort wrongly against B" is answerable from one run.
+const DEFPOS = process.env.DEFPOS || null
+const VS = process.env.VS || null
+if (DEFPOS) {
+  const out = await page.evaluate(
+    async (q) => {
+      const { scene } = window.__three
+      const st = window.__store.getState()
+      const ids = new Set((st.items ?? []).filter((it) => it.defId === q.def).map((it) => it.id))
+      const flags = (m) => ({
+        type: m.type,
+        hex: `#${m.color?.getHexString?.() ?? '??'}`,
+        transparent: !!m.transparent,
+        opacity: m.opacity,
+        depthWrite: m.depthWrite,
+        depthTest: m.depthTest,
+        side: m.side,
+        alphaTest: m.alphaTest,
+      })
+      const rows = []
+      const vs = []
+      scene.traverse((o) => {
+        const m = o.material
+        if (!m || Array.isArray(m) || !o.isMesh) return
+        let owner = null
+        for (let p = o; p; p = p.parent) {
+          if (p.userData?.itemId) {
+            owner = p.userData.itemId
+            break
+          }
+        }
+        const box = new (
+          Object.getPrototypeOf(o.geometry.boundingBox ?? {}).constructor ?? Object
+        )()
+        o.geometry?.computeBoundingBox?.()
+        const bb = o.geometry?.boundingBox
+        const wp = o.getWorldPosition(o.position.clone())
+        if (owner && ids.has(owner)) {
+          rows.push({
+            owner,
+            renderOrder: o.renderOrder,
+            at: [wp.x, wp.y, wp.z].map((v) => v.toFixed(2)).join(','),
+            size: bb
+              ? [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z]
+                  .map((v) => v.toFixed(2))
+                  .join('x')
+              : '?',
+            ...flags(m),
+          })
+        }
+        if (q.vs && `#${m.color?.getHexString?.() ?? ''}` === q.vs && vs.length < 3) {
+          vs.push({
+            renderOrder: o.renderOrder,
+            at: [wp.x, wp.y, wp.z].map((v) => v.toFixed(2)).join(','),
+            ...flags(m),
+          })
+        }
+        void box
+      })
+      return { rows, vs, itemCount: ids.size }
+    },
+    { def: DEFPOS, vs: VS },
+  )
+  console.log(`DEFPOS=${DEFPOS} — ${out.itemCount} item(s), ${out.rows.length} mesh(es)\n`)
+  const show = (r) =>
+    console.log(
+      `  ${String(r.type).replace('Mesh', '').replace('Material', '').padEnd(9)} ${r.hex}  at [${r.at}]  ${r.size ? `size ${r.size}  ` : ''}` +
+        `transparent=${r.transparent} opacity=${r.opacity} depthWrite=${r.depthWrite} depthTest=${r.depthTest} side=${r.side} alphaTest=${r.alphaTest} renderOrder=${r.renderOrder}`,
+    )
+  for (const r of out.rows) show(r)
+  if (VS) {
+    console.log(`\ncomparison class ${VS}:`)
+    for (const r of out.vs) show(r)
+  }
+  await browser.close()
+  process.exit(0)
+}
+
 const PICK = process.env.PICK ? process.env.PICK.split(',').map(Number) : null
 const YAW = Number(process.env.YAW || 0)
 if (PICK) {

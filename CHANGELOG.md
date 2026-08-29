@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.61 — the lamp/curtain defect is diagnosed, and `performance` frames contradict the scene
+
+No app code changed. One diagnosis completed, one contradiction found and deliberately not
+explained away.
+
+**The bedside-lamp notch is geometry, not a render bug.** Hypothesis A (transparency sorting) is
+REFUTED on the drawn materials: the lamp shade and the curtain are both `transparent=false,
+opacity=1, depthWrite=true, depthTest=true, renderOrder=0`. Nothing in the flat sorts wrongly
+against the curtains. Hypothesis B is CONFIRMED with coordinates — the shade spans world z
+0.30–0.60 and the curtain panel 0.48–0.58, so the curtain plane passes straight through it and the
+"notch" is an ordinary intersection, correctly rendered (`side=2` is why the shade's inside shows).
+`defaults/mainBedroom.ts` puts both nightstands under a 2.2 m curtain spanning x 0.6–2.8.
+
+`CURTAIN_SILL_STANDOFF` is NOT the lever: its 0.2 is derived in `placement/windowSnap.ts` to clear
+the sill ledge with 0.02 of margin, and the previous 0.16 read as the curtain embedded in the wall.
+Three candidate fixes were measured and none is clean — `length: 'sill'` lands the hem at 0.85
+against a shade top of 0.92, moving the nightstands needs them 0.33 m off the wall, and narrowing
+the curtain to the glass still overlaps. **Filed as a content decision** alongside the other four,
+because curtain length and bedside-table placement are interior-design choices.
+
+**`performance` tier: the frames and the scene graph disagree.** `walk-tour.mjs TIER=performance`
+returned 44 frames showing an EMPTY flat — no walls, no furniture, just ground and backdrop — while
+`wall-mottle.mjs` at the same tier found the geometry fully mounted (61-material class at 34.4%
+coverage, all 3 lamps / 9 meshes). Both printed their resolved state. That contradiction is not
+resolved: it could be probe timing, a stale `frameloop="demand"` composite, or a real culling
+difference. Recorded in `TODO.md` with the next step — add a non-background-pixel assertion to
+`walk-tour` so an empty shot fails loudly rather than being written to disk looking plausible.
+
+**Not done:** `maximum` tier was never reached.
+
 ## v0.31.5.60 — night with the lights on is clean, and it turned up a lamp/curtain defect
 
 No app code changed. New `LIGHTS=` env on `walk-tour.mjs`, one condition swept, one defect found
