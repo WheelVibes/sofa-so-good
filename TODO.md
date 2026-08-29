@@ -12,50 +12,41 @@ with `ao={false}` keeping `N8AO` off at `performance`. Discriminator `mainBedroo
 image (1.45 MB / 100% non-black). Priced at `performance`: p50 4.1 ms / p90 4.4 ms / 59.9 fps
 before AND after. Full write-up in `src/scene/CLAUDE.md`; `composerPlan()` pins the invariant.
 
-## FIRST-PAINT-ORBIT: the daylight guard is measured against the wrong view (v0.31.5.75)
+## RETRACTED: `.75` FIRST-PAINT-ORBIT was an instrument artefact (v0.31.5.76)
 
-**Measured defect against a DOCUMENTED intent. The fix is a design choice, so it is filed rather
-than shipped.**
+**`.75` claimed the after-dark first paint is "89% near-black" and that
+`ensureDaylightFirstPaint` "does not achieve" its stated goal. Both claims are WRONG. The guard
+works. There is no defect here, and this is no longer an open item.**
 
-`state/storage/firstPaintDaylight.ts` exists to stop this exact thing: *"a brand-new visitor
-opening the app after dark is shown a **pitch-black flat**: the move-in demo seeds 87 items and
-every one of them is invisible, **through onboarding**, the whole 9-step tour and the location
-prompt"*. It switches interior lights on outside 08:00–18:00.
+**What the metric actually measured.** `.75` took the mean and near-black fraction over everything
+OUTSIDE the modal card and toolbar. At 22:00 that region is dominated by the empty night background
+around the dollhouse — correctly black at 10 pm. Worse, the card exclusion (x 20–43, y 9–30 of a
+64x40 grid) removes the CENTRE of the frame, which in an unobstructed shot is exactly where the
+flat is. So the figure measured the void and masked out the subject.
 
-**It does not achieve that.** New `first-run.mjs` suppresses NOTHING — no `hdb_onboarded` seed, no
-`dismissLocationPrompt()` — pins the wall clock, and measures the screen OUTSIDE the modal card and
-toolbar:
+**Re-measured over the dollhouse region, no card exclusion:**
 
-| wall clock | t=0 (splash) | onboarding carousel up (t=5 s, 9 s) |
+| wall clock | mid-tour | unobstructed |
 | --- | --- | --- |
-| 13:00 | mean 181.1, 0.0% near-black | mean **143.4**, **0.0%** near-black |
-| 22:00 | mean 185.8, 0.0% near-black | mean **23.9**, **89.0%** near-black |
+| 13:00 | mean 127.2, 0.0% near-black | mean 142.3, 0.0% near-black |
+| 22:00 | mean **91.9**, 39.2% | mean **84.4**, 39.0% |
 
-At 22:00, with the guard having correctly set `lightsMode: 'on'` (verified in the same run),
-**89% of the visible screen is near-black** during onboarding.
+and the remaining near-black fraction is still mostly the background inside a rectangular sample of
+a non-rectangular model.
 
-**Why the guard misses it: the boot camera is ORBIT, outside the building.** `Scene.tsx` boots at
-`[12, 8, 12]` looking in; orbit culls the ceiling so you see down into the flat, but at night you
-are still looking at an exterior from 17 m away, where interior fixture lights barely register.
-The guard was validated on the INTERIOR — and there it works: `.60`'s 22:00 walk-tour with lights
-on is warm and legible. Two different views, one of which nobody had shot.
+**The frame settles it** (meta-rule v). `/tmp/fr-seq/22-4-unobstructed.png` shows a warmly lit,
+fully legible dollhouse at 22:00 — kitchen, living room with the TV and floor lamp glowing,
+bedrooms, the whole plan readable — against a black night background. That is precisely the
+outcome `firstPaintDaylight.ts` was written to produce, and it produces it.
 
-**The falsifying arm is built in:** the 13:00 run uses the same modal, the same blurred scrim and
-the same code path, and reads 0.0% near-black. So the darkness is the SCENE, not the scrim.
+**What `.75` got right, and should be kept:** the first-run path had never been swept, `first-run.mjs`
+is a genuinely new instrument, and the sequence sweep established two useful facts —
+**`cameraMode` stays `orbit` through all 9 tour steps** (the tour never moves the camera, so the
+`.56`–`.70` verdicts are not undermined by it), and the tour steps are UI-anchored tooltips rather
+than camera moves.
 
-**Options, none obviously right — this is a design call:**
-1. **Lift the exterior/ambient at night for the first paint only** — smallest change, but invents
-   light that is not physically there, which this repo has resisted elsewhere.
-2. **Boot the camera closer / inside for a fresh seed** — makes the interior lights (which the
-   guard already turns on) actually visible, and shows off the 87 seeded items the onboarding copy
-   is describing. Changes the signature first impression.
-3. **Accept it** — a dark exterior at 22:00 is honest, and the carousel is the focus anyway. But
-   then `firstPaintDaylight.ts`'s stated goal should be narrowed to "the interior, once you are in
-   it", because it does not currently hold for first paint.
-
-**Related to open item (a).** Note the daylight case is NOT dark (143.4, 0% near-black), so this is
-a separate axis from DEFAULT-GLOOM: (a) asks whether daytime interiors should be lit; this asks
-whether the night FIRST PAINT is legible at all.
+**Lesson recorded in the playbook:** a region mask built to exclude chrome can exclude the SUBJECT.
+Before quoting a masked statistic, render the mask and confirm it contains the thing being judged.
 
 ## `lightsMode` at boot — EXPLAINED, and it is a deliberate feature (v0.31.5.74)
 

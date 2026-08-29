@@ -18,6 +18,7 @@
  */
 import fs from 'node:fs'
 import puppeteer from 'puppeteer'
+import sharp from 'sharp'
 import { appUrl } from './lib.mjs'
 
 const OUT = process.env.OUT || '/tmp/bath-tile'
@@ -179,6 +180,71 @@ const flags = async () => {
     }
   })
   return f
+}
+
+// Scene-region luminance: everything OUTSIDE the modal card and the toolbar
+// (meta-rule lxxviii). A whole-canvas mean here is dominated by a big white card.
+const sceneStats = async (label) => {
+  const shot = await page.screenshot({ type: 'png' })
+  fs.writeFileSync(`${OUTDIR}/${TAG}-${label}.png`, shot)
+  const { data, info } = await sharp(shot)
+    .removeAlpha()
+    .resize(64, 40, { fit: 'fill' })
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  const lum = (k) => 0.2126 * data[k] + 0.7152 * data[k + 1] + 0.0722 * data[k + 2]
+  let sum = 0
+  let n = 0
+  let dark = 0
+  for (let y = 0; y < info.height; y++) {
+    for (let x = 0; x < info.width; x++) {
+      if ((x >= 20 && x <= 43 && y >= 9 && y <= 30) || y < 4) continue
+      const v = lum((y * info.width + x) * 3)
+      sum += v
+      n++
+      if (v < 24) dark++
+    }
+  }
+  return { mean: sum / n, dark: (100 * dark) / n }
+}
+
+// SEQUENCE=1 — drive the whole first-run journey through the STORE (robust; the
+// tooltip anchors move) and measure the scene at every stage: carousel -> the
+// 9 tour steps -> location prompt -> unobstructed. `tourSteps.ts` has no camera
+// fields, so the hypothesis under test is that the boot ORBIT pose persists
+// through all of it — i.e. `.75`'s dark screen is not a brief splash.
+if (process.env.SEQUENCE === '1') {
+  const row = async (label) => {
+    const st = await page.evaluate(() => {
+      const s = window.__store.getState()
+      return { tour: s.tourOpen ? s.tourStep : null, onb: s.onboardingOpen, cam: s.cameraMode }
+    })
+    const m = await sceneStats(label)
+    console.log(
+      `  ${label.padEnd(22)} cam=${String(st.cam).padEnd(11)} tour=${String(st.tour).padEnd(4)} ` +
+        `scene mean ${m.mean.toFixed(1).padStart(6)}  near-black ${m.dark.toFixed(1).padStart(5)}%`,
+    )
+  }
+  const steps = await page.evaluate(async () => {
+    const { TOUR_STEPS } = await import('/src/ui/tour/tourSteps.ts')
+    return TOUR_STEPS?.length ?? 9
+  })
+  console.log(`first-run SEQUENCE, wall clock ${TAG}:00, ${steps} tour steps\n`)
+  await row('1-carousel')
+  await page.evaluate(() => window.__store.getState().startTour())
+  await new Promise((r) => setTimeout(r, 1200))
+  for (let i = 0; i < steps; i++) {
+    await row(`2-tour-step${i}`)
+    await page.evaluate((c) => window.__store.getState().tourNext(c), steps)
+    await new Promise((r) => setTimeout(r, 700))
+  }
+  await row('3-after-tour')
+  await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
+  await new Promise((r) => setTimeout(r, 1200))
+  await row('4-unobstructed')
+  console.log(`\nframes -> ${OUTDIR}`)
+  await browser.close()
+  process.exit(0)
 }
 
 console.log(`first-run capture, wall clock ${TAG}:00\n`)

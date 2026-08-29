@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.76 — RETRACTION: `.75`'s first-paint defect was an instrument artefact
+
+No app code changed. The previous round's finding does not survive its own follow-up.
+
+**`.75` was wrong.** It claimed the after-dark first paint is "89% near-black" and that
+`ensureDaylightFirstPaint` "does not achieve" its documented goal. Both claims are withdrawn. The
+guard works, and there is no defect here.
+
+**The metric measured the void and masked out the subject.** `.75` took the mean and near-black
+fraction over everything OUTSIDE the modal card and toolbar. At 22:00 that region is dominated by
+the empty night background around the dollhouse — correctly black at 10 pm — and the card exclusion
+removes the CENTRE of the frame, which in an unobstructed shot is exactly where the flat is.
+
+Re-measured over the dollhouse region with no card exclusion: 13:00 reads 127.2 mid-tour and 142.3
+unobstructed (0.0% near-black); 22:00 reads **91.9** and **84.4**, and even that residual near-black
+is mostly background caught inside a rectangular sample of a non-rectangular model.
+
+**The frame settles it.** The unobstructed 22:00 shot shows a warmly lit, fully legible dollhouse —
+kitchen, living room with the TV and floor lamp glowing, bedrooms, the whole plan readable —
+against a black night sky. That is exactly what `firstPaintDaylight.ts` was written to produce.
+
+**What survives from `.75` and is worth keeping:** the first-run path had genuinely never been
+swept; `first-run.mjs` (suppresses nothing, pins the wall clock, drives the whole journey through
+the store) is a new instrument; and the sequence sweep established that **`cameraMode` stays
+`orbit` through all 9 tour steps** — the tour is UI-anchored tooltips, not camera moves, so it does
+not introduce unjudged poses and the `.56`–`.70` verdicts are unaffected.
+
 ## v0.31.5.75 — the daylight first-paint guard is measured against the wrong view
 
 No app code changed; the fix is a design call and is filed with options.

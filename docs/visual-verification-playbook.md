@@ -547,6 +547,26 @@ Two things to copy:
 - **Grep for every consumer before judging blast radius.** The comment named two features; the
   codebase had five call sites doing the same `toDataURL` on the main canvas.
 
+## A mask built to exclude CHROME can exclude the SUBJECT — render it before quoting it
+
+`.75` measured "scene legibility" as the mean and near-black fraction over everything outside the
+modal card and the toolbar, and reported the after-dark first paint as 89% near-black. `.76`
+retracted it. Two compounding errors, both invisible in the number:
+
+- **The excluded card region WAS the subject.** In an unobstructed shot there is no card there —
+  the dollhouse is. The mask deleted the only part of the frame worth measuring.
+- **The included region was mostly void.** At night the area around the model is black because it
+  is 10 pm. A "near-black fraction" over that is a measure of the sky, not of legibility.
+
+The daytime control did not catch it: at 13:00 the background is bright, so the same broken mask
+returned a healthy-looking number, which made the night figure look like a real contrast.
+
+**Rules:** before quoting a masked statistic, (a) render the mask — or the masked pixels — and
+confirm it contains the thing being judged; (b) prefer a mask derived from the SUBJECT (a raycast
+mask, a bounding box of the model) over one defined by what you want to remove; and (c) when a
+statistic implies "you cannot see X", go and look at X in the frame before writing it up. Here
+`/tmp/fr-seq/22-4-unobstructed.png` shows a warmly lit, perfectly legible flat.
+
 ## Every probe here suppresses the first-run path — so nobody had seen it
 
 `lib.mjs`-style probe heads seed `hdb_onboarded` in `evaluateOnNewDocument` and call
