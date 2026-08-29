@@ -28,6 +28,14 @@ interface EffectsProps {
    * else — no bloom, DoF, chromatic aberration, vignette, grain or SMAA.
    */
   full?: boolean
+  /**
+   * Mount the `N8AO` pass. `false` gives the MINIMAL composer — the view
+   * transform and nothing else — which is what the `performance` tier needs
+   * (WALL-NO-COMPOSER, v0.31.5.67): it has to mount a composer at all, because
+   * rendering straight into the `preserveDrawingBuffer: true` DEFAULT
+   * framebuffer drops interior wall faces, but it must not pay for AO.
+   */
+  ao?: boolean
   /** Render SSAO at full resolution (sharper, deeper) instead of half-res. */
   aoFullRes?: boolean
   /** Add the cinematic finish: faint film grain + subtle chromatic aberration. */
@@ -78,6 +86,7 @@ interface EffectsProps {
  */
 export default function EffectsImpl({
   full = true,
+  ao = true,
   aoFullRes = false,
   cinematic = false,
   dof = false,
@@ -122,16 +131,19 @@ export default function EffectsImpl({
     }),
   )
 
-  const effects: ReactElement[] = [
-    <N8AO
-      key="ao"
-      aoRadius={AO.aoRadius}
-      distanceFalloff={AO.distanceFalloff}
-      intensity={AO.intensity}
-      quality={aoFullRes ? 'high' : 'medium'}
-      halfRes={!aoFullRes}
-    />,
-  ]
+  const effects: ReactElement[] = []
+  if (ao) {
+    effects.push(
+      <N8AO
+        key="ao"
+        aoRadius={AO.aoRadius}
+        distanceFalloff={AO.distanceFalloff}
+        intensity={AO.intensity}
+        quality={aoFullRes ? 'high' : 'medium'}
+        halfRes={!aoFullRes}
+      />,
+    )
+  }
   // Raster depth of field (PC2-CAM-DOF-LENS). World-space focus (metres) so the
   // model matches the HQ path tracer; half-res (`resolutionScale`) to keep the
   // bokeh convolution cheap. Mounted only when DoF is enabled upstream.

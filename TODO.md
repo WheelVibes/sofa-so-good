@@ -4,64 +4,13 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
-## ROOT CAUSE FOUND: `preserveDrawingBuffer: true` + no EffectComposer drops interior walls (v0.31.5.65)
+## Interior walls dropped at `performance` — ✅ FIXED (WALL-NO-COMPOSER, v0.31.5.67)
 
-**Real product defect, reproduced in THREE environments. Root cause isolated to two interacting
-settings. The fix is a genuine trade-off and needs a decision — see options below.**
-
-**Discriminator:** centre-band mean luminance of `mainBedroom` yaw 2 — **~112 walls present,
-~151 walls gone**.
-
-| arm | centre | verdict |
-| --- | --- | --- |
-| `medium` baseline | 112.6 | present |
-| `performance` | 150.7 / 152.8 | **gone** |
-| `performance`, headless ANGLE-**gl** instead of metal | 150.5 | gone — not a Metal driver bug |
-| `performance`, **HEADFUL real Chrome window** | 150.7 | gone — **not a harness artefact** |
-| `performance` + `postprocessing=true` (composer mounts) | 112.5 | present |
-| `performance` + `antialias: false` | 150.7 | gone — MSAA exonerated |
-| `performance` + `polygonOffset` stripped (285 materials) | 152.8 | gone — exonerated |
-| `performance` + 12 forced extra renders (`PUMP=12`) | 150.7 | gone — **not a stale buffer** |
-| **`performance` + `preserveDrawingBuffer: false`** | **113.8** | **PRESENT** |
-
-**Mechanism.** `Scene.tsx` creates the canvas with `preserveDrawingBuffer: true`. Every tier
-except `performance` mounts an `EffectComposer` (`Effects.tsx:27` returns null only when
-`!postprocessing && !ao`), and a composer renders the scene into its OWN offscreen target — so the
-default framebuffer's flags never matter there. `performance` alone rasterises straight into the
-preserved default framebuffer, and in that combination interior wall faces are not drawn. It is
-persistent, not transient: twelve forced renders do not recover them.
-
-**Also refuted along the way:** all six tier settings individually, AO, `polygonOffset`, MSAA,
-missing geometry, culling, alpha, probe timing, stale composite, and any dither/discard path (none
-exists in the codebase).
-
-**Fix options — OPTION 1 IS NOW RULED OUT BY MEASUREMENT (v0.31.5.66).**
-
-1. ~~`preserveDrawingBuffer: false`~~ — **DEAD.** Five features read the main canvas with
-   `document.querySelector('canvas').toDataURL()` — `openReport`, `openMoodboard`,
-   `openShareCard`, `slotThumbs`, `NavCluster` — and none forces a render first. Measured
-   through the app's own readback path at `performance`:
-
-   | `preserveDrawingBuffer` | `toDataURL` size | mean lum | non-black | verdict |
-   | --- | --- | --- | --- | --- |
-   | `true` (shipped) | 1,434,094 B | 99.3 | 100.0% | real image |
-   | `false` | 30,786 B | 0.0 | 0.0% | **BLANK — capture broken** |
-
-   The flag is load-bearing exactly as its comment claims. Flipping it trades one defect for five.
-
-2. **Mount a composer when `!postprocessing && !ao`** — the leading candidate, but NOT
-   ship-ready as-is. `EffectsImpl` has **no no-effect mode**: it always mounts `N8AO`, so
-   `Effects.tsx` cannot currently return a *bare* composer. Doing this properly needs (a) an
-   `EffectsImpl` mode that mounts `EffectComposer` with no effects, and (b) a **frame-cost
-   measurement** — this adds an offscreen target plus a fullscreen blit to the one tier that
-   exists for weak devices, so `feature-price.mjs` / `frame-time.mjs` must price it BEFORE it
-   ships. Capture keeps working under this option because the composer blits to the canvas and
-   the flag stays on.
-3. **Render synchronously immediately before each readback** and drop the flag. Correct long-term
-   shape, but touches five call sites plus the `MediaRecorder`/`captureStream` path in
-   `recordViewTour.ts`, each needing its own verification.
-
-**Recommendation:** option 2, built properly and priced first; option 3 as the eventual cleanup.
+**Resolved 2026-08-29.** `Effects.tsx` no longer returns `null`: a composer mounts at every tier,
+with `ao={false}` keeping `N8AO` off at `performance`. Discriminator `mainBedroom` yaw 2:
+**150.7 -> 113.8** at `performance`, `medium` unchanged at 112.6. Capture still returns a real
+image (1.45 MB / 100% non-black). Priced at `performance`: p50 4.1 ms / p90 4.4 ms / 59.9 fps
+before AND after. Full write-up in `src/scene/CLAUDE.md`; `composerPlan()` pins the invariant.
 
 ## Curtain cuts through the bedside lamps — DIAGNOSED, fix is a CONTENT decision (v0.31.5.61)
 

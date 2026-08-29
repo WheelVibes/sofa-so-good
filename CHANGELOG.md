@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.67 — a composer mounts at every tier; `performance` gets its walls back
+
+**The fix.** `Effects.tsx` used to `return null` when a tier wanted neither the full post stack nor
+AO. Only `performance` has both false, so it alone rasterised straight into the canvas' DEFAULT
+framebuffer — created with `preserveDrawingBuffer: true` for the in-app PNG/video capture — and in
+that combination **interior wall faces were not drawn at all**. A composer now always mounts;
+`EffectsImpl` gained an `ao` prop so `N8AO` stays off at the tier that exists to avoid it.
+
+**Verified at the shipped state.** Discriminator (centre-band mean luminance, `mainBedroom` yaw 2;
+~112 walls present / ~151 gone): `performance` **150.7 → 113.8**, `medium` unchanged at **112.6**.
+The `walk-tour.mjs TIER=performance` frames now match `medium`. Capture still works: 1.45 MB,
+100% non-black.
+
+**Priced before shipping.** `frame-time.mjs` at `performance`, load ~2.0 on both runs: **before
+p50 4.1 ms / p90 4.4 ms / 59.9 fps; after p50 4.1 / p90 4.4 / 59.9.** Identical — a genuine null,
+not a failed mutation, since the same build moved the wall metric by 37 points.
+
+**The minimal composer is deliberately not empty:** under a composer three does not apply
+`gl.toneMapping`, so it must still carry `ToneMapping` + `HueSaturation` or the tier would render
+raw linear HDR.
+
+`composerPlan()` is a pure, unit-tested invariant: a composer mounts for every tier; `full`/`ao`
+decide only which passes it carries, never whether it exists.
+
+Closes a chain that began at `.62`. Along the way eleven arms refuted every other explanation —
+all six tier settings, AO itself, `polygonOffset`, MSAA, a stale buffer, missing geometry, culling,
+alpha, probe timing, and a dither/discard path that does not exist — and `.65`/`.66` established
+that the obvious one-line fix (`preserveDrawingBuffer: false`) would have blanked five capture
+features.
+
 ## v0.31.5.66 — the wall fix's blocker is resolved: flipping `preserveDrawingBuffer` is not an option
 
 No app code changed. `.65` left the fix blocked on one unknown — whether Export/Record survive

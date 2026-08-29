@@ -449,6 +449,39 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   · **One real defect found, and it is NOT a lighting defect** — see "Bedside lamp / curtain
     interpenetration" in `TODO.md`. It reproduces at 13:00 too; night only made it visible.
 
+- **A composer now mounts at EVERY tier, because `performance` without one dropped the interior
+  walls (WALL-NO-COMPOSER, v0.31.5.67).** `Effects.tsx` used to `return null` when a tier wanted
+  neither the full post stack nor AO. Only `performance` has both false, so it alone rasterised
+  straight into the canvas' DEFAULT framebuffer — which `Scene.tsx` creates with
+  `preserveDrawingBuffer: true` for the in-app PNG/video capture — and in that combination
+  **interior wall faces were not drawn at all.**
+  · **Discriminator:** centre-band mean luminance of `mainBedroom` yaw 2 — **~112 walls present,
+    ~151 gone**. Fixed: `performance` **150.7 -> 113.8**, `medium` unchanged at **112.6**.
+  · **Confirmed a real defect, not a harness artefact**, in three environments: headless
+    ANGLE-metal (150.7), headless ANGLE-**gl** (150.5) and a **headful real Chrome window**
+    (150.7). `performance` is the tier the capability ceiling drops phones to.
+  · **Eleven arms refuted everything else** before this: all six tier settings individually, AO
+    itself (`ao=false` + `postprocessing=true` → walls present, so AO is innocent and the composer
+    was the real variable), `polygonOffset` (stripped from 285 materials), MSAA
+    (`antialias: false`), a stale buffer (`PUMP=12` forced renders), missing geometry, culling,
+    alpha, probe timing, and any dither/discard path — no `discard` exists in the codebase.
+  · **`preserveDrawingBuffer: false` was the obvious one-line fix and is RULED OUT.** Five
+    features read the main canvas with `toDataURL` (`openReport`, `openMoodboard`,
+    `openShareCard`, `slotThumbs`, `NavCluster`) and none forces a render first. Measured through
+    the app's own readback: with the flag on, 1.43 MB / 100% non-black; with it off, **30 KB /
+    0.0% non-black — a blank PNG**. Note a puppeteer screenshot does NOT catch this: it uses the
+    browser compositor and works either way.
+  · **The minimal composer is not empty.** Under a composer three does NOT apply `gl.toneMapping`
+    (`toneMappingPost.ts`), so it must still carry `ToneMapping` + `HueSaturation` or the tier
+    would render raw linear HDR. `EffectsImpl` gained an `ao` prop so `N8AO` — the whole cost this
+    tier exists to avoid — stays off.
+  · **Priced before shipping (meta-rule lxviii).** `frame-time.mjs` at `performance`, load ~2.0
+    both runs: **before p50 4.1 ms / p90 4.4 ms / 59.9 fps; after p50 4.1 / p90 4.4 / 59.9.**
+    Identical — and this is a genuine null rather than a failed mutation, because the same build
+    moved the wall metric 150.7 -> 113.8 (meta-rule xxv).
+  · `composerPlan()` is the pure invariant, unit-tested: **a composer mounts for every tier**;
+    `full`/`ao` decide only which passes it carries, never whether it exists.
+
 - **Price a render feature in BOTH currencies, and against a measured noise floor**
   (`scripts/dev-probes/feature-price.mjs`). It applies one `qualityOverrides` change at a time and
   reports p90 frame cost in ms alongside two visual metrics. Measured at Maximum, 09:00, DPR 2,
