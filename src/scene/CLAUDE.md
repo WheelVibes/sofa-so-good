@@ -1296,3 +1296,29 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
     walk into a lit home is a product call, and re-tiering someone else\'s default on my own
     judgement is exactly what meta-rule (xiii)\'s scope forbids.
 
+
+- **The BOOT view holds up on the PERFORMANCE tier — the whole sweep's medium-tier findings
+  transfer (TIER-PARITY-BOOT, v0.31.5.82).** Every measurement in `.56`–`.81` was `tier=medium`,
+  but `quality.ts:tierForCapabilities` boots `performance` on software rasterisers, coarse
+  pointers (phone/tablet), no-WebGL2, and <4 cores — i.e. the tier many real users actually get.
+  `.67` had already found one performance-only wall defect, so the axis had paid before.
+  **Hypothesis: the flat tier's boot view differs materially from medium. FALSIFIED.**
+  · **`chroma-audit MODE=orbit TIER=performance` h9**: mean chroma **0.142**, 2.1% of pixels past
+    0.35 saturation, versus medium's 0.158 / 3.2%. The class ranking is unchanged down to 0.7%.
+    Chroma TRACKS rather than diverges, which is the live confirmation that `.67`'s always-mounted
+    composer keeps AgX on the flat tier — `postprocessing: false` no longer means "no tone map".
+  · **The no-IBL metalness cap is visible in the census.** `#d8dade` reads `metal 0.90` on medium
+    and **`metal 0.25`** on performance. That is the documented guard (`Wardrobe.tsx`, `.77`)
+    doing its job with `ibl: false`, not a discrepancy between tiers.
+  · **Grounding is measurably shallower, and that is the designed trade-off — not a defect.**
+    With `shadowMapSize: 0` and `ao: false`, the cheap `ContactShadow` blob is the only contact
+    cue. Differential A/B over identical pixel regions in the two orbit frames (so any framing
+    error cancels), reporting `(mean - p1)/mean`: round side table **46.7%** performance vs 66.6%
+    medium; sofa **42.4%** vs 54.8%. Shallower by 12–20 points, but a strong contact gradient is
+    plainly present — the furniture does not float, which is the property `quality.ts` calls RZ1.
+  · **Read that number for what it is.** The regions contain the furniture bodies as well as the
+    floor, so it conflates the contact blob with each piece's own shading and, on medium, with AO.
+    The gap is those three together, not the blob alone. It is adequate to answer "does it float";
+    it is NOT a measurement of the blob decal in isolation.
+  · `tier-look` at h13 (performance 180.8 / medium 178.21 / high 178.48, sd 22.09/23.09/22.22) was
+    a RE-RUN — the four-tier tone agreement was already on record. Meta-rule (xvii-b), eleventh round.

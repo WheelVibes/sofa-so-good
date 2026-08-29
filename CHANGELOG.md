@@ -5,6 +5,34 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.82 — the boot view holds up on the performance tier
+
+No app code changed. A clean audit on a new axis: every finding in `.56`–`.81` was measured at
+`tier=medium`, while `quality.ts:tierForCapabilities` boots `performance` on software rasterisers,
+coarse pointers, no-WebGL2 and <4 cores. `.67` had already found one performance-only wall defect,
+so this was the least-swept dimension left.
+
+**Hypothesis: the flat tier's boot view differs materially from medium. FALSIFIED.**
+`chroma-audit MODE=orbit TIER=performance` h9 gives mean chroma **0.142** and 2.1% of pixels past
+0.35 saturation, against medium's 0.158 / 3.2%, with the class ranking unchanged down to 0.7%.
+Chroma tracks rather than diverges — the live confirmation that `.67`'s always-mounted composer
+keeps AgX on the flat tier, so `postprocessing: false` no longer means "no tone map".
+
+**The no-IBL metalness cap is visible in the census**: `#d8dade` reads `metal 0.90` on medium and
+`metal 0.25` on performance — the documented guard (`Wardrobe.tsx`, `.77`) doing its job under
+`ibl: false`, not a tier discrepancy.
+
+**Grounding is shallower by design, not broken.** With `shadowMapSize: 0` and `ao: false` the cheap
+`ContactShadow` blob is the only contact cue. A differential A/B over identical pixel regions in the
+two orbit frames — so framing error cancels — reporting `(mean - p1)/mean`: round side table 46.7%
+performance vs 66.6% medium, sofa 42.4% vs 54.8%. Shallower by 12–20 points, but a strong contact
+gradient is plainly present; the furniture does not float. **Caveat recorded with the number**: the
+regions include the furniture bodies, so this conflates the blob with each piece's own shading and,
+on medium, with AO — it answers "does it float", it does not measure the decal in isolation.
+
+`tier-look` at h13 was a re-run; the four-tier tone agreement was already on record (meta-rule
+xvii-b, eleventh round).
+
 ## v0.31.5.81 — baseboard/crown and kitchen cabinetry are both correct
 
 No app code changed. A clean audit of the last two unjudged classes in the boot-view ranking,
