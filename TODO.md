@@ -4,47 +4,51 @@ Deferred-work log — **open items only**. `CHANGELOG.md` is the source of truth
 when an item ships it is **removed from this file entirely**. Maintainability refactors live in
 `TASKS.md`.
 
-## Walls vanish with NO EffectComposer — composer presence is decisive; MECHANISM STILL UNKNOWN (v0.31.5.64)
+## ROOT CAUSE FOUND: `preserveDrawingBuffer: true` + no EffectComposer drops interior walls (v0.31.5.65)
 
-**IMPORTANT CORRECTION to `.62`/`.63`: this has only ever been observed in HEADLESS
-puppeteer + ANGLE-Metal. It has NOT been reproduced in a real browser, so the earlier claim that
-"phones would see this" is UNSUPPORTED and should not be repeated until it is.** The next round's
-first job is to decide whether this is a product defect or a harness artefact.
+**Real product defect, reproduced in THREE environments. Root cause isolated to two interacting
+settings. The fix is a genuine trade-off and needs a decision — see options below.**
 
-**Discriminator:** centre-band mean luminance of `mainBedroom` yaw 2 — **~112 = walls present,
-~151 = walls gone**.
+**Discriminator:** centre-band mean luminance of `mainBedroom` yaw 2 — **~112 walls present,
+~151 walls gone**.
 
 | arm | centre | verdict |
 | --- | --- | --- |
-| `medium` (baseline) | 112.6 | present |
-| `performance` (two runs) | 150.7 / 152.8 | **gone** |
-| `medium` + `geometryDetail=0.7` / `ibl=false` / `shadowMapSize=0` / `dprMax=1` / `envResolution=64` | 112.4–113.2 | present — all exonerated |
-| `medium` + `ao=false` | 150.7 | gone |
-| `medium` + `ao=false` + `postprocessing=true` | 112.6 | present — **AO exonerated** |
-| **`performance` + `postprocessing=true`** (all else still performance) | **112.5** | **present** |
-| `performance` + `polygonOffset` stripped from 285 materials | 152.8 | gone — **polygonOffset exonerated** |
+| `medium` baseline | 112.6 | present |
+| `performance` | 150.7 / 152.8 | **gone** |
+| `performance`, headless ANGLE-**gl** instead of metal | 150.5 | gone — not a Metal driver bug |
+| `performance`, **HEADFUL real Chrome window** | 150.7 | gone — **not a harness artefact** |
+| `performance` + `postprocessing=true` (composer mounts) | 112.5 | present |
+| `performance` + `antialias: false` | 150.7 | gone — MSAA exonerated |
+| `performance` + `polygonOffset` stripped (285 materials) | 152.8 | gone — exonerated |
+| `performance` + 12 forced extra renders (`PUMP=12`) | 150.7 | gone — **not a stale buffer** |
+| **`performance` + `preserveDrawingBuffer: false`** | **113.8** | **PRESENT** |
 
-**Established:** the trigger is `src/scene/Effects.tsx:27` — `if (!postprocessing && !ao) return
-null`. Only `performance` has both false, so it alone renders with no `EffectComposer`, and forcing
-a composer on AT THAT TIER restores the walls with every other performance setting intact.
+**Mechanism.** `Scene.tsx` creates the canvas with `preserveDrawingBuffer: true`. Every tier
+except `performance` mounts an `EffectComposer` (`Effects.tsx:27` returns null only when
+`!postprocessing && !ao`), and a composer renders the scene into its OWN offscreen target — so the
+default framebuffer's flags never matter there. `performance` alone rasterises straight into the
+preserved default framebuffer, and in that combination interior wall faces are not drawn. It is
+persistent, not transient: twelve forced renders do not recover them.
 
-**Refuted so far:** all six tier settings individually except the composer gate; AO itself;
-`polygonOffset` on wall faces; missing geometry, culling, alpha, and probe timing (`.62` —
-`visible=true, opacity=1, transparent=false, colorWrite=true`, maps bound, frustum census identical
-at 354 meshes); and a dither/discard path (`.63` — no `discard` exists in the codebase).
+**Also refuted along the way:** all six tier settings individually, AO, `polygonOffset`, MSAA,
+missing geometry, culling, alpha, probe timing, stale composite, and any dither/discard path (none
+exists in the codebase).
 
-**The one structural difference left.** `Scene.tsx` creates the canvas with `antialias: true` and
-`preserveDrawingBuffer: true`. A composer renders into its OWN offscreen target (`EffectsImpl`
-notes this explicitly and compensates with `multisampling={4}`), so **the direct path is the only
-one that rasterises into a multisampled DEFAULT framebuffer**. MSAA + `preserveDrawingBuffer` on
-the default framebuffer under headless ANGLE-Metal is exactly where driver-level resolve bugs live
-— which is also why the environment caveat above matters.
+**Fix options — NOT decided, because both have real costs:**
+1. **`preserveDrawingBuffer: false`.** One-line, provably fixes it. But the prop is deliberate:
+   *"Keep the drawing buffer readable so the in-app Export (PNG) and Record (MP4/WebM) capture
+   features reliably grab rendered frames."* Dropping it risks breaking Export and Record, which
+   are user-facing and were NOT tested here.
+2. **Always mount a composer** (even an empty one) when `!postprocessing && !ao`. Fixes it without
+   touching capture — but adds an offscreen target and a fullscreen blit to the one tier whose
+   entire purpose is avoiding exactly that cost.
+3. **The correct long-term shape:** drop `preserveDrawingBuffer` and make Export/Record render
+   synchronously immediately before reading pixels, which is the standard pattern and removes the
+   need for a preserved buffer at all. Largest change, needs Export/Record regression testing.
 
-**Next steps, in order:** (1) reproduce or fail to reproduce OUTSIDE headless — a real browser via
-the interact harness, or `SHOT_GPU=1`; (2) if it reproduces, bisect the canvas config
-(`antialias: false`, then `preserveDrawingBuffer: false`) since neither is testable through
-`qualityOverrides`; (3) only then decide the fix — mounting an always-on composer is a heavy
-answer for a tier whose entire purpose is to avoid one.
+**Recommendation:** option 3 if Export/Record can be verified; option 2 as a safe interim. Option 1
+only with capture testing.
 
 ## Curtain cuts through the bedside lamps — DIAGNOSED, fix is a CONTENT decision (v0.31.5.61)
 

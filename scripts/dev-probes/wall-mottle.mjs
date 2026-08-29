@@ -36,7 +36,11 @@ const OUT = process.env.OUT || '/tmp/wall-mottle'
 fs.mkdirSync(OUT, { recursive: true })
 
 const browser = await puppeteer.launch({
-  headless: true,
+  // ENVIRONMENT ARMS (meta-rule lxiii). Every observation of the wall dissolve so
+  // far comes from ONE environment: headless + ANGLE-Metal. `ANGLE=gl` swaps the
+  // backend and `HEADFUL=1` runs a real browser window, so "is this a product
+  // defect or a driver/harness artefact" becomes a one-variable question.
+  headless: process.env.HEADFUL !== '1',
   // `runCostBreakdown` is ONE long `evaluate` call, and the paired baseline
   // (PROFILER-PAIRED-BASELINE) roughly doubles its length — past puppeteer's
   // 180 s default `protocolTimeout`, which kills the run mid-sweep with a
@@ -45,7 +49,7 @@ const browser = await puppeteer.launch({
   args: [
     '--no-sandbox',
     '--use-gl=angle',
-    '--use-angle=metal',
+    `--use-angle=${process.env.ANGLE || 'metal'}`,
     '--enable-gpu',
     '--ignore-gpu-blocklist',
     '--enable-webgl',
@@ -499,6 +503,21 @@ if (PICK) {
   // re-measure. Wall FACES are the only surfaces in the flat that set it
   // (`useWallFaceMaterial`), and they are also the only surfaces that vanish
   // when no composer mounts, so this asks directly whether the two are related.
+  // PUMP=n — force n extra renders before capturing. Distinguishes "the wall is
+  // never drawn" from "the drawing buffer was never repainted": under
+  // `frameloop="demand"` with `preserveDrawingBuffer: true`, an un-repainted
+  // canvas keeps whatever it last held, which at boot is the OUTSIDE orbit view
+  // (sky, city, ground) — exactly what the "missing walls" frames show.
+  if (process.env.PUMP) {
+    await page.evaluate(async (n) => {
+      const { advance } = window.__three
+      for (let i = 0; i < n; i++) {
+        advance(performance.now() / 1000 + i * 0.016)
+        await new Promise((r) => requestAnimationFrame(r))
+      }
+    }, Number(process.env.PUMP))
+    await new Promise((r) => setTimeout(r, 800))
+  }
   if (process.env.CLEARPOLY === '1') {
     const n = await page.evaluate(() => {
       let k = 0

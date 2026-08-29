@@ -452,6 +452,25 @@ framebuffer/driver-level difference remains, the next experiment is a DIFFERENT 
 twelfth arm in the same one.** State the caveat in the write-up the moment the suspicion arises,
 and correct earlier claims explicitly rather than letting them stand.
 
+## The environment arms that settle "product defect or harness artefact"
+
+`.64` correctly refused to call a headless-only observation a product defect. `.65` settled it with
+two cheap arms added to the probe itself, both one variable from the baseline:
+
+- **`ANGLE=gl`** — swap the ANGLE backend (default `metal`). If a defect survives a different
+  graphics backend it is not a backend driver bug.
+- **`HEADFUL=1`** — launch a real browser window instead of headless. If it survives that, it is
+  not a headless artefact.
+
+Both reproduced the wall dissolve to within 0.2 of the headless number, which is what promoted it
+from "suspicious" to "real". Add these to any capture probe before escalating a finding.
+
+A third arm is worth knowing about: **`PUMP=n` forces n extra renders before capture.** Under
+`frameloop="demand"` with `preserveDrawingBuffer: true`, an un-repainted canvas keeps whatever it
+last held — at boot, the OUTSIDE orbit view of sky, city and ground, which is exactly what a
+"missing walls" frame looks like. `PUMP` distinguishes "never drawn" from "never repainted". Here
+twelve renders changed nothing, which killed the stale-buffer reading and left the real cause.
+
 ## A surprising frame earns a STATE-VERIFICATION probe before it earns a diagnosis
 
 Meta-rule (xi) says dismissing a finding as a probe artefact needs its own evidence. The

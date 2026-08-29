@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.65 — root cause: `preserveDrawingBuffer` + no composer drops interior walls
+
+No app code changed — the fix is a real trade-off against Export/Record and needs a decision, not a
+unilateral edit. But the defect is now understood.
+
+**It is a product defect, not a harness artefact.** `.64` flagged that every observation came from
+headless ANGLE-Metal. Two new environments settle it: headless ANGLE-**gl** (150.5) and a
+**headful real Chrome window** (150.7) both reproduce it identically. The `.62`/`.63` phone
+inference is back on reasonable ground, though still an inference.
+
+**Root cause.** `Scene.tsx` creates the canvas with `preserveDrawingBuffer: true`. Every tier but
+`performance` mounts an `EffectComposer`, which renders the scene into its own offscreen target, so
+the default framebuffer's flags never matter. `performance` alone rasterises straight into the
+preserved default framebuffer — and in that combination interior wall faces are not drawn.
+Measured: `performance` + `preserveDrawingBuffer: false` → **113.8, walls present**, against the
+tier's own 150.7 / 152.8.
+
+**Refuted this round:** MSAA (`antialias: false` → still gone), and the stale-buffer reading
+(`PUMP=12` forced renders → still gone, so the walls genuinely fail to draw rather than the canvas
+holding an old frame). Together with `.63`/`.64` that clears all six tier settings, AO,
+`polygonOffset`, missing geometry, culling, alpha, probe timing and any dither/discard path.
+
+**Why no fix shipped.** `preserveDrawingBuffer: true` is deliberate — it keeps the buffer readable
+for the in-app Export (PNG) and Record (MP4/WebM) features. Turning it off is a one-line proven
+fix that risks breaking two user-facing features this round could not test. Three options with
+their costs are written up in `TODO.md`; the recommendation is to make Export/Record render
+synchronously before reading pixels (removing the need for the flag), with "always mount a
+composer" as a safe interim.
+
+`wall-mottle.mjs` gained `ANGLE=`, `HEADFUL=1` and `PUMP=n` — the environment and repaint arms.
+
 ## v0.31.5.64 — composer presence is decisive at the real tier, and an earlier claim is corrected
 
 No app code changed. Two more hypotheses refuted, the isolation tightened to the shipped tier, and
