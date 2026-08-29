@@ -543,3 +543,37 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
     says it is set wrong. The near-field hot spots BLOOM-NIGHT-NEARFIELD found are ordinary
     1/d² behaviour, not an intensity error.
 
+- **First furniture audit of the run: the chroma ranking is topped by the wardrobe metal, and it is
+  CORRECT (FURNITURE-CHROMA, v0.31.5.77).** With the shell verified (`.56`–`.76`), `chroma-audit.mjs`
+  was re-run to pick the next target by measurement rather than hunch. Walk mode, medium, three
+  poses, run at 21:11 local (so the flat booted `lightsMode: 'on'` per `ensureDaylightFirstPaint`):
+
+  | pose | top chroma budget (coverage x saturation) |
+  | --- | --- |
+  | living | **2.6** `#7a5c3c` wood, sat 0.51, 5.2% cover, mapped |
+  | dining | **1.6** `#b9b0a0` sat 0.14, 11.6% cover |
+  | bedroom | **3.4** `#b8bcc0` sat 0.04, **82.3%** cover, metal 0.75, NO maps |
+
+  · **`#b8bcc0` is the sliding wardrobe's frame metal** — `class-id.mjs` finds 6 instances,
+    `Group{itemId}` (furniture), `0.49 x 2.04 x 0.03` in runs of three, matching
+    `defaults/mainBedroom.ts`'s `wardrobe-3door` (`width 1.4`, `doorStyle 'sliding'`).
+  · **The obvious hypothesis was already found and fixed — meta-rule (xvii-b), seventh round
+    running.** `primitives/Wardrobe.tsx` routes it through `getSolidMaterial` *"rather than spread
+    inline, so it inherits the no-IBL metalness cap: at 0.75 metalness with no environment to
+    reflect, these ~1 m² frame panels rendered as **black slabs** on the default Performance tier
+    (Chrome audit 2026-08)"*. Door faces additionally use a tier-aware `MirrorMaterial` (real
+    planar reflection on High/Maximum, a cheap fake-shiny fallback below).
+  · **The frame confirms the fix holds.** `/tmp/ssg-chroma/walk-bedroom-medium-h13.png` shows satin
+    metal with soft broad specular blooms and a correct vertical seam — not black slabs, not
+    plastic. Featureless at nose distance (metal 0.75, rough 0.35, no maps), but a metal wardrobe
+    door IS smooth; this is the same situation as the vinyl bifold in `.58`, where flat was right.
+  · **The 82.3% is a POSE ARTEFACT, not a coverage claim.** `chroma-audit`'s bedroom pose stands
+    in `bedroom2` essentially against the wardrobe, so its doors fill the frame. Quote it as "82%
+    of THAT pose", never as the wardrobe's share of the walk view — the pose-honest census
+    (`.71`/`.72`) is the authority for that. Same lesson as `.71`, one probe further on.
+  · **The shared furniture WOOD painter is healthy.** `surface-detail.mjs DEF=wardrobe-3door`
+    seeds the carcass (`#caa478`, 17 materials share the tile) and measures **microcontrast
+    0.959**, chroma 0.602, mean 91.9, sigma 19.00 — on par with the plaster's post-fix 0.961.
+    Note this is the SAME class `.58` labelled "a furniture wall-slat panel"; it is a shared wood
+    tile used by many pieces, so treat that earlier label as "one member of a shared painter"
+    rather than as an identification of the class.

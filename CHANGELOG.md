@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.77 — first furniture audit: the wardrobe metal tops the chroma ranking and is correct
+
+No app code changed. A clean audit, plus one correction to how a coverage figure should be quoted.
+
+With the shell verified end to end, `chroma-audit.mjs` picked the next target by measurement.
+Walk mode, medium, three poses, run 21:11 local (so the flat booted `lightsMode: 'on'`):
+living is topped by wood `#7a5c3c` (budget 2.6), dining by `#b9b0a0` (1.6), and bedroom by
+**`#b8bcc0` at budget 3.4 — 82.3% coverage, metal 0.75, no maps**.
+
+**`#b8bcc0` is the sliding wardrobe's frame metal** — 6 instances, `Group{itemId}`, 0.49 × 2.04 in
+runs of three, matching `defaults/mainBedroom.ts`'s `wardrobe-3door`.
+
+**The obvious hypothesis was already found and fixed — meta-rule (xvii-b), seventh round running.**
+`primitives/Wardrobe.tsx` routes the material through `getSolidMaterial` *"so it inherits the
+no-IBL metalness cap: at 0.75 metalness with no environment to reflect, these ~1 m² frame panels
+rendered as black slabs on the default Performance tier (Chrome audit 2026-08)"*. The frame
+confirms it holds: satin metal with soft specular blooms and a correct seam, not black slabs and
+not plastic. Featureless at nose distance, but a metal wardrobe door is smooth — the same
+situation as `.58`'s vinyl bifold.
+
+**The 82.3% is a POSE ARTEFACT.** `chroma-audit`'s bedroom pose stands essentially against the
+wardrobe in `bedroom2`, so its doors fill the frame. It must be quoted as "82% of that pose", never
+as the wardrobe's share of the walk view — the pose-honest census (`.71`/`.72`) is the authority
+there. Same lesson as `.71`, one probe further on.
+
+**The shared furniture wood painter is healthy:** `surface-detail.mjs DEF=wardrobe-3door` measures
+**microcontrast 0.959** (chroma 0.602, mean 91.9, sigma 19.00) over the 17 materials sharing that
+tile — on par with the plaster's post-fix 0.961. Note this is the same class `.58` called "a
+furniture wall-slat panel"; it is a shared wood tile used by many pieces, so that earlier label is
+one member of a shared painter rather than an identification of the class.
+
 ## v0.31.5.76 — RETRACTION: `.75`'s first-paint defect was an instrument artefact
 
 No app code changed. The previous round's finding does not survive its own follow-up.
