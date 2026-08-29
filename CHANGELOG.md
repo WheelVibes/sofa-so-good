@@ -5,6 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.78 — fix a stale wood-detail arm that was measuring the opposite of its label
+
+No app code changed. One dev-probe fix, plus a clean audit of the flat's highest-saturation class.
+
+`.77` left `#7a5c3c` (sat 0.51, the highest in the flat) as the next target.
+`class-id.mjs COLOURS=7a5c3c` names it: 8 meshes, all under `Group{itemId}` — the four
+dining chairs (seat + back). Meta-rule (xvii-b) pays for the eighth round running — the repo
+had already measured this exact hex in TONE-CURVE-CHOICE (v0.31.5.6), which moved the default
+view transform to AgX. Re-running `wood-detail.mjs` confirms the fix still ships: baseline is
+byte-identical to the explicit-AgX arm (`meanAbsDiff 0.00`), while explicit filmic costs chroma
+0.601 → 0.750 with 6.6x the clipping, reproducing the recorded "4–7x".
+
+**The probe fix.** Arm O called `setSceneSaturation(0.94)`, derived from
+`BASE_POST_SATURATION = 0.06`. POST-SAT-NEUTRAL later shipped that constant as `0`, so 0.94
+resolved to `-0.06`: the arm silently stopped being "post saturation off" (by then a no-op)
+and became "0.06 below neutral", reporting a 0.037 chroma drop that reads like a live,
+shippable lever when the lever is in fact already pulled. The app side was never wrong —
+`look.colorGrade.test.ts` pins the constant to 0 — the drift lived in the probe, outside the
+test net. Arm O is re-pointed at the question still open: restoring the historical `+0.06`
+now measures what the shipped fix keeps buying, **chroma 0.601 → 0.643** and 97.8% → 99.0% of
+wood pixels past 0.35 saturation. Baseline and the noise arm held at 0.601 with a 0.00 noise
+floor, so only the arm moved.
+
+**Also measured.** `chroma-audit MODE=orbit` (the boot view, never run in `.77`) reorders the
+ranking: `#7a5c3c` falls to 0.7% cover there, versus 5.2% in the walk/living pose — quote the
+pose with any coverage figure. The largest surface in the boot frame, 38.5% of rays, is the
+sky dome (`scene/lighting/Sky.tsx`, unlit `MeshBasicMaterial`, sat 0.00) — correct by
+construction and zero chroma budget.
+
 ## v0.31.5.77 — first furniture audit: the wardrobe metal tops the chroma ranking and is correct
 
 No app code changed. A clean audit, plus one correction to how a coverage figure should be quoted.

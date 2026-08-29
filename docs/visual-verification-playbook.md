@@ -3209,3 +3209,27 @@ threshold, but the long continuous rail exceeded it (104 cm²) and
 balusters/rail to `width/2 - RAIL_T` (a ~2 cm gap from the tread edge) — also more
 realistic (a set-in guard). Re-shoot after ANY geometry tweak: the inset is 2 cm and
 invisible-looking but the harness is exact.
+
+**Gotcha — a probe that HARDCODES a value derived from a source constant goes stale
+SILENTLY, and keeps printing a plausible number.** `wood-detail.mjs`'s arm O called
+`setSceneSaturation(0.94)` with the comment *"`hueSatSaturation` = BASE_POST_SATURATION
+(0.06) + (sceneSaturation - 1), so 0.94 puts the HueSaturation pass at exactly 0"*. That
+was correct when it was written. POST-SAT-NEUTRAL then shipped `BASE_POST_SATURATION = 0`
+in `src/scene/look.ts`, so 0.94 resolved to `0 + (0.94 - 1) = -0.06`: the arm quietly
+stopped being *"post saturation off"* (by then a no-op) and became *"0.06 BELOW neutral"*.
+It never errored. It reported a 0.037 chroma drop that reads exactly like a live, shippable
+lever — when the honest reading is that the lever is already pulled.
+· **The app side was fine and TESTED** (`look.colorGrade.test.ts` pins
+  `BASE_POST_SATURATION` to 0). The drift lived entirely in the dev probe, which is outside
+  the test net — so "the constant is unit-tested" does NOT protect its consumers in `scripts/`.
+· **Symptom to watch for:** an arm whose label describes a state the app already ships should
+  read a `meanAbsDiff` of ~0. If a supposed no-op arm moves the picture, the arm is lying about
+  what it does — do not write up the delta until you have re-derived the arm from the constant.
+· **Fix pattern:** name the magic number after what it historically WAS
+  (`HISTORICAL_POST_SATURATION = 0.06`), comment it back to the live constant, and re-point the
+  arm at the question still open — here, what the shipped fix keeps buying (chroma 0.601 →
+  0.643 restoring the pre-fix baseline, i.e. the fix is worth 0.042 on wood pixels).
+· **A Node-scope constant is NOT visible inside `page.evaluate`.** Thread it through as an
+  argument (`page.evaluate((k, histPostSat) => …, key, HISTORICAL_POST_SATURATION)`) or the arm
+  dies with a `ReferenceError` in browser context. Same family as "when slicing a probe head,
+  keep the IMPORTS".

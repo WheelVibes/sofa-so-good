@@ -47,6 +47,13 @@ const TIER = process.env.TIER || 'medium'
 const DSF = Number(process.env.DSF || 2)
 const HOUR = Number(process.env.HOUR || 9)
 const MODE = process.env.MODE || 'walk'
+
+// The HueSaturation baseline this app shipped BEFORE POST-SAT-NEUTRAL. The live
+// value is `BASE_POST_SATURATION` in `src/scene/look.ts` (now 0, pinned by
+// `look.colorGrade.test.ts`); this is the historical number arm O restores so the
+// shipped fix's ongoing benefit stays measurable. Do NOT re-hardcode the derived
+// `sceneSaturation` — that is what went stale when the constant moved to 0.
+const HISTORICAL_POST_SATURATION = 0.06
 fs.mkdirSync(OUT, { recursive: true })
 
 const browser = await puppeteer.launch({
@@ -216,113 +223,121 @@ if (!found.woods) {
 }
 
 async function applyCase(key) {
-  await page.evaluate((k) => {
-    const wd = window.__wood
-    // Restore the grade too, or a tone case leaks into every later one.
-    window.__store.getState().setToneMapping('auto')
-    window.__store.getState().setSceneSaturation(1)
-    for (const o of wd.orig) {
-      o.m.map = o.map
-      o.m.normalMap = o.normalMap
-      o.m.map.repeat.set(...o.repeat)
-      o.m.normalMap.repeat.set(...o.nRepeat)
-      o.m.roughnessMap.repeat.set(...o.rRepeat)
-      o.m.color.copy(o.color)
-      o.m.normalScale.copy(o.normalScale)
-      o.m.roughness = o.roughness
-      o.m.needsUpdate = true
-    }
-    const scaleRepeat = (f) => {
+  await page.evaluate(
+    (k, histPostSat) => {
+      const wd = window.__wood
+      // Restore the grade too, or a tone case leaks into every later one.
+      window.__store.getState().setToneMapping('auto')
+      window.__store.getState().setSceneSaturation(1)
       for (const o of wd.orig) {
-        o.m.map.repeat.set(o.repeat[0] * f, o.repeat[1] * f)
-        o.m.normalMap.repeat.set(o.nRepeat[0] * f, o.nRepeat[1] * f)
-        o.m.roughnessMap.repeat.set(o.rRepeat[0] * f, o.rRepeat[1] * f)
+        o.m.map = o.map
+        o.m.normalMap = o.normalMap
+        o.m.map.repeat.set(...o.repeat)
+        o.m.normalMap.repeat.set(...o.nRepeat)
+        o.m.roughnessMap.repeat.set(...o.rRepeat)
+        o.m.color.copy(o.color)
+        o.m.normalScale.copy(o.normalScale)
+        o.m.roughness = o.roughness
+        o.m.needsUpdate = true
       }
-    }
-    if (k === 'B') scaleRepeat(4)
-    if (k === 'C') scaleRepeat(8)
-    if (k === 'D') for (const m of wd.mats) m.map = null
-    if (k === 'E') {
-      if (!wd.flat) {
-        // The wood albedo is built by `canvasFrom`, so its image IS a canvas and
-        // can be read back. Lerp every pixel halfway to the tile's own mean:
-        // the grain PATTERN survives, its banding amplitude halves.
-        const srcCanvas = wd.orig[0].map.image
-        const S = srcCanvas.width
-        const sctx = srcCanvas.getContext('2d')
-        const data = sctx.getImageData(0, 0, S, S)
-        let sum = 0
-        for (let i = 0; i < data.data.length; i += 4) sum += data.data[i]
-        const mean = sum / (data.data.length / 4)
-        for (let i = 0; i < data.data.length; i += 4) {
-          const v = mean + (data.data[i] - mean) * 0.5
-          data.data[i] = data.data[i + 1] = data.data[i + 2] = v
+      const scaleRepeat = (f) => {
+        for (const o of wd.orig) {
+          o.m.map.repeat.set(o.repeat[0] * f, o.repeat[1] * f)
+          o.m.normalMap.repeat.set(o.nRepeat[0] * f, o.nRepeat[1] * f)
+          o.m.roughnessMap.repeat.set(o.rRepeat[0] * f, o.rRepeat[1] * f)
         }
-        const cv = document.createElement('canvas')
-        cv.width = S
-        cv.height = S
-        cv.getContext('2d').putImageData(data, 0, 0)
-        const T = wd.orig[0].map.constructor
-        const t = new T(cv)
-        const s0 = wd.orig[0].map
-        t.wrapS = s0.wrapS
-        t.wrapT = s0.wrapT
-        t.colorSpace = s0.colorSpace
-        t.anisotropy = s0.anisotropy
-        t.repeat.copy(s0.repeat)
-        t.needsUpdate = true
-        wd.flat = t
       }
-      for (const m of wd.mats) m.map = wd.flat
-    }
-    if (k === 'F') {
-      // Desaturate toward ~0.33 sRGB saturation while HOLDING luminance, so the
-      // case isolates chroma and can't be confused with a brightness change.
-      for (const o of wd.orig) {
-        const c = o.m.color
-        const hsl = { h: 0, s: 0, l: 0 }
-        c.getHSL(hsl)
-        // three's getHSL works in linear-light; converting the target through
-        // the same space keeps the comparison honest.
-        c.setHSL(hsl.h, hsl.s * 0.55, hsl.l)
+      if (k === 'B') scaleRepeat(4)
+      if (k === 'C') scaleRepeat(8)
+      if (k === 'D') for (const m of wd.mats) m.map = null
+      if (k === 'E') {
+        if (!wd.flat) {
+          // The wood albedo is built by `canvasFrom`, so its image IS a canvas and
+          // can be read back. Lerp every pixel halfway to the tile's own mean:
+          // the grain PATTERN survives, its banding amplitude halves.
+          const srcCanvas = wd.orig[0].map.image
+          const S = srcCanvas.width
+          const sctx = srcCanvas.getContext('2d')
+          const data = sctx.getImageData(0, 0, S, S)
+          let sum = 0
+          for (let i = 0; i < data.data.length; i += 4) sum += data.data[i]
+          const mean = sum / (data.data.length / 4)
+          for (let i = 0; i < data.data.length; i += 4) {
+            const v = mean + (data.data[i] - mean) * 0.5
+            data.data[i] = data.data[i + 1] = data.data[i + 2] = v
+          }
+          const cv = document.createElement('canvas')
+          cv.width = S
+          cv.height = S
+          cv.getContext('2d').putImageData(data, 0, 0)
+          const T = wd.orig[0].map.constructor
+          const t = new T(cv)
+          const s0 = wd.orig[0].map
+          t.wrapS = s0.wrapS
+          t.wrapT = s0.wrapT
+          t.colorSpace = s0.colorSpace
+          t.anisotropy = s0.anisotropy
+          t.repeat.copy(s0.repeat)
+          t.needsUpdate = true
+          wd.flat = t
+        }
+        for (const m of wd.mats) m.map = wd.flat
       }
-    }
-    if (k === 'G') for (const m of wd.mats) m.normalMap = null
-    // TONE / GRADE cases. These touch no material at all — they ask whether the
-    // saturation is being ADDED by the view transform rather than authored. The
-    // arithmetic says a #7a5c3c albedo (sRGB HSV saturation 0.508) rendered at
-    // the measured mean luminance of ~58/255 should encode to ~0.54; the wood
-    // measures 0.83, so ~0.3 comes from somewhere downstream.
-    if (k === 'L') window.__store.getState().setToneMapping('neutral')
-    if (k === 'M') window.__store.getState().setToneMapping('agx')
-    if (k === 'N') window.__store.getState().setToneMapping('filmic')
-    // `hueSatSaturation` = BASE_POST_SATURATION (0.06) + (sceneSaturation - 1),
-    // so 0.94 puts the HueSaturation pass at exactly 0.
-    if (k === 'O') window.__store.getState().setSceneSaturation(0.94)
-    if (k === 'P') {
-      // Hold hue and saturation, raise LIGHTNESS — isolates how much of the
-      // measured chroma is simply an artefact of the surface being dark.
-      for (const o of wd.orig) {
-        const hsl = { h: 0, s: 0, l: 0 }
-        o.m.color.getHSL(hsl)
-        o.m.color.setHSL(hsl.h, hsl.s, Math.min(1, hsl.l * 1.8))
+      if (k === 'F') {
+        // Desaturate toward ~0.33 sRGB saturation while HOLDING luminance, so the
+        // case isolates chroma and can't be confused with a brightness change.
+        for (const o of wd.orig) {
+          const c = o.m.color
+          const hsl = { h: 0, s: 0, l: 0 }
+          c.getHSL(hsl)
+          // three's getHSL works in linear-light; converting the target through
+          // the same space keeps the comparison honest.
+          c.setHSL(hsl.h, hsl.s * 0.55, hsl.l)
+        }
       }
-    }
-    if (k === 'I') for (const m of wd.mats) m.roughness = 0.65
-    if (k === 'J') for (const m of wd.mats) m.roughness = 0.8
-    if (k === 'K') {
-      // The candidate ship: a satin-matte lacquer plus a photographic chroma.
-      for (const o of wd.orig) {
-        const hsl = { h: 0, s: 0, l: 0 }
-        o.m.color.getHSL(hsl)
-        o.m.color.setHSL(hsl.h, hsl.s * 0.55, hsl.l)
-        o.m.roughness = 0.7
+      if (k === 'G') for (const m of wd.mats) m.normalMap = null
+      // TONE / GRADE cases. These touch no material at all — they ask whether the
+      // saturation is being ADDED by the view transform rather than authored. The
+      // arithmetic says a #7a5c3c albedo (sRGB HSV saturation 0.508) rendered at
+      // the measured mean luminance of ~58/255 should encode to ~0.54; the wood
+      // measures 0.83, so ~0.3 comes from somewhere downstream.
+      if (k === 'L') window.__store.getState().setToneMapping('neutral')
+      if (k === 'M') window.__store.getState().setToneMapping('agx')
+      if (k === 'N') window.__store.getState().setToneMapping('filmic')
+      // `hueSatSaturation` = BASE_POST_SATURATION + (sceneSaturation - 1).
+      // POST-SAT-NEUTRAL shipped BASE_POST_SATURATION = 0, so "turn the baseline
+      // off" is now a NO-OP and this arm was silently measuring -0.06 (0.06 BELOW
+      // neutral) for as long as the old hardcoded 0.94 survived the constant change.
+      // Point it at the question that is still open instead: what the shipped fix
+      // keeps buying, by restoring the historical pre-fix baseline of +0.06.
+      if (k === 'O') window.__store.getState().setSceneSaturation(1 + histPostSat)
+      if (k === 'P') {
+        // Hold hue and saturation, raise LIGHTNESS — isolates how much of the
+        // measured chroma is simply an artefact of the surface being dark.
+        for (const o of wd.orig) {
+          const hsl = { h: 0, s: 0, l: 0 }
+          o.m.color.getHSL(hsl)
+          o.m.color.setHSL(hsl.h, hsl.s, Math.min(1, hsl.l * 1.8))
+        }
       }
-    }
-    for (const m of wd.mats) m.needsUpdate = true
-    const st = window.__store.getState()
-    st.setManualHour(st.manualHour)
-  }, key)
+      if (k === 'I') for (const m of wd.mats) m.roughness = 0.65
+      if (k === 'J') for (const m of wd.mats) m.roughness = 0.8
+      if (k === 'K') {
+        // The candidate ship: a satin-matte lacquer plus a photographic chroma.
+        for (const o of wd.orig) {
+          const hsl = { h: 0, s: 0, l: 0 }
+          o.m.color.getHSL(hsl)
+          o.m.color.setHSL(hsl.h, hsl.s * 0.55, hsl.l)
+          o.m.roughness = 0.7
+        }
+      }
+      for (const m of wd.mats) m.needsUpdate = true
+      const st = window.__store.getState()
+      st.setManualHour(st.manualHour)
+    },
+    key,
+    HISTORICAL_POST_SATURATION,
+  )
   await new Promise((r) => setTimeout(r, 1200))
   await page.evaluate((v) => {
     const { camera } = window.__three
@@ -463,7 +478,7 @@ const CASES = [
   { key: 'L', label: 'tone: NEUTRAL (Khronos)' },
   { key: 'M', label: 'tone: AgX' },
   { key: 'N', label: 'tone: filmic (explicit)' },
-  { key: 'O', label: 'post saturation 0.06 -> 0' },
+  { key: 'O', label: 'post saturation 0 -> +0.06 (pre-fix)' },
   { key: 'P', label: 'colour lightened x1.8' },
   { key: 'H', label: 'baseline repeated (noise)' },
 ]
@@ -503,6 +518,6 @@ show('A vs K  (candidate: desat + rough 0.7)', 'K')
 show('A vs L  (tone neutral)', 'L')
 show('A vs M  (tone AgX)', 'M')
 show('A vs N  (tone filmic explicit)', 'N')
-show('A vs O  (post saturation off)', 'O')
+show('A vs O  (historical post-sat, pre POST-SAT-NEUTRAL)', 'O')
 show('A vs P  (lightened x1.8)', 'P')
 await browser.close()

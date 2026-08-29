@@ -577,3 +577,32 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
     Note this is the SAME class `.58` labelled "a furniture wall-slat panel"; it is a shared wood
     tile used by many pieces, so treat that earlier label as "one member of a shared painter"
     rather than as an identification of the class.
+
+- **The flat's highest-SATURATION class was already solved, and the ORBIT ranking is not the walk
+  ranking (WOOD-ARM-STALE, v0.31.5.78).** `.77` left `#7a5c3c` (sat 0.51, budget 2.6 in the living
+  pose) as the next target. `class-id.mjs COLOURS=7a5c3c` finds **8 meshes, all under
+  `Group{itemId}`** — four dining chairs, each a `0.44 x 0.05 x 0.44` seat at y=0.43 plus a
+  `0.44 x 0.46 x 0.04` back at y=0.69, clustered at x≈10.65/11.35, z≈4.85–6.75. The neighbouring
+  `#9e7b53` (sat 0.47) is the dining/side **table top** (`primitives/DiningTable.tsx`,
+  `SideTable.tsx`), so both warm woods in the boot view are the same dining set.
+  · **Meta-rule (xvii-b) pays for the EIGHTH round running.** `materials/CLAUDE.md` already
+    measured this exact hex: TONE-CURVE-CHOICE (v0.31.5.6, shipped with the user's sign-off)
+    decomposed its 0.508 albedo saturation and moved the default view transform to AgX.
+    Re-running the same instrument today (`wood-detail.mjs`, walk/Medium/09:00) **confirms the fix
+    still ships**: baseline is byte-identical to the explicit-AgX arm (`meanAbsDiff 0.00`,
+    `pixels>8 = 0.00%`), while explicit filmic costs chroma **0.601 → 0.750** with **6.6x** the
+    clipping (0.0028 → 0.0185), reproducing the recorded "4–7x". Effect size holds too: today's
+    filmic/AgX ratio is 1.248 vs the originally published 1.229. Nothing to fix; do not re-audit.
+  · **Read the two numbers as DIFFERENT metrics.** The published 0.833/0.678 pair is wood-pixel
+    *saturation*; this table's column is *chroma*. They are not comparable term-for-term — compare
+    the ratio, not the absolute.
+  · **`chroma-audit MODE=orbit` reorders the ranking, and orbit is the BOOT view.** `.77` ran walk
+    only. In orbit/medium/09:00 `#7a5c3c` falls to **0.7%** cover (budget 0.4, sixth) from 5.2% in
+    the walk/living pose — so the flat's highest-saturation class is nearly absent from the first
+    frame a user sees. Rendered frame: mean chroma 0.158, 3.2% of pixels past 0.35 saturation,
+    consistent with the shipped AgX row. **Always state which pose a coverage figure came from**
+    (meta-rule lxxxi); walk-pose budgets do not rank the boot view.
+  · **The largest surface in the boot frame is the SKY, and it is correct by construction.** 38.5%
+    of orbit rays hit a white mapped `MeshBasicMaterial` — `scene/lighting/Sky.tsx:129`, drawn
+    `side={BackSide}`, `depthWrite={false}`, `fog={false}`. Unlit on purpose, sat 0.00, so it
+    carries zero chroma budget. Being top of a coverage table is not being a defect (meta-rule lii).
