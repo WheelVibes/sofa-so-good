@@ -12,6 +12,36 @@ with `ao={false}` keeping `N8AO` off at `performance`. Discriminator `mainBedroo
 image (1.45 MB / 100% non-black). Priced at `performance`: p50 4.1 ms / p90 4.4 ms / 59.9 fps
 before AND after. Full write-up in `src/scene/CLAUDE.md`; `composerPlan()` pins the invariant.
 
+## ⚠️ DEFAULT-GLOOM's premise may be STALE — `lightsMode` resolved `on` at boot (v0.31.5.72)
+
+**Flag on open item (a), not a resolution. Re-verify before acting on that item.**
+
+`.54` DEFAULT-GLOOM is the biggest open lever reported to the user: "`lightsMode` defaults to
+`'off'`, and lights-on is worth 2.3–2.5× brightness in every room". Two clean runs this round
+contradict the first half:
+
+| run | tier | hour | `LIGHTS` env | resolved `lightsMode` |
+| --- | --- | --- | --- | --- |
+| `.72` walk-tour | medium | 8 | **not set** | **`on`** |
+| `.72` walk-tour | medium | 13 | **not set** | **`on`** |
+| `.62` walk-tour | performance | 13 | not set | `off` |
+| `.68` walk-tour | maximum | 13 | not set | `off` |
+
+So it is NOT hour-dependent (8 and 13 agree), and `uiSlice.ts` still initialises
+`lightsMode: 'off'` with nothing in `src/` auto-setting it — `schema.ts` does allow an
+`'auto' | 'on' | 'off'` enum, and the value is persisted. The runs that read `off` all passed an
+explicit `TIER=`; the runs that read `on` did not. That correlation is probably spurious but it is
+the only structural difference visible so far.
+
+**Why it matters:** if the flat sometimes boots with lights ON, then "the out-of-box walk-through
+reads at ~40% of its lit brightness" is not unconditionally true, and the user should not act on
+`.54` until this is settled.
+
+**Next step:** boot with NO probe env at all and read `lightsMode` immediately after `sceneReady`,
+before any tier/hour/camera call — i.e. isolate whether some setup step in the probes flips it,
+rather than the app. Then re-run `default-gloom.mjs`, which prints each arm's own `lightsMode`, and
+confirm or retract `.54`'s premise explicitly (meta-rule lxiv).
+
 ## Curtain cuts through the bedside lamps — DIAGNOSED, fix is a CONTENT decision (v0.31.5.61)
 
 **Mechanism settled. The remaining question is a design choice, not a rendering one, so it is

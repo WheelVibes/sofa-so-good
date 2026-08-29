@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.72 — the pose-honest per-class ranking promotes nothing unjudged; a flag on DEFAULT-GLOOM
+
+No app code changed.
+
+**The first genuinely pose-honest PER-CLASS priority list.** The three `classes.json` dumps joined
+at 20/60/20 down/level/up, each pose's own share shown so the weighting can be argued with. The
+top 20 is dominated by classes already fixed or judged — plaster faces, wall tile, metal doors,
+curtains, wooden leaf, shower glass, bifold. **The only large promotion is the ceiling** (≈23rd on
+the level table → 10th weighted), and `.70` already judged it clean.
+
+**The one top-20 class never individually examined turns out to have been examined under another
+name.** `#f1f0ec` resolves via `class-id.mjs` to 34 full-height slabs (W × 2.6 × 0.2–0.3, rough
+0.95, no maps) around the perimeter — the structural **wall BODY**, as distinct from the mapped
+wall FACE. It is the only class whose coverage rises at BOTH off-level poses (2.45 down / 1.97
+level / 2.57 up), because tilting exposes its top and bottom edges. NIGHT-WALL-CAP already names it
+explicitly and measured its bimodal night caps with `wall-cap.mjs`. Meta-rule (xvii-b) has now paid
+five rounds running.
+
+**So the pose bias cost nothing at class level** — the level-only table mis-ranked the ceiling and
+floors, but every other class was already prioritised and judged correctly. That retires the
+concern `.71` opened.
+
+**`HOUR=8` swept — clean.** The last untested condition: low morning sun from the opposite side to
+`.59`'s 19:00 pass. Plaster reads correctly, fixtures glow appropriately, no shimmer.
+
+**⚠️ A flag, not a finding: DEFAULT-GLOOM's premise may be stale.** Two clean runs this round
+(08:00 and 13:00, medium, no `LIGHTS` env) both resolved `lightsMode: on`, where `.62` and `.68`
+resolved `off`. `.54` reported "defaults to `'off'`" as the basis of the biggest open lever offered
+to the user. It is not hour-dependent, and `uiSlice` still initialises `off`. Written up in
+`TODO.md` with the isolation step. **Do not act on open item (a) until this is settled.**
+
 ## v0.31.5.71 — the priority table was a single-pose artefact, and `.70`'s numbers were wrong
 
 No app code changed. The coverage instrument now reports a total per ORIENTATION over every class,

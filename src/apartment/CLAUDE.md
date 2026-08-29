@@ -188,6 +188,38 @@ Full code map in `docs/ARCHITECTURE.md`.
     chain, `rough 0.85`, all three maps at `repeat 2.0`. Same lesson as the curtains in `.51`:
     a bbox that looks like a door panel is not evidence that it is one.
 
+- **The first pose-honest PER-CLASS ranking — and it promotes nothing unjudged
+  (CLASS-RANK-POSE, v0.31.5.72).** The three `classes.json` dumps (down/level/up) joined at the
+  stated 20/60/20 weighting. Top 20, with each pose's own share so the weighting can be argued
+  with:
+
+  | # | weighted | down | level | up | class |
+  | --- | --- | --- | --- | --- | --- |
+  | 1 | 7.83 | 6.12 | 9.64 | 4.10 | `#f5f5f0` plaster wall face 3.5×2.6 — fixed `.56` |
+  | 2 | 4.14 | 3.64 | 4.82 | 2.62 | `#ffffff` wall tile 1.9×2.6 — verified `.59` |
+  | 3 | 3.33 | 2.98 | 3.93 | 1.89 | `#f5f5f0` plaster 1.6×2.6 |
+  | 4 | 3.00 | 2.99 | 3.39 | 1.83 | `#9aa0a6` metal utility doors — `.51` |
+  | 5 | 2.73 | 1.72 | 3.50 | 1.45 | `#c8bca8` curtains — `.51` |
+  | 6 | 2.66 | 2.28 | 3.14 | 1.60 | `#ffffff` wall tile 3.9×2.6 |
+  | 7 | 2.44 | 2.62 | 2.79 | 1.19 | `#a9825c` wooden door leaf — `.49`/`.50` |
+  | **10** | **2.20** | **0.00** | **1.45** | **6.63** | **`#fafafa` CEILING slab — judged `.70`; the only large promotion (≈23rd → 10th)** |
+  | **11** | **2.19** | **2.45** | **1.97** | **2.57** | **`#f1f0ec` WALL BODY — see below** |
+  | 14 | 1.97 | 2.11 | 2.09 | 1.49 | `#bcd4e6` shower glass — `.52` |
+  | 17 | 1.68 | 1.92 | 1.93 | 0.68 | `#cfc8bd` bifold bath leaf — `.58` |
+
+  · **`#f1f0ec` was the one class in the top 20 never individually examined, and it turns out it
+    already was — under another name.** `class-id.mjs` resolves it to **34 full-height slabs**
+    (`W × 2.6 × 0.2–0.3`, `rough 0.95`, no maps) around the flat's perimeter, each near a window:
+    the structural **wall BODY**, as distinct from the mapped wall FACE (`#f5f5f0`). It is the only
+    class whose coverage RISES at both off-level poses (2.45 down / 1.97 level / 2.57 up), because
+    what you gain when you tilt is its exposed top and bottom edges. **NIGHT-WALL-CAP already names
+    it explicitly** — "every dark sample is an ordinary wall body (`#f1f0ec`, `W x 2.6 x 0.2`)" —
+    and measured its bimodal night caps with `wall-cap.mjs`, verdict "by design, not blown out".
+    Meta-rule (xvii-b) has now paid **five rounds running**.
+  · **So the pose bias cost nothing at class level.** The level-only table mis-ranked the ceiling
+    and floors, but every other class in the pose-honest top 20 was already prioritised correctly
+    and already judged. The `.49`–`.70` prioritisations stand.
+
 - **The priority table this run steered by was a SINGLE-POSE artefact, and `.70`'s own numbers were
   wrong too (POSE-HONEST-COVERAGE, v0.31.5.71).** `surface-coverage.mjs` now reports a total share
   per ORIENTATION over EVERY class, not just the printed top-26 — which is what exposed both
