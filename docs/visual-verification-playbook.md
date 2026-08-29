@@ -3294,3 +3294,20 @@ different numbers from identical arguments.
   `walk-tour` already had this option — when a probe lacks it, that is a gap, not a default.
 · **This is why "RECORD THE LOCAL TIME of every run" is in the setup rules.** It is not
   bookkeeping: the wall clock silently changes what the app boots into.
+
+**Gotcha — `default-gloom.mjs`'s arms COLLAPSED when DEFAULT-GLOOM shipped (v0.31.5.86).**
+The probe exists to compare a `default` arm against a `lightson` arm. Now that the
+first-paint guard switches the lights on at every hour, the default IS lights-on: a
+run prints `lightsMode=on` for all three arms, so `default` vs `lightson` is a no-op
+and any delta between them is noise. Do NOT quote that comparison as a payoff figure.
+The daytime payoff on record is `.54`'s 2.3–2.5x, measured before the change.
+· **To exercise the guard at all you must fake the SYSTEM clock, not the manual hour**
+  (meta-rule xcviii). `ensureDaylightFirstPaint` requires `timeMode === 'system'`, so
+  any probe that calls `setTimeMode('manual')` — `chroma-audit`, `surface-detail`,
+  `walk-tour` — cannot trigger it. `lights-boot FAKE_HOUR=` and `first-run FAKE_HOUR=`
+  pin the page wall clock before load and are the only instruments that can.
+· **`lights-boot` prints `time=system/12` regardless of `FAKE_HOUR`** — that field is
+  `timeMode`/`manualHour`, and `manualHour` keeps its default while the mode is
+  `system`. Two arms at different faked hours therefore print identical header lines;
+  that is NOT a failed mutation, but it does mean the header cannot confirm the fake
+  landed. Confirm it by A/B against the other code path instead.

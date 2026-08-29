@@ -11,7 +11,15 @@ can be answered in one line. A recommendation is not a decision: nothing here ha
 
 ---
 
-## (a) DEFAULT-GLOOM — should the first-paint lights guard also apply in DAYLIGHT hours?
+## (a) DEFAULT-GLOOM — ✅ DECIDED: YES, SHIPPED in v0.31.5.86
+
+> **Status: done.** The user approved the recommendation. `ensureDaylightFirstPaint` now fires at
+> every hour; `isDaylightHour` and the `DAYLIGHT_START`/`DAYLIGHT_END` constants were deleted (no
+> other consumers). Verified by A/B at a faked system clock — `lights-boot FAKE_HOUR=13` reads
+> `off` on the old guard and `on` on the new, `FAKE_HOUR=21` stays `on`. Both preference guards are
+> unchanged. The original write-up is kept below for the record.
+
+### Original write-up — should the first-paint lights guard also apply in DAYLIGHT hours?
 
 **What you would see.** Open the app after dark and the flat is already lit — lamps on, furniture
 legible. Open it at 11:00 and the flat is lit only by sun through the windows, which is dimmer and
@@ -186,11 +194,11 @@ the demo apartment and leaves the placement rules untouched.
 
 | # | Item | Kind | Recommendation |
 | --- | --- | --- | --- |
-| a | DEFAULT-GLOOM | one-line behaviour | **Extend the guard to daylight** |
+| a | DEFAULT-GLOOM | one-line behaviour | ✅ **SHIPPED v0.31.5.86** — guard extended to daylight |
 | b | WINDOW-TIME-INVARIANT | content + flag policy | **Ship curtains open; keep `proceduralSky` pro** |
 | c | PLAN-SWAP-STRANDED | structural vs interim | **Add a confirm; do NOT widen the skip** |
 | d | wall-reveal POSE | design parameter | **Retune the curve for the 45° boot pose** |
 | e | Curtain vs nightstand | content | **Fix in `defaults/mainBedroom.ts`** |
 
-None of these has been applied. Answer any subset in one line and the change can be made with the
-evidence above already in hand.
+(a) is shipped. The rest are approved and being implemented one committed round at a time; each is
+marked here as it lands.

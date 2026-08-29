@@ -15,33 +15,36 @@
  * version of this fix; it worked, but it silently disagreed with the time
  * displayed in the Scene panel.
  *
+ * **This applies at EVERY hour, not only after dark (DEFAULT-GLOOM, v0.31.5.86,
+ * shipped on the user's decision).** It began as a night-only guard gated on an
+ * 8:00–18:00 daylight window, on the assumption that daylight alone reads well
+ * enough. Measured, it does not: switching the fixtures on is worth **2.3–2.5x**
+ * in the daytime walk view (`.54`). The mechanism is also demonstrably cheap and
+ * benign — at 21:00 in the orbit/boot view the fixtures move mean luminance
+ * 16.9 -> 132.2 (~7.8x) while moving mean chroma only 0.248 -> 0.249, so they buy
+ * legibility without pushing the frame toward the over-saturated look the AgX
+ * tone-operator choice exists to avoid (`.83`).
+ *
+ * The function keeps its original name because it is referenced by that name
+ * throughout `CHANGELOG.md` and the path-scoped docs; read "Daylight" as the
+ * historical motivation rather than a description of when it fires.
+ *
  * Only ever applied on a fresh seed, and only while both settings are still the
  * untouched defaults.
  */
 
-import { hoursFromDate } from '../../scene/lighting/useEffectiveHour'
 import { useStore } from '../store'
 
-/** Daylight window, in local hours — outside this the flat needs interior light. */
-export const DAYLIGHT_START = 8
-export const DAYLIGHT_END = 18
-
-/** True while `hour` is bright enough to read the flat without interior lights. */
-export function isDaylightHour(hour: number): boolean {
-  return hour >= DAYLIGHT_START && hour < DAYLIGHT_END
-}
-
 /**
- * Turn the interior lights on when a fresh first paint would land after dark.
+ * Turn the interior lights on for a fresh first paint, at any hour.
  *
- * @returns true when the lights were switched on (i.e. it was dark outside).
+ * @returns true when the lights were switched on.
  */
-export function ensureDaylightFirstPaint(now: Date = new Date()): boolean {
+export function ensureDaylightFirstPaint(): boolean {
   const s = useStore.getState()
   // Only ever touch untouched defaults — never override a real preference.
   if (s.timeMode !== 'system') return false
   if (s.lightsMode !== 'off') return false
-  if (isDaylightHour(hoursFromDate(now))) return false
   s.setLightsMode('on')
   return true
 }

@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.86 — DEFAULT-GLOOM: the first-paint lights guard now applies in daylight too
+
+**Open decision (a), approved by the user and shipped.** `ensureDaylightFirstPaint` used to bail out
+inside an 08:00–18:00 window, on the assumption daylight alone reads well enough. It does not: `.54`
+measured the fixtures at **2.3–2.5x** in the daytime walk view, and `.83` showed the mechanism is
+cheap and benign — at 21:00 in the orbit/boot view they move mean luminance **16.9 -> 132.2 (~7.8x)**
+while moving mean chroma only **0.248 -> 0.249**.
+
+`isDaylightHour`, `DAYLIGHT_START` and `DAYLIGHT_END` are deleted rather than left dangling — the
+module and its own test were their only consumers. The function keeps its name: it is referenced as
+`ensureDaylightFirstPaint` across the CHANGELOG, `TODO.md` and the path-scoped docs, and renaming it
+would strand those references for no behavioural gain; the doc comment now says to read "Daylight"
+as the original motivation rather than as when it fires. Both preference guards
+(`timeMode !== 'system'`, `lightsMode !== 'off'`) are untouched, and it still only runs on a fresh
+seed, so a user who has ever expressed a preference is never overridden. No feature flag — this
+widens an existing unflagged boot guard rather than adding a surface — and no tier cost, since the
+fixtures already render at every tier.
+
+**Verified by A/B at a FAKED SYSTEM CLOCK**, the only way to exercise a guard that requires
+`timeMode: 'system'` (meta-rule xcviii): `lights-boot FAKE_HOUR=13` reads `lightsMode=off` on the old
+guard and **`on`** on the new one, while `FAKE_HOUR=21` stays `on`. Exactly one case changed. The old
+guard was restored temporarily for that control arm and put back, confirmed with `git diff --stat`.
+
+**Side effect worth recording: `default-gloom.mjs`'s arms have COLLAPSED.** Its `default` arm now
+reports `lightsMode=on` like its `lightson` arm, so that comparison is a no-op and must not be quoted
+as a payoff figure. Noted in the playbook along with the `lights-boot` header caveat (it prints
+`time=system/12` regardless of `FAKE_HOUR`, because that field is `timeMode`/`manualHour`).
+
+Suite 9256 -> 9254 tests: the `isDaylightHour` block and the now-impossible "leaves a daytime first
+paint alone" case are gone, replaced by the inverted assertion.
+
 ## v0.31.5.85 — the performance-tier "EMPTY flat" contradiction does not reproduce; closed
 
 No app code changed. With the audit finished and the five decisions handed over, the one item still

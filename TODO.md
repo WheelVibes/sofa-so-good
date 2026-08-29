@@ -99,6 +99,14 @@ existing precedent, an existing test file, and `.54`'s 2.3–2.5x measurement as
 Still the user's call — but it is no longer "change a default", it is "extend a guard that already
 exists".
 
+**RESOLVED — the user chose to extend it, SHIPPED in v0.31.5.86.** `ensureDaylightFirstPaint` now
+fires at every hour; the `isDaylightHour` gate and the `DAYLIGHT_START`/`DAYLIGHT_END` constants are
+gone (they had no other consumer). Verified by A/B at a faked SYSTEM clock: `lights-boot
+FAKE_HOUR=13` reads `lightsMode=off` on the old guard and `on` on the new one, while `FAKE_HOUR=21`
+stays `on` — so the daytime case flipped and the night case is untouched. Both preference guards
+(`timeMode !== 'system'`, `lightsMode !== 'off'`) are unchanged, so a user who has ever expressed a
+preference is still never overridden.
+
 ## Curtain cuts through the bedside lamps — DIAGNOSED, fix is a CONTENT decision (v0.31.5.61)
 
 **Mechanism settled. The remaining question is a design choice, not a rendering one, so it is
