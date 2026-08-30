@@ -5,6 +5,30 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.157 — walls are fine, upholstery is not, and the material cannot fix it
+
+**Measurement only.** Compared the app's own frame with two reference photographs using **micro-sd**
+(the sd of pixel minus a 4-px blur — surface texture with the lighting gradient divided out).
+
+**Refuted: wall micro-texture is not a gap.** App 1.38 and 2.97 against photographs at 1.56, 6.03 and
+10.50 — the app sits inside the range, and its brighter wall is above the photograph's comparable
+plain wall. Nothing built.
+
+**Confirmed: upholstery is.** Normalised for mean, the app's sofa is ~2.8× flatter than a photographed
+one (0.034–0.062 against 0.157–0.174). The photograph is a JPEG, so its figure is an upper bound.
+
+**Both material levers are exhausted.** The weave normal is already measured and settled at 1.3 (2.0
+was rejected as "a regular grid that looks like mesh screen"). The wrinkle channel was the lever that
+sweep could not isolate — it scales only the crease band rather than the whole map — so it was swept
+alone, 1 → 2.5 → 4, with the same instrument: microcontrast **1.971 → 1.951 → 1.904**, i.e. the wrong
+way. Its fbm is `baseFreq 3`, deliberately broad, so it never registers as high-frequency detail and
+only dilutes the weave against the field's `clamp01`. Nothing shipped.
+
+The remaining gap is therefore **geometric**: a photographed cushion sags, creases along its seams and
+dents where it has been sat on, while the app's are smooth rounded boxes — the same class of defect as
+`.156`'s curtain extrusion, but a much larger piece of work. `glbEdit/plump.ts` and
+`glbEdit/wrinkleTexture.ts` exist as partial machinery.
+
 ## v0.31.5.156 — the curtains were an extrusion
 
 `Curtain.tsx:buildWavyPanel` displaced its plane by `FOLD_DEPTH * sin((x + 0.5) * FOLDS * 2π) * taper`

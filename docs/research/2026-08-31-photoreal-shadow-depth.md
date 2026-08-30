@@ -1026,3 +1026,52 @@ kinking, and 0.9 was barely distinguishable from shipped.
 removes a categorical defect — "this object is an extrusion" — rather than transforming the frame. The
 larger remaining curtain tells are the hard dark seam lines between folds and the dead-straight
 silhouette edges and hem; a real floor-length curtain breaks at the floor.
+
+
+## Walls are fine, upholstery is not — and the material cannot fix it (v0.31.5.157)
+
+Measured the app's own frame against the two reference photographs, using **micro-sd** — the standard
+deviation of (pixel − a 4-px blur), i.e. surface texture with the lighting gradient divided out.
+
+| patch | mean | micro-sd |
+| --- | --- | --- |
+| photo 1, plain wall right of the clock | 199.8 | **1.56** |
+| photo 1, wall above the TV | 171.3 | 6.03 |
+| photo 2, wall patch | 91.7 | 10.50 |
+| **app wall, right of the window** | 189.2 | **2.97** |
+| **app wall, left** | 193.6 | **1.38** |
+
+**Refuted before building anything: wall micro-texture is not a gap.** The app sits *inside* the
+photographic range, and its brighter wall (2.97) is above the photograph's comparable plain wall
+(1.56). Nothing to do here.
+
+**Upholstery is a real gap.**
+
+| patch | mean | micro-sd | micro-sd ÷ mean |
+| --- | --- | --- | --- |
+| photo 1, leather sofa back | 87.8 | 15.28 | 0.174 |
+| photo 1, armchair arm | 96.1 | 15.07 | 0.157 |
+| **app sofa, seat/back** | 131.4 | 8.13 | **0.062** |
+| **app sofa, arm** | 150.7 | 5.11 | **0.034** |
+
+Roughly **2.8× flatter** once normalised for mean. (Caveat: the photograph is a JPEG and its
+compression noise inflates micro-sd, so treat 15 as an upper bound.)
+
+**Both material levers are exhausted — this is the part worth recording.**
+
+1. The **weave normal** is already measured and settled: `getFabricMaterial`'s `weave = 1.3` carries a
+   recorded sweep (microcontrast 1.346 / 2.115 / 2.879 / 3.829 at 0.65 / 1.3 / 2.0 / 3.0) with 2.0
+   rejected because the weave "becomes a regular grid that looks like mesh screen".
+2. The **wrinkle channel** was the one lever that sweep could not isolate — it scales the whole normal
+   map, weave included, whereas `SeamParams.wrinkle` scales only the crease band. Swept it alone,
+   1 → 2.5 → 4, measured with the same instrument (`surface-detail.mjs DEF=sofa-3seat MASK=item`,
+   walk / Medium / 09:00): microcontrast **1.971 → 1.951 → 1.904**. It goes the *wrong way*. The
+   wrinkle fbm is `baseFreq 3` — deliberately broad — so it never registers as high-frequency detail
+   and only dilutes the weave against the field's `clamp01`.
+
+**So the remaining upholstery gap is GEOMETRIC, not textural.** A photographed cushion is deformed —
+sagging under its own weight, creased along its seams, dented where someone has sat — while the app's
+are smooth rounded boxes. That is the same class of defect as `.156`'s curtain extrusion, and the same
+class of fix (vary the surface, don't paint it), but a substantially larger piece of work:
+per-cushion deformation. `glbEdit/plump.ts` and `glbEdit/wrinkleTexture.ts` already exist as partial
+machinery for it.
