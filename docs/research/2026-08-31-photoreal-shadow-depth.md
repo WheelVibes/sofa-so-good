@@ -1752,3 +1752,42 @@ That is the next thing to test, and it is a two-line sweep.
 user can see, and shipping invisible code fails the same standard this arc has held everywhere else.
 The design is recorded above in enough detail to rebuild in an hour once transmission carries
 structure — which is the right order to do it in.
+
+
+## Two corrections to my own window measurements (v0.31.5.175)
+
+`.174` concluded "the glass parameters are irrelevant — the pane delivers no fine structure". Both
+halves of that turn out to need correcting, and the second correction reaches back over three rounds.
+
+**Correction 1 — the `.174` sweep never took.** `Window.tsx` builds the pane with
+
+```tsx
+roughness={Math.max(glassPhysical.roughness, glassParams.roughness)}
+```
+
+`glassParams.roughness` is **0.1** and `windowGlassPhysical`'s is 0.05, so the max always picks 0.1.
+Setting the config value to 0 — which is what `.174` swept — changes nothing by construction. The
+conclusion was drawn from an experiment that could not have moved.
+
+**Swept properly** (patching the value that actually applies), pane roughness 0.1 → 0.02 → 0:
+micro-sd **19.96 → 20.18 → 20.18**. So the conclusion survives — transmission blur is not the blocker
+— but it is now measured rather than assumed, and `windowGlassPhysical.roughness` is revealed as
+**dead config**: the `Math.max` means it can only ever matter if it exceeds 0.1, which it does not.
+
+**Correction 2 — about half of every window number in this arc is the SAFETY GRILLE.** The crop used
+since `.146` spans the whole glazing, which the approved SNV grille crosses with a dense grid of hard
+bars. Measured on the same frame:
+
+| region | mean | sd | micro-sd |
+| --- | --- | --- | --- |
+| whole glazing (grille included) | 176.4 | 37.78 | **20.18** |
+| **one pane cell, between bars** | **193.7** | 21.95 | **11.06** |
+
+**The bars carry roughly half the window's measured micro-contrast.** Every window figure in `.146`,
+`.154` and `.174` is a grille-plus-glass statistic, not a statement about the view.
+
+**And that overturns the "pale flat panel" reading.** Inside a single cell the glazing measures
+micro/mean **0.057** — the same range as the app's own fabrics, and not remotely flat. What makes the
+window read as a slab is its **low saturation and smooth large-scale ramp**, not an absence of detail.
+Which means the thing to change is the sky's *colour and gradient*, not its fine structure — and it
+explains why `.174`'s clouds, a fine-structure fix, could not have helped.

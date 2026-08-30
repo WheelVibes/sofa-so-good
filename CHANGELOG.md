@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.175 — two corrections to my own window measurements
+
+**Measurement only.** `.174` concluded "the glass parameters are irrelevant". Both halves needed
+correcting.
+
+**The `.174` sweep never took.** `Window.tsx` builds the pane with
+`roughness={Math.max(glassPhysical.roughness, glassParams.roughness)}`, and `glassParams.roughness`
+(0.1) always beats `windowGlassPhysical`'s 0.05 — so setting the config value to 0 changes nothing by
+construction. Swept properly, pane roughness 0.1 → 0.02 → 0 moves micro-sd **19.96 → 20.18 → 20.18**:
+the conclusion survives, but is now measured rather than assumed, and `windowGlassPhysical.roughness`
+is revealed as **dead config** (the `Math.max` means it can only matter above 0.1, which it never is).
+
+**About half of every window number in this arc is the safety grille.** The crop used since `.146`
+spans the whole glazing, which the SNV grille crosses with hard bars. On the same frame: whole glazing
+mean 176.4 / micro-sd **20.18**; **one pane cell between bars** mean 193.7 / micro-sd **11.06**. Every
+window figure in `.146`, `.154` and `.174` is a grille-plus-glass statistic.
+
+**That overturns the "pale flat panel" reading.** Inside one cell the glazing measures micro/mean
+**0.057** — the same range as the app's own fabrics, and not flat at all. What makes a window read as
+a slab here is its low **saturation** and smooth large-scale ramp, not missing detail — which is also
+why `.174`'s clouds, a fine-structure fix, could not have helped.
+
 ## v0.31.5.174 — clouds: built, and invisible
 
 **Nothing shipped.** A visual audit of the photographic look against the reference photograph put the
