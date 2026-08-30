@@ -606,75 +606,67 @@ also asserts that 67 of the 78 windows are clear so it cannot pass by measuring 
 
 ---
 
-## (k) WINDOW-SKY-DARK — ⏳ OPEN, **mechanism named** (v0.31.5.125)
+## (k1) WINDOW-SKY-DARK — ❌ CLOSED v0.31.5.128: mis-attributed, and its symptom was (k2)
 
-**A plan swap can leave the window panes built as the High/Maximum transmissive glass while the
-store reports tier `medium`, and at the night colour in broad daylight.** Filed in `.123` off
-`walk-tour` frames, bounded in `.124`, and attributed here by dumping the live materials.
+**The dark window pane was real. My explanation of it was wrong, and the fix for (k2) resolved it.**
 
-**The pane, measured. Same room (`tpl-condo-4bed`/`c4-master`), hour 13, furnished, `lightsMode:
-on`, crop `[1120,600,400,300]` p50; every TRANSPARENT material in the scene, deduped:**
+### What `.125` claimed, and why it was wrong
+`.125` reported that after `replaceFloorPlan` in a session where `setQualityTier` was never called,
+the plan panes were `MeshPhysicalMaterial` (the High/Maximum glass) **while `st.qualityTier` reported
+`medium`** — a scene carrying a tier of glass its own store said it was not on. **That comparison was
+invalid.** The `resolved=` line the probe prints is emitted early, before the plan swap; the material
+dump happens later. Logging the tier HISTORY (`.128`) shows the `auto` path goes
+**`performance` → `medium` → `high`** and *ends at `high`*. So when the panes were dumped the store
+said `high`, `transmissionTiers('high')` is true, and `MeshPhysicalMaterial` was **correct**. There
+was never a store/material mismatch. I had compared a snapshot from one moment against a material
+from another.
 
-| arm | the 5 plan window panes | pane p50 |
+### What actually caused the 49-vs-132 split
+Both arms were rendering the SAME defect — (k2), the glass reading the lamp switch instead of the
+sun — and the two tiers simply express "it is night" differently:
+
+| tier | night-glass rendering at 13:00 (before `.127`) | pane p50 |
 | --- | --- | --- |
-| `TIER=auto` (setter never called) | `MeshPhysicalMaterial` `#20272f` **opacity 1.00, transmission 0.20** | **49** |
-| `TIER=medium` (setter called) | `MeshStandardMaterial` `#20272f` **opacity 0.73** | **132** |
+| `high` (the `auto` path) | `transmission = windowTransmission(0) = 0.20` at **opacity 1.00** — a near-opaque slab | **49** |
+| `medium` (explicit) | the cheap path, `opacity = 0.28 + 1 × 0.45 = 0.73` — a quarter of the background still gets through | **132** |
 
-`materialRealism.ts:transmissionTiers` is **High or Maximum only** — on Medium,
-`windowGlassPhysical` returns `null` and `FadeWindow` is supposed to use the cheap
-transparent pane. **So the `auto` arm is rendering a tier of glass its own store says it is not
-on.** At `glow = 1` that variant sits at `transmission = windowTransmission(0) = 0.20` with
-`opacity 1.0` — a nearly opaque slab — while the correct Medium pane is `opacity = 0.28 + 1 × 0.45
-= 0.73`, which lets a quarter of the background through. That is the whole 49-vs-132 gap, and it
-explains why calling `setQualityTier` "fixes" it: the setter rebuilds the panes on the branch the
-tier actually warrants.
+The tier was never the disease; it only decided how badly the same wrong daylight value showed.
 
-**It needs the swap as well as the missing setter.** The boot flat under `TIER=auto` with no swap
-reads 139 / 135 / 92 — healthy. So the wrong-branch material is built when the plan shell remounts
-for `replaceFloorPlan`. **Why the remount picks the transmissive branch at Medium is NOT yet
-established** and is the next step: find where the pane material is chosen and what tier value it
-sees at that moment.
+### Resolved by `.127`
+With the glass keyed off sun altitude, re-measured at 13:00 on `tpl-condo-4bed`/`c4-master`,
+furnished, lights on:
 
-**A SECOND, SEPARATE DEFECT, visible in both arms: at 13:00 the panes are `GLASS_NIGHT`
-(`#20272f`), not `GLASS_DAY` (`#bcd4e6`).** `FadeWindow` lerps between them by
-`d = getFixtureGlow()`, a module singleton written each frame by `FurnitureLights` and documented
-as "1 at night, 0 in daylight" — but it measured **exactly 1 in both arms at 1 pm** with
-`lightsMode: 'on'`. It is really a "lights are on" factor, and the app boots lights on in daylight
-(DEFAULT-GLOOM, `.86`), so the glass tells the night story at midday. This is independent of the
-tier bug and deserves its own round.
+| arm | the plan panes | pane p50 | wall p50 |
+| --- | --- | --- | --- |
+| `TIER=auto` (ends at `high`) | `MeshPhysicalMaterial` `#bcd4e6`, transmission **0.92** | **196** | 182 |
+| `TIER=medium` (explicit) | `MeshStandardMaterial` `#bcd4e6`, opacity **0.28** | **193** | 189 |
 
-**The sky bake is INNOCENT** — in every arm `scene.background` is live and its image, sampled at
-the camera's own forward vector `(0,0,−1)` (texel 512,256 of the 1024x512 equirect), returns
-**188.4**, matching the pure `skyGradient.ts:skyRadiance` prediction of 187.
+**The two tiers now agree to 3 luma and both show daylight.** Nothing further to fix; item closed.
 
-### Refuted hypotheses and failed instruments — recorded so they are not repeated
-1. **The plan swap loses `scene.background`.** No — byte-identical uuid across `replaceFloorPlan`;
-   a forced re-bake changed the uuid without changing the picture.
-2. **`walk-tour`'s `setPitch(-0.05)` aim.** No — single variable from one pose, **132 → 131**.
-3. **Tour order / state decaying across a tour.** No — with the tier set, visiting
-   `c4-master, c4-bed2, c4-bed3, c4-master` gave **132 / 132 / 132 / 132**.
+### ⚠️ Correcting the caveat this item put on every past walk
+`.124`/`.125` warned that every `walk-tour` frame in `.95`–`.123` used `TIER=auto` and therefore
+showed "wrong-branch glass", implying the tier flag was the problem and that an explicit tier would
+have been safe. **That was wrong in the same way.** The degraded exterior in those frames came from
+(k2), which affected **every tier** — an explicit `TIER=medium` walk would have shown it too, just
+less severely (132 rather than 49). The accurate statement: **no walk frame captured before
+v0.31.5.127 is evidence about the view through a window, at any tier.** Interior conclusions in
+items (f) through (j) never depended on it and still stand.
+
+### Refuted hypotheses and failed instruments — kept on the record
+1. **The plan swap loses `scene.background`.** No — byte-identical uuid; a forced re-bake changed
+   the uuid without changing the picture.
+2. **`walk-tour`'s `setPitch(-0.05)` aim.** No — 132 → 131 as a single variable.
+3. **Tour order / state decaying across a tour.** No — 132 / 132 / 132 / 132 with the tier set.
 4. **Tone mapping or the glass eating the background generally.** No — on the boot flat the `city`
-   preset's own source colour `#5d8fc4` (luma 134) lands at **135** on screen.
-5. **`getFixtureGlow()` as the discriminator.** No — it is **1 in both arms**. (It is still half of
-   the second defect above; it just does not separate the two tier arms.)
-6. **Failed instrument:** selecting panes by `/glass|window|pane/i` on mesh names returned
-   `paneCount: 0` in both arms — the panes carry no such name. **That zero was not evidence.**
-7. **Failed instrument:** `await import('three')` inside `page.evaluate` throws
-   `Failed to resolve module specifier 'three'`. Only path imports (`/src/...`) resolve in the
-   page, so a `Raycaster` cannot be built that way. The dedup over transparent materials needs no
-   library and is what finally separated the arms.
-
-### ⚠️ This taints the exterior in every walk captured so far
-`walk-tour` ran with `TIER=auto` throughout `.95`–`.123`, so **every one of those frames shows the
-wrong-branch glass after the plan swap**. No layout, enclosure, window-placement or sightline
-conclusion in items (f) through (j) depended on what was visible through the glass, and those
-stand. But no past walk frame is evidence about the exterior. New walks should pass an explicit
-tier.
-
-**Recommendation:** fix the tier-branch selection first (it is a straightforward correctness bug —
-a Medium scene must not carry High-tier transmissive panes), then treat the daylight/night glass
-colour as its own decision. A brighter exterior is a change every user sees at every hour, so the
-size of that second correction remains a product call.
+   preset's own `#5d8fc4` (luma 134) lands at 135 on screen.
+5. **`getFixtureGlow()` as the TIER discriminator.** No — 1 in both arms. (It was, however, half of
+   (k2): it is the lamp switch.)
+6. **Failed instrument:** selecting panes by `/glass|window|pane/i` on mesh names returned zero —
+   the panes carry no such name. **That zero was not evidence.**
+7. **Failed instrument:** `await import('three')` inside `page.evaluate` throws on the bare
+   specifier; only `/src/...` path imports resolve, so no `Raycaster` that way.
+8. **The sky bake was innocent throughout** — `scene.background` live in every arm, its image at the
+   camera forward vector reading **188.4** against a pure `skyRadiance` prediction of 187.
 
 ---
 
@@ -769,7 +761,7 @@ remains in an audited plan.
 | h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — was 15 of 44; **12 left**; `.120` proved NONE of the 12 is offset-fixable — each needs a new opening |
 | i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **3 left** after `.115`, `.118`, `.119`, `.120`; all 3 proven NOT offset-fixable |
 | j | WINDOW-SIGHTLINE | content | ⏳ **OPEN v0.31.5.117** — **11** of 78 after `.121` shipped a windowless-wall preference for storage; three arranger levers measured, the residue is rooms too small to fix |
-| k1 | WINDOW-SKY-DARK | render bug | ⏳ **OPEN v0.31.5.125** — **mechanism named**: after a plan swap the panes are the High/Max `MeshPhysicalMaterial` (transmission 0.20, opacity 1.0) while the store says `medium`, where the correct pane is `MeshStandardMaterial` at opacity 0.73. Plus a second defect: the glass is at `GLASS_NIGHT` at 1 pm because `getFixtureGlow()` is 1 |
+| k1 | WINDOW-SKY-DARK | render bug | ❌ **CLOSED v0.31.5.128** — mis-attributed. The `auto` tier ends at `high`, so the transmissive pane was correct; the dark pane was (k2) rendered by two tiers. Both tiers now read ~195 |
 | k2 | DAYLIGHT-GLASS | render bug | ✅ **SHIPPED v0.31.5.127** — the glass read the lamp switch, not the sun, so a fresh visitor met night glass at midday; now keyed off sun altitude, midday pane 139 → 206 with the warm interior intact and the night look preserved |
 
 **Five of eleven items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect

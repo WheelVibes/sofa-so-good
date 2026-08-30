@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.128 — WINDOW-SKY-DARK closed: I mis-attributed it, and (k2) had already fixed it
+
+**Docs + probe only.** Item (k1) is closed, and the closure is a correction of my own analysis.
+
+**What `.125` claimed and why it was wrong.** It reported that after a plan swap without
+`setQualityTier`, the panes were `MeshPhysicalMaterial` (High/Max glass) **while the store reported
+`medium`**. That comparison was invalid: the probe's `resolved=` line is printed early, before the
+swap, while the material dump happens later. Logging the tier HISTORY shows the `auto` path runs
+**`performance` → `medium` → `high`** and ends at `high` — so at dump time the store said `high`,
+`transmissionTiers('high')` is true, and the transmissive pane was **correct**. There was never a
+store/material mismatch; I compared a snapshot from one moment against a material from another.
+
+**What actually caused the 49-vs-132 split.** Both arms were rendering the same defect — (k2), the
+glass reading the lamp switch instead of the sun — and the tiers merely express "it is night"
+differently: High used `transmission = windowTransmission(0) = 0.20` at opacity 1.00 (a near-opaque
+slab, pane 49); Medium used the cheap path at `opacity = 0.73` (pane 132). The tier was never the
+disease.
+
+**Resolved by `.127`.** Re-measured at 13:00 on `tpl-condo-4bed`/`c4-master`, furnished, lights on:
+`TIER=auto` (ending at High) gives `#bcd4e6` transmission 0.92, pane **196**; explicit `TIER=medium`
+gives `#bcd4e6` opacity 0.28, pane **193**. **The two tiers agree to 3 luma and both show daylight.**
+
+**Correcting the caveat this item placed on every past walk.** `.124`/`.125` warned that `.95`–`.123`
+walks used `TIER=auto` and so showed "wrong-branch glass", implying an explicit tier would have been
+safe. Wrong in the same way: the degraded exterior came from (k2), which affected **every tier**. The
+accurate statement, now in `docs/visual-verification-playbook.md`: **no walk frame captured before
+v0.31.5.127 is evidence about the view through a window, at any tier.** Interior conclusions in items
+(f)–(j) never depended on it and stand.
+
+The probe gained a `tierLog` (every `qualityTier`/`qualityUserSet` change from as early as
+`window.__store` exists) — the instrument that caught this.
+
 ## v0.31.5.127 — DAYLIGHT-GLASS: the window glass now reads the sun, not the lamp switch
 
 **A real render fix, A/B'd in frames.** Item (k2), found while attributing (k1).

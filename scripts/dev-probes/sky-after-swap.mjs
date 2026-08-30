@@ -62,6 +62,24 @@ await page.evaluateOnNewDocument(() => {
 await page.goto(appUrl(), { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('canvas', { timeout: 60000 })
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
+// TIER HISTORY (v0.31.5.128) — `QualityController` seeds the tier on mount and can
+// adaptively change it at runtime, but ONLY while `qualityUserSet` is false, i.e.
+// only on the `auto` path. If the tier visits High/Maximum at any point, the window
+// panes are built as transmissive glass; if it then settles back to Medium without
+// the material being rebuilt, the store and the material disagree — which is exactly
+// item (k1). Subscribe as early as `window.__store` exists so the boot moves are caught.
+await page.evaluate(() => {
+  window.__tierLog = []
+  const st = window.__store
+  const push = () => {
+    const s = st.getState()
+    const last = window.__tierLog[window.__tierLog.length - 1]
+    const row = `${s.qualityTier}/userSet=${s.qualityUserSet}`
+    if (row !== last) window.__tierLog.push(row)
+  }
+  push()
+  st.subscribe(push)
+})
 await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
 await page.evaluate((h) => {
@@ -170,6 +188,7 @@ const glass = () =>
       }
     })
     return {
+      tierLog: window.__tierLog ?? [],
       fixtureGlow: +getFixtureGlow().toFixed(3),
       transparentMaterials: [...seen.entries()]
         .sort((a, b) => b[1] - a[1])
