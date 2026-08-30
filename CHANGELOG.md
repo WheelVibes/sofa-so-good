@@ -5,6 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.141 — redistribution prototype fails, and `.140`'s ratio was contaminated
+
+**No code ships.** `.138`'s window-`RectAreaLight` arm only added aperture light without removing any
+positionless fill. This round did both halves — same window lights plus `PROTO_FILL_SCALE = 0.45` on
+the hemisphere and ambient — to test whether *redistributing* rather than reducing could produce a
+gradient without touching the DEFAULT-GLOOM trade.
+
+It first read as a win, near/far **1.04 → 1.70**. **It is not.** Both the baseline and the prototype
+step sharply between 3.5 m and 4.5 m at the same place, and the frame shows why: **the living/dining's
+vinyl floor ends at ~4 m where the kitchen's beige tile begins.** Beyond that the sample is a
+different floor in a different room, so the 1.70 is near-vinyl against a far room the window lights
+never reach — a room-to-room brightness difference, not a falloff.
+
+**On the one consistent surface (0.5–3.5 m) both curves RISE**: baseline 117 → 132, prototype
+146 → 183. No near-window falloff was produced. The prototype also raised the mean floor luma
+**117.4 → 131.0 (+12%)**, so it was not mean-preserving. It failed both of its own acceptance
+conditions and was reverted.
+
+**Precision correction to `.140`:** that round's "near/far 1.04" was measured across 0.5–6.5 m, which
+crosses the same room boundary and so compared two different floors. On one surface (0.5–3.5 m) the
+baseline is **117 → 132, near/far 0.89** — it *rises* with distance. **The conclusion is unchanged and
+slightly strengthened: the app's daylight does not fall off from the window.** Only the quoted ratio
+was contaminated.
+
+**New standing instrument rule:** a floor is not one surface for as far as the camera can see. A
+distance-based sample must be capped at the **material/room boundary** (~3.75 m for this pose), not at
+the far wall — that is now two distinct confounds in the same measurement family, surface
+*orientation* and surface *identity*.
+
 ## v0.31.5.140 — the flat daylight is re-established on a sound instrument
 
 **Measurement only.** `.136` claimed the app's daylight has no falloff; `.138` withdrew it because the

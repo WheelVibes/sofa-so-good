@@ -350,3 +350,42 @@ light on top of a dominant positionless fill does not create a gradient, because
 floods the room. A real gradient needs the *global* terms reduced in favour of aperture-driven light —
 which is the DEFAULT-GLOOM trade (`.86`, measured and user-signed-off) and cannot be taken
 unilaterally. **That is the decision this arc has arrived at, and it belongs to the user, not to me.**
+
+
+## ❌ Redistribution prototype fails, and a precision correction to `.140` (v0.31.5.141)
+
+`.138`'s window-`RectAreaLight` arm only ADDED aperture light and never removed any positionless
+fill, so the fill kept flooding the room. This round did both halves — the same window lights plus
+`PROTO_FILL_SCALE = 0.45` on the hemisphere and ambient — on the theory that **redistributing**
+rather than reducing would produce a gradient without touching the DEFAULT-GLOOM legibility trade.
+
+At first reading it looked like a win: near/far **1.04 → 1.70**. **It is not.**
+
+| distance (m) | 0.5 | 1.0 | 1.5 | 2.0 | 2.5 | 3.0 | 3.5 | 4.0 | 4.5 | 5.0 | 6.5 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| baseline | 117 | 130 | 122 | 118 | 119 | 121 | 132 | 110 | 111 | 112 | 112 |
+| prototype | 146 | 155 | 147 | 174 | 180 | 179 | 183 | 110 | 85 | 86 | 86 |
+
+**Both curves step sharply at the same place, between 3.5 m and 4.5 m — and the frame shows why: the
+living/dining's vinyl-plank floor ends at about 4 m, where the kitchen's beige tile begins.** Beyond
+that the sample is a *different floor in a different room*. The apparent 1.70 is therefore near-vinyl
+compared against a far room the window lights do not reach — a room-to-room brightness difference,
+not a falloff gradient.
+
+**On the one consistent surface (0.5–3.5 m) both curves RISE with distance**: baseline 117 → 132,
+prototype 146 → 183. The prototype produced no near-window falloff at all. It also **raised the mean
+floor luma 117.4 → 131.0 (+12%)**, so it was not mean-preserving either — it failed both of its own
+acceptance conditions. Reverted from `/tmp/lighting3.bak`; nothing shipped.
+
+### Precision correction to `.140` (the conclusion stands, the number does not)
+`.140` reported the bare floor as "117 @0.5 m → 112 @6.5 m, near/far **1.04**". That range **crosses
+the same room boundary**, so the figure compared two different floors. Restricted to one surface,
+0.5–3.5 m, the baseline reads **117 → 132, near/far 0.89** — it *rises* with distance. **The
+conclusion is unchanged and if anything strengthened: the app's daylight does not fall off from the
+window.** Only the quoted ratio was contaminated.
+
+**The standing instrument rule this adds:** a floor is not one surface for as far as the camera can
+see. Any distance-based sample must be capped at the **material/room boundary**, which for this pose
+is ~3.75 m — not at the far wall, which was the earlier `.136`/`.138` trap. That is now two distinct
+confounds found in the same measurement family: surface *orientation* (far wall) and surface
+*identity* (next room's floor).
