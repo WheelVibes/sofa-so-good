@@ -2543,3 +2543,66 @@ now retries until it finds floor, and the retry reproduced the original numbers 
 **Nothing was changed in `src/`.** This round bought a target, an instrument, and three traps; the
 hemisphere sweep it was built for is the next round's work, and it now has a pass/fail criterion
 rather than a judgement call.
+
+---
+
+## `.192` — the underside criterion, measured: the DEFAULT look is the one that fails it
+
+`.191` built the underside instrument and left it half working: the ray classifier had the right sign
+and magnitude but only 1–7 samples per pose, because floor that is both under a piece and visible from
+standing eye height is rare. Two fixes were tried. One is refuted; the other works.
+
+### Distance-to-footprint is refuted — it measures the window, not the furniture
+
+The proposed fix in `.191` was to classify floor by horizontal distance to the nearest furniture
+footprint instead of by an upward ray. It solves the sample problem completely — resolving defs
+through the app's own `buildWalkBlockers` gives 40 footprints and 332 classified samples in a single
+pose — and it measures the wrong thing:
+
+| band | mean |
+| --- | --- |
+| "shaded", ≤ 0.15 m from a footprint | 140.9 |
+| "open", ≥ 0.5 m from a footprint | 74.4 |
+| **ratio** | **1.894** |
+
+The shaded band is nearly **twice as bright** as the open one. In a window-facing pose the floor near
+furniture is the sunlit strip by the glass, while floor far from furniture is deeper into the room, so
+distance-to-footprint correlates with distance from the **window**, not with furniture shading. The
+distance distribution also shows how cramped the sampled floor is: min 0.00, p50 0.21, **max 0.77 m** —
+there is no genuinely open floor in view to compare against. Recorded in the probe header so it is not
+re-proposed.
+
+Two guards earned their place on the way: a `getDef` that resolved to nothing reported **0 footprints**
+rather than a plausible ratio, and the probe now says so out loud.
+
+### Pooling the ray classifier across poses does work
+
+Eight poses (four standoffs × two look directions), samples pooled. Four poses see no floor at all —
+the camera is inside a wall or facing one — and that is visible in the per-pose table rather than
+silently averaged away.
+
+| | pooled under / open | under | open | **under/open** |
+| --- | --- | --- | --- | --- |
+| photographic look | 11 / 975 | 58.9 | 89.3 | **0.660** |
+| default look | 11 / 975 | 109.8 | 130.0 | **0.845** |
+| reference photographs | | | | **0.579–0.725** |
+
+The under-count is still small, and the guard says so. What carries the reading is that it has now been
+taken **five times** across different poses, classifiers and settings — 0.657, 0.660, 0.688, 0.689 —
+and never moved more than ±0.02.
+
+### The result, which was not the expected one
+
+**The default look fails `.183`'s own criterion, at 0.845 against a photographic ceiling of ~0.73.** Its
+flat ambient fill lights the floor under the furniture too brightly — which is precisely the defect
+`.183` refused the hemisphere for causing. The photographic look, which removes that fill, sits at
+**0.660**, comfortably inside the photographic range.
+
+That is the same shape as every other finding in this arc: the photographic look wins on every
+shadow-shaped metric and loses on the ceiling ratio, and the default look does the reverse.
+
+It also gives the next round a **quantified budget** instead of a judgement call. A whole-floor bounce
+term added to the photographic look may raise this from 0.660 to at most ~0.73 before it commits
+`.183`'s defect. That is the headroom, and `underside-shadow.mjs` is the pass/fail test.
+
+**Nothing changed in `src/`.**

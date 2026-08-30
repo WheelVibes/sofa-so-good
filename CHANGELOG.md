@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.192 — the underside criterion, measured: the DEFAULT look is the one that fails it
+
+`.191` left the underside instrument half working. Its proposed fix — classify floor by distance to the
+nearest furniture footprint instead of by an upward ray — is **refuted**. It solves the sample problem
+(40 footprints, 332 samples in one pose) and measures the wrong thing: the "shaded" band came back
+**1.89x brighter** than the "open" band, because in a window-facing pose the floor near furniture is
+the sunlit strip by the glass. Distance-to-footprint correlates with distance from the WINDOW. The
+distance distribution confirms there is no open floor to compare against in view (max 0.77 m).
+
+Pooling the ray classifier across eight poses does work, and the answer was not the expected one:
+
+| | under | open | under/open |
+| --- | --- | --- | --- |
+| photographic look | 58.9 | 89.3 | **0.660** |
+| default look | 109.8 | 130.0 | **0.845** |
+| reference photographs | | | **0.579–0.725** |
+
+**The DEFAULT look fails `.183`'s own criterion** (0.845 against a photographic ceiling of ~0.73): its
+flat ambient fill lights the floor under the furniture too brightly, which is the exact defect `.183`
+refused the hemisphere for causing. The photographic look sits inside the range at 0.660. Same shape as
+the rest of this arc — the photographic look wins on shadow-shaped metrics, the default look on the
+ceiling ratio.
+
+The under-count is small and the probe warns about it; what carries the reading is five measurements
+across different poses and classifiers landing 0.657–0.689.
+
+This gives the next round a quantified budget instead of a judgement call: a whole-floor bounce term
+may raise the photographic look from 0.660 to at most ~0.73 before committing `.183`'s defect.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.191 — a number for `.183`'s underside objection
 
 `.190` left the whole-floor bounce term as the only approach still standing, and `.183` had refused it
