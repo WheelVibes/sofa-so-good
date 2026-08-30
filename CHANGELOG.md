@@ -5,6 +5,30 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.177 — the room is cooler than a photograph, and the warmth dial cannot reach it
+
+**Measurement only; the change was built and reverted.** Post-production writing for archviz is
+consistent that the finishing grade — white balance first, then "warm the highlights" — is where a
+render becomes photographic. So: is the app's grade neutral where a photograph's is warm?
+
+Measured by tonal band, R/B, **with the window masked out** (`.176`'s lesson, so both sides describe
+lit room surfaces rather than the view): photographs' highlights **1.102–1.128** and midtones
+1.123–1.415; the app's photographic look **1.006 and 1.005** — neutral. The gap is largest under the
+photographic look, because that is where the warm fixtures step aside and leave a sky-graded fill.
+
+**The app already has the control, and it cannot reach.** `sceneWarmth` tints via
+`warmthTintRGB(b) = [1 + 0.14b, 1, 1 − 0.16b]`, so +9 % solves to b ≈ 0.29. Wired as a
+photographic-look offset and rendered, midtones moved **1.005 → 1.023 (+1.8 %)** and highlights
+**1.006 → 1.008 (+0.2 %)** — a fifth of the prediction, and none on highlights.
+
+The reason is structural, and the same shape as `.162`: `warmthTintRGB` tints only the **analytical**
+lights, which the photographic look scales to 0.62–0.8, while the **IBL probe** it does not touch
+carries the rest. Reverted rather than shipped (a +1.8 % change is not worth the code), with the
+finding recorded: a fix has to warm the probe itself — `SceneEnvironment`'s `Lightformer`s carry
+hardcoded cool tints (`#cfe0f2`, `#9fb0c4`) — and that path has a documented `GPU-STARVE-2` re-bake
+cost. Worth stating plainly: **the shipped `sceneWarmth` dial is much weaker than its range suggests
+whenever the IBL is doing the lighting.**
+
 ## v0.31.5.176 — closing the window thread: the comparison was not like-for-like
 
 With `.175`'s corrected crop (one pane cell, no grille), the surviving question was that the glazing

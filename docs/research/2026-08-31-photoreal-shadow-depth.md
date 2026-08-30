@@ -1828,3 +1828,52 @@ For the record, what the last four rounds established about it:
 Also fixed in passing: `windowGlassPhysical.roughness` is documented as inert at its shipped value —
 the `Math.max` with the glass KIND means it can only ever matter above 0.1 — with the measured sweep
 recorded beside it, so the round I spent assuming otherwise is not repeated.
+
+
+## The room is cooler than a photograph, and the warmth dial cannot reach it (v0.31.5.177)
+
+Post-production writing for architectural renders is consistent that the finishing grade is where a
+render becomes photographic — "set exposure and white balance first", "warm the highlights", with
+restrained saturation and modest contrast
+([Archfine](https://archfine.com/rendering-techniques/render-post-production-photoshop),
+[3DAS](https://www.3dastudio.com/rendering-tips/archviz-photoshop-post-production),
+[Maverickframe](https://maverickframe.com/blog/post-processing-architectural-visualization/)).
+So: is the app's grade neutral where a photograph's is warm?
+
+**Measured by tonal band, R/B, with the WINDOW MASKED OUT** — `.176`'s lesson, so both sides describe
+the *lit surfaces of a room* rather than the view:
+
+| | shadows | midtones | highlights |
+| --- | --- | --- | --- |
+| photo 1 | 2.983 | 1.415 | **1.128** |
+| photo 2 | 1.043 | 1.123 | **1.102** |
+| app, default look | 1.528 | 1.098 | 1.054 |
+| app, photographic look | 1.124 | **1.005** | **1.006** |
+
+**The app's lit surfaces are neutral where photographed ones are warm** — and the gap is largest under
+the photographic look, because that is where the warm fixtures step aside and leave a sky-graded fill.
+Unmasked, the photographic look's highlights read 0.950 (cool); that is the window, and masking it out
+is what makes the comparison honest.
+
+**The app already has the control, and it cannot reach.** `sceneWarmth` (default 0) tints the lights
+through `warmthTintRGB(b) = [1 + 0.14b, 1, 1 − 0.16b]`, so the +9 % the measurement asks for solves to
+**b ≈ 0.29**. Wired up as a photographic-look offset and rendered:
+
+| | midtones | highlights |
+| --- | --- | --- |
+| photographic, warmth 0 | 1.005 | 1.006 |
+| photographic, **+0.29** | 1.023 (**+1.8 %**) | 1.008 (**+0.2 %**) |
+
+**A fifth of the predicted effect on midtones and none on highlights.** The reason is structural and
+is the same shape as `.162`: `warmthTintRGB` tints only the **analytical** lights — sun, hemisphere,
+ambient — and under the photographic look those are scaled to 0.62–0.8 while the **IBL probe**, which
+it does not touch, carries the rest. `.162` hit this exactly once before, when scaling only the
+hemisphere and ambient was nearly inert until `scene.environmentIntensity` came down with them.
+
+**So the offset was reverted, and the finding is where a fix has to go:** the probe's own colour.
+`SceneEnvironment` builds it from `Lightformer`s with hardcoded cool tints (`#cfe0f2`, `#9fb0c4`), and
+warming those is the only lever that reaches the dominant term. It is not free — the module carries a
+`GPU-STARVE-2` note that the probe lives in a render target and re-bakes are expensive — but under a
+fixed photographic offset it would re-bake once, on the toggle. That is the next round's work, and it
+is worth saying plainly that **the shipped `sceneWarmth` dial is much weaker than its range suggests
+whenever the IBL is doing the lighting.**
