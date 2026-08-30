@@ -5,6 +5,59 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.106 — MOUNTED-SEED flush fix; and the SETTLE-ORIGIN widening tried, measured, and REVERTED
+
+**Two outcomes, one shipped and one deliberately abandoned.** `.105` left an open question;
+instrumenting rather than guessing answered it, and the answer made the obvious fix untenable.
+
+**THE CAUSE, found by instrumenting `snapToWall`** (a temporary `globalThis` collector; the
+file is restored). For the `tpl-1bed/ob-bath` toilet, per edge: **N** `keepOut=2 canPlace=true`
+— the only wall it fits against, and it is inside a door keep-out; **E/S/W** `keepOut=0
+canPlace=false` — the basin had taken one wall and the rest collide. **The room is genuinely
+over-constrained; placement legitimately fails.** So the defect is the failure path, not the
+arranger.
+
+**CORRECTION TO `.105`.** That entry framed the open question as "a room demonstrably large
+enough with ZERO door/window keep-out". The zero was measured on `h4-cbath` and I carried it to
+`ob-bath` without re-measuring — on `ob-bath` the door keep-out IS the blocker on the one
+viable wall. Carrying a measurement from one room to another is the same class of error as the
+level-blind filter retracted in `.103`.
+
+**SHIPPED — a bug in `.103`'s own maths.** `placeSeededMounts` called `flushToWall` with the
+UNROTATED half-extents while `rotationForEdge` turns the piece 90 degrees for a W/E wall, so
+the world extents swap. A 0.6 x 0.06 m `wall-mirror` was therefore offset by its 0.3 m
+half-WIDTH and floated **0.27 m proud of the wall**: measured at x=5.05 against a room edge at
+x=4.70, now **4.73**. Item count across the 19 templates is unchanged at 900, and a test pins
+the mirror within 0.1 m of its wall (it reads 0.35 m with the swap reverted).
+
+**ATTEMPTED AND REVERTED — widening the rescue to all wall-hugging categories.** The plan was
+to rescue the 20 stranded pieces `.105` counted (4 `toilet`, 2 `bathroom-sink`, 7 `nightstand`,
+6 `bench`, 1 `cube-shelf`) by pulling any `bathroom`/`storage`/`seating` piece off the seed
+point. It reached **20 stranded → 0** and left the 17 legitimately-centred rugs and low tables
+alone — and it **deleted furniture**: total items across the templates fell **900 → 893**. The
+"stranded = 0" metric reported success the whole time; only counting the ITEMS caught it. Four
+further attempts each moved the numbers without landing cleanly:
+
+| variant | items (900 = baseline) | wall-hugging stranded | mounts stranded |
+|---|---|---|---|
+| naive widening | 893 | 0 | 0 |
+| + reserve slots among rescued pieces | 905 | 0 | **18** |
+| + exempt mounts from reserving | 893 | 0 | 0 |
+| + mounts claim but never yield | 893 | 0 | 0 |
+| + seed claims with already-placed pieces | 895 | 5 | 0 |
+
+**The real blocker is upstream and out of scope for this round.**
+`collision/placement.ts:computeItemOverlaps` filters only on `noClip` and **not** on `mounted`,
+so a wall mirror sharing XZ with a floor fixture counts as an overlap and `dropOverlaps`
+deletes one of them — even though a mirror above a basin is the normal arrangement, and
+`tryPlace` already exempts mounted items from its own keep-out checks. Every variant above is a
+workaround for that. Exempting `mounted` in the overlap test is probably correct, but it feeds
+the Checks overlay and placement validation, so it needs its own round with those as controls.
+
+**Nothing was shipped from the widening.** Four rounds of tuning that each shift the numbers
+without a clean result is the signal to stop: it was tuning, not fixing. The 20 stranded
+fixtures remain, unchanged from `.105`, and are still the open item.
+
 ## v0.31.5.105 — SETTLE-ORIGIN investigation: 20 fixtures stranded mid-room, cause NOT yet fully established
 
 **Recorded rather than fixed, deliberately.** `.104` noted that the terrace's upper landing

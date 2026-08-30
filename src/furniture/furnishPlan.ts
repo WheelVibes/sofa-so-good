@@ -400,9 +400,21 @@ export function placeSeededMounts(
         if (!def) continue
         const fp = itemFootprint(it, def)
         const edge = nearestWallEdge(it.position, rect)
+        // `rotationForEdge` turns the piece to face away from the wall, which for
+        // a W/E wall is a 90-degree turn — so its WORLD half-extents swap. Using
+        // the unrotated pair leaves a mount too far off the wall: a 0.6 x 0.06 m
+        // `wall-mirror` flushed by its 0.3 m half-WIDTH sat 0.27 m proud of the
+        // wall (measured 5.05 against a room edge at 4.70; now 4.73).
+        const sideways = edge === 'W' || edge === 'E'
         moved.set(it.id, {
           ...it,
-          position: flushToWall(it.position, rect, edge, fp.hx, fp.hz),
+          position: flushToWall(
+            it.position,
+            rect,
+            edge,
+            sideways ? fp.hz : fp.hx,
+            sideways ? fp.hx : fp.hz,
+          ),
           rotation: rotationForEdge(edge),
         })
       }

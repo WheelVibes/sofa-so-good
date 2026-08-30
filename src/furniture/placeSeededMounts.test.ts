@@ -143,3 +143,28 @@ describe('placeSeededMounts', () => {
     }
   })
 })
+
+describe('flushing uses the ROTATED extents', () => {
+  it('puts a wall mirror against the wall, not a half-width off it', () => {
+    // `rotationForEdge` turns the piece 90 degrees for a W/E wall, so its world
+    // half-extents swap. `.103` flushed by the UNROTATED pair, so a 0.6 x 0.06 m
+    // `wall-mirror` was offset by its 0.3 m half-WIDTH instead of its 0.03 m
+    // half-depth and floated 0.27 m proud of the wall. Measured in the terrace's
+    // upper landing (west wall at x=4.70): 5.05 before, 4.73 after.
+    const plan = terrace()
+    const items = furnish(plan)
+    const level = planLevels(plan).find((l) => l.id === 'ct-up')!
+    const room = level.rooms.find((r) => r.id === 'ctu-landing')!
+    const mirror = items.find(
+      (i) =>
+        i.levelId === 'ct-up' &&
+        i.defId === 'wall-mirror' &&
+        i.position[0] >= room.origin[0] &&
+        i.position[0] <= room.origin[0] + room.width &&
+        i.position[1] >= room.origin[1] &&
+        i.position[1] <= room.origin[1] + room.depth,
+    )
+    expect(mirror, 'mirror present').toBeDefined()
+    expect(mirror!.position[0] - room.origin[0]).toBeLessThan(0.1)
+  })
+})
