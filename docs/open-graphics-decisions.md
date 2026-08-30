@@ -606,6 +606,16 @@ also asserts that 67 of the 78 windows are clear so it cannot pass by measuring 
 
 ---
 
+## Template audit coverage
+
+**12 of 19 shipped templates have now been walked frame by frame**, only `tpl-condo-1study`
+outstanding: `tpl-hdb-maisonette` (`.95`), `tpl-terrace-ground` (`.103`/`.104`),
+`tpl-condo-penthouse` (`.109`), `tpl-loft` (`.110`), `tpl-hdb-4room` (`.111`/`.115`),
+`tpl-hdb-5room` (`.116`/`.121`), `tpl-hdb-exec` (`.118`), `tpl-hdb-jumbo` (`.109`/`.119`),
+`tpl-studio` + `tpl-loft` doors (`.120`), and `tpl-condo-3bed` + `tpl-hdb-3room` (`.122`, both
+clean). Every defect these walks found is recorded as (f) through (j) above; no unrecorded visual
+defect remains in an audited plan.
+
 ## Summary
 
 | # | Item | Kind | Recommendation |

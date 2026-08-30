@@ -5,6 +5,34 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.122 — TEMPLATE-WALK-5/6: `tpl-condo-3bed` and `tpl-hdb-3room` both audit CLEAN
+
+**A documented double audit, no source change.** With every open item now a content or product
+decision, this round went back to looking at plans nobody had ever walked. Twelve of the nineteen
+templates have now been audited; only `tpl-condo-1study` remains.
+
+**`tpl-condo-3bed` — CLEAN.** 36 frames, 9 rooms, resolved `medium/on/manual13`, 222 meshes /
+103048 tris, **mean 96% content**. Ceiling-band luma spans **152.9** (`c3-living-y3`, a dark TV in a
+normally lit room) to **223.4** (`c3-mbath-y2`) — **no outlier**. For scale, the two real defects
+this metric has caught read **37** (`ct-kit`, `.103`) and **28.2** (`lfu-ward-y3`, `.110`). Read
+frame by frame across two contact sheets: furnished living room, kitchen with range hood, hob and
+fridge, both bathrooms with shower screens and fixtures, balcony overlooking the living space. No
+empty frames, no z-fighting, no light leaks, no furniture intersections.
+
+**`tpl-hdb-3room` — CLEAN.** 32 frames, 8 rooms, 183 meshes / 73414 tris, **mean 97% content**.
+Ceiling band **142.2** (`h3-living-y2`) to **224.5** (`h3-shelter-y0`) — again no outlier. Furnished
+living/dining with TV and sofa, kitchen with hood/hob/fridge, fitted bathrooms, bedrooms with beds
+and wardrobes.
+
+**Checked against the allow-lists before reporting anything.** `tpl-hdb-3room` already carries two
+ratchet entries — `h3-bed2` on the (h) windowless-bedroom list and `h3-b2-win: refrigerator` on the
+(j) sightline list — so a fridge near that window is a **known entry, not a discovery**. Nothing new
+was found in either plan.
+
+**One thing verified rather than reported:** `c3-bed2` and `c3-bed3` furnish near-identically. Both
+are 3.7 m wide, so a deterministic arranger producing the same layout is expected, and their luma
+differs (171.1 vs 176.3), so they are not identical renders either.
+
 ## v0.31.5.121 — WINDOW-SIGHTLINE: tall storage now prefers a windowless wall (12 → 10)
 
 **A partial fix, a disproved recommendation, and a correction to my own earlier claim.**
