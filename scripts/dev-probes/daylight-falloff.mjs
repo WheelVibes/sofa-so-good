@@ -43,6 +43,12 @@ const PITCH = Number(process.env.PITCH || -0.55)
  *  failed measurement recorded in `.136`. A bare room is what makes an
  *  illuminance-versus-distance curve on ONE surface possible at all. */
 const UNFURNISHED = process.env.UNFURNISHED === '1'
+/** Override the walk field of view. The app ships `WALK_FOV_DEFAULT = 70` vertical
+ *  at aspect 1.6, which is ~17 mm full-frame equivalent — wider than the 16–35 mm
+ *  band architectural photography uses and well wider than its typical 24 mm.
+ *  `walkFov` is already a user-facing control (50–100), so a photographic framing
+ *  is reachable with no code change; this makes it measurable. */
+const WALKFOV = process.env.WALKFOV ? Number(process.env.WALKFOV) : null
 const OUT = process.env.OUT || '/tmp/daylight-falloff'
 fs.mkdirSync(OUT, { recursive: true })
 
@@ -82,6 +88,7 @@ await page.evaluate(() => {
   st.setCameraMode('firstPerson')
   st.dismissCallout?.('walk-mode')
 })
+if (WALKFOV) await page.evaluate((f) => window.__store.getState().setWalkFov(f), WALKFOV)
 await page.waitForFunction(() => !!window.__walkLook, { timeout: 20000 })
 await new Promise((r) => setTimeout(r, 4000))
 await assertSceneAlive(page, 'after setup')

@@ -5,6 +5,30 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.143 — the camera is a real lever, and it needs no renderer change
+
+**Measurement only.** Every previous round in this arc attacked the renderer. This one questioned the
+**camera**, and it is the first finding here that points at a concrete improvement needing no engine
+work.
+
+Interior architectural photography uses **16–35 mm full-frame equivalent, typically 24 mm**, and keeps
+the camera **level** so verticals stay parallel. Measured against that, `WALK_FOV_DEFAULT = 70`
+vertical at aspect 1.6 is **≈17.1 mm / 96.5° horizontal** — the extreme wide edge of the band, well
+outside the 24 mm norm. `walkFov = 50` is **≈25.7 mm / 73.5°**, almost exactly on convention.
+`walk-tour` also aims at pitch −0.05, against the level-camera convention.
+
+**Same pose, level camera, only the FOV differing:** at 70° the side walls rake steeply to a central
+vanishing point and the dining table stretches and looms in the foreground — the wide-angle game look.
+At 50° object proportions are believable, edge stretching is largely gone, verticals read parallel,
+and the frame is much closer to the reference photographs. The difference is large and entirely
+perspective, not shading.
+
+**No code change is required** — `walkFov` is already a user control (50–100). Only the *default* is in
+question, **and that is a genuine trade, not a free win**: a wide FOV is the first-person navigation
+norm, and at 50° you see materially less of the room and walking feels more enclosed. This is a
+product decision for the user, with the frames as evidence, and it may be better resolved by
+decoupling — a photographic FOV for stills while walking keeps the wide default.
+
 ## v0.31.5.142 — tiled surfaces are mostly already there; floor reflections are unaffordable, not missing
 
 **Measurement only.** `.134` named the reference photograph's strongest cue as polished tile mirroring

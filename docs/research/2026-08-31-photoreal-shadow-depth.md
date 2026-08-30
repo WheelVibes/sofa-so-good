@@ -431,3 +431,45 @@ characterised rather than open:**
 2. **Scene reflections in floors** — measured as unaffordable above.
 Neither is a bug awaiting a fix, and three separate lighting interventions have already been built,
 measured and reverted (`.133`, `.138`, `.141`). **The measurable backlog on this axis is exhausted.**
+
+
+## The camera is a real lever, and it needs no renderer change (v0.31.5.143)
+
+Every round so far attacked the *renderer*. This one questioned the **camera**, and it is the first
+finding in this arc that suggests a concrete improvement requiring no engine work at all.
+
+**Convention.** Interior architectural photography uses **16–35 mm full-frame equivalent, typically
+24 mm**, and keeps the camera **level** — "capture the height of the room evenly without pointing the
+camera up or down", grid parallel to the walls, verticals parallel. Tilt-shift lenses exist
+specifically to preserve those verticals.
+
+**The app measured against it.** `WALK_FOV_DEFAULT = 70` vertical at aspect 1.6:
+
+| walkFov | ≈ focal length (vertical basis) | horizontal FOV |
+| --- | --- | --- |
+| **70 (shipped default)** | **17.1 mm** | **96.5°** |
+| 50 (the control's floor) | 25.7 mm | 73.5° |
+
+**17 mm sits at the extreme wide edge of the architectural band and well outside its 24 mm norm; 50°
+lands almost exactly on it.** `walk-tour` also aims with pitch −0.05 rad, so verticals converge
+slightly, against the level-camera convention.
+
+**The comparison.** Same pose, level camera (pitch 0), 2.6 m back, maximum tier, 13:00 — only the FOV
+differs. At **70°** the side walls rake steeply to a central vanishing point and the dining table
+stretches and looms in the foreground: the wide-angle game look. At **50°** object proportions are
+believable, edge stretching is largely gone, verticals read parallel, and the frame reads much closer
+to the reference photographs. **The difference is large and is entirely perspective, not shading.**
+
+**This needs no code change.** `walkFov` is already a user-facing control (50–100, `setWalkFov`), so a
+photographic framing is reachable today. The only question is the **default**.
+
+**And that default is a genuine trade, not a free win.** A wide FOV is the first-person navigation
+norm; at 50° you see materially less of the room and walking feels tighter and more enclosed. The app
+is a design tool people navigate, not only a render viewer. **So this is a product decision to put to
+the user with the frames as evidence — not a unilateral edit** — and it should be framed honestly as
+"more photographic stills versus more comfortable navigation", possibly resolved by decoupling them
+(a photographic FOV for stills/screenshots while walking keeps the wide default).
+
+*(A caveat on the numbers: the app renders at aspect 1.6 while a full-frame still is 1.5, so the
+mm-equivalents above are quoted on the vertical basis. The conclusion is unaffected — the gap between
+17 mm and 24 mm is far larger than that discrepancy.)*
