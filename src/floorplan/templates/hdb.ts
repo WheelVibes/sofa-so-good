@@ -98,11 +98,19 @@ export function hdb4Room(): FloorPlan {
       iwall('h4-m-n', [T, 6.5], [3.6, 6.5]),
     ],
     openings: [
-      door('h4-main', 'h4-s', 6.4),
+      // MAIN-DOOR-ROOM (v0.31.5.115): was 6.4, which put the front door at
+      // x=2.25 — inside the MASTER BEDROOM. `h4-s` runs east→west, so the offset
+      // is measured from x=9.1; 9.0 - 6.4 - 0.9 = 1.7 is the exact mirror and
+      // lands the door at x=6.95, in the Living / Dining room.
+      door('h4-main', 'h4-s', 1.7),
       door('h4-master', 'h4-m-n', 1.0),
       window('h4-kit-win', 'h4-n', 1.4, 1.6),
       window('h4-b2-win', 'h4-w', 4.0, 1.4),
-      window('h4-m-win', 'h4-w', 7.4, 1.6),
+      // BEDROOM-WINDOW (v0.31.5.115): was 7.4, which put the master's window at
+      // z=1.5 — in the KITCHEN, leaving the master with four blank walls.
+      // `h4-w` runs north→south from z=9.7; 9.6 - 7.4 - 1.6 = 0.6 mirrors it to
+      // z=8.3, inside the Master Bedroom.
+      window('h4-m-win', 'h4-w', 0.6, 1.6),
       window('h4-liv-win', 'h4-e', 5.0, 2.0),
     ],
     rooms: [

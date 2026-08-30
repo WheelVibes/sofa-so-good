@@ -24,7 +24,8 @@ import { pointInRoom } from './types'
  */
 const KNOWN_MISPLACED_MAIN_DOORS = [
   'tpl-hdb-2room/h2-main -> h2-bath',
-  'tpl-hdb-4room/h4-main -> h4-master',
+  // tpl-hdb-4room FIXED in v0.31.5.115 — `h4-main`'s offset was mirrored and put
+  // the front door inside the master bedroom. Corrected (6.4 -> 1.7).
   'tpl-hdb-5room/h5-main -> h5-master',
   'tpl-hdb-exec/ex-main -> ex-master',
   'tpl-hdb-3gen/g3-main -> g3-master',

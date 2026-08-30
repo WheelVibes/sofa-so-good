@@ -394,11 +394,16 @@ and HDB habitable rooms require natural light and ventilation, so getting this r
 question, not a guess. It is the same class as (f): mechanical to apply, but it is someone's floor
 plan.
 
-**Recommendation — flip the S/W-wall offsets template by template, worst first**, starting with the
-three master bedrooms whose window currently opens into the kitchen (`tpl-hdb-4room`,
-`tpl-hdb-5room`, `tpl-hdb-exec`). Consider also giving `perimeter()` a consistent winding so the
-trap cannot recur. Until then the 15 are **ratcheted by name** in
-`src/floorplan/bedroomWindow.test.ts`.
+**FIRST PLAN FIXED — `tpl-hdb-4room`, v0.31.5.115.** `h4-m-win`'s offset was corrected to its exact
+mirror (7.4 → 0.6 = `9.6 - 7.4 - 1.6`), moving the master's window from z=1.5 in the KITCHEN to
+z=8.3 in the master. Measured: the master's mean frame luma rose **184.2 → 198.1** and the kitchen's
+fell **169.0 → 161.4** — daylight moved to the room that owns it; living and bedroom 2 unchanged.
+**14 bedrooms remain windowless (6 masters).**
+
+**Recommendation — continue template by template, worst first**: `tpl-hdb-5room` and `tpl-hdb-exec`
+next, both of which also have a front door in the master (item (i)), so fix (h) and (i) together per
+plan. Consider giving `perimeter()` a consistent winding as part of the last such change. The
+remaining 14 stay **ratcheted by name** in `src/floorplan/bedroomWindow.test.ts`.
 
 **This also blocks the window-treatment gap.** `applyLayoutPreset('move-in')` places **zero** window
 treatments on any template (measured: 0 across all 19) because no entry in `furnishPlan.ts`'s `KITS`
@@ -442,12 +447,15 @@ moving a front door shifts door keep-outs, which the furnishing pipeline uses
 (`dropDoorBlockers`, `.108`) — so item counts and both existing ratchets ((f) enclosure, (h)
 bedroom-window) will move with it. This has to be done plan by plan, with frames.
 
-**Recommendation — fix (h) and (i) together, one template per change, worst first**
-(`tpl-hdb-4room`, `tpl-hdb-5room`, `tpl-hdb-exec` all have BOTH a front door in the master AND a
-master with no window). Consider giving `perimeter()` a consistent winding as part of the same
-sweep, since correcting the offsets and fixing the trap are the same edit — but do not re-wind
-alone, or all 41 S/W openings move at once. Until then the 8 are **ratcheted by name** in
-`src/floorplan/mainDoorRoom.test.ts`.
+**FIRST PLAN FIXED — `tpl-hdb-4room`, v0.31.5.115.** `h4-main`'s offset was corrected to its exact
+mirror (6.4 → 1.7 = `9.0 - 6.4 - 0.9`), moving the front door from x=2.25 inside the master bedroom
+to x=6.95 in the Living / Dining. Verified in frames: the master now shows ONE door, not two.
+**7 misplaced main doors remain.**
+
+**Recommendation — continue with (h) together, one template per change, worst first**
+(`tpl-hdb-5room`, `tpl-hdb-exec` both have BOTH defects). Consider giving `perimeter()` a consistent
+winding as part of the last such change — but do not re-wind alone, or all 41 S/W openings move at
+once. The remaining 7 stay **ratcheted by name** in `src/floorplan/mainDoorRoom.test.ts`.
 
 ---
 
@@ -462,8 +470,8 @@ alone, or all 41 S/W openings move at once. Until then the 8 are **ratcheted by 
 | e | Curtain vs nightstand | content | ✅ **SHIPPED v0.31.5.87** — curtain narrowed + nightstands outboard |
 | f | TEMPLATE-ROOM-ENCLOSURE | content | ⏳ **OPEN v0.31.5.109** — 9 templates ship unenclosed bathrooms; ratcheted by test |
 | g | LEVEL-ISOLATION-IN-WALK | renderer design + cost | ⏳ **OPEN v0.31.5.110** — walking an upper storey hides the one below; acute on `tpl-loft` |
-| h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — 15 of 44 template bedrooms have no window, incl. 7 masters; ratcheted by test |
-| i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — 8 template front doors open into a bedroom or bathroom; same winding cause as (h) |
+| h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — was 15 of 44; **14 left** after `tpl-hdb-4room` fixed in `.115`; ratcheted by test |
+| i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **7 left** after `tpl-hdb-4room` fixed in `.115`; same winding cause as (h) |
 
 **Five of nine items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
 ((d)). Each was implemented in its own committed round and marked here as it landed. **(f), (g), (h) and (i) are open** — and (h) and (i) share one cause, so they should be fixed together.

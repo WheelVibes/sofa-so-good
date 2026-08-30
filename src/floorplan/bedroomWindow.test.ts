@@ -20,7 +20,8 @@ import { pointInRoom } from './types'
 const KNOWN_WINDOWLESS_BEDROOMS = [
   'tpl-hdb-3room/h3-bed2',
   'tpl-hdb-4room/h4-bed3',
-  'tpl-hdb-4room/h4-master',
+  // h4-master FIXED in v0.31.5.115 — `h4-m-win`'s offset was mirrored and put the
+  // master's window in the KITCHEN. Corrected to the exact mirror (7.4 -> 0.6).
   'tpl-hdb-5room/h5-bed3',
   'tpl-hdb-5room/h5-master',
   'tpl-hdb-exec/ex-bed3',
@@ -92,6 +93,7 @@ describe('template bedrooms have daylight', () => {
           if (owns) owning++
         }
       }
-    expect(owning).toBe(29)
+    // 29 until v0.31.5.115 gave tpl-hdb-4room's master its window back.
+    expect(owning).toBe(30)
   })
 })

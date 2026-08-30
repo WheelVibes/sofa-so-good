@@ -5,6 +5,47 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.115 — tpl-hdb-4room: front door out of the master, window back into it
+
+**The first plan fixed** in the (h)/(i) arc, after three rounds of measuring. Two exact-mirror
+offset corrections in `templates/hdb.ts`, each commented with the old value and the arithmetic:
+
+- **`h4-main` 6.4 → 1.7** (`9.0 - 6.4 - 0.9`). `h4-s` runs east→west from x=9.1, so the front door
+  moves from **x=2.25, inside the MASTER BEDROOM**, to x=6.95 in the Living / Dining. Verified in
+  frames: the master now shows ONE door where it previously showed two, the second on the south
+  external wall.
+- **`h4-m-win` 7.4 → 0.6** (`9.6 - 7.4 - 1.6`). `h4-w` runs north→south from z=9.7, so the master's
+  window moves from **z=1.5, in the KITCHEN**, to z=8.3 in the master.
+- **`h4-b2-win` was deliberately left alone** — it lands in `h4-bed2` under either reading, so there
+  was no measured reason to move it.
+
+**Measured against a baseline captured BEFORE the edit** (which is the only way "nothing else moved"
+is provable): total items **1440 → 1441**, stray dining chairs **17 → 17**, and **only
+`tpl-hdb-4room` changes** (76 → 77). Every other template is byte-identical. Ratchets: windowless
+bedrooms **15 → 14** (owning 29 → 30), misplaced main doors **8 → 7**, enclosure list unchanged.
+
+**Light moved to the room that owns it.** Mean frame luma across four yaws: master **184.2 → 198.1**
+(+14.0), kitchen **169.0 → 161.4** (−7.7), living +1.1, bedroom 2 unchanged. The kitchen is dimmer
+because it lost a window that was never its own.
+
+**The +1 item was DUMPED per-def before any constant was touched, and it is the best part: a
+`range-hood`.** The kitchen had the master's stray window on its west wall, and the extractor over
+the stove was being dropped because of it. Moving the window out gave the hood its wall back — a
+stove that had no extractor, fixed as a side effect. Confirmed in frames: the hood renders correctly
+over the hob.
+
+**Stated honestly — one thing is NOT ideal.** The master's window is now present and the room is
+measurably brighter, but the arranger has put the 3-door wardrobe roughly 0.8 m in front of it, so
+**the glass is not directly visible from the room centre in any of the four yaws**. The daylight
+gets in; the view does not. That is an arrangement question (the arranger has no preference for
+keeping tall storage off a window wall), not a plan-data one — recorded for a later round rather
+than papered over.
+
+**(h) and (i) both stay OPEN**: 14 windowless bedrooms (6 masters) and 7 misplaced front doors
+remain. `tpl-hdb-5room` and `tpl-hdb-exec` are next; both have BOTH defects. **A blanket flip is
+still wrong** — read from the other end `h5-main` would open onto a balcony, so each target room
+must be computed and checked.
+
 ## v0.31.5.114 — MAIN-DOOR-ROOM: 8 template front doors open into a bedroom or a bathroom
 
 The code half of `.113`'s winding trap, investigated — and it turned out the doors are worse than

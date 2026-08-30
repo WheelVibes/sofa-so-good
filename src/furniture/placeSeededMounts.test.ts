@@ -236,6 +236,12 @@ describe('SETTLE-ORIGIN: wall-hugging pieces are rescued without losing any', ()
     // settles at the centre of a room named "Dining", which is exactly the
     // placement this CONTROL calls correct. Verified by dumping every centred
     // piece: the added one is `tpl-1bed/ob-dining: dining-table-4`.
-    expect(sweep().centred).toBe(18)
+    //
+    // 18 → 21 in v0.31.5.115: correcting `tpl-hdb-4room`'s front door and master
+    // window let three pieces settle exactly on their room centre —
+    // `h4-living: rug`, `h4-living: coffee-table`, `h4-master: rug`. All three
+    // are in CENTRE_IS_RIGHT, and `stranded` stayed at 3, so nothing was
+    // displaced. Dumped before this number was touched.
+    expect(sweep().centred).toBe(21)
   }, 30_000)
 })

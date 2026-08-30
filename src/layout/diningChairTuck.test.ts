@@ -71,7 +71,10 @@ describe('dining chairs are tucked to their table', () => {
     expect(counts).toEqual({
       'tpl-hdb-2room': 49,
       'tpl-hdb-3room': 67,
-      'tpl-hdb-4room': 76,
+      // 76 until v0.31.5.115: moving the 4-room's misplaced window OUT of the
+      // kitchen freed the wall the range hood needs, so the hood is no longer
+      // dropped. Dumped per-def before touching this — the +1 is `range-hood`.
+      'tpl-hdb-4room': 77,
       'tpl-hdb-5room': 82,
       'tpl-hdb-exec': 91,
       'tpl-hdb-3gen': 95,
@@ -93,9 +96,10 @@ describe('dining chairs are tucked to their table', () => {
       'tpl-terrace-ground': 122,
     })
     const total = Object.values(counts).reduce((s, n) => s + n, 0)
-    // 1437 before `.111`; 1439 after it; 1440 after `.112`'s room-bounds guard.
+    // 1437 before `.111`; 1439 after it; 1440 after `.112`'s room-bounds guard;
+    // 1441 after `.115` restored the 4-room kitchen's range hood.
     // Every step ADDED pieces — none of this deletes furniture.
-    expect(total).toBe(1440)
+    expect(total).toBe(1441)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal
