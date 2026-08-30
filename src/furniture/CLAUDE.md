@@ -2,6 +2,14 @@
 
 Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
 
+- **Do NOT try to fix "moulded-looking" upholstery by jittering the CUSHIONS' positions** (tested and
+  reverted, v0.31.5.158). Offsetting each seat/back cushion by a few millimetres and a fraction of a
+  degree — deterministic, bounded, tested, so the row could never overlap or float — is invisible:
+  micro-sd over the sofa crop went **9.11 → 9.13** at ±5 mm and **9.11 → 9.09** at ±12 mm with a
+  downward sink, i.e. nothing, twice. Adjacent cushions are the same colour, so sliding the seam
+  between them by a few pixels changes no shading. The flatness is **surface curvature and creases**,
+  not part placement — see `docs/research/2026-08-31-photoreal-shadow-depth.md` (`.157`, `.158`).
+
 - **Chamfer visible hard edges — `primitives/BeveledBox.tsx`, not a raw `<boxGeometry>`.** A razor
   90° edge is one of the strongest CG tells: real edges have a small radius that catches a thin
   specular highlight, and without one a slab reads as flat cardboard. `BeveledBox` is a drei

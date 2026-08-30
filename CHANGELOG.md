@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.158 — cushion jitter tested and reverted (negative result)
+
+`.157` concluded the upholstery gap is geometric, not textural. The cheapest thing that sounds like
+that fix is to stop the cushions being a moulded row — nudge each so no two sit identically. Built,
+tested, **reverted**.
+
+A pure `cushionSettle(index)` gave each seat and back cushion a deterministic `dx`/`dy`/`dz`/`yaw`,
+bounded by unit tests (two neighbours' `dx` sum under the 0.03 m gap so a row can never overlap; `dy`
+downward only so a cushion can never float; tilt under a degree), with `structuralSoundness` green.
+
+It measured nothing. Micro-sd over the sofa crop: **9.11 shipped → 9.13 at ±5 mm → 9.09 at ±12 mm**
+with a downward sink — the second is *below* shipped, i.e. noise. The frames are visually
+near-identical.
+
+The reason is the useful part: 12 mm is ~5 px at this pose, so it is not resolution — **adjacent
+cushions are the same colour**, and sliding the boundary between two identically-shaded surfaces
+produces no new shading. A photograph's cushion detail comes from the surface *bending*. `.157`'s
+conclusion therefore survives its own cheapest counter-proposal and narrows: not "the parts are too
+regular" but **"the surfaces are too flat"**. Recorded in `src/furniture/CLAUDE.md` so it is not
+retried; the real fix needs per-cushion surface deformation with the tessellation to carry it, which
+drei's `RoundedBox` (which subdivides corners, not faces) cannot provide.
+
 ## v0.31.5.157 — walls are fine, upholstery is not, and the material cannot fix it
 
 **Measurement only.** Compared the app's own frame with two reference photographs using **micro-sd**

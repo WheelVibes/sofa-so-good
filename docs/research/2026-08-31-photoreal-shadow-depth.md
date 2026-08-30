@@ -1075,3 +1075,39 @@ are smooth rounded boxes. That is the same class of defect as `.156`'s curtain e
 class of fix (vary the surface, don't paint it), but a substantially larger piece of work:
 per-cushion deformation. `glbEdit/plump.ts` and `glbEdit/wrinkleTexture.ts` already exist as partial
 machinery for it.
+
+
+## Cushion jitter: the cheap version of `.157`'s fix does not work (v0.31.5.158)
+
+`.157` concluded that the upholstery gap is **geometric, not textural** — a photographed cushion sags
+and creases, the app's are smooth rounded boxes. The cheapest thing that sounds like that fix is to
+stop the cushions being a *moulded row*: nudge each one so no two sit identically. It was built,
+tested and reverted.
+
+**What was built.** A pure `cushionSettle(index)` giving each seat and back cushion a deterministic
+`dx`/`dy`/`dz`/`yaw`, phase-shifted so a back cushion never settles in lockstep with the seat cushion
+under it. Bounded by construction and pinned by unit tests: the sum of two neighbours' `dx` stays
+under the 0.03 m inter-cushion gap so a row can never overlap, `dy` is **downward only** so a cushion
+can never float off its base, and the tilt stays under a degree. `structuralSoundness` stayed green.
+
+**What it measured.** Micro-sd over the sofa crop, same pose, lamps on:
+
+| | micro-sd |
+| --- | --- |
+| shipped | 9.11 |
+| settle ±5 mm / ±0.6° | 9.13 |
+| settle ±12 mm / ±1.7° + downward sink | **9.09** |
+
+Nothing, at either amplitude — and the second is *below* shipped, i.e. noise. Visually the frames are
+near-identical: the seam between two cushions moves a few pixels and nothing else changes.
+
+**Why it fails, which is the useful part.** At this pose 12 mm is about 5 px, so it is not a resolution
+problem — it is that **adjacent cushions are the same colour**. Sliding the boundary between two
+identically-shaded surfaces produces no new shading; a photograph's cushion detail comes from the
+surface *bending* — sagging under its own weight, creasing along a seam, denting where someone sat —
+which changes the normal and therefore the light.
+
+So `.157`'s conclusion survives its own cheapest counter-proposal, and narrows: it is not "the parts
+are too regular", it is **"the surfaces are too flat"**. Recorded in `src/furniture/CLAUDE.md` so this
+is not retried. The real fix needs per-cushion surface deformation with enough tessellation to carry
+it — drei's `RoundedBox` subdivides its corners, not its faces, so it cannot.
