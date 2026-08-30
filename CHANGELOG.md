@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.173 — an irregular weave
+
+`.172` specified the fix: the fabric gap is **regularity, not amplitude**. `buildUpholsteryHeight`
+wove `sin(x·2.4)·sin(y·2.4)` with a phase warp — threads meander, but every one is the same thickness
+and brightness, so scaling the relief scaled a lattice.
+
+New pure `threadGain(index, salt)`: a deterministic per-thread multiplier keyed to the **thread
+index** (not the pixel), averaging **1.0** by construction, plus a rare thin pick (7 % at 0.3×). The
+weave keeps its mean and amplitude and changes only its character. It adds **no new frequency
+content** — keyed to the thread index, it lives at the weave's own ~0.38 cycles/texel and cannot alias
+(the discipline `FABRIC-FINE-NYQUIST` exists for). Five tests, including that the mean stays ~1,
+neighbouring threads differ, warp and weft are salt-separated, and the field stays bounded.
+
+**Judged by the 4× crop, as `.172` said it had to be:** the old weave is an even lattice of
+identical dashes in perfect rows; the new one varies dash to dash with the occasional thin thread, and
+reads as woven cloth with slubs. The regularity that read as mesh is broken up **without touching the
+amplitude that caused it**.
+
+Numbers followed although they were not the goal — photographic look curtain **0.0887 → 0.0958**, sofa
+**0.0921 → 0.0991**. And the shipped default look is unmoved (this is the shared fabric normal, so it
+had to be checked): frame mean **179.5 → 179.6**, `%<64` 0.86 % → 0.83 %, curtain 0.0245 → 0.0248,
+with the sofa gaining a little (0.0463 → 0.0524) at identical brightness.
+
 ## v0.31.5.172 — the metric cannot tell cloth from mesh
 
 **Measurement only; nothing changed.** `.164` set `PHOTO_WEAVE` at 2.2 / 2.0 from a sweep that stopped

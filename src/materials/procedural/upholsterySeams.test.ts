@@ -6,6 +6,8 @@ import {
   FABRIC_FIELDS,
   FABRIC_WEAVE_CYCLES_PER_TEXEL,
   type SeamParams,
+  THREAD_GAIN,
+  threadGain,
 } from './upholsterySeams'
 
 const SIZE = 64
@@ -153,5 +155,44 @@ describe('fabric field frequencies stay resolvable (FABRIC-FINE-NYQUIST)', () =>
     expect(fixed).toBeLessThan(0.2)
     expect(broken).toBeGreaterThan(0.6)
     expect(fixed).toBeLessThan(broken / 5)
+  })
+})
+
+describe('threadGain — cloth, not a lattice', () => {
+  it('averages 1, so the weave keeps its mean and its amplitude', () => {
+    let sum = 0
+    const N = 4000
+    for (let i = 0; i < N; i++) sum += threadGain(i, 7)
+    // Missed picks pull the mean slightly below 1 by design; the point is that
+    // the variation does not silently brighten or darken the cloth.
+    expect(sum / N).toBeGreaterThan(0.9)
+    expect(sum / N).toBeLessThan(1.06)
+  })
+
+  it('gives neighbouring threads DIFFERENT thicknesses — the whole point', () => {
+    const vals = Array.from({ length: 40 }, (_, i) => threadGain(i, 3))
+    expect(new Set(vals.map((v) => v.toFixed(4))).size).toBeGreaterThan(30)
+  })
+
+  it('is deterministic and salt-separated, so warp and weft never march together', () => {
+    expect(threadGain(12, 3)).toBe(threadGain(12, 3))
+    let same = 0
+    for (let i = 0; i < 200; i++) if (threadGain(i, 3) === threadGain(i, 4)) same++
+    expect(same).toBeLessThan(5)
+  })
+
+  it('drops the occasional thin pick, but only occasionally', () => {
+    let thin = 0
+    for (let i = 0; i < 2000; i++) if (threadGain(i, 11) === THREAD_GAIN.missGain) thin++
+    expect(thin / 2000).toBeGreaterThan(0.02)
+    expect(thin / 2000).toBeLessThan(0.14)
+  })
+
+  it('never goes negative or runaway — the height field stays bounded', () => {
+    for (let i = -500; i < 500; i++) {
+      const v = threadGain(i, 5)
+      expect(v).toBeGreaterThan(0)
+      expect(v).toBeLessThan(2)
+    }
   })
 })

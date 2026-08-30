@@ -1674,3 +1674,39 @@ phase warp; the threads are evenly spaced and evenly bright, so scaling it up sc
 Real cloth has thread-to-thread variation in *thickness and brightness*, slubs, and the occasional
 missed or doubled pick. Closing the remaining ~2× wants an irregular height field at the same
 amplitude, not a louder regular one — and the way to test it will be the 4× crop, not the number.
+
+
+## An irregular weave (v0.31.5.173)
+
+`.172` specified the fix: the gap is **regularity, not amplitude**. `buildUpholsteryHeight` wove
+`sin(x·2.4)·sin(y·2.4)` with a phase warp — the threads meander, but every one is the same thickness
+and the same brightness, so scaling the relief scaled a lattice. This builds the irregularity instead.
+
+**New pure `threadGain(index, salt)`** in `procedural/upholsterySeams.ts`: a deterministic per-thread
+multiplier keyed to the **thread index** rather than the pixel, averaging **1.0** by construction, plus
+a rare thin pick (7 % at 0.3×). Real cloth varies thread to thread in thickness and brightness and
+drops the occasional pick; this is that, and nothing else — the weave keeps its mean and its
+amplitude, so it changes character without changing exposure.
+
+**It adds no new frequency content**, which matters here: the variation is keyed to the thread index,
+so it sits at the weave's own ~0.38 cycles/texel and cannot alias. That is the same discipline
+`FABRIC-FINE-NYQUIST` records after the fuzz term once ran seven times over Nyquist.
+
+**Judged by the 4× crop, as `.172` said it had to be.** Side by side at the same amplitude: the old
+weave is an even lattice, every dash the same size and brightness marching in perfect rows; the new
+one varies dash to dash, some rows thicker and brighter, some threads thin. It reads as woven cloth
+with slubs rather than a stamped grid. **The regularity that read as mesh is broken up without
+touching the amplitude that caused it.**
+
+**The numbers came along too**, though they were not the goal:
+
+| | curtain | sofa |
+| --- | --- | --- |
+| photographic look, regular weave | 0.0887 | 0.0921 |
+| photographic look, **irregular** | **0.0958** | **0.0991** |
+| photograph | 0.140–0.187 | 0.174 |
+
+**And the shipped default look is unmoved**, which had to be checked because this is the *shared*
+fabric normal: frame mean **179.5 → 179.6**, `%<64` 0.86 % → 0.83 %, curtain 0.0245 → 0.0248. The sofa
+gains a little (0.0463 → 0.0524) at identical brightness — a small free improvement for every user,
+not a change of look.

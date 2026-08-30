@@ -24,6 +24,7 @@
  * channel (e.g. for a flat-pack panel) without touching the weave.
  */
 import { clamp01, makeFbm } from './noise'
+import { plankHash } from './woodPlank'
 
 /** Tuning for the upholstery height field. All intensities are 0..1 multipliers
  *  over a sensible baked-in amplitude; `0` cleanly drops that channel. */
@@ -40,6 +41,38 @@ export interface SeamParams {
  *  tile edge, so a cushion reads as a single sewn panel with a piped border)
  *  plus a soft wrinkle. Kept gentle so cloth reads soft, never quilted. */
 export const DEFAULT_SEAM_PARAMS: SeamParams = { seam: 1, wrinkle: 1, panels: 1 }
+
+/**
+ * Per-thread variation (FABRIC-IRREGULAR, v0.31.5.173).
+ *
+ * The weave was `sin(x·2.4)·sin(y·2.4)` with a phase warp: threads meander, but
+ * every one is the same thickness and the same brightness. That is a **lattice**,
+ * and scaling its amplitude scales a lattice — measured, pushing the relief from
+ * 2.2 to 4.5 took surface micro-contrast from 0.0887 to 0.1370, right into the
+ * photographic range, while a 4× crop turned into a regular horizontal-dash
+ * waffle. The gap was never amplitude; it was regularity.
+ *
+ * Real cloth varies thread to thread in thickness and brightness and drops the
+ * occasional pick. `threadGain` is that variation: a deterministic per-thread
+ * multiplier averaging **1.0**, so it changes the weave's CHARACTER without
+ * changing its mean or its amplitude, plus a rare thin pick.
+ *
+ * It introduces no new frequency content — the variation is keyed to the thread
+ * index, so it lives at the weave's own ~0.38 cycles/texel and cannot alias
+ * (FABRIC-FINE-NYQUIST).
+ */
+export const THREAD_GAIN = { spread: 0.9, missChance: 0.07, missGain: 0.3 } as const
+
+export function threadGain(index: number, salt: number): number {
+  const h = plankHash(Math.round(index) * 2654435761 + Math.round(salt * 7919))
+  if (
+    plankHash(Math.round(index) * 40503 + Math.round(salt * 104729) + 17) < THREAD_GAIN.missChance
+  ) {
+    return THREAD_GAIN.missGain
+  }
+  // Mean 1.0 by construction: 1 - spread/2 + spread * E[h] = 1.
+  return 1 - THREAD_GAIN.spread / 2 + THREAD_GAIN.spread * h
+}
 
 /** Distance to the nearest panel-seam line along one axis, expressed in 0..1 of
  *  a panel cell (0 = on the seam, 0.5 = mid-panel). `panels` cells across [0,1). */
@@ -122,8 +155,12 @@ export function buildUpholsteryHeight(
       // ~0.5 m cushion face. Phase-warped so rows/cols meander like real thread.
       const jx = (warp(u, v) - 0.5) * 1.6
       const jy = (warp(v + 3.1, u + 1.7) - 0.5) * 1.6
-      const warpThread = 0.5 + 0.5 * Math.sin(x * 2.4 + jx)
-      const weftThread = 0.5 + 0.5 * Math.sin(y * 2.4 + jy)
+      // Thread INDEX, not position: everything within one thread shares a gain,
+      // so the variation sits at the weave's own frequency (see `threadGain`).
+      const warpIdx = Math.floor((x * 2.4 + jx) / Math.PI)
+      const weftIdx = Math.floor((y * 2.4 + jy) / Math.PI)
+      const warpThread = (0.5 + 0.5 * Math.sin(x * 2.4 + jx)) * threadGain(warpIdx, seed)
+      const weftThread = (0.5 + 0.5 * Math.sin(y * 2.4 + jy)) * threadGain(weftIdx, seed + 1)
       const weave = warpThread * weftThread
       const sl = slub(u * 1.2, v * 1.2)
       const slubBump = sl > 0.78 ? (sl - 0.78) * 1.1 : 0
