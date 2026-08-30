@@ -5,6 +5,55 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.110 — LEVEL-ISOLATION-IN-WALK: walking an upper storey unmounts the one below
+
+**Measured and diagnosed, deliberately NOT fixed** — the change is a renderer design + cost call,
+recorded as item **(g)** in `docs/open-graphics-decisions.md`. This round ships as a documented
+audit (`.94`, `.95`, `.104` did the same).
+
+**`tpl-loft` GROUND walked CLEAN** — `/tmp/tw6`, 16 frames 17:24, 4 rooms, 126 meshes / 49191 tris,
+96% content, resolved `medium/on/manual13`. Furnished living, TV, sofa, bookshelf, bath door,
+plants; walls, floors, doors and cornices all correct. (The first ground run died on a puppeteer
+`ProtocolError: Promise was collected` and was simply re-run — a flake, not a finding. Recorded
+because an unexplained crash in a log is worth naming.)
+
+**`tpl-loft` UPPER shows a real defect.** `/tmp/tw6u`, 12 frames, 3 rooms. Ceiling-band luma puts
+**`lfu-ward-y3` at 28.2** against 129–185 for the rest of the storey — the outlier class that caught
+`ct-kit`. Cropped: from the mezzanine, **over the guard-rail parapet there is no floor, no far wall
+and no storey below, just a pale sky gradient**, and two **black holes** open in the floor beside
+the wardrobe.
+
+**Mechanism, read from source only AFTER the pixels showed the symptom.**
+`visibleLevels(plan, viewLevelId)` returns only the matching level unless `viewLevelId === 'all'`,
+and `PlanShell.tsx:575` renders exactly those (hidden storeys unmount so picking cannot hit them).
+**Control arm, one variable changed:** the same four loft ground rooms render **126 meshes /
+49191 tris** at the default `'all'` and **103 / 41406** with a single storey selected. The missing
+23 meshes are the mezzanine. Not a failed mutation.
+
+**The default is FINE and this is stated rather than glossed.** `viewLevelId` defaults to `'all'`
+(`cameraSlice.ts:130`), so out of the box every storey renders. The precise defect is narrower:
+`walkLevel(plan, 'all')` walks the GROUND floor, so **the only way to walk an upper storey is to
+select it — which is exactly what hides the storey beneath.** You cannot walk the loft mezzanine
+without the floor below vanishing.
+
+**Blast radius measured, not guessed.** Only three templates are multi-storey, and severity tracks
+how much ground floor has no storey above: **`tpl-loft` 25.7 m2 of 41.9 (62%)** — a genuine
+double-height volume — versus `tpl-hdb-maisonette` 7.9 m2 and `tpl-terrace-ground` 10.2 m2 (13%
+each, small stairwell voids). That is why `.95` and `.104` walked two upper storeys and saw nothing.
+
+**Why no fix and no test.** Un-hiding the storey below is not sufficient — it draws its own ceiling,
+so the sky hole would become the top of a ceiling slab seen from above; the ceiling-occluder path
+has to cull the ceiling of an overlooked storey, picking semantics need a decision, and the cost
+needs a Performance-tier benchmark (`.97` shipped a 65% regression by skipping exactly that). And
+`visibleLevels`' semantics are ALREADY covered by `floorplan/levels.test.ts:163-165` — a new test
+here would either duplicate that or assert the bug.
+
+**Also recorded:** the loft's 24.2 m2 of unassigned `lf-up` floor, flagged by `.109`'s coverage
+sweep, is the intended double-height void — `condo.ts` builds its north edge with
+`parapet('lfu-rail', ...)` and comments "Open mezzanine edge gets a guard-rail parapet, not a full
+wall". An anomalous measurement can be the design. The non-reflecting mirror was re-confirmed a
+third time (`lfu-landing-y1`).
+
 ## v0.31.5.109 — TEMPLATE-ROOM-ENCLOSURE: 9 starter plans ship bathrooms no wall encloses
 
 **Measured and guarded, deliberately NOT fixed.** The fix is re-drawing shipped Singapore starter

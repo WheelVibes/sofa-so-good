@@ -382,3 +382,27 @@ Full code map in `docs/ARCHITECTURE.md`.
     `materials/CLAUDE.md` already record — so this measures the shared PAINTER, not the cabinets
     alone, and `.58` had already judged the `#cfc8bd` member (the bifold bath leaf, "flat was
     right"). Meta-rule (xvii-b) pays a **tenth** round.
+
+## Level visibility is per-VIEW, and walk mode inherits it (v0.31.5.110)
+
+`PlanShell` renders one `PlanLevelShell` per level returned by
+`floorplan/levels.ts:visibleLevels(plan, viewLevelId)`. That function returns **only the selected
+storey** unless `viewLevelId === 'all'` (the store default), and hidden storeys **unmount** — which
+is deliberate, so picking cannot hit a floor you are not looking at.
+
+**This is right for the dollhouse and 2D editing views and wrong for walk mode.** Measured on
+`tpl-loft`: the same four ground rooms render 126 meshes / 49191 tris at `'all'` and 103 / 41406
+with one storey selected — the 23-mesh difference is the mezzanine. And because
+`walkLevel(plan, 'all')` walks the GROUND floor, **selecting a storey is the only way to walk it,
+which is exactly what unmounts the storey below.** Walking the loft mezzanine therefore shows sky
+over the guard rail and black holes in the floor where the double-height volume should be.
+
+Severity tracks how much ground floor has no storey above it — `tpl-loft` 62%, `tpl-hdb-maisonette`
+and `tpl-terrace-ground` 13% each (small stairwell voids, which is why `.95` and `.104` walked two
+upper storeys and saw nothing).
+
+If you change this, note that un-hiding the storey below is NOT sufficient: it draws its own
+ceiling, so you would swap a sky hole for the top of a ceiling slab. The ceiling-occluder path
+(`ceiling/CeilingOccluder.tsx`, `ceiling/occluderRects.ts`) has to cull the ceiling of a storey
+being overlooked. See `docs/open-graphics-decisions.md` item (g) — the design and the tier cost are
+an open call, not a unilateral edit.

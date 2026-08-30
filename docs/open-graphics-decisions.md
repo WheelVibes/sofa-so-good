@@ -1,6 +1,6 @@
 # Open graphics decisions
 
-Six items the graphics-realism sweep (`v0.31.5.20`–`.109`) measured, diagnosed, and then
+Seven items the graphics-realism sweep (`v0.31.5.20`–`.110`) measured, diagnosed, and then
 deliberately did **not** change, because each one is a product or content judgement rather than a
 defect. Every measurable axis is now clean — the per-class chroma/coverage ranking (`.77`–`.81`),
 tier parity (`.82`), and time-of-day in the boot view (`.83`) — so these are what remains.
@@ -312,6 +312,59 @@ up as a required edit to the list.
 
 ---
 
+## (g) LEVEL-ISOLATION-IN-WALK — ⏳ OPEN, needs a design + cost call (measured v0.31.5.110)
+
+**What you would see.** Open `tpl-loft`, pick View → Levels → "Loft" (the ONLY way to walk the
+mezzanine), and walk to the guard rail. Over the rail there is **no floor, no far wall and no room
+below — just a pale sky gradient**. Beside the wardrobe, two **black holes** open in the floor where
+the double-height space should be. The near-black rectangles in `lfu-ward-y3` and `lfu-sleep-y2` are
+the same absence framed by a wall reveal.
+
+**Evidence.** Frames `/tmp/tw6u` (12, 17:22, resolved `medium/on/manual13`). Ceiling-band luma puts
+`lfu-ward-y3` at **28.2** against a 129–185 range for the rest of the storey — the same class of
+outlier that caught `ct-kit` in `.103`.
+
+**Mechanism, read from source after the pixels showed the symptom.**
+`floorplan/levels.ts:visibleLevels(plan, viewLevelId)` returns **only the matching level** unless
+`viewLevelId === 'all'`, and `apartment/PlanShell.tsx:575` renders exactly those — storeys unmount
+when hidden, deliberately, so picking cannot hit them. Confirmed by a control arm differing in one
+variable: the same four loft ground rooms render **126 meshes / 49191 tris** at the default `'all'`
+and **103 / 41406** with a single storey selected. The missing 23 meshes are the mezzanine.
+
+**The default is FINE — do not overstate this.** `viewLevelId` defaults to `'all'`
+(`state/slices/cameraSlice.ts:130`), so out of the box every storey renders. The precise defect is
+narrower: **`walkLevel(plan, 'all')` walks the GROUND floor, so the only way to walk an upper storey
+is to select it — which is exactly what hides the storey beneath.** You cannot walk the loft
+mezzanine without the floor below vanishing.
+
+**Blast radius.** Only three templates are multi-storey, and severity tracks how much of the ground
+floor has no storey above it: **`tpl-loft` 25.7 m2 of 41.9 (62%)** — the acute case, a genuine
+double-height volume — versus `tpl-hdb-maisonette` 7.9 m2 (13%) and `tpl-terrace-ground` 10.2 m2
+(13%), which are small stairwell voids. This is why `.95` and `.104` walked two upper storeys and
+saw nothing: neither plan has enough void to expose it.
+
+**The change and its blast radius.** Level isolation is correct for the dollhouse and 2D editing
+views — isolating a floor is the point there. It is wrong in WALK mode, where you are standing
+inside the building and the world should be continuous. So the change is to render the storeys
+BELOW the walked one in first-person only. That is not a one-liner: the storey below draws its own
+ceiling, so simply un-hiding it would replace the sky hole with the top of a ceiling slab seen from
+above. It needs the existing ceiling-occluder path (`apartment/ceiling/CeilingOccluder.tsx`,
+`occluderRects.ts`) extended to cull the ceiling of a storey being overlooked, plus a decision about
+whether picking may hit the lower storey, plus a tier benchmark — the loft adds only 23 meshes /
+7785 tris, but a deeper plan would add more, and nothing unmeasured should land on the weak-device
+tier.
+
+**What needs a human.** Whether walk mode should show all storeys below or only the immediate one,
+whether the overlooked ceiling culls or fades, and whether the added cost is acceptable on the
+Performance tier. These are renderer design + budget choices, not a defect with one right answer.
+
+**Recommendation — fix it in walk mode only, starting with the immediate storey below.** It is the
+mode where isolation has no meaning, `tpl-loft` is the only plan that visibly needs it, and the
+measured cost there is small. Benchmark on the Performance tier before committing (`.97` shipped a
+65% sky-bake regression by skipping exactly that step).
+
+---
+
 ## Summary
 
 | # | Item | Kind | Recommendation |
@@ -322,8 +375,10 @@ up as a required edit to the list.
 | d | wall-reveal POSE | design parameter | ❌ **CLOSED v0.31.5.89** — no defect; premise retracted |
 | e | Curtain vs nightstand | content | ✅ **SHIPPED v0.31.5.87** — curtain narrowed + nightstands outboard |
 | f | TEMPLATE-ROOM-ENCLOSURE | content | ⏳ **OPEN v0.31.5.109** — 9 templates ship unenclosed bathrooms; ratcheted by test |
+| g | LEVEL-ISOLATION-IN-WALK | renderer design + cost | ⏳ **OPEN v0.31.5.110** — walking an upper storey hides the one below; acute on `tpl-loft` |
 
-**Five of six items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
-((d)). Each was implemented in its own committed round and marked here as it landed. **(f) is open**
-and is the only item here that is not a one-line answer: it is a request to re-draw shipped floor
-plans, so it is scoped per template rather than decided once.
+**Five of seven items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
+((d)). Each was implemented in its own committed round and marked here as it landed. **(f) and (g) are open.**
+Neither is a one-line answer: (f) is a request to re-draw shipped floor plans, scoped per template
+rather than decided once, and (g) is a renderer change whose cost must be benchmarked on the
+weak-device tier before it lands.
