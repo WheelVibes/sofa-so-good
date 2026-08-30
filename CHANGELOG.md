@@ -5,6 +5,74 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.97 — SKY-HORIZON: the window's ground fades out of the haze instead of butting the sky
+
+**The second of the two observations left open after `.95`** — that the `sky` backdrop's
+below-horizon half reads very dark in a window view. Confirmed before changing anything,
+in both instruments, and the confirmation reframed the defect: the problem is not
+darkness, it is a **seam**.
+
+**Pure measurement** (`skyRadiance`, 64 deg sun altitude, turbidity 5.0, looking due east,
+sRGB-byte luma against elevation):
+
+    5:178  2:176  0.5:175  |  -0.5:113  -2:112  -5:109  -10:105  -20:97  -45:75  -90:48
+
+A **hard step of 62 luma across ONE degree** at the horizon, and then almost nothing: the
+whole lower hemisphere moved 8 luma over the next ten degrees. **Frame** (`window-hours
+BACKDROP=sky TIER=medium`, pose `win-mainBedroom-N` aimed by raycast from the plan's own
+opening, resolved `backdrop:sky / firstPerson / medium / simple / proceduralSky:true /
+photoBackdropActive:true`): a crisp horizon line with a flat, featureless dark slab under it
+filling the bottom ~45% of the glass — it reads as a fog bank, not as ground.
+
+**The rendered step is far softer than the texture step.** AgX compresses it: through clean
+glass the row luma *bends* at the horizon (`780:150 800:140 820:130`) rather than jumping 62.
+Worth recording because the texture number alone would have overstated the defect — the crop
+is what justified acting, and the crop is also what showed the flat slab, which the profile
+alone reads as an innocuous gentle decline.
+
+**The missing term was aerial perspective.** At the horizon the ground is seen through
+kilometres of atmosphere, so it *is* the sky's colour there, and only resolves into ground as
+the view tilts down. The `v.y < 0` branch now blends the near-horizon sky sample into the old
+ground tint with `smoothstep(-v.y / GROUND_HAZE_SPAN)`, `GROUND_HAZE_SPAN = 0.3` (~17.5 deg —
+the depression range a window actually shows at standing eye height). **The seam is gone by
+construction, not merely reduced**: at `v.y → 0` the blend weight is 0, so both sides agree in
+the limit, and a test asserts exactly that rather than asserting a small number.
+
+    after:  5:178  2:176  0.5:175  |  -0.5:175  -2:173  -5:165  -10:138  -15:107  -20:97  -90:48
+
+Step **62 → 0**; above-horizon **bit-identical**; nadir identical (48); monotonic throughout.
+In the render, column x=1380..1520 went `780:150 800:140 820:130` → `780:150 800:152 820:153`,
+with every row above y=780 unchanged and the deep ground converging (`1120: 76 → 78`).
+
+**Deliberately NOT a `groundAlbedo` change.** Raising the albedo lifts the slab without
+removing the seam — it edits the obvious data instead of supplying the missing physics.
+Equally, the ground is NOT deleted the way the orbit surround deletes it: that is right for a
+dollhouse and wrong for a window, and a test pins that the tint still resolves past the haze
+span.
+
+**A real de-duplication, not a drive-by refactor.** `skySurround.ts` carried its own inline
+copy of the near-horizon sampling maths, with three hard-won traps in its comments: the Perez
+`1/cos(zenith)` singularity right at the horizon (two samples 0.001 apart came out a factor of
+1.5 apart), the horizontal part needing renormalisation or the effective elevation drifts with
+tilt and the surround reads brighter halfway down than just below the horizon, and the nadir
+having no azimuth at all (a `|| 1` fallback collapses the sample to the ZENITH). Every one of
+those applies identically to this haze blend, so `HORIZON_EPS`, `smoothstep` and
+`horizonSampleDir` moved into `skyGradient.ts` and the surround now imports them. **Its 21
+existing tests pass untouched** — that is what makes this a refactor rather than a change.
+
+**An earlier claim is narrowed, not retracted.** `skySurround.ts`'s header states the ground
+tint is "right for the walk-mode WINDOW view it was written for". Having ground there is
+right, and is why the window keeps a ground the dollhouse does not — but the bare, un-hazed
+form was not, and the header now says so.
+
+**Scope.** The below-horizon branch's only consumer is `paintSkyEquirect` →
+`bakeSkyEquirect` → the walk-mode `sky` background. `surroundRadiance` calls `skyRadiance`
+only for `v.y >= 0` and for its `+HORIZON_EPS` sample, so the orbit dollhouse is untouched.
+No flag: this is a defect in an existing backdrop. 6 new tests, proven discriminating — the
+seam and limit-continuity tests fail on the bare tint; the other four (above-horizon control
+pinned to the pre-fix values, monotonicity to the nadir, ground still resolving past the span,
+and no light leak at night) hold both ways by design.
+
 ## v0.31.5.96 — MINIMAP-LEVEL: the walk minimap follows the walker upstairs
 
 **Closes the unverified observation recorded in `.95`** (line 40 of that entry): on the

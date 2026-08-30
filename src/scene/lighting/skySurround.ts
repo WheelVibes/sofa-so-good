@@ -5,10 +5,16 @@
  *
  * The dollhouse view renders the whole flat from above, so the camera looks DOWN
  * and most of the visible background lies BELOW the horizon. `skyRadiance` returns
- * a brown ground tint there (`groundAlbedo`, default [0.32, 0.30, 0.28]), which is
- * right for the walk-mode WINDOW view it was written for and wrong here: reusing it
- * directly put the flat on a dull brown-grey (sampled 175/165/152, warm r>g>b) —
- * measurably worse than the white it replaced, and reverted.
+ * a ground tint there (`groundAlbedo`, default [0.32, 0.30, 0.28]), which is right
+ * for the walk-mode WINDOW view it was written for — a window looks out over real
+ * ground, a dollhouse does not — and wrong here: reusing it directly put the flat
+ * on a dull brown-grey (sampled 175/165/152, warm r>g>b) — measurably worse than
+ * the white it replaced, and reverted.
+ *
+ * (SKY-HORIZON, v0.31.5.97, narrows that: HAVING ground in the window view is
+ * right, but the bare tint was not. It met the sky at a hard 62-luma step across
+ * one degree, so it now fades out of the horizon haze — see `skyGradient.ts`. The
+ * dollhouse still gets no ground at all.)
  *
  * So the lower hemisphere instead CONTINUES the sky: it samples the horizon colour
  * at the same azimuth and dims it toward the nadir, giving a soft infinite haze with
@@ -35,9 +41,11 @@
 import {
   encodeByte,
   equirectDir,
+  horizonSampleDir,
   normalize,
   type SkyParams,
   skyRadiance,
+  smoothstep,
   type Vec3,
 } from './skyGradient'
 
@@ -53,20 +61,12 @@ export interface SurroundParams extends SkyParams {
 
 export const DEFAULT_NADIR_DIM = 0.72
 
-/**
- * Elevation (sin of altitude) at which the horizon colour is sampled for the lower
- * hemisphere. NOT vanishingly small on purpose: the Perez formula divides by
- * `cos(view zenith)` and `skyRadiance` clamps that to 1e-4, so sampling right at
- * the horizon lands in the singular region where the value swings steeply — two
- * samples 0.001 apart came out a factor of 1.5 different. ~1.1 degrees up is a
- * genuine near-horizon sky colour and is numerically stable.
- */
-export const HORIZON_EPS = 0.02
-
-/** Smoothstep, so the horizon has no visible seam or Mach band. */
-function smooth(t: number): number {
-  return t * t * (3 - 2 * t)
-}
+/** Re-exported so this module's own consumers/tests keep one import site. The
+ *  constant itself now lives beside `skyRadiance`, because the walk-mode window
+ *  backdrop needs the SAME near-horizon sample for its aerial-perspective haze
+ *  (SKY-HORIZON) — two copies of this hard-won number would be two things to get
+ *  wrong. */
+export { HORIZON_EPS } from './skyGradient'
 
 /**
  * Sky radiance for the SURROUND: the analytic sky above the horizon, and a dimmed
@@ -76,25 +76,12 @@ export function surroundRadiance(view: Vec3, params: SurroundParams): Vec3 {
   const v = normalize(view)
   if (v[1] >= 0) return skyRadiance(v, params)
   // Below the horizon: sample the sky just ABOVE the horizon at THIS AZIMUTH, then
-  // dim. The horizontal part is renormalised first so the sample sits at exactly
-  // `HORIZON_EPS` elevation for every view direction — passing `[v.x, EPS, v.z]`
-  // straight through does NOT, because `v` is a unit vector whose horizontal length
-  // shrinks as it tilts, so the effective elevation drifts (0.020 looking level,
-  // 0.022 at 30 degrees down) and lands back in Perez's steep near-horizon region.
-  // That alone made the surround read BRIGHTER halfway down than just below the
-  // horizon, i.e. non-monotonic.
-  const hLen = Math.hypot(v[0], v[2])
-  const flat = Math.sqrt(Math.max(0, 1 - HORIZON_EPS * HORIZON_EPS))
-  // Straight down has NO azimuth (hLen = 0). A `|| 1` fallback there collapses the
-  // sample to [0, EPS, 0] — the ZENITH, the brightest part of the sky — so the
-  // underside came out BRIGHTER than the horizon (0.552 against 0.370), i.e.
-  // non-monotonic exactly where the surround should be dimmest. Pick an arbitrary
-  // valid azimuth instead; all azimuths converge at the pole anyway.
-  const ax = hLen > 1e-6 ? v[0] / hLen : 1
-  const az = hLen > 1e-6 ? v[2] / hLen : 0
-  const horizon = skyRadiance([ax * flat, HORIZON_EPS, az * flat], params)
+  // dim. `horizonSampleDir` carries the two traps this sample has to avoid (the
+  // elevation drifting with tilt, and the nadir having no azimuth) — it is the
+  // same helper the window backdrop's haze blend uses.
+  const horizon = skyRadiance(horizonSampleDir(v), params)
   const dim = params.nadirDim ?? DEFAULT_NADIR_DIM
-  const k = 1 - (1 - dim) * smooth(Math.min(1, -v[1]))
+  const k = 1 - (1 - dim) * smoothstep(Math.min(1, -v[1]))
   return [horizon[0] * k, horizon[1] * k, horizon[2] * k]
 }
 

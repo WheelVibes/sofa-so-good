@@ -894,6 +894,38 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   raw for the renderer. An explicit pick wins; `'auto'` picks Neutral while previewing finishes,
   AgX for a photo context, else filmic. Keep `look.ts` pure (no three) — the three constant comes
   from `toneMappingThree.ts`.
+- **The walk-mode `sky` backdrop fades its ground out of the HORIZON HAZE, never butts a flat
+  tint against the sky (SKY-HORIZON, v0.31.5.97).** `skyGradient.ts:skyRadiance` returns a ground
+  tint below the horizon (the orbit surround deliberately does not — see SKY-ANALYTIC-ORBIT
+  above; a dollhouse sits on infinite haze, a window looks out over real ground). That tint used
+  to be applied bare, so it met the Perez sky at a hard edge: measured at 64 deg sun altitude /
+  turbidity 5, sRGB-byte luma stepped **62 across ONE degree** of elevation (`0.5:175` →
+  `-0.5:113`) and then barely moved (`-10:105`), which through the main-bedroom window read as a
+  crisp seam over one flat, featureless slab filling the bottom ~45% of the glass. The missing
+  term was **aerial perspective**: at the horizon the ground is seen through kilometres of
+  atmosphere, so it IS the sky's colour there, and only resolves into ground further down. The
+  branch now blends `horizonSampleDir(v)`'s sky sample → the ground tint with
+  `smoothstep(-v.y / GROUND_HAZE_SPAN)` (`GROUND_HAZE_SPAN = 0.3`, ~17.5 deg — the depression
+  range a window actually shows at standing eye height). The seam is gone **by construction**,
+  not merely reduced: at `v.y → 0` the blend weight is 0, so both sides agree in the limit.
+  Verified: step 62 → **0**, above-horizon bit-identical (`5:178 2:176 0.5:175` unchanged), nadir
+  unchanged (48), monotonic to the nadir; in the render, column x=1380..1520 went
+  `780:150 800:140 820:130` → `780:150 800:152 820:153` with everything above y=780 identical.
+  · **Do NOT "fix" this by raising `groundAlbedo`** — that lifts the slab without removing the
+  seam, and darkens nothing that was too bright. The seam was the defect; the darkness was a
+  symptom of the missing gradient.
+  · **`HORIZON_EPS` / `smoothstep` / `horizonSampleDir` now live in `skyGradient.ts` and are
+  SHARED with `skySurround.ts`** (which re-exports `HORIZON_EPS`). That sample carries three
+  hard-won traps — the Perez `1/cos(zenith)` singularity right at the horizon (two samples 0.001
+  apart differed 1.5x), the horizontal part needing renormalisation or the effective elevation
+  drifts with tilt and the result goes non-monotonic, and the nadir having no azimuth (a `|| 1`
+  fallback there collapses the sample to the ZENITH). Two copies would be two things to get
+  wrong. The surround's 21 existing tests pass untouched, which is what makes that extraction a
+  refactor rather than a change.
+  · **This narrows an earlier claim.** `skySurround.ts`'s header said the ground tint was "right
+  for the walk-mode WINDOW view it was written for". It was right to HAVE ground there — that
+  part stands, and is why the window keeps a ground the dollhouse does not — but the measurement
+  above shows the bare, un-hazed form was not right; it is only right now.
 - **The orbit surround is an ANALYTIC sky with no ground (SKY-ANALYTIC-ORBIT) — the drei `<Sky>`
   dome it replaced was blown out to a colourless white (SKY-BLOWN, resolved v0.31.5.19).** Worth stating because it is easy to assume the opposite in both directions. It is
   NOT a flat gradient or the page background: `lighting/Sky.tsx` mounts drei's `<Sky>` — a Preetham

@@ -119,6 +119,57 @@ function xyYtoLinearRGB(x: number, y: number, Y: number): Vec3 {
 }
 
 /**
+ * Elevation (sin of altitude) at which the near-horizon sky colour is sampled when
+ * something below the horizon needs "the sky just above me at my azimuth".
+ *
+ * NOT vanishingly small on purpose: the Perez formula divides by `cos(view zenith)`
+ * and `skyRadiance` clamps that to 1e-4, so sampling right AT the horizon lands in
+ * the singular region where the value swings steeply — two samples 0.001 apart came
+ * out a factor of 1.5 different. ~1.1 degrees up is a genuine near-horizon sky
+ * colour and is numerically stable.
+ */
+export const HORIZON_EPS = 0.02
+
+/** Smoothstep, so a horizon blend has no visible seam or Mach band. */
+export function smoothstep(t: number): number {
+  return t * t * (3 - 2 * t)
+}
+
+/**
+ * The direction to sample for "the sky just above the horizon at THIS azimuth".
+ *
+ * The horizontal part is renormalised so the sample sits at exactly `HORIZON_EPS`
+ * elevation for every view direction — passing `[v.x, EPS, v.z]` straight through
+ * does NOT, because `v` is a unit vector whose horizontal length shrinks as it
+ * tilts, so the effective elevation drifts (0.020 looking level, 0.022 at 30
+ * degrees down) and lands back in Perez's steep near-horizon region. That alone
+ * once made the orbit surround read BRIGHTER halfway down than just below the
+ * horizon, i.e. non-monotonic.
+ *
+ * Straight down has NO azimuth (`hLen == 0`). A `|| 1` fallback there collapses the
+ * sample to [0, EPS, 0] — the ZENITH, the brightest part of the sky — so the
+ * underside came out brighter than the horizon. Pick an arbitrary valid azimuth
+ * instead; all azimuths converge at the pole anyway.
+ */
+export function horizonSampleDir(v: Vec3): Vec3 {
+  const hLen = Math.hypot(v[0], v[2])
+  const flat = Math.sqrt(Math.max(0, 1 - HORIZON_EPS * HORIZON_EPS))
+  const ax = hLen > 1e-6 ? v[0] / hLen : 1
+  const az = hLen > 1e-6 ? v[2] / hLen : 0
+  return [ax * flat, HORIZON_EPS, az * flat]
+}
+
+/**
+ * Depression (as -sin(elevation)) over which the ground fades out of the horizon
+ * haze. SKY-HORIZON: aerial perspective. Looking out of a window the ground near
+ * the horizon is seen through kilometres of atmosphere, so it takes the sky's own
+ * colour there and only resolves into ground as you look further down. 0.30 is
+ * ~17.5 degrees, which covers the depression range a window actually shows from a
+ * standing eye height.
+ */
+export const GROUND_HAZE_SPAN = 0.3
+
+/**
  * Analytic Preetham sky radiance for a `view` direction (need not be normalised),
  * in **relative linear RGB** (≥ 0). The result is scaled so a clear midday zenith
  * lands near ~0.5–1.0, suitable for an LDR backdrop.
@@ -145,7 +196,28 @@ export function skyRadiance(view: Vec3, params: SkyParams): Vec3 {
   if (v[1] < 0) {
     const k = clamp(0.55 + 0.45 * v[1], 0.08, 1) // brightest at horizon, dim at nadir
     const lvl = 0.12 + 0.88 * night
-    return [groundAlbedo[0] * k * lvl, groundAlbedo[1] * k * lvl, groundAlbedo[2] * k * lvl]
+    const ground: Vec3 = [
+      groundAlbedo[0] * k * lvl,
+      groundAlbedo[1] * k * lvl,
+      groundAlbedo[2] * k * lvl,
+    ]
+    // SKY-HORIZON: fade the ground out of the horizon haze instead of butting it
+    // against the sky. The bare tint above met the sky at a hard edge — measured
+    // through the main-bedroom window at 13:00 it stepped 62 luma across one
+    // degree of elevation, and the whole lower half read as one flat, featureless
+    // slab. Aerial perspective is the missing term: at the horizon the ground is
+    // seen through so much atmosphere that it IS the sky's colour, and it only
+    // resolves into ground further down. Blending to the near-horizon sky makes
+    // the seam vanish by construction (both sides agree in the limit) and gives
+    // the lower hemisphere the gradient it never had. The nadir is untouched —
+    // `smoothstep` reaches 1 well before straight down.
+    const haze = skyRadiance(horizonSampleDir(v), params)
+    const t = smoothstep(clamp(-v[1] / GROUND_HAZE_SPAN, 0, 1))
+    return [
+      haze[0] + (ground[0] - haze[0]) * t,
+      haze[1] + (ground[1] - haze[1]) * t,
+      haze[2] + (ground[2] - haze[2]) * t,
+    ]
   }
 
   const cosTheta = clamp(v[1], 0.0001, 1) // cos of view zenith angle (= view.y)
