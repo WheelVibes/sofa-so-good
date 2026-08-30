@@ -4,8 +4,10 @@ import { useStore } from '../state/store'
 import {
   fixturesLevel,
   PHOTO_FILL_SCALE,
+  PHOTO_GROUND_BOUNCE,
   PHOTO_WEAVE,
   photographicFillScale,
+  photographicGroundBounce,
   photographicWeave,
 } from './look'
 
@@ -139,5 +141,25 @@ describe('fixturesLevel — the user’s switch vs what a view draws', () => {
       expect(v).toBeLessThanOrEqual(prev + 1e-9)
       prev = v
     }
+  })
+})
+
+describe('photographicGroundBounce — the whole-floor bounce (PHOTO-GROUND-BOUNCE)', () => {
+  it('is inert when the photographic look is off, so the default look is untouched', () => {
+    // The default look already measures inside the photographic ceiling band
+    // (1.12 against 1.08–1.28) — applying the bounce there would push it out.
+    expect(photographicGroundBounce(false)).toBe(1)
+  })
+
+  it('scales the hemisphere ground term when the look is on', () => {
+    expect(photographicGroundBounce(true)).toBe(PHOTO_GROUND_BOUNCE)
+    expect(photographicGroundBounce(true)).toBeGreaterThan(1)
+  })
+
+  it('stays at the gain the ceiling measurement justifies', () => {
+    // `.195`: x6.5 is where the photographic look's ceiling reaches 1.08, the
+    // bottom of the four-photograph band. Below it the ceiling falls short
+    // (x3.5 -> 1.01); above it `%<64` keeps falling for no further target gain.
+    expect(PHOTO_GROUND_BOUNCE).toBeCloseTo(6.5, 6)
   })
 })

@@ -4,11 +4,13 @@ import { type AmbientLight, type DirectionalLight, type HemisphereLight, Object3
 import { isFeatureEnabled } from '../../features/featureFlags'
 import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
+
 import { registerAnimatedSource } from '../animatedSources'
 import {
   grade,
   iblFillScale,
   photographicFillScale,
+  photographicGroundBounce,
   shadowFilterForTier,
   shadowParamsForFilter,
   toneExposureBias,
@@ -282,10 +284,13 @@ export function Lighting() {
         cur.skyColor[1] * wb[1],
         cur.skyColor[2] * wb[2],
       )
+      // PHOTO-GROUND-BOUNCE: the whole-floor bounce that lifts the photographic
+      // look's ceiling into the photographic band. See `look.ts`.
+      const gb = photographicGroundBounce(photographicLook)
       hemiRef.current.groundColor.setRGB(
-        cur.groundColor[0] * wb[0],
-        cur.groundColor[1] * wb[1],
-        cur.groundColor[2] * wb[2],
+        cur.groundColor[0] * wb[0] * gb,
+        cur.groundColor[1] * wb[1] * gb,
+        cur.groundColor[2] * wb[2] * gb,
       )
     }
     if (ambientRef.current) {

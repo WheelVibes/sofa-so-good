@@ -2734,3 +2734,57 @@ top, measured on the few photographs where a console or table underside is genui
 **Nothing shipped, and the bounce is still undecided.** Its benefit is confirmed and unchanged (ceiling
 0.87 → 1.08 with walls flat); its cost remains unmeasured, and this round establishes that it was never
 going to be measured by the metric built for it.
+
+---
+
+## `.195` — SHIPPED: the whole-floor bounce, on a visual check because the objection is unmeasurable
+
+Eight rounds after `.188` named the mechanism, the ceiling deficit is closed. `PHOTO_GROUND_BOUNCE`
+scales the hemisphere's `groundColor` by 6.5 under the photographic look only.
+
+| | `%<64` | ceiling | wall | floor |
+| --- | --- | --- | --- | --- |
+| photographic, 13:00 | 7.18 % | **1.08** | 1.13 | 1.05 |
+| photographic, 19:00 | 2.19 % | **1.17** | 1.20 | 1.14 |
+| default, 13:00 (unchanged) | 1.32 % | 1.12 | 1.14 | 1.13 |
+| photographs | 1.9–12.2 % | 1.08–1.28 | 0.53–1.43 | 0.87–1.30 |
+
+Every ratio is inside the four-photograph range at both hours, and the default look is byte-identical
+to its pre-change baseline — the gate works.
+
+### Why `.183`'s objection could not decide this
+
+`.183` refused a ×4.5 ground term because furniture undersides looked too light, and `.191`–`.194`
+tried to turn that into a metric. It cannot be done, for two independent reasons found this round:
+
+- **A photograph does not show an underside.** Zoomed grid crops of both reference interiors show the
+  *shadow* under a sofa and a coffee table, and at most a few pixels of the plane itself. There is no
+  photographic target to calibrate against — unlike every other metric in this arc.
+- **Neither does the app, from the walk camera.** Masking down-facing faces geometrically
+  (`normal.y < −0.9`, shin-to-table height) over eight poses returns **zero** samples. A standing eye
+  cannot see under a coffee table.
+
+And the proxy that `.191` substituted is blind by construction, as `.194` established: `groundColor`
+contributes nothing to an up-facing floor, so the floor-shadow ratio reads **0.786 identically** at
+×1, ×3.5 and ×6.5. Four rounds of instrument work on a criterion that could not, even in principle,
+answer the question.
+
+So this shipped on the evidence that does exist: a validated ratio measurement for the benefit, and a
+**visual A/B** for the cost. An amplified difference of the two frames shows the change reaching the
+walls as well as the ceiling — which the ratio hid, since the frame mean rises 17 % and the walls rise
+with it — and the side-by-side crop reads as a warmer, brighter room rather than a broken one.
+
+### A shell trap that produced four identical wrong readings
+
+The first verification run reported all four arms identical *and* equal to the default look. Cause:
+**zsh does not word-split unquoted parameter expansions**, so `for a in "PHOTO=1 HOUR=13" …; do … $a` passed
+one argument and `env` set `PHOTO="1 HOUR=13"` — false against `=== '1'`, with `HOUR` never set at
+all. Every arm silently ran the default look at the default hour. `with-server.sh` uses `env "$@"` and
+is order-independent; the loop was the bug. The repo already records a sibling of this
+(`set -- $PAIR` in a zsh loop); this is the same tooth.
+
+### Still open
+
+The floor under the app's furniture measures **0.786** (photographic) and **0.865** (default) against
+photographs at **0.579–0.725** — too bright in both looks. That is a real deficiency, independent of
+this change, and `groundColor` provably cannot cause or cure it.

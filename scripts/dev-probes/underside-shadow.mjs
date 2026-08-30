@@ -191,12 +191,19 @@ function sampleFloor() {
           const h = rc.intersectObjects(scene.children, true).find((k) => solid(k.object))
           if (!h?.face) continue
           n.copy(h.face.normal).transformDirection(h.object.matrixWorld)
+          // DOWN-FACING faces between shin and table height: the actual surface
+          // class `.183` objected to, and the only class the hemisphere's
+          // `groundColor` reaches (`.194`).
+          if (n.y < -0.9 && h.point.y > 0.1 && h.point.y < 0.9) {
+            out.push({ x, y, kind: 'face' })
+            continue
+          }
           if (n.y < 0.9 || h.point.y > 0.15) continue
           rc.set(h.point.clone().addScaledVector(up, 0.02), up)
           rc.far = occlude
           const above = rc.intersectObjects(scene.children, true).find((k) => solid(k.object))
           rc.far = Infinity
-          out.push({ x, y, under: !!above })
+          out.push({ x, y, kind: 'floor', under: !!above })
         }
       }
       return out
@@ -208,6 +215,7 @@ function sampleFloor() {
 const sharp = (await import('sharp')).default
 const under = []
 const open = []
+const faces = []
 const perPose = []
 
 for (const standoff of STANDOFFS) {
@@ -235,6 +243,10 @@ for (const standoff of STANDOFFS) {
       const py = Math.min(meta.height - 1, Math.floor(h.y * meta.height))
       const off = (py * meta.width + px) * ch
       const l = 0.2126 * raw[off] + 0.7152 * raw[off + 1] + 0.0722 * raw[off + 2]
+      if (h.kind === 'face') {
+        faces.push(l)
+        continue
+      }
       if (h.under) {
         under.push(l)
         u++
@@ -269,9 +281,13 @@ for (const p of perPose)
     `  standoff ${p.standoff} ${p.dir.padEnd(3)}  floor ${String(p.floor).padStart(3)}  under ${String(p.under).padStart(3)}  open ${String(p.open).padStart(3)}`,
   )
 console.log('')
-console.log(`POOLED  under ${under.length} / open ${open.length}`)
+console.log(`POOLED  under ${under.length} / open ${open.length} / down-faces ${faces.length}`)
 console.log(
   `  under = ${mu.toFixed(1)}   open = ${mo.toFixed(1)}   under/open = ${(mu / mo).toFixed(3)}`,
+)
+const mf = mean(faces)
+console.log(
+  `  DOWN-FACING faces = ${mf.toFixed(1)}   face/open = ${(mf / mo).toFixed(3)}   (no photographic target — see .195)`,
 )
 console.log('')
 console.log('reference photographs (.191): 0.579, 0.654, 0.725')

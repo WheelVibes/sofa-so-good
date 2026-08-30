@@ -595,3 +595,64 @@ export const BLOOM = {
    *  blooms gently, not blown out. */
   intensity: 0.45,
 } as const
+
+/**
+ * PHOTO-GROUND-BOUNCE — the whole-floor bounce the photographic look was missing.
+ *
+ * `.188` isolated the last region ratio outside the reference photographs and
+ * named its mechanism: four photographs put the ceiling at **1.08–1.28** of frame
+ * mean, and the photographic look sat at **0.87**. The default look is already
+ * fine at 1.12 — its flat ambient fill stands in for bounce — so this is a cost
+ * of the one look that removes that fill to buy its shadow depth. Nothing was
+ * relighting the ceiling from the floor.
+ *
+ * Three shapes were tried before this one. A rect-area emitter in the window's
+ * floor pool is compiled out by the Lambert ceiling (`RE_Direct_RectArea` exists
+ * only in the physical lighting model, `.189`). A spot in the same place
+ * contributes nothing at all, still undiagnosed. A point light lights the WALLS
+ * preferentially, because a room's walls are nearer the floor than its ceiling is
+ * and 1/d² does the rest — +0.15 on the walls for +0.04 on the ceiling (`.190`).
+ *
+ * The term that works is the one `.183` refused: the hemisphere's `groundColor`,
+ * which is a whole-floor model rather than a window-local one. That matters
+ * because a real ceiling is lit by bounce from the entire floor, and it is why a
+ * positioned emitter could never move this ratio. Its angular distribution is
+ * also close to right — three shades a hemisphere as
+ * `mix(groundColor, skyColor, 0.5·dot(n, up) + 0.5)`, so `groundColor` reaches a
+ * down-facing ceiling in full, a vertical wall by half, and an up-facing floor
+ * not at all, which is the shape of a real floor bounce.
+ *
+ * **6.5 is where the ceiling reaches the band**, measured with
+ * `light-distribution.mjs` at 13:00/medium:
+ *
+ *   ground bounce   %<64      ceiling   wall
+ *   x1 (was)        11.88 %   0.87      1.11
+ *   x3.5             9.22 %   1.01      1.12
+ *   x6.5             7.20 %   1.08      1.13
+ *   photographs     1.9–12.2  1.08–1.28 0.53–1.43
+ *
+ * The wall RATIO barely moves, but read that with care: the frame mean rises 17 %
+ * over the sweep, so the walls rise with it in absolute terms — an amplified diff
+ * of the two frames shows the change plainly on the walls, not only the ceiling
+ * (`.195`). That is what a bounce does; it is not a targeted ceiling repair.
+ *
+ * `%<64` falls 11.88 → 7.20 %, a real loss of shadow depth, and it stays inside
+ * the four-photograph range `.186` established. It is applied ONLY under the
+ * photographic look — the default look already measures inside the ceiling band
+ * and would be pushed out of it.
+ *
+ * **`.183`'s objection is not refutable by measurement, and that is why this
+ * ships on a visual check.** It refused a ×4.5 ground term because furniture
+ * undersides looked too light. That surface class cannot be calibrated: a
+ * photograph shows the SHADOW under a piece, never the underside plane (`.195`),
+ * and from the walk camera the app shows no down-facing faces between shin and
+ * table height at all — a standing eye cannot see under a coffee table. The
+ * floor-shadow proxy built for it in `.191`/`.192` is structurally blind here,
+ * since `groundColor` contributes nothing to an up-facing floor: it reads 0.786
+ * identically at ×1, ×3.5 and ×6.5.
+ */
+export const PHOTO_GROUND_BOUNCE = 6.5
+
+export function photographicGroundBounce(on: boolean): number {
+  return on ? PHOTO_GROUND_BOUNCE : 1
+}

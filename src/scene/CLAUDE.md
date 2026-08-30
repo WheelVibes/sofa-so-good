@@ -16,6 +16,37 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   the UI store. Full measurement trail: `docs/research/2026-08-31-photoreal-shadow-depth.md`
   (`.162`–`.170`).
 
+- **The photographic look also carries a WHOLE-FLOOR bounce (PHOTO-GROUND-BOUNCE, `.195`).**
+  `look.ts:photographicGroundBounce` scales the hemisphere's `groundColor` by **6.5**, and only
+  under this look — the default look already measures inside the photographic ceiling band and
+  would be pushed out of it. It exists because turning the flat fill down is what buys the shadow
+  depth, and the ceiling was lit almost entirely BY that fill: against four reference photographs
+  (ceiling **1.08–1.28** of frame mean) the photographic look sat at **0.87** and now sits at
+  **1.08** at 13:00 / **1.17** at 19:00, with `%<64` 7.18 % / 2.19 % (photographs 1.9–12.2 %) and
+  walls and floor still in range. The default look is byte-identical.
+  · **Three cheaper-looking shapes were tried and all failed — don't re-propose them.** A
+    `RectAreaLight` in the window's floor pool is compiled out by the Lambert ceiling
+    (`RE_Direct_RectArea` exists only in the physical lighting model). A `SpotLight` in the same
+    place contributes nothing at all, **still undiagnosed** — inert even at `decay=0 distance=0`,
+    while a `pointLight` at the same position moves the frame decisively. A point light lights the
+    WALLS preferentially (+0.15 wall for +0.04 ceiling), because a room's walls are nearer the
+    floor than its ceiling and 1/d² does the rest. The deficit is a WHOLE-FLOOR phenomenon, so only
+    a whole-floor term moves it.
+  · **The hemisphere's angular shape is why it works.** three shades it
+    `mix(groundColor, skyColor, 0.5·dot(n, up) + 0.5)`, so `groundColor` reaches a down-facing
+    ceiling in full, a vertical wall by half and an up-facing floor **not at all** — the shape of a
+    real floor bounce. It also means the frame mean rises ~17 %, so walls brighten in absolute terms
+    even though their RATIO barely moves; an amplified frame diff shows that plainly.
+  · **`.183` refused this term at ×4.5 on furniture undersides, and that objection cannot be
+    measured.** A photograph shows the SHADOW under a piece, never the underside plane, and from the
+    walk camera the app renders **no** down-facing faces between shin and table height — a standing
+    eye cannot see under a coffee table. The floor-shadow proxy built for it is structurally blind
+    here (`groundColor` contributes nothing to an up-facing floor): it reads 0.786 identically at
+    ×1, ×3.5 and ×6.5. So this shipped on a visual A/B, not a metric.
+  · Separately and still open: the app's floor under furniture measures **0.786** (photographic)
+    and **0.865** (default) against photographs at **0.579–0.725** — too bright in BOTH looks.
+    `scripts/dev-probes/underside-shadow.mjs`.
+
 - **The main Canvas is `frameloop="demand"`** — never assume a continuous render loop.
   Anything that animates must keep `RenderPump` open (`renderDecision.ts`
   `shouldRender`/`isContinuous`/`settleTailMs`, all pure + unit-tested) and call

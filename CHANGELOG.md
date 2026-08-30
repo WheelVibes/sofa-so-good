@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.195 — SHIPPED: the whole-floor bounce closes the ceiling deficit
+
+Eight rounds after `.188` named the mechanism, the last region ratio outside the reference photographs
+is closed. `look.ts:photographicGroundBounce` scales the hemisphere's `groundColor` by **6.5**, under
+the photographic look only.
+
+| | `%<64` | ceiling | wall | floor |
+| --- | --- | --- | --- | --- |
+| photographic, 13:00 | 7.18 % | **1.08** | 1.13 | 1.05 |
+| photographic, 19:00 | 2.19 % | **1.17** | 1.20 | 1.14 |
+| default, 13:00 (unchanged) | 1.32 % | 1.12 | 1.14 | 1.13 |
+| photographs | 1.9–12.2 % | 1.08–1.28 | 0.53–1.43 | 0.87–1.30 |
+
+Every ratio is inside the four-photograph range at both hours, and the default look is byte-identical
+to its pre-change baseline. The hemisphere is the term that works because the deficit is a WHOLE-FLOOR
+phenomenon: three shades it `mix(groundColor, skyColor, 0.5·dot(n, up) + 0.5)`, so it reaches a
+down-facing ceiling in full, a vertical wall by half and an up-facing floor not at all — the shape of a
+real floor bounce. The three positioned alternatives all failed (`.189`/`.190`).
+
+**`.183` refused this term at ×4.5 on furniture undersides, and that objection cannot be measured.** A
+photograph shows the shadow under a piece, never the underside plane; and from the walk camera the app
+renders **zero** down-facing faces between shin and table height — a standing eye cannot see under a
+coffee table. The floor-shadow proxy built across `.191`–`.194` is blind by construction, reading
+**0.786 identically** at ×1, ×3.5 and ×6.5. So this ships on a validated ratio measurement for the
+benefit and a **visual A/B** for the cost: an amplified frame diff shows the change reaching the walls
+as well as the ceiling (the frame mean rises 17 %, so walls brighten while their ratio barely moves),
+and the side-by-side reads as a warmer room rather than a broken one.
+
+**A shell trap worth recording:** the first verification reported all four arms identical and equal to
+the default look. zsh does not word-split unquoted parameter expansions, so `for a in "PHOTO=1 HOUR=13"`
+passed one argument and `env` set `PHOTO="1 HOUR=13"` — false against `=== '1'`, with `HOUR` never set.
+Every arm silently ran the default look at the default hour.
+
+Still open, and provably unrelated to this change: the floor under the app's furniture measures 0.786
+(photographic) and 0.865 (default) against photographs at 0.579–0.725 — too bright in both looks.
+
 ## v0.31.5.194 — repaired probe, a real baseline, and a proxy that is structurally blind
 
 `.193`'s three probe defects are fixed: onboarding suppressed, HUD rectangles cut out, and the pose
