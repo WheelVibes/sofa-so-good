@@ -719,6 +719,65 @@ Pinned by `scene/lighting/daylightFactor.test.ts`. Full suite 9354 passed — **
 old lamp-coupled behaviour**. `fixtureGlow.ts`'s header, which claimed "≈ scene darkness" and
 "written each frame", was corrected in the same commit: it is the lamp switch, written on change.
 
+---
+
+## Boot-plan re-audit — ✅ CLEAN (v0.31.5.129)
+
+**The boot plan (`defaultPlan.ts`, 11 rooms) was last walked in `.102`. Every arranger fix from
+`.108` onward touched shared code, and its exterior had never been judged on a trustworthy frame —
+so this is both a regression check and the first honest look at its windows.**
+
+`walk-tour FURNISH=1 TIER=medium HOUR=13` (explicit tier on purpose; an `auto` run climbs to `high`,
+which is a different render). Resolved `medium/on/manual13`. 44 frames, 11 rooms, 354 meshes /
+87486 triangles. Ceiling-band luma **139.0** (`bedroom3-y0`) to **232.4** (`householdShelter-y2`) —
+**no outlier**; the two real defects this metric has caught read 37 and 28.2.
+
+**Read frame by frame across two contact sheets. No new defect.** Furnished living/dining with the
+TV, ceiling fan and sofa; kitchen with cabinets, hob, range hood and fridge; both bathrooms tiled
+with mirrors and windows; bedrooms with beds, nightstands, lamps, wardrobes and bookshelves; the AC
+ledge and service yard correctly showing open sky. Known items only — the bathroom mirrors render as
+flat grey panels (mirrors do not reflect, recorded 3x).
+
+**Checked rather than reported:** four dark octagonal discs on the household-shelter wall, visible
+from both the corridor and the shelter side, are the blast door's **bolt heads** — authored geometry
+(the HDB household shelter door), not holes in a wall. Low-poly at nose distance, which is what the
+walk pose puts you at, but a small detail on a service door.
+
+**The `.127` glass fix, measured on the artefact users actually boot into.** Same probe, same room,
+same crop, same hour; the only difference is the fix:
+
+| `mainBedroom-y0` | before (`.109`, `/tmp/tw5`) | after (`.129`, `/tmp/tw20`) |
+| --- | --- | --- |
+| window pane p50 | **136** | **203** |
+| wall p50 | 223 | **223** |
+
+The wall is identical to the byte and the window gained 67 luma — the change is confined to the
+glass, which is what a correct fix looks like. **Mean frame content also fell from ~97% (template
+walks) to 81% here, which is expected and is itself evidence:** more of each frame is now sky seen
+through glass rather than opaque pane, and the content metric counts sky as background.
+
+---
+
+## `tpl-studio` — ✅ CLEAN (v0.31.5.129), and the first look at `.120`'s door fix
+
+`walk-tour PLAN=tpl-studio FURNISH=1 TIER=medium HOUR=13`, resolved `medium/on/manual13`. Only 12
+frames — the studio has **3 rooms** (`st-living` r=3.09, `st-kit` r=2.02, `st-bath` r=1.03) — 62
+meshes / 21896 triangles, mean 80% content. Ceiling band **174.1–221.7**, no outlier.
+
+Read frame by frame: open-plan living with sofa, floor lamp, plant, coffee table and wall art; the
+kitchen's range hood and TV visible from the living area (correct for one volume); a bright daylight
+window; the bathroom a tight tiled cell behind its door. **No defect.**
+
+**It carries no ratchet entries at all** — `tpl-studio` appears in none of the (f)/(h)/(i)/(j)
+allow-lists; its only mention anywhere is `mainDoorRoom.test.ts`'s comment recording that `.120`
+FIXED `st-main` (offset 1.0 → 3.9, out of the bathroom and onto the kitchen end of `st-s`). **That
+fix had never been seen in a frame until now**; the walk confirms the doors read sensibly.
+
+*(The first attempt died on the known `ProtocolError: Promise was collected` puppeteer flake and was
+re-run; the numbers above are from the successful run, `exit=0`.)*
+
+
+
 
 ---
 
@@ -732,16 +791,16 @@ were wrong.** It was written from a handoff note rather than counted against
 `tpl-condo-1study` was one of nine outstanding plans, not the only one. `tpl-studio` in particular
 was listed as walked because `.120` moved its front door — moving an offset is not a walk.
 
-**After `.123`: 12 of the 19 registered templates have been walked frame by frame.**
+**After `.129`: 13 of the 19 registered templates have been walked frame by frame** (plus the boot plan `defaultPlan.ts`, which is not a template and is audited separately above).
 
 Walked (12): `tpl-hdb-maisonette` (`.95`), `tpl-terrace-ground` (`.103`/`.104`),
 `tpl-condo-penthouse` (`.109`), `tpl-loft` (`.110`), `tpl-hdb-4room` (`.111`/`.115`),
 `tpl-hdb-5room` (`.116`/`.121`), `tpl-hdb-exec` (`.118`), `tpl-hdb-jumbo` (`.109`/`.119`),
 `tpl-condo-3bed` (`.122`), `tpl-hdb-3room` (`.122`), `tpl-condo-4bed` (`.123`),
-`tpl-hdb-3gen` (`.123`).
+`tpl-hdb-3gen` (`.123`), `tpl-studio` (`.129`).
 
-**Not yet walked (7):** `tpl-hdb-2room`, `tpl-studio`, `tpl-1bed`, `tpl-condo-1bed`,
-`tpl-condo-1study`, `tpl-condo-2bed`, `tpl-condo-studio`. **Do not describe coverage as complete
+**Not yet walked (6):** `tpl-hdb-2room`, `tpl-1bed`, `tpl-condo-1bed`, `tpl-condo-1study`,
+`tpl-condo-2bed`, `tpl-condo-studio`. **Do not describe coverage as complete
 until each of these has produced frames** — count against the registry, never against a summary.
 
 Every defect these walks found is recorded as (f) through (k) above; no unrecorded visual defect

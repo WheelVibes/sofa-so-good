@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.129 — boot plan re-audited CLEAN, `tpl-studio` walked, and the glass fix measured where it counts
+
+**Docs only — two clean audits and a before/after on the artefact every user boots into.**
+
+**The boot plan (`defaultPlan.ts`, 11 rooms) was last walked in `.102`.** Every arranger fix from
+`.108` on touched shared code, and its exterior had never been judged on a trustworthy frame.
+`walk-tour FURNISH=1 TIER=medium HOUR=13` (explicit tier on purpose — `auto` climbs to `high`, a
+different render), resolved `medium/on/manual13`: 44 frames, 354 meshes / 87486 tris. Ceiling band
+**139.0–232.4**, no outlier (the two real defects this metric has caught read 37 and 28.2). Read
+frame by frame — **no new defect**. Known items only: the bathroom mirrors render as flat grey
+panels. **Checked rather than reported:** four dark octagonal discs on the household-shelter wall,
+seen from both the corridor and the shelter, are the blast door's **bolt heads** — authored geometry,
+not holes.
+
+**The `.127` glass fix, measured on the boot flat.** Same probe, same room, same crop, same hour:
+`mainBedroom-y0` window pane **136 → 203** while the wall is **223 → 223**, byte-identical. The
+change is confined to the glass, which is what a correctly scoped fix looks like. Mean frame content
+also fell from ~97% (template walks) to **81%** — expected and corroborating, since more of each
+frame is now sky seen through glass and the content metric counts sky as background.
+
+**`tpl-studio` — CLEAN, and the first look at `.120`'s door fix.** 12 frames (3 rooms), 62 meshes /
+21896 tris, band **174.1–221.7**, no outlier. Open-plan living reads correctly with the kitchen's
+range hood and TV in the same volume, a bright daylight window, and a tight tiled bathroom.
+**It carries no ratchet entries at all** — its only mention anywhere is the comment recording that
+`.120` fixed `st-main` (1.0 → 3.9), a fix that had never been seen in a frame until now. (A handoff
+note claimed it had a known unenclosed-bath entry; counted against the tests, it does not.)
+
+**Coverage: 13 of 19 templates walked, 6 outstanding** — `tpl-hdb-2room`, `tpl-1bed`,
+`tpl-condo-1bed`, `tpl-condo-1study`, `tpl-condo-2bed`, `tpl-condo-studio`.
+
 ## v0.31.5.128 — WINDOW-SKY-DARK closed: I mis-attributed it, and (k2) had already fixed it
 
 **Docs + probe only.** Item (k1) is closed, and the closure is a correction of my own analysis.
