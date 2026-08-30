@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { FEATURE_FLAGS, resolveFlags } from '../features/featureFlags'
+import { useStore } from '../state/store'
 import {
   fixturesLevel,
   PHOTO_FILL_SCALE,
@@ -37,20 +38,32 @@ describe('photographicFillScale — an opt-in key:fill rebalance, per tier', () 
 })
 
 describe('the photographicFill flag', () => {
-  it('is OFF by default in BOTH modes — the DEFAULT-GLOOM trade is the user’s call', () => {
-    expect(FEATURE_FLAGS.photographicFill.default).toBe(false)
-    expect(resolveFlags(false, {}, false, 'simple').photographicFill).toBe(false)
-    expect(resolveFlags(false, {}, false, 'pro').photographicFill).toBe(false)
+  it('ships the CONTROL in a production build, in both modes', () => {
+    // `resolve.ts` ignores overrides unless dev/admin, so a flag defaulting false
+    // would have made eight rounds of work unreachable for every real user. The
+    // flag ships the toggle; `ui.photographicLook` is the look, and that is off.
+    expect(FEATURE_FLAGS.photographicFill.default).toBe(true)
+    expect(resolveFlags(false, {}, false, 'simple').photographicFill).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').photographicFill).toBe(true)
   })
 
-  it('is REACHABLE in both modes — a look preference, not a pro tool', () => {
-    // A `pro`-tier flag would be forced off in Simple, which is exactly what this
-    // must NOT be: the comparison has to be available to the default user.
+  it('is `simple` tier — a look preference, not a pro tool', () => {
+    // A `pro`-tier flag is forced off in Simple, which is exactly what this must
+    // NOT be: the default user has to be able to reach the comparison.
     expect(FEATURE_FLAGS.photographicFill.tier).toBe('simple')
-    expect(resolveFlags(true, { photographicFill: true }, false, 'simple').photographicFill).toBe(
-      true,
-    )
-    expect(resolveFlags(true, { photographicFill: true }, false, 'pro').photographicFill).toBe(true)
+  })
+
+  it('the LOOK itself is off by default — the DEFAULT-GLOOM trade is the user’s call', () => {
+    expect(useStore.getState().photographicLook).toBe(false)
+  })
+
+  it('the toggle flips it and nothing else', () => {
+    const before = useStore.getState().lightsMode
+    useStore.getState().setPhotographicLook(true)
+    expect(useStore.getState().photographicLook).toBe(true)
+    expect(useStore.getState().lightsMode).toBe(before)
+    useStore.getState().setPhotographicLook(false)
+    expect(useStore.getState().photographicLook).toBe(false)
   })
 
   it('is not devOnly — it must survive a production build', () => {

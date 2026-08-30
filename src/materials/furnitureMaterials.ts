@@ -17,6 +17,7 @@ import {
 } from 'three'
 import { isFeatureEnabled } from '../features/featureFlags'
 import { PHOTO_WEAVE, photographicWeave } from '../scene/look'
+import { photographicLookActive } from '../scene/photographicSignal'
 import type { RenderTier } from '../scene/quality'
 import { applyAnisotropy } from './anisotropy'
 import { anisotropyRotationForNormal, type Vec3 } from './brushAxis'
@@ -947,7 +948,7 @@ export function getDraperyMaterial(
     photographicWeave(
       linen ? 0.95 : 0.65,
       linen ? PHOTO_WEAVE.draperyLinen : PHOTO_WEAVE.drapery,
-      isFeatureEnabled('photographicFill'),
+      photographicLookActive(),
     ),
   )
 }

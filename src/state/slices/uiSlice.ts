@@ -108,6 +108,9 @@ export interface UiSlice {
   sceneSaturation: number
   /** Fixture lights mode (all on / all off). */
   lightsMode: LightsMode
+  /** PHOTO-FILL: opt-in photographic light balance. Off by default — reducing
+   *  the fill is the DEFAULT-GLOOM trade (`.86`), which is the user's call. */
+  photographicLook: boolean
   /** Lighting mood preset (UX round-3 #3): one-tap brightness + colour-temperature
    *  adjustment layered on top of `lightsMode` (`lighting/moodPresets.ts`).
    *  `'none'` = Normal (no adjustment). Persisted with the design, like
@@ -279,6 +282,7 @@ export interface UiSlice {
   /** Set the scene saturation multiplier (clamped; COLOR-GRADE). */
   setSceneSaturation: (s: number) => void
   setLightsMode: (m: LightsMode) => void
+  setPhotographicLook: (v: boolean) => void
   /** Cycle Auto → On → Off → Auto. */
   cycleLightsMode: () => void
   setAutoShadowsOff: (v: boolean) => void
@@ -338,6 +342,7 @@ export const UI_INITIAL: Pick<
   | 'recentColors'
   | 'recentFinishes'
   | 'materialEpoch'
+  | 'photographicLook'
   | 'showcaseAccumulating'
   | 'roomEditor'
   | 'roomOrder'
@@ -359,6 +364,7 @@ export const UI_INITIAL: Pick<
   sceneWarmth: DEFAULT_SCENE_WARMTH,
   sceneSaturation: DEFAULT_SCENE_SATURATION,
   lightsMode: 'off',
+  photographicLook: false,
   lightMood: 'none' as LightMood,
   showCeilingFixtures: false,
   wallRevealStrength: DEFAULT_WALL_REVEAL_STRENGTH,
@@ -491,6 +497,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   setSceneWarmth: (w) => set({ sceneWarmth: clampSceneWarmth(w) }),
   setSceneSaturation: (sat) => set({ sceneSaturation: clampSceneSaturation(sat) }),
   setLightsMode: (m) => set({ lightsMode: m }),
+  setPhotographicLook: (v) => set({ photographicLook: v }),
   setLightMood: (m) => set({ lightMood: m }),
   setShowCeilingFixtures: (v) => set({ showCeilingFixtures: v }),
   setWallRevealStrength: (v) => set({ wallRevealStrength: Math.min(1, Math.max(0, v)) }),

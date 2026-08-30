@@ -2,6 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { type AmbientLight, type DirectionalLight, type HemisphereLight, Object3D } from 'three'
 import { isFeatureEnabled } from '../../features/featureFlags'
+import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
 import { registerAnimatedSource } from '../animatedSources'
 import {
@@ -14,6 +15,7 @@ import {
   warmthTintRGB,
   windowFillAttenuation,
 } from '../look'
+import { setPhotographicLook } from '../photographicSignal'
 import { isShadowRefreshActive } from '../shadowRefreshSignal'
 import { resolveToneMapping, toneContextFromState } from '../toneContext'
 import { TONE_MAPPING_THREE } from '../toneMappingThree'
@@ -81,6 +83,11 @@ export function Lighting() {
   // radius/blurSamples); the renderer-level filter switch lives in
   // ShadowFilterController — here we only feed the matching per-light params.
   const qualityTier = useStore((s) => s.qualityTier)
+  // PHOTO-FILL: the flag ships the control; this is the user's setting.
+  const photoFlag = useFeature('photographicFill')
+  const photographicLook = useStore((s) => s.photographicLook) && photoFlag
+  // Publish for the material factories, which live outside React.
+  useEffect(() => setPhotographicLook(photographicLook), [photographicLook])
   const shadowFilter = shadowFilterForTier(qualityTier)
   const shadowParams = shadowParamsForFilter(shadowFilter)
   // IBL is on for Medium+ tiers; when it is, the procedural environment provides
@@ -267,7 +274,7 @@ export function Lighting() {
     const fillScale =
       iblFillScale(iblActive, cur.sun) *
       fillAtten *
-      photographicFillScale(isFeatureEnabled('photographicFill'), qualityTier)
+      photographicFillScale(photographicLook, qualityTier)
     if (hemiRef.current) {
       hemiRef.current.intensity = cur.ambient * 1.1 * fillScale
       hemiRef.current.color.setRGB(

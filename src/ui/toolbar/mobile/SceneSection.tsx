@@ -28,6 +28,8 @@ export function SceneSection({
 }) {
   const s = useStore
   const lightsMode = useStore((st) => st.lightsMode)
+  const fPhotoFill = useFeature('photographicFill')
+  const photographicLook = useStore((st) => st.photographicLook)
   const lightMood = useStore((st) => st.lightMood)
   const showCeilingFixtures = useStore((st) => st.showCeilingFixtures)
   const wallRevealStrength = useStore((st) => st.wallRevealStrength)
@@ -86,6 +88,20 @@ export function SceneSection({
           className={`switch${lightsMode === 'on' ? ' on' : ''}`}
         />
       </label>
+      {/* Photographic look (PHOTO-FILL) — off by default, see DEFAULT-GLOOM. */}
+      {fPhotoFill && (
+        <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+          <span>Photographic — deeper shadows, more surface texture</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={photographicLook}
+            aria-label="Photographic look"
+            onClick={() => s.getState().setPhotographicLook(!photographicLook)}
+            className={`switch${photographicLook ? ' on' : ''}`}
+          />
+        </label>
+      )}
       {/* Lighting mood presets (UX round-3 #3): one-tap brightness + colour-
           temperature adjustment layered on top of Lights above. */}
       {fLightMoods && (

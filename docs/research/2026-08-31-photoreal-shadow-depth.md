@@ -1601,3 +1601,43 @@ It was the wrong question. Sun **strength** (`lightingFromAltitude(...).sun` —
 Midday is untouched, the evening keeps its lamps, and the transition is continuous. The photographic
 band is a *midday-photograph* target, so it is right that only the middle of the day reaches it — at
 08:00 and 18:00 the physical answer is that the lamps are on, and now they are.
+
+
+## Eight rounds of work no real user could reach (v0.31.5.170)
+
+`photographicFill` shipped as a flag with `default: false`, turned on in the probes through the
+`hdb_feature_flags` localStorage map. Reading `features/flags/resolve.ts` properly:
+
+```ts
+const privileged = isDev || isAdmin
+…
+} else if (privileged && key in overrides) { out[key] = overrides[key]! }
+else { out[key] = def.default }
+```
+
+**Overrides only apply when dev or admin.** In a shipped production build the flag was locked to
+`false` for every ordinary user — so `.162`–`.169` were, in the app people actually run, unreachable.
+The measurements were all real; the feature was not.
+
+**The fix separates the two things a flag was doing.** The **flag** now ships the *control*
+(`default: true`), and a new store setting **`ui.photographicLook`** is the *look* — `false` by
+default, so `DEFAULT-GLOOM` (`.86`) is untouched and nothing about the shipped frame moves. The render
+path requires both. A `Photographic` switch sits beside `Lights` in the Scene menu (desktop) and the
+mobile scene sheet, each guarded by `useFeature('photographicFill')` as the area rules require.
+
+One wrinkle worth recording: the material factories are plain functions outside React and cannot read
+the store — `look.ts` is deliberately dependency-free, and materials importing the UI store would close
+a cycle. So `Lighting` publishes the resolved state through a module signal
+(`scene/photographicSignal.ts`), the same shape as `lighting/fixtureGlow.ts`. It defaults to `false`,
+which is the shipped look, and the weave value is folded into the material cache key, so flipping the
+setting serves a different cached variant rather than mutating a shared one.
+
+**Verified through the setting rather than the flag** (medium tier, 13:00):
+
+| | frame mean | `%<64` | curtain | sofa |
+| --- | --- | --- | --- | --- |
+| setting OFF (default) | 179.5 | **0.86 %** | 0.0245 | 0.0463 |
+| setting ON | 109.0 | **11.52 %** | **0.0887** | **0.0921** |
+
+Off matches the shipped baseline to a decimal; on reproduces `.168`'s calibrated numbers exactly. The
+photographic look is now one switch away for anybody running the app, and off until they ask for it.

@@ -46,7 +46,9 @@ export function FurnitureLights() {
   const cameraMode = useStore((s) => s.cameraMode)
   // Sun STRENGTH, not the night ramp — see `fixturesRender`.
   const sunStrength = lightingFromAltitude(useSunPosition().altitude).sun
-  const photoFill = useFeature('photographicFill')
+  const photoFlag = useFeature('photographicFill')
+  const photoSetting = useStore((s) => s.photographicLook)
+  const photoFill = photoFlag && photoSetting
   const level = fixturesLevel(lightsMode === 'on', cameraMode, sunStrength, photoFill)
   // PHOTO-FILL-WINDOWLESS: the rule above is view-wide, but a room with no window
   // gets nearly all its light from these fixtures — measured, the bathroom fell to

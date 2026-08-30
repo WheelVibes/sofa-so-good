@@ -44,6 +44,9 @@ const LIGHTS = process.env.LIGHTS || ''
 // FLAGS='{"photographicFill":true}' — seeded into localStorage BEFORE load, since
 // `resolveFlags` reads the overrides map once at boot.
 const FLAGS = process.env.FLAGS || ''
+// PHOTO=1 turns on the user-facing Photographic setting. Since v0.31.5.170 the
+// FLAG only ships the toggle; the LOOK is `ui.photographicLook`, off by default.
+const PHOTO = process.env.PHOTO === '1'
 // FAKENOW='2026-08-31T13:00:00+08:00' freezes the page clock BEFORE load, which is
 // the only way to exercise a boot-time guard like `ensureDaylightFirstPaint` at an
 // hour other than the one the probe happens to run at.
@@ -106,6 +109,7 @@ await page.evaluate(
 if (WALKFOV) await page.evaluate((f) => window.__store.getState().setWalkFov(f), WALKFOV)
 if (BACKDROP) await page.evaluate((b) => window.__store.getState().setBackdrop(b), BACKDROP)
 if (LIGHTS) await page.evaluate((v) => window.__store.getState().setLightsMode(v), LIGHTS)
+if (PHOTO) await page.evaluate(() => window.__store.getState().setPhotographicLook(true))
 await page.waitForFunction(() => !!window.__walkLook, { timeout: 20000 })
 await new Promise((r) => setTimeout(r, 4000))
 await assertSceneAlive(page, 'after setup')

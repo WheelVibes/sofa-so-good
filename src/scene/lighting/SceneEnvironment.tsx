@@ -28,6 +28,9 @@ export function SceneEnvironment() {
   const { scene } = useThree()
   const sun = useSunPosition()
   const quality = useQuality()
+  const photoFlag = useFeature('photographicFill')
+  const photographicLookSetting = useStore((s) => s.photographicLook)
+  const photographicLook = photographicLookSetting && photoFlag
   const enabled = quality.ibl
   // Tell the material layer whether metals have anything to reflect. Without an
   // environment a `metalness: 0.9` appliance renders pure black, so
@@ -63,7 +66,7 @@ export function SceneEnvironment() {
     scene.environmentIntensity =
       (0.12 + level * 0.55) *
       fillAtten *
-      photographicFillScale(isFeatureEnabled('photographicFill'), useStore.getState().qualityTier)
+      photographicFillScale(photographicLook, useStore.getState().qualityTier)
   })
 
   if (!enabled) {

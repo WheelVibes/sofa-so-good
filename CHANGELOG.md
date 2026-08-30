@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.170 — the photographic look is now reachable (it wasn't)
+
+`photographicFill` shipped as a flag with `default: false`, enabled in probes through the
+`hdb_feature_flags` override map. But `features/flags/resolve.ts` applies overrides **only when dev or
+admin** — so in a production build the flag was locked to `false` for every ordinary user, and
+`.162`–`.169` were unreachable in the app people actually run.
+
+The flag now ships the **control** (`default: true`); the **look** is a new store setting
+`ui.photographicLook`, **off by default**, so `DEFAULT-GLOOM` (`.86`) is untouched and the shipped
+frame does not move. The render path requires both. A `Photographic` switch sits beside `Lights` in
+the Scene menu and the mobile scene sheet, each guarded by `useFeature('photographicFill')`.
+
+The material factories are plain functions outside React and cannot read the store (`look.ts` is
+dependency-free; materials importing the UI store would close a cycle), so `Lighting` publishes the
+resolved state through `scene/photographicSignal.ts` — same shape as `lighting/fixtureGlow.ts`,
+defaulting to `false`, with the weave folded into the material cache key so a flip serves a different
+cached variant rather than mutating a shared one.
+
+Verified through the setting (medium, 13:00): OFF mean 179.5 / `%<64` **0.86 %** / curtain 0.0245 —
+matching the shipped baseline; ON mean 109.0 / **11.52 %** / curtain **0.0887** — reproducing `.168`'s
+calibration exactly.
+
 ## v0.31.5.169 — the fixture rule fired an hour too long, and stepped
 
 Everything so far was measured at 13:00. Across the day on medium with the flag on: `%<64` **14.60 %

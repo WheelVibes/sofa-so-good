@@ -503,8 +503,11 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   photographicFill: {
     label: 'Photographic light balance',
     description:
-      'Deepen shadows by reducing the flat ambient fill — surfaces show their texture, rooms read darker',
-    default: false,
+      'Offer a Photographic look toggle — deepens shadows by reducing the flat ambient fill, so surfaces show their texture',
+    // The FLAG ships the control; the LOOK is `ui.photographicLook`, off by
+    // default. Overrides are ignored in a production build (`resolve.ts`), so a
+    // flag defaulting false would have made this unreachable for every real user.
+    default: true,
     tier: 'simple',
   },
   pbrSurfaces: {
