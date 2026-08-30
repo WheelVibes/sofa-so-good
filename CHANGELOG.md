@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.161 — six material levers, and the seventh is the lighting
+
+**Measurement only.** Two more levers on `.160`'s new target (the curtain), then the measurement that
+explains every failure since `.157`.
+
+**Fabric patterns**: re-propped every curtain through each shipped pattern — plain 0.0356,
+**herringbone 0.0399**, dots 0.0382, plaid 0.0380, against the photograph's 0.140–0.187. **+12 % at
+best**; the tone-on-tone patterns are whispers by design.
+
+**Drapery weave relief**: `getDraperyMaterial` passes `weave = 0.65`, half the upholstery's 1.3, on a
+taste judgement made before there was a photographic target. Swept 0.65 → 1.3 → 2.2 → 3.2: **0.0356 →
+0.0366 → 0.0392 → 0.0436.** A 5× increase in relief buys **+22 %**.
+
+**Then the explanation.** A bump only reads when something directional shades its two sides
+differently — so the suspect is the light, not the surface. Same pose, same materials, lamps on vs
+off: the **sofa** goes micro/mean **0.0470 → 0.0760, +62 %** (and +17 % in absolute micro-sd) with the
+lights *off*. Surfaces at the window go the other way (−13 %) — the same mechanism from the other
+side: they lose their only key, while the sofa gains directionality once the diffuse lamp wash is
+removed and the window dominates.
+
+Six material levers across `.157`–`.161` — weave `normalScale`, the wrinkle channel, part jitter, a
+tessellated sag/crease cushion, weave tiling density, fabric pattern, drapery relief — none moves
+micro-contrast more than ~20 %, several move it down. Changing which light dominates moves it 62 %.
+**The textiles are not under-detailed; their detail is washed out by a positionless fill** — the
+DEFAULT-GLOOM trade measured in `.86` and left as the user's call, and the same wall `.133`/`.138`/
+`.141` hit from the lighting side. That is the honest end of the materials route.
+
 ## v0.31.5.160 — a better-controlled metric, and it moves the target
 
 **Measurement only.** Three rounds of failing to close the upholstery gap were reason to question the

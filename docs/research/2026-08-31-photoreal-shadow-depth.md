@@ -1212,3 +1212,56 @@ fold *direction*; what this says is that its fold *contrast* — the dark shadow
 in the photograph is deep and irregular — is where the missing 6× lives. That is the next round, and
 `.156` records the one hard constraint it must respect: fold depth is capped by the window-sill
 standoff, so the contrast has to come from somewhere other than simply making the wave deeper.
+
+
+## Six material levers, and the seventh is the lighting (v0.31.5.161)
+
+`.160` moved the target to the curtain (app 0.0248 against the photograph's 0.140–0.187). Two more
+material levers, then the measurement that explains all of them.
+
+**Lever 6 — the shipped fabric PATTERNS.** The default plan hangs *plain* cotton while the reference
+curtain is a patterned jacquard, so the gap might be a content choice. Re-propped every curtain in the
+flat through each shipped pattern:
+
+| plain | herringbone | dots | plaid | photograph |
+| --- | --- | --- | --- | --- |
+| 0.0356 | **0.0399** | 0.0382 | 0.0380 | 0.140–0.187 |
+
+**+12 % at best.** The tone-on-tone patterns are, by design, whispers; they do not begin to close a 4×
+gap.
+
+**Lever 7 — the drapery weave relief.** `getDraperyMaterial` passes `weave = 0.65`, deliberately half
+the upholstery's 1.3 ("curtains … occupy a large share of the frame, so the upholstery's stronger 1.3
+would be loud here") — settled on taste, before there was a photographic target. Swept it:
+
+| 0.65 (shipped) | 1.3 | 2.2 | 3.2 |
+| --- | --- | --- | --- |
+| 0.0356 | 0.0366 | 0.0392 | **0.0436** |
+
+A **5× increase in relief buys +22 %.** Normal-map amplitude is not the limiter either.
+
+**The measurement that explains it.** If relief barely converts into image contrast, the suspect is
+the light rather than the surface — a bump only reads when something *directional* shades its two
+sides differently. Same pose, same materials, lamps on vs off:
+
+| | lamps ON | lamps OFF | |
+| --- | --- | --- | --- |
+| **sofa** (deep in the room, lamp-lit) | mean 141.7, micro/mean **0.0470** | mean 102.8, micro/mean **0.0760** | **+62 %** |
+| curtain (at the window) | mean 158.4, 0.0356 | mean 88.9, 0.0310 | −13 % |
+| wall (at the window) | mean 189.2, 0.0157 | mean 122.6, 0.0137 | −13 % |
+
+**Turning lights OFF makes the sofa's micro-contrast go UP by 62 %, with no material change at all** —
+and up 17 % in absolute micro-sd too, not just as a ratio. The surfaces near the window go the other
+way, which is the same mechanism seen from the other side: they lose their only key and are left with
+the flat daylight fill, while the sofa *gains* directionality when the diffuse lamp wash is removed
+and the window becomes its dominant source.
+
+**So six material levers have now been tried across `.157`–`.161`** — weave `normalScale`, the wrinkle
+channel, part jitter, a tessellated sag/crease cushion, weave tiling density, fabric pattern, drapery
+relief — and not one moves micro-contrast more than ~20 %, several move it *down*. Changing which
+light dominates moves it **62 %**. The textiles are not under-detailed; **their detail is being washed
+out by a positionless fill**, which is the DEFAULT-GLOOM trade measured in `.86` and left as the
+user's call, and the same wall `.133`/`.138`/`.141` hit from the lighting side.
+
+That is the honest end of the materials route: the remaining textile gap is downstream of a lighting
+decision that is not mine to make.

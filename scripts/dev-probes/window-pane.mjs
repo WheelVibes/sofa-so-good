@@ -32,6 +32,15 @@ const WALKFOV = process.env.WALKFOV ? Number(process.env.WALKFOV) : null
 // here is how you see what content behind the glass would buy, and what that
 // recorded defect costs, at a given hour.
 const BACKDROP = process.env.BACKDROP || ''
+// CURTAINPROPS='{"pattern":"herringbone"}' — re-prop every curtain in the flat.
+// The default plan hangs PLAIN cotton, and the reference photograph's curtains
+// are a patterned jacquard, so "the app's curtains are flatter" may be a content
+// choice rather than a renderer gap. This is how that is separated.
+const CURTAINPROPS = process.env.CURTAINPROPS || ''
+// LIGHTS=off isolates the lamps. Surface relief only becomes image contrast when
+// something DIRECTIONAL modulates it, so this is how "the textiles are flat"
+// gets separated from "the fill has no direction".
+const LIGHTS = process.env.LIGHTS || ''
 const OUT = process.env.OUT || '/tmp/window-pane'
 fs.mkdirSync(OUT, { recursive: true })
 
@@ -66,19 +75,23 @@ await page.evaluate(
 )
 if (WALKFOV) await page.evaluate((f) => window.__store.getState().setWalkFov(f), WALKFOV)
 if (BACKDROP) await page.evaluate((b) => window.__store.getState().setBackdrop(b), BACKDROP)
+if (LIGHTS) await page.evaluate((v) => window.__store.getState().setLightsMode(v), LIGHTS)
 await page.waitForFunction(() => !!window.__walkLook, { timeout: 20000 })
 await new Promise((r) => setTimeout(r, 4000))
 await assertSceneAlive(page, 'after setup')
 
 // Curtains/blinds open in every arm, so a dim pane is never just something hanging
 // over the glass (the trap `window-hours` documents).
-await page.evaluate(() => {
-  const st = window.__store.getState()
-  for (const it of st.items ?? []) {
-    if (it.defId === 'curtains') st.updateItemProps(it.id, { drawAmount: 0 })
-    if (it.defId === 'roller-blind') st.updateItemProps(it.id, { lower: 0 })
-  }
-})
+await page.evaluate(
+  (extra) => {
+    const st = window.__store.getState()
+    for (const it of st.items ?? []) {
+      if (it.defId === 'curtains') st.updateItemProps(it.id, { drawAmount: 0, ...extra })
+      if (it.defId === 'roller-blind') st.updateItemProps(it.id, { lower: 0 })
+    }
+  },
+  CURTAINPROPS ? JSON.parse(CURTAINPROPS) : {},
+)
 
 // Stand back from the named window and turn round to FACE it.
 const pose = await page.evaluate(
