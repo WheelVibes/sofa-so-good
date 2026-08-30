@@ -57,7 +57,38 @@ testable. And it is falsifiable: `chroma-audit.mjs` and the per-room mean-luma m
 playbook can A/B it, and the prediction is specific — **the bath and the timber-floored bedroom
 should stop having the same bounce**.
 
-**Do not build it before measuring the baseline**: capture the current per-room ceiling/wall tint
-across a plan with deliberately different floors (the boot flat has vinyl-oak, beige porcelain,
-grey-green bath tile and concrete), and confirm they really are receiving the same bounce. If they
-already differ meaningfully, this lever is smaller than it looks and the note should say so.
+## ❌ BUILT, MEASURED, REVERTED (v0.31.5.133) — the hemisphere is the wrong lever
+
+The lever above was implemented as a pure `roomBounceGround(ground, floorSwatch, strength)` that
+multiplies the day curve's `groundColor` by the floor albedo **normalised to mean 1** (channel ratio
+only, level preserved; identity at strength 0 or a null swatch), wired walk-mode-only and
+level-gated into `hemiRef.groundColor`. Nine unit tests passed, including that oak and bath-green
+must stay separable. **In the rendered frame it does essentially nothing, at any hour, and it has
+been reverted.**
+
+**Day — `/tmp/tw28` vs the `/tmp/tw20` baseline, identical arm** (medium/on/manual13, 44 frames,
+354 meshes, 87486 tris): `dHue ≈ 0.0`, `dR−B` +0.0…+0.6, mean `|dLuma|` **0.02**. Oak-vs-bath
+separation moved **−4.92 → −4.55** and stayed negative.
+
+**Night — `/tmp/tw29` (with) vs `/tmp/tw30` (control), 21:00, same scene.** This was the
+falsification arm: at night `iblFillScale` returns 1 instead of 0.5, so the analytical fill was
+expected to dominate and the tint to appear. **It did not.** Max `|dR−B|` **0.12** — *smaller* than
+in daylight — separation moved **−6.70 → −6.63**, mean `|dLuma|` 0.003.
+
+**Attribution: the analytical hemisphere is a minor contributor to interior light at BOTH
+extremes, for two different reasons.** In daylight `iblFillScale(true, 1) = 1 − 0.5 = 0.5` halves it
+and the ceiling is lit mainly by the **IBL probe**; at night the scale is 1 but `cur.ambient` is
+itself small because the day curve dials the whole sky fill down, and the room is carried by
+**fixture point lights**. Either way, rotating the hue of ~0.136 intensity against a sun of ~0.999
+(LIGHT-UNITS-RELATIVE) cannot move a ceiling. The physics of the function was right; the light it
+was attached to is too small to matter.
+
+**So the real lever is the IBL probe, not the hemisphere** — `SceneEnvironment.tsx`'s Lightformers,
+including that hardcoded `#6b5b48` ground bounce. **And it is not a free win:** the probe is a baked
+environment, so making it per-room means re-baking on every room change. That is a genuine
+performance decision to measure, not a constant to edit. **Any approach that tints a single global
+analytical light is dead on arrival** — a per-room bounce needs either per-room lights or a per-room
+environment.
+
+The pure module was deleted rather than left unused; an exported module with no consumer is dead
+code. The design and both measurements are preserved here, which is what a future attempt needs.

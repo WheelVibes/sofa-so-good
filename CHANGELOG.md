@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.133 — per-room bounce built, measured at two hours, refuted, reverted
+
+**A negative result, and the useful part is the attribution.** No source change ships; the
+`.132` gap note now carries both measurements.
+
+`.132` established that the app's bounce is room-blind — every enclosed room's ceiling lands in a
+~2° hue band whatever its floor, with the olive-floored baths coming out warmest. The lever tried
+here was a pure `roomBounceGround(ground, floorSwatch, strength)` multiplying the day curve's
+`groundColor` by the floor albedo normalised to mean 1 (channel ratio only, level preserved), wired
+walk-mode-only and level-gated into the hemisphere's ground colour. Nine unit tests passed.
+
+**In the frame it does essentially nothing, at either hour.** Day (`/tmp/tw28` vs the `/tmp/tw20`
+baseline, identical arm — 44 frames, 354 meshes, 87486 tris): dHue ≈ 0.0, dR−B +0.0…+0.6, mean
+|dLuma| 0.02; oak-vs-bath separation −4.92 → −4.55, still negative. Night was run as the
+falsification arm because `iblFillScale` returns 1 there instead of 0.5, so the analytical fill
+should have dominated — **it did not**: max |dR−B| **0.12**, *smaller* than in daylight, separation
+−6.70 → −6.63.
+
+**Attributed:** the analytical hemisphere is a minor contributor at both extremes for different
+reasons — halved by `iblFillScale` in daylight where the IBL probe lights the ceiling, and full-scale
+but tiny at night where `cur.ambient` is dialled down and fixture point lights carry the room.
+Rotating the hue of ~0.136 intensity against a sun of ~0.999 cannot move a ceiling. The function's
+physics was right; the light it was attached to is too small to matter.
+
+**Where the real lever is:** the IBL probe (`SceneEnvironment.tsx`'s Lightformers, including the
+hardcoded `#6b5b48` ground bounce) — and it is not free, because the probe is a baked environment, so
+per-room tinting means re-baking on every room change. That is a performance decision to measure, not
+a constant to edit. Any approach that tints a single global analytical light is dead on arrival.
+
+The pure module and its tests were deleted rather than left unused — an exported module with no
+consumer is dead code. Both measurements are preserved in
+`docs/research/2026-08-30-photoreal-round2-gap.md`.
+
 ## v0.31.5.132 — photorealism round 2 opened: the bounce light does not know what the room is made of
 
 **Research + source inventory, no code change.** The 2026-06 photoreal dossier's twelve levers
