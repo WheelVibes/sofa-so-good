@@ -910,3 +910,44 @@ decor/textile items only. Two concrete hazards mean it needs a decision rather t
 flourish), and the **selection outline, rotate gizmo and clearance checks all read the stored
 rotation**, so a render-time-only jitter would desynchronise the handles from the object. Recorded
 with the numbers; the call is the user's.
+
+
+## The window is not a lightbox because of the glass — it is because nothing is outside (v0.31.5.154)
+
+`.146` left a proposal on the table: the pane carries a flat `emissive #cfe4f5` sky-catch over a
+`#bcd4e6` tint, so "reducing the flat emissive wash" might let the window read as a view. New probe
+`scripts/dev-probes/window-pane.mjs` tests it. Three results, one of which kills that proposal.
+
+**Live material mutation does not work here, and that matters for anyone repeating this.**
+`PlanShell.tsx:1181` and `Window.tsx` rewrite the pane's `emissiveIntensity` and `color` **every
+frame** from the daylight curve, so a probe that patches the material and screenshots gets the shipped
+look back. The first sweep returned six byte-identical arms (mean 192.6 across the board) before that
+was spotted. The emissive arm had to be run by editing `glassSkyCatchIntensity` at source, with a `cp`
+backup.
+
+**1 — Refuted: removing the sky-catch emissive makes the window WORSE.** With it off, the pane's
+variation does rise (sd **13.4 → 21.6**, +61 %), but its mean falls **197 → 173** — the window becomes
+*darker than the surrounding wall*, which is the opposite of a photograph, where it is the blown-out
+brightest thing in the frame. The emissive is doing a job. **The `.146` proposal is withdrawn.**
+
+**2 — Transmission works; the backdrop is empty.** Setting `BACKDROP=city` at 13:00 puts visible tower
+blocks behind the glass — faint, but unmistakably content, seen *through* a transmissive pane. With
+the shipped `sky` backdrop the same pane is featureless. So the pane reads as a lightbox because the
+**default backdrop is a deliberately empty, desaturated horizon haze** (`skySurround.ts` has no ground
+and a pale horizon by design), not because the glass is wrong.
+
+**3 — But the default stays. `WINDOW-SKY-DEFAULT` (v0.31.5.92) survives, with its symptom updated.**
+That decision records `city` as painting "warm lit tower windows at every hour". That specific symptom
+no longer reproduces: `city.windowColor` is `rgba(52,66,84,0.5)`, dark daytime glass, and the 13:00
+capture is a daytime skyline. The underlying defect does reproduce, measured differently — **at 18:00
+`city` is COOLER than the interior it sits behind (window-region R/B 0.973) while the analytic `sky`
+is warm with it (1.034)**, because the preset is authored at one hour and the analytic sky tracks the
+clock. That is exactly the "clashing colour temperatures" failure the reference literature names. At
+night the question is moot: `windowTransmission(0) = 0.2` and the pane lerps to `GLASS_NIGHT`, so
+`city` and `sky` differ by **2.2 luma** (62.1 vs 64.3) — the backdrop is invisible either way.
+
+**The precise next step, then, is not the glass and not the default — it is the presets.** Make the
+photo backdrops daylight-aware (blend `sky`/`haze`/`ground` toward the analytic sky's colour for the
+hour, and scale `litScale` with 1 − daylight so lit windows only appear at night). That removes the
+one measured objection to a content-bearing default, after which windows would stop reading as
+lightboxes for every user rather than only for those who go and change a setting.

@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.154 — the window is not a lightbox because of the glass
+
+**Measurement only; new probe `scripts/dev-probes/window-pane.mjs`.** `.146` proposed reducing the
+pane's flat sky-catch emissive so the window would read as a view. Tested, and the proposal is
+**withdrawn**.
+
+A method note first: `PlanShell.tsx` and `Window.tsx` rewrite the pane's `emissiveIntensity` and
+`color` **every frame** from the daylight curve, so live material mutation cannot A/B this — the first
+sweep returned six byte-identical arms (mean 192.6) before that was spotted. The emissive arm was run
+by editing `glassSkyCatchIntensity` at source with a `cp` backup.
+
+**Removing the emissive makes the window worse:** variation rises (sd 13.4 → 21.6) but the mean falls
+**197 → 173**, making the pane *darker than the surrounding wall* — the opposite of a photograph,
+where the window is the blown-out brightest thing in frame.
+
+**Transmission works; the backdrop is empty.** `BACKDROP=city` at 13:00 puts visible tower blocks
+behind the glass; the shipped `sky` backdrop leaves the same pane featureless. The lightbox look comes
+from the default backdrop being a deliberately empty horizon haze, not from the glass.
+
+**The default is unchanged — `WINDOW-SKY-DEFAULT` (v0.31.5.92) survives with its symptom updated.**
+Its stated cause ("warm lit tower windows at every hour") no longer reproduces — `city.windowColor` is
+now dark daytime glass and 13:00 renders a daytime skyline — but the underlying defect does: at 18:00
+`city` is **cooler** than the interior behind it (window-region R/B 0.973) while the analytic `sky` is
+warm with it (1.034), the classic clashing-colour-temperature failure. At night it is moot: the pane
+lerps to `GLASS_NIGHT` at transmission 0.2 and the two differ by 2.2 luma.
+
+Next step recorded: make the photo presets **daylight-aware** (blend sky/haze/ground toward the
+analytic sky for the hour; scale `litScale` with 1 − daylight), which removes the one measured
+objection to a content-bearing default.
+
 ## v0.31.5.153 — is the default flat staged? 97.7 % of it is axis-aligned
 
 **Measurement only; new probe `scripts/dev-probes/staging-audit.mjs`.** Render-studio writing names
