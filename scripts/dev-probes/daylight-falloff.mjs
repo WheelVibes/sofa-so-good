@@ -155,7 +155,11 @@ console.log(`opened ${opened} window fixtures\n`)
 // ambient-occlusion pass contributes anything at CONTACT scale. `look.ts`'s
 // `AO.aoRadius` is 0.7 m — sized to ground room corners, which is an order of
 // magnitude wider than the few centimetres a leg-to-floor contact needs.
-for (const arm of ['a-daylight', 'b-daylight-noibl', 'c-lamps-on', 'd-ao-off']) {
+// `e-contact-off` pairs with `c-lamps-on` (identical except the under-furniture
+// contact blobs) to measure what that cue actually contributes. It is a SEPARATE
+// system from AO — `.137`'s AO on/off diff had blobs present in both arms, so
+// they cancelled and were invisible to that measurement.
+for (const arm of ['a-daylight', 'b-daylight-noibl', 'c-lamps-on', 'd-ao-off', 'e-contact-off']) {
   await page.evaluate(() => {
     const st = window.__store.getState()
     st.setLightsMode('on')
@@ -170,6 +174,7 @@ for (const arm of ['a-daylight', 'b-daylight-noibl', 'c-lamps-on', 'd-ao-off']) 
       st.setQualityOverride('ibl', false)
     }
     if (id === 'd-ao-off') st.setQualityOverride('ao', false)
+    if (id === 'e-contact-off') st.setQualityOverride('contactShadows', false)
   }, arm)
   await new Promise((r) => setTimeout(r, 2500))
   const resolved = await page.evaluate(() => {
@@ -178,6 +183,7 @@ for (const arm of ['a-daylight', 'b-daylight-noibl', 'c-lamps-on', 'd-ao-off']) 
       lights: st.lightsMode,
       ibl: st.qualityOverrides?.ibl ?? '(unset)',
       ao: st.qualityOverrides?.ao ?? '(unset)',
+      contact: st.qualityOverrides?.contactShadows ?? '(unset)',
       tier: st.qualityTier,
       hour: st.manualHour,
     }

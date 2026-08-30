@@ -251,3 +251,52 @@ real photographs, not on the band shape. It stands.
 strip, which needs an unfurnished arm or a depth/normal mask. That is the same instrument gap already
 recorded above after a fixed crop returned furniture instead of floor. Until that exists, no claim
 about the *shape* of the app's daylight distribution should be made.
+
+
+## ⚠️ CORRECTION to `.137` — the app DOES have a contact term (v0.31.5.139)
+
+`.137` concluded "the app has broad ambient occlusion but **no contact term**". **The second half is
+wrong.** `src/scene/ContactShadow.tsx` has existed all along — an under-furniture blob (RZ1) plus a
+fainter surface decal under small decor (`furniture/surfaceDecal.ts`), ~51 planes in the default
+flat — and `quality.ts` sets **`contactShadows: true` on all four tiers**, maximum included.
+
+**Why `.137` could not see it:** that round differenced AO **on** against AO **off**. The contact
+blobs were present in *both* arms, so they cancelled exactly and were invisible to the measurement.
+A knock-out only reveals the thing being knocked out.
+
+Isolating them properly (`e-contact-off`, identical to `c-lamps-on` except
+`setQualityOverride('contactShadows', false)`, same floor-visible pose):
+
+| cue | mean \|Δ\| | max | %>5 | %>15 | peak band |
+| --- | --- | --- | --- | --- | --- |
+| AO (`.137`) | 5.85 | 121 | 26.2% | 10.78% | b3–b4 (mid-frame corners) |
+| **contact blobs** | **0.90** | **121** | **0.86%** | **0.42%** | **b2 (furniture bases)** |
+
+The difference map shows them plainly: a bright ellipse under the dining table and another under the
+floor-lamp base. **They work.** They are simply *soft and small* — locally as strong as AO (max 121)
+but covering a thirtieth of the frame area, and they peak at b2, exactly where furniture meets floor,
+which is the right place.
+
+### What is actually missing, and why it may not be worth fixing
+A blob is emitted at the item's **whole footprint** (`itemFootprint` → `obb.hx*2 × obb.hz*2`), so a
+dining table gets one ellipse the size of its top. Nothing produces the *tight dark line* where an
+individual 3 cm leg meets the floor — AO's radius is 0.7 m (tuned for corners, working as designed)
+and the blob is footprint-scaled. So the accurate statement is: **the app has broad AO and a soft
+footprint-scaled contact blob, but no per-leg contact line.**
+
+**The case for adding one is now weak.** It would cost a second full-screen AO pass (N8AO already
+drops to half-res below High), the grounding cue it would sharpen is already present and measurable,
+and the delta is a thin line visible mainly at close range on a polished floor — which the reference
+photograph has and the app's matte vinyl living-room floor correctly does not. **Recommend not
+pursuing it**, and certainly not by shrinking `AO.aoRadius`, which would trade away corner grounding
+that works. Note also that RD-403's wall/floor corner-AO strips were built (v0.1.0.41) and **retired**
+(v0.23.1.11) for reading as hard black outlines from a plan camera, with an explicit
+do-not-reintroduce in `scene/CLAUDE.md`.
+
+### Where that leaves the arc
+Contact grounding is **not** the gap. The finding that remains solid and unexplained-away is `.134`'s:
+whole-frame deep shadow is ~10x short of real photographs (`%<64` 1.4 vs 11.2–12.2), and `.135`
+attributed the dominant lift to the fixtures — which must not simply be dimmed, because that trade
+was measured and signed off. The real lever is still making **daylight carry the room**, and that is
+blocked on an instrument: a floor-only sample at known distances (unfurnished arm or depth/normal
+mask), without which no claim about the *shape* of the daylight distribution is admissible.

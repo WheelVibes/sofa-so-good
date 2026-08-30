@@ -5,6 +5,41 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.139 — correction: the app DOES have a contact term, and it works
+
+**Measurement only.** `.137` concluded "the app has broad ambient occlusion but **no contact term**".
+The second half is **wrong** and is corrected here.
+
+`src/scene/ContactShadow.tsx` has existed all along — an under-furniture blob plus a fainter surface
+decal under small decor — ~51 planes in the default flat, with `contactShadows: true` on **all four
+tiers**. `.137` could not see it because that round differenced AO on against AO off: the blobs were
+present in *both* arms, cancelled exactly, and were invisible to the measurement. A knock-out only
+reveals the thing being knocked out.
+
+Isolating them (`e-contact-off`, identical to `c-lamps-on` except the blobs, same floor-visible pose):
+
+| cue | mean abs delta | max | %>5 | peak band |
+| --- | --- | --- | --- | --- |
+| AO | 5.85 | 121 | 26.2% | b3–b4 (mid-frame corners) |
+| **contact blobs** | **0.90** | **121** | **0.86%** | **b2 (furniture bases)** |
+
+The difference map shows a bright ellipse under the dining table and another under the floor-lamp
+base. **They work** — locally as strong as AO but covering a thirtieth of the frame, peaking exactly
+where furniture meets floor.
+
+**What is genuinely missing** is only the tight dark line at an individual leg: blobs are emitted at
+the whole item footprint, and AO's 0.7 m radius is tuned for corners. **The case for adding one is
+weak** — it costs a second full-screen AO pass (N8AO already halves resolution below High), the
+grounding cue is already present and measurable, and the delta is a thin line visible mainly at close
+range on a polished floor, which the app's matte vinyl living-room floor correctly lacks.
+**Recommend not pursuing it.** Also noted: RD-403's corner-AO strips were built and later **retired**
+for reading as hard black outlines from a plan camera, with a do-not-reintroduce in `scene/CLAUDE.md`.
+
+That leaves the arc honest: contact grounding is not the gap. What stands is `.134` — whole-frame deep
+shadow ~10x short of photographs — with `.135` attributing the lift to fixtures that must not simply
+be dimmed. The real lever remains making daylight carry the room, blocked on a floor-only measurement
+instrument.
+
 ## v0.31.5.138 — window area-lights prototyped and refuted, and `.136`'s headline withdrawn
 
 **No code ships.** A prototype was built, measured, refuted and reverted, and it exposed a flaw in the
