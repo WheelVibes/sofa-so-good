@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.169 — the fixture rule fired an hour too long, and stepped
+
+Everything so far was measured at 13:00. Across the day on medium with the flag on: `%<64` **14.60 %
+at 08:00, 11.52 % at 13:00, 10.39 % at 17:00, 13.42 % at 18:00 and 29.57 % (mean 88.1) at 19:00** —
+sun 1.6° up, an hour from dark, with the lamps still held off. The gate used `daylightFromAltitude`,
+a **night ramp** that saturates at 1 for every altitude above 0°; it was the wrong question.
+
+Now gated on sun **strength** (`lightingFromAltitude(...).sun`), and **ramped rather than stepped** — a
+hard threshold popped the room as the time slider crossed it (mean 175 → 109 either side).
+`fixturesLevel` smoothsteps 0.86 → 0.95 and returns 0…1; windowless rooms keep full light through the
+ramp, the two composing in one pass. Six assertions including monotonicity in sun strength.
+
+Result at medium, flag on: 13:00 **11.53 %** (unchanged), 18:00 **2.10 %** (partial, no pop), 19:00
+**29.57 % → 2.11 %**. Midday is untouched, the evening keeps its lamps, and the transition is
+continuous — the photographic band is a midday-photograph target, so only the middle of the day
+should reach it.
+
 ## v0.31.5.168 — the calibration only held on the tier nobody boots into
 
 Every walk measurement in `.162`–`.167` was taken at **maximum**, but the capability-detected boot

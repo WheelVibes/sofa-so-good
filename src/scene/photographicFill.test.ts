@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { FEATURE_FLAGS, resolveFlags } from '../features/featureFlags'
 import {
-  fixturesRender,
+  fixturesLevel,
   PHOTO_FILL_SCALE,
   PHOTO_WEAVE,
   photographicFillScale,
@@ -78,15 +78,17 @@ describe('photographicWeave — relief paired with the light balance', () => {
   })
 })
 
-describe('fixturesRender — the user’s switch vs what a view draws', () => {
+describe('fixturesLevel — the user’s switch vs what a view draws', () => {
+  // `lightingFromAltitude(...).sun`: 1.0 above 30°, 0.85 at 10°, 0.4 at 0°.
   const DAY = 1
   const NIGHT = 0
+  const EVENING = 0.47 // 19:00 in Singapore — sun 1.6° up, an hour from dark
 
   it('is exactly the user’s switch when the flag is off, in every view and hour', () => {
     for (const cam of ['firstPerson', 'orbit', 'ortho']) {
       for (const d of [DAY, 0.5, NIGHT]) {
-        expect(fixturesRender(true, cam, d, false)).toBe(true)
-        expect(fixturesRender(false, cam, d, false)).toBe(false)
+        expect(fixturesLevel(true, cam, d, false)).toBe(1)
+        expect(fixturesLevel(false, cam, d, false)).toBe(0)
       }
     }
   })
@@ -94,21 +96,35 @@ describe('fixturesRender — the user’s switch vs what a view draws', () => {
   it('never lights fixtures the user switched OFF', () => {
     for (const cam of ['firstPerson', 'orbit']) {
       for (const photo of [true, false]) {
-        expect(fixturesRender(false, cam, NIGHT, photo)).toBe(false)
+        expect(fixturesLevel(false, cam, NIGHT, photo)).toBe(0)
       }
     }
   })
 
   it('skips them ONLY in first person, in full daylight, under the flag', () => {
-    expect(fixturesRender(true, 'firstPerson', DAY, true)).toBe(false)
+    expect(fixturesLevel(true, 'firstPerson', DAY, true)).toBe(0)
     // …and nowhere else:
-    expect(fixturesRender(true, 'orbit', DAY, true)).toBe(true) // the dollhouse keeps its warmth
-    expect(fixturesRender(true, 'firstPerson', NIGHT, true)).toBe(true) // legibility after dark
-    expect(fixturesRender(true, 'firstPerson', 0.9, true)).toBe(true) // not yet full daylight
-    expect(fixturesRender(true, 'firstPerson', DAY, false)).toBe(true) // flag off
+    expect(fixturesLevel(true, 'orbit', DAY, true)).toBe(1) // the dollhouse keeps its warmth
+    expect(fixturesLevel(true, 'firstPerson', NIGHT, true)).toBe(1) // legibility after dark
+    // Between the fade points it is partial, not on — a hard cut-off popped the
+    // room's brightness as the time slider crossed it (mean 175 -> 109).
+    const mid = fixturesLevel(true, 'firstPerson', 0.9, true)
+    expect(mid).toBeGreaterThan(0)
+    expect(mid).toBeLessThan(1)
+    expect(fixturesLevel(true, 'firstPerson', EVENING, true)).toBe(1) // 19:00 keeps its lamps
+    expect(fixturesLevel(true, 'firstPerson', DAY, false)).toBe(1) // flag off
   })
 
-  it('keeps the lights on when daylight is nonsense, rather than risking a black room', () => {
-    expect(fixturesRender(true, 'firstPerson', Number.NaN, true)).toBe(true)
+  it('keeps the lights on when the sun reading is nonsense, rather than risking a black room', () => {
+    expect(fixturesLevel(true, 'firstPerson', Number.NaN, true)).toBe(1)
+  })
+
+  it('is monotonic in sun strength — never brighter as the sun gets stronger', () => {
+    let prev = 1
+    for (let i = 0; i <= 20; i++) {
+      const v = fixturesLevel(true, 'firstPerson', i / 20, true)
+      expect(v).toBeLessThanOrEqual(prev + 1e-9)
+      prev = v
+    }
   })
 })

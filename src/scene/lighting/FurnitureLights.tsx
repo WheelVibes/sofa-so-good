@@ -3,9 +3,9 @@ import { Object3D } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
-import { fixturesRender } from '../look'
+import { fixturesLevel } from '../look'
 import { useQuality } from '../useQuality'
-import { daylightFromAltitude } from './altitudeCurve'
+import { lightingFromAltitude } from './altitudeCurve'
 import { daylitRoomIds, fixtureSurvivesDaylight } from './daylitRooms'
 import { setFixtureGlow } from './fixtureGlow'
 import { aggregateFixtureLights, type FixtureLight, fixtureLightsFor } from './fixtureLights'
@@ -44,15 +44,16 @@ export function FurnitureLights() {
   // here; `fixturesRender` decides whether THIS VIEW draws them. Off by default —
   // with `photographicFill` off it is exactly `lightsMode === 'on'`.
   const cameraMode = useStore((s) => s.cameraMode)
-  const daylight = daylightFromAltitude(useSunPosition().altitude)
+  // Sun STRENGTH, not the night ramp — see `fixturesRender`.
+  const sunStrength = lightingFromAltitude(useSunPosition().altitude).sun
   const photoFill = useFeature('photographicFill')
-  const level = fixturesRender(lightsMode === 'on', cameraMode, daylight, photoFill) ? 1 : 0
+  const level = fixturesLevel(lightsMode === 'on', cameraMode, sunStrength, photoFill)
   // PHOTO-FILL-WINDOWLESS: the rule above is view-wide, but a room with no window
   // gets nearly all its light from these fixtures — measured, the bathroom fell to
   // mean 94.6 and the corridor put 31 % of its pixels below 64. So when the rule
   // fires, fixtures in rooms daylight cannot reach are kept.
   const plan = useStore((s) => s.floorPlan)
-  const keepWindowless = lightsMode === 'on' && level === 0
+  const keepWindowless = lightsMode === 'on' && level < 1
   const daylit = useMemo(
     () => (keepWindowless ? daylitRoomIds(plan) : null),
     [keepWindowless, plan],
@@ -77,9 +78,17 @@ export function FurnitureLights() {
     if (level <= 0 && !daylit) return []
     let lights = fixtureLightsFor(items, { lightMood, iesEnabled })
     if (daylit) {
-      lights = lights.filter((l) =>
-        fixtureSurvivesDaylight(plan, daylit, l.position[0], l.position[2]),
-      )
+      // A windowless room keeps FULL fixture light; everywhere else fades with
+      // the sun. Encoded on the light so the two can coexist in one pass.
+      lights = lights
+        .map((l) => {
+          const keep = fixtureSurvivesDaylight(plan, daylit, l.position[0], l.position[2])
+          const k = keep ? 1 : level
+          return k > 0 ? { ...l, moodMultiplier: l.moodMultiplier * k } : null
+        })
+        .filter((l): l is (typeof lights)[number] => l !== null)
+    } else if (level < 1) {
+      lights = lights.map((l) => ({ ...l, moodMultiplier: l.moodMultiplier * level }))
     }
     return mergeLights ? aggregateFixtureLights(lights) : lights
   }, [level, daylit, plan, items, lightMood, iesEnabled, mergeLights])

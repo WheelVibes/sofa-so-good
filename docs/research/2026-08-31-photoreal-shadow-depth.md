@@ -1562,3 +1562,42 @@ produces deep shadow, so cutting further only darkens the frame without creating
 
 **The tier a new user actually boots into is now the one inside the photographic band.** An unknown
 tier falls back to `medium` for the same reason.
+
+
+## The rule fired an hour too long, and stepped (v0.31.5.169)
+
+Everything so far was measured at 13:00. Across the day, on medium with the flag on, the fixture rule
+turned out to be gated on the wrong signal:
+
+| hour | sun altitude | `%<64`, `.168` |
+| --- | --- | --- |
+| 08:00 | 13.6° | 14.60 % |
+| 13:00 | 82.4° | **11.52 %** |
+| 17:00 | 31.2° | 10.39 % |
+| 18:00 | 16.4° | 13.42 % |
+| **19:00** | **1.6°** | **29.57 %**, mean 88.1 |
+
+**At 19:00 — sun 1.6° up, an hour from dark — the lamps were still being held off.** `daylight >= 1`
+uses `daylightFromAltitude`, which is a *night* ramp: it saturates at 1 for every altitude above 0°.
+It was the wrong question. Sun **strength** (`lightingFromAltitude(...).sun` — 1.0 above 30°, 0.85 at
+10°, 0.4 at the horizon) tracks how much light there actually is.
+
+**Two fixes, both measured.**
+
+1. **Gate on sun strength.** At `sun >= 0.95` (≈23° up) only the middle of the day qualifies. 19:00
+   goes **29.57 % → 2.17 %** and 08:00 **14.60 % → 1.02 %**; 13:00 and 17:00 are untouched.
+2. **Ramp, don't step.** A hard threshold popped the whole room as the time slider crossed it — mean
+   **175 → 109** either side. `fixturesLevel` now smoothsteps 0.86 → 0.95, and windowless rooms keep
+   full light through it (the two compose on one pass by scaling `moodMultiplier`).
+
+**Final, medium tier, flag on:**
+
+| hour | `.168` step on daylight | step on sun | **ramp on sun** |
+| --- | --- | --- | --- |
+| 13:00 | 11.52 % | 11.52 % | **11.53 %** — unchanged |
+| 18:00 | 13.42 % | 1.27 % | **2.10 %** — partial, no pop |
+| 19:00 | **29.57 %** | 2.17 % | **2.11 %** |
+
+Midday is untouched, the evening keeps its lamps, and the transition is continuous. The photographic
+band is a *midday-photograph* target, so it is right that only the middle of the day reaches it — at
+08:00 and 18:00 the physical answer is that the lamps are on, and now they are.

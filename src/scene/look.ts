@@ -303,21 +303,40 @@ export function photographicWeave(base: number, photo: number, on: boolean): num
  *    dollhouse is a product illustration, not a photograph of a room you are
  *    standing in. `firstPaintDaylight.ts` recorded that argument first.
  *
- * So the fixtures are skipped **only** in first person, **only** in full daylight,
- * and **only** under `photographicFill`. Everything else — the flag off, any other
- * camera, any other hour, and the user having deliberately switched the lights on
- * — renders exactly as shipped. Pure, so the whole rule is unit-testable.
+ * So the fixtures are skipped **only** in first person, **only** while the sun is
+ * genuinely strong, and **only** under `photographicFill`. Everything else — the
+ * flag off, any other camera, the ends of the day, and the user having
+ * deliberately switched the lights on — renders exactly as shipped. Pure, so the
+ * whole rule is unit-testable.
+ *
+ * `sunStrength` is `lightingFromAltitude(alt).sun`, NOT `daylightFromAltitude`.
+ * The latter is a night ramp that saturates at 1 for every altitude above 0°, so
+ * it called 19:00 — sun 1.6° up, an hour from dark — "full daylight" and held the
+ * lamps off: measured `%<64` **29.57 %** at that hour against a photographic
+ * 11.2–12.2 %, with mean luma 88.1. Sun strength tracks how much light there
+ * actually is (1.0 above 30°, 0.85 at 10°, 0.4 at the horizon).
  */
-export function fixturesRender(
+/** Sun strength at which the fixtures start dimming, and where they reach zero.
+ *  A ramp rather than a step: a hard cut-off pops the whole room's brightness as
+ *  the time slider crosses it (measured either side: mean 175 → 109). */
+export const PHOTO_FIXTURE_SUN_FADE = { start: 0.86, full: 0.95 } as const
+
+/** 0 … 1 — how strongly the fixtures render in this view. */
+export function fixturesLevel(
   lightsOn: boolean,
   cameraMode: string,
-  daylight: number,
+  sunStrength: number,
   photographicFill: boolean,
-): boolean {
-  if (!lightsOn) return false
-  if (!photographicFill) return true
-  if (cameraMode !== 'firstPerson') return true
-  return !(Number.isFinite(daylight) && daylight >= 1)
+): number {
+  if (!lightsOn) return 0
+  if (!photographicFill) return 1
+  if (cameraMode !== 'firstPerson') return 1
+  if (!Number.isFinite(sunStrength)) return 1
+  const { start, full } = PHOTO_FIXTURE_SUN_FADE
+  if (sunStrength <= start) return 1
+  if (sunStrength >= full) return 0
+  const t = (sunStrength - start) / (full - start)
+  return 1 - t * t * (3 - 2 * t) // smoothstep
 }
 
 /** Fill multiplier for the current `photographicFill` setting and tier. Pure.
