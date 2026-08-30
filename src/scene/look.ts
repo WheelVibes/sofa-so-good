@@ -285,9 +285,17 @@ export function iblFillScale(iblActive: boolean, dayLevel: number): number {
  *
  * On properly HUD-excluded frames the `.182` values read 12.61 / 12.52 / 12.89 %,
  * a little dark; nudged to **0.92 / 0.735 / 0.40** they read **12.28 / 11.88 /
- * 12.31 %** against the 11.2–12.2 % band. That is as close as a two-photograph
- * target justifies — further re-fitting would be false precision, and this is
- * already the third pass.
+ * 12.31 %**.
+ *
+ * **What that band actually is (v0.31.5.186).** It was derived from TWO
+ * photographs. Measured across four, `%<64` runs **1.90 / 4.65 / 11.23 /
+ * 12.17 %** — a six-fold spread driven by how dark a room's furnishings are, not
+ * by anything about photography. The 11.2–12.2 % "band" is simply the darkest two
+ * of the four. So this setting does not make the app "photographic"; it makes it
+ * match a **dark-furnished** interior. The shipped default, at ~1.2 %, sits beside
+ * the lightest photograph (1.90 %) and is equally defensible for the white,
+ * pale-furnished flat the app ships. The two looks BRACKET the photographic range
+ * rather than one being right.
  *
  * Superseded history: The first calibration
  * measured page screenshots, which include the bright toolbar and minimap; that

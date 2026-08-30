@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.186 — the "photographic band" was two photographs
+
+Everything from `.163` to `.185` was calibrated against a deep-shadow band of **11.2–12.2 %**, taken
+from two reference images. `.185` noted a two-sample target cannot justify ±0.15 of a point; the right
+response was to get more references, not to stop re-fitting.
+
+Two more interior photographs measured (whole-frame, no region choices to get wrong): `%<64` **1.90 %**
+(modern white interior) and **4.65 %** (lived-in flat), against the original two at **11.23 %** and
+**12.17 %**. **Across four photographs the spread is six-fold** — it is not a property of photography
+but of how dark a room's furnishings are. The "band" this arc fitted to is the darkest two of four.
+
+**So the photographic look does not make the app photographic; it makes it match a dark-furnished
+interior.** The shipped default, at ~1.2 %, sits beside the lightest photograph (1.90 %) — the closer
+analogue for the app's own white-walled, pale-furnished default flat. **The two looks bracket the
+photographic range; neither is "the" correct one.** `PHOTO_FILL_SCALE`'s docblock now says this
+instead of claiming a calibration to "photographs".
+
+Also recorded: a third candidate reference turned out to be a **CG render**, not a photograph
+(measuring `%<64` 31.06 %, darker than any real one). Calibrating a renderer against another renderer
+would have been circular and would have dragged the target further into the dark. References must be
+eyeballed for this before they are measured.
+
 ## v0.31.5.185 — `.182` was wrong about how to exclude the HUD
 
 `.182` fixed a real problem (the toolbar and minimap were in every frame-level measurement) with a

@@ -2178,3 +2178,40 @@ floor reads 1.13–1.18 against 1.23–1.30.
 **Stopping here.** This is the third calibration pass against a band derived from two photographs;
 ±0.15 of a percentage point is inside what that target can justify, and further re-fitting would be
 false precision rather than accuracy.
+
+
+## The "photographic band" was two photographs (v0.31.5.186)
+
+Everything from `.163` to `.185` was calibrated against a deep-shadow band of **11.2–12.2 %**, taken
+from `.134`'s two reference images. `.185` ended by noting that a two-sample target cannot justify
+±0.15 of a point. The right response was not to stop re-fitting — it was to **get more references**,
+which is what this round does.
+
+Two more interior photographs fetched and measured (kept in `/tmp` for measurement only, never
+committed). Whole-frame, no region choices to get wrong:
+
+| image | mean | `%<64` | `%<24` |
+| --- | --- | --- | --- |
+| photo A — dark leather, tiled floor | 140 | **11.23 %** | 1.79 % |
+| photo B — small European room | 162 | **12.17 %** | 0.98 % |
+| **photo C — modern white interior, daylit** | 157 | **1.90 %** | 0.29 % |
+| **photo D — lived-in flat, parquet, sheer curtains** | 165 | **4.65 %** | 0.80 % |
+
+**Across four photographs `%<64` runs 1.90 % to 12.17 % — a six-fold spread.** It is not a property of
+photography at all; it is a property of how dark a particular room's furnishings are. Photo A is brown
+leather on every seat; photo C is a white sofa in a white room. The "11.2–12.2 % band" this arc has
+been fitting to is simply **the darkest two of the four**.
+
+**Which reframes the whole photographic look.** It does not make the app photographic — it makes it
+match a **dark-furnished** interior. And the shipped default, at `%<64` ≈ 1.2 %, sits right beside the
+lightest photograph (1.90 %), which is the closer analogue for the app's own default flat: white
+walls, pale sofa, light vinyl. **The two looks bracket the photographic range; neither is "the"
+correct one.** That is a better description of what was built than "calibrated to photographs", and
+the constant's docblock now says so.
+
+**A methodological trap worth recording.** A third candidate reference, sourced the same way, turned
+out to be a **CG render** rather than a photograph — recognisable from the sculpture, the too-perfect
+blinds and the render-style light. It measures `%<64` **31.06 %**, darker than any of the four
+photographs. Calibrating a renderer against another renderer would have been circular, and worse,
+would have pulled the target much further into the dark. Any future reference has to be eyeballed for
+this before it is measured.
