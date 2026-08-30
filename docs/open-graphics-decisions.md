@@ -1,6 +1,6 @@
 # Open graphics decisions
 
-Nine items the graphics-realism sweep (`v0.31.5.20`–`.114`) measured, diagnosed, and then
+Ten items the graphics-realism sweep (`v0.31.5.20`–`.117`) measured, diagnosed, and then
 deliberately did **not** change, because each one is a product or content judgement rather than a
 defect. Every measurable axis is now clean — the per-class chroma/coverage ranking (`.77`–`.81`),
 tier parity (`.82`), and time-of-day in the boot view (`.83`) — so these are what remains.
@@ -473,6 +473,51 @@ and should stay here. The remaining 7 stay **ratcheted by name** in
 
 ---
 
+## (j) WINDOW-SIGHTLINE — ⏳ OPEN, needs an arranger strategy (measured v0.31.5.117)
+
+**What you would see.** Walk into `tpl-hdb-4room`'s or `tpl-hdb-5room`'s master bedroom after
+`.115`/`.116` gave each of them a window, and the glass is **not visible from the room centre in any
+of the four yaws** — a 2.1 m 3-door wardrobe stands about 0.8 m in front of it. The daylight gets
+in (both rooms measurably brightened); the view does not.
+
+**The size.** Across the 19 templates, **11 of 78 windows** have a floor piece taller than the sill
+standing in front of the glass — footprint overlapping the pane laterally by ≥0.3 m with its nearest
+face within 1.2 m. **Nine are `wardrobe-3door` (2.10 m).** The two worst cover **1.17 m of 1.6 m**
+(`h4-m-win`) and **1.37 m of 1.6 m** (`h5-m-win`) — 73% and 86% of the glass. Every offender's
+nearest face is 0.65–1.05 m from the pane.
+
+**The guard already exists and is not failing — it is the wrong shape.** `designRules.ts`'s own doc
+on `windowSillTall` says "a wardrobe, bookcase, or tall cabinet taller than this shouldn't be pushed
+against a windowed wall", and `autoArrange.ts:tryPlace` does reject a too-tall item inside
+`clearance.ts:windowFrontRects`. But that rect is **0.65 m deep — a walking band**. A wardrobe
+clears it by centimetres and then stands a metre away, still covering the window. The clustering of
+offenders at 0.65–0.85 m is the signature.
+
+**THE OBVIOUS FIX WAS IMPLEMENTED, MEASURED, AND REVERTED.** Giving `WindowFrontRect` a second,
+deeper prism for items taller than the sill (depth `0.65 + CLEARANCE.storageFront` = 1.4 m, derived
+from existing constants rather than tuned) took blocked windows **11 → 3** — but it **dropped 5
+wardrobes outright** (total items 1442 → 1439): a small HDB master has nowhere else to put one, and
+**a bedroom with no wardrobe is worse than a partly blocked window**. Adding a last-resort fallback
+in `settle` that relaxes the deep prism once every constrained position has failed kept the
+furniture (1445 items, nothing lost) and still fixed 7 of the 11 — **but it put the two worst
+offenders, the very masters that motivated the round, straight back**, because for them the relaxed
+position is the only position. It also still lost one wardrobe and added a stray dining chair. Both
+attempts are reverted; the tree is unchanged.
+
+**What needs a human / a different approach.** More clearance is not the answer — the room is simply
+too small for a 1.8 m wide, 2.1 m tall wardrobe plus a queen bed plus a window. The options are an
+arranger strategy (prefer a narrower wardrobe variant in a tight room; or accept the window wall but
+choose the wall SEGMENT beside the glass rather than in front of it), or a content change (a
+2-door wardrobe in the smaller masters). Both are design calls about what a furnished HDB bedroom
+should look like.
+
+**Recommendation — try a narrower wardrobe in tight rooms before touching the keep-out again.** The
+measured blocker is the piece's 1.8 m width against a ~3.5 m wall that also carries a window and a
+bed. Until then the 11 are **ratcheted by name** in `src/layout/windowSightline.test.ts`, which also
+asserts that 67 of the 78 windows are clear so it cannot pass by measuring nothing.
+
+---
+
 ## Summary
 
 | # | Item | Kind | Recommendation |
@@ -486,9 +531,10 @@ and should stay here. The remaining 7 stay **ratcheted by name** in
 | g | LEVEL-ISOLATION-IN-WALK | renderer design + cost | ⏳ **OPEN v0.31.5.110** — walking an upper storey hides the one below; acute on `tpl-loft` |
 | h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — was 15 of 44; **13 left** after `tpl-hdb-4room` (`.115`) and `tpl-hdb-5room` (`.116`); ratcheted by test |
 | i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **7 left**; `tpl-hdb-5room` proven NOT offset-fixable (`.116`) — needs a façade decision |
+| j | WINDOW-SIGHTLINE | arranger strategy | ⏳ **OPEN v0.31.5.117** — 11 of 78 windows have tall furniture in front; the deeper-keep-out fix was measured and reverted (it deleted wardrobes) |
 
-**Five of nine items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
-((d)). Each was implemented in its own committed round and marked here as it landed. **(f), (g), (h) and (i) are open** — and (h) and (i) share one cause, so they should be fixed together.
+**Five of ten items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
+((d)). Each was implemented in its own committed round and marked here as it landed. **(f), (g), (h), (i) and (j) are open.** (h) and (i) share one cause and should be fixed together; (j) was created by fixing (h) and needs an arranger strategy, not a bigger keep-out.
 Neither is a one-line answer: (f) is a request to re-draw shipped floor plans, scoped per template
 rather than decided once, and (g) is a renderer change whose cost must be benchmarked on the
 weak-device tier before it lands.

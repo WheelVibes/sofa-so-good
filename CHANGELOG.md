@@ -5,6 +5,47 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.117 — WINDOW-SIGHTLINE: the obvious fix was built, measured, and reverted
+
+**A negative result, shipped as one.** I implemented the fix this round was for, measured it, found
+it did harm, and backed it out. The measurement and the ratchet are what land.
+
+**The defect, quantified.** `.115` and `.116` each gave a master bedroom its window back, and in
+both the glass is **not visible from the room centre in any yaw** — a 2.1 m 3-door wardrobe stands
+~0.8 m in front of it. Across the 19 templates, **11 of 78 windows** have a floor piece taller than
+the sill in front of the glass (footprint overlapping the pane laterally by ≥0.3 m, nearest face
+within 1.2 m). **Nine are `wardrobe-3door`.** The two worst cover **1.17 m of 1.6 m** and **1.37 m
+of 1.6 m** — 73% and 86%. Every offender sits 0.65–1.05 m from the pane.
+
+**The guard exists and is the wrong shape, not broken.** `windowSillTall`'s own doc says a wardrobe
+"shouldn't be pushed against a windowed wall", and `tryPlace` does reject one inside
+`windowFrontRects` — but that rect is **0.65 m deep, a walking band**. The wardrobe clears it by
+centimetres and stands a metre away, still covering the window. That the offenders cluster at
+0.65–0.85 m is the signature.
+
+**Attempt 1 — a deeper prism for tall items** (`0.65 + CLEARANCE.storageFront` = 1.4 m, derived from
+existing constants, not tuned to a number). Blocked windows **11 → 3**. But item count **1442 →
+1439** and **wardrobes 39 → 34**: five bedrooms lost their wardrobe entirely, because a small HDB
+master has nowhere else to put one. **A bedroom with no wardrobe is worse than a partly blocked
+window** — the `.106` lesson, caught by re-counting rather than by the success metric.
+
+**Attempt 2 — the deep prism as a preference, with a last-resort relaxation in `settle`** once every
+constrained position had failed. Furniture kept (1445 items, nothing lost) and 7 of the 11 fixed —
+**but the two worst offenders came straight back**, because for those masters the relaxed position
+is the only position. It also still lost one wardrobe (39 → 38) and added a stray dining chair
+(17 → 18).
+
+**Both attempts reverted; `git status` clean against HEAD.** More clearance cannot solve this: the
+room is too small for a 1.8 m wide, 2.1 m tall wardrobe plus a queen bed plus a window. The real
+options are an arranger strategy (a narrower wardrobe in a tight room, or picking the wall SEGMENT
+beside the glass rather than in front of it) or a content change — both design calls, recorded as
+item **(j)**.
+
+**Shipped instead:** `src/layout/windowSightline.test.ts` ratchets the 11 by name so no new template
+or arranger change can add another, and asserts that **67 of the 78 windows are clear** so the list
+cannot pass by measuring nothing. Both tests carry an explicit 30 s timeout — they furnish all 19
+templates.
+
 ## v0.31.5.116 — tpl-hdb-5room: master window out of the kitchen (and why its front door is NOT fixable)
 
 **One fix, not two — and the half I could not do is the more useful finding.**
