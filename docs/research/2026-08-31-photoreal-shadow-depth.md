@@ -809,3 +809,65 @@ drawer front or a tabletop is stretched *across* it, where nothing hides it. Tha
 **The rule to carry forward:** size a panel when it is stretched across the grain; a tall panel that
 happens to run with the grain is already fine, and changing it only trades one density for another.
 `PlanDoorLeaf.tsx` keeps `repeat` 2 unchanged.
+
+
+## The boot dollhouse view — two suspicions refuted, one real gap (v0.31.5.152)
+
+The whole arc has been measured from inside the walk camera, but the app boots in **orbit**
+(`cameraSlice.ts`), and that dollhouse frame is the first impression. New probe
+`scripts/dev-probes/boot-view.mjs` captures it untouched and reports the resolved state, so the frame
+is never judged against an assumed one.
+
+**Boot state, measured:** `cameraMode orbit`, `tier medium`, `timeMode system`, `backdrop sky`,
+`uiMode simple`, **87 items**, `fov 45`, camera `[20.84, 10.59, 19.16]` (≈30 m out — the framing pass
+dollies past `Scene.tsx`'s hardcoded `[12, 8, 12]`).
+
+**Convention to judge it against:** a professional dollhouse render is a bird's-eye cutaway with the
+roof removed, walls extrapolated so interiors read, every room furnished *and decorated*, on a clean
+neutral backdrop ([BluEnt](https://www.bluentcad.com/3d/home-rendering/home-builder-renderings-portfolio-dollhouse-views),
+[ArchiCGI](https://archicgi.com/3d-floor-plan-visualization/),
+[Transparent House](https://www.transparenthouse.com/post/3d-floor-plan-renderings-dollhouse)).
+
+### Refuted #1 — "the backdrop is black, the sky dome is broken"
+
+The first capture came back with a **pure black background**, which looked like a serious first-run
+bug. It is not. `timeMode` is `system`, the probe ran at **02:14 local**, and the dome bakes night.
+Before concluding, the dome was inspected directly: `SphereGeometry radius 200`, `MeshBasicMaterial`,
+`side BackSide`, `hasMap true` (256×128), visible, tracking the camera — present and correct; its
+baked texel and the rendered pixel were both `[0,0,0]`, consistent with night, not with a missing
+dome.
+
+### Refuted #2 — "at midday the backdrop is flat grey with no sky in it"
+
+At hour 13 the backdrop measures **184,184,185 at the top of frame → 175,173,175 at the bottom**:
+near-zero saturation and a ~10-level gradient. That looked wrong against `altitudeCurve.ts`'s
+distinctly blue `skyColor [0.55, 0.66, 0.92]`. It is **as designed**. `skySurround.ts` (SKY-ANALYTIC
+-ORBIT) documents that the dollhouse surround deliberately has *no ground* and continues the horizon
+colour dimmed toward the nadir, and records the horizon as pale (saturation 0.09–0.23) with the blue
+reserved for the zenith. The camera pitches ≈20.5° down with a 45° vertical fov, so the frame spans
+roughly **+2° to −43°** — entirely horizon-to-nadir. The blue zenith is behind the camera. The
+measurement matches the design.
+
+### The real gap — the model floats
+
+Against the reference convention the one clear difference is that **the flat has nothing under it**:
+no ground, no anchoring shadow, so the dollhouse hangs in haze. Professional dollhouse renders sit the
+model on a soft shadow that fixes it in space.
+
+**But the obvious fix has already been tried and retired, with reasons on file (RD-410).**
+`ShowcaseController.tsx` and `quality.ts` record that a drei `AccumulativeShadows` ground plane was
+mounted while the camera was parked, and that its 19 m catcher "caught the building's own silhouette
+and rendered it as a large dark rectangle on the ground — bigger than the footprint", while the
+single synchronous frame the capture path renders never converged the accumulation. **So this is not
+mine to re-open**: it is a recorded decision, and the honest note is only that its rationale
+("grounding is fully covered by the floor + PCF sun shadows + contact blobs") argues about grounding
+*within* the apartment and does not address the building's silhouette seen from *outside*. If a
+dollhouse anchor is wanted, it wants a shadow **catcher** sized to the footprint rather than a 19 m
+plane — a product call with RD-410's artifact as the known risk.
+
+### Secondary observation — the cutaway is a veil, not a cut
+
+Roughly half the plan is covered by near-side walls faded to translucent, which reads as milky fog
+over the rooms behind rather than as a cutaway; the furniture under it is desaturated. The reference
+convention *cuts* walls at a section plane instead. Recorded, not acted on — the fade is a deliberate
+system (`REVEAL-THROUGH-TINT`) with its own tests.

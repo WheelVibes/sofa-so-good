@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.152 — the boot dollhouse view: two suspicions refuted, one real gap
+
+**Measurement only; new probe `scripts/dev-probes/boot-view.mjs`.** The arc had only ever measured the
+walk camera, but the app boots in orbit and that frame is the first impression. Measured boot state:
+`orbit`, tier `medium`, `timeMode system`, `backdrop sky`, `uiMode simple`, **87 items**, `fov 45`,
+camera `[20.84, 10.59, 19.16]`.
+
+**Refuted #1 — "the backdrop is black, the dome is broken".** It is night. `timeMode` is `system` and
+the probe ran at 02:14 local. The dome was inspected before concluding: sphere radius 200, BackSide,
+`hasMap` 256×128, visible, camera-tracking — present and correct.
+
+**Refuted #2 — "at midday the backdrop is flat grey".** It measures 184,184,185 → 175,173,175,
+saturation ≈0 — and that is `skySurround.ts`'s documented SKY-ANALYTIC-ORBIT design: no ground, the
+horizon colour continued and dimmed to the nadir, blue reserved for the zenith. The camera pitches
+≈20.5° down at 45° vertical fov, so the frame spans ≈ +2° to −43° — entirely horizon-to-nadir. The
+blue is behind the camera.
+
+**The real gap: the model floats** — no ground, no anchoring shadow, where a professional dollhouse
+render sits the model on a soft shadow. **Not acted on:** RD-410 already mounted and retired exactly
+that (a drei `AccumulativeShadows` plane whose 19 m catcher "rendered the building's silhouette as a
+large dark rectangle bigger than the footprint"). Recorded honestly in the research doc: RD-410's
+rationale argues about grounding *inside* the apartment and does not address the silhouette seen from
+outside, so a footprint-sized shadow catcher may still be wanted — but that is a product call with a
+known artifact, not a unilateral edit. Also recorded: the cutaway reads as a translucent veil over
+half the plan rather than a section cut.
+
 ## v0.31.5.151 — the door leaf: the recorded decision survives (negative result)
 
 **Measurement only.** `.150` deferred the door leaf because its `repeat` 2 is a recorded measured
