@@ -41,6 +41,9 @@ const CURTAINPROPS = process.env.CURTAINPROPS || ''
 // something DIRECTIONAL modulates it, so this is how "the textiles are flat"
 // gets separated from "the fill has no direction".
 const LIGHTS = process.env.LIGHTS || ''
+// FLAGS='{"photographicFill":true}' — seeded into localStorage BEFORE load, since
+// `resolveFlags` reads the overrides map once at boot.
+const FLAGS = process.env.FLAGS || ''
 const OUT = process.env.OUT || '/tmp/window-pane'
 fs.mkdirSync(OUT, { recursive: true })
 
@@ -52,11 +55,12 @@ const browser = await puppeteer.launch({
 const page = await browser.newPage()
 await page.emulateTimezone('Asia/Singapore')
 await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 2 })
-await page.evaluateOnNewDocument(() => {
+await page.evaluateOnNewDocument((flags) => {
   try {
     localStorage.setItem('hdb_onboarded', '1')
+    if (flags) localStorage.setItem('hdb_feature_flags', flags)
   } catch {}
-})
+}, FLAGS)
 await page.goto(appUrl(), { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('canvas', { timeout: 60000 })
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })

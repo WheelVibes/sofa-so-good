@@ -7,6 +7,7 @@ import { registerAnimatedSource } from '../animatedSources'
 import {
   grade,
   iblFillScale,
+  photographicFillScale,
   shadowFilterForTier,
   shadowParamsForFilter,
   toneExposureBias,
@@ -260,7 +261,12 @@ export function Lighting() {
     const fillAtten = isFeatureEnabled('curtainLightEffect')
       ? windowFillAttenuation(getWindowAttenuation())
       : 1
-    const fillScale = iblFillScale(iblActive, cur.sun) * fillAtten
+    // PHOTO-FILL: an opt-in key:fill rebalance. The sun is untouched, so this
+    // only changes the RATIO — see `look.ts:photographicFillScale`.
+    const fillScale =
+      iblFillScale(iblActive, cur.sun) *
+      fillAtten *
+      photographicFillScale(isFeatureEnabled('photographicFill'))
     if (hemiRef.current) {
       hemiRef.current.intensity = cur.ambient * 1.1 * fillScale
       hemiRef.current.color.setRGB(

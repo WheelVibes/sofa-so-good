@@ -223,6 +223,35 @@ export function iblFillScale(iblActive: boolean, dayLevel: number): number {
 }
 
 /**
+ * PHOTO-FILL — how far the *positionless* fill is pulled down when the
+ * `photographicFill` feature is on.
+ *
+ * Seven material levers were tried across v0.31.5.157–.161 to close the measured
+ * textile gap against reference photographs (weave `normalScale`, the wrinkle
+ * channel, part jitter, a tessellated sag/crease cushion, weave tiling density,
+ * fabric pattern, drapery relief). **None moved micro-contrast more than ~20 %
+ * and several moved it down.** Simply turning the lamps off moved it **+62 %** on
+ * the same materials — because surface relief only becomes image contrast when
+ * something DIRECTIONAL shades its two sides differently, and the app's fill has
+ * no direction. The same wall was hit from the lighting side in `.133`/`.138`/
+ * `.141`.
+ *
+ * This scales the hemisphere + ambient ONLY. The sun keeps its full graded
+ * intensity (KEY-FILL-BALANCE), so the effect is purely a key:fill ratio change —
+ * shadows deepen and relief reads, rather than the whole scene going dark.
+ *
+ * **Default OFF.** Reducing the fill is the DEFAULT-GLOOM trade measured in
+ * `.86` and explicitly left as the user's decision; this makes the alternative
+ * reachable and comparable without changing what anybody sees by default.
+ */
+export const PHOTO_FILL_SCALE = 0.55
+
+/** Fill multiplier for the current `photographicFill` setting. Pure. */
+export function photographicFillScale(on: boolean): number {
+  return on ? PHOTO_FILL_SCALE : 1
+}
+
+/**
  * Daytime bloom ramp (RD-409 tail / LIGHT-IBL-OVERLAP).
  *
  * Bloom exists to glow genuinely-emissive NIGHT fixtures. In daylight the same

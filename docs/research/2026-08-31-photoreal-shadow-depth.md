@@ -1265,3 +1265,45 @@ user's call, and the same wall `.133`/`.138`/`.141` hit from the lighting side.
 
 That is the honest end of the materials route: the remaining textile gap is downstream of a lighting
 decision that is not mine to make.
+
+
+## `photographicFill` — the flag exists now, and it shows where the fill really lives (v0.31.5.162)
+
+`.161` ended with the textile gap sitting downstream of a lighting decision. Rather than leave that
+blocking two lines of work, this ships the alternative **behind a flag, default OFF**, so the two looks
+are comparable without changing what anybody sees.
+
+**What shipped.** `FEATURE_FLAGS.photographicFill` (`tier: 'simple'`, `default: false`, not `devOnly`)
+and a pure `photographicFillScale(on) → 0.55 | 1` in `look.ts`, applied to the hemisphere, the flat
+ambient **and** `scene.environmentIntensity`. **The sun keeps its full graded intensity**
+(KEY-FILL-BALANCE), so this is purely a key:fill ratio change, not a dimmer. Five unit tests: the
+scale is a no-op when off, the flag is off by default in *both* UI modes, and — because it is a look
+preference rather than a pro tool — it is `tier: 'simple'` so it stays **reachable** in the default
+mode.
+
+**Measured at the living-room pose, 13:00, maximum tier:**
+
+| | OFF | ON (hemi+ambient) | ON (hemi+ambient+IBL) |
+| --- | --- | --- | --- |
+| curtain micro/mean | 0.0356 | 0.0382 | **0.0421** (+18 %) |
+| sofa micro/mean | 0.0470 | 0.0494 | 0.0503 (+7 %) |
+| wall micro/mean | 0.0157 | 0.0169 | 0.0171 |
+| frame mean | 168.9 | 167.3 | 165.7 |
+| **frame %<64** | **1.28 %** | 1.46 % | **1.60 %** |
+
+Scaling only the analytical hemisphere/ambient was nearly inert; adding the IBL probe roughly doubled
+the effect, which is worth recording on its own — **the probe is the larger half of the positionless
+fill by day**. But `%<64` reaches only **1.60 %** against the photographic **11.2–12.2 %** measured in
+`.134`. A 45 % cut in both fill halves buys about a quarter of a stop.
+
+**Why it cannot reach further, and what the real target is.** The remaining light is the **fixtures**,
+and they are all on: `state/storage/firstPaintDaylight.ts:ensureDaylightFirstPaint()` switches the
+interior lights ON at first paint **at any hour**, on a fresh seed, for legibility — a deliberate,
+recorded decision. So the default frame at 13:00 has every ceiling light and lamp burning in full
+daylight, which no real interior does. `.161` measured what that costs: turning the lamps off raises
+the sofa's micro-contrast **+62 %**, far more than any material lever and far more than this flag.
+
+So the honest ordering of the remaining levers is now: **fixtures at midday (≈+62 %) ≫ positionless
+fill (+7–18 %) ≫ any material change (≤ +20 %, often negative)**. The flag is shipped and off; the
+next thing to examine is `ensureDaylightFirstPaint`, which is a legibility decision made before any of
+this was measured.

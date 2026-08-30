@@ -6,7 +6,7 @@ import { useFeature } from '../../features/useFeature'
 import { setIblActive } from '../../materials/iblSignal'
 import { useStore } from '../../state/store'
 import { contextRestoreVersion, subscribeContextRestore } from '../contextRestoreSignal'
-import { windowFillAttenuation } from '../look'
+import { photographicFillScale, windowFillAttenuation } from '../look'
 import { useQuality } from '../useQuality'
 import { lightingFromAltitude } from './altitudeCurve'
 import { hdriById } from './hdriCatalog'
@@ -56,7 +56,14 @@ export function SceneEnvironment() {
       ? windowFillAttenuation(getWindowAttenuation())
       : 1
     // Keep a little IBL at night so reflective surfaces aren't pure black.
-    scene.environmentIntensity = (0.12 + level * 0.55) * fillAtten
+    // PHOTO-FILL: the IBL probe is the OTHER half of the positionless fill, and
+    // the larger half by day — scaling only the analytical hemisphere/ambient
+    // moved the deep-shadow fraction 1.28% -> 1.46% against a photographic
+    // 11.2-12.2%. Both halves have to come down together.
+    scene.environmentIntensity =
+      (0.12 + level * 0.55) *
+      fillAtten *
+      photographicFillScale(isFeatureEnabled('photographicFill'))
   })
 
   if (!enabled) {

@@ -5,6 +5,31 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.162 — `photographicFill`: the flag exists now, and it shows where the fill really lives
+
+`.161` left the textile gap sitting downstream of a lighting decision. This ships the alternative
+**behind a flag, default OFF**, so the two looks are comparable without changing what anybody sees.
+
+New `FEATURE_FLAGS.photographicFill` (`tier: 'simple'`, `default: false`) and a pure
+`photographicFillScale(on) → 0.55 | 1` in `look.ts`, applied to the hemisphere, the flat ambient
+**and** `scene.environmentIntensity`. **The sun keeps its full graded intensity** (KEY-FILL-BALANCE),
+so this is a key:fill ratio change, not a dimmer. Five unit tests, including that it is off by default
+in *both* UI modes and — being a look preference, not a pro tool — `tier: 'simple'` so it stays
+reachable in the default mode.
+
+Measured at 13:00, maximum tier: curtain micro/mean **0.0356 → 0.0421 (+18 %)**, sofa 0.0470 → 0.0503,
+frame mean 168.9 → 165.7, deep-shadow **%<64 1.28 % → 1.60 %**. Scaling only the analytical
+hemisphere/ambient was nearly inert; adding the IBL probe roughly doubled the effect — **the probe is
+the larger half of the positionless fill by day**. But against the photographic 11.2–12.2 % from
+`.134`, a 45 % cut in both fill halves buys about a quarter of a stop.
+
+**Why it cannot reach further:** the remaining light is the fixtures, and
+`state/storage/firstPaintDaylight.ts:ensureDaylightFirstPaint()` switches the interior lights on at
+first paint **at any hour** for legibility — so the default frame at 13:00 has every lamp burning in
+full daylight, which no real interior does. `.161` measured that turning them off raises the sofa's
+micro-contrast **+62 %**. The honest ordering of remaining levers is now **fixtures at midday (≈+62 %)
+≫ positionless fill (+7–18 %) ≫ any material change (≤ +20 %, often negative)**.
+
 ## v0.31.5.161 — six material levers, and the seventh is the lighting
 
 **Measurement only.** Two more levers on `.160`'s new target (the curtain), then the measurement that

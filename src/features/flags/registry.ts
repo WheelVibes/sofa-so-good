@@ -500,6 +500,13 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  photographicFill: {
+    label: 'Photographic light balance',
+    description:
+      'Deepen shadows by reducing the flat ambient fill — surfaces show their texture, rooms read darker',
+    default: false,
+    tier: 'simple',
+  },
   pbrSurfaces: {
     label: 'Realistic surfaces',
     description: 'Higher-fidelity procedural furniture textures (wood/painted/fabric)',
