@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.153 — is the default flat staged? 97.7 % of it is axis-aligned
+
+**Measurement only; new probe `scripts/dev-probes/staging-audit.mjs`.** Render-studio writing names
+two finishing steps between a photograph and a CG frame — rooms must be *decorated* rather than merely
+furnished, and decor placement must be "slightly varied to avoid an overly centred or staged feel".
+This turns both into numbers for the booted default flat.
+
+**Refuted — "the bedrooms look sparse"** (my read of the `.152` dollhouse frame). They are ghosted by
+the wall-reveal veil, not empty. 87 items, of which **28 (32 %) are decor or textiles**; no room is
+bare (Living/Dining 26, Main Bedroom 15, Bedroom 3 13, Bedroom 2 10, Kitchen 7, bathrooms 5 and 4).
+
+**Confirmed — 85 of 87 items (97.7 %) sit at an exact multiple of 90°**: 56 at 0°, 12 at 270°, 9 at
+180°, 8 at 90°, only 2 off-axis. Nothing is a fraction of a degree askew, decor included. That is the
+"overly staged" signature.
+
+**Not acted on.** The reference advice is about decor, not beds and wardrobes — storage and seating
+really are pushed square to the wall, and a sofa 3° askew would read as an arranger bug. A jitter
+confined to the 28 decor/textile items has two specific hazards that make it a decision rather than an
+edit: mounted pieces (wall art, mirrors) must stay square, and the selection outline, rotate gizmo and
+clearance checks all read the stored rotation, so a render-time-only jitter would desynchronise the
+handles from the object.
+
 ## v0.31.5.152 — the boot dollhouse view: two suspicions refuted, one real gap
 
 **Measurement only; new probe `scripts/dev-probes/boot-view.mjs`.** The arc had only ever measured the

@@ -871,3 +871,42 @@ Roughly half the plan is covered by near-side walls faded to translucent, which 
 over the rooms behind rather than as a cutaway; the furniture under it is desaturated. The reference
 convention *cuts* walls at a section plane instead. Recorded, not acted on — the fade is a deliberate
 system (`REVEAL-THROUGH-TINT`) with its own tests.
+
+
+## Is the default flat *staged*? 97.7 % of it is axis-aligned (v0.31.5.153)
+
+Render-studio writing names two finishing steps that separate a photograph from a CG frame: rooms must
+be **decorated**, not merely furnished — "empty or sparsely furnished interiors … fail to communicate
+scale, proportion and lifestyle" — and decor placement must be **"slightly varied to avoid an overly
+centred or staged feel"**
+([Golden Vision](https://goldenstudio.org/realistic-interior-rendering),
+[RenderLand](https://renderland.ca/how-furniture-and-decor-modeling-elevate-realism-in-interior-3d-renders/),
+[ArchitectRender](https://www.architectrender.com/post/why-3d-renders-sometimes-look-unrealistic)).
+A layout produced by an auto-arranger is the opposite of the second by construction. New probe
+`scripts/dev-probes/staging-audit.mjs` turns both into numbers.
+
+**Refuted: "the bedrooms look sparse".** That was my read of the `.152` dollhouse frame, and it is
+wrong — the rooms are ghosted by the wall-reveal veil, not empty. Measured, the default flat carries
+**87 items**, and by category:
+
+| decor | lighting | textiles | storage | seating | bathroom | appliances | kitchen | beds | tables | laundry | electronics |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 20 | 18 | 8 | 7 | 7 | 7 | 5 | 4 | 3 | 3 | 2 | 1 |
+
+**28 of 87 items (32 %) are decor or textiles**, and no room is bare: Living/Dining 26, Main Bedroom
+15, Bedroom 3 13, Bedroom 2 10, Kitchen 7, the two bathrooms 5 and 4. On the first criterion the app
+is already doing what the reference asks.
+
+**Confirmed, and it is the real signature: 85 of 87 items (97.7 %) sit at an EXACT multiple of 90°** —
+56 at 0°, 12 at 270°, 9 at 180°, 8 at 90°, and just **2 off-axis**. Nothing in the flat is a fraction
+of a degree askew. That is precisely the "overly staged" tell, and it applies to the decor too.
+
+**A fix is available but it is not mine to make, and the reason is specific.** The reference advice is
+about *decor*, not about beds and wardrobes: in a real flat — and in a design tool — storage and
+seating genuinely are pushed square to the wall, and a sofa 3° askew would read as a bug in the
+arranger rather than as realism. So the change would be a small deterministic yaw jitter on the 28
+decor/textile items only. Two concrete hazards mean it needs a decision rather than an edit:
+**wall art, mirrors and other mounted pieces must stay square** (a tilted picture is a defect, not a
+flourish), and the **selection outline, rotate gizmo and clearance checks all read the stored
+rotation**, so a render-time-only jitter would desynchronise the handles from the object. Recorded
+with the numbers; the call is the user's.
