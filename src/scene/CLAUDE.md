@@ -1,6 +1,20 @@
 # src/scene — R3F rendering rules
 
+
 Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
+
+- **`photographicFill` is a FLAG that ships a CONTROL, not a look.** The look is
+  `ui.photographicLook` (off by default — reducing the fill is the DEFAULT-GLOOM trade from `.86`,
+  the user's call); the render path needs both. It scales the hemisphere, the flat ambient and the
+  IBL probe **per tier** (`look.ts:PHOTO_FILL_SCALE` — maximum 0.80, medium 0.62, performance 0.60,
+  calibrated against the photographic `%<64` 11.2–12.2 % band; performance cannot reach it at all),
+  raises fabric relief to match (`PHOTO_WEAVE` — relief and fill are one knob measured as two: the
+  same weave change buys +10 % under the shipped fill and +138 % under this one), and fades the
+  fixtures with sun STRENGTH in first person only (`fixturesLevel`), keeping windowless rooms fully
+  lit (`lighting/daylitRooms.ts`). Material factories read it through
+  `scene/photographicSignal.ts`, because `look.ts` is dependency-free and materials must not import
+  the UI store. Full measurement trail: `docs/research/2026-08-31-photoreal-shadow-depth.md`
+  (`.162`–`.170`).
 
 - **The main Canvas is `frameloop="demand"`** — never assume a continuous render loop.
   Anything that animates must keep `RenderPump` open (`renderDecision.ts`

@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.171 — document the Photographic switch, and prove it in the UI
+
+`.170` shipped a user-facing control and did not document it, which the root rule requires in the same
+change. Fixed: `docs/user/lighting-and-time.md` gains a **Photographic look** section next to Lights
+(what it changes, that walk mode at midday steps the fixtures aside while windowless rooms keep
+theirs, that the dollhouse is unchanged, that it never touches the Lights switch, and that rooms *will*
+look darker — that being the point), and `src/scene/CLAUDE.md` records the flag-ships-the-control
+split, the per-tier calibration, the relief pairing and the signal module.
+
+New scenario `scripts/scenarios/photographic-look.json`, run green (16 steps): the flag defaults ON so
+the control exists in a production-shaped build, `photographicLook` is **off** until toggled, the
+switch is present in the Scene menu, clicking it turns the look on, and **`lightsMode` is untouched by
+the toggle** — the property the whole `.166` separation exists to guarantee. Screenshot confirms
+`PHOTOGRAPHIC` renders directly under `LIGHTS`, off.
+
+Simple mode only, deliberately: Simple is the default *and* the harder case (a `pro`-tier flag would
+be forced off there), and presence in both modes is already pinned by the unit test. The Pro-mode
+click step was dropped rather than left flaky.
+
 ## v0.31.5.170 — the photographic look is now reachable (it wasn't)
 
 `photographicFill` shipped as a flag with `default: false`, enabled in probes through the
