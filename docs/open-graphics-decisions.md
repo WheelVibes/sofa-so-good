@@ -776,6 +776,39 @@ fix had never been seen in a frame until now**; the walk confirms the doors read
 *(The first attempt died on the known `ProtocolError: Promise was collected` puppeteer flake and was
 re-run; the numbers above are from the successful run, `exit=0`.)*
 
+---
+
+## The last six templates — ✅ ALL CLEAN (v0.31.5.130), coverage complete
+
+All six walked at an **explicit `TIER=medium`**, resolved `medium/on/manual13`, contact sheet plus
+ceiling-band luma read frame by frame. **No new defect in any of them.**
+
+| plan | frames / rooms | meshes / tris | ceiling band | known ratchet entries |
+| --- | --- | --- | --- | --- |
+| `tpl-hdb-2room` | 20 / 5 | 138 / 44522 | **190.7–226.6** | (i) `h2-main -> h2-bath` |
+| `tpl-1bed` | 20 / 5 | 126 / 56642 | **175.5–231.8** | (j) `ob-liv-win: potted-plant` |
+| `tpl-condo-1bed` | 20 / 5 | 131 / 55729 | **140.3–216.9** | none |
+| `tpl-condo-1study` | 24 / 6 | 182 / 76657 | **154.7–227.2** | none |
+| `tpl-condo-2bed` | 36 / 9 | 187 / 70676 | **140.1–227.5** | none |
+| `tpl-condo-studio` | 16 / 4 | 75 / 25188 | **159.5–220.6** | (j) `su-bath-win: bathroom-sink` |
+
+Every band sits inside the range the clean plans already established; the two real defects this
+metric has caught read 37 and 28.2. Windows read as bright daylight throughout, which is the
+post-`.127` behaviour. Bathroom mirrors render as flat grey panels — the known "mirrors do not
+reflect" item, seen again here.
+
+**One known entry was CONFIRMED IN A FRAME for the first time.** `tpl-hdb-2room`'s (i) entry
+`h2-main -> h2-bath` has been ratcheted by name since `.114`, but nobody had ever looked at it:
+`h2-bath-y0` and `h2-bath-y2` each show a door, i.e. the flat's **front door opens into the
+bathroom** and the room has two. The ratchet was right. This changes nothing about the item — it is
+still a content decision — but the defect is now documented visually rather than only arithmetically.
+
+**Coverage is complete: 19 of 19 registered templates walked, plus the boot plan.** Counted against
+`src/floorplan/templates.ts`. **The visual-audit arc that began at `.95` is finished.** Every
+remaining open item ((f) through (j)) is a content or product decision with its data already
+recorded above; none is waiting on more frames.
+
+
 
 
 
@@ -791,20 +824,20 @@ were wrong.** It was written from a handoff note rather than counted against
 `tpl-condo-1study` was one of nine outstanding plans, not the only one. `tpl-studio` in particular
 was listed as walked because `.120` moved its front door — moving an offset is not a walk.
 
-**After `.129`: 13 of the 19 registered templates have been walked frame by frame** (plus the boot plan `defaultPlan.ts`, which is not a template and is audited separately above).
+**After `.130`: ALL 19 registered templates have been walked frame by frame**, plus the boot plan `defaultPlan.ts` (not a template; audited separately above). **Coverage is complete.**
 
 Walked (12): `tpl-hdb-maisonette` (`.95`), `tpl-terrace-ground` (`.103`/`.104`),
 `tpl-condo-penthouse` (`.109`), `tpl-loft` (`.110`), `tpl-hdb-4room` (`.111`/`.115`),
 `tpl-hdb-5room` (`.116`/`.121`), `tpl-hdb-exec` (`.118`), `tpl-hdb-jumbo` (`.109`/`.119`),
 `tpl-condo-3bed` (`.122`), `tpl-hdb-3room` (`.122`), `tpl-condo-4bed` (`.123`),
-`tpl-hdb-3gen` (`.123`), `tpl-studio` (`.129`).
+`tpl-hdb-3gen` (`.123`), `tpl-studio` (`.129`), and `tpl-hdb-2room` + `tpl-1bed` + `tpl-condo-1bed` +
+`tpl-condo-1study` + `tpl-condo-2bed` + `tpl-condo-studio` (`.130`).
 
-**Not yet walked (6):** `tpl-hdb-2room`, `tpl-1bed`, `tpl-condo-1bed`, `tpl-condo-1study`,
-`tpl-condo-2bed`, `tpl-condo-studio`. **Do not describe coverage as complete
-until each of these has produced frames** — count against the registry, never against a summary.
+**Not yet walked: none.** Counted against the registry, not against a summary — which is the
+discipline `.123` had to correct after `.122` claimed coverage it did not have.
 
-Every defect these walks found is recorded as (f) through (k) above; no unrecorded visual defect
-remains in an audited plan.
+Every defect these walks found is recorded as (f) through (k) above; **no unrecorded visual defect
+remains in any shipped plan.**
 
 ## Summary
 

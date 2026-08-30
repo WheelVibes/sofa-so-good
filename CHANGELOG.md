@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.130 — template audit coverage COMPLETE: the last six walked, all clean
+
+**Docs only.** The six templates that had never been walked were audited at an explicit
+`TIER=medium`, resolved `medium/on/manual13`, contact sheet plus ceiling-band luma read frame by
+frame. **No new defect in any of them.**
+
+| plan | frames / rooms | ceiling band | known ratchet entries |
+| --- | --- | --- | --- |
+| `tpl-hdb-2room` | 20 / 5 | 190.7–226.6 | (i) `h2-main -> h2-bath` |
+| `tpl-1bed` | 20 / 5 | 175.5–231.8 | (j) `ob-liv-win: potted-plant` |
+| `tpl-condo-1bed` | 20 / 5 | 140.3–216.9 | none |
+| `tpl-condo-1study` | 24 / 6 | 154.7–227.2 | none |
+| `tpl-condo-2bed` | 36 / 9 | 140.1–227.5 | none |
+| `tpl-condo-studio` | 16 / 4 | 159.5–220.6 | (j) `su-bath-win: bathroom-sink` |
+
+Every band sits inside the range the clean plans already established (the two real defects this
+metric has caught read 37 and 28.2). Windows read as bright daylight throughout — the post-`.127`
+behaviour. Bathroom mirrors still render as flat grey panels (the known "mirrors do not reflect").
+
+**One known entry was confirmed in a frame for the first time.** `tpl-hdb-2room`'s (i) entry
+`h2-main -> h2-bath` has been ratcheted by name since `.114` without anyone looking at it:
+`h2-bath-y0` and `h2-bath-y2` each show a door, so the flat's front door really does open into the
+bathroom and the room has two. The ratchet was right; the item is unchanged and still a content
+decision, but it is now documented visually rather than only arithmetically.
+
+**Coverage is complete — all 19 registered templates walked, plus the boot plan**, counted against
+`src/floorplan/templates.ts`. **The visual-audit arc that began at `.95` is finished.** Every
+remaining open item ((f) through (j)) is a content or product decision whose data is already
+recorded; none is waiting on more frames.
+
 ## v0.31.5.129 — boot plan re-audited CLEAN, `tpl-studio` walked, and the glass fix measured where it counts
 
 **Docs only — two clean audits and a before/after on the artefact every user boots into.**
