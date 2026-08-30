@@ -3,10 +3,9 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { MOUSE, OrthographicCamera, PerspectiveCamera, TOUCH, Vector3 } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
-import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../../apartment/constants'
 import { useAnyModalOpen } from '../../controls/modalGuard'
 import { useFeature } from '../../features/useFeature'
-import { isDefaultPlan } from '../../floorplan/planGeometry'
+import { planExtent } from '../../floorplan/planExtent'
 import { type FloorPlan, planBounds, planRoomArea } from '../../floorplan/types'
 import { useStore } from '../../state/store'
 import { useIsMobile } from '../../ui/useIsMobile'
@@ -45,11 +44,10 @@ type Pose = { pos: [number, number, number]; target: [number, number, number] }
 const APPROX_WALL_H = 2.7 // include wall height when fitting the dollhouse view
 const REF_FOV_DEG = 45 // Canvas perspective FOV — the reference lens for ortho fits
 
-/** Plan footprint (width, depth) — the apartment extents for the default flat,
- *  the plan's own bounds otherwise. */
-function planExtents(plan: FloorPlan): [number, number] {
-  return isDefaultPlan(plan) ? [APARTMENT_EXT_W, APARTMENT_EXT_D] : planBounds(plan)
-}
+/** Plan footprint (width, depth). Shared with the `CommentPins`/`TapeMeasure`
+ *  click planes, which used the bare constants and so under-covered the deepest
+ *  templates (PLAN-EXTENT). */
+const planExtents = planExtent
 
 /** Camera distance at which a sphere of `radius` exactly fills the smaller of the
  *  vertical / horizontal field of view — so the framing fits any viewport aspect

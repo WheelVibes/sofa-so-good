@@ -1,11 +1,11 @@
 import { Html } from '@react-three/drei'
 import { useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../apartment/constants'
 import { obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { noExportUserData } from '../export/sceneGltf'
+import { planExtent } from '../floorplan/planExtent'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { useCatalogGetter } from '../furniture/catalog'
 import { useStore } from '../state/store'
@@ -40,6 +40,8 @@ function Marker({ x, z }: { x: number; z: number }) {
  */
 export function TapeMeasure() {
   const tapeMode = useStore((s) => s.tapeMode)
+  // PLAN-EXTENT: size the pick plane from the loaded plan (see `planExtent`).
+  const [extW, extD] = planExtent(useStore((s) => s.floorPlan))
   const points = useStore(useShallow((s) => s.tapePoints))
   const addTapePoint = useStore((s) => s.addTapePoint)
   const units = useStore((s) => s.units)
@@ -113,7 +115,7 @@ export function TapeMeasure() {
           anywhere drops a floor point (then snaps to nearby corners). */}
       <mesh
         ref={priorityRaycast}
-        position={[APARTMENT_EXT_W / 2, LIFT, APARTMENT_EXT_D / 2]}
+        position={[extW / 2, LIFT, extD / 2]}
         rotation={[-Math.PI / 2, 0, 0]}
         onClick={(e) => {
           e.stopPropagation()
@@ -121,7 +123,7 @@ export function TapeMeasure() {
         }}
         onPointerMove={(e) => setCursor([e.point.x, e.point.z])}
       >
-        <planeGeometry args={[APARTMENT_EXT_W + PAD * 2, APARTMENT_EXT_D + PAD * 2]} />
+        <planeGeometry args={[extW + PAD * 2, extD + PAD * 2]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
 

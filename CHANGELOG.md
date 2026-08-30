@@ -5,6 +5,57 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.102 — PLAN-EXTENT: the comment/tape click planes cover the loaded plan
+
+**Closing round of the default-flat constant audit.** The remaining fourteen importers of
+`src/apartment/constants.ts` were checked one by one. **Most are clean, and that is the main
+result** — the collision layer in particular has exactly the discipline the walk-interaction
+and lighting layers lacked.
+
+**CLEAN (verified, no change made):**
+- The whole collision family. `buildCollisionWalls` / `buildRoomCollisionWalls` are only ever
+  reached on the default-plan branch, with `planCollisionWalls` / `buildPlanRoomCollisionWalls`
+  as the plan path — checked at every call site: `ClearancePanel`, `DesignScorePanel`,
+  `FinishPicker` (both), `TapeMeasure`, `report.ts`, `walkway.ts`, `FirstPersonCamera`. The
+  `placementWalls(state) ?? buildCollisionWalls(...)` fallback used by drag, both gizmos and
+  `collision/placement.ts` is correct by construction: `placementWalls` returns `undefined`
+  **only** for the default plan.
+- `autoArrange.ts` is the default-flat arranger by design (keyed on the `RoomId` union and the
+  fixed rect/keepout tables); its two real call sites route custom plans to `arrangePlanRoom`.
+- `PanoramaController`, `roomEditorShell`, `suggestViews`, `OrbitCamera` — all gated on
+  `isDefaultPlan`.
+- `MeasurementOverlay`, `state/rooms.ts`, `state/schema.ts` — optional `ROOMS[id]?.x` lookups
+  with real fallbacks, or a deliberate union of constant ids with the plan's own.
+
+**THE ONE DEFECT, and it is small — stated plainly rather than inflated.** `CommentPins` and
+`TapeMeasure` each raycast against a transparent floor plane sized
+`APARTMENT_EXT_* + 2 * PAD` (PAD = 4 m) and centred on the default flat, with no plan check:
+x in [-4, 16.725], z in [-4, 13.375]. Measured against all nineteen templates,
+**`tpl-terrace-ground` is 14.0 m deep**, so its last **0.625 m** could receive neither a
+comment pin nor a tape-measure pick; `tpl-hdb-jumbo` (13.2 m) had **0.175 m** of margin left —
+one template edit from the same bug. Every other template fits.
+
+**The fix was already written.** `OrbitCamera` held the correct one-liner privately as
+`planExtents`. It now lives in `floorplan/planExtent.ts` and all three consumers share it, so
+the copies cannot drift apart again. A test pins the default flat as an exact no-op
+(`toEqual` the constants), a second **pins the defect itself** — the constant-sized plane fails
+to cover `tpl-terrace-ground` — so a future change to the templates or to PAD that
+reintroduces it fails here rather than in the field, and a third asserts the plan-derived plane
+covers every shipped template.
+
+**Cost:** `planExtent` runs once per render of two components that only mount while comment or
+tape mode is active, and `planBounds` is O(walls). Not a loop, so no benchmark — stated rather
+than assumed, per the `.97` lesson.
+
+**Recorded, NOT fixed — it needs a product call, not a guess.** `PlanRoom` has no `external`
+field; only the default flat's `ROOMS` table marks a room external. So
+`ROOMS[room.id]?.external` — used by `reportData.ts`, `catalog/LayersPanel.tsx` and
+`finishesSlice.ts` — is always `undefined` for a template, and a template's service yard or
+balcony is therefore treated as internal in floor-area reports, the layers list and finish
+application, while the default flat's is excluded. Whether a yard counts toward reported area
+is a product decision (and a schema addition), so it is logged here rather than decided
+unilaterally.
+
 ## v0.31.5.101 — SUN-CURTAIN-PLAN: curtains dim the sun through the plan's OWN windows
 
 **The default-flat constant audit's fourth hit, and the first on the lighting path.** After
