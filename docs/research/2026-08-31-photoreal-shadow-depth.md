@@ -50,9 +50,59 @@ recorded in `open-graphics-decisions.md`, and at least one (DEFAULT-GLOOM) was a
 the user signed off. A round that darkens the picture by undoing a legibility fix is a regression,
 not a realism win — the target is *depth in the darks*, not a dimmer room.
 
-The clean next experiment is a four-arm knock-out at a fixed pose: baseline, lamps off, analytical
-fill zeroed, IBL off — reporting `%<64` for each. That attributes the lift before anything is
-changed.
+## ✅ ATTRIBUTED (v0.31.5.135) — it is the lamps, and the reason is that daylight cannot carry the room
+
+`scripts/dev-probes/shadow-attrib.mjs` holds ONE session at ONE pose (the `getRoomEditorShell`
+centre of `livingDining`, eye height, yaw 0, pitch −0.05 — directly comparable to `/tmp/tw31`) and
+mutates only the store between shots, resetting to baseline before each arm. Every arm printed a
+distinct resolved state, so none was a failed mutation. Maximum tier, 13:00, same crop as above.
+
+| arm | p01 | p05 | p50 | p95 | %<40 | %<64 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `a-baseline` | 50 | 101 | 180 | 220 | 0.7 | **1.7** |
+| `b-lamps-off` | 3 | 49 | 112 | 191 | 4.2 | **7.8** |
+| `c-ibl-off` | 49 | 100 | 179 | 220 | 0.7 | **1.7** |
+| `d-tone-linear` | 44 | 95 | 173 | 215 | 0.8 | **2.1** |
+| `e-lamps-and-ibl-off` | 1 | 39 | 116 | 190 | 5.0 | **9.2** |
+| *photo — polished tile* | 24 | 44 | 189 | 215 | 3.6 | *12.2* |
+| *photo — Accra* | 16 | 42 | 155 | 205 | 4.4 | *11.2* |
+
+**The fixtures are the dominant lift by a wide margin**: switching them off takes `%<64` from 1.7 to
+7.8, a 4.6x increase in deep shadow. AgX contributes a little (1.7 → 2.1). **IBL is not innocent but
+is invisible while the lamps are on** — arm `c` is indistinguishable from baseline, yet arm `e`
+(9.2) beats arm `b` (7.8) by 1.4 points, which is what proves arm `c`'s mutation really did reach
+the renderer rather than silently failing. (Worth knowing: `setQualityOverride` does NOT call
+`syncIblFromTier`, unlike `setQualityTier` — the override works only because `SceneEnvironment`
+re-renders off `useQuality`. Arm `e` is the evidence; without it, arm `c` would have been
+unreadable.)
+
+### The finding that actually matters — and it is NOT "turn the lamps off"
+
+Look at what lamps-off costs. `%<64` reaches a photographic **7.8**, but `p50` collapses **180 → 112**
+and `p95` **220 → 191**. The room goes dim and grey. That is precisely the DEFAULT-GLOOM failure
+(`.86`) the lights-on default was measured and signed off to prevent, and `.127` measured the same
+thing independently (lights off at 13:00 gave a wall of 130 against 222 with them on).
+
+Now compare with the photographs: they have deep shadows (11–12% below 64) **and** bright midtones
+(p50 155–189) **at the same time** — and they achieve it with daylight, not lamps. Our lamps-off arm
+has photographic shadows but a p50 of 112, roughly 30–40% dimmer than either real room.
+
+**So the root cause is not the lamps. It is that the app's daylight cannot carry a room on its own,
+which is why the lamps are on at midday, and the lamps are what flatten the shadows.** The fixtures
+are a compensation for weak daylight transport, and the flat picture is the bill for that
+compensation.
+
+That reframes the lever. **Do not darken the picture by undoing a signed-off legibility decision.**
+The target is a room carried by *daylight* at midday — window light transport strong enough that the
+midtones hold without every fixture burning — after which the shadows come back for free and the
+lamps become what they are in a real photograph at 1 pm: mostly off. That is also exactly what the
+GI literature points at (light entering a window and bouncing), and it is consistent with `.133`,
+where the analytical fill turned out to be far too small a share of interior light to matter.
+
+**Not yet measured, and the next step:** how much of the window's light actually reaches the room —
+compare the app's illuminance falloff from the window plane against the inverse-square-plus-bounce
+behaviour a real room shows, and find whether the shortfall is in the sun/sky intensity, the window
+glass transmission, or the absence of bounce off the room's own surfaces.
 
 ## An instrument gap found on the way
 

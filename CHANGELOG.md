@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.135 — the flat shadows are attributed: lamps, compensating for daylight that cannot carry a room
+
+**Measurement only, no render change.** `.134` found the app has ~an order of magnitude less deep
+shadow than real interior photographs. `shadow-attrib.mjs` (new) holds one session at one pose and
+knocks out each candidate in turn, resetting to baseline between arms; every arm printed a distinct
+resolved state, so none was a failed mutation.
+
+| arm | p05 | p50 | p95 | %<64 |
+| --- | --- | --- | --- | --- |
+| `a-baseline` | 101 | 180 | 220 | **1.7** |
+| `b-lamps-off` | 49 | 112 | 191 | **7.8** |
+| `c-ibl-off` | 100 | 179 | 220 | **1.7** |
+| `d-tone-linear` | 95 | 173 | 215 | **2.1** |
+| `e-lamps-and-ibl-off` | 39 | 116 | 190 | **9.2** |
+| *photographs* | 42–44 | 155–189 | 205–215 | *11.2–12.2* |
+
+**The fixtures dominate** — off, `%<64` goes 1.7 → 7.8, a 4.6x increase in deep shadow. AgX adds a
+little (1.7 → 2.1). IBL is invisible while the lamps are on (arm `c` = baseline) but real once they
+are off (arm `e` 9.2 vs arm `b` 7.8) — and that gap is what proves arm `c`'s mutation actually
+reached the renderer, worth knowing because `setQualityOverride` does not call `syncIblFromTier` the
+way `setQualityTier` does.
+
+**But the answer is not "turn the lamps off".** Lamps-off buys photographic shadows and pays p50
+180 → 112 and p95 220 → 191 — the room goes dim and grey, which is exactly the DEFAULT-GLOOM failure
+(`.86`) the lights-on default was measured and signed off to prevent. The photographs have deep
+shadows **and** bright midtones simultaneously, carried by daylight rather than lamps; our lamps-off
+arm sits ~30–40% dimmer than either real room.
+
+**So the root cause is that the app's daylight cannot carry a room on its own.** The lamps are a
+compensation for weak window-light transport, and the flat picture is the bill. The lever is to make
+midday daylight hold the midtones — after which the shadows return for free and the fixtures become
+what they are in a real 1 pm photograph: mostly off. Next step is to measure illuminance falloff from
+the window plane and find whether the shortfall is sun/sky intensity, glass transmission, or the
+missing bounce off the room's own surfaces. Written up in
+`docs/research/2026-08-31-photoreal-shadow-depth.md`.
+
 ## v0.31.5.134 — measured against real photographs: the app has no deep shadow
 
 **Research + measurement, no code change.** The brief asked for reference imagery to be analysed
