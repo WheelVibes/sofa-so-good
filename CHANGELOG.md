@@ -5,6 +5,62 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.111 — DINING-PHANTOM: chairs were arranged around a table position that never existed
+
+**Stray dining chairs (>1.2 m from their table) across all 19 templates: 50 → 17.** Not zero, and
+this is a fix rather than a cure — 6 of 8 HDB templates are now perfectly tucked, the condo
+templates still show 2–3 each, and `tpl-hdb-5room` keeps one at 7.60 m.
+
+**Root cause, attributed to a stage before theorising.** A dump across seed → arrange → mounts →
+overlaps → doors → walls showed chairs **0.00 m from the table at seed** and the entire scatter
+appearing at `arrangeAllRoomsForPlan`, with every later stage a pass-through. Inside it:
+**`tryPlace` signals failure by returning the item UNCHANGED and leaving `world` untouched**, and
+both dining routines used that return value as "where the table is". When the ideal spot was
+blocked, the chairs were slotted around the table's PRE-placement position and `arrangeCore`'s
+safety settle then moved the table elsewhere. On `tpl-hdb-4room` the chairs landed at exactly
+±0.5/±0.75 around the SEED spot (7.40, 6.00) while the table finished at (6.52, 3.72) — the
+arithmetic matches the phantom exactly. `tpl-hdb-jumbo` and `tpl-terrace-ground` were the control:
+both tuck at exactly 0.90 m, because their tables place first time.
+
+**The fix.** `placeDiningTable` settles the table immediately when `tryPlace` fails and reads its
+final transform back out of `world`, so slots always measure from the real position; it also reads
+the ROTATION back off the placed table, since a settled fallback may have turned it. Separately,
+`arrangeLivingAnyEdge` now offers the two table ENDS as spare slots and lets a chair claim any
+free slot — without that, a chair whose long-side slot is blocked fell through to the room-wide
+safety settle, which grid-searches the whole room (7.6 m in `tpl-hdb-5room`, 7.7 m in
+`tpl-hdb-3gen`). Part 1 took 50 → 23; part 2 took 23 → 17.
+
+**Nothing was lost — checked, because `.106` shipped a "stranded → 0" win while deleting 7 items.**
+Total furnished pieces **1437 → 1439**. The +2 are the `tpl-hdb-2room` and `tpl-1bed` dining
+tables, which previously **failed to place at all** — the 2-room shipped FOUR dining chairs and no
+table. Those two templates each trade one chair for the table that now occupies its footprint
+(2room 4→3, 1bed 6→5).
+
+**A FAILED MUTATION was caught mid-round (rule xxv).** The end-slot fallback went into
+`arrangeLiving` first and every measurement came back **byte-for-byte identical** — every template
+goes through `arrangeLivingAnyEdge`, so block 1 is the DEFAULT flat's curated path and the edit was
+dead code I had no way to measure. Reverted, then applied to the branch that actually runs.
+
+**Blast radius grepped, not assumed:** the only other two callers that read `tryPlace`'s result
+(`snapToWall` and the sofa's stepped-inward search) both guard with `if (placed !== item)`. The two
+dining blocks were the only unguarded ones.
+
+**Verified.** Tests prove they discriminate: `git stash` the arranger and **7 of 9 fail**; restore
+and all 9 pass. Jumbo and terrace pass in BOTH arms, as the control requires. The slow count test
+carries an explicit `{ timeout: 30_000 }`. Frames: `tpl-hdb-4room`'s living/dining (36 frames,
+17:45, resolved `medium/on/manual13`, 210 meshes / 97799 tris) shows the table with its chairs
+tucked on both sides — the fix is visible, not merely numeric.
+
+**Checked against the last change (rule ci).** `.108`'s CONTROL test — "pieces that BELONG at the
+room centre are untouched" — moved 17 → 18. Dumped every centred piece rather than editing the
+number: the addition is `tpl-1bed/ob-dining: dining-table-4`, a dining table at the centre of a
+room named "Dining", which is precisely the placement that control calls correct, and which
+existed only because this fix makes that table place at all. The full suite caught it; the
+targeted runs had not.
+
+**New `src/layout/CLAUDE.md`** records the `tryPlace`-returns-its-input trap and the fact that the
+two dining paths are not both exercised by template measurements.
+
 ## v0.31.5.110 — LEVEL-ISOLATION-IN-WALK: walking an upper storey unmounts the one below
 
 **Measured and diagnosed, deliberately NOT fixed** — the change is a renderer design + cost call,

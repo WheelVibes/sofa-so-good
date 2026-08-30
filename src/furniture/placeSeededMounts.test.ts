@@ -231,6 +231,11 @@ describe('SETTLE-ORIGIN: wall-hugging pieces are rescued without losing any', ()
   }, 30_000)
 
   it('CONTROL: pieces that BELONG at the room centre are untouched', () => {
-    expect(sweep().centred).toBe(17)
+    // 17 until v0.31.5.111, when DINING-PHANTOM made `tpl-1bed`'s dining table
+    // place at all — it previously failed `tryPlace` and was dropped, and now
+    // settles at the centre of a room named "Dining", which is exactly the
+    // placement this CONTROL calls correct. Verified by dumping every centred
+    // piece: the added one is `tpl-1bed/ob-dining: dining-table-4`.
+    expect(sweep().centred).toBe(18)
   }, 30_000)
 })

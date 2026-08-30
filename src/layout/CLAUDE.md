@@ -1,0 +1,46 @@
+# `src/layout/` — auto-arrangement rules
+
+Placement constants live in `designRules.ts` (`CLEARANCE`); `autoArrange.ts` drives the
+per-room routines. Rules in `docs/interior-design-guidelines.md`.
+
+## `tryPlace` reports failure by returning its INPUT (v0.31.5.111)
+
+`tryPlace(item, pos, rot, world, ctx)` returns the **placed candidate** on success (and pushes
+it into `world`), and the **original `item`, untouched**, when the spot is blocked by a door
+swing, a window keep-out or a collision. `world` is left alone in that case.
+
+**So `tryPlace(...).position` is a phantom whenever placement failed** — it is the item's
+pre-placement position, and `arrangeCore`'s safety settle will move the item somewhere else
+afterwards. Every caller must test identity first:
+
+```ts
+const placed = tryPlace(item, pos, rot, world, ctx)
+if (placed !== item) return placed   // succeeded
+```
+
+`snapToWall` and the sofa's stepped-inward search both do this correctly. The two dining
+routines did NOT: they slotted the chairs around `placed.position` unconditionally, so a
+blocked table produced chairs arranged around a spot the table never occupied — measured at
+**50 dining chairs over 1.2 m from their table across 15 templates, the worst 4.4 m**, while
+`tpl-hdb-jumbo` and `tpl-terrace-ground` tucked theirs at exactly 0.90 m because their tables
+happened to place first time.
+
+`placeDiningTable` now settles the table immediately when `tryPlace` fails and reads its final
+transform back out of `world`, so chair slots always measure from where the table really is.
+It also reads the ROTATION back off the placed table — a settled fallback may have turned it.
+
+## A chair with one slot falls to a room-wide grid search
+
+`arrangeCore`'s safety settle grid-searches the WHOLE room for anything the room routine left
+unplaced. That is right for a stray accent and wrong for a dining chair: it parked one 7.6 m
+from its table in `tpl-hdb-5room`. `arrangeLivingAnyEdge` therefore offers the two table ENDS
+as spare slots and lets a chair claim any slot no other chair has taken.
+
+**Two dining code paths exist and only one is exercised by the templates.** `arrangeLiving`
+(block 1) serves the DEFAULT flat's curated `ROOMS` path; every `PLAN_TEMPLATES` entry goes
+through `arrangeLivingAnyEdge` (`genericLiving`). An edit to block 1 will not move any
+template measurement — that is dead code from the templates' point of view, not a fix that
+did nothing. Verify which branch runs before changing the other.
+
+Coverage: `diningChairTuck.test.ts` (asserts tucking AND per-template item counts, because a
+fix that quietly deletes furniture is worse than the bug — see `.106`).
