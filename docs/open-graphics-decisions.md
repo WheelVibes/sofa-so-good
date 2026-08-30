@@ -678,6 +678,58 @@ size of that second correction remains a product call.
 
 ---
 
+## (k2) DAYLIGHT-GLASS — ✅ SHIPPED v0.31.5.127
+
+**The window glass told its day/night story from the LAMP SWITCH, not the sun, so every new
+visitor met night-coloured glass at midday.**
+
+`FurnitureLights.tsx` computes `const level = lightsMode === 'on' ? 1 : 0` and writes it to
+`setFixtureGlow`. Both window renderers — `apartment/Window.tsx` (curated flat) and `FadeWindow` in
+`apartment/PlanShell.tsx` (plan windows) — then read it as `const d = getFixtureGlow()` under the
+comment `// 1 at night, 0 in daylight` and fed `1 - d` to `windowTransmission(daylight)`,
+`glassSkyCatchIntensity(daylight)` and the `GLASS_DAY`/`GLASS_NIGHT` lerp. **Those arguments mean
+daylight; what they received was the lamp switch.** `ensureDaylightFirstPaint` (DEFAULT-GLOOM,
+`.86`) turns the lamps on at every hour on a fresh seed, so the shipped default put the glass in
+its night look at noon.
+
+**Measured before the fix — boot flat, 13:00, `TIER=medium`, one variable (the lamp switch):**
+
+| arm | the 4 plan panes | pane p50 | wall p50 |
+| --- | --- | --- | --- |
+| `LIGHTS=on` | `#20272f` (GLASS_NIGHT), opacity **0.73**, sky-catch **0.00** | 139 | **222** |
+| `LIGHTS=off` | `#bcd4e6` (GLASS_DAY), opacity **0.28**, sky-catch **0.40** | 183 | **130** |
+
+**Neither arm was acceptable, and that is what named the defect.** Lights on gave a warm, inviting
+room with night glass; lights off gave correct day glass in a cold grey room — and that gloom is
+exactly what the lights-on default exists to prevent. **The bug was the COUPLING**, so the fix
+decouples the two rather than choosing between them.
+
+**The fix.** New pure `altitudeCurve.ts:daylightFromAltitude(altRad)` = `clamp((altDeg + 8) / 8, 0,
+1)` — deliberately **the same ramp `skyGradient.ts:skyRadiance` already uses for its own night
+fade**, so the glass and the sky reach night together instead of disagreeing. Both renderers hold
+the sun altitude in a ref (`useSunPosition` is memoised per minute/location; `useFrame` must not
+call a hook) and use `d = 1 - daylightFromAltitude(...)`. The lamp switch keeps driving the lamps
+and nothing else.
+
+**Measured after, lights ON in both rows:**
+
+| arm | the 4 plan panes | pane p50 | wall p50 |
+| --- | --- | --- | --- |
+| 13:00 | `#bcd4e6`, opacity **0.28**, sky-catch **0.40** | **206** | 222 |
+| 21:00 | `#20272f`, opacity **0.73**, sky-catch **0.00** | **57** | 207 |
+
+Midday now shows daylight through the glass **while keeping the warm interior** (wall unchanged at
+222), and the night story survives intact — the 21:00 frame is still a dark reflective pane carrying
+the lamp reflections. **The fix also corrects a case nobody had reported: lights OFF at night
+previously produced DAY glass at midnight.**
+
+Pinned by `scene/lighting/daylightFactor.test.ts`. Full suite 9354 passed — **no test had pinned the
+old lamp-coupled behaviour**. `fixtureGlow.ts`'s header, which claimed "≈ scene darkness" and
+"written each frame", was corrected in the same commit: it is the lamp switch, written on change.
+
+
+---
+
 
 ## Template audit coverage
 
@@ -717,7 +769,8 @@ remains in an audited plan.
 | h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — was 15 of 44; **12 left**; `.120` proved NONE of the 12 is offset-fixable — each needs a new opening |
 | i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **3 left** after `.115`, `.118`, `.119`, `.120`; all 3 proven NOT offset-fixable |
 | j | WINDOW-SIGHTLINE | content | ⏳ **OPEN v0.31.5.117** — **11** of 78 after `.121` shipped a windowless-wall preference for storage; three arranger levers measured, the residue is rooms too small to fix |
-| k | WINDOW-SKY-DARK | render bug | ⏳ **OPEN v0.31.5.125** — **mechanism named**: after a plan swap the panes are the High/Max `MeshPhysicalMaterial` (transmission 0.20, opacity 1.0) while the store says `medium`, where the correct pane is `MeshStandardMaterial` at opacity 0.73. Plus a second defect: the glass is at `GLASS_NIGHT` at 1 pm because `getFixtureGlow()` is 1 |
+| k1 | WINDOW-SKY-DARK | render bug | ⏳ **OPEN v0.31.5.125** — **mechanism named**: after a plan swap the panes are the High/Max `MeshPhysicalMaterial` (transmission 0.20, opacity 1.0) while the store says `medium`, where the correct pane is `MeshStandardMaterial` at opacity 0.73. Plus a second defect: the glass is at `GLASS_NIGHT` at 1 pm because `getFixtureGlow()` is 1 |
+| k2 | DAYLIGHT-GLASS | render bug | ✅ **SHIPPED v0.31.5.127** — the glass read the lamp switch, not the sun, so a fresh visitor met night glass at midday; now keyed off sun altitude, midday pane 139 → 206 with the warm interior intact and the night look preserved |
 
 **Five of eleven items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
 ((d)). Each was implemented in its own committed round and marked here as it landed. **(f), (g), (h), (i), (j) and (k) are open.** (h) and (i) share one cause and should be fixed together; (j) was created by fixing (h) and needs an arranger strategy, not a bigger keep-out.

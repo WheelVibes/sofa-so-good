@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.127 — DAYLIGHT-GLASS: the window glass now reads the sun, not the lamp switch
+
+**A real render fix, A/B'd in frames.** Item (k2), found while attributing (k1).
+
+**The bug.** `FurnitureLights.tsx` computes `const level = lightsMode === 'on' ? 1 : 0` and writes it
+to `setFixtureGlow`. Both window renderers — `apartment/Window.tsx` and `FadeWindow` in
+`apartment/PlanShell.tsx` — read it as `const d = getFixtureGlow()` under the comment
+`// 1 at night, 0 in daylight`, then fed `1 - d` to `windowTransmission(daylight)`,
+`glassSkyCatchIntensity(daylight)` and the `GLASS_DAY`/`GLASS_NIGHT` lerp. Those arguments mean
+daylight; what they got was the lamp switch. Since `ensureDaylightFirstPaint` turns the lamps on at
+every hour on a fresh seed, **every new visitor met night-coloured glass at midday.**
+
+**Both arms of the A/B were wrong, which is what named the defect.** Boot flat, 13:00, medium, one
+variable: lamps ON gave `#20272f` / opacity 0.73 / sky-catch 0.00, pane p50 139, wall 222 — a warm
+room behind night glass. Lamps OFF gave `#bcd4e6` / 0.28 / 0.40, pane 183, wall **130** — correct
+day glass in a cold grey room, which is exactly the gloom the lights-on default exists to prevent.
+**The defect was the coupling**, so the fix decouples rather than choosing.
+
+**The fix.** New pure `altitudeCurve.ts:daylightFromAltitude(altRad)` = `clamp((altDeg + 8) / 8, 0,
+1)` — the same ramp `skyGradient.ts:skyRadiance` already uses for its own night fade, so glass and
+sky reach night together. Both renderers hold the sun altitude in a ref (`useSunPosition` is
+memoised; `useFrame` must not call a hook) and use `d = 1 - daylightFromAltitude(...)`. The lamp
+switch now drives only the lamps.
+
+**After, lights ON in both rows:** 13:00 → `#bcd4e6` / 0.28 / 0.40, pane **139 → 206**, wall
+unchanged at **222** (daylight through the glass AND the warm interior); 21:00 → `#20272f` / 0.73 /
+0.00, pane **57**, wall 207 — the night look survives, still carrying the lamp reflections. It also
+fixes an unreported case: lamps off at night used to give DAY glass at midnight.
+
+Pinned by `scene/lighting/daylightFactor.test.ts` (4 tests). Full suite **9354 passed** — no test had
+pinned the old lamp-coupled behaviour. `fixtureGlow.ts`'s header was corrected in the same commit: it
+claimed "≈ scene darkness" and "written each frame", but it is exactly the lamp switch, written on
+change in a `useEffect`.
+
 ## v0.31.5.126 — the current apartment look is now the PINNED first-load default
 
 **On the user's instruction: "however the apartment looks like right now with finishes, colour
