@@ -557,3 +557,59 @@ and it is cheap — the chamfer is ≤7 mm, so footprints, clearances and joins 
 within a few pixels, not exactly), so the 2.67 % figure includes a small amount of that. The edge
 highlight is a geometry change and is not explicable by a pose shift, but the percentage is a
 loose upper bound rather than a clean isolation.
+
+
+## Golden hour: the app models the COLOUR of a low sun but not its DIRECTION (v0.31.5.146)
+
+Professional practice is emphatic that golden hour is where interiors look most photographic — warm
+3000–3500 K cast, one dominant source, long angled shadows, and (a point worth noting) *"the most
+forgiving lighting for hiding minor model imperfections"*
+([omegarender](https://omegarender.com/3d-interior-lighting),
+[Ultra-Z](https://ultra-z.com/elevating-architectural-visualization-with-golden-sunset-lighting-in-3d-rendering/),
+[Rendershop](https://rendershop.ai/blog/render-lighting-tips)). This arc had never tested it.
+
+**First, a correction to the arc's own framing.** Every measurement from `.134` to `.145` was taken at
+**13:00**, and in Singapore (1.35°N) that is a sun altitude of **82.4°** — very nearly straight down,
+and therefore the single worst hour of the day for daylight to enter a *vertical* window. Golden hour
+is 18:00–19:00 local (**16.4° → 1.6°**), and `altitudeCurve.ts` still grades the sun at **0.85
+intensity with a warm [1, 0.92, 0.78] tint at 10°**, on a `castShadow` directional light. A low warm
+sun *should* throw a window-shaped patch across the floor.
+
+**The measurement.** New `scripts/dev-probes/sun-ingress.mjs` fixes the hour and the pose (just inside
+the living/dining window, lights OFF in every arm, curtains opened, maximum tier) and sweeps the plan
+**orientation** 0/90/180/270 instead of the hour — rotating the building guarantees that one arm
+points that window straight at the sun and another points it away.
+
+| | result |
+| --- | --- |
+| interior, 0° vs 90/180/270° | **mean \|Δ\| 0.13 luma; 0.02 % of pixels differ by >2** |
+| largest single difference | the **UI compass rose** at (2517, 1535) |
+| floor band, all four orientations | mean 76.0, sd 41.4, p50 77, p99 226 — **identical to 3 s.f.** |
+| window pane's own mean | 174.6 / 163.9 / 163.1 / 165.7 — a ≤12-luma spread |
+
+**Turning the sun through a full circle at golden hour changes the room by a tenth of a luma level.**
+Direct sun does not enter, at any orientation. Checked against the obvious confounds first: the glass
+mesh does **not** `castShadow` (`Window.tsx:239`), curtains and blinds were opened in every arm, and
+the plan carries **zero** `window-mesh-screen` fixtures — the dense grid over the panes is the
+window's own approved SNV safety grille, not a fixture the probe left in place.
+
+This corroborates `.138`/`.140` from the opposite end — they showed windows *modulate global lights*
+rather than emit; this shows the *sun* has no positional effect either — and it does so at the hour
+that most favours a positional result. **The axis stays closed.** Three interventions have already
+been built, measured and reverted; the one remaining lever is reducing the global fill, which is the
+DEFAULT-GLOOM trade and the user's call.
+
+**Two things the app does get right, and one new candidate.**
+- **Warmth is modelled.** The floor band's R/B ratio rises **1.221 (13:00) → 1.257 (18:00) → 1.291
+  (18:30) → 1.420 (19:00)**. The *colour* of golden hour is there; only the direction is missing.
+- **The pane is real glass on Maximum** — `MeshPhysicalMaterial`, `transmission 0.92`, `ior 1.5`,
+  `roughness 0.1`. Not a fake.
+- **NEW CANDIDATE — the window reads as a pale panel, not as a view.** That transmissive pane also
+  carries `color #bcd4e6` (which tints everything transmitted) *and* a flat `emissive #cfe4f5 at 0.4`
+  laid over the whole pane. At golden hour the brightest pane pixel measures **197 / 255**, whereas in
+  an interior photograph the window is the blown-out brightest thing in the frame. Looking back at
+  the window from across the living room, the TV — showing a sky wallpaper — reads more like a window
+  than the window does. Reducing the flat emissive wash (or letting the transmitted sky through
+  untinted) is a plausible, cheap, *material* change rather than a lighting one — **but given three
+  reverted interventions in this arc it goes to the user as a proposal with the frame as evidence,
+  not as a unilateral edit.**

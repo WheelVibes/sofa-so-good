@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.146 — golden hour: the colour of a low sun is modelled, the direction is not
+
+**Measurement only; new probe `scripts/dev-probes/sun-ingress.mjs`.**
+
+A correction to this arc's own framing first: everything from `.134` to `.145` was measured at
+**13:00**, which in Singapore is a sun altitude of **82.4°** — nearly straight down, and the worst
+hour of the day for daylight to enter a vertical window. Golden hour is 18:00–19:00 (**16.4° →
+1.6°**), where `altitudeCurve.ts` still grades the sun at **0.85 intensity with a warm
+[1, 0.92, 0.78] tint** on a `castShadow` directional light.
+
+The probe fixes the hour and pose and sweeps the plan **orientation** 0/90/180/270, so one arm points
+the living/dining window straight at the low sun and another points it away. Result: the interior
+changes by **mean |Δ| 0.13 luma, 0.02 % of pixels differing by more than 2, and the largest single
+difference is the UI compass rose.** The floor band is identical to three significant figures across
+all four (mean 76.0, sd 41.4, p50 77, p99 226); the pane's own mean spans ≤12 luma. **Turning the sun
+through a full circle at golden hour changes the room by a tenth of a luma level.** Confounds ruled
+out first: the glass does not `castShadow`, curtains/blinds were opened in every arm, and the plan
+carries zero `window-mesh-screen` fixtures.
+
+This corroborates `.138`/`.140` from the opposite end, at the hour most likely to contradict them, so
+**the lighting axis stays closed** — the remaining lever is the global-fill reduction, which is the
+user's DEFAULT-GLOOM call.
+
+Two positives and one new candidate, all recorded in
+`docs/research/2026-08-31-photoreal-shadow-depth.md`: warmth *is* modelled (floor R/B 1.221 → 1.420
+from 13:00 to 19:00); the pane *is* real glass on Maximum (`transmission 0.92`, `ior 1.5`); but the
+window **reads as a pale panel rather than a view** — it carries a flat `emissive #cfe4f5 at 0.4` over
+a `#bcd4e6` tint and peaks at **197 / 255** at golden hour, where a photographed window is the
+blown-out brightest thing in the frame. Proposed to the user rather than changed unilaterally.
+
 ## v0.31.5.145 — chamfer the furniture edges that were still razor-sharp
 
 Architectural-viz writing is near-unanimous that **sharp 90° edges are one of the strongest CG
