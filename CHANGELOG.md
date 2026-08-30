@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.179 — matching the amount of darkness is not the same as putting it in the right place
+
+**Measurement only; the fix was tried and reverted.** The photographic look was calibrated on one
+scalar (`%<64` inside 11.2–12.2 %). This asks where each image spends its light — region mean ÷ frame
+mean, so exposure cancels:
+
+| | ceiling | wall | floor |
+| --- | --- | --- | --- |
+| photo 1 | **1.28** | 1.43 | **1.23** |
+| photo 2 | **1.17** | 0.53 | **1.30** |
+| app default | 0.92 | 1.12 | 0.70 |
+| app photographic | **0.75** | 1.09 | **0.66** |
+
+**Both photographs put ceiling and floor above the frame average; the app puts both below**, and the
+photographic look widens it. Walls are not a usable target (the photographs disagree 1.43 vs 0.53),
+but ceiling and floor agree closely across both.
+
+Sharper than "daylight is spatially flat" (`.138`/`.140`): **in a real room the floor catches the
+window and bounces it onto the ceiling**, and the app has no term that does that. Tried the term that
+is meant to — a hemisphere's `groundColor`, the standard cheap stand-in for floor bounce — scaled
+under the photographic look: ×3.5 buys ceiling 0.75 → **0.86** and costs the calibration (`%<64` 9.92 %
+→ **7.10 %**, out of band), while the floor gets *relatively darker* because lifting every
+downward-facing surface raises the mean the ratio is against. Reverted.
+
+Structural reason: a hemisphere lights every downward face equally regardless of what is beneath it,
+where real bounce is directional and local. Reproducing it needs a real GI term, not a brighter
+constant.
+
+**Lesson for the calibration itself:** hitting the `%<64` band put the right *amount* of darkness in
+the frame but spent it in the wrong places. Any future calibration should carry the ceiling/floor
+relative-luma pair alongside the scalar.
+
 ## v0.31.5.178 — warm the IBL probe, which is where the fill actually is
 
 `.177` found the app's lit surfaces neutral where photographed ones are warm, and the existing

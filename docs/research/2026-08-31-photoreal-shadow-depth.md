@@ -1915,3 +1915,53 @@ AgX desaturates highlights toward white by design, so bright surfaces cannot car
 what colour is lighting them. The photographs' 1.10–1.13 highlight warmth comes from a camera pipeline
 that keeps it. That caps how close this particular measure can get, and it is a property of the tone
 operator rather than of the lighting — a separate, larger decision than anything in this arc.
+
+
+## Matching the amount of darkness is not the same as putting it in the right place (v0.31.5.179)
+
+The photographic look was calibrated on a single scalar — `%<64` inside the photographic 11.2–12.2 %
+band. This asks a different question: **where** does each image spend its light?
+
+Region mean ÷ frame mean, so exposure cancels:
+
+| | ceiling | wall | floor |
+| --- | --- | --- | --- |
+| photo 1 | **1.28** | 1.43 | **1.23** |
+| photo 2 | **1.17** | 0.53 | **1.30** |
+| app, default look | 0.92 | 1.12 | 0.70 |
+| app, photographic look | **0.75** | 1.09 | **0.66** |
+
+**Both photographs put their ceiling and floor ABOVE the frame average. The app puts both below**, and
+the photographic look makes it worse (ceiling 0.92 → 0.75, floor 0.70 → 0.66). The walls are not a
+usable target — the two photographs disagree completely (1.43 vs 0.53) depending on what is hanging on
+them — but ceiling and floor agree closely across both, which is what makes this a signal rather than
+a coincidence.
+
+This is the absence of global illumination stated in a way this arc has not said before. Earlier
+rounds framed it as "daylight is spatially flat" (`.138`/`.140`); the sharper version is that **in a
+real room the floor catches the window and bounces it onto the ceiling, so both horizontal surfaces
+read bright**, and the app has no term that does that.
+
+**Tried the term that is supposed to approximate it, and it cannot reach.** A hemisphere light's
+`groundColor` exists precisely as the cheap stand-in for floor bounce. Scaled up under the
+photographic look:
+
+| ground bounce | frame mean | `%<64` | ceiling | floor |
+| --- | --- | --- | --- | --- |
+| ×1.0 (shipped) | 112 | **9.92 %** | 0.75 | 0.66 |
+| ×2.0 | 117 | 8.07 % | 0.81 | 0.64 |
+| ×3.5 | 123 | **7.10 %** | **0.86** | 0.62 |
+
+**A 3.5× ground bounce buys +15 % of ceiling relative luma and costs the calibration** — `%<64` falls
+out of the band — while the floor gets *relatively darker*, because lifting every downward-facing
+surface raises the frame mean the ratio is measured against. Reverted.
+
+The reason it cannot work is structural: a hemisphere light lights **every** downward-facing surface
+equally, regardless of what is beneath it. Real bounce is directional and local — bright under the
+window, dim in the corridor. Reproducing it needs an actual GI term (a light probe grid, a baked
+bounce pass, or SSGI), not a brighter constant.
+
+**And there is a lesson about the calibration itself:** hitting the photographic `%<64` band put the
+right *amount* of darkness in the frame, but the app spends it on the ceiling and floor, where a
+photograph is bright. A single scalar cannot tell you that. Any future calibration should carry the
+ceiling/floor relative-luma pair alongside it.
