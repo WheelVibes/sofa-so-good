@@ -1,6 +1,6 @@
 # Open graphics decisions
 
-Eight items the graphics-realism sweep (`v0.31.5.20`–`.113`) measured, diagnosed, and then
+Nine items the graphics-realism sweep (`v0.31.5.20`–`.114`) measured, diagnosed, and then
 deliberately did **not** change, because each one is a product or content judgement rather than a
 defect. Every measurable axis is now clean — the per-class chroma/coverage ranking (`.77`–`.81`),
 tier parity (`.82`), and time-of-day in the boot view (`.83`) — so these are what remains.
@@ -415,6 +415,42 @@ curtain must set `drawAmount: 0` explicitly.
 
 ---
 
+## (i) MAIN-DOOR-ROOM — ⏳ OPEN, needs a content call (measured v0.31.5.114)
+
+**What you would see.** Stand in `tpl-hdb-4room`'s Master Bedroom and there are **two doors** — the
+internal one on its north wall, and a second on the **south EXTERNAL wall**. That second one is
+`h4-main`, the flat's front door. **The front door opens into the master bedroom.** Confirmed in
+frames (`/tmp/tw7`).
+
+**The size.** Of the 19 templates' `*-main` doors, **8 open into a bedroom or a bathroom**: 5 into a
+master bedroom (`h4-main`, `h5-main`, `ex-main`, `g3-main`, `jb-main`) and 3 into a bathroom
+(`h2-main`, `st-main`, `lf-main`). Every one sits on an `-s` or `-w` wall.
+
+**Same root cause as (h).** `perimeter()` winds N and E forwards but **S and W backwards**, while
+`door()`/`window()` measure their offset from the wall's own start — so an offset written as an
+absolute coordinate lands mirrored. Read from the other end, **12 of the 19 main doors open into the
+living room**, which is plainly the authoring intent. There are **41 openings on S/W walls** in
+total (19 doors, 22 windows).
+
+**Proven to be a one-number fix, then reverted:** changing `h4-main`'s offset from 6.4 to 1.9 drops
+it off the misplaced list.
+
+**A blanket flip is NOT the answer, and this is why it needs a human.** Read from the other end,
+`h5-main` would open onto a **balcony**, `em-main` into a study, `ob-main` into the dining room and
+`lf-main` into a sleeping area. Twelve land in a living room; the rest need a per-plan decision. And
+moving a front door shifts door keep-outs, which the furnishing pipeline uses
+(`dropDoorBlockers`, `.108`) — so item counts and both existing ratchets ((f) enclosure, (h)
+bedroom-window) will move with it. This has to be done plan by plan, with frames.
+
+**Recommendation — fix (h) and (i) together, one template per change, worst first**
+(`tpl-hdb-4room`, `tpl-hdb-5room`, `tpl-hdb-exec` all have BOTH a front door in the master AND a
+master with no window). Consider giving `perimeter()` a consistent winding as part of the same
+sweep, since correcting the offsets and fixing the trap are the same edit — but do not re-wind
+alone, or all 41 S/W openings move at once. Until then the 8 are **ratcheted by name** in
+`src/floorplan/mainDoorRoom.test.ts`.
+
+---
+
 ## Summary
 
 | # | Item | Kind | Recommendation |
@@ -427,9 +463,10 @@ curtain must set `drawAmount: 0` explicitly.
 | f | TEMPLATE-ROOM-ENCLOSURE | content | ⏳ **OPEN v0.31.5.109** — 9 templates ship unenclosed bathrooms; ratcheted by test |
 | g | LEVEL-ISOLATION-IN-WALK | renderer design + cost | ⏳ **OPEN v0.31.5.110** — walking an upper storey hides the one below; acute on `tpl-loft` |
 | h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — 15 of 44 template bedrooms have no window, incl. 7 masters; ratcheted by test |
+| i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — 8 template front doors open into a bedroom or bathroom; same winding cause as (h) |
 
-**Five of eight items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
-((d)). Each was implemented in its own committed round and marked here as it landed. **(f), (g) and (h) are open.**
+**Five of nine items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
+((d)). Each was implemented in its own committed round and marked here as it landed. **(f), (g), (h) and (i) are open** — and (h) and (i) share one cause, so they should be fixed together.
 Neither is a one-line answer: (f) is a request to re-draw shipped floor plans, scoped per template
 rather than decided once, and (g) is a renderer change whose cost must be benchmarked on the
 weak-device tier before it lands.

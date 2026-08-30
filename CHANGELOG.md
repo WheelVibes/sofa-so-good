@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.114 — MAIN-DOOR-ROOM: 8 template front doors open into a bedroom or a bathroom
+
+The code half of `.113`'s winding trap, investigated — and it turned out the doors are worse than
+the windows.
+
+**Seen in frames.** `tpl-hdb-4room`'s Master Bedroom has **two doors**: the internal one on its
+north wall, and a second on the **south EXTERNAL wall**. That second one is `h4-main` — the flat's
+front door. It opens into the master bedroom.
+
+**The size: 8 of 19 main doors open into a bedroom or a bathroom** — 5 into a master
+(`h4-main`, `h5-main`, `ex-main`, `g3-main`, `jb-main`), 3 into a bathroom (`h2-main`, `st-main`,
+`lf-main`). All 8 sit on an `-s` or `-w` wall. Same cause as (h): `perimeter()` winds N/E forwards
+and **S/W backwards** while offsets are measured from the wall's own start. Read from the other end,
+**12 of 19 main doors open into the living room** — plainly the intent. Proven to be a one-number
+fix (`h4-main` 6.4 → 1.9 drops it off the list), then reverted via a `cp` backup with
+`git diff --stat` verified empty.
+
+**Why the code fix was NOT taken, having measured it.** The obvious move — re-wind `perimeter()` so
+all four walls run consistently — would silently relocate **all 41 openings on S/W walls** (19
+doors, 22 windows) in one go, and door positions feed `dropDoorBlockers`, so furniture counts and
+both existing ratchets would shift with them. Worse, **a blanket flip is not correct**: read from
+the other end `h5-main` opens onto a **balcony**, `em-main` into a study, `lf-main` into a sleeping
+area. Twelve land in a living room; the rest need a per-plan decision. The winding fix and the
+offset corrections are one audited edit per template, not a global switch — recorded as item **(i)**
+and ratcheted by name in `src/floorplan/mainDoorRoom.test.ts`.
+
+**Both new tests assert a positive count too** (19 main doors found, 17 resolving to a room), so the
+ratchet cannot pass by measuring nothing — the same guard `.113` added after noticing a name-only
+list proves nothing on its own.
+
+**(h) and (i) share one cause and should be fixed together**, worst first: `tpl-hdb-4room`,
+`tpl-hdb-5room` and `tpl-hdb-exec` each have BOTH a front door in the master AND a master with no
+window.
+
 ## v0.31.5.113 — BEDROOM-WINDOW: 15 template bedrooms have no window, 7 of them masters
 
 Started as WINDOW-TREATMENTS-ON-TEMPLATES and found something underneath it.

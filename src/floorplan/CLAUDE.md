@@ -546,5 +546,12 @@ Kitchen has two — seen in frames, not inferred. **15 of 44 template bedrooms o
 them masters; ratcheted by name in `bedroomWindow.test.ts`. Fixing them means moving glass in
 shipped reference plans — `docs/open-graphics-decisions.md` item (h), not a unilateral edit.
 
-**When adding a window to a S or W wall, compute the offset from the wall's start**, or check it
-with a room-ownership probe. A convenient absolute coordinate is the trap.
+**The same trap hits DOORS.** Of the 19 templates' `*-main` doors, **8 open into a bedroom or a
+bathroom** — `tpl-hdb-4room`'s front door opens into its master bedroom, which you can see in a walk
+as two doors in that room, one of them on the south EXTERNAL wall. Ratcheted in
+`mainDoorRoom.test.ts`; item (i).
+
+**When adding ANY opening to a S or W wall, compute the offset from the wall's start**, or check it
+with a room probe. A convenient absolute coordinate is the trap. There are **41 openings on S/W
+walls** today (19 doors, 22 windows), so re-winding `perimeter()` on its own would move all of them
+at once — the winding fix and the offset corrections are one edit, not two.
