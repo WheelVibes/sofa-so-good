@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.140 — the flat daylight is re-established on a sound instrument
+
+**Measurement only.** `.136` claimed the app's daylight has no falloff; `.138` withdrew it because the
+band metric measured screen regions, not distance on one surface. This round built the missing
+instrument and the claim now stands without that confound.
+
+`daylight-falloff.mjs UNFURNISHED=1` clears all furniture so the floor is unobstructed and logs the
+camera's real geometry (`fovV 70.00°, eyeY 1.600 m`, pitch −0.55), which converts a screen row to a
+ground distance. Rows are binned into **real half-metre bands**, sampled only in the central 800 px so
+side walls never enter, and capped at 6.5 m so the far wall never does.
+
+**Bare floor, daylight only, luma vs true distance:** 117 at 0.5 m, 130, 122, 118, 119, 121, 132, 110,
+111, 112, 112, 112, **112 at 6.5 m — near/far 1.04**, a 4% change across six metres. The frame agrees
+at a glance: uniformly lit from the camera to the far door, no gradient on floor or side walls.
+
+**Not a second window** — the living/dining has exactly one opening, `win-livingDining-N`. And it
+follows from the architecture already on record: `windowLightModifiers.ts` uses a global tint and
+averages every window's factor, so interior light arrives from ambient + hemisphere + IBL, all
+positionless, and a positionless light cannot make a distance gradient. At 13:00 in Singapore the sun
+is at ~82°, so essentially no direct sun enters a vertical window either.
+
+**An instrument fault found in the same run:** the `c-lamps-on` arm returned byte-identical numbers to
+`a-daylight` — because `setItems([])` deletes the *fixtures* too, leaving no lamps to switch on. The
+unfurnished arm and the lamp arm are mutually exclusive by construction; lamp comparisons must be made
+in a furnished room.
+
+This re-establishes the description without licensing a fix. `.138` already refuted window
+`RectAreaLight`s, and the failure now reads clearly: adding a positional light on top of a dominant
+positionless fill cannot create a gradient, because the fill still floods the room. A real gradient
+needs the global terms reduced in favour of aperture-driven light — which is the DEFAULT-GLOOM trade
+(`.86`), measured and user-signed-off, and not mine to take unilaterally.
+
 ## v0.31.5.139 — correction: the app DOES have a contact term, and it works
 
 **Measurement only.** `.137` concluded "the app has broad ambient occlusion but **no contact term**".

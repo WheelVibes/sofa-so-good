@@ -38,6 +38,11 @@ const WINDOW = process.env.WINDOW || 'livingDining'
 /** Metres inside the glass to stand. Close, so the room recedes away from it. */
 const STANDOFF = Number(process.env.STANDOFF || 0.9)
 const PITCH = Number(process.env.PITCH || -0.55)
+/** Clear all furniture so the floor is unobstructed. Without this the only
+ *  available "floor" metric is a hand-placed crop, which returns furniture — the
+ *  failed measurement recorded in `.136`. A bare room is what makes an
+ *  illuminance-versus-distance curve on ONE surface possible at all. */
+const UNFURNISHED = process.env.UNFURNISHED === '1'
 const OUT = process.env.OUT || '/tmp/daylight-falloff'
 fs.mkdirSync(OUT, { recursive: true })
 
@@ -80,6 +85,11 @@ await page.evaluate(() => {
 await page.waitForFunction(() => !!window.__walkLook, { timeout: 20000 })
 await new Promise((r) => setTimeout(r, 4000))
 await assertSceneAlive(page, 'after setup')
+
+if (UNFURNISHED) {
+  await page.evaluate(() => window.__store.getState().setItems([]))
+  await new Promise((r) => setTimeout(r, 2000))
+}
 
 // Curtains/blinds fully open, so the arms differ only in the light, not in what
 // is covering the glass (the same trap `window-hours` documents).
@@ -146,8 +156,16 @@ await page.evaluate(
 )
 await new Promise((r) => setTimeout(r, 2500))
 
+const geom = await page.evaluate(() => {
+  const cam = window.__three.camera
+  return { fovDeg: cam.fov, y: cam.position.y, aspect: cam.aspect }
+})
 console.log(
-  `daylight-falloff  tier=${TIER} hour=${HOUR} window=${pose.id} standoff=${STANDOFF}m pitch=${PITCH}`,
+  `daylight-falloff  tier=${TIER} hour=${HOUR} window=${pose.id} standoff=${STANDOFF}m pitch=${PITCH} unfurnished=${UNFURNISHED}`,
+)
+// Everything needed to turn a screen row into a ground distance offline.
+console.log(
+  `camera  fovV=${geom.fovDeg.toFixed(2)}deg  eyeY=${geom.y.toFixed(3)}m  aspect=${geom.aspect.toFixed(3)}`,
 )
 console.log(`opened ${opened} window fixtures\n`)
 

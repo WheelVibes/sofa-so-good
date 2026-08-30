@@ -300,3 +300,53 @@ attributed the dominant lift to the fixtures — which must not simply be dimmed
 was measured and signed off. The real lever is still making **daylight carry the room**, and that is
 blocked on an instrument: a floor-only sample at known distances (unfurnished arm or depth/normal
 mask), without which no claim about the *shape* of the daylight distribution is admissible.
+
+
+## ✅ RE-ESTABLISHED on a sound instrument: the daylight really is flat (v0.31.5.140)
+
+`.136` claimed "the app's daylight has NO falloff" and `.138` **withdrew** it, because the
+horizontal-band metric measured screen regions rather than distance on one surface — the high bands
+were the far wall. This round built the instrument that was missing and the claim now stands on
+evidence that has no such confound.
+
+**The instrument.** `daylight-falloff.mjs UNFURNISHED=1` clears all furniture (`setItems([])`) so the
+floor is unobstructed, and logs the camera's real geometry — `fovV 70.00°, eyeY 1.600 m, aspect
+1.600`, pitch −0.55. That is everything needed to turn a screen row into a ground distance:
+`elev = pitch + atan((0.5 − y/H)·2·tan(fovV/2))`, and where `elev < 0` the ray meets the floor at
+`d = eyeY / tan(−elev)`. Rows are binned into **real half-metre bands** and sampled only in the
+central 800 px, so side walls never enter, and capped at 6.5 m so the far wall never does either.
+
+**Bare floor, daylight only, luma versus true distance from the glass:**
+
+| m | 0.5 | 1.0 | 1.5 | 2.0 | 2.5 | 3.0 | 3.5 | 4.0 | 4.5 | 5.0 | 5.5 | 6.0 | 6.5 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| luma | 117 | 130 | 122 | 118 | 119 | 121 | 132 | 110 | 111 | 112 | 112 | 112 | 112 |
+
+**near/far = 1.04 — a 4% change across six metres.** The bare-room frame says the same thing at a
+glance: the floor is uniformly lit from the camera all the way to the far door, and the side walls
+carry no gradient either. A room lit through an aperture does not look like this.
+
+**It is not a second window.** The living/dining has exactly one opening — `win-livingDining-N`
+(grepped `apartment/constants.ts`; the other `win-*` refIds belong to the bedrooms and baths). So the
+flatness is not two apertures cancelling.
+
+**And it follows directly from the architecture already documented**: `windowLightModifiers.ts` uses a
+**global** tint and "averages each window's factor across all windows", so interior light arrives from
+ambient + hemisphere + IBL — all positionless. A positionless light cannot produce a distance
+gradient. At 13:00 in Singapore the sun sits at ~82°, so essentially no direct sun enters a vertical
+window either; the room is carried entirely by the global terms.
+
+### ⚠️ An instrument fault found in the same run — do not repeat
+The `c-lamps-on` arm returned **byte-identical** numbers to `a-daylight`. That is not "lamps do
+nothing": `setItems([])` deletes the *fixtures along with the furniture*, so there were no lamps left
+to switch on. **The unfurnished arm and the lamp arm are mutually exclusive by construction.** Any
+future lamp comparison must be made in a furnished room (as `.135` did).
+
+### What this licenses, and what it does not
+It re-establishes the *description* — the app's interior daylight has no spatial falloff — without
+licensing a fix. `.138` already refuted the obvious one (window `RectAreaLight`s brightened the room
+and made the ratio worse), and the honest reading of that failure is now clearer: adding a positional
+light on top of a dominant positionless fill does not create a gradient, because the fill still
+floods the room. A real gradient needs the *global* terms reduced in favour of aperture-driven light —
+which is the DEFAULT-GLOOM trade (`.86`, measured and user-signed-off) and cannot be taken
+unilaterally. **That is the decision this arc has arrived at, and it belongs to the user, not to me.**
