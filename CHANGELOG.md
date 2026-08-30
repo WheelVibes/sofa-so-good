@@ -5,6 +5,66 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.96 — MINIMAP-LEVEL: the walk minimap follows the walker upstairs
+
+**Closes the unverified observation recorded in `.95`** (line 40 of that entry): on the
+maisonette upper storey the minimap still drew the GROUND plan and labelled the room
+"LIVING / DINING". Confirmed twice before touching anything — at source, and in a frame.
+The frame (`tpl-hdb-maisonette`, `LEVEL=em-up`, `FURNISH=1`, `TIER=auto` → resolved
+`medium/on/manual13`, pose `emu-master`, camera eye y=4.5) shows the walker standing in the
+upper Master Bedroom while the map draws the ground shell, highlights a ground room, labels
+it "LIVING / DINING" — the name of ground room `em-living` — and plots the ground floor's
+furniture.
+
+**One root cause, four defects.** `Minimap.tsx` read `state.floorPlan` / `state.items` raw
+and never consulted `viewLevelId`, so on any multi-storey plan it drew storey zero:
+1. the room shapes, walls and openings were the ground storey's;
+2. the live room label was a SECOND, independent raw read — the rAF tick called
+   `useStore.getState().floorPlan.rooms.find(...)`. That read is what printed the wrong name;
+3. the furniture dots mapped over every item with no `levelId` filter, so ground-floor
+   furniture was plotted upstairs;
+4. `resolveMinimapTeleport` was handed the same ground plan, so a tap upstairs targeted a
+   downstairs room.
+
+**The fix was already half-built.** `floorplan/levels.ts` has exported `walkLevel`,
+`levelAsPlan` and `itemsOnLevel` all along, and `FirstPersonCamera.tsx` already picks its
+collision walls with exactly `levelAsPlan(floorPlan, walkLevel(floorPlan, viewLevelId))`.
+The new pure `ui/walk/minimapLevel.ts:minimapLevelView` reuses that same pair rather than
+re-deriving the storey, so the map and the camera now agree **by construction**: whatever
+storey the walker can collide with is the storey the map draws. `walkLevel` maps the 'all'
+selection to the ground floor, matching where the camera stands the walker. All four call
+sites now go through it; the rAF reads a `roomsRef` refreshed on render instead of
+re-deriving a level (and allocating a plan) 60x a second.
+
+**An earlier claim needs narrowing, not retracting.** The `defaultPlan.ts` polygon entry
+below states the "hover highlight, room editor, area/perimeter, 2D plan, minimap and walk
+teleport now all agree with the 3D floor". That was true, and remains true, for room
+SHAPE — it never covered which storey, and the minimap disagreed on storey from the day
+`upperLevels` shipped.
+
+**A test that looked like proof and proved nothing.** The first version of the teleport
+assertion asked "is the resolved target inside an upper room?" — and it PASSED against the
+unfixed code. The two storeys share an XZ footprint, so a ground-room target frequently
+lands inside an upper room by coincidence. It was replaced with a self-validating form:
+resolve the SAME pointer against both storeys, require they DISAGREE, then require the
+component chose the upper one. The map centre does not discriminate, so the test clicks a
+pointer that does (upper 4.86,0.92 vs ground 4.65,0.92).
+
+**Verification.** 10 new tests against the REAL `hdbMaisonette()` template, not a synthetic
+fixture — 6 pure (`ui/walk/minimapLevel.test.ts`) + 4 component
+(`ui/Minimap.test.tsx`, the storey pair run in BOTH Simple and Pro). Proven discriminating
+by reverting each lever and re-running: 3 of 6 pure tests and 3 component tests fail on the
+old behaviour; the remaining 3 pin behaviour that must NOT change ('all' → ground, a stale
+level id → ground rather than a blank map, and a single-storey plan returning the SAME plan
+reference so `useMemo` identity is preserved). The two storeys differ in size (7 rooms / 13
+walls vs 8 / 11), which is what makes counting the drawn shapes a valid discriminator.
+AFTER frame, same arm, same 32 frames / 213 meshes / 94,289 triangles: the map draws the
+8-room upper shell, highlights the room under the arrow, reads MASTER BEDROOM, and plots
+only upper-storey dots.
+
+**No new feature flag** — this is a defect in existing walk-mode UI, not a new surface.
+`minimapTeleport` stays `tier: 'simple'`, default on, and is exercised in both modes.
+
 ## v0.31.5.95 — TEMPLATE-WALK: a shipped template renders on both storeys; the probe could not show it
 
 **A clean audit plus an instrument fix.** Nothing changed in `src/`. Every visual

@@ -300,6 +300,21 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   isAdmin`); `SharedCard` mirrors `RemoteCard` (lazy `loading="lazy"` proxy thumbnail,
   import-on-click via `addSharedGroup`). Deduped against imported `ikea-<groupKey>` defs.
   `CatalogDrawer` bootstraps the manifest once on open when admin + flag on + `hasBackend()`.
+- **The walk-mode minimap draws the storey being WALKED, never `state.floorPlan` raw
+  (MINIMAP-LEVEL).** `Minimap.tsx` takes its shell, walls, openings, live room label,
+  furniture dots and teleport target from `walk/minimapLevel.ts:minimapLevelView(plan,
+  viewLevelId)` — which is `levelAsPlan(plan, walkLevel(plan, viewLevelId))`, the SAME pair
+  `scene/cameras/FirstPersonCamera.tsx` uses to pick its collision walls — plus
+  `itemsOnLevel(items, levelId)` for the dots. Reusing the camera's own lever (rather than
+  re-deriving the storey here) is the point: the map agrees with the camera by construction,
+  so whatever storey the walker can collide with is the storey the map draws. A raw
+  `useStore(s => s.floorPlan)` / `s.items` read in this component IS the bug — it drew the
+  ground floor on every upper storey, and there were FOUR such reads, including a second,
+  easily-missed one inside the rAF tick (`useStore.getState().floorPlan.rooms`) that owned
+  the live room name. The rAF must keep reading a **ref** refreshed on render, not re-derive
+  the level per frame (that would allocate a level array + a spread plan 60x a second) and
+  not close over `plan` (that goes stale). `levelAsPlan` returns the SAME reference for an
+  already-single-storey plan, so the common case keeps `useMemo` identity.
 - **Shortcut chips** come from `controls/keybindings.ts` (via `shortcuts.ts`) — never
   hardcode a key label. Tooltips + menus render through `Popover` (portal) so the
   scrollable toolbar can't clip them.
