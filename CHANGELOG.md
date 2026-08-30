@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.120 — studio + loft front doors fixed; the offset-fixable phase is CLOSED
+
+**One scan answered the whole remaining backlog, and it mostly says no.** After four templates went
+through the per-case recipe, I measured all 17 remaining (h)/(i) entries at once instead of one per
+round.
+
+**FIXED — two front doors, at zero cost.** Global item count **1444 → 1444**, stray chairs 17 → 17,
+wardrobes 40 → 40; only `mainDoorRoom` moved (5 → 3).
+- **`st-main` 1.0 → 3.9.** `st-s` (len 5.8) is lined ONLY by `st-bath` 0.2-1.7 and `st-kit` 1.9-5.7,
+  so the kitchen end is the sole non-bath option on that wall.
+- **`lf-main` 1.2 → 5.8**, into the Lounge / Study (`lf-s` = `lf-bath` 0.1-1.8, `lf-stair` 2.0-3.1,
+  `lf-sleep` 3.4-7.9). Confirmed in frames: the lounge now has the entrance, and the bathroom shows
+  only its own internal door.
+
+**NOT FIXED — `tpl-hdb-2room`, and this one was measured rather than assumed.** Three candidate
+offsets against a 49-item baseline: the exact mirror **3.7 drops the dining table** (and the decor on
+it), which undoes precisely what `.111` fixed for this template; **4.8 loses 7 items**; **2.5 keeps
+the table but still loses 2**. The flat is 5.8 m wide, and a door into its living room consumes wall
+the furniture needs. Reverted — a front door opening into the bathroom is wrong, but not worth a
+missing dining table.
+
+**THE (h) OFFSET PHASE IS CLOSED — none of the 12 windowless bedrooms can be fixed by an offset.**
+`h4-bed3`, `h5-bed3` and `ex-bed3` **front no external wall at all**. `h3-bed2`, `g3-master`,
+`jb-master` and `cp-master` front a wall with **no window authored on it**. `ex-bed2b`, `g3-gen`,
+`jb-bed3` and `c4-bed4` front walls whose windows never fall within the room's own frontage. And
+**`g3-bed3` is a trap that looked like the one clean win**: `g3-b3-win` is named for bedroom 3, lands
+in bedroom 2, and its mirror does land in bedroom 3 — but **bedroom 2 fronts only that wall and that
+window is its only one**, so the move would simply strand bedroom 2. Net zero.
+
+**Every remaining (h) and (i) entry now needs a new opening or a re-planned façade — content
+decisions, not offset corrections.** Items (h) and (i) stay open with that recorded; the ratchets
+keep them named so nothing new can join them.
+
 ## v0.31.5.119 — tpl-hdb-jumbo: front door out of the master; 3Gen proven unfixable by offset
 
 **The wall scan split this round three ways, and two of the three would have been wrong fixes.**

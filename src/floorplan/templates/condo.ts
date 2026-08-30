@@ -18,7 +18,11 @@ export function studio(): FloorPlan {
       iwall('st-bath-n', [4.2, 2.9], [W - T, 2.9]),
     ],
     openings: [
-      door('st-main', 'st-s', 1.0), // entry on the south wall
+      // MAIN-DOOR-ROOM (v0.31.5.120): was 1.0, which put the front door in the
+      // BATHROOM. `st-s` (len 5.8) is lined by st-bath 0.2-1.7 and st-kit
+      // 1.9-5.7 only, so the kitchen end is the sole non-bath option;
+      // 5.8 - 1.0 - 0.9 = 3.9 is the exact mirror and lands there.
+      door('st-main', 'st-s', 3.9), // entry on the south wall
       door('st-bath', 'st-bath-n', 0.6, 0.7),
       window('st-win', 'st-n', 2.2, 1.8),
     ],
@@ -162,7 +166,11 @@ export function loft(): FloorPlan {
       iwall('lf-stair-w', [4.8, 3.6], [4.8, D - T]),
     ],
     openings: [
-      door('lf-main', 'lf-s', 1.2, 1.0),
+      // MAIN-DOOR-ROOM (v0.31.5.120): was 1.2, which put the front door in the
+      // BATHROOM. `lf-s` (len 8.0) is lined by lf-bath 0.1-1.8, lf-stair
+      // 2.0-3.1 and lf-sleep 3.4-7.9; 8.0 - 1.2 - 1.0 = 5.8 is the exact mirror
+      // and lands in the Lounge / Study.
+      door('lf-main', 'lf-s', 5.8, 1.0),
       door('lf-bath', 'lf-bath-n', 0.7, 0.7),
       window('lf-w1', 'lf-n', 1.2, 2.2),
       window('lf-w2', 'lf-n', 4.4, 2.2),

@@ -418,10 +418,22 @@ lands in the **Common Bath**. **`jb-master` likewise fronts only `jb-s`**, yet `
 lands in the **bathrooms**. Giving either master daylight means putting a window on the south
 façade: a **content decision**, not an offset correction.
 
-**Recommendation — the offset-fixable phase is nearly exhausted.** Scan each remaining entry's walls
-before assuming; expect most to be façade decisions like these two. Consider giving `perimeter()` a
-consistent winding as part of the last such change. The remaining 12 stay **ratcheted by name** in
-`src/floorplan/bedroomWindow.test.ts`.
+**THE OFFSET-FIXABLE PHASE IS CLOSED — v0.31.5.120. All 12 remaining entries were scanned in one
+pass and NONE can be fixed by moving an offset.** For each, the walls the room actually fronts and
+the windows authored on them:
+- **`h4-bed3`, `h5-bed3`, `ex-bed3` front NO external wall at all** — interior bedrooms. No offset
+  can give them daylight; only a re-planned layout can.
+- **`h3-bed2`, `g3-master`, `jb-master`, `cp-master`** front an external wall with **no window
+  authored on it**, so there is nothing to move — they need a new opening.
+- **`ex-bed2b`, `g3-gen`, `jb-bed3`, `c4-bed4`** front a wall that does carry windows, but none of
+  them (or their mirrors) fall within the room's own frontage.
+- **`g3-bed3` looked fixable and is a trap.** `g3-b3-win` is named for bedroom 3 and lands in
+  bedroom 2 (offsets 5.6-8.1), and its mirror (2.7) does land in bedroom 3 (2.7-5.1) — but
+  **`g3-bed2` fronts ONLY that wall and that window is its only one**, so the move would strand
+  bedroom 2. Net zero: the count would stay 12.
+
+**Every remaining entry needs a new window opening — a content decision.** The 12 stay **ratcheted
+by name** in `src/floorplan/bedroomWindow.test.ts`.
 
 **This also blocks the window-treatment gap.** `applyLayoutPreset('move-in')` places **zero** window
 treatments on any template (measured: 0 across all 19) because no entry in `furnishPlan.ts`'s `KITS`
@@ -497,10 +509,22 @@ at all**, and the exact mirror (1.9) lands in `g3-gen`, the Grandparent Suite �
 living room fronts `g3-n` (6.4-10.3) and `g3-e` (0.1-8.8), so this entrance needs a **façade
 decision**, like the 5-room's.
 
-**Recommendation — continue with (h) per plan, but scan the wall FIRST.** Where a living-category
-room touches the door's wall, it is a one-number mirror; where it does not, it needs a façade
-decision and should stay here. Of the 5 remaining, `h5-main` and `g3-main` are already **proven**
-unfixable. The rest stay **ratcheted by name** in `src/floorplan/mainDoorRoom.test.ts`.
+**FOURTH AND FIFTH PLANS FIXED — `tpl-studio` and `tpl-loft`, v0.31.5.120**, both at zero cost
+(global item count, stray chairs and wardrobe count all unchanged). `st-main` 1.0 → 3.9: `st-s`
+(len 5.8) is lined ONLY by `st-bath` 0.2-1.7 and `st-kit` 1.9-5.7, so the kitchen end is the sole
+non-bath option. `lf-main` 1.2 → 5.8, into the Lounge / Study (`lf-s` = `lf-bath` 0.1-1.8,
+`lf-stair` 2.0-3.1, `lf-sleep` 3.4-7.9). **3 misplaced main doors remain, and all three are proven
+unfixable by offset:**
+- `h5-main` — mirror lands on a **balcony**.
+- `g3-main` — mirror lands in `g3-gen`, **another bedroom**; no living-category room touches that wall.
+- **`h2-main` — every position in the living room costs furniture.** Measured three offsets against a
+  49-item baseline: the exact mirror (3.7) **drops the dining table** — undoing what `.111` fixed for
+  this very template — 4.8 loses **7 items**, and 2.5 keeps the table but still loses 2. The 2-room
+  is 5.8 m wide; a door into its living room consumes wall the furniture needs. **Reverted:** a front
+  door in the bathroom is wrong, but not worth a missing dining table.
+
+**Recommendation — (i) now also needs content decisions, not offsets.** The remaining 3 stay
+**ratcheted by name** in `src/floorplan/mainDoorRoom.test.ts`.
 
 ---
 
@@ -566,8 +590,8 @@ asserts that 66 of the 78 windows are clear so it cannot pass by measuring nothi
 | e | Curtain vs nightstand | content | ✅ **SHIPPED v0.31.5.87** — curtain narrowed + nightstands outboard |
 | f | TEMPLATE-ROOM-ENCLOSURE | content | ⏳ **OPEN v0.31.5.109** — 9 templates ship unenclosed bathrooms; ratcheted by test |
 | g | LEVEL-ISOLATION-IN-WALK | renderer design + cost | ⏳ **OPEN v0.31.5.110** — walking an upper storey hides the one below; acute on `tpl-loft` |
-| h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — was 15 of 44; **12 left** after `.115` (4-room), `.116` (5-room), `.118` (exec); ratcheted by test |
-| i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **5 left** after `.115`, `.118`, `.119`; `h5-main` and `g3-main` proven NOT offset-fixable — façade decisions |
+| h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — was 15 of 44; **12 left**; `.120` proved NONE of the 12 is offset-fixable — each needs a new opening |
+| i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **3 left** after `.115`, `.118`, `.119`, `.120`; all 3 proven NOT offset-fixable |
 | j | WINDOW-SIGHTLINE | arranger strategy | ⏳ **OPEN v0.31.5.117** — **12** of 78 windows have tall furniture in front (`.118` added one as a trade); the deeper-keep-out fix was measured and reverted (it deleted wardrobes) |
 
 **Five of ten items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect

@@ -33,8 +33,11 @@ const KNOWN_MISPLACED_MAIN_DOORS = [
   // tpl-hdb-jumbo FIXED in v0.31.5.119 — `jb-main` 9.2 -> 4.1, out of the master
   // and into jb-family. The Living / Dining never touches this wall (it fronts
   // jb-n and jb-e), so the Family Room is the correct target, not the living room.
-  'tpl-studio/st-main -> st-bath',
-  'tpl-loft/lf-main -> lf-bath',
+  // tpl-studio FIXED in v0.31.5.120 — `st-main` 1.0 -> 3.9. `st-s` (len 5.8) is
+  // lined ONLY by st-bath 0.2-1.7 and st-kit 1.9-5.7, so the kitchen end is the
+  // sole non-bath option on that wall.
+  // tpl-loft FIXED in v0.31.5.120 — `lf-main` 1.2 -> 5.8, into the Lounge /
+  // Study (lf-s is lined by lf-bath 0.1-1.8, lf-stair 2.0-3.1, lf-sleep 3.4-7.9).
 ]
 
 /** The room a door opens into: probe 0.4 m each side of the leaf centre. */
