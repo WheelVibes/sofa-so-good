@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.180 — an instrument for `.179`'s lesson
+
+`.179` ended with a rule: any future calibration of the photographic look must carry the ceiling/floor
+relative-luma pair alongside `%<64`, because matching the scalar alone put the right amount of
+darkness in the frame and spent it in the wrong places. A rule in a document is not an instrument, so
+this makes it one.
+
+New `scripts/dev-probes/light-distribution.mjs` takes the standard living-room walk pose and prints,
+in one run: frame mean, `%<64`, and ceiling / wall / floor as **region mean ÷ frame mean**, with the
+toolbar and minimap rectangles cut out so neither is counted as ceiling or floor. It prints the
+photographic targets underneath, including that **wall is not a target** (the reference photographs
+disagree 1.43 vs 0.53).
+
+Both looks, measured: default 183.3 / 1.13 % / ceiling 1.05 / floor **0.77**; photographic 106.5 /
+**10.84 %** / ceiling **0.85** / floor **0.77**, against photographs at 11.2–12.2 % / 1.17–1.28 /
+1.23–1.30. The floor is equally short under **both** looks — that is the missing bounce, not something
+the fill rebalance caused.
+
+Caveat recorded in the research doc: the probe's fixed fractional bands are not `.179`'s hand-placed
+crops, so its absolute ratios differ a little (default ceiling 1.05 here vs 0.92 there). Self-consistent
+for tracking a change; not interchangeable with the earlier numbers.
+
 ## v0.31.5.179 — matching the amount of darkness is not the same as putting it in the right place
 
 **Measurement only; the fix was tried and reverted.** The photographic look was calibrated on one

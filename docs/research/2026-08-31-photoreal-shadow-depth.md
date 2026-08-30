@@ -1965,3 +1965,34 @@ bounce pass, or SSGI), not a brighter constant.
 right *amount* of darkness in the frame, but the app spends it on the ceiling and floor, where a
 photograph is bright. A single scalar cannot tell you that. Any future calibration should carry the
 ceiling/floor relative-luma pair alongside it.
+
+
+## An instrument for `.179`'s lesson (v0.31.5.180)
+
+`.179` ended with a rule: any future calibration of the photographic look should carry the
+ceiling/floor relative-luma pair alongside `%<64`, because matching the scalar alone put the right
+amount of darkness in the frame and spent it in the wrong places. A rule in a document is not an
+instrument, so this makes it one.
+
+**`scripts/dev-probes/light-distribution.mjs`** takes the standard living-room walk pose and prints,
+in a single run: frame mean, `%<64`, and ceiling / wall / floor as **region mean ÷ frame mean** — with
+the two HUD rectangles (toolbar, minimap) cut out so neither is ever counted as ceiling or floor. It
+prints the photographic targets underneath, including the warning that **wall is not a target** (the
+two reference photographs disagree 1.43 vs 0.53 depending on what is hanging on them).
+
+**Both looks, from the new instrument:**
+
+| | frame mean | `%<64` | ceiling | wall | floor |
+| --- | --- | --- | --- | --- | --- |
+| default look | 183.3 | 1.13 % | 1.05 | 1.11 | **0.77** |
+| photographic look | 106.5 | **10.84 %** | **0.85** | 1.08 | **0.77** |
+| photographs | — | 11.2–12.2 % | 1.17–1.28 | (disagree) | **1.23–1.30** |
+
+The picture is unchanged from `.179` and now reproducible in one command: the photographic look has
+the shadow depth about right and both horizontal surfaces too dark, and **the floor is equally short
+under BOTH looks (0.77)** — that is not something the fill rebalance caused, it is the missing bounce.
+
+*A caveat worth stating so nobody compares across instruments carelessly:* the probe's fixed
+fractional bands are not the hand-placed crops `.179` used, so its absolute ratios differ a little
+(default-look ceiling reads 1.05 here against 0.92 there). The bands are self-consistent, which is
+what matters for tracking a change; the numbers are not interchangeable with the earlier hand-crops.
