@@ -2,6 +2,20 @@
 
 Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
 
+- **Chamfer visible hard edges — `primitives/BeveledBox.tsx`, not a raw `<boxGeometry>`.** A razor
+  90° edge is one of the strongest CG tells: real edges have a small radius that catches a thin
+  specular highlight, and without one a slab reads as flat cardboard. `BeveledBox` is a drei
+  `RoundedBox` with an auto-clamped chamfer (7 mm default; `safeBevelRadius` keeps it under half the
+  thinnest side) and detail-scaled smoothness — a drop-in for `<mesh><boxGeometry/></mesh>`. Pass a
+  smaller `bevel=` on thin members (≈3 mm on a 40 mm chair leg; the 7 mm default there reads as a
+  dowel rather than a squared leg). Raw `boxGeometry` stays right for surfaces never seen edge-on
+  (drawer interiors, carcass backs, hidden structure) and for instanced meshes, which cannot carry
+  the chamfer.
+  **Coverage is incomplete** (audited 2026-08-31, v0.31.5.145): **326 `boxGeometry` uses across 108
+  files, and 48 primitives are still entirely sharp.** `DiningChair`, `FlatscreenTV`, `Monitor`,
+  `Toilet` and `BarStool`'s step style were converted first as the most visible in the default flat;
+  the rest is open work — take it by visibility, not alphabetically.
+
 - **The seed-point rescue must avoid DOOR KEEP-OUTS, or the piece gets deleted (SETTLE-ORIGIN,
   v0.31.5.108).** `placeSeededMounts` pulls a piece off `seedRoom`'s room-centre placeholder,
   but three later passes can remove it — `dropOverlaps`, `dropDoorBlockers`, `dropWallClippers`.

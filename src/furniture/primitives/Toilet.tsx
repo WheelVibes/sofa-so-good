@@ -1,4 +1,5 @@
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { MetalMaterial } from './MetalMaterial'
 import { readStr } from './shared'
 import { seg, useDetail } from './useDetail'
@@ -28,15 +29,13 @@ export function Toilet({ props }: { props: ParamProps }) {
     return (
       <group>
         {/* In-wall cistern panel against the back wall */}
-        <mesh castShadow receiveShadow position={[0, 0.55, -0.24]}>
-          <boxGeometry args={[0.5, 1.1, 0.18]} />
+        <BeveledBox args={[0.5, 1.1, 0.18]} castShadow receiveShadow position={[0, 0.55, -0.24]}>
           <meshStandardMaterial color="#eef0f1" roughness={0.4} metalness={0.02} />
-        </mesh>
+        </BeveledBox>
         {/* Dual flush plate */}
-        <mesh position={[0, 0.95, -0.145]}>
-          <boxGeometry args={[0.18, 0.13, 0.01]} />
+        <BeveledBox args={[0.18, 0.13, 0.01]} bevel={0.002} position={[0, 0.95, -0.145]}>
           <MetalMaterial color="#d6d9dc" roughness={0.3} metalness={0.5} />
-        </mesh>
+        </BeveledBox>
         {/* Pan: OVAL, not round — a real wall-hung pan is ~0.36 W x 0.50 D and
             projects ~0.48 m past the cistern panel, so a circular bowl at the
             0.40 m footprint width would be a fifth too shallow. One Z-scaled
@@ -76,10 +75,9 @@ export function Toilet({ props }: { props: ParamProps }) {
         <meshStandardMaterial {...porcelain} />
       </mesh>
       {/* Cistern — rests on the bowl's back shelf (overlaps the bowl in Z) */}
-      <mesh castShadow position={[0, 0.52, -0.2]}>
-        <boxGeometry args={[0.38, 0.42, 0.26]} />
+      <BeveledBox args={[0.38, 0.42, 0.26]} bevel={0.016} castShadow position={[0, 0.52, -0.2]}>
         <meshStandardMaterial {...porcelain} />
-      </mesh>
+      </BeveledBox>
       {/* Bowl */}
       <mesh castShadow position={[0, 0.38, 0.13]}>
         <cylinderGeometry args={[0.2, 0.16, 0.14, seg(20, detail)]} />

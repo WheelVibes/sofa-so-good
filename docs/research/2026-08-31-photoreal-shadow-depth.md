@@ -520,3 +520,40 @@ machine where the tracer compiles.**
 photographic. This one found photographic controls the app already ships and was not honouring. Fixing
 the plumbing is cheaper than any lighting change measured in `.133`–`.142`, and it is the first thing
 in the arc that makes a user-visible photographic knob actually work.
+
+
+## Sharp 90° edges — the CG tell the app already had a fix for (v0.31.5.145)
+
+Research first: the single most-cited "why does my render look CG" answer in architectural-viz
+writing is **edges**. Every real edge has a small radius that catches a thin specular highlight;
+a perfectly sharp one either produces a harsh unrealistic reflection or no highlight at all, and
+reads as cardboard. It is standard practice to chamfer every visible edge, and Marmoset ships a
+bevel *shader* purely so hard-surface art gets the highlight without the geometry
+([d5render](https://www.d5render.com/posts/detailing-architectural-rendering),
+[Marmoset](https://marmoset.co/posts/revolutionize-your-3d-workflow-with-toolbags-bevel-shader/),
+[PGBS](https://www.proglobalbusinesssolutions.com/photorealistic-rendering-tips/)).
+
+**The app already has the tool and is not using it consistently.**
+`primitives/BeveledBox.tsx` is a drei `RoundedBox` with an auto-clamped 7 mm chamfer, written for
+exactly this reason, and `furniture/CLAUDE.md` already states a body mesh "is always" one. The audit
+says otherwise: **341 raw `boxGeometry` uses across 113 files, and 53 primitives entirely sharp** —
+including `DiningChair` (seat slab, back panel and all four legs in *both* styles), `FlatscreenTV`
+(foot, neck and bezel), `Monitor`, `Toilet` (cistern, in-wall panel, flush plate) and `BarStool`'s
+step style. These are not obscure: the default 4-room flat puts four to six dining chairs in the
+foreground of the walk view.
+
+**Converted those five** (→ 326 boxes / 108 files / 48 sharp primitives), with smaller explicit
+chamfers on thin members — 3 mm on the 40 mm chair legs and monitor stem, 2 mm on the 10 mm flush
+plate — because the 7 mm default on a 40 mm stick rounds it into a dowel.
+
+**Measured, same pose, lamps on, maximum tier, 13:00:** 2.67 % of pixels changed by more than 2
+levels. At a 4× crop on a chair back the mechanism is unmistakable: sharp, the top edge is a hard
+line that simply terminates against the wall; chamfered, it carries a **continuous bright specular
+rim** along the top and both verticals, and the panel reads as a solid with thickness instead of a
+cut-out. This is the first change in the arc that alters *object* realism rather than room lighting,
+and it is cheap — the chamfer is ≤7 mm, so footprints, clearances and joins are unchanged.
+
+*Caveat, honestly:* the two capture runs are not pixel-identical in pose (the walk teleport lands
+within a few pixels, not exactly), so the 2.67 % figure includes a small amount of that. The edge
+highlight is a geometry change and is not explicable by a pose shift, but the percentage is a
+loose upper bound rather than a clean isolation.

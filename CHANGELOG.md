@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.145 — chamfer the furniture edges that were still razor-sharp
+
+Architectural-viz writing is near-unanimous that **sharp 90° edges are one of the strongest CG
+tells**: a real edge has a small radius that catches a thin specular highlight, and without one a
+slab reads as flat cardboard. The app already has the fix — `primitives/BeveledBox.tsx`, a drei
+`RoundedBox` with an auto-clamped 7 mm chamfer — and `src/furniture/CLAUDE.md` already claimed a body
+mesh "is always" one. The audit disagreed: **341 raw `boxGeometry` uses across 113 files, and 53
+primitives entirely sharp.**
+
+Converted the five most visible in the default flat — `DiningChair` (seat slab, back panel and all
+four legs, in *both* styles), `FlatscreenTV` (foot plate, neck, bezel), `Monitor` (base, stem,
+bezel), `Toilet` (cistern, in-wall panel, flush plate) and `BarStool`'s step style (side panels +
+both treads) — leaving **326 boxes / 108 files / 48 sharp primitives**, now recorded in
+`src/furniture/CLAUDE.md` as open work to take by visibility. Thin members get smaller explicit
+chamfers (3 mm on the 40 mm chair legs and the monitor stem, 2 mm on the 10 mm flush plate); the 7 mm
+default on a 40 mm stick rounds it into a dowel.
+
+Visually verified at the same pose (lamps on, maximum tier, 13:00): 2.67 % of pixels changed by more
+than 2 levels, and at a 4× crop on a chair back the sharp version's top edge is a hard line that
+terminates against the wall while the chamfered one carries a continuous bright specular rim along
+the top and both verticals. Footprints, clearances and joins are unchanged — the chamfer is ≤7 mm and
+clamped to under half the thinnest side.
+
 ## v0.31.5.144 — the HQ lens dropdown did nothing at the default aperture (HQ-LENS-NO-DOF)
 
 **Fix.** `hqRenderSession` read the chosen focal length **only inside** its `fStop > 0` branch (the

@@ -1,4 +1,5 @@
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { getScreenContent } from './screenContent'
 import { readNum, readStr } from './shared'
 
@@ -25,22 +26,30 @@ export function FlatscreenTV({ props }: { props: ParamProps }) {
       {!wallMounted && (
         <>
           {/* Foot plate */}
-          <mesh castShadow receiveShadow position={[0, standH / 2, 0]}>
-            <boxGeometry args={[w * 0.42, standH, 0.22]} />
+          <BeveledBox
+            args={[w * 0.42, standH, 0.22]}
+            bevel={0.004}
+            castShadow
+            receiveShadow
+            position={[0, standH / 2, 0]}
+          >
             <meshStandardMaterial color="#2a2c30" roughness={0.5} metalness={0.4} />
-          </mesh>
+          </BeveledBox>
           {/* Neck */}
-          <mesh castShadow position={[0, standH + 0.04, 0]}>
-            <boxGeometry args={[0.08, 0.1, 0.05]} />
+          <BeveledBox
+            args={[0.08, 0.1, 0.05]}
+            bevel={0.004}
+            castShadow
+            position={[0, standH + 0.04, 0]}
+          >
             <meshStandardMaterial color="#2a2c30" roughness={0.5} metalness={0.4} />
-          </mesh>
+          </BeveledBox>
         </>
       )}
       {/* Bezel */}
-      <mesh castShadow position={[0, panelY, 0]}>
-        <boxGeometry args={[w, h, 0.04]} />
+      <BeveledBox args={[w, h, 0.04]} bevel={0.004} castShadow position={[0, panelY, 0]}>
         <meshStandardMaterial color="#15171b" roughness={0.5} metalness={0.3} />
-      </mesh>
+      </BeveledBox>
       {/* Screen — dark glossy when off; lit content that self-illuminates
           when on (glows, and blooms at night on the high tier). The screen sits
           flush in the bezel by design, so it's a coplanar overlay: depthWrite
