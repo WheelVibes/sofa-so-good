@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.174 — clouds: built, and invisible
+
+**Nothing shipped.** A visual audit of the photographic look against the reference photograph put the
+**window** back at the top: over the glazing it spans **158–181 luma**, a smooth ramp and nothing
+else, where a real window is the one place in an interior photograph with content in it. The simplest
+missing thing is that the analytic sky has no clouds — so one was built.
+
+A pure `skyClouds.ts`: a deck projected onto a horizontal plane (`p = dir.xz / dir.y`, which
+compresses puffs into bands toward the horizon and keeps them broad overhead), thresholded into
+separated puffs, faded in over the first ~3°, projected distance capped against aliasing. Ten unit
+tests. Applied above the horizon in both sky painters, never to `scene.environment`.
+
+**And it is invisible.** Window glazing: clear 172.3 / sd 35.56, clouds 172.5 / **35.61**, clouds at
+triple dome resolution 172.5 / 35.63, clouds with the pane emissive cut to a quarter 154.2 / **27.73**
+— *darker and less varied*, the opposite of what would happen if the emissive were masking transmitted
+structure. Three hypotheses, all refuted.
+
+**The wall is the transmission itself: the pane delivers no fine structure from behind it** —
+consistent with `.154`, where the `city` skyline showed only as faint broad masses. The remaining
+suspects are `windowGlassPhysical`'s `roughness 0.1` (which blurs transmission through the mip chain)
+and the pane's thickness/attenuation volume; that is a two-line sweep and the next thing to test.
+
+The cloud field was **reverted rather than shipped** — correct and cheap, but it changes nothing a
+user can see, and shipping invisible code fails the standard this arc has held. Its design is recorded
+in the research doc in enough detail to rebuild once transmission carries structure.
+
 ## v0.31.5.173 — an irregular weave
 
 `.172` specified the fix: the fabric gap is **regularity, not amplitude**. `buildUpholsteryHeight`

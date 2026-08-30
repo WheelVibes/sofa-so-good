@@ -1710,3 +1710,45 @@ touching the amplitude that caused it.**
 fabric normal: frame mean **179.5 → 179.6**, `%<64` 0.86 % → 0.83 %, curtain 0.0245 → 0.0248. The sofa
 gains a little (0.0463 → 0.0524) at identical brightness — a small free improvement for every user,
 not a change of look.
+
+
+## Clouds: built, and invisible — the pane transmits no structure (v0.31.5.174)
+
+A visual audit of the photographic look at maximum tier, against the reference photograph, put the
+**window** back at the top of the list: measured over the glazing it spans **158–181 luma**, a smooth
+ramp and nothing else. A real window is the one place in an interior photograph with *content* in it.
+`.146` chased that through the glass and `.154` through the backdrop; the simplest missing thing is
+that the analytic sky **has no clouds**.
+
+**Built properly.** A pure `skyClouds.ts`: a cloud deck projected onto a horizontal plane
+(`p = dir.xz / dir.y`), which is what compresses puffs into bands toward the horizon and keeps them
+broad overhead — a flat noise over azimuth/elevation gives evenly-sized puffs everywhere and looks
+wrong. Thresholded into separated puffs, faded in over the first ~3° so the deck never ends in a hard
+line, projected distance capped so the horizon cannot alias into speckle. Ten unit tests. Applied
+above the horizon only, in `paintSkyEquirect` **and** `paintSkySurround`, never to
+`scene.environment` — so the IBL and every key:fill measurement in this arc stay untouched.
+
+**And it is invisible.** Window glazing, same pose:
+
+| | mean | sd |
+| --- | --- | --- |
+| clear sky | 172.3 | 35.56 |
+| with clouds | 172.5 | **35.61** |
+| with clouds, dome 256×128 → **768×384** | 172.5 | 35.63 |
+| with clouds, pane emissive cut to a quarter | 154.2 | **27.73** |
+
+Three hypotheses tested and all refuted. It is not which painter (both now carry the deck), not the
+dome resolution (tripling it changes nothing), and not the pane's flat sky-catch emissive — cutting
+that to a quarter makes the window *darker AND less varied*, which is the opposite of what it would do
+if the emissive were masking transmitted structure.
+
+**So the wall is the transmission itself: the pane delivers no fine structure from behind it.** That
+is consistent with `.154`, where the `city` preset's tower blocks were visible but only as faint broad
+masses. The remaining suspects are on the material — `windowGlassPhysical`'s **`roughness 0.1`**,
+which blurs the transmission through the mip chain, and the pane's `thickness`/attenuation volume.
+That is the next thing to test, and it is a two-line sweep.
+
+**The cloud field was reverted rather than shipped.** It is correct and cheap, but it changes nothing a
+user can see, and shipping invisible code fails the same standard this arc has held everywhere else.
+The design is recorded above in enough detail to rebuild in an hour once transmission carries
+structure — which is the right order to do it in.
