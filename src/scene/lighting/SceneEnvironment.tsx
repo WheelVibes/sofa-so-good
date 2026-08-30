@@ -1,12 +1,12 @@
 import { Environment, Lightformer } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { isFeatureEnabled } from '../../features/featureFlags'
 import { useFeature } from '../../features/useFeature'
 import { setIblActive } from '../../materials/iblSignal'
 import { useStore } from '../../state/store'
 import { contextRestoreVersion, subscribeContextRestore } from '../contextRestoreSignal'
-import { photographicFillScale, windowFillAttenuation } from '../look'
+import { PHOTO_PROBE_WARMTH, photographicFillScale, tintHex, windowFillAttenuation } from '../look'
 import { useQuality } from '../useQuality'
 import { lightingFromAltitude } from './altitudeCurve'
 import { hdriById } from './hdriCatalog'
@@ -31,6 +31,14 @@ export function SceneEnvironment() {
   const photoFlag = useFeature('photographicFill')
   const photographicLookSetting = useStore((s) => s.photographicLook)
   const photographicLook = photographicLookSetting && photoFlag
+  // PHOTO-WARMTH: the probe carries most of the fill under the photographic look,
+  // so this is the only tint that reaches it (`.177` measured the analytical-light
+  // dial at a fifth of its predicted effect). At bias 0 `tintHex` returns the input
+  // string unchanged, so the shipped probe is byte-identical and never re-bakes.
+  const warm = useCallback(
+    (hex: string) => tintHex(hex, photographicLook ? PHOTO_PROBE_WARMTH : 0),
+    [photographicLook],
+  )
   const enabled = quality.ibl
   // Tell the material layer whether metals have anything to reflect. Without an
   // environment a `metalness: 0.9` appliance renders pure black, so
@@ -96,7 +104,7 @@ export function SceneEnvironment() {
       <Lightformer
         form="rect"
         intensity={1.4}
-        color="#cfe0f2"
+        color={warm('#cfe0f2')}
         scale={[12, 12, 1]}
         position={[0, 8, 0]}
         rotation={[Math.PI / 2, 0, 0]}
@@ -104,7 +112,7 @@ export function SceneEnvironment() {
       <Lightformer
         form="rect"
         intensity={0.5}
-        color="#9fb0c4"
+        color={warm('#9fb0c4')}
         scale={[14, 6, 1]}
         position={[0, 2, -9]}
         rotation={[0, 0, 0]}
@@ -112,7 +120,7 @@ export function SceneEnvironment() {
       <Lightformer
         form="rect"
         intensity={0.5}
-        color="#9fb0c4"
+        color={warm('#9fb0c4')}
         scale={[14, 6, 1]}
         position={[0, 2, 9]}
         rotation={[0, Math.PI, 0]}
@@ -120,7 +128,7 @@ export function SceneEnvironment() {
       <Lightformer
         form="rect"
         intensity={0.45}
-        color="#b8c2cf"
+        color={warm('#b8c2cf')}
         scale={[6, 6, 1]}
         position={[-9, 2, 0]}
         rotation={[0, Math.PI / 2, 0]}
@@ -128,7 +136,7 @@ export function SceneEnvironment() {
       <Lightformer
         form="rect"
         intensity={0.45}
-        color="#b8c2cf"
+        color={warm('#b8c2cf')}
         scale={[6, 6, 1]}
         position={[9, 2, 0]}
         rotation={[0, -Math.PI / 2, 0]}
@@ -137,7 +145,7 @@ export function SceneEnvironment() {
       <Lightformer
         form="rect"
         intensity={0.25}
-        color="#6b5b48"
+        color={warm('#6b5b48')}
         scale={[14, 14, 1]}
         position={[0, -3, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
@@ -146,7 +154,7 @@ export function SceneEnvironment() {
       <Lightformer
         form="rect"
         intensity={0.8}
-        color="#ffe6c2"
+        color={warm('#ffe6c2')}
         scale={[5, 5, 1]}
         position={[5, 5, 5]}
         rotation={[Math.PI / 4, -Math.PI / 4, 0]}
@@ -155,7 +163,7 @@ export function SceneEnvironment() {
       <Lightformer
         form="rect"
         intensity={0.35}
-        color="#c2d4ff"
+        color={warm('#c2d4ff')}
         scale={[5, 5, 1]}
         position={[-5, 4, -5]}
         rotation={[Math.PI / 4, (3 * Math.PI) / 4, 0]}

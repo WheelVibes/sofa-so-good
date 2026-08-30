@@ -5,6 +5,31 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.178 — warm the IBL probe, which is where the fill actually is
+
+`.177` found the app's lit surfaces neutral where photographed ones are warm, and the existing
+`sceneWarmth` dial reaching only a fifth of the predicted effect because it tints the **analytical**
+lights while the **IBL probe** carries the rest. This puts the tint on the probe.
+
+New pure `tintHex(hex, bias)` applies the same `warmthTintRGB` curve to the probe's `Lightformer`
+colours; `SceneEnvironment` wraps all eight. The identity case matters as much as the maths — at bias
+0 it returns **the input string itself**, so with the photographic look off React sees identical props
+and the probe's render target never re-bakes (`GPU-STARVE-2`). Six tests.
+
+Measured, window masked, maximum tier: shadows **1.124 → 1.180 (+5.0 %)**, midtones **1.005 → 1.039
+(+3.4 %)**, highlights 1.006 → 1.009. Twice `.177`'s effect on midtones and it reaches the shadows,
+which that path did not. Visually the wall and wood lose their blue-grey cast without going orange.
+
+**The default look is byte-identical**, verified against a same-pose same-tier baseline rendered from
+the reverted tree (mean 175.3 → 175.4; R/B unchanged to three decimals). A first attempt at that check
+compared against a *medium*-tier frame at a different pose and appeared to show a large regression —
+recorded because it is exactly the false alarm that would have sunk a good change.
+
+A ceiling also turned up: **highlights barely move (+0.3 %) under any of these levers**, because AgX
+desaturates highlights toward white by design. The photographs' 1.10–1.13 highlight warmth comes from
+a camera pipeline that keeps it; that is a property of the tone operator, and a larger decision than
+anything in this arc.
+
 ## v0.31.5.177 — the room is cooler than a photograph, and the warmth dial cannot reach it
 
 **Measurement only; the change was built and reverted.** Post-production writing for archviz is

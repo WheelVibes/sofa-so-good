@@ -1877,3 +1877,41 @@ warming those is the only lever that reaches the dominant term. It is not free �
 fixed photographic offset it would re-bake once, on the toggle. That is the next round's work, and it
 is worth saying plainly that **the shipped `sceneWarmth` dial is much weaker than its range suggests
 whenever the IBL is doing the lighting.**
+
+
+## Warming the probe, which is where the fill actually is (v0.31.5.178)
+
+`.177` measured the app's lit surfaces as neutral where photographed ones are warm, and found the
+existing `sceneWarmth` dial reached only a fifth of the predicted effect because it tints the
+**analytical** lights while the **IBL probe** carries the rest. This puts the tint where the light is.
+
+**`tintHex(hex, bias)`** applies the same `warmthTintRGB` curve to the probe's `Lightformer` colours,
+and `SceneEnvironment` wraps all eight of them. The identity case matters as much as the maths: at
+bias 0 it returns **the input string itself**, so with the photographic look off React sees identical
+props and the probe's render target never re-bakes — the `GPU-STARVE-2` hazard the module documents.
+Six tests, including that identity, that it matches `warmthTintRGB` so probe and analytical lights
+agree, and that it clamps rather than wrapping.
+
+**Measured, window masked, maximum tier:**
+
+| | shadows | midtones | highlights |
+| --- | --- | --- | --- |
+| photographic, probe cool | 1.124 | 1.005 | 1.006 |
+| photographic, **probe warm** | **1.180** (+5.0 %) | **1.039** (+3.4 %) | 1.009 (+0.3 %) |
+| `.177`'s analytical-light attempt | — | 1.023 (+1.8 %) | 1.008 |
+| photo 1 / photo 2 | 2.983 / 1.043 | 1.415 / 1.123 | 1.128 / 1.102 |
+
+**Twice the effect of `.177`'s attempt on midtones, and it reaches the shadows** — which the other
+path did not. Visually the left wall and the wood lose their blue-grey cast without going orange.
+
+**The default look is byte-identical**, verified against a same-pose, same-tier baseline rendered from
+the reverted tree: mean 175.3 → 175.4, R/B 1.726 / 1.165 / 1.085 → 1.725 / 1.165 / 1.085. (My first
+attempt at that check compared against a *medium*-tier frame at a different pose and appeared to show
+a large regression — worth recording, because it is exactly the kind of false alarm that would have
+sunk a good change.)
+
+**And a real ceiling turned up: the highlights barely move — +0.3 % — under any of these levers.**
+AgX desaturates highlights toward white by design, so bright surfaces cannot carry much tint no matter
+what colour is lighting them. The photographs' 1.10–1.13 highlight warmth comes from a camera pipeline
+that keeps it. That caps how close this particular measure can get, and it is a property of the tone
+operator rather than of the lighting — a separate, larger decision than anything in this arc.

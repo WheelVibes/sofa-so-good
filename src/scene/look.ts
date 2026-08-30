@@ -130,6 +130,40 @@ export function clampSceneSaturation(x: number): number {
  * analytical lights exist everywhere; the Medium+ IBL probe keeps its fixed
  * tint, so the strength is a touch gentler there — acceptable for a user dial).
  */
+/**
+ * Warmth the photographic look adds to the IBL PROBE (PHOTO-WARMTH).
+ *
+ * Measured with the window masked out — so both sides describe the *lit surfaces
+ * of a room* — the reference photographs' highlights sit at **R/B 1.10–1.13** and
+ * their midtones at 1.12–1.42, while the app's photographic look reads **1.006
+ * and 1.005**: neutral. Real interiors bounce daylight off warm floors, timber
+ * and cream paint; the app's fill is graded from the sky, which is blue.
+ *
+ * `.177` tried this on `sceneWarmth`, which tints the ANALYTICAL lights, and got
+ * a fifth of the predicted effect: under the photographic look those are scaled
+ * to 0.62–0.8 and the **IBL probe** — untinted — carries the rest. So the tint
+ * has to go on the probe, which is what `tintHex` below is for.
+ */
+export const PHOTO_PROBE_WARMTH = 0.35
+
+/**
+ * Apply a warmth bias to a `#rrggbb` colour, for the IBL probe's Lightformers.
+ * Returns the input unchanged at bias 0 (so the shipped probe is byte-identical
+ * and never re-bakes), and clamps each channel. Pure.
+ */
+export function tintHex(hex: string, bias: number): string {
+  const b = clampSceneWarmth(bias)
+  if (b === 0) return hex
+  const m = /^#([0-9a-f]{6})$/i.exec(hex.trim())
+  if (!m) return hex
+  const n = Number.parseInt(m[1], 16)
+  const t = warmthTintRGB(b)
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v, i) =>
+    Math.round(Math.max(0, Math.min(255, v * t[i]))),
+  )
+  return `#${ch.map((v) => v.toString(16).padStart(2, '0')).join('')}`
+}
+
 export function warmthTintRGB(bias: number): [number, number, number] {
   const b = clampSceneWarmth(bias)
   return [1 + 0.14 * b, 1, 1 - 0.16 * b]
