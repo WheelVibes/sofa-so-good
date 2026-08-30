@@ -2275,3 +2275,69 @@ the changes already made. `PHOTO_WEAVE` stays where `.184` put it, and the docbl
 
 The lesson repeats `.186`'s: a target read off one or two crops is a point sampled from a wide
 distribution, and re-fitting to it looks like convergence right up until the distribution is measured.
+
+---
+
+## `.188` — the ceiling target survives, the floor target does not, and the deficit belongs to one look
+
+`.186` retracted the shadow band and `.187` the fabric target, both for the same reason: they were
+point estimates from two photographs. The region-ratio targets in `light-distribution.mjs` have
+identical provenance — its header names "photograph 1" and "photograph 2" — so they get the same
+treatment. This time the answer is not uniform, which is what makes it useful.
+
+Regions were picked off a coordinate grid overlaid on each photograph and every crop eyeballed before
+it was measured. Three of the first six were wrong on the first pass — a "wall" that caught a clock and
+a cove light, a "floor" that was an armchair's patterned upholstery. That is the `.181` failure mode
+and it is only caught by looking.
+
+| region mean ÷ frame mean | ceiling | wall | floor |
+|---|---|---|---|
+| photograph 1 | 1.28 | 1.43 | 1.23 |
+| photograph 2 | 1.17 | 0.53 | 1.30 |
+| photograph 3 (modern white) | **1.08** | 1.20 | 1.18 |
+| photograph 4 (lived-in flat) | 1.14 | 1.14 | **0.87** |
+| app, default look | **1.12** | 1.14 | 1.13 |
+| app, photographic look | **0.87** | 1.11 | 1.13 |
+
+### The floor target dissolves
+
+"Both photographs put the floor above the frame average" was true of two pale-stone rooms. Photograph 4
+has dark parquet and puts its floor at **0.87**, below frame mean. Across four the floor spans
+0.87–1.30, which is not a band, it is the range of floor albedos. `.181` already demoted floor to a
+non-target on albedo grounds; this confirms it from the reference side rather than the app side.
+Walls span 0.53–1.43 and were never usable.
+
+### The ceiling target survives — and the app already moved
+
+Ceiling is the one ratio the four photographs agree on: **1.08–1.28**, every one of them above frame
+mean. It is also the only ratio where the app was ever clearly outside.
+
+But the app is not where the probe header said. That header recorded 0.75–0.92, measured back at
+`.179`; the fill-scale and environment-intensity work since has moved the **default look to 1.12**,
+inside the photographic band. The stale number would have justified another round of work on a gap that
+had already closed. Both figures in the header are now corrected against the current tree.
+
+### What is actually left, stated precisely
+
+The deficit is not the app's. It belongs to **one look**:
+
+| | `%<64` | ceiling |
+|---|---|---|
+| photographs (four) | 1.9–12.2 % | 1.08–1.28 |
+| app, default look | 1.32 % | **1.12** ✓ |
+| app, photographic look | 11.86 % | **0.87** ✗ |
+
+Each look matches the references on one axis and misses on the other, and the two failures have a
+single cause. The photographic look buys its shadow depth by turning the fill down; the ceiling is lit
+almost entirely *by* that fill, because nothing relights it from the floor. So fill is simultaneously
+the only lever holding the ceiling up and the only lever pushing the shadows down, and no setting of it
+can satisfy both.
+
+That is the sharpest statement of the remaining gap in this whole arc, and the first one that names a
+mechanism rather than a number. A real directional GI term — floor catching the window and bouncing it
+back up — is exactly the term that would decouple them, letting one look hold 11 % deep shadow *and* a
+ceiling above frame mean. `light-distribution.mjs` run at `PHOTO=0` and `PHOTO=1` is the measurement
+that would show it working: success is the photographic look's ceiling rising to ≈1.1 without its
+`%<64` collapsing back toward 1 %.
+
+Three axes have now been checked against four references. Two dissolved. This one did not.

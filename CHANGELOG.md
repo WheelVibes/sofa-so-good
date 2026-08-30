@@ -5,6 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.188 — the ceiling target survives, and the deficit belongs to one look
+
+Third and last of the two-photograph targets: the region ratios in `light-distribution.mjs`, whose
+header names "photograph 1" and "photograph 2". Re-derived against four references, and against the
+current tree rather than `.179`'s.
+
+**The floor target dissolves.** "Photographs put the floor above frame average" described two
+pale-stone rooms; photograph 4 has dark parquet and sits at **0.87**, below frame mean. Across four the
+floor spans 0.87–1.30 — the range of floor albedos, not a band. Walls span 0.53–1.43 and never were.
+
+**The ceiling target survives.** All four photographs put the ceiling above frame mean, **1.08–1.28**.
+It is the one region ratio that agrees across references.
+
+**But the app had already moved, and the probe header was lying about it.** That header recorded the
+app at 0.75–0.92; the fill and environment-intensity work since `.179` has taken the **default look to
+1.12**, inside the band. Left uncorrected it would have justified another round on a closed gap. Both
+numbers are now re-derived and the header rewritten.
+
+What is left is narrower than "the app's ceiling is dark". The default look matches the photographic
+light distribution (ceiling 1.12) but is too shadow-free (`%<64` 1.32 % against 1.9–12.2 %). The
+photographic look matches the shadows (11.86 %) and loses the ceiling (0.87). One cause: the
+photographic look buys shadow depth by turning the fill down, and the ceiling is lit almost entirely by
+that fill because nothing bounces the floor's light back up. Fill is the only lever for both, pulling
+opposite ways.
+
+That names a mechanism instead of a number, and it makes the long-deferred directional GI term
+concrete: success is the photographic look reaching ceiling ≈1.1 while holding 11 % deep shadow, read
+straight off `light-distribution.mjs` at `PHOTO=0` and `PHOTO=1`.
+
 ## v0.31.5.187 — the fabric target was two crops too
 
 `.186` retracted the deep-shadow band. The same two photographs also supplied the surface

@@ -10,14 +10,29 @@
  *   region mean / frame mean      ceiling   wall   floor
  *   photograph 1                    1.28     1.43   1.23
  *   photograph 2                    1.17     0.53   1.30
- *   app, default look               0.92     1.12   0.70
- *   app, photographic look          0.75     1.09   0.66
+ *   photograph 3 (modern white)     1.08     1.20   1.18
+ *   photograph 4 (lived-in flat)    1.14     1.14   0.87
+ *   app, default look               1.12     1.14   1.13
+ *   app, photographic look          0.87     1.11   1.13
  *
- * Both photographs put ceiling AND floor above the frame average; the app puts
- * both below, because it has no term for the floor catching the window and
- * bouncing it onto the ceiling. **Walls are not a usable target** — the two
- * photographs disagree 1.43 vs 0.53 depending on what is hanging on them — but
- * ceiling and floor agree closely across both, which is what makes them a signal.
+ * **Re-derived in v0.31.5.188 against four photographs, not two, and against the
+ * current tree.** Both figures the old header quoted are dead. The app's ceiling
+ * is no longer 0.75–0.92 — the fill and environment-intensity work since `.179`
+ * moved the default look to 1.12, inside the photographic band. And the floor
+ * target dissolved: photograph 4 puts its floor at 0.87, BELOW frame mean, so
+ * "photographs put the floor above average" was an artefact of two pale-stone
+ * rooms. Floor and wall ratios track albedo, not light transport; neither is a
+ * target.
+ *
+ * What survives is narrower and sharper. The **photographic look** sits at
+ * ceiling 0.87 against a four-photograph band of **1.08–1.28** — the one region
+ * ratio still outside the references, and only under that look. Turning the fill
+ * down is what buys the shadow depth (`%<64` 1.32 % → 11.86 %), and the ceiling
+ * is lit almost entirely BY that fill, because there is no bounce term to relight
+ * it from the floor. So the two looks trade: the default matches the photographic
+ * light distribution and is too shadow-free, the photographic look matches the
+ * shadows and loses the ceiling. A real directional GI term is what would let one
+ * look hold both, and this pairing is the measurement that would show it working.
  *
  * So this probe reports the pair alongside the scalar, and any future calibration
  * should move both. It samples fixed screen bands rather than masking geometry,
@@ -242,10 +257,12 @@ console.log(
 )
 console.log('')
 console.log('targets, from the reference photographs:')
-console.log('  %<64      11.2–12.2 %')
-console.log('  ceiling   1.17–1.28    (app has measured 0.75–0.92)')
-console.log('  floor     NOT a target — both reference photographs have polished light')
-console.log('            stone where the default flat has oak vinyl, so the gap is')
-console.log('            mostly ALBEDO (see the .181 entry in the research doc)')
-console.log('  wall      NOT a target — the photographs disagree 1.43 vs 0.53')
+console.log('  %<64      1.9–12.2 %  (four photographs; the two looks bracket it)')
+console.log('  ceiling   1.08–1.28   (four photographs. The DEFAULT look at 1.12 is')
+console.log('            inside the band; the PHOTOGRAPHIC look at 0.87 is not, and')
+console.log('            that is the one region ratio still outside the references)')
+console.log('  floor     NOT a target — four photographs span 0.87–1.30. The ratio')
+console.log('            tracks floor ALBEDO (pale stone vs dark parquet), not light')
+console.log('            transport (see the .181 and .188 entries in the research doc)')
+console.log('  wall      NOT a target — four photographs span 0.53–1.43')
 await browser.close()
