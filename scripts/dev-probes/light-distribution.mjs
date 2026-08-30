@@ -44,6 +44,10 @@ const PHOTO = process.env.PHOTO === '1'
 // Left in place because the plumbing bug is worth having a repro for, but do not
 // trust it as a way to vary the floor until that is chased down.
 const FLOOR = process.env.FLOOR || ''
+const WALL = process.env.WALL || ''
+// Pitch for the FLOOR capture: steep enough that the near floor fills the bottom
+// of the frame instead of the furniture standing on it.
+const FLOOR_PITCH = Number(process.env.FLOOR_PITCH || -0.55)
 const OUT = process.env.OUT || '/tmp/light-distribution'
 fs.mkdirSync(OUT, { recursive: true })
 
@@ -66,7 +70,7 @@ await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
 await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
 await page.evaluate(
-  ({ h, t, fov, photo, floor }) => {
+  ({ h, t, fov, photo, floor, wall }) => {
     const s = window.__store.getState()
     s.setTimeMode('manual')
     s.setManualHour(h)
@@ -76,8 +80,9 @@ await page.evaluate(
     s.setWalkFov?.(fov)
     if (photo) s.setPhotographicLook?.(true)
     if (floor) s.setFloorFinish?.('livingDining', floor)
+    if (wall) s.setWallFinish?.('livingDining', wall)
   },
-  { h: HOUR, t: TIER, fov: WALKFOV, photo: PHOTO, floor: FLOOR },
+  { h: HOUR, t: TIER, fov: WALKFOV, photo: PHOTO, floor: FLOOR, wall: WALL },
 )
 await page.waitForFunction(() => !!window.__walkLook, { timeout: 20000 })
 await new Promise((r) => setTimeout(r, 4000))
@@ -138,10 +143,29 @@ const state = await page.evaluate(() => {
     hour: s.manualHour,
     photographicLook: s.photographicLook,
     floor: s.finishes?.floor?.livingDining,
+    wall: s.finishes?.wall?.livingDining,
   }
 })
-const shot = await page.screenshot({ type: 'png' })
+/**
+ * Capture the CANVAS ELEMENT, not the page. v0.31.5.181 measured a "ceiling" band
+ * that contained the toolbar and the white Measure button, and a "floor" band that
+ * was almost entirely furniture — three contaminated regions in one thread. Taking
+ * the canvas alone removes every DOM overlay at a stroke, so no HUD rectangles
+ * have to be guessed at.
+ */
+const canvas = await page.$('canvas')
+if (!canvas) throw new Error('no canvas to capture')
+const shotFor = async (pitch) => {
+  await page.evaluate((v) => window.__walkLook?.setPitch(v), pitch)
+  await new Promise((r) => setTimeout(r, 900))
+  return canvas.screenshot({ type: 'png' })
+}
+// Two poses: the shipped pitch for the ceiling + wall, and a pitched-down one so
+// the bottom band is REAL FLOOR rather than the coffee table and the sofa.
+const shot = await shotFor(PITCH)
+const shotDown = await shotFor(FLOOR_PITCH)
 fs.writeFileSync(`${OUT}/frame.png`, shot)
+fs.writeFileSync(`${OUT}/frame-down.png`, shotDown)
 console.log(
   `light-distribution  ${JSON.stringify({ ...state, window: pose.id, standoff: STANDOFF, pitch: PITCH })}`,
 )
@@ -149,50 +173,50 @@ console.log(`frame -> ${OUT}/frame.png`)
 // --- analysis -------------------------------------------------------------
 // Fixed fractional bands, with the two HUD rectangles cut out so the toolbar and
 // the minimap never count as "ceiling" or "floor".
-const { data, info } = await sharp(shot).removeAlpha().greyscale().raw().toBuffer({
-  resolveWithObject: true,
-})
+const grey = async (buf) =>
+  sharp(buf).removeAlpha().greyscale().raw().toBuffer({ resolveWithObject: true })
+const { data, info } = await grey(shot)
+const down = await grey(shotDown)
 const W = info.width
 const H = info.height
-const TOOLBAR = { x0: 0.26 * W, x1: 0.74 * W, y0: 0, y1: 0.09 * H }
-const MINIMAP = { x0: 0.78 * W, x1: W, y0: 0.78 * H, y1: H }
-const hud = (x, y) =>
-  (x >= TOOLBAR.x0 && x < TOOLBAR.x1 && y < TOOLBAR.y1) || (x >= MINIMAP.x0 && y >= MINIMAP.y0)
+// No HUD cut-outs: the capture is the CANVAS element, so there is no DOM overlay
+// in it at all. v0.31.5.181 measured a "ceiling" band containing the white
+// Measure button and a "floor" band that was almost entirely furniture.
 const BANDS = {
-  ceiling: { y0: 0.02, y1: 0.14, x0: 0.05, x1: 0.95 },
+  ceiling: { y0: 0.02, y1: 0.16, x0: 0.05, x1: 0.95 },
   wall: { y0: 0.3, y1: 0.6, x0: 0.82, x1: 0.98 },
-  floor: { y0: 0.86, y1: 0.98, x0: 0.05, x1: 0.72 },
 }
 let all = 0
 let dark = 0
-let n = 0
-for (let y = 0; y < H; y++) {
-  for (let x = 0; x < W; x++) {
-    if (hud(x, y)) continue
-    const v = data[y * W + x]
-    all += v
-    if (v < 64) dark++
-    n++
-  }
+for (let i = 0; i < data.length; i++) {
+  all += data[i]
+  if (data[i] < 64) dark++
 }
-const frame = all / n
-const rel = {}
-for (const [name, b] of Object.entries(BANDS)) {
+const frame = all / data.length
+const band = (buf, b, denom) => {
   let s2 = 0
   let c = 0
   for (let y = Math.round(b.y0 * H); y < Math.round(b.y1 * H); y++) {
     for (let x = Math.round(b.x0 * W); x < Math.round(b.x1 * W); x++) {
-      if (hud(x, y)) continue
-      s2 += data[y * W + x]
+      s2 += buf[y * W + x]
       c++
     }
   }
-  rel[name] = c ? s2 / c / frame : Number.NaN
+  return c ? s2 / c / denom : Number.NaN
 }
+const rel = {}
+for (const [name, bb] of Object.entries(BANDS)) rel[name] = band(data, bb, frame)
+// The floor comes from the PITCHED-DOWN frame, normalised by its own mean.
+let dAll = 0
+for (let i = 0; i < down.data.length; i++) dAll += down.data[i]
+const downMean = dAll / down.data.length
+rel.floor = band(down.data, { y0: 0.72, y1: 0.96, x0: 0.2, x1: 0.8 }, downMean)
 console.log('')
-console.log(`frame mean = ${frame.toFixed(1)}    %<64 = ${((dark / n) * 100).toFixed(2)} %`)
 console.log(
-  `ceiling ${rel.ceiling.toFixed(2)}   wall ${rel.wall.toFixed(2)}   floor ${rel.floor.toFixed(2)}   (region mean / frame mean)`,
+  `frame mean = ${frame.toFixed(1)}    %<64 = ${((dark / data.length) * 100).toFixed(2)} %`,
+)
+console.log(
+  `ceiling ${rel.ceiling.toFixed(2)}   wall ${rel.wall.toFixed(2)}   floor ${rel.floor.toFixed(2)} (pitched-down frame, its own mean ${downMean.toFixed(1)})`,
 )
 console.log('')
 console.log('targets, from the reference photographs:')

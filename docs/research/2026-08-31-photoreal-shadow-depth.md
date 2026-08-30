@@ -2027,3 +2027,47 @@ env with that warning attached so the repro is one command away.
 
 `light-distribution.mjs`'s printed targets are corrected accordingly: **floor is not a target**, for
 the same reason wall is not.
+
+
+## The HUD was in every frame: retractions, a repaired instrument, and a re-calibration (v0.31.5.182)
+
+Three measurement regions in this thread have now turned out to be contaminated (`.175`'s grille,
+`.178`'s wrong-tier baseline, `.181`'s floor band). Checking the last one properly turned up the
+common cause: **every measurement in this arc was taken from a PAGE screenshot, which includes the
+bright toolbar and minimap.**
+
+**Retraction 1 — the floor band was furniture.** Cropping it and looking: the probe's "floor" was the
+TV console, the coffee table, an ottoman and the sofa, with a sliver of floor between them. So
+`.179`/`.180`'s headline — *"the app puts both horizontal surfaces below the frame average"* — is
+**withdrawn**. Measured from a pitched-down frame where the band really is floor, the default look
+reads **ceiling 1.13, floor 1.11**: both *above* the frame average, the same sign as the photographs
+(1.17–1.28 / 1.23–1.30), just less pronounced.
+
+**Retraction 2 — the floor-finish bug from `.181` is withdrawn too.** "Changing the floor finish
+changes nothing" was measured against a band containing almost no floor. With the wall finish also
+changed, the band moved as expected. There is no evidence of a bug; I should not have reported one.
+
+**The instrument is repaired.** `light-distribution.mjs` now captures the **canvas element**, not the
+page, so no DOM overlay can enter a band and no HUD rectangles have to be guessed at; and the floor is
+read from a second, pitched-down capture normalised by its own mean.
+
+**And that forced a re-calibration, which is the real result.** The HUD lifted the frame mean and
+compressed `%<64`, so every tier had been tuned too dark. At the shipped values, on clean frames:
+
+| tier | old value | clean `%<64` | swept | **new value** | verified |
+| --- | --- | --- | --- | --- | --- |
+| maximum | 0.80 | **12.91 %** | 0.85 → 12.23 % | **0.89** | **11.79 %** |
+| medium | 0.62 | **13.39 %** | 0.675 → 11.98 %, 0.70 → 11.52 % | **0.70** | **11.51 %** |
+| performance | 0.60 | **8.41 %** | 0.45 → 9.73 %, 0.32 → 12.89 % | **0.37** | **11.94 %** |
+
+All three now land inside the photographic 11.2–12.2 % band, measured on frames with nothing in them
+but the render.
+
+**Retraction 3 — `.168` said performance could not reach the band.** That came from HUD-contaminated
+readings which made the tier look nearly flat in the fill scale (3.25 → 4.71 % across the whole
+sweep). On clean frames it moves **8.41 → 12.89 %**, and 0.37 puts it in the band like the others.
+
+With the clean instrument the remaining gap is also smaller and better located than this arc had it:
+ceiling **0.95–1.02** and floor **1.07–1.13** against photographs at 1.17–1.28 and 1.23–1.30 — still
+short, still consistent with no bounce term, but nothing like the 0.66–0.85 the contaminated bands
+reported.

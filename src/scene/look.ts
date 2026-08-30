@@ -274,26 +274,30 @@ export function iblFillScale(iblActive: boolean, dayLevel: number): number {
  * a bigger cut to reach the same place. Calibrated by sweep against `.134`'s
  * photographic deep-shadow band (`%<64` = 11.2–12.2 %) at one walk pose, 13:00:
  *
- * | tier | 0.80 | 0.68 | 0.62 | 0.60 | 0.45 |
- * | --- | --- | --- | --- | --- | --- |
- * | maximum | **10.93 %** | | | | |
- * | medium | 6.84 % | 9.65 % | **11.53 %** | 12.31 % | |
- * | performance | 3.25 % | | | 3.82 % | 4.71 % |
+ * **Re-calibrated in v0.31.5.182 on CANVAS-ONLY captures.** The first calibration
+ * measured page screenshots, which include the bright toolbar and minimap; that
+ * HUD lifted the frame mean and compressed `%<64`, so every tier was tuned too
+ * dark. On clean frames, at the old values: maximum 12.91 %, medium 13.39 %,
+ * performance 8.41 % — two past the band and one short of it.
  *
- * **Performance cannot reach the band at all** — it is nearly flat in the fill
- * scale, because that tier lacks the AO and shadow machinery that produces deep
- * shadow, so cutting further only darkens the frame without creating structure.
- * It gets 0.6, which still buys **+31 %** surface micro-contrast (curtain 0.0420
- * → 0.0550) without crushing it.
+ * | tier | sweep on clean frames | chosen |
+ * | --- | --- | --- |
+ * | maximum | 0.80 → 12.91 %, 0.85 → 12.23 % | **0.89** |
+ * | medium | 0.62 → 13.39 %, 0.675 → 11.98 %, 0.70 → 11.52 % | **0.70** |
+ * | performance | 0.60 → 8.41 %, 0.45 → 9.73 %, 0.32 → 12.89 % | **0.37** |
+ *
+ * **Performance CAN reach the band** — `.168` concluded it could not, from
+ * HUD-contaminated readings that made it look nearly flat (3.25 → 4.71 % across
+ * the whole sweep). On clean frames it moves 8.41 → 12.89 %, which is plenty.
  *
  * **Default OFF.** Reducing the fill is the DEFAULT-GLOOM trade measured in `.86`
  * and left as the user's decision.
  */
 export const PHOTO_FILL_SCALE = {
-  maximum: 0.8,
-  high: 0.8,
-  medium: 0.62,
-  performance: 0.6,
+  maximum: 0.89,
+  high: 0.89,
+  medium: 0.7,
+  performance: 0.37,
 } as const
 
 /**

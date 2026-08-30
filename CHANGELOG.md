@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.182 — the HUD was in every frame: retractions, a repaired instrument, a re-calibration
+
+Three measurement regions in this thread had turned out contaminated (`.175`, `.178`, `.181`).
+Checking the last one properly found the common cause: **every measurement in this arc was taken from
+a PAGE screenshot, which includes the bright toolbar and minimap.**
+
+**Retracted:** `.179`/`.180`'s headline that the app puts both horizontal surfaces below the frame
+average — the "floor" band was the TV console, coffee table, ottoman and sofa. Read from a
+pitched-down frame that really is floor, the default look is **ceiling 1.13, floor 1.11**, both above
+average like the photographs. **Also retracted:** `.181`'s floor-finish bug, which was measured
+against a band containing almost no floor. No evidence of a bug; I should not have reported one.
+
+**Instrument repaired:** `light-distribution.mjs` captures the **canvas element**, not the page, so no
+DOM overlay can enter a band; the floor is read from a second pitched-down capture normalised by its
+own mean.
+
+**Re-calibration, the real result.** The HUD lifted the frame mean and compressed `%<64`, so every
+tier was tuned too dark. On clean frames at the shipped values: maximum **12.91 %**, medium
+**13.39 %**, performance **8.41 %**. Swept and reset — maximum 0.80 → **0.89** (verified 11.79 %),
+medium 0.62 → **0.70** (11.51 %), performance 0.60 → **0.37** (11.94 %). All three now inside the
+photographic 11.2–12.2 % band.
+
+**Also retracted:** `.168`'s "performance cannot reach the band" — that came from contaminated
+readings making the tier look flat (3.25 → 4.71 % across a whole sweep). On clean frames it moves
+8.41 → 12.89 %.
+
+The remaining gap is smaller and better located than this arc had it: ceiling 0.95–1.02 and floor
+1.07–1.13 against 1.17–1.28 and 1.23–1.30 — still short, still consistent with no bounce term, but
+nothing like the 0.66–0.85 the contaminated bands reported.
+
 ## v0.31.5.181 — half of `.179` was albedo, not light
 
 `.179`/`.180` reported the app putting **both** horizontal surfaces below the frame average where
