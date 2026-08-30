@@ -613,3 +613,58 @@ DEFAULT-GLOOM trade and the user's call.
   untinted) is a plausible, cheap, *material* change rather than a lighting one — **but given three
   reverted interventions in this arc it goes to the user as a proposal with the frame as evidence,
   not as a unilateral edit.**
+
+
+## The same wood is drawn at up to 210 different scales on one object (v0.31.5.147)
+
+Looking at a walk frame rather than a histogram, the chest beside the dining table reads as
+**corrugated cardboard**: regular vertical ridges on one face, stretched horizontal streaks on
+another. The bedroom door next to it looks like vertical corduroy. Neither is wood.
+
+**The mechanism.** A `BoxGeometry` face's UVs run 0→1 *whatever the face's real size*, and the
+furniture material factories (`getWoodMaterial`, `getSurfaceMaterial`) take **one isotropic
+`repeat`**. So the physical scale a texture actually lands at is `faceSize / repeat` — different on
+every face, and different on every panel that shares the cached material. Nothing in the pipeline
+expresses "this wood has a 30 cm grain period".
+
+**New instrument: `scripts/dev-probes/grain-scale.mjs`.** For every textured mesh it dumps the
+world-space box dimensions and the material's `map.repeat`, computes the implied **metres-per-tile**
+per axis, and groups by material so the spread *within one material* is visible.
+
+Measured on the default 4-room flat, maximum tier:
+
+| material | meshes | metres-per-tile | spread |
+| --- | --- | --- | --- |
+| `wardrobe-3door` wood | 8 | 0.005 … 1.050 | **210×** |
+| `bookshelf` wood | 8 | 0.009 … 1.100 | 122× |
+| `tv-console` wood | 5 | 0.010 … 1.125 | 112× |
+| door leaf | 1 | 0.025 … 1.050 | 42× |
+| `shoe-cabinet` wood | 5 | 0.014 … 0.671 | 48× |
+
+**Two distinct errors, and they need different fixes:**
+
+1. **Between panels.** On the `tv-console` the carcass front is drawn at **1.125 m/tile** and the
+   drawer fronts right below it at **0.536 m/tile** — the same wood at two scales, 15 cm apart. A
+   scalar repeat derived from each panel's own size fixes this.
+2. **Within one face — and a scalar repeat can NEVER fix it.** A wardrobe door is 0.437 × 1.99 m and
+   gets 0.218 m/tile across and 0.995 m/tile up: the square texture is stretched **4.6:1**, exactly
+   the face's aspect ratio. Any isotropic `repeat` preserves that ratio. The door leaf is stretched
+   2.1:1 the same way — that is the "corduroy". Fixing it needs an **anisotropic repeat derived from
+   world dimensions**, `repeat = (w / metresPerTile, h / metresPerTile)`, or true world-space UVs.
+
+**Nothing was changed this round, deliberately.** A first patch — matching a drawer front's repeat to
+its carcass on `Dresser.tsx` — was written and then **reverted**: `dresser` does not appear anywhere
+in the default flat's mesh dump, so the fix was unverifiable against the frames that motivated it,
+and an unverified fix is worse than a measurement. The pieces that *are* in the flat (wardrobe,
+bookshelf, TV console, shoe cabinet, doors) are all dominated by error (2), which needs the
+anisotropic material factory rather than a per-primitive tweak.
+
+**Proposed next step, with the numbers to justify it:** add a sized-material factory —
+`getSurfaceMaterialSized(kind, color, metresPerTile, w, h)` — that caches a clone with
+`map/normalMap/roughnessMap.repeat = (w / mpt, h / mpt)`, generalising the existing
+`getFurnitureMatWithRepeat` from a scalar to a pair, and roll it through the worst offenders with a
+`grain-scale.mjs` spread reading before and after. Note that `furnitureMaterials.ts` already carries a
+**"Wave 4A"** comment describing the *symptom* ("the same tile squishes into a busy wavy cathedral /
+watermark grain — worst on wardrobe/bookshelf doors") and treats it with two hand-tuned constants,
+`FURNITURE_WOOD_COARSEN = 0.5` and `FURNITURE_WOOD_NORMAL_SCALE = 0.24`. Those calm the *amplitude*;
+they cannot correct the *scale*, because the error is geometric.

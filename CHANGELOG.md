@@ -5,6 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.147 — the same wood is drawn at up to 210 different scales on one object
+
+**Measurement only; new probe `scripts/dev-probes/grain-scale.mjs`.** Looking at a walk frame instead
+of a histogram: the chest beside the dining table reads as corrugated cardboard, and the bedroom door
+as vertical corduroy. Neither reads as wood.
+
+A `BoxGeometry` face's UVs run 0→1 whatever the face's real size, and the furniture material
+factories take **one isotropic `repeat`** — so the scale a texture lands at is `faceSize / repeat`,
+different on every face and every panel sharing the cached material. The probe dumps each textured
+mesh's world dimensions and `map.repeat`, computes **metres-per-tile**, and groups by material.
+On the default flat: `wardrobe-3door` **0.005 … 1.050 m/tile — a 210× spread**, `bookshelf` 122×,
+`tv-console` 112×, `shoe-cabinet` 48×, door leaf 42×.
+
+Two distinct errors. **Between panels**: the TV console's carcass front is 1.125 m/tile and the drawer
+fronts 15 cm below it are 0.536 — the same wood at two scales; a per-panel scalar repeat fixes that.
+**Within one face**: a 0.437 × 1.99 m wardrobe door gets 0.218 across and 0.995 up, a **4.6:1 stretch
+equal to the face's aspect ratio** — and *no* isotropic repeat can fix it, because the ratio is
+preserved by construction. That needs an anisotropic, world-derived repeat.
+
+**Nothing was changed, deliberately.** A first patch on `Dresser.tsx` was written and reverted:
+`dresser` appears nowhere in the default flat's mesh dump, so it could not be verified against the
+frames that motivated it. The pieces that *are* in the flat are dominated by the within-face error.
+The proposed fix — a `getSurfaceMaterialSized(kind, color, metresPerTile, w, h)` factory generalising
+`getFurnitureMatWithRepeat` from a scalar to a pair — is recorded with its numbers in
+`docs/research/2026-08-31-photoreal-shadow-depth.md`. Note `furnitureMaterials.ts` already documents
+the *symptom* ("busy wavy cathedral / watermark grain — worst on wardrobe/bookshelf doors") and
+treats it with two hand-tuned constants; those calm the amplitude but cannot correct the scale,
+because the error is geometric.
+
 ## v0.31.5.146 — golden hour: the colour of a low sun is modelled, the direction is not
 
 **Measurement only; new probe `scripts/dev-probes/sun-ingress.mjs`.**
