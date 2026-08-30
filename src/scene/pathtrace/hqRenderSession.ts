@@ -13,7 +13,7 @@
  */
 
 import type { Camera, Object3D, Scene, Texture, WebGLRenderer } from 'three'
-import { mmToFov } from '../cameras/cameraLensSettings'
+import { hqRenderFov } from '../cameras/cameraLensSettings'
 import type { ToneMappingMode } from '../look'
 import { AUTO_PHOTO_MODE } from '../toneContext'
 import { TONE_MAPPING_THREE } from '../toneMappingThree'
@@ -33,7 +33,8 @@ export interface HqRenderOptions {
    *  the first surface at screen centre. */
   fStop?: number
   /** Lens focal length (mm, 35 mm-equivalent). Overrides the live camera FOV via
-   *  `mmToFov` when provided (PC2-CAM-DOF-LENS). Only applied when DoF is on. */
+   *  `mmToFov` when provided (PC2-CAM-DOF-LENS). Applied whether or not DoF is
+   *  on — the aperture and the lens are independent settings. */
   focalLengthMm?: number
   /** Manual focus distance (metres). When provided (with `fStop` > 0), overrides
    *  the centre-screen auto-focus raycast. Undefined → auto-focus. */
@@ -348,17 +349,13 @@ export async function createHqRenderSession(
     const snapshot = built.root
     ownedEnv = built.ownedEnv
     let renderCamera: Camera = camera
+    const live = camera as InstanceType<typeof three.PerspectiveCamera>
+    const fov = hqRenderFov(opts.focalLengthMm, live.fov)
     if (opts.fStop && opts.fStop > 0) {
       // Photographic camera (F5 + PC2-CAM-DOF-LENS): clone the live pose into the
-      // tracer's PhysicalCamera. The vertical FOV is either the chosen lens focal
-      // length (mm → fov) or the live camera's. Focus is the user's manual focus
-      // distance when given, else auto on the first surface at screen centre
-      // (3 m when looking at sky/nothing) so the subject stays sharp.
-      const live = camera as InstanceType<typeof three.PerspectiveCamera>
-      const fov =
-        opts.focalLengthMm && opts.focalLengthMm > 0
-          ? mmToFov(opts.focalLengthMm)
-          : (live.fov ?? 50)
+      // tracer's PhysicalCamera. Focus is the user's manual focus distance when
+      // given, else auto on the first surface at screen centre (3 m when looking
+      // at sky/nothing) so the subject stays sharp.
       const phys = new PhysicalCamera(fov, opts.width / opts.height, 0.05, 300)
       phys.position.copy(live.position)
       phys.quaternion.copy(live.quaternion)
@@ -373,6 +370,16 @@ export async function createHqRenderSession(
         phys.focusDistance = hit ? hit.distance : 3
       }
       renderCamera = phys
+    } else if (live.isPerspectiveCamera && Math.abs(fov - live.fov) > 0.01) {
+      // HQ-LENS-NO-DOF: the lens dropdown is shown independently of the aperture,
+      // so honour it with DoF off too — otherwise picking "24 mm · wide" at the
+      // default "DoF off" silently rendered the live framing instead. A plain
+      // pinhole clone; only the FOV differs from the live camera.
+      const lens = new three.PerspectiveCamera(fov, opts.width / opts.height, 0.05, 300)
+      lens.position.copy(live.position)
+      lens.quaternion.copy(live.quaternion)
+      lens.updateMatrixWorld(true)
+      renderCamera = lens
     }
     tracer.setScene(snapshot, renderCamera)
     if (wantAiDenoise) {

@@ -90,6 +90,22 @@ export function fovToMm(fovDeg: number, sensorH = SENSOR_HEIGHT_MM): number {
 }
 
 /**
+ * The vertical FOV (degrees) an HQ render should use, given the user's chosen
+ * lens and the live viewport camera's own FOV.
+ *
+ * The lens wins whenever one is chosen; otherwise the render inherits the live
+ * framing. Kept pure and separate because the choice is **independent of the
+ * aperture** — a 24 mm still is a 24 mm still whether or not depth of field is
+ * on, and treating the lens as a DoF sub-setting silently ignored the dropdown
+ * at the default "DoF off" aperture.
+ */
+export function hqRenderFov(focalLengthMm: number | undefined, liveFovDeg: number): number {
+  const live = Number.isFinite(liveFovDeg) && liveFovDeg > 0 ? liveFovDeg : 50
+  if (!Number.isFinite(focalLengthMm as number) || (focalLengthMm as number) <= 0) return live
+  return mmToFov(focalLengthMm as number)
+}
+
+/**
  * Map an aperture f-stop to cheap raster-DoF parameters for
  * `@react-three/postprocessing`'s `<DepthOfField>` (world-space form).
  *

@@ -473,3 +473,50 @@ the user with the frames as evidence — not a unilateral edit** — and it shou
 *(A caveat on the numbers: the app renders at aspect 1.6 while a full-frame still is 1.5, so the
 mm-equivalents above are quoted on the vertical basis. The conclusion is unaffected — the gap between
 17 mm and 24 mm is far larger than that discrepancy.)*
+
+
+## The app already has a photographic lens model — and it was inert (v0.31.5.144)
+
+Following the camera thread from `.143` into the code turned up something better than a
+default-value argument: **`src/scene/cameras/cameraLensSettings.ts` already models a real lens** —
+35 mm-equivalent focal length against a 24 mm full-frame sensor height, `mmToFov`/`fovToMm`, a
+14–200 mm range, presets at 24/35/50/85 mm, f-stop presets and focus distance. The HQ render modal
+exposes it as a "Lens focal length" dropdown whenever the `cameraDof` feature is on.
+
+**Two facts about it, both verified in source:**
+
+1. **The live viewport ignores it entirely.** `lensFocalMm` has exactly one non-test consumer outside
+   the store and its persistence: `HqRenderModal.tsx`. The orbit camera is hardcoded `fov: 45`
+   (`Scene.tsx:154`) and the walk camera runs off `walkFov` (default 70). So the lens the user picks
+   describes the *still*, not the view they design in. That is defensible as a design — but it means
+   `.143`'s framing question is genuinely about the two hardcoded viewport FOVs, not about a control
+   users could already reach.
+
+2. **The lens did nothing at the default aperture — a real bug, now fixed.** In
+   `hqRenderSession.ts` the focal length was read *only inside* the `if (opts.fStop && opts.fStop > 0)`
+   branch, which builds the tracer's `PhysicalCamera`. With DoF off — `FSTOP_DEFAULT = 0`, the shipped
+   default, and the dropdown is shown independently of the aperture — `renderCamera` stayed the live
+   camera and the focal length was passed in and dropped. Selecting "24 mm · wide" or "85 mm ·
+   portrait" produced the identical image at 45°.
+
+**The fix.** A pure `hqRenderFov(focalLengthMm, liveFovDeg)` in `cameraLensSettings.ts` makes the
+choice explicit and independent of the aperture (lens wins when chosen, live framing otherwise, 50°
+on a nonsense live FOV), and `hqRenderSession` now takes a plain pinhole `PerspectiveCamera` clone at
+that FOV when DoF is off and the lens differs from the live camera. The `PhysicalCamera` path is
+unchanged apart from reading the same shared value.
+
+**Verification, honestly.** Four unit tests pin the helper, and they discriminate — stubbing the
+helper back to "always the live FOV" fails 2 of 15. The *rendered* pair is what would prove the
+session honours it, so `scripts/dev-probes/hq-lens.mjs` was written to render the same pose at 24 mm
+and 85 mm with DoF off and report the mean absolute pixel difference (0.00 = the dropdown did
+nothing). **It could not answer here: both arms time out waiting for samples — and so does the
+pre-existing `hq-still.mjs` at 4 samples on the same machine**, so the `three-gpu-pathtracer`
+megakernel simply does not run under headless ANGLE/metal in this sandbox. That is the documented
+failure mode `hq-still.mjs`'s own header was written about, not a regression from this change. **So
+this fix is verified by unit test and code path only; the image check is written and pending a
+machine where the tracer compiles.**
+
+**Why it belongs in this arc.** Every round so far has asked how to make the renderer more
+photographic. This one found photographic controls the app already ships and was not honouring. Fixing
+the plumbing is cheaper than any lighting change measured in `.133`–`.142`, and it is the first thing
+in the arc that makes a user-visible photographic knob actually work.

@@ -12,6 +12,7 @@ import {
   FSTOP_MAX,
   FSTOP_MIN,
   fovToMm,
+  hqRenderFov,
   mmToFov,
   rasterDofParams,
   SENSOR_HEIGHT_MM,
@@ -96,5 +97,31 @@ describe('rasterDofParams', () => {
     const deep = rasterDofParams(22)
     expect(deep.worldFocusRange).toBeLessThanOrEqual(4)
     expect(deep.worldFocusRange).toBeGreaterThanOrEqual(0.5)
+  })
+})
+
+describe('hqRenderFov — the lens is independent of the aperture', () => {
+  it('uses the chosen lens whenever one is given', () => {
+    // The bug this guards: the lens was only read inside the `fStop > 0` branch,
+    // so at the default "DoF off" aperture the dropdown did nothing at all.
+    expect(hqRenderFov(24, 45)).toBeCloseTo(mmToFov(24), 6)
+    expect(hqRenderFov(85, 45)).toBeCloseTo(mmToFov(85), 6)
+    expect(hqRenderFov(24, 45)).not.toBeCloseTo(45, 1)
+  })
+
+  it('inherits the live framing when no lens is chosen', () => {
+    expect(hqRenderFov(undefined, 45)).toBe(45)
+    expect(hqRenderFov(0, 70)).toBe(70)
+    expect(hqRenderFov(Number.NaN, 45)).toBe(45)
+  })
+
+  it('falls back to 50 deg on a nonsense live fov', () => {
+    expect(hqRenderFov(undefined, 0)).toBe(50)
+    expect(hqRenderFov(undefined, Number.NaN)).toBe(50)
+  })
+
+  it('clamps an out-of-range lens the same way mmToFov does', () => {
+    expect(hqRenderFov(5, 45)).toBeCloseTo(mmToFov(FOCAL_MIN_MM), 6)
+    expect(hqRenderFov(5000, 45)).toBeCloseTo(mmToFov(FOCAL_MAX_MM), 6)
   })
 })

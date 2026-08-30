@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.144 — the HQ lens dropdown did nothing at the default aperture (HQ-LENS-NO-DOF)
+
+**Fix.** `hqRenderSession` read the chosen focal length **only inside** its `fStop > 0` branch (the
+tracer's `PhysicalCamera`). The HQ modal shows the "Lens focal length" dropdown independently of the
+aperture and ships with `FSTOP_DEFAULT = 0` ("DoF off"), so in the default configuration picking
+"24 mm · wide" or "85 mm · portrait" passed the focal length in and dropped it — the render came out
+at the live viewport FOV and the control was inert.
+
+The lens and the aperture are independent settings: a 24 mm still is a 24 mm still whether or not
+depth of field is on. New pure `hqRenderFov(focalLengthMm, liveFovDeg)` in `cameraLensSettings.ts`
+(lens wins when chosen, live framing otherwise, 50° on a nonsense live FOV, clamped like `mmToFov`)
+is now used by both paths, and with DoF off the session renders through a plain pinhole
+`PerspectiveCamera` clone at that FOV. The `PhysicalCamera` path is unchanged apart from sharing the
+value.
+
+Also recorded (`docs/research/2026-08-31-photoreal-shadow-depth.md`): `lensFocalMm` has no consumer
+in the live viewport at all — the orbit camera is hardcoded `fov: 45` and the walk camera runs off
+`walkFov` — so the lens describes the still, not the view you design in.
+
+**Verification is partial and stated as such.** Four unit tests pin the helper and discriminate
+(stubbing it back to the old behaviour fails 2 of 15). New `scripts/dev-probes/hq-lens.mjs` renders
+the same pose at 24 mm and 85 mm with DoF off and reports the mean absolute pixel difference, but
+**both arms time out in this sandbox — and so does the pre-existing `hq-still.mjs`**, i.e. the
+path-tracer megakernel does not run under headless ANGLE/metal here. The image check is written and
+pending a machine where the tracer compiles.
+
 ## v0.31.5.143 — the camera is a real lever, and it needs no renderer change
 
 **Measurement only.** Every previous round in this arc attacked the renderer. This one questioned the
