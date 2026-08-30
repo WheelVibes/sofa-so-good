@@ -5,6 +5,39 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.134 — measured against real photographs: the app has no deep shadow
+
+**Research + measurement, no code change.** The brief asked for reference imagery to be analysed
+rather than reasoned about, so two freely-licensed interior photographs were pulled from Wikimedia
+Commons (Unsplash 401s scripted fetches) and compared against the app at its **maximum** tier.
+
+| source | p01 | p05 | p50 | p95 | %<40 | %<64 |
+| --- | --- | --- | --- | --- | --- | --- |
+| app, maximum tier | 55 | 104 | 179 | 220 | **0.5** | **1.4** |
+| photo — polished-tile living room | 24 | 44 | 189 | 215 | 3.6 | 12.2 |
+| photo — living room, Accra | 16 | 42 | 155 | 205 | 4.4 | 11.2 |
+
+**Midtones and highlights already match** — the app's p50 (179) sits between the photographs' and
+its p95 (220) is in their range. **The shadows do not.** Both photographs put 11–12% of pixels below
+64; the app puts 1.4%. Its fifth percentile (104) is brighter than the darkest fifth of either
+photograph. The app is not failing at exposure or highlight roll-off — it is failing to be dark
+anywhere, which is one of the most legible "this is CG" cues and the inverse of the failure mode the
+GI literature warns about.
+
+**Which lift causes it is NOT yet attributed** and nothing was changed. There are at least four
+candidates — lamps forced on at every hour (DEFAULT-GLOOM `.86`), the analytical ambient+hemisphere
+fill sized so "nothing crushes to black", the IBL probe, and AgX's black lift — and several were
+chosen on recorded evidence, one on the user's own sign-off. The next round is a four-arm knock-out
+at a fixed pose reporting %<64 for each. Darkening the picture by undoing a legibility fix would be
+a regression, not a realism win.
+
+**An instrument gap found on the way:** `walk-tour` cannot judge floors — the camera stands at room
+centre at 1.6 m with a −0.05 pitch, so most frames show almost no floor (the maximum-tier kitchen
+frame is nose-to-cabinet). The most striking difference in the reference photo is the polished floor
+mirroring the furniture, and that comparison could not be made fairly: the app's living-room floor is
+matte vinyl, which correctly should not mirror, and the pose shows no floor regardless. Written up in
+`docs/research/2026-08-31-photoreal-shadow-depth.md`.
+
 ## v0.31.5.133 — per-room bounce built, measured at two hours, refuted, reverted
 
 **A negative result, and the useful part is the attribution.** No source change ships; the
