@@ -5,6 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.189 — the bounce card, refuted twice by the renderer (reverted)
+
+`.188` named the mechanism; this built the fix for it and could not land it. A **bounce card** — an
+emitter in the window's floor pool, facing up — is the standard interior-rendering stand-in for the
+light the floor throws back, and unlike the hemisphere `.183` refused twice it is positioned, so it
+cannot light the far side of the room. The geometry works and was unit-tested. **The renderer refused
+both emitters that could carry it, for two different reasons.**
+
+**`RectAreaLight` structurally cannot light this ceiling.** `RE_Direct_RectArea` is defined only in
+`lights_physical_pars_fragment`, and `lights_fragment_begin` guards every rect-area contribution
+behind `defined( RE_Direct_RectArea )`. The ceiling is a `meshLambertMaterial` — deliberately, it is
+a big matte surface and Lambert is free — so it compiles the path out. Measured at an absurd 25×
+gain: walls 1.11 → 1.25, frame mean 110.4 → 117.7, and the ceiling *down* to 0.85, because it lit
+every physical material in the room and could not touch its own target.
+
+**`SpotLight` is dropped entirely and the cause is not diagnosed.** Gain 6 / 20 / 60 gave frames
+identical to within noise; so did `decay={0} distance={0}`, which should have blown the frame out. A
+new `bounce-census.mjs` confirms both spots are mounted, aimed straight up, visible, target in the
+graph. A `pointLight` control at the same position moved the frame decisively (mean 110.4 → 195.5,
+ceiling 0.87 → 1.09), so flags, gating, placement and per-frame intensity are all fine.
+
+Reverted to the `.188` baseline and re-measured to confirm: mean 110.4, `%<64` 11.86 %, ceiling 0.87.
+Nothing shipped — a term that cannot light the surface it was built for is not a partial win.
+
+**One live lead.** That control put the ceiling *into* the photographic band (1.09 against 1.08–1.28)
+— the first thing in this arc to do so — at an unbounded setting that also destroyed the shadow
+calibration. Next question, two knobs and one measurement: with real `decay` and a clamped
+`distance`, is there a gain holding ceiling ≥ 1.08 and `%<64` above 11 %?
+
 ## v0.31.5.188 — the ceiling target survives, and the deficit belongs to one look
 
 Third and last of the two-photograph targets: the region ratios in `light-distribution.mjs`, whose

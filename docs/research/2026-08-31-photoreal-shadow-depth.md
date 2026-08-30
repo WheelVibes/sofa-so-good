@@ -2341,3 +2341,75 @@ that would show it working: success is the photographic look's ceiling rising to
 `%<64` collapsing back toward 1 %.
 
 Three axes have now been checked against four references. Two dissolved. This one did not.
+
+---
+
+## `.189` — the bounce card, refuted twice by the renderer (REVERTED)
+
+`.188` named the mechanism behind the last surviving gap: under the photographic look the ceiling
+sits at 0.87 against a four-photograph band of 1.08–1.28, because that look buys its shadow depth by
+turning the flat fill down and the ceiling is lit almost entirely by that fill. The fix that follows
+is a **bounce card** — the standard device in professional interior rendering — an emitter laid in
+the window's floor pool, facing up, standing in for the light the floor throws back. Unlike the
+hemisphere `.183` refused twice, it is positioned and directional, so it cannot light the underside
+of the coffee table on the far side of the room.
+
+The geometry was built and unit-tested (one card per window, attributed to the room the window lights
+by the same inward probe `daylitRooms.ts` uses, pool pushed half a depth in, widened 1.25×). **The
+renderer refused both emitters that could carry it, for two different reasons, and the whole thing is
+reverted.** The tree is back at the `.188` baseline, re-measured to confirm: mean 110.4, `%<64`
+11.86 %, ceiling 0.87.
+
+### Attempt 1 — `RectAreaLight`: structurally cannot light the ceiling
+
+The physically right emitter, and inert. At a deliberately absurd 25× gain it moved the walls
+(1.11 → 1.25) and the frame mean (110.4 → 117.7) while the ceiling went **down** to 0.85 — it lit
+every physical material in the room and could not touch the one surface it existed for, so the
+ceiling *ratio* fell as the mean it is taken against rose.
+
+The cause is in three's source, not in any tuning. `RE_Direct_RectArea` is defined **only** in
+`lights_physical_pars_fragment`; `lights_lambert_pars_fragment` and `lights_phong_pars_fragment`
+contain no reference to it at all, and `lights_fragment_begin` guards every rect-area contribution
+behind `#if ( NUM_RECT_AREA_LIGHTS > 0 ) && defined( RE_Direct_RectArea )`. The app's ceiling is a
+`meshLambertMaterial` — deliberately, as `src/scene/CLAUDE.md` records, because it is a large matte
+surface and Lambert is free. So the ceiling compiles the rect-area path out entirely.
+
+**A rect-area light can never light this ceiling.** Making it possible means giving the ceiling a
+standard material, i.e. paying GGX on the largest surface in the frame to gain one lighting feature.
+That is a real option and it is a cost decision, not a bug fix.
+
+### Attempt 2 — `SpotLight`: dropped entirely, cause unknown
+
+A spot is evaluated by every lighting model, so it should reach a Lambert ceiling. It does nothing.
+Swept gain 6 / 20 / 60 with the frame **identical to within noise** at every step (mean 110.4, `%<64`
+11.86 / 11.88 / 11.87), then with `decay={0} distance={0}` — an unbounded intensity-20 light in a
+small room, which should blow the frame out. Still 110.4. Removing the custom target changed nothing.
+
+**It is mounted and it is correct.** `bounce-census.mjs` (added this round) walks the live scene and
+reports both cards present: `kind: spot`, intensity 20, angle 1.15, aimed from (2.75, 0.03, 5.98) at
+(2.75, 3, 5.98) — straight up — `visible: true`, target in the scene graph.
+
+**And the plumbing around it works, proven by a control.** Swapping the same component to a
+`pointLight` at the same position, same intensity, changed the frame decisively: mean 110.4 →
+**195.5**, ceiling 0.87 → **1.09**, `%<64` 11.86 → 2.07 %. Flags, look gating, card placement,
+per-frame intensity — all fine. Whatever suppresses the spot is specific to spot lights in this
+scene, and it is **not diagnosed**. Recording it unsolved is the honest state; it is the first thing
+to resolve if this is picked up.
+
+### The one lead that is not dead
+
+That control is more than a control. A point light in the floor pool **moved the ceiling into the
+photographic band** (1.09 against 1.08–1.28) — the first thing in this arc that has. It did so at an
+absurd unbounded setting that also destroyed the shadow calibration (`%<64` 2.07 %), so it proves
+nothing about whether a *tuned* version can hold both. But it is a **positioned** light, which is the
+property the hemisphere lacked and the whole reason `.183` refused that: it falls off with distance,
+so it cannot light the far side of the room the way a hemisphere does.
+
+The next round's question is therefore concrete and cheap: with real `decay` and a clamped
+`distance`, is there a gain where the floor-pool point light holds ceiling ≥ 1.08 **and** `%<64`
+above 11 %? Two knobs, one measurement, and `light-distribution.mjs` at `PHOTO=0`/`PHOTO=1` already
+reports both. Its failure mode is known in advance and must be looked at, not just measured: a point
+light is omnidirectional, so it will light furniture undersides near the window — the hemisphere's
+defect, bounded by distance instead of unbounded.
+
+**Nothing shipped.** A term that cannot light the surface it was built for is not a partial win.
