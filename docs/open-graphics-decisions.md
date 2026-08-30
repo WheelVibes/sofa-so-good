@@ -400,10 +400,14 @@ z=8.3 in the master. Measured: the master's mean frame luma rose **184.2 → 198
 fell **169.0 → 161.4** — daylight moved to the room that owns it; living and bedroom 2 unchanged.
 **14 bedrooms remain windowless (6 masters).**
 
-**Recommendation — continue template by template, worst first**: `tpl-hdb-5room` and `tpl-hdb-exec`
-next, both of which also have a front door in the master (item (i)), so fix (h) and (i) together per
-plan. Consider giving `perimeter()` a consistent winding as part of the last such change. The
-remaining 14 stay **ratcheted by name** in `src/floorplan/bedroomWindow.test.ts`.
+**SECOND PLAN FIXED — `tpl-hdb-5room`, v0.31.5.116.** `h5-m-win` 8.2 → 1.0 (`10.8 - 8.2 - 1.6`),
+moving the master's window from z=1.9 in the KITCHEN to z=9.1 in the master. Measured on this
+template (not carried from the 4-room): the master's mean frame luma rose **177.3 → 190.8**, and
+living / bed2 / bed3 were flat to within 0.1. **13 bedrooms remain windowless (5 masters).**
+
+**Recommendation — continue template by template, worst first**: `tpl-hdb-exec` next. Consider
+giving `perimeter()` a consistent winding as part of the last such change. The remaining 13 stay
+**ratcheted by name** in `src/floorplan/bedroomWindow.test.ts`.
 
 **This also blocks the window-treatment gap.** `applyLayoutPreset('move-in')` places **zero** window
 treatments on any template (measured: 0 across all 19) because no entry in `furnishPlan.ts`'s `KITS`
@@ -452,10 +456,20 @@ mirror (6.4 → 1.7 = `9.0 - 6.4 - 0.9`), moving the front door from x=2.25 insi
 to x=6.95 in the Living / Dining. Verified in frames: the master now shows ONE door, not two.
 **7 misplaced main doors remain.**
 
-**Recommendation — continue with (h) together, one template per change, worst first**
-(`tpl-hdb-5room`, `tpl-hdb-exec` both have BOTH defects). Consider giving `perimeter()` a consistent
-winding as part of the last such change — but do not re-wind alone, or all 41 S/W openings move at
-once. The remaining 7 stay **ratcheted by name** in `src/floorplan/mainDoorRoom.test.ts`.
+**`tpl-hdb-5room` CANNOT be fixed by an offset — measured, v0.31.5.116.** Scanning every offset
+along its four perimeter walls and printing which room each lands in shows `h5-s`, the front door's
+wall, is lined ONLY by **balcony (0.2-4.0), master bath (4.4-6.2) and master (6.4-10.2)**. **The
+Living / Dining never touches that wall at all**, so no offset can put the entrance into it — the
+exact mirror (2.1) lands on the BALCONY. The living room touches only the NORTH wall (6.3-10.2) and
+the EAST wall (0.1-8.6), so fixing this door means **moving the entrance to a different façade**,
+which is a decision about how the flat is entered, not a typo correction. **`tpl-hdb-4room` was
+different: its living room did touch the door's wall, which is why `.115` could fix it with one
+number.** Check each remaining template's wall before assuming the same shape.
+
+**Recommendation — continue with (h) per plan, but scan the wall FIRST.** Where the living room
+touches the door's wall, it is a one-number mirror; where it does not, it needs a façade decision
+and should stay here. The remaining 7 stay **ratcheted by name** in
+`src/floorplan/mainDoorRoom.test.ts`.
 
 ---
 
@@ -470,8 +484,8 @@ once. The remaining 7 stay **ratcheted by name** in `src/floorplan/mainDoorRoom.
 | e | Curtain vs nightstand | content | ✅ **SHIPPED v0.31.5.87** — curtain narrowed + nightstands outboard |
 | f | TEMPLATE-ROOM-ENCLOSURE | content | ⏳ **OPEN v0.31.5.109** — 9 templates ship unenclosed bathrooms; ratcheted by test |
 | g | LEVEL-ISOLATION-IN-WALK | renderer design + cost | ⏳ **OPEN v0.31.5.110** — walking an upper storey hides the one below; acute on `tpl-loft` |
-| h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — was 15 of 44; **14 left** after `tpl-hdb-4room` fixed in `.115`; ratcheted by test |
-| i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **7 left** after `tpl-hdb-4room` fixed in `.115`; same winding cause as (h) |
+| h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — was 15 of 44; **13 left** after `tpl-hdb-4room` (`.115`) and `tpl-hdb-5room` (`.116`); ratcheted by test |
+| i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **7 left**; `tpl-hdb-5room` proven NOT offset-fixable (`.116`) — needs a façade decision |
 
 **Five of nine items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
 ((d)). Each was implemented in its own committed round and marked here as it landed. **(f), (g), (h) and (i) are open** — and (h) and (i) share one cause, so they should be fixed together.

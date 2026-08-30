@@ -75,7 +75,10 @@ describe('dining chairs are tucked to their table', () => {
       // kitchen freed the wall the range hood needs, so the hood is no longer
       // dropped. Dumped per-def before touching this — the +1 is `range-hood`.
       'tpl-hdb-4room': 77,
-      'tpl-hdb-5room': 82,
+      // 82 until v0.31.5.116: same story as the 4-room a version earlier —
+      // moving the misplaced window OUT of the kitchen freed the wall the range
+      // hood needs. Dumped per-def first; the +1 is `range-hood`.
+      'tpl-hdb-5room': 83,
       'tpl-hdb-exec': 91,
       'tpl-hdb-3gen': 95,
       'tpl-hdb-jumbo': 120,
@@ -97,9 +100,10 @@ describe('dining chairs are tucked to their table', () => {
     })
     const total = Object.values(counts).reduce((s, n) => s + n, 0)
     // 1437 before `.111`; 1439 after it; 1440 after `.112`'s room-bounds guard;
-    // 1441 after `.115` restored the 4-room kitchen's range hood.
+    // 1441 after `.115` restored the 4-room kitchen's range hood; 1442 after
+    // `.116` restored the 5-room's.
     // Every step ADDED pieces — none of this deletes furniture.
-    expect(total).toBe(1441)
+    expect(total).toBe(1442)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

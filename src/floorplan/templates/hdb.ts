@@ -148,7 +148,12 @@ export function hdb5Room(): FloorPlan {
       door('h5-master', 'h5-m-n', 1.0),
       window('h5-kit-win', 'h5-n', 1.6, 1.8),
       window('h5-b2-win', 'h5-w', 4.4, 1.5),
-      window('h5-m-win', 'h5-w', 8.2, 1.6),
+      // BEDROOM-WINDOW (v0.31.5.116): was 8.2, which put the master's window at
+      // z=1.9 — in the KITCHEN. `h5-w` runs north→south from z=10.9 (len 10.8),
+      // and measuring the wall shows the master occupies offsets 0.4-3.9 while
+      // the kitchen occupies 7.8-10.8; 10.8 - 8.2 - 1.6 = 1.0 is the exact
+      // mirror and lands the glass at z=9.1, inside the Master Bedroom.
+      window('h5-m-win', 'h5-w', 1.0, 1.6),
       window('h5-liv-win', 'h5-e', 6.0, 2.2),
     ],
     rooms: [

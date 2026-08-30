@@ -5,6 +5,48 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.116 — tpl-hdb-5room: master window out of the kitchen (and why its front door is NOT fixable)
+
+**One fix, not two — and the half I could not do is the more useful finding.**
+
+**Fixed:** `window('h5-m-win', 'h5-w', 8.2 → 1.0, 1.6)`. `h5-w` runs north→south from z=10.9
+(len 10.8), so `10.8 - 8.2 - 1.6 = 1.0` is the exact mirror; the master's glass moves from **z=1.9,
+in the KITCHEN**, to z=9.1 in the master.
+
+**NOT fixed, for a measured reason.** I scanned every offset along all four perimeter walls and
+printed which room each lands in. `h5-s` — the front door's wall — is lined ONLY by **balcony
+(0.2-4.0), master bath (4.4-6.2) and master (6.4-10.2)**. **The Living / Dining never touches that
+wall**, so NO offset can put the entrance into it; the exact mirror (2.1) lands on the **balcony**,
+exactly as `.114` predicted. The living room touches only the north wall (6.3-10.2) and the east
+wall (0.1-8.6). Fixing `h5-main` therefore means **moving the entrance to a different façade** — a
+design decision, not a typo — so it stays open under item (i). **`tpl-hdb-4room` was a different
+problem wearing the same label**: its living room DID touch the door's wall, which is why `.115`
+fixed it with one number. A per-opening mirror calculation would have "fixed" this one onto a
+balcony; scanning the whole wall is what caught it.
+
+**Measured, against a baseline captured BEFORE the edit:** items **1441 → 1442**, stray dining
+chairs **17 → 17**, **only `tpl-hdb-5room` moves** (82 → 83); every other template byte-identical.
+Ratchets: windowless bedrooms **14 → 13** (owning 30 → 31); `mainDoorRoom`, `templateEnclosure` and
+`placeSeededMounts` all **unchanged**, as they must be when only a window moved.
+
+**The +1 was dumped per-def before touching any constant: another `range-hood`.** Identical
+mechanism to `.115` — the stray master window on the kitchen's west wall had been causing the
+extractor over the stove to be dropped. Two templates now, so this side effect generalises.
+Confirmed in frames: the hood renders over the hob.
+
+**Daylight measured on THIS template, not carried over from the 4-room.** A pre-fix arm was captured
+specifically for the A/B (the fix was reverted, frames taken, then restored). Per-room mean luma
+across four yaws: master **177.3 → 190.8 (+13.5)**; living, bedroom 2 and bedroom 3 flat to within
+0.1 — a clean control. **The kitchen went UP 3.7 (154.0 → 157.7), the OPPOSITE of the 4-room's
+−7.7.** It lost a window and got brighter; the newly restored steel hood plausibly returns more
+light than the glass did, but that is unverified and is reported as measured rather than explained.
+
+**Two things this template still gets wrong, stated rather than glossed:** its front door still
+opens into the master bedroom (above), and — as in `.115` — the arranger parks the 3-door wardrobe
+in front of the master's new window, so the glass is not directly visible from the room centre in
+any yaw. **That has now happened on both fixed templates, so it is systemic, not a one-off**, and is
+recorded for a dedicated round.
+
 ## v0.31.5.115 — tpl-hdb-4room: front door out of the master, window back into it
 
 **The first plan fixed** in the (h)/(i) arc, after three rounds of measuring. Two exact-mirror
