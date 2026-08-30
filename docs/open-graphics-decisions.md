@@ -1,6 +1,6 @@
 # Open graphics decisions
 
-Seven items the graphics-realism sweep (`v0.31.5.20`–`.110`) measured, diagnosed, and then
+Eight items the graphics-realism sweep (`v0.31.5.20`–`.113`) measured, diagnosed, and then
 deliberately did **not** change, because each one is a product or content judgement rather than a
 defect. Every measurable axis is now clean — the per-class chroma/coverage ranking (`.77`–`.81`),
 tier parity (`.82`), and time-of-day in the boot view (`.83`) — so these are what remains.
@@ -365,6 +365,56 @@ measured cost there is small. Benchmark on the Performance tier before committin
 
 ---
 
+## (h) BEDROOM-WINDOW — ⏳ OPEN, needs a content call (measured v0.31.5.113)
+
+**What you would see.** Load `tpl-hdb-4room`, walk into the Master Bedroom and turn through all
+four yaws: **four blank walls, no window.** Walk into the Kitchen and there are **two**. Confirmed
+in frames (`/tmp/tw7`, 36 frames, resolved `medium/on/manual13`) — this is seen, not inferred.
+
+**The size.** **15 of 44 template bedrooms own no window on any of their own walls**, including
+**seven master bedrooms**: `h3-bed2`, `h4-bed3`, `h4-master`, `h5-bed3`, `h5-master`, `ex-bed3`,
+`ex-bed2b`, `ex-master`, `g3-gen`, `g3-bed3`, `g3-master`, `jb-bed3`, `jb-master`, `c4-bed4`,
+`cp-master`. The probe is not vacuous — the other 29 bedrooms do own one.
+
+**The mechanism, and why it looks like an authoring slip rather than a design choice.**
+`templates/shared.ts:perimeter()` builds N and E "forwards" but **S and W backwards**: the west wall
+runs from `[T, D-T]` to `[T, T]`, i.e. decreasing z. A `window(id, wall, offset, width)` offset is
+measured from the wall's own start, so a west-wall offset written as if it were an absolute
+z-coordinate lands mirrored. Measured across all templates, **55 windows would change room if their
+offset were read from the other end** — and the tell is which ones: `h4-m-win`, `h5-m-win` and
+`ex-m-win`, all named for the master, **all land in the KITCHEN as authored and in the MASTER when
+flipped**. Three templates, same wall, same symptom.
+
+**Proven to be a one-number fix.** Changing `h4-m-win`'s offset from 7.4 to 0.7 removes
+`tpl-hdb-4room/h4-master` from the windowless list (verified, then reverted).
+
+**What needs a human.** Whether to flip the offsets, move the glass elsewhere, or re-cut those
+elevations is a decision about shipped Singapore reference plans that carry real project names —
+and HDB habitable rooms require natural light and ventilation, so getting this right is a content
+question, not a guess. It is the same class as (f): mechanical to apply, but it is someone's floor
+plan.
+
+**Recommendation — flip the S/W-wall offsets template by template, worst first**, starting with the
+three master bedrooms whose window currently opens into the kitchen (`tpl-hdb-4room`,
+`tpl-hdb-5room`, `tpl-hdb-exec`). Consider also giving `perimeter()` a consistent winding so the
+trap cannot recur. Until then the 15 are **ratcheted by name** in
+`src/floorplan/bedroomWindow.test.ts`.
+
+**This also blocks the window-treatment gap.** `applyLayoutPreset('move-in')` places **zero** window
+treatments on any template (measured: 0 across all 19) because no entry in `furnishPlan.ts`'s `KITS`
+is a curtain or blind — the default flat's curtains are hand-authored in
+`furniture/defaults/mainBedroom.ts`, not produced by the furnish pipeline. The machinery to fix that
+already exists and is shared with the 3D commit path (`placement/windowSnap.ts`'s
+`snapToNearestWindow` + `windowFixtureProps`; `arrangeRoles.roleOf` already treats `windowBound` as
+`'mounted'` so the arranger will not relocate one). **But seeding a curtain per bedroom would be
+actively wrong while (h) stands**: `snapToNearestWindow` picks the nearest window on the whole
+LEVEL, so each of those 15 windowless bedrooms would have its curtain snapped onto some other
+room's glass. Fix (h) first. Note also that the `curtains` def defaults to `drawAmount: 1`
+(CLOSED), which would contradict the curtains-open decision shipped in `.88`/`.92` — a seeded
+curtain must set `drawAmount: 0` explicitly.
+
+---
+
 ## Summary
 
 | # | Item | Kind | Recommendation |
@@ -376,9 +426,10 @@ measured cost there is small. Benchmark on the Performance tier before committin
 | e | Curtain vs nightstand | content | ✅ **SHIPPED v0.31.5.87** — curtain narrowed + nightstands outboard |
 | f | TEMPLATE-ROOM-ENCLOSURE | content | ⏳ **OPEN v0.31.5.109** — 9 templates ship unenclosed bathrooms; ratcheted by test |
 | g | LEVEL-ISOLATION-IN-WALK | renderer design + cost | ⏳ **OPEN v0.31.5.110** — walking an upper storey hides the one below; acute on `tpl-loft` |
+| h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — 15 of 44 template bedrooms have no window, incl. 7 masters; ratcheted by test |
 
-**Five of seven items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
-((d)). Each was implemented in its own committed round and marked here as it landed. **(f) and (g) are open.**
+**Five of eight items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
+((d)). Each was implemented in its own committed round and marked here as it landed. **(f), (g) and (h) are open.**
 Neither is a one-line answer: (f) is a request to re-draw shipped floor plans, scoped per template
 rather than decided once, and (g) is a renderer change whose cost must be benchmarked on the
 weak-device tier before it lands.

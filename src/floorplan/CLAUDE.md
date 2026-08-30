@@ -528,3 +528,23 @@ Consequences when authoring or editing a template:
   intentional double-height void). Do NOT "fix" a gap without checking the render first.
 - Re-drawing a shipped layout to fix any of this is a **content decision** — see
   `docs/open-graphics-decisions.md` item (f), not a unilateral edit.
+
+## `perimeter()` winds N/E forwards and S/W BACKWARDS (v0.31.5.113)
+
+`templates/shared.ts:perimeter(prefix, W, D)` emits the four external walls as
+`n: a→b`, `e: b→c`, `s: c→d`, `w: d→a` where `a=[T,T] b=[W-T,T] c=[W-T,D-T] d=[T,D-T]`. So **north
+runs +x, east runs +z, but south runs −x and west runs −z.**
+
+`window(id, wallId, offset, width)` measures `offset` from that wall's OWN start. A south- or
+west-wall offset written as if it were an absolute x/z coordinate therefore lands **mirrored**.
+Measured across all 20 templates: **55 windows change room if their offset is read from the other
+end** — and three of them are named for a master bedroom, land in the KITCHEN as authored, and land
+in the master when flipped (`h4-m-win`, `h5-m-win`, `ex-m-win`).
+
+The visible result: `tpl-hdb-4room`'s Master Bedroom has four blank walls and no window while its
+Kitchen has two — seen in frames, not inferred. **15 of 44 template bedrooms own no window**, 7 of
+them masters; ratcheted by name in `bedroomWindow.test.ts`. Fixing them means moving glass in
+shipped reference plans — `docs/open-graphics-decisions.md` item (h), not a unilateral edit.
+
+**When adding a window to a S or W wall, compute the offset from the wall's start**, or check it
+with a room-ownership probe. A convenient absolute coordinate is the trap.

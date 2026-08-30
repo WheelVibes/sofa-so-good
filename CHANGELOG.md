@@ -5,6 +5,47 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.113 — BEDROOM-WINDOW: 15 template bedrooms have no window, 7 of them masters
+
+Started as WINDOW-TREATMENTS-ON-TEMPLATES and found something underneath it.
+
+**Seen in frames, not inferred.** `tpl-hdb-4room`'s Master Bedroom shows **four blank walls and no
+window** across all four yaws, while its Kitchen has **two** (`/tmp/tw7`, 36 frames, resolved
+`medium/on/manual13`).
+
+**The size, stated honestly: 15 of 44 template bedrooms own no window on any of their own walls**,
+including **seven master bedrooms** — `h3-bed2`, `h4-bed3`, `h4-master`, `h5-bed3`, `h5-master`,
+`ex-bed3`, `ex-bed2b`, `ex-master`, `g3-gen`, `g3-bed3`, `g3-master`, `jb-bed3`, `jb-master`,
+`c4-bed4`, `cp-master`. The ownership probe is **not vacuous** — the other 29 bedrooms do own one,
+and that count is asserted so the ratchet cannot pass by measuring nothing.
+
+**Mechanism.** `perimeter()` winds N and E forwards but **S and W backwards** (the west wall runs
+`[T, D-T] → [T, T]`, decreasing z), while `window()`'s offset is measured from the wall's own start.
+An offset written as if it were an absolute coordinate lands mirrored. Across all templates **55
+windows would change room if read from the other end**, and the tell is which: `h4-m-win`,
+`h5-m-win` and `ex-m-win` — all named for the master — **all land in the KITCHEN as authored and in
+the MASTER when flipped.** Three templates, same wall, same symptom.
+
+**Proven to be a one-number fix, then reverted:** changing `h4-m-win`'s offset from 7.4 to 0.7 drops
+`tpl-hdb-4room/h4-master` off the windowless list. Both new tests fail against that lever and pass
+without it. Restored via a `cp` backup with `git diff --stat` verified empty — **not `git stash`,
+after `.112`'s incident.**
+
+**Not fixed, because it is someone's floor plan.** Moving glass in shipped Singapore reference
+plans is a content decision — recorded as item **(h)** in `docs/open-graphics-decisions.md` and
+ratcheted by name in `src/floorplan/bedroomWindow.test.ts`, so no new template can add another.
+
+**The original question, answered: templates get ZERO window treatments** (measured across all 19)
+because no `KITS` entry in `furnishPlan.ts` is a curtain or blind — the default flat's curtains are
+hand-authored in `furniture/defaults/mainBedroom.ts`, not produced by the furnish pipeline. The
+machinery to close that gap already exists and is shared with the 3D commit path
+(`placement/windowSnap.ts`; `roleOf` already treats `windowBound` as `'mounted'`). **But seeding a
+curtain per bedroom would be actively wrong while (h) stands** — `snapToNearestWindow` picks the
+nearest window on the whole LEVEL, so each of the 15 windowless bedrooms would have its curtain
+snapped onto another room's glass. And the `curtains` def defaults to `drawAmount: 1` (CLOSED),
+which would contradict the curtains-open decision shipped in `.88`/`.92`. **Fix (h) first.** That is
+the round's most useful conclusion: a reason NOT to build the obvious thing yet.
+
 ## v0.31.5.112 — ORPHAN-ITEMS: mostly not a defect, but it caught a regression I shipped in `.111`
 
 **The headline is the regression, not the orphans.** Pushing an orphan metric further found that my
