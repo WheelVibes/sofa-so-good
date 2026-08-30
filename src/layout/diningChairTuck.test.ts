@@ -78,7 +78,10 @@ describe('dining chairs are tucked to their table', () => {
       'tpl-hdb-jumbo': 120,
       'tpl-hdb-maisonette': 141,
       'tpl-studio': 23,
-      'tpl-1bed': 46,
+      // 46 until v0.31.5.112's room-bounds guard, which keeps one more 1-bed
+      // chair alive by refusing it a slot outside the room (it had been placed
+      // out there and then dropped).
+      'tpl-1bed': 47,
       'tpl-loft': 44,
       'tpl-condo-1bed': 44,
       'tpl-condo-1study': 53,
@@ -90,9 +93,9 @@ describe('dining chairs are tucked to their table', () => {
       'tpl-terrace-ground': 122,
     })
     const total = Object.values(counts).reduce((s, n) => s + n, 0)
-    // 1437 before the fix; the +2 are the 2-room and 1-bed dining tables, which
-    // previously failed to place at all.
-    expect(total).toBe(1439)
+    // 1437 before `.111`; 1439 after it; 1440 after `.112`'s room-bounds guard.
+    // Every step ADDED pieces — none of this deletes furniture.
+    expect(total).toBe(1440)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

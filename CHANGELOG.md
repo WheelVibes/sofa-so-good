@@ -5,6 +5,52 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.112 — ORPHAN-ITEMS: mostly not a defect, but it caught a regression I shipped in `.111`
+
+**The headline is the regression, not the orphans.** Pushing an orphan metric further found that my
+own `.111` fix had put a dining chair on the wrong floor.
+
+**`.111` regressed `tpl-condo-penthouse`, seen in frames.** A/B of `/tmp/tw3` (pre) against
+`/tmp/tw8` (post) shows `.111` moved the `dining-table-4` from z 6.02 to z 3.92 and tucked its
+chairs — but `cp-living` is only **2.6 m wide** (x 3.8–6.4), narrower than a 4-seat table with
+chairs on both sides, so two chairs landed past its west edge, one **0.52 m out on the pale
+circulation floor**, visibly on a different finish from the wood-floored living room. True
+before/after via `git checkout HEAD~1`: **floor orphans 1 → 4**, all three additions mine.
+
+**Cause:** `tryPlace` rejects walls, collisions and keep-outs but **has no notion of the room
+rectangle**, and `cp-living`'s west edge has no wall to stop anything. Fixed with a room-bounds
+guard on the chair slots. **`TOL = 0.2` was chosen from the geometry, not tuned to a test** — room
+rects sit ~0.1–0.2 m inside their wall centrelines, so a few centimetres past an edge is still
+within the room's walls. Both settings measured before choosing: `0.05` → 18 stray / 1 floor
+orphan; `0.2` → 17 stray / 3 floor orphans. Shipped 0.2 because tucking is unharmed (17, same as
+`.111`) and the one visually wrong chair is gone. Verified in a third walk (`/tmp/tw9`):
+`dining-chair@3.20,3.92` is replaced by `dining-chair@4.22,2.72`, inside the room, and the chair
+has left the pale floor in the frame.
+
+**Floor orphans are 3, not 0, and the metric is coarser than its name.** What remains: a chair
+0.08 m and a `candle-cluster` 0.07 m past `cp-living`'s edge — inside the wall inset, not on
+another floor; and `tpl-hdb-jumbo`'s `nightstand@2.07,12.63`, 0.07 m outside `jb-mbath`, whose real
+problem is the ROOM not the distance — **a symptom of item (f)**, since jumbo's master and both
+baths share one undivided enclosure. Not a new bug.
+
+**The orphan sweep itself: NO DEFECT.** Of 8 own-level orphans, 4 are decor props (`noClip`) 0.03–
+0.07 m past a boundary — a bowl or cushion overhanging its host. Room rects do not tile a plan
+(every template has unassigned circulation, `.109`), so a boundary crossing is invisible in 3D
+unless it looks wrong. **Note the instrument changed between rounds**: `.111` tested membership on
+ANY level, this round on the item's OWN level. The counts are not comparable; own-level is the
+right question.
+
+**Items 1437 (pre-`.111`) → 1439 (`.111`) → 1440 (`.112`).** Every step ADDED pieces; nothing was
+deleted. `diningChairTuck.test.ts` updated: `tpl-1bed` 46 → 47, because the guard keeps one more
+chair alive by refusing it an out-of-room slot where it had been placed and then dropped.
+
+**Process failure worth recording: I popped the user's git stash.** `git stash push <file>` on a
+file with no local modifications creates NO stash entry, so the following `git stash pop` popped a
+pre-existing unrelated stash and left `package-lock.json` in conflict. Repaired with
+`git checkout HEAD -- package-lock.json`; the stash is intact. It also produced a failed mutation —
+the first before/after was byte-identical because no revert had happened. **Revert-the-lever now
+uses `cp` backup or `git checkout HEAD~1 -- <file>`, never `git stash` on a committed file.**
+
 ## v0.31.5.111 — DINING-PHANTOM: chairs were arranged around a table position that never existed
 
 **Stray dining chairs (>1.2 m from their table) across all 19 templates: 50 → 17.** Not zero, and

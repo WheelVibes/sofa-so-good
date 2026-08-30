@@ -44,3 +44,25 @@ did nothing. Verify which branch runs before changing the other.
 
 Coverage: `diningChairTuck.test.ts` (asserts tucking AND per-template item counts, because a
 fix that quietly deletes furniture is worse than the bug — see `.106`).
+
+## `tryPlace` has no notion of the room rectangle (v0.31.5.112)
+
+`tryPlace` rejects walls, collisions, door keep-outs and window keep-outs. It does **not** know
+which room it is placing into. On a room with an OPEN edge — no wall to collide with — a slot can
+be perfectly valid physically and still land on the circulation floor beyond the room, on a
+different floor finish.
+
+This bit `.111`: `cp-living` in `tpl-condo-penthouse` is **2.6 m wide**, narrower than a 4-seat
+table plus chairs on both sides, so tucking the chairs pushed two of them past its west edge — one
+by 0.52 m, visibly standing on pale circulation floor next to a wood-floored living room. The
+chair-slot loop in `arrangeLivingAnyEdge` therefore skips any slot more than `TOL` outside `rect`.
+
+**`TOL = 0.2` comes from the geometry, not from a test.** Room rects sit ~0.1–0.2 m inside their
+wall centrelines, so a few centimetres past an edge is still within the room's walls; half that
+margin is where a piece is demonstrably on another floor. Both settings were measured before
+choosing — `0.05`: 18 stray chairs / 1 floor orphan; `0.2`: 17 stray / 3 floor orphans, of which
+the two chair cases are 0.08 m out (inside the wall inset). 0.2 keeps tucking unharmed AND removes
+the only visually wrong chair.
+
+If you add another slot-based placement, apply the same guard. A physically valid position is not
+automatically a position in the right room.

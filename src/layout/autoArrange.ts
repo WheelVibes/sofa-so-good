@@ -793,12 +793,28 @@ function arrangeLivingAnyEdge(
       { pos: build(tAlong - (exAlong + 0.32), tDepth), rot: endRot },
       { pos: build(tAlong + (exAlong + 0.32), tDepth), rot: endRot + Math.PI },
     )
+    // A slot outside the room is not a slot. `tryPlace` only rejects walls,
+    // collisions and keep-outs — it has no notion of the room rectangle, so on a
+    // NARROW room (`cp-living` is 2.6 m wide, less than a 4-seat table plus
+    // chairs on both sides) a slot can be physically valid yet stand on the
+    // circulation floor beyond the room's open edge, on a different floor
+    // finish. Measured in v0.31.5.111 before this guard: two penthouse chairs
+    // 0.08 m and 0.52 m outside `cp-living`.
+    // Room rects sit ~0.1-0.2 m inside their wall centrelines, so a slot a few
+    // centimetres past an edge is still within the room's walls. Half that
+    // margin is the point past which a chair is demonstrably on another floor.
+    const TOL = 0.2
+    const insideRoom = (p: [number, number]) =>
+      p[0] >= rect.x0 - TOL &&
+      p[0] <= rect.x1 + TOL &&
+      p[1] >= rect.z0 - TOL &&
+      p[1] <= rect.z1 + TOL
     const taken = new Set<number>()
     chairs.forEach((ch, i) => {
       // Preferred slot first, then any slot no other chair has claimed.
       for (const k of [i, ...slots.map((_, n) => n).filter((n) => n !== i)]) {
         const slot = slots[k]
-        if (!slot || taken.has(k)) continue
+        if (!slot || taken.has(k) || !insideRoom(slot.pos)) continue
         if (tryPlace(ch, slot.pos, slot.rot, world, ctx) !== ch) {
           taken.add(k)
           return
