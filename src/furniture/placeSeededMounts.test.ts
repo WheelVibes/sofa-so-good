@@ -168,3 +168,69 @@ describe('flushing uses the ROTATED extents', () => {
     expect(mirror!.position[0] - room.origin[0]).toBeLessThan(0.1)
   })
 })
+
+/**
+ * SETTLE-ORIGIN (v0.31.5.108) — the seed-point rescue widened past `'mounted'`
+ * to every piece that belongs against a wall.
+ *
+ * Two earlier attempts were reverted (`.106`) because the rescue DELETED
+ * furniture: flushing a piece to a wall dropped it onto something already there,
+ * or into a door keep-out, and the passes that run afterwards removed it. The
+ * accept criteria are therefore BOTH directions at once — stranded pieces must
+ * fall AND the total item count must not. Baseline across the 19 templates is
+ * 900 items; this lands 901 with stranded 20 -> 3.
+ */
+describe('SETTLE-ORIGIN: wall-hugging pieces are rescued without losing any', () => {
+  const sweep = () => {
+    const WALL_HUGGING = new Set([
+      'toilet',
+      'bathroom-sink',
+      'nightstand',
+      'bench',
+      'cube-shelf',
+      'shoe-cabinet',
+    ])
+    // A rug, coffee table, dining table or patio table at the room centre is
+    // CORRECT. Moving those would be the bug, not the fix.
+    const CENTRE_IS_RIGHT = new Set(['rug', 'coffee-table', 'dining-table-4', 'outdoor-table'])
+    let total = 0
+    let stranded = 0
+    let centred = 0
+    for (const tpl of PLAN_TEMPLATES) {
+      const plan = tpl as FloorPlan
+      const items = furnish(plan)
+      total += items.length
+      for (const level of planLevels(plan)) {
+        for (const room of level.rooms) {
+          const [cx, cz] = roomCentreOf(plan, room.id)
+          for (const it of items) {
+            if ((it.levelId ?? GROUND_LEVEL_ID) !== level.id) continue
+            if (Math.abs(it.position[0] - cx) > 1e-6 || Math.abs(it.position[1] - cz) > 1e-6)
+              continue
+            if (WALL_HUGGING.has(it.defId)) stranded++
+            if (CENTRE_IS_RIGHT.has(it.defId)) centred++
+          }
+        }
+      }
+    }
+    return { total, stranded, centred }
+  }
+
+  it('loses NO furniture — the criterion two reverted attempts failed', () => {
+    // 893 and 895 on the earlier tries. This is the assertion that caught them;
+    // "stranded = 0" alone reported success while items were being deleted.
+    expect(sweep().total).toBeGreaterThanOrEqual(900)
+  }, 30_000)
+
+  it('cuts wall-hugging pieces stranded on the seed point from 20 to a handful', () => {
+    // Not zero, and deliberately not asserted as zero: three pieces sit in rooms
+    // with no wall slot clear of both furniture and a door keep-out. They are
+    // LEFT in place rather than stacked, because losing furniture is worse than
+    // leaving it misplaced.
+    expect(sweep().stranded).toBeLessThanOrEqual(3)
+  }, 30_000)
+
+  it('CONTROL: pieces that BELONG at the room centre are untouched', () => {
+    expect(sweep().centred).toBe(17)
+  }, 30_000)
+})

@@ -5,6 +5,59 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.108 — SETTLE-ORIGIN: wall-hugging fixtures rescued off the seed point, without losing any
+
+**Third attempt; the first two were reverted in `.106` for deleting furniture.** The accept
+criteria were therefore BOTH directions at once — stranded pieces must fall AND the item count
+must not. This lands **901 items** (baseline 900), **stranded 20 → 3**, mounts stranded 0, and
+the **17** legitimately-centred rugs/coffee-tables/patio-tables untouched.
+
+**What actually blocked it, measured rather than guessed.** The furnish pipeline has THREE
+removal stages, and I had been attributing the losses to the wrong one — `.107` retracted a
+claim about `computeItemOverlaps` that testing disproved. Instrumenting the three stages
+separately gave the answer in one run:
+
+    overlap 102   door 10   wall 2
+
+and the door casualties were exactly the kinds this pass moves — 3 `bathroom-sink`, 2
+`nightstand`, 1 `bench`. **The rescue was flushing pieces to the only wall they fit against
+when that wall sits inside a door keep-out**, and `dropDoorBlockers` then deleted them. (That
+is the same geometry `.106` measured for `tpl-1bed/ob-bath`'s toilet: the one edge where
+`canPlace` succeeded was the one with `keepOut=2`.) Adding
+`doorKeepOutRects(levelAsPlan(plan, level))` to the slide loop is what closed it, and removing
+it again fails the no-loss test.
+
+**The pass now.** Widened from role `'mounted'` to `WALL_HUGGING_CATEGORIES =
+{bathroom, storage, seating}` through `wantsWall()` — **category, not arrange-role**, because
+`bench` and `coffee-table` are both role `lowTable` while `toilet` and `outdoor-table` are both
+role `other`; `tables` and `textiles` are excluded deliberately, since a rug or a low table
+belongs in the middle of the room. Claims are **level-wide** (a piece flushed near a room edge
+can otherwise land on a neighbouring room's furniture) and both sides are boxed with
+**`itemAabbBox`**, the same box the real broadphase uses, so the two cannot disagree. Mounts
+neither reserve floor space nor yield to it — the overlap narrowphase is height-aware
+(`.107`), so a mirror above a basin is not a clash. **A piece with no clear slot is left
+exactly where it is, never stacked.**
+
+**Measured effect.** `tpl-terrace-ground/ctu-landing`'s `bench` moved from [5.45, 6.95] — the
+room's exact centre, in a 1.5 m corridor — to [4.90, 7.55]; `tpl-hdb-4room/h4-cbath`'s toilet
+from [4.50, 7.25] to [4.50, 7.57]; `tpl-1bed/ob-bath`'s toilet from [4.40, 4.25] to
+[4.97, 4.25]. None was deleted. The upper-storey tour reports 199 visible meshes against 197
+before, consistent with fewer pieces being dropped.
+
+**THREE ARE STILL STRANDED and that is not rounded away:** `tpl-hdb-2room/h2-shelter/cube-shelf`,
+`tpl-hdb-3gen/g3-cbath/bathroom-sink`, `tpl-condo-penthouse/cp-foyer/bench` — rooms with no wall
+slot clear of both furniture and a door swing. Leaving a fixture misplaced beats destroying it.
+
+**The landing frames look the SAME as before**, and that is worth stating rather than glossing:
+the `shoe-cabinet` visible mid-corridor sits at [5.45, 4.84], on the centre LINE but not at the
+exact centre POINT, so this pass never touches it — it was placed there by the arranger. The
+frame check therefore confirms no regression rather than demonstrating the fix; the fix is
+visible in the data above and in rooms the tour does not pose in.
+
+**Tests:** 3 added (10 in `placeSeededMounts.test.ts`) — loses NO furniture (`total >= 900`,
+the assertion that caught both reverted attempts and would have caught them before they
+shipped), stranded `<= 3`, and a control that exactly 17 centre-correct pieces stay put.
+
 ## v0.31.5.107 — RETRACTION: `.106`'s stated cause was WRONG; `computeItemOverlaps` is already height-aware
 
 **`.106` shipped a false causal claim and this entry withdraws it.** That entry said:

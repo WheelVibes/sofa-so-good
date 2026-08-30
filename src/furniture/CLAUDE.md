@@ -2,6 +2,25 @@
 
 Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
 
+- **The seed-point rescue must avoid DOOR KEEP-OUTS, or the piece gets deleted (SETTLE-ORIGIN,
+  v0.31.5.108).** `placeSeededMounts` pulls a piece off `seedRoom`'s room-centre placeholder,
+  but three later passes can remove it — `dropOverlaps`, `dropDoorBlockers`, `dropWallClippers`.
+  Measured across the 19 templates: overlap 102, **door 10**, wall 2, and the door casualties
+  were exactly the kinds this pass moves. Flushing a fixture to the only wall it fits against is
+  worthless when that wall sits behind a door swing. The slide loop therefore tests
+  `doorKeepOutRects(levelAsPlan(plan, level))` as well as the furniture claims.
+  · **Claims are level-wide and use `itemAabbBox`** — the same box the real broadphase uses, on
+  BOTH sides. Same-room-only claims let a piece near a room edge land on a neighbour's
+  furniture; mixing rotated and unrotated extents produced phantom clearance.
+  · **Mounts neither reserve floor space nor yield to it.** The overlap narrowphase is
+  height-aware (`itemsCollide` takes a `verticalSpan`), so a mirror above a basin is not a
+  clash — verified, after `.106` asserted the opposite and `.107` retracted it.
+  · **Never stack: a piece with no clear slot stays where it is.** Two earlier attempts traded
+  20 misplaced fixtures for 7 deleted ones (900 → 893). Losing furniture is worse than leaving
+  it misplaced, and the test that pins it is the item COUNT, not the stranded count.
+  · Selection is by **category** (`bathroom`/`storage`/`seating`), not arrange-role: `bench` and
+  `coffee-table` share role `lowTable`, `toilet` and `outdoor-table` share role `other`.
+  `tables` and `textiles` are excluded — a rug or coffee table belongs at the room centre.
 - **A kit-seeded WALL/CEILING MOUNT must be placed by `placeSeededMounts`, because the arranger
   will not move it (MOUNTED-SEED, v0.31.5.103).** `seedRoom` gives every kit piece the ROOM
   CENTRE as a placeholder, and `layout/autoArrange.ts:arrangeCore` treats role

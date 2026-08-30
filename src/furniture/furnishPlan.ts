@@ -12,7 +12,8 @@
  *
  * Pure + deterministic (no store, no GPU) → unit-testable.
  */
-import { findItemOverlaps, findWallClips, itemFootprint } from '../collision/placement'
+import type { AabbItem } from '../collision/broadphase'
+import { findItemOverlaps, findWallClips, itemAabbBox, itemFootprint } from '../collision/placement'
 import { GROUND_LEVEL_ID, levelAsPlan, planLevels } from '../floorplan/levels'
 import { planCollisionWalls } from '../floorplan/planGeometry'
 import { roomCategory } from '../floorplan/roomCategory'
@@ -319,6 +320,31 @@ function dropWallClippers(
 }
 
 /**
+ * Categories whose pieces belong against a wall, so one still sitting on the
+ * seed point is a placement failure rather than a choice (SETTLE-ORIGIN).
+ *
+ * Chosen by CATEGORY, not by arrange-role, because role is too coarse: `bench`
+ * and `coffee-table` are both role `lowTable`, and `toilet` and `outdoor-table`
+ * are both role `other`. Category separates them (`seating`/`tables`,
+ * `bathroom`/`outdoor`), and deliberately EXCLUDES `tables` and `textiles` — a
+ * rug, coffee table or dining table belongs in the middle of the room, and the
+ * sweep found 17 of those correctly centred.
+ */
+const WALL_HUGGING_CATEGORIES = new Set(['bathroom', 'storage', 'seating'])
+
+/** Whether a piece found on the seed point should be pulled to a wall. */
+function wantsWall(item: FurnitureItem, defs: Record<string, FurnitureDef>): boolean {
+  if (roleOf(item.defId, defs) === 'mounted') return true
+  const cat = defs[item.defId]?.category
+  return cat ? WALL_HUGGING_CATEGORIES.has(cat) : false
+}
+
+/** AABB overlap on the broadphase boxes (`itemAabbBox`). */
+function aabbHit(a: AabbItem, b: AabbItem): boolean {
+  return a.minX < b.maxX && a.maxX > b.minX && a.minZ < b.maxZ && a.maxZ > b.minZ
+}
+
+/**
  * Place the MOUNTED fixtures a kit seeded but the arranger deliberately left
  * alone (MOUNTED-SEED).
  *
@@ -355,6 +381,22 @@ export function placeSeededMounts(
   const moved = new Map<string, FurnitureItem>()
   for (const level of planLevels(plan)) {
     const onLevel = items.filter((it) => (it.levelId ?? GROUND_LEVEL_ID) === level.id)
+    // Floor space already spoken for, across the WHOLE storey — a piece flushed
+    // near a room edge can otherwise land on a neighbouring room's furniture.
+    // Mounts are excluded on purpose: the overlap narrowphase is height-aware
+    // (`itemsCollide` takes a `verticalSpan`), so a mirror above a basin is not
+    // a clash and must neither reserve floor nor be blocked by it (.107).
+    const floorClaims: AabbItem[] = []
+    // Door swings + approach strips on this storey. A rescue MUST avoid them:
+    // `dropDoorBlockers` runs after this pass and deletes any floor piece left
+    // in one — measured as 10 of the losses, and exactly the kinds this pass
+    // moves (3 bathroom-sink, 2 nightstand, 1 bench). Flushing a fixture to the
+    // only wall it fits against is worthless if that wall is behind a door.
+    const doorKeepOut = doorKeepOutRects(levelAsPlan(plan, level))
+    const claimable = (it: FurnitureItem) => {
+      const d = defs[it.defId]
+      return !!d && !d.noClip && !d.mounted && roleOf(it.defId, defs) !== 'ceiling'
+    }
     for (const room of level.rooms) {
       const [cx, cz] = roomCentre(room)
       const inRoom = onLevel.filter(
@@ -367,11 +409,22 @@ export function placeSeededMounts(
       // Still exactly at the seed point = never placed by the arranger.
       const stranded = inRoom.filter(
         (it) =>
-          roleOf(it.defId, defs) === 'mounted' &&
+          wantsWall(it, defs) &&
           Math.abs(it.position[0] - cx) < EPS &&
           Math.abs(it.position[1] - cz) < EPS,
       )
       if (stranded.length === 0) continue
+      if (floorClaims.length === 0) {
+        for (const other of onLevel) {
+          if (!claimable(other)) continue
+          floorClaims.push(itemAabbBox(other, defs[other.defId]!))
+        }
+      }
+      // The pieces about to move stop reserving their old (seed) spot.
+      for (const it of stranded) {
+        const k = floorClaims.findIndex((c) => c.id === it.id)
+        if (k >= 0) floorClaims.splice(k, 1)
+      }
       const rect = {
         minX: room.origin[0],
         minZ: room.origin[1],
@@ -406,17 +459,41 @@ export function placeSeededMounts(
         // `wall-mirror` flushed by its 0.3 m half-WIDTH sat 0.27 m proud of the
         // wall (measured 5.05 against a room edge at 4.70; now 4.73).
         const sideways = edge === 'W' || edge === 'E'
-        moved.set(it.id, {
-          ...it,
-          position: flushToWall(
-            it.position,
-            rect,
-            edge,
-            sideways ? fp.hz : fp.hx,
-            sideways ? fp.hx : fp.hz,
-          ),
-          rotation: rotationForEdge(edge),
-        })
+        const halfX = sideways ? fp.hz : fp.hx
+        const halfZ = sideways ? fp.hx : fp.hz
+        const rot = rotationForEdge(edge)
+        const base = flushToWall(it.position, rect, edge, halfX, halfZ)
+        const isMount = roleOf(it.defId, defs) === 'mounted'
+        // A mount takes the wall unconditionally — it hangs above the floor, so
+        // nothing down there can block it. A FLOOR piece slides along the wall
+        // until its box is clear of everything already placed, measured with the
+        // SAME `itemAabbBox` the real broadphase uses so the two cannot disagree.
+        let spot: [number, number] | null = isMount ? base : null
+        if (!isMount) {
+          const along = sideways ? halfZ : halfX
+          const lo = (sideways ? rect.minZ : rect.minX) + along
+          const hi = (sideways ? rect.maxZ : rect.maxX) - along
+          const step = Math.max(0.1, along)
+          for (let k = 0; k <= 16 && !spot; k++) {
+            for (const dir of k === 0 ? [0] : [1, -1]) {
+              const t = (sideways ? base[1] : base[0]) + dir * k * step
+              if (t < lo - 1e-9 || t > hi + 1e-9) continue
+              const p: [number, number] = sideways ? [base[0], t] : [t, base[1]]
+              const box = itemAabbBox({ ...it, position: p, rotation: rot }, def)
+              if (floorClaims.some((c) => aabbHit(box, c))) continue
+              const fb = { x0: box.minX, x1: box.maxX, z0: box.minZ, z1: box.maxZ }
+              if (doorKeepOut.some((k) => rectsOverlap(fb, k))) continue
+              spot = p
+              break
+            }
+          }
+        }
+        // Nowhere clear along that wall: leave it untouched. Stacking it on
+        // another piece would let `dropOverlaps` DELETE one of them, and losing
+        // furniture is worse than leaving it misplaced (measured 900 -> 893).
+        if (!spot) continue
+        if (!isMount) floorClaims.push(itemAabbBox({ ...it, position: spot, rotation: rot }, def))
+        moved.set(it.id, { ...it, position: spot, rotation: rot })
       }
     }
   }
