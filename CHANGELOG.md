@@ -5,6 +5,31 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.160 — a better-controlled metric, and it moves the target
+
+**Measurement only.** Three rounds of failing to close the upholstery gap were reason to question the
+measurement, not just the fixes.
+
+**One more refutation first.** `getFabricNormal()` returns a shared 256² singleton with `repeat` left
+at (1, 1), so one weave tile stretches across a whole face — 0.6 m on a cushion, 2.0 × 1.4 m on a rug,
+1.0 × 2.75 m on a curtain panel: the same "one scale per object" defect `.147` found in wood. Swept
+it: micro/mean **0.0470 (1×) → 0.0388 (3×) → 0.0356 (6×)**. **Finer is worse**, monotonically — at
+walking distance a finer weave falls under the screen sampling rate and mipmaps average it away. That
+is the fourth consecutive lever that moves micro-contrast the wrong way.
+
+**Then a fairer metric: compare fabric with the WALL IN THE SAME IMAGE**, which removes exposure,
+subject and compression differences at a stroke. The photograph's own plain wall measures **0.0078** —
+a *lower* noise floor than the app's walls (0.0073–0.0156), so **the JPEG-noise caveat from `.157` is
+dead**. Within one image the photograph's fabric carries **~18× its wall's micro-contrast**; in the
+app the same ratio is **~2.3×**. The app's textiles are under-textured by roughly **8× relative to its
+own walls**, and that survives every difference between the two images.
+
+**The target moves too.** The curtain, not the sofa, is the bigger gap — app 0.0248 against the
+photograph's 0.140–0.187, about **6× flatter**, versus the sofa's 3.7×. Three rounds went into
+cushions while the larger, flatter textile sat in the same frame. `.156` fixed the curtain's fold
+*direction*; the missing contrast is in its fold *shadows*, and `.156` also records the constraint the
+fix must respect — depth is capped by the window-sill standoff.
+
 ## v0.31.5.159 — the tessellated cushion: built, iterated four times, reverted
 
 `.157` said the upholstery gap is geometric; `.158` eliminated part-jitter as the cheap version. This

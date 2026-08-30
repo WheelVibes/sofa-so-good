@@ -1162,3 +1162,53 @@ route is exhausted (weave settled at 1.3, the wrinkle channel moves microcontras
 So the upholstery gap is **not closable by tuning**: it needs either genuine cloth simulation baked
 per cushion, or a hand-authored crease normal map at a resolution the procedural generator does not
 currently reach. That is a project, not a round, and this is the evidence for scoping it.
+
+
+## A better-controlled metric, and it moves the target (v0.31.5.160)
+
+Three rounds of failing to close the upholstery gap were reason to question the *measurement*, not
+just the fixes.
+
+**First, one more refutation.** If the app's cloth is flat, perhaps its weave is simply too coarse:
+`getFabricNormal()` returns a **shared 256² singleton with `repeat` left at (1, 1)**, so one tile
+stretches across a whole face — 0.6 m on a cushion, 2.0 × 1.4 m on a rug, 1.0 × 2.75 m on a curtain
+panel — exactly the "one scale per object, stretched by aspect" defect `.147` found in wood. Swept the
+shared repeat 1× → 3× → 6×:
+
+| weave repeat | micro/mean |
+| --- | --- |
+| **1× (shipped)** | **0.0470** |
+| 3× | 0.0388 |
+| 6× | 0.0356 |
+
+**Finer is worse**, monotonically. At walking distance a finer weave falls under the screen sampling
+rate and the mipmap chain averages it away. The shipped tiling is at its sweet spot for this pose, and
+that is the fourth consecutive lever that moves micro-contrast the wrong way.
+
+**Second, a fairer metric — compare fabric to the WALL IN THE SAME IMAGE.** Absolute micro-sd across
+two images conflates exposure, subject and JPEG noise. A within-image ratio removes all three:
+
+| | mean | micro-sd | micro/mean |
+| --- | --- | --- | --- |
+| photo: plain wall | 199.8 | 1.56 | **0.0078** |
+| photo: pale cream curtain (left) | 184.2 | 25.73 | **0.1397** |
+| photo: pale cream curtain (mid) | 170.2 | 31.84 | **0.1871** |
+| photo: dark leather sofa | 87.8 | 15.28 | 0.1739 |
+| app: pale cream curtain | 158.9 | 3.94 | **0.0248** |
+| app: pale woven sofa | 141.8 | 6.66 | **0.0470** |
+
+Two things fall out.
+
+**The JPEG-noise caveat from `.157` is dead.** The photograph's own plain wall sits at **0.0078** — a
+*lower* noise floor than the app's walls (0.0073–0.0156). Compression is not what inflates its fabric
+numbers; within one image, fabric carries **~18× the wall's micro-contrast**. In the app that ratio is
+about **2.3×**. So the app's textiles are under-textured by roughly **8× relative to its own walls**,
+and that statement survives every difference between the two images.
+
+**And the target moves.** The curtain, not the sofa, is the bigger gap — **0.0248 against 0.140–0.187,
+about 6× flatter**, versus the sofa's 3.7×. Three rounds were spent on cushions while the larger,
+flatter textile was in the same frame. `.156` already found the curtain was an extrusion and fixed the
+fold *direction*; what this says is that its fold *contrast* — the dark shadow between gathers, which
+in the photograph is deep and irregular — is where the missing 6× lives. That is the next round, and
+`.156` records the one hard constraint it must respect: fold depth is capped by the window-sill
+standoff, so the contrast has to come from somewhere other than simply making the wave deeper.
