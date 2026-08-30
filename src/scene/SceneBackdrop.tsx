@@ -1,12 +1,16 @@
 import { useThree } from '@react-three/fiber'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { CanvasTexture, EquirectangularReflectionMapping, SRGBColorSpace, Texture } from 'three'
 import { useFeature } from '../features/useFeature'
 import type { CameraMode } from '../state/slices/cameraSlice'
 import type { BackdropKind } from '../state/slices/uiSlice'
 import { useStore } from '../state/store'
 import { bakeBackdropEquirect, bakeSkyEquirect, type PhotoBackdropKind } from './backdropEquirect'
-import { skyFromAltitude } from './lighting/altitudeCurve'
+import {
+  daylightFromAltitude,
+  lightingFromAltitude,
+  skyFromAltitude,
+} from './lighting/altitudeCurve'
 import { type SkyState, shouldRebuildSky } from './lighting/skyRebuild'
 import { orientedSunDirection } from './lighting/sunPosition'
 import { useSunPosition } from './lighting/useSunPosition'
@@ -80,6 +84,21 @@ export function SceneBackdrop() {
   const cameraMode = useStore((s) => s.cameraMode)
   const customUrl = useStore((s) => s.customBackdropUrl)
   const proceduralSky = useFeature('proceduralSky')
+  // PHOTO-BACKDROP-HOUR: the static presets are authored at one time of day, which
+  // measurably fights the interior's own grade (at 18:00 `city` renders COOLER
+  // than the room in front of it). Re-bake them against the hour. Quantised to
+  // 0.1 so scrubbing the time slider cannot re-bake the equirect every frame.
+  const sunAlt = useSunPosition().altitude
+  const daylight = Math.round(daylightFromAltitude(sunAlt) * 10) / 10
+  // Warmth follows how LOW the sun is (0 above 30°, 1 on the horizon), NOT the
+  // night ramp — which saturates at 1 for every altitude above 0° and so would
+  // leave golden hour, the hour the defect was measured at, untouched.
+  const altDeg = (sunAlt * 180) / Math.PI
+  const lowSun = Math.round(Math.max(0, Math.min(1, 1 - altDeg / 30)) * 10) / 10
+  // Quantised to half a degree AND memoised, so the tint is referentially stable
+  // across frames — otherwise a fresh array every render re-bakes the equirect.
+  const altQ = Math.round(altDeg * 2) / 2
+  const tint = useMemo(() => lightingFromAltitude((altQ * Math.PI) / 180).sunColor, [altQ])
   // `sky` is owned by SkyBackdrop; when the flag is off it falls back to no
   // backdrop (the plain dome) rather than a static photo.
   const isSky = kind === 'sky'
@@ -114,7 +133,11 @@ export function SceneBackdrop() {
     } else if (kind !== 'custom' && kind !== 'none') {
       // `active` already excludes the `sky` kind (owned by SkyBackdrop), so the
       // remaining kinds are the static photo presets.
-      apply(new CanvasTexture(bakeBackdropEquirect(kind as PhotoBackdropKind)))
+      apply(
+        new CanvasTexture(
+          bakeBackdropEquirect(kind as PhotoBackdropKind, { daylight, lowSun, tint }),
+        ),
+      )
     }
 
     return () => {
@@ -123,7 +146,7 @@ export function SceneBackdrop() {
       texture?.dispose()
       invalidate()
     }
-  }, [active, kind, customUrl, scene, invalidate])
+  }, [active, kind, customUrl, daylight, lowSun, tint, scene, invalidate])
 
   // The sun-driven sky mounts only when its feature is on AND the sky kind is
   // selected + active in walk mode.

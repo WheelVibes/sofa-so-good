@@ -951,3 +951,44 @@ photo backdrops daylight-aware (blend `sky`/`haze`/`ground` toward the analytic 
 hour, and scale `litScale` with 1 − daylight so lit windows only appear at night). That removes the
 one measured objection to a content-bearing default, after which windows would stop reading as
 lightboxes for every user rather than only for those who go and change a setting.
+
+
+## Photo backdrops that track the clock — right mechanism, small effect (v0.31.5.155)
+
+`.154` ended with a precise next step: the static photo backdrops are authored at one time of day, and
+at 18:00 `city` renders **cooler** than the interior in front of it (window-region R/B 0.973 against
+the analytic sky's 1.034). This implements the preset side of that.
+
+**New pure `presetForDaylight(preset, hour)` in `backdropEquirect.ts`,** taking two *separate* signals,
+and the separation is the whole design:
+
+- **`daylight`** (0 night … 1 day) drives **dimming** and lit-window density.
+- **`lowSun`** (0 sun high … 1 sun on the horizon) drives the **warm shift**.
+
+They cannot be one signal. The first implementation used `daylightFromAltitude` for both, shipped,
+measured — and moved nothing: **`daylightFromAltitude` is a NIGHT ramp** (`(altDeg + 8) / 8`, clamped),
+so it reports exactly 1.0 at every altitude above 0°. At 18:00 the sun is still **16.4° up**, so the
+preset was returned unchanged at precisely the hour the defect was measured at. `lowSun` is
+`1 − altDeg/30` instead, and the tint is `lightingFromAltitude(...).sunColor`.
+
+Six unit tests pin it, including that midday is the **identity** (so nothing about the shipped look
+can move), that golden hour warms *without* dimming, and that a preset with no lit windows stays
+`undefined` rather than becoming `NaN`.
+
+**Measured through the window, same pose, same crop:**
+
+| | mean | R/B |
+| --- | --- | --- |
+| `sky` 13:00 (default) | 185.9 | 0.968 |
+| `city` 13:00 before → after | 190.2 → 190.3 | 0.974 → **0.974** (identity, as designed) |
+| `sky` 18:00 (default) | 185.1 | **1.034** |
+| `city` 18:00 before → after | 186.6 → 186.0 | 0.973 → **0.980** |
+
+**The direction is right and the midday identity holds exactly, but the effect is small** — 0.007 of
+a 0.061 gap, about 12 %. Two honest reasons: the analytic `sunColor` at 16° is only mildly warm
+(≈[1, 0.945, 0.85]), and the backdrop reaches the measured region only faintly, through a tinted pane
+carrying its own sky-catch emissive. **So this does not on its own justify making a photo backdrop the
+default** — `WINDOW-SKY-DEFAULT` still stands. What it does is remove the *structural* objection: the
+presets now track the clock instead of being frozen at one hour, which is a prerequisite for any
+future content-bearing default, and it costs nothing (the re-bake is quantised to 0.1 on both
+signals so scrubbing the time slider cannot re-bake per frame).

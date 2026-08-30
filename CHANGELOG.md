@@ -5,6 +5,30 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.155 — photo backdrops now track the clock
+
+Implements the preset side of `.154`'s finding that the static photo backdrops are authored at one
+time of day and fight the interior's own grade. New pure `presetForDaylight(preset, hour)` in
+`backdropEquirect.ts`, wired through `SceneBackdrop`.
+
+It takes **two separate signals**, and the separation is the design: `daylight` (0 night … 1 day)
+drives dimming and lit-window density, while `lowSun` (0 sun high … 1 on the horizon) drives the warm
+shift. The first attempt used `daylightFromAltitude` for both and moved nothing — that is a **night
+ramp** (`(altDeg + 8) / 8`, clamped) which reports 1.0 at every altitude above 0°, so at 18:00 (sun
+16.4° up) it returned the preset unchanged at exactly the hour the defect was measured at. Warmth now
+follows `1 − altDeg/30` and tints toward `lightingFromAltitude(...).sunColor`.
+
+Six unit tests, including that midday is the **identity** (the shipped look cannot move), that golden
+hour warms without dimming, and that a preset with no lit windows stays `undefined` rather than `NaN`.
+Both signals are quantised to 0.1 so scrubbing the time slider cannot re-bake the equirect per frame.
+
+Measured through the window at one pose: `city` at 13:00 is byte-identical as designed (R/B 0.974),
+and at 18:00 moves **0.973 → 0.980** toward the analytic sky's 1.034. **The direction is right and the
+effect is small** — about 12 % of the gap — because `sunColor` at 16° is only mildly warm and the
+backdrop reaches the frame faintly through a tinted pane. Stated plainly in the research doc: this
+does **not** on its own justify changing the default, and `WINDOW-SKY-DEFAULT` still stands; it
+removes the structural objection that the presets were frozen at one hour.
+
 ## v0.31.5.154 — the window is not a lightbox because of the glass
 
 **Measurement only; new probe `scripts/dev-probes/window-pane.mjs`.** `.146` proposed reducing the
