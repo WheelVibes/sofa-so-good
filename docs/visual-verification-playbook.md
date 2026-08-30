@@ -141,6 +141,14 @@ gesture against a real GPU and need `npm run dev:web` running.
 | `door-aim-plan.mjs` | **Which doors the walker can actually OPEN.** Teleports to a stand-point in front of every door on the WALKED storey (derived from that level's own `openings`, not a guessed pose) and reads `nearbyDoorId`, printing OK/MISS per door plus `hit/total`. Knobs: `PLAN`, `LEVEL`, `FURNISH=1`, `TIER`. Written for WALK-AIM-PLAN (v0.31.5.99), which measured **0/5 -> 5/5** on the maisonette upper storey. NOTE the default flat reads **6/7**, identically before and after that fix: the derived stand-point for `door-bedroom2` aims nearer `door-bath2`. That is a POSE artefact of this probe, not an app defect — verified by running both arms — so treat 6/7 as this probe's default-flat baseline rather than a regression signal. |
 | `door-look.mjs` / `door-ab.mjs` | The door leaf: its resolved material values, and a four-arm one-variable-each sweep (`roughness`, `normalScale`, grain `repeat`) mutating the DRAWN material in-probe. |
 | `finish-apply.mjs` | Whether a wall/floor finish request reaches the drawn material, rather than only the store. |
+> ⚠️ **`walk-tour TIER=auto` degrades the EXTERIOR after a plan swap (v0.31.5.124).** `TIER=auto`
+> skips `setQualityTier` entirely (`walk-tour.mjs:128`); combined with a `PLAN=` swap that leaves the
+> window pane at p50 **49** where an explicit `TIER=medium` gives **132**, with the background texture
+> byte-identical (188.4) in both and the walls unaffected. Both arms report the resolved tier as the
+> same string, so the log line does not reveal it. **Pass an explicit tier when anything outside the
+> window matters**, and treat every `.95`–`.123` walk frame as evidence about the INTERIOR only. The
+> open question is tracked as item (k) in `docs/open-graphics-decisions.md`.
+
 | `walk-tour.mjs` | **The contact sheet** — a walk of every room at several yaws, written as frames to look at. Not a metric: this is the meta-rule (v) instrument, and it is what surfaced DEFAULT-GLOOM after the measured defect queue was empty. Run it whenever you think there is nothing left to find. |
 | `tier-drift.mjs` | State-verification: prints resolved tier / IBL / exposure / hour+timeMode at intervals across a long run, to establish whether a surprising frame is the scene drifting or the scene genuinely looking like that. |
 | `default-gloom.mjs` | Per-room mean brightness under the shipped defaults vs one default changed at a time (`lightsMode`, then curtains on top). Each arm prints its OWN `lightsMode` and tier beside its number. |

@@ -5,6 +5,52 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.124 — WINDOW-SKY-DARK: item (k) reproduced, bounded, and four hypotheses refuted
+
+**Docs + probes only — no app change.** `.123` filed item (k) off `walk-tour` frames with a broad
+claim. This round reproduced it in a second, purpose-built probe, isolated the trigger, and refuted
+four explanations. **No fix is attempted: the mechanism is not named yet.**
+
+**The trigger is whether `setQualityTier` was ever called, combined with a plan swap.**
+`walk-tour.mjs:128` skips the setter when `TIER=auto`. `tpl-condo-4bed`, hour 13, furnished, lights
+on, each room centre facing north, one crop for the pane and one for the wall, p50:
+
+| arm | pane | wall |
+| --- | --- | --- |
+| `walk-tour TIER=auto` | **49–50** | 187–202 |
+| `walk-tour TIER=medium` | **132** | 192–202 |
+| `sky-after-swap TIER=medium` | **132** | 189–199 |
+| `sky-after-swap TIER=auto` | **49–50** | 182–192 |
+
+Two independent probes agree, walls are unaffected in all four, and both paths report the resolved
+tier as the same string `medium`. The boot flat under `TIER=auto` with NO swap reads 139 / 135 / 92,
+so the collapse needs **`auto` AND `replaceFloorPlan` together** — which is why the boot-flat probes
+never showed it.
+
+**The sky bake is exonerated.** In every arm `scene.background` is live and its image, sampled at
+the camera's own forward vector `(0,0,−1)`, returns **188.4** — matching the pure `skyRadiance`
+prediction of 187. The renderer is handed a correct, identical texture in the bright and dark arms
+alike, so the loss is downstream and gated on tier state.
+
+**Refuted, and recorded so nobody re-runs them:** (1) the plan swap loses `scene.background` — no,
+byte-identical uuid, and a forced re-bake changed the uuid without changing the picture; (2)
+`walk-tour`'s `setPitch(-0.05)` — no, 132 → 131 as a single variable; (3) tour order — no,
+`c4-master, c4-bed2, c4-bed3, c4-master` gave 132/132/132/132 with the tier set; (4) tone mapping or
+the glass eating the background generally — no, on the boot flat the `city` preset's own source
+colour `#5d8fc4` (luma 134) lands at 135 on screen.
+
+**⚠️ Every walk captured in `.95`–`.123` used `TIER=auto`,** so those frames show a degraded exterior
+from the plan swap onward. No conclusion in items (f)–(j) depended on what was visible through the
+glass and they stand, but no past walk frame is evidence about the exterior. Recorded in
+`docs/visual-verification-playbook.md`.
+
+**Also this round:** `.123`'s scoping of item (k) ("2–5x darker, template plans") is superseded and
+said so explicitly. New probe `scripts/dev-probes/sky-after-swap.mjs` (comma-separated `ROOM` list
+visited in order, `PLAN=` empty skips the swap, `TIER=auto` skips the setter, prints the background
+texture byte beside the screen byte for the same direction). `window-hours.mjs`'s module header was
+**stale** — it asserted `proceduralSky` is `tier: 'pro'` and forced off in Simple, which stopped
+being true at v0.31.5.92; corrected in place with the measurement that disproves it.
+
 ## v0.31.5.123 — TEMPLATE-WALK-7/8 + WINDOW-SKY-DARK: two clean audits, one new render bug, and a coverage claim corrected
 
 **Docs only — no source change.** Two more templates walked, both clean; a real render defect found

@@ -606,63 +606,71 @@ also asserts that 67 of the 78 windows are clear so it cannot pass by measuring 
 
 ---
 
-## (k) WINDOW-SKY-DARK — ⏳ OPEN, needs a render-path fix (measured v0.31.5.123)
+## (k) WINDOW-SKY-DARK — ⏳ OPEN, trigger isolated, mechanism not yet named (v0.31.5.124)
 
-**The view out of a window in walk mode renders 2–5x darker than the sky texture the app baked
-for it, and darker than the interior wall beside it.** Found while walking `tpl-condo-4bed`, where
-every bedroom shows a near-black rectangle above the desk. That rectangle is the WINDOW — verified,
-not assumed: a `furnishPlanItems` dump of `c4-bed2`/`c4-bed3`/`c4-bed4` contains **no TV and no
-mirror**, and `c4-bed4`, the one bedroom on item (h)'s windowless list, correctly shows a blank wall.
+**The view out of a window collapses to roughly a third of its correct brightness — but ONLY when
+a plan swap happens in a session where `setQualityTier` was never called.** Filed in `.123` off
+`walk-tour` frames with a much broader claim; `.124` reproduced it, bounded it, and refuted four
+hypotheses on the way. The `.123` scoping ("2–5x darker, template plans") was too broad and is
+superseded by the table below.
 
-**Rendered, one identical crop `[1080,760,420,300]` on the `c4-*-y0` frames, `TIER=auto` →
-`medium/on/manual<hour>`:**
+**Four arms, `tpl-condo-4bed`, hour 13, furnished, `lightsMode: on`, standing at each room centre
+facing north. ONE crop for the pane (`[1120,600,400,300]`) and one for the wall
+(`[150,600,300,400]`), p50:**
 
-| north window | 08:00 | 13:00 | 20:00 |
-| --- | --- | --- | --- |
-| `c4-b2win` (Bedroom 2) | 30.7 | **117.0** | 14.9 |
-| `c4-b3win` (Bedroom 3) | 32.2 | **39.2** | 15.7 |
-| `c4-mwin` (Master) | 32.7 | **39.7** | 15.6 |
-| the interior wall beside them | — | 145–180 | — |
+| arm | pane | wall |
+| --- | --- | --- |
+| `walk-tour TIER=auto` (`/tmp/tw18`) | **49–50** | 187–202 |
+| `walk-tour TIER=medium` (`/tmp/tw18t`) | **132** | 192–202 |
+| `sky-after-swap TIER=medium` (`/tmp/ss-c4`, `ss-pitch`, `ss-order`) | **132** | 189–199 |
+| `sky-after-swap TIER=auto` (`/tmp/ss-auto`) | **49–50** | 182–192 |
 
-**The sky MODEL is exonerated — this is the load-bearing measurement.** Calling the pure
-`skyGradient.ts:skyRadiance` directly at the same three hours, with the real Singapore fallback
-location and `orientedSunDirection`, for the view straight out of a north window:
+**Two independent probes agree: skip `setQualityTier` and the pane is 49; call it and the pane is
+132.** Both paths report the resolved tier as the same string, `medium` — `walk-tour.mjs:128` simply
+skips the setter when `TIER=auto`. The walls are unaffected in every arm, so exposure and lighting
+are identical and the loss is specific to what is seen through the glass.
 
-| hour | sun altitude | zenith | north +20° | north horizontal | north −10° |
-| --- | --- | --- | --- | --- | --- |
-| 08:00 | 13.6° | byte 129 | 132 | 127 | 114 |
-| 13:00 | 82.1° | byte 255 | 208 | **187** | 145 |
-| 20:00 | −13.2° | byte 0 | 0 | 0 | 26 |
+**It also needs the plan swap.** The boot flat under `TIER=auto` with NO swap
+(`/tmp/ss-boot-auto`) reads **139 / 135 / 92** across three stops — essentially the healthy 136 the
+boot flat gives under every other arm. So the collapse requires **`auto` AND `replaceFloorPlan`
+together**, which is why it never showed up in the boot-flat probes.
 
-So at 13:00 the baked texture holds **187** where the frame shows **39** — and the night row lines
-up (model ≈ 0–26, frame ≈ 15), which is why the defect is invisible after dark.
+**The sky bake is INNOCENT, and this is the load-bearing measurement.** In every one of the arms
+above, `scene.background` is live and `scene.background.image`, sampled at the camera's OWN forward
+vector `(0,0,−1)` (texel 512,256 of the 1024x512 equirect), returns **188.4** — matching the pure
+`skyGradient.ts:skyRadiance` prediction of 187 for that direction at 13:00. The texture the renderer
+is handed is correct and identical in the bright and dark arms alike. **So the loss is downstream of
+the background, gated on state that only `setQualityTier` establishes.** Prime suspects, none yet
+confirmed: `windowGlassPhysical(tier)` and `FadeWindow`'s material in `apartment/PlanShell.tsx`, or
+any tier-dependent material rebuilt by the swap from a tier value that is wrong at that moment.
 
-**Item (b) is NOT regressed, and that was checked before anything else.** The pane tracks the clock
-(117 → 15 from 13:00 to 20:00), `proceduralSky` is `default: true, tier: 'simple'`
-(`features/flags/registry.ts`), and `backdrop` defaults to `'sky'` (`uiSlice.ts`), so `SkyBackdrop`
-is the live path and it is baking a correct sky. **The loss is downstream of the bake** — the
-`scene.background` tone-mapping path (AgX, `toneMappingExposure` 1.05 in `Scene.tsx`) and/or the
-window glass the view passes through. **That attribution has NOT been made yet; do not name a cause
-until it is measured.**
+### Refuted along the way — recorded so nobody re-runs them
+1. **The plan swap loses `scene.background`.** No: the texture survives `replaceFloorPlan` with a
+   byte-identical uuid, and forcing a re-bake (`setBackdrop('city')` → `'sky'`) changed the uuid
+   without changing the picture.
+2. **`walk-tour`'s `setPitch(-0.05)` aim.** No: as a single variable from one pose the pane moved
+   **132 → 131** (texture 188.4 → 184.2).
+3. **Tour order / state degrading across a tour.** No: with the tier set, visiting
+   `c4-master, c4-bed2, c4-bed3, c4-master` gave **132 / 132 / 132 / 132**. (The `auto` walk's
+   first-room-bright, later-rooms-dark pattern is an artefact of that arm, not of ordering.)
+4. **Tone mapping or the glass eating the background generally.** No: on the boot flat the `city`
+   preset's own source colour `#5d8fc4` (luma 134) lands at **135** on screen, so the
+   background→screen path is ~1:1 there.
 
-**A second, separate anomaly rides on top and is also unexplained:** at 13:00 `c4-b2win` reads
-**117** while `c4-b3win` and `c4-mwin` read **39** — three windows on the same external wall
-`c4-n`, same width, cameras at the same standing height, and the spread appears at 13:00 ONLY (at
-08:00 and 20:00 all three agree to within 2 luma). 117 is roughly what AgX alone would leave of a
-187 texture, so the honest reading is that **`c4-b2win` is the well-behaved one and the other two
-lose a further 3x**, not the reverse.
+### ⚠️ This taints the exterior in every walk captured so far
+`walk-tour` has been run with `TIER=auto` throughout `.95`–`.123`, so **every one of those frames
+shows a degraded exterior from the plan swap onward**. No layout, enclosure, window-placement or
+sightline conclusion in items (f) through (j) depended on what was visible through the glass, and
+those stand. But no past walk frame is evidence about the exterior. New walks should pass an
+explicit tier.
 
-**⚠️ CORRECTION TO `.122`.** `tpl-condo-3bed` and `tpl-hdb-3room` were both reported CLEAN in
-`.122`. Their frames contain these same dark panes; I read them as televisions on a contact sheet
-and never opened one at full resolution. Those two audits were clean of layout defects, which is
-what they were looking for, but "no unrecorded visual defect remains" was an over-claim.
-
-**Recommendation:** attribute the loss before proposing a fix — render one walk frame with the
-window glass removed, and one with `scene.background` tone-mapping bypassed, and compare against the
-187 the bake holds. A brighter exterior is a change every user sees at every hour, so the size of the
-correction is a product call, not a unilateral constant edit.
+**Recommendation:** bisect the mechanism before proposing a fix — sweep the tiers explicitly, check
+whether the tier the glass material is built at matches `st.qualityTier` at the moment of the swap,
+and only then decide. A brighter exterior is a change every user sees at every hour, so the size of
+any correction remains a product call.
 
 ---
+
 
 ## Template audit coverage
 
@@ -702,7 +710,7 @@ remains in an audited plan.
 | h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — was 15 of 44; **12 left**; `.120` proved NONE of the 12 is offset-fixable — each needs a new opening |
 | i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **3 left** after `.115`, `.118`, `.119`, `.120`; all 3 proven NOT offset-fixable |
 | j | WINDOW-SIGHTLINE | content | ⏳ **OPEN v0.31.5.117** — **11** of 78 after `.121` shipped a windowless-wall preference for storage; three arranger levers measured, the residue is rooms too small to fix |
-| k | WINDOW-SKY-DARK | render path | ⏳ **OPEN v0.31.5.123** — the baked sky holds byte 187 at 13:00; the frame shows 39. Model exonerated by a pure-function test; the loss is downstream |
+| k | WINDOW-SKY-DARK | render path | ⏳ **OPEN v0.31.5.124** — pane 49 vs 132 depending only on whether `setQualityTier` was called before a plan swap; the background texture is identical (188.4) in both. `.123`'s broader scoping superseded; four hypotheses refuted |
 
 **Five of eleven items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
 ((d)). Each was implemented in its own committed round and marked here as it landed. **(f), (g), (h), (i), (j) and (k) are open.** (h) and (i) share one cause and should be fixed together; (j) was created by fixing (h) and needs an arranger strategy, not a bigger keep-out.

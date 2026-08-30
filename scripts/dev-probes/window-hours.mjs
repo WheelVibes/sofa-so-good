@@ -1,12 +1,16 @@
 /**
  * WINDOW-HOURS — does what you see OUT of the window follow the clock?
  *
- * The default `backdrop` is `'city'`, and `BACKDROP_PRESETS.city` is a STATIC palette
- * (sky #5d8fc4→#dfe8ec, buildings [74,86,104], warm lit windows at a fixed density).
- * The sun-driven alternative is the `sky` backdrop (RD-412), which is gated on the
- * `proceduralSky` flag — and that flag is `tier: 'pro'`, which Simple mode (the app
- * DEFAULT) forces off. So the prediction is that a default user's exterior never
- * changes, however the interior is graded across the day.
+ * ⚠️ HEADER CORRECTED v0.31.5.124 — the premise below was true when this probe was
+ * written and is NOT true now. It claimed the default `backdrop` is `'city'` (a STATIC
+ * palette) and that the sun-driven `sky` alternative is gated behind a `tier: 'pro'`
+ * `proceduralSky` flag that Simple mode forces off, so a default user's exterior never
+ * changes. Since v0.31.5.92 the default `backdrop` IS `'sky'` (`uiSlice.ts`) and
+ * `proceduralSky` is `default: true, tier: 'simple'` (`features/flags/registry.ts`) —
+ * this probe's own resolved line now prints `proceduralSky: true,
+ * photoBackdropActive: true`. Measured with it: `sky` gives pane p50 116 / 136 / 46 at
+ * hours 9 / 13 / 21 while `city` gives 135 / 135 / 113, i.e. the exterior DOES track the
+ * clock by default and the static preset is the time-invariant one.
  *
  * That is exactly the kind of "identical readings" meta-rule (xxv) says to VERIFY rather
  * than assume, so this measures it: one fixed pose facing a window, curtains opened once,
