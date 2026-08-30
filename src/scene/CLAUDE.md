@@ -894,6 +894,25 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   raw for the renderer. An explicit pick wins; `'auto'` picks Neutral while previewing finishes,
   AgX for a photo context, else filmic. Keep `look.ts` pure (no three) — the three constant comes
   from `toneMappingThree.ts`.
+- **Curtain sun attenuation is computed from the LOADED plan's viewed storey, never from
+  `apartment/constants.ts` (SUN-CURTAIN-PLAN, v0.31.5.101).** `CurtainLightController` derives
+  its walls with `lighting/planAttenuationWalls.ts:planAttenuationWalls(floorPlan, viewLevelId)`
+  and its store subscription watches `floorPlan` and `viewLevelId` as well as `items`/`glassTint`
+  — without those two a plan swap leaves the factor stuck on the previous apartment's windows.
+  It used to pass the default flat's `WALLS` unconditionally.
+  · **The old failure produced a PLAUSIBLE NUMBER, not an obvious null**, which is why it
+  survived: `curtainWindowOverlap` matches a curtain to a window POSITIONALLY (within 0.5 m of
+  the wall, angularly aligned, spans overlapping) and every plan sits near the origin, so a
+  template curtain attenuated whichever DEFAULT-FLAT window it happened to land near. Measured
+  end-to-end on the maisonette with four curtains on its own windows: **closed = 0.7526 before,
+  0.5600 after** — both dim the sun, so a binary "do curtains work?" check passes either way.
+  Judge this by the NUMBER and by which windows produced it.
+  · `windowLightModifiers.ts` takes a structural `AttenuationWall` (`{id, start, end, cutouts}`)
+  rather than `WallSpec`, so the constants and the plan adapter are both valid inputs. A test
+  pins the default flat as **bit-for-bit identical** through either source — with an `< 1` guard
+  so a mechanism that silently stopped firing cannot pass it as `1 === 1`.
+  · Cost measured before commit: 0.0145 ms -> 0.0123 ms per recompute at 87 items (no added
+  cost), and it runs on items/plan/level change, not per frame.
 - **Walk-mode INTERACTION TARGETS come from the LOADED plan and the WALKED storey, never from
   `apartment/constants.ts` and never unscoped (WALK-AIM-PLAN, v0.31.5.99).** `FirstPersonCamera`
   aims at four kinds of thing — doors, curtains/blinds, screens and lights — and every one of

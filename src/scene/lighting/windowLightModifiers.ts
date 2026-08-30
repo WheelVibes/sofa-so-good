@@ -25,7 +25,7 @@
  * All computations are 2D (floor plan). Zero allocations on re-reads.
  */
 
-import type { WallSpec, WindowSpec } from '../../apartment/types'
+import type { WindowSpec } from '../../apartment/types'
 import type { FurnitureItem } from '../../furniture/types'
 import { draperyOpacityLevel, draperyTransmit } from '../../materials/draperyOpacity'
 
@@ -62,8 +62,30 @@ export function hexToRgb01(hex: string): [number, number, number] {
   return [r, g, b]
 }
 
+/**
+ * The minimal wall shape this module reads: two endpoints (for the wall's angle,
+ * and a point's perpendicular distance and projection along it) plus its
+ * openings. `WallSpec` from `apartment/constants.ts` satisfies it structurally,
+ * and so does `planAttenuationWalls`' adapter — which is the point: the sun
+ * attenuation must be computable from the LOADED plan, not only from the default
+ * flat's constants (SUN-CURTAIN-PLAN).
+ */
+export interface AttenuationWall {
+  id: string
+  start: readonly [number, number]
+  end: readonly [number, number]
+  cutouts: ReadonlyArray<{
+    kind: 'door' | 'window'
+    offset: number
+    width: number
+    sill: number
+    head: number
+    refId?: string
+  }>
+}
+
 /** Wall direction angle in XZ-plane (radians). */
-function wallAngle(wall: WallSpec): number {
+function wallAngle(wall: AttenuationWall): number {
   const dx = wall.end[0] - wall.start[0]
   const dz = wall.end[1] - wall.start[1]
   return Math.atan2(dz, dx)
@@ -73,7 +95,7 @@ function wallAngle(wall: WallSpec): number {
  * Project a world position [x,z] onto a wall's 1D axis and return the offset
  * from wall.start (positive = toward wall.end).
  */
-function projectOntoWall(wall: WallSpec, x: number, z: number): number {
+function projectOntoWall(wall: AttenuationWall, x: number, z: number): number {
   const dx = wall.end[0] - wall.start[0]
   const dz = wall.end[1] - wall.start[1]
   const len = Math.hypot(dx, dz)
@@ -89,7 +111,7 @@ function projectOntoWall(wall: WallSpec, x: number, z: number): number {
  * Distance from a world position to a wall's centreline (the perpendicular
  * component — positive on either side).
  */
-function distanceFromWall(wall: WallSpec, x: number, z: number): number {
+function distanceFromWall(wall: AttenuationWall, x: number, z: number): number {
   const dx = wall.end[0] - wall.start[0]
   const dz = wall.end[1] - wall.start[1]
   const len = Math.hypot(dx, dz)
@@ -118,7 +140,7 @@ function distanceFromWall(wall: WallSpec, x: number, z: number): number {
  */
 export function curtainWindowOverlap(
   item: FurnitureItem,
-  wall: WallSpec,
+  wall: AttenuationWall,
   win: WindowSpec,
 ): CurtainOverlapResult | null {
   // Only curtain/blind items affect windows
@@ -211,7 +233,7 @@ function isSheerItem(item: FurnitureItem): boolean {
  * Treatments combine multiplicatively (stacked layers each block in turn).
  */
 export function windowAttenuationFactor(
-  wall: WallSpec,
+  wall: AttenuationWall,
   win: WindowSpec,
   items: ReadonlyArray<FurnitureItem>,
 ): number {
@@ -242,10 +264,10 @@ export function windowAttenuationFactor(
  * a deliberate cheap approximation).
  */
 export function sceneAttenuationFactor(
-  walls: ReadonlyArray<WallSpec>,
+  walls: ReadonlyArray<AttenuationWall>,
   items: ReadonlyArray<FurnitureItem>,
 ): number {
-  const wallMap = new Map<string, WallSpec>()
+  const wallMap = new Map<string, AttenuationWall>()
   for (const w of walls) wallMap.set(w.id, w)
 
   let sum = 0
@@ -283,7 +305,7 @@ export function glassTintRgb(tintHex: string): [number, number, number] {
  * Compute the aggregate WindowModifiers for the current scene state.
  */
 export function computeWindowModifiers(
-  walls: ReadonlyArray<WallSpec>,
+  walls: ReadonlyArray<AttenuationWall>,
   items: ReadonlyArray<FurnitureItem>,
   glassTintHex: string,
 ): WindowModifiers {

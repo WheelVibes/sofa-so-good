@@ -5,6 +5,64 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.101 — SUN-CURTAIN-PLAN: curtains dim the sun through the plan's OWN windows
+
+**The default-flat constant audit's fourth hit, and the first on the lighting path.** After
+`.95`, `.99` and `.100` all turned out to be general code reaching into
+`src/apartment/constants.ts` — which describes only the default 4-room flat — the remaining
+importers were audited. `CurtainLightController` passed that file's `WALLS` into
+`computeWindowModifiers` regardless of which plan was loaded, so on the other eighteen
+templates the sun attenuation was computed against **a different building**.
+
+**This failed by producing a plausible number, not an obvious null — which is why it
+survived.** `curtainWindowOverlap` matches a curtain to a window POSITIONALLY (within 0.5 m
+of the wall, angularly aligned, spans overlapping), and every plan sits near the origin, so a
+template curtain silently attenuated whichever DEFAULT-FLAT window it happened to land near.
+Measured end-to-end on `tpl-hdb-maisonette` with four curtains placed on its own windows via
+the app's own `snapToNearestWindow` / `windowFixtureProps`:
+
+    before:  open 1.0000 -> closed 0.7526   (delta 0.2474)
+    after:   open 1.0000 -> closed 0.5600   (delta 0.4400)
+
+**Both arms report "curtains dim the sun".** A binary check would have passed either way; the
+evidence is the number and which windows produced it. A pure measurement makes the same point
+in isolation: a drawn blackout curtain on `em-kit-win` scored 0.878 against a window the plan
+does not contain.
+
+**The fix.** New `lighting/planAttenuationWalls.ts` maps the walked level's walls + openings
+into the minimal shape the maths reads; `windowLightModifiers.ts` now takes a structural
+`AttenuationWall` (`{id, start, end, cutouts}`) instead of `WallSpec`, so the constants and
+the plan adapter are both valid inputs and nothing else had to change;
+`CurtainLightController` derives from `state.floorPlan` / `state.viewLevelId` and subscribes
+to both — without that a plan swap would leave the factor stuck on the previous apartment.
+Scoped to the viewed storey for the same reason the aim ray is: curtains drawn upstairs
+should not be averaged against open windows below.
+
+**Control:** a test pins the default flat as **bit-for-bit identical** (`toBe`) through the
+plan and through `WALLS`, guarded by an `< 1` assertion so a mechanism that quietly stopped
+firing could not pass it as `1 === 1`.
+
+**Cost, measured before committing** (the `.97` lesson): 0.0145 ms -> 0.0123 ms per recompute
+with 87 items — no added cost, and it runs on items/plan/level change, not per frame.
+
+**Three instrument bugs were found and fixed on the way to that measurement**, each of which
+produced a confident, wrong-looking-right answer:
+1. The pure measurement first read 1.0000 on BOTH plans, because the test curtain was built
+   with `atan2(dx, dz)` while `wallAngle` is `atan2(dz, dx)`. The control did not fire, so the
+   experiment was meaningless — a control that does not fire invalidates the arm it anchors.
+2. The new `curtain-atten.mjs` probe's first run reported `NO EFFECT` with **`curtains=0`**:
+   the shipped templates carry no window treatments at all (`applyLayoutPreset('move-in')`
+   gave the maisonette 138 items and zero curtains), so it had measured nothing. It now places
+   one curtain per window itself, using the app's own snap pair.
+3. Its second run read **0.5600 for both arms** — a failed mutation, because the "open" arm
+   trusted the placement defaults instead of driving the state. It now sets
+   `{draw: 0, style: 'open'}` and `{draw: 1, style: 'closed', material: 'blackout'}`
+   explicitly and dumps each arm's `props`, so a stuck arm is visible in the log.
+
+**Separate observation, recorded not acted on:** `applyLayoutPreset('move-in')` places no
+window treatments on a template, while the default flat ships curtains. That may well be
+intended; it needs its own round rather than a guess here.
+
 ## v0.31.5.100 — WALK-AIM-PROMPT: the door prompt actually appears (a correction to .99)
 
 **`.99` over-claimed and this entry corrects it.** That commit is titled "the walker can
