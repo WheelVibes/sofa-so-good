@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.136 — the app's daylight has no falloff at all, and that is the defect
+
+**Measurement only, no render change.** `.135` concluded the lamps compensate for daylight that
+cannot carry a room. `daylight-falloff.mjs` (new) measures the transport directly: it stands 0.9 m
+inside the living/dining window facing in, pitched −0.55 so the floor recedes and a horizontal band
+maps to distance from the glass. Curtains open, three arms reset between, maximum tier, 13:00.
+
+| arm | b0 (near) | b3 | b7 (deep) | near/far |
+| --- | --- | --- | --- | --- |
+| `a-daylight` (lamps off) | 108 | 104 | 124 | **0.87** |
+| `b-daylight-noibl` | 82 | 93 | 124 | 0.66 |
+| `c-lamps-on` (shipped) | 153 | 150 | 189 | 0.81 |
+
+**There is no falloff** — the far end of the room is *brighter* than the window end. The prediction
+was a steep curve meaning "bounce is missing"; the real answer is the opposite and more useful: the
+app's daylight behaves like **uniform ambient fill rather than light entering through an aperture**.
+That explains both symptoms at once — no bright near-window zone to carry midtones, and no deep zone
+to be dark.
+
+Two decompositions from the same run: the **IBL probe lights only the window end** (24% of daylight
+at band 0, ~0% from band 4 inward), and the **lamps compensate exactly where daylight fails** (+42%
+near the glass rising to +53% deepest) — direct evidence for `.135` rather than an inference.
+
+**The `.134` instrument gap is closed**: this is the first pose in the arc that shows floor. Two cues
+are now plainly visible and were previously unmeasurable — the dining table and chair legs meet the
+floor with **no contact darkening at all**, and the floor carries no sheen or gradient. A failed
+measurement is recorded too: a fixed crop meant to quantify the floor returned sd 53 / range 208,
+which is furniture, not floor — isolating floor in a furnished room needs an unfurnished arm or a
+depth/normal mask, not a hand-placed box.
+
+This does **not** license turning the lamps down; that trade was settled in `.86` and re-measured in
+`.135`. The cheapest independent win visible here is **contact shadows** — local, no changes to the
+light rig, and the most legible remaining cue.
+
 ## v0.31.5.135 — the flat shadows are attributed: lamps, compensating for daylight that cannot carry a room
 
 **Measurement only, no render change.** `.134` found the app has ~an order of magnitude less deep

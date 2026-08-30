@@ -99,10 +99,54 @@ lamps become what they are in a real photograph at 1 pm: mostly off. That is als
 GI literature points at (light entering a window and bouncing), and it is consistent with `.133`,
 where the analytical fill turned out to be far too small a share of interior light to matter.
 
-**Not yet measured, and the next step:** how much of the window's light actually reaches the room —
-compare the app's illuminance falloff from the window plane against the inverse-square-plus-bounce
-behaviour a real room shows, and find whether the shortfall is in the sun/sky intensity, the window
-glass transmission, or the absence of bounce off the room's own surfaces.
+## ✅ MEASURED (v0.31.5.136) — the daylight does not fall off at all, and that is the problem
+
+`scripts/dev-probes/daylight-falloff.mjs` stands **0.9 m inside the `win-livingDining-N` window
+facing into the room, pitched −0.55**, so the floor recedes across the frame and a horizontal band
+maps to distance from the glass. Curtains forced open; three arms reset between, each printing its
+resolved state. Maximum tier, 13:00. Mean luma per band, band 0 nearest the window:
+
+| arm | b0 | b1 | b2 | b3 | b4 | b5 | b6 | b7 | near/far |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `a-daylight` (lamps off) | 108 | 120 | 115 | 104 | 96 | 103 | 113 | 124 | **0.87** |
+| `b-daylight-noibl` | 82 | 98 | 96 | 93 | 98 | 105 | 114 | 124 | 0.66 |
+| `c-lamps-on` (shipped) | 153 | 163 | 160 | 150 | 145 | 154 | 169 | 189 | 0.81 |
+
+**There is no falloff.** The daylight-only arm's near/far ratio is **0.87** — the far end of the room
+is *brighter* than the end next to the window. A room lit through an aperture has a pronounced
+gradient; this one is flat. **The prediction going in was a steep curve meaning "the bounce is
+missing"; the actual answer is the opposite and more interesting: the app's daylight behaves like
+uniform ambient fill rather than like light entering through a window.** That explains both symptoms
+at once — a flat distribution has no bright near-window zone to carry the midtones, so the absolute
+level is low, and it has no deep zone either, so nothing is dark.
+
+Two supporting decompositions from the same run:
+- **The IBL probe lights only the window end.** Its share of daylight is **24%** at band 0, 19%,
+  16%, 11%, then ~0% from band 4 inward. Deep-room light is analytical fill, not the probe.
+- **The lamps compensate exactly where daylight fails.** They add **42% at band 0 rising to 53% at
+  band 7** — proportionally most in the deepest part of the room. That is direct evidence for
+  `.135`'s conclusion rather than an inference from it.
+
+### The instrument gap from `.134` is closed
+This is the first pose in the arc that actually shows floor (`walk-tour` is level at 1.6 m and
+frames almost none). Two things are plainly visible in `/tmp/daylight-falloff/a-daylight.png` and
+were not measurable before: the dining table and chair legs meet the floor with **no contact
+darkening whatever**, and the floor carries **no sheen or gradient**. Both are strong "furniture is
+floating / this is CG" cues, and the reference photograph has the opposite — tight dark contacts
+under every leg.
+
+**A failed measurement, recorded so it is not repeated:** an attempt to quantify the floor by a fixed
+crop returned sd 53 / range 208 for the app "floor", which is furniture, not floor — a rectangle
+cannot isolate floor in a furnished room. Quantifying contact shadows needs either an unfurnished
+arm or a mask derived from the depth/normal buffer, not a hand-placed box.
+
+### What this does and does not license
+It does **not** license turning the lamps down — that trade was measured in `.135` and settled in
+`.86`. The target is a daylight distribution with a real gradient: bright near the glass, falling
+inward, with the room's own surfaces carrying the far end. That is the same lever `.133` identified
+(the IBL probe is the only bounce that matters) and it remains a *baked-environment cost decision*,
+not a constant to edit. The cheapest independent win visible here is **contact shadows**, which is
+local, does not touch the light rig, and addresses the most legible remaining cue.
 
 ## An instrument gap found on the way
 
