@@ -1158,3 +1158,24 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   · So the cheap-looking flat pane a Medium user sees is a DELIBERATE, documented cost decision
     that works, not an oversight — which is what the round was sent to find out.
 
+
+## The first-load palette is PINNED — changing it changes what every new user sees
+
+`FINISHES_INITIAL` (`state/slices/finishesSlice.ts`) seeds the flat from `DEFAULT_FLOOR` /
+`DEFAULT_WALL` plus the per-room `DEFAULT_ROOM_FLOOR` / `DEFAULT_ROOM_WALL` overrides here. A
+brand-new visitor has no persisted state, so **that seed IS the apartment they meet** — verified
+end to end with `scripts/dev-probes/first-run.mjs SEQUENCE=1 FAKE_HOUR=13`, the only probe that
+suppresses nothing (carousel → 9 tour steps → location prompt → unobstructed; scene mean 181.5 →
+183.1, near-black 0.0% throughout).
+
+`builtinCatalog.test.ts` already guards that the default ids EXIST and that every painted default
+stays near-neutral (WARM-WALL-CAST). Neither pinned WHICH finish each room gets, so the shipped
+look could have drifted a room at a time without a single test failing.
+**`defaultFirstLoadPalette.test.ts` (v0.31.5.126) closes that**: it asserts the exact per-room floor
+and wall id for all 11 rooms, that no ceiling / accent / wall-texture is seeded (an absent ceiling
+key is the plain white ceiling, which is the shipped look), and that all 22 seeded ids are real
+catalog materials. It also asserts the room COUNT so it cannot pass by measuring nothing, and it was
+proved to discriminate by flipping `livingDining` to `floor-wood-oak` (1 of 5 failed) and restoring.
+
+**A diff on those constants is a product decision, not a refactor** — if the palette is
+deliberately re-chosen, update the test in the same commit and say why in `CHANGELOG.md`.

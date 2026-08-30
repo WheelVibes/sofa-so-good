@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.126 — the current apartment look is now the PINNED first-load default
+
+**On the user's instruction: "however the apartment looks like right now with finishes, colour
+palette, etc, set it as the default and what a new user sees on first load".**
+
+**Measured first: it already was the default, so nothing was re-coloured.** The palette is pure code
+— `DEFAULT_FLOOR` (`floor-wood-oak`), `DEFAULT_WALL` (`wall-paint-white`) and the per-room
+`DEFAULT_ROOM_FLOOR` / `DEFAULT_ROOM_WALL` overrides in `materials/builtinCatalog.ts`, seeded as the
+finishes slice's initial state. A fresh visitor has no persisted state, so that seed is exactly what
+they get. Confirmed end to end with `scripts/dev-probes/first-run.mjs`, the only probe that
+suppresses nothing: `SEQUENCE=1 FAKE_HOUR=13` walks carousel → 9 tour steps → location prompt →
+unobstructed at scene mean **181.5 → 183.1**, near-black **0.0%** at every stage, `lights=on`,
+87 items, `onboarded=null`.
+
+**What was missing was the guarantee, and that is what shipped.** `builtinCatalog.test.ts` already
+checked that the default ids exist and that every painted default stays near-neutral
+(WARM-WALL-CAST), but nothing pinned WHICH finish each room gets — the shipped look could drift a
+room at a time with the suite still green. `materials/defaultFirstLoadPalette.test.ts` now asserts
+the exact per-room floor and wall id for all **11** rooms (vinyl-oak through the living/dining,
+bedrooms and corridor; beige porcelain in the kitchen, household shelter and service yard;
+grey-green tile in both baths; concrete on the AC ledge; glazed white wall tile in the two baths and
+the kitchen, painted plaster everywhere else), that no ceiling / accent / wall-texture is seeded,
+and that all **22** seeded ids are real catalog materials. It asserts the room count too, so it
+cannot pass by measuring nothing, and it was **proved to discriminate** — flipping `livingDining` to
+`floor-wood-oak` failed 1 of 5, and the constant was restored from a `cp` backup with
+`git diff --stat` clean.
+
+**Two things a new visitor sees that are NOT yet right, recorded rather than quietly fixed:** the
+onboarding modal sits over a heavily blurred scene whose backdrop shifts warm beige → grey between
+t=0 and t=2000 ms, and the window glass is at its NIGHT colour at 1 pm (item (k2) — `getFixtureGlow()`
+reads 1 because the app boots lights on in daylight). Both are separate decisions from the palette.
+
 ## v0.31.5.125 — WINDOW-SKY-DARK: mechanism named — a Medium scene carrying High-tier glass
 
 **Docs + probe only — no app change.** `.124` isolated item (k)'s trigger; this round dumped the
