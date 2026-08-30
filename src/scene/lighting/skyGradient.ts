@@ -177,7 +177,7 @@ export const GROUND_HAZE_SPAN = 0.3
  * Views below the horizon (`view.y < 0`) return a ground tint that darkens toward
  * the nadir — the painter uses this for the lower hemisphere.
  */
-export function skyRadiance(view: Vec3, params: SkyParams): Vec3 {
+export function skyRadiance(view: Vec3, params: SkyParams, hazeSample?: Vec3): Vec3 {
   const T = clamp(params.turbidity, 1.8, 12)
   const sun = normalize(params.sunDir)
   const v = normalize(view)
@@ -211,7 +211,12 @@ export function skyRadiance(view: Vec3, params: SkyParams): Vec3 {
     // the seam vanish by construction (both sides agree in the limit) and gives
     // the lower hemisphere the gradient it never had. The nadir is untouched —
     // `smoothstep` reaches 1 well before straight down.
-    const haze = skyRadiance(horizonSampleDir(v), params)
+    // `hazeSample` lets a bulk painter hoist this out of the inner loop: the
+    // sample depends ONLY on azimuth, and one equirect COLUMN is one azimuth, so
+    // `paintSkyEquirect` computes it w times instead of w*h/2 times. Recursing
+    // here per pixel measured 87ms -> 144ms for a 1024x512 bake (+65%), which is
+    // main-thread time on every sun move, on the phone tier too.
+    const haze = hazeSample ?? skyRadiance(horizonSampleDir(v), params)
     const t = smoothstep(clamp(-v[1] / GROUND_HAZE_SPAN, 0, 1))
     return [
       haze[0] + (ground[0] - haze[0]) * t,
@@ -269,11 +274,20 @@ export function equirectDir(col: number, row: number, w: number, h: number): Vec
  * Pure — no canvas; the adapter copies the buffer into an ImageData/CanvasTexture.
  */
 export function paintSkyEquirect(buf: Uint8ClampedArray, w: number, h: number, params: SkyParams) {
+  // One column = one azimuth, and the below-horizon haze sample depends only on
+  // azimuth, so hoist it: w samples instead of one per lower-hemisphere pixel.
+  // Taken from the middle row, where the direction is horizontal and its
+  // horizontal length is 1 (the top row is near the pole, where azimuth degrades).
+  const hazeByCol: Vec3[] = new Array(w)
+  const midRow = Math.floor(h / 2)
+  for (let col = 0; col < w; col++) {
+    hazeByCol[col] = skyRadiance(horizonSampleDir(equirectDir(col, midRow, w, h)), params)
+  }
   let i = 0
   for (let row = 0; row < h; row++) {
     for (let col = 0; col < w; col++) {
       const dir = equirectDir(col, row, w, h)
-      const rgb = skyRadiance(dir, params)
+      const rgb = skyRadiance(dir, params, dir[1] < 0 ? hazeByCol[col] : undefined)
       buf[i] = encodeByte(rgb[0])
       buf[i + 1] = encodeByte(rgb[1])
       buf[i + 2] = encodeByte(rgb[2])

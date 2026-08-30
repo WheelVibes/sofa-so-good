@@ -911,6 +911,15 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   Verified: step 62 → **0**, above-horizon bit-identical (`5:178 2:176 0.5:175` unchanged), nadir
   unchanged (48), monotonic to the nadir; in the render, column x=1380..1520 went
   `780:150 800:140 820:130` → `780:150 800:152 820:153` with everything above y=780 identical.
+  · **The haze sample is HOISTED PER COLUMN in `paintSkyEquirect`, and must stay that way.**
+  It depends only on azimuth and one equirect column is one azimuth, so the painter takes `w`
+  samples (from the middle row — the top row is near the pole, where azimuth degrades) rather
+  than one per lower-hemisphere pixel, and passes it in via `skyRadiance`'s optional
+  `hazeSample`. Recursing per pixel measured **87.2 -> 144.0ms** for a 1024x512 bake (+65%),
+  which is main-thread time on every sun move, on the phone tier too; hoisted it is 90.4ms
+  (+3.7%). A test pins the painter's bytes as byte-identical to per-pixel `skyRadiance`.
+  (`paintSkySurround` has the same shape and is 160.6ms at 1024x512, but `Sky.tsx` bakes it at
+  256x128 — 1/16 the pixels, ~10ms — so it was measured and deliberately left alone.)
   · **Do NOT "fix" this by raising `groundAlbedo`** — that lifts the slab without removing the
   seam, and darkens nothing that was too bright. The seam was the defect; the darkness was a
   symptom of the missing gradient.

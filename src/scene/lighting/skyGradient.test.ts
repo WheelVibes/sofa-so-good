@@ -208,3 +208,31 @@ describe('SKY-HORIZON: the ground fades out of the horizon haze', () => {
     expect(lum(rgb)).toBeLessThan(0.05)
   })
 })
+
+describe('paintSkyEquirect hoists the haze sample without changing the result', () => {
+  it('matches per-pixel skyRadiance everywhere, including below the horizon', () => {
+    // The painter computes the SKY-HORIZON haze sample once per column (one column
+    // = one azimuth) instead of once per lower-hemisphere pixel — 87ms -> 144ms ->
+    // 90ms for a 1024x512 bake. That is a pure speed-up, so the bytes must be
+    // IDENTICAL to calling `skyRadiance` per pixel; this test is what makes it a
+    // hoist rather than an approximation.
+    const params: SkyParams = { sunDir: sunAt(40), turbidity: 4 }
+    const w = 32
+    const h = 16
+    const buf = new Uint8ClampedArray(w * h * 4)
+    paintSkyEquirect(buf, w, h, params)
+    let below = 0
+    for (let row = 0; row < h; row++) {
+      for (let col = 0; col < w; col++) {
+        const dir = equirectDir(col, row, w, h)
+        if (dir[1] < 0) below++
+        const expected = skyRadiance(dir, params).map((c) => encodeByte(c))
+        const i = (row * w + col) * 4
+        expect([buf[i], buf[i + 1], buf[i + 2]]).toEqual(expected)
+      }
+    }
+    // Guard the guard: if the sampling grid never dipped below the horizon this
+    // would pass without testing the hoisted path at all.
+    expect(below).toBeGreaterThan(0)
+  })
+})

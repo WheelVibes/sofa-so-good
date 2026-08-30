@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.98 — SKY-HORIZON perf: the haze sample is hoisted per column (a correction to .97)
+
+**`.97` shipped a 65% slowdown in the sky bake and I did not measure it before
+committing.** Rule: never add unmeasured cost to the weak-device tier. The haze blend
+called `skyRadiance` recursively for every below-horizon pixel, so a 1024x512 bake went
+**87.2ms -> 144.0ms** (mean of 5, warm) — main-thread time, re-run on every sun move past
+the `shouldRebuildSky` threshold, on the phone tier too (`proceduralSky` is simple-tier, on
+in both modes). Caught by benchmarking `.97` after the fact rather than before; recorded
+here rather than amended away.
+
+**The sample depends only on AZIMUTH, and one equirect column is one azimuth.**
+`paintSkyEquirect` now computes it `w` times instead of once per lower-hemisphere pixel
+(1,024 instead of 262,144), taken from the middle row where the direction is horizontal —
+the top row is near the pole, where azimuth degrades. `skyRadiance` takes an optional
+`hazeSample` so a bulk painter can hoist it; called without one it still self-samples, so
+every other caller is unaffected.
+
+**87.2 baseline -> 144.0 (.97) -> 90.4ms.** The added cost is now +3.2ms (+3.7%) rather than
++56.8ms (+65%). A test pins the painter's bytes as **identical** to per-pixel `skyRadiance`
+across a whole small equirect, including below the horizon (with a guard asserting the grid
+actually dips below the horizon, so the check cannot pass vacuously) — that is what makes
+this a hoist rather than an approximation.
+
+**`paintSkySurround` has the same per-pixel shape and was left alone, deliberately.** It
+measures 160.6ms at 1024x512 — worse — but `lighting/Sky.tsx` bakes it at **256x128**, 1/16
+the pixels, so it costs ~10ms in reality. Checked rather than assumed; no change made.
+
 ## v0.31.5.97 — SKY-HORIZON: the window's ground fades out of the haze instead of butting the sky
 
 **The second of the two observations left open after `.95`** — that the `sky` backdrop's
