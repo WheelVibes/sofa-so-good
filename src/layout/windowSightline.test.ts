@@ -17,12 +17,20 @@ import { LAYOUT_PRESETS } from '../furniture/layoutPresets'
  * **0.65 m** deep — a walking band. A 2.1 m wardrobe clears it by centimetres
  * and then stands ~0.8 m from the glass covering most of it.
  *
- * A RATCHET. The deeper-prism fix was implemented and MEASURED, then reverted:
- * it unblocked 7 of these 11 but dropped 5 wardrobes outright (small HDB masters
- * have nowhere else to put one), and adding a settle fallback to keep them put
- * the two worst offenders straight back. See `docs/open-graphics-decisions.md`
- * item (j) — the arranger needs a smaller wardrobe or a different strategy in a
- * tight room, not a bigger keep-out.
+ * A RATCHET. Three levers have been measured against it:
+ *   - A DEEPER keep-out prism (`.117`): 11 -> 3 but **dropped 5 wardrobes**; the
+ *     relaxed variant kept them and put the two worst offenders back. Reverted.
+ *   - A NARROWER wardrobe (`.121`): width 1.2 gives 12 -> 10 but resizes every
+ *     wardrobe in every template; width 1.0 goes back to **12**, because two more
+ *     wardrobes then fit and block other windows. Not shipped.
+ *   - **Preferring WINDOWLESS walls for tall STORAGE (`.121`, shipped):**
+ *     12 -> 11 with item and wardrobe counts unchanged. A preference, not a
+ *     prohibition, so nothing can go unplaced. Scoped to the `storage` role:
+ *     applying it to every item taller than a sill cleared one more window but
+ *     pushed BATHROOM FIXTURES off their walls, which `autoArrange.test.ts`
+ *     caught and a sightline-only metric never would have.
+ * The 11 that remain have no windowless wall with room — including both masters
+ * that motivated the investigation. See `docs/open-graphics-decisions.md` (j).
  *
  * **Do NOT add an entry to silence a failure.** A new entry means a plan ships a
  * window with furniture parked in front of it.
@@ -30,7 +38,8 @@ import { LAYOUT_PRESETS } from '../furniture/layoutPresets'
 const KNOWN_BLOCKED = [
   'tpl-hdb-3room/h3-b2-win: refrigerator',
   'tpl-hdb-4room/h4-m-win: wardrobe-3door',
-  'tpl-hdb-5room/h5-b2-win: wardrobe-3door',
+  // h5-b2-win CLEARED in v0.31.5.121 by preferring windowless walls for tall
+  // storage — the wardrobe had a windowless alternative in that room.
   'tpl-hdb-5room/h5-m-win: wardrobe-3door',
   'tpl-hdb-exec/ex-b2-win: wardrobe-3door',
   // ADDED by v0.31.5.118, and an honest trade rather than a regression: fixing
@@ -109,10 +118,10 @@ describe('tall furniture does not stand in front of a window', () => {
   })
 
   // Without this the list could pass by measuring nothing: 78 windows are
-  // examined and 66 of them are clear.
+  // examined and 67 of them are clear.
   it('examines every template window', { timeout: 30_000 }, () => {
     const { hits, windows } = blockedWindows()
     expect(windows).toBe(78)
-    expect(windows - hits.length).toBe(66)
+    expect(windows - hits.length).toBe(67)
   })
 })

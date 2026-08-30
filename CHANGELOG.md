@@ -5,6 +5,46 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.121 — WINDOW-SIGHTLINE: tall storage now prefers a windowless wall (12 → 10)
+
+**A partial fix, a disproved recommendation, and a correction to my own earlier claim.**
+
+**SHIPPED — `snapToWall` tries WINDOWLESS edges first for `storage`-role items taller than a window
+sill.** It previously walked a fixed edge order with no window awareness at all. Because this only
+reorders preferences and still attempts every edge, **nothing can go unplaced** — the failure mode
+that forced `.117`'s revert. Measured: blocked windows **12 → 11**, total items **1444 → 1444**,
+wardrobes **40 → 40**. Cleared: `tpl-hdb-5room/h5-b2-win`. Frames (`/tmp/tw15` vs `/tmp/tw11`) show
+that wardrobe has **moved to a different wall** — the yaw it used to fill now shows a door.
+
+**The `storage` scope was forced by a regression only the FULL SUITE caught.** My first version
+applied the reordering to every item taller than a sill. That cleared one more window
+(`tpl-condo-studio/su-bath-win`) and my sightline metric was happy — but it pushed **bathroom
+fixtures off their walls**, because a basin is 0.98 m against a 0.95 m sill.
+`autoArrange.test.ts`'s "lines bathroom fixtures along the walls (not parked mid-room)" case failed
+at 0.80 m against a 0.70 m bound. Sanitaryware is not what `windowSillTall` is written about, so the
+scope is now the `storage` role — one fewer window cleared, and correct.
+
+**CORRECTION — `.117` said the blocker was "the piece's 1.8 m width". That was wrong.** Measured
+across every template: **every wardrobe is `width: 1.5`**. `wardrobe-3door` is parametric
+(`defaultFootprint.w` 1.5, min 1.0, max 2.4), and there is no separate narrow-wardrobe def — the
+same def is resized via `props.width`.
+
+**DISPROVED — my own filed "try a narrower wardrobe" recommendation.** `width: 1.2` gives 12 → 10,
+the same as the shipped fix, but resizes **every** wardrobe in every template. **`width: 1.0` goes
+back to 12**, because two more wardrobes then fit (40 → 42) and block other windows (+5 items).
+Narrowing is not the lever, and shipping it would have been a content change for nothing.
+
+**NOT A CURE, and the limit is structural.** The 10 that remain — including **both masters that
+motivated this item**, `h4-m-win` and `h5-m-win` — have no windowless wall with room. Three arranger
+levers have now been measured (deeper keep-out, narrower piece, wall preference); the residue is
+rooms too small for a queen bed, a wardrobe and a window at once. Item (j) is reclassified from
+"arranger strategy" to **content**.
+
+**A probe bug caught before it reached a claim.** A wardrobe dump attributed UPPER-storey pieces to
+GROUND-floor rooms because it took the first matching room across `planLevels` without checking
+`levelId` — the same level-blind mistake `.103` cost me. It produced phantom "wardrobe in a
+kitchen/porch/yard" rows that were not reported.
+
 ## v0.31.5.120 — studio + loft front doors fixed; the offset-fixable phase is CLOSED
 
 **One scan answered the whole remaining backlog, and it mostly says no.** After four templates went

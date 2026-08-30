@@ -306,7 +306,31 @@ function snapToWall(
   const def = ctx.catalog[item.defId]
   if (!def) return item
   const { w, d } = baseFootprint(item, def)
-  for (const edge of rotateEdges(edges, ctx.seed)) {
+  // WINDOW-SIGHTLINE: a piece taller than a window sill tries WINDOWLESS edges
+  // first. This only reorders preferences — every edge is still attempted, so
+  // unlike a deeper keep-out (.117) it can never leave a piece unplaced.
+  const ordered = rotateEdges(edges, ctx.seed)
+  // STORAGE only — a wardrobe or bookcase is what `designRules.windowSillTall`
+  // is written about. Applying this to every tall item pushed bathroom fixtures
+  // off their walls (caught by `autoArrange.test.ts`'s "fixtures along the
+  // walls" case, which a sightline-only metric never saw).
+  const tall =
+    roleOf(item.defId, ctx.catalog) === 'storage' &&
+    (ctx.windowKeepOut?.some((k) => def.defaultFootprint.h > k.sill) ?? false)
+  const windowed = (edge: Edge) => {
+    if (!tall || !ctx.windowKeepOut) return false
+    const band: Rect =
+      edge === 'N'
+        ? { x0: rect.x0, x1: rect.x1, z0: rect.z0 - 0.3, z1: rect.z0 + 0.3 }
+        : edge === 'S'
+          ? { x0: rect.x0, x1: rect.x1, z0: rect.z1 - 0.3, z1: rect.z1 + 0.3 }
+          : edge === 'W'
+            ? { x0: rect.x0 - 0.3, x1: rect.x0 + 0.3, z0: rect.z0, z1: rect.z1 }
+            : { x0: rect.x1 - 0.3, x1: rect.x1 + 0.3, z0: rect.z0, z1: rect.z1 }
+    return ctx.windowKeepOut.some((k) => rectsOverlap(band, k))
+  }
+  const byWindow = [...ordered.filter((e) => !windowed(e)), ...ordered.filter(windowed)]
+  for (const edge of byWindow) {
     const rot = inward(edge)
     // Perpendicular half-extent (depth d faces the wall) and along-wall half (w).
     const along = w / 2

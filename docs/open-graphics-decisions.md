@@ -535,7 +535,7 @@ unfixable by offset:**
 of the four yaws** — a 2.1 m 3-door wardrobe stands about 0.8 m in front of it. The daylight gets
 in (both rooms measurably brightened); the view does not.
 
-**The size.** Across the 19 templates, **12 of 78 windows** (11 when first measured in `.117`; `.118` added one, see below) have a floor piece taller than the sill
+**The size.** Across the 19 templates, **11 of 78 windows** (11 when first measured in `.117`; `.118` added one and `.121` cleared one) have a floor piece taller than the sill
 standing in front of the glass — footprint overlapping the pane laterally by ≥0.3 m with its nearest
 face within 1.2 m. **Nine are `wardrobe-3door` (2.10 m).** The two worst cover **1.17 m of 1.6 m**
 (`h4-m-win`) and **1.37 m of 1.6 m** (`h5-m-win`) — 73% and 86% of the glass. Every offender's
@@ -572,10 +572,37 @@ dropped, so the room went from **no glass at all** to glass partly blocked by it
 `tpl-hdb-exec/ex-m-win: wardrobe-3door`. Expect the same on each remaining (h) fix: closing (h)
 tends to open (j).
 
-**Recommendation — try a narrower wardrobe in tight rooms before touching the keep-out again.** The
-measured blocker is the piece's 1.8 m width against a ~3.5 m wall that also carries a window and a
-bed. Until then the 12 are **ratcheted by name** in `src/layout/windowSightline.test.ts`, which also
-asserts that 66 of the 78 windows are clear so it cannot pass by measuring nothing.
+**CORRECTION (v0.31.5.121).** This item previously said the blocker was "the piece's 1.8 m width".
+**That was wrong.** Measured across every template, **every wardrobe is `width: 1.5`** —
+`wardrobe-3door` is parametric (`defaultFootprint.w` 1.5, min 1.0, max 2.4, `doorCount` 2-4), and
+there is no separate narrow-wardrobe def; the same def is resized via `props.width`.
+
+**THE NARROWER-WARDROBE RECOMMENDATION IS ALSO DISPROVED (v0.31.5.121).** Measured: `width: 1.2`
+gives blocked **12 → 10** but resizes every wardrobe in every template; **`width: 1.0` goes back to
+12**, because two MORE wardrobes then fit (40 → 42) and block other windows (+5 items). Narrowing is
+not the lever.
+
+**PARTIAL FIX SHIPPED (v0.31.5.121) — prefer WINDOWLESS walls for tall STORAGE.** `snapToWall` tried
+edges in a fixed order with no window awareness. It now attempts windowless edges first for
+`storage`-role items taller than a sill. Because it only reorders preferences and still attempts
+every edge, **nothing can go unplaced** — unlike `.117`'s deeper prism. Measured: blocked
+**12 → 11**, total items **1444 → 1444**, wardrobes **40 → 40**. Cleared:
+`tpl-hdb-5room/h5-b2-win`.
+
+**The `storage` scope was forced by a regression the sightline metric could not see.** Applying the
+reordering to EVERY item taller than a sill cleared one more window
+(`tpl-condo-studio/su-bath-win`) but pushed **bathroom fixtures off their walls** — a basin is
+0.98 m tall, above the 0.95 sill — which `autoArrange.test.ts`'s "fixtures along the walls, not
+parked mid-room" case caught at 0.80 m against a 0.70 m bound. Sanitaryware is not what
+`windowSillTall` is written about.
+
+**IT IS AN IMPROVEMENT, NOT A CURE, AND THE LIMIT IS STRUCTURAL.** The 11 that remain — including
+**both masters that motivated this item**, `h4-m-win` and `h5-m-win` — have **no windowless wall
+with room for the wardrobe**. Three levers have now been measured (deeper keep-out, narrower piece,
+wall preference) and the residue is rooms that are simply too small for a queen bed, a wardrobe and
+a window. **Anything further is a content decision about what a furnished HDB bedroom contains**, not
+an arranger change. The 11 stay **ratcheted by name** in `src/layout/windowSightline.test.ts`, which
+also asserts that 67 of the 78 windows are clear so it cannot pass by measuring nothing.
 
 ---
 
@@ -592,7 +619,7 @@ asserts that 66 of the 78 windows are clear so it cannot pass by measuring nothi
 | g | LEVEL-ISOLATION-IN-WALK | renderer design + cost | ⏳ **OPEN v0.31.5.110** — walking an upper storey hides the one below; acute on `tpl-loft` |
 | h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — was 15 of 44; **12 left**; `.120` proved NONE of the 12 is offset-fixable — each needs a new opening |
 | i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **3 left** after `.115`, `.118`, `.119`, `.120`; all 3 proven NOT offset-fixable |
-| j | WINDOW-SIGHTLINE | arranger strategy | ⏳ **OPEN v0.31.5.117** — **12** of 78 windows have tall furniture in front (`.118` added one as a trade); the deeper-keep-out fix was measured and reverted (it deleted wardrobes) |
+| j | WINDOW-SIGHTLINE | content | ⏳ **OPEN v0.31.5.117** — **11** of 78 after `.121` shipped a windowless-wall preference for storage; three arranger levers measured, the residue is rooms too small to fix |
 
 **Five of ten items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
 ((d)). Each was implemented in its own committed round and marked here as it landed. **(f), (g), (h), (i) and (j) are open.** (h) and (i) share one cause and should be fixed together; (j) was created by fixing (h) and needs an arranger strategy, not a bigger keep-out.
