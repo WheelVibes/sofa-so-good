@@ -346,6 +346,18 @@ export const PHOTO_FILL_SCALE = {
  * still irregular, while 4.5 / 3.6 reads as coarse basket-weave on a sofa that is
  * meant to be cotton. Surface micro-contrast, medium tier: curtain **0.0866 →
  * 0.1055**, sofa **0.0937 → 0.1068**, against photographs at 0.140–0.187 / 0.174.
+ *
+ * **The 0.140–0.187 / 0.174 target is retracted (v0.31.5.187) — do not raise these
+ * values to chase it.** Those figures were single crops of two photographs. Measured
+ * as distributions (60 px tiles) across four, surface micro-contrast has no single
+ * photographic value: upholstery spans **0.025–0.214** and drapery **0.001–0.275**,
+ * because the statistic is set by lighting geometry and exposure as much as by weave
+ * — a backlit sheer medians 0.008, a side-lit drape 0.163, in the same photograph set.
+ * The spread WITHIN one photograph's own sofa (0.048–0.116) is wider than the whole
+ * gap ten rounds were spent closing. Both app looks already sit inside the range
+ * (sofa 0.047–0.107, curtain 0.036–0.137), so this axis is closed on the numbers.
+ * Any further move here must be justified by the 4× crop judgement of `.172`/`.184`,
+ * never by a micro/mean target.
  */
 export const PHOTO_WEAVE = { drapery: 3.2, draperyLinen: 3.6, upholstery: 2.8 } as const
 

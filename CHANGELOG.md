@@ -5,6 +5,27 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.187 — the fabric target was two crops too
+
+`.186` retracted the deep-shadow band. The same two photographs also supplied the surface
+micro-contrast target — **0.140–0.187** drapery, **0.174** upholstery — which has anchored every fabric
+round since `.157` and had never been re-derived. Measured across all four references as distributions
+(tiles, not single crops) it does not survive.
+
+Upholstery spans **0.025–0.214** and drapery **0.001–0.275** across four real interiors. The statistic
+is set by lighting geometry and exposure as much as by weave: a backlit sheer medians **0.008**, a
+side-lit drape **0.163**, in the same reference set. Photo D's pale sofa measures micro-sd 4.20 over a
+clean crop — nearly featureless, and that is simply what pale upholstery looks like lit flat.
+
+The gap chased from `.160` to `.184` (app 0.047 → 0.096) is **narrower than the spread within photo C's
+own sofa** (0.048–0.116, p25–p75). Both app looks already sit inside the photographic range — sofa
+0.047–0.107, curtain 0.036–0.137. On the numbers the fabric-relief axis is closed, as `.186` closed
+shadow depth.
+
+Nothing is reverted. `.173`'s irregular thread gain and `.184`'s 3.2 / 2.8 values were judged on the 4×
+crop, visually, and they stand; what is withdrawn is the *numeric warrant for pushing them further*.
+`PHOTO_WEAVE`'s docblock now carries the retraction so the next round cannot re-fit to a dead target.
+
 ## v0.31.5.186 — the "photographic band" was two photographs
 
 Everything from `.163` to `.185` was calibrated against a deep-shadow band of **11.2–12.2 %**, taken

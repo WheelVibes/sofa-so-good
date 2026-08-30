@@ -2215,3 +2215,63 @@ blinds and the render-style light. It measures `%<64` **31.06 %**, darker than a
 photographs. Calibrating a renderer against another renderer would have been circular, and worse,
 would have pulled the target much further into the dark. Any future reference has to be eyeballed for
 this before it is measured.
+
+---
+
+## `.187` — the fabric target was two crops, and micro/mean has no single photographic value
+
+`.186` found the deep-shadow band came from the darkest two of four photographs. The same two images
+also supplied the *other* long-running target: surface micro-contrast **0.140–0.187** (drapery) and
+**0.174** (upholstery), which has anchored every fabric round since `.157`. It had never been
+re-derived. With four references in hand it can be, and the honest answer is that the target does not
+survive contact with them.
+
+### Measured as distributions, not crops
+
+Each fabric region tiled (60 px for upholstery, 40 px for drapery) and every tile measured
+independently, so the spread is visible rather than averaged away.
+
+| region | tiles | mean | micro-sd | ratio p25 / p50 / p75 |
+|---|---|---|---|---|
+| photo C pale sectional | 50 | 146 | 12.37 | 0.048 / **0.089** / 0.116 |
+| photo D pale sofa | 20 | 166 | 7.20 | 0.019 / **0.024** / 0.029 |
+| photo A dark leather *(the old 0.174)* | 28 | 88 | 14.38 | 0.112 / **0.126** / 0.214 |
+| app sofa, default look | 50 | 147 | 9.35 | 0.041 / **0.061** / 0.094 |
+| app sofa, photographic look | 50 | 96 | 10.61 | 0.073 / **0.122** / 0.154 |
+
+| drapery | tiles | mean | micro-sd | ratio min / p50 / max |
+|---|---|---|---|---|
+| photo A cream curtain (backlit) | 24 | 182 | 18.59 | 0.009 / **0.066** / 0.275 |
+| photo C cream drape (side-lit) | 10 | 136 | 21.75 | 0.089 / **0.163** / 0.195 |
+| photo D sheer (backlit) | 78 | 236 | 3.47 | 0.001 / **0.008** / 0.097 |
+
+### What that says
+
+**There is no photographic value for micro/mean.** Across four real interiors upholstery spans
+**0.025–0.214** and drapery **0.001–0.275**. The statistic is set by lighting geometry and exposure at
+least as much as by weave: the same reference set holds a backlit sheer at a median of 0.008 and a
+side-lit drape at 0.163. A near-featureless pale sofa (photo D, micro-sd 4.20 over a clean crop) is not
+a rendering failure — it is what pale upholstery looks like lit flat and exposed bright.
+
+**The gap being chased was inside one photograph's own spread.** Photo C's sectional ranges 0.048–0.116
+p25–p75 *within a single sofa*. That is wider than the entire distance from the app's shipped 0.047 to
+the photographic look's 0.096 that `.160`–`.184` worked to cover.
+
+**Both app looks are already inside the range.** Sofa 0.047–0.107 against 0.025–0.214; curtain
+0.036–0.137 against 0.001–0.275. On the numbers this axis is closed, exactly as `.186` closed shadow
+depth. The two looks bracket the photographic range on relief for the same reason they bracket it on
+shadow: photographs do not agree with each other.
+
+`r(sd, mean)` per region flips sign — negative in photos C and D and in both app looks, positive in
+photo A — so micro-sd is not a simple function of brightness that could be divided out. The ratio is
+not repairable by normalising differently; it is a per-crop number being read as a per-material one.
+
+### What does not change
+
+The shipped relief work stands. `.173`'s irregular `threadGain` and `.184`'s 3.2 / 2.8 sweep were
+judged on the 4× crop — "clearly woven and still irregular" versus "coarse basket-weave" — and that
+judgement was visual, not numeric. The retraction removes the *justification for pushing further*, not
+the changes already made. `PHOTO_WEAVE` stays where `.184` put it, and the docblock now says so.
+
+The lesson repeats `.186`'s: a target read off one or two crops is a point sampled from a wide
+distribution, and re-fitting to it looks like convergence right up until the distribution is measured.
