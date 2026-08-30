@@ -1088,6 +1088,110 @@ function getFurnitureMatWithRepeat(
   return m
 }
 
+/** Physical grain period for furniture wood: one texture tile spans this many
+ *  metres of real panel. Chosen so the LARGEST carcass panels keep roughly the
+ *  scale they already have (wardrobe body 0.70, bookshelf 1.10, TV console 1.13
+ *  m/tile before this existed) while every smaller panel is pulled to match
+ *  instead of shrinking with its own size. */
+export const FURNITURE_GRAIN_METRES = 0.9
+
+/** The `(repeatU, repeatV)` a panel of world size `w × h` needs so its texture
+ *  lands at a fixed PHYSICAL period, rather than at one tile per face.
+ *
+ *  This is the whole point of the sized factory. A box face's UVs run 0→1 no
+ *  matter how big the face is, so a single isotropic `repeat` gives every panel
+ *  its own scale — measured on the default flat, one wardrobe material spanned
+ *  0.005 → 1.050 m/tile, a 210× spread — and stretches each face by its own
+ *  aspect ratio (a 0.437 × 1.99 m door: 0.218 across, 0.995 up, a 4.6:1 smear
+ *  that NO isotropic repeat can undo, because the ratio is preserved by
+ *  construction). Deriving u and v separately from world size fixes both.
+ *
+ *  Quantised to 0.05 so near-identical panels share one cached variant, and
+ *  clamped to [0.05, 24] so a degenerate 1 mm edge cannot ask for a 900× tile.
+ *  Non-finite / non-positive sizes fall back to 1. */
+export function sizedRepeat(
+  w: number,
+  h: number,
+  metresPerTile = FURNITURE_GRAIN_METRES,
+): [number, number] {
+  const mpt =
+    Number.isFinite(metresPerTile) && metresPerTile > 0 ? metresPerTile : FURNITURE_GRAIN_METRES
+  const one = (v: number): number => {
+    if (!Number.isFinite(v) || v <= 0) return 1
+    return Math.min(24, Math.max(0.05, Math.round((Math.abs(v) / mpt) * 20) / 20))
+  }
+  return [one(w), one(h)]
+}
+
+// AUD-002 — same bounded-LRU + owned-texture disposal as the other caches. Keyed
+// per (kind, colour, sheen, repeatU, repeatV); every cloned texture is `own`ed.
+const sizedCache = new LruCache<MeshStandardMaterial>({
+  max: 256,
+  dispose: disposeOwnedMaterial,
+})
+
+/** {@link getSurfaceMaterial}, but tiled to a fixed PHYSICAL grain period from
+ *  the panel's real world size instead of a hand-picked scalar `repeat`.
+ *
+ *  Use this for any furniture panel whose size varies (carcass sides, doors,
+ *  drawer fronts, shelves): it keeps one piece of furniture reading as ONE piece
+ *  of wood. Finishes with no texture maps (painted / gloss) are returned
+ *  unchanged — there is nothing to rescale. */
+export function getSurfaceMaterialSized(
+  kind: string,
+  color: string,
+  w: number,
+  h: number,
+  sheen = 0,
+  metresPerTile = FURNITURE_GRAIN_METRES,
+): MeshStandardMaterial {
+  const base = getSurfaceMaterial(kind, color, 1, sheen)
+  if (!base.map && !base.normalMap && !base.roughnessMap) return base
+  const [ru, rv] = sizedRepeat(w, h, metresPerTile)
+  const key = `sized:${kind}:${color}:${sheen.toFixed(2)}:${ru}x${rv}`
+  const hit = sizedCache.get(key)
+  if (hit) return hit
+  const m = base.clone()
+  if (m.map) {
+    m.map = own(applyAnisotropy(m.map.clone()))
+    m.map.needsUpdate = true
+    m.map.repeat.set(ru, rv)
+  }
+  if (m.normalMap) {
+    m.normalMap = own(applyAnisotropy(m.normalMap.clone()))
+    m.normalMap.needsUpdate = true
+    m.normalMap.repeat.set(ru, rv)
+  }
+  if (m.roughnessMap) {
+    m.roughnessMap = own(applyAnisotropy(m.roughnessMap.clone()))
+    m.roughnessMap.needsUpdate = true
+    m.roughnessMap.repeat.set(ru, rv)
+  }
+  sizedCache.set(key, m)
+  return m
+}
+
+/** {@link getSurfaceMaterialSized} for a BOX panel given its `[w, h, d]` args.
+ *
+ *  A box has three faces and one material, so the pair has to describe ONE of
+ *  them; this picks the face a viewer actually reads. Three maps `u → x` on
+ *  every face, and `v → y` on the four upright faces but `v → z` on the top and
+ *  bottom. Taking `v` from `max(h, d)` therefore lands correctly on the upright
+ *  face of a tall panel (h > d) AND on the top face of a horizontal one like a
+ *  shelf or a worktop (d > h) — in both cases the large, visible face. The
+ *  remaining thin edges are a few millimetres of end grain and are not what
+ *  gives the piece away. */
+export function getSurfaceMaterialForBox(
+  kind: string,
+  color: string,
+  dims: readonly [number, number, number],
+  sheen = 0,
+  metresPerTile = FURNITURE_GRAIN_METRES,
+): MeshStandardMaterial {
+  const [w, h, d] = dims
+  return getSurfaceMaterialSized(kind, color, w, Math.max(h, d), sheen, metresPerTile)
+}
+
 /** Dispatch a hard-surface material by finish kind ('wood' | 'painted' |
  *  'gloss'), tinted to `color`. `sheen` (0..1) tunes matte → glossy across all
  *  three. Wood keeps its grain; painted/gloss are flat.

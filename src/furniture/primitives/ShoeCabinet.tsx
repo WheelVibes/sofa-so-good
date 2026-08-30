@@ -1,4 +1,4 @@
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import { getSurfaceMaterial, getSurfaceMaterialForBox } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
@@ -20,6 +20,15 @@ export function ShoeCabinet({ props }: { props: ParamProps }) {
   const bodyH = 0.94
   const topThk = 0.025
   const wood = getSurfaceMaterial(finish, bodyColor, 1.4, sheen)
+  // GRAIN-SCALE: a door / drawer front is a fraction of the carcass, but a box
+  // face's UVs are 0→1 whatever its real size — so sharing the carcass material
+  // renders the same wood at a different (and per-face STRETCHED) grain on every
+  // front. Size these from world dimensions instead. Structural panels keep the
+  // shared carcass material on purpose: their faces are flush with each other by
+  // construction, and giving each its own variant would turn invisible coplanar
+  // seams into visible z-fighting (`structuralSoundness` pins this).
+  const frontWood = (dims: [number, number, number]) =>
+    getSurfaceMaterialForBox(finish, bodyColor, dims, sheen)
 
   const gap = 0.015
   const frontsH = bodyH - topThk
@@ -91,7 +100,7 @@ export function ShoeCabinet({ props }: { props: ParamProps }) {
               <BeveledBox
                 castShadow
                 position={[0, y, depth / 2 + 0.004]}
-                material={wood}
+                material={frontWood([width - 0.03, fh - 0.006, 0.02])}
                 args={[width - 0.03, fh - 0.006, 0.02]}
               />
               {/* recessed finger pull at the top of each front */}

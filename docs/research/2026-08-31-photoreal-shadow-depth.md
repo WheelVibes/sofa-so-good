@@ -668,3 +668,41 @@ anisotropic material factory rather than a per-primitive tweak.
 watermark grain — worst on wardrobe/bookshelf doors") and treats it with two hand-tuned constants,
 `FURNITURE_WOOD_COARSEN = 0.5` and `FURNITURE_WOOD_NORMAL_SCALE = 0.24`. Those calm the *amplitude*;
 they cannot correct the *scale*, because the error is geometric.
+
+
+## Fixing it: grain sized from world dimensions (v0.31.5.148)
+
+`.147` measured the defect; this ships the fix for the panels where it showed most.
+
+**New in `furnitureMaterials.ts`:** `FURNITURE_GRAIN_METRES = 0.9` (one texture tile per 0.9 m of
+real panel — chosen so the largest carcass panels keep roughly the scale they already had), the pure
+`sizedRepeat(w, h, mpt) → [repeatU, repeatV]`, `getSurfaceMaterialSized(...)`, and
+`getSurfaceMaterialForBox(kind, color, [w,h,d], sheen)`. The box helper takes `v` from `max(h, d)`
+because three maps `v → y` on the four upright faces but `v → z` on the top and bottom: that single
+rule lands correctly on a tall door AND on a horizontal shelf, i.e. on the large visible face in both
+cases. Six unit tests pin the helper, including that `u` and `v` differ (the whole point) and that a
+1 mm edge is clamped rather than asking for a 900× tile.
+
+**Applied to fronts only, and that restriction is load-bearing.** Sizing *every* panel made
+`structuralSoundness.test.tsx` fail on five cases with up to 18 "z-fighting coplanar face pairs" —
+carcass backs, sides and tops are flush with one another by construction, and while they shared one
+material those coincident faces were invisible. Give each its own variant and the seam becomes a
+visible scale discontinuity. So doors, drawer fronts and flap fronts are sized; carcass panels keep
+the shared material. Suite green.
+
+**Measured with `grain-scale.mjs`, same scene, before → after:**
+
+| panel | before (m/tile, u / v) | after | face stretch |
+| --- | --- | --- | --- |
+| wardrobe door (0.437 × 1.99) | 0.218 / 0.995 | **0.873 / 0.905** | 4.6:1 → **1.04:1** |
+| TV-console drawer front (0.858 × 0.185) | 0.536 / 0.116 | **0.903 / 0.925** | 4.6:1 → **1.02:1** |
+| shoe-cabinet front | — | 0.930 | — |
+
+**Visually**, at the same living-room pose, the console's drawer fronts go from dense tight vertical
+ribs to noticeably broader bands that match the carcass top. **Honest limits:** the improvement is
+real but modest at walking distance, the two capture runs are not pixel-identical in pose, and the
+fronts still read as *vertically* striped — because the remaining error is **grain DIRECTION**, not
+scale. A 0.86 × 0.19 m drawer front should have grain running along its long axis; the texture's
+grain axis is fixed in UV space, so a wide-short panel gets cross-grain. That needs a per-panel
+texture ROTATION (`texture.rotation` / `center`), and is the natural next step — recorded here rather
+than bundled in.

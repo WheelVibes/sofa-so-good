@@ -2,6 +2,21 @@
 
 Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
 
+- **Size furniture panel materials from WORLD dimensions, not a hand-picked scalar
+  (`getSurfaceMaterialForBox`).** A box face's UVs run 0→1 whatever the face's real size, so one
+  isotropic `repeat` gives every panel its own grain scale *and* smears each face by its own aspect
+  ratio. Measured on the default flat before this existed: one `wardrobe-3door` material spanned
+  **0.005 → 1.050 m per tile (210×)**, and a 0.437 × 1.99 m door landed at 0.218 across / 0.995 up —
+  a **4.6:1 stretch no scalar can undo**. `getSurfaceMaterialForBox(kind, color, [w,h,d], sheen)`
+  derives `(repeatU, repeatV)` from world size at a fixed `FURNITURE_GRAIN_METRES` (0.9 m), taking
+  `v` from `max(h, d)` so it lands on the upright face of a tall panel and the top face of a shelf.
+  Measure with `scripts/dev-probes/grain-scale.mjs`.
+  **Use it for FRONTS (doors, drawer/flap fronts), not for structural carcass panels.** Carcass
+  faces are flush with each other by construction; giving each its own variant turns invisible
+  coplanar seams into visible z-fighting, which `furniture/primitives/structuralSoundness.test.tsx`
+  catches. Rolled out so far: `Wardrobe`, `TVConsole`, `Bookshelf`, `ShoeCabinet` — other primitives
+  are open work.
+
 - **New finish** = an entry in `builtinCatalog.ts` (`procedural` with a pattern, or
   `solid`); new pattern painters go in `procedural/patterns/<family>.ts` (paint one tiling tile:
   albedo+normal+roughness from seeded noise over the shared `procedural/fieldKit.ts` buffers),

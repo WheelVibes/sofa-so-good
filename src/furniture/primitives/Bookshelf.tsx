@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import { getSurfaceMaterial, getSurfaceMaterialForBox } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
 import { type BoxInstance, InstancedBoxes } from './InstancedBoxes'
@@ -33,6 +33,15 @@ export function Bookshelf({ props }: BookshelfProps) {
   const plinthH = 0.06 // recessed toe-kick the carcass stands on
 
   const wood = getSurfaceMaterial(finish, color, 1.4, sheen)
+  // GRAIN-SCALE: a door / drawer front is a fraction of the carcass, but a box
+  // face's UVs are 0→1 whatever its real size — so sharing the carcass material
+  // renders the same wood at a different (and per-face STRETCHED) grain on every
+  // front. Size these from world dimensions instead. Structural panels keep the
+  // shared carcass material on purpose: their faces are flush with each other by
+  // construction, and giving each its own variant would turn invisible coplanar
+  // seams into visible z-fighting (`structuralSoundness` pins this).
+  const frontWood = (dims: [number, number, number]) =>
+    getSurfaceMaterialForBox(finish, color, dims, sheen)
   // The carcass (everything below) is lifted onto the plinth.
   const carcassH = height - plinthH
   const innerH = carcassH - shelfThickness
@@ -103,7 +112,7 @@ export function Bookshelf({ props }: BookshelfProps) {
           key={`door${s}`}
           castShadow
           position={[cx, doorY, depth / 2 - 0.012]}
-          material={wood}
+          material={frontWood([doorW, doorH, 0.018])}
           args={[doorW, doorH, 0.018]}
         />,
       )

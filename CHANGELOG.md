@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.148 — furniture grain sized from world dimensions
+
+Ships the fix `.147` measured. New in `materials/furnitureMaterials.ts`: `FURNITURE_GRAIN_METRES`
+(0.9 m of real panel per texture tile), the pure `sizedRepeat(w, h, mpt) → [repeatU, repeatV]`,
+`getSurfaceMaterialSized(...)` and `getSurfaceMaterialForBox(kind, color, [w,h,d], sheen)` — which
+takes `v` from `max(h, d)` because three maps `v → y` on the upright faces but `v → z` on the top and
+bottom, so one rule lands on the large visible face of both a tall door and a horizontal shelf. Six
+unit tests pin it.
+
+Applied to **fronts only** — doors, drawer fronts, flap fronts on `Wardrobe`, `TVConsole`,
+`Bookshelf` and `ShoeCabinet`. That restriction is load-bearing: sizing every panel made
+`structuralSoundness.test.tsx` fail on five cases with up to 18 z-fighting coplanar face pairs,
+because carcass backs/sides/tops are flush by construction and only stayed invisible while they
+shared one material.
+
+Measured with `grain-scale.mjs`: a wardrobe door goes from **0.218 / 0.995 m per tile to 0.873 /
+0.905** (a 4.6:1 face stretch → 1.04:1), a TV-console drawer front from **0.536 / 0.116 to 0.903 /
+0.925** (4.6:1 → 1.02:1). Visually the console's drawer fronts go from dense tight vertical ribs to
+broader bands matching the carcass top.
+
+Stated honestly in `docs/research/2026-08-31-photoreal-shadow-depth.md`: the gain is real but modest
+at walking distance, and the fronts still read as vertically striped — the remaining error is grain
+**direction**, not scale (a 0.86 × 0.19 m drawer front should have grain along its long axis; the
+texture's grain axis is fixed in UV space). That needs a per-panel texture rotation and is recorded
+as the next step rather than bundled in here.
+
 ## v0.31.5.147 — the same wood is drawn at up to 210 different scales on one object
 
 **Measurement only; new probe `scripts/dev-probes/grain-scale.mjs`.** Looking at a walk frame instead
