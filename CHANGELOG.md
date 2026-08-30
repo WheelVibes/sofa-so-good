@@ -5,6 +5,48 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.100 — WALK-AIM-PROMPT: the door prompt actually appears (a correction to .99)
+
+**`.99` over-claimed and this entry corrects it.** That commit is titled "the walker can
+open the doors of the plan it is in", and it measured `nearbyDoorId` going **0/5 -> 5/5** on
+the maisonette upper storey. The measurement was true and the aim fix was real — but it
+measured the store field, not the screen. `ui/DoorPrompt.tsx` still did
+
+    const spec = DOORS.find((d) => d.id === nearbyDoorId)
+    if (!spec) return null
+
+with `DOORS` being the DEFAULT flat's hardcoded constants. So for `emu-bed2-door` the
+component returned null and **no prompt rendered at all**: the walker stood at a
+now-correctly-detected door with no affordance on screen, on 18 of the 19 templates. The
+number passed while the picture still failed, and the fix I shipped revealed the next layer
+of the same bug.
+
+**Fixed by validating against the storey being WALKED** — `walkLevel(floorPlan,
+viewLevelId).openings` — the same source the aim ray uses. The stale-id guard the constants
+check was really providing survives (an id left over from a previous plan still renders
+nothing), but every door of the current plan now prompts. Verified in a FRAME this time, not
+a store read: at `emu-bed2-door` on the maisonette upper storey the HUD shows the
+**"E — Open door"** pill.
+
+**Label fallback is now explicit and pure** (`doorPromptLabel`): the default flat's
+hand-written copy first, then the opening's custom `name`, then a generic `'door'`. The test
+that pins that order **caught a real bug in it** — `name?.trim() ?? 'door'` does not fall
+through for a whitespace-only name, because `''` is not nullish, so it would have rendered
+"Open " with an empty noun.
+
+**Known limitation, recorded rather than half-fixed.** On a template the prompt reads the
+generic "Open door", because template openings carry no `name` (verified: all eight
+maisonette doors are unnamed). Naming the door by the room beyond it needs the player
+position and a `pointInRoom` test on the far side, and was deliberately left as a follow-up
+rather than guessed at here.
+
+**The probe now captures a frame per door** (`door-aim-plan.mjs`, `OUT=`), added precisely
+because this round proved that `nearbyDoorId` being right does not mean the user sees
+anything.
+
+**Control:** the default flat is unchanged — its prompt still reads "Open bedroom 2" for
+`door-bedroom2`, pinned by a test.
+
 ## v0.31.5.99 — WALK-AIM-PLAN: the walker can open the doors of the plan it is actually in
 
 **Two defects, one root cause: walk-mode interaction targets were not derived from the

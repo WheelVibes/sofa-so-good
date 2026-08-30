@@ -315,6 +315,17 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   the level per frame (that would allocate a level array + a spread plan 60x a second) and
   not close over `plan` (that goes stale). `levelAsPlan` returns the SAME reference for an
   already-single-storey plan, so the common case keeps `useMemo` identity.
+- **A walk-mode prompt validates its target against the WALKED plan, never against
+  `apartment/constants.ts` (WALK-AIM-PROMPT).** `DoorPrompt` looks `nearbyDoorId` up in
+  `walkLevel(floorPlan, viewLevelId).openings` — the same source `collision/doorAim.ts` builds
+  the aim ray from — so the guard still rejects a stale id from a previous plan while every
+  door of the current one can prompt. It previously looked the id up in the default flat's
+  hardcoded `DOORS` and returned null when absent, so on 18 of 19 templates the prompt never
+  rendered even once the aim was correct: `nearbyDoorId` was right and the screen was empty.
+  **A store field is not the screen — verify the rendered surface.** Prompt copy goes through
+  the pure `doorPromptLabel(id, name)`: default-flat copy, then the opening's custom `name`,
+  then a generic noun (use `||`, not `??`, for the name — a whitespace-only name trims to `''`,
+  which is not nullish, and would render an empty noun).
 - **Shortcut chips** come from `controls/keybindings.ts` (via `shortcuts.ts`) — never
   hardcode a key label. Tooltips + menus render through `Popover` (portal) so the
   scrollable toolbar can't clip them.

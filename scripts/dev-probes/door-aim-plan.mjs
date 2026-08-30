@@ -197,6 +197,12 @@ const poses = await page.evaluate(async () => {
 })
 console.log(`${poses.length} door pose(s) derived from the walked storey\n`)
 
+// OUT=<dir> also captures a frame at each door, because `nearbyDoorId` being
+// right does NOT prove the user sees an affordance — WALK-AIM-PROMPT was exactly
+// that failure.
+const SHOT_DIR = process.env.OUT || ''
+if (SHOT_DIR) fs.mkdirSync(SHOT_DIR, { recursive: true })
+
 let hit = 0
 const wrong = []
 for (const p of poses) {
@@ -206,6 +212,7 @@ for (const p of poses) {
   }, p)
   await new Promise((r) => setTimeout(r, 900))
   const near = await page.evaluate(() => window.__store.getState().nearbyDoorId)
+  if (SHOT_DIR) await page.screenshot({ path: `${SHOT_DIR}/${p.id}.png` })
   const ok = near === p.id
   if (ok) hit++
   else wrong.push(`${p.id} -> ${near ?? 'null'}`)
