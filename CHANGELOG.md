@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.194 — repaired probe, a real baseline, and a proxy that is structurally blind
+
+`.193`'s three probe defects are fixed: onboarding suppressed, HUD rectangles cut out, and the pose
+taken from the **living/dining** window instead of "the first window in the plan" (which was the main
+bedroom). Pooled under-samples went from 11 to **115** and the guard no longer fires.
+
+**The real baseline is worse than the retracted numbers claimed:**
+
+| | under | open | under/open |
+| --- | --- | --- | --- |
+| photographic look | 95.3 | 121.2 | **0.786** |
+| default look | 141.8 | 163.8 | **0.865** |
+| reference photographs | | | **0.579–0.725** |
+
+Both looks sit ABOVE the photographic band — `.192` had the photographic look inside it at 0.660. So
+the floor under the app's furniture is too bright in both looks, independently of the bounce question.
+
+**And the proxy cannot test what it was built to test.** At ground bounce ×1, ×3.5 and ×6.5 the ratio
+is 0.786 every time, identical to three decimals, while the same sweep moves the ceiling 0.87 → 1.08.
+The cause is three's shader: `irradiance = mix(groundColor, skyColor, 0.5·dot(n, up) + 0.5)`, so an
+up-facing floor gets pure `skyColor` and `groundColor` contributes **nothing** to it. It reaches only
+downward-facing surfaces — ceilings and furniture undersides.
+
+`.192`'s "quantified budget" was therefore wrong in principle, not just in its numbers. The floor proxy
+was adopted because undersides barely appear in photographs, and that substitution made the metric
+blind to the defect it existed to detect. Testing `.183` means masking down-facing faces directly
+(`normal.y < −0.9`), with a reference built as underside ÷ frame mean rather than a floor ratio.
+
+Nothing shipped. The bounce's benefit is confirmed and unchanged; its cost is still unmeasured.
+
 ## v0.31.5.193 — the hemisphere reaches the ceiling band; `.191`/`.192` underside numbers RETRACTED
 
 **The ceiling result (trusted instrument).** Sweeping a whole-floor bounce — the hemisphere's

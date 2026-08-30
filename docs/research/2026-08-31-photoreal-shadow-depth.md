@@ -2676,3 +2676,61 @@ The ceiling result stands on its own and is the most encouraging thing here in t
 work is now: repair the probe (HUD rectangles, living-room pose), re-derive the underside baseline for
 both looks, and only then decide on ×6.5 — including whether to buy the lost shadow depth back with the
 fill scale, as `.183`'s two-parameter fit did.
+
+---
+
+## `.194` — the repaired probe, a real baseline, and a proxy that is structurally blind
+
+`.193` retracted `.191`/`.192`'s underside numbers and listed three probe defects. All three are now
+fixed: onboarding suppressed (last round), HUD rectangles cut out, and the pose derived from the
+**living/dining** window rather than "the first window in the plan", which had been the main bedroom.
+Sample count went from 11 pooled under-samples to **115**, and the too-few-samples guard no longer
+fires — the living room has furniture with clearance where the bedroom had a bed on the floor.
+
+### The real baseline, which is worse than the retracted one claimed
+
+| | under | open | under/open |
+| --- | --- | --- | --- |
+| photographic look | 95.3 | 121.2 | **0.786** |
+| default look | 141.8 | 163.8 | **0.865** |
+| reference photographs | | | **0.579–0.725** |
+
+**Both looks sit above the photographic band.** The retracted `.192` figures had the photographic look
+comfortably inside it at 0.660; measured properly it is at 0.786, outside. So the floor under the
+app's furniture is too bright in *both* looks — a real deficiency, and one that exists independently of
+the bounce question. The default look is worse, which is the one part of `.192`'s story that survives.
+
+### The proxy cannot test the thing it was built to test
+
+Measured at ground bounce ×1, ×3.5 and ×6.5, the ratio is **0.786 every time**, identical to three
+decimals, while `light-distribution.mjs` shows the same sweep moving the ceiling 0.87 → 1.08 and the
+frame mean 110.4 → 128.9. That is not a weak effect; it is no effect, and the cause is in three's
+shader rather than in the probe:
+
+```glsl
+float dotNL = dot( normal, hemiLight.direction );
+float hemiDiffuseWeight = 0.5 * dotNL + 0.5;
+vec3 irradiance = mix( hemiLight.groundColor, hemiLight.skyColor, hemiDiffuseWeight );
+```
+
+A floor faces **up**, so `dotNL = 1`, the weight is 1, and the irradiance is pure `skyColor` —
+`groundColor` contributes **nothing to the floor at all**. It contributes fully only to surfaces facing
+**down**: ceilings, and the undersides of furniture.
+
+So `.192`'s "quantified budget — the bounce may raise the underside ratio from 0.660 to at most 0.73"
+was wrong in principle as well as in its numbers. This term cannot move that ratio in either direction.
+The floor-shadow proxy was adopted in `.191` because undersides are barely visible in a photograph, and
+that substitution quietly made the metric blind to the exact defect it existed to detect.
+
+### What actually has to be measured
+
+`.183`'s objection was about **downward-facing faces** — "the undersides of the TV console and the
+coffee table" — which is precisely the population `groundColor` lights. The app can mask those
+geometrically (`normal.y < −0.9`, above floor height), the same way `wall-cap.mjs` masks up-facing wall
+caps. The open problem is the reference: a photograph shows very little underside, so the target has to
+be built differently — most plausibly as underside ÷ frame mean, or underside ÷ the piece's own lit
+top, measured on the few photographs where a console or table underside is genuinely visible.
+
+**Nothing shipped, and the bounce is still undecided.** Its benefit is confirmed and unchanged (ceiling
+0.87 → 1.08 with walls flat); its cost remains unmeasured, and this round establishes that it was never
+going to be measured by the metric built for it.

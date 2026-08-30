@@ -53,7 +53,28 @@ const CEILING_M = 2.4
 /** Standoffs from the window, in metres, sampled in both look directions. */
 const STANDOFFS = (process.env.STANDOFFS || '1.2,2.2,3.2,4.6').split(',').map(Number)
 const DIRS = (process.env.DIRS || 'in,out').split(',')
+/** Which window opening the pose is derived from. `.193` measured the MAIN
+ *  BEDROOM for two rounds because this defaulted to "the first window in the
+ *  plan"; every other measurement in this arc uses the living/dining room. */
+const WINDOW = process.env.WINDOW || 'livingDining'
 const OUT = process.env.OUT || '/tmp/underside-shadow'
+
+/**
+ * HUD cut-outs, as fractions of the frame. REQUIRED: a puppeteer screenshot
+ * composites the DOM over the canvas (`.185`), so a floor sample that lands under
+ * the toolbar, the walk toast, the interaction pill, the hint bar or the minimap
+ * reads the HUD's pixels instead of the floor's. `.193` shipped two rounds of
+ * numbers without these.
+ */
+const HUD = [
+  { x0: 0.24, x1: 0.76, y0: 0, y1: 0.1 }, // toolbar
+  { x0: 0.9, x1: 1, y0: 0, y1: 0.06 }, // measure button
+  { x0: 0.76, x1: 1, y0: 0.76, y1: 1 }, // minimap + compass
+  { x0: 0.32, x1: 0.68, y0: 0.11, y1: 0.22 }, // "Walking through" toast
+  { x0: 0.42, x1: 0.59, y0: 0.82, y1: 0.89 }, // interaction pill
+  { x0: 0.29, x1: 0.71, y0: 0.91, y1: 0.98 }, // walk-mode hint bar
+]
+const inHud = (x, y) => HUD.some((r) => x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1)
 
 fs.mkdirSync(OUT, { recursive: true })
 
@@ -101,9 +122,11 @@ await new Promise((r) => setTimeout(r, 1500))
  */
 async function poseAt(standoff, dir) {
   const pose = await page.evaluate(
-    ({ standoff, dir }) => {
+    ({ standoff, dir, win }) => {
       const plan = window.__store.getState().floorPlan
-      const op = (plan?.openings ?? []).find((o) => o.kind === 'window')
+      const re = new RegExp(win, 'i')
+      const wins = (plan?.openings ?? []).filter((o) => o.kind === 'window')
+      const op = wins.find((o) => re.test(o.id ?? '')) ?? wins[0]
       const w = (plan?.walls ?? []).find((x) => x.id === op?.wallId)
       if (!op || !w) return null
       const [x0, z0] = w.start
@@ -133,7 +156,7 @@ async function poseAt(standoff, dir) {
       const yawOut = Math.atan2(-(cx - px), -(cz - pz))
       return { px, pz, yaw: dir === 'out' ? yawOut : yawOut + Math.PI }
     },
-    { standoff, dir },
+    { standoff, dir, win: WINDOW },
   )
   if (!pose) throw new Error('no window opening in the loaded plan')
   await page.evaluate(
@@ -207,6 +230,7 @@ for (const standoff of STANDOFFS) {
     let u = 0
     let o = 0
     for (const h of hits) {
+      if (inHud(h.x, h.y)) continue
       const px = Math.min(meta.width - 1, Math.floor(h.x * meta.width))
       const py = Math.min(meta.height - 1, Math.floor(h.y * meta.height))
       const off = (py * meta.width + px) * ch
@@ -230,7 +254,13 @@ const mo = mean(open)
 
 console.log(
   'underside-shadow ',
-  JSON.stringify({ tier: TIER, hour: HOUR, photographicLook: PHOTO, occludeM: OCCLUDE_M }),
+  JSON.stringify({
+    tier: TIER,
+    hour: HOUR,
+    photographicLook: PHOTO,
+    window: WINDOW,
+    occludeM: OCCLUDE_M,
+  }),
 )
 console.log(`frames -> ${OUT}`)
 console.log('')
