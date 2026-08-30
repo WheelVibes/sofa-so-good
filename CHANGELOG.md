@@ -5,6 +5,27 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.131 — `tpl-loft` room categories measured: no effect, nothing changed
+
+**Docs only, and deliberately no code change.** The last cheap candidate on the list was
+"`tpl-loft` rooms carry no `category` field — measure whether that changes furnishing".
+
+**The premise was half wrong.** The loft's UPPER rooms already carry explicit categories
+(`lfu-sleep` → `bedroom`, `lfu-landing` → `foyer`, `lfu-ward` → `other`) because they use the
+`room()` helper; only the four GROUND rooms are raw literals without one.
+
+**And it has no effect.** Dumping `roomCategory()` across the plan: `lf-open` "Open Living" →
+`living`, `lf-sleep` "Lounge / Study" → `study`, `lf-stair` "Stairs" → `other`, `lf-bath`
+"Bathroom" → `bath`. All four already infer the right value from their names, so adding an explicit
+category equal to the inferred one is a no-op by construction — `toRoomKind`/`toArrangeKind` get
+identical input either way. An explicit field could only change behaviour where inference is wrong,
+and none of these is. Recorded as a measured negative so it is not reopened.
+
+**This exhausts the measured backlog.** Every remaining item in `docs/open-graphics-decisions.md`
+— (f) unenclosed bathrooms, (g) upper-storey walk, (h) windowless bedrooms, (i) main doors, (j)
+blocked windows — is a content or product decision with its data already recorded, not a bug
+awaiting a fix.
+
 ## v0.31.5.130 — template audit coverage COMPLETE: the last six walked, all clean
 
 **Docs only.** The six templates that had never been walked were audited at an explicit

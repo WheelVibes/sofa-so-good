@@ -808,6 +808,38 @@ still a content decision — but the defect is now documented visually rather th
 remaining open item ((f) through (j)) is a content or product decision with its data already
 recorded above; none is waiting on more frames.
 
+---
+
+## `tpl-loft` room categories — ❌ CLOSED v0.31.5.131, no effect, nothing changed
+
+A standing candidate said "`tpl-loft` rooms carry no `category` field — measure whether that changes
+furnishing". **Measured: it does not, and the premise was half wrong.**
+
+The loft's **upper** rooms already carry explicit categories (`lfu-sleep` → `bedroom`,
+`lfu-landing` → `foyer`, `lfu-ward` → `other`) because they are built with `templates/shared.ts`'s
+`room()` helper. Only the four **ground** rooms are raw object literals with no `category`. Dumping
+`roomCategory()` for every room in the plan:
+
+| ground room | name | explicit | resolved |
+| --- | --- | --- | --- |
+| `lf-open` | "Open Living" | none | **living** |
+| `lf-sleep` | "Lounge / Study" | none | **study** |
+| `lf-stair` | "Stairs" | none | **other** |
+| `lf-bath` | "Bathroom" | none | **bath** |
+
+`roomCategory.ts` resolves explicit `category` → else `roomCategoryFromName` → else `'other'`, and
+**all four names already infer the right value**. Adding explicit categories equal to what inference
+returns is a no-op *by construction* — the downstream `toRoomKind`/`toArrangeKind` consumers receive
+the identical input either way. The only thing an explicit field could change is a case where the
+inference is WRONG, and none of these is. The plan furnishes 44 items; nothing about that depends on
+the missing field.
+
+**One cosmetic note, not a defect:** `lf-sleep` is named "Lounge / Study" and resolves to `study`,
+which matches the module's own description ("the ground keeps a lounge + bath + an open stair run;
+the loft level stacks a sleeping deck"). The `lf-sleep` **id** is a stale misnomer from an earlier
+layout — ids are opaque to every consumer, so it changes nothing.
+
+
 
 
 
