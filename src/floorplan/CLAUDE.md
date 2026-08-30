@@ -503,3 +503,28 @@ multi-storey design rationale in `docs/research/multi-level-design.md`.
     picker clears, the importer replaces, and a saved apartment is usually about the size of
     the one it replaces, which is the penthouse row above.
 
+## Starter templates: room rectangles are NOT walls (v0.31.5.109)
+
+A `PlanRoom` is a labelled rectangle for floor finish, area and furnishing. It builds **nothing**
+in 3D. The shell derives every wall from `plan.walls` and does **not** synthesise partitions from
+room rectangles — measured, not assumed: the boot plan's bathrooms render fully enclosed because
+`defaultPlan.ts` draws walls for them, while `tpl-hdb-jumbo`'s render as one open volume (two
+toilets and a basin visible from the bed) because it does not.
+
+Consequences when authoring or editing a template:
+
+- **Declaring a bathroom does not enclose it.** Nine of the twenty shipped templates declare a
+  `bath`/`powder` room that shares one wall-free volume with other rooms; `tpl-hdb-4room` has 9
+  walls total and its two baths have none of their own. These are ratcheted **by name** in
+  `templateEnclosure.test.ts`. **Never add an entry to that list to silence a failure** — a new
+  entry means a plan ships a bathroom nobody can close the door on. Fixing one is a required edit
+  to the list, which is the point.
+- **A room rectangle must not span a wall.** Rects conventionally overhang the wall centreline they
+  sit on by up to ~0.2 m, so the guard only flags a wall further than 0.35 m from BOTH parallel
+  edges. Two masters are currently bisected by a corridor wall (`jb-master`, `g3-master`) and their
+  rects overrun it into the corridor beyond.
+- **Unassigned floor is normal.** Every template has non-room circulation (jumbo 35.3 m2, the
+  penthouse 15.9 m2 as a connected corridor network, `tpl-loft/lf-up` 24.2 m2 which is probably an
+  intentional double-height void). Do NOT "fix" a gap without checking the render first.
+- Re-drawing a shipped layout to fix any of this is a **content decision** — see
+  `docs/open-graphics-decisions.md` item (f), not a unilateral edit.

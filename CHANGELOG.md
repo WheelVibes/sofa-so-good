@@ -5,6 +5,58 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.109 — TEMPLATE-ROOM-ENCLOSURE: 9 starter plans ship bathrooms no wall encloses
+
+**Measured and guarded, deliberately NOT fixed.** The fix is re-drawing shipped Singapore starter
+layouts, which is a content decision — recorded as item **(f)** in
+`docs/open-graphics-decisions.md`.
+
+**What you would see.** Walk into `tpl-hdb-jumbo`'s Master Bedroom and look west: **two toilets and
+a washbasin stand in the same open volume as the bed**, no wall, no door. Turn 90 degrees and the
+corridor wall slices through the middle of the room as a grey slab. The tour's own room-centre
+spawn lands at x=4.11 with that wall at x=4.0 — 0.11 m away, effectively inside it. Frames
+`/tmp/tw4`, 48 at 17:06, resolved `medium/on/manual13`.
+
+**The size, stated honestly.** Flood-filling free space with every wall solid (openings ignored — a
+door still separates two rooms) puts a `bath`/`powder` room in the same component as other declared
+rooms in **9 of 20 templates**: `tpl-hdb-3room` (two groups), `tpl-hdb-4room`, `tpl-hdb-5room` (all
+10 rooms in ONE component), `tpl-hdb-exec`, `tpl-hdb-3gen`, `tpl-hdb-jumbo`,
+`tpl-hdb-maisonette/em-up`, `tpl-condo-4bed`. Confirmed by hand on `tpl-hdb-4room`: 9 walls total,
+and `h4-cbath`/`h4-mbath` have none of their own — `h4-m-n` stops at x=3.6, just short of them.
+Separately, a corridor wall runs through a master bedroom's interior in two templates:
+`jb-wb-corr` 3.20 m through `jb-master` (1.80 m from the nearest parallel edge), `g3-b-corr`
+2.20 m through `g3-master` (1.50 m).
+
+**This is NOT the app's default flat — an earlier statement of mine that said so was wrong.** The
+boot plan is `defaultPlan.ts`, a separate 11-room plan with its own `corridor` room. Re-walked at
+17:10 (`/tmp/tw5`): its bathrooms are correctly enclosed — tiled walls all round, a working door
+prompt, a shower screen. That run also settles the mechanism: the shell builds walls from
+`plan.walls` and does NOT synthesise partitions from room rectangles, so the sweep measures the
+model the renderer actually uses. `tpl-hdb-4room` is a template in the picker, not the boot plan.
+
+**Guard.** `src/floorplan/templateEnclosure.test.ts` ratchets both defects **by name**, so a new
+template cannot add another and fixing one shows up as a required edit to the list. Proven to
+discriminate: adding one partition wall to jumbo changes the reported group from
+`jb-cbath + jb-master + jb-mbath` to `jb-cbath + jb-mbath`; the lever was reverted and
+`git diff --stat` verified clean.
+
+**Two instrument bugs found and fixed mid-round, before either reached a claim.**
+- **`sharp.stats()` reports the INPUT image and ignores `.extract()`** — the first ceiling-band luma
+  table was really the whole-frame mean. The tell was both columns matching on all 48 rows. Fixed by
+  going through `.raw().toBuffer()`. **`.103`'s `ct-kit` 37-vs-210 reading probably came from the
+  same broken pattern; that frame WAS dark so the finding stands, but the number was never a
+  ceiling band and should not be restated as one without re-measuring.**
+- **The wall sweep first claimed 15 defects across 9 templates, including `tpl-terrace-ground`,
+  which `.103`/`.104` passed as clean.** That contradiction exposed it: the inset room rect was
+  built as `{...r, x: r.x + INSET, z: r.z + INSET}`, but `pointInRoom` reads `r.origin`, so the
+  inset silently did nothing and every boundary wall flagged. Measuring perpendicular distance to
+  both parallel edges instead took **15 → 2**.
+
+**Also this round — `tpl-condo-penthouse` walked CLEAN** (48 frames 16:58, 12 rooms, 301 meshes /
+110338 tris, 97% content). Ceiling-band luma 132.9–224.3, no outlier. Four suspicions raised from
+reading the plan source all dissolved on inspection. **`cp-foyer`'s `.108`-stranded bench sits at
+the exact room centre but is out of shot in all four yaws — that trade-off is visually defensible.**
+
 ## v0.31.5.108 — SETTLE-ORIGIN: wall-hugging fixtures rescued off the seed point, without losing any
 
 **Third attempt; the first two were reverted in `.106` for deleting furniture.** The accept

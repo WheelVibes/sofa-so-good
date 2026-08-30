@@ -1,9 +1,9 @@
 # Open graphics decisions
 
-Five items the graphics-realism sweep (`v0.31.5.20`–`.83`) measured, diagnosed, and then
+Six items the graphics-realism sweep (`v0.31.5.20`–`.109`) measured, diagnosed, and then
 deliberately did **not** change, because each one is a product or content judgement rather than a
 defect. Every measurable axis is now clean — the per-class chroma/coverage ranking (`.77`–`.81`),
-tier parity (`.82`), and time-of-day in the boot view (`.83`) — so these five are what remains.
+tier parity (`.82`), and time-of-day in the boot view (`.83`) — so these are what remains.
 
 **How to use this file.** Each item states what a user would SEE, the evidence already in hand,
 the exact change and its blast radius, what genuinely needs a human, and a recommendation. Each
@@ -262,6 +262,56 @@ the demo apartment and leaves the placement rules untouched.
 
 ---
 
+## (f) TEMPLATE-ROOM-ENCLOSURE — ⏳ OPEN, needs a content call (measured v0.31.5.109)
+
+**What you would see.** Load `tpl-hdb-jumbo`, walk into the Master Bedroom, and look west: **two
+toilets and a washbasin are standing in the same open volume as the bed**, with no wall or door
+between them. Turn 90 degrees and a corridor wall slices through the middle of the room as a grey
+slab. The walk probe's own room-centre spawn lands at x=4.11 with that wall at x=4.0 — it puts the
+camera 0.11 m from a wall it thinks is the middle of the room.
+
+**Evidence.** Frames `/tmp/tw4` (48, 17:06, resolved `medium/on/manual13`). Two sweeps over all 20
+templates and every storey:
+
+- **Bathrooms nobody can enclose.** Flood-filling the free space with every wall treated as solid
+  (openings ignored — a door still separates two rooms) puts a `bath`/`powder` room in the SAME
+  component as other declared rooms in **9 of 20 templates**: `tpl-hdb-3room` (two groups),
+  `tpl-hdb-4room`, `tpl-hdb-5room` (all 10 rooms in one component), `tpl-hdb-exec`, `tpl-hdb-3gen`,
+  `tpl-hdb-jumbo`, `tpl-hdb-maisonette/em-up`, `tpl-condo-4bed`. Confirmed by hand on
+  `tpl-hdb-4room`: the plan has **9 walls total**, and `h4-cbath` and `h4-mbath` have **none of
+  their own** — `h4-m-n` stops at x=3.6, just short of where they begin.
+- **Walls through rooms.** A corridor wall runs through a master bedroom's interior, far from any
+  boundary, in two templates: `jb-wb-corr` 3.20 m through `jb-master` (1.80 m from its nearest
+  parallel edge) and `g3-b-corr` 2.20 m through `g3-master` (1.50 m). The room rectangles also
+  overrun those walls into the corridor beyond.
+
+**This is NOT the running default flat.** The app boots `defaultPlan.ts` — a separate, 11-room
+hand-authored plan with its own `corridor` room. Its bathrooms were re-walked at 17:10 (`/tmp/tw5`)
+and are **correctly enclosed**: tiled walls all round, a door with a working prompt, a shower
+screen. That run also settles the mechanism — the 3D shell builds walls from `plan.walls` and does
+NOT synthesise partitions from room rectangles, so the sweep measures the model the renderer uses.
+`tpl-hdb-4room` is a template in the picker, not the boot plan.
+
+**The change and its blast radius.** There is no code fix. Enclosing these rooms means adding
+partition walls plus the doors to reach them, and re-sizing the room rectangles around them — in
+`tpl-hdb-jumbo`'s case the master enclosure is 3.9 x 3.5 m and currently declares three rooms
+inside it, so any correct partition makes the master bedroom roughly 2.1 m wide, or moves the
+"Common Bath" out to the corridor where its name says it belongs. That is re-drawing shipped
+Singapore starter layouts that carry real project names.
+
+**What needs a human.** Room sizes, which bath opens off which space, and where doors go are
+interior-design decisions about content the product ships as accurate reference plans. Picking them
+unilaterally would be inventing a floor plan, not fixing a defect.
+
+**Recommendation — re-author the bedroom/bath wings, worst first, one template per change.** Start
+with `tpl-hdb-jumbo` (the only one whose damage is frame-proven) and `tpl-hdb-3gen`, which share
+the same shape: a bath wing with no partitions and a master rectangle overrunning the corridor
+wall. Until then both defects are **ratcheted by name** in
+`src/floorplan/templateEnclosure.test.ts`, so no new template can add another and fixing one shows
+up as a required edit to the list.
+
+---
+
 ## Summary
 
 | # | Item | Kind | Recommendation |
@@ -271,6 +321,9 @@ the demo apartment and leaves the placement rules untouched.
 | c | PLAN-SWAP-STRANDED | structural vs interim | ✅ **SHIPPED v0.31.5.90** — confirm now names the count; skip untouched |
 | d | wall-reveal POSE | design parameter | ❌ **CLOSED v0.31.5.89** — no defect; premise retracted |
 | e | Curtain vs nightstand | content | ✅ **SHIPPED v0.31.5.87** — curtain narrowed + nightstands outboard |
+| f | TEMPLATE-ROOM-ENCLOSURE | content | ⏳ **OPEN v0.31.5.109** — 9 templates ship unenclosed bathrooms; ratcheted by test |
 
-**All five items are now resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
-((d)). Each was implemented in its own committed round and marked here as it landed.
+**Five of six items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
+((d)). Each was implemented in its own committed round and marked here as it landed. **(f) is open**
+and is the only item here that is not a one-line answer: it is a request to re-draw shipped floor
+plans, so it is scoped per template rather than decided once.
