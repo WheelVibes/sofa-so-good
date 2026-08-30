@@ -1,10 +1,10 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { Euler, PerspectiveCamera, Raycaster, Vector3 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
-import { DOORS, WALLS } from '../../apartment/constants'
 import type { RoomId } from '../../apartment/types'
 import { type AimSegment, nearestAimedSegment } from '../../collision/aimRay'
+import { doorAimSegments } from '../../collision/doorAim'
 import { buildWalkBlockers, resolveCircleVsObbs } from '../../collision/furnitureBlock'
 import type { OBB } from '../../collision/obb'
 import {
@@ -21,6 +21,7 @@ import { isFeatureEnabled } from '../../features/featureFlags'
 import { roomFloorOffsetM } from '../../floorplan/floorLevels3d'
 import {
   GROUND_LEVEL_ID,
+  itemsOnLevel,
   levelAsPlan,
   levelElevation,
   levelOfRoom,
@@ -43,26 +44,6 @@ import { clampWalkEyeHeight, WALK_PLAYER_RADIUS, walkVerticalFov } from './walkC
 import { _resetWalkMeasureRequest, consumeWalkMeasureRequest } from './walkMeasureRequest'
 import { resolveWalkSpawn } from './walkSpawn'
 import { _resetWalkTeleport, consumeWalkTeleport } from './walkTeleport'
-
-const DOOR_SEGMENTS: AimSegment[] = (() => {
-  const out: AimSegment[] = []
-  for (const d of DOORS) {
-    const wall = WALLS.find((w) => w.id === d.wallId)
-    if (!wall) continue
-    const wdx = wall.end[0] - wall.start[0]
-    const wdz = wall.end[1] - wall.start[1]
-    const wlen = Math.hypot(wdx, wdz)
-    if (wlen === 0) continue
-    const ux = wdx / wlen
-    const uz = wdz / wlen
-    const sx = wall.start[0] + ux * d.offset
-    const sz = wall.start[1] + uz * d.offset
-    const ex = wall.start[0] + ux * (d.offset + d.width)
-    const ez = wall.start[1] + uz * (d.offset + d.width)
-    out.push({ id: d.id, sx, sz, segDx: ex - sx, segDz: ez - sz })
-  }
-  return out
-})()
 
 /** Reused scratch array for the merged screen+light aim pass — avoids a
  *  per-`AIM_CHECK_INTERVAL` allocation. Cleared and refilled each check. */
@@ -165,26 +146,51 @@ export function FirstPersonCamera() {
   useEffect(() => {
     blockers.current = buildWalkBlockers(items, getDef, walkerLevelId)
   }, [items, getDef, walkerLevelId])
+  // WALK-AIM-PLAN: every aim target below is scoped to the walker's storey, the
+  // same way `blockers` is. An `AimSegment` is purely 2D (`sx/sz` + `segDx/segDz`
+  // — see `collision/aimRay.ts`) and the ray test only uses x/z, so height cannot
+  // separate two storeys: on a maisonette, whose upper level sits directly over
+  // the lower one, an unscoped list let the walker aim THROUGH THE FLOOR and
+  // toggle a lamp, a TV or a curtain on the storey below.
+  const levelItems = useMemo(() => itemsOnLevel(items, walkerLevelId), [items, walkerLevelId])
   // Curtain/blind aim segments (WINDOW-FIXTURE-INTERACT) — rebuilt whenever
   // items change, like `blockers` above; empty (and never aimed at) while the
   // flag is off, so the interaction is gated at registration, not render.
   const fixtureSegments = useRef<AimSegment[]>([])
   useEffect(() => {
     fixtureSegments.current = isFeatureEnabled('walkWindowFixtures')
-      ? windowFixtureAimSegments(items, getDef)
+      ? windowFixtureAimSegments(levelItems, getDef)
       : []
-  }, [items, getDef])
+  }, [levelItems, getDef])
   // Screen (WALK-SCREEN-INTERACT) and light (WALK-LIGHT-INTERACT) aim
   // segments — same rebuild-on-items pattern as the fixture segments above,
   // gated at registration (empty, never aimed at, while its flag is off).
   const screenSegments = useRef<AimSegment[]>([])
   useEffect(() => {
-    screenSegments.current = isFeatureEnabled('walkScreens') ? screenAimSegments(items, getDef) : []
-  }, [items, getDef])
+    screenSegments.current = isFeatureEnabled('walkScreens')
+      ? screenAimSegments(levelItems, getDef)
+      : []
+  }, [levelItems, getDef])
   const lightSegments = useRef<AimSegment[]>([])
   useEffect(() => {
-    lightSegments.current = isFeatureEnabled('walkLights') ? lightAimSegments(items, getDef) : []
-  }, [items, getDef])
+    lightSegments.current = isFeatureEnabled('walkLights')
+      ? lightAimSegments(levelItems, getDef)
+      : []
+  }, [levelItems, getDef])
+  // Door aim segments come from the LOADED plan's openings on the walked storey.
+  // They used to be a module-level constant built from `apartment/constants.ts`
+  // — the DEFAULT FLAT's hardcoded doors — so on every other template the walker
+  // aimed at phantom doorways from a different apartment and could not open any
+  // real one: the maisonette's eight door ids (`em-main`, `em-wc`,
+  // `emu-bed2-door`, ...) overlap the constants' eight (`door-main`,
+  // `door-mainBedroom`, ...) by ZERO. `openingSegments` is the same geometry the
+  // minimap draws doorways with, so what you see as a gap is what you can open.
+  const doorSegments = useRef<AimSegment[]>([])
+  useEffect(() => {
+    doorSegments.current = doorAimSegments(
+      levelAsPlan(floorPlan, walkLevel(floorPlan, viewLevelId)),
+    )
+  }, [floorPlan, viewLevelId])
 
   useEffect(() => {
     // In the per-room editor, bound the player to the isolated room's clipped
@@ -627,7 +633,7 @@ export function FirstPersonCamera() {
       oz,
       dir.x,
       dir.z,
-      DOOR_SEGMENTS,
+      doorSegments.current,
       INTERACT_RADIUS,
       blocked,
     )

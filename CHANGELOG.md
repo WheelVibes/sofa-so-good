@@ -5,6 +5,64 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.99 — WALK-AIM-PLAN: the walker can open the doors of the plan it is actually in
+
+**Two defects, one root cause: walk-mode interaction targets were not derived from the
+loaded plan or the walked storey.** Found by auditing the other walk-mode surfaces after
+`.96` fixed the same class of bug in the minimap — a shipped fix revealing a hidden problem.
+
+**A. Door aim was hardwired to the default flat.** `FirstPersonCamera` held a MODULE-LEVEL
+`const DOOR_SEGMENTS`, built once at import from `apartment/constants.ts`'s `DOORS`/`WALLS`
+— the default 4-room flat. A module constant cannot see a plan swap, so it never did.
+Measured: the maisonette's eight door ids (`em-main`, `em-wc`, `em-study`,
+`emu-bed2-door`, ...) and the constants' eight (`door-main`, `door-mainBedroom`, ...)
+overlap by **ZERO**. So on **18 of the 19 shipped templates and every user-drawn plan**, the
+walker was offered prompts for phantom doorways positioned by a different apartment's
+geometry, `toggleDoor` wrote `doors[...]` under ids the plan never uses, and not one real
+door could be opened. Same failure shape as `.95`'s `walk-tour` ROOMS bug, and it had been
+shipping just as silently.
+
+**B. Item aim ignored the storey.** `windowFixtureAimSegments` / `screenAimSegments` /
+`lightAimSegments` were all built from the full `items` array, while
+`buildWalkBlockers(items, getDef, walkerLevelId)` two lines above was correctly scoped —
+its comment even reads "an upstairs bed doesn't block downstairs". That asymmetry matters
+because an **`AimSegment` is purely 2D** (`sx`/`sz` + `segDx`/`segDz`) and
+`nearestAimedSegment(ox, oz, dir.x, dir.z, ...)` never looks at Y. Height therefore cannot
+separate two storeys that sit directly on top of each other: on a maisonette the walker
+could aim through the floor and toggle a lamp, a TV or a curtain on the storey below.
+
+**Measured, `door-aim-plan.mjs` (new probe) on `tpl-hdb-maisonette`, `LEVEL=em-up`,
+`FURNISH=1`, `TIER=medium`** — it teleports to a stand-point in front of every door on the
+walked storey, derived from that level's own openings, and reads `nearbyDoorId`. Both arms
+reported the identical resolved state
+(`{"plan":"tpl-hdb-maisonette","viewLevelId":"em-up","cameraMode":"firstPerson","tier":"medium","uiMode":"simple","items":138}`),
+so only the code differed:
+
+    before:  0/5 doors interactable   (every one nearbyDoorId=null)
+    after:   5/5
+
+**The default flat is unchanged, and that was verified rather than argued.** It is the one
+plan the constants were right about, and its plan openings reuse the same eight ids — so a
+unit test pins `doorAimSegments(buildDefaultPlan())` as **bit-for-bit identical** to the old
+constants maths. The end-to-end control arm reads **6/7** there, with `door-bedroom2`
+resolving to `door-bath2`. That looked like a regression, so it was measured on both arms:
+the unfixed code reads **6/7 with exactly the same mismatch**. It is an artefact of the
+probe's derived stand-point, which for that door aims nearer `door-bath2`, and it is now
+recorded in the playbook as this probe's default-flat baseline. (Seven poses from eight
+doors is also expected — `door-main` is the entrance and has no valid in-room stand-point.)
+
+**One geometry for doorways, shared rather than duplicated.** `openingSegments` /
+`OpeningSeg` moved from `ui/walk/minimapGeometry.ts` to `floorplan/openingSegments.ts` and
+are re-exported from the old site; `minimapGeometry`'s 16 tests pass untouched, which is
+what makes that a pure move. The minimap's doorway gaps and the doors the walker can open
+are now the same computation, so they cannot drift apart.
+
+**Cost, stated rather than assumed.** The new work sits in effects keyed on
+`[floorPlan, viewLevelId]` and `[items, walkerLevelId]` — plan swaps and storey changes, not
+frames. The per-frame aim path is unchanged and now iterates **fewer** segments, since it
+no longer considers the other storey's items. `.97` regressed the sky bake 65% on exactly
+the assumption being refused here.
+
 ## v0.31.5.98 — SKY-HORIZON perf: the haze sample is hoisted per column (a correction to .97)
 
 **`.97` shipped a 65% slowdown in the sky bake and I did not measure it before

@@ -894,6 +894,29 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   raw for the renderer. An explicit pick wins; `'auto'` picks Neutral while previewing finishes,
   AgX for a photo context, else filmic. Keep `look.ts` pure (no three) — the three constant comes
   from `toneMappingThree.ts`.
+- **Walk-mode INTERACTION TARGETS come from the LOADED plan and the WALKED storey, never from
+  `apartment/constants.ts` and never unscoped (WALK-AIM-PLAN, v0.31.5.99).** `FirstPersonCamera`
+  aims at four kinds of thing — doors, curtains/blinds, screens and lights — and every one of
+  them must be narrowed the same way `buildWalkBlockers` already narrowed the collision
+  footprints:
+  · **Doors** come from `collision/doorAim.ts:doorAimSegments(levelAsPlan(plan, walkLevel(plan,
+  viewLevelId)))`, which reads `floorplan/openingSegments.ts` — the SAME spans the minimap draws
+  doorways with, so a gap on the map and an openable door are one fact. This replaced a
+  **module-level `const DOOR_SEGMENTS` built from the default flat's hardcoded `DOORS`/`WALLS`**.
+  That constant was right about exactly one of the nineteen shipped templates and no user-drawn
+  plan at all: the maisonette's door ids and the constants' overlap by **ZERO**, so the walker
+  was offered phantom doorways from a different apartment while every real door stayed shut.
+  Measured with `door-aim-plan.mjs` on the maisonette upper storey: **0/5 -> 5/5** interactable.
+  · **Items** (`windowFixtureAimSegments` / `screenAimSegments` / `lightAimSegments`) take
+  `itemsOnLevel(items, walkerLevelId)`, not raw `items`. This is load-bearing, not tidiness: an
+  `AimSegment` is **purely 2D** (`sx/sz` + `segDx/segDz`) and `nearestAimedSegment(ox, oz, dir.x,
+  dir.z, ...)` never looks at Y, so height cannot separate two storeys that sit directly on top
+  of each other. Unscoped, the walker could aim THROUGH THE FLOOR and toggle a lamp, a TV or a
+  curtain downstairs. **If you ever add a fifth aim category, scope it at the point it is built,
+  not at the point it is used.**
+  · **Do not re-add a module-level segment constant.** These lists must be effects keyed on
+  `[floorPlan, viewLevelId]` / `[items, walkerLevelId]` — a module constant cannot see a plan
+  swap or a storey change, which is precisely how the door bug survived.
 - **The walk-mode `sky` backdrop fades its ground out of the HORIZON HAZE, never butts a flat
   tint against the sky (SKY-HORIZON, v0.31.5.97).** `skyGradient.ts:skyRadiance` returns a ground
   tint below the horizon (the orbit surround deliberately does not — see SKY-ANALYTIC-ORBIT
