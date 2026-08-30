@@ -19,8 +19,9 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   **Use it for FRONTS (doors, drawer/flap fronts), not for structural carcass panels.** Carcass
   faces are flush with each other by construction; giving each its own variant turns invisible
   coplanar seams into visible z-fighting, which `furniture/primitives/structuralSoundness.test.tsx`
-  catches. Rolled out so far: `Wardrobe`, `TVConsole`, `Bookshelf`, `ShoeCabinet` — other primitives
-  are open work.
+  catches. Rolled out so far: `Wardrobe`, `TVConsole`, `Bookshelf`, `ShoeCabinet`, `DiningTable`,
+  `CoffeeTable`, `Desk`, `Nightstand` — other primitives are open work. **The door leaf is out of
+  scope until `dev-probes/door-ab.mjs` is re-run**: its `repeat` 2 is a recorded measured decision.
 
 - **New finish** = an entry in `builtinCatalog.ts` (`procedural` with a pattern, or
   `solid`); new pattern painters go in `procedural/patterns/<family>.ts` (paint one tiling tile:

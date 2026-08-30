@@ -1,4 +1,4 @@
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import { getSurfaceMaterial, getSurfaceMaterialForBox } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
@@ -23,6 +23,11 @@ export function CoffeeTable({ props }: { props: ParamProps }) {
   const shelfY = 0.12
 
   const wood = getSurfaceMaterial(finish, color, 1.6, sheen)
+  // GRAIN-SCALE: size the visible face's grain from world dimensions and run it
+  // along the panel's long axis, instead of one scalar `repeat` that gives every
+  // panel its own scale and cross-grains the wide ones (see materials/CLAUDE.md).
+  const panelFor = (dims: [number, number, number]) =>
+    getSurfaceMaterialForBox(finish, color, dims, sheen)
   const detail = useDetail()
 
   if (shape === 'round' || shape === 'oval') {
@@ -98,13 +103,13 @@ export function CoffeeTable({ props }: { props: ParamProps }) {
         castShadow
         receiveShadow
         position={[0, totalH - topT / 2, 0]}
-        material={wood}
+        material={panelFor([width, topT, depth])}
         args={[width, topT, depth]}
       />
       <BeveledBox
         castShadow
         position={[0, shelfY, 0]}
-        material={wood}
+        material={panelFor([width - inset * 2, 0.03, depth - inset * 2])}
         args={[width - inset * 2, 0.03, depth - inset * 2]}
       />
       {xs.map((x) =>

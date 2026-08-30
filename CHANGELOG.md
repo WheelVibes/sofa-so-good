@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.150 — sized grain on the tabletops, and the instrument corrected
+
+**Roll-out.** With `.148`/`.149`'s primitives fixed, `grain-scale.mjs` surfaced the offenders they had
+been hiding — `dining-table-4` 40×, `coffee-table` 36×, `bed` 32×, `desk` 30×, `nightstand` 23× — and
+the dining tabletop is the most prominent wood surface in the walk view. `getSurfaceMaterialForBox` is
+now on the dining tabletop, both coffee-table tops and the lower shelf, the desktop and the nightstand
+drawer fronts. Each lands on the 0.9 m target on both axes: dining tabletop **0.933 / 0.567 →
+0.903 / 0.895** (1.65:1 → 1.01:1), desktop **0.800 / 0.367 → 0.889 / 0.917** (2.18:1 → 1.03:1),
+coffee tabletop **0.688 / 0.344 → 0.917 / 0.917** (2.00:1 → 1.00:1). Visually the tabletop goes from
+narrow tightly-spaced plank seams running towards the viewer to broad boards with the grain along the
+table's length.
+
+**Instrument fix — it was misreporting the very materials the fix corrected.** A quarter-turned
+texture samples texture-u from the mesh's v axis, so its `repeat` pair is swapped relative to mesh
+axes, and `grain-scale.mjs` was dividing by the wrong one. It now undoes the swap before reporting,
+adds a `topV` column (a tabletop's visible face maps v → z and so was never in the front columns), and
+computes the spread over each mesh's dominant face rather than including the 2 cm edge that made every
+correctly-tiled panel look broken. All six fixed primitives now drop out of the top-10 offenders.
+
+**Deliberately not touched: the door leaf** (0.5 / 1.05 m per tile, a 2.1:1 stretch, ~13 % of the walk
+view). Its `repeat` 2 is a previously measured, recorded decision citing `dev-probes/door-ab.mjs`;
+overturning it needs that probe re-run at the new anisotropic setting, which is its own round.
+
 ## v0.31.5.149 — grain direction: boards run along the panel's long axis
 
 The other half of `.147`/`.148`. A texture's grain axis is fixed in UV space, so a wide-short panel

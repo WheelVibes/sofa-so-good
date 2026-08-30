@@ -736,3 +736,43 @@ which is correct.
 
 *Same caveat as `.148`: the walk teleport does not land pixel-identically between runs, so the frames
 differ slightly in pose. Grain direction is not something a pose shift can produce.*
+
+
+## Rolling the sized grain out — and fixing the instrument that was misreading it (v0.31.5.150)
+
+**Re-measured first.** With the `.148`/`.149` primitives fixed, `grain-scale.mjs` surfaced a new set of
+offenders that had been hidden behind them, all present in the default flat: `dining-table-4` (40×),
+`coffee-table` (36×), `bed` (32×), `desk` (30×), `nightstand` (23×). The dining tabletop is the single
+most prominent wood surface in the walk view.
+
+**Applied `getSurfaceMaterialForBox` to the large face-on surfaces:** the dining tabletop, both coffee
+-table tops and its lower shelf, the desktop, and the nightstand drawer fronts. Every one lands on the
+0.9 m target on BOTH axes:
+
+| surface | before (m/tile) | after | stretch |
+| --- | --- | --- | --- |
+| dining tabletop (1.4 × 0.85) | 0.933 / 0.567 | **0.903 / 0.895** | 1.65:1 → **1.01:1** |
+| desktop (1.2 × 0.55) | 0.800 / 0.367 | **0.889 / 0.917** | 2.18:1 → **1.03:1** |
+| coffee tabletop (1.1 × 0.55) | 0.688 / 0.344 | **0.917 / 0.917** | 2.00:1 → **1.00:1** |
+
+**Visually**, at the L/D pose the tabletop goes from narrow, tightly-spaced plank seams running
+towards the viewer to broad boards with the grain along the table's length — which is how a real
+timber table is made. It is the clearest single-surface improvement in this arc so far.
+
+**The instrument was misreporting the fixed materials, and that is worth recording.** A quarter-turned
+texture samples texture-u from the mesh's v axis, so its `repeat` pair is swapped relative to mesh
+axes — `grain-scale.mjs` was dividing by the wrong one and reporting a *worse* spread for exactly the
+panels the fix had corrected. It now undoes the swap before reporting, adds a `topV` column (a
+tabletop's visible face maps v → z, so it was never in the front columns at all), and computes the
+spread over each mesh's **dominant face only** instead of including the 2 cm edge that made every
+correctly-tiled panel look broken. With that corrected, all six fixed primitives drop out of the
+top-10 offenders entirely; what remains at the top is curtain folds (a 3.5 cm wide × 2.6 m panel,
+inherent) and table legs.
+
+**Deliberately NOT touched: the door leaf.** It measures 0.5 / 1.05 m per tile — a 2.1:1 stretch, and
+doors are ~13 % of the walk view — but its `repeat` 2 is a **previously measured, recorded decision**
+(`PlanDoorLeaf.tsx` cites `dev-probes/door-ab.mjs`: "at repeat 1 the grain stretches … into broad soft
+bands; at 2 it reads as timber, at 3 it goes busy"). That measurement optimised a scalar under an
+isotropy constraint it could not escape; sizing would land the horizontal density near the "repeat 1"
+they rejected. Overturning it needs `door-ab.mjs` re-run at the new anisotropic setting, which is its
+own round — not a change to smuggle in here.

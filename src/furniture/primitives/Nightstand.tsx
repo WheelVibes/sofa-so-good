@@ -1,4 +1,4 @@
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import { getSurfaceMaterial, getSurfaceMaterialForBox } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
 import { MetalMaterial } from './MetalMaterial'
@@ -25,6 +25,11 @@ export function Nightstand({ props }: { props: ParamProps }) {
   const legH = 0.1
   const bodyH = 0.42
   const wood = getSurfaceMaterial(finish, color, 1, sheen)
+  // GRAIN-SCALE: size the visible face's grain from world dimensions and run it
+  // along the panel's long axis, instead of one scalar `repeat` that gives every
+  // panel its own scale and cross-grains the wide ones (see materials/CLAUDE.md).
+  const frontFor = (dims: [number, number, number]) =>
+    getSurfaceMaterialForBox(finish, color, dims, sheen)
   const knob = (key: string, cy: number) => (
     <mesh key={key} castShadow rotation={[Math.PI / 2, 0, 0]} position={[0, cy, depth / 2 + 0.025]}>
       <cylinderGeometry args={[0.016, 0.016, 0.035, 10]} />
@@ -35,7 +40,7 @@ export function Nightstand({ props }: { props: ParamProps }) {
     <BeveledBox
       key={key}
       position={[0, cy, depth / 2 + 0.003]}
-      material={wood}
+      material={frontFor([width * 0.84, h, 0.02])}
       args={[width * 0.84, h, 0.02]}
     />
   )

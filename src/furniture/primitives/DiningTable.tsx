@@ -1,4 +1,8 @@
-import { getSurfaceMaterial, getWoodMaterial } from '../../materials/furnitureMaterials'
+import {
+  getSurfaceMaterial,
+  getSurfaceMaterialForBox,
+  getWoodMaterial,
+} from '../../materials/furnitureMaterials'
 import { DINING_SEAT_DIMENSIONS, diningLeafExtension } from '../defs/diningSeatDims'
 import type { ParamProps } from '../types'
 import { BeveledBox } from './BeveledBox'
@@ -57,6 +61,11 @@ export function DiningTable({ props }: DiningTableProps) {
   ]
 
   const topMat = getSurfaceMaterial(finish, topColor, 1.5, sheen)
+  // GRAIN-SCALE: size the visible face's grain from world dimensions and run it
+  // along the panel's long axis, instead of one scalar `repeat` that gives every
+  // panel its own scale and cross-grains the wide ones (see materials/CLAUDE.md).
+  const topFor = (dims: [number, number, number]) =>
+    getSurfaceMaterialForBox(finish, topColor, dims, sheen)
   const legMat = getWoodMaterial(legColor, 0.5)
 
   // Oval table: an elongated top on a twin-pedestal trestle (two columns +
@@ -136,7 +145,7 @@ export function DiningTable({ props }: DiningTableProps) {
         castShadow
         receiveShadow
         position={[0, totalH - topThickness / 2, 0]}
-        material={topMat}
+        material={topFor([dim.w, topThickness, dim.d])}
         args={[dim.w, topThickness, dim.d]}
       />
       {/* Extendable centre leaf: two parting-line seams marking where the drop-in
