@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.164 — relief and light balance are one knob
+
+`.161` claimed the material levers failed because relief only becomes image contrast when something
+directional shades a bump's two sides; `.163` produced a lighting balance to test that against. This
+is the test.
+
+**The same edit — drapery weave 0.65 → 2.2 — buys +10 % under the shipped fill and +138 % under
+`photographicFill`** (curtain micro/mean 0.0346 → 0.0822). Fourteen times the effect from an identical
+change. Upholstery 1.3 → 2.0 behaves the same way (+17 %), where the shipped-fill sweep in `.157` had
+rejected 2.0 as "a regular grid that looks like mesh screen".
+
+The relief constants were never wrong — they were at their ceiling for the fill they were tuned under.
+So the flag now carries both halves: new `PHOTO_WEAVE` + pure `photographicWeave(base, photo, on)` in
+`look.ts`, wired through `getDraperyMaterial` and `getUpholsteryMaterial`. Values rather than a
+multiplier, since one scale cannot serve a 0.65 drapery baseline and a 1.3 upholstery one. Three more
+tests; the default path is untouched by construction.
+
+End to end at 13:00, flag off → on, against the reference photograph: curtain micro/mean **0.0356 →
+0.0822** (photo 0.140–0.187), sofa **0.0470 → 0.0958** (photo 0.174), fabric ÷ wall **2.6× → 5.9×**
+(photo ~20×), frame `%<64` **1.28 % → 11.61 %** against a photographic **11.2–12.2 %**. Deep shadow is
+now inside the band and textile micro-contrast has roughly doubled; the remaining fabric gap is ~2×.
+
 ## v0.31.5.163 — the fixtures at midday were the lever
 
 `.162` measured `photographicFill` reaching only `%<64` 1.60 % against a photographic 11.2–12.2 %, and

@@ -16,6 +16,7 @@ import {
   type Texture,
 } from 'three'
 import { isFeatureEnabled } from '../features/featureFlags'
+import { PHOTO_WEAVE, photographicWeave } from '../scene/look'
 import type { RenderTier } from '../scene/quality'
 import { applyAnisotropy } from './anisotropy'
 import { anisotropyRotationForNormal, type Vec3 } from './brushAxis'
@@ -897,7 +898,14 @@ export function getUpholsteryMaterial(
     return getLeatherMaterial(color, sheen > 0 ? sheenRough(0.42, sheen) : 0.42)
   if (kind === 'velvet') return getVelvetMaterial(color, sheen > 0 ? sheenRough(0.62, sheen) : 0.62)
   if (kind === 'boucle') return getBoucleMaterial(color, sheen > 0 ? sheenRough(0.9, sheen) : 0.9)
-  return getFabricMaterial(color, sheen > 0 ? sheenRough(0.95, sheen) : 0.95, pattern)
+  return getFabricMaterial(
+    color,
+    sheen > 0 ? sheenRough(0.95, sheen) : 0.95,
+    pattern,
+    false,
+    1,
+    photographicWeave(1.3, PHOTO_WEAVE.upholstery, isFeatureEnabled('photographicFill')),
+  )
 }
 
 /**
@@ -936,7 +944,11 @@ export function getDraperyMaterial(
     pattern,
     doubleSided,
     opacity,
-    linen ? 0.95 : 0.65,
+    photographicWeave(
+      linen ? 0.95 : 0.65,
+      linen ? PHOTO_WEAVE.draperyLinen : PHOTO_WEAVE.drapery,
+      isFeatureEnabled('photographicFill'),
+    ),
   )
 }
 

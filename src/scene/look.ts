@@ -257,6 +257,28 @@ export function iblFillScale(iblActive: boolean, dayLevel: number): number {
  */
 export const PHOTO_FILL_SCALE = 0.8
 
+/**
+ * Fabric weave relief, paired with the lighting balance (PHOTO-FILL-RELIEF).
+ *
+ * The shipped relief values were tuned under the shipped fill, and under that
+ * fill they are near their useful ceiling — measured, raising drapery relief from
+ * 0.65 to 2.2 buys only **+10 %** of surface micro-contrast, because a bump only
+ * reads when something directional shades its two sides differently.
+ *
+ * Under `photographicFill` the SAME change buys **+138 %** (0.0346 → 0.0822).
+ * Relief and light balance are one knob measured as two: turn the fill down and
+ * the relief that was previously wasted starts paying. So the flag carries both.
+ *
+ * Values are the measured points, not a multiplier — a single scale cannot serve
+ * a 0.65 drapery baseline and a 1.3 upholstery one at once.
+ */
+export const PHOTO_WEAVE = { drapery: 2.2, draperyLinen: 2.6, upholstery: 2.0 } as const
+
+/** `photo` when the photographic balance is on, else `base`. Pure. */
+export function photographicWeave(base: number, photo: number, on: boolean): number {
+  return on ? photo : base
+}
+
 /** Fill multiplier for the current `photographicFill` setting. Pure. */
 export function photographicFillScale(on: boolean): number {
   return on ? PHOTO_FILL_SCALE : 1

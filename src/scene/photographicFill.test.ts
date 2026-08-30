@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { FEATURE_FLAGS, resolveFlags } from '../features/featureFlags'
-import { PHOTO_FILL_SCALE, photographicFillScale } from './look'
+import { PHOTO_FILL_SCALE, PHOTO_WEAVE, photographicFillScale, photographicWeave } from './look'
 
 describe('photographicFillScale — an opt-in key:fill rebalance', () => {
   it('is a no-op when off, so the shipped look cannot move', () => {
@@ -33,5 +33,25 @@ describe('the photographicFill flag', () => {
 
   it('is not devOnly — it must survive a production build', () => {
     expect(FEATURE_FLAGS.photographicFill.devOnly).toBeUndefined()
+  })
+})
+
+describe('photographicWeave — relief paired with the light balance', () => {
+  it('is the shipped value when the flag is off, so the default look cannot move', () => {
+    expect(photographicWeave(0.65, PHOTO_WEAVE.drapery, false)).toBe(0.65)
+    expect(photographicWeave(1.3, PHOTO_WEAVE.upholstery, false)).toBe(1.3)
+  })
+
+  it('raises relief when the balance can carry it', () => {
+    // Measured: under the shipped fill, 0.65 -> 2.2 buys +10 % of surface
+    // micro-contrast; under `photographicFill` the same change buys +138 %.
+    expect(photographicWeave(0.65, PHOTO_WEAVE.drapery, true)).toBe(PHOTO_WEAVE.drapery)
+    expect(PHOTO_WEAVE.drapery).toBeGreaterThan(0.65)
+    expect(PHOTO_WEAVE.upholstery).toBeGreaterThan(1.3)
+    expect(PHOTO_WEAVE.draperyLinen).toBeGreaterThan(0.95)
+  })
+
+  it('keeps linen coarser than cotton, as the shipped pair does', () => {
+    expect(PHOTO_WEAVE.draperyLinen).toBeGreaterThan(PHOTO_WEAVE.drapery)
   })
 })

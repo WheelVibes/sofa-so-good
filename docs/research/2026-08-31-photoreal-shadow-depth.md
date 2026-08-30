@@ -1355,3 +1355,43 @@ shadow, surface texture and a window that reads as a window all turn out to be t
 
 The trade is exactly what `.86` recorded: the room is dimmer and the far corners go dark. That is why
 this ships **off**.
+
+
+## Relief and light balance are one knob (v0.31.5.164)
+
+`.161` claimed that the material levers failed because relief only becomes image contrast when
+something directional shades a bump's two sides. `.163` gave us a lighting balance to test that
+against. This is the test, and it confirms it about as cleanly as a measurement can.
+
+**The same material change, under two lighting balances** — drapery weave relief 0.65 → 2.2:
+
+| | shipped fill | `photographicFill` |
+| --- | --- | --- |
+| curtain micro/mean | 0.0356 → 0.0392 | 0.0346 → **0.0822** |
+| gain | **+10 %** | **+138 %** |
+
+**Fourteen times the effect from an identical edit.** Upholstery 1.3 → 2.0 behaves the same way:
+sofa 0.0838 → 0.0978 (+17 %) under the photographic balance, where the shipped-fill sweep in `.157`
+had rejected 2.0 as "a regular grid that looks like mesh screen".
+
+So the relief constants were not wrong; **they were at their useful ceiling for the fill they were
+tuned under.** Turning the fill down does not merely deepen shadows — it makes previously wasted
+relief start paying. The flag now carries both halves (`PHOTO_WEAVE`, values rather than a multiplier,
+since one scale cannot serve a 0.65 drapery baseline and a 1.3 upholstery one).
+
+**Where the photographic balance now stands, end to end:**
+
+| | shipped (flag off) | flag ON | photograph |
+| --- | --- | --- | --- |
+| curtain micro/mean | 0.0356 | **0.0822** | 0.140–0.187 |
+| sofa micro/mean | 0.0470 | **0.0958** | 0.174 |
+| fabric ÷ wall | 2.6× | **5.9×** | ~20× |
+| frame `%<64` | 1.28 % | **11.61 %** | **11.2–12.2 %** |
+
+**Deep shadow is now inside the photographic band**, and textile micro-contrast has roughly doubled —
+against ≤ +20 % for every material lever tried alone. The remaining fabric gap is about 2×, and the
+fabric ÷ wall ratio says the same thing: 5.9× against ~20×.
+
+The default is still untouched. What has changed is that the alternative is no longer a dimmer switch
+— it is a calibrated look, with the deep-shadow metric on target and the material relief tuned to
+match it.
