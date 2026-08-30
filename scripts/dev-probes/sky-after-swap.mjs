@@ -132,6 +132,52 @@ const sample = () =>
     }
   })
 
+/**
+ * Every TRANSPARENT material in the scene, deduped by its state, with counts.
+ *
+ * Two earlier attempts failed and are recorded so they are not repeated: matching meshes
+ * by `/glass|window|pane/i` returned ZERO (the panes carry no such name, so that zero was a
+ * broken instrument, not a result), and `await import('three')` inside the page throws
+ * `Failed to resolve module specifier 'three'` — a bare specifier is not resolvable there,
+ * so a Raycaster cannot be constructed this way.
+ *
+ * A dedup over transparent materials needs neither. The window panes are the transparent
+ * meshes in a plan shell, and comparing the SET across two arms is what the bisect needs —
+ * identifying which individual mesh is the pane is not.
+ *
+ * Also reports `getFixtureGlow()` — the module singleton (`scene/lighting/fixtureGlow.ts`)
+ * `FadeWindow` uses to lerp the pane between `GLASS_DAY` and `GLASS_NIGHT` and to set
+ * `base = 0.28 + glow * 0.45` on the cheap tiers. MEASURED v0.31.5.125: **1 in BOTH the auto
+ * and the explicit-tier arm**, so it does NOT separate them. Kept as a recorded negative.
+ */
+const glass = () =>
+  page.evaluate(async () => {
+    const { getFixtureGlow } = await import('/src/scene/lighting/fixtureGlow.ts')
+    const seen = new Map()
+    window.__three?.scene?.traverse((o) => {
+      const mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : []
+      for (const m of mats) {
+        if (!m.transparent) continue
+        const key = [
+          m.type,
+          m.color?.getHexString?.() ?? '-',
+          Number(m.opacity).toFixed(2),
+          m.transmission === undefined ? '-' : Number(m.transmission).toFixed(2),
+          m.emissiveIntensity === undefined ? '-' : Number(m.emissiveIntensity).toFixed(2),
+          m.depthWrite,
+        ].join('|')
+        seen.set(key, (seen.get(key) ?? 0) + 1)
+      }
+    })
+    return {
+      fixtureGlow: +getFixtureGlow().toFixed(3),
+      transparentMaterials: [...seen.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 12)
+        .map(([k, n]) => `${n}x ${k}`),
+    }
+  })
+
 const bg = () =>
   page.evaluate(() => {
     const b = window.__three?.scene?.background
@@ -149,6 +195,7 @@ const shot = async (tag) => {
   console.log(
     `  ${tag} — bg=${JSON.stringify(await bg())} sample=${JSON.stringify(await sample())}`,
   )
+  console.log(`      glass=${JSON.stringify(await glass())}`)
 }
 
 const resolved = await page.evaluate(() => {

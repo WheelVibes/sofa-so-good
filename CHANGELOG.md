@@ -5,6 +5,48 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.125 — WINDOW-SKY-DARK: mechanism named — a Medium scene carrying High-tier glass
+
+**Docs + probe only — no app change.** `.124` isolated item (k)'s trigger; this round dumped the
+live materials and named the cause. **No fix is attempted: the fix is a correctness change to
+tier-branch selection and wants its own round with an A/B.**
+
+**The panes, deduped over every transparent material in the scene.** Same room
+(`tpl-condo-4bed`/`c4-master`), hour 13, furnished, lights on, one crop:
+
+| arm | the 5 plan window panes | pane p50 |
+| --- | --- | --- |
+| `TIER=auto` (setter never called) | `MeshPhysicalMaterial` `#20272f`, **opacity 1.00, transmission 0.20** | **49** |
+| `TIER=medium` (setter called) | `MeshStandardMaterial` `#20272f`, **opacity 0.73** | **132** |
+
+`transmissionTiers` is **High or Maximum only**, so on Medium `windowGlassPhysical` returns null and
+the pane is supposed to be the cheap transparent one. The `auto` arm is rendering a tier of glass
+its own store says it is not on. At `glow = 1` that variant is `transmission 0.20` at `opacity 1.0`
+— nearly opaque — while the correct Medium pane is `opacity = 0.28 + 1 × 0.45 = 0.73`. That is the
+entire 49-vs-132 gap, and it is why calling `setQualityTier` appeared to "fix" it. **It needs the
+plan swap too:** the boot flat under `auto` with no swap reads 139 / 135 / 92. Why the remount picks
+the transmissive branch at Medium is not yet established.
+
+**A second, separate defect found on the way:** at 13:00 the panes sit at `GLASS_NIGHT` (`#20272f`)
+rather than `GLASS_DAY` (`#bcd4e6`) in **both** arms, because `getFixtureGlow()` measures exactly 1
+at 1 pm. It is documented as "1 at night, 0 in daylight" but is really a lights-are-on factor, and
+the app boots lights on in daylight — so the glass tells the night story at midday. Independent of
+the tier bug; filed for its own round.
+
+**The sky bake stays exonerated** — `scene.background` is live in every arm and its image, sampled
+at the camera's own forward vector, returns **188.4** against the pure `skyRadiance` prediction of
+187.
+
+**Recorded negatives, now seven:** the swap does not lose the background (identical uuid);
+`setPitch(-0.05)` is innocent (132 → 131); tour order is innocent (132/132/132/132); tone mapping
+and the glass do not eat the background generally (the `city` preset's `#5d8fc4` lands at 135);
+`getFixtureGlow()` does not separate the arms (1 in both). **Two failed instruments are written
+down as well** so they are not repeated: selecting panes by `/glass|window|pane/i` on mesh names
+returned zero (the panes carry no such name — that zero was not evidence), and
+`await import('three')` inside `page.evaluate` throws `Failed to resolve module specifier 'three'`,
+so a Raycaster cannot be built that way. The dedup over transparent materials needs no library and
+is what finally separated the arms.
+
 ## v0.31.5.124 — WINDOW-SKY-DARK: item (k) reproduced, bounded, and four hypotheses refuted
 
 **Docs + probes only — no app change.** `.123` filed item (k) off `walk-tour` frames with a broad
