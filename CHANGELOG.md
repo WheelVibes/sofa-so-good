@@ -5,6 +5,59 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.104 — TEMPLATE-WALK-2 audit: the terrace's upper storey is CLEAN
+
+**Closes the round opened in `.103`.** `tpl-terrace-ground` is only the second of the
+nineteen shipped templates ever visually reviewed (`.95` did the maisonette; everything from
+`.20` to `.94` was the default 4-room flat). Its ground floor produced the MOUNTED-SEED defect
+fixed in `.103`; this entry records the upper storey, which is clean. Docs only — no `src/`
+change.
+
+**Arm:** `walk-tour.mjs PLAN=tpl-terrace-ground LEVEL=ct-up FURNISH=1 TIER=auto`, resolved
+**medium/on/manual13**, camera eye y=4.9 (level elevation 3.3 + 1.6 eye height, so the storey
+offset is right). 7 rooms / 28 frames, mean **97% content**, **199 visible meshes / 75,484
+triangles**, zero empty frames. For scale: this template's own ground floor is 7 rooms / 28
+frames / 261 meshes / 94,851 tris, and `.95`'s maisonette upper storey was 8 rooms / 32 frames
+/ 213 meshes / 93,677 tris.
+
+**Ceiling-band luma (rows 150–300, centre 60% width) is uniform across all 28 frames — 113 to
+175, no outliers.** That is the check that caught the ground floor: there, `ct-kit` read
+37/41/83/33 against its twin dining room's 210. Nothing here comes close to that. The upper
+band sits below the ground floor's 149–229, which is expected rather than suspicious — this
+storey has a 2.6 m ceiling under a gable roof, against 3.0 m and a slab below.
+
+**Every frame was reviewed** (contact sheet, then full-resolution crops of anything odd).
+Bedrooms carry bed + wall art + TV on a console, the bathrooms their fittings, the landing its
+stair void and doors; walls, cornices, door heads, floors and the storey offset all read
+correctly at a ceiling height no earlier round had tested.
+
+**`.103` verified on this storey too:** the landing's `wall-mirror` now sits at x=5.05, i.e.
+0.35 m off the west wall of a room spanning x 4.7–6.2 — on the wall, where before the fix it
+would have been stranded at the room's exact centre.
+
+**Two things checked and NOT found — recording the negatives, because dismissing needs
+evidence as much as accepting does.** The landing frame shows a chest standing in front of what
+looks like a blocked doorway; measured, the nearest door (`ctu-b2-door` at x=4.50, z=5.95) is
+**1.4 m** from the `shoe-cabinet` at [5.45, 4.84], so nothing is blocked and the door in view
+is simply further down the corridor. The large disc filling one side of that frame is the round
+`wall-mirror` seen at close range, not a modelling artefact.
+
+**Recorded for a later round, with exact data.** In the 1.5 m-wide landing (x 4.7–6.2) the
+`shoe-cabinet` [5.45, 4.84] and `bench` [5.45, 6.95] sit on the room's CENTRE LINE rather than
+against a wall — the bench is at the room's exact centre, i.e. still on its seed point. This is
+a different mechanism from `.103`: those are not `'mounted'` roles, so `placeSeededMounts`
+correctly leaves them alone; instead `arrangeCore`'s safety-net `settle` tries "the original
+position first" and keeps it whenever it is collision-free, which for a seeded item means the
+room centre. Wall-hugging kinds (storage, benches) arguably should not accept a mid-room
+original in a circulation space, but that is a change to `settle`'s preference order and wants
+its own round rather than being bolted onto this one.
+
+**Also still open, unchanged:** mirrors do not reflect (the `wall-mirror` renders as a flat
+grey-green slab — `ct-stair-y3` measured 92 after `.103`, up from 26); `PlanRoom` has no
+`external` field; `applyLayoutPreset('move-in')` places no window treatments on a template
+while the default flat gets curtains in every bedroom; template door prompts read a generic
+"Open door".
+
 ## v0.31.5.103 — MOUNTED-SEED: wall/ceiling fixtures get placed instead of left on the seed point
 
 **Found by walking the second template ever reviewed.** `.95` had established that only
