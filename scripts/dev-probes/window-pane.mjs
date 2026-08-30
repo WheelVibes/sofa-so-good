@@ -48,6 +48,11 @@ const FLAGS = process.env.FLAGS || ''
 // the only way to exercise a boot-time guard like `ensureDaylightFirstPaint` at an
 // hour other than the one the probe happens to run at.
 const FAKENOW = process.env.FAKENOW || ''
+// ROOM='Bath' stands at a named room's centroid instead of at a window. The
+// windowless rooms — bathrooms, corridor, household shelter — are where a
+// fixtures-off rule is most likely to leave a user in the dark, and they cannot
+// be reached by the window-standoff pose at all.
+const ROOM = process.env.ROOM || ''
 const OUT = process.env.OUT || '/tmp/window-pane'
 fs.mkdirSync(OUT, { recursive: true })
 
@@ -122,6 +127,18 @@ await page.evaluate(
 const pose = await page.evaluate(
   (q) => {
     const plan = window.__store.getState().floorPlan
+    if (q.room) {
+      const r = (plan.rooms ?? []).find((x) =>
+        new RegExp(q.room, 'i').test(`${x.name ?? ''} ${x.id}`),
+      )
+      if (!r) return null
+      return {
+        id: r.name ?? r.id,
+        px: r.origin[0] + r.width / 2,
+        pz: r.origin[1] + r.depth / 2,
+        yaw: 0,
+      }
+    }
     const op = (plan.openings ?? []).find(
       (o) => o.kind === 'window' && new RegExp(q.win, 'i').test(o.id),
     )
@@ -154,9 +171,9 @@ const pose = await page.evaluate(
     const pz = cz + nz * q.standoff
     return { id: op.id, px, pz, yaw: Math.atan2(-(cx - px), -(cz - pz)) }
   },
-  { win: WINDOW, standoff: STANDOFF },
+  { win: WINDOW, standoff: STANDOFF, room: ROOM },
 )
-if (!pose) throw new Error(`no window opening matching /${WINDOW}/i`)
+if (!pose) throw new Error(`no ${ROOM ? 'room' : 'window'} matching /${ROOM || WINDOW}/i`)
 await page.evaluate(
   async (q) => {
     const { requestWalkTeleport } = await import('/src/scene/cameras/walkTeleport.ts')
@@ -194,7 +211,9 @@ const found = await page.evaluate(() => {
     transmission: m.transmission ?? 0,
   }))
 })
-if (!found.length) throw new Error('no sky-catch pane materials found — pose or tier suspect')
+if (!found.length && !ROOM) {
+  throw new Error('no sky-catch pane materials found — pose or tier suspect')
+}
 console.log(
   `window-pane  tier=${TIER} hour=${HOUR} window=${pose.id} standoff=${STANDOFF}m backdrop=${BACKDROP || '(default)'}`,
 )
@@ -213,7 +232,7 @@ const ARMS = [
   ['e-hdr-skycatch', { ei: 1.6, toneMapped: false }],
   ['f-untinted-hdr', { color: 0xffffff, ei: 1.6, toneMapped: false }],
 ]
-for (const [name, patch] of ARMS) {
+for (const [name, patch] of ARMS.slice(0, ROOM ? 1 : ARMS.length)) {
   const state = await page.evaluate((p) => {
     window.__panes.forEach((m, i) => {
       const s = window.__paneShipped[i]
@@ -223,6 +242,7 @@ for (const [name, patch] of ARMS) {
       m.needsUpdate = true
     })
     const m = window.__panes[0]
+    if (!m) return { panes: 0 }
     return {
       color: `#${m.color.getHexString()}`,
       ei: m.emissiveIntensity,

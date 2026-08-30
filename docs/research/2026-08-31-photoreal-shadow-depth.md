@@ -1477,3 +1477,51 @@ first paint.
 That is the whole trade from `.165` removed, without touching the user's switch or the recorded
 default. `photographicFill` now costs only what `.86` always said it would: a dimmer room when you are
 standing in it at midday.
+
+
+## The windowless rooms (v0.31.5.167)
+
+`.166` verified `photographicFill` at one walk pose and the boot view. Parity means the rooms that
+pose cannot reach — and the windowless ones are exactly where a fixtures-off rule should be expected
+to fail. `window-pane.mjs` gains a `ROOM` env that stands at a named room's centroid, which the
+window-standoff pose structurally cannot do.
+
+**It failed, as suspected:**
+
+| room | flag OFF | flag ON (`.166`) |
+| --- | --- | --- |
+| Bath/WC | mean 183.5, `%<64` 0.02 % | mean **94.6**, 6.00 % |
+| Corridor | mean 195.2, `%<64` 0.00 % | mean **98.6**, **31.06 %** |
+| Household shelter | mean 196.7 | mean 103.7, 8.53 % |
+
+A room with no window gets nearly all its light from those fixtures. Removing them halves it. Its
+occupants switch the light on at noon for exactly that reason, and the user had already asked for
+lights on — the flag was overriding a real preference where daylight could not replace it.
+
+**The fix narrows the rule again, by geometry.** New pure `lighting/daylitRooms.ts`:
+`daylitRoomIds(plan)` probes each window's midpoint a little way to both sides and attributes it to
+whichever room contains the probe (so an interior window lights both); `fixtureSurvivesDaylight`
+then keeps any fixture standing in a room daylight cannot reach. Doors are ignored — a door is not
+daylight — and a degenerate wall, a missing wall, an empty plan and a fixture outside every room
+(a ledge, a balcony) are all covered. Eleven tests.
+
+**Result:**
+
+| room | flag ON (`.166`) | flag ON (`.167`) |
+| --- | --- | --- |
+| **Corridor** | 98.6, `%<64` 31.06 % | **189.4, 0.00 %** — fully recovered |
+| Bath/WC | 94.6, 6.00 % | **115.9, 1.40 %** |
+
+The corridor is truly windowless and comes back completely. **The bathroom does not, and that is
+correct**: `apartment/constants.ts` gives the HDB baths *"ventilation windows (high-sill), over the AC
+ledge"*, so they are daylit rooms by the rule and their fixtures are dropped. A small high vent window
+at noon with the light off is a dim bathroom — which is what a photograph of one looks like.
+
+**Cost to the walk view, stated plainly:** `%<64` slips **11.68 % → 10.93 %**, just under the
+photographic 11.2–12.2 % band, because windowless-room fixtures now leak a little light back into the
+frame. Curtain and sofa micro-contrast are unchanged (0.0820 / 0.0946).
+
+**Known residual, not fixed here:** `setFixtureGlow` is a single global signal, so in a daylit
+first-person view the lamp *shades* stop glowing everywhere while windowless-room fixtures keep
+emitting. The shade glow is a subtle self-illumination rather than a light source, so the visible
+effect is small, but making it per-room is the follow-up.

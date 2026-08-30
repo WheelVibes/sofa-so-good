@@ -5,6 +5,31 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.167 — the windowless rooms
+
+`.166` verified `photographicFill` at one walk pose and the boot view; parity means the rooms that
+pose cannot reach. `window-pane.mjs` gains a `ROOM` env that stands at a named room's centroid.
+
+**The rule failed there, as suspected.** With the flag on: Bath/WC mean **183.5 → 94.6**, Corridor
+**195.2 → 98.6 with 31 % of pixels below 64**, household shelter 196.7 → 103.7. A room with no window
+gets nearly all its light from those fixtures, and the user had already asked for lights on — the flag
+was overriding a real preference where daylight could not replace it.
+
+**Fixed by narrowing the rule with geometry.** New pure `lighting/daylitRooms.ts`: `daylitRoomIds(plan)`
+probes each window's midpoint to both sides and attributes it to whichever room contains the probe;
+`fixtureSurvivesDaylight` keeps any fixture in a room daylight cannot reach. Doors ignored, degenerate
+/ missing walls, empty plans and fixtures outside every room all covered. Eleven tests.
+
+**Corridor 98.6 → 189.4, `%<64` 31.06 % → 0.00 %** — fully recovered. **Bath/WC 94.6 → 115.9** and
+deliberately not more: `apartment/constants.ts` gives the HDB baths "ventilation windows (high-sill)",
+so they are daylit rooms by the rule, and a small high vent window at noon with the light off is a dim
+bathroom — which is what a photograph of one looks like.
+
+Cost to the walk view, stated plainly: `%<64` **11.68 % → 10.93 %**, just under the photographic
+11.2–12.2 % band, with curtain/sofa micro-contrast unchanged (0.0820 / 0.0946). Known residual:
+`setFixtureGlow` is still one global signal, so lamp *shades* stop glowing everywhere while
+windowless-room fixtures keep emitting; per-room glow is the follow-up.
+
 ## v0.31.5.166 — separating the user's setting from what a view renders
 
 `.165` found the photographic balance is view-dependent — a win in first person, a loss in the
