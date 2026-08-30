@@ -992,3 +992,37 @@ default** — `WINDOW-SKY-DEFAULT` still stands. What it does is remove the *str
 presets now track the clock instead of being frozen at one hour, which is a prerequisite for any
 future content-bearing default, and it costs nothing (the re-bake is quantised to 0.1 on both
 signals so scrubbing the time slider cannot re-bake per frame).
+
+
+## The curtains were an extrusion (v0.31.5.156)
+
+Looking at the `.154` window frame rather than a histogram: the curtains are **perfectly parallel
+vertical ribbons of constant width, identical from rod to hem**. Real drapery is pinned at the track
+and free at the bottom, so its folds lean and wander as they fall.
+
+**The cause is exact.** `Curtain.tsx:buildWavyPanel` displaced the plane by
+`FOLD_DEPTH * sin((x + 0.5) * FOLDS * 2π) * taper` — a function of **x only**. Every horizontal
+cross-section was therefore identical: the panel was a literal extrusion, and it rendered as one. It
+is the same "corrugated card" tell the furniture grain had in `.147`, in a different system.
+
+**The fix — CURTAIN-DRIFT.** The profile is now the exported pure `curtainFoldZ(x, y, panelHeight)`,
+adding two smooth deterministic terms: a **phase drift** that is zero at the rod and grows toward the
+hem (so the pleats stay fixed where they are actually pinned, and the fabric wanders where it is
+actually free), and a small **per-fold amplitude variation** so neighbouring folds are not identical
+twins. `SEG_Y` goes 5 → 12, because a wandering fold rendered across five segments is five straight
+facets; 48 × 12 quads is trivial.
+
+**Depth is deliberately unchanged.** `windowSnap`'s standoff is sized against the current amplitude,
+and a deeper wave would push fabric through the window sill — a unit test pins the peak at ≤ 1.2 ×
+`FOLD_DEPTH` so a later tweak cannot quietly break that. Five tests in all, including that the rod
+cross-section is *exactly* the undrifted profile and that the hem is fuller than the rod.
+
+**Measured** as mean |row − column-profile| over the curtain crop, which is **0 for a perfect vertical
+extrusion**: **9.37 shipped → 9.87 at drift 0.9 → 9.98 at drift 1.8**. Two drift strengths were
+rendered and compared; 1.8 was kept because the folds visibly lean and gather without any wobble or
+kinking, and 0.9 was barely distinguishable from shipped.
+
+**Honest scale:** this is a small change in the numbers (+6.5 %) and a modest one to the eye. It
+removes a categorical defect — "this object is an extrusion" — rather than transforming the frame. The
+larger remaining curtain tells are the hard dark seam lines between folds and the dead-straight
+silhouette edges and hem; a real floor-length curtain breaks at the floor.

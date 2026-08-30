@@ -5,6 +5,30 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.156 — the curtains were an extrusion
+
+`Curtain.tsx:buildWavyPanel` displaced its plane by `FOLD_DEPTH * sin((x + 0.5) * FOLDS * 2π) * taper`
+— a function of **x only**, so every horizontal cross-section was identical and the panel was a literal
+extrusion. It rendered as one: perfectly parallel ribbons of constant width, identical from rod to
+hem. Real drapery is pinned at the track and free at the bottom, so its folds lean and wander as they
+fall.
+
+The profile is now the exported pure `curtainFoldZ(x, y, panelHeight)` (CURTAIN-DRIFT), adding a
+**phase drift** that is zero at the rod and grows toward the hem, plus a small **per-fold amplitude
+variation** so neighbouring folds are not identical twins. `SEG_Y` goes 5 → 12 because a wandering
+fold across five segments is five straight facets.
+
+**Depth is deliberately unchanged** — `windowSnap`'s standoff is sized against the current amplitude
+and a deeper wave would push fabric through the window sill; a test pins the peak at ≤ 1.2 ×
+`FOLD_DEPTH`. Five tests, including that the rod cross-section is exactly the undrifted profile.
+
+Measured as mean |row − column-profile| over the curtain crop (**0 = a perfect vertical extrusion**):
+**9.37 shipped → 9.87 at drift 0.9 → 9.98 at drift 1.8**. Both strengths were rendered; 1.8 kept
+because the folds visibly lean and gather without wobble, while 0.9 was barely distinguishable from
+shipped. Honest scale: +6.5 % on the metric and modest to the eye — it removes a categorical defect
+rather than transforming the frame. The larger remaining tells are the hard seam lines between folds
+and the dead-straight silhouette and hem.
+
 ## v0.31.5.155 — photo backdrops now track the clock
 
 Implements the preset side of `.154`'s finding that the static photo backdrops are authored at one
