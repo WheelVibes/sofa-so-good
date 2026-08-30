@@ -27,7 +27,8 @@ const KNOWN_MISPLACED_MAIN_DOORS = [
   // tpl-hdb-4room FIXED in v0.31.5.115 — `h4-main`'s offset was mirrored and put
   // the front door inside the master bedroom. Corrected (6.4 -> 1.7).
   'tpl-hdb-5room/h5-main -> h5-master',
-  'tpl-hdb-exec/ex-main -> ex-master',
+  // tpl-hdb-exec FIXED in v0.31.5.118 — `ex-main` 8.4 -> 2.1, out of the master
+  // and into ex-living, which lines offsets 0.1-4.3 of that wall.
   'tpl-hdb-3gen/g3-main -> g3-master',
   'tpl-hdb-jumbo/jb-main -> jb-master',
   'tpl-studio/st-main -> st-bath',

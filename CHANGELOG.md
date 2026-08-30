@@ -5,6 +5,44 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.118 — tpl-hdb-exec: front door out of the master, window back into it
+
+**Third plan fixed, and the first since the 4-room where BOTH halves were possible.** Scanning the
+walls first is what settled that — `ex-s` IS lined by `ex-living` at offsets 0.1-4.3, unlike the
+5-room, whose living room never touches its door wall at all.
+
+- **`ex-main` 8.4 → 2.1** (`11.4 - 8.4 - 0.9`). Out of `ex-master` (which lines 8.0-11.4 of that
+  wall) and into the living room. **Confirmed in frames: the master now shows ONE door where it
+  showed two.**
+- **`ex-m-win` 9.8 → 0.4** (`12.0 - 9.8 - 1.8`). Out of the KITCHEN (9.2-12.0) and into `ex-master`
+  (0.1-2.7).
+- **`ex-b2-win` left alone** — it already lands in `ex-bed2`.
+
+**Measured against a baseline captured BEFORE the edit:** items **1442 → 1444**, stray dining chairs
+**17 → 17**, **wardrobes 39 → 40 — one GAINED**, and **only `tpl-hdb-exec` moves** (91 → 93). The +2
+were dumped per-def before any constant was touched: a **`range-hood`** (third template with this
+mechanism — the stray kitchen window had been blocking the extractor's wall) and a
+**`wardrobe-3door`**, the exec master's, which had been dropped and now places. **Nothing lost
+anywhere.**
+
+**Daylight measured on THIS template** via a captured pre-fix arm (never carried across — the 4-room
+kitchen went −7.7 and the 5-room's +3.7). Per-room mean luma over four yaws: master **186.4 → 195.2
+(+8.8)**; kitchen **+5.1**; **bedroom 2, bedroom 3 and the study flat to 0.1**, a clean control. The
+living room went **−2.6**, which is unexplained and reported as measured: the front door now sits in
+its south wall, but I did not verify that is the cause.
+
+**Five ratchets moved and every one was explained from a dump first:** windowless bedrooms 13 → 12
+(owning 31 → 32); misplaced main doors 7 → 6; exec item count 93 and total 1444;
+`placeSeededMounts` centred 21 → 24 (`ex-living` rug + coffee-table, `ex-master` rug — all in that
+test's own CENTRE_IS_RIGHT set, with **stranded unchanged at 3**, the same three pieces `.108`
+named).
+
+**`windowSightline` went 11 → 12, and that is a trade, not a regression — stated as one.** The new
+entry is `tpl-hdb-exec/ex-m-win: wardrobe-3door`: this fix gave the master a window it never had AND
+restored the wardrobe that had been dropped, so the room went from **no glass at all** to glass
+partly blocked by its own wardrobe. Third instance of item (j)'s pattern, and worth expecting on
+each remaining (h) fix — **closing (h) tends to open (j)**.
+
 ## v0.31.5.117 — WINDOW-SIGHTLINE: the obvious fix was built, measured, and reverted
 
 **A negative result, shipped as one.** I implemented the fix this round was for, measured it, found

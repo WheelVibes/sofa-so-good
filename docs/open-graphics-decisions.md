@@ -405,9 +405,16 @@ moving the master's window from z=1.9 in the KITCHEN to z=9.1 in the master. Mea
 template (not carried from the 4-room): the master's mean frame luma rose **177.3 → 190.8**, and
 living / bed2 / bed3 were flat to within 0.1. **13 bedrooms remain windowless (5 masters).**
 
-**Recommendation — continue template by template, worst first**: `tpl-hdb-exec` next. Consider
-giving `perimeter()` a consistent winding as part of the last such change. The remaining 13 stay
-**ratcheted by name** in `src/floorplan/bedroomWindow.test.ts`.
+**THIRD PLAN FIXED — `tpl-hdb-exec`, v0.31.5.118.** `ex-m-win` 9.8 → 0.4 (`12.0 - 9.8 - 1.8`),
+moving the master's window out of the KITCHEN (which lines offsets 9.2-12.0 of that wall) into
+`ex-master` (0.1-2.7). Measured on this template: master mean frame luma **186.4 → 195.2**, with
+bedroom 2, bedroom 3 and the study flat to 0.1. **12 bedrooms remain windowless (4 masters).**
+
+**Recommendation — continue template by template**: `tpl-hdb-3gen` and `tpl-hdb-jumbo` next; both
+also have a front door in the master, so fix (h) and (i) together per plan, and **scan the walls
+first** — the 5-room proved a door is only offset-fixable if the living room touches that wall.
+Consider giving `perimeter()` a consistent winding as part of the last such change. The remaining 12
+stay **ratcheted by name** in `src/floorplan/bedroomWindow.test.ts`.
 
 **This also blocks the window-treatment gap.** `applyLayoutPreset('move-in')` places **zero** window
 treatments on any template (measured: 0 across all 19) because no entry in `furnishPlan.ts`'s `KITS`
@@ -466,9 +473,14 @@ which is a decision about how the flat is entered, not a typo correction. **`tpl
 different: its living room did touch the door's wall, which is why `.115` could fix it with one
 number.** Check each remaining template's wall before assuming the same shape.
 
+**SECOND PLAN FIXED — `tpl-hdb-exec`, v0.31.5.118.** The wall scan showed `ex-s` IS lined by
+`ex-living` at offsets 0.1-4.3 (unlike the 5-room), so the mirror works: `ex-main` 8.4 → 2.1
+(`11.4 - 8.4 - 0.9`), out of `ex-master` (8.0-11.4) and into the living room. Confirmed in frames —
+the master now shows ONE door where it showed two. **6 misplaced main doors remain.**
+
 **Recommendation — continue with (h) per plan, but scan the wall FIRST.** Where the living room
 touches the door's wall, it is a one-number mirror; where it does not, it needs a façade decision
-and should stay here. The remaining 7 stay **ratcheted by name** in
+and should stay here. The remaining 6 stay **ratcheted by name** in
 `src/floorplan/mainDoorRoom.test.ts`.
 
 ---
@@ -480,7 +492,7 @@ and should stay here. The remaining 7 stay **ratcheted by name** in
 of the four yaws** — a 2.1 m 3-door wardrobe stands about 0.8 m in front of it. The daylight gets
 in (both rooms measurably brightened); the view does not.
 
-**The size.** Across the 19 templates, **11 of 78 windows** have a floor piece taller than the sill
+**The size.** Across the 19 templates, **12 of 78 windows** (11 when first measured in `.117`; `.118` added one, see below) have a floor piece taller than the sill
 standing in front of the glass — footprint overlapping the pane laterally by ≥0.3 m with its nearest
 face within 1.2 m. **Nine are `wardrobe-3door` (2.10 m).** The two worst cover **1.17 m of 1.6 m**
 (`h4-m-win`) and **1.37 m of 1.6 m** (`h5-m-win`) — 73% and 86% of the glass. Every offender's
@@ -511,10 +523,16 @@ choose the wall SEGMENT beside the glass rather than in front of it), or a conte
 2-door wardrobe in the smaller masters). Both are design calls about what a furnished HDB bedroom
 should look like.
 
+**`.118` added one entry, and it is a trade rather than a regression.** Fixing (h)/(i) on
+`tpl-hdb-exec` gave `ex-master` a window it never had AND restored the wardrobe that had been
+dropped, so the room went from **no glass at all** to glass partly blocked by its own wardrobe —
+`tpl-hdb-exec/ex-m-win: wardrobe-3door`. Expect the same on each remaining (h) fix: closing (h)
+tends to open (j).
+
 **Recommendation — try a narrower wardrobe in tight rooms before touching the keep-out again.** The
 measured blocker is the piece's 1.8 m width against a ~3.5 m wall that also carries a window and a
-bed. Until then the 11 are **ratcheted by name** in `src/layout/windowSightline.test.ts`, which also
-asserts that 67 of the 78 windows are clear so it cannot pass by measuring nothing.
+bed. Until then the 12 are **ratcheted by name** in `src/layout/windowSightline.test.ts`, which also
+asserts that 66 of the 78 windows are clear so it cannot pass by measuring nothing.
 
 ---
 
@@ -529,9 +547,9 @@ asserts that 67 of the 78 windows are clear so it cannot pass by measuring nothi
 | e | Curtain vs nightstand | content | ✅ **SHIPPED v0.31.5.87** — curtain narrowed + nightstands outboard |
 | f | TEMPLATE-ROOM-ENCLOSURE | content | ⏳ **OPEN v0.31.5.109** — 9 templates ship unenclosed bathrooms; ratcheted by test |
 | g | LEVEL-ISOLATION-IN-WALK | renderer design + cost | ⏳ **OPEN v0.31.5.110** — walking an upper storey hides the one below; acute on `tpl-loft` |
-| h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — was 15 of 44; **13 left** after `tpl-hdb-4room` (`.115`) and `tpl-hdb-5room` (`.116`); ratcheted by test |
-| i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **7 left**; `tpl-hdb-5room` proven NOT offset-fixable (`.116`) — needs a façade decision |
-| j | WINDOW-SIGHTLINE | arranger strategy | ⏳ **OPEN v0.31.5.117** — 11 of 78 windows have tall furniture in front; the deeper-keep-out fix was measured and reverted (it deleted wardrobes) |
+| h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — was 15 of 44; **12 left** after `.115` (4-room), `.116` (5-room), `.118` (exec); ratcheted by test |
+| i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **6 left** after `.115` + `.118`; `tpl-hdb-5room` proven NOT offset-fixable — needs a façade decision |
+| j | WINDOW-SIGHTLINE | arranger strategy | ⏳ **OPEN v0.31.5.117** — **12** of 78 windows have tall furniture in front (`.118` added one as a trade); the deeper-keep-out fix was measured and reverted (it deleted wardrobes) |
 
 **Five of ten items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
 ((d)). Each was implemented in its own committed round and marked here as it landed. **(f), (g), (h), (i) and (j) are open.** (h) and (i) share one cause and should be fixed together; (j) was created by fixing (h) and needs an arranger strategy, not a bigger keep-out.

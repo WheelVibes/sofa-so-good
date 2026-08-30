@@ -27,7 +27,8 @@ const KNOWN_WINDOWLESS_BEDROOMS = [
   // master's window in the KITCHEN. Corrected to the exact mirror (8.2 -> 1.0).
   'tpl-hdb-exec/ex-bed3',
   'tpl-hdb-exec/ex-bed2b',
-  'tpl-hdb-exec/ex-master',
+  // ex-master FIXED in v0.31.5.118 — `ex-m-win`'s offset was mirrored and put the
+  // master's window in the KITCHEN. Corrected to the exact mirror (9.8 -> 0.4).
   'tpl-hdb-3gen/g3-gen',
   'tpl-hdb-3gen/g3-bed3',
   'tpl-hdb-3gen/g3-master',
@@ -94,8 +95,8 @@ describe('template bedrooms have daylight', () => {
           if (owns) owning++
         }
       }
-    // 29 until v0.31.5.115 (tpl-hdb-4room) and 30 until v0.31.5.116
-    // (tpl-hdb-5room) gave their masters their windows back.
-    expect(owning).toBe(31)
+    // 29 until v0.31.5.115 (4-room), 30 until `.116` (5-room), 31 until `.118`
+    // (exec) gave their masters their windows back.
+    expect(owning).toBe(32)
   })
 })

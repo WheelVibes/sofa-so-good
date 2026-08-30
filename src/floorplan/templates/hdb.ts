@@ -197,12 +197,20 @@ export function hdbExecutive(): FloorPlan {
       iwall('ex-study-s', [7.0, 2.6], [W - T, 2.6]),
     ],
     openings: [
-      door('ex-main', 'ex-s', 8.4),
+      // MAIN-DOOR-ROOM (v0.31.5.118): was 8.4, which put the front door at
+      // offsets 8.4-9.3 — inside the MASTER BEDROOM (which lines 8.0-11.4 of
+      // this wall). `ex-s` runs east→west (len 11.4); 11.4 - 8.4 - 0.9 = 2.1 is
+      // the exact mirror and lands it in ex-living, which lines 0.1-4.3.
+      door('ex-main', 'ex-s', 2.1),
       door('ex-master', 'ex-m-n', 1.0),
       door('ex-b2', 'ex-b2-s', 1.0),
       window('ex-kit-win', 'ex-n', 1.2, 1.8),
       window('ex-b2-win', 'ex-w', 7.2, 1.6),
-      window('ex-m-win', 'ex-w', 9.8, 1.8),
+      // BEDROOM-WINDOW (v0.31.5.118): was 9.8, which put the master's window at
+      // offsets 9.8-11.6 — in the KITCHEN (9.2-12.0 of this wall). `ex-w` runs
+      // north→south (len 12.0); 12.0 - 9.8 - 1.8 = 0.4 mirrors it into
+      // ex-master, which lines 0.1-2.7.
+      window('ex-m-win', 'ex-w', 0.4, 1.8),
       window('ex-liv-win', 'ex-e', 5.0, 2.4),
       window('ex-study-win', 'ex-e', 1.0, 1.4),
     ],

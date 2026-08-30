@@ -33,6 +33,11 @@ const KNOWN_BLOCKED = [
   'tpl-hdb-5room/h5-b2-win: wardrobe-3door',
   'tpl-hdb-5room/h5-m-win: wardrobe-3door',
   'tpl-hdb-exec/ex-b2-win: wardrobe-3door',
+  // ADDED by v0.31.5.118, and an honest trade rather than a regression: fixing
+  // (h) gave `ex-master` a window it never had AND restored the wardrobe that
+  // had been dropped, so the room went from NO glass to glass partly blocked by
+  // its own wardrobe. Third instance of item (j)'s pattern.
+  'tpl-hdb-exec/ex-m-win: wardrobe-3door',
   'tpl-hdb-3gen/g3-liv-win: wardrobe-3door',
   'tpl-hdb-jumbo/jb-b4-win: wardrobe-3door',
   'tpl-hdb-jumbo/jb-b5-win: wardrobe-3door',
@@ -104,10 +109,10 @@ describe('tall furniture does not stand in front of a window', () => {
   })
 
   // Without this the list could pass by measuring nothing: 78 windows are
-  // examined and 67 of them are clear.
+  // examined and 66 of them are clear.
   it('examines every template window', { timeout: 30_000 }, () => {
     const { hits, windows } = blockedWindows()
     expect(windows).toBe(78)
-    expect(windows - hits.length).toBe(67)
+    expect(windows - hits.length).toBe(66)
   })
 })

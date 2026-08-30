@@ -79,7 +79,11 @@ describe('dining chairs are tucked to their table', () => {
       // moving the misplaced window OUT of the kitchen freed the wall the range
       // hood needs. Dumped per-def first; the +1 is `range-hood`.
       'tpl-hdb-5room': 83,
-      'tpl-hdb-exec': 91,
+      // 91 until v0.31.5.118. Dumped per-def first: the +2 are a `range-hood`
+      // (the stray kitchen window had been blocking the extractor's wall, the
+      // same mechanism as `.115`/`.116`) and a `wardrobe-3door` — the exec
+      // master's wardrobe had been dropped and now places.
+      'tpl-hdb-exec': 93,
       'tpl-hdb-3gen': 95,
       'tpl-hdb-jumbo': 120,
       'tpl-hdb-maisonette': 141,
@@ -101,9 +105,10 @@ describe('dining chairs are tucked to their table', () => {
     const total = Object.values(counts).reduce((s, n) => s + n, 0)
     // 1437 before `.111`; 1439 after it; 1440 after `.112`'s room-bounds guard;
     // 1441 after `.115` restored the 4-room kitchen's range hood; 1442 after
-    // `.116` restored the 5-room's.
+    // `.116` restored the 5-room's; 1444 after `.118` restored the exec's hood
+    // AND its master wardrobe.
     // Every step ADDED pieces — none of this deletes furniture.
-    expect(total).toBe(1442)
+    expect(total).toBe(1444)
   })
 
   // `tpl-hdb-2room` shipped FOUR dining chairs and no table — the table's ideal

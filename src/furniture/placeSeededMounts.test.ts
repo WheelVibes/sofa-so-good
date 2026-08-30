@@ -242,6 +242,12 @@ describe('SETTLE-ORIGIN: wall-hugging pieces are rescued without losing any', ()
     // `h4-living: rug`, `h4-living: coffee-table`, `h4-master: rug`. All three
     // are in CENTRE_IS_RIGHT, and `stranded` stayed at 3, so nothing was
     // displaced. Dumped before this number was touched.
-    expect(sweep().centred).toBe(21)
+    //
+    // 21 → 24 in v0.31.5.118, same shape as `.115`: correcting the exec's front
+    // door and master window let `ex-living: rug`, `ex-living: coffee-table` and
+    // `ex-master: rug` settle exactly on their room centres. All three are in
+    // CENTRE_IS_RIGHT and `stranded` is still 3 (the same three pieces named in
+    // `.108`), so nothing was displaced. Dumped before this number was touched.
+    expect(sweep().centred).toBe(24)
   }, 30_000)
 })
