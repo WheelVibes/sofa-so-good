@@ -5,6 +5,27 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.176 — closing the window thread: the comparison was not like-for-like
+
+With `.175`'s corrected crop (one pane cell, no grille), the surviving question was that the glazing
+reads cool and desaturated. Measured: app pane cell **saturation 0.082**, rgb (179, 188, 195) — cool;
+photograph's windows **0.213–0.249**, rgb (207, 197, 173) — warm. Three times the saturation and the
+opposite hue.
+
+**But the panes are not showing the same thing.** The photograph's windows are filled with cream
+curtains and warm timber louvres; the app's are filled with clean blue midday sky, which *is* cool and
+desaturated. Chasing that hue would mean warming a midday sky toward sunset.
+
+**So the window thread closes as a content question, not a rendering one**, gated on a recorded
+product decision (`WINDOW-SKY-DEFAULT`). What the last four rounds established: the glass parameters
+are not the limiter (roughness 0.1 → 0 buys +1 %); the pane is not a flat slab (micro/mean 0.057
+inside a cell, the same range as the app's fabrics); half of every earlier window figure was the
+safety grille; and fine structure was never what was missing, so clouds could not have helped.
+
+Also fixed in passing: `windowGlassPhysical.roughness` now documents that it is **inert at its shipped
+value** — the `Math.max` against the glass kind means it can only matter above 0.1 — with the measured
+sweep recorded beside it, so the round spent assuming otherwise is not repeated.
+
 ## v0.31.5.175 — two corrections to my own window measurements
 
 **Measurement only.** `.174` concluded "the glass parameters are irrelevant". Both halves needed

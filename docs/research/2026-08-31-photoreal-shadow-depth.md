@@ -1791,3 +1791,40 @@ micro/mean **0.057** — the same range as the app's own fabrics, and not remote
 window read as a slab is its **low saturation and smooth large-scale ramp**, not an absence of detail.
 Which means the thing to change is the sky's *colour and gradient*, not its fine structure — and it
 explains why `.174`'s clouds, a fine-structure fix, could not have helped.
+
+
+## Closing the window thread: the comparison was not like-for-like (v0.31.5.176)
+
+With `.175`'s corrected crop — one pane cell, no grille — the remaining question was the one that
+survived: the glazing reads cool and desaturated. Measured against the reference photograph:
+
+| | saturation | mean rgb |
+| --- | --- | --- |
+| app, one pane cell (sky backdrop) | **0.082** | (179, 188, 195) — cool |
+| app, one pane cell (city backdrop) | 0.073 | (186, 195, 201) — cool |
+| photo, left window | **0.213** | (207, 197, 173) — warm |
+| photo, middle window | **0.249** | (200, 187, 160) — warm |
+
+Three times the saturation, and the opposite hue. That looks damning until you look at what is
+actually behind each pane: **the photograph's windows are filled with cream curtains and warm timber
+louvres**, and the app's are filled with clean blue midday sky. A window showing blue sky at 13:00
+*is* cool and desaturated. Chasing the photograph's hue here would mean warming a midday sky toward
+sunset, which would be wrong.
+
+**So the window thread closes as a content question, not a rendering one**, and it is gated on a
+recorded product decision (`WINDOW-SKY-DEFAULT`, `.92`) rather than on anything measurable I can fix.
+For the record, what the last four rounds established about it:
+
+- the glass is real transmissive glass and its parameters are **not** the limiter (`.175`: roughness
+  0.1 → 0 buys +1 %);
+- the pane is **not** a flat slab — inside one cell it measures micro/mean 0.057, the same range as
+  the app's fabrics (`.175`);
+- roughly **half** of every earlier window figure was the safety grille (`.175`);
+- adding fine structure to the sky cannot help, because fine structure was never what was missing
+  (`.174`);
+- and the residual difference against this photograph is **what is outside the window**, which is a
+  content choice.
+
+Also fixed in passing: `windowGlassPhysical.roughness` is documented as inert at its shipped value —
+the `Math.max` with the glass KIND means it can only ever matter above 0.1 — with the measured sweep
+recorded beside it, so the round I spent assuming otherwise is not repeated.
