@@ -1996,3 +1996,34 @@ under BOTH looks (0.77)** — that is not something the fill rebalance caused, i
 fractional bands are not the hand-placed crops `.179` used, so its absolute ratios differ a little
 (default-look ceiling reads 1.05 here against 0.92 there). The bands are self-consistent, which is
 what matters for tracking a change; the numbers are not interchangeable with the earlier hand-crops.
+
+
+## Half of `.179` was albedo, not light (v0.31.5.181)
+
+`.179`/`.180` reported that the app puts **both** horizontal surfaces below the frame average where
+photographs put both above, and called it missing bounce. The floor half of that does not survive.
+
+**What the two reference rooms have on the floor is polished light stone; the default flat has
+`floor-vinyl-oak`.** The measured floor band is rgb **(156, 138, 118)** — warm mid-oak. A near-white
+painted wall against a mid-oak floor gives a luminance ratio in the region of 0.55 from **albedo
+alone**, before any question of how the light is distributed. Measured, the app's floor/wall is
+0.77 / 1.11 = **0.69** — i.e. the floor is *brighter* than its albedo ratio would predict, not darker.
+
+So the floor is not under-lit. It is a darker material than the floors in the photographs, and
+comparing them was the `.176` mistake again: not like-for-like.
+
+**The ceiling half stands, and is now the whole claim.** Ceilings are near-white in the app and in
+both photographs, so albedo is not a confound there: **0.85 (photographic) / 1.05 (default) against
+1.17–1.28** is a real difference in where the light goes, and it is consistent with there being no
+term for the floor bouncing daylight upward.
+
+**An attempted control failed, and the failure is worth recording.** Re-finishing the living/dining
+floor to `floor-tile-marble` and `floor-tile-white` through `setFloorFinish` changes the store —
+`state.floor` reports the new id — but **not the render**: the floor band stays rgb (156, 138, 118) for
+oak, marble and white alike. Something downstream of `setFloorFinish` does not pick it up on the
+curated default flat. That is a plumbing bug, not a graphics one, and it is a real one: a user
+changing their floor finish on the move-in demo may see nothing happen. The probe keeps the `FLOOR`
+env with that warning attached so the repro is one command away.
+
+`light-distribution.mjs`'s printed targets are corrected accordingly: **floor is not a target**, for
+the same reason wall is not.

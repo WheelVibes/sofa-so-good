@@ -5,6 +5,30 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.181 — half of `.179` was albedo, not light
+
+`.179`/`.180` reported the app putting **both** horizontal surfaces below the frame average where
+photographs put both above, and called it missing bounce. **The floor half does not survive.**
+
+Both reference rooms have polished light stone floors; the default flat has `floor-vinyl-oak`, and its
+floor band measures rgb **(156, 138, 118)** — warm mid-oak. Near-white wall against mid-oak floor gives
+a luminance ratio around 0.55 from **albedo alone**; the app measures 0.77 / 1.11 = **0.69**, i.e. the
+floor is *brighter* than its albedo predicts. Not under-lit — a darker material, compared against a
+lighter one. The `.176` mistake again.
+
+**The ceiling half stands and is now the whole claim**: ceilings are near-white in the app and in both
+photographs, so albedo is not a confound there, and **0.85 / 1.05 against 1.17–1.28** is a real
+difference in where the light goes.
+
+**An attempted control failed, and that failure is itself a finding.** Re-finishing the living/dining
+floor to `floor-tile-marble` / `floor-tile-white` via `setFloorFinish` updates the store (`state.floor`
+reports the new id) but **not the render** — the floor band stays rgb (156, 138, 118) for oak, marble
+and white alike. Something downstream of `setFloorFinish` does not pick it up on the curated default
+flat; a user changing their floor finish on the move-in demo may see nothing happen. `FLOOR` is kept in
+`light-distribution.mjs` with that warning so the repro is one command away.
+
+The probe's printed targets are corrected: **floor is not a target**, for the same reason wall is not.
+
 ## v0.31.5.180 — an instrument for `.179`'s lesson
 
 `.179` ended with a rule: any future calibration of the photographic look must carry the ceiling/floor

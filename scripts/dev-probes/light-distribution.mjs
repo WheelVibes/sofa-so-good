@@ -37,6 +37,13 @@ const STANDOFF = Number(process.env.STANDOFF || 4.6)
 const PITCH = Number(process.env.PITCH || -0.06)
 const WALKFOV = process.env.WALKFOV ? Number(process.env.WALKFOV) : 50
 const PHOTO = process.env.PHOTO === '1'
+// FLOOR re-finishes the living/dining floor. NOTE (v0.31.5.181): the store
+// accepts it — `state.floor` reports the new id — but the render does not change
+// (the floor band stays rgb 156,138,118 for oak and marble alike), so something
+// downstream of `setFloorFinish` is not picking it up on the CURATED default flat.
+// Left in place because the plumbing bug is worth having a repro for, but do not
+// trust it as a way to vary the floor until that is chased down.
+const FLOOR = process.env.FLOOR || ''
 const OUT = process.env.OUT || '/tmp/light-distribution'
 fs.mkdirSync(OUT, { recursive: true })
 
@@ -59,7 +66,7 @@ await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
 await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())
 await page.waitForFunction(() => window.__store.getState().sceneReady, { timeout: 90000 })
 await page.evaluate(
-  ({ h, t, fov, photo }) => {
+  ({ h, t, fov, photo, floor }) => {
     const s = window.__store.getState()
     s.setTimeMode('manual')
     s.setManualHour(h)
@@ -68,8 +75,9 @@ await page.evaluate(
     s.dismissCallout?.('walk-mode')
     s.setWalkFov?.(fov)
     if (photo) s.setPhotographicLook?.(true)
+    if (floor) s.setFloorFinish?.('livingDining', floor)
   },
-  { h: HOUR, t: TIER, fov: WALKFOV, photo: PHOTO },
+  { h: HOUR, t: TIER, fov: WALKFOV, photo: PHOTO, floor: FLOOR },
 )
 await page.waitForFunction(() => !!window.__walkLook, { timeout: 20000 })
 await new Promise((r) => setTimeout(r, 4000))
@@ -125,7 +133,12 @@ await new Promise((r) => setTimeout(r, 2500))
 
 const state = await page.evaluate(() => {
   const s = window.__store.getState()
-  return { tier: s.qualityTier, hour: s.manualHour, photographicLook: s.photographicLook }
+  return {
+    tier: s.qualityTier,
+    hour: s.manualHour,
+    photographicLook: s.photographicLook,
+    floor: s.finishes?.floor?.livingDining,
+  }
 })
 const shot = await page.screenshot({ type: 'png' })
 fs.writeFileSync(`${OUT}/frame.png`, shot)
@@ -185,6 +198,8 @@ console.log('')
 console.log('targets, from the reference photographs:')
 console.log('  %<64      11.2–12.2 %')
 console.log('  ceiling   1.17–1.28    (app has measured 0.75–0.92)')
-console.log('  floor     1.23–1.30    (app has measured 0.66–0.70)')
+console.log('  floor     NOT a target — both reference photographs have polished light')
+console.log('            stone where the default flat has oak vinyl, so the gap is')
+console.log('            mostly ALBEDO (see the .181 entry in the research doc)')
 console.log('  wall      NOT a target — the photographs disagree 1.43 vs 0.53')
 await browser.close()
