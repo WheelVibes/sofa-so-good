@@ -308,7 +308,13 @@ export function hdbJumbo(): FloorPlan {
       iwall('jb-eb-mid', [11.4, 6.6], [11.4, D - T]),
     ],
     openings: [
-      door('jb-main', 'jb-s', 9.2),
+      // MAIN-DOOR-ROOM (v0.31.5.119): was 9.2, which put the front door at
+      // offsets 9.2-10.1 — inside the MASTER BEDROOM (which lines 8.6-12.2 of
+      // this wall). `jb-s` runs east→west (len 14.2); 14.2 - 9.2 - 0.9 = 4.1 is
+      // the exact mirror and lands it in jb-family, the Family Room (3.1-5.8),
+      // a living-category space. The Living / Dining never touches this wall —
+      // it fronts jb-n and jb-e — so the Family Room is the correct target.
+      door('jb-main', 'jb-s', 4.1),
       door('jb-master', 'jb-m-n', 1.0),
       door('jb-b2', 'jb-b2-s', 1.0),
       window('jb-kit-win', 'jb-n', 1.6, 1.8),

@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.119 — tpl-hdb-jumbo: front door out of the master; 3Gen proven unfixable by offset
+
+**The wall scan split this round three ways, and two of the three would have been wrong fixes.**
+
+**FIXED — `jb-main` 9.2 → 4.1** (`14.2 - 9.2 - 0.9`), out of `jb-master` (which lines 8.6-12.2 of
+that wall). **The destination is not the obvious one:** `jb-s` is lined by `jb-bed5` 0.2-2.8,
+**`jb-family` 3.1-5.8**, `jb-master` 8.6-12.2, `jb-mbath` 12.4-14.2 — **the Living / Dining never
+touches this wall**, fronting `jb-n` and `jb-e` instead. So the mirror lands in the **Family Room**,
+a living-category space, which is the correct target here. Naming "the living room" without checking
+what the wall offers would have been a guess.
+
+**NOT FIXABLE — `tpl-hdb-3gen`, both halves.** `g3-s` is lined only by `g3-gen` 0.2-4.1,
+`g3-master` 4.4-8.7, `g3-cbath` 8.8-10.4: **no living-category room touches it**, and the mirror
+(1.9) lands in `g3-gen`, another bedroom. And `g3-master` fronts only `g3-s`, so `g3-m-win` — which
+is authored on `g3-w` — can never reach it; its mirror (0.0) lands in the **Common Bath**.
+
+**NOT FIXABLE — `tpl-hdb-jumbo`'s master window.** Same shape: `jb-master` fronts only `jb-s`, while
+`jb-m-win` sits on `jb-w`; its mirror (1.0) lands in the **bathrooms**. Both masters need a window
+on the south façade — a content decision, recorded under (h).
+
+**Measured against a baseline captured BEFORE the edit: items 1444 → 1444, stray chairs 17 → 17,
+wardrobes 40 → 40, and every per-template count identical** (jumbo stays 120). **Identical readings
+were checked rather than assumed**: the edit is present in the file and **exactly one ratchet moved
+— `mainDoorRoom` 6 → 5**. That is the correct signature for sliding a door along a wall where both
+rooms had space; `bedroomWindow`, `diningChairTuck`, `templateEnclosure`, `placeSeededMounts` and
+`windowSightline` are all unchanged.
+
+**Frames** (`/tmp/tw13`): `jb-family` now has a door where it had none, and `jb-master` shows a
+single door — `.114` frame-proved it previously had two, the second being this front door on the
+south external wall. **No per-room luma A/B was run and none is claimed**: no window moved and no
+furniture changed, so there is nothing for it to measure.
+
+**The offset-fixable phase is nearly exhausted.** Of the 5 misplaced front doors left, `h5-main` and
+`g3-main` are now proven to need façade decisions; expect most of the remaining (h) entries to be
+the same.
+
 ## v0.31.5.118 — tpl-hdb-exec: front door out of the master, window back into it
 
 **Third plan fixed, and the first since the 4-room where BOTH halves were possible.** Scanning the

@@ -410,11 +410,18 @@ moving the master's window out of the KITCHEN (which lines offsets 9.2-12.0 of t
 `ex-master` (0.1-2.7). Measured on this template: master mean frame luma **186.4 → 195.2**, with
 bedroom 2, bedroom 3 and the study flat to 0.1. **12 bedrooms remain windowless (4 masters).**
 
-**Recommendation — continue template by template**: `tpl-hdb-3gen` and `tpl-hdb-jumbo` next; both
-also have a front door in the master, so fix (h) and (i) together per plan, and **scan the walls
-first** — the 5-room proved a door is only offset-fixable if the living room touches that wall.
-Consider giving `perimeter()` a consistent winding as part of the last such change. The remaining 12
-stay **ratcheted by name** in `src/floorplan/bedroomWindow.test.ts`.
+**TWO MORE PROVEN NOT OFFSET-FIXABLE — v0.31.5.119.** A master can only get a window on a wall it
+actually fronts, and neither of these does. **`g3-master` fronts only `g3-s`**, yet `g3-m-win` is
+authored on `g3-w` (cbath 0.1-2.6, bed3 2.7-5.2, bed2 5.6-8.2, kit 8.6-11.2) — its mirror (0.0)
+lands in the **Common Bath**. **`jb-master` likewise fronts only `jb-s`**, yet `jb-m-win` is on
+`jb-w` (mbath 0.1-1.3, cbath 1.5-3.5, bed3 3.7-6.2, bed2 6.6-9.8, kit 10.2-13.0) — its mirror (1.0)
+lands in the **bathrooms**. Giving either master daylight means putting a window on the south
+façade: a **content decision**, not an offset correction.
+
+**Recommendation — the offset-fixable phase is nearly exhausted.** Scan each remaining entry's walls
+before assuming; expect most to be façade decisions like these two. Consider giving `perimeter()` a
+consistent winding as part of the last such change. The remaining 12 stay **ratcheted by name** in
+`src/floorplan/bedroomWindow.test.ts`.
 
 **This also blocks the window-treatment gap.** `applyLayoutPreset('move-in')` places **zero** window
 treatments on any template (measured: 0 across all 19) because no entry in `furnishPlan.ts`'s `KITS`
@@ -478,10 +485,22 @@ number.** Check each remaining template's wall before assuming the same shape.
 (`11.4 - 8.4 - 0.9`), out of `ex-master` (8.0-11.4) and into the living room. Confirmed in frames —
 the master now shows ONE door where it showed two. **6 misplaced main doors remain.**
 
-**Recommendation — continue with (h) per plan, but scan the wall FIRST.** Where the living room
-touches the door's wall, it is a one-number mirror; where it does not, it needs a façade decision
-and should stay here. The remaining 6 stay **ratcheted by name** in
-`src/floorplan/mainDoorRoom.test.ts`.
+**THIRD PLAN FIXED — `tpl-hdb-jumbo`, v0.31.5.119**, and the target room was NOT the obvious one.
+`jb-s` (len 14.2) is lined by `jb-bed5` 0.2-2.8, **`jb-family` 3.1-5.8**, `jb-master` 8.6-12.2,
+`jb-mbath` 12.4-14.2 — **the Living / Dining never touches that wall** (it fronts `jb-n` 8.6-14.2 and
+`jb-e` 0.1-6.4). So `jb-main` 9.2 → 4.1 (`14.2 - 9.2 - 0.9`) lands in the **Family Room**, a
+living-category space, which is the correct destination here. **5 misplaced main doors remain.**
+
+**`tpl-hdb-3gen` CANNOT be fixed by an offset — measured, v0.31.5.119.** `g3-s` is lined only by
+`g3-gen` 0.2-4.1, `g3-master` 4.4-8.7 and `g3-cbath` 8.8-10.4. **No living-category room touches it
+at all**, and the exact mirror (1.9) lands in `g3-gen`, the Grandparent Suite — another bedroom. The
+living room fronts `g3-n` (6.4-10.3) and `g3-e` (0.1-8.8), so this entrance needs a **façade
+decision**, like the 5-room's.
+
+**Recommendation — continue with (h) per plan, but scan the wall FIRST.** Where a living-category
+room touches the door's wall, it is a one-number mirror; where it does not, it needs a façade
+decision and should stay here. Of the 5 remaining, `h5-main` and `g3-main` are already **proven**
+unfixable. The rest stay **ratcheted by name** in `src/floorplan/mainDoorRoom.test.ts`.
 
 ---
 
@@ -548,7 +567,7 @@ asserts that 66 of the 78 windows are clear so it cannot pass by measuring nothi
 | f | TEMPLATE-ROOM-ENCLOSURE | content | ⏳ **OPEN v0.31.5.109** — 9 templates ship unenclosed bathrooms; ratcheted by test |
 | g | LEVEL-ISOLATION-IN-WALK | renderer design + cost | ⏳ **OPEN v0.31.5.110** — walking an upper storey hides the one below; acute on `tpl-loft` |
 | h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — was 15 of 44; **12 left** after `.115` (4-room), `.116` (5-room), `.118` (exec); ratcheted by test |
-| i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **6 left** after `.115` + `.118`; `tpl-hdb-5room` proven NOT offset-fixable — needs a façade decision |
+| i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **5 left** after `.115`, `.118`, `.119`; `h5-main` and `g3-main` proven NOT offset-fixable — façade decisions |
 | j | WINDOW-SIGHTLINE | arranger strategy | ⏳ **OPEN v0.31.5.117** — **12** of 78 windows have tall furniture in front (`.118` added one as a trade); the deeper-keep-out fix was measured and reverted (it deleted wardrobes) |
 
 **Five of ten items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
