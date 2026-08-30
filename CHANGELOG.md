@@ -5,6 +5,68 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.105 — SETTLE-ORIGIN investigation: 20 fixtures stranded mid-room, cause NOT yet fully established
+
+**Recorded rather than fixed, deliberately.** `.104` noted that the terrace's upper landing
+leaves a `shoe-cabinet` and a `bench` on the room's centre line. This round quantified that and
+went after the cause. The finding is solid and the scope is a number; the mechanism is only
+partly explained, and shipping a change built on a partial explanation is how a fix becomes the
+next round's bug. This entry exists so the next attempt starts from the evidence instead of
+repeating it.
+
+**THE FINDING.** After `furnishPlanItems`, items still sitting at their room's EXACT centre
+(the `seedRoom` placeholder), excluding `'ceiling'` and `'mounted'` roles: **37 across 17 of 19
+templates.** But that raw count measures more than its name says — a **rug** (5) or a
+**coffee-table** (4) at the room centre is CORRECT, and an `outdoor-table` (8) on a balcony
+plausibly is too. Narrowing to pieces that unambiguously belong against a wall gives the real
+number: **20 items across 13 templates** —
+
+    4 toilet · 2 bathroom-sink · 7 nightstand · 6 bench · 1 cube-shelf
+
+e.g. `tpl-hdb-4room/h4-cbath` (1.6x1.3 m) has a lone `toilet` at the room centre;
+`tpl-hdb-exec/ex-bed2` (3x3 m) has a `nightstand` mid-floor; `tpl-terrace-ground/ctu-landing`
+(1.5x4.9 m) has a `bench` at the exact centre of a corridor.
+
+**This is a DIFFERENT mechanism from `.103`** — none of these are `'mounted'` roles, so
+`placeSeededMounts` correctly leaves them alone. `arrangeCore`'s safety-net `settle` tries "the
+original position first" and keeps it while collision-free, and for a seeded item the original
+IS the room centre.
+
+**CAUSES RULED OUT, each by measurement — the negatives are the useful part here.**
+- *Door swings blocking the wall slots.* Measured on `h4-cbath`: **zero** door keep-out rects
+  overlap the room, 0% of its area.
+- *Window-front keep-outs.* Same room, also **zero**.
+- *The room resolving to the wrong kind, so the bathroom strategy never ran.* Categories
+  resolve correctly (`h4-cbath` category `bath` → `toArrangeKind` → `'bath'`), and
+  `roomKindFromItems` gives an explicit category priority over name and contents, so
+  `arrangeFixtures` DID run.
+- *The fixture's role being excluded from the bathroom pass.* `arrangeFixtures` requests
+  `['storage', 'other', 'shoe', 'lowTable']`, and bathroom pieces are category `bathroom` →
+  role `'other'`, so the toilet WAS offered to it.
+
+So `snapToWall(it, rect, [nearest, 'N', 'S', 'W', 'E'], world, ctx)` was called and failed on
+all four edges for a single fixture in an otherwise empty 2.08 m2 room.
+
+**PARTIAL EXPLANATION, explicitly labelled partial.** `CLEARANCE.storageFront` is **0.75 m**,
+so a toilet 0.66 m deep needs 1.41 m of room depth to satisfy it. That matches the failures in
+the shallowest rooms — `h4-cbath` is 1.3 m deep and `jb-mbath` 1.2 m — and matches the
+SUCCESS in `tpl-terrace-ground/ct-powder` (1.5 x 1.8 m), where the same `toilet` defId snapped
+to a wall correctly. **It does not explain `tpl-1bed/ob-bath` at 1.8 x 1.9 m**, which is large
+enough on both axes and still stranded its toilet. So at least one more factor is involved and
+the next round must find it before changing anything.
+
+**THE OPEN QUESTION for the next round, stated precisely:** why does `snapToWall` reject all
+four edges for a lone fixture in a room that is demonstrably large enough — `ob-bath`,
+1.8 x 1.9 m, with no door or window keep-out in play?
+
+**The likely shape of the eventual fix, NOT yet justified:** when a wall-hugging fixture cannot
+satisfy its clearance anywhere, placing it flush to the least-bad wall is strictly better than
+leaving it mid-room — mid-room is worse for BOTH clearance and realism. That would be `.103`'s
+mechanism applied to the failure path rather than the seed path. It must not touch rugs, coffee
+tables or dining tables, for which the room centre is right, and it will affect the default
+flat's "Tidy" action (which does run this arranger, unlike `applyLayoutPreset`), so it needs
+the default flat as an explicit control.
+
 ## v0.31.5.104 — TEMPLATE-WALK-2 audit: the terrace's upper storey is CLEAN
 
 **Closes the round opened in `.103`.** `tpl-terrace-ground` is only the second of the
