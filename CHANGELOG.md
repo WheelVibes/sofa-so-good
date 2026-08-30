@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.190 — the floor-pool lead refuted on physics (reverted)
+
+`.189` left one live lead: a point light in the window's floor pool put the ceiling at 1.09, inside
+the photographic band. Tested properly, it does not survive.
+
+**That 1.09 was the room flooding, not the ceiling lifting.** It came at `decay=0, distance=0` —
+unbounded, intensity 20 — alongside frame mean 110.4 → 195.5, wall 1.11 → 1.29 and `%<64` 11.86 →
+2.07 %. A ratio moved for the wrong reason still moves; that is the error shape `.186`–`.188` kept
+finding in the reference data, this time in my own measurement.
+
+**With real falloff the term reads inert, and that is the probe, not the mechanism.** Clamp series:
+`distance` 5 / 8 / 12 / unbounded → ceiling 0.87 / 0.88 / 0.90 / 0.91, monotonic. The probe stands
+4.6 m back from the window, so its ceiling band is mostly across the room and a 5 m clamp excludes it.
+Censused before concluding: both emitters mounted and visible, and the app's own fixtures use
+`distance` 6.5 alongside them.
+
+**No floor-pool emitter can fix this ratio.** Even unbounded the ceiling gains +0.04 while the walls
+gain +0.15, because an omnidirectional emitter at floor level is nearer the walls than the ceiling and
+1/d² does the rest. Only a cosine emitter aimed up preferentially lights a ceiling — and those are the
+two the renderer refused. The spot is still inert at `decay=2, distance=0`, so `.189`'s spot null is a
+separate, still-unexplained cause.
+
+**The reframing:** a real ceiling is lit by bounce from the whole floor, not the window pool — which is
+what a hemisphere models, and why `.183`'s hemisphere moved the ceiling 0.99 → 1.12 where a positioned
+card cannot. `.183` refused it for glowing furniture undersides at ×4.5; whether a *smaller*
+whole-floor term survives that test is a question it never asked, and it is now the only approach left
+that fits both the physics and this renderer.
+
+Reverted to the `.188` baseline. `bounce-census.mjs` extended to point lights.
+
 ## v0.31.5.189 — the bounce card, refuted twice by the renderer (reverted)
 
 `.188` named the mechanism; this built the fix for it and could not land it. A **bounce card** — an

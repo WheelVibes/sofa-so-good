@@ -2413,3 +2413,69 @@ light is omnidirectional, so it will light furniture undersides near the window 
 defect, bounded by distance instead of unbounded.
 
 **Nothing shipped.** A term that cannot light the surface it was built for is not a partial win.
+
+---
+
+## `.190` — the floor-pool lead is refuted on physics, and `.189`'s spot null was two different things
+
+`.189` ended with one live lead: a point light in the window's floor pool put the ceiling at **1.09**,
+inside the photographic band, where nothing else in this arc had reached it. This round tested whether
+a *tuned* version could hold that while keeping the shadow depth. It cannot, and the reason is
+geometric rather than a tuning failure.
+
+### What `.189`'s 1.09 actually was
+
+It came at `decay=0, distance=0` — an unbounded intensity-20 light in a small room. Read the whole row
+rather than the one number: frame mean 110.4 → **195.5**, wall 1.11 → **1.29**, `%<64` 11.86 → 2.07 %.
+The ceiling ratio rose because the entire room flooded, not because the ceiling was preferentially
+lit. That is the same shape of error `.186`–`.188` kept finding in the reference data, appearing this
+time in my own measurement: **a ratio moved for the wrong reason still moves.**
+
+### The clamp series, which explains the "inert" readings
+
+With real falloff the term reads as inert, and `.189` would have called that a second broken emitter.
+It is not — it is the term being local, measured across a room:
+
+| clamp | frame mean | `%<64` | ceiling | wall |
+| --- | --- | --- | --- | --- |
+| baseline (no term) | 110.4 | 11.86 % | 0.87 | 1.11 |
+| `distance` 5 | 110.4 | 11.87 % | 0.87 | 1.11 |
+| `distance` 8 | 111.5 | 11.28 % | 0.88 | 1.10 |
+| `distance` 12 | 117.7 | 9.32 % | 0.90 | 1.18 |
+| `distance` 0 (unbounded) | 123.0 | 8.49 % | 0.91 | 1.26 |
+
+Monotonic in the clamp, which is what a working local term looks like. The probe stands **4.6 m back
+from the window** and its ceiling band is mostly the ceiling *across the room*, so a 5 m clamp
+excludes almost everything it measures. Censused before concluding (`bounce-census.mjs`, extended to
+point lights this round): both emitters mounted, intensity 20, `distance` 5, visible — and the app's
+own fixture lights sit alongside them at `distance` 6.5, so a clamp plainly does not break a light
+here. **The null was the measurement, not the mechanism.**
+
+### Why no floor-pool emitter can fix this ratio
+
+Even unbounded, the ceiling gains **+0.04** while the walls gain **+0.15** and the shadow calibration
+loses 3.4 points. That is not a gain that wants tuning; it is the wrong shape. An omnidirectional
+emitter at floor level illuminates by 1/d², and the walls of a room are *nearer to the floor* than the
+ceiling is. It will always light them more. Only a cosine emitter aimed up preferentially lights a
+ceiling — and those are exactly the two `.189` could not use: `RectAreaLight` is compiled out by the
+Lambert ceiling, and `SpotLight` contributes nothing for reasons still unknown.
+
+**Re-tested this round and still unexplained:** the spot is inert at `decay=2, distance=0` too, so
+`.189`'s spot null is NOT the clamp effect above. Two separate causes, and this one survives.
+
+### The reframing this earns
+
+A window-local term can never move a whole-room ceiling ratio, because a real ceiling is lit by bounce
+from the **whole floor**, not from the window pool. That is precisely what a hemisphere models — and
+it is why `.183`'s hemisphere *did* move the ceiling, 0.99 → 1.12, where a positioned card cannot.
+
+`.183` refused it on a side effect: at ×4.5 the undersides of the TV console and coffee table read
+brighter than furniture standing on a shadowed floor should. Worth noting against that, without
+overturning it: undersides near a sunlit floor genuinely *are* lit in a real room, and the refusal was
+made at a gain chosen to close the ceiling gap in one step, alongside a fill rebalance. Whether a
+*smaller* whole-floor term is acceptable is a question `.183` did not ask, and it is now the only
+approach left standing that both fits the physics and works in this renderer.
+
+**Nothing shipped; reverted to the `.188` baseline.** Two candidate paths remain, and both are
+concrete: diagnose why spot lights are inert here (which unlocks the directional emitter a Lambert
+ceiling can receive), or re-open the hemisphere at a gain low enough to survive the underside test.

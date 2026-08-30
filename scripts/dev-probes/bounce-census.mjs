@@ -62,12 +62,12 @@ const report = await page.evaluate(() => {
   const scene = window.__three?.scene
   if (!scene) return { ...out, error: 'no window.__three.scene' }
   scene.traverse((o) => {
-    if (o.isRectAreaLight || o.isSpotLight) {
+    if (o.isRectAreaLight || o.isSpotLight || o.isPointLight) {
       o.updateWorldMatrix(true, false)
       const m = o.matrixWorld.elements
       const p = { x: m[12], y: m[13], z: m[14] }
       out.rectAreaLights.push({
-        kind: o.isSpotLight ? 'spot' : 'rect',
+        kind: o.isSpotLight ? 'spot' : o.isPointLight ? 'point' : 'rect',
         intensity: +o.intensity.toFixed(3),
         angle: o.angle ? +o.angle.toFixed(2) : null,
         distance: o.distance ?? null,
