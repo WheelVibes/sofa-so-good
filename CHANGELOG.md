@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.185 — `.182` was wrong about how to exclude the HUD
+
+`.182` fixed a real problem (the toolbar and minimap were in every frame-level measurement) with a
+wrong mechanism: a Puppeteer **element** screenshot, believed to exclude overlaying DOM. **It does
+not** — it clips the composited page to the element's box. Verified by sampling: toolbar
+(234,231,227) in the page shot and (235,232,227) in the "canvas-only" shot; the Measure button and
+minimap likewise identical. The HUD was never removed.
+
+Hiding the DOM does not work either — the canvas is not a direct child of the app root, so a rule
+broad enough to hide the overlay blanks the canvas too (frame came back flat (234,219,209), `%<64`
+0.00 %, all band ratios 1.00). **Excluding the HUD rectangles is what works** — what `.180` did and
+`.182` removed. Restored, now including the Measure button, which sat in the ceiling band.
+
+Re-fitted a third time on frames the HUD is genuinely out of: `.182`'s values read **12.61 / 12.52 /
+12.89 %**, so nudged to **maximum 0.92, medium 0.735, performance 0.40** → **12.28 / 11.88 / 12.31 %**
+against the 11.2–12.2 % band.
+
+**The ceiling deficit is bigger than `.182` reported** — the toolbar was inflating that band:
+**0.81–0.92**, not 0.95–1.02, against 1.17–1.28. Floor reads 1.13–1.18 against 1.23–1.30.
+
+Stopping here: this is the third pass against a band from two photographs, and ±0.15 of a point is
+inside what that target justifies.
+
 ## v0.31.5.184 — the weave amplitude cap moved once the lattice was gone
 
 `.172` capped `PHOTO_WEAVE` at 2.2 / 2.0 because more relief turned the fabric into a **regular

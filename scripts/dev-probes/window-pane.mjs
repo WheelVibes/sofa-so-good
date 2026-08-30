@@ -56,6 +56,9 @@ const FAKENOW = process.env.FAKENOW || ''
 // fixtures-off rule is most likely to leave a user in the dark, and they cannot
 // be reached by the window-standoff pose at all.
 const ROOM = process.env.ROOM || ''
+// YAW (radians) aims the ROOM pose; a room centroid facing yaw 0 often ends up
+// nose-to-cabinet in a narrow room like the kitchen.
+const YAW = process.env.YAW ? Number(process.env.YAW) : null
 const OUT = process.env.OUT || '/tmp/window-pane'
 fs.mkdirSync(OUT, { recursive: true })
 
@@ -140,7 +143,7 @@ const pose = await page.evaluate(
         id: r.name ?? r.id,
         px: r.origin[0] + r.width / 2,
         pz: r.origin[1] + r.depth / 2,
-        yaw: 0,
+        yaw: q.yaw ?? 0,
       }
     }
     const op = (plan.openings ?? []).find(
@@ -175,7 +178,7 @@ const pose = await page.evaluate(
     const pz = cz + nz * q.standoff
     return { id: op.id, px, pz, yaw: Math.atan2(-(cx - px), -(cz - pz)) }
   },
-  { win: WINDOW, standoff: STANDOFF, room: ROOM },
+  { win: WINDOW, standoff: STANDOFF, room: ROOM, yaw: YAW },
 )
 if (!pose) throw new Error(`no ${ROOM ? 'room' : 'window'} matching /${ROOM || WINDOW}/i`)
 await page.evaluate(
@@ -228,6 +231,8 @@ const boot = await page.evaluate(() => {
 console.log(`boot: ${JSON.stringify(boot)}`)
 console.log(`panes: ${JSON.stringify(found)}\n`)
 
+const canvasEl = await page.$('canvas')
+
 const ARMS = [
   ['a-shipped', {}],
   ['b-emissive-off', { ei: 0 }],
@@ -254,7 +259,10 @@ for (const [name, patch] of ARMS.slice(0, ROOM ? 1 : ARMS.length)) {
     }
   }, patch)
   await new Promise((r) => setTimeout(r, 1500))
-  fs.writeFileSync(`${OUT}/${name}.png`, await page.screenshot({ type: 'png' }))
+  // Capture the CANVAS element, not the page: v0.31.5.182 found every
+  // frame-level number in this arc contaminated by the bright toolbar and
+  // minimap. Region crops were never affected, but `%<64` and frame means were.
+  fs.writeFileSync(`${OUT}/${name}.png`, await (canvasEl ?? page).screenshot({ type: 'png' }))
   console.log(`  ${name.padEnd(16)} ${JSON.stringify(state)}`)
 }
 console.log(`\nframes -> ${OUT}`)

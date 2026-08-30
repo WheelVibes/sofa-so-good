@@ -274,7 +274,22 @@ export function iblFillScale(iblActive: boolean, dayLevel: number): number {
  * a bigger cut to reach the same place. Calibrated by sweep against `.134`'s
  * photographic deep-shadow band (`%<64` = 11.2–12.2 %) at one walk pose, 13:00:
  *
- * **Re-calibrated in v0.31.5.182 on CANVAS-ONLY captures.** The first calibration
+ * **Re-calibrated twice; the second time was the honest one (v0.31.5.185).**
+ * `.182` claimed a Puppeteer ELEMENT screenshot excludes overlaying DOM. It does
+ * not — it clips the composited page to the element's box, so the toolbar, the
+ * Measure button and the minimap were still in every "canvas-only" frame (verified
+ * by sampling those pixels: 235,232,227 in a page shot and an element shot alike).
+ * Hiding the DOM instead blanks the canvas, because the canvas is not a direct
+ * child of the app root. Excluding the HUD RECTANGLES is what actually works, and
+ * that is what the probe does again.
+ *
+ * On properly HUD-excluded frames the `.182` values read 12.61 / 12.52 / 12.89 %,
+ * a little dark; nudged to **0.92 / 0.735 / 0.40** they read **12.28 / 11.88 /
+ * 12.31 %** against the 11.2–12.2 % band. That is as close as a two-photograph
+ * target justifies — further re-fitting would be false precision, and this is
+ * already the third pass.
+ *
+ * Superseded history: The first calibration
  * measured page screenshots, which include the bright toolbar and minimap; that
  * HUD lifted the frame mean and compressed `%<64`, so every tier was tuned too
  * dark. On clean frames, at the old values: maximum 12.91 %, medium 13.39 %,
@@ -294,10 +309,10 @@ export function iblFillScale(iblActive: boolean, dayLevel: number): number {
  * and left as the user's decision.
  */
 export const PHOTO_FILL_SCALE = {
-  maximum: 0.89,
-  high: 0.89,
-  medium: 0.7,
-  performance: 0.37,
+  maximum: 0.92,
+  high: 0.92,
+  medium: 0.735,
+  performance: 0.4,
 } as const
 
 /**

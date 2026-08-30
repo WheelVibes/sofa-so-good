@@ -179,25 +179,42 @@ const { data, info } = await grey(shot)
 const down = await grey(shotDown)
 const W = info.width
 const H = info.height
-// No HUD cut-outs: the capture is the CANVAS element, so there is no DOM overlay
-// in it at all. v0.31.5.181 measured a "ceiling" band containing the white
-// Measure button and a "floor" band that was almost entirely furniture.
+// HUD cut-outs are REQUIRED. v0.31.5.182 removed them believing an element
+// screenshot excludes overlaying DOM; it does not — Puppeteer clips the COMPOSITED
+// page to the element's box, so the toolbar, the Measure button and the minimap
+// are still in a "canvas" capture (verified by sampling: 235,232,227 in both a
+// page shot and an element shot). Hiding the DOM instead blanks the canvas too,
+// because the canvas is not a direct child of the app root. So: cut the rectangles.
+const TOOLBAR = { x0: 0.24 * W, x1: 0.76 * W, y1: 0.1 * H }
+const MEASURE = { x0: 0.9 * W, y1: 0.06 * H }
+const MINIMAP = { x0: 0.76 * W, y0: 0.76 * H }
+const hud = (x, y) =>
+  (x >= TOOLBAR.x0 && x < TOOLBAR.x1 && y < TOOLBAR.y1) ||
+  (x >= MEASURE.x0 && y < MEASURE.y1) ||
+  (x >= MINIMAP.x0 && y >= MINIMAP.y0)
 const BANDS = {
   ceiling: { y0: 0.02, y1: 0.16, x0: 0.05, x1: 0.95 },
   wall: { y0: 0.3, y1: 0.6, x0: 0.82, x1: 0.98 },
 }
 let all = 0
 let dark = 0
-for (let i = 0; i < data.length; i++) {
-  all += data[i]
-  if (data[i] < 64) dark++
+let n = 0
+for (let y = 0; y < H; y++) {
+  for (let x = 0; x < W; x++) {
+    if (hud(x, y)) continue
+    const v = data[y * W + x]
+    all += v
+    if (v < 64) dark++
+    n++
+  }
 }
-const frame = all / data.length
+const frame = all / n
 const band = (buf, b, denom) => {
   let s2 = 0
   let c = 0
   for (let y = Math.round(b.y0 * H); y < Math.round(b.y1 * H); y++) {
     for (let x = Math.round(b.x0 * W); x < Math.round(b.x1 * W); x++) {
+      if (hud(x, y)) continue
       s2 += buf[y * W + x]
       c++
     }
@@ -208,13 +225,18 @@ const rel = {}
 for (const [name, bb] of Object.entries(BANDS)) rel[name] = band(data, bb, frame)
 // The floor comes from the PITCHED-DOWN frame, normalised by its own mean.
 let dAll = 0
-for (let i = 0; i < down.data.length; i++) dAll += down.data[i]
-const downMean = dAll / down.data.length
+let dN = 0
+for (let y = 0; y < H; y++) {
+  for (let x = 0; x < W; x++) {
+    if (hud(x, y)) continue
+    dAll += down.data[y * W + x]
+    dN++
+  }
+}
+const downMean = dAll / dN
 rel.floor = band(down.data, { y0: 0.72, y1: 0.96, x0: 0.2, x1: 0.8 }, downMean)
 console.log('')
-console.log(
-  `frame mean = ${frame.toFixed(1)}    %<64 = ${((dark / data.length) * 100).toFixed(2)} %`,
-)
+console.log(`frame mean = ${frame.toFixed(1)}    %<64 = ${((dark / n) * 100).toFixed(2)} %`)
 console.log(
   `ceiling ${rel.ceiling.toFixed(2)}   wall ${rel.wall.toFixed(2)}   floor ${rel.floor.toFixed(2)} (pitched-down frame, its own mean ${downMean.toFixed(1)})`,
 )

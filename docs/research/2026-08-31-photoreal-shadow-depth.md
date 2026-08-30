@@ -2139,3 +2139,42 @@ too-dark fill: at the shipped 2.2 / 2.0 the photographic look now reads curtain 
 up from `.164`'s 0.0719 / 0.0818 — a mix of `.173`'s irregular weave, `.178`'s warmed probe and the
 re-calibration itself. The comparison is not clean enough to attribute, and is quoted only as the
 current state.)*
+
+
+## `.182` was wrong about how to exclude the HUD (v0.31.5.185)
+
+`.182` fixed a real problem — the bright toolbar and minimap were in every frame-level measurement —
+with a wrong mechanism: it switched to a Puppeteer **element** screenshot of the canvas, on the belief
+that this excludes overlaying DOM. **It does not.** An element screenshot clips the *composited page*
+to the element's box; anything drawn on top comes with it. Verified by sampling the same three pixels
+in both captures:
+
+| | toolbar | Measure button | minimap |
+| --- | --- | --- | --- |
+| page screenshot | (234, 231, 227) | (226, 224, 220) | (246, 241, 235) |
+| "canvas-only" screenshot | (235, 232, 227) | (227, 224, 220) | (246, 241, 235) |
+
+Identical. The HUD was never removed.
+
+**Hiding the DOM instead does not work either** — the canvas is not a direct child of the app root, so
+a rule broad enough to hide the overlay hides the canvas's own wrapper: the frame came back a flat
+(234, 219, 209) with `%<64` 0.00 % and every band ratio exactly 1.00. **Excluding the HUD rectangles is
+what actually works**, which is what `.180` did and `.182` removed. Restored, now with the Measure
+button included (it sat in the ceiling band and `.180` had missed it).
+
+**So the calibration was re-fitted a third time, on frames the HUD is genuinely out of.** At `.182`'s
+values the tiers read **12.61 / 12.52 / 12.89 %** — a little dark. Nudged:
+
+| tier | `.182` | **now** | `%<64` |
+| --- | --- | --- | --- |
+| maximum | 0.89 | **0.92** | **12.28 %** |
+| medium | 0.70 | **0.735** | **11.88 %** |
+| performance | 0.37 | **0.40** | **12.31 %** |
+
+**And the ceiling deficit is bigger than `.182` reported**, because the toolbar was sitting in the
+ceiling band and inflating it: **0.81–0.92**, not 0.95–1.02, against photographs at 1.17–1.28. The
+floor reads 1.13–1.18 against 1.23–1.30.
+
+**Stopping here.** This is the third calibration pass against a band derived from two photographs;
+±0.15 of a percentage point is inside what that target can justify, and further re-fitting would be
+false precision rather than accuracy.
