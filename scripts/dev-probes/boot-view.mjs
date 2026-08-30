@@ -20,6 +20,10 @@ const OUT = process.env.OUT || '/tmp/boot-view'
 const HOURS = (process.env.HOURS || '13').split(',').map(Number)
 const TIERS = (process.env.TIERS || '').split(',').filter(Boolean)
 const SETTLE = Number(process.env.SETTLE || 6000)
+// FLAGS / FAKENOW seed the localStorage override map and freeze the page clock
+// BEFORE load — both are read once at boot, so neither can be set afterwards.
+const FLAGS = process.env.FLAGS || ''
+const FAKENOW = process.env.FAKENOW || ''
 fs.mkdirSync(OUT, { recursive: true })
 
 const browser = await puppeteer.launch({
@@ -37,11 +41,29 @@ const browser = await puppeteer.launch({
 const page = await browser.newPage()
 await page.emulateTimezone('Asia/Singapore')
 await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 2 })
-await page.evaluateOnNewDocument(() => {
-  try {
-    localStorage.setItem('hdb_onboarded', '1')
-  } catch {}
-})
+await page.evaluateOnNewDocument(
+  (flags, fakeNow) => {
+    try {
+      localStorage.setItem('hdb_onboarded', '1')
+      if (flags) localStorage.setItem('hdb_feature_flags', flags)
+    } catch {}
+    if (fakeNow) {
+      const fixed = new Date(fakeNow).getTime()
+      const RealDate = Date
+      // biome-ignore lint/suspicious/noGlobalAssign: probe-only clock freeze
+      Date = class extends RealDate {
+        constructor(...a) {
+          super(...(a.length ? a : [fixed]))
+        }
+        static now() {
+          return fixed
+        }
+      }
+    }
+  },
+  FLAGS,
+  FAKENOW,
+)
 await page.goto(appUrl(), { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('canvas', { timeout: 60000 })
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
@@ -56,6 +78,7 @@ const state = await page.evaluate(() => {
   const cam = window.__three.camera
   return {
     cameraMode: st.cameraMode,
+    lightsMode: st.lightsMode,
     tier: st.qualityTier,
     timeMode: st.timeMode,
     hour: st.manualHour,

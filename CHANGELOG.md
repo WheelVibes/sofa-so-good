@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.165 — the photographic balance is view-dependent, and the dollhouse pays for it
+
+**Measurement only.** `.163`/`.164` measured `photographicFill` at one first-person pose; before it
+could ever be a default it has to be checked across the app, starting with the frame a new user sees
+first — the orbit dollhouse. `boot-view.mjs` gains `FLAGS` + `FAKENOW` (localStorage overrides and a
+frozen page clock, both read once at boot).
+
+Wiring confirmed at midday: flag off → `lightsMode: 'on'`, flag on → `'off'`, no crash, and nothing
+goes black (near-black `<24` pixels 0.00 % → 0.02 %).
+
+**But the dollhouse gets measurably colder and flatter.** Over the model region: mean luma **180.9 →
+158.8**, mean rgb (185, 180, 176) → (159, 159, 159), **R/B 1.047 → 0.998** (dead neutral), mean
+saturation **0.053 → 0.030, −43 %**. The warm pools of light in the living room, kitchen and bedrooms
+are gone; the model reads as uniform cool grey.
+
+That is exactly what `firstPaintDaylight.ts` recorded — the fixtures buy legibility and "the more
+inviting first impression … warm pools of light, the TV glowing". That argument was written about the
+boot view and still holds there; `.163`/`.164` measured a different view with a different requirement.
+**So the balance is view-dependent: a large calibrated win in first person, a loss in the dollhouse.**
+
+Not acted on: skipping fixtures only in first person cannot be done inside `ensureDaylightFirstPaint`,
+which runs once at boot in orbit mode, and making it camera-dependent would toggle `lightsMode` on
+every camera change — fighting the user's own switch and overwriting a real preference, which the
+guard's first rule forbids. Doing it properly means separating "the user's lights setting" from "what
+this view renders". Recorded with the numbers so the trade is visible.
+
 ## v0.31.5.164 — relief and light balance are one knob
 
 `.161` claimed the material levers failed because relief only becomes image contrast when something

@@ -1395,3 +1395,45 @@ fabric ÷ wall ratio says the same thing: 5.9× against ~20×.
 The default is still untouched. What has changed is that the alternative is no longer a dimmer switch
 — it is a calibrated look, with the deep-shadow metric on target and the material relief tuned to
 match it.
+
+
+## The photographic balance is VIEW-DEPENDENT, and the dollhouse pays for it (v0.31.5.165)
+
+`.163`/`.164` measured `photographicFill` at one first-person pose. Before it could ever be proposed
+as a default it has to be checked across the app — starting with the frame a new user actually sees
+first, the orbit dollhouse.
+
+**Boot state confirms the wiring end to end at midday:** flag off → `lightsMode: 'on'`; flag on →
+`'off'`. No crash, and **nothing goes black**: near-black pixels (`<24`) are 0.00 % → 0.02 %.
+
+**But the dollhouse gets measurably colder and flatter**, over the model region only (excluding the
+grey backdrop):
+
+| | mean luma | mean rgb | R/B | mean saturation |
+| --- | --- | --- | --- | --- |
+| flag OFF | 180.9 | (185, 180, 176) | **1.047** | **0.053** |
+| flag ON | 158.8 | (159, 159, 159) | **0.998** | **0.030** |
+
+**The warmth is gone entirely** — R/B falls to 1.00, dead neutral, and saturation drops **43 %**. Side
+by side the shipped boot view has warm pools of light in the living room, kitchen and bedrooms; with
+the flag on the whole model reads as uniform cool grey.
+
+**This is exactly what `firstPaintDaylight.ts` predicted.** Its recorded rationale is that the fixtures
+buy legibility and that "a night render with lights on is not just legible, it is the more inviting
+first impression of the two — warm pools of light, the TV glowing". That argument was written about
+the boot view, and it still holds *there*. What `.163`/`.164` measured is a different view with a
+different requirement: standing inside a room at 1 pm with every lamp burning is what makes the walk
+view read as CG.
+
+**So the balance is view-dependent, and that is the finding.** In first person it is a large,
+calibrated win (deep shadow into the photographic band, textile micro-contrast roughly doubled). In
+the orbit dollhouse it removes the warmth the view was designed around, for no photographic gain — a
+dollhouse is a product illustration, not a photograph of a room someone is standing in.
+
+**Not acted on, deliberately.** The obvious fix — skip the fixtures only in first person — cannot be
+done inside `ensureDaylightFirstPaint`, which runs once at boot in orbit mode; making it
+camera-dependent would mean toggling `lightsMode` on every camera change, which would fight the user's
+own lights switch and silently overwrite a real preference (the guard's own first rule is "only ever
+touch untouched defaults"). Doing it properly means separating "the user's lights setting" from "what
+this view renders", which is a design change, not a tweak. Recorded with the numbers so the trade is
+visible: **`photographicFill` currently buys walk-view realism at the cost of the boot view's warmth.**
