@@ -161,3 +161,39 @@ the tile, with per-tile tonal variation and a rust stain. **That comparison coul
 fairly**, for two reasons: the app's living-room floor is `floor-vinyl-oak`, a matte vinyl that
 *correctly* should not mirror anything, and the walk pose shows almost no floor in any case. Judging
 floor realism needs a floor-visible pose that does not exist yet.
+
+
+## Contact shadows — AO grounds corners, not furniture (v0.31.5.137)
+
+`.136` observed that the dining table and chair legs meet the floor with no visible darkening. That
+is a hypothesis about the AO pass, so it was tested rather than asserted. `daylight-falloff.mjs`
+gained a **`d-ao-off`** arm (`setQualityOverride('ao', false)`) which is identical to `c-lamps-on`
+except for AO, at the same floor-visible pose. Both printed distinct resolved states, so neither was
+a failed mutation.
+
+**AO is not inert** — differencing the two frames gives mean |Δ| **5.85**, max **121**, with **10.8%**
+of pixels shifting by more than 15. But *where* it acts is the finding. The amplified difference map
+(`/tmp/ao-diff.png`) is blazing along wall/ceiling junctions, wall-to-wall corners and object
+silhouettes, and only faintly around the table and chair legs. The band profile says the same thing
+numerically — AO's effect by band, b0 nearest the floor:
+
+| b0 | b1 | b2 | b3 | b4 | b5 | b6 | b7 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 5.5 | 7.5 | 7.5 | 8.6 | 8.6 | 7.8 | 6.2 | 4.1 |
+
+**The effect peaks mid-frame, where the wall corners are, and is weakest at the floor.**
+
+**This is the AO doing exactly what it was tuned to do.** `look.ts` sets
+`AO = { aoRadius: 0.7, distanceFalloff: 1.2, intensity: 3.0 }` under a comment saying it is "deeper
+than the old defaults so corners and recesses ground like the reference renders". A **0.7 m** radius
+is the right scale for a room corner and an order of magnitude too wide for a leg-to-floor contact: a
+3 cm chair leg occludes almost none of a 0.7 m hemisphere, so the pass correctly returns almost no
+darkening there. The app has **broad ambient occlusion but no contact term**, and the missing tight
+dark contact is what reads as "the furniture is floating".
+
+### The candidate fix, and why it is not free
+A *second, tight* occlusion term (small radius) alongside the existing corner-grounding one — not a
+smaller `AO.aoRadius`, which would trade away the corner grounding that was deliberately tuned and is
+working. **That means a second full-screen AO pass**, and N8AO already runs half-res below High
+(`aoFullRes`). **Benchmark the cost on the weak-device tier before proposing it** (rule lxviii); if it
+only ever ships on High/Maximum, say so plainly rather than describing it as a win for everyone.

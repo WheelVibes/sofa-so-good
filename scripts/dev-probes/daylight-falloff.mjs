@@ -151,7 +151,11 @@ console.log(
 )
 console.log(`opened ${opened} window fixtures\n`)
 
-for (const arm of ['a-daylight', 'b-daylight-noibl', 'c-lamps-on']) {
+// `d-ao-off` pairs with `c-lamps-on` (identical except AO) to ask whether the
+// ambient-occlusion pass contributes anything at CONTACT scale. `look.ts`'s
+// `AO.aoRadius` is 0.7 m — sized to ground room corners, which is an order of
+// magnitude wider than the few centimetres a leg-to-floor contact needs.
+for (const arm of ['a-daylight', 'b-daylight-noibl', 'c-lamps-on', 'd-ao-off']) {
   await page.evaluate(() => {
     const st = window.__store.getState()
     st.setLightsMode('on')
@@ -165,6 +169,7 @@ for (const arm of ['a-daylight', 'b-daylight-noibl', 'c-lamps-on']) {
       st.setLightsMode('off')
       st.setQualityOverride('ibl', false)
     }
+    if (id === 'd-ao-off') st.setQualityOverride('ao', false)
   }, arm)
   await new Promise((r) => setTimeout(r, 2500))
   const resolved = await page.evaluate(() => {
@@ -172,6 +177,7 @@ for (const arm of ['a-daylight', 'b-daylight-noibl', 'c-lamps-on']) {
     return {
       lights: st.lightsMode,
       ibl: st.qualityOverrides?.ibl ?? '(unset)',
+      ao: st.qualityOverrides?.ao ?? '(unset)',
       tier: st.qualityTier,
       hour: st.manualHour,
     }

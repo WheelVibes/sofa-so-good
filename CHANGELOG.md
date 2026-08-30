@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.137 — AO grounds corners, not furniture: the app has no contact term
+
+**Measurement only, no render change.** `.136` observed that table and chair legs meet the floor with
+no darkening. That is a claim about the AO pass, so it was tested. `daylight-falloff.mjs` gained a
+`d-ao-off` arm identical to `c-lamps-on` except for AO, at the floor-visible pose; both printed
+distinct resolved states.
+
+**AO is not inert** — mean |Δ| between the arms is **5.85**, max **121**, with **10.8%** of pixels
+shifting more than 15. *Where* it acts is the finding: the difference map is blazing along
+wall/ceiling junctions, wall corners and object silhouettes, and only faintly around the legs. By
+band, b0 nearest the floor: **5.5 / 7.5 / 7.5 / 8.6 / 8.6 / 7.8 / 6.2 / 4.1** — the effect peaks
+mid-frame where the corners are and is **weakest at the floor**.
+
+**This is the AO doing exactly what it was tuned for.** `look.ts` sets `aoRadius: 0.7` under a comment
+saying it is "deeper than the old defaults so corners and recesses ground like the reference
+renders". 0.7 m is right for a room corner and an order of magnitude too wide for a leg-to-floor
+contact — a 3 cm leg occludes almost none of a 0.7 m hemisphere, so the pass correctly returns almost
+nothing there. The app has **broad ambient occlusion but no contact term**, and that missing tight
+dark contact is what reads as furniture floating.
+
+**The candidate fix is not free:** a *second, tight* occlusion term alongside the existing one — not a
+smaller `AO.aoRadius`, which would trade away corner grounding that is working as designed. That
+means a second full-screen AO pass, and N8AO already runs half-res below High. Its cost must be
+benchmarked on the weak-device tier before it is proposed, and if it can only ship on High/Maximum
+that should be said plainly.
+
 ## v0.31.5.136 — the app's daylight has no falloff at all, and that is the defect
 
 **Measurement only, no render change.** `.135` concluded the lamps compensate for daylight that
