@@ -5,6 +5,60 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.123 — TEMPLATE-WALK-7/8 + WINDOW-SKY-DARK: two clean audits, one new render bug, and a coverage claim corrected
+
+**Docs only — no source change.** Two more templates walked, both clean; a real render defect found
+and filed as item (k); and a false coverage claim from the previous round corrected in place.
+
+**⚠️ CORRECTION — `.122` OVER-CLAIMED AUDIT COVERAGE.** Its new "Template audit coverage" section
+said *"12 of 19 shipped templates have now been walked frame by frame, only `tpl-condo-1study`
+outstanding"*. **Both numbers were wrong.** I wrote that line from my own handoff note instead of
+counting against `src/floorplan/templates.ts`. The truth at `.122` was **10 walked, 9 unwalked**,
+and `tpl-condo-1study` was one of nine outstanding plans. `tpl-studio` in particular was listed as
+walked because `.120` moved its front door — moving an offset is not a walk. The section now counts
+against the registry and lists all 7 plans that remain.
+
+**`tpl-condo-4bed` — CLEAN.** 44 frames, 11 rooms, resolved `medium/on/manual13`, 259 meshes /
+126598 tris, mean 97% content. Ceiling-band luma **132.3–194.1**, no outlier (real defects this
+metric has caught read 37 and 28.2). Known ratchet entries only: `c4-bed4` windowless (h) and three
+unenclosed bathrooms (f).
+
+**`tpl-hdb-3gen` — CLEAN.** 44 frames, 11 rooms, mean 97% content, band **137.9–215.6**, no outlier.
+Known entry only: `g3-main -> g3-master` (i).
+
+**NEW — item (k) WINDOW-SKY-DARK: the view out of a window renders 2–5x darker than the sky the app
+baked for it.** Every `tpl-condo-4bed` bedroom shows a near-black rectangle above the desk. **It is
+the window, not a television** — a `furnishPlanItems` dump of the three bedrooms contains no TV and
+no mirror, and `c4-bed4`, the one bedroom on the (h) windowless list, correctly shows blank wall.
+One identical crop across three hours:
+
+| north window | 08:00 | 13:00 | 20:00 |
+| --- | --- | --- | --- |
+| `c4-b2win` | 30.7 | 117.0 | 14.9 |
+| `c4-b3win` | 32.2 | 39.2 | 15.7 |
+| `c4-mwin` | 32.7 | 39.7 | 15.6 |
+| interior wall beside them | — | 145–180 | — |
+
+**The sky model is exonerated, and that is the load-bearing measurement.** Calling the pure
+`skyGradient.ts:skyRadiance` at the same hours for the view straight out of a north window returns
+byte **187** at 13:00 (zenith 255) and 127 at 08:00 — against 39 and 32 on screen. The night row
+agrees (model 0–26, frame ~15), which is why the defect hides after dark. So the loss is downstream
+of the bake, in the `scene.background` tone-mapping path or the window glass; **that attribution has
+not been made yet and no cause is claimed.** A second anomaly rides on top: at 13:00 `c4-b2win`
+reads 117 while two windows on the SAME wall read 39, and only at that hour.
+
+**Item (b) is not regressed — checked first.** The pane tracks the clock, `proceduralSky` is
+`default: true, tier: 'simple'`, and `backdrop` defaults to `'sky'`, so `SkyBackdrop` is live and
+baking correctly.
+
+**Second correction: `.122`'s two clean audits contained these same dark panes.** I read them as
+televisions on a 320x200 contact sheet and never opened one at full resolution. Those audits were
+clean of the layout defects they were looking for, but "no unrecorded visual defect remains" was an
+over-claim.
+
+**Coverage now: 12 of 19 walked; 7 remain** (`tpl-hdb-2room`, `tpl-studio`, `tpl-1bed`,
+`tpl-condo-1bed`, `tpl-condo-1study`, `tpl-condo-2bed`, `tpl-condo-studio`).
+
 ## v0.31.5.122 — TEMPLATE-WALK-5/6: `tpl-condo-3bed` and `tpl-hdb-3room` both audit CLEAN
 
 **A documented double audit, no source change.** With every open item now a content or product

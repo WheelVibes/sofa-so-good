@@ -606,15 +606,87 @@ also asserts that 67 of the 78 windows are clear so it cannot pass by measuring 
 
 ---
 
+## (k) WINDOW-SKY-DARK — ⏳ OPEN, needs a render-path fix (measured v0.31.5.123)
+
+**The view out of a window in walk mode renders 2–5x darker than the sky texture the app baked
+for it, and darker than the interior wall beside it.** Found while walking `tpl-condo-4bed`, where
+every bedroom shows a near-black rectangle above the desk. That rectangle is the WINDOW — verified,
+not assumed: a `furnishPlanItems` dump of `c4-bed2`/`c4-bed3`/`c4-bed4` contains **no TV and no
+mirror**, and `c4-bed4`, the one bedroom on item (h)'s windowless list, correctly shows a blank wall.
+
+**Rendered, one identical crop `[1080,760,420,300]` on the `c4-*-y0` frames, `TIER=auto` →
+`medium/on/manual<hour>`:**
+
+| north window | 08:00 | 13:00 | 20:00 |
+| --- | --- | --- | --- |
+| `c4-b2win` (Bedroom 2) | 30.7 | **117.0** | 14.9 |
+| `c4-b3win` (Bedroom 3) | 32.2 | **39.2** | 15.7 |
+| `c4-mwin` (Master) | 32.7 | **39.7** | 15.6 |
+| the interior wall beside them | — | 145–180 | — |
+
+**The sky MODEL is exonerated — this is the load-bearing measurement.** Calling the pure
+`skyGradient.ts:skyRadiance` directly at the same three hours, with the real Singapore fallback
+location and `orientedSunDirection`, for the view straight out of a north window:
+
+| hour | sun altitude | zenith | north +20° | north horizontal | north −10° |
+| --- | --- | --- | --- | --- | --- |
+| 08:00 | 13.6° | byte 129 | 132 | 127 | 114 |
+| 13:00 | 82.1° | byte 255 | 208 | **187** | 145 |
+| 20:00 | −13.2° | byte 0 | 0 | 0 | 26 |
+
+So at 13:00 the baked texture holds **187** where the frame shows **39** — and the night row lines
+up (model ≈ 0–26, frame ≈ 15), which is why the defect is invisible after dark.
+
+**Item (b) is NOT regressed, and that was checked before anything else.** The pane tracks the clock
+(117 → 15 from 13:00 to 20:00), `proceduralSky` is `default: true, tier: 'simple'`
+(`features/flags/registry.ts`), and `backdrop` defaults to `'sky'` (`uiSlice.ts`), so `SkyBackdrop`
+is the live path and it is baking a correct sky. **The loss is downstream of the bake** — the
+`scene.background` tone-mapping path (AgX, `toneMappingExposure` 1.05 in `Scene.tsx`) and/or the
+window glass the view passes through. **That attribution has NOT been made yet; do not name a cause
+until it is measured.**
+
+**A second, separate anomaly rides on top and is also unexplained:** at 13:00 `c4-b2win` reads
+**117** while `c4-b3win` and `c4-mwin` read **39** — three windows on the same external wall
+`c4-n`, same width, cameras at the same standing height, and the spread appears at 13:00 ONLY (at
+08:00 and 20:00 all three agree to within 2 luma). 117 is roughly what AgX alone would leave of a
+187 texture, so the honest reading is that **`c4-b2win` is the well-behaved one and the other two
+lose a further 3x**, not the reverse.
+
+**⚠️ CORRECTION TO `.122`.** `tpl-condo-3bed` and `tpl-hdb-3room` were both reported CLEAN in
+`.122`. Their frames contain these same dark panes; I read them as televisions on a contact sheet
+and never opened one at full resolution. Those two audits were clean of layout defects, which is
+what they were looking for, but "no unrecorded visual defect remains" was an over-claim.
+
+**Recommendation:** attribute the loss before proposing a fix — render one walk frame with the
+window glass removed, and one with `scene.background` tone-mapping bypassed, and compare against the
+187 the bake holds. A brighter exterior is a change every user sees at every hour, so the size of the
+correction is a product call, not a unilateral constant edit.
+
+---
+
 ## Template audit coverage
 
-**12 of 19 shipped templates have now been walked frame by frame**, only `tpl-condo-1study`
-outstanding: `tpl-hdb-maisonette` (`.95`), `tpl-terrace-ground` (`.103`/`.104`),
+**Corrected in v0.31.5.123.** The `.122` revision of this section claimed *"12 of 19 shipped
+templates have now been walked frame by frame, only `tpl-condo-1study` outstanding"*. **Both numbers
+were wrong.** It was written from a handoff note rather than counted against
+`src/floorplan/templates.ts`; the true figure at `.122` was **10 walked, 9 unwalked**, and
+`tpl-condo-1study` was one of nine outstanding plans, not the only one. `tpl-studio` in particular
+was listed as walked because `.120` moved its front door — moving an offset is not a walk.
+
+**After `.123`: 12 of the 19 registered templates have been walked frame by frame.**
+
+Walked (12): `tpl-hdb-maisonette` (`.95`), `tpl-terrace-ground` (`.103`/`.104`),
 `tpl-condo-penthouse` (`.109`), `tpl-loft` (`.110`), `tpl-hdb-4room` (`.111`/`.115`),
 `tpl-hdb-5room` (`.116`/`.121`), `tpl-hdb-exec` (`.118`), `tpl-hdb-jumbo` (`.109`/`.119`),
-`tpl-studio` + `tpl-loft` doors (`.120`), and `tpl-condo-3bed` + `tpl-hdb-3room` (`.122`, both
-clean). Every defect these walks found is recorded as (f) through (j) above; no unrecorded visual
-defect remains in an audited plan.
+`tpl-condo-3bed` (`.122`), `tpl-hdb-3room` (`.122`), `tpl-condo-4bed` (`.123`),
+`tpl-hdb-3gen` (`.123`).
+
+**Not yet walked (7):** `tpl-hdb-2room`, `tpl-studio`, `tpl-1bed`, `tpl-condo-1bed`,
+`tpl-condo-1study`, `tpl-condo-2bed`, `tpl-condo-studio`. **Do not describe coverage as complete
+until each of these has produced frames** — count against the registry, never against a summary.
+
+Every defect these walks found is recorded as (f) through (k) above; no unrecorded visual defect
+remains in an audited plan.
 
 ## Summary
 
@@ -630,9 +702,12 @@ defect remains in an audited plan.
 | h | BEDROOM-WINDOW | content | ⏳ **OPEN v0.31.5.113** — was 15 of 44; **12 left**; `.120` proved NONE of the 12 is offset-fixable — each needs a new opening |
 | i | MAIN-DOOR-ROOM | content | ⏳ **OPEN v0.31.5.114** — was 8; **3 left** after `.115`, `.118`, `.119`, `.120`; all 3 proven NOT offset-fixable |
 | j | WINDOW-SIGHTLINE | content | ⏳ **OPEN v0.31.5.117** — **11** of 78 after `.121` shipped a windowless-wall preference for storage; three arranger levers measured, the residue is rooms too small to fix |
+| k | WINDOW-SKY-DARK | render path | ⏳ **OPEN v0.31.5.123** — the baked sky holds byte 187 at 13:00; the frame shows 39. Model exonerated by a pure-function test; the loss is downstream |
 
-**Five of ten items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
-((d)). Each was implemented in its own committed round and marked here as it landed. **(f), (g), (h), (i) and (j) are open.** (h) and (i) share one cause and should be fixed together; (j) was created by fixing (h) and needs an arranger strategy, not a bigger keep-out.
+**Five of eleven items are resolved** — four shipped ((a), (b), (c), (e)) and one closed as no defect
+((d)). Each was implemented in its own committed round and marked here as it landed. **(f), (g), (h), (i), (j) and (k) are open.** (h) and (i) share one cause and should be fixed together; (j) was created by fixing (h) and needs an arranger strategy, not a bigger keep-out.
 Neither is a one-line answer: (f) is a request to re-draw shipped floor plans, scoped per template
 rather than decided once, and (g) is a renderer change whose cost must be benchmarked on the
-weak-device tier before it lands.
+weak-device tier before it lands. (k) is the only open item that is a genuine RENDER bug rather
+than a content or policy call — it is the strongest candidate for the next round, once the loss has
+been attributed to the glass or to the background tone-mapping path.
