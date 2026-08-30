@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.132 — photorealism round 2 opened: the bounce light does not know what the room is made of
+
+**Research + source inventory, no code change.** The 2026-06 photoreal dossier's twelve levers
+(RD-401…RD-412) have all shipped or been closed, so this round looked for what that list did not
+contain.
+
+**Already present, verified in source:** N8AO, DepthOfField, Bloom, AgX ToneMapping, HueSaturation,
+ChromaticAberration, Vignette and film grain in `EffectsImpl.tsx`; sun + hemisphere + ambient with
+an IBL probe and curtain-aware fill in the lighting rig. The camera-realism and grading half is
+largely done.
+
+**What current practice ranks first is indirect bounce (GI)** — above modelling and materials — with
+the named failure mode being that without it a room reads as lit by spotlights in a void. Ray
+tracing is out of reach in a WebGL client; irradiance/light probes are the tractable approximation.
+
+**The specific gap here:** the app's bounce is global and room-blind. `SceneEnvironment.tsx` ships a
+hardcoded `#6b5b48` "warm ground bounce" Lightformer, and the hemisphere ground colour comes from
+sun altitude via `altitudeCurve.ts`. Neither reads the room's own surfaces, so a bedroom with
+pale-oak vinyl and a bathroom with grey-green porcelain get the **same** bounce tint — the opposite
+of what indirect light does, and the most legible GI cue is exactly that colour bleed.
+
+Tractable because the app already knows each room's floor and wall material ids and their swatches.
+A per-room bounce tint is a *light colour*, not a render pass — no per-pixel cost, so unlike SSGI it
+cannot regress the weak tier. **Not built yet:** the next round measures whether rooms with
+deliberately different floors really are receiving the same bounce, and drops the lever if they are
+not. Written up in `docs/research/2026-08-30-photoreal-round2-gap.md`.
+
 ## v0.31.5.131 — `tpl-loft` room categories measured: no effect, nothing changed
 
 **Docs only, and deliberately no code change.** The last cheap candidate on the list was
