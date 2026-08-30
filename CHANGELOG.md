@@ -5,6 +5,30 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.163 — the fixtures at midday were the lever
+
+`.162` measured `photographicFill` reaching only `%<64` 1.60 % against a photographic 11.2–12.2 %, and
+diagnosed the remainder as the **fixtures**: every lamp burning at 1 pm because
+`ensureDaylightFirstPaint()` switches them on at first paint at any hour. The same flag now skips
+**only the daytime half** of that guard.
+
+**The default is untouched** — the all-hours rule is `DEFAULT-GLOOM` (`.86`), shipped on the user's
+decision, and the night behaviour is the legibility case the guard exists for. New pure
+`shouldLightFirstPaint(daylight, photographicFill)` and `firstPaintDaylight(...)`, the latter matching
+`useSunPosition` exactly (effective local hour through `hoursToDate`) so guard and renderer cannot
+disagree; 11 tests. Verified end to end with the page clock frozen before load: 13:00 flag-off → lights
+`on`; **13:00 flag-on → `off`**; 21:00 flag-on → `on`.
+
+**Calibrated, not guessed.** With daytime fixtures off, the fill scale was swept against `.134`'s
+photographic deep-shadow band: fixtures-only (1.0) → `%<64` 7.78 %, **0.8 → 11.39 %**, 0.55 → 21.50 %
+(≈2× past). `PHOTO_FILL_SCALE` is now **0.8**, inside the band, with the sweep recorded beside it. Sofa
+micro-contrast **0.0470 → 0.0838, +78 %** — against ≤ +20 % for every material lever in `.157`–`.161`.
+
+It also reframes an earlier finding: with the flag on, the window is finally the brightest thing in
+frame. `.146`/`.154` asked why it read as a pale lightbox; the answer was never the glass — **the room
+was too bright for its own window**. The trade is what `.86` recorded (dimmer room, dark corners),
+which is why this ships **off**.
+
 ## v0.31.5.162 — `photographicFill`: the flag exists now, and it shows where the fill really lives
 
 `.161` left the textile gap sitting downstream of a lighting decision. This ships the alternative

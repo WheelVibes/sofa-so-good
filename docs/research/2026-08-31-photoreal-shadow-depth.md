@@ -1307,3 +1307,51 @@ So the honest ordering of the remaining levers is now: **fixtures at midday (≈
 fill (+7–18 %) ≫ any material change (≤ +20 %, often negative)**. The flag is shipped and off; the
 next thing to examine is `ensureDaylightFirstPaint`, which is a legibility decision made before any of
 this was measured.
+
+
+## The fixtures at midday were the lever (v0.31.5.163)
+
+`.162` shipped `photographicFill` and measured it reaching only `%<64` 1.60 % against a photographic
+11.2–12.2 %, with the diagnosis that the remaining light is the **fixtures** — every lamp and ceiling
+light burning at 1 pm, because `ensureDaylightFirstPaint()` switches them on at first paint at any
+hour. This extends the same flag to skip **only the daytime half** of that guard.
+
+**The default is untouched, and deliberately so.** The all-hours rule is `DEFAULT-GLOOM` (`.86`),
+shipped on the user's decision, and the night behaviour — a dark flat is still lit — is the legibility
+case the guard exists for. `shouldLightFirstPaint(daylight, photographicFill)` is pure and
+unit-tested: with the flag off it returns true at every hour; with it on it returns false **only** at
+full daylight; a non-finite daylight returns true rather than risking a black screen. `firstPaintDaylight`
+matches `useSunPosition` exactly (effective local hour through `hoursToDate`) so the guard and the
+renderer can never disagree about whether it is daytime.
+
+**Verified end to end**, with the page clock frozen before load (a boot-time guard cannot be tested at
+the hour the probe happens to run at):
+
+| boot | flag | resolved `lightsMode` |
+| --- | --- | --- |
+| 13:00 | off | `on` — shipped behaviour intact |
+| 13:00 | **on** | **`off`** |
+| 21:00 | on | `on` — legibility case intact |
+
+**Then calibrated against the photograph rather than guessed.** Swept the fill scale with the daytime
+fixtures already off:
+
+| | sofa micro/mean | frame mean | `%<64` |
+| --- | --- | --- | --- |
+| shipped (flag off) | 0.0470 | 168.9 | 1.28 % |
+| fixtures off only (scale 1.0) | 0.0761 | 117.0 | 7.78 % |
+| **scale 0.8** | **0.0838** | 110.4 | **11.39 %** |
+| scale 0.55 | 0.0986 | 99.9 | 21.50 % (≈2× past) |
+| **photograph (`.134`)** | 0.157–0.174 | — | **11.2–12.2 %** |
+
+**0.8 lands inside the photographic band**, so `PHOTO_FILL_SCALE` is now 0.8 with the sweep recorded
+beside it. Sofa micro-contrast is **+78 %** over shipped — against ≤ +20 % for every material lever
+tried in `.157`–`.161`, and often negative.
+
+**And it reframes an earlier finding.** With the flag on the window is finally the brightest thing in
+the frame. `.146` and `.154` both asked why the window read as a pale lightbox; the answer was never
+the glass, and not only the empty backdrop — **the room was too bright for its own window**. Deep
+shadow, surface texture and a window that reads as a window all turn out to be the same measurement.
+
+The trade is exactly what `.86` recorded: the room is dimmer and the far corners go dark. That is why
+this ships **off**.

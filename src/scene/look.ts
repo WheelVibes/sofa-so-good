@@ -244,7 +244,18 @@ export function iblFillScale(iblActive: boolean, dayLevel: number): number {
  * `.86` and explicitly left as the user's decision; this makes the alternative
  * reachable and comparable without changing what anybody sees by default.
  */
-export const PHOTO_FILL_SCALE = 0.55
+/**
+ * Calibrated, not guessed. With `photographicFill` on, the daytime fixtures are
+ * also skipped (PHOTO-FILL-FIXTURES), and the pair was swept against the
+ * photographic deep-shadow band measured in `.134` (`%<64` = 11.2–12.2 %):
+ *
+ *   fixtures off only (1.0)  ->  7.78 %      sofa micro/mean 0.0761
+ *   **0.8**                  -> **11.39 %**  sofa micro/mean 0.0838
+ *   0.55                     -> 21.50 %      sofa micro/mean 0.0986  (overshoots ~2x)
+ *
+ * 0.8 lands inside the band; 0.55 crushes past it.
+ */
+export const PHOTO_FILL_SCALE = 0.8
 
 /** Fill multiplier for the current `photographicFill` setting. Pure. */
 export function photographicFillScale(on: boolean): number {

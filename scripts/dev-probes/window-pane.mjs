@@ -44,6 +44,10 @@ const LIGHTS = process.env.LIGHTS || ''
 // FLAGS='{"photographicFill":true}' — seeded into localStorage BEFORE load, since
 // `resolveFlags` reads the overrides map once at boot.
 const FLAGS = process.env.FLAGS || ''
+// FAKENOW='2026-08-31T13:00:00+08:00' freezes the page clock BEFORE load, which is
+// the only way to exercise a boot-time guard like `ensureDaylightFirstPaint` at an
+// hour other than the one the probe happens to run at.
+const FAKENOW = process.env.FAKENOW || ''
 const OUT = process.env.OUT || '/tmp/window-pane'
 fs.mkdirSync(OUT, { recursive: true })
 
@@ -55,12 +59,29 @@ const browser = await puppeteer.launch({
 const page = await browser.newPage()
 await page.emulateTimezone('Asia/Singapore')
 await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 2 })
-await page.evaluateOnNewDocument((flags) => {
-  try {
-    localStorage.setItem('hdb_onboarded', '1')
-    if (flags) localStorage.setItem('hdb_feature_flags', flags)
-  } catch {}
-}, FLAGS)
+await page.evaluateOnNewDocument(
+  (flags, fakeNow) => {
+    try {
+      localStorage.setItem('hdb_onboarded', '1')
+      if (flags) localStorage.setItem('hdb_feature_flags', flags)
+    } catch {}
+    if (fakeNow) {
+      const fixed = new Date(fakeNow).getTime()
+      const RealDate = Date
+      // biome-ignore lint/suspicious/noGlobalAssign: probe-only clock freeze
+      Date = class extends RealDate {
+        constructor(...a) {
+          super(...(a.length ? a : [fixed]))
+        }
+        static now() {
+          return fixed
+        }
+      }
+    }
+  },
+  FLAGS,
+  FAKENOW,
+)
 await page.goto(appUrl(), { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('canvas', { timeout: 60000 })
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
@@ -177,6 +198,11 @@ if (!found.length) throw new Error('no sky-catch pane materials found — pose o
 console.log(
   `window-pane  tier=${TIER} hour=${HOUR} window=${pose.id} standoff=${STANDOFF}m backdrop=${BACKDROP || '(default)'}`,
 )
+const boot = await page.evaluate(() => {
+  const st = window.__store.getState()
+  return { lightsMode: st.lightsMode, timeMode: st.timeMode, hour: st.manualHour }
+})
+console.log(`boot: ${JSON.stringify(boot)}`)
 console.log(`panes: ${JSON.stringify(found)}\n`)
 
 const ARMS = [
