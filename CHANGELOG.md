@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.138 — window area-lights prototyped and refuted, and `.136`'s headline withdrawn
+
+**No code ships.** A prototype was built, measured, refuted and reverted, and it exposed a flaw in the
+instrument that forces a correction to the previous round.
+
+**Research correction:** V-Ray/Corona **light portals do not add light or create falloff** — they are
+a sampling optimisation that steers a path tracer toward apertures to cut GI noise, and modern V-Ray
+says to skip them when the Adaptive Dome Light is on. In a rasteriser there is no transport to
+importance-sample, so the technique does not transfer. The name makes it sound like the fix for a
+missing window gradient; it is not.
+
+**Root cause, in the codebase's own words:** `windowLightModifiers.ts` uses a **global tint** and
+"averages each window's factor across all windows". Windows are modifiers of global lights, not
+emitters with a position, and there is no `RectAreaLight` in `src/`.
+
+**The prototype:** one `RectAreaLight` per window, in the aperture, sized to the glass, aimed inward.
+It brightened the room (b0 108 → 132, b7 124 → 174) and made the near/far ratio **worse**, 0.87 →
+0.76. Reverted from backup.
+
+**⚠️ The correction that matters.** The failure exposed that the horizontal-band metric measures
+**screen regions, not distance-from-window on a consistent surface**. The high bands are the far
+*wall*, which faces the window head-on and brightens under any inward-aimed light — as it does in a
+real photograph. **So `.136`'s headline that "the app's daylight has NO falloff" is not supported by
+its own metric and is withdrawn as stated.**
+
+**What survives:** the two *differential* results, because they compare arms at the same band and so
+cancel the orientation confound — the IBL probe's share of daylight (24% at b0 → ~0% by b4) and the
+lamps' contribution (+42% near the glass → **+53%** deepest). `.135`'s conclusion rests on those and
+on the whole-frame histogram against real photographs, not on band shape, and stands.
+
+Measuring falloff properly needs a floor-only sample at known distances — an unfurnished arm or a
+depth/normal mask — the same instrument gap recorded when a fixed crop returned furniture instead of
+floor. Until then no claim about the *shape* of the daylight distribution should be made.
+
 ## v0.31.5.137 — AO grounds corners, not furniture: the app has no contact term
 
 **Measurement only, no render change.** `.136` observed that table and chair legs meet the floor with

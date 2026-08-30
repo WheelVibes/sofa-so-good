@@ -197,3 +197,57 @@ smaller `AO.aoRadius`, which would trade away the corner grounding that was deli
 working. **That means a second full-screen AO pass**, and N8AO already runs half-res below High
 (`aoFullRes`). **Benchmark the cost on the weak-device tier before proposing it** (rule lxviii); if it
 only ever ships on High/Maximum, say so plainly rather than describing it as a win for everyone.
+
+
+## Window area-lights prototyped and refuted — and a CORRECTION to `.136` (v0.31.5.138)
+
+### Research correction first: light portals are not what I thought
+V-Ray/Corona **light portals do not add light and do not create falloff**. They are a *sampling
+optimisation* that steers a path tracer's rays toward apertures to cut GI noise — "portals only tell
+Corona how to sample light more efficiently", and modern V-Ray tells you to skip them entirely when
+the Adaptive Dome Light is on. In a rasteriser there is no transport to importance-sample, so the
+technique does not transfer at all. Recorded because the *name* makes it sound like the fix for a
+missing window gradient, and it is not.
+
+### The architectural root cause is stated in the codebase
+`windowLightModifiers.ts` says the window system uses a **GLOBAL tint** and that "the final scene
+attenuation **averages each window's factor across all windows**". Windows here are **modifiers of
+global lights, not emitters with a position**, and there is no `RectAreaLight` anywhere in `src/`
+(grepped). Whatever else is true, a window in this app cannot produce a *spatial* effect.
+
+### The prototype, and its refutation
+One `RectAreaLight` per window on the walked level — in the aperture, sized `op.width × (head−sill)`,
+aimed inward, `intensity 8`. `tsc` and biome clean. Same pose and band script as `.136`:
+
+| arm | b0 | b1 | b2 | b3 | b4 | b5 | b6 | b7 | near/far |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| baseline `a-daylight` | 108 | 120 | 115 | 104 | 96 | 103 | 113 | 124 | 0.87 |
+| **prototype `a-daylight`** | 132 | 143 | 142 | 140 | 142 | 147 | 161 | 174 | **0.76** |
+| baseline `c-lamps-on` | 153 | 163 | 160 | 150 | 145 | 154 | 169 | 189 | 0.81 |
+| prototype `c-lamps-on` | 162 | 172 | 171 | 167 | 166 | 174 | 187 | 202 | 0.80 |
+
+It **brightened** the room (+22% at b0, +40% at b7) and made the ratio **worse** (0.87 → 0.76). The
+prototype was reverted from `/tmp/lighting2.bak`; nothing shipped.
+
+### ⚠️ The correction that matters: `.136`'s headline was not established by its own metric
+The reason the prototype "failed" exposes a flaw in the instrument. **The horizontal-band metric
+measures screen regions, not distance-from-window on a consistent surface.** The high bands are the
+**far wall**, which faces the window head-on; a light aimed into the room hits it at normal incidence
+while the near floor gets a grazing angle, so the far bands brighten *more*. A real photograph of a
+real room does the same thing — a far wall facing a window is genuinely bright.
+
+So **`.136`'s claim that "the app's daylight has NO falloff" is not supported by that measurement**
+and is withdrawn as stated. What the bands actually show is that screen brightness does not fall with
+height in frame, which is what you would expect when the far region is a window-facing wall.
+
+**What survives, and why.** The two *differential* results from `.136` are unaffected, because they
+compare two arms **at the same band**, which cancels the surface-orientation confound entirely: the
+IBL probe's share of daylight (24% at b0 falling to ~0% by b4) and the lamps' contribution (+42% near
+the glass rising to **+53%** deepest). `.135`'s conclusion — that the fixtures compensate for daylight
+that cannot carry the room — rests on those differentials and on the whole-frame histogram against
+real photographs, not on the band shape. It stands.
+
+**To actually measure falloff** the sample must be one surface at known distances — a floor-only
+strip, which needs an unfurnished arm or a depth/normal mask. That is the same instrument gap already
+recorded above after a fixed crop returned furniture instead of floor. Until that exists, no claim
+about the *shape* of the app's daylight distribution should be made.
