@@ -224,38 +224,43 @@ export function iblFillScale(iblActive: boolean, dayLevel: number): number {
 
 /**
  * PHOTO-FILL — how far the *positionless* fill is pulled down when the
- * `photographicFill` feature is on.
+ * `photographicFill` feature is on, **per render tier**.
  *
  * Seven material levers were tried across v0.31.5.157–.161 to close the measured
- * textile gap against reference photographs (weave `normalScale`, the wrinkle
- * channel, part jitter, a tessellated sag/crease cushion, weave tiling density,
- * fabric pattern, drapery relief). **None moved micro-contrast more than ~20 %
- * and several moved it down.** Simply turning the lamps off moved it **+62 %** on
- * the same materials — because surface relief only becomes image contrast when
- * something DIRECTIONAL shades its two sides differently, and the app's fill has
- * no direction. The same wall was hit from the lighting side in `.133`/`.138`/
- * `.141`.
+ * textile gap against reference photographs. **None moved micro-contrast more
+ * than ~20 % and several moved it down**; simply turning the daytime fixtures off
+ * moved it **+62 %**, because surface relief only becomes image contrast when
+ * something DIRECTIONAL shades its two sides differently.
  *
- * This scales the hemisphere + ambient ONLY. The sun keeps its full graded
- * intensity (KEY-FILL-BALANCE), so the effect is purely a key:fill ratio change —
- * shadows deepen and relief reads, rather than the whole scene going dark.
+ * This scales the hemisphere, the flat ambient and the IBL probe. The sun keeps
+ * its full graded intensity (KEY-FILL-BALANCE), so the effect is a key:fill ratio
+ * change, not a dimmer.
  *
- * **Default OFF.** Reducing the fill is the DEFAULT-GLOOM trade measured in
- * `.86` and explicitly left as the user's decision; this makes the alternative
- * reachable and comparable without changing what anybody sees by default.
+ * **Per tier, because the lower tiers make less shadow of their own** and so need
+ * a bigger cut to reach the same place. Calibrated by sweep against `.134`'s
+ * photographic deep-shadow band (`%<64` = 11.2–12.2 %) at one walk pose, 13:00:
+ *
+ * | tier | 0.80 | 0.68 | 0.62 | 0.60 | 0.45 |
+ * | --- | --- | --- | --- | --- | --- |
+ * | maximum | **10.93 %** | | | | |
+ * | medium | 6.84 % | 9.65 % | **11.53 %** | 12.31 % | |
+ * | performance | 3.25 % | | | 3.82 % | 4.71 % |
+ *
+ * **Performance cannot reach the band at all** — it is nearly flat in the fill
+ * scale, because that tier lacks the AO and shadow machinery that produces deep
+ * shadow, so cutting further only darkens the frame without creating structure.
+ * It gets 0.6, which still buys **+31 %** surface micro-contrast (curtain 0.0420
+ * → 0.0550) without crushing it.
+ *
+ * **Default OFF.** Reducing the fill is the DEFAULT-GLOOM trade measured in `.86`
+ * and left as the user's decision.
  */
-/**
- * Calibrated, not guessed. With `photographicFill` on, the daytime fixtures are
- * also skipped (PHOTO-FILL-FIXTURES), and the pair was swept against the
- * photographic deep-shadow band measured in `.134` (`%<64` = 11.2–12.2 %):
- *
- *   fixtures off only (1.0)  ->  7.78 %      sofa micro/mean 0.0761
- *   **0.8**                  -> **11.39 %**  sofa micro/mean 0.0838
- *   0.55                     -> 21.50 %      sofa micro/mean 0.0986  (overshoots ~2x)
- *
- * 0.8 lands inside the band; 0.55 crushes past it.
- */
-export const PHOTO_FILL_SCALE = 0.8
+export const PHOTO_FILL_SCALE = {
+  maximum: 0.8,
+  high: 0.8,
+  medium: 0.62,
+  performance: 0.6,
+} as const
 
 /**
  * Fabric weave relief, paired with the lighting balance (PHOTO-FILL-RELIEF).
@@ -315,9 +320,12 @@ export function fixturesRender(
   return !(Number.isFinite(daylight) && daylight >= 1)
 }
 
-/** Fill multiplier for the current `photographicFill` setting. Pure. */
-export function photographicFillScale(on: boolean): number {
-  return on ? PHOTO_FILL_SCALE : 1
+/** Fill multiplier for the current `photographicFill` setting and tier. Pure.
+ *  An unknown tier falls back to `medium`, which is the capability-detected
+ *  boot default. */
+export function photographicFillScale(on: boolean, tier: string): number {
+  if (!on) return 1
+  return (PHOTO_FILL_SCALE as Record<string, number>)[tier] ?? PHOTO_FILL_SCALE.medium
 }
 
 /**

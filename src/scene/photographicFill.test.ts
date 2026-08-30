@@ -8,15 +8,31 @@ import {
   photographicWeave,
 } from './look'
 
-describe('photographicFillScale — an opt-in key:fill rebalance', () => {
-  it('is a no-op when off, so the shipped look cannot move', () => {
-    expect(photographicFillScale(false)).toBe(1)
+describe('photographicFillScale — an opt-in key:fill rebalance, per tier', () => {
+  const TIERS = ['performance', 'medium', 'high', 'maximum'] as const
+
+  it('is a no-op when off, on every tier, so the shipped look cannot move', () => {
+    for (const t of TIERS) expect(photographicFillScale(false, t)).toBe(1)
+    expect(photographicFillScale(false, 'nonsense')).toBe(1)
   })
 
-  it('pulls the positionless fill DOWN when on', () => {
-    expect(photographicFillScale(true)).toBe(PHOTO_FILL_SCALE)
-    expect(PHOTO_FILL_SCALE).toBeGreaterThan(0)
-    expect(PHOTO_FILL_SCALE).toBeLessThan(1)
+  it('pulls the positionless fill DOWN on every tier', () => {
+    for (const t of TIERS) {
+      const v = photographicFillScale(true, t)
+      expect(v).toBeGreaterThan(0)
+      expect(v).toBeLessThan(1)
+    }
+  })
+
+  it('cuts MORE on the lower tiers, which make less shadow of their own', () => {
+    // Calibrated against the photographic band: at 0.8 the same pose reads
+    // %<64 10.93 % on maximum but only 6.84 % on medium and 3.25 % on performance.
+    expect(PHOTO_FILL_SCALE.medium).toBeLessThan(PHOTO_FILL_SCALE.maximum)
+    expect(PHOTO_FILL_SCALE.performance).toBeLessThan(PHOTO_FILL_SCALE.medium)
+  })
+
+  it('falls back to the boot-default tier on an unknown one', () => {
+    expect(photographicFillScale(true, 'nonsense')).toBe(PHOTO_FILL_SCALE.medium)
   })
 })
 

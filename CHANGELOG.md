@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.168 — the calibration only held on the tier nobody boots into
+
+Every walk measurement in `.162`–`.167` was taken at **maximum**, but the capability-detected boot
+tier is **medium** (High/Maximum are never auto-selected). Measured across all three at one pose with
+the single 0.8 scale: `%<64` **10.93 % on maximum, 6.84 % on medium, 3.25 % on performance** against a
+photographic 11.2–12.2 %. The band was reached only on the tier almost nobody is on — the lower tiers
+make less shadow of their own, so the same fill cut lands nowhere near it.
+
+`PHOTO_FILL_SCALE` is now **per tier**, swept rather than interpolated (medium 0.68 → 9.65 %, **0.62 →
+11.53 %**, 0.60 → 12.31 %), with an unknown tier falling back to `medium`. Four more tests.
+
+**Performance cannot reach the band at all** — 0.80 → 3.25 %, 0.60 → 3.82 %, 0.45 → 4.71 %, nearly
+flat — because that tier lacks the AO and shadow machinery that produces deep shadow, so cutting
+further only darkens the frame. Recorded as a finding rather than tuned around; it gets 0.60, still
+worth **+227 %** curtain micro-contrast.
+
+Final: maximum 0.80 → `%<64` **10.89 %**; **medium 0.62 → 11.52 %, inside the band**, curtain
+**0.0245 → 0.0887 (+262 %)**, sofa **0.0385 → 0.0921 (+139 %)**; performance 0.60 → 3.82 %. The tier a
+new user actually boots into is now the calibrated one.
+
 ## v0.31.5.167 — the windowless rooms
 
 `.166` verified `photographicFill` at one walk pose and the boot view; parity means the rooms that

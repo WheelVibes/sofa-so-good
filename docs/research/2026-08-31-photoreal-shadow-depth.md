@@ -1525,3 +1525,40 @@ frame. Curtain and sofa micro-contrast are unchanged (0.0820 / 0.0946).
 first-person view the lamp *shades* stop glowing everywhere while windowless-room fixtures keep
 emitting. The shade glow is a subtle self-illumination rather than a light source, so the visible
 effect is small, but making it per-room is the follow-up.
+
+
+## The calibration only held on the tier nobody boots into (v0.31.5.168)
+
+Every walk measurement in `.162`–`.167` was taken at **maximum**. The capability-detected boot tier is
+**medium** (`quality.ts:tierForCapabilities` — High and Maximum are never auto-selected). So the
+photographic calibration had been verified on a tier almost no user is on.
+
+**Measured across the three tiers at one pose, 13:00, `PHOTO_FILL_SCALE` a single 0.8:**
+
+| tier | flag OFF `%<64` | flag ON `%<64` | curtain | sofa |
+| --- | --- | --- | --- | --- |
+| maximum | 1.28 % | **10.93 %** | 0.0820 | 0.0946 |
+| **medium (boot default)** | 0.82 % | **6.84 %** | 0.0719 | 0.0818 |
+| performance | 0.55 % | **3.25 %** | 0.0420 | 0.0488 |
+
+**The band (11.2–12.2 %) was reached only at maximum.** The lower tiers make less shadow of their own
+— less AO, coarser shadow filtering — so the same fill cut lands nowhere near it.
+
+**So the scale is per tier now**, swept rather than interpolated: medium **0.68 → 9.65 %**, **0.62 →
+11.53 %**, 0.60 → 12.31 %. 0.62 it is.
+
+**Performance cannot reach the band at all**, and that is the honest finding rather than a value to
+tune: 0.80 → 3.25 %, 0.60 → 3.82 %, 0.45 → 4.71 %. Nearly flat — the tier lacks the machinery that
+produces deep shadow, so cutting further only darkens the frame without creating structure. It gets
+0.60, which still buys **+227 %** curtain micro-contrast without crushing it.
+
+**Final, tier-aware:**
+
+| tier | scale | `%<64` OFF → ON | curtain OFF → ON | sofa OFF → ON |
+| --- | --- | --- | --- | --- |
+| maximum | 0.80 | 1.28 → **10.89 %** | 0.0356 → 0.0820 | 0.0470 → 0.0946 |
+| **medium** | **0.62** | 0.82 → **11.52 %** ✓ | 0.0245 → **0.0887** (+262 %) | 0.0385 → **0.0921** (+139 %) |
+| performance | 0.60 | 0.55 → 3.82 % | 0.0168 → 0.0550 (+227 %) | 0.0234 → 0.0590 (+152 %) |
+
+**The tier a new user actually boots into is now the one inside the photographic band.** An unknown
+tier falls back to `medium` for the same reason.

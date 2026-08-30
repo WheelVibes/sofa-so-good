@@ -80,7 +80,8 @@ export function Lighting() {
   // PHOTO-SOFTSHADOW: Medium+ tiers run VSM (real blurred penumbrae via
   // radius/blurSamples); the renderer-level filter switch lives in
   // ShadowFilterController — here we only feed the matching per-light params.
-  const shadowFilter = shadowFilterForTier(useStore((s) => s.qualityTier))
+  const qualityTier = useStore((s) => s.qualityTier)
+  const shadowFilter = shadowFilterForTier(qualityTier)
   const shadowParams = shadowParamsForFilter(shadowFilter)
   // IBL is on for Medium+ tiers; when it is, the procedural environment provides
   // ambient bounce, so the analytical hemisphere+ambient fill is dialled down to
@@ -266,7 +267,7 @@ export function Lighting() {
     const fillScale =
       iblFillScale(iblActive, cur.sun) *
       fillAtten *
-      photographicFillScale(isFeatureEnabled('photographicFill'))
+      photographicFillScale(isFeatureEnabled('photographicFill'), qualityTier)
     if (hemiRef.current) {
       hemiRef.current.intensity = cur.ambient * 1.1 * fillScale
       hemiRef.current.color.setRGB(

@@ -63,7 +63,7 @@ export function SceneEnvironment() {
     scene.environmentIntensity =
       (0.12 + level * 0.55) *
       fillAtten *
-      photographicFillScale(isFeatureEnabled('photographicFill'))
+      photographicFillScale(isFeatureEnabled('photographicFill'), useStore.getState().qualityTier)
   })
 
   if (!enabled) {
