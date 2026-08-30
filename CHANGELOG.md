@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.184 — the weave amplitude cap moved once the lattice was gone
+
+`.172` capped `PHOTO_WEAVE` at 2.2 / 2.0 because more relief turned the fabric into a **regular
+horizontal-dash lattice** — the cap was about regularity, not amplitude. `.173` removed the
+regularity, so the cap should have moved. Re-swept, judged on the 4× crop as `.172` said it had to be:
+
+| drapery / upholstery | curtain | sofa | 4× crop |
+| --- | --- | --- | --- |
+| 2.2 / 2.0 (was) | 0.0866 | 0.0937 | irregular, soft |
+| **3.2 / 2.8** | **0.1055** | **0.1068** | **irregular, clearly woven** |
+| 4.5 / 3.6 | 0.1223 | 0.1176 | coarse basket-weave |
+
+At 1:1 rather than 4×, 4.5 / 3.6 reads as raffia on a sofa meant to be cotton, most obviously on the
+accent bolster. **Shipped at 3.2 / 3.6 / 2.8** — the same judgement `.172` made, on a surface that can
+now carry it. Against photographs at 0.140–0.187 / 0.174.
+
+**The default look is unaffected**: `PHOTO_WEAVE` only applies under the photographic look, and the
+default curtain still measures 0.0248, its long-standing baseline.
+
 ## v0.31.5.183 — re-testing the bounce hypothesis on clean data
 
 `.179` refuted the hemisphere ground-bounce fix on the contaminated frames `.182` threw out, so that

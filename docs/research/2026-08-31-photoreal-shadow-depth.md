@@ -2107,3 +2107,35 @@ artifact of the bad measurement.
 So the ground term is refused again, now on evidence: it buys a real ceiling gain and pays for it with
 glowing furniture undersides and a second tuned constant. **The ceiling/floor deficit still wants a
 directional, local bounce** — a probe grid, a baked pass, or SSGI — and nothing cheaper reproduces it.
+
+
+## The amplitude cap moved once the lattice was gone (v0.31.5.184)
+
+`.172` capped `PHOTO_WEAVE` at drapery 2.2 / upholstery 2.0: more relief kept raising the metric —
+curtain 0.0887 → 0.1370 at 4.5, almost into the photographic range — but turned the fabric into a
+**regular horizontal-dash lattice**, "a grid that looks like mesh screen". The cap was about
+*regularity*, not amplitude.
+
+`.173` removed the regularity (`threadGain` varies every thread's thickness and brightness and drops
+the occasional pick). So the cap should have moved, and it has. Re-swept, and judged on the 4× crop
+the way `.172` said it had to be:
+
+| drapery / upholstery | curtain | sofa | 4× crop |
+| --- | --- | --- | --- |
+| 2.2 / 2.0 (was shipped) | 0.0866 | 0.0937 | irregular, soft |
+| **3.2 / 2.8** | **0.1055** | **0.1068** | **irregular, clearly woven** |
+| 4.5 / 3.6 | 0.1223 | 0.1176 | irregular, but coarse basket-weave |
+| photographs | 0.140–0.187 | 0.174 | |
+
+At 1:1 rather than 4×, 4.5 / 3.6 reads as raffia on a sofa that is meant to be cotton — most obviously
+on the accent bolster. 3.2 / 2.8 reads as textile. **Shipped at 3.2 / 3.6 / 2.8**, which is the same
+judgement `.172` made, on a surface that can now carry it.
+
+**The default look is unaffected** — `PHOTO_WEAVE` only applies under the photographic look; the
+default curtain measures 0.0248, exactly its long-standing baseline.
+
+*(Also re-measured after `.182`'s re-calibration, since the relief values were chosen under the old,
+too-dark fill: at the shipped 2.2 / 2.0 the photographic look now reads curtain 0.0866 / sofa 0.0937,
+up from `.164`'s 0.0719 / 0.0818 — a mix of `.173`'s irregular weave, `.178`'s warmed probe and the
+re-calibration itself. The comparison is not clean enough to attribute, and is quoted only as the
+current state.)*

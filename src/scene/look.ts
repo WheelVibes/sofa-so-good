@@ -314,8 +314,17 @@ export const PHOTO_FILL_SCALE = {
  *
  * Values are the measured points, not a multiplier — a single scale cannot serve
  * a 0.65 drapery baseline and a 1.3 upholstery one at once.
+ *
+ * **Raised in v0.31.5.184.** `.172` capped these at 2.2 / 2.0 because more relief
+ * turned the fabric into a regular horizontal-dash lattice — "a grid that looks
+ * like mesh screen". `.173` removed the lattice (`threadGain` varies every thread's
+ * thickness and brightness), so the cap moved. Re-swept and judged on the 4× crop
+ * the way `.172` said it had to be: at 3.2 / 2.8 the weave is clearly woven and
+ * still irregular, while 4.5 / 3.6 reads as coarse basket-weave on a sofa that is
+ * meant to be cotton. Surface micro-contrast, medium tier: curtain **0.0866 →
+ * 0.1055**, sofa **0.0937 → 0.1068**, against photographs at 0.140–0.187 / 0.174.
  */
-export const PHOTO_WEAVE = { drapery: 2.2, draperyLinen: 2.6, upholstery: 2.0 } as const
+export const PHOTO_WEAVE = { drapery: 3.2, draperyLinen: 3.6, upholstery: 2.8 } as const
 
 /** `photo` when the photographic balance is on, else `base`. Pure. */
 export function photographicWeave(base: number, photo: number, on: boolean): number {
