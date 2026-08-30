@@ -389,3 +389,45 @@ see. Any distance-based sample must be capped at the **material/room boundary**,
 is ~3.75 m — not at the far wall, which was the earlier `.136`/`.138` trap. That is now two distinct
 confounds found in the same measurement family: surface *orientation* (far wall) and surface
 *identity* (next room's floor).
+
+
+## Tiled surfaces: mostly already there; scene reflections are unaffordable, not missing (v0.31.5.142)
+
+`.134` named the reference photograph's most striking cue as **the polished tile mirroring the sofa
+legs, table legs and fire tools**, with per-tile tonal variation and a rust stain. That comparison
+was deferred because the living/dining floor is `floor-vinyl-oak` — matte vinyl that *correctly*
+should not mirror anything. The tiled rooms had never been checked. They are now.
+
+**What the app already does.** `materialRealism.ts` gives `ceramic` a strong smooth coat —
+`clearcoat: 1, clearcoatRoughness: 0.06` — and it works. In the maximum-tier bathroom frames the tile
+shows **clear specular blooms from the ceiling fixtures**, visible grout seams, and genuine
+**tile-to-tile tonal variation**. Three of the reference's four tile cues are present.
+
+**What is absent, and why it is not a defect to fix.** Nothing in the app reflects scene *geometry* in
+a floor — no basin, door or furniture appears mirrored in the tile. That is structural, not an
+oversight: `clearcoat` samples the **environment map**, so it can only ever return sheen and
+highlights, never the room's own contents. Scene reflections need SSR or a planar reflection, and the
+repo already carries the measurement that rules the planar route out — `furniture/CLAUDE.md` records
+drei's `MeshReflectorMaterial` re-rendering the entire scene per mirror at **1710 draw calls / 464K
+triangles, 43% of a single frame, for a bathroom pane a few dozen pixels tall**, which is exactly why
+`useMirrorRelevance` gates mirrors by on-screen relevance. **A floor is a far larger surface than that
+pane.** Reflective floors are therefore a measured affordability limit in this renderer, not a gap
+someone forgot.
+
+**A pose limitation worth recording.** The window-standoff rig cannot frame a bathroom floor: at
+`r = 1.42 m` a camera 0.7 m inside the window with pitch −0.7 is nose-to-door. Tiled *floor* at a
+useful angle needs a different pose than tiled *wall*; the readings above come from the maximum-tier
+walk frames instead.
+
+### Where this leaves the photorealism arc
+Of the cues the reference photograph shows, the app already has gloss and specular response, tile
+variation, contact grounding (`.139`), matching midtones and highlights (`.134`), and correct matte
+behaviour on matte materials. **Two things separate it from the photograph, and both are now
+characterised rather than open:**
+1. **Deep shadow, ~10x short** (`.134`) — attributed to the fixtures (`.135`), which exist because the
+   daylight is spatially flat (`.140`), which follows from windows being modifiers of global lights
+   rather than emitters (`.138`). Closing it means reducing the global fill: **the DEFAULT-GLOOM trade,
+   measured and user-signed-off, and the user's decision to make.**
+2. **Scene reflections in floors** — measured as unaffordable above.
+Neither is a bug awaiting a fix, and three separate lighting interventions have already been built,
+measured and reverted (`.133`, `.138`, `.141`). **The measurable backlog on this axis is exhausted.**

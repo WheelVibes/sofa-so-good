@@ -5,6 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.142 — tiled surfaces are mostly already there; floor reflections are unaffordable, not missing
+
+**Measurement only.** `.134` named the reference photograph's strongest cue as polished tile mirroring
+the furniture, and deferred it because the living/dining floor is matte vinyl that correctly should
+not mirror. The tiled rooms had never been checked.
+
+**What the app already does:** `ceramic` gets `clearcoat: 1, clearcoatRoughness: 0.06` and it works —
+the maximum-tier bathroom frames show clear specular blooms from the ceiling fixtures, visible grout
+seams, and genuine tile-to-tile tonal variation. Three of the reference's four tile cues are present.
+
+**What is absent and why it is not a defect:** nothing reflects scene *geometry* in a floor. That is
+structural — `clearcoat` samples the environment map, so it returns sheen and highlights but never the
+room's contents. Scene reflections need SSR or planar reflection, and the repo already carries the
+measurement ruling the planar route out: `MeshReflectorMaterial` re-renders the whole scene per mirror
+at **1710 draw calls / 464K tris, 43% of a frame, for a pane a few dozen pixels tall** — which is why
+`useMirrorRelevance` exists. A floor is far larger. **A measured affordability limit, not an
+oversight.**
+
+**Pose limitation recorded:** the window-standoff rig cannot frame a bathroom floor — at r = 1.42 m a
+camera 0.7 m inside the window is nose-to-door. Tiled floor needs a different pose than tiled wall.
+
+**Where the arc lands.** The app already matches the reference on gloss and specular response, tile
+variation, contact grounding, midtones and highlights, and correct matte behaviour. Two things
+separate it, both now characterised rather than open: **deep shadow ~10x short** — attributed through
+`.135`/`.140`/`.138` to windows being modifiers of global lights rather than emitters, closable only by
+reducing the global fill, which is the user-signed-off DEFAULT-GLOOM trade — and **floor reflections**,
+measured unaffordable. Three lighting interventions have been built, measured and reverted (`.133`,
+`.138`, `.141`). **The measurable backlog on this axis is exhausted.**
+
 ## v0.31.5.141 — redistribution prototype fails, and `.140`'s ratio was contaminated
 
 **No code ships.** `.138`'s window-`RectAreaLight` arm only added aperture light without removing any
