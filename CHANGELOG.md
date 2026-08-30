@@ -5,6 +5,27 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.151 — the door leaf: the recorded decision survives (negative result)
+
+**Measurement only.** `.150` deferred the door leaf because its `repeat` 2 is a recorded measured
+decision; this re-runs `door-ab.mjs` at the anisotropic setting to test it properly.
+
+New `PAIRS` arm (`PAIRS="0.9x2.35,1.8x4.7"`) sets `repeat` u and v independently — what the original
+verdict could not do, since with a box face's UVs at 0→1 any single scalar leaves a 0.8 × 2.1 m leaf
+stretched 2.6:1. Four arms at one pose: shipped `repeat 2`, then sized at 0.9 / 0.6 / 0.45 m per tile.
+
+**No arm beats the shipped one.** On a clean crop of the leaf interior the vertical row profile is the
+same across all four (sd 10.4–11.0, max step 6.8–7.4, every arm's largest step at the same row — a
+lighting gradient, not a tile seam). Only horizontal rib density moves: 38 (shipped) / 25 / 32 / 38 —
+the knob the original sweep already settled. **`PlanDoorLeaf.tsx` is unchanged.**
+
+The explanation is worth keeping: the visible consequence of a UV stretch depends on the texture's own
+anisotropy. This wood's features run along v, so stretching v is nearly invisible while stretching u
+changes rib spacing and shows at once. A door leaf is stretched *along* the grain, where the texture
+hides it; a wide-short drawer front or a tabletop is stretched *across* it, where nothing does. That
+is why `.148`–`.150` moved the needle and this does not — **size a panel when it is stretched across
+the grain.**
+
 ## v0.31.5.150 — sized grain on the tabletops, and the instrument corrected
 
 **Roll-out.** With `.148`/`.149`'s primitives fixed, `grain-scale.mjs` surfaced the offenders they had

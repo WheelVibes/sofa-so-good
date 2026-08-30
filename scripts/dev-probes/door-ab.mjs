@@ -199,6 +199,16 @@ const SCALES = (process.env.SCALES || '0,0.1,0.2,0.3,0.45').split(',').map(Numbe
  *  OLD 0.45 roughness, where specular exaggerated relief — so that verdict cannot be carried
  *  over either (the same mistake as the `normal0` arm). */
 const REPEATS = (process.env.REPEATS || '').split(',').filter(Boolean).map(Number)
+/** ANISOTROPIC tiling arms, `PAIRS="0.9x2.35,1.8x4.7"` (v0.31.5.151). The repeat-2
+ *  verdict this file records was reached under an ISOTROPY CONSTRAINT it could not
+ *  escape: a box face's UVs are 0→1 whatever the face's real size, so on a
+ *  0.8 x 2.1 m leaf ANY single scalar leaves the grain stretched 2.6:1 (repeat 2 →
+ *  0.40 m per tile across, 1.05 m up). These arms set u and v independently, so
+ *  "how dense" and "how stretched" stop being the same knob. */
+const PAIRS = (process.env.PAIRS || '')
+  .split(',')
+  .filter(Boolean)
+  .map((p) => p.split('x').map(Number))
 
 for (const ns of SCALES) {
   const state = await page.evaluate((v) => {
@@ -236,6 +246,28 @@ for (const rp of REPEATS) {
   fs.writeFileSync(`${OUTDIR}/${name}.png`, await page.screenshot({ type: 'png' }))
   console.log(
     `  ${name.padEnd(8)} roughness=${state.roughness} repeat=${state.repeat} normalScale=${state.normalScale}`,
+  )
+}
+
+for (const [ru, rv] of PAIRS) {
+  const state = await page.evaluate(
+    (v) => {
+      const m = window.__leaf
+      const s = window.__leafShipped
+      m.roughness = s.roughness
+      m.normalScale.set(s.nsx, s.nsy)
+      for (const k of ['map', 'normalMap', 'roughnessMap']) m[k]?.repeat.set(v.ru, v.rv)
+      m.needsUpdate = true
+      window.__store.getState().setManualHour(13)
+      return { roughness: m.roughness, repeat: [m.map.repeat.x, m.map.repeat.y] }
+    },
+    { ru, rv },
+  )
+  await new Promise((r) => setTimeout(r, 1200))
+  const name = `pr${String(ru).replace('.', '_')}x${String(rv).replace('.', '_')}`
+  fs.writeFileSync(`${OUTDIR}/${name}.png`, await page.screenshot({ type: 'png' }))
+  console.log(
+    `  ${name.padEnd(12)} roughness=${state.roughness} repeat=${JSON.stringify(state.repeat)}`,
   )
 }
 

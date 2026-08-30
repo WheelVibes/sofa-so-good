@@ -776,3 +776,36 @@ bands; at 2 it reads as timber, at 3 it goes busy"). That measurement optimised 
 isotropy constraint it could not escape; sizing would land the horizontal density near the "repeat 1"
 they rejected. Overturning it needs `door-ab.mjs` re-run at the new anisotropic setting, which is its
 own round — not a change to smuggle in here.
+
+
+## The door leaf: the recorded decision survives, and the reason is instructive (v0.31.5.151)
+
+`.150` left the door leaf alone because its `repeat` 2 is a recorded measured decision, and said
+overturning it needed `door-ab.mjs` re-run at the anisotropic setting. This is that round.
+
+**New `PAIRS` arm in `door-ab.mjs`** — `PAIRS="0.9x2.35,1.8x4.7"` sets `repeat` u and v independently,
+which is precisely what the original verdict could not do: with a box face's UVs at 0→1, ANY single
+scalar leaves a 0.8 × 2.1 m leaf stretched 2.6:1 (repeat 2 → 0.40 m per tile across, 1.05 m up). Four
+arms at one pose, maximum tier, 13:00: shipped `repeat 2`, then sized at 0.9, 0.6 and 0.45 m per tile
+(`0.9×2.35`, `1.35×3.5`, `1.8×4.7`).
+
+**Result: no arm beats the shipped one, and the recorded decision stands.** Measured on a clean crop
+of the leaf interior, the vertical row profile is the same across all four — sd 10.4–11.0, max step
+6.8–7.4, and every arm's largest step at the *same* row, i.e. a lighting gradient, not a tile seam.
+The only thing that moves is horizontal rib density: **38 ribs (shipped) / 25 / 32 / 38**. That is the
+"how dense" knob the original sweep already explored and settled.
+
+*(An impression I recorded on first look — a horizontal seam across the upper leaf in the 0.9 arm —
+did not survive measurement: it was the wall above the leaf inside the composite crop. The numbers
+overrule it.)*
+
+**Why the earlier wins were real and this one is not.** The consequence of a UV stretch depends on the
+texture's OWN anisotropy. This wood's features run along v — long grain lines, low-frequency along
+their length — so stretching v is nearly invisible, while stretching u changes rib spacing and shows
+immediately. A door leaf is stretched *along* the grain, where the texture hides it. A wide-short
+drawer front or a tabletop is stretched *across* it, where nothing hides it. That is exactly why
+`.148`–`.150` moved the needle on fronts and tops and why this one does not.
+
+**The rule to carry forward:** size a panel when it is stretched across the grain; a tall panel that
+happens to run with the grain is already fine, and changing it only trades one density for another.
+`PlanDoorLeaf.tsx` keeps `repeat` 2 unchanged.

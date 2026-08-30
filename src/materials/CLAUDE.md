@@ -20,8 +20,10 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   faces are flush with each other by construction; giving each its own variant turns invisible
   coplanar seams into visible z-fighting, which `furniture/primitives/structuralSoundness.test.tsx`
   catches. Rolled out so far: `Wardrobe`, `TVConsole`, `Bookshelf`, `ShoeCabinet`, `DiningTable`,
-  `CoffeeTable`, `Desk`, `Nightstand` — other primitives are open work. **The door leaf is out of
-  scope until `dev-probes/door-ab.mjs` is re-run**: its `repeat` 2 is a recorded measured decision.
+  `CoffeeTable`, `Desk`, `Nightstand` — other primitives are open work. **The door leaf was tested and left alone** (v0.31.5.151): `door-ab.mjs`
+  `PAIRS` arms found no anisotropic setting beats its recorded `repeat` 2. Size a panel when it is
+  stretched ACROSS the grain (wide-short fronts, tabletops); a tall panel stretched ALONG the grain
+  hides it, so sizing only trades one density for another.
 
 - **New finish** = an entry in `builtinCatalog.ts` (`procedural` with a pattern, or
   `solid`); new pattern painters go in `procedural/patterns/<family>.ts` (paint one tiling tile:
