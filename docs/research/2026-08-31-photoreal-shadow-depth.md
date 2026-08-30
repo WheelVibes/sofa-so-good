@@ -1437,3 +1437,43 @@ own lights switch and silently overwrite a real preference (the guard's own firs
 touch untouched defaults"). Doing it properly means separating "the user's lights setting" from "what
 this view renders", which is a design change, not a tweak. Recorded with the numbers so the trade is
 visible: **`photographicFill` currently buys walk-view realism at the cost of the boot view's warmth.**
+
+
+## Separating the user's setting from what a view renders (v0.31.5.166)
+
+`.165` found the photographic balance is view-dependent — a large win in first person, a loss in the
+dollhouse — and deliberately did not act, because the obvious fix would have had
+`ensureDaylightFirstPaint` fight the user's own lights toggle. This does it the right way instead.
+
+**The two things that were one value are now two.** `lightsMode` is the **user's setting**; nothing in
+the render path writes it, and `ensureDaylightFirstPaint` is **unconditional again**, exactly as
+`DEFAULT-GLOOM` (`.86`) recorded — `.163`'s boot-time coupling is reverted. What a given view *draws*
+is now a separate, pure decision: `scene/look.ts:fixturesRender(lightsOn, cameraMode, daylight,
+photographicFill)`, consumed by `FurnitureLights`.
+
+The rule is deliberately narrow. Fixtures are skipped **only** in first person, **only** in full
+daylight, and **only** under the flag. Nine assertions pin the rest: with the flag off it is exactly
+`lightsMode === 'on'` in every view and at every hour; fixtures the user switched off are never lit;
+the dollhouse always keeps them; night always keeps them; and a non-finite daylight keeps them rather
+than risking a black room.
+
+**Both halves verified, at one pose each:**
+
+| dollhouse (model region) | luma | R/B | saturation |
+| --- | --- | --- | --- |
+| flag OFF | 180.9 | 1.047 | 0.053 |
+| flag ON, `.165` | 158.8 | 0.998 | 0.030 |
+| **flag ON, `.166`** | **179.7** | **1.051** | **0.056** |
+
+| walk view | curtain | sofa | `%<64` |
+| --- | --- | --- | --- |
+| flag ON, `.164` | 0.0822 | 0.0958 | 11.61 % |
+| **flag ON, `.166`** | **0.0822** | **0.0958** | **11.68 %** |
+
+**The dollhouse is fully restored — warmer than the flag-off baseline, in fact — and the walk view's
+numbers are unchanged to four decimals.** The boot state confirms it: `lightsMode: 'on'` again at
+first paint.
+
+That is the whole trade from `.165` removed, without touching the user's switch or the recorded
+default. `photographicFill` now costs only what `.86` always said it would: a dimmer room when you are
+standing in it at midday.

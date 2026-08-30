@@ -32,61 +32,27 @@
  * Only ever applied on a fresh seed, and only while both settings are still the
  * untouched defaults.
  *
- * **`photographicFill` opts OUT of the daytime half of this** (PHOTO-FILL-FIXTURES,
- * v0.31.5.163) — and only the daytime half. Measured across `.157`–`.162`, the
- * fixtures burning at midday are the single largest thing flattening the frame:
- * turning them off raises the sofa's surface micro-contrast **+62 %**, against
- * ≤ +20 % for any material change and +7–18 % for the positionless fill itself.
- * No real interior has every lamp on at 1 pm. The night behaviour is untouched —
- * a dark flat is still lit, which is the legibility case this guard exists for —
- * and the DEFAULT is untouched too, because the all-hours rule is a recorded
- * user decision (DEFAULT-GLOOM, `.86`). The flag only makes the alternative
- * reachable and comparable.
+ * **This guard is unconditional again (v0.31.5.165).** `.163` briefly made its
+ * daytime half opt out under `photographicFill`; `.165` measured that in the ORBIT
+ * boot view — which is where this runs — and it cost the model its warmth
+ * entirely (R/B 1.047 → 0.998, saturation −43 %) for no photographic gain. The
+ * fixture decision belongs at RENDER time and per VIEW, not at boot: see
+ * `scene/look.ts:fixturesRender`. This guard owns the user's SETTING and nothing
+ * else, which is also why it may only ever touch untouched defaults.
  */
 
-import { isFeatureEnabled } from '../../features/featureFlags'
-import { daylightFromAltitude } from '../../scene/lighting/altitudeCurve'
-import { computeSun, hoursToDate } from '../../scene/lighting/sunPosition'
-import { FALLBACK_LOCATION } from '../../scene/lighting/useSunPosition'
 import { useStore } from '../store'
-
-/**
- * Daylight (0 night … 1 full day) at a location and instant, for the fixture
- * decision below. Pure apart from the clock it is handed.
- */
-export function firstPaintDaylight(date: Date, lat: number, lon: number): number {
-  // Match `useSunPosition` exactly — effective LOCAL hour mapped through
-  // `hoursToDate`, not the raw instant — so the guard and the renderer can never
-  // disagree about whether it is daytime.
-  const hour = date.getHours() + date.getMinutes() / 60
-  return daylightFromAltitude(computeSun(hoursToDate(hour, date), lat, lon).altitude)
-}
-
-/**
- * Should the first paint switch the interior lights on?
- *
- * Shipped behaviour is unconditional (DEFAULT-GLOOM). With `photographicFill` on,
- * a frame that is already in full daylight is left unlit. Pure, so the rule is
- * unit-testable without a clock or a store.
- */
-export function shouldLightFirstPaint(daylight: number, photographicFill: boolean): boolean {
-  if (!photographicFill) return true
-  return !(Number.isFinite(daylight) && daylight >= 1)
-}
 
 /**
  * Turn the interior lights on for a fresh first paint, at any hour.
  *
  * @returns true when the lights were switched on.
  */
-export function ensureDaylightFirstPaint(now: Date = new Date()): boolean {
+export function ensureDaylightFirstPaint(): boolean {
   const s = useStore.getState()
   // Only ever touch untouched defaults — never override a real preference.
   if (s.timeMode !== 'system') return false
   if (s.lightsMode !== 'off') return false
-  const loc = s.location ?? FALLBACK_LOCATION
-  const daylight = firstPaintDaylight(now, loc.lat, loc.lon)
-  if (!shouldLightFirstPaint(daylight, isFeatureEnabled('photographicFill'))) return false
   s.setLightsMode('on')
   return true
 }

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { FEATURE_FLAGS, resolveFlags } from '../features/featureFlags'
-import { PHOTO_FILL_SCALE, PHOTO_WEAVE, photographicFillScale, photographicWeave } from './look'
+import {
+  fixturesRender,
+  PHOTO_FILL_SCALE,
+  PHOTO_WEAVE,
+  photographicFillScale,
+  photographicWeave,
+} from './look'
 
 describe('photographicFillScale — an opt-in key:fill rebalance', () => {
   it('is a no-op when off, so the shipped look cannot move', () => {
@@ -53,5 +59,40 @@ describe('photographicWeave — relief paired with the light balance', () => {
 
   it('keeps linen coarser than cotton, as the shipped pair does', () => {
     expect(PHOTO_WEAVE.draperyLinen).toBeGreaterThan(PHOTO_WEAVE.drapery)
+  })
+})
+
+describe('fixturesRender — the user’s switch vs what a view draws', () => {
+  const DAY = 1
+  const NIGHT = 0
+
+  it('is exactly the user’s switch when the flag is off, in every view and hour', () => {
+    for (const cam of ['firstPerson', 'orbit', 'ortho']) {
+      for (const d of [DAY, 0.5, NIGHT]) {
+        expect(fixturesRender(true, cam, d, false)).toBe(true)
+        expect(fixturesRender(false, cam, d, false)).toBe(false)
+      }
+    }
+  })
+
+  it('never lights fixtures the user switched OFF', () => {
+    for (const cam of ['firstPerson', 'orbit']) {
+      for (const photo of [true, false]) {
+        expect(fixturesRender(false, cam, NIGHT, photo)).toBe(false)
+      }
+    }
+  })
+
+  it('skips them ONLY in first person, in full daylight, under the flag', () => {
+    expect(fixturesRender(true, 'firstPerson', DAY, true)).toBe(false)
+    // …and nowhere else:
+    expect(fixturesRender(true, 'orbit', DAY, true)).toBe(true) // the dollhouse keeps its warmth
+    expect(fixturesRender(true, 'firstPerson', NIGHT, true)).toBe(true) // legibility after dark
+    expect(fixturesRender(true, 'firstPerson', 0.9, true)).toBe(true) // not yet full daylight
+    expect(fixturesRender(true, 'firstPerson', DAY, false)).toBe(true) // flag off
+  })
+
+  it('keeps the lights on when daylight is nonsense, rather than risking a black room', () => {
+    expect(fixturesRender(true, 'firstPerson', Number.NaN, true)).toBe(true)
   })
 })

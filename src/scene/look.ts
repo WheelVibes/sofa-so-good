@@ -279,6 +279,42 @@ export function photographicWeave(base: number, photo: number, on: boolean): num
   return on ? photo : base
 }
 
+/**
+ * Whether the FIXTURES actually render, given the user's switch and the view
+ * (PHOTO-FILL-VIEW).
+ *
+ * This separates two things that were the same value: **the user's lights
+ * setting**, which their toggle owns and which nothing here writes, and **what a
+ * given view renders**, which is a look decision.
+ *
+ * Measured across v0.31.5.163–.165, the photographic balance is **view-dependent**:
+ *
+ *  - **First person.** Every lamp burning at 1 pm is what makes the walk view read
+ *    as CG. Skipping them takes deep shadow from `%<64` 1.28 % into the
+ *    photographic 11.2–12.2 % band and roughly doubles textile micro-contrast.
+ *  - **Orbit / dollhouse.** The opposite. The lit fixtures are what the boot view
+ *    was designed around — without them the model loses its warmth entirely
+ *    (R/B 1.047 → 0.998, saturation −43 %) for no photographic gain, because a
+ *    dollhouse is a product illustration, not a photograph of a room you are
+ *    standing in. `firstPaintDaylight.ts` recorded that argument first.
+ *
+ * So the fixtures are skipped **only** in first person, **only** in full daylight,
+ * and **only** under `photographicFill`. Everything else — the flag off, any other
+ * camera, any other hour, and the user having deliberately switched the lights on
+ * — renders exactly as shipped. Pure, so the whole rule is unit-testable.
+ */
+export function fixturesRender(
+  lightsOn: boolean,
+  cameraMode: string,
+  daylight: number,
+  photographicFill: boolean,
+): boolean {
+  if (!lightsOn) return false
+  if (!photographicFill) return true
+  if (cameraMode !== 'firstPerson') return true
+  return !(Number.isFinite(daylight) && daylight >= 1)
+}
+
 /** Fill multiplier for the current `photographicFill` setting. Pure. */
 export function photographicFillScale(on: boolean): number {
   return on ? PHOTO_FILL_SCALE : 1

@@ -3,9 +3,12 @@ import { Object3D } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
+import { fixturesRender } from '../look'
 import { useQuality } from '../useQuality'
+import { daylightFromAltitude } from './altitudeCurve'
 import { setFixtureGlow } from './fixtureGlow'
 import { aggregateFixtureLights, type FixtureLight, fixtureLightsFor } from './fixtureLights'
+import { useSunPosition } from './useSunPosition'
 
 /**
  * Drives real point lights from light-emitting furniture (lamps, pendants).
@@ -35,8 +38,14 @@ export function FurnitureLights() {
   const lightMoodRaw = useStore((s) => s.lightMood)
   const lightMood = moodEnabled ? lightMoodRaw : 'none'
 
-  // Binary all-on / all-off (the sun-following 'auto' mode was removed).
-  const level = lightsMode === 'on' ? 1 : 0
+  // Binary all-on / all-off (the sun-following 'auto' mode was removed), then
+  // PHOTO-FILL-VIEW: `lightsMode` stays the USER's setting and is never written
+  // here; `fixturesRender` decides whether THIS VIEW draws them. Off by default —
+  // with `photographicFill` off it is exactly `lightsMode === 'on'`.
+  const cameraMode = useStore((s) => s.cameraMode)
+  const daylight = daylightFromAltitude(useSunPosition().altitude)
+  const photoFill = useFeature('photographicFill')
+  const level = fixturesRender(lightsMode === 'on', cameraMode, daylight, photoFill) ? 1 : 0
 
   // Shared "lights are on" factor the fixture primitives poll to glow their
   // emissive shades. It only changes with the switch, so it is written on

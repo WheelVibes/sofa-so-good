@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.166 — separating the user's setting from what a view renders
+
+`.165` found the photographic balance is view-dependent — a win in first person, a loss in the
+dollhouse — and did not act, because the obvious fix would have had `ensureDaylightFirstPaint` fight
+the user's own lights toggle. This does it properly.
+
+`lightsMode` is now purely the **user's setting**: nothing in the render path writes it, and
+`ensureDaylightFirstPaint` is **unconditional again**, exactly as `DEFAULT-GLOOM` (`.86`) recorded —
+`.163`'s boot-time coupling is reverted. What a view *draws* is a separate pure decision,
+`scene/look.ts:fixturesRender(lightsOn, cameraMode, daylight, photographicFill)`, consumed by
+`FurnitureLights`. Fixtures are skipped **only** in first person, **only** in full daylight, **only**
+under the flag; nine assertions pin the rest (flag off ⇒ exactly `lightsMode === 'on'` in every view
+and hour; a user's off is never overridden; the dollhouse and night always keep them; a non-finite
+daylight keeps them rather than risking a black room).
+
+Verified both halves. Dollhouse model region: flag OFF luma 180.9 / R/B 1.047 / sat 0.053 → `.165`
+158.8 / 0.998 / 0.030 → **`.166` 179.7 / 1.051 / 0.056**, i.e. fully restored. Walk view: curtain
+**0.0822**, sofa **0.0958**, `%<64` **11.68 %** — unchanged from `.164` to four decimals. Boot state is
+`lightsMode: 'on'` again.
+
+The `.165` trade is gone; `photographicFill` now costs only what `.86` always said it would — a dimmer
+room when you are standing in it at midday.
+
 ## v0.31.5.165 — the photographic balance is view-dependent, and the dollhouse pays for it
 
 **Measurement only.** `.163`/`.164` measured `photographicFill` at one first-person pose; before it
