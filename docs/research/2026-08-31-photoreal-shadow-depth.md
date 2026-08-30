@@ -1641,3 +1641,36 @@ setting serves a different cached variant rather than mutating a shared one.
 
 Off matches the shipped baseline to a decimal; on reproduces `.168`'s calibrated numbers exactly. The
 photographic look is now one switch away for anybody running the app, and off until they ask for it.
+
+
+## The metric cannot tell cloth from mesh (v0.31.5.172)
+
+`.164` set `PHOTO_WEAVE` at drapery 2.2 / upholstery 2.0 from a sweep that stopped there, and the
+curve was still climbing. The photograph sits at 0.140–0.187. So: does more relief keep paying?
+
+**By the metric, yes — almost all the way there:**
+
+| drapery / upholstery | curtain micro/mean | sofa |
+| --- | --- | --- |
+| **2.2 / 2.0 (shipped)** | 0.0887 | 0.0921 |
+| 3.2 / 3.0 | 0.1140 | 0.1091 |
+| 4.5 / 4.0 | **0.1370** | 0.1235 |
+| photograph | 0.140–0.187 | 0.174 |
+
+At 4.5 the curtain is inside the photograph's range. **And it looks worse.** At a 4× crop the fabric
+is a **regular horizontal-dash lattice** — a repeating waffle, hardest and highest-contrast at 4.5,
+already faintly visible at the shipped 2.2. It is the exact failure `.157` recorded when the
+shipped-fill sweep rejected upholstery 2.0 as "a regular grid that looks like mesh screen"; the
+photographic balance did not remove that ceiling, it only moved it.
+
+**So `PHOTO_WEAVE` stays at 2.2 / 2.0**, and the more useful result is the limit itself:
+**micro-contrast is necessary but not sufficient.** It measures *how much* high-frequency signal a
+surface has, not whether that signal is organised like cloth or like wire mesh, and the two are
+indistinguishable to it. Every measurement in `.157`–`.171` should be read with that caveat.
+
+**Which gives the next materials task a real specification.** The gap is not amplitude — it is
+**regularity**. `buildUpholsteryHeight` builds its weave from `sin(x * 2.4) · sin(y * 2.4)` with a
+phase warp; the threads are evenly spaced and evenly bright, so scaling it up scales up a lattice.
+Real cloth has thread-to-thread variation in *thickness and brightness*, slubs, and the occasional
+missed or doubled pick. Closing the remaining ~2× wants an irregular height field at the same
+amplitude, not a louder regular one — and the way to test it will be the 4× crop, not the number.

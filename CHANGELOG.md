@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.172 — the metric cannot tell cloth from mesh
+
+**Measurement only; nothing changed.** `.164` set `PHOTO_WEAVE` at 2.2 / 2.0 from a sweep that stopped
+there with the curve still climbing, so this pushed it: curtain micro/mean **0.0887 (2.2) → 0.1140
+(3.2) → 0.1370 (4.5)** against a photographic 0.140–0.187. By the number, 4.5 nearly closes the gap.
+
+**And it looks worse.** At a 4× crop the fabric is a regular horizontal-dash lattice — a repeating
+waffle, hardest at 4.5 and already faintly visible at the shipped 2.2. It is the same failure `.157`
+recorded when the shipped-fill sweep rejected upholstery 2.0 as "a regular grid that looks like mesh
+screen": the photographic balance moved that ceiling, it did not remove it.
+
+`PHOTO_WEAVE` stays at 2.2 / 2.0. The more useful result is the limit: **micro-contrast is necessary
+but not sufficient** — it measures how much high-frequency signal a surface carries, not whether that
+signal is organised like cloth or like wire mesh, and cannot tell them apart. Every number in
+`.157`–`.171` should be read with that caveat.
+
+It also specifies the next materials task: the gap is **regularity**, not amplitude.
+`buildUpholsteryHeight` weaves `sin(x·2.4)·sin(y·2.4)` with a phase warp — evenly spaced, evenly
+bright threads, so scaling it scales a lattice. Real cloth varies thread to thread in thickness and
+brightness and drops the occasional pick. The fix is an irregular height field at the same amplitude,
+and the test for it is the 4× crop, not the number.
+
 ## v0.31.5.171 — document the Photographic switch, and prove it in the UI
 
 `.170` shipped a user-facing control and did not document it, which the root rule requires in the same
