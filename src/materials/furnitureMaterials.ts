@@ -1123,6 +1123,25 @@ export function sizedRepeat(
   return [one(w), one(h)]
 }
 
+/** Should this panel's grain be turned a quarter so it runs along the panel's
+ *  LONG axis, as real timber and veneer do?
+ *
+ *  The procedural furniture wood lays its boards out **along v** — `getWoodMaps`
+ *  indexes planks across u, so plank seams are vertical lines and the grain runs
+ *  up the tile. That is right for a tall door and wrong for a wide-short panel
+ *  like a drawer front, which comes out cross-grained. Turning the texture a
+ *  quarter puts the grain back along the long axis.
+ *
+ *  Only the PROCEDURAL wood is turned. Catalog `mat:floor-wood-*` textures are
+ *  authored the other way round — `builtinCatalog.ts` sizes them by "plank length
+ *  = uvScaleX", i.e. boards along u — so turning those would introduce exactly
+ *  the fault this removes. Non-wood finishes have no grain to align. */
+export function grainQuarterTurn(kind: string, w: number, h: number): boolean {
+  if (parseFurnitureMaterialFinish(kind)) return false
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return false
+  return w > h
+}
+
 // AUD-002 — same bounded-LRU + owned-texture disposal as the other caches. Keyed
 // per (kind, colour, sheen, repeatU, repeatV); every cloned texture is `own`ed.
 const sizedCache = new LruCache<MeshStandardMaterial>({
@@ -1144,28 +1163,45 @@ export function getSurfaceMaterialSized(
   h: number,
   sheen = 0,
   metresPerTile = FURNITURE_GRAIN_METRES,
+  quarterTurn = false,
 ): MeshStandardMaterial {
   const base = getSurfaceMaterial(kind, color, 1, sheen)
   if (!base.map && !base.normalMap && !base.roughnessMap) return base
   const [ru, rv] = sizedRepeat(w, h, metresPerTile)
-  const key = `sized:${kind}:${color}:${sheen.toFixed(2)}:${ru}x${rv}`
+  // three composes the uv transform as scale-then-rotate about `center`, so a
+  // quarter turn makes texture-u sample the mesh's v axis and vice versa — the
+  // repeats have to swap with it or the physical period lands on the wrong axis.
+  const [su, sv] = quarterTurn ? [rv, ru] : [ru, rv]
+  const key = `sized:${kind}:${color}:${sheen.toFixed(2)}:${ru}x${rv}${quarterTurn ? ':q' : ''}`
   const hit = sizedCache.get(key)
   if (hit) return hit
   const m = base.clone()
   if (m.map) {
     m.map = own(applyAnisotropy(m.map.clone()))
     m.map.needsUpdate = true
-    m.map.repeat.set(ru, rv)
+    m.map.repeat.set(su, sv)
+    if (quarterTurn) {
+      m.map.center.set(0.5, 0.5)
+      m.map.rotation = Math.PI / 2
+    }
   }
   if (m.normalMap) {
     m.normalMap = own(applyAnisotropy(m.normalMap.clone()))
     m.normalMap.needsUpdate = true
-    m.normalMap.repeat.set(ru, rv)
+    m.normalMap.repeat.set(su, sv)
+    if (quarterTurn) {
+      m.normalMap.center.set(0.5, 0.5)
+      m.normalMap.rotation = Math.PI / 2
+    }
   }
   if (m.roughnessMap) {
     m.roughnessMap = own(applyAnisotropy(m.roughnessMap.clone()))
     m.roughnessMap.needsUpdate = true
-    m.roughnessMap.repeat.set(ru, rv)
+    m.roughnessMap.repeat.set(su, sv)
+    if (quarterTurn) {
+      m.roughnessMap.center.set(0.5, 0.5)
+      m.roughnessMap.rotation = Math.PI / 2
+    }
   }
   sizedCache.set(key, m)
   return m
@@ -1189,7 +1225,16 @@ export function getSurfaceMaterialForBox(
   metresPerTile = FURNITURE_GRAIN_METRES,
 ): MeshStandardMaterial {
   const [w, h, d] = dims
-  return getSurfaceMaterialSized(kind, color, w, Math.max(h, d), sheen, metresPerTile)
+  const tall = Math.max(h, d)
+  return getSurfaceMaterialSized(
+    kind,
+    color,
+    w,
+    tall,
+    sheen,
+    metresPerTile,
+    grainQuarterTurn(kind, w, tall),
+  )
 }
 
 /** Dispatch a hard-surface material by finish kind ('wood' | 'painted' |

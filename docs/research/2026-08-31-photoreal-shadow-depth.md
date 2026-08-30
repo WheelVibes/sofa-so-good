@@ -706,3 +706,33 @@ scale. A 0.86 × 0.19 m drawer front should have grain running along its long ax
 grain axis is fixed in UV space, so a wide-short panel gets cross-grain. That needs a per-panel
 texture ROTATION (`texture.rotation` / `center`), and is the natural next step — recorded here rather
 than bundled in.
+
+
+## Grain DIRECTION, the other half of the same defect (v0.31.5.149)
+
+`.148` closed the scale error and said plainly what was left: the fronts still read as vertically
+striped, because a texture's grain axis is fixed in UV space and a wide-short panel therefore comes
+out **cross-grained**. Real timber and veneer run the grain along the panel's long axis; a drawer
+front has horizontal grain.
+
+**Verified the axis rather than assuming it.** The procedural furniture wood lays its boards out
+along **v** — `getWoodMaps` "index[es] across u", so plank seams are vertical lines. Right for a
+2 m door, wrong for a 0.86 × 0.19 m drawer front. **But the catalog wood is authored the other way:**
+`builtinCatalog.ts` sizes `mat:floor-wood-*` by *"plank length = uvScaleX"*, i.e. boards along u. So
+a blanket rotation would have *introduced* cross-grain on every DLC wood finish. `grainQuarterTurn`
+therefore turns **procedural wood only**, and a unit test pins that a `mat:` id is never turned.
+
+**Mechanics.** three composes the uv transform as scale-then-rotate about `center`, so at
+`rotation = π/2` texture-u samples the mesh's v axis and texture-v samples u — the repeat pair has to
+**swap with it** or the physical period lands on the wrong axis. Four more unit tests cover the
+predicate; `grain-scale.mjs` now prints `rot=90` in the key so a turned material's u/v columns are
+not misread.
+
+**Visually — three states at one pose, stacked:** original (tight vertical ribs) → `.148` sized
+(broader vertical bands) → `.149` sized + turned (**grain running horizontally along the drawer
+front**). The third is unmistakably the most furniture-like; the ribbed look is gone. Tall panels are
+untouched by construction (`w > h` is the condition), so wardrobe doors keep their vertical grain,
+which is correct.
+
+*Same caveat as `.148`: the walk teleport does not land pixel-identically between runs, so the frames
+differ slightly in pose. Grain direction is not something a pose shift can produce.*

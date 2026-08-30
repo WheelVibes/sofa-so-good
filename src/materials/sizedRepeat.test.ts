@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FURNITURE_GRAIN_METRES, sizedRepeat } from './furnitureMaterials'
+import { FURNITURE_GRAIN_METRES, grainQuarterTurn, sizedRepeat } from './furnitureMaterials'
 
 describe('sizedRepeat — one physical grain period, not one tile per face', () => {
   it('derives u and v SEPARATELY from world size, so a face is never stretched', () => {
@@ -40,5 +40,28 @@ describe('sizedRepeat — one physical grain period, not one tile per face', () 
 
   it('quantises so near-identical panels share one cached variant', () => {
     expect(sizedRepeat(0.9001, 1)).toEqual(sizedRepeat(0.9004, 1))
+  })
+})
+
+describe('grainQuarterTurn — grain runs along the panel long axis', () => {
+  it('turns a wide-short procedural-wood panel (a drawer front)', () => {
+    expect(grainQuarterTurn('wood', 0.858, 0.185)).toBe(true)
+  })
+
+  it('leaves a tall panel alone — its grain already runs up', () => {
+    expect(grainQuarterTurn('wood', 0.437, 1.99)).toBe(false)
+    expect(grainQuarterTurn('wood', 1, 1)).toBe(false)
+  })
+
+  it('never turns a catalog `mat:` texture — those are authored boards-along-u', () => {
+    // Turning them would introduce exactly the cross-grain this removes.
+    expect(grainQuarterTurn('mat:floor-wood-oak', 0.858, 0.185)).toBe(false)
+    expect(grainQuarterTurn('mat:floor-wood-walnut', 2, 0.2)).toBe(false)
+  })
+
+  it('is safe on degenerate sizes', () => {
+    expect(grainQuarterTurn('wood', Number.NaN, 1)).toBe(false)
+    expect(grainQuarterTurn('wood', 0, 1)).toBe(false)
+    expect(grainQuarterTurn('wood', -2, 1)).toBe(false)
   })
 })

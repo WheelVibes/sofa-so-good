@@ -10,6 +10,11 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   a **4.6:1 stretch no scalar can undo**. `getSurfaceMaterialForBox(kind, color, [w,h,d], sheen)`
   derives `(repeatU, repeatV)` from world size at a fixed `FURNITURE_GRAIN_METRES` (0.9 m), taking
   `v` from `max(h, d)` so it lands on the upright face of a tall panel and the top face of a shelf.
+  It also turns the grain a quarter (`grainQuarterTurn`) on a wide-short panel so the boards run
+  along the panel's LONG axis, as real timber does — the procedural wood lays boards along **v**
+  (`getWoodMaps` indexes planks across u), which is right for a tall door and cross-grained on a
+  drawer front. **Catalog `mat:floor-wood-*` textures are authored the other way (boards along u,
+  `builtinCatalog.ts` sizes them by "plank length = uvScaleX"), so they are never turned.**
   Measure with `scripts/dev-probes/grain-scale.mjs`.
   **Use it for FRONTS (doors, drawer/flap fronts), not for structural carcass panels.** Carcass
   faces are flush with each other by construction; giving each its own variant turns invisible

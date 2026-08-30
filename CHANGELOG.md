@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.149 — grain direction: boards run along the panel's long axis
+
+The other half of `.147`/`.148`. A texture's grain axis is fixed in UV space, so a wide-short panel
+comes out **cross-grained** — real timber and veneer run the grain along the long axis, and a drawer
+front has horizontal grain.
+
+`getSurfaceMaterialForBox` now turns the grain a quarter on a wide-short panel via the new pure
+`grainQuarterTurn(kind, w, h)`. The axis was **verified, not assumed**: the procedural furniture wood
+lays boards along **v** (`getWoodMaps` indexes planks across u), while catalog `mat:floor-wood-*`
+textures are authored the other way (`builtinCatalog.ts` sizes them by "plank length = uvScaleX").
+A blanket rotation would therefore have *introduced* cross-grain on every DLC wood finish, so only
+procedural wood is turned — pinned by a unit test. three composes the uv transform as
+scale-then-rotate about `center`, so the repeat pair swaps with the rotation or the physical period
+lands on the wrong axis.
+
+Visually, three states at one pose: original tight vertical ribs → `.148` broader vertical bands →
+now grain running horizontally along the drawer front. The ribbed look is gone. Tall panels are
+untouched by construction, so wardrobe doors keep their (correct) vertical grain.
+`grain-scale.mjs` prints `rot=90` for turned materials so their u/v columns are not misread.
+
 ## v0.31.5.148 — furniture grain sized from world dimensions
 
 Ships the fix `.147` measured. New in `materials/furnitureMaterials.ts`: `FURNITURE_GRAIN_METRES`

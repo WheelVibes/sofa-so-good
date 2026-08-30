@@ -12,6 +12,11 @@
  * box dimensions, the material's `map.repeat`, and the implied metres-per-tile on
  * each axis, grouped by material so the spread within one material is obvious.
  * A spread of more than ~2x within a single material is a visible tell.
+ *
+ * NOTE: a material whose grain has been quarter-turned (`getSurfaceMaterialForBox`
+ * on a wide-short panel) samples texture-u from the mesh's v axis, so its `repeat`
+ * pair is SWAPPED relative to the mesh axes. The key prints `rot=90` for those —
+ * read their u and v columns the other way round.
  */
 import puppeteer from 'puppeteer'
 import { appUrl, assertSceneAlive } from './lib.mjs'
@@ -81,7 +86,8 @@ const out = await page.evaluate(async () => {
     if (!Number.isFinite(sx) || sx <= 0) return
     const ru = m.map.repeat.x || 1
     const rv = m.map.repeat.y || 1
-    const key = `${m.uuid.slice(0, 8)}|${m.color?.getHexString?.()}|r=${ru.toFixed(2)}x${rv.toFixed(2)}`
+    const rot = Math.round(((m.map.rotation || 0) * 180) / Math.PI)
+    const key = `${m.uuid.slice(0, 8)}|${m.color?.getHexString?.()}|r=${ru.toFixed(2)}x${rv.toFixed(2)}${rot ? `|rot=${rot}` : ''}`
     if (!byMat.has(key)) byMat.set(key, [])
     byMat.get(key).push({
       def: it?.defId ?? '(unowned)',
