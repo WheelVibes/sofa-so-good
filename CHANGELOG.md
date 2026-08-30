@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.193 — the hemisphere reaches the ceiling band; `.191`/`.192` underside numbers RETRACTED
+
+**The ceiling result (trusted instrument).** Sweeping a whole-floor bounce — the hemisphere's
+`groundColor`, scaled under the photographic look only — through `light-distribution.mjs`:
+
+| ground bounce | `%<64` | ceiling | wall |
+| --- | --- | --- | --- |
+| ×1 (shipped) | 11.88 % | 0.87 | 1.11 |
+| ×3.5 | 9.22 % | 1.01 | 1.12 |
+| **×6.5** | **7.20 %** | **1.08** | 1.13 |
+| photographs | 1.9–12.2 % | 1.08–1.28 | 0.53–1.43 |
+
+At ×6.5 the photographic look's ceiling reaches the bottom of the photographic band — the first time
+in this arc — and does it **without inflating the walls** (1.11 → 1.13 across the sweep), which is
+exactly what `.190` showed a positioned point light could never do. The deficit is a whole-floor
+phenomenon and a whole-floor term moves it.
+
+**The retraction.** `.192` reported the default look failing `.183`'s underside criterion at 0.845 and
+the photographic look passing at 0.660. Both are invalid, along with every underside number in `.191`
+and `.192`: `underside-shadow.mjs` never suppressed the onboarding modal, which renders over the canvas
+with a blurred, dimmed backdrop, so every pixel read was the scene through that scrim.
+`light-distribution.mjs` has always set `hdb_onboarded` before first navigation; this probe did not,
+and I never looked at a frame.
+
+That also disposes of `.192`'s argument that five agreeing measurements validated the reading — they
+agreed because all five shared the same overlay. **Consistency across arms is not validation when every
+arm shares an unexamined common factor.**
+
+Looking at one frame surfaced two more defects: no HUD exclusion (`.185`'s lesson, which
+`light-distribution.mjs` already handles), and a pose that lands in the **main bedroom** rather than
+the living/dining room every other measurement uses. Onboarding is fixed; those two are not.
+
+**Nothing shipped.** ×6.5 now has a confirmed benefit and an unmeasured cost. Repair the probe,
+re-derive the underside baseline, then decide — including whether to buy the lost shadow depth back
+with the fill scale as `.183`'s two-parameter fit did.
+
 ## v0.31.5.192 — the underside criterion, measured: the DEFAULT look is the one that fails it
 
 `.191` left the underside instrument half working. Its proposed fix — classify floor by distance to the

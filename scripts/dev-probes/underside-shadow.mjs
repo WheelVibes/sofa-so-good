@@ -63,6 +63,16 @@ const browser = await puppeteer.launch({
   defaultViewport: { width: 1280, height: 800 },
 })
 const page = await browser.newPage()
+// SUPPRESS ONBOARDING BEFORE THE FIRST NAVIGATION. Without this the welcome
+// modal renders over the canvas with a BLURRED, DIMMED backdrop, and every pixel
+// read from the screenshot is the scene seen through that scrim rather than the
+// scene. It invalidated this probe's whole `.191`/`.192` output — see the `.193`
+// entry in the research doc. `light-distribution.mjs` has always done this.
+await page.evaluateOnNewDocument(() => {
+  try {
+    localStorage.setItem('hdb_onboarded', '1')
+  } catch {}
+})
 await page.goto(appUrl(), { waitUntil: 'networkidle2', timeout: 90000 })
 await page.waitForFunction(() => !!window.__store, { timeout: 20000 })
 await page.evaluate(() => window.__store.getState().dismissLocationPrompt?.())

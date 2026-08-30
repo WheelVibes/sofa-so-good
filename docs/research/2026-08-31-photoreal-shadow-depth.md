@@ -2606,3 +2606,73 @@ term added to the photographic look may raise this from 0.660 to at most ~0.73 b
 `.183`'s defect. That is the headroom, and `underside-shadow.mjs` is the pass/fail test.
 
 **Nothing changed in `src/`.**
+
+---
+
+## `.193` — the hemisphere reaches the ceiling band, and `.191`/`.192`'s underside numbers are RETRACTED
+
+Two results, and they have to be read separately because they come from instruments of very different
+standing.
+
+### The ceiling sweep (trusted instrument, real result)
+
+`light-distribution.mjs` is the validated one — it excludes the HUD rectangles and has been the
+measuring stick since `.179`. Sweeping a whole-floor bounce (the hemisphere's `groundColor`, scaled
+under the photographic look only):
+
+| ground bounce | frame mean | `%<64` | ceiling | wall | floor |
+| --- | --- | --- | --- | --- | --- |
+| ×1 (shipped) | 110.4 | 11.88 % | 0.87 | 1.11 | 1.13 |
+| ×2 | 114.8 | 10.27 % | 0.94 | 1.11 | 1.11 |
+| ×3.5 | 120.2 | 9.22 % | 1.01 | 1.12 | 1.09 |
+| ×5 | 124.9 | 8.25 % | 1.05 | 1.12 | 1.07 |
+| **×6.5** | 128.9 | **7.20 %** | **1.08** | 1.13 | 1.05 |
+| photographs | | 1.9–12.2 % | 1.08–1.28 | 0.53–1.43 | 0.87–1.30 |
+
+**At ×6.5 the photographic look's ceiling reaches the bottom of the photographic band** — the first
+time anything in this arc has got there — and it does so **without inflating the walls** (1.11 → 1.13
+across the whole sweep). That is the property `.190` showed a positioned point light could never have,
+where the walls rose +0.15 for the ceiling's +0.04. Shape confirmed: the deficit is a whole-floor
+phenomenon and a whole-floor term is what moves it. `%<64` falls 11.88 → 7.20 %, which is a real loss
+of shadow depth but stays inside the four-photograph range `.186` established.
+
+### The underside numbers are retracted
+
+`.192` reported that the default look *fails* `.183`'s underside criterion at 0.845 while the
+photographic look passes at 0.660. **Both figures are invalid, and so is every underside number in
+`.191` and `.192`.**
+
+`underside-shadow.mjs` never suppressed the onboarding modal. It renders over the canvas with a
+**blurred, dimmed backdrop**, so every pixel the probe read was the scene seen through that scrim, not
+the scene. `light-distribution.mjs` has always set `hdb_onboarded` in an `evaluateOnNewDocument` before
+the first navigation; this probe simply did not, and I did not look at a frame until this round.
+
+That also explains the one thing that had looked like evidence. `.192` argued the readings were
+trustworthy because five measurements across different poses and classifiers agreed to ±0.02. They
+agreed because they were all dominated by the same uniform overlay. **Consistency across arms is not
+validation when every arm shares an unexamined common factor** — the arms have to be able to disagree.
+
+Looking at a frame immediately surfaced two further defects in the same probe:
+
+- **No HUD exclusion.** `.185` established that a puppeteer element screenshot does not exclude
+  overlaying DOM, and `light-distribution.mjs` masks the toolbar, measure bar and minimap for exactly
+  this reason. This probe masks nothing, so any floor sample under the walk-mode hint bar, the "Turn
+  off ceiling light" pill or the minimap read the HUD's pixels.
+- **It was measuring the wrong room.** The pose derives from "the first window opening in the plan",
+  which is the **main bedroom** — a strip of floor beside a bed — not the living/dining room every
+  other measurement in this arc uses.
+
+The onboarding fix is committed. The other two are not, and until they are there is no valid underside
+measurement at all.
+
+### Consequence for the bounce term
+
+**Not shipped, and it must not be until the constraint is real.** `.192`'s whole contribution was to
+turn `.183`'s eyeball objection into a pass/fail test; with that test retracted, ×6.5 has a confirmed
+benefit and an *unmeasured* cost. Shipping on the benefit alone would be exactly the "unverified fix"
+this arc keeps refusing.
+
+The ceiling result stands on its own and is the most encouraging thing here in ten rounds. The order of
+work is now: repair the probe (HUD rectangles, living-room pose), re-derive the underside baseline for
+both looks, and only then decide on ×6.5 — including whether to buy the lost shadow depth back with the
+fill scale, as `.183`'s two-parameter fit did.
