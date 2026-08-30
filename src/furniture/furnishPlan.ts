@@ -12,15 +12,17 @@
  *
  * Pure + deterministic (no store, no GPU) → unit-testable.
  */
-import { findItemOverlaps, findWallClips } from '../collision/placement'
+import { findItemOverlaps, findWallClips, itemFootprint } from '../collision/placement'
 import { GROUND_LEVEL_ID, levelAsPlan, planLevels } from '../floorplan/levels'
 import { planCollisionWalls } from '../floorplan/planGeometry'
 import { roomCategory } from '../floorplan/roomCategory'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
 import { planRoomArea } from '../floorplan/types'
 import { rectsOverlap } from '../layout/arrangeGeometry'
+import { roleOf } from '../layout/arrangeRoles'
 import { arrangeAllRoomsForPlan } from '../layout/autoArrange'
 import { doorKeepOutRects, footprintAabb } from '../layout/clearance'
+import { flushToWall, nearestWallEdge, rotationForEdge } from '../layout/faceWall'
 import { mergeGeneratedCatalog } from './generatedCatalog'
 import { applyDecorStylingForPlan } from './layout/decorStyling'
 import type { LayoutPreset } from './layoutPresets'
@@ -317,6 +319,100 @@ function dropWallClippers(
 }
 
 /**
+ * Place the MOUNTED fixtures a kit seeded but the arranger deliberately left
+ * alone (MOUNTED-SEED).
+ *
+ * `arrangeCore` treats role `'mounted'`/`'ceiling'` as FIXED and keeps it at its
+ * current transform — correct, because that is what protects a fixture a USER
+ * positioned (and a locked item) from being shuffled. But `seedRoom` gives every
+ * kit piece the ROOM CENTRE as a placeholder, so on the furnish-from-scratch
+ * path a mount's "current transform" is a position nobody chose, and the
+ * arranger faithfully preserves it. Measured on `tpl-terrace-ground`: the
+ * `range-hood` sat at [4.75, 10.75] — the kitchen's exact centre — while the
+ * `stove` was correctly placed at [5.38, 11.53] a metre away, leaving a metallic
+ * hood hanging at `mountHeight` 1.5 m in open space. At the room-centroid walk
+ * pose that put it 0.06 m above the walker's eye and blacked out the top of the
+ * frame (kitchen ceiling band 37 luma against the identically-sized dining
+ * room's 210).
+ *
+ * The guard is deliberately narrow: a mount is only moved while it still sits at
+ * its room's exact centre, i.e. it is demonstrably an unplaced seed. Anything the
+ * arranger (or a user) has already positioned is left untouched, so this cannot
+ * regress the behaviour `isFixed` exists to protect.
+ *
+ * An extractor hood belongs over the cooktop, so it takes the stove's position
+ * and rotation outright — which is exactly what the default flat's hand-authored
+ * preset does (there, `stove` and `range-hood` share identical coordinates).
+ * Every other stranded mount goes flush to its nearest wall, facing the room.
+ */
+export function placeSeededMounts(
+  plan: FloorPlan,
+  items: FurnitureItem[],
+  defs: Record<string, FurnitureDef>,
+): FurnitureItem[] {
+  const EPS = 1e-6
+  const byId = new Map(items.map((it) => [it.id, it]))
+  const moved = new Map<string, FurnitureItem>()
+  for (const level of planLevels(plan)) {
+    const onLevel = items.filter((it) => (it.levelId ?? GROUND_LEVEL_ID) === level.id)
+    for (const room of level.rooms) {
+      const [cx, cz] = roomCentre(room)
+      const inRoom = onLevel.filter(
+        (it) =>
+          it.position[0] >= room.origin[0] &&
+          it.position[0] <= room.origin[0] + room.width &&
+          it.position[1] >= room.origin[1] &&
+          it.position[1] <= room.origin[1] + room.depth,
+      )
+      // Still exactly at the seed point = never placed by the arranger.
+      const stranded = inRoom.filter(
+        (it) =>
+          roleOf(it.defId, defs) === 'mounted' &&
+          Math.abs(it.position[0] - cx) < EPS &&
+          Math.abs(it.position[1] - cz) < EPS,
+      )
+      if (stranded.length === 0) continue
+      const rect = {
+        minX: room.origin[0],
+        minZ: room.origin[1],
+        maxX: room.origin[0] + room.width,
+        maxZ: room.origin[1] + room.depth,
+      }
+      for (const it of stranded) {
+        // A hood follows the cooktop. Only a stove that itself moved off the
+        // seed point is a real placement to follow.
+        if (it.defId === 'range-hood') {
+          const stove = inRoom.find(
+            (o) =>
+              o.defId === 'stove' &&
+              (Math.abs(o.position[0] - cx) > EPS || Math.abs(o.position[1] - cz) > EPS),
+          )
+          if (stove) {
+            moved.set(it.id, {
+              ...it,
+              position: [stove.position[0], stove.position[1]],
+              rotation: stove.rotation,
+            })
+            continue
+          }
+        }
+        const def = defs[it.defId]
+        if (!def) continue
+        const fp = itemFootprint(it, def)
+        const edge = nearestWallEdge(it.position, rect)
+        moved.set(it.id, {
+          ...it,
+          position: flushToWall(it.position, rect, edge, fp.hx, fp.hz),
+          rotation: rotationForEdge(edge),
+        })
+      }
+    }
+  }
+  if (moved.size === 0) return items
+  return items.map((it) => moved.get(it.id) ?? byId.get(it.id) ?? it)
+}
+
+/**
  * Furnish every room of `plan` with a kind-appropriate kit, arranged to the
  * plan's walls + openings, restyled by the preset's palette. Returns a clean,
  * collision-valid item list ready to drop into the store. Existing `items` are
@@ -358,7 +454,7 @@ export function furnishPlanItems(
   if (seeded.length === 0) return []
   const arranged = arrangeAllRoomsForPlan(plan, seeded, defs, doors)
   const furniture = dropWallClippers(
-    dropDoorBlockers(dropOverlaps(arranged, defs), defs, plan),
+    dropDoorBlockers(dropOverlaps(placeSeededMounts(plan, arranged, defs), defs), defs, plan),
     defs,
     plan,
     doors,

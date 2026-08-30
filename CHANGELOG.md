@@ -5,6 +5,89 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.103 — MOUNTED-SEED: wall/ceiling fixtures get placed instead of left on the seed point
+
+**Found by walking the second template ever reviewed.** `.95` had established that only
+`tpl-hdb-maisonette` of the nineteen shipped templates had been looked at; this round walked
+`tpl-terrace-ground` (6.4 x 14.0 m, ground ceiling **3.0 m** rather than HDB's 2.6 m, upper
+storey `ct-up` at 3.3 m).
+
+**A first pass over the 28 frames showed the kitchen's ceiling band near-black.** Measured per
+frame (top band, rows 150–300, centre 60% width):
+
+    ct-dining 210/209/217/213   ct-living 200/201/198/161   ct-porch 206/162/191/199
+    ct-powder 202/189/221/217   ct-yard   229/189/199/156   ct-stair 149/214/155/26
+    ct-kit     37/41/83/33
+
+`ct-kit` and `ct-dining` are declared with **identical geometry** (2.9 x 2.5 at z=9.5, adjacent,
+differing only in origin x, floor material and room kind), so 37 against 210 is a real signal
+rather than a lighting difference.
+
+**Four hypotheses died on the way to the cause, each to one measurement, and the answer was
+none of them.** (1) "A multi-storey plan's ground storey renders a dark ceiling" — killed by the
+table above: dining, living and yard share that storey and read 200+. (2) "The kitchen's ceiling
+or a bulkhead is dark" — killed by raycasting straight up from each room centroid: living,
+stair, dining, porch and yard all hit a `PlaneGeometry` ceiling at y=3, `#fafafa`,
+MeshStandardMaterial, BackSide. The ceiling is white everywhere. (3) "It is a pendant lamp" —
+killed by dumping the room's items. (4) A reported catastrophe — see the retraction below.
+**What the kitchen ray actually hit, 0.06 m above the walker's eye, was the RANGE HOOD**
+(`#c4c8cc`, metalness 0.9, cone, `mountHeight: 1.5`) hanging in open space at `[4.75, 10.75]`
+— the kitchen's exact centre — while the `stove` sat correctly placed at `[5.38, 11.53]`, a
+metre away.
+
+**RETRACTION — I reported a major defect that was my own probe's bug.** I stated that
+`applyLayoutPreset('move-in')` put three `bed-queen` in the terrace's ground living room,
+sanitaryware in the car porch and kitchen, and a sofa in the service yard. That was wrong. The
+probe filtered items by XZ and ignored `levelId`, while `plan.rooms` is ground-only and this
+template's upper storey stacks directly above the ground floor — so upper bedrooms and
+bathrooms were reported as ground-floor contents. Level-filtered, the ground floor is entirely
+sensible: living room with sofa/rug/coffee table/TV/armchair, dining table with four chairs,
+powder room correct, stair hall with shoe cabinet and bench, car porch empty. **The more
+alarming the reading, the more likely it is the instrument.**
+
+**The root cause, which the code documents against itself.** `arrangeCore`
+(`layout/autoArrange.ts`) treats role `'mounted'`/`'ceiling'` as FIXED and keeps it at its
+current transform — "wall/ceiling mounts … AND any user-LOCKED item, which must stay exactly
+where the user left it". That is right for a fixture a USER positioned. But
+`furnishPlan.ts:seedRoom` seeds **every** kit piece at the ROOM CENTRE, so on the
+furnish-from-scratch path a mount's "current transform" is a placeholder nobody chose, and the
+arranger faithfully preserves it. **The seeder and the arranger disagree about what a mounted
+item's initial position means.** The default flat never exposed it because `applyLayoutPreset`
+takes the hand-authored `buildPresetItems` branch there — where `stove` and `range-hood` share
+identical coordinates.
+
+**Scope, measured rather than assumed: 19 of 19 shipped templates, 59 stranded fixtures**
+(2–6 each — `range-hood`, `bathroom-mirror`, `wall-mirror`):
+`2room 2 · 3room 3 · 4room 3 · 5room 3 · exec 3 · 3gen 4 · jumbo 3 · maisonette 6 · studio 2 ·
+1bed 2 · loft 2 · condo-1bed 2 · condo-1study 2 · condo-2bed 3 · condo-3bed 3 · condo-4bed 4 ·
+condo-studio 2 · penthouse 4 · terrace 6`.
+
+**The fix.** New `placeSeededMounts(plan, items, defs)` runs inside `furnishPlanItems` between
+`arrangeAllRoomsForPlan` and `dropOverlaps`. A `range-hood` takes the `stove`'s position and
+rotation (what the default flat's authored layout already does); any other stranded mount goes
+`flushToWall` on its `nearestWallEdge` with `rotationForEdge` — reusing `layout/faceWall.ts`
+rather than reinventing placement maths. **The guard is deliberately narrow: a mount is moved
+only while it still sits at its room's EXACT centre (1e-6)**, i.e. demonstrably an unplaced
+seed, so `isFixed`'s protection of user-placed and locked fixtures is untouched — weakening
+that would have traded this bug for a worse one. Level-scoped via `planLevels`, so an
+upper-storey mount can never be dragged onto a ground room.
+
+**Verification.** Hood-to-stove distance **1.0026 m → < 0.01 m**. Same tour arm afterwards
+(`medium/on/manual13`, 7 rooms / 28 frames, 261 meshes / 94,851 tris against 262 / 94,839
+before — the scene is the same, only placement changed): the kitchen ceiling band went
+**37/41/83/33 → 223/208/209/227**, matching its twin dining room's ~210, and the cropped frame
+shows the dark slab gone. 6 new tests, proven discriminating by removing the pipeline call: the
+two pipeline tests fail on the old code while the four testing the helper's contract correctly
+hold either way. They cover hood-over-stove, no stranded mount on ANY of the 19 templates, a
+user-placed mount not being moved, array identity when nothing is stranded, a hood with no
+stove still leaving mid-room, and a multi-storey control that mounts stay on their own storey.
+
+**Recorded, not fixed.** `ct-stair-y3` rose from 26 to 92 but stays darker than its neighbours:
+that frame is the `wall-mirror`, now correctly flush to its wall, seen head-on at close range.
+It renders as a dark grey-green slab because mirrors have no reflection in this renderer.
+Whether that is worth a planar reflection is a graphics-cost decision, not a defect to fix
+here.
+
 ## v0.31.5.102 — PLAN-EXTENT: the comment/tape click planes cover the loaded plan
 
 **Closing round of the default-flat constant audit.** The remaining fourteen importers of

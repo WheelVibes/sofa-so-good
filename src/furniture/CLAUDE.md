@@ -2,6 +2,29 @@
 
 Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
 
+- **A kit-seeded WALL/CEILING MOUNT must be placed by `placeSeededMounts`, because the arranger
+  will not move it (MOUNTED-SEED, v0.31.5.103).** `seedRoom` gives every kit piece the ROOM
+  CENTRE as a placeholder, and `layout/autoArrange.ts:arrangeCore` treats role
+  `'mounted'`/`'ceiling'` as FIXED — deliberately, so a fixture a USER positioned (or locked) is
+  never shuffled. On the furnish-from-scratch path those two facts combine badly: the arranger
+  faithfully preserves a position nobody chose. Measured before the fix: **19 of 19 shipped
+  templates, 59 stranded fixtures** (`range-hood`, `bathroom-mirror`, `wall-mirror`, 2–6 each).
+  On `tpl-terrace-ground` the `range-hood` sat at the kitchen's exact centre, 1.0026 m from the
+  `stove`, hanging at `mountHeight` 1.5 m in open space — at the room-centroid walk pose that
+  put a metallic cone 0.06 m above the walker's eye and blacked out the top of the frame
+  (ceiling band 37 luma against the identically-sized dining room's 210; 223 after the fix).
+  · **The guard is the whole safety argument: a mount is repositioned ONLY while it still sits
+  at its room's exact centre (1e-6).** That is what makes it demonstrably an unplaced seed
+  rather than someone's choice. **Do not widen it, and do not weaken `isFixed`** — moving
+  user-placed mounts is exactly what that flag exists to prevent.
+  · A `range-hood` follows the `stove` (position + rotation), which is what the default flat's
+  hand-authored preset already does — there `stove` and `range-hood` share identical
+  coordinates. Everything else goes `flushToWall` on `nearestWallEdge` via `layout/faceWall.ts`;
+  don't hand-roll placement maths.
+  · The pass is level-scoped through `planLevels`, so an upper-storey mount can never be pulled
+  onto a ground-floor room. **The DEFAULT FLAT never exercises any of this** — `applyLayoutPreset`
+  takes the `buildPresetItems` branch there and never runs this arranger, which is precisely why
+  the bug survived: every visual round before `.95` was the default flat.
 - **CPU-heavy steps run in a pooled Worker, never the main thread.** Three instances today:
   `optimize/runOptimize.ts` (Draco/WebP re-encode — its own from-scratch pool, don't refactor it),
   `convert/runConvert.ts` (OBJ/FBX/STL/… → GLB via `convertModel`) and `glbEdit/csgWorkerPool.ts`
