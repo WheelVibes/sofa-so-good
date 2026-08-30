@@ -2479,3 +2479,67 @@ approach left standing that both fits the physics and works in this renderer.
 **Nothing shipped; reverted to the `.188` baseline.** Two candidate paths remain, and both are
 concrete: diagnose why spot lights are inert here (which unlocks the directional emitter a Lambert
 ceiling can receive), or re-open the hemisphere at a gain low enough to survive the underside test.
+
+---
+
+## `.191` — a number for `.183`'s underside objection, and an instrument that is only half built
+
+`.190` left one approach standing: a whole-floor bounce term, which is what a hemisphere models and
+what actually moved the ceiling (0.99 → 1.12 in `.183`) where a window-local card cannot. `.183`
+refused it on a judgement made by eye — at ×4.5 "the undersides of the TV console and the coffee table
+are visibly lighter than a piece of furniture sitting on a floor in shadow should be". That is the
+right objection and the wrong kind of evidence: it cannot be re-checked at a smaller gain. Before
+re-opening the term, the objection needs a number.
+
+### The photographic target
+
+Undersides themselves barely appear in an interior photograph — furniture sits close to the floor and
+the underside is a dark gap. The measurable form of "sitting on a floor in shadow" is the **shadowed
+floor beneath a piece against the lit floor beside it**, same material, so the ratio measures shadow
+rather than albedo:
+
+| reference | shadowed | lit | ratio |
+| --- | --- | --- | --- |
+| photo D, parquet | 103 | 143 | **0.725** |
+| photo C, pale wood | 121 | 185 | **0.654** |
+| photo C, pale wood (2) | 104 | 180 | **0.579** |
+
+So real furniture sits over floor at roughly **0.58–0.73** of the open floor beside it. A term that
+lifts the app above ~0.73 is `.183`'s defect, now falsifiable. (A fourth crop read 1.057 and was
+discarded on inspection — it had missed the shadow entirely. Eyeball every crop; `.181` and this round
+both paid for it.)
+
+### The instrument, and what it cannot yet do
+
+`scripts/dev-probes/underside-shadow.mjs` raycasts a screen grid, keeps only near-horizontal up-facing
+hits at floor height (geometric mask, never a screen rectangle — `.181`), then casts a second ray
+straight up from each to classify it as under furniture or open.
+
+**The app's readings all land inside the photographic range**: 0.657 / 0.688 / 0.689 across three
+poses, and 0.752 at a wider overhead test. **But they rest on 1–7 samples**, so nothing is settled.
+Floor that is both under furniture *and* visible from standing eye height is rare — a sofa hides its
+own under-floor. The classifier is the limit, not the pose.
+
+The redesign that fixes it: classify floor samples by horizontal distance to the nearest furniture
+footprint rather than by an upward ray, and compare the near band to the far band. That is also a
+closer match to what the photograph crops actually measured — shadowed floor *beside and beneath*
+furniture, not strictly under it.
+
+### Two instrument traps, both of which produced confident wrong answers first
+
+- **A direct `camera.lookAt` is stomped by `FirstPersonCamera`**, which rewrites the camera's
+  orientation every frame from its own yaw/pitch state. `DIR=in` and `DIR=out` came back
+  **byte-identical** (333/7 samples, 0.689 both) — a mechanism silently not firing, reading exactly
+  like a real result. Pose now goes through the app's own `requestWalkTeleport` + `__walkLook`, the
+  way `light-distribution.mjs` already did, and the two directions then differ.
+- **The overhead ray hits the CEILING like anything else.** At `OCCLUDE=4.0` every floor sample in
+  the room classified as "under furniture" (332 under / 0 open) and the ratio would have silently
+  become 1. The clamp must stay below ceiling height; the probe now warns when it does not.
+
+A third failure was pure flakiness: under machine load the sampling pass returned an empty set, which
+reads as "this pose sees no floor". Four runs were lost to it before the pattern was clear. The pass
+now retries until it finds floor, and the retry reproduced the original numbers exactly.
+
+**Nothing was changed in `src/`.** This round bought a target, an instrument, and three traps; the
+hemisphere sweep it was built for is the next round's work, and it now has a pass/fail criterion
+rather than a judgement call.

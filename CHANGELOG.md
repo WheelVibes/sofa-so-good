@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.191 — a number for `.183`'s underside objection
+
+`.190` left the whole-floor bounce term as the only approach still standing, and `.183` had refused it
+by eye: at x4.5 the undersides of the console and coffee table looked "lighter than a piece of
+furniture sitting on a floor in shadow should be". Right objection, wrong kind of evidence — it cannot
+be re-checked at a smaller gain. This round gives it a number.
+
+**The photographic target.** Undersides barely appear in an interior photograph, so the measurable
+form is shadowed floor beneath a piece against lit floor beside it, same material: parquet **0.725**,
+pale wood **0.654** and **0.579**. Real furniture sits over floor at roughly **0.58–0.73** of the open
+floor. Above ~0.73 is `.183`'s defect, now falsifiable. (A fourth crop read 1.057 and was discarded on
+inspection — it had missed the shadow.)
+
+**The instrument is half built.** `underside-shadow.mjs` masks geometrically (up-facing hits at floor
+height, then an upward ray to classify). Every app reading lands inside the photographic range —
+0.657 / 0.688 / 0.689 across three poses — but on **1–7 samples**, so nothing is settled: floor that
+is both under furniture and visible from standing eye height is rare. The fix is to classify by
+horizontal distance to the nearest furniture footprint instead, which also matches what the photo
+crops actually measured.
+
+**Three traps, each of which produced a confident wrong answer first.** A direct `camera.lookAt` is
+stomped by `FirstPersonCamera`, so opposite look directions came back byte-identical — pose now goes
+through `requestWalkTeleport` like `light-distribution.mjs` already did. The overhead ray hits the
+ceiling, so `OCCLUDE=4.0` classified the whole floor as "under" (332/0) and would have silently
+reported a ratio of 1. And under machine load the sampling pass returns empty, reading as "no floor
+here"; it now retries, which reproduced the original numbers exactly.
+
+Nothing changed in `src/`. The hemisphere sweep this was built for is next, and it now has a pass/fail
+criterion instead of a judgement call.
+
 ## v0.31.5.190 — the floor-pool lead refuted on physics (reverted)
 
 `.189` left one live lead: a point light in the window's floor pool put the ceiling at 1.09, inside
