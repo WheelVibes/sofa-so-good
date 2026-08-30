@@ -2071,3 +2071,39 @@ With the clean instrument the remaining gap is also smaller and better located t
 ceiling **0.95–1.02** and floor **1.07–1.13** against photographs at 1.17–1.28 and 1.23–1.30 — still
 short, still consistent with no bounce term, but nothing like the 0.66–0.85 the contaminated bands
 reported.
+
+
+## Re-testing the bounce hypothesis on clean data (v0.31.5.183)
+
+`.179` refuted the hemisphere ground-bounce fix — but it did so on the contaminated frames `.182`
+threw out, so the refutation was worth nothing. Re-run with the repaired instrument, and this time as
+a **two-parameter** fit, since the fill scale is now a knob I control and can use to buy the shadow
+depth back.
+
+| ground bounce | fill scale | `%<64` | ceiling | floor |
+| --- | --- | --- | --- | --- |
+| ×1.0 | 0.70 (shipped) | **11.51 %** | 0.99 | **1.07** |
+| ×2.5 | 0.70 | 9.49 % | 1.07 | 1.05 |
+| ×4.5 | 0.70 | 8.34 % | 1.12 | 1.02 |
+| ×2.5 | 0.55 | **12.02 %** | 1.06 | 1.05 |
+| **×4.5** | **0.52** | **11.05 %** | **1.12** | 1.03 |
+| photographs | | 11.2–12.2 % | 1.17–1.28 | 1.23–1.30 |
+
+**With both knobs the ceiling really can be moved while the shadow depth holds** — 0.99 → **1.12**,
+closing about half its gap at `%<64` 11.05 %. `.179`'s conclusion that this is impossible was an
+artifact of the bad measurement.
+
+**It still should not ship, for a better reason than the old one.** Two things:
+
+- **It shuffles the error rather than removing it.** The floor moves the wrong way, 1.07 → 1.03,
+  because lifting every downward-facing surface raises the frame mean the ratios are taken against.
+  Summed absolute error against the photographs goes 0.34 → 0.25 — an improvement, but by moving a
+  third of the ceiling's deficit onto the floor.
+- **And it looks wrong where it matters.** At ×4.5 the undersides of the TV console and the coffee
+  table are visibly lighter than a piece of furniture sitting on a floor in shadow should be. That is
+  the mechanism showing through: a hemisphere lights every downward face equally, so "more bounce onto
+  the ceiling" is inseparable from "more light under the sofa".
+
+So the ground term is refused again, now on evidence: it buys a real ceiling gain and pays for it with
+glowing furniture undersides and a second tuned constant. **The ceiling/floor deficit still wants a
+directional, local bounce** — a probe grid, a baked pass, or SSGI — and nothing cheaper reproduces it.

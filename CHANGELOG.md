@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.183 — re-testing the bounce hypothesis on clean data
+
+`.179` refuted the hemisphere ground-bounce fix on the contaminated frames `.182` threw out, so that
+refutation was worth nothing. Re-run with the repaired instrument, and as a **two-parameter** fit,
+since the fill scale is now a knob that can buy the shadow depth back.
+
+**With both knobs the ceiling really can be moved while `%<64` holds**: ×4.5 ground with fill 0.52
+gives ceiling **0.99 → 1.12** at `%<64` **11.05 %**, closing about half the ceiling's gap.
+`.179`'s "impossible" was an artifact of the bad measurement.
+
+**It still should not ship, for a better reason.** It *shuffles* the error — the floor moves the wrong
+way (1.07 → 1.03) because lifting every downward-facing surface raises the frame mean the ratios are
+taken against; summed error against the photographs only goes 0.34 → 0.25. And it **looks wrong**: at
+×4.5 the undersides of the TV console and coffee table are visibly lighter than furniture sitting on a
+floor in shadow should be. That is the mechanism showing through — a hemisphere lights every downward
+face equally, so "more bounce onto the ceiling" is inseparable from "more light under the sofa".
+
+Refused on evidence this time. The deficit still wants a directional, local bounce term.
+
 ## v0.31.5.182 — the HUD was in every frame: retractions, a repaired instrument, a re-calibration
 
 Three measurement regions in this thread had turned out contaminated (`.175`, `.178`, `.181`).
