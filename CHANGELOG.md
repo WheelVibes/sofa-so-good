@@ -5,6 +5,52 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.107 — RETRACTION: `.106`'s stated cause was WRONG; `computeItemOverlaps` is already height-aware
+
+**`.106` shipped a false causal claim and this entry withdraws it.** That entry said:
+
+> The real blocker is upstream: `computeItemOverlaps` filters only on `noClip` and not on
+> `mounted`, so a wall mirror sharing XZ with a floor fixture reads as an overlap and
+> `dropOverlaps` deletes one.
+
+**That is not true.** The filter line is real, but the conclusion drawn from it is not, because
+the NARROWPHASE is height-aware: `computeItemOverlaps` calls
+`itemsCollide(a, aDef, verticalSpan(a, aDef), b, defs[b.defId])`, and its own comment says as
+much ("the exact (height-aware) collision test"). I read the broadphase filter, inferred the
+consequence, and did not test it. Measured directly, every mount-over-floor pair placed at an
+identical XZ reports **zero** overlaps:
+
+    bathroom-mirror + toilet        -> 0
+    bathroom-mirror + bathroom-sink -> 0
+    range-hood      + stove         -> 0
+    wall-mirror     + bench         -> 0
+
+So there is nothing to exempt, no upstream blocker, and the round that `.106` proposed as
+"MOUNTED-OVERLAP" does not exist. A mount hanging above a floor piece is already handled
+correctly.
+
+**THE ACTUAL CAUSE of the 900 → 893 deletions.** Instrumenting `dropOverlaps` while the
+reverted widening was applied shows the casualties are ordinary **floor-to-floor** collisions
+that the rescue itself created — e.g. `shoe-cabinet@[1.90, 5.74] X bench@[1.90, 5.60] ->
+drop bench`: the pass flushed the bench onto a cabinet the arranger had already placed. Of the
+106 drops observed across the 19 templates, the overwhelming majority are pre-existing and
+legitimate and happen with or without the widening (bed vs wardrobe, sofa vs coffee table,
+toilet vs shower, and a `range-hood` against a 1.78 m `refrigerator`, which is a genuine
+vertical clash the height-aware test is right to flag).
+
+**What this means for the 20 stranded fixtures.** The item is NOT blocked on a core collision
+change, as `.106` claimed. It needs the rescue to avoid the pieces already in the room —
+which is what the "seed claims with already-placed pieces" variant attempted, reaching 895 of
+900. That variant's remaining loss is most likely its own claim geometry: it boxed existing
+items with their UNROTATED half-extents while boxing the rescued item with the rotated pair,
+and it considered only same-room items. That is a tractable bug in the attempt, not a wall.
+
+**No `src/` change in this entry.** `computeItemOverlaps` is correct as written and was not
+touched; the point of the round was to test the hypothesis before acting on it, and the
+hypothesis failed. Reading a filter and inferring its consequence is not a measurement — the
+same mistake, in a different costume, as carrying `h4-cbath`'s keep-out reading over to
+`ob-bath` in `.105`.
+
 ## v0.31.5.106 — MOUNTED-SEED flush fix; and the SETTLE-ORIGIN widening tried, measured, and REVERTED
 
 **Two outcomes, one shipped and one deliberately abandoned.** `.105` left an open question;
