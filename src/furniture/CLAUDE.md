@@ -9,6 +9,12 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   downward sink, i.e. nothing, twice. Adjacent cushions are the same colour, so sliding the seam
   between them by a few pixels changes no shading. The flatness is **surface curvature and creases**,
   not part placement — see `docs/research/2026-08-31-photoreal-shadow-depth.md` (`.157`, `.158`).
+  **A tessellated cushion with a sag + crease field was then built and also reverted** (v0.31.5.159):
+  four iterations, ten passing tests, and micro/mean went **0.0470 → 0.0455 → 0.0452**, i.e. *down*
+  every time. Smooth curvature catches light more evenly than a flat face with a crisp edge, so it
+  LOWERS high-frequency contrast. The reference photographs' 0.157–0.174 comes from creases far finer
+  than a cushion-sized deformation. Closing it needs cloth simulation or an authored crease normal
+  map, not a tweak.
 
 - **Chamfer visible hard edges — `primitives/BeveledBox.tsx`, not a raw `<boxGeometry>`.** A razor
   90° edge is one of the strongest CG tells: real edges have a small radius that catches a thin

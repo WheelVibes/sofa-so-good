@@ -5,6 +5,31 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.159 — the tessellated cushion: built, iterated four times, reverted
+
+`.157` said the upholstery gap is geometric; `.158` eliminated part-jitter as the cheap version. This
+built the real thing — a tessellated cushion with a sag and crease field — and it still does not close
+the gap.
+
+The technique is sound and worth recording: a `BoxGeometry` with real face subdivision mapped through
+the **exact rounded-box (box ⊕ sphere) Minkowski transform**, which rounds edges and corners while
+leaving face tessellation untouched — what drei's `RoundedBox` cannot do, since it subdivides corners
+rather than faces. Ten unit tests passed.
+
+Four iterations, each fixing a defect found by looking at the render: (1) cushions came out plastic
+because replacing `RoundedBox` discards its UV layout and a `BoxGeometry` face's UVs are 0→1 whatever
+its size — fixed by box-projecting at a fixed physical period; (2) back cushions grew a **scalloped
+top edge**, because sagging the top face of a back cushion is wrong physics — fixed with a `sagScale`;
+(3) clean and arguably nicer than shipped; (4) doubled the weave density.
+
+The measurement says no, consistently — micro/mean **0.0470 shipped → 0.0455 → 0.0452**, below shipped
+every time, against reference photographs at 0.157–0.174. **Adding smooth curvature LOWERS
+high-frequency contrast**: a curved surface catches light more evenly than a flat one with a crisp
+edge. The photograph's micro-contrast comes from creases far finer than any cushion-sized deformation
+this pipeline can carry — and `.157` already showed the normal-map route exhausted. Closing this needs
+cloth simulation or an authored crease normal map, not a tweak; recorded in `src/furniture/CLAUDE.md`
+and the research doc with the numbers to scope it.
+
 ## v0.31.5.158 — cushion jitter tested and reverted (negative result)
 
 `.157` concluded the upholstery gap is geometric, not textural. The cheapest thing that sounds like

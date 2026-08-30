@@ -1111,3 +1111,54 @@ So `.157`'s conclusion survives its own cheapest counter-proposal, and narrows: 
 are too regular", it is **"the surfaces are too flat"**. Recorded in `src/furniture/CLAUDE.md` so this
 is not retried. The real fix needs per-cushion surface deformation with enough tessellation to carry
 it — drei's `RoundedBox` subdivides its corners, not its faces, so it cannot.
+
+
+## The tessellated cushion: built, iterated four times, reverted (v0.31.5.159)
+
+`.157` said the upholstery gap is geometric; `.158` eliminated part-jitter as the cheap version of
+that. This built the real thing — a properly tessellated cushion with a sag and crease field — and it
+still does not close the gap. Reverted, with the lessons.
+
+**What was built (the technique is sound and reusable).** A `BoxGeometry` with real face subdivision,
+mapped through the **exact rounded-box (box ⊕ sphere) Minkowski transform**: clamp each unit-cube
+coordinate into the core, then push the residual out to the corner radius. Points on a *face* have a
+one-axis residual and come back unchanged, so **face tessellation survives** — which is precisely what
+drei's `RoundedBox` cannot offer, because it subdivides corners rather than faces. Then a sag
+(supported at the edges, unsupported in the middle, so a smooth dome that vanishes at the perimeter)
+and a low-frequency crease field. Ten unit tests, all passing, including that a face point is exactly
+fixed and a corner lands exactly on the sphere.
+
+**Four iterations, each fixing a real defect found by looking at the render:**
+
+1. **v1** — the cushions came out smooth and plastic while the arms beside them kept their cloth.
+   Cause: replacing `RoundedBox` throws away its UV layout, and a `BoxGeometry` face's UVs are 0→1
+   whatever its size — the same trap as `.147`'s grain. Fixed by box-projecting the UVs at a fixed
+   physical period.
+2. **v2** — the back cushions grew a **scalloped top edge**. Cause: sagging the top face of a *back*
+   cushion is wrong physics. A back cushion is squeezed front-to-back, not loaded from above, and the
+   dip lands exactly on the silhouette a viewer reads straight on. Fixed with a `sagScale` parameter,
+   0.15 for backs.
+3. **v3** — clean, and arguably nicer than shipped: soft pillowy backs, a gentle seat dip.
+4. **v4** — doubled the fabric tile density, in case the weave was simply too coarse.
+
+**And the measurement says no, consistently:**
+
+| | micro-sd | micro/mean |
+| --- | --- | --- |
+| shipped (`RoundedBox`) | 6.66 | **0.0470** |
+| v3, tile 0.20 m | 6.39 | 0.0455 |
+| v4, tile 0.10 m | 6.35 | 0.0452 |
+
+Every variant is **below** shipped, and the denser weave made it slightly worse still. The reference
+photographs sit at **0.157–0.174**.
+
+**The insight worth keeping — and it closes this route.** Adding smooth curvature *lowers*
+high-frequency contrast: a curved surface catches light more evenly than a flat one with a crisp edge.
+The photograph's micro-contrast does not come from a cushion-sized sag at all; it comes from **creases
+at a far finer scale than any deformation this pipeline can carry** at 14 × 6 × 14 segments and this
+viewing distance. At that scale it is a normal-map problem — and `.157` already showed the normal-map
+route is exhausted (weave settled at 1.3, the wrinkle channel moves microcontrast the wrong way).
+
+So the upholstery gap is **not closable by tuning**: it needs either genuine cloth simulation baked
+per cushion, or a hand-authored crease normal map at a resolution the procedural generator does not
+currently reach. That is a project, not a round, and this is the evidence for scoping it.
