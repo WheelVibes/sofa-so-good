@@ -3591,3 +3591,69 @@ spread across the top decile is a flat panel regardless of operator, and that is
 the backdrop rather than a grading one.
 
 Nothing changed in `src/`.
+
+---
+
+## `.210` — is the render "too clean"? Only where there is no texture — and one false alarm on the way
+
+A classic CG tell is that renders lack the sensor grain a photograph always carries. Measured as the
+high-frequency floor (micro-sd against a 4 px blur) on surfaces that should be featureless.
+
+### Flat painted wall: no deficit
+
+| surface | micro-sd |
+| --- | --- |
+| photo C wall | 1.36 |
+| photo D wall | 1.18 |
+| app wall (right) | 0.80 |
+| app wall (left) | 1.94 |
+
+The app brackets the photographs. Its walls carry the procedural plaster micro-normal (MAT-003's
+roller nap), which supplies high-frequency content of the same order as sensor grain. Two other
+"wall" crops read 11.48 and 30.55 and were **discarded on inspection** — one contained a pendant
+light and a switch, the other a curtain and blinds.
+
+### Untextured ceiling: a real, small deficit
+
+The ceiling is the honest test — `ceiling/Ceiling.tsx` paints it flat `#fafafa` with no map at all.
+
+| | micro-sd |
+| --- | --- |
+| photo C ceiling | 0.70 |
+| photo D ceiling | 1.56 |
+| app, AO off | 0.29 |
+| **app, shipped (AO on, half-res)** | **0.46** |
+| app, AO on full-res | 0.64 |
+
+**The app's untextured ceiling is roughly half as busy as the quietest photographic ceiling.** That is
+the "too clean" effect, and it is confined to surfaces with no texture map — exactly where nothing
+else supplies detail.
+
+### The false alarm, and what caused it
+
+The first pass reported the app's ceiling at **3.52** and AO on-vs-off at 3.52 vs 4.56, which read as
+"the AO pass is adding more noise than a photograph carries, and `.196` raised its intensity 50 %".
+That was wrong twice over:
+
+- The first crop caught the **"Walking through" HUD toast** at its right edge — the `.185` trap again,
+  in a probe frame this time rather than a band.
+- The second crop, clear of the HUD, still spanned the **ceiling/wall junction**, so the high-pass was
+  measuring AO's corner gradient. Contrast-normalising the crop showed it immediately: a smooth
+  monotonic darkening toward the corner, which is exactly what AO is for, not grain.
+
+Clear of both, AO contributes **0.17** (0.29 → 0.46). The claim is fully retracted. **A high-frequency
+statistic on a crop that contains an edge measures the edge** — the same lesson as `.181`'s floor band,
+now for a metric rather than a region.
+
+Also recorded: `denoiseSamples` / `denoiseRadius` passed to `<N8AO>` are **inert** — output was
+byte-identical (3.52 both) — most likely because the `quality` preset assigns them after the props are
+read. And `halfRes={false}` does not reduce the ceiling's high-frequency floor either (0.64 vs 0.46);
+if anything it raises it. Don't reach for either knob expecting a noise change.
+
+### Consequence
+
+The gap is real but small and narrow: 0.46 against 0.70–1.56, on untextured surfaces only. The
+conventional fix is a subtle film grain, and the post stack already imports `Noise` — but it mounts
+only at the full-post tiers, while `medium` (the tier the adaptive ladder picks for most browsers) runs
+the AO-only minimal composer. So this is a real candidate with a real cost question attached, and that
+is where it stands. Nothing changed in `src/`.

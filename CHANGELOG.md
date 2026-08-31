@@ -5,6 +5,43 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.210 — is the render "too clean"? Only where there is no texture
+
+Measured the high-frequency floor (micro-sd vs a 4 px blur) on surfaces that should be featureless.
+
+**Flat painted wall — no deficit.** photo C 1.36, photo D 1.18; app 0.80 and 1.94. The app brackets the
+photographs, because its walls carry the procedural plaster micro-normal. (Two other "wall" crops read
+11.48 and 30.55 and were discarded on inspection — a pendant light and a switch; a curtain and blinds.)
+
+**Untextured ceiling — a real, small deficit.** `Ceiling.tsx` paints flat `#fafafa` with no map:
+
+| | micro-sd |
+| --- | --- |
+| photo C ceiling | 0.70 |
+| photo D ceiling | 1.56 |
+| app, AO off | 0.29 |
+| **app, shipped** | **0.46** |
+
+Roughly half as busy as the quietest photographic ceiling — the "too clean" effect, confined to
+surfaces with no texture map.
+
+**A false alarm on the way, fully retracted.** The first pass reported 3.52 and read as "AO adds more
+noise than a photograph carries". Wrong twice: the first crop caught the **HUD toast** (`.185`'s trap in
+a probe frame), and the second, clear of the HUD, still spanned the **ceiling/wall junction**, so the
+high-pass was measuring AO's corner gradient — contrast-normalising showed a smooth monotonic
+darkening, which is what AO is for. Clear of both, AO contributes **0.17**. **A high-frequency statistic
+on a crop containing an edge measures the edge.**
+
+Also: `denoiseSamples`/`denoiseRadius` passed to `<N8AO>` are **inert** (byte-identical output), likely
+overridden by the `quality` preset; and `halfRes={false}` does not reduce the floor either (0.64 vs
+0.46). Don't reach for either expecting a noise change.
+
+The gap is real but narrow. The conventional fix is subtle film grain, and the stack already imports
+`Noise` — but it mounts only at the full-post tiers, while `medium` (what the ladder picks for most
+browsers) runs the AO-only minimal composer. A real candidate with a real cost question attached.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.209 — the window is a flat grey panel, and it never blows out
 
 New axis: the glazing. A fifth reference was fetched for it (a real-estate kitchen with an uncovered
