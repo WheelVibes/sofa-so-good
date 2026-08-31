@@ -4502,3 +4502,53 @@ colour-balance defect — a real bedroom at 13:00 does not have its bedside lamp
 get chased as a white-balance problem.
 
 Nothing changed in `src/`.
+
+---
+
+## `.229` — a floor-gloss reference, and two more contaminants in the floor band
+
+`.197` established that floor gloss has no single photographic value, using raw sd — which is dominated
+by the lighting gradient. Measured as **micro-contrast** (high-pass against a 4 px blur, so the gradient
+drops out), real floors are much tighter than that suggested:
+
+| reference floor | micro/mean |
+| --- | --- |
+| photo D parquet (glossy) | 0.058 |
+| photo D parquet (2) | 0.076 |
+| photo C pale wood (matte) | 0.032 |
+| kitchen ref tile | 0.076 |
+
+**0.032–0.076 across gloss levels and materials** — a usable band, where `.197`'s raw-sd figures spanned
+0.037–0.218.
+
+### The app reads 0.335, and that is the band, not the floor
+
+Looking at the floor band in the pitched-down frame settles it in one glance: it contains a **candle
+group on a tray** and the **"Turn off ceiling light" HUD pill**. Neither is floor.
+
+The pill matters beyond this measurement. `light-distribution.mjs`'s `hud()` excluded the toolbar, the
+Measure button and the minimap — but **not** the walk-mode interaction pill or the hint bar, both of
+which sit in the lower middle of the frame, squarely inside the floor band. So every floor ratio this
+probe has printed since `.179` was averaging some DOM chrome.
+
+Both rects are now excluded. The effect on the long-quoted number is small:
+
+| | before | after |
+| --- | --- | --- |
+| floor ratio (band) | 1.15 | **1.13** |
+| ceiling ratio | 0.96 | 0.95 |
+| floor micro/mean | 0.335 | **0.224** |
+
+**So no prior conclusion moves** — the floor ratio shifts by 0.02 and floor was demoted as a target in
+`.188` anyway. But the fix is worth having, and the residual 0.224 is the decor, which cannot be masked
+out of a screen rectangle.
+
+### What to use instead
+
+The **geometric** floor population (world-normal classified, `.205`) is the trustworthy one and is
+already printed alongside. The band floor stays for continuity with the arc's earlier numbers, now with
+its contamination documented at the point of use. Floor micro-contrast against the 0.032–0.076
+reference will need the geometric mask, not a rectangle — a contiguous region is required for a
+high-pass, and no rectangle in this pose is pure floor.
+
+Nothing changed in `src/`.

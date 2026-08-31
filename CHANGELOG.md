@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.229 — a floor-gloss reference, and two more contaminants in the floor band
+
+`.197` said floor gloss has no single photographic value, using raw sd — which is dominated by the
+lighting gradient. As **micro-contrast** (high-pass, gradient removed) real floors are much tighter:
+photo D parquet **0.058** / **0.076**, photo C pale wood **0.032**, kitchen tile **0.076** — i.e.
+**0.032–0.076** across gloss levels and materials, where `.197`'s raw-sd figures spanned 0.037–0.218.
+
+**The app reads 0.335 — and that is the band, not the floor.** One look at the pitched-down frame shows
+the floor band contains a **candle group on a tray** and the **"Turn off ceiling light" HUD pill**.
+
+The pill matters beyond this measurement: `hud()` excluded the toolbar, Measure button and minimap but
+**not** the walk-mode interaction pill or hint bar, both of which sit inside the floor band. Every floor
+ratio this probe has printed since `.179` was averaging some DOM chrome. Both rects are now excluded:
+
+| | before | after |
+| --- | --- | --- |
+| floor ratio (band) | 1.15 | **1.13** |
+| ceiling ratio | 0.96 | 0.95 |
+| floor micro/mean | 0.335 | **0.224** |
+
+**No prior conclusion moves** — 0.02 on a metric `.188` demoted anyway — but the fix is worth having.
+The residual 0.224 is the decor, which no screen rectangle can mask out. Use the **geometric** floor
+population (`.205`) instead; floor micro-contrast against the new reference will need that mask, since
+a high-pass needs a contiguous region and no rectangle in this pose is pure floor.
+
+Nothing changed in `src/`.
+
 ## v0.31.5.228 — multi-room visual verification, and `walk-tour` learns the photographic look
 
 Four terms have shipped since the last whole-flat visual review (`PHOTO_GROUND_BOUNCE` 3,

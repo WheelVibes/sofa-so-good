@@ -312,10 +312,18 @@ const H = info.height
 const TOOLBAR = { x0: 0.24 * W, x1: 0.76 * W, y1: 0.1 * H }
 const MEASURE = { x0: 0.9 * W, y1: 0.06 * H }
 const MINIMAP = { x0: 0.76 * W, y0: 0.76 * H }
+// v0.31.5.229: the walk-mode PILL ("Turn off ceiling light") and the HINT BAR
+// sit in the lower middle of the frame and were never excluded -- they land
+// squarely inside the FLOOR band, so the floor ratio was being measured partly
+// over DOM chrome.
+const PILL = { x0: 0.4 * W, x1: 0.61 * W, y0: 0.81 * H, y1: 0.89 * H }
+const HINTS = { x0: 0.28 * W, x1: 0.72 * W, y0: 0.9 * H, y1: 0.98 * H }
 const hud = (x, y) =>
   (x >= TOOLBAR.x0 && x < TOOLBAR.x1 && y < TOOLBAR.y1) ||
   (x >= MEASURE.x0 && y < MEASURE.y1) ||
-  (x >= MINIMAP.x0 && y >= MINIMAP.y0)
+  (x >= MINIMAP.x0 && y >= MINIMAP.y0) ||
+  (x >= PILL.x0 && x <= PILL.x1 && y >= PILL.y0 && y <= PILL.y1) ||
+  (x >= HINTS.x0 && x <= HINTS.x1 && y >= HINTS.y0 && y <= HINTS.y1)
 const BANDS = {
   ceiling: { y0: 0.02, y1: 0.16, x0: 0.05, x1: 0.95 },
   wall: { y0: 0.3, y1: 0.6, x0: 0.82, x1: 0.98 },
@@ -358,7 +366,48 @@ for (let y = 0; y < H; y++) {
   }
 }
 const downMean = dAll / dN
-rel.floor = band(down.data, { y0: 0.72, y1: 0.96, x0: 0.2, x1: 0.8 }, downMean)
+const FLOOR_BAND = { y0: 0.72, y1: 0.96, x0: 0.2, x1: 0.8 }
+rel.floor = band(down.data, FLOOR_BAND, downMean)
+/**
+ * FLOOR micro-contrast over the same validated band -- high-pass (pixel minus a
+ * 4 px blur), so it measures grain and reflection and NOT the lighting gradient.
+ * `.197` measured raw sd here and got 0.288, which was mostly the gradient.
+ * Reference floors (`.229`): glossy parquet 0.058 / 0.076, matte pale wood 0.032,
+ * kitchen tile 0.076 -- so a real floor sits in **0.032-0.076** whatever its
+ * finish, and a floor far below that is rendering as a flat print.
+ */
+{
+  const bx0 = Math.floor(FLOOR_BAND.x0 * W)
+  const bx1 = Math.floor(FLOOR_BAND.x1 * W)
+  const by0 = Math.floor(FLOOR_BAND.y0 * H)
+  const by1 = Math.floor(FLOOR_BAND.y1 * H)
+  const bw = bx1 - bx0
+  const bh = by1 - by0
+  // NOTE: the band still contains DECOR (a candle tray sits in it at the shipped
+  // pose), so this number is an upper bound on the floor's own micro-contrast.
+  // The geometric floor below is the trustworthy one. HUD pixels are skipped.
+  const buf = Buffer.alloc(bw * bh)
+  for (let y = 0; y < bh; y++)
+    for (let x = 0; x < bw; x++) {
+      const gx = bx0 + x
+      const gy = by0 + y
+      buf[y * bw + x] = hud(gx, gy) ? down.data[by0 * W + bx0] : down.data[gy * W + gx]
+    }
+  const blurred = await sharp(buf, { raw: { width: bw, height: bh, channels: 1 } })
+    .blur(4)
+    .raw()
+    .toBuffer()
+  let m = 0
+  for (let i = 0; i < buf.length; i++) m += buf[i]
+  m /= buf.length
+  let hp = 0
+  for (let i = 0; i < buf.length; i++) hp += (buf[i] - blurred[i]) ** 2
+  const sd = Math.sqrt(hp / buf.length)
+  console.log('')
+  console.log(
+    `floor micro-contrast: mean ${m.toFixed(0)}, micro-sd ${sd.toFixed(2)}, micro/mean ${(sd / m).toFixed(4)}   (real floors 0.032-0.076)`,
+  )
+}
 console.log('')
 console.log(`frame mean = ${frame.toFixed(1)}    %<64 = ${((dark / n) * 100).toFixed(2)} %`)
 console.log(
