@@ -4812,3 +4812,40 @@ own before/after; it is **not** being changed on the strength of this one.
 
 Nothing changed in `src/`. `light-distribution.mjs`'s printed caveat now carries the two-photograph
 spread and the retirement.
+
+---
+
+## `.235` — `PHOTO_GROUND_BOUNCE` re-justified under the corrected metric
+
+`.234` retired the ceiling deficit and left one honest loose end: `PHOTO_GROUND_BOUNCE` was introduced
+to *fix* that deficit. A constant whose motivation has been withdrawn should be re-earned or removed,
+so this round tested it directly — `PHOTO_GROUND_BOUNCE` 3 (shipped) against 1 (`photographicGroundBounce`
+returns 1 when the look is off, so 1 IS "no bounce"), everything else untouched.
+
+| | bounce 3 (shipped) | bounce 1 (off) | reference |
+| --- | --- | --- | --- |
+| **ceiling ÷ wall, hand-cropped** (`.233` method) | **0.930** | **0.776** | **0.91 – 1.03** (2 photos) |
+| ceiling ÷ wall, geometric mask | 0.88 | 0.70 | diagnostic only |
+| wall falloff far/near | 0.74 | 0.73 | 0.85–0.86 |
+| curtain plane ÷ room | 1.36 | 1.48 | 1.32–1.48 |
+
+**The constant is re-justified, and on better evidence than it originally had.** Without it the ceiling
+falls to 0.776 — far outside the qualifying photographs' spread and outside anything the old band would
+have accepted either. With it, 0.930, near the middle. The visual check agrees: at bounce 1 the ceiling
+reads as a dead grey slab; at 3 it reads as a lit surface.
+
+That is worth stating plainly, because it inverts the tidy story `.234` might have implied. The deficit
+`.188` measured was an artifact of method and pose — but the app WOULD have a real ceiling deficit
+without this term. The term is not a correction for a measurement error; it is the thing keeping the
+ceiling in band, and the retired deficit was measuring the residual *after* it.
+
+Two secondary confirmations:
+
+- The **coupling** documented at `CURTAIN_TRANSLUCENCY` is real and quantified: dropping the bounce
+  darkens the room, and the curtain ratio — measured against the room — rises 1.36 → **1.48**, exactly
+  the top edge of the photographic band. Retune both together or neither, as the note says.
+- **Wall falloff is untouched** (0.74 → 0.73), which is the third independent confirmation that the
+  hemisphere's ground term has no distance dependence and cannot address the falloff (`.226`, `.231`).
+
+`src/scene/look.ts` was restored from `/tmp/look234.bak.ts` and verified: `PHOTO_GROUND_BOUNCE = 3`,
+`git diff` on `src/` empty. Nothing changed in `src/`.
