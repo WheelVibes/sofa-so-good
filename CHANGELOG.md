@@ -5,6 +5,44 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## v0.31.5.213 — the default look's weak contact shadow is intrinsic, not a defect
+
+The last surviving valid finding: photographic look under/open **0.720** (photographs 0.579–0.725),
+default look **0.820**, outside it. This is the one metric that never needed demoting — same material,
+same frame, no composition or albedo confound — so the gap is real. Can it be closed?
+
+| AO intensity | photographic | default | default's open floor |
+| --- | --- | --- | --- |
+| 4.5 (shipped) | **0.720** | 0.820 | 147.4 |
+| 6 | 0.678 | 0.791 | 137.4 |
+| 7.5 | 0.639 | 0.764 | 127.8 |
+| 10 | — | **0.727** | **113.5** |
+| 13 | — | 0.699 | 99.3 |
+
+The default look reaches the band at AO ≈ 10 — 2.2× the shipped value — and pays a **23 % drop in
+open-floor luminance**. AO does not add contact shadow in isolation; it removes ambient everywhere, so
+buying the ratio buys a darker room. **That converts the default look into the photographic one.**
+
+The two looks differ precisely in how much flat fill they carry, and this ratio is a direct consequence:
+more fill means shallower contact shading. Forcing the default into band means removing the fill that
+defines it — DEFAULT-GLOOM's trade (`.86`), which the user owns.
+
+**Withdrawn as a defect.** A look-gated AO is the principled form of the fix and is recorded as an
+option, but it would darken every corner of the out-of-box app for a metric only the photographic look
+is meant to satisfy. Reverted; `AO.intensity` stays at 4.5.
+
+**Where the arc stands** — every surviving metric is in band for the photographic look:
+
+| metric | app | photographs |
+| --- | --- | --- |
+| ceiling / wall | 0.89–0.98 | 0.90–1.00 |
+| shadowed ÷ lit floor | 0.720 | 0.579–0.725 |
+| curtain ÷ room | 1.38 | 1.32–1.48 |
+| untextured-surface grain | 0.62 | 0.76 / 1.49 |
+
+Remaining open items are ones this arc has established it cannot settle alone: the window backdrop
+(`.209`), the bathrooms (`.212`), and the default look's brightness trade (this round).
+
 ## v0.31.5.212 — the bathroom ceiling gap is NOT demonstrable
 
 `.206` left the two bathrooms as the one unexplained outlier (ceiling/wall 0.81 and 0.69 against

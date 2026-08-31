@@ -3745,3 +3745,61 @@ albedo matches the app's white tile, or a metric that divides out albedo — and
 latter in this arc (`.188`, `.208`) has run into the same wall.
 
 Nothing changed in `src/`.
+
+---
+
+## `.213` — the default look's weak contact shadow is intrinsic, not a defect
+
+The last surviving valid finding: at the shipped state the photographic look measures under/open
+**0.720** (photographs 0.579–0.725) and the default look **0.820**, outside it. This is the one metric
+in the arc that never needed demoting — same material, same frame, no composition or albedo confound —
+so the gap is real. The question is whether it can be closed.
+
+### It can, and the price is the look itself
+
+`look.AO.intensity` swept, both looks measured at every step:
+
+| AO intensity | photographic | default | default's open floor |
+| --- | --- | --- | --- |
+| 4.5 (shipped) | **0.720** | 0.820 | 147.4 |
+| 6 | 0.678 | 0.791 | 137.4 |
+| 7.5 | 0.639 | 0.764 | 127.8 |
+| 10 | — | **0.727** | **113.5** |
+| 13 | — | 0.699 | 99.3 |
+| photographs | 0.579–0.725 | | |
+
+The default look reaches the band at AO ≈ 10 — **2.2× the shipped value** — and pays for it with a
+**23 % drop in open-floor luminance** (147.4 → 113.5). AO does not add contact shadow in isolation; it
+removes ambient light everywhere, so buying the contact ratio buys a darker room.
+
+**That converts the default look into the photographic one.** The two looks differ precisely in how
+much flat fill they carry, and this ratio is a direct consequence of that: more fill means shallower
+contact shading. Forcing the default into the photographic band means removing the fill that defines
+it, which is DEFAULT-GLOOM's trade (`.86`) — a decision the user owns and one this arc has respected
+throughout.
+
+### Verdict
+
+**Withdrawn as a defect.** The app ships two looks; the photographic one is the realism target and it
+is in band on every validated metric. The default look is deliberately brighter, and a shallower
+contact shadow is what "brighter" means when the extra light is ambient. A look-gated AO (higher
+intensity under the default look, to occlude its larger ambient term) is the principled form of the
+fix and is recorded as an option — but it would change the out-of-box appearance of the app by
+darkening every corner, for a metric only the photographic look is meant to satisfy.
+
+Reverted; `AO.intensity` stays at 4.5. Nothing changed in `src/`.
+
+### Where the arc stands
+
+Every metric that survived scrutiny is now in band for the photographic look:
+
+| metric | app | photographs |
+| --- | --- | --- |
+| ceiling / wall | 0.89–0.98 (four rooms) | 0.90–1.00 |
+| shadowed ÷ lit floor | 0.720 | 0.579–0.725 |
+| curtain ÷ room | 1.38 | 1.32–1.48 |
+| untextured-surface grain | 0.62 | 0.76 / 1.49 (conservative by design) |
+
+The open items that remain are ones this arc has established it cannot settle on its own: the window's
+flat backdrop (`.209`, a product decision plus a tone-curve tension the user signed off), the
+bathrooms (`.212`, no albedo-matched reference), and the default look's brightness trade (this round).
